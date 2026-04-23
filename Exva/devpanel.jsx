@@ -124,7 +124,7 @@ const DevPanel = () => {
           ) : (
             <div style={{ padding: '18px 18px', overflow: 'auto', flex: 1 }}>
               <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16, fontWeight: 600 }}>System</div>
-              {[['Runtime', 'Tauri 2.x / Rust'], ['Database', 'SQLite · exva.db'], ['Broker', 'Alpaca Paper'], ['Model', 'claude-haiku-4-5'], ['Session ID', 'sess-20260421-001'], ['Uptime', fmt.uptime(MOCK_DASHBOARD_STATS.session_uptime_min)], ['Events', `${MOCK_EVENTS.length}`], ['Agent runs', `${MOCK_AGENT_RUNS.length}`]].map(([k, v]) => (
+              {[['Runtime', 'Electron / TypeScript'], ['Database', 'SQLite · exva.db'], ['Broker', 'Alpaca Paper'], ['Model', 'claude-sonnet'], ['Session ID', 'sess-20260421-001'], ['Uptime', fmt.uptime(MOCK_DASHBOARD_STATS.session_uptime_min)], ['Events', `${MOCK_EVENTS.length}`], ['Agent runs', `${MOCK_AGENT_RUNS.length}`]].map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ fontSize: 12, color: 'var(--text3)' }}>{k}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text2)' }}>{v}</span>

@@ -8,9 +8,8 @@ How to install, run, and interact with the desktop app.
 
 | Tool | Version | Notes |
 |---|---|---|
-| Node | 20+ | for Vite + Tauri CLI |
-| Rust | 1.77+ (stable) | `rustup default stable` |
-| Platform deps | macOS: Xcode CLT · Linux: webkit2gtk · Windows: WebView2 + MSVC | see https://tauri.app/start/prerequisites/ |
+| Node | 20+ | for Electron Forge, Vite, and TypeScript |
+| Platform build tools | current OS toolchain | required by Electron native modules such as `better-sqlite3` and `keytar` |
 
 ---
 
@@ -20,7 +19,7 @@ How to install, run, and interact with the desktop app.
 npm install
 ```
 
-That pulls the React/TS frontend deps **and** Tauri CLI. The Rust deps fetch on first `cargo` run.
+That pulls the React/TS frontend deps, Electron Forge, and native modules.
 
 ---
 
@@ -30,9 +29,9 @@ That pulls the React/TS frontend deps **and** Tauri CLI. The Rust deps fetch on 
 npm run start
 ```
 
-Equivalent to `cargo tauri dev`. Vite serves the frontend on `http://localhost:1420`; the Tauri shell loads it in a desktop window. Hot-reload works for both sides — edit a `.tsx` and the WebView refreshes; edit a `.rs` and the Rust process rebuilds and the window reopens.
+Starts Electron Forge with Vite for the main process, preload bridge, and React renderer. Hot reload works for renderer edits; main/preload edits restart the Electron shell.
 
-**Browser fallback.** `npm run dev` (Vite only) loads the UI in a regular browser tab. The typed Tauri wrapper detects no Tauri runtime and serves mock data, so you can iterate on UI without spinning the Rust shell.
+**Browser fallback.** `npm run dev:renderer` loads the UI in a regular browser tab. The typed Exva wrapper detects no Electron preload API and serves mock data, so you can iterate on UI without spinning the desktop shell.
 
 ---
 
@@ -67,14 +66,14 @@ Pause / Stop are next to Start. Stop emits `session_stopped` and halts new cycle
 
 | Thing | Location |
 |---|---|
-| SQLite DB | `$APPDATA/com.exva.app/exva.db` (macOS: `~/Library/Application Support/com.exva.app/`) |
+| SQLite DB | Electron `app.getPath("userData")/exva.db` |
 | API keys & broker secrets | OS keychain (macOS Keychain, Win Cred Manager, Linux Secret Service) |
-| Migrations | `src-tauri/migrations/V*__*.sql` — applied on every boot via `refinery` |
-| Tauri logs | platform log dir (see Tauri docs) — never uploaded |
+| Migrations | Electron main process runs local SQLite migrations on boot |
+| Logs | local Electron process logs; never uploaded by default |
 
 Wipe the DB during dev:
 ```bash
-rm "$HOME/Library/Application Support/com.exva.app/exva.db"
+rm "$HOME/Library/Application Support/Exva/exva.db"
 ```
 
 ---
@@ -82,30 +81,30 @@ rm "$HOME/Library/Application Support/com.exva.app/exva.db"
 ## 7. Bundling
 
 ```bash
-npm run tauri icon path/to/your-square-1024.png   # generates icons/* in src-tauri/icons
-# then edit src-tauri/tauri.conf.json: "bundle.active": true
-npm run bundle
+npm run package
+npm run make
 ```
 
-Output bundles land in `src-tauri/target/release/bundle/`.
+Packaged output lands in `out/`.
 
 ---
 
 ## 8. Debugging tips
 
 - **Open devtools in the desktop window**: right-click → Inspect (only in dev).
-- **Tauri command failed?** Errors come back as plain strings (`AppError::Display`). Check the WebView console.
-- **Rust logs**: `RUST_LOG=exva_lib=debug npm run start`.
+- **IPC command failed?** Errors are normalized by the Electron IPC handler. Check the renderer console and terminal log.
+- **Main-process logs**: `EXVA_LOG_LEVEL=debug npm run start`.
 - **DB inspection**: `sqlite3 "$HOME/Library/Application Support/com.exva.app/exva.db"`.
 - **Mock broker**: default until you save Alpaca creds. Trades execute "successfully" but go nowhere.
 
 ---
 
-## 9. Adding a new Tauri command
+## 9. Adding a new IPC method
 
-1. Add `#[tauri::command] pub async fn my_cmd(...)` in `src-tauri/src/commands/<group>_commands.rs`.
-2. Register it in `src-tauri/src/lib.rs` inside `tauri::generate_handler![...]`.
-3. Add a typed wrapper to `src/lib/tauri.ts` under `api.*`, including a mock fallback.
+1. Add a channel constant in `electron/shared/channels.ts`.
+2. Add or extend a handler in `electron/main/ipc/`.
+3. Expose a narrow method in `electron/preload/index.ts`.
+4. Add a typed wrapper to `src/lib/exva.ts`, including a mock fallback.
 4. Call `api.myCmd(...)` from a page or store.
 
-Same pattern for events (backend `handle.emit("name", payload)` ↔ frontend `useTauriEvent("name", handler)`).
+Same pattern for events: main `eventBus.emit("name", payload)` to frontend `useExvaEvent("name", handler)`.

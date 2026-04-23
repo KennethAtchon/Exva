@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { listenEvent, type ExvaEventName, type ExvaEventMap } from "@/lib/exva";
+import { listenEvent, type ExvaEventMap, type ExvaEventName } from "@/lib/exva";
 
 export function useExvaEvent<K extends ExvaEventName>(
   name: K,
@@ -20,5 +20,3 @@ export function useExvaEvent<K extends ExvaEventName>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }
-
-export const useTauriEvent = useExvaEvent;

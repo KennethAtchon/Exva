@@ -159,6 +159,7 @@ export class AgentOrchestrator {
     config: SessionConfig,
     decision: {
       action: "trade" | "no_trade";
+      asset?: string;
       side?: "BUY" | "SELL";
       sizeUsd?: number;
       confidence: number;

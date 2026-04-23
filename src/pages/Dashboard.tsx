@@ -4,7 +4,7 @@ import { fmt } from "@/lib/formatters";
 import { useSessionStore } from "@/store/sessionStore";
 import { useTradeStore } from "@/store/tradeStore";
 import { api } from "@/lib/exva";
-import { useExvaEvent } from "@/hooks/useTauriEvent";
+import { useExvaEvent } from "@/hooks/useExvaEvent";
 import type { AgentType, DashboardStats, EventRow, Trade } from "@/lib/types";
 
 const AGENT_PALETTE: Record<AgentType, { color: string; label: string; bg: string }> = {

@@ -1,53 +1,44 @@
 # Exva
 
-Local-only autonomous trading desktop app. Tauri 2 (Rust) + React/TypeScript + SQLite.
+Local-only autonomous trading desktop app. Electron + React/TypeScript + SQLite.
 See [`docs/System_Design.md`](./docs/System_Design.md) for architecture, [`docs/USAGE.md`](./docs/USAGE.md) for how to run, [`docs/CHECKLIST.md`](./docs/CHECKLIST.md) for build status.
 
 ## What's here
 
-- `src/` — React/TypeScript frontend. Typed Tauri wrapper in `src/lib/tauri.ts`.
-- `src-tauri/` — Rust backend: agents, broker adapter, SQLite persistence, keychain, risk engine, session manager.
-- `src-tauri/migrations/` — SQL migrations (run automatically on startup via `refinery`).
+- `src/` — React/TypeScript frontend. Typed Electron wrapper in `src/lib/exva.ts`.
+- `electron/` — Electron main/preload code: IPC, services, broker adapters, SQLite, keychain, risk, sessions, and AI orchestration.
 - `Exva/` — original inline-JSX prototype UI, kept as reference. Not used by the app.
 
 ## Run
 
-Prereqs: Rust toolchain, Node 20+, platform build deps ([tauri.app](https://tauri.app/start/prerequisites/)).
+Prereqs: Node 20+ and platform build tools for Electron native modules.
 
 ```bash
 npm install
-npm run start        # = cargo tauri dev — starts Vite + the desktop shell
+npm run start        # starts Electron Forge + Vite
 ```
 
-To produce a bundled app, first run `npm run tauri icon <any-square-png>` to
-generate platform icons, flip `bundle.active` to `true` in
-`src-tauri/tauri.conf.json`, then `npm run bundle`.
+To produce a packaged app, run `npm run package`. To create platform installers, run `npm run make`.
 
 ## Implementation status
 
 | Area | Status |
 |---|---|
-| UI (all 7 pages) | complete, wired to Tauri commands via typed `api.*` |
-| Tauri IPC surface | all commands + events per System_Design §5 |
-| SQLite schema + migrations | complete (System_Design §3) |
-| Session state machine | complete (§8) |
-| Risk engine (limits + self-adaptation) | complete (§7) |
-| Keychain (API keys, broker secrets) | complete |
-| Broker adapter trait + `MockBroker` | complete |
-| `AlpacaBroker` | scaffold only — REST calls are TODO |
-| Claude client + agent prompts | scaffold only — HTTP + parsing TODO |
-| Orchestrator / monitor loop | sequence wired, Claude/broker calls TODO |
+| UI (all 7 pages) | complete, wired to Electron IPC via typed `api.*` |
+| Electron IPC surface | dashboard, trades, session, config, accounts, events |
+| SQLite schema + migrations | ported to Electron main with Drizzle schema definitions |
+| Session state machine | persisted locally with start/pause/stop |
+| Risk engine | local TypeScript preflight and decision checks |
+| Keychain | API keys and broker secrets via `keytar` |
+| Broker adapters | mock default plus isolated Alpaca REST adapter |
+| AI runtime | Vercel AI SDK wrapper with direct Anthropic provider |
+| Orchestrator / monitor loop | TypeScript service sequence wired with event emission |
 
 Search the repo for `TODO` to find every pending piece.
 
 ## Architecture notes
 
-- **IPC boundary**: frontend never touches the DB, keychain, or external APIs
-  directly. Everything flows through Tauri commands. See `src/lib/tauri.ts`.
-- **Live updates**: the Rust monitor tick emits `stats_update` / `agent_event` /
-  `trade_opened` / `trade_closed` events. Frontend subscribes via
-  `useTauriEvent`. Also polls stats every 5s as a fallback.
-- **Secrets**: only ever in the OS keychain (`keyring` crate). SQLite never
-  stores keys.
-- **Dev without Tauri**: `npm run dev` alone launches Vite in a browser. The
-  typed wrapper falls back to mock data so the UI still renders.
+- **IPC boundary**: frontend never touches the DB, keychain, or external APIs directly. Everything flows through the preload-exposed `window.exva` API. See `src/lib/exva.ts`.
+- **Live updates**: the Electron main process emits `stats_update`, `agent_event`, `trade_opened`, and `trade_closed` events. Frontend subscribes via `useExvaEvent`. It also polls stats every 5s as a fallback.
+- **Secrets**: only ever in the OS keychain through `keytar`. SQLite never stores keys.
+- **Browser dev**: `npm run dev:renderer` launches Vite in a browser. The typed wrapper falls back to mock data so the UI still renders.

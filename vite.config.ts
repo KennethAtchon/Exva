@@ -11,6 +11,6 @@ export default defineConfig(async () => ({
   server: {
     port: 5173,
     strictPort: false,
-    watch: { ignored: ["**/src-tauri/**", "**/electron/**"] },
+    watch: { ignored: ["**/electron/**"] },
   },
 }));

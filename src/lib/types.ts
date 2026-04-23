@@ -1,4 +1,4 @@
-// Shared types — mirror Rust structs in src-tauri/src/types.rs
+// Shared domain types used by the Electron main process and React renderer.
 
 export type SessionStatus = "idle" | "active" | "paused" | "stopped";
 

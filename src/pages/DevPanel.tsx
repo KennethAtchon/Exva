@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AgentLabel, Dot, PageShell } from "@/components/atoms";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
-import { useExvaEvent } from "@/hooks/useTauriEvent";
+import { useExvaEvent } from "@/hooks/useExvaEvent";
 import type { AgentRun, EventRow, LogLevel } from "@/lib/types";
 import { useSessionStore } from "@/store/sessionStore";
 
@@ -218,7 +218,7 @@ export const DevPanel = () => {
               </div>
               {(
                 [
-                  ["Runtime", "Tauri 2.x / Rust"],
+                  ["Runtime", "Electron / TypeScript"],
                   ["Database", "SQLite · exva.db"],
                   ["Broker", "Alpaca Paper"],
                   ["Model", "claude-haiku-4-5"],

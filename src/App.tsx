@@ -10,7 +10,7 @@ import { AccountsPage } from "./pages/AccountsPage";
 import { useSessionStore } from "./store/sessionStore";
 import { useTradeStore } from "./store/tradeStore";
 import { api } from "./lib/exva";
-import { useExvaEvent } from "./hooks/useTauriEvent";
+import { useExvaEvent } from "./hooks/useExvaEvent";
 import { usePolling } from "./hooks/usePolling";
 
 export default function App() {

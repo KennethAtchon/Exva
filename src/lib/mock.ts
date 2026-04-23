@@ -1,4 +1,4 @@
-// Mock data used when running outside Tauri (plain `vite dev` in a browser).
+// Mock data used when running outside Electron (plain renderer Vite in a browser).
 // Kept close to the original jsx mocks so the UI renders identically.
 
 import type {
