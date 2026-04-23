@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AgentLabel, Dot, PageShell } from "@/components/atoms";
 import { fmt } from "@/lib/formatters";
-import { api } from "@/lib/tauri";
-import { useTauriEvent } from "@/hooks/useTauriEvent";
+import { api } from "@/lib/exva";
+import { useExvaEvent } from "@/hooks/useTauriEvent";
 import type { AgentRun, EventRow, LogLevel } from "@/lib/types";
 import { useSessionStore } from "@/store/sessionStore";
 
@@ -21,7 +21,7 @@ export const DevPanel = () => {
   const stats = useSessionStore((s) => s.stats);
 
   useEffect(() => { api.getEvents({ limit: 500 }).then(setEvents).catch(() => {}); }, []);
-  useTauriEvent("agent_event", (ev) => setEvents((prev) => [ev, ...prev].slice(0, 500)));
+  useExvaEvent("agent_event", (ev) => setEvents((prev) => [ev, ...prev].slice(0, 500)));
 
   const sel = selectedId ? events.find((e) => e.id === selectedId) ?? null : null;
   useEffect(() => {

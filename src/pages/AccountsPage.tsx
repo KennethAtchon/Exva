@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Badge, Card, Dot, PageShell, SectionTitle } from "@/components/atoms";
-import { api } from "@/lib/tauri";
+import { api } from "@/lib/exva";
 
 const InputField = ({
   label, hint, type = "text", value, onChange, placeholder, mono,

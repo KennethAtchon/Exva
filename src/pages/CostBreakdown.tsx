@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AgentLabel, Card, PageShell, SectionTitle } from "@/components/atoms";
 import { fmt } from "@/lib/formatters";
-import { api } from "@/lib/tauri";
+import { api } from "@/lib/exva";
 import type { AgentType, CostBreakdown } from "@/lib/types";
 import { useSessionStore } from "@/store/sessionStore";
 

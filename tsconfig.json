@@ -21,6 +21,6 @@
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] }
   },
-  "include": ["src"],
+  "include": ["src", "electron", "forge.config.ts", "vite.*.config.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

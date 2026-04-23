@@ -9,8 +9,8 @@ import { DevPanel } from "./pages/DevPanel";
 import { AccountsPage } from "./pages/AccountsPage";
 import { useSessionStore } from "./store/sessionStore";
 import { useTradeStore } from "./store/tradeStore";
-import { api } from "./lib/tauri";
-import { useTauriEvent } from "./hooks/useTauriEvent";
+import { api } from "./lib/exva";
+import { useExvaEvent } from "./hooks/useTauriEvent";
 import { usePolling } from "./hooks/usePolling";
 
 export default function App() {
@@ -31,10 +31,10 @@ export default function App() {
     api.getActiveTrades().then(setTrades).catch(() => {});
   }, [setStats, setTrades]);
 
-  // Live updates via Tauri events
-  useTauriEvent("stats_update", (payload) => setStats(payload));
-  useTauriEvent("trade_opened", (t) => upsertTrade(t));
-  useTauriEvent("trade_closed", (t) => upsertTrade(t));
+  // Live updates from the Electron main process
+  useExvaEvent("stats_update", (payload) => setStats(payload));
+  useExvaEvent("trade_opened", (t) => upsertTrade(t));
+  useExvaEvent("trade_closed", (t) => upsertTrade(t));
 
   // Fallback polling when events aren't flowing (e.g. dev browser)
   usePolling(

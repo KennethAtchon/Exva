@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Card, PageShell, SectionTitle } from "@/components/atoms";
-import { api } from "@/lib/tauri";
+import { api } from "@/lib/exva";
 import { useConfigStore } from "@/store/configStore";
 import type { SessionConfig } from "@/lib/types";
 

@@ -1,7 +1,7 @@
 # Exva
 
 Local-only autonomous trading desktop app. Tauri 2 (Rust) + React/TypeScript + SQLite.
-See [System_Design.md](./System_Design.md) for the full architecture.
+See [`docs/System_Design.md`](./docs/System_Design.md) for architecture, [`docs/USAGE.md`](./docs/USAGE.md) for how to run, [`docs/CHECKLIST.md`](./docs/CHECKLIST.md) for build status.
 
 ## What's here
 

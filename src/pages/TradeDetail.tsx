@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { AgentLabel, Badge } from "@/components/atoms";
 import { fmt } from "@/lib/formatters";
-import { api } from "@/lib/tauri";
+import { api } from "@/lib/exva";
 import type { AgentRun, Trade } from "@/lib/types";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {

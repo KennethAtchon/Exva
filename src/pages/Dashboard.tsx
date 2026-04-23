@@ -3,8 +3,8 @@ import { Badge, Card, Divider, Dot, SectionTitle } from "@/components/atoms";
 import { fmt } from "@/lib/formatters";
 import { useSessionStore } from "@/store/sessionStore";
 import { useTradeStore } from "@/store/tradeStore";
-import { api } from "@/lib/tauri";
-import { useTauriEvent } from "@/hooks/useTauriEvent";
+import { api } from "@/lib/exva";
+import { useExvaEvent } from "@/hooks/useTauriEvent";
 import type { AgentType, DashboardStats, EventRow, Trade } from "@/lib/types";
 
 const AGENT_PALETTE: Record<AgentType, { color: string; label: string; bg: string }> = {
@@ -181,7 +181,7 @@ export const Dashboard = () => {
     api.getEvents({ limit: 30 }).then(setEvents).catch(() => {});
   }, []);
 
-  useTauriEvent("agent_event", (ev) => {
+  useExvaEvent("agent_event", (ev) => {
     setEvents((prev) => [ev, ...prev].slice(0, 100));
   });
 
