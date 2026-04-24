@@ -7,7 +7,6 @@ See [`docs/System_Design.md`](./docs/System_Design.md) for architecture, [`docs/
 
 - `src/` — React/TypeScript frontend. Typed Electron wrapper in `src/lib/exva.ts`.
 - `electron/` — Electron main/preload code: IPC, services, broker adapters, SQLite, keychain, risk, sessions, and AI orchestration.
-- `Exva/` — original inline-JSX prototype UI, kept as reference. Not used by the app.
 
 ## Run
 
