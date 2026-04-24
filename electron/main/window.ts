@@ -14,7 +14,7 @@ export async function createMainWindow(services: AppServices): Promise<BrowserWi
     show: false,
     title: "Exva",
     webPreferences: {
-      preload: path.join(__dirname, `../preload/${MAIN_WINDOW_VITE_NAME}.js`),
+      preload: path.join(__dirname, "preload.cjs"),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,

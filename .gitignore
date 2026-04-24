@@ -22,3 +22,5 @@ src-tauri/gen/schemas
 # Env
 .env
 .env.local
+
+.vite
