@@ -13,13 +13,24 @@ import type {
 } from "./types";
 import { MOCK } from "./mock";
 
+const SHOW_MOCK = false;
+
 const hasExva =
   typeof window !== "undefined" &&
   typeof window.exva === "object" &&
   window.exva !== null;
 
+const showMock = SHOW_MOCK;
+
+function bridgeUnavailableError(): Error {
+  return new Error(
+    "EXVA bridge unavailable and mock data is disabled. Start the app with `npm run dev`/`npm start` instead of `npm run dev:renderer`, or set SHOW_MOCK to true.",
+  );
+}
+
 async function call<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
-  if (!hasExva) return fallback;
+  if (showMock) return fallback;
+  if (!hasExva) throw bridgeUnavailableError();
   return operation();
 }
 
@@ -113,8 +124,9 @@ export async function listenEvent<K extends ExvaEventName>(
   name: K,
   handler: (payload: ExvaEventMap[K]) => void,
 ): Promise<() => void> {
-  if (!hasExva) return () => {};
+  if (showMock) return () => {};
+  if (!hasExva) throw bridgeUnavailableError();
   return window.exva!.events.subscribe(name, handler);
 }
 
-export { hasExva };
+export { hasExva, showMock };

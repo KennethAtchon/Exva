@@ -36,6 +36,7 @@ export interface AppServices {
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
+  // userData represent /Library/Application Support/App, think of it where your app files config lives
   const db = createDbClient(app.getPath("userData"));
   const repos = {
     agentRuns: new AgentRunsRepo(db),

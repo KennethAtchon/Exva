@@ -18,10 +18,10 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@electron/*": ["electron/*"]
+      "*": ["./*"], 
+      "@/*": ["./src/*"],
+      "@electron/*": ["./electron/*"]
     }
   },
   "include": ["src", "electron", "forge.config.ts", "vite.*.config.ts"]

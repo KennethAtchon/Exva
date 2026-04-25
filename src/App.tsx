@@ -9,12 +9,13 @@ import { DevPanel } from "./pages/DevPanel";
 import { AccountsPage } from "./pages/AccountsPage";
 import { useSessionStore } from "./store/sessionStore";
 import { useTradeStore } from "./store/tradeStore";
-import { api } from "./lib/exva";
+import { api, showMock } from "./lib/exva";
 import { useExvaEvent } from "./hooks/useExvaEvent";
 import { usePolling } from "./hooks/usePolling";
 
 export default function App() {
   const [page, setPage] = useState<PageKey>("dashboard");
+  const [loadError, setLoadError] = useState<string | null>(null);
   const status = useSessionStore((s) => s.status);
   const setStatus = useSessionStore((s) => s.setStatus);
   const stats = useSessionStore((s) => s.stats);
@@ -27,8 +28,20 @@ export default function App() {
 
   // Initial load
   useEffect(() => {
-    api.getDashboardStats().then(setStats).catch(() => {});
-    api.getActiveTrades().then(setTrades).catch(() => {});
+    api.getDashboardStats()
+      .then((next) => {
+        setStats(next);
+        setStatus(next.session_status);
+        setLoadError(null);
+      })
+      .catch((err) => {
+        setLoadError(err instanceof Error ? err.message : "Failed to load dashboard stats.");
+      });
+    api.getActiveTrades()
+      .then(setTrades)
+      .catch((err) => {
+        setLoadError((current) => current ?? (err instanceof Error ? err.message : "Failed to load trades."));
+      });
   }, [setStats, setTrades]);
 
   // Live updates from the Electron main process
@@ -94,7 +107,22 @@ export default function App() {
         sessionStatus={status}
         onSessionAction={handleSession}
         stats={stats}
+        showMock={showMock}
       />
+      {loadError && (
+        <div
+          style={{
+            padding: "10px 28px",
+            borderBottom: "1px solid rgba(248,113,113,0.18)",
+            background: "rgba(248,113,113,0.08)",
+            color: "#fca5a5",
+            fontSize: 12,
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          {loadError}
+        </div>
+      )}
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {pageEl()}
       </div>

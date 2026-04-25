@@ -33,6 +33,7 @@ interface Props {
   sessionStatus: SessionStatus;
   onSessionAction: (a: "start" | "pause" | "resume" | "stop") => void;
   stats: DashboardStats | null;
+  showMock: boolean;
 }
 
 export const TopNav = ({
@@ -41,6 +42,7 @@ export const TopNav = ({
   sessionStatus,
   onSessionAction,
   stats,
+  showMock,
 }: Props) => {
   const ss = SESSION[sessionStatus];
   const isRunning = sessionStatus === "active" || sessionStatus === "paused";
@@ -74,6 +76,13 @@ export const TopNav = ({
       <div style={{ flex: 1 }} />
 
       <div style={s.session}>
+        <div style={showMock ? s.mockPill : s.livePill}>
+          <Dot color={showMock ? "#fbbf24" : "#34d399"} pulse={!showMock} size={7} />
+          <span style={{ fontSize: 12, color: showMock ? "#fbbf24" : "#34d399", fontWeight: 600 }}>
+            {showMock ? "Mock Data" : "Live Data"}
+          </span>
+        </div>
+
         {stats && sessionStatus === "active" && (
           <div style={s.liveStats}>
             <span style={s.liveStatVal}>{fmt.pnl(stats.daily_pnl_usd)}</span>
@@ -136,6 +145,14 @@ const s: Record<string, CSSProperties> = {
     background: "var(--accent)", borderRadius: "2px 2px 0 0",
   },
   session: { display: "flex", alignItems: "center", gap: 10, flexShrink: 0 },
+  mockPill: {
+    display: "flex", alignItems: "center", gap: 6, padding: "5px 11px",
+    background: "rgba(251,191,36,0.1)", borderRadius: 20, border: "1px solid rgba(251,191,36,0.2)",
+  },
+  livePill: {
+    display: "flex", alignItems: "center", gap: 6, padding: "5px 11px",
+    background: "rgba(52,211,153,0.1)", borderRadius: 20, border: "1px solid rgba(52,211,153,0.2)",
+  },
   liveStats: {
     display: "flex", alignItems: "center", gap: 6,
     paddingRight: 10, borderRight: "1px solid var(--border)",

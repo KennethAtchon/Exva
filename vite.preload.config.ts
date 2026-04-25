@@ -10,13 +10,8 @@ export default defineConfig({
   },
   build: {
     target: "node22",
-    lib: {
-      entry: path.resolve(__dirname, "electron/preload/index.ts"),
-      formats: ["cjs"],
-      fileName: () => "preload.cjs",
-    },
     rollupOptions: {
-      external: ["better-sqlite3", "keytar"],
+      external: ["electron", "better-sqlite3", "keytar"],
     },
   },
 });
