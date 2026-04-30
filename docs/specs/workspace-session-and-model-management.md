@@ -1560,14 +1560,14 @@ If a user lacks permission for an action:
 | Search provider message | "Connect a web search provider to enable internet search for this role." | AI role card |
 | Broker compatibility error | "No connected broker can execute this session." | Session modal and start preflight |
 
-## 11. Open Questions
+## 11. Resolved Decisions
 
-| # | Question | Impact if Unresolved | Owner |
-|---|----------|---------------------|-------|
-| 1 | Is `OpenCode-compatible` meant to be a local OpenAI-compatible endpoint, a managed gateway, or a branded provider with its own auth requirements? | Changes provider schema and account UI | Product / Engineering |
-| 2 | When `shared global pool` mode is enabled, should the cap be enforced against a user-entered fixed amount only, or against broker-reported buying power/cash when available? | Changes preflight calculation and account integration complexity | Product / Engineering |
-| 3 | Should prompt Markdown live inside the app bundle only, inside the user data directory, or both with a layered override system? | Changes prompt asset loading and versioning behavior | Engineering |
-| 4 | Do approval queue items need notifications, sounds, or badges outside the dashboard panel for v1? | Changes cross-page UX and event plumbing | Product |
+| # | Decision | Notes |
+|---|----------|-------|
+| 1 | `OpenCode-compatible` means a user-configured OpenAI-compatible endpoint stored as provider metadata (`baseUrl`) and authenticated with the user's own key. | Treat it as a local or user-chosen compatible endpoint, not a managed Exva gateway. |
+| 2 | `shared global pool` is enforced against a user-entered fixed amount in v1. | Do not depend on broker-reported buying power/cash for the first implementation. Broker-aware capital sync can be a later enhancement. |
+| 3 | Prompt Markdown lives in the app bundle by default, with session-level DB overrides for custom prompts. | Do not add a user-data layered prompt file system in v1. |
+| 4 | v1 approval UX uses the dashboard panel plus existing app-level badge/event refresh only. | No sounds, OS notifications, or extra cross-page notification surfaces are required in v1. |
 ## 12. Recommended Delivery Order
 
 1. Define task boundaries and session ownership model first. The app cannot support multiple sessions safely until `what a session is` is explicit.

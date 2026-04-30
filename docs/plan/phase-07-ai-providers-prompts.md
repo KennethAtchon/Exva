@@ -15,6 +15,7 @@
 2. Concrete adapters: `AnthropicAdapter`, `OpenAiAdapter`, `OpenCodeAdapter`.
 3. System prompts loaded from `electron/prompts/*.md` at runtime.
 4. Per-session, per-role provider+model+prompt resolved at call time from `SessionAiRole` rows.
+5. Web search provider resolution is explicit: session default first, workspace default second, no per-role search-provider picker in v1.
 
 ## Hard Problems
 
@@ -144,7 +145,10 @@ export class ProviderRegistry {
     switch (account.providerType) {
       case "anthropic": return new AnthropicAdapter(secret);
       case "openai":    return new OpenAiAdapter(secret);
-      case "opencode":  return new OpenCodeAdapter(secret, account.metadata?.baseUrl);
+      case "opencode": {
+        const metadata = account.metadataJson ? JSON.parse(account.metadataJson) : null;
+        return new OpenCodeAdapter(secret, metadata?.baseUrl);
+      }
     }
   }
 }
@@ -278,7 +282,7 @@ File: `electron/main/ipc/accounts.ts` — extend with:
   id?: string;          // omit for create
   name: string;
   category: "ai" | "search";
-  providerType: ProviderType;
+  providerType: ProviderType | SearchProviderType;
   apiKey: string;       // written to keychain, not stored in DB
   metadata?: { baseUrl?: string }; // for opencode providers
 }
@@ -287,7 +291,7 @@ File: `electron/main/ipc/accounts.ts` — extend with:
 
 Handler:
 1. Save secret to keychain via `SecretsService`.
-2. Upsert `provider_accounts` row with `secretRef` = keychain key.
+2. Upsert `provider_accounts` row with `secretRef` = keychain key and `metadataJson` when provided.
 3. Call `providerRegistry.invalidate(id)`.
 
 ### `accounts:providers:test`
@@ -301,9 +305,30 @@ Handler: `providerRegistry.get(id)` then `adapter.testConnection()`. Update `las
 
 ## Web Search Provider
 
-A search provider is a `ProviderAccount` with `category = "search"`. The `AiRuntime` checks `config.webSearchEnabled` and injects a search tool if enabled.
+A search provider is the external web-search backend used when an AI role enables `webSearchEnabled`.
 
-For v1, implement Brave Search as a function tool passed to `generateText`. Tavily is identical pattern. The tool name is `web_search`, takes `{ query: string }`, returns `{ results: string }`.
+For v1, provider selection is resolved like this:
+1. `sessions.default_search_provider_id` if set
+2. otherwise `workspace_preferences.default_search_provider_id`
+3. otherwise validation/start fails for roles that require search
+
+There is no per-role search-provider picker in v1. Roles only decide whether search is enabled.
+
+The `AiRuntime` checks `config.webSearchEnabled` and injects a search tool if enabled.
+
+```typescript
+const searchProviderId = session.defaultSearchProviderId
+  ?? workspacePrefs.defaultSearchProviderId;
+
+if (config.webSearchEnabled && !searchProviderId) {
+  throw new AppError(
+    "Session cannot enable web search because no search provider is configured.",
+    "SEARCH_PROVIDER_REQUIRED",
+  );
+}
+```
+
+For v1, implement Brave Search and Tavily as function tools passed to `generateText`. The tool name is `web_search`, takes `{ query: string }`, returns `{ results: string }`.
 
 ## Orchestrator Update
 
@@ -375,4 +400,5 @@ sequenceDiagram
 - System prompts are loaded from `.md` files — removing an inline string and re-running confirms the file is used.
 - Changing a session's role to a different provider + model causes that adapter to be used for the next run.
 - Provider test returns `{ ok: true }` for a correctly configured provider, `{ ok: false }` with error for bad key.
+- When web search is enabled, the runtime resolves the provider from session default first and workspace default second.
 - TypeScript compiles; `AiSdkService` is fully removed.

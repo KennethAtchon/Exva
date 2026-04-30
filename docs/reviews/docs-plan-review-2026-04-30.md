@@ -143,16 +143,17 @@ As written, the plan reaches "multi-class-shaped abstractions" sooner than it re
 
 One location needs to win. Otherwise this phase will create churn for no product value.
 
-## Open Questions
+## Resolved Decisions
 
-1. Do we want one long-lived runtime object per active session, or a central runtime manager that spins up smaller stateless workers per cycle?
-2. Should broker routing be global, per-session, or global-with-session-override?
-3. After restart, should approving an old pending trade resume the exact prior order intent, or should the app force a fresh decision/risk pass?
-4. Where should `aiPickerEnabled` live: `sessions`, `session_strategies`, or a dedicated selector settings object?
-5. Do we want search provider selection at workspace scope, session scope, or AI-role scope?
-6. What is the minimum real broker/integration set required to honestly claim stock + crypto + futures proof of concept in v1?
-7. What mutations should automatically invalidate `session_instrument_cache`?
-8. How should shared-global-pool capital be reserved across concurrent sessions: on proposal, on approval, or on order placement?
+1. Runtime model: recommend a `SessionRuntimeManager` that owns one long-lived runtime object per active session, not purely stateless per-cycle workers.
+   Why: the long-lived model is more efficient for this app because subscriptions, trade monitors, caches, approval state, and pause/resume lifecycle stay warm instead of being rebuilt every cycle. Purely stateless workers reduce resident memory and can be simpler to isolate, but they add more startup churn, reconnect/reload overhead, and make restart/continuation logic harder.
+2. Broker routing: use global defaults with optional per-session overrides.
+3. Restart approval behavior: force a fresh decision/risk pass after restart as a safety mechanism; do not blindly resume the exact prior intent.
+4. `aiPickerEnabled`: store it in a dedicated `session_selector_settings` object keyed by `sessionId`, not in `sessions` or `session_strategies`.
+5. Search provider selection: use workspace default plus optional per-session override. No per-role search-provider picker in v1. A search provider is the backend used when an AI role enables `webSearchEnabled`.
+6. v1 proof-of-concept integration scope: explicitly require one real adapter each for stocks, crypto, and futures. Baseline set: `AlpacaAdapter` for stocks, `CoinbaseAdvancedTradeAdapter` for crypto, and `TradovateAdapter` for futures. Anything less should be described as abstractions-only, not real proof of concept.
+7. `session_instrument_cache` invalidation: invalidate automatically on any selector-definition change. Minimum triggers are `selectionMode`, `aiPickerEnabled`, `instrumentScope`, `instrumentClasses`, session broker assignments, session routing overrides, relevant workspace routing defaults, selector provider/model/prompt/search settings, and resolved search provider. Implement this through a persisted selector `definitionHash`, not scattered manual clears.
+8. Shared-global-pool reservation: yes, capital should be reserved across concurrent sessions. Recommended default is to reserve on approval, then release or reconcile on reject, cancel, fill, or expiration.
 
 ## Recommended Next Fixes To The Plan
 

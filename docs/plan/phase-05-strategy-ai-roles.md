@@ -5,7 +5,7 @@
 
 ## Goal
 
-Each session owns five AI roles (`researcher_bull`, `researcher_bear`, `reviewer`, `decision_maker`, `instrument_selector`). The Strategy page lets the user configure provider, model, temperature, max tokens, web search, and system prompt for each role independently. All edits are blocked while the session is active or paused.
+Each session owns five AI roles (`researcher_bull`, `researcher_bear`, `reviewer`, `decision_maker`, `instrument_selector`). The Strategy page lets the user configure provider, model, temperature, max tokens, web search, and system prompt for each role independently. Web search resolution uses the session's `defaultSearchProviderId` when present, otherwise the workspace default search provider. All edits are blocked while the session is active or paused.
 
 ## Hard Problems
 
@@ -264,6 +264,7 @@ sequenceDiagram
 | Model ID is empty | "Select a model for [Role Name]." |
 | Prompt markdown is empty on session_override | "Prompt cannot be empty. Reset to default or add content." |
 | Web search enabled but no search provider configured | "Connect a web search provider to enable internet search for this role." |
+| Web search enabled and session override is unset | Uses workspace default search provider automatically; no per-role picker in v1 |
 | Instrument selector role enabled but session is manual_shortlist | Tab disabled — no validation needed |
 
 ## Files Created / Modified

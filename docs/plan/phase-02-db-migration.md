@@ -5,7 +5,7 @@
 
 ## Goal
 
-All session, strategy, AI role, provider, broker, routing, preferences, template, and approval data lives in typed Drizzle schema tables with enforced foreign keys and correct indexes.
+All session, strategy, selector-settings, AI role, provider, broker, routing, search-default, reservation, template, and approval data lives in typed Drizzle schema tables with enforced foreign keys and correct indexes.
 
 ## Hard Problems
 
@@ -31,10 +31,19 @@ export const sessions = sqliteTable("sessions", {
   selectionMode:     text("selection_mode").notNull().default("manual_shortlist"),
   instrumentClasses: text("instrument_classes").notNull(),  // JSON array
   instrumentScope:   text("instrument_scope").notNull(),
+  defaultSearchProviderId: text("default_search_provider_id")
+                           .references(() => providerAccounts.id, { onDelete: "set null" }),
   capitalLimitUsd:   real("capital_limit_usd").notNull(),
   executionMode:     text("execution_mode").notNull().default("paper_only"),
   createdAt:         text("created_at").notNull(),
   updatedAt:         text("updated_at").notNull(),
+});
+
+export const sessionSelectorSettings = sqliteTable("session_selector_settings", {
+  sessionId:        text("session_id").primaryKey()
+                      .references(() => sessions.id, { onDelete: "cascade" }),
+  aiPickerEnabled:  integer("ai_picker_enabled", { mode: "boolean" }).notNull().default(true),
+  updatedAt:        text("updated_at").notNull(),
 });
 
 export const sessionStrategies = sqliteTable("session_strategies", {
@@ -74,6 +83,7 @@ export const providerAccounts = sqliteTable("provider_accounts", {
   category:       text("category").notNull(),   // 'ai' | 'search'
   providerType:   text("provider_type").notNull(),
   secretRef:      text("secret_ref").notNull(),
+  metadataJson:   text("metadata_json"),
   isConfigured:   integer("is_configured", { mode: "boolean" }).notNull().default(false),
   lastTestStatus: text("last_test_status").notNull().default("unknown"),
   updatedAt:      text("updated_at").notNull(),
@@ -89,11 +99,21 @@ export const brokerAccounts = sqliteTable("broker_accounts", {
   updatedAt:                  text("updated_at").notNull(),
 });
 
-export const brokerRouting = sqliteTable("broker_routing", {
+export const brokerRoutingDefaults = sqliteTable("broker_routing", {
   instrumentClass:        text("instrument_class").primaryKey(),
   defaultBrokerAccountId: text("default_broker_account_id").notNull()
-                            .references(() => brokerAccounts.id, { onDelete: "cascade" }),
+                             .references(() => brokerAccounts.id, { onDelete: "cascade" }),
 });
+
+export const sessionBrokerRoutingOverrides = sqliteTable("session_broker_routing_overrides", {
+  sessionId:        text("session_id").notNull()
+                      .references(() => sessions.id, { onDelete: "cascade" }),
+  instrumentClass:  text("instrument_class").notNull(),
+  brokerAccountId:  text("broker_account_id").notNull()
+                      .references(() => brokerAccounts.id, { onDelete: "cascade" }),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.sessionId, t.instrumentClass] }),
+}));
 
 export const sessionBrokerAssignments = sqliteTable("session_broker_assignments", {
   sessionId:       text("session_id").notNull()
@@ -108,6 +128,8 @@ export const workspacePreferences = sqliteTable("workspace_preferences", {
   id:                    integer("id").primaryKey().default(1),
   globalIncludeArchived: integer("global_include_archived", { mode: "boolean" })
                            .notNull().default(false),
+  defaultSearchProviderId: text("default_search_provider_id")
+                           .references(() => providerAccounts.id, { onDelete: "set null" }),
   capitalAllocationMode: text("capital_allocation_mode").notNull().default("per_session_only"),
   globalCapitalPoolUsd:  real("global_capital_pool_usd"),
   updatedAt:             text("updated_at").notNull(),
@@ -182,10 +204,29 @@ export const tradeApprovals = sqliteTable("trade_approvals", {
                       .references(() => trades.id, { onDelete: "cascade" }),
   brokerAccountId:  text("broker_account_id").notNull(),
   instrumentSymbol: text("instrument_symbol").notNull(),
+  instrumentClass:  text("instrument_class").notNull(),
+  proposedSide:     text("proposed_side").notNull(),
+  proposedSizeUsd:  real("proposed_size_usd").notNull(),
+  decisionSummaryJson: text("decision_summary_json").notNull(),
   status:           text("status").notNull().default("pending"),
   requestedAt:      text("requested_at").notNull(),
   resolvedAt:       text("resolved_at"),
   decisionNote:     text("decision_note"),
+});
+
+export const capitalReservations = sqliteTable("capital_reservations", {
+  id:         text("id").primaryKey(),
+  sessionId:  text("session_id").notNull()
+               .references(() => sessions.id, { onDelete: "cascade" }),
+  approvalId: text("approval_id")
+               .references(() => tradeApprovals.id, { onDelete: "set null" }),
+  tradeId:    text("trade_id")
+               .references(() => trades.id, { onDelete: "set null" }),
+  amountUsd:  real("amount_usd").notNull(),
+  reason:     text("reason").notNull(),
+  status:     text("status").notNull().default("reserved"),
+  createdAt:  text("created_at").notNull(),
+  releasedAt: text("released_at"),
 });
 ```
 
@@ -209,6 +250,9 @@ Indexes to create:
   idx_agent_runs_session    ON agent_runs(session_id)
   idx_events_session_id     ON events(session_id)
   idx_approvals_session     ON trade_approvals(session_id, status)
+  idx_session_broker_override ON session_broker_routing_overrides(session_id, instrument_class)
+  idx_capital_reservations_session ON capital_reservations(session_id, status)
+  idx_capital_reservations_approval ON capital_reservations(approval_id)
 ```
 
 ## Repository Layer
@@ -219,7 +263,7 @@ Key methods:
 
 ```typescript
 class SessionRepo {
-  // Creates session + strategy defaults + 4 AI role defaults in one transaction
+  // Creates session + selector settings + strategy defaults + 5 AI role defaults in one transaction
   create(input: CreateSessionInput): WorkspaceSession
 
   list(filters?: SessionFilters): WorkspaceSession[]
@@ -249,6 +293,46 @@ class SessionRepo {
 class WorkspacePreferencesRepo {
   get(): WorkspacePreferences
   update(patch: Partial<Omit<WorkspacePreferences, "id">>): WorkspacePreferences
+}
+```
+
+### `SessionSelectorSettingsRepo`
+
+```typescript
+class SessionSelectorSettingsRepo {
+  get(sessionId: string): SessionSelectorSettings
+  update(sessionId: string, patch: { aiPickerEnabled: boolean }): SessionSelectorSettings
+}
+```
+
+### `BrokerRoutingRepo` — global defaults + session overrides
+
+```typescript
+class BrokerRoutingRepo {
+  listGlobalDefaults(): BrokerRoutingDefault[]
+  upsertGlobalDefaults(input: BrokerRoutingDefault[]): void
+
+  listSessionOverrides(sessionId: string): SessionBrokerRoutingOverride[]
+  upsertSessionOverrides(
+    sessionId: string,
+    input: Array<{ instrumentClass: InstrumentClass; brokerAccountId: string | null }>
+  ): void
+}
+```
+
+### `CapitalReservationsRepo`
+
+```typescript
+class CapitalReservationsRepo {
+  reserveForApproval(input: {
+    sessionId: string;
+    approvalId: string;
+    amountUsd: number;
+  }): CapitalReservation
+
+  convertApprovalToOpenOrder(approvalId: string, tradeId: string): void
+  releaseByApproval(approvalId: string): void
+  sumActiveReservedUsd(): number
 }
 ```
 
@@ -285,9 +369,11 @@ sequenceDiagram
     Svc->>Repo: create(input)
     Repo->>DB: BEGIN TRANSACTION
     Repo->>DB: INSERT sessions
+    Repo->>DB: INSERT session_selector_settings (defaults)
     Repo->>DB: INSERT session_strategies (defaults)
-    Repo->>DB: INSERT session_ai_roles x4 (defaults)
+    Repo->>DB: INSERT session_ai_roles x5 (defaults)
     Repo->>DB: INSERT session_broker_assignments
+    Repo->>DB: INSERT session_broker_routing_overrides (optional)
     Repo->>DB: COMMIT
     DB-->>Repo: ok
     Repo-->>Svc: WorkspaceSession
@@ -327,10 +413,13 @@ sequenceDiagram
 | Replace | `electron/main/db/migrations.ts` |
 | Replace | `electron/main/db/repositories/session-repo.ts` |
 | Create | `electron/main/db/repositories/workspace-prefs-repo.ts` |
+| Create | `electron/main/db/repositories/session-selector-settings-repo.ts` |
 | Create | `electron/main/db/repositories/session-strategies-repo.ts` |
 | Create | `electron/main/db/repositories/session-ai-roles-repo.ts` |
 | Create | `electron/main/db/repositories/provider-accounts-repo.ts` |
 | Create | `electron/main/db/repositories/broker-accounts-repo.ts` |
+| Create | `electron/main/db/repositories/broker-routing-repo.ts` |
+| Create | `electron/main/db/repositories/capital-reservations-repo.ts` |
 | Create | `electron/main/db/repositories/trade-approvals-repo.ts` |
 | Create | `electron/main/db/repositories/session-templates-repo.ts` |
 | Modify | `electron/main/db/repositories/trades-repo.ts` |
@@ -344,5 +433,7 @@ sequenceDiagram
 - `SessionRepo.setFocus()` is atomic; no two rows can have `is_focused=true` simultaneously.
 - `TradesRepo.checkInstrumentConflict()` returns `true` for active-session conflicts.
 - `WorkspacePreferencesRepo.get()` always returns a row.
+- `BrokerRoutingRepo` can resolve workspace defaults plus per-session overrides without ambiguity.
+- `CapitalReservationsRepo` can reserve and release shared-pool capital transactionally.
 - `SessionRepo.setStatus()` throws on illegal transitions (e.g. archived → active).
 - TypeScript compiles; existing `AppServices` wiring compiles with stub implementations.

@@ -100,7 +100,7 @@ No domain subfolder imports from `agent-orchestrator` or `ipc/`.
 | `services/session-service.ts` | `services/session/session-service.ts` |
 | `services/prompt-asset-loader.ts` | `services/ai/prompt-asset-loader.ts` |
 | `services/provider-model-catalog.ts` | `services/ai/provider-model-catalog.ts` |
-| `broker/broker-registry.ts` | `services/broker/broker-registry.ts` (if placed in broker/ during Phase 8) |
+| `broker/broker-registry.ts` | stays at `broker/broker-registry.ts` |
 
 Files that stay at `services/` root (cross-cutting, no natural subdomain):
 - `agent-orchestrator.ts`

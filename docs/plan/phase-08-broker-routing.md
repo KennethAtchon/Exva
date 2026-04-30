@@ -1,7 +1,7 @@
 # Phase 8 — Broker Accounts + Instrument Routing
 
 > Replace single Alpaca singleton with a multi-broker account model.
-> Per-session broker assignments + per-instrument-class default routing.
+> Use workspace routing defaults with optional per-session overrides.
 
 ## Current State
 
@@ -13,15 +13,19 @@
 
 1. Multiple `broker_accounts` rows, each with its own keychain secret.
 2. Each broker account declares which `InstrumentClass[]` it supports.
-3. Each session is assigned one or more broker accounts + a default per instrument class.
-4. The orchestrator resolves the correct broker at trade-time from the session's routing config.
-5. Instrument collision check: deny trade if same `(broker_account_id, instrument_symbol)` is open/pending in another active session.
+3. Workspace routing defines one default broker per instrument class.
+4. Each session can assign one or more broker accounts and optionally override the workspace default for a given instrument class.
+5. The orchestrator resolves the correct broker at trade-time from `session override -> workspace default -> single compatible broker fallback`.
+6. Instrument collision check: deny trade if same `(broker_account_id, instrument_symbol)` is open/pending in another active session.
+7. v1 explicitly includes one real adapter each for stocks, crypto, and futures.
 
 ## Hard Problems
 
-1. **Broker adapter dynamic instantiation** — unlike AI providers, broker adapters are stateful (they hold an active WebSocket for trade updates). Each `BrokerAccount` needs its own adapter instance. The registry must not share instances across accounts.
+1. **Broker adapter dynamic instantiation** — unlike AI providers, broker adapters are stateful. Each `BrokerAccount` needs its own adapter instance. The registry must not share instances across accounts.
 2. **Instrument collision** — already designed in Phase 2 as `TradesRepo.checkInstrumentConflict()`. The orchestrator must call this before `placeOrder()`, using the resolved `brokerAccountId`.
-3. **Preflight at session start** — verify all assigned brokers for the session are reachable and that at least one broker is compatible with each instrument class in the session.
+3. **Preflight at session start** — verify all assigned brokers for the session are reachable and that at least one route is valid for each instrument class in the session.
+4. **Symbol normalization** — stock, crypto, and futures symbols cannot be passed through blindly. The app needs a canonical internal format plus adapter-specific translation.
+5. **Shared capital reservation** — in shared-global-pool mode, approvals and open orders must reserve capital transactionally across sessions.
 
 ## Broker Adapter Interface Update
 
@@ -90,32 +94,79 @@ export class BrokerRegistry {
   }
 
   private buildAdapter(account: BrokerAccount, creds: string): BrokerAdapter {
-    const parsed = JSON.parse(creds); // { keyId, secretKey, ... }
+    const parsed = JSON.parse(creds);
     switch (account.brokerType) {
-      case "alpaca": return new AlpacaAdapter(parsed, account.mode);
-      case "mock":   return new MockBrokerAdapter();
-      default: throw new AppError(`Unknown broker type: ${account.brokerType}`, "UNKNOWN_BROKER");
+      case "alpaca":
+        return new AlpacaAdapter(parsed, account.mode);
+      case "coinbase_advanced_trade":
+        return new CoinbaseAdvancedTradeAdapter(parsed, account.mode);
+      case "tradovate":
+        return new TradovateAdapter(parsed, account.mode);
+      case "mock":
+        return new MockBrokerAdapter();
+      default:
+        throw new AppError(`Unknown broker type: ${account.brokerType}`, "UNKNOWN_BROKER");
     }
   }
 }
 ```
 
-## Alpaca Adapter Update
+## v1 Real Adapter Set
+
+The v1 proof-of-concept claim is explicit now:
+- `AlpacaAdapter` for stocks
+- `CoinbaseAdvancedTradeAdapter` for crypto
+- `TradovateAdapter` for futures
+- `MockBrokerAdapter` for local development and demos
+
+The implementation plan should not claim stock + crypto + futures support unless those three real adapters exist end-to-end.
+
+## Symbol Normalization Rules
+
+Use one canonical app-level shape before translating to broker-specific wire formats.
+
+```typescript
+type CanonicalInstrument = {
+  symbol: string;
+  instrumentClass: InstrumentClass;
+};
+```
+
+Rules:
+- stocks: canonical symbol like `AAPL`
+- crypto: canonical pair like `BTC-USD`; adapters may translate to `BTC/USD` or venue-specific ids
+- futures: canonical contract symbol like `MESM6`; adapters may translate to venue month/exchange formats
+
+Create `electron/main/broker/instrument-normalizer.ts` to hold adapter-specific translation rules so symbol handling does not leak into orchestrator logic.
+
+## Concrete Adapter Notes
+
+### `AlpacaAdapter`
 
 File: `electron/main/broker/alpaca-adapter.ts`
 
-Update `placeOrder` to accept `BrokerOrder` (with `instrumentSymbol` instead of `asset`):
-
 ```typescript
 async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
-  // instrument_type gate: Alpaca supports stocks only in v1
-  if (order.instrumentType !== "stock")
+  if (order.instrumentType !== "stock") {
     throw new AppError("Alpaca adapter supports stocks only", "UNSUPPORTED_INSTRUMENT");
-  // ... existing Alpaca order logic, but using order.instrumentSymbol
+  }
+  // use order.instrumentSymbol
 }
 ```
 
 Declare `supportedInstrumentClasses = ["stock"] as const`.
+
+### `CoinbaseAdvancedTradeAdapter`
+
+- supports `crypto`
+- translates canonical `BTC-USD` into Coinbase product ids
+- validates venue-specific minimums and step sizes
+
+### `TradovateAdapter`
+
+- supports `futures`
+- translates canonical futures contract symbols into Tradovate contract identifiers
+- normalizes futures margin/risk error responses into app-level errors
 
 ## Session Broker Routing Service
 
@@ -130,72 +181,111 @@ export class BrokerRoutingService {
     private readonly registry: BrokerRegistry,
   ) {}
 
-  // Returns the broker adapter to use for a given session + instrument class
   async resolveAdapter(
     sessionId: string,
     instrumentClass: InstrumentClass,
   ): Promise<{ adapter: BrokerAdapter; brokerAccountId: string }> {
-    // 1. Get session's broker assignments
     const assignments = this.sessionBrokerAssignmentsRepo.list(sessionId);
-    // 2. Filter to those supporting instrumentClass
-    const compatible = assignments.filter(a => {
+    const compatible = assignments.filter((a) => {
       const account = this.brokerAccountsRepo.get(a.brokerAccountId);
       return account?.supportedInstrumentClasses.includes(instrumentClass);
     });
-    if (compatible.length === 0)
-      throw new AppError("No compatible broker for this instrument class", "NO_BROKER");
 
-    // 3. Prefer session-level default if set, otherwise first compatible
-    const routing = this.brokerRoutingRepo.getForSession(sessionId, instrumentClass);
-    const brokerAccountId = routing?.defaultBrokerAccountId ?? compatible[0].brokerAccountId;
-    const adapter = await this.registry.get(brokerAccountId);
-    return { adapter, brokerAccountId };
+    if (compatible.length === 0) {
+      throw new AppError("No compatible broker for this instrument class", "NO_BROKER");
+    }
+
+    const sessionOverride = this.brokerRoutingRepo.getSessionOverride(sessionId, instrumentClass);
+    const workspaceDefault = this.brokerRoutingRepo.getGlobalDefault(instrumentClass);
+
+    const chosenBrokerAccountId =
+      sessionOverride?.brokerAccountId
+      ?? workspaceDefault?.defaultBrokerAccountId
+      ?? (compatible.length === 1 ? compatible[0].brokerAccountId : null);
+
+    if (!chosenBrokerAccountId) {
+      throw new AppError(
+        `No routing default configured for ${instrumentClass} and multiple brokers are compatible.`,
+        "ROUTING_AMBIGUOUS",
+      );
+    }
+
+    const adapter = await this.registry.get(chosenBrokerAccountId);
+    return { adapter, brokerAccountId: chosenBrokerAccountId };
   }
 
-  // Preflight: verify all assigned brokers are reachable and cover all session instrument classes
   async preflightSession(sessionId: string, instrumentClasses: InstrumentClass[]): Promise<void> {
     for (const cls of instrumentClasses) {
-      await this.resolveAdapter(sessionId, cls); // throws if no compatible broker
+      await this.resolveAdapter(sessionId, cls);
     }
-    // Test connectivity of all assigned brokers
+
     const assignments = this.sessionBrokerAssignmentsRepo.list(sessionId);
     for (const a of assignments) {
       const adapter = await this.registry.get(a.brokerAccountId);
       const result = await adapter.testConnection();
-      if (!result.ok)
-        throw new AppError(`Broker ${a.brokerAccountId} connection failed: ${result.error}`, "BROKER_UNREACHABLE");
+      if (!result.ok) {
+        throw new AppError(
+          `Broker ${a.brokerAccountId} connection failed: ${result.error}`,
+          "BROKER_UNREACHABLE",
+        );
+      }
     }
   }
 }
 ```
 
+## Shared Capital Reservation
+
+File: `electron/main/services/risk/capital-reservation-service.ts`
+
+Responsibilities:
+- on session start in `shared_global_pool` mode, block if active session caps already exceed `workspace_preferences.global_capital_pool_usd`
+- on approval creation, reserve `proposedSizeUsd`
+- on approval rejection, release the reservation
+- on approval acceptance in the same live process, convert approval reservation into live order/position reservation
+- on approval acceptance after restart, keep the approval reservation until the fresh recheck either places or rejects the trade
+- on order cancel/failure/close, release or reconcile the reservation
+
+This enforcement is runtime behavior backed by `capital_reservations`, not just a UI setting.
+
 ## Orchestrator Integration
 
 The orchestrator must:
-1. Accept `sessionId` as a dependency.
-2. Resolve broker via `BrokerRoutingService.resolveAdapter()` per trade.
-3. Call `TradesRepo.checkInstrumentConflict()` before `placeOrder()`.
+1. accept `sessionId` from the owning `SessionRuntime`
+2. resolve broker via `BrokerRoutingService.resolveAdapter()` per trade
+3. call `TradesRepo.checkInstrumentConflict()` before `placeOrder()`
+4. normalize symbols before handing them to the adapter
+5. consult `CapitalReservationService` before and after approval/order transitions when shared pool mode is enabled
 
 ```typescript
-// In runTradeCycle(instrument: string, instrumentClass: InstrumentClass):
 const { adapter, brokerAccountId } = await this.deps.brokerRouting.resolveAdapter(
   this.sessionId,
   instrumentClass,
 );
 
-// Check collision before placing
 const conflict = this.deps.tradesRepo.checkInstrumentConflict(
   brokerAccountId,
   instrument,
   this.sessionId,
 );
+
 if (conflict) {
-  this.emitEvent("WARN", trade.id, "Another active session already has this broker trading the same instrument.");
+  this.emitEvent(
+    "WARN",
+    trade.id,
+    "Another active session already has this broker trading the same instrument.",
+  );
   return;
 }
 
+const normalized = this.deps.instrumentNormalizer.toBrokerSymbol({
+  symbol: instrument,
+  instrumentClass,
+  brokerType: adapter.brokerType,
+});
+
 const order = await adapter.placeOrder({
-  instrumentSymbol: instrument,
+  instrumentSymbol: normalized,
   instrumentType: instrumentClass,
   side: risk.value.side,
   sizeUsd: risk.value.sizeUsd,
@@ -228,7 +318,7 @@ const order = await adapter.placeOrder({
   brokerType: string;
   name: string;
   mode: BrokerMode;
-  credentials: Record<string, string>;  // keyId, secretKey, etc.
+  credentials: Record<string, string>;
 }
 // Response: { id: string; supportedInstrumentClasses: InstrumentClass[] }
 ```
@@ -244,7 +334,7 @@ Handler:
 // Request: { id: string }
 ```
 
-Handler: delete from keychain, delete `broker_accounts` row (cascade deletes assignments and routing rows), call `registry.invalidate(id)`.
+Handler: delete from keychain, delete `broker_accounts` row (cascade deletes assignments and any routing rows), call `registry.invalidate(id)`.
 
 ### `accounts:brokers:test`
 
@@ -256,8 +346,8 @@ Handler: delete from keychain, delete `broker_accounts` row (cascade deletes ass
 ### `accounts:routing:get`
 
 ```typescript
-// Response: { routing: BrokerRouting[] }
-// One entry per instrument class that has a default assigned
+// Response: { routing: BrokerRoutingDefault[] }
+// One workspace-default entry per instrument class that has a default assigned
 ```
 
 ### `accounts:routing:update`
@@ -266,6 +356,8 @@ Handler: delete from keychain, delete `broker_accounts` row (cascade deletes ass
 // Request: { routing: Array<{ instrumentClass: InstrumentClass; defaultBrokerAccountId: string }> }
 // Response: { savedAt: string }
 ```
+
+Session-specific routing overrides are edited through `session:create` / `session:update`, not through the Accounts page.
 
 ## Accounts Page UI Changes
 
@@ -289,21 +381,21 @@ BrokerAccountsCard
 ### `AddBrokerModal`
 
 ```
-├── Broker type dropdown (Alpaca, Mock, ...)
+├── Broker type dropdown (Alpaca, Coinbase Advanced Trade, Tradovate, Mock)
 ├── Name input
 ├── Mode (Paper | Live)
 ├── Credentials fields (dynamic per broker type)
 └── Test Connection button (required before save)
 ```
 
-### Right Column — Routing Rules Card
+### Right Column — Workspace Routing Defaults Card
 
 ```
 RoutingRulesCard
 ├── Stocks default broker dropdown
-├── Crypto default broker dropdown (disabled if no crypto broker)
-├── Futures default broker dropdown (disabled if no futures broker)
-└── Edit Routing button
+├── Crypto default broker dropdown
+├── Futures default broker dropdown
+└── Save Defaults button
 ```
 
 ### Right Column — Capital Allocation Card
@@ -328,7 +420,7 @@ sequenceDiagram
     User->>UI: fill AddBrokerModal, click Test Connection
     UI->>IPC: accounts:brokers:test({ type, credentials })
     IPC->>Registry: buildAdapter(temp, credentials)
-    Registry->>Registry: AlpacaAdapter.testConnection()
+    Registry->>Registry: adapter.testConnection()
     Registry-->>IPC: { ok: true }
     IPC-->>UI: test passed
     User->>UI: click Save
@@ -369,14 +461,19 @@ sequenceDiagram
 | Modify | `electron/main/broker/broker-adapter.ts` — update interface |
 | Modify | `electron/main/broker/alpaca-adapter.ts` — update to new interface |
 | Modify | `electron/main/broker/mock-adapter.ts` — update to new interface |
+| Create | `electron/main/broker/coinbase-advanced-trade-adapter.ts` |
+| Create | `electron/main/broker/tradovate-adapter.ts` |
+| Create | `electron/main/broker/instrument-normalizer.ts` |
 | Create | `electron/main/broker/broker-registry.ts` |
 | Create | `electron/main/services/broker/broker-routing-service.ts` |
+| Create | `electron/main/services/risk/capital-reservation-service.ts` |
 | Create | `electron/main/db/repositories/session-broker-assignments-repo.ts` |
 | Create | `electron/main/db/repositories/broker-routing-repo.ts` |
+| Create | `electron/main/db/repositories/capital-reservations-repo.ts` |
 | Modify | `electron/main/services/agent-orchestrator.ts` — use BrokerRoutingService |
 | Modify | `electron/main/ipc/accounts.ts` — add broker list/add/remove/test/routing handlers |
-| Modify | `electron/main/services/session-service.ts` — call preflightSession |
-| Modify | `electron/main/services/app-services.ts` — wire BrokerRegistry, BrokerRoutingService |
+| Modify | `electron/main/services/session/session-service.ts` — call preflightSession |
+| Modify | `electron/main/services/app-services.ts` — wire BrokerRegistry, BrokerRoutingService, CapitalReservationService |
 | Modify | `src/pages/AccountsPage.tsx` — broker list, routing card, capital allocation card |
 | Create | `src/components/accounts/AddBrokerModal.tsx` |
 
@@ -384,8 +481,10 @@ sequenceDiagram
 
 - Two broker accounts can be configured simultaneously without conflict.
 - The Alpaca adapter correctly identifies `supportedInstrumentClasses = ["stock"]`.
-- `BrokerRoutingService.resolveAdapter()` returns the correct broker for a session.
+- A real crypto adapter and a real futures adapter exist in the plan, not just abstractions.
+- `BrokerRoutingService.resolveAdapter()` returns the correct broker using session override first and workspace default second.
 - Session start preflight fails if no compatible broker exists for a declared instrument class.
 - `TradesRepo.checkInstrumentConflict()` blocks a second trade on the same `(broker, symbol)` across sessions.
 - Removing a broker invalidates its registry entry and removes all routing rules referencing it.
+- Shared-global-pool mode reserves and reconciles capital across approvals and live trades.
 - Capital allocation card saves to `workspace_preferences` and is restored on reload.

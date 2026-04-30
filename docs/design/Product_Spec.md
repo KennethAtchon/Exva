@@ -656,20 +656,18 @@ Exva is a single-user desktop application. No multi-user roles in v1.
 
 ---
 
-## 11. Open Questions
+## 11. Resolved Product Decisions
 
-
-| #   | Question                                                                                                                                             | Impact if Unresolved                                                                     | Owner |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----- |
-| 1   | Which brokers are supported at launch? (e.g. Alpaca, Interactive Brokers, Binance?)                                                                  | Determines which BrokerAdapter implementations to build; affects supported asset classes | Ken   |
-| 2   | What framework is the desktop app built in? (Electron, Tauri, etc.)                                                                                  | Affects keychain integration, packaging, auto-update strategy, and native API access     | Ken   |
-| 3   | Where is trade data persisted? (SQLite locally, or a local server process?)                                                                          | Affects data model implementation, query approach, and migration strategy                | Ken   |
-| 4   | What web search API is used by researcher agents? (Brave, Tavily, Perplexity?)                                                                       | Affects tool implementation and cost model for research                                  | Ken   |
-| 5   | What is the self-adaptation mechanism exactly? (Adjust stop-loss/take-profit %? Switch strategy type? Modify agent prompts?)                         | Core to the "improve itself" user story — without clarity this can't be built            | Ken   |
-| 6   | How are paper trading / live trading environments separated in the UI? Should users be able to run both simultaneously?                              | Affects account model, trade record schema, and dashboard filtering                      | Ken   |
-| 7   | Is there a maximum number of open trades hard-coded as a safety cap, separate from the user-configured limit?                                        | Risk management design — determines whether to enforce a server-side safety ceiling      | Ken   |
-| 8   | What happens to open trades when the app is closed? Does a background process continue monitoring, or are all trades force-closed on exit?           | Core to the "passive income while I leave" user story                                    | Ken   |
-| 9   | Should the developer panel be accessible via a keyboard shortcut or a hidden settings toggle?                                                        | UX and discoverability decision                                                          | Ken   |
-| 10  | What is the exact asset selection logic? How does the system decide which asset to research next? (Round robin? Market conditions? Strategy-driven?) | Required to build the trade cycle orchestrator                                           | Ken   |
-
+| #   | Decision | Notes |
+| --- | -------- | ----- |
+| 1   | Launch broker set: `Alpaca` for stocks, `Coinbase Advanced Trade` for crypto, `Tradovate` for futures, plus `Mock` for development. | This is the minimum honest stock+crypto+futures proof-of-concept scope. |
+| 2   | Desktop framework: `Electron`. | Matches the current codebase and architecture. |
+| 3   | Trade and session data persist in local `SQLite`, with privileged access in the Electron main process. | No local server process in v1. |
+| 4   | Web search providers supported in v1: `Brave` and `Tavily`. | Search resolution is workspace default with optional per-session override. |
+| 5   | Self-adaptation in v1 is limited to configurable strategy/risk/prompt changes made by the user, not autonomous self-modification. | The system may learn through logs and review, but it does not rewrite its own strategy rules automatically in v1. |
+| 6   | Paper/live separation is per broker account via `mode`, and both modes may exist simultaneously in the app. | Sessions route through the assigned broker account and inherit that account's mode. |
+| 7   | No extra hidden hard safety cap beyond configured risk limits in v1. | Enforce the saved session/global limits rather than introducing an undocumented ceiling. |
+| 8   | Open trades are persisted when the app closes and monitoring resumes on next launch after runtime rehydration. | Do not force-close trades on exit. |
+| 9   | Developer panel is an explicit visible navigation destination, not a hidden shortcut-only surface. | Discoverability wins for local single-user v1. |
+| 10  | Instrument selection logic is session-driven: manual shortlist by default, optional AI-selected universe via the instrument selector role, then per-session trade cycles run across that resolved set. | No global market scanner scheduler in v1. |
 

@@ -5,7 +5,7 @@
 
 ## Goal
 
-Users can create, view, focus, pause, stop, archive, and duplicate sessions. The app tracks whether the workspace is in `session` mode (one focused) or `global` mode (aggregate). Dashboard and Trades respect the mode.
+Users can create, view, focus, pause, stop, archive, and duplicate sessions. The app tracks whether the workspace is in `session` mode (one focused) or `global` mode (aggregate). Dashboard and Trades respect the mode. Session create/edit also owns selector enablement, per-session search-provider override, and optional broker-routing overrides.
 
 ## Hard Problems
 
@@ -24,6 +24,7 @@ Users can create, view, focus, pause, stop, archive, and duplicate sessions. The
   focusedSessionId: string | null;
   preferences: {
     globalIncludeArchived: boolean;
+    defaultSearchProviderId: string | null;
     capitalAllocationMode: "per_session_only" | "shared_global_pool";
     globalCapitalPoolUsd: number | null;
   };
@@ -72,10 +73,14 @@ interface SessionSummary {
   selectionMode: SelectionMode;
   instrumentClasses: InstrumentClass[];
   instrumentScope: string;
+  defaultSearchProviderId?: string | null;
+  selectorSettings: {
+    aiPickerEnabled: boolean;
+  };
   capitalLimitUsd: number;
   executionMode: ExecutionMode;
   brokerAccountIds: string[];
-  defaultBrokerByInstrumentClass: Partial<Record<InstrumentClass, string>>;
+  brokerOverridesByInstrumentClass?: Partial<Record<InstrumentClass, string | null>>;
 }
 
 // Response: { id: string; status: "draft" }
@@ -84,7 +89,7 @@ interface SessionSummary {
 
 ### `session:update` → `PATCH /api/sessions/:id`
 
-Same body as create. Returns `{ savedAt: string }` or `409` if locked.
+Same body as create. `brokerOverridesByInstrumentClass` stores session-level overrides only; `null` means "use workspace default routing." Returns `{ savedAt: string }` or `409` if locked.
 
 ### `session:focus` → `PATCH /api/sessions/:id/focus`
 
@@ -114,6 +119,7 @@ See spec section 7 for full contracts. Store and retrieve `session_templates` ro
 // Request
 {
   globalIncludeArchived?: boolean;
+  defaultSearchProviderId?: string | null;
   capitalAllocationMode?: CapitalAllocationMode;
   globalCapitalPoolUsd?: number | null;
 }
@@ -149,6 +155,8 @@ Structure:
 - `SessionTable` — searchable, filterable data table
 - `SessionDetailDrawer` — slide-out panel with full session detail
 - `CreateEditSessionModal` — multi-section form (Identity, Task Boundary, Execution Setup)
+- Task Boundary includes `selectionMode`, `aiPickerEnabled`, and optional per-session search-provider override
+- Execution Setup includes assigned brokers plus optional routing overrides per instrument class
 - `SessionTemplatesModal` — template list + Use Template flow
 
 ### `src/pages/SessionsPage.tsx` — Component Tree
@@ -359,6 +367,7 @@ Dashboard | Sessions | Trades | Strategy | API Usage | Developer | Accounts
 - Edit is disabled (row action grayed out) for active/paused sessions.
 - Archiving the focused session switches the app to global mode and shows the correct toast.
 - Include archived sessions toggle persists via `workspace:prefs:patch` and restores on reload.
+- Workspace default search provider persists via `workspace:prefs:patch`, and a session can override it explicitly.
 - Templates modal lists, creates, and applies templates correctly.
 - WorkspaceContextChip is present on Dashboard, Trades, and Strategy pages.
 - Strategy shows global-mode non-editable state when viewMode is "global".

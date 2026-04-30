@@ -109,9 +109,16 @@ export interface WorkspaceSession {
   selectionMode: SelectionMode;
   instrumentClasses: InstrumentClass[];
   instrumentScope: string;
+  defaultSearchProviderId: string | null;
   capitalLimitUsd: number;
   executionMode: ExecutionMode;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface SessionSelectorSettings {
+  sessionId: string;
+  aiPickerEnabled: boolean;
   updatedAt: string;
 }
 
@@ -148,6 +155,7 @@ export interface ProviderAccount {
   category: "ai" | "search";
   providerType: ProviderType | SearchProviderType;
   secretRef: string;          // keychain key, not the secret itself
+  metadataJson: string | null;
   isConfigured: boolean;
   lastTestStatus: "unknown" | "ok" | "error";
   updatedAt: string;
@@ -163,14 +171,21 @@ export interface BrokerAccount {
   updatedAt: string;
 }
 
-export interface BrokerRouting {
+export interface BrokerRoutingDefault {
   instrumentClass: InstrumentClass;
   defaultBrokerAccountId: string;
+}
+
+export interface SessionBrokerRoutingOverride {
+  sessionId: string;
+  instrumentClass: InstrumentClass;
+  brokerAccountId: string;
 }
 
 export interface WorkspacePreferences {
   id: 1;                      // singleton row
   globalIncludeArchived: boolean;
+  defaultSearchProviderId: string | null;
   capitalAllocationMode: CapitalAllocationMode;
   globalCapitalPoolUsd: number | null;
   updatedAt: string;
@@ -192,10 +207,26 @@ export interface TradeApproval {
   tradeId: string;
   brokerAccountId: string;
   instrumentSymbol: string;
+  instrumentClass: InstrumentClass;
+  proposedSide: "BUY" | "SELL";
+  proposedSizeUsd: number;
+  decisionSummaryJson: string;
   status: "pending" | "approved" | "rejected";
   requestedAt: string;
   resolvedAt: string | null;
   decisionNote: string | null;
+}
+
+export interface CapitalReservation {
+  id: string;
+  sessionId: string;
+  approvalId: string | null;
+  tradeId: string | null;
+  amountUsd: number;
+  reason: "approval" | "open_order" | "open_position";
+  status: "reserved" | "consumed" | "released";
+  createdAt: string;
+  releasedAt: string | null;
 }
 ```
 
@@ -208,7 +239,9 @@ export interface TradeApproval {
 | Strategy and AI role edits blocked when `status IN ('active','paused')` | IPC handlers (`ipc/session.ts`, `ipc/config.ts`) return 409 |
 | Session start blocked if any required field is null | `SessionService.preflightStart()` |
 | New trade blocked if same `(broker_account_id, instrument_symbol)` is open/pending in another active session | `TradesRepo.checkInstrumentConflict()` |
+| Web search resolution uses session default first, then workspace default; save/start blocked if role enables search and neither exists | `SessionService` + `AiRuntime` |
 | `workspace_preferences` always has exactly one row (id=1) | DB `INSERT OR IGNORE` on migration |
+| Shared global pool reserves capital across approvals and live orders when enabled | `CapitalReservationService` |
 
 ## Files Created / Modified in This Phase
 
