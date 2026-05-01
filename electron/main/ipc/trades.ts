@@ -6,7 +6,7 @@ import { handle } from "./handle";
 
 export function registerTradeHandlers(services: AppServices): void {
   handle(ipcMain, channels.trades.listActive, async () => {
-    return services.repos.trades.listAll(services.repos.session.getFocusedSessionId());
+    return services.repos.trades.listAll(services.repos.session.getFocused()?.id);
   });
 
   handle(ipcMain, channels.trades.getDetail, async (payload) => {

@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { Badge, Card, PageShell } from "@/components/atoms";
+import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
+import { api } from "@/lib/exva";
 import { fmt } from "@/lib/formatters";
 import { useTradeStore } from "@/store/tradeStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 type Filter = "all" | "open" | "closed";
 
 export const TradesPage = () => {
   const [filter, setFilter] = useState<Filter>("all");
+  const viewMode = useWorkspaceStore((state) => state.viewMode);
+  const preferences = useWorkspaceStore((state) => state.preferences);
+  const setViewMode = useWorkspaceStore((state) => state.setViewMode);
+  const loadWorkspaceView = useWorkspaceStore((state) => state.loadWorkspaceView);
   const allTrades = useTradeStore((s) => s.trades);
   const selectedId = useTradeStore((s) => s.selectedId);
   const setSelected = useTradeStore((s) => s.setSelected);
@@ -23,6 +30,31 @@ export const TradesPage = () => {
         <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>
           All trade history and open positions
         </p>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <WorkspaceContextChip
+          onSwitchSession={async (id) => {
+            await api.focusSession(id);
+            await loadWorkspaceView();
+          }}
+          onGoGlobal={async () => {
+            await api.goGlobal();
+            setViewMode("global", null);
+          }}
+        />
+        {viewMode === "global" && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 12 }}>
+            <input
+              type="checkbox"
+              checked={preferences?.globalIncludeArchived ?? false}
+              onChange={async (event) => {
+                await api.patchWorkspacePreferences({ globalIncludeArchived: event.target.checked });
+                await loadWorkspaceView();
+              }}
+            />
+            Include archived sessions
+          </label>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 14 }}>
@@ -64,14 +96,17 @@ export const TradesPage = () => {
         <div style={{ overflowX: "auto" }}>
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
+                display: "grid",
+                gridTemplateColumns: viewMode === "global" ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px" : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
               padding: "10px 20px 8px", fontSize: 10, color: "var(--text3)",
               textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600,
               borderBottom: "1px solid var(--border)", minWidth: 780,
             }}
           >
-            {["Instrument", "Side", "Size", "Entry", "Cur/Exit", "P&L", "AI Cost", "Conf", "Status", "Time"].map((h) => (
+            {[
+              ...(viewMode === "global" ? ["Session"] : []),
+              "Instrument", "Side", "Size", "Entry", "Cur/Exit", "P&L", "AI Cost", "Conf", "Status", "Time",
+            ].map((h) => (
               <span key={h}>{h}</span>
             ))}
           </div>
@@ -85,13 +120,14 @@ export const TradesPage = () => {
                 onClick={() => setSelected(t.id === selectedId ? null : t.id)}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
+                  gridTemplateColumns: viewMode === "global" ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px" : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
                   padding: "11px 20px", alignItems: "center",
                   cursor: "pointer", borderBottom: "1px solid var(--border)",
                   background: t.id === selectedId ? "var(--surface2)" : "transparent",
                   transition: "background 0.1s", minWidth: 780,
                 }}
               >
+                {viewMode === "global" && <span style={{ fontSize: 12, color: "var(--text3)" }}>{t.sessionId ?? "—"}</span>}
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{t.instrumentSymbol}</span>
                 <Badge variant={t.side === "BUY" ? "success" : "danger"} size="sm">{t.side}</Badge>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{fmt.usd(t.position_size_usd, 0)}</span>

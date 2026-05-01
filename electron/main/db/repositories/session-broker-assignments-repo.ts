@@ -10,6 +10,13 @@ export class SessionBrokerAssignmentsRepo {
     return rows.map((row) => row.broker_account_id);
   }
 
+  countBySession(sessionId: string): number {
+    const row = this.client.sqlite
+      .prepare("SELECT COUNT(*) AS count FROM session_broker_assignments WHERE session_id = ?")
+      .get(sessionId) as { count?: number };
+    return Number(row.count ?? 0);
+  }
+
   replaceAssignments(sessionId: string, brokerAccountIds: string[]): void {
     const insertStmt = this.client.sqlite.prepare(
       "INSERT INTO session_broker_assignments (session_id, broker_account_id) VALUES (?, ?)",

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { TopNav, type PageKey } from "./components/TopNav";
 import { Dashboard } from "./pages/Dashboard";
+import { SessionsPage } from "./pages/SessionsPage";
 import { TradesPage } from "./pages/TradesPage";
 import { TradeDetail } from "./pages/TradeDetail";
 import { StrategyConfig } from "./pages/StrategyConfig";
@@ -9,6 +10,7 @@ import { DevPanel } from "./pages/DevPanel";
 import { AccountsPage } from "./pages/AccountsPage";
 import { useSessionStore } from "./store/sessionStore";
 import { useTradeStore } from "./store/tradeStore";
+import { useWorkspaceStore } from "./store/workspaceStore";
 import { api, showMock } from "./lib/exva";
 import { useExvaEvent } from "./hooks/useExvaEvent";
 import { usePolling } from "./hooks/usePolling";
@@ -25,6 +27,9 @@ export default function App() {
   const upsertTrade = useTradeStore((s) => s.upsertTrade);
   const selectedId = useTradeStore((s) => s.selectedId);
   const setSelected = useTradeStore((s) => s.setSelected);
+  const loadWorkspaceView = useWorkspaceStore((s) => s.loadWorkspaceView);
+  const viewMode = useWorkspaceStore((s) => s.viewMode);
+  const focusedSessionId = useWorkspaceStore((s) => s.focusedSessionId);
 
   // Initial load
   useEffect(() => {
@@ -42,7 +47,20 @@ export default function App() {
       .catch((err) => {
         setLoadError((current) => current ?? (err instanceof Error ? err.message : "Failed to load trades."));
       });
-  }, [setStats, setTrades]);
+    void loadWorkspaceView();
+  }, [loadWorkspaceView, setStats, setTrades]);
+
+  useEffect(() => {
+    api.getDashboardStats()
+      .then((next) => {
+        setStats(next);
+        setStatus(next.session_status);
+      })
+      .catch(() => {});
+    api.getActiveTrades()
+      .then(setTrades)
+      .catch(() => {});
+  }, [focusedSessionId, setStats, setStatus, setTrades, viewMode]);
 
   // Live updates from the Electron main process
   useExvaEvent("stats_update", (payload) => setStats(payload));
@@ -77,6 +95,7 @@ export default function App() {
   const pageEl = () => {
     switch (page) {
       case "dashboard": return <Dashboard />;
+      case "sessions":  return <SessionsPage />;
       case "trades":    return <TradesPage />;
       case "strategy":  return <StrategyConfig />;
       case "costs":     return <CostBreakdownPage />;

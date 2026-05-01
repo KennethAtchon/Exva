@@ -5,6 +5,7 @@ import { fmt } from "@/lib/formatters";
 
 export type PageKey =
   | "dashboard"
+  | "sessions"
   | "trades"
   | "strategy"
   | "costs"
@@ -13,6 +14,7 @@ export type PageKey =
 
 const NAV_ITEMS: { id: PageKey; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "sessions", label: "Sessions" },
   { id: "trades", label: "Trades" },
   { id: "strategy", label: "Strategy" },
   { id: "costs", label: "API Usage" },

@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useState, type CSSProperties } from "react";
 import { Badge, Card, Divider, Dot, SectionTitle } from "@/components/atoms";
+import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import { fmt } from "@/lib/formatters";
 import { useSessionStore } from "@/store/sessionStore";
 import { useTradeStore } from "@/store/tradeStore";
@@ -176,6 +178,10 @@ const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
 export const Dashboard = () => {
   const stats = useSessionStore((s) => s.stats);
   const trades = useTradeStore((s) => s.trades);
+  const viewMode = useWorkspaceStore((s) => s.viewMode);
+  const preferences = useWorkspaceStore((s) => s.preferences);
+  const setViewMode = useWorkspaceStore((s) => s.setViewMode);
+  const loadWorkspaceView = useWorkspaceStore((s) => s.loadWorkspaceView);
   const [events, setEvents] = useState<EventRow[]>([]);
 
   useEffect(() => {
@@ -190,6 +196,37 @@ export const Dashboard = () => {
 
   return (
     <div style={ds.page}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>Dashboard</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
+            {viewMode === "global" ? "Global workspace metrics" : "Focused session metrics"}
+          </p>
+        </div>
+        <WorkspaceContextChip
+          onSwitchSession={async (id) => {
+            await api.focusSession(id);
+            await loadWorkspaceView();
+          }}
+          onGoGlobal={async () => {
+            await api.goGlobal();
+            setViewMode("global", null);
+          }}
+        />
+      </div>
+      {viewMode === "global" && (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 12, marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={preferences?.globalIncludeArchived ?? false}
+            onChange={async (event) => {
+              await api.patchWorkspacePreferences({ globalIncludeArchived: event.target.checked });
+              await loadWorkspaceView();
+            }}
+          />
+          Include archived sessions
+        </label>
+      )}
       <StatStrip stats={stats} />
       <div style={ds.grid}>
         <Card style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", padding: "20px 0 0" }}>

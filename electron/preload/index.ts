@@ -34,6 +34,23 @@ const exva: ExvaApi = {
     resume: () => invoke(channels.session.resume),
     stop: () => invoke(channels.session.stop),
     getStatus: () => invoke(channels.session.getStatus),
+    list: (filters) => invoke(channels.session.list, filters),
+    create: (input) => invoke(channels.session.create, input),
+    update: (id, input) => invoke(channels.session.update, { id, input }),
+    focus: (id) => invoke(channels.session.focus, { id }),
+    goGlobal: () => invoke(channels.session.goGlobal, { mode: "global" }),
+    archive: (id) => invoke(channels.session.archive, { id }),
+    duplicate: (sourceId, name) => invoke(channels.session.duplicate, { sourceId, name }),
+  },
+  workspace: {
+    getView: () => invoke(channels.workspace.viewGet),
+    patchPreferences: (patch) => invoke(channels.workspace.prefsPatch, patch),
+  },
+  templates: {
+    list: (filters) => invoke(channels.templates.list, filters),
+    create: (input) => invoke(channels.templates.create, input),
+    delete: (id) => invoke(channels.templates.delete, { id }),
+    use: (id) => invoke(channels.templates.use, { id }),
   },
   config: {
     getStrategy: () => invoke(channels.config.getStrategy),

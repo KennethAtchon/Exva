@@ -1,7 +1,10 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { Card, PageShell, SectionTitle } from "@/components/atoms";
+import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { api } from "@/lib/exva";
 import { useConfigStore } from "@/store/configStore";
+import { useSessionStore } from "@/store/sessionStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import type { SessionConfig } from "@/lib/types";
 
 const Slider = ({
@@ -95,6 +98,10 @@ const Toggle = ({
 );
 
 export const StrategyConfig = () => {
+  const viewMode = useWorkspaceStore((state) => state.viewMode);
+  const setViewMode = useWorkspaceStore((state) => state.setViewMode);
+  const loadWorkspaceView = useWorkspaceStore((state) => state.loadWorkspaceView);
+  const status = useSessionStore((state) => state.status);
   const cfg = useConfigStore((s) => s.config);
   const setConfig = useConfigStore((s) => s.setConfig);
   const patch = useConfigStore((s) => s.patch);
@@ -102,10 +109,41 @@ export const StrategyConfig = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (viewMode === "global") return;
     api.getStrategyConfig().then(setConfig).catch(() => {});
-  }, [setConfig]);
+  }, [setConfig, viewMode]);
+
+  if (viewMode === "global") {
+    return (
+      <PageShell>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text1)", margin: 0 }}>Strategy</h1>
+            <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>Choose a session to edit strategy settings.</p>
+          </div>
+          <WorkspaceContextChip
+            onSwitchSession={async (id) => {
+              await api.focusSession(id);
+              await loadWorkspaceView();
+            }}
+            onGoGlobal={async () => {
+              await api.goGlobal();
+              setViewMode("global", null);
+            }}
+          />
+        </div>
+        <Card>
+          <SectionTitle>Global Mode</SectionTitle>
+          <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 12 }}>Strategy is not editable in global mode. Choose a focused session from the context chip.</p>
+        </Card>
+      </PageShell>
+    );
+  }
+
+  const isLocked = status === "active" || status === "paused";
 
   const save = async () => {
+    if (isLocked) return;
     setSaving(true);
     try {
       await api.saveStrategyConfig(cfg);
@@ -132,8 +170,26 @@ export const StrategyConfig = () => {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text1)", margin: 0 }}>Strategy</h1>
           <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>Trading parameters and risk controls</p>
         </div>
+        <WorkspaceContextChip
+          onSwitchSession={async (id) => {
+            await api.focusSession(id);
+            await loadWorkspaceView();
+          }}
+          onGoGlobal={async () => {
+            await api.goGlobal();
+            setViewMode("global", null);
+          }}
+        />
+      </div>
+      {isLocked && (
+        <div style={{ padding: "10px 14px", border: "1px solid rgba(251,191,36,0.25)", background: "rgba(251,191,36,0.08)", color: "#fbbf24", borderRadius: 10, fontSize: 12 }}>
+          This session is locked while active or paused. Configuration is read-only until the session stops.
+        </div>
+      )}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div />
         <button
-          disabled={saving}
+          disabled={saving || isLocked}
           onClick={save}
           style={{
             padding: "9px 22px",

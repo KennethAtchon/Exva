@@ -5,14 +5,59 @@ import type {
   ConnectionTestResult,
   CostBreakdown,
   DashboardStats,
+  ExecutionMode,
   EventRow,
+  InstrumentClass,
+  SelectionMode,
   SessionConfig,
   SessionStatus,
+  SessionTemplatePayload,
   Trade,
   TradeDecisionPayload,
   TradeDetail,
+  WorkspacePreferences,
+  WorkspaceViewMode,
 } from "./types";
 import { MOCK } from "./mock";
+
+export interface SessionSummary {
+  id: string;
+  name: string;
+  objective: string;
+  status: SessionStatus;
+  isFocused: boolean;
+  selectionMode: SelectionMode;
+  instrumentClasses: InstrumentClass[];
+  instrumentScope: string;
+  defaultSearchProviderId: string | null;
+  capitalLimitUsd: number;
+  executionMode: ExecutionMode;
+  brokerCount: number;
+  openTradeCount: number;
+  updatedAt: string;
+}
+
+export interface WorkspaceViewResponse {
+  workspaceViewMode: WorkspaceViewMode;
+  focusedSessionId: string | null;
+  preferences: WorkspacePreferences;
+}
+
+export interface SessionCreateInput {
+  name: string;
+  objective: string;
+  selectionMode: SelectionMode;
+  instrumentClasses: InstrumentClass[];
+  instrumentScope: string;
+  defaultSearchProviderId?: string | null;
+  selectorSettings: {
+    aiPickerEnabled: boolean;
+  };
+  capitalLimitUsd: number;
+  executionMode: ExecutionMode;
+  brokerAccountIds: string[];
+  brokerOverridesByInstrumentClass?: Partial<Record<InstrumentClass, string | null>>;
+}
 
 const SHOW_MOCK = false;
 
@@ -65,6 +110,106 @@ export const api = {
     call<SessionStatus>(() => window.exva!.session.pause(), "paused"),
   stopSession: () =>
     call<SessionStatus>(() => window.exva!.session.stop(), "stopped"),
+  listSessions: (filters?: {
+    status?: SessionStatus;
+    instrumentClass?: InstrumentClass;
+    search?: string;
+    includeArchived?: boolean;
+  }) =>
+    call<{ workspaceViewMode: WorkspaceViewMode; focusedSessionId: string | null; sessions: SessionSummary[] }>(
+      () => window.exva!.session.list(filters),
+      { workspaceViewMode: "session", focusedSessionId: "default-session", sessions: [] },
+    ),
+  createSession: (input: SessionCreateInput) =>
+    call<{ id: string; status: "draft" }>(() => window.exva!.session.create(input), {
+      id: crypto.randomUUID(),
+      status: "draft",
+    }),
+  updateSession: (id: string, input: SessionCreateInput) =>
+    call<{ savedAt: string }>(() => window.exva!.session.update(id, input), { savedAt: new Date().toISOString() }),
+  focusSession: (id: string) =>
+    call<{ workspaceViewMode: "session"; focusedSessionId: string }>(() => window.exva!.session.focus(id), {
+      workspaceViewMode: "session",
+      focusedSessionId: id,
+    }),
+  goGlobal: () =>
+    call<{ workspaceViewMode: "global"; focusedSessionId: null }>(() => window.exva!.session.goGlobal(), {
+      workspaceViewMode: "global",
+      focusedSessionId: null,
+    }),
+  archiveSession: (id: string) => call<{ archived: true }>(() => window.exva!.session.archive(id), { archived: true }),
+  duplicateSession: (sourceId: string, name: string) =>
+    call<{ id: string; status: "draft" }>(() => window.exva!.session.duplicate(sourceId, name), {
+      id: crypto.randomUUID(),
+      status: "draft",
+    }),
+
+  getWorkspaceView: () =>
+    call<WorkspaceViewResponse>(() => window.exva!.workspace.getView(), {
+      workspaceViewMode: "session",
+      focusedSessionId: "default-session",
+      preferences: {
+        id: 1,
+        globalIncludeArchived: false,
+        defaultSearchProviderId: null,
+        capitalAllocationMode: "per_session_only",
+        globalCapitalPoolUsd: null,
+        updatedAt: new Date().toISOString(),
+      },
+    }),
+  patchWorkspacePreferences: (patch: Partial<Omit<WorkspacePreferences, "id">>) =>
+    call<WorkspacePreferences>(() => window.exva!.workspace.patchPreferences(patch), {
+      id: 1,
+      globalIncludeArchived: patch.globalIncludeArchived ?? false,
+      defaultSearchProviderId: patch.defaultSearchProviderId ?? null,
+      capitalAllocationMode: patch.capitalAllocationMode ?? "per_session_only",
+      globalCapitalPoolUsd: patch.globalCapitalPoolUsd ?? null,
+      updatedAt: new Date().toISOString(),
+    }),
+
+  listTemplates: (filters?: { search?: string; instrumentClass?: InstrumentClass }) =>
+    call<{ templates: Array<{ id: string; name: string; description: string | null; sourceSessionId: string | null; sourceSessionName: string | null; instrumentClasses: InstrumentClass[]; updatedAt: string }> }>(
+      () => window.exva!.templates.list(filters),
+      { templates: [] },
+    ),
+  createTemplate: (input: { name: string; description?: string; sourceSessionId?: string; payload: SessionTemplatePayload }) =>
+    call<{ id: string; updatedAt: string }>(() => window.exva!.templates.create(input), {
+      id: crypto.randomUUID(),
+      updatedAt: new Date().toISOString(),
+    }),
+  deleteTemplate: (id: string) => call<{ deleted: true }>(() => window.exva!.templates.delete(id), { deleted: true }),
+  useTemplate: (id: string) =>
+    call<{ payload: SessionTemplatePayload; clearedFields: string[] }>(() => window.exva!.templates.use(id), {
+      payload: {
+        version: 1,
+        identity: {
+          objective: "",
+          selectionMode: "manual_shortlist",
+          instrumentClasses: ["stock"],
+          instrumentScope: "",
+          executionMode: "paper_only",
+          capitalLimitUsd: 10000,
+          defaultSearchProviderId: null,
+        },
+        selectorSettings: { aiPickerEnabled: true },
+        strategy: {
+          strategyProfile: "passive_income",
+          maxPositionUsd: 500,
+          stopLossPct: 2,
+          takeProfitPct: 4,
+          maxConcurrentTrades: 3,
+          researchDepth: "balanced",
+          dailyLossLimitUsd: 200,
+          profitTargetUsd: 1000,
+          maxAiSpendUsd: 5,
+          humanApprovalRequired: false,
+        },
+        aiRoles: [],
+        brokerAssignments: [{ brokerAccountId: "default-broker" }],
+        brokerOverridesByInstrumentClass: {},
+      },
+      clearedFields: [],
+    }),
 
   getStrategyConfig: () =>
     call<SessionConfig>(() => window.exva!.config.getStrategy(), MOCK.config),
@@ -105,8 +250,12 @@ export type ExvaEventName =
   | "trade_closed"
   | "agent_event"
   | "approval_required"
+  | "approval_resolved"
   | "session_started"
   | "session_stopped"
+  | "session_status_changed"
+  | "trade_status_changed"
+  | "selector_run_completed"
   | "stats_update"
   | "notification";
 
@@ -115,8 +264,12 @@ export interface ExvaEventMap {
   trade_closed: Trade;
   agent_event: EventRow;
   approval_required: TradeDecisionPayload;
+  approval_resolved: { approvalId: string; status: "approved" | "rejected" };
   session_started: {};
   session_stopped: { reason: string };
+  session_status_changed: { sessionId: string; status: SessionStatus };
+  trade_status_changed: Trade;
+  selector_run_completed: { sessionId: string; count: number };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 }

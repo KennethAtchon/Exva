@@ -5,13 +5,14 @@ import { handle } from "./handle";
 
 export function registerDashboardHandlers(services: AppServices): void {
   handle(ipcMain, channels.dashboard.getStats, async () => {
-    const sessionId = services.repos.session.getFocusedSessionId();
-    const config = services.repos.session.getConfig();
+    const focused = services.repos.session.getFocused();
+    const sessionId = focused?.id ?? null;
+    const config = focused ? services.repos.session.getConfig(focused.id) : { max_api_spend_usd: 5 };
     return services.repos.stats.dashboardStats(
       sessionId,
-      services.session.getStatus(),
+      focused?.status ?? "idle",
       services.session.getPortfolioValue(),
-      services.session.uptimeMin(),
+      focused ? services.session.uptimeMin(focused.id) : 0,
       config.max_api_spend_usd,
     );
   });
