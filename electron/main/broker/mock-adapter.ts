@@ -20,17 +20,17 @@ export class MockBrokerAdapter implements BrokerAdapter {
     return 100000;
   }
 
-  async getMarketSnapshot(asset: string): Promise<MarketSnapshot> {
+  async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
     return {
-      asset,
-      price: this.priceFor(asset),
+      instrumentSymbol,
+      price: this.priceFor(instrumentSymbol),
       timestamp: new Date().toISOString(),
     };
   }
 
   async placeOrder(order: OrderRequest): Promise<OrderResult> {
     const brokerOrderId = `mock_${crypto.randomUUID()}`;
-    const filledAvgPrice = this.priceFor(order.asset);
+    const filledAvgPrice = this.priceFor(order.instrumentSymbol);
     this.orders.set(brokerOrderId, { order, price: filledAvgPrice });
     return { brokerOrderId, filledAvgPrice };
   }
@@ -47,13 +47,13 @@ export class MockBrokerAdapter implements BrokerAdapter {
     return {
       brokerOrderId: orderId,
       status: existing ? "open" : "unknown",
-      latestPrice: existing ? this.priceFor(existing.order.asset) : null,
+      latestPrice: existing ? this.priceFor(existing.order.instrumentSymbol) : null,
       realizedPnlUsd: null,
     };
   }
 
-  private priceFor(asset: string): number {
-    const seed = [...asset].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  private priceFor(instrumentSymbol: string): number {
+    const seed = [...instrumentSymbol].reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return Number((75 + (seed % 250) + (Date.now() % 1000) / 1000).toFixed(2));
   }
 }

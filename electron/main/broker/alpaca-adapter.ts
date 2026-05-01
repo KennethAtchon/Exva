@@ -41,12 +41,12 @@ export class AlpacaAdapter implements BrokerAdapter {
     return Number(account.portfolio_value ?? account.buying_power ?? 0);
   }
 
-  async getMarketSnapshot(asset: string): Promise<MarketSnapshot> {
+  async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
     const trade = await this.request<{ trade?: { p?: number; t?: string } }>(
-      `/v2/stocks/${encodeURIComponent(asset)}/trades/latest`,
+      `/v2/stocks/${encodeURIComponent(instrumentSymbol)}/trades/latest`,
     );
     return {
-      asset,
+      instrumentSymbol,
       price: Number(trade.trade?.p ?? 0),
       timestamp: trade.trade?.t ?? new Date().toISOString(),
     };
@@ -58,7 +58,7 @@ export class AlpacaAdapter implements BrokerAdapter {
       {
         method: "POST",
         body: JSON.stringify({
-          symbol: order.asset,
+          symbol: order.instrumentSymbol,
           notional: String(order.sizeUsd),
           side: order.side.toLowerCase(),
           type: "market",

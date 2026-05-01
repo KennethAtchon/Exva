@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AgentLabel, Card, PageShell, SectionTitle } from "@/components/atoms";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
-import type { AgentType, CostBreakdown } from "@/lib/types";
+import type { AgentRole, CostBreakdown } from "@/lib/types";
 import { useSessionStore } from "@/store/sessionStore";
 
 const Bar = ({ value, max, color = "var(--accent)", h = 6 }: { value: number; max: number; color?: string; h?: number }) => (
@@ -27,7 +27,7 @@ export const CostBreakdownPage = () => {
   const budget = stats.api_budget;
   const pct = (d.total / budget) * 100;
   const barColor = pct > 80 ? "#f87171" : pct > 60 ? "#fbbf24" : "var(--accent)";
-  const agentColors: Record<AgentType, string> = {
+  const agentColors: Record<AgentRole, string> = {
     researcher_bull: "#34d399", researcher_bear: "#f87171",
     reviewer: "#60a5fa", decision_maker: "#a78bfa",
     instrument_selector: "#fbbf24",
@@ -106,9 +106,9 @@ export const CostBreakdownPage = () => {
             <SectionTitle>Cost per Trade</SectionTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
               {d.by_trade.map((t) => (
-                <div key={t.asset} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div key={t.instrumentSymbol} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text1)", width: 48, flexShrink: 0 }}>
-                    {t.asset}
+                    {t.instrumentSymbol}
                   </span>
                   <Bar value={t.cost} max={0.4} h={4} />
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)", width: 38, textAlign: "right", flexShrink: 0 }}>

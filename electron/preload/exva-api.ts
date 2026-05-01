@@ -1,4 +1,5 @@
 import type {
+  AgentRole,
   AgentRun,
   BrokerCredentials,
   ConnectionTestResult,
@@ -64,7 +65,7 @@ export interface ExvaApi {
   events: {
     list(filters?: {
       minLevel?: string;
-      agentType?: string;
+      agentType?: AgentRole;
       search?: string;
       limit?: number;
     }): Promise<EventRow[]>;

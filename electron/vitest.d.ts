@@ -7,6 +7,7 @@ declare module "vitest" {
     toEqual(expected: unknown): void;
     toHaveLength(expected: number): void;
     toBeNull(): void;
+    toBe(expected: unknown): void;
     not: {
       toBeNull(): void;
     };

@@ -1,5 +1,5 @@
 import PQueue from "p-queue";
-import type { AgentType, EventAgentType, InstrumentClass, SessionConfig, Trade } from "@/lib/types";
+import type { EventSourceType, InstrumentClass, SessionConfig, Trade } from "@/lib/types";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "./session";
 
 export class AgentOrchestrator {
@@ -22,8 +22,8 @@ export class AgentOrchestrator {
     this.queue.concurrency = config.max_concurrent_trades;
     this.started = true;
 
-    for (const symbol of this.watchlistFor(this.deps.sessionRepo.requireById(this.sessionId))) {
-      this.queue.add(() => this.runTradeCycle(symbol, "stock")).catch((error) => {
+    for (const instrumentSymbol of this.getInstruments(this.deps.sessionRepo.requireById(this.sessionId), config)) {
+      this.queue.add(() => this.runTradeCycle(instrumentSymbol, "stock")).catch((error) => {
         this.emitEvent(
           "ERROR",
           null,
@@ -59,7 +59,7 @@ export class AgentOrchestrator {
     resolve(approved);
   }
 
-  private async runTradeCycle(symbol: string, _instrumentClass: InstrumentClass): Promise<void> {
+  private async runTradeCycle(instrumentSymbol: string, _instrumentClass: InstrumentClass): Promise<void> {
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
 
     const config = this.deps.sessionRepo.getConfig(this.sessionId);
@@ -71,21 +71,21 @@ export class AgentOrchestrator {
       config.max_api_spend_usd,
     );
 
-    const bull = await this.deps.ai.runResearcher({ asset: symbol }, "bull");
+    const bull = await this.deps.ai.runResearcher({ instrumentSymbol }, "bull");
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort();
 
-    const bear = await this.deps.ai.runResearcher({ asset: symbol }, "bear");
+    const bear = await this.deps.ai.runResearcher({ instrumentSymbol }, "bear");
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort();
 
     const review = await this.deps.ai.runReviewer({
-      asset: symbol,
+      instrumentSymbol,
       bullCase: bull.output,
       bearCase: bear.output,
     });
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort();
 
     const decision = await this.deps.ai.runDecisionMaker({
-      asset: symbol,
+      instrumentSymbol,
       bullCase: bull.output,
       bearCase: bear.output,
       review: review.output,
@@ -93,7 +93,7 @@ export class AgentOrchestrator {
     });
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort();
 
-    const trade = this.createTradeFromDecision(symbol, config, decision.output);
+    const trade = this.createTradeFromDecision(instrumentSymbol, config, decision.output);
     this.deps.tradesRepo.insert(trade);
     for (const run of [bull.run, bear.run, review.run, decision.run]) {
       this.deps.agentRunsRepo.insert({ ...run, session_id: this.sessionId, trade_id: trade.id });
@@ -105,7 +105,7 @@ export class AgentOrchestrator {
       config,
       stats,
       order: {
-        asset: trade.asset,
+        instrumentSymbol: trade.instrumentSymbol,
         side: trade.side,
         sizeUsd: trade.position_size_usd,
       },
@@ -120,7 +120,7 @@ export class AgentOrchestrator {
     if (config.human_approval_required) {
       this.deps.bus.emit("approval_required", {
         trade_id: trade.id,
-        asset: trade.asset,
+        instrumentSymbol: trade.instrumentSymbol,
         side: trade.side,
         size_usd: trade.position_size_usd,
         confidence: trade.confidence_score ?? 0,
@@ -138,7 +138,7 @@ export class AgentOrchestrator {
 
     const order = await this.deps.broker.placeOrder(risk.value);
     const opened = this.deps.tradesRepo.markOpen(trade.id, order.brokerOrderId, order.filledAvgPrice);
-    this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.asset} $${trade.position_size_usd} via broker.`, "broker");
+    this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`, "broker");
     this.deps.bus.emit("trade_opened", opened);
   }
 
@@ -157,11 +157,11 @@ export class AgentOrchestrator {
   }
 
   private createTradeFromDecision(
-    asset: string,
+    instrumentSymbol: string,
     config: SessionConfig,
     decision: {
       action: "trade" | "no_trade";
-      asset?: string;
+      instrumentSymbol?: string;
       side?: "BUY" | "SELL";
       sizeUsd?: number;
       confidence: number;
@@ -171,8 +171,10 @@ export class AgentOrchestrator {
   ): Trade {
     return {
       id: crypto.randomUUID(),
-      session_id: this.sessionId,
-      asset: decision.asset ?? asset,
+      sessionId: this.sessionId,
+      brokerAccountId: null,
+      instrumentSymbol: decision.instrumentSymbol ?? instrumentSymbol,
+      instrumentType: "stock",
       side: decision.side ?? "BUY",
       entry_price: null,
       position_size_usd: Math.min(decision.sizeUsd ?? config.max_position_usd, config.max_position_usd),
@@ -198,7 +200,7 @@ export class AgentOrchestrator {
     level: "DEBUG" | "INFO" | "WARN" | "ERROR",
     tradeId: string | null,
     message: string,
-    agentType: EventAgentType | null = null,
+    agentType: EventSourceType | null = null,
   ): void {
     const event = this.deps.eventsRepo.insert({
       session_id: this.sessionId,
@@ -210,10 +212,11 @@ export class AgentOrchestrator {
     this.deps.bus.emit("agent_event", event);
   }
 
-  private watchlistFor(session: { instrumentScope: string }): string[] {
+  private getInstruments(session: { instrumentScope: string }, config: SessionConfig): string[] {
     return session.instrumentScope
-      .split(",")
-      .map((symbol) => symbol.trim())
-      .filter((symbol) => symbol.length > 0);
+      .split(/[\n,]+/)
+      .map((symbol) => symbol.trim().toUpperCase())
+      .filter((symbol) => symbol.length > 0)
+      .slice(0, config.max_concurrent_trades);
   }
 }

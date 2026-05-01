@@ -5,9 +5,9 @@ import { useSessionStore } from "@/store/sessionStore";
 import { useTradeStore } from "@/store/tradeStore";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
-import type { AgentType, DashboardStats, EventAgentType, EventRow, Trade } from "@/lib/types";
+import type { AgentRole, DashboardStats, EventRow, EventSourceType, Trade } from "@/lib/types";
 
-const AGENT_PALETTE: Partial<Record<EventAgentType, { color: string; label: string; bg: string }>> = {
+const AGENT_PALETTE: Partial<Record<EventSourceType, { color: string; label: string; bg: string }>> = {
   researcher_bull: { color: "#34d399", label: "Bull Research", bg: "rgba(52,211,153,0.07)" },
   researcher_bear: { color: "#f87171", label: "Bear Research", bg: "rgba(248,113,113,0.07)" },
   reviewer:        { color: "#60a5fa", label: "Reviewer",      bg: "rgba(96,165,250,0.07)" },
@@ -71,7 +71,7 @@ const TradeRow = ({
       style={{ ...ds.tradeRow, background: selected ? "var(--surface2)" : "transparent" }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)", width: 46 }}>{trade.asset}</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)", width: 46 }}>{trade.instrumentSymbol}</span>
         <Badge variant={trade.side === "BUY" ? "success" : "danger"} size="sm">{trade.side}</Badge>
       </div>
       <span style={ds.trCell}>{trade.entry_price != null ? fmt.usd(trade.entry_price) : "—"}</span>
@@ -103,7 +103,7 @@ const TradesPanel = () => {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={ds.trHead}>
-        {["Asset", "Entry", "Current", "P&L", "Size", "Confidence", "Status", "Time"].map((h) => (
+        {["Instrument", "Entry", "Current", "P&L", "Size", "Confidence", "Status", "Time"].map((h) => (
           <span key={h}>{h}</span>
         ))}
       </div>

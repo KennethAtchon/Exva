@@ -1,13 +1,13 @@
 import type { ConnectionTestResult } from "@/lib/types";
 
 export interface MarketSnapshot {
-  asset: string;
+  instrumentSymbol: string;
   price: number;
   timestamp: string;
 }
 
 export interface OrderRequest {
-  asset: string;
+  instrumentSymbol: string;
   side: "BUY" | "SELL";
   sizeUsd: number;
 }
@@ -33,7 +33,7 @@ export interface BrokerAdapter {
   id: "mock" | "alpaca";
   testConnection(): Promise<ConnectionTestResult>;
   getAccountBalance(): Promise<number>;
-  getMarketSnapshot(asset: string): Promise<MarketSnapshot>;
+  getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot>;
   placeOrder(order: OrderRequest): Promise<OrderResult>;
   closeOrder(orderId: string): Promise<CloseResult>;
   getOrderStatus(orderId: string): Promise<OrderStatus>;

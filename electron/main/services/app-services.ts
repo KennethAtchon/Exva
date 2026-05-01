@@ -1,10 +1,21 @@
 import type { App } from "electron";
 import { createDbClient } from "../db/client";
 import { AgentRunsRepo } from "../db/repositories/agent-runs-repo";
+import { BrokerAccountsRepo } from "../db/repositories/broker-accounts-repo";
+import { BrokerRoutingRepo } from "../db/repositories/broker-routing-repo";
+import { CapitalReservationsRepo } from "../db/repositories/capital-reservations-repo";
 import { EventsRepo } from "../db/repositories/events-repo";
+import { ProviderAccountsRepo } from "../db/repositories/provider-accounts-repo";
+import { SessionAiRolesRepo } from "../db/repositories/session-ai-roles-repo";
+import { SessionBrokerAssignmentsRepo } from "../db/repositories/session-broker-assignments-repo";
+import { SessionSelectorSettingsRepo } from "../db/repositories/session-selector-settings-repo";
+import { SessionStrategiesRepo } from "../db/repositories/session-strategies-repo";
+import { SessionTemplatesRepo } from "../db/repositories/session-templates-repo";
 import { SessionRepo } from "../db/repositories/session-repo";
 import { StatsRepo } from "../db/repositories/stats-repo";
+import { TradeApprovalsRepo } from "../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades-repo";
+import { WorkspacePreferencesRepo } from "../db/repositories/workspace-prefs-repo";
 import { AiSdkService } from "./ai-sdk-service";
 import { AgentOrchestrator } from "./agent-orchestrator";
 import { BrokerService } from "./broker-service";
@@ -20,10 +31,21 @@ export interface AppServices {
   db: ReturnType<typeof createDbClient>;
   repos: {
     agentRuns: AgentRunsRepo;
+    brokerAccounts: BrokerAccountsRepo;
+    brokerRouting: BrokerRoutingRepo;
+    capitalReservations: CapitalReservationsRepo;
     events: EventsRepo;
+    providerAccounts: ProviderAccountsRepo;
+    sessionAiRoles: SessionAiRolesRepo;
+    sessionBrokerAssignments: SessionBrokerAssignmentsRepo;
+    sessionSelectorSettings: SessionSelectorSettingsRepo;
     session: SessionRepo;
+    sessionStrategies: SessionStrategiesRepo;
+    sessionTemplates: SessionTemplatesRepo;
     stats: StatsRepo;
+    tradeApprovals: TradeApprovalsRepo;
     trades: TradesRepo;
+    workspacePreferences: WorkspacePreferencesRepo;
   };
   ai: AiSdkService;
   broker: BrokerService;
@@ -40,10 +62,21 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const db = createDbClient(app.getPath("userData"));
   const repos = {
     agentRuns: new AgentRunsRepo(db),
+    brokerAccounts: new BrokerAccountsRepo(db),
+    brokerRouting: new BrokerRoutingRepo(db),
+    capitalReservations: new CapitalReservationsRepo(db),
     events: new EventsRepo(db),
+    providerAccounts: new ProviderAccountsRepo(db),
+    sessionAiRoles: new SessionAiRolesRepo(db),
+    sessionBrokerAssignments: new SessionBrokerAssignmentsRepo(db),
+    sessionSelectorSettings: new SessionSelectorSettingsRepo(db),
     session: new SessionRepo(db),
+    sessionStrategies: new SessionStrategiesRepo(db),
+    sessionTemplates: new SessionTemplatesRepo(db),
     stats: new StatsRepo(db),
+    tradeApprovals: new TradeApprovalsRepo(db),
     trades: new TradesRepo(db),
+    workspacePreferences: new WorkspacePreferencesRepo(db),
   };
   const secrets = new SecretsService();
   const broker = new BrokerService(secrets);

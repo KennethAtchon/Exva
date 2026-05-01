@@ -1,12 +1,12 @@
 import type { DbClient } from "../client";
-import type { EventAgentType, EventRow, LogLevel } from "@/lib/types";
+import type { EventRow, EventSourceType, LogLevel } from "@/lib/types";
 import { toEventRow } from "./mappers";
 
 export interface EventFilters {
   minLevel?: LogLevel;
   min_level?: LogLevel;
-  agentType?: EventAgentType;
-  agent_type?: EventAgentType;
+  agentType?: EventSourceType;
+  agent_type?: EventSourceType;
   search?: string;
   limit?: number;
 }

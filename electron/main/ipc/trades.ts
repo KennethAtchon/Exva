@@ -32,8 +32,8 @@ export function registerTradeHandlers(services: AppServices): void {
   handle(ipcMain, channels.trades.approve, async (payload) => {
     const { tradeId, approved } = approveTradeSchema.parse(payload);
     const trade = services.repos.trades.require(tradeId);
-    if (trade.session_id) {
-      services.runtimeManager.get(trade.session_id)?.orchestrator.resolveApproval(tradeId, approved);
+    if (trade.sessionId) {
+      services.runtimeManager.get(trade.sessionId)?.orchestrator.resolveApproval(tradeId, approved);
     }
   });
 }

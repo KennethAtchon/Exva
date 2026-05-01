@@ -63,7 +63,7 @@ export class StatsRepo {
     const byTrade = this.client.sqlite
       .prepare(
         `
-        SELECT trades.asset AS asset, SUM(agent_runs.cost_usd) AS cost
+        SELECT trades.instrument_symbol AS instrumentSymbol, SUM(agent_runs.cost_usd) AS cost
         FROM agent_runs
         JOIN trades ON trades.id = agent_runs.trade_id
         GROUP BY trades.id

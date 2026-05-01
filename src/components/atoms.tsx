@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { AgentType, EventAgentType, LogLevel } from "@/lib/types";
+import type { AgentRole, EventSourceType, LogLevel } from "@/lib/types";
 
 type BadgeVariant = "default" | "success" | "danger" | "warn" | "blue" | "purple";
 
@@ -85,7 +85,7 @@ export const Divider = ({
     <div style={{ height: 1, background: "var(--border)", ...s }} />
   );
 
-const AGENT_LABEL: Record<AgentType, { label: string; variant: BadgeVariant }> = {
+const AGENT_LABEL: Record<AgentRole, { label: string; variant: BadgeVariant }> = {
   researcher_bull: { label: "bull", variant: "success" },
   researcher_bear: { label: "bear", variant: "danger" },
   reviewer: { label: "review", variant: "blue" },
@@ -93,8 +93,8 @@ const AGENT_LABEL: Record<AgentType, { label: string; variant: BadgeVariant }> =
   instrument_selector: { label: "select", variant: "default" },
 };
 
-export const AgentLabel = ({ type }: { type: EventAgentType }) => {
-  const m = AGENT_LABEL[type as AgentType] ?? { label: type, variant: "default" as const };
+export const AgentLabel = ({ type }: { type: EventSourceType }) => {
+  const m = AGENT_LABEL[type as AgentRole] ?? { label: type, variant: "default" as const };
   return (
     <Badge variant={m.variant} size="sm">
       {m.label}

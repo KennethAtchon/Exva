@@ -97,7 +97,7 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
         <div style={ts.header}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 22, fontWeight: 700, color: "var(--text1)" }}>
-              {trade.asset}
+              {trade.instrumentSymbol}
             </span>
             <Badge variant={trade.side === "BUY" ? "success" : "danger"}>{trade.side}</Badge>
             <Badge variant={isOpen ? "success" : "default"}>{trade.status}</Badge>

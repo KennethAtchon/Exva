@@ -1,7 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateObject, generateText } from "ai";
 import type { z } from "zod";
-import type { AgentRun, AgentType } from "@/lib/types";
+import type { AgentRole, AgentRun } from "@/lib/types";
 import { tradeDecisionSchema } from "@/lib/schemas";
 import { AppError } from "@electron/shared/errors";
 import { secretKeys, type SecretsService } from "./secrets-service";
@@ -12,12 +12,12 @@ export interface AgentResult<T> {
 }
 
 export interface ResearcherInput {
-  asset: string;
+  instrumentSymbol: string;
   context?: string;
 }
 
 export interface ReviewerInput {
-  asset: string;
+  instrumentSymbol: string;
   bullCase: string;
   bearCase: string;
 }
@@ -29,7 +29,7 @@ export interface DecisionInput extends ReviewerInput {
 
 export type TradeDecision = z.infer<typeof tradeDecisionSchema>;
 
-const modelByAgent: Record<AgentType, string> = {
+const modelByAgent: Record<AgentRole, string> = {
   researcher_bull: "claude-sonnet-4-5-20250929",
   researcher_bear: "claude-sonnet-4-5-20250929",
   reviewer: "claude-sonnet-4-5-20250929",
@@ -45,19 +45,19 @@ export class AiSdkService {
   }
 
   async runResearcher(input: ResearcherInput, stance: "bull" | "bear"): Promise<AgentResult<string>> {
-    const agentType: AgentType = stance === "bull" ? "researcher_bull" : "researcher_bear";
+    const agentType: AgentRole = stance === "bull" ? "researcher_bull" : "researcher_bear";
     const system =
       stance === "bull"
         ? "You are the bull researcher. Build the strongest evidence-backed long thesis."
         : "You are the bear researcher. Build the strongest evidence-backed risk case.";
-    return this.runText(agentType, system, `Asset: ${input.asset}\nContext: ${input.context ?? "None"}`);
+    return this.runText(agentType, system, `Instrument: ${input.instrumentSymbol}\nContext: ${input.context ?? "None"}`);
   }
 
   async runReviewer(input: ReviewerInput): Promise<AgentResult<string>> {
     return this.runText(
       "reviewer",
       "You are a trading research reviewer. Identify weak claims, missing risks, and decision-useful facts.",
-      `Asset: ${input.asset}\n\nBull case:\n${input.bullCase}\n\nBear case:\n${input.bearCase}`,
+      `Instrument: ${input.instrumentSymbol}\n\nBull case:\n${input.bullCase}\n\nBear case:\n${input.bearCase}`,
     );
   }
 
@@ -70,7 +70,7 @@ export class AiSdkService {
       schema: tradeDecisionSchema,
       system:
         "You decide whether a trade is justified. Return no_trade unless evidence, sizing, confidence, stop, and target are all coherent.",
-      prompt: `Asset: ${input.asset}
+      prompt: `Instrument: ${input.instrumentSymbol}
 Max position USD: ${input.maxPositionUsd}
 
 Bull case:
@@ -87,7 +87,7 @@ ${input.review}`,
     return { run, output: result.object };
   }
 
-  private async runText(agentType: AgentType, system: string, prompt: string): Promise<AgentResult<string>> {
+  private async runText(agentType: AgentRole, system: string, prompt: string): Promise<AgentResult<string>> {
     const started = Date.now();
     const model = modelByAgent[agentType];
     const anthropic = createAnthropic({ apiKey: await this.requireAnthropicKey() });
@@ -107,7 +107,7 @@ ${input.review}`,
   }
 
   private toRun(
-    agentType: AgentType,
+    agentType: AgentRole,
     model: string,
     outputText: string,
     started: number,

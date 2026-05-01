@@ -52,7 +52,7 @@ export const eventFiltersSchema = z
 export const tradeDecisionSchema = z.object({
   action: z.enum(["trade", "no_trade"]),
   side: tradeSideSchema.optional(),
-  asset: z.string().min(1),
+  instrumentSymbol: z.string().min(1),
   sizeUsd: z.number().positive().optional(),
   confidence: z.number().min(0).max(1),
   stopLossPct: z.number().positive().optional(),

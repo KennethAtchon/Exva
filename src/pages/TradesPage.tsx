@@ -71,7 +71,7 @@ export const TradesPage = () => {
               borderBottom: "1px solid var(--border)", minWidth: 780,
             }}
           >
-            {["Asset", "Side", "Size", "Entry", "Cur/Exit", "P&L", "AI Cost", "Conf", "Status", "Time"].map((h) => (
+            {["Instrument", "Side", "Size", "Entry", "Cur/Exit", "P&L", "AI Cost", "Conf", "Status", "Time"].map((h) => (
               <span key={h}>{h}</span>
             ))}
           </div>
@@ -92,7 +92,7 @@ export const TradesPage = () => {
                   transition: "background 0.1s", minWidth: 780,
                 }}
               >
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{t.asset}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{t.instrumentSymbol}</span>
                 <Badge variant={t.side === "BUY" ? "success" : "danger"} size="sm">{t.side}</Badge>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{fmt.usd(t.position_size_usd, 0)}</span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{t.entry_price != null ? fmt.usd(t.entry_price) : "—"}</span>

@@ -21,8 +21,8 @@ describe("SessionRuntimeManager", () => {
         INSERT INTO sessions (
           id, name, objective, status, is_focused, selection_mode,
           instrument_classes, instrument_scope, capital_limit_usd,
-          execution_mode, started_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          execution_mode, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
       )
       .run(
@@ -36,10 +36,10 @@ describe("SessionRuntimeManager", () => {
         "AAPL",
         5000,
         "paper_only",
-        null,
         new Date().toISOString(),
         new Date().toISOString(),
       );
+    db.sqlite.prepare("INSERT INTO session_selector_settings (session_id, ai_picker_enabled, updated_at) VALUES (?, 1, ?)").run("session-b", new Date().toISOString());
     db.sqlite.prepare("INSERT INTO session_strategies (session_id) VALUES (?)").run("session-b");
   });
 

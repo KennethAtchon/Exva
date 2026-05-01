@@ -1,14 +1,3 @@
-export class AppError extends Error {
-  constructor(
-    message: string,
-    public readonly code: AppErrorCode = "UNKNOWN",
-    public readonly details?: Record<string, unknown>,
-  ) {
-    super(message);
-    this.name = "AppError";
-  }
-}
-
 export type AppErrorCode =
   | "VALIDATION_FAILED"
   | "INVALID_TRANSITION"
@@ -21,20 +10,33 @@ export type AppErrorCode =
   | "ROUTING_AMBIGUOUS"
   | "NO_BROKER"
   | "UNSUPPORTED_INSTRUMENT"
+  | "UNKNOWN_BROKER"
   | "SESSION_NOT_ACTIVE"
   | "SELECTOR_NOT_CONFIGURED"
   | "SEARCH_PROVIDER_REQUIRED"
   | "INSTRUMENT_CONFLICT"
   | "CAPITAL_POOL_EXCEEDED"
+  | "PREFLIGHT_FAILED"
   | "UNKNOWN";
 
-export interface IpcErrorResponse {
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public readonly code: AppErrorCode = "UNKNOWN",
+    public readonly details?: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = "AppError";
+  }
+}
+
+export interface SerializedAppError {
   code: AppErrorCode;
   message: string;
   details?: Record<string, unknown>;
 }
 
-export function toIpcError(error: unknown): IpcErrorResponse {
+export function serializeError(error: unknown): SerializedAppError {
   if (error instanceof AppError) {
     return { code: error.code, message: error.message, details: error.details };
   }
@@ -44,4 +46,10 @@ export function toIpcError(error: unknown): IpcErrorResponse {
   }
 
   return { code: "UNKNOWN", message: "Internal error" };
+}
+
+export type IpcErrorResponse = SerializedAppError;
+
+export function toIpcError(error: unknown): IpcErrorResponse {
+  return serializeError(error);
 }

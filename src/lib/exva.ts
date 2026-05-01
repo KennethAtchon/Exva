@@ -1,4 +1,5 @@
 import type {
+  AgentRole,
   AgentRun,
   BrokerCredentials,
   ConnectionTestResult,
@@ -88,7 +89,7 @@ export const api = {
 
   getEvents: (filters?: {
     minLevel?: string;
-    agentType?: string;
+    agentType?: AgentRole;
     search?: string;
     limit?: number;
   }) => call<EventRow[]>(() => window.exva!.events.list(filters), MOCK.events),

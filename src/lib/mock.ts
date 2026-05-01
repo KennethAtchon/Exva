@@ -2,6 +2,7 @@
 // Kept close to the original jsx mocks so the UI renders identically.
 
 import type {
+  InstrumentClass,
   Trade,
   AgentRun,
   EventRow,
@@ -11,12 +12,12 @@ import type {
 } from "./types";
 
 const trades: Trade[] = [
-  { id: "t-001", asset: "NVDA", side: "BUY",  entry_price: 891.20, position_size_usd: 450, stop_loss_price: 873.38, take_profit_price: 927.85, strategy: "passive_income", status: "open",   opened_at: "2026-04-21T09:14:22Z", closed_at: null, final_pnl_usd: null, ai_cost_usd: 0.31, confidence_score: 0.82, broker_order_id: "ALP-00421", created_at: "2026-04-21T09:14:22Z", unrealized_pnl: 38.40, current_price: 898.73 },
-  { id: "t-002", asset: "AAPL", side: "BUY",  entry_price: 198.55, position_size_usd: 500, stop_loss_price: 194.58, take_profit_price: 206.49, strategy: "passive_income", status: "open",   opened_at: "2026-04-21T10:02:11Z", closed_at: null, final_pnl_usd: null, ai_cost_usd: 0.28, confidence_score: 0.74, broker_order_id: "ALP-00422", created_at: "2026-04-21T10:02:11Z", unrealized_pnl: -6.20, current_price: 196.31 },
-  { id: "t-003", asset: "TSLA", side: "SELL", entry_price: 245.80, position_size_usd: 490, stop_loss_price: 250.72, take_profit_price: 235.57, strategy: "passive_income", status: "open",   opened_at: "2026-04-21T11:33:05Z", closed_at: null, final_pnl_usd: null, ai_cost_usd: 0.34, confidence_score: 0.79, broker_order_id: "ALP-00423", created_at: "2026-04-21T11:33:05Z", unrealized_pnl: 14.90, current_price: 238.32 },
-  { id: "t-004", asset: "META", side: "BUY",  entry_price: 572.10, position_size_usd: 480, stop_loss_price: 560.66, take_profit_price: 595.78, strategy: "passive_income", status: "closed", opened_at: "2026-04-21T07:22:10Z", closed_at: "2026-04-21T08:55:30Z", final_pnl_usd: 22.40, ai_cost_usd: 0.29, confidence_score: 0.81, broker_order_id: null, created_at: "2026-04-21T07:22:10Z" },
-  { id: "t-005", asset: "MSFT", side: "BUY",  entry_price: 418.30, position_size_usd: 420, stop_loss_price: 409.93, take_profit_price: 435.03, strategy: "passive_income", status: "closed", opened_at: "2026-04-21T06:10:00Z", closed_at: "2026-04-21T07:18:44Z", final_pnl_usd: -8.40, ai_cost_usd: 0.26, confidence_score: 0.61, broker_order_id: null, created_at: "2026-04-21T06:10:00Z" },
-  { id: "t-006", asset: "AMZN", side: "BUY",  entry_price: 198.44, position_size_usd: 500, stop_loss_price: 194.47, take_profit_price: 206.38, strategy: "passive_income", status: "closed", opened_at: "2026-04-21T05:55:00Z", closed_at: "2026-04-21T06:44:10Z", final_pnl_usd: 19.80, ai_cost_usd: 0.27, confidence_score: 0.77, broker_order_id: null, created_at: "2026-04-21T05:55:00Z" },
+  { id: "t-001", sessionId: "default-session", brokerAccountId: "default-broker", instrumentSymbol: "NVDA", instrumentType: "stock" as InstrumentClass, side: "BUY",  entry_price: 891.20, position_size_usd: 450, stop_loss_price: 873.38, take_profit_price: 927.85, strategy: "passive_income", status: "open",   opened_at: "2026-04-21T09:14:22Z", closed_at: null, final_pnl_usd: null, ai_cost_usd: 0.31, confidence_score: 0.82, broker_order_id: "ALP-00421", created_at: "2026-04-21T09:14:22Z", unrealized_pnl: 38.40, current_price: 898.73 },
+  { id: "t-002", sessionId: "default-session", brokerAccountId: "default-broker", instrumentSymbol: "AAPL", instrumentType: "stock" as InstrumentClass, side: "BUY",  entry_price: 198.55, position_size_usd: 500, stop_loss_price: 194.58, take_profit_price: 206.49, strategy: "passive_income", status: "open",   opened_at: "2026-04-21T10:02:11Z", closed_at: null, final_pnl_usd: null, ai_cost_usd: 0.28, confidence_score: 0.74, broker_order_id: "ALP-00422", created_at: "2026-04-21T10:02:11Z", unrealized_pnl: -6.20, current_price: 196.31 },
+  { id: "t-003", sessionId: "default-session", brokerAccountId: "default-broker", instrumentSymbol: "TSLA", instrumentType: "stock" as InstrumentClass, side: "SELL", entry_price: 245.80, position_size_usd: 490, stop_loss_price: 250.72, take_profit_price: 235.57, strategy: "passive_income", status: "open",   opened_at: "2026-04-21T11:33:05Z", closed_at: null, final_pnl_usd: null, ai_cost_usd: 0.34, confidence_score: 0.79, broker_order_id: "ALP-00423", created_at: "2026-04-21T11:33:05Z", unrealized_pnl: 14.90, current_price: 238.32 },
+  { id: "t-004", sessionId: "default-session", brokerAccountId: null, instrumentSymbol: "META", instrumentType: "stock" as InstrumentClass, side: "BUY",  entry_price: 572.10, position_size_usd: 480, stop_loss_price: 560.66, take_profit_price: 595.78, strategy: "passive_income", status: "closed", opened_at: "2026-04-21T07:22:10Z", closed_at: "2026-04-21T08:55:30Z", final_pnl_usd: 22.40, ai_cost_usd: 0.29, confidence_score: 0.81, broker_order_id: null, created_at: "2026-04-21T07:22:10Z" },
+  { id: "t-005", sessionId: "default-session", brokerAccountId: null, instrumentSymbol: "MSFT", instrumentType: "stock" as InstrumentClass, side: "BUY",  entry_price: 418.30, position_size_usd: 420, stop_loss_price: 409.93, take_profit_price: 435.03, strategy: "passive_income", status: "closed", opened_at: "2026-04-21T06:10:00Z", closed_at: "2026-04-21T07:18:44Z", final_pnl_usd: -8.40, ai_cost_usd: 0.26, confidence_score: 0.61, broker_order_id: null, created_at: "2026-04-21T06:10:00Z" },
+  { id: "t-006", sessionId: "default-session", brokerAccountId: null, instrumentSymbol: "AMZN", instrumentType: "stock" as InstrumentClass, side: "BUY",  entry_price: 198.44, position_size_usd: 500, stop_loss_price: 194.47, take_profit_price: 206.38, strategy: "passive_income", status: "closed", opened_at: "2026-04-21T05:55:00Z", closed_at: "2026-04-21T06:44:10Z", final_pnl_usd: 19.80, ai_cost_usd: 0.27, confidence_score: 0.77, broker_order_id: null, created_at: "2026-04-21T05:55:00Z" },
 ];
 
 const runs: AgentRun[] = [
@@ -65,9 +66,9 @@ const costs: CostBreakdown = {
     { name: "decision_maker",  tokens: 8800,  cost: 0.32 },
   ],
   by_trade: [
-    { asset: "NVDA", cost: 0.31 }, { asset: "AAPL", cost: 0.28 },
-    { asset: "TSLA", cost: 0.34 }, { asset: "META", cost: 0.29 },
-    { asset: "MSFT", cost: 0.26 }, { asset: "AMZN", cost: 0.27 },
+    { instrumentSymbol: "NVDA", cost: 0.31 }, { instrumentSymbol: "AAPL", cost: 0.28 },
+    { instrumentSymbol: "TSLA", cost: 0.34 }, { instrumentSymbol: "META", cost: 0.29 },
+    { instrumentSymbol: "MSFT", cost: 0.26 }, { instrumentSymbol: "AMZN", cost: 0.27 },
   ],
   cache_savings_usd: 0.84,
   daily_history: [

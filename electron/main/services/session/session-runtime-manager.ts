@@ -32,11 +32,14 @@ export class SessionRuntimeManager {
     );
 
     this.runtimes.set(sessionId, runtime);
-    this.deps.bus.setRuntimeStatus(sessionId, session.status === "paused" ? "paused" : "active");
-    this.deps.sessionRepo.setStatus(session.status === "paused" ? "paused" : "active", sessionId);
+    const runtimeStatus = session.status === "paused" ? "paused" : "active";
+    this.deps.bus.setRuntimeStatus(sessionId, runtimeStatus);
+    if (session.status !== runtimeStatus) {
+      this.deps.sessionRepo.setStatus(runtimeStatus, sessionId);
+    }
 
     try {
-      await runtime.initialize(session.status === "paused" ? "paused" : "active");
+      await runtime.initialize(runtimeStatus);
       return runtime;
     } catch (error) {
       this.runtimes.delete(sessionId);

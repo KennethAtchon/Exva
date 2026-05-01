@@ -28,23 +28,23 @@ export class TradesRepo {
     return rows.map(toTrade);
   }
 
-  checkInstrumentConflict(sessionId: string, asset: string): boolean {
+  checkInstrumentConflict(brokerAccountId: string, instrumentSymbol: string, excludeSessionId: string): boolean {
     const row = this.client.sqlite
       .prepare(
         `
-        SELECT 1
+        SELECT COUNT(*) AS count
         FROM trades
         JOIN sessions ON sessions.id = trades.session_id
-        WHERE trades.asset = ?
+        WHERE trades.broker_account_id = ?
+          AND trades.instrument_symbol = ?
           AND trades.session_id != ?
           AND trades.status IN ('open', 'pending')
-          AND sessions.status = 'active'
-        LIMIT 1
+          AND sessions.status IN ('active', 'paused')
         `,
       )
-      .get(asset, sessionId) as { 1?: number } | undefined;
+      .get(brokerAccountId, instrumentSymbol, excludeSessionId) as { count?: number } | undefined;
 
-    return Boolean(row);
+    return Number(row?.count ?? 0) > 0;
   }
 
   find(id: string): Trade | null {
@@ -65,17 +65,25 @@ export class TradesRepo {
       .prepare(
         `
         INSERT INTO trades (
-          id, asset, side, entry_price, position_size_usd, stop_loss_price,
-          take_profit_price, strategy, status, opened_at, closed_at, final_pnl_usd,
-          ai_cost_usd, confidence_score, broker_order_id, created_at
+          id, session_id, broker_account_id, instrument_symbol, instrument_type, side,
+          entry_price, position_size_usd, stop_loss_price, take_profit_price, strategy,
+          status, opened_at, closed_at, final_pnl_usd, ai_cost_usd, confidence_score,
+          broker_order_id, created_at
         ) VALUES (
-          @id, @asset, @side, @entry_price, @position_size_usd, @stop_loss_price,
-          @take_profit_price, @strategy, @status, @opened_at, @closed_at, @final_pnl_usd,
-          @ai_cost_usd, @confidence_score, @broker_order_id, @created_at
+          @id, @session_id, @broker_account_id, @instrument_symbol, @instrument_type, @side,
+          @entry_price, @position_size_usd, @stop_loss_price, @take_profit_price, @strategy,
+          @status, @opened_at, @closed_at, @final_pnl_usd, @ai_cost_usd, @confidence_score,
+          @broker_order_id, @created_at
         )
         `,
       )
-      .run(trade);
+      .run({
+        ...trade,
+        session_id: trade.sessionId,
+        broker_account_id: trade.brokerAccountId ?? null,
+        instrument_symbol: trade.instrumentSymbol,
+        instrument_type: trade.instrumentType,
+      });
   }
 
   updateStatus(id: string, status: TradeStatus, finalPnlUsd: number | null = null): Trade {
