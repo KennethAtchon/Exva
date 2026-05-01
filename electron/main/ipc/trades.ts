@@ -6,7 +6,7 @@ import { handle } from "./handle";
 
 export function registerTradeHandlers(services: AppServices): void {
   handle(ipcMain, channels.trades.listActive, async () => {
-    return services.repos.trades.listAll();
+    return services.repos.trades.listAll(services.repos.session.getFocusedSessionId());
   });
 
   handle(ipcMain, channels.trades.getDetail, async (payload) => {
@@ -31,6 +31,9 @@ export function registerTradeHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.trades.approve, async (payload) => {
     const { tradeId, approved } = approveTradeSchema.parse(payload);
-    services.orchestrator.approve(tradeId, approved);
+    const trade = services.repos.trades.require(tradeId);
+    if (trade.session_id) {
+      services.runtimeManager.get(trade.session_id)?.orchestrator.resolveApproval(tradeId, approved);
+    }
   });
 }

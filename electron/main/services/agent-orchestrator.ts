@@ -1,106 +1,109 @@
 import PQueue from "p-queue";
-import type { SessionConfig, Trade } from "@/lib/types";
-import type { AgentRunsRepo } from "../db/repositories/agent-runs-repo";
-import type { EventsRepo } from "../db/repositories/events-repo";
-import type { StatsRepo } from "../db/repositories/stats-repo";
-import type { TradesRepo } from "../db/repositories/trades-repo";
-import type { BrokerService } from "./broker-service";
-import type { EventBus } from "./event-bus";
-import type { AiSdkService } from "./ai-sdk-service";
-import type { RiskEngine } from "./risk-engine";
-
-export interface OrchestratorDeps {
-  ai: AiSdkService;
-  broker: BrokerService;
-  risk: RiskEngine;
-  tradesRepo: TradesRepo;
-  agentRunsRepo: AgentRunsRepo;
-  eventsRepo: EventsRepo;
-  statsRepo: StatsRepo;
-  eventBus: EventBus;
-  getConfig(): SessionConfig;
-  getStats(): ReturnType<StatsRepo["dashboardStats"]>;
-  isActive(): boolean;
-}
+import type { AgentType, EventAgentType, InstrumentClass, SessionConfig, Trade } from "@/lib/types";
+import type { ApprovalRecheckInput, OrchestratorDeps } from "./session";
 
 export class AgentOrchestrator {
   private readonly queue = new PQueue({ concurrency: 1 });
   private readonly pendingApprovals = new Map<string, (approved: boolean) => void>();
+  private started = false;
 
-  constructor(private readonly deps: OrchestratorDeps) {}
+  constructor(
+    readonly sessionId: string,
+    private readonly deps: OrchestratorDeps,
+  ) {}
 
-  start(): void {
-    const config = this.deps.getConfig();
+  async start(): Promise<void> {
+    if (this.started) {
+      this.queue.start();
+      return;
+    }
+
+    const config = this.deps.sessionRepo.getConfig(this.sessionId);
     this.queue.concurrency = config.max_concurrent_trades;
-    for (const asset of this.watchlistFor(config)) {
-      this.queue.add(() => this.runTradeCycle(asset)).catch((error) => {
-        this.emitEvent("ERROR", null, `Trade cycle failed: ${error instanceof Error ? error.message : String(error)}`);
+    this.started = true;
+
+    for (const symbol of this.watchlistFor(this.deps.sessionRepo.requireById(this.sessionId))) {
+      this.queue.add(() => this.runTradeCycle(symbol, "stock")).catch((error) => {
+        this.emitEvent(
+          "ERROR",
+          null,
+          `Trade cycle failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
       });
     }
   }
 
-  pause(): void {
+  async pause(): Promise<void> {
     this.queue.pause();
   }
 
-  resume(): void {
+  async resume(): Promise<void> {
     this.queue.start();
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.queue.clear();
     for (const resolve of this.pendingApprovals.values()) resolve(false);
     this.pendingApprovals.clear();
   }
 
-  approve(tradeId: string, approved: boolean): void {
-    const resolve = this.pendingApprovals.get(tradeId);
-    if (resolve) {
-      this.pendingApprovals.delete(tradeId);
-      resolve(approved);
-    }
+  async runApprovalRecheck(input: ApprovalRecheckInput): Promise<void> {
+    await this.runTradeCycle(input.instrumentSymbol, input.instrumentClass);
   }
 
-  private async runTradeCycle(asset: string): Promise<void> {
-    if (!this.deps.isActive()) return;
-    this.emitEvent("INFO", null, `Starting agent cycle for ${asset}`);
+  resolveApproval(tradeId: string, approved: boolean): void {
+    const resolve = this.pendingApprovals.get(tradeId);
+    if (!resolve) return;
 
-    const config = this.deps.getConfig();
-    const bull = await this.deps.ai.runResearcher({ asset }, "bull");
-    const bear = await this.deps.ai.runResearcher({ asset }, "bear");
+    this.pendingApprovals.delete(tradeId);
+    resolve(approved);
+  }
+
+  private async runTradeCycle(symbol: string, _instrumentClass: InstrumentClass): Promise<void> {
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
+
+    const config = this.deps.sessionRepo.getConfig(this.sessionId);
+    const stats = this.deps.statsRepo.dashboardStats(
+      this.sessionId,
+      this.deps.sessionRepo.getStatus(this.sessionId),
+      100000,
+      this.deps.sessionRepo.uptimeMin(this.sessionId),
+      config.max_api_spend_usd,
+    );
+
+    const bull = await this.deps.ai.runResearcher({ asset: symbol }, "bull");
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort();
+
+    const bear = await this.deps.ai.runResearcher({ asset: symbol }, "bear");
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort();
+
     const review = await this.deps.ai.runReviewer({
-      asset,
+      asset: symbol,
       bullCase: bull.output,
       bearCase: bear.output,
     });
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort();
+
     const decision = await this.deps.ai.runDecisionMaker({
-      asset,
+      asset: symbol,
       bullCase: bull.output,
       bearCase: bear.output,
       review: review.output,
       maxPositionUsd: config.max_position_usd,
     });
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort();
 
-    const trade = this.createTradeFromDecision(asset, config, decision.output);
+    const trade = this.createTradeFromDecision(symbol, config, decision.output);
     this.deps.tradesRepo.insert(trade);
     for (const run of [bull.run, bear.run, review.run, decision.run]) {
-      this.deps.agentRunsRepo.insert({ ...run, trade_id: trade.id });
+      this.deps.agentRunsRepo.insert({ ...run, session_id: this.sessionId, trade_id: trade.id });
     }
-
-    this.emitEvent(
-      "INFO",
-      trade.id,
-      decision.output.action === "trade"
-        ? `Decision maker proposed ${trade.side} ${trade.asset} with ${(Number(trade.confidence_score ?? 0) * 100).toFixed(0)}% confidence`
-        : `Decision maker rejected ${trade.asset}: ${decision.output.reasoning}`,
-      "decision_maker",
-    );
 
     if (decision.output.action !== "trade") return;
 
-    const risk = this.deps.risk.validateDecision({
+    const risk = this.deps.riskEngine.validateDecision({
       config,
-      stats: this.deps.getStats(),
+      stats,
       order: {
         asset: trade.asset,
         side: trade.side,
@@ -109,14 +112,13 @@ export class AgentOrchestrator {
       confidence: trade.confidence_score ?? 0,
     });
     if (!risk.allowed || !risk.value) {
-      const rejected = this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+      this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
       this.emitEvent("WARN", trade.id, risk.reason ?? "Trade rejected by risk engine");
-      this.deps.eventBus.emit("trade_closed", rejected);
       return;
     }
 
     if (config.human_approval_required) {
-      this.deps.eventBus.emit("approval_required", {
+      this.deps.bus.emit("approval_required", {
         trade_id: trade.id,
         asset: trade.asset,
         side: trade.side,
@@ -129,15 +131,15 @@ export class AgentOrchestrator {
       if (!approved) {
         const rejected = this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
         this.emitEvent("WARN", trade.id, "Trade rejected or approval timed out");
-        this.deps.eventBus.emit("trade_closed", rejected);
+        this.deps.bus.emit("trade_closed", rejected);
         return;
       }
     }
 
     const order = await this.deps.broker.placeOrder(risk.value);
     const opened = this.deps.tradesRepo.markOpen(trade.id, order.brokerOrderId, order.filledAvgPrice);
-    this.emitEvent("INFO", trade.id, `Broker order opened: ${order.brokerOrderId}`);
-    this.deps.eventBus.emit("trade_opened", opened);
+    this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.asset} $${trade.position_size_usd} via broker.`, "broker");
+    this.deps.bus.emit("trade_opened", opened);
   }
 
   private waitForApproval(tradeId: string): Promise<boolean> {
@@ -169,6 +171,7 @@ export class AgentOrchestrator {
   ): Trade {
     return {
       id: crypto.randomUUID(),
+      session_id: this.sessionId,
       asset: decision.asset ?? asset,
       side: decision.side ?? "BUY",
       entry_price: null,
@@ -187,23 +190,30 @@ export class AgentOrchestrator {
     };
   }
 
+  private emitAbort(): void {
+    this.emitEvent("INFO", null, "Cycle aborted: session paused mid-flight.", "orchestrator");
+  }
+
   private emitEvent(
     level: "DEBUG" | "INFO" | "WARN" | "ERROR",
     tradeId: string | null,
     message: string,
-    agentType: "researcher_bull" | "researcher_bear" | "reviewer" | "decision_maker" | null = null,
+    agentType: EventAgentType | null = null,
   ): void {
     const event = this.deps.eventsRepo.insert({
+      session_id: this.sessionId,
       trade_id: tradeId,
       level,
       agent_type: agentType,
       message,
     });
-    this.deps.eventBus.emit("agent_event", event);
+    this.deps.bus.emit("agent_event", event);
   }
 
-  private watchlistFor(config: SessionConfig): string[] {
-    if (config.strategy.toLowerCase().includes("income")) return ["SPY"];
-    return ["SPY", "QQQ"].slice(0, config.max_concurrent_trades);
+  private watchlistFor(session: { instrumentScope: string }): string[] {
+    return session.instrumentScope
+      .split(",")
+      .map((symbol) => symbol.trim())
+      .filter((symbol) => symbol.length > 0);
   }
 }

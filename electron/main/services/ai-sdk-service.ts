@@ -1,4 +1,4 @@
-import { anthropic } from "@ai-sdk/anthropic";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateObject, generateText } from "ai";
 import type { z } from "zod";
 import type { AgentRun, AgentType } from "@/lib/types";
@@ -34,6 +34,7 @@ const modelByAgent: Record<AgentType, string> = {
   researcher_bear: "claude-sonnet-4-5-20250929",
   reviewer: "claude-sonnet-4-5-20250929",
   decision_maker: "claude-sonnet-4-5-20250929",
+  instrument_selector: "claude-sonnet-4-5-20250929",
 };
 
 export class AiSdkService {
@@ -63,7 +64,7 @@ export class AiSdkService {
   async runDecisionMaker(input: DecisionInput): Promise<AgentResult<TradeDecision>> {
     const started = Date.now();
     const model = modelByAgent.decision_maker;
-    process.env.ANTHROPIC_API_KEY = await this.requireAnthropicKey();
+    const anthropic = createAnthropic({ apiKey: await this.requireAnthropicKey() });
     const result = await generateObject({
       model: anthropic(model),
       schema: tradeDecisionSchema,
@@ -89,7 +90,7 @@ ${input.review}`,
   private async runText(agentType: AgentType, system: string, prompt: string): Promise<AgentResult<string>> {
     const started = Date.now();
     const model = modelByAgent[agentType];
-    process.env.ANTHROPIC_API_KEY = await this.requireAnthropicKey();
+    const anthropic = createAnthropic({ apiKey: await this.requireAnthropicKey() });
     const result = await generateText({
       model: anthropic(model),
       system,

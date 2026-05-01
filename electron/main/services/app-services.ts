@@ -9,10 +9,11 @@ import { AiSdkService } from "./ai-sdk-service";
 import { AgentOrchestrator } from "./agent-orchestrator";
 import { BrokerService } from "./broker-service";
 import { EventBus } from "./event-bus";
+import { createLogger } from "./log";
 import { NotificationService } from "./notification-service";
 import { RiskEngine } from "./risk-engine";
 import { SecretsService } from "./secrets-service";
-import { SessionService } from "./session-service";
+import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
 import { TradeMonitor } from "./trade-monitor";
 
 export interface AppServices {
@@ -28,11 +29,10 @@ export interface AppServices {
   broker: BrokerService;
   eventBus: EventBus;
   notifications: NotificationService;
-  orchestrator: AgentOrchestrator;
+  runtimeManager: SessionRuntimeManager;
   risk: RiskEngine;
   secrets: SecretsService;
   session: SessionService;
-  monitor: TradeMonitor;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -53,41 +53,44 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const risk = new RiskEngine();
   const ai = new AiSdkService(secrets);
   const notifications = new NotificationService(eventBus);
+  const logger = createLogger("app-services");
 
-  let orchestrator: AgentOrchestrator;
-  const session = new SessionService({
+  const runtimeManager = new SessionRuntimeManager({
     sessionRepo: repos.session,
-    statsRepo: repos.stats,
-    eventsRepo: repos.events,
-    secrets,
-    broker,
-    risk,
-    eventBus,
-    getOrchestrator: () => orchestrator,
-  });
-
-  orchestrator = new AgentOrchestrator({
-    ai,
-    broker,
-    risk,
     tradesRepo: repos.trades,
     agentRunsRepo: repos.agentRuns,
     eventsRepo: repos.events,
     statsRepo: repos.stats,
-    eventBus,
-    getConfig: () => repos.session.getConfig(),
-    getStats: () =>
-      repos.stats.dashboardStats(
-        session.getStatus(),
-        session.getPortfolioValue(),
-        session.uptimeMin(),
-        repos.session.getConfig().max_api_spend_usd,
-      ),
-    isActive: () => session.isActive(),
+    ai,
+    broker,
+    riskEngine: risk,
+    bus: eventBus,
+    logger,
+    createOrchestrator: (sessionId, deps) => new AgentOrchestrator(sessionId, deps),
+    createTradeMonitor: (sessionId) =>
+      new TradeMonitor(sessionId, repos.trades, repos.stats, repos.session, broker, () => 100000, eventBus),
   });
 
-  const monitor = new TradeMonitor(repos.trades, repos.stats, broker, () => session, eventBus);
-  monitor.start();
+  const orchestratorDeps = {
+    sessionRepo: repos.session,
+    tradesRepo: repos.trades,
+    agentRunsRepo: repos.agentRuns,
+    eventsRepo: repos.events,
+    statsRepo: repos.stats,
+    ai,
+    broker,
+    riskEngine: risk,
+    bus: eventBus,
+    logger,
+  };
+
+  const session = new SessionService({
+    sessionRepo: repos.session,
+    eventsRepo: repos.events,
+    runtimeManager,
+    preflight: runPreflight,
+    orchestratorDeps,
+  });
 
   return {
     db,
@@ -96,10 +99,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
     broker,
     eventBus,
     notifications,
-    orchestrator,
+    runtimeManager,
     risk,
     secrets,
     session,
-    monitor,
   };
 }

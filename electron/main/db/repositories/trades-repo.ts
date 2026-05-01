@@ -6,18 +6,45 @@ import { toTrade } from "./mappers";
 export class TradesRepo {
   constructor(private readonly client: DbClient) {}
 
-  listAll(): Trade[] {
-    const rows = this.client.sqlite
-      .prepare("SELECT * FROM trades ORDER BY created_at DESC")
-      .all() as Record<string, unknown>[];
+  listAll(sessionId?: string): Trade[] {
+    const rows = sessionId
+      ? ((this.client.sqlite
+          .prepare("SELECT * FROM trades WHERE session_id = ? ORDER BY created_at DESC")
+          .all(sessionId) as Record<string, unknown>[]))
+      : ((this.client.sqlite.prepare("SELECT * FROM trades ORDER BY created_at DESC").all() as Record<string, unknown>[]));
     return rows.map(toTrade);
   }
 
-  listOpenAndPending(): Trade[] {
-    const rows = this.client.sqlite
-      .prepare("SELECT * FROM trades WHERE status IN ('open', 'pending') ORDER BY created_at DESC")
-      .all() as Record<string, unknown>[];
+  listOpenAndPending(sessionId?: string): Trade[] {
+    const rows = sessionId
+      ? ((this.client.sqlite
+          .prepare(
+            "SELECT * FROM trades WHERE session_id = ? AND status IN ('open', 'pending') ORDER BY created_at DESC",
+          )
+          .all(sessionId) as Record<string, unknown>[]))
+      : ((this.client.sqlite
+          .prepare("SELECT * FROM trades WHERE status IN ('open', 'pending') ORDER BY created_at DESC")
+          .all() as Record<string, unknown>[]));
     return rows.map(toTrade);
+  }
+
+  checkInstrumentConflict(sessionId: string, asset: string): boolean {
+    const row = this.client.sqlite
+      .prepare(
+        `
+        SELECT 1
+        FROM trades
+        JOIN sessions ON sessions.id = trades.session_id
+        WHERE trades.asset = ?
+          AND trades.session_id != ?
+          AND trades.status IN ('open', 'pending')
+          AND sessions.status = 'active'
+        LIMIT 1
+        `,
+      )
+      .get(asset, sessionId) as { 1?: number } | undefined;
+
+    return Boolean(row);
   }
 
   find(id: string): Trade | null {

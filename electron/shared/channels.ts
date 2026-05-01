@@ -12,6 +12,7 @@ export const channels = {
   session: {
     start: "session:start",
     pause: "session:pause",
+    resume: "session:resume",
     stop: "session:stop",
     getStatus: "session:get-status",
   },

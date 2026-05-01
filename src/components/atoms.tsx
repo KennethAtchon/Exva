@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { AgentType, LogLevel } from "@/lib/types";
+import type { AgentType, EventAgentType, LogLevel } from "@/lib/types";
 
 type BadgeVariant = "default" | "success" | "danger" | "warn" | "blue" | "purple";
 
@@ -90,10 +90,11 @@ const AGENT_LABEL: Record<AgentType, { label: string; variant: BadgeVariant }> =
   researcher_bear: { label: "bear", variant: "danger" },
   reviewer: { label: "review", variant: "blue" },
   decision_maker: { label: "decide", variant: "purple" },
+  instrument_selector: { label: "select", variant: "default" },
 };
 
-export const AgentLabel = ({ type }: { type: AgentType }) => {
-  const m = AGENT_LABEL[type] ?? { label: type as string, variant: "default" as const };
+export const AgentLabel = ({ type }: { type: EventAgentType }) => {
+  const m = AGENT_LABEL[type as AgentType] ?? { label: type, variant: "default" as const };
   return (
     <Badge variant={m.variant} size="sm">
       {m.label}

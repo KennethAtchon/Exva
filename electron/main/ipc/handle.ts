@@ -1,6 +1,8 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { toIpcError } from "@electron/shared/errors";
-import { logger } from "@electron/shared/logger";
+import { createLogger } from "../services/log";
+
+const logger = createLogger("ipc");
 
 type Handler<T> = (payload: unknown, event: IpcMainInvokeEvent) => Promise<T> | T;
 

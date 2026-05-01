@@ -1,7 +1,26 @@
 import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-export const sessionConfig = sqliteTable("session_config", {
-  id: integer("id").primaryKey().default(1),
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  objective: text("objective").notNull(),
+  status: text("status").notNull().default("idle"),
+  isFocused: integer("is_focused", { mode: "boolean" }).notNull().default(false),
+  selectionMode: text("selection_mode").notNull().default("manual_shortlist"),
+  instrumentClasses: text("instrument_classes").notNull(),
+  instrumentScope: text("instrument_scope").notNull(),
+  defaultSearchProviderId: text("default_search_provider_id"),
+  capitalLimitUsd: real("capital_limit_usd").notNull(),
+  executionMode: text("execution_mode").notNull().default("paper_only"),
+  startedAt: text("started_at"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const sessionStrategies = sqliteTable("session_strategies", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
   strategy: text("strategy").notNull().default("passive_income"),
   maxPositionUsd: real("max_position_usd").notNull().default(500),
   stopLossPct: real("stop_loss_pct").notNull().default(2),
@@ -14,18 +33,13 @@ export const sessionConfig = sqliteTable("session_config", {
   humanApprovalRequired: integer("human_approval_required", { mode: "boolean" })
     .notNull()
     .default(false),
-  updatedAt: text("updated_at").notNull().default("CURRENT_TIMESTAMP"),
-});
-
-export const sessionState = sqliteTable("session_state", {
-  id: integer("id").primaryKey().default(1),
-  status: text("status").notNull().default("idle"),
-  startedAt: text("started_at"),
-  updatedAt: text("updated_at").notNull(),
 });
 
 export const trades = sqliteTable("trades", {
   id: text("id").primaryKey(),
+  sessionId: text("session_id")
+    .notNull()
+    .references(() => sessions.id, { onDelete: "cascade" }),
   asset: text("asset").notNull(),
   side: text("side").notNull(),
   entryPrice: real("entry_price"),
@@ -45,6 +59,9 @@ export const trades = sqliteTable("trades", {
 
 export const agentRuns = sqliteTable("agent_runs", {
   id: text("id").primaryKey(),
+  sessionId: text("session_id")
+    .notNull()
+    .references(() => sessions.id, { onDelete: "cascade" }),
   tradeId: text("trade_id")
     .notNull()
     .references(() => trades.id, { onDelete: "cascade" }),
@@ -60,6 +77,7 @@ export const agentRuns = sqliteTable("agent_runs", {
 
 export const events = sqliteTable("events", {
   id: text("id").primaryKey(),
+  sessionId: text("session_id").references(() => sessions.id, { onDelete: "set null" }),
   tradeId: text("trade_id").references(() => trades.id, { onDelete: "set null" }),
   level: text("level").notNull(),
   agentType: text("agent_type"),

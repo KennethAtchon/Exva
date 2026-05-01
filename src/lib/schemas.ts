@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const sessionStatusSchema = z.enum(["idle", "active", "paused", "stopped"]);
+export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
 export const tradeSideSchema = z.enum(["BUY", "SELL"]);
 export const tradeStatusSchema = z.enum(["pending", "open", "closed", "rejected"]);
 export const agentTypeSchema = z.enum([
@@ -8,6 +8,13 @@ export const agentTypeSchema = z.enum([
   "researcher_bear",
   "reviewer",
   "decision_maker",
+  "instrument_selector",
+  "session",
+  "preflight",
+  "approval",
+  "orchestrator",
+  "broker",
+  "capital",
 ]);
 export const logLevelSchema = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]);
 

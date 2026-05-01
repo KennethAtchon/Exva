@@ -107,7 +107,7 @@ export class AlpacaAdapter implements BrokerAdapter {
       throw new AppError(
         `Alpaca request failed (${response.status}): ${text.slice(0, 200)}`,
         "BROKER_ERROR",
-        `Alpaca request failed (${response.status})`,
+        { status: response.status },
       );
     }
 

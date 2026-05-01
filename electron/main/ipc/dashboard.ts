@@ -5,8 +5,10 @@ import { handle } from "./handle";
 
 export function registerDashboardHandlers(services: AppServices): void {
   handle(ipcMain, channels.dashboard.getStats, async () => {
+    const sessionId = services.repos.session.getFocusedSessionId();
     const config = services.repos.session.getConfig();
     return services.repos.stats.dashboardStats(
+      sessionId,
       services.session.getStatus(),
       services.session.getPortfolioValue(),
       services.session.uptimeMin(),

@@ -1,4 +1,5 @@
 import pino from "pino";
+import { env } from "../main/config/env";
 
 const redact = [
   "api_key",
@@ -11,6 +12,6 @@ const redact = [
 ];
 
 export const logger = pino({
-  level: process.env.EXVA_LOG_LEVEL ?? "info",
+  level: env.logLevel,
   redact,
 });

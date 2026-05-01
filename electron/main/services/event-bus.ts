@@ -1,4 +1,5 @@
 import type { BrowserWindow } from "electron";
+import type { SessionRuntimeStatus } from "@/lib/types";
 import type { DashboardStats, EventRow, Trade, TradeDecisionPayload } from "@/lib/types";
 import type { ExvaEventName } from "@electron/shared/channels";
 
@@ -15,6 +16,7 @@ export interface ExvaEventMap {
 
 export class EventBus {
   private windows = new Set<BrowserWindow>();
+  private runtimeStatuses = new Map<string, SessionRuntimeStatus>();
 
   attach(window: BrowserWindow): void {
     this.windows.add(window);
@@ -25,5 +27,17 @@ export class EventBus {
     for (const window of this.windows) {
       if (!window.isDestroyed()) window.webContents.send(name, payload);
     }
+  }
+
+  setRuntimeStatus(sessionId: string, status: SessionRuntimeStatus): void {
+    this.runtimeStatuses.set(sessionId, status);
+  }
+
+  runtimeStatus(sessionId: string): SessionRuntimeStatus | null {
+    return this.runtimeStatuses.get(sessionId) ?? null;
+  }
+
+  clearRuntimeStatus(sessionId: string): void {
+    this.runtimeStatuses.delete(sessionId);
   }
 }

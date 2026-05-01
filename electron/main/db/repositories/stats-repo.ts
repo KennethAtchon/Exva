@@ -4,14 +4,26 @@ import type { CostBreakdown, DashboardStats, SessionStatus } from "@/lib/types";
 export class StatsRepo {
   constructor(private readonly client: DbClient) {}
 
-  dashboardStats(status: SessionStatus, portfolioValue: number, uptimeMin: number, apiBudget: number): DashboardStats {
+  dashboardStats(
+    sessionId: string | null,
+    status: SessionStatus,
+    portfolioValue: number,
+    uptimeMin: number,
+    apiBudget: number,
+  ): DashboardStats {
     const today = new Date().toISOString().slice(0, 10);
-    const tradeRows = this.client.sqlite
-      .prepare("SELECT * FROM trades WHERE substr(created_at, 1, 10) = ?")
-      .all(today) as Array<{ status: string; final_pnl_usd: number | null; ai_cost_usd: number | null }>;
-    const openTrades = this.client.sqlite
-      .prepare("SELECT COUNT(*) AS count FROM trades WHERE status = 'open'")
-      .get() as { count: number };
+    const tradeRows = sessionId
+      ? ((this.client.sqlite
+          .prepare("SELECT * FROM trades WHERE session_id = ? AND substr(created_at, 1, 10) = ?")
+          .all(sessionId, today) as Array<{ status: string; final_pnl_usd: number | null; ai_cost_usd: number | null }>))
+      : ((this.client.sqlite
+          .prepare("SELECT * FROM trades WHERE substr(created_at, 1, 10) = ?")
+          .all(today) as Array<{ status: string; final_pnl_usd: number | null; ai_cost_usd: number | null }>));
+    const openTrades = sessionId
+      ? ((this.client.sqlite
+          .prepare("SELECT COUNT(*) AS count FROM trades WHERE session_id = ? AND status = 'open'")
+          .get(sessionId) as { count: number }))
+      : ((this.client.sqlite.prepare("SELECT COUNT(*) AS count FROM trades WHERE status = 'open'").get() as { count: number }));
 
     const closed = tradeRows.filter((row) => row.status === "closed");
     const dailyPnl = closed.reduce((sum, row) => sum + Number(row.final_pnl_usd ?? 0), 0);

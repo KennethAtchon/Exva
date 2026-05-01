@@ -1,12 +1,12 @@
 import type { DbClient } from "../client";
-import type { AgentType, EventRow, LogLevel } from "@/lib/types";
+import type { EventAgentType, EventRow, LogLevel } from "@/lib/types";
 import { toEventRow } from "./mappers";
 
 export interface EventFilters {
   minLevel?: LogLevel;
   min_level?: LogLevel;
-  agentType?: AgentType;
-  agent_type?: AgentType;
+  agentType?: EventAgentType;
+  agent_type?: EventAgentType;
   search?: string;
   limit?: number;
 }
@@ -24,6 +24,7 @@ export class EventsRepo {
   insert(event: Omit<EventRow, "id" | "created_at"> & Partial<Pick<EventRow, "id" | "created_at">>): EventRow {
     const row: EventRow = {
       id: event.id ?? crypto.randomUUID(),
+      session_id: event.session_id ?? null,
       trade_id: event.trade_id ?? null,
       level: event.level,
       agent_type: event.agent_type ?? null,
@@ -34,8 +35,8 @@ export class EventsRepo {
     this.client.sqlite
       .prepare(
         `
-        INSERT INTO events (id, trade_id, level, agent_type, message, created_at)
-        VALUES (@id, @trade_id, @level, @agent_type, @message, @created_at)
+        INSERT INTO events (id, session_id, trade_id, level, agent_type, message, created_at)
+        VALUES (@id, @session_id, @trade_id, @level, @agent_type, @message, @created_at)
         `,
       )
       .run(row);

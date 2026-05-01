@@ -47,6 +47,7 @@ export interface ExvaApi {
   session: {
     start(): Promise<SessionStatus>;
     pause(): Promise<SessionStatus>;
+    resume(): Promise<SessionStatus>;
     stop(): Promise<SessionStatus>;
     getStatus(): Promise<SessionStatus>;
   };

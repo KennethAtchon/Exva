@@ -4,6 +4,7 @@ import type {
   SessionConfig,
   SessionStatus,
   Trade,
+  WorkspaceSession,
 } from "@/lib/types";
 
 type TradeRow = Record<string, unknown>;
@@ -11,6 +12,7 @@ type TradeRow = Record<string, unknown>;
 export function toTrade(row: TradeRow): Trade {
   return {
     id: String(row.id),
+    session_id: String(row.session_id),
     asset: String(row.asset),
     side: row.side as Trade["side"],
     entry_price: nullableNumber(row.entry_price),
@@ -32,6 +34,7 @@ export function toTrade(row: TradeRow): Trade {
 export function toAgentRun(row: Record<string, unknown>): AgentRun {
   return {
     id: String(row.id),
+    session_id: String(row.session_id),
     trade_id: String(row.trade_id),
     agent_type: row.agent_type as AgentRun["agent_type"],
     model: String(row.model),
@@ -47,6 +50,7 @@ export function toAgentRun(row: Record<string, unknown>): AgentRun {
 export function toEventRow(row: Record<string, unknown>): EventRow {
   return {
     id: String(row.id),
+    session_id: nullableString(row.session_id),
     trade_id: nullableString(row.trade_id),
     level: row.level as EventRow["level"],
     agent_type: row.agent_type ? (row.agent_type as EventRow["agent_type"]) : null,
@@ -70,8 +74,37 @@ export function toSessionConfig(row: Record<string, unknown>): SessionConfig {
   };
 }
 
+export function toWorkspaceSession(row: Record<string, unknown>): WorkspaceSession {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    objective: String(row.objective),
+    status: row.status as WorkspaceSession["status"],
+    isFocused: Boolean(row.is_focused),
+    selectionMode: row.selection_mode as WorkspaceSession["selectionMode"],
+    instrumentClasses: parseInstrumentClasses(row.instrument_classes),
+    instrumentScope: String(row.instrument_scope),
+    defaultSearchProviderId: nullableString(row.default_search_provider_id),
+    capitalLimitUsd: Number(row.capital_limit_usd),
+    executionMode: row.execution_mode as WorkspaceSession["executionMode"],
+    startedAt: nullableString(row.started_at),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
 export function toSessionStatus(row: Record<string, unknown> | undefined): SessionStatus {
   return (row?.status as SessionStatus | undefined) ?? "idle";
+}
+
+function parseInstrumentClasses(value: unknown): WorkspaceSession["instrumentClasses"] {
+  if (typeof value !== "string") return ["stock"];
+  try {
+    const parsed = JSON.parse(value) as unknown[];
+    return parsed.filter((entry): entry is WorkspaceSession["instrumentClasses"][number] => typeof entry === "string");
+  } catch {
+    return ["stock"];
+  }
 }
 
 function nullableString(value: unknown): string | null {

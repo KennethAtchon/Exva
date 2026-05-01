@@ -30,6 +30,7 @@ export const CostBreakdownPage = () => {
   const agentColors: Record<AgentType, string> = {
     researcher_bull: "#34d399", researcher_bear: "#f87171",
     reviewer: "#60a5fa", decision_maker: "#a78bfa",
+    instrument_selector: "#fbbf24",
   };
   const agentMax = Math.max(...d.by_agent.map((a) => a.cost));
   const histMax = Math.max(...d.daily_history.map((h) => h.cost));

@@ -1,22 +1,71 @@
 import type { DbClient } from "../client";
-import type { SessionConfig, SessionStatus } from "@/lib/types";
-import { toSessionConfig, toSessionStatus } from "./mappers";
+import type { SessionConfig, SessionStatus, WorkspaceSession } from "@/lib/types";
+import { AppError } from "@electron/shared/errors";
+import { toSessionConfig, toSessionStatus, toWorkspaceSession } from "./mappers";
 
 export class SessionRepo {
   constructor(private readonly client: DbClient) {}
 
-  getConfig(): SessionConfig {
+  listByStatuses(statuses: SessionStatus[]): WorkspaceSession[] {
+    if (statuses.length === 0) return [];
+
+    const placeholders = statuses.map(() => "?").join(", ");
+    const rows = this.client.sqlite
+      .prepare(`SELECT * FROM sessions WHERE status IN (${placeholders}) ORDER BY created_at ASC`)
+      .all(...statuses) as Record<string, unknown>[];
+
+    return rows.map(toWorkspaceSession);
+  }
+
+  getFocusedSession(): WorkspaceSession {
     const row = this.client.sqlite
-      .prepare("SELECT * FROM session_config WHERE id = 1")
-      .get() as Record<string, unknown>;
+      .prepare("SELECT * FROM sessions WHERE is_focused = 1 LIMIT 1")
+      .get() as Record<string, unknown> | undefined;
+
+    if (!row) {
+      throw new AppError("Focused session was not found", "NOT_FOUND");
+    }
+
+    return toWorkspaceSession(row);
+  }
+
+  getFocusedSessionId(): string {
+    return this.getFocusedSession().id;
+  }
+
+  findById(sessionId: string): WorkspaceSession | null {
+    const row = this.client.sqlite
+      .prepare("SELECT * FROM sessions WHERE id = ?")
+      .get(sessionId) as Record<string, unknown> | undefined;
+
+    return row ? toWorkspaceSession(row) : null;
+  }
+
+  requireById(sessionId: string): WorkspaceSession {
+    const session = this.findById(sessionId);
+    if (!session) {
+      throw new AppError(`Session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
+    }
+    return session;
+  }
+
+  getConfig(sessionId = this.getFocusedSessionId()): SessionConfig {
+    const row = this.client.sqlite
+      .prepare("SELECT * FROM session_strategies WHERE session_id = ?")
+      .get(sessionId) as Record<string, unknown> | undefined;
+
+    if (!row) {
+      throw new AppError(`Strategy config for session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
+    }
+
     return toSessionConfig(row);
   }
 
-  saveConfig(config: SessionConfig): void {
+  saveConfig(config: SessionConfig, sessionId = this.getFocusedSessionId()): void {
     this.client.sqlite
       .prepare(
         `
-        UPDATE session_config SET
+        UPDATE session_strategies SET
           strategy = @strategy,
           max_position_usd = @max_position_usd,
           stop_loss_pct = @stop_loss_pct,
@@ -26,54 +75,52 @@ export class SessionRepo {
           daily_loss_limit_usd = @daily_loss_limit_usd,
           profit_target_usd = @profit_target_usd,
           max_api_spend_usd = @max_api_spend_usd,
-          human_approval_required = @human_approval_required,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = 1
+          human_approval_required = @human_approval_required
+        WHERE session_id = @session_id
         `,
       )
       .run({
         ...config,
+        session_id: sessionId,
         human_approval_required: config.human_approval_required ? 1 : 0,
       });
   }
 
-  getStatus(): SessionStatus {
+  getStatus(sessionId = this.getFocusedSessionId()): SessionStatus {
     const row = this.client.sqlite
-      .prepare("SELECT status FROM session_state WHERE id = 1")
-      .get() as Record<string, unknown> | undefined;
+      .prepare("SELECT status FROM sessions WHERE id = ?")
+      .get(sessionId) as Record<string, unknown> | undefined;
+
     return toSessionStatus(row);
   }
 
-  setStatus(status: SessionStatus): SessionStatus {
-    const existing = this.client.sqlite
-      .prepare("SELECT started_at FROM session_state WHERE id = 1")
-      .get() as { started_at?: string | null } | undefined;
-    const startedAt = status === "active" ? (existing?.started_at ?? new Date().toISOString()) : existing?.started_at;
+  setStatus(status: SessionStatus, sessionId = this.getFocusedSessionId()): SessionStatus {
+    const existing = this.requireById(sessionId);
+    const startedAt = status === "active" ? existing.startedAt ?? new Date().toISOString() : existing.startedAt;
 
     this.client.sqlite
       .prepare(
         `
-        INSERT INTO session_state (id, status, started_at, updated_at)
-        VALUES (1, @status, @started_at, @updated_at)
-        ON CONFLICT(id) DO UPDATE SET
-          status = excluded.status,
-          started_at = excluded.started_at,
-          updated_at = excluded.updated_at
+        UPDATE sessions SET
+          status = @status,
+          started_at = @started_at,
+          updated_at = @updated_at
+        WHERE id = @session_id
         `,
       )
       .run({
+        session_id: sessionId,
         status,
-        started_at: startedAt ?? null,
+        started_at: startedAt,
         updated_at: new Date().toISOString(),
       });
+
     return status;
   }
 
-  uptimeMin(): number {
-    const row = this.client.sqlite
-      .prepare("SELECT status, started_at FROM session_state WHERE id = 1")
-      .get() as { status?: string; started_at?: string | null } | undefined;
-    if (row?.status !== "active" || !row.started_at) return 0;
-    return Math.max(0, Math.floor((Date.now() - new Date(row.started_at).getTime()) / 60000));
+  uptimeMin(sessionId = this.getFocusedSessionId()): number {
+    const session = this.requireById(sessionId);
+    if (session.status !== "active" || !session.startedAt) return 0;
+    return Math.max(0, Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 60000));
   }
 }

@@ -2,16 +2,18 @@ import type { StatsRepo } from "../db/repositories/stats-repo";
 import type { TradesRepo } from "../db/repositories/trades-repo";
 import type { BrokerService } from "./broker-service";
 import type { EventBus } from "./event-bus";
-import type { SessionService } from "./session-service";
+import type { SessionRepo } from "../db/repositories/session-repo";
 
 export class TradeMonitor {
   private timer: NodeJS.Timeout | null = null;
 
   constructor(
+    private readonly sessionId: string,
     private readonly tradesRepo: TradesRepo,
     private readonly statsRepo: StatsRepo,
+    private readonly sessionRepo: SessionRepo,
     private readonly broker: BrokerService,
-    private readonly session: () => SessionService,
+    private readonly portfolioValue: () => number,
     private readonly eventBus: EventBus,
   ) {}
 
@@ -28,7 +30,7 @@ export class TradeMonitor {
   }
 
   private async tick(): Promise<void> {
-    const openTrades = this.tradesRepo.listOpenAndPending().filter((trade) => trade.status === "open");
+    const openTrades = this.tradesRepo.listOpenAndPending(this.sessionId).filter((trade) => trade.status === "open");
     for (const trade of openTrades) {
       if (!trade.broker_order_id) continue;
       const status = await this.broker.current().getOrderStatus(trade.broker_order_id);
@@ -38,14 +40,14 @@ export class TradeMonitor {
       }
     }
 
-    const session = this.session();
     this.eventBus.emit(
       "stats_update",
       this.statsRepo.dashboardStats(
-        session.getStatus(),
-        session.getPortfolioValue(),
-        session.uptimeMin(),
-        5,
+        this.sessionId,
+        this.sessionRepo.getStatus(this.sessionId),
+        this.portfolioValue(),
+        this.sessionRepo.uptimeMin(this.sessionId),
+        this.sessionRepo.getConfig(this.sessionId).max_api_spend_usd,
       ),
     );
   }

@@ -1,17 +1,19 @@
 import "electron-squirrel-startup";
 import { app, BrowserWindow } from "electron";
-import { logger } from "@electron/shared/logger";
 import { registerIpcHandlers } from "./ipc/register";
+import { createLogger } from "./services/log";
 import { createAppServices, type AppServices } from "./services/app-services";
 import { createMainWindow } from "./window";
 
 let services: AppServices | null = null;
+const logger = createLogger("main");
 
 app.disableHardwareAcceleration();
 
 app.whenReady().then(async () => {
   try {
     services = await createAppServices(app);
+    await services.runtimeManager.rehydrateFromDb();
     registerIpcHandlers(services);
     await createMainWindow(services);
   } catch (error) {
@@ -31,6 +33,5 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
-  services?.monitor.stop();
   services?.db.sqlite.close();
 });
