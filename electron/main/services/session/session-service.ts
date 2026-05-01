@@ -60,7 +60,11 @@ export class SessionService {
   }
 
   uptimeMin(sessionId = this.deps.sessionRepo.getFocusedSessionId()): number {
-    return this.deps.sessionRepo.uptimeMin(sessionId);
+    const runtime = this.deps.runtimeManager.get(sessionId);
+    if (!runtime) return 0;
+    const startedAtMs = Date.parse(runtime.startedAt);
+    if (Number.isNaN(startedAtMs)) return 0;
+    return Math.max(0, Math.round((Date.now() - startedAtMs) / 60000));
   }
 
   private assertTransition(from: SessionStatus, to: SessionStatus): void {

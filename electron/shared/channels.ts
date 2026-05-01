@@ -32,6 +32,7 @@ export const channels = {
     create: "template:create",
     delete: "template:delete",
     use: "template:use",
+    buildPayloadFromSession: "template:build-payload-from-session",
   },
   strategy: {
     get: "strategy:get",

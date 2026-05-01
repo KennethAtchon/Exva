@@ -50,6 +50,7 @@ export interface SessionSummary {
   executionMode: ExecutionMode;
   brokerCount: number;
   openTradeCount: number;
+  uptimeMin: number;
   updatedAt: string;
 }
 
@@ -161,6 +162,7 @@ export interface ExvaApi {
     }): Promise<{ id: string; updatedAt: string }>;
     delete(id: string): Promise<{ deleted: true }>;
     use(id: string): Promise<{ payload: SessionTemplatePayload; clearedFields: string[] }>;
+    buildPayloadFromSession(sessionId: string): Promise<SessionTemplatePayload>;
   };
   strategy: {
     get(sessionId: string): Promise<StrategyGetResponse>;

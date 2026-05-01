@@ -239,22 +239,127 @@ export class SessionRepo {
 
   duplicate(sourceId: string, overrides: { name: string }): WorkspaceSession {
     const source = this.requireById(sourceId);
-    // TODO(phase-04): Expand duplication to copy strategy, selector settings, AI roles,
-    // broker assignments, and routing overrides instead of only the task-boundary fields.
-    return this.create({
-      name: overrides.name,
-      objective: source.objective,
-      selectionMode: source.selectionMode,
-      instrumentClasses: source.instrumentClasses,
-      instrumentScope: source.instrumentScope,
-      defaultSearchProviderId: source.defaultSearchProviderId,
-      capitalLimitUsd: source.capitalLimitUsd,
-      executionMode: source.executionMode,
-    });
+    const newId = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    this.client.sqlite.transaction(() => {
+      // sessions row — clone task boundary, reset status/focus/timestamps
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO sessions (
+            id, name, objective, status, is_focused, selection_mode, instrument_classes,
+            instrument_scope, default_search_provider_id, capital_limit_usd, execution_mode,
+            created_at, updated_at
+          ) VALUES (
+            @id, @name, @objective, 'draft', 0, @selection_mode, @instrument_classes,
+            @instrument_scope, @default_search_provider_id, @capital_limit_usd, @execution_mode,
+            @created_at, @updated_at
+          )
+          `,
+        )
+        .run({
+          id: newId,
+          name: overrides.name,
+          objective: source.objective,
+          selection_mode: source.selectionMode,
+          instrument_classes: JSON.stringify(source.instrumentClasses),
+          instrument_scope: source.instrumentScope,
+          default_search_provider_id: source.defaultSearchProviderId,
+          capital_limit_usd: source.capitalLimitUsd,
+          execution_mode: source.executionMode,
+          created_at: now,
+          updated_at: now,
+        });
+
+      // selector settings
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_selector_settings (session_id, ai_picker_enabled, updated_at)
+          SELECT ?, ai_picker_enabled, ? FROM session_selector_settings WHERE session_id = ?
+          `,
+        )
+        .run(newId, now, sourceId);
+
+      // strategy
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_strategies (
+            session_id, strategy_profile, max_position_usd, stop_loss_pct, take_profit_pct,
+            max_concurrent_trades, research_depth, daily_loss_limit_usd, profit_target_usd,
+            max_ai_spend_usd, human_approval_required
+          )
+          SELECT ?, strategy_profile, max_position_usd, stop_loss_pct, take_profit_pct,
+            max_concurrent_trades, research_depth, daily_loss_limit_usd, profit_target_usd,
+            max_ai_spend_usd, human_approval_required
+          FROM session_strategies WHERE session_id = ?
+          `,
+        )
+        .run(newId, sourceId);
+
+      // ai roles
+      const sourceRoles = this.client.sqlite
+        .prepare("SELECT * FROM session_ai_roles WHERE session_id = ?")
+        .all(sourceId) as Array<Record<string, unknown>>;
+      const insertRole = this.client.sqlite.prepare(
+        `
+        INSERT INTO session_ai_roles (
+          id, session_id, role, provider_key, model_id, temperature,
+          max_tokens, web_search_enabled, prompt_source, prompt_markdown, prompt_asset_path
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+      );
+      for (const row of sourceRoles) {
+        insertRole.run(
+          `${newId}:${row.role as string}`,
+          newId,
+          row.role,
+          row.provider_key,
+          row.model_id,
+          row.temperature,
+          row.max_tokens,
+          row.web_search_enabled,
+          row.prompt_source,
+          row.prompt_markdown,
+          row.prompt_asset_path,
+        );
+      }
+
+      // broker assignments
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_broker_assignments (session_id, broker_account_id)
+          SELECT ?, broker_account_id FROM session_broker_assignments WHERE session_id = ?
+          `,
+        )
+        .run(newId, sourceId);
+
+      // routing overrides
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_broker_routing_overrides (session_id, instrument_class, broker_account_id)
+          SELECT ?, instrument_class, broker_account_id
+          FROM session_broker_routing_overrides WHERE session_id = ?
+          `,
+        )
+        .run(newId, sourceId);
+    })();
+
+    return this.requireById(newId);
   }
 
   getStatus(sessionId = this.getFocusedSessionId()): SessionStatus {
     return this.requireById(sessionId).status;
+  }
+
+  // Repo cannot observe runtime; SessionService.uptimeMin reads from SessionRuntime.startedAt.
+  // Callers writing stats from the orchestrator/monitor receive 0 unless they go through SessionService.
+  uptimeMin(_sessionId = this.getFocusedSessionId()): number {
+    return 0;
   }
 
   getConfig(sessionId = this.getFocusedSessionId()): SessionConfig {
@@ -305,9 +410,4 @@ export class SessionRepo {
       });
   }
 
-  uptimeMin(_sessionId = this.getFocusedSessionId()): number {
-    // TODO(phase-00/phase-04): Persist/derive real session uptime from runtime-backed lifecycle timestamps
-    // instead of returning a placeholder 0 from the repository layer.
-    return 0;
-  }
 }

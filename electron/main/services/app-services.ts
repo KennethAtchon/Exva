@@ -26,6 +26,10 @@ import { PromptAssetLoader } from "./prompt-asset-loader";
 import { RiskEngine } from "./risk-engine";
 import { SecretsService } from "./secrets-service";
 import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
+import type { SessionRuntimeManagerDeps } from "./session";
+import { SessionListingService } from "./session-listing-service";
+import { SessionTemplateService } from "./session-template-service";
+import { SessionWriteService } from "./session-write-service";
 import { TradeMonitor } from "./trade-monitor";
 
 export interface AppServices {
@@ -57,6 +61,9 @@ export interface AppServices {
   risk: RiskEngine;
   secrets: SecretsService;
   session: SessionService;
+  sessionListing: SessionListingService;
+  sessionTemplates: SessionTemplateService;
+  sessionWrites: SessionWriteService;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -91,7 +98,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const promptAssetLoader = new PromptAssetLoader();
   const logger = createLogger("app-services");
 
-  const runtimeManager = new SessionRuntimeManager({
+  let runtimeManager: SessionRuntimeManager;
+  const runtimeManagerDeps: SessionRuntimeManagerDeps = {
     sessionRepo: repos.session,
     tradesRepo: repos.trades,
     agentRunsRepo: repos.agentRuns,
@@ -104,8 +112,18 @@ export async function createAppServices(app: App): Promise<AppServices> {
     logger,
     createOrchestrator: (sessionId, deps) => new AgentOrchestrator(sessionId, deps),
     createTradeMonitor: (sessionId) =>
-      new TradeMonitor(sessionId, repos.trades, repos.stats, repos.session, broker, () => 100000, eventBus),
-  });
+      new TradeMonitor(
+        sessionId,
+        repos.trades,
+        repos.stats,
+        repos.session,
+        broker,
+        () => 100000,
+        eventBus,
+        () => runtimeManager.get(sessionId)?.uptimeMin() ?? 0,
+      ),
+  };
+  runtimeManager = new SessionRuntimeManager(runtimeManagerDeps);
 
   const orchestratorDeps = {
     sessionRepo: repos.session,
@@ -128,6 +146,33 @@ export async function createAppServices(app: App): Promise<AppServices> {
     orchestratorDeps,
   });
 
+  const sessionListing = new SessionListingService({
+    sessionRepo: repos.session,
+    assignments: repos.sessionBrokerAssignments,
+    trades: repos.trades,
+    runtimeManager,
+  });
+
+  const sessionTemplates = new SessionTemplateService({
+    templates: repos.sessionTemplates,
+    sessions: repos.session,
+    strategies: repos.sessionStrategies,
+    aiRoles: repos.sessionAiRoles,
+    selectorSettings: repos.sessionSelectorSettings,
+    brokerAssignments: repos.sessionBrokerAssignments,
+    brokerRouting: repos.brokerRouting,
+    providerAccounts: repos.providerAccounts,
+    brokerAccounts: repos.brokerAccounts,
+  });
+
+  const sessionWrites = new SessionWriteService({
+    sessions: repos.session,
+    selectorSettings: repos.sessionSelectorSettings,
+    assignments: repos.sessionBrokerAssignments,
+    brokerRouting: repos.brokerRouting,
+    brokerAccounts: repos.brokerAccounts,
+  });
+
   return {
     db,
     repos,
@@ -140,5 +185,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     risk,
     secrets,
     session,
+    sessionListing,
+    sessionTemplates,
+    sessionWrites,
   };
 }

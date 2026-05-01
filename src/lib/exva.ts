@@ -21,7 +21,6 @@ import type {
   WorkspacePreferences,
   WorkspaceViewMode,
 } from "./types";
-import { MOCK } from "./mock";
 
 export interface SessionSummary {
   id: string;
@@ -37,6 +36,7 @@ export interface SessionSummary {
   executionMode: ExecutionMode;
   brokerCount: number;
   openTradeCount: number;
+  uptimeMin: number;
   updatedAt: string;
 }
 
@@ -79,219 +79,86 @@ export interface ProviderModelEntry {
   maxContextTokens: number;
 }
 
-const SHOW_MOCK = false;
-
 const hasExva =
   typeof window !== "undefined" &&
   typeof window.exva === "object" &&
   window.exva !== null;
 
-const showMock = SHOW_MOCK;
-
-function bridgeUnavailableError(): Error {
-  return new Error(
-    "EXVA bridge unavailable and mock data is disabled. Start the app with `npm run dev`/`npm start` instead of `npm run dev:renderer`, or set SHOW_MOCK to true.",
-  );
-}
-
-async function call<T>(operation: () => Promise<T>, fallback: T): Promise<T> {
-  if (showMock) return fallback;
-  if (!hasExva) throw bridgeUnavailableError();
-  return operation();
+function bridge() {
+  if (!hasExva) {
+    throw new Error(
+      "EXVA bridge unavailable. Run `npm run dev` / `npm start` (Electron host) instead of the renderer-only dev server.",
+    );
+  }
+  return window.exva!;
 }
 
 export const api = {
-  getDashboardStats: () =>
-    call<DashboardStats>(() => window.exva!.dashboard.getStats(), MOCK.stats),
-  getCostBreakdown: (dateRange?: string) =>
-    call<CostBreakdown>(
-      () => window.exva!.dashboard.getCostBreakdown(dateRange ?? "today"),
-      MOCK.costs,
-    ),
+  getDashboardStats: (): Promise<DashboardStats> => bridge().dashboard.getStats(),
+  getCostBreakdown: (dateRange?: string): Promise<CostBreakdown> =>
+    bridge().dashboard.getCostBreakdown(dateRange ?? "today"),
 
-  getActiveTrades: () =>
-    call<Trade[]>(() => window.exva!.trades.listActive(), MOCK.trades),
-  getTradeDetail: (tradeId: string) =>
-    call<TradeDetail>(
-      () => window.exva!.trades.getDetail(tradeId),
-      {
-        trade: MOCK.trades.find((trade) => trade.id === tradeId) ?? MOCK.trades[0],
-        runs: MOCK.runs.filter((run) => run.trade_id === tradeId),
-      },
-    ),
-  forceCloseTrade: (tradeId: string) =>
-    call<void>(() => window.exva!.trades.forceClose(tradeId), undefined as void),
-  approveTrade: (tradeId: string, approved: boolean) =>
-    call<void>(() => window.exva!.trades.approve(tradeId, approved), undefined as void),
+  getActiveTrades: (): Promise<Trade[]> => bridge().trades.listActive(),
+  getTradeDetail: (tradeId: string): Promise<TradeDetail> => bridge().trades.getDetail(tradeId),
+  forceCloseTrade: (tradeId: string): Promise<void> => bridge().trades.forceClose(tradeId),
+  approveTrade: (tradeId: string, approved: boolean): Promise<void> =>
+    bridge().trades.approve(tradeId, approved),
 
-  startSession: () =>
-    call<SessionStatus>(() => window.exva!.session.start(), "active"),
-  pauseSession: () =>
-    call<SessionStatus>(() => window.exva!.session.pause(), "paused"),
-  stopSession: () =>
-    call<SessionStatus>(() => window.exva!.session.stop(), "stopped"),
+  startSession: (): Promise<SessionStatus> => bridge().session.start(),
+  pauseSession: (): Promise<SessionStatus> => bridge().session.pause(),
+  resumeSession: (): Promise<SessionStatus> => bridge().session.resume(),
+  stopSession: (): Promise<SessionStatus> => bridge().session.stop(),
   listSessions: (filters?: {
     status?: SessionStatus;
     instrumentClass?: InstrumentClass;
     search?: string;
     includeArchived?: boolean;
-  }) =>
-    call<{ workspaceViewMode: WorkspaceViewMode; focusedSessionId: string | null; sessions: SessionSummary[] }>(
-      () => window.exva!.session.list(filters),
-      // TODO(phase-04): Remove this mock fallback shape once the renderer store owns
-      // proper empty/global/session bootstrapping and mock mode supports sessions.
-      { workspaceViewMode: "session", focusedSessionId: "default-session", sessions: [] },
-    ),
-  createSession: (input: SessionCreateInput) =>
-    call<{ id: string; status: "draft" }>(() => window.exva!.session.create(input), {
-      id: crypto.randomUUID(),
-      status: "draft",
-    }),
-  updateSession: (id: string, input: SessionCreateInput) =>
-    call<{ savedAt: string }>(() => window.exva!.session.update(id, input), { savedAt: new Date().toISOString() }),
-  focusSession: (id: string) =>
-    call<{ workspaceViewMode: "session"; focusedSessionId: string }>(() => window.exva!.session.focus(id), {
-      workspaceViewMode: "session",
-      focusedSessionId: id,
-    }),
-  goGlobal: () =>
-    call<{ workspaceViewMode: "global"; focusedSessionId: null }>(() => window.exva!.session.goGlobal(), {
-      workspaceViewMode: "global",
-      focusedSessionId: null,
-    }),
-  archiveSession: (id: string) => call<{ archived: true }>(() => window.exva!.session.archive(id), { archived: true }),
-  duplicateSession: (sourceId: string, name: string) =>
-    call<{ id: string; status: "draft" }>(() => window.exva!.session.duplicate(sourceId, name), {
-      id: crypto.randomUUID(),
-      status: "draft",
-    }),
+  }): Promise<{ workspaceViewMode: WorkspaceViewMode; focusedSessionId: string | null; sessions: SessionSummary[] }> =>
+    bridge().session.list(filters),
+  createSession: (input: SessionCreateInput) => bridge().session.create(input),
+  updateSession: (id: string, input: SessionCreateInput) => bridge().session.update(id, input),
+  focusSession: (id: string) => bridge().session.focus(id),
+  goGlobal: () => bridge().session.goGlobal(),
+  archiveSession: (id: string) => bridge().session.archive(id),
+  duplicateSession: (sourceId: string, name: string) => bridge().session.duplicate(sourceId, name),
 
-  getWorkspaceView: () =>
-    call<WorkspaceViewResponse>(() => window.exva!.workspace.getView(), {
-      // TODO(phase-04): Replace this hardcoded fallback once workspace mock state is unified
-      // with the sessions page and global/session navigation flows.
-      workspaceViewMode: "session",
-      focusedSessionId: "default-session",
-      preferences: {
-        id: 1,
-        globalIncludeArchived: false,
-        defaultSearchProviderId: null,
-        capitalAllocationMode: "per_session_only",
-        globalCapitalPoolUsd: null,
-        updatedAt: new Date().toISOString(),
-      },
-    }),
+  getWorkspaceView: (): Promise<WorkspaceViewResponse> => bridge().workspace.getView(),
   patchWorkspacePreferences: (patch: Partial<Omit<WorkspacePreferences, "id">>) =>
-    call<WorkspacePreferences>(() => window.exva!.workspace.patchPreferences(patch), {
-      id: 1,
-      globalIncludeArchived: patch.globalIncludeArchived ?? false,
-      defaultSearchProviderId: patch.defaultSearchProviderId ?? null,
-      capitalAllocationMode: patch.capitalAllocationMode ?? "per_session_only",
-      globalCapitalPoolUsd: patch.globalCapitalPoolUsd ?? null,
-      updatedAt: new Date().toISOString(),
-    }),
+    bridge().workspace.patchPreferences(patch),
 
   listTemplates: (filters?: { search?: string; instrumentClass?: InstrumentClass }) =>
-    call<{ templates: Array<{ id: string; name: string; description: string | null; sourceSessionId: string | null; sourceSessionName: string | null; instrumentClasses: InstrumentClass[]; updatedAt: string }> }>(
-      () => window.exva!.templates.list(filters),
-      { templates: [] },
-    ),
+    bridge().templates.list(filters),
   createTemplate: (input: { name: string; description?: string; sourceSessionId?: string; payload: SessionTemplatePayload }) =>
-    call<{ id: string; updatedAt: string }>(() => window.exva!.templates.create(input), {
-      id: crypto.randomUUID(),
-      updatedAt: new Date().toISOString(),
-    }),
-  deleteTemplate: (id: string) => call<{ deleted: true }>(() => window.exva!.templates.delete(id), { deleted: true }),
-  useTemplate: (id: string) =>
-    call<{ payload: SessionTemplatePayload; clearedFields: string[] }>(() => window.exva!.templates.use(id), {
-      // TODO(phase-04/phase-05): Replace this placeholder template payload fallback with
-      // mock data sourced from full session-family state.
-      payload: {
-        version: 1,
-        identity: {
-          objective: "",
-          selectionMode: "manual_shortlist",
-          instrumentClasses: ["stock"],
-          instrumentScope: "",
-          executionMode: "paper_only",
-          capitalLimitUsd: 10000,
-          defaultSearchProviderId: null,
-        },
-        selectorSettings: { aiPickerEnabled: true },
-        strategy: {
-          strategyProfile: "passive_income",
-          maxPositionUsd: 500,
-          stopLossPct: 2,
-          takeProfitPct: 4,
-          maxConcurrentTrades: 3,
-          researchDepth: "balanced",
-          dailyLossLimitUsd: 200,
-          profitTargetUsd: 1000,
-          maxAiSpendUsd: 5,
-          humanApprovalRequired: false,
-        },
-        aiRoles: [],
-        brokerAssignments: [{ brokerAccountId: "default-broker" }],
-        brokerOverridesByInstrumentClass: {},
-      },
-      clearedFields: [],
-    }),
+    bridge().templates.create(input),
+  deleteTemplate: (id: string) => bridge().templates.delete(id),
+  useTemplate: (id: string) => bridge().templates.use(id),
+  buildTemplatePayloadFromSession: (sessionId: string): Promise<SessionTemplatePayload> =>
+    bridge().templates.buildPayloadFromSession(sessionId),
 
-  getStrategy: (sessionId: string) =>
-    call<StrategyGetResponse>(() => window.exva!.strategy.get(sessionId), {
-      strategy: MOCK.strategy,
-      aiRoles: MOCK.aiRoles,
-      selectorSettings: { sessionId: "default-session", aiPickerEnabled: true, updatedAt: new Date().toISOString() },
-      providers: MOCK.providers,
-      sessionStatus: "idle",
-      selectionMode: "manual_shortlist",
-      defaultSearchProviderId: null,
-      workspaceDefaultSearchProviderId: null,
-    }),
+  getStrategy: (sessionId: string): Promise<StrategyGetResponse> => bridge().strategy.get(sessionId),
   saveStrategy: (input: { sessionId: string; strategy: Partial<SessionStrategy>; aiRoles: SessionAiRole[] }) =>
-    call<{ savedAt: string }>(() => window.exva!.strategy.save(input), { savedAt: new Date().toISOString() }),
-  getStrategyProviderModels: (providerKey: string) =>
-    call<{ models: ProviderModelEntry[] }>(() => window.exva!.strategy.getProviderModels(providerKey), {
-      models: providerKey ? [{ id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", maxContextTokens: 200000 }] : [],
-    }),
-  resetStrategyPrompt: (role: AgentRole) =>
-    call<{ promptMarkdown: string; promptAssetPath: string }>(() => window.exva!.strategy.resetPrompt(role), {
-      promptMarkdown: `<!-- version: 0.1.0 -->\n\nMock prompt for ${role}.`,
-      promptAssetPath: `/mock/prompts/${role}.md`,
-    }),
+    bridge().strategy.save(input),
+  getStrategyProviderModels: (providerKey: string): Promise<{ models: ProviderModelEntry[] }> =>
+    bridge().strategy.getProviderModels(providerKey),
+  resetStrategyPrompt: (role: AgentRole) => bridge().strategy.resetPrompt(role),
 
-  getStrategyConfig: () =>
-    call<SessionStrategy>(() => window.exva!.config.getStrategy(), MOCK.strategy),
-  saveStrategyConfig: (cfg: SessionStrategy) =>
-    call<void>(() => window.exva!.config.saveStrategy(cfg), undefined as void),
+  getStrategyConfig: (): Promise<SessionStrategy> => bridge().config.getStrategy(),
+  saveStrategyConfig: (cfg: SessionStrategy): Promise<void> => bridge().config.saveStrategy(cfg),
 
-  addBrokerAccount: (creds: BrokerCredentials) =>
-    call<ConnectionTestResult>(() => window.exva!.accounts.saveBroker(creds), {
-      ok: true,
-      message: "Mock broker connected",
-      account_balance: 100000,
-    }),
-  testBrokerConnection: () =>
-    call<ConnectionTestResult>(() => window.exva!.accounts.testBroker(), {
-      ok: true,
-      message: "Mock broker connected",
-    }),
-  removeBrokerAccount: () =>
-    call<void>(() => window.exva!.accounts.removeBroker(), undefined as void),
-  saveApiKey: (keyType: string, value: string) =>
-    call<void>(() => window.exva!.accounts.saveApiKey(keyType, value), undefined as void),
+  addBrokerAccount: (creds: BrokerCredentials): Promise<ConnectionTestResult> =>
+    bridge().accounts.saveBroker(creds),
+  testBrokerConnection: (): Promise<ConnectionTestResult> => bridge().accounts.testBroker(),
+  removeBrokerAccount: (): Promise<void> => bridge().accounts.removeBroker(),
+  saveApiKey: (keyType: string, value: string): Promise<void> =>
+    bridge().accounts.saveApiKey(keyType, value),
 
   getEvents: (filters?: {
     minLevel?: string;
     agentType?: AgentRole;
     search?: string;
     limit?: number;
-  }) => call<EventRow[]>(() => window.exva!.events.list(filters), MOCK.events),
-  getAgentTraces: (tradeId: string) =>
-    call<AgentRun[]>(
-      () => window.exva!.events.getAgentTraces(tradeId),
-      MOCK.runs.filter((run) => run.trade_id === tradeId),
-    ),
+  }): Promise<EventRow[]> => bridge().events.list(filters),
+  getAgentTraces: (tradeId: string): Promise<AgentRun[]> => bridge().events.getAgentTraces(tradeId),
 };
 
 export type ExvaEventName =
@@ -327,9 +194,8 @@ export async function listenEvent<K extends ExvaEventName>(
   name: K,
   handler: (payload: ExvaEventMap[K]) => void,
 ): Promise<() => void> {
-  if (showMock) return () => {};
-  if (!hasExva) throw bridgeUnavailableError();
-  return window.exva!.events.subscribe(name, handler);
+  return bridge().events.subscribe(name, handler);
 }
 
-export { hasExva, showMock };
+export { hasExva };
+export const showMock = false;

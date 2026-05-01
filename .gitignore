@@ -24,3 +24,5 @@ src-tauri/gen/schemas
 .env.local
 
 .vite
+
+out/

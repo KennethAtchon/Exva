@@ -73,6 +73,7 @@ export interface SessionLifecycleDeps {
     pauseSession(sessionId: string): Promise<void>;
     resumeSession(sessionId: string): Promise<void>;
     stopSession(sessionId: string): Promise<void>;
+    get(sessionId: string): SessionRuntime | null;
   };
   preflight: (session: WorkspaceSession, deps: OrchestratorDeps) => Promise<PreflightResult>;
   orchestratorDeps: OrchestratorDeps;

@@ -15,6 +15,7 @@ export class TradeMonitor {
     private readonly broker: BrokerService,
     private readonly portfolioValue: () => number,
     private readonly eventBus: EventBus,
+    private readonly uptimeMin: () => number = () => 0,
   ) {}
 
   start(): void {
@@ -46,7 +47,7 @@ export class TradeMonitor {
         this.sessionId,
         this.sessionRepo.getStatus(this.sessionId),
         this.portfolioValue(),
-        this.sessionRepo.uptimeMin(this.sessionId),
+        this.uptimeMin(),
         this.sessionRepo.getConfig(this.sessionId).max_api_spend_usd,
       ),
     );

@@ -57,6 +57,8 @@ const exva: ExvaApi = {
     create: (input) => invoke(channels.templates.create, input),
     delete: (id) => invoke(channels.templates.delete, { id }),
     use: (id) => invoke(channels.templates.use, { id }),
+    buildPayloadFromSession: (sessionId) =>
+      invoke(channels.templates.buildPayloadFromSession, { sessionId }),
   },
   config: {
     getStrategy: () => invoke(channels.config.getStrategy),

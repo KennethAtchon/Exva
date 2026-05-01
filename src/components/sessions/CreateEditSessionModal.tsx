@@ -1,141 +1,279 @@
-import { useEffect, useState } from "react";
-import type { SessionCreateInput, SessionSummary } from "@/lib/exva";
-import type { InstrumentClass } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
+import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
 
 interface Props {
   open: boolean;
   initialSession?: SessionSummary | null;
   templateInput?: SessionCreateInput | null;
+  templateWarnings?: string[];
   onClose: () => void;
   onSubmit: (input: SessionCreateInput, sessionId?: string) => Promise<void>;
 }
 
-export const CreateEditSessionModal = ({ open, initialSession, templateInput, onClose, onSubmit }: Props) => {
+export const CreateEditSessionModal = ({
+  open,
+  initialSession,
+  templateInput,
+  templateWarnings,
+  onClose,
+  onSubmit,
+}: Props) => {
   const [form, setForm] = useState<SessionCreateInput>(defaultInput());
   const [saving, setSaving] = useState(false);
+  const [loadingSeed, setLoadingSeed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
+
+    let cancelled = false;
+    setError(null);
+
     if (templateInput) {
       setForm(templateInput);
       return;
     }
-    if (initialSession) {
-      setForm({
-        name: initialSession.name,
-        objective: initialSession.objective,
-        selectionMode: initialSession.selectionMode,
-        instrumentClasses: initialSession.instrumentClasses,
-        instrumentScope: initialSession.instrumentScope,
-        defaultSearchProviderId: initialSession.defaultSearchProviderId,
-        selectorSettings: { aiPickerEnabled: true },
-        capitalLimitUsd: initialSession.capitalLimitUsd,
-        executionMode: initialSession.executionMode,
-        brokerAccountIds: ["default-broker"],
-        brokerOverridesByInstrumentClass: {},
-      });
+
+    if (!initialSession) {
+      setForm(defaultInput());
       return;
     }
-    setForm(defaultInput());
+
+    setLoadingSeed(true);
+    void api
+      .buildTemplatePayloadFromSession(initialSession.id)
+      .then((payload) => {
+        if (cancelled) return;
+        setForm(payloadToInput(payload, initialSession.name));
+      })
+      .catch((seedError: Error) => {
+        if (cancelled) return;
+        setError(seedError.message);
+        setForm(summaryToInput(initialSession));
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSeed(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, initialSession, templateInput]);
+
+  const brokerIdsText = useMemo(() => form.brokerAccountIds.join("\n"), [form.brokerAccountIds]);
+  const isValid = form.name.trim().length > 0 && form.objective.trim().length > 0 && form.instrumentClasses.length > 0;
 
   if (!open) return null;
 
   return (
     <div style={overlayStyle} onClick={(event) => event.target === event.currentTarget && onClose()}>
       <div style={panelStyle}>
-        {/* TODO(phase-04): Replace this compact form with the full multi-section modal from the plan:
-            Identity, Task Boundary, Execution Setup, selector settings, search-provider override,
-            assigned brokers, and per-instrument routing overrides. */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>{initialSession ? "Edit Session" : "New Session"}</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 20 }}>{initialSession ? "Refine Session" : "Create Session"}</h2>
+            <div style={{ marginTop: 6, color: "var(--text3)", fontSize: 13 }}>
+              Identity, task boundary, and execution routing in one place.
+            </div>
+          </div>
           <button onClick={onClose} style={closeStyle}>✕</button>
         </div>
-        <div style={{ display: "grid", gap: 12 }}>
-          <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Session name" style={inputStyle} />
-          <textarea value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })} placeholder="Objective" rows={3} style={inputStyle} />
-          <input value={form.instrumentScope} onChange={(event) => setForm({ ...form, instrumentScope: event.target.value })} placeholder="Instrument scope (comma or newline separated)" style={inputStyle} />
-          <div style={{ display: "flex", gap: 10 }}>
-            <select value={form.selectionMode} onChange={(event) => setForm({ ...form, selectionMode: event.target.value as SessionCreateInput["selectionMode"] })} style={inputStyle}>
-              <option value="manual_shortlist">Manual shortlist</option>
-              <option value="ai_selected_universe">AI selected universe</option>
-            </select>
-            <select value={form.executionMode} onChange={(event) => setForm({ ...form, executionMode: event.target.value as SessionCreateInput["executionMode"] })} style={inputStyle}>
-              <option value="paper_only">Paper only</option>
-              <option value="live_allowed">Live allowed</option>
-            </select>
+
+        {templateWarnings?.length ? (
+          <div style={warningBannerStyle}>
+            Template fallback cleared {templateWarnings.length} unavailable field{templateWarnings.length === 1 ? "" : "s"}: {templateWarnings.join(", ")}
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <label style={checkboxStyle}>
+        ) : null}
+        {error ? <div style={errorBannerStyle}>{error}</div> : null}
+
+        <div style={{ display: "grid", gap: 16 }}>
+          <section style={sectionStyle}>
+            <SectionHeader title="Identity" caption="The operator-facing shell for this session." />
+            <div style={twoColumnGridStyle}>
+              <Field label="Session name">
+                <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Income Engine" style={inputStyle} />
+              </Field>
+              <Field label="Capital limit (USD)">
+                <input
+                  value={String(form.capitalLimitUsd)}
+                  onChange={(event) => setForm({ ...form, capitalLimitUsd: Number(event.target.value) || 0 })}
+                  type="number"
+                  min={0}
+                  style={inputStyle}
+                />
+              </Field>
+            </div>
+            <Field label="Objective">
+              <textarea value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })} rows={4} style={textareaStyle} />
+            </Field>
+          </section>
+
+          <section style={sectionStyle}>
+            <SectionHeader title="Task Boundary" caption="Universe selection, scope, and search-provider behavior." />
+            <div style={twoColumnGridStyle}>
+              <Field label="Selection mode">
+                <select
+                  value={form.selectionMode}
+                  onChange={(event) => setForm({ ...form, selectionMode: event.target.value as SessionCreateInput["selectionMode"] })}
+                  style={inputStyle}
+                >
+                  <option value="manual_shortlist">Manual shortlist</option>
+                  <option value="ai_selected_universe">AI selected universe</option>
+                </select>
+              </Field>
+              <Field label="Search provider override">
+                <input
+                  value={form.defaultSearchProviderId ?? ""}
+                  onChange={(event) => setForm({
+                    ...form,
+                    defaultSearchProviderId: event.target.value.trim() ? event.target.value.trim() : null,
+                  })}
+                  placeholder="workspace default"
+                  style={inputStyle}
+                />
+              </Field>
+            </div>
+            <Field label="Instrument classes">
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {(["stock", "crypto", "futures"] as const).map((instrumentClass) => {
+                  const checked = form.instrumentClasses.includes(instrumentClass);
+                  return (
+                    <label key={instrumentClass} style={{ ...toggleChipStyle, borderColor: checked ? "var(--accent-dim)" : "var(--border)" }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            instrumentClasses: toggleInstrumentClass(form.instrumentClasses, instrumentClass, event.target.checked),
+                          })
+                        }
+                      />
+                      {formatInstrumentClass(instrumentClass)}
+                    </label>
+                  );
+                })}
+              </div>
+            </Field>
+            <Field label="Instrument scope">
+              <textarea
+                value={form.instrumentScope}
+                onChange={(event) => setForm({ ...form, instrumentScope: event.target.value })}
+                placeholder="SPY\nQQQ\nNVDA"
+                rows={4}
+                style={textareaStyle}
+              />
+            </Field>
+            <label style={switchRowStyle}>
               <input
                 type="checkbox"
-                checked={form.instrumentClasses.includes("stock")}
+                checked={form.selectorSettings.aiPickerEnabled}
                 onChange={(event) =>
                   setForm({
                     ...form,
-                    instrumentClasses: toggleInstrumentClass(form.instrumentClasses, "stock", event.target.checked),
+                    selectorSettings: { aiPickerEnabled: event.target.checked },
                   })
                 }
               />
-              Stocks
+              <span>
+                <span style={{ display: "block", color: "var(--text1)", fontWeight: 600 }}>AI picker enabled</span>
+                <span style={{ display: "block", marginTop: 2, color: "var(--text3)", fontSize: 12 }}>
+                  Allow the selector role to expand or refine the shortlist when the session calls for it.
+                </span>
+              </span>
             </label>
-            <label style={checkboxStyle}>
-              <input
-                type="checkbox"
-                checked={form.instrumentClasses.includes("crypto")}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    instrumentClasses: toggleInstrumentClass(form.instrumentClasses, "crypto", event.target.checked),
-                  })
-                }
-              />
-              Crypto
-            </label>
-            <label style={checkboxStyle}>
-              <input
-                type="checkbox"
-                checked={form.instrumentClasses.includes("futures")}
-                onChange={(event) =>
-                  setForm({
-                    ...form,
-                    instrumentClasses: toggleInstrumentClass(form.instrumentClasses, "futures", event.target.checked),
-                  })
-                }
-              />
-              Futures
-            </label>
-          </div>
-          <input
-            value={String(form.capitalLimitUsd)}
-            onChange={(event) => setForm({ ...form, capitalLimitUsd: Number(event.target.value) || 0 })}
-            placeholder="Capital limit"
-            type="number"
-            style={inputStyle}
-          />
+          </section>
+
+          <section style={sectionStyle}>
+            <SectionHeader title="Execution Setup" caption="Broker attachments and routing overrides." />
+            <div style={twoColumnGridStyle}>
+              <Field label="Execution mode">
+                <select
+                  value={form.executionMode}
+                  onChange={(event) => setForm({ ...form, executionMode: event.target.value as SessionCreateInput["executionMode"] })}
+                  style={inputStyle}
+                >
+                  <option value="paper_only">Paper only</option>
+                  <option value="live_allowed">Live allowed</option>
+                </select>
+              </Field>
+              <Field label="Assigned broker account IDs">
+                <textarea
+                  value={brokerIdsText}
+                  onChange={(event) => setForm({ ...form, brokerAccountIds: parseListInput(event.target.value) })}
+                  rows={4}
+                  placeholder="default-broker"
+                  style={textareaStyle}
+                />
+              </Field>
+            </div>
+            <div style={threeColumnGridStyle}>
+              {(["stock", "crypto", "futures"] as const).map((instrumentClass) => (
+                <Field key={instrumentClass} label={`${formatInstrumentClass(instrumentClass)} route override`}>
+                  <input
+                    value={form.brokerOverridesByInstrumentClass?.[instrumentClass] ?? ""}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        brokerOverridesByInstrumentClass: {
+                          ...form.brokerOverridesByInstrumentClass,
+                          [instrumentClass]: event.target.value.trim() ? event.target.value.trim() : null,
+                        },
+                      })
+                    }
+                    placeholder="inherit assignment"
+                    style={inputStyle}
+                  />
+                </Field>
+              ))}
+            </div>
+          </section>
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
-          <button onClick={onClose} style={secondaryButtonStyle}>Cancel</button>
-          <button
-            onClick={async () => {
-              setSaving(true);
-              try {
-                await onSubmit(form, initialSession?.id);
-                onClose();
-              } finally {
-                setSaving(false);
-              }
-            }}
-            style={primaryButtonStyle}
-            disabled={saving}
-          >
-            {saving ? "Saving..." : initialSession ? "Save" : "Create"}
-          </button>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginTop: 20, flexWrap: "wrap" }}>
+          <div style={{ color: "var(--text3)", fontSize: 12 }}>
+            {loadingSeed ? "Loading persisted strategy, broker assignments, and routing..." : ""}
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <button onClick={onClose} style={secondaryButtonStyle}>Cancel</button>
+            <button
+              onClick={async () => {
+                setSaving(true);
+                setError(null);
+                try {
+                  await onSubmit(form, initialSession?.id);
+                  onClose();
+                } catch (submitError) {
+                  setError(submitError instanceof Error ? submitError.message : "Failed to save session.");
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              style={primaryButtonStyle}
+              disabled={saving || loadingSeed || !isValid}
+            >
+              {saving ? "Saving..." : initialSession ? "Save Session" : "Create Session"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+const SectionHeader = ({ title, caption }: { title: string; caption: string }) => (
+  <div style={{ marginBottom: 14 }}>
+    <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text3)" }}>{title}</div>
+    <div style={{ marginTop: 6, color: "var(--text2)", fontSize: 13 }}>{caption}</div>
+  </div>
+);
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <label style={{ display: "grid", gap: 8 }}>
+    <span style={{ color: "var(--text2)", fontSize: 12, fontWeight: 600 }}>{label}</span>
+    {children}
+  </label>
+);
 
 function defaultInput(): SessionCreateInput {
   return {
@@ -153,6 +291,45 @@ function defaultInput(): SessionCreateInput {
   };
 }
 
+function payloadToInput(payload: SessionTemplatePayload, name = ""): SessionCreateInput {
+  return {
+    name,
+    objective: payload.identity.objective,
+    selectionMode: payload.identity.selectionMode,
+    instrumentClasses: payload.identity.instrumentClasses,
+    instrumentScope: payload.identity.instrumentScope,
+    defaultSearchProviderId: payload.identity.defaultSearchProviderId,
+    selectorSettings: payload.selectorSettings,
+    capitalLimitUsd: payload.identity.capitalLimitUsd,
+    executionMode: payload.identity.executionMode,
+    brokerAccountIds: payload.brokerAssignments.map((assignment) => assignment.brokerAccountId).filter(Boolean),
+    brokerOverridesByInstrumentClass: payload.brokerOverridesByInstrumentClass,
+  };
+}
+
+function summaryToInput(session: SessionSummary): SessionCreateInput {
+  return {
+    name: session.name,
+    objective: session.objective,
+    selectionMode: session.selectionMode,
+    instrumentClasses: session.instrumentClasses,
+    instrumentScope: session.instrumentScope,
+    defaultSearchProviderId: session.defaultSearchProviderId,
+    selectorSettings: { aiPickerEnabled: true },
+    capitalLimitUsd: session.capitalLimitUsd,
+    executionMode: session.executionMode,
+    brokerAccountIds: ["default-broker"],
+    brokerOverridesByInstrumentClass: {},
+  };
+}
+
+function parseListInput(value: string): string[] {
+  return value
+    .split(/[\n,]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function toggleInstrumentClass(current: InstrumentClass[], value: InstrumentClass, checked: boolean): InstrumentClass[] {
   if (checked) {
     return current.includes(value) ? current : [...current, value];
@@ -160,10 +337,21 @@ function toggleInstrumentClass(current: InstrumentClass[], value: InstrumentClas
   return current.filter((entry) => entry !== value);
 }
 
-const overlayStyle = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40 } as const;
-const panelStyle = { width: 560, maxWidth: "92vw", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 14, padding: 20 } as const;
-const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)" } as const;
+function formatInstrumentClass(value: InstrumentClass): string {
+  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : "Futures";
+}
+
+const overlayStyle = { position: "fixed", inset: 0, background: "rgba(3,6,11,0.74)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40, padding: 18 } as const;
+const panelStyle = { width: 920, maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", background: "linear-gradient(180deg, rgba(13,18,25,0.98), rgba(9,13,18,0.98))", border: "1px solid var(--border)", borderRadius: 20, padding: 24, boxShadow: "0 26px 60px rgba(2,6,23,0.48)" } as const;
+const sectionStyle = { border: "1px solid var(--border)", borderRadius: 16, padding: 18, background: "rgba(18,26,36,0.72)" } as const;
+const inputStyle = { width: "100%", padding: "11px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "rgba(7,10,15,0.5)", color: "var(--text1)" } as const;
+const textareaStyle = { ...inputStyle, resize: "vertical" as const, minHeight: 88 };
 const closeStyle = { background: "transparent", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: 18 } as const;
-const secondaryButtonStyle = { padding: "8px 14px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", cursor: "pointer" } as const;
-const primaryButtonStyle = { padding: "8px 14px", borderRadius: 8, border: "none", background: "var(--accent)", color: "white", cursor: "pointer" } as const;
-const checkboxStyle = { display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text2)" } as const;
+const secondaryButtonStyle = { padding: "10px 15px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", cursor: "pointer" } as const;
+const primaryButtonStyle = { padding: "10px 15px", borderRadius: 10, border: "none", background: "var(--accent)", color: "white", cursor: "pointer" } as const;
+const toggleChipStyle = { display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid var(--border)", borderRadius: 999, padding: "8px 11px", background: "rgba(7,10,15,0.38)", color: "var(--text2)", fontSize: 12 } as const;
+const switchRowStyle = { display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--border)", background: "rgba(7,10,15,0.34)" } as const;
+const twoColumnGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 } as const;
+const threeColumnGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 } as const;
+const warningBannerStyle = { marginBottom: 16, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(251,191,36,0.34)", background: "rgba(251,191,36,0.08)", color: "#fcd34d", fontSize: 13, lineHeight: 1.5 } as const;
+const errorBannerStyle = { marginBottom: 16, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(248,113,113,0.34)", background: "rgba(248,113,113,0.08)", color: "#fca5a5", fontSize: 13 } as const;

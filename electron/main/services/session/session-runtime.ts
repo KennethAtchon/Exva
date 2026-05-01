@@ -7,6 +7,12 @@ export class SessionRuntime {
   status: SessionRuntimeStatus = "starting";
   private readonly lifecycle = new PQueue({ concurrency: 1 });
 
+  uptimeMin(): number {
+    const startedAtMs = Date.parse(this.startedAt);
+    if (Number.isNaN(startedAtMs)) return 0;
+    return Math.max(0, Math.round((Date.now() - startedAtMs) / 60000));
+  }
+
   constructor(
     readonly sessionId: string,
     readonly orchestrator: SessionOrchestrator,
