@@ -289,6 +289,8 @@ function shouldResetSchema(sqlite: Database.Database): boolean {
 }
 
 function seedCompatibilityDefaults(sqlite: Database.Database): void {
+  // TODO(phase-04/phase-08): Remove this compatibility seed once the Sessions UI fully owns
+  // initial session creation and broker setup instead of relying on default-session/default-broker.
   const now = new Date().toISOString();
 
   sqlite
@@ -376,6 +378,8 @@ function seedCompatibilityDefaults(sqlite: Database.Database): void {
   ];
 
   for (const role of defaultRoles) {
+    // TODO(phase-05/phase-07): Replace the unconfigured placeholder AI roles with
+    // real per-role defaults sourced from the session/AI configuration flow.
     sqlite
       .prepare(
         `

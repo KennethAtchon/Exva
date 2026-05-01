@@ -44,6 +44,9 @@ export const CreateEditSessionModal = ({ open, initialSession, templateInput, on
   return (
     <div style={overlayStyle} onClick={(event) => event.target === event.currentTarget && onClose()}>
       <div style={panelStyle}>
+        {/* TODO(phase-04): Replace this compact form with the full multi-section modal from the plan:
+            Identity, Task Boundary, Execution Setup, selector settings, search-provider override,
+            assigned brokers, and per-instrument routing overrides. */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>{initialSession ? "Edit Session" : "New Session"}</h2>
           <button onClick={onClose} style={closeStyle}>✕</button>

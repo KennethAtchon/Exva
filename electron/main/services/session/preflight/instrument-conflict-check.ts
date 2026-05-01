@@ -7,6 +7,8 @@ export async function instrumentConflictCheck(
 ): Promise<PreflightResult> {
   if (session.selectionMode !== "manual_shortlist") return { ok: true };
 
+  // TODO(phase-08): Resolve the actual broker account per instrument class from broker routing
+  // instead of using the compatibility default broker placeholder.
   const brokerAccountId = "default-broker";
 
   const symbols = session.instrumentScope

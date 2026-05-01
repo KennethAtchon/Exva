@@ -118,6 +118,8 @@ export const api = {
   }) =>
     call<{ workspaceViewMode: WorkspaceViewMode; focusedSessionId: string | null; sessions: SessionSummary[] }>(
       () => window.exva!.session.list(filters),
+      // TODO(phase-04): Remove this mock fallback shape once the renderer store owns
+      // proper empty/global/session bootstrapping and mock mode supports sessions.
       { workspaceViewMode: "session", focusedSessionId: "default-session", sessions: [] },
     ),
   createSession: (input: SessionCreateInput) =>
@@ -146,6 +148,8 @@ export const api = {
 
   getWorkspaceView: () =>
     call<WorkspaceViewResponse>(() => window.exva!.workspace.getView(), {
+      // TODO(phase-04): Replace this hardcoded fallback once workspace mock state is unified
+      // with the sessions page and global/session navigation flows.
       workspaceViewMode: "session",
       focusedSessionId: "default-session",
       preferences: {
@@ -180,6 +184,8 @@ export const api = {
   deleteTemplate: (id: string) => call<{ deleted: true }>(() => window.exva!.templates.delete(id), { deleted: true }),
   useTemplate: (id: string) =>
     call<{ payload: SessionTemplatePayload; clearedFields: string[] }>(() => window.exva!.templates.use(id), {
+      // TODO(phase-04/phase-05): Replace this placeholder template payload fallback with
+      // mock data sourced from full session-family state.
       payload: {
         version: 1,
         identity: {

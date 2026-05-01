@@ -41,6 +41,8 @@ export function registerTemplateHandlers(services: AppServices): void {
       throw new AppError("Template name is required.", "VALIDATION_FAILED", { field: "name" });
     }
 
+    // TODO(phase-04): Validate the incoming payload with a dedicated Zod schema
+    // once the template payload contract is centralized in the shared validation layer.
     return services.repos.sessionTemplates.create({
       name: input.name.trim(),
       description: input.description,
@@ -64,6 +66,8 @@ export function registerTemplateHandlers(services: AppServices): void {
       throw new AppError(`Template ${id} was not found`, "NOT_FOUND", { id });
     }
 
+    // TODO(phase-04): Move this JSON parse + cleanup logic behind a dedicated template service
+    // once template application needs stronger validation, telemetry, and cross-repo composition.
     const raw = JSON.parse(template.templatePayloadJson) as SessionTemplatePayload;
     const clearedFields: string[] = [];
 

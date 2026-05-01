@@ -17,6 +17,8 @@ export class SessionStrategiesRepo {
   }
 
   getConfig(sessionId: string): SessionConfig {
+    // TODO(phase-05): Remove this compatibility bridge once SessionConfig is deleted
+    // and callers use SessionStrategy directly.
     const row = this.client.sqlite
       .prepare("SELECT * FROM session_strategies WHERE session_id = ?")
       .get(sessionId) as Record<string, unknown> | undefined;
@@ -27,6 +29,8 @@ export class SessionStrategiesRepo {
   }
 
   updateConfig(sessionId: string, config: SessionConfig): SessionConfig {
+    // TODO(phase-05): Remove this compatibility writer once SessionConfig is deleted
+    // and callers write SessionStrategy fields directly.
     this.client.sqlite
       .prepare(
         `

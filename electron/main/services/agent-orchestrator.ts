@@ -19,6 +19,8 @@ export class AgentOrchestrator {
     }
 
     const config = this.deps.sessionRepo.getConfig(this.sessionId);
+    // TODO(phase-05/phase-07): Stop reading the compatibility SessionConfig bridge here.
+    // Use SessionStrategy + per-role AI configuration directly once those flows are implemented.
     this.queue.concurrency = config.max_concurrent_trades;
     this.started = true;
 
@@ -172,8 +174,12 @@ export class AgentOrchestrator {
     return {
       id: crypto.randomUUID(),
       sessionId: this.sessionId,
+      // TODO(phase-08): Resolve and persist the routed broker account id per instrument
+      // instead of leaving trades detached from broker routing.
       brokerAccountId: null,
       instrumentSymbol: decision.instrumentSymbol ?? instrumentSymbol,
+      // TODO(phase-08/phase-09): Infer the real instrument class from session scope/selector output
+      // instead of assuming stock for every new trade.
       instrumentType: "stock",
       side: decision.side ?? "BUY",
       entry_price: null,
@@ -213,6 +219,8 @@ export class AgentOrchestrator {
   }
 
   private getInstruments(session: { instrumentScope: string }, config: SessionConfig): string[] {
+    // TODO(phase-09): Replace this manual shortlist parser with the selector-driven instrument
+    // resolution flow when ai_selected_universe is fully implemented.
     return session.instrumentScope
       .split(/[\n,]+/)
       .map((symbol) => symbol.trim().toUpperCase())

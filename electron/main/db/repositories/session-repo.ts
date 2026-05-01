@@ -90,6 +90,8 @@ export class SessionRepo {
         )
         .run(sessionId);
 
+      // TODO(phase-05/phase-07): Replace these placeholder role rows with canonical defaults
+      // from the session AI role setup flow once provider/model configuration exists.
       for (const role of ["researcher_bull", "researcher_bear", "reviewer", "decision_maker", "instrument_selector"]) {
         this.client.sqlite
           .prepare(
@@ -237,6 +239,8 @@ export class SessionRepo {
 
   duplicate(sourceId: string, overrides: { name: string }): WorkspaceSession {
     const source = this.requireById(sourceId);
+    // TODO(phase-04): Expand duplication to copy strategy, selector settings, AI roles,
+    // broker assignments, and routing overrides instead of only the task-boundary fields.
     return this.create({
       name: overrides.name,
       objective: source.objective,
@@ -254,6 +258,7 @@ export class SessionRepo {
   }
 
   getConfig(sessionId = this.getFocusedSessionId()): SessionConfig {
+    // TODO(phase-05): Retire this compatibility accessor after callers move to SessionStrategiesRepo.
     const row = this.client.sqlite
       .prepare("SELECT * FROM session_strategies WHERE session_id = ?")
       .get(sessionId) as Record<string, unknown> | undefined;
@@ -266,6 +271,8 @@ export class SessionRepo {
   }
 
   saveConfig(config: SessionConfig, sessionId = this.getFocusedSessionId()): void {
+    // TODO(phase-05): Retire this compatibility writer after config saves go through
+    // SessionStrategiesRepo and the richer strategy/session edit flows.
     this.client.sqlite
       .prepare(
         `
@@ -299,6 +306,8 @@ export class SessionRepo {
   }
 
   uptimeMin(_sessionId = this.getFocusedSessionId()): number {
+    // TODO(phase-00/phase-04): Persist/derive real session uptime from runtime-backed lifecycle timestamps
+    // instead of returning a placeholder 0 from the repository layer.
     return 0;
   }
 }

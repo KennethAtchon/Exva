@@ -7,6 +7,8 @@ export function registerDashboardHandlers(services: AppServices): void {
   handle(ipcMain, channels.dashboard.getStats, async () => {
     const focused = services.repos.session.getFocused();
     const sessionId = focused?.id ?? null;
+    // TODO(phase-04): Replace this fallback budget with workspace/session-aware aggregate stats
+    // once dashboard queries have explicit session/global request shapes.
     const config = focused ? services.repos.session.getConfig(focused.id) : { max_api_spend_usd: 5 };
     return services.repos.stats.dashboardStats(
       sessionId,

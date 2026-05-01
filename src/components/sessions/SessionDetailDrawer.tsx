@@ -4,6 +4,9 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
   if (!session) return null;
 
   return (
+    // TODO(phase-04): Expand this into the full detail drawer from the plan with
+    // task definition, instrument scope, risk limits, assigned brokers, AI role summary,
+    // and recent activity timeline.
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 35 }} onClick={(event) => event.target === event.currentTarget && onClose()}>
       <div style={{ position: "absolute", top: 0, right: 0, width: 380, height: "100%", background: "var(--surface)", borderLeft: "1px solid var(--border)", padding: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>

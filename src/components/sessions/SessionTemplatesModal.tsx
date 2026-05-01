@@ -26,6 +26,8 @@ export const SessionTemplatesModal = ({
   return (
     <div style={overlayStyle} onClick={(event) => event.target === event.currentTarget && onClose()}>
       <div style={panelStyle}>
+        {/* TODO(phase-04): Upgrade this modal to the fuller template management flow from the plan,
+            including search/filter, validation surfacing for cleared fields, and richer template metadata. */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Session Templates</h2>
           <button onClick={onClose} style={closeStyle}>✕</button>
@@ -104,6 +106,9 @@ export const SessionTemplatesModal = ({
 };
 
 function buildTemplatePayload(session: SessionSummary): SessionTemplatePayload {
+  // TODO(phase-04): Build this payload from the full persisted session family rows
+  // (strategy, selector settings, AI roles, broker assignments, routing overrides)
+  // instead of using placeholder defaults for fields that later phases own.
   return {
     version: 1,
     identity: {

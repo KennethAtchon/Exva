@@ -16,6 +16,9 @@ export const SessionTable = ({
   onArchive: (id: string) => void;
 }) => {
   return (
+    // TODO(phase-04): Replace this basic grid with the richer session table from the plan,
+    // including status/instrument filters, focus affordance, save-as-template, pause/resume/stop,
+    // and clearer lock-state presentation for active/paused sessions.
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 110px 110px 90px 220px", padding: "10px 14px", fontSize: 11, color: "var(--text3)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>
         <span>Session</span>

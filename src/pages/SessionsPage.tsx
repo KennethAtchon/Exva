@@ -21,6 +21,8 @@ export const SessionsPage = () => {
   const [templateInput, setTemplateInput] = useState<SessionCreateInput | null>(null);
 
   const load = async () => {
+    // TODO(phase-04): Replace this simple full-page refetch with store-owned filtered queries
+    // and push-event invalidation once the sessions workspace store is expanded.
     const result = await api.listSessions({ search, includeArchived: preferences?.globalIncludeArchived });
     setSessions(result.sessions);
     await loadWorkspaceView();
@@ -47,6 +49,8 @@ export const SessionsPage = () => {
       </div>
 
       <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 16, background: "var(--surface)" }}>
+        {/* TODO(phase-04): Expand this summary card into the fuller ActiveContextCard from the phase doc,
+            including lifecycle quick actions and richer global aggregate details. */}
         <div style={{ fontSize: 11, color: "var(--text3)", textTransform: "uppercase", marginBottom: 8 }}>{viewMode === "global" ? "Global Workspace" : "Focused Session"}</div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -77,6 +81,8 @@ export const SessionsPage = () => {
           No sessions yet.
         </div>
       ) : (
+        // TODO(phase-04): Add the full toolbar/filter model from the phase doc
+        // (status, instrument class, archive toggle, richer search, row action states).
         <SessionTable
           sessions={sessions}
           onFocus={async (id) => {

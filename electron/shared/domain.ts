@@ -249,6 +249,8 @@ export interface EventRow {
 }
 
 export interface SessionConfig {
+  // TODO(phase-05/phase-07): Remove this compatibility bridge once renderer/main callers
+  // switch to the canonical SessionStrategy + per-role AI config model.
   strategy: string;
   max_position_usd: number;
   stop_loss_pct: number;

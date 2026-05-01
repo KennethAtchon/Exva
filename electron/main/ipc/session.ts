@@ -18,6 +18,8 @@ export function registerSessionHandlers(services: AppServices): void {
       search?: string;
       includeArchived?: boolean;
     };
+    // TODO(phase-04): Move this summary shaping into a dedicated session listing service/repo query
+    // so broker counts, open-trade counts, filters, and workspace mode stay consistent across callers.
     const sessions = services.repos.session
       .list({
         statuses: filters.status ? [filters.status as never] : undefined,
@@ -58,6 +60,8 @@ export function registerSessionHandlers(services: AppServices): void {
       throw new AppError("Session definition is incomplete.", "VALIDATION_FAILED");
     }
 
+    // TODO(phase-04): Add duplicate-name validation and broker compatibility validation
+    // before create once the richer session service flow from the phase doc is implemented.
     const session = services.repos.session.create({
       name: input.name.trim(),
       objective: input.objective.trim(),
