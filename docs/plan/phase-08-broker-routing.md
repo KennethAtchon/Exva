@@ -2,6 +2,8 @@
 
 > Replace single Alpaca singleton with a multi-broker account model.
 > Use workspace routing defaults with optional per-session overrides.
+>
+> Implements: docs/plan/CODING_GUIDELINES.md
 
 ## Current State
 
@@ -103,7 +105,7 @@ export class BrokerRegistry {
       case "tradovate":
         return new TradovateAdapter(parsed, account.mode);
       case "mock":
-        return new MockBrokerAdapter();
+        return new MockBrokerAdapter(); // supportedInstrumentClasses = ["stock","crypto","futures"] (P1.6)
       default:
         throw new AppError(`Unknown broker type: ${account.brokerType}`, "UNKNOWN_BROKER");
     }
@@ -117,7 +119,7 @@ The v1 proof-of-concept claim is explicit now:
 - `AlpacaAdapter` for stocks
 - `CoinbaseAdvancedTradeAdapter` for crypto
 - `TradovateAdapter` for futures
-- `MockBrokerAdapter` for local development and demos
+- `MockBrokerAdapter` for local development and demos. Declares `supportedInstrumentClasses = ["stock","crypto","futures"] as const` (P1.6) so it can be assigned to any session in dev.
 
 The implementation plan should not claim stock + crypto + futures support unless those three real adapters exist end-to-end.
 
@@ -234,19 +236,87 @@ export class BrokerRoutingService {
 }
 ```
 
-## Shared Capital Reservation
+## Shared Capital Reservation (P0.6)
 
 File: `electron/main/services/risk/capital-reservation-service.ts`
 
-Responsibilities:
-- on session start in `shared_global_pool` mode, block if active session caps already exceed `workspace_preferences.global_capital_pool_usd`
-- on approval creation, reserve `proposedSizeUsd`
-- on approval rejection, release the reservation
-- on approval acceptance in the same live process, convert approval reservation into live order/position reservation
-- on approval acceptance after restart, keep the approval reservation until the fresh recheck either places or rejects the trade
-- on order cancel/failure/close, release or reconcile the reservation
+### Lifecycle State Diagram
 
-This enforcement is runtime behavior backed by `capital_reservations`, not just a UI setting.
+```
+                ┌──────────────────────────────────────────────┐
+                │                                              │
+   approval ───▶│ reserved (reason=approval)                   │
+   created     │                                              │
+                └──────────────────────────────────────────────┘
+                          │                  │                 │
+            approve in    │                  │ approve         │ reject
+            same process  │                  │ post-restart    │
+                          ▼                  ▼                 ▼
+                   ┌──────────────┐   ┌──────────────┐   released
+                   │ open_order   │   │ approval     │
+                   │ (reserved)   │   │ (still       │
+                   │              │   │  reserved    │
+                   │              │   │  pending     │
+                   │              │   │  recheck)    │
+                   └──────┬───────┘   └──────┬───────┘
+                fill OK   │                   │ recheck rejects → released
+                          ▼                   │ recheck approves → open_order
+                   ┌──────────────┐           │
+                   │ open_position│◀──────────┘
+                   │ (reserved)   │
+                   └──────┬───────┘
+                  close   │           cancel/fail
+                          ▼                   ▼
+                       released           released
+```
+
+### Method list
+
+```typescript
+export class CapitalReservationService {
+  // approval flow
+  reserveForApproval(input: { sessionId: string; approvalId: string; amountUsd: number }): CapitalReservation;
+  releaseByApproval(approvalId: string): void;
+
+  // approval → order (same live process or after recheck approval)
+  convertApprovalToOpenOrder(approvalId: string, tradeId: string): void;
+
+  // order → position (broker fill confirmed)
+  convertOrderToPosition(tradeId: string): void;
+
+  // terminal transitions
+  releaseOnCancel(tradeId: string): void;
+  releaseOnFailure(tradeId: string): void;
+  releaseOnClose(tradeId: string): void;
+
+  // queries
+  sumActiveReservedUsd(): number;
+  listActiveBySession(sessionId: string): CapitalReservation[];
+
+  // preflight
+  checkSessionStartFits(sessionId: string, capitalLimitUsd: number): { ok: true } | { ok: false; reserved: number; ceiling: number };
+}
+```
+
+### Transition rules
+
+| Trigger | From | To | Method |
+|---------|------|----|--------|
+| Approval created (shared mode) | — | `reserved` (reason=approval) | `reserveForApproval` |
+| Approval rejected | `reserved` (approval) | `released` | `releaseByApproval` |
+| Approval approved, live process | `reserved` (approval) | `reserved` (open_order) | `convertApprovalToOpenOrder` |
+| Approval approved, post-restart, recheck approves | `reserved` (approval) | `reserved` (open_order) | `convertApprovalToOpenOrder` (after recheck) |
+| Approval approved, post-restart, recheck rejects | `reserved` (approval) | `released` | `releaseByApproval` |
+| Broker fill confirmed | `reserved` (open_order) | `reserved` (open_position) | `convertOrderToPosition` |
+| Order cancelled before fill | `reserved` (open_order) | `released` | `releaseOnCancel` |
+| Broker rejection / fill never confirmed | `reserved` (open_order) | `released` | `releaseOnFailure` |
+| Position closed (exit) | `reserved` (open_position) | `released` | `releaseOnClose` |
+
+All transitions run inside a single `db.transaction()` per `CODING_GUIDELINES.md` §5. Conversions update the existing row's `reason` field rather than creating a new row, so reservation continuity is observable.
+
+### Pre-flight gate
+
+`checkSessionStartFits()` is invoked from the preflight pipeline (Phase 0, P1.7 step 5) when `capitalAllocationMode = "shared_global_pool"`. It returns `{ ok: false }` with details if `sumActiveReservedUsd() + capitalLimitUsd > globalCapitalPoolUsd`.
 
 ## Orchestrator Integration
 

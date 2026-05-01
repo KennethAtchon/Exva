@@ -2,6 +2,8 @@
 
 > Systematic find-and-replace across the entire codebase.
 > Pure rename — no behavioral changes.
+>
+> Implements: docs/plan/CODING_GUIDELINES.md
 
 ## Goal
 
@@ -163,9 +165,11 @@ After this phase, the following greps must return zero results:
 ```bash
 grep -r "\.asset\b" src/ electron/ --include="*.ts" --include="*.tsx"
 grep -r '"asset"' src/ electron/ --include="*.ts" --include="*.tsx"
+grep -rE '\["asset"\]|\['"'"'asset'"'"'\]' src/ electron/ --include="*.ts" --include="*.tsx"   # P2.9 bracket access
 grep -r 'AssetType\|StockSymbol' src/ electron/ --include="*.ts" --include="*.tsx"
 grep -r '"SPY"\|"QQQ"' electron/main/ --include="*.ts"
 grep -r 'AgentType' src/ electron/ --include="*.ts" --include="*.tsx"
+grep -r 'asset:' src/ electron/ --include="*.ts" --include="*.tsx"                              # object literal field
 ```
 
 ## UI Rename

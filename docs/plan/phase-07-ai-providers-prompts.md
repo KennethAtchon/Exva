@@ -2,6 +2,8 @@
 
 > Replace hardcoded Anthropic dependency in `AiSdkService` with a multi-provider adapter.
 > Move inline system prompt strings to versioned Markdown files.
+>
+> Implements: docs/plan/CODING_GUIDELINES.md
 
 ## Current State
 
@@ -61,7 +63,9 @@ export interface ProviderAdapter {
 
 ## Concrete Adapters
 
-### `AnthropicAdapter` — `electron/main/services/ai/anthropic-adapter.ts`
+### `AnthropicAdapter` — `electron/main/services/ai/adapters/anthropic-adapter.ts` (P0.3 fix)
+
+The Vercel AI SDK exports `createAnthropic`, not `anthropic.createClient`. Corrected:
 
 ```typescript
 export class AnthropicAdapter implements ProviderAdapter {
@@ -70,9 +74,9 @@ export class AnthropicAdapter implements ProviderAdapter {
   constructor(private readonly apiKey: string) {}
 
   async generateText(opts: GenerateTextOptions): Promise<GenerateResult> {
-    const { anthropic } = await import("@ai-sdk/anthropic");
+    const { createAnthropic } = await import("@ai-sdk/anthropic");
     const { generateText } = await import("ai");
-    const client = anthropic.createClient({ apiKey: this.apiKey });
+    const client = createAnthropic({ apiKey: this.apiKey });
     const started = Date.now();
     const result = await generateText({
       model: client(opts.model),
@@ -83,29 +87,73 @@ export class AnthropicAdapter implements ProviderAdapter {
     });
     return {
       text: result.text,
-      inputTokens: result.usage.promptTokens,
-      outputTokens: result.usage.completionTokens,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
       durationMs: Date.now() - started,
     };
   }
 
   async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>> {
-    // similar pattern with generateObject from "ai"
+    const { createAnthropic } = await import("@ai-sdk/anthropic");
+    const { generateObject } = await import("ai");
+    const client = createAnthropic({ apiKey: this.apiKey });
+    const started = Date.now();
+    const result = await generateObject({
+      model: client(opts.model),
+      system: opts.systemPrompt,
+      prompt: opts.userPrompt,
+      schema: opts.schema,
+      temperature: opts.temperature,
+      maxTokens: opts.maxTokens,
+    });
+    return {
+      object: result.object,
+      text: JSON.stringify(result.object),
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      durationMs: Date.now() - started,
+    };
   }
 
   async testConnection(): Promise<{ ok: boolean; error?: string }> {
-    // minimal test call with smallest model
+    try {
+      await this.generateText({
+        model: "claude-haiku-4-5-20251001",
+        systemPrompt: "Reply with the single word: ok",
+        userPrompt: "ping",
+        temperature: 0,
+        maxTokens: 4,
+      });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
   }
 }
 ```
 
-### `OpenAiAdapter` — `electron/main/services/ai/openai-adapter.ts`
+### `OpenAiAdapter` — `electron/main/services/ai/adapters/openai-adapter.ts` (P0.3 fix)
 
-Same interface, uses `@ai-sdk/openai` dynamically imported. Maps to `openai(model)`.
+Uses `createOpenAI` from `@ai-sdk/openai`:
 
-### `OpenCodeAdapter` — `electron/main/services/ai/opencode-adapter.ts`
+```typescript
+const { createOpenAI } = await import("@ai-sdk/openai");
+const client = createOpenAI({ apiKey: this.apiKey });
+// then client(opts.model) per generateText/generateObject pattern above
+```
 
-OpenAI-compatible endpoint. Takes a `baseUrl` in addition to API key. Uses `createOpenAI({ baseURL: baseUrl, apiKey })` from `@ai-sdk/openai`.
+### `OpenCodeAdapter` — `electron/main/services/ai/adapters/opencode-adapter.ts`
+
+OpenAI-compatible endpoint. Takes `baseUrl` in addition to API key:
+
+```typescript
+const { createOpenAI } = await import("@ai-sdk/openai");
+const client = createOpenAI({ apiKey: this.apiKey, baseURL: this.baseUrl });
+```
+
+#### OpenCode model list — decision (P1.5)
+
+OpenCode-compatible providers do not have a uniform `/models` endpoint we can rely on. **Decision: drop the dynamic model list claim.** The user types the model id directly into the Strategy page model field for any `opencode` provider. The Strategy UI shows a free-text input instead of a combobox when `providerType === "opencode"`. `MODEL_CATALOG.opencode` stays `[]` and the model selector falls back to a text input when the array is empty.
 
 ## Provider Registry
 
@@ -328,7 +376,59 @@ if (config.webSearchEnabled && !searchProviderId) {
 }
 ```
 
-For v1, implement Brave Search and Tavily as function tools passed to `generateText`. The tool name is `web_search`, takes `{ query: string }`, returns `{ results: string }`.
+### Search providers (P1.4)
+
+Search adapters mirror the AI provider pattern. Files:
+
+```
+electron/main/services/ai/search/
+├── index.ts
+├── search-registry.ts
+├── search-types.ts                        SearchQuery, SearchResults
+└── adapters/
+    ├── search-adapter.ts                  interface SearchAdapter
+    ├── brave-adapter.ts
+    └── tavily-adapter.ts
+```
+
+```typescript
+export interface SearchAdapter {
+  readonly providerType: SearchProviderType;
+  search(query: string): Promise<{ results: string }>;
+  testConnection(): Promise<{ ok: boolean; error?: string }>;
+}
+```
+
+Wired into `AiRuntime` as a tool when `webSearchEnabled = true`:
+
+```typescript
+import { tool } from "ai";
+import { z } from "zod";
+
+private async resolveSearchTool(sessionId: string) {
+  const session = this.sessionRepo.get(sessionId);
+  const prefs = this.workspacePrefsRepo.get();
+  const searchProviderId = session.defaultSearchProviderId ?? prefs.defaultSearchProviderId;
+  if (!searchProviderId) {
+    throw new AppError(
+      "Session cannot enable web search because no search provider is configured.",
+      "SEARCH_PROVIDER_REQUIRED",
+    );
+  }
+  const adapter = await this.searchRegistry.get(searchProviderId);
+  return tool({
+    description: "Search the web for current information.",
+    parameters: z.object({ query: z.string() }),
+    execute: async ({ query }) => adapter.search(query),
+  });
+}
+
+// inside runRole when config.webSearchEnabled:
+const tools = { web_search: await this.resolveSearchTool(sessionId) };
+const result = await generateText({ model: client(modelId), system, prompt, tools, ... });
+```
+
+Brave: `https://api.search.brave.com/res/v1/web/search`. Tavily: `https://api.tavily.com/search`. Both adapters normalize results to a single concatenated `results: string` field for prompt injection.
 
 ## Orchestrator Update
 
@@ -371,17 +471,37 @@ sequenceDiagram
     Runtime-->>Orch: AgentResult<string>
 ```
 
+## Retry & Backoff Policy (P2.10)
+
+Adapter calls follow a strict policy enforced inside `AiRuntime`, not inside individual adapters:
+
+- **No retry** on validation errors (4xx other than 429), schema-mismatch errors from `generateObject`, or `AppError` with code `MISSING_SECRET` / `PROVIDER_NOT_CONFIGURED`.
+- **One retry** on 429, 5xx, network errors (`ECONNRESET`, timeout). Backoff: 1s.
+- After the retry attempt fails, the call throws `AppError(... "PROVIDER_UNREACHABLE")`. The orchestrator catches it, emits an `ERROR` event, and the cycle aborts cleanly.
+- Total wall-clock budget per role call: 60s (one timeout signal aborts the underlying fetch).
+
+The same policy applies to broker adapter calls in Phase 8 with one difference: order-placement calls **never retry** automatically (idempotency cannot be guaranteed across all venues). Read calls (`getPositions`, `testConnection`) follow the standard retry-once rule.
+
 ## Files Created / Modified
 
 | Action | File |
 |--------|------|
-| Create | `electron/main/services/ai/provider-adapter.ts` |
-| Create | `electron/main/services/ai/anthropic-adapter.ts` |
-| Create | `electron/main/services/ai/openai-adapter.ts` |
-| Create | `electron/main/services/ai/opencode-adapter.ts` |
+| Create | `electron/main/services/ai/index.ts` |
+| Create | `electron/main/services/ai/adapters/provider-adapter.ts` |
+| Create | `electron/main/services/ai/adapters/anthropic-adapter.ts` |
+| Create | `electron/main/services/ai/adapters/openai-adapter.ts` |
+| Create | `electron/main/services/ai/adapters/opencode-adapter.ts` |
 | Create | `electron/main/services/ai/provider-registry.ts` |
 | Create | `electron/main/services/ai/ai-runtime.ts` |
-| Modify | `electron/main/services/prompt-asset-loader.ts` — add version() |
+| Create | `electron/main/services/ai/ai-runtime-types.ts` |
+| Create | `electron/main/services/ai/ai-runtime-schemas.ts` |
+| Create | `electron/main/services/ai/search/index.ts` (P1.4) |
+| Create | `electron/main/services/ai/search/search-registry.ts` |
+| Create | `electron/main/services/ai/search/search-types.ts` |
+| Create | `electron/main/services/ai/search/adapters/search-adapter.ts` |
+| Create | `electron/main/services/ai/search/adapters/brave-adapter.ts` |
+| Create | `electron/main/services/ai/search/adapters/tavily-adapter.ts` |
+| Modify | `electron/main/services/ai/prompt-asset-loader.ts` — add version() |
 | Create | `electron/prompts/researcher_bull.md` |
 | Create | `electron/prompts/researcher_bear.md` |
 | Create | `electron/prompts/reviewer.md` |
@@ -389,9 +509,9 @@ sequenceDiagram
 | Create | `electron/prompts/instrument_selector.md` |
 | Modify | `electron/main/services/agent-orchestrator.ts` — use AiRuntime |
 | Modify | `electron/main/ipc/accounts.ts` — add provider list/save/test handlers |
-| Modify | `electron/main/services/app-services.ts` — wire ProviderRegistry, AiRuntime |
+| Modify | `electron/main/services/app-services.ts` — wire ProviderRegistry, SearchRegistry, AiRuntime |
 | Delete | `electron/main/services/ai-sdk-service.ts` — replaced by AiRuntime |
-| Modify | `src/pages/AccountsPage.tsx` — provider list UI expansion |
+| Modify | `src/pages/AccountsPage.tsx` — provider list UI expansion (free-text model input for opencode, P1.5) |
 
 ## Acceptance Criteria
 

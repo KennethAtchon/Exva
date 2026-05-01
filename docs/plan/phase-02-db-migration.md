@@ -2,6 +2,8 @@
 
 > Replace the two singleton tables (`session_config`, `session_state`) with the full session-family schema.
 > Wipe existing local DB — no migration compatibility required.
+>
+> Implements: docs/plan/CODING_GUIDELINES.md
 
 ## Goal
 
@@ -145,6 +147,16 @@ export const sessionTemplates = sqliteTable("session_templates", {
   updatedAt:           text("updated_at").notNull(),
 });
 
+// P1.3 — `trades.status` legal values:
+//   'pending'   — risk passed, awaiting fill or human approval
+//   'open'      — broker fill confirmed
+//   'closed'    — exited normally
+//   'cancelled' — cancelled before fill
+//   'failed'    — broker rejected order or fill never confirmed
+//   'rejected'  — human rejected via approval queue
+// Enforced via CHECK constraint added in raw migration DDL (Drizzle cannot
+// express it). State machine: pending → open → closed; pending → cancelled |
+// failed | rejected.
 export const trades = sqliteTable("trades", {
   id:               text("id").primaryKey(),
   sessionId:        text("session_id").notNull()
@@ -239,6 +251,66 @@ The migration file uses `sqlite.prepare(...).run()` calls for each table. Key po
 - Use `CREATE TABLE IF NOT EXISTS` for all new tables.
 - Seed `workspace_preferences` with id=1 via `INSERT OR IGNORE`.
 - Enable `PRAGMA foreign_keys = ON` and `PRAGMA journal_mode = WAL`.
+- `workspace_preferences.updated_at` defaults to `CURRENT_TIMESTAMP` in DDL (P2.5).
+- Add CHECK constraints and triggers Drizzle cannot express (see below, P0.4 + P1.3).
+
+### Raw DDL additions (CHECKs and triggers)
+
+```sql
+-- Enforce focus singleton (P0.4): at most one non-archived row may have is_focused=1.
+CREATE TRIGGER IF NOT EXISTS trg_focus_singleton_insert
+BEFORE INSERT ON sessions
+FOR EACH ROW WHEN NEW.is_focused = 1
+BEGIN
+  SELECT CASE WHEN (SELECT COUNT(*) FROM sessions
+                    WHERE is_focused = 1 AND status != 'archived') > 0
+         THEN RAISE(ABORT, 'is_focused_singleton_violated') END;
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_focus_singleton_update
+BEFORE UPDATE OF is_focused ON sessions
+FOR EACH ROW WHEN NEW.is_focused = 1
+BEGIN
+  SELECT CASE WHEN (SELECT COUNT(*) FROM sessions
+                    WHERE is_focused = 1 AND status != 'archived' AND id != NEW.id) > 0
+         THEN RAISE(ABORT, 'is_focused_singleton_violated') END;
+END;
+
+-- The transactional clear-then-set in SessionRepo.setFocus() must run UPDATEs in
+-- this order: zero all is_focused first, then set the target row. The trigger
+-- fires only on rows transitioning to 1, so the order is safe.
+
+-- Sessions: forbid focused archived rows.
+-- (Add to sessions CREATE TABLE.)
+-- CHECK (NOT (is_focused = 1 AND status = 'archived'))
+
+-- Sessions: enumerate legal status values.
+-- CHECK (status IN ('draft','idle','active','paused','stopped','archived'))
+
+-- Trades: enumerate legal status values (P1.3).
+-- CHECK (status IN ('pending','open','closed','cancelled','failed','rejected'))
+
+-- Trades: enumerate legal side values.
+-- CHECK (side IN ('BUY','SELL'))
+
+-- Trade approvals: enumerate legal status values.
+-- CHECK (status IN ('pending','approved','rejected'))
+
+-- Capital reservations: enumerate legal reason and status.
+-- CHECK (reason IN ('approval','open_order','open_position'))
+-- CHECK (status IN ('reserved','consumed','released'))
+
+-- Workspace preferences singleton.
+-- CHECK (id = 1)
+
+-- Workspace preferences: shared-pool requires positive amount.
+-- CHECK (capital_allocation_mode = 'per_session_only'
+--        OR (capital_allocation_mode = 'shared_global_pool'
+--            AND global_capital_pool_usd IS NOT NULL
+--            AND global_capital_pool_usd > 0))
+```
+
+These CHECK clauses are inlined into each `CREATE TABLE` statement when written as raw SQL. Drizzle's TypeScript schema is the type source of truth; the raw DDL adds the constraints Drizzle cannot express.
 
 ```
 Indexes to create:
@@ -422,6 +494,7 @@ sequenceDiagram
 | Create | `electron/main/db/repositories/capital-reservations-repo.ts` |
 | Create | `electron/main/db/repositories/trade-approvals-repo.ts` |
 | Create | `electron/main/db/repositories/session-templates-repo.ts` |
+| Create | `electron/main/db/repositories/session-broker-assignments-repo.ts` (P1.1 — moved from Phase 8; written by `SessionRepo.create()`) |
 | Modify | `electron/main/db/repositories/trades-repo.ts` |
 | Modify | `electron/main/db/repositories/agent-runs-repo.ts` |
 | Modify | `electron/main/db/repositories/events-repo.ts` |

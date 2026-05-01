@@ -2,6 +2,10 @@
 
 > Split the flat `electron/main/services/` directory into domain subfolders.
 > Pure structural refactor — no behavioral changes.
+>
+> Implements: docs/plan/CODING_GUIDELINES.md
+>
+> **Note:** This phase amends earlier phase outputs. Per `CODING_GUIDELINES.md` §1.1–§1.2, broker adapters live under `services/broker/adapters/`, not at top-level `electron/main/broker/`. The directory structure below reflects that.
 
 ## Goal
 
@@ -17,16 +21,13 @@ None — this is mechanical reorganization. The risks are:
 
 ```
 electron/main/
-├── broker/
-│   ├── broker-adapter.ts           (interface — unchanged)
-│   ├── alpaca-adapter.ts           (unchanged)
-│   ├── mock-adapter.ts             (unchanged)
-│   └── broker-registry.ts          (Phase 8 — move here if not already)
+├── config/
+│   └── env.ts                          (created Phase 0; per CODING_GUIDELINES §16)
 ├── db/
-│   ├── client.ts                   (unchanged)
-│   ├── migrations.ts               (unchanged)
-│   ├── schema.ts                   (unchanged)
-│   └── repositories/               (unchanged structure)
+│   ├── client.ts                       (unchanged)
+│   ├── migrations.ts                   (unchanged)
+│   ├── schema.ts                       (unchanged)
+│   └── repositories/                   (unchanged structure)
 ├── ipc/
 │   ├── accounts.ts
 │   ├── approvals.ts
@@ -41,31 +42,71 @@ electron/main/
 │   └── workspace.ts
 ├── prompts/
 │   └── *.md
-├── services/
-│   ├── ai/
-│   │   ├── provider-adapter.ts
-│   │   ├── anthropic-adapter.ts
-│   │   ├── openai-adapter.ts
-│   │   ├── opencode-adapter.ts
-│   │   ├── provider-registry.ts
-│   │   ├── provider-model-catalog.ts
-│   │   ├── ai-runtime.ts
-│   │   └── prompt-asset-loader.ts
-│   ├── broker/
-│   │   └── broker-routing-service.ts
-│   ├── instrument/
-│   │   └── instrument-cache-service.ts  (wraps InstrumentCacheRepo)
-│   ├── risk/
-│   │   └── risk-engine.ts              (move from root services/)
-│   ├── session/
-│   │   └── session-service.ts          (move from root services/)
-│   ├── agent-orchestrator.ts           (stays at root — it ties everything together)
-│   ├── app-services.ts                 (unchanged — wires everything)
-│   ├── event-bus.ts                    (stays at root)
-│   ├── notification-service.ts         (stays at root)
-│   ├── secrets-service.ts              (stays at root — cross-cutting)
-│   └── trade-monitor.ts               (stays at root)
+└── services/
+    ├── ai/
+    │   ├── index.ts
+    │   ├── ai-runtime.ts
+    │   ├── ai-runtime-types.ts
+    │   ├── ai-runtime-schemas.ts
+    │   ├── provider-registry.ts
+    │   ├── provider-model-catalog.ts
+    │   ├── prompt-asset-loader.ts
+    │   ├── adapters/
+    │   │   ├── provider-adapter.ts
+    │   │   ├── anthropic-adapter.ts
+    │   │   ├── openai-adapter.ts
+    │   │   └── opencode-adapter.ts
+    │   └── search/
+    │       ├── index.ts
+    │       ├── search-registry.ts
+    │       ├── search-types.ts
+    │       └── adapters/
+    │           ├── search-adapter.ts
+    │           ├── brave-adapter.ts
+    │           └── tavily-adapter.ts
+    ├── broker/
+    │   ├── index.ts
+    │   ├── broker-routing-service.ts
+    │   ├── broker-registry.ts
+    │   ├── instrument-normalizer.ts
+    │   └── adapters/
+    │       ├── broker-adapter.ts
+    │       ├── alpaca-adapter.ts
+    │       ├── coinbase-advanced-trade-adapter.ts
+    │       ├── tradovate-adapter.ts
+    │       └── mock-adapter.ts
+    ├── instrument/
+    │   ├── index.ts
+    │   └── instrument-cache-service.ts
+    ├── risk/
+    │   ├── index.ts
+    │   ├── risk-engine.ts
+    │   └── capital-reservation-service.ts
+    ├── session/
+    │   ├── index.ts
+    │   ├── session-service.ts
+    │   ├── session-runtime-manager.ts
+    │   ├── session-runtime.ts
+    │   ├── session-types.ts
+    │   └── preflight/
+    │       ├── index.ts
+    │       ├── task-boundary-check.ts
+    │       ├── provider-credentials-check.ts
+    │       ├── broker-reachability-check.ts
+    │       ├── search-provider-check.ts
+    │       ├── capital-pool-check.ts
+    │       ├── selector-config-check.ts
+    │       └── instrument-conflict-check.ts
+    ├── agent-orchestrator.ts           (stays at root — integration layer)
+    ├── app-services.ts                 (stays at root — wires everything)
+    ├── event-bus.ts                    (stays at root)
+    ├── log.ts                          (stays at root — createLogger)
+    ├── notification-service.ts         (stays at root)
+    ├── secrets-service.ts              (stays at root — cross-cutting)
+    └── trade-monitor.ts                (stays at root)
 ```
+
+**Removed:** the previous top-level `electron/main/broker/` directory. Adapters belong under their domain service per `CODING_GUIDELINES.md` §1.2.
 
 ## Dependency Rules
 
@@ -100,7 +141,13 @@ No domain subfolder imports from `agent-orchestrator` or `ipc/`.
 | `services/session-service.ts` | `services/session/session-service.ts` |
 | `services/prompt-asset-loader.ts` | `services/ai/prompt-asset-loader.ts` |
 | `services/provider-model-catalog.ts` | `services/ai/provider-model-catalog.ts` |
-| `broker/broker-registry.ts` | stays at `broker/broker-registry.ts` |
+| `broker/broker-adapter.ts` | `services/broker/adapters/broker-adapter.ts` |
+| `broker/alpaca-adapter.ts` | `services/broker/adapters/alpaca-adapter.ts` |
+| `broker/coinbase-advanced-trade-adapter.ts` | `services/broker/adapters/coinbase-advanced-trade-adapter.ts` |
+| `broker/tradovate-adapter.ts` | `services/broker/adapters/tradovate-adapter.ts` |
+| `broker/mock-adapter.ts` | `services/broker/adapters/mock-adapter.ts` |
+| `broker/broker-registry.ts` | `services/broker/broker-registry.ts` |
+| `broker/instrument-normalizer.ts` | `services/broker/instrument-normalizer.ts` |
 
 Files that stay at `services/` root (cross-cutting, no natural subdomain):
 - `agent-orchestrator.ts`
@@ -118,8 +165,7 @@ The wiring file stays at root but imports from subdirectories:
 import { AiRuntime } from "./ai/ai-runtime";
 import { ProviderRegistry } from "./ai/provider-registry";
 import { PromptAssetLoader } from "./ai/prompt-asset-loader";
-import { BrokerRegistry } from "../broker/broker-registry";
-import { BrokerRoutingService } from "./broker/broker-routing-service";
+import { BrokerRegistry, BrokerRoutingService } from "./broker";
 import { RiskEngine } from "./risk/risk-engine";
 import { SessionService } from "./session/session-service";
 import { AgentOrchestrator } from "./agent-orchestrator";

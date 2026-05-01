@@ -2,6 +2,8 @@
 
 > Add the Sessions page, focused-session selection, session templates modal, and global workspace mode.
 > Dashboard and Trades gain session-filtered vs. aggregate query modes.
+>
+> Implements: docs/plan/CODING_GUIDELINES.md
 
 ## Goal
 
@@ -125,6 +127,101 @@ See spec section 7 for full contracts. Store and retrieve `session_templates` ro
 }
 // Response: full WorkspacePreferences row
 ```
+
+**Validation (P1.2):** the handler enforces the conditional shape:
+
+```typescript
+const next = { ...current, ...patch };
+if (next.capitalAllocationMode === "shared_global_pool") {
+  if (next.globalCapitalPoolUsd == null || next.globalCapitalPoolUsd <= 0) {
+    throw new AppError(
+      "Shared global pool requires a positive capital amount.",
+      "VALIDATION_FAILED",
+      { field: "globalCapitalPoolUsd" },
+    );
+  }
+  // Also reject if currently-reserved capital across active sessions exceeds the new ceiling.
+  const reserved = capitalReservationsRepo.sumActiveReservedUsd();
+  if (reserved > next.globalCapitalPoolUsd) {
+    throw new AppError(
+      "New shared pool ceiling is below currently-reserved capital.",
+      "CAPITAL_POOL_EXCEEDED",
+      { reserved, requested: next.globalCapitalPoolUsd },
+    );
+  }
+}
+```
+
+### Session Templates IPC (P1.9)
+
+Inlined here — these contracts replace the spec cross-reference.
+
+#### `template:list` → `GET /api/templates`
+
+```typescript
+// Request: { search?: string; instrumentClass?: InstrumentClass }
+// Response
+{
+  templates: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    sourceSessionId: string | null;
+    sourceSessionName: string | null;
+    instrumentClasses: InstrumentClass[];
+    updatedAt: string;
+  }>
+}
+```
+
+#### `template:create` → `POST /api/templates`
+
+```typescript
+// Request
+{
+  name: string;                    // 3-80, unique
+  description?: string;            // ≤300
+  sourceSessionId?: string;        // when saving from a session row
+  payload: SessionTemplatePayload; // shape from Phase 1
+}
+// Response: { id: string; updatedAt: string }
+// Errors: 400 VALIDATION_FAILED, 409 duplicate name
+```
+
+Handler validates the payload against the Zod schema for `SessionTemplatePayload`, then writes a `session_templates` row.
+
+#### `template:delete` → `DELETE /api/templates/:id`
+
+```typescript
+// Request: { id: string }
+// Response: { deleted: true }
+// Errors: 404 NOT_FOUND
+```
+
+#### `template:use` → `POST /api/templates/:id/use`
+
+```typescript
+// Request: { id: string }
+// Response: SessionTemplatePayload
+// (Renderer opens the Create Session modal pre-filled from the payload.
+//  No session row is created until the user submits the modal — `template:use`
+//  is a read-only fetch that also nulls out any provider/broker references
+//  whose targets no longer exist.)
+```
+
+Handler post-processing:
+- For every `aiRoles[i].providerKey`, verify the provider exists; if not, set to empty string and add to a `clearedFields` array in the response.
+- Same for every `brokerAssignments[i].brokerAccountId` and `brokerOverridesByInstrumentClass[*]`.
+
+```typescript
+// Final response shape
+{
+  payload: SessionTemplatePayload;
+  clearedFields: string[];   // e.g. ["aiRoles[0].providerKey", "brokerAssignments[1]"]
+}
+```
+
+The renderer shows inline validation errors next to cleared fields per the spec.
 
 ## Renderer State — Zustand Store
 
@@ -304,6 +401,51 @@ sequenceDiagram
     Store-->>User: viewMode = "global" (or empty if no sessions)
     Note over User: toast "Focused session archived. Switched to global view."
 ```
+
+## Preload Event Subscription API (P2.4)
+
+Phase 4 establishes the renderer-side push-event surface used by Phase 6 (`approval_resolved`) and later phases.
+
+File: `electron/preload/exva-api.ts`
+
+```typescript
+type EventChannel =
+  | "approval_required"
+  | "approval_resolved"
+  | "session_status_changed"
+  | "trade_status_changed"
+  | "selector_run_completed";
+
+interface ExvaEventsAPI {
+  subscribe<T = unknown>(
+    channel: EventChannel,
+    handler: (payload: T) => void,
+  ): () => void; // returns unsubscribe
+}
+
+interface ExvaAPI {
+  // ... request/response namespaces
+  events: ExvaEventsAPI;
+}
+```
+
+Implementation:
+
+```typescript
+const events: ExvaEventsAPI = {
+  subscribe(channel, handler) {
+    const wrapped = (_e: IpcRendererEvent, payload: unknown) => handler(payload as never);
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
+  },
+};
+```
+
+Rules:
+- Push events are one-way main → renderer. They never expect a response.
+- Every push channel listed above is documented as "push-only" in the channel constants file (`electron/shared/channels.ts`).
+- Renderer code subscribes inside Zustand stores (per `CODING_GUIDELINES.md` §10), never in components.
+- Stores expose actions like `loadApprovals()` which the event handler calls to refetch.
 
 ## IPC Handler Registration
 

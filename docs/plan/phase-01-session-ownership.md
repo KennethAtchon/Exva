@@ -2,6 +2,8 @@
 
 > Establish the canonical domain types and invariant rules that every subsequent phase builds on.
 > No DB writes. No UI changes. Pure TypeScript types + documented rules.
+>
+> Implements: docs/plan/CODING_GUIDELINES.md
 
 ## Goal
 
@@ -196,10 +198,35 @@ export interface SessionTemplate {
   name: string;
   description: string | null;
   sourceSessionId: string | null;
-  templatePayloadJson: string; // JSON blob — full session snapshot
+  templatePayloadJson: string; // serialized SessionTemplatePayload
   instrumentClasses: InstrumentClass[];
   updatedAt: string;
 }
+
+// P1.10 — explicit shape of session_templates.template_payload_json.
+// Validated via Zod schema on `template:create` and `template:use`.
+export interface SessionTemplatePayload {
+  version: 1;
+  identity: {
+    objective: string;
+    selectionMode: SelectionMode;
+    instrumentClasses: InstrumentClass[];
+    instrumentScope: string;
+    executionMode: ExecutionMode;
+    capitalLimitUsd: number;
+    defaultSearchProviderId: string | null;
+  };
+  selectorSettings: {
+    aiPickerEnabled: boolean;
+  };
+  strategy: Omit<SessionStrategy, "sessionId">;
+  aiRoles: Array<Omit<SessionAiRole, "sessionId">>;
+  brokerAssignments: Array<{ brokerAccountId: string }>;
+  brokerOverridesByInstrumentClass: Partial<Record<InstrumentClass, string>>;
+}
+// Excluded from the payload (per spec): runtime state, trade rows, agent_runs,
+// events, capital_reservations, instrument_cache, session name (uniqueness),
+// is_focused, status, createdAt, updatedAt.
 
 export interface TradeApproval {
   id: string;
@@ -230,6 +257,78 @@ export interface CapitalReservation {
 }
 ```
 
+## `AppError` — Canonical Error Type (P0.1)
+
+Create `electron/shared/errors.ts`. This is the only error type services throw and the only error shape the renderer sees.
+
+```typescript
+export type AppErrorCode =
+  | "VALIDATION_FAILED"
+  | "INVALID_TRANSITION"
+  | "LOCKED"
+  | "NOT_FOUND"
+  | "PROVIDER_NOT_CONFIGURED"
+  | "MISSING_SECRET"
+  | "BROKER_UNREACHABLE"
+  | "ROUTING_AMBIGUOUS"
+  | "NO_BROKER"
+  | "UNSUPPORTED_INSTRUMENT"
+  | "UNKNOWN_BROKER"
+  | "SESSION_NOT_ACTIVE"
+  | "SELECTOR_NOT_CONFIGURED"
+  | "SEARCH_PROVIDER_REQUIRED"
+  | "INSTRUMENT_CONFLICT"
+  | "CAPITAL_POOL_EXCEEDED"
+  | "PREFLIGHT_FAILED"
+  | "UNKNOWN";
+
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public readonly code: AppErrorCode,
+    public readonly details?: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = "AppError";
+  }
+}
+
+export interface SerializedAppError {
+  message: string;
+  code: AppErrorCode;
+  details?: Record<string, unknown>;
+}
+
+export function serializeError(err: unknown): SerializedAppError {
+  if (err instanceof AppError) {
+    return { message: err.message, code: err.code, details: err.details };
+  }
+  return { message: "Internal error", code: "UNKNOWN" };
+}
+```
+
+Rules:
+- Services throw `AppError` only. Repos may throw raw SQLite errors; the calling service wraps them.
+- IPC handlers wrap their handler body in `try { ... } catch (err) { return { error: serializeError(err) } }`.
+- Renderer code distinguishes failures by `code`, never by string-matching `message`.
+
+## Edit-Lock Matrix (P0.2)
+
+Every IPC channel that mutates session-scoped state checks `isSessionEditable(status)` server-side before writing. UI-side `disabled` state is UX only and not trusted.
+
+| Channel | Locked when status ∈ | Error code |
+|---------|----------------------|-----------|
+| `session:update` | `active`, `paused` | `LOCKED` |
+| `strategy:save` | `active`, `paused` | `LOCKED` |
+| `session:instrumentCache:clear` | `active`, `paused` | `LOCKED` |
+| `session:archive` | `active`, `paused` (must stop first) | `INVALID_TRANSITION` |
+| `accounts:routing:update` | service-side check: reject if any active session depends on the changed routing default without an override | `LOCKED` |
+| `accounts:brokers:remove` | service-side check: reject if any active session has the broker assigned | `LOCKED` |
+| `accounts:providers:save` | service-side check: reject when secret rotation would invalidate an in-flight runtime call (best-effort: allow but call `registry.invalidate()` after current cycle completes) | `LOCKED` |
+| `workspace:prefs:patch` | always allowed; `capitalAllocationMode` change reservoir-validates against currently-reserved capital and rejects with `CAPITAL_POOL_EXCEEDED` if a switch would over-commit | `CAPITAL_POOL_EXCEEDED` |
+
+Every later phase that adds a session-mutating channel adds a row to this matrix in this file.
+
 ## Invariant Rules (documented — enforced in Phases 2+)
 
 | Rule | Where Enforced |
@@ -248,6 +347,7 @@ export interface CapitalReservation {
 | Action | File |
 |--------|------|
 | Create | `electron/shared/domain.ts` |
+| Create | `electron/shared/errors.ts` — `AppError`, `AppErrorCode`, `serializeError` (P0.1) |
 | Modify | `electron/shared/channels.ts` — update `AgentType` reference to `AgentRole` |
 | Modify | `src/lib/types.ts` — re-export from `domain.ts` where possible |
 

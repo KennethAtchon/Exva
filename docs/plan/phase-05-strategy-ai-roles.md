@@ -2,6 +2,8 @@
 
 > Expand the Strategy page to manage both trading rules and per-agent AI behavior for the focused session.
 > Add edit-lock when session is active/paused.
+>
+> Implements: docs/plan/CODING_GUIDELINES.md
 
 ## Goal
 
@@ -98,6 +100,29 @@ electron/prompts/
 ```
 
 These are included in the Electron `extraResources` config so they ship with the app.
+
+### Path resolution (P2.8)
+
+`PromptAssetLoader` resolves the prompts directory differently in dev vs. packaged builds. Use the override from `env.promptsDirOverride` first (tests), `process.resourcesPath` in packaged builds, and `app.getAppPath()` in dev.
+
+```typescript
+import { app } from "electron";
+import path from "node:path";
+import { env } from "@main/config/env";
+
+function resolvePromptsDir(): string {
+  if (env.promptsDirOverride) return env.promptsDirOverride;
+  if (app.isPackaged) return path.join(process.resourcesPath, "prompts");
+  return path.join(app.getAppPath(), "electron", "prompts");
+}
+
+export class PromptAssetLoader {
+  private readonly assetDir = resolvePromptsDir();
+  // ...
+}
+```
+
+`forge.config.ts` must include the prompts directory in `packagerConfig.extraResource` so packaged builds ship the files at `process.resourcesPath/prompts/`.
 
 ## Provider Model Catalog
 
@@ -285,9 +310,20 @@ sequenceDiagram
 | Create | `electron/prompts/instrument_selector.md` |
 | Modify | `electron/main/ipc/session.ts` — add strategy:get, strategy:save, strategy:resetPrompt, strategy:getProviderModels |
 
+## Strategy Page — Three Visible States (P2.12)
+
+| State | Condition | Banner | Inputs |
+|-------|-----------|--------|--------|
+| **No focused session** | `workspace.viewMode === "global"` | "Choose a session to configure its strategy." + `Choose Session` button (links to Sessions page) | Hidden |
+| **Focused, editable** | `workspace.viewMode === "session"` and session.status ∈ {`draft`,`idle`,`stopped`} | None (default) | Editable |
+| **Focused, locked** | session.status ∈ {`active`,`paused`} | "Stop this session before editing its strategy or AI configuration." + `Stop Session` button | Read-only |
+
+The store exposes `state: "no_session" | "editable" | "locked"` derived from `workspaceStore` + `sessionsStore`. The page selects on `state` and renders one of three top-level layouts. No conditional inline disabling scattered across components.
+
 ## Acceptance Criteria
 
 - Strategy page shows lock banner + read-only inputs when session is active/paused.
+- Strategy page shows "no session" empty state when workspace mode is global.
 - Each role tab saves independently to its `session_ai_roles` row.
 - Switching provider clears model selection and refetches model list.
 - Prompt editor is read-only when source = "default", editable when source = "session_override".
@@ -295,3 +331,4 @@ sequenceDiagram
 - Save button is disabled when no dirty fields exist.
 - Save blocked (inline error) when any role has unconfigured provider or empty model.
 - Instrument Selector tab is disabled for manual_shortlist sessions.
+- Prompt files load correctly in both dev and packaged builds (resolves via `env.promptsDirOverride`, `process.resourcesPath`, or `app.getAppPath()`).

@@ -2,6 +2,8 @@
 
 > Add the `instrument_selector` AI role.
 > Enable sessions to use an AI-driven universe selection flow instead of a fixed manual shortlist.
+>
+> Implements: docs/plan/CODING_GUIDELINES.md
 
 ## Prerequisites
 
@@ -34,7 +36,8 @@ export const sessionInstrumentCache = sqliteTable("session_instrument_cache", {
   instruments:       text("instruments").notNull(), // JSON: Array<{ symbol, instrumentClass }>
   definitionHash:    text("definition_hash").notNull(),
   selectedAt:        text("selected_at").notNull(),
-  selectorAgentRunId:text("selector_agent_run_id"),
+  selectorAgentRunId:text("selector_agent_run_id")
+                       .references(() => agentRuns.id, { onDelete: "set null" }), // P2.6
 });
 ```
 
