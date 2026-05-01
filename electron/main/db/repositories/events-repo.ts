@@ -9,6 +9,7 @@ export interface EventFilters {
   agent_type?: EventSourceType;
   search?: string;
   limit?: number;
+  sessionId?: string;
 }
 
 const levelRank: Record<LogLevel, number> = {
@@ -53,6 +54,7 @@ export class EventsRepo {
 
     return rows
       .map(toEventRow)
+      .filter((event) => !filters.sessionId || event.session_id === filters.sessionId)
       .filter((event) => !minLevel || levelRank[event.level] >= levelRank[minLevel])
       .filter((event) => !agentType || event.agent_type === agentType)
       .filter((event) => !filters.search || event.message.toLowerCase().includes(filters.search.toLowerCase()))

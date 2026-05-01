@@ -16,21 +16,21 @@ import { StatsRepo } from "../db/repositories/stats-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace-prefs-repo";
-import { AiSdkService } from "./ai-sdk-service";
-import { AgentOrchestrator } from "./agent-orchestrator";
-import { BrokerService } from "./broker-service";
-import { EventBus } from "./event-bus";
-import { createLogger } from "./log";
-import { NotificationService } from "./notification-service";
-import { PromptAssetLoader } from "./prompt-asset-loader";
-import { RiskEngine } from "./risk-engine";
-import { SecretsService } from "./secrets-service";
+import { AiSdkService } from "./ai/ai-sdk-service";
+import { AgentOrchestrator } from "./orchestration/agent-orchestrator";
+import { BrokerService } from "./broker/broker-service";
+import { EventBus } from "./infra/event-bus";
+import { createLogger } from "./infra/log";
+import { NotificationService } from "./infra/notification-service";
+import { PromptAssetLoader } from "./ai/prompt-asset-loader";
+import { RiskEngine } from "./orchestration/risk-engine";
+import { SecretsService } from "./infra/secrets-service";
 import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
 import type { SessionRuntimeManagerDeps } from "./session";
-import { SessionListingService } from "./session-listing-service";
-import { SessionTemplateService } from "./session-template-service";
-import { SessionWriteService } from "./session-write-service";
-import { TradeMonitor } from "./trade-monitor";
+import { SessionListingService } from "./session/listing-service";
+import { SessionTemplateService } from "./session/template-service";
+import { SessionWriteService } from "./session/write-service";
+import { TradeMonitor } from "./broker/trade-monitor";
 
 export interface AppServices {
   db: ReturnType<typeof createDbClient>;
@@ -99,17 +99,30 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const logger = createLogger("app-services");
 
   let runtimeManager: SessionRuntimeManager;
-  const runtimeManagerDeps: SessionRuntimeManagerDeps = {
+  const orchestratorDepsBase = {
     sessionRepo: repos.session,
     tradesRepo: repos.trades,
+    tradeApprovalsRepo: repos.tradeApprovals,
     agentRunsRepo: repos.agentRuns,
     eventsRepo: repos.events,
     statsRepo: repos.stats,
+    sessionAiRolesRepo: repos.sessionAiRoles,
+    sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
+    providerAccountsRepo: repos.providerAccounts,
+    workspacePreferencesRepo: repos.workspacePreferences,
+    capitalReservationsRepo: repos.capitalReservations,
+    brokerRoutingRepo: repos.brokerRouting,
+    sessionBrokerAssignmentsRepo: repos.sessionBrokerAssignments,
+    brokerAccountsRepo: repos.brokerAccounts,
     ai,
     broker,
     riskEngine: risk,
     bus: eventBus,
     logger,
+  };
+
+  const runtimeManagerDeps: SessionRuntimeManagerDeps = {
+    ...orchestratorDepsBase,
     createOrchestrator: (sessionId, deps) => new AgentOrchestrator(sessionId, deps),
     createTradeMonitor: (sessionId) =>
       new TradeMonitor(
@@ -125,18 +138,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   };
   runtimeManager = new SessionRuntimeManager(runtimeManagerDeps);
 
-  const orchestratorDeps = {
-    sessionRepo: repos.session,
-    tradesRepo: repos.trades,
-    agentRunsRepo: repos.agentRuns,
-    eventsRepo: repos.events,
-    statsRepo: repos.stats,
-    ai,
-    broker,
-    riskEngine: risk,
-    bus: eventBus,
-    logger,
-  };
+  const orchestratorDeps = orchestratorDepsBase;
 
   const session = new SessionService({
     sessionRepo: repos.session,
@@ -167,6 +169,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
 
   const sessionWrites = new SessionWriteService({
     sessions: repos.session,
+    events: repos.events,
     selectorSettings: repos.sessionSelectorSettings,
     assignments: repos.sessionBrokerAssignments,
     brokerRouting: repos.brokerRouting,

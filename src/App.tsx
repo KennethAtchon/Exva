@@ -57,10 +57,11 @@ export default function App() {
         setStatus(next.session_status);
       })
       .catch(() => {});
+    if (page === "trades") return;
     api.getActiveTrades()
       .then(setTrades)
       .catch(() => {});
-  }, [focusedSessionId, setStats, setStatus, setTrades, viewMode]);
+  }, [focusedSessionId, page, setStats, setStatus, setTrades, viewMode]);
 
   // Live updates from the Electron main process
   useExvaEvent("stats_update", (payload) => setStats(payload));

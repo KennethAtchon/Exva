@@ -1,15 +1,15 @@
 import type { InstrumentClass, SessionTemplate, SessionTemplatePayload } from "@/lib/types";
 import { sessionTemplatePayloadSchema, templateCreateInputSchema } from "@electron/shared/schemas";
 import { AppError } from "@electron/shared/errors";
-import type { BrokerAccountsRepo } from "../db/repositories/broker-accounts-repo";
-import type { ProviderAccountsRepo } from "../db/repositories/provider-accounts-repo";
-import type { SessionAiRolesRepo } from "../db/repositories/session-ai-roles-repo";
-import type { SessionBrokerAssignmentsRepo } from "../db/repositories/session-broker-assignments-repo";
-import type { BrokerRoutingRepo } from "../db/repositories/broker-routing-repo";
-import type { SessionRepo } from "../db/repositories/session-repo";
-import type { SessionStrategiesRepo } from "../db/repositories/session-strategies-repo";
-import type { SessionSelectorSettingsRepo } from "../db/repositories/session-selector-settings-repo";
-import type { SessionTemplatesRepo } from "../db/repositories/session-templates-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
+import type { ProviderAccountsRepo } from "../../db/repositories/provider-accounts-repo";
+import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";
+import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
+import type { BrokerRoutingRepo } from "../../db/repositories/broker-routing-repo";
+import type { SessionRepo } from "../../db/repositories/session-repo";
+import type { SessionStrategiesRepo } from "../../db/repositories/session-strategies-repo";
+import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";
+import type { SessionTemplatesRepo } from "../../db/repositories/session-templates-repo";
 
 export interface TemplateListItem {
   id: string;

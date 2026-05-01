@@ -31,7 +31,8 @@ export type EventSourceType =
   | "broker"
   | "capital";
 export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
-export type TradeStatus = "pending" | "open" | "closed" | "rejected";
+/** Matches `trades.status` CHECK in migrations (Phase 2). */
+export type TradeStatus = "pending" | "open" | "closed" | "cancelled" | "failed" | "rejected";
 export type TradeSide = "BUY" | "SELL";
 
 const LEGAL_TRANSITIONS: Partial<Record<SessionStatus, SessionStatus[]>> = {
@@ -203,6 +204,8 @@ export interface CapitalReservation {
 export interface Trade {
   id: string;
   sessionId?: string;
+  /** Populated when listing trades for display (global workspace). */
+  sessionName?: string;
   brokerAccountId?: string | null;
   instrumentSymbol: string;
   instrumentType: InstrumentClass;
@@ -306,9 +309,19 @@ export interface BrokerCredentials {
 
 export interface TradeDecisionPayload {
   trade_id: string;
+  approval_id?: string;
+  session_id?: string;
   instrumentSymbol: string;
   side: TradeSide;
   size_usd: number;
   confidence: number;
   reasoning: string;
+}
+
+/** Enriched row for approval:list (dashboard). */
+export interface ApprovalSummary extends TradeApproval {
+  sessionName: string;
+  brokerName: string;
+  /** Parsed from decisionSummaryJson when present. */
+  confidenceScore?: number;
 }

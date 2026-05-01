@@ -3,19 +3,43 @@ import { channels } from "@electron/shared/channels";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
 
+function aggregateApiBudgetUsd(services: AppServices): number {
+  const sessions = services.repos.session.list({ includeArchived: false });
+  let sum = 0;
+  for (const s of sessions) {
+    if (s.status === "archived") continue;
+    sum += services.repos.session.getConfig(s.id).max_api_spend_usd;
+  }
+  return sum;
+}
+
+function aggregateUptimeMin(services: AppServices): number {
+  let total = 0;
+  for (const s of services.repos.session.listByStatuses(["active", "paused"])) {
+    total += services.session.uptimeMin(s.id);
+  }
+  return total;
+}
+
 export function registerDashboardHandlers(services: AppServices): void {
   handle(ipcMain, channels.dashboard.getStats, async () => {
     const focused = services.repos.session.getFocused();
     const sessionId = focused?.id ?? null;
-    // TODO(phase-04): Replace this fallback budget with workspace/session-aware aggregate stats
-    // once dashboard queries have explicit session/global request shapes.
-    const config = focused ? services.repos.session.getConfig(focused.id) : { max_api_spend_usd: 5 };
+
+    const apiBudget = focused
+      ? services.repos.session.getConfig(focused.id).max_api_spend_usd
+      : aggregateApiBudgetUsd(services);
+
+    const uptimeMin = focused ? services.session.uptimeMin(focused.id) : aggregateUptimeMin(services);
+
+    const sessionStatus = focused?.status ?? "idle";
+
     return services.repos.stats.dashboardStats(
       sessionId,
-      focused?.status ?? "idle",
+      sessionStatus,
       services.session.getPortfolioValue(),
-      focused ? services.session.uptimeMin(focused.id) : 0,
-      config.max_api_spend_usd,
+      uptimeMin,
+      apiBudget,
     );
   });
 

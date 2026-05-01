@@ -1,12 +1,29 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/atoms";
 import { api, type SessionSummary } from "@/lib/exva";
-import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
+import type { EventRow, InstrumentClass, SessionTemplatePayload } from "@/lib/types";
 
 export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSummary | null; onClose: () => void }) => {
   const [payload, setPayload] = useState<SessionTemplatePayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recentEvents, setRecentEvents] = useState<EventRow[]>([]);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    void api
+      .getEvents({ sessionId: session.id, limit: 25 })
+      .then((rows) => {
+        if (!cancelled) setRecentEvents(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setRecentEvents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   useEffect(() => {
     if (!session) return;
@@ -87,11 +104,26 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
             {!loading && !payload?.aiRoles.length ? <div style={mutedTextStyle}>No per-role AI configuration saved yet.</div> : null}
           </Section>
 
-          <Section title="Activity Timeline">
+          <Section title="Session summary">
             <TimelineItem label="Updated" value={formatTimestamp(session.updatedAt)} />
             <TimelineItem label="Runtime" value={session.uptimeMin > 0 ? `Active for ${session.uptimeMin} minutes` : "No active runtime"} />
             <TimelineItem label="Workspace context" value={session.isFocused ? "Driving the focused workspace" : "Available as alternate context"} />
             <TimelineItem label="Open trades" value={`${session.openTradeCount} currently open`} />
+          </Section>
+
+          <Section title="Recent events">
+            {recentEvents.length === 0 ? (
+              <div style={mutedTextStyle}>No recent events for this session.</div>
+            ) : (
+              <div style={{ display: "grid", gap: 8, maxHeight: 220, overflowY: "auto" }}>
+                {recentEvents.map((ev) => (
+                  <div key={ev.id} style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.45 }}>
+                    <span style={{ color: "var(--text3)", fontSize: 10, marginRight: 8 }}>{formatTimestamp(ev.created_at)}</span>
+                    <span style={{ color: ev.level === "ERROR" ? "#f87171" : "var(--text2)" }}>{ev.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Section>
         </div>
       </div>

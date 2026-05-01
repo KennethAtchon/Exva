@@ -46,6 +46,19 @@ export class CapitalReservationsRepo {
       .run(new Date().toISOString(), approvalId);
   }
 
+  /** Adjust reserved amount when a fresh risk pass shrinks the intended order size. */
+  updateReservedAmountForApproval(approvalId: string, amountUsd: number): void {
+    this.client.sqlite
+      .prepare(
+        `
+        UPDATE capital_reservations
+        SET amount_usd = ?
+        WHERE approval_id = ? AND status = 'reserved'
+        `,
+      )
+      .run(amountUsd, approvalId);
+  }
+
   sumActiveReservedUsd(): number {
     const row = this.client.sqlite
       .prepare("SELECT COALESCE(SUM(amount_usd), 0) AS total FROM capital_reservations WHERE status IN ('reserved', 'consumed')")

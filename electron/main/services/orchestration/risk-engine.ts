@@ -1,5 +1,5 @@
 import type { DashboardStats, SessionConfig } from "@/lib/types";
-import type { OrderRequest } from "../broker/broker-adapter";
+import type { OrderRequest } from "../../broker/broker-adapter";
 
 export interface RiskResult<T = undefined> {
   allowed: boolean;

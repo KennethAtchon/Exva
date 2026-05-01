@@ -2,7 +2,7 @@ import { ipcMain } from "electron";
 import { apiKeySchema, brokerCredentialsSchema } from "@/lib/schemas";
 import { channels } from "@electron/shared/channels";
 import type { AppServices } from "../services/app-services";
-import { secretKeys } from "../services/secrets-service";
+import { secretKeys } from "../services/infra/secrets-service";
 import { handle } from "./handle";
 
 export function registerAccountHandlers(services: AppServices): void {

@@ -1,10 +1,11 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
-import type { SessionRepo } from "../db/repositories/session-repo";
-import type { SessionSelectorSettingsRepo } from "../db/repositories/session-selector-settings-repo";
-import type { SessionBrokerAssignmentsRepo } from "../db/repositories/session-broker-assignments-repo";
-import type { BrokerRoutingRepo } from "../db/repositories/broker-routing-repo";
-import type { BrokerAccountsRepo } from "../db/repositories/broker-accounts-repo";
+import type { EventsRepo } from "../../db/repositories/events-repo";
+import type { SessionRepo } from "../../db/repositories/session-repo";
+import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";
+import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
+import type { BrokerRoutingRepo } from "../../db/repositories/broker-routing-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
 
 export interface SessionWriteInput {
   name: string;
@@ -24,6 +25,7 @@ export class SessionWriteService {
   constructor(
     private readonly deps: {
       sessions: SessionRepo;
+      events: EventsRepo;
       selectorSettings: SessionSelectorSettingsRepo;
       assignments: SessionBrokerAssignmentsRepo;
       brokerRouting: BrokerRoutingRepo;
@@ -46,6 +48,13 @@ export class SessionWriteService {
     });
     this.deps.sessions.setFocus(session.id);
     this.applySideTables(session.id, input);
+    this.deps.events.insert({
+      session_id: session.id,
+      trade_id: null,
+      level: "INFO",
+      agent_type: "session",
+      message: `Session created: ${session.name}`,
+    });
     return { id: session.id, status: "draft" };
   }
 

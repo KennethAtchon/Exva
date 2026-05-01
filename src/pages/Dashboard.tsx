@@ -7,7 +7,8 @@ import { useSessionStore } from "@/store/sessionStore";
 import { useTradeStore } from "@/store/tradeStore";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
-import type { AgentRole, DashboardStats, EventRow, EventSourceType, Trade } from "@/lib/types";
+import { PendingApprovalsPanel } from "@/components/approvals/PendingApprovalsPanel";
+import type { AgentRole, ApprovalSummary, DashboardStats, EventRow, EventSourceType, Trade } from "@/lib/types";
 
 const AGENT_PALETTE: Partial<Record<EventSourceType, { color: string; label: string; bg: string }>> = {
   researcher_bull: { color: "#34d399", label: "Bull Research", bg: "rgba(52,211,153,0.07)" },
@@ -183,14 +184,32 @@ export const Dashboard = () => {
   const setViewMode = useWorkspaceStore((s) => s.setViewMode);
   const loadWorkspaceView = useWorkspaceStore((s) => s.loadWorkspaceView);
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [approvalList, setApprovalList] = useState<{
+    workspaceViewMode: "session" | "global";
+    approvals: ApprovalSummary[];
+  }>({ workspaceViewMode: "session", approvals: [] });
+
+  const refreshApprovals = () => {
+    void api
+      .listApprovals({ status: "pending" })
+      .then((r) => setApprovalList({ workspaceViewMode: r.workspaceViewMode, approvals: r.approvals }))
+      .catch(() => setApprovalList((prev) => ({ ...prev, approvals: [] })));
+  };
 
   useEffect(() => {
     api.getEvents({ limit: 30 }).then(setEvents).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    refreshApprovals();
+  }, []);
+
   useExvaEvent("agent_event", (ev) => {
     setEvents((prev) => [ev, ...prev].slice(0, 100));
   });
+
+  useExvaEvent("approval_required", () => refreshApprovals());
+  useExvaEvent("approval_resolved", () => refreshApprovals());
 
   if (!stats) return <div style={{ padding: 40, color: "var(--text3)" }}>Loading…</div>;
 
@@ -228,6 +247,15 @@ export const Dashboard = () => {
         </label>
       )}
       <StatStrip stats={stats} />
+      <div style={ds.approvalsWrap}>
+        <PendingApprovalsPanel
+          approvals={approvalList.approvals}
+          workspaceViewMode={approvalList.workspaceViewMode}
+          onRefresh={refreshApprovals}
+          onDecide={(input) => api.decideApproval(input)}
+        />
+      </div>
+
       <div style={ds.grid}>
         <Card style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", padding: "20px 0 0" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px 16px" }}>
@@ -272,7 +300,8 @@ const ds: Record<string, CSSProperties> = {
     fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 700,
     color: "var(--text1)", lineHeight: 1.1,
   },
-  grid: { flex: 1, display: "flex", gap: 16, overflow: "hidden", padding: "20px 28px" },
+  approvalsWrap: { padding: "0 28px 12px", flexShrink: 0 },
+  grid: { flex: 1, display: "flex", gap: 16, overflow: "hidden", padding: "12px 28px 20px" },
   trHead: {
     display: "grid",
     gridTemplateColumns: "130px 90px 90px 90px 70px 110px 70px 60px",

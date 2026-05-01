@@ -1,6 +1,7 @@
 import type {
   AgentRole,
   AgentRun,
+  ApprovalSummary,
   BrokerCredentials,
   ConnectionTestResult,
   CostBreakdown,
@@ -98,11 +99,28 @@ export const api = {
   getCostBreakdown: (dateRange?: string): Promise<CostBreakdown> =>
     bridge().dashboard.getCostBreakdown(dateRange ?? "today"),
 
-  getActiveTrades: (): Promise<Trade[]> => bridge().trades.listActive(),
+  listApprovals: (filters?: { status?: "pending" | "approved" | "rejected" }): Promise<{
+    workspaceViewMode: WorkspaceViewMode;
+    approvals: ApprovalSummary[];
+  }> => bridge().approvals.list(filters),
+  decideApproval: (input: {
+    id: string;
+    decision: "approved" | "rejected";
+    decisionNote?: string;
+  }): Promise<{ status: "approved" | "rejected"; resolvedAt: string }> => bridge().approvals.decide(input),
+
+  getActiveTrades: (filters?: {
+    sessionId?: string;
+    brokerAccountId?: string;
+    symbolContains?: string;
+    instrumentType?: InstrumentClass;
+    executionMode?: ExecutionMode;
+  }): Promise<Trade[]> => bridge().trades.listActive(filters),
   getTradeDetail: (tradeId: string): Promise<TradeDetail> => bridge().trades.getDetail(tradeId),
   forceCloseTrade: (tradeId: string): Promise<void> => bridge().trades.forceClose(tradeId),
-  approveTrade: (tradeId: string, approved: boolean): Promise<void> =>
-    bridge().trades.approve(tradeId, approved),
+  approveTrade: async (tradeId: string, approved: boolean): Promise<void> => {
+    await bridge().trades.approve(tradeId, approved);
+  },
 
   startSession: (): Promise<SessionStatus> => bridge().session.start(),
   pauseSession: (): Promise<SessionStatus> => bridge().session.pause(),
@@ -157,6 +175,7 @@ export const api = {
     agentType?: AgentRole;
     search?: string;
     limit?: number;
+    sessionId?: string;
   }): Promise<EventRow[]> => bridge().events.list(filters),
   getAgentTraces: (tradeId: string): Promise<AgentRun[]> => bridge().events.getAgentTraces(tradeId),
 };
@@ -180,7 +199,7 @@ export interface ExvaEventMap {
   trade_closed: Trade;
   agent_event: EventRow;
   approval_required: TradeDecisionPayload;
-  approval_resolved: { approvalId: string; status: "approved" | "rejected" };
+  approval_resolved: { approvalId: string; tradeId: string; status: "approved" | "rejected" };
   session_started: {};
   session_stopped: { reason: string };
   session_status_changed: { sessionId: string; status: SessionStatus };

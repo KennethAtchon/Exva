@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
 export const tradeSideSchema = z.enum(["BUY", "SELL"]);
-export const tradeStatusSchema = z.enum(["pending", "open", "closed", "rejected"]);
+export const tradeStatusSchema = z.enum(["pending", "open", "closed", "cancelled", "failed", "rejected"]);
 export const agentTypeSchema = z.enum([
   "researcher_bull",
   "researcher_bear",
@@ -46,8 +46,17 @@ export const eventFiltersSchema = z
     agent_type: agentTypeSchema.optional(),
     search: z.string().optional(),
     limit: z.number().int().positive().max(1000).optional(),
+    sessionId: z.string().optional(),
   })
   .optional();
+
+export const listTradesFiltersSchema = z.object({
+  sessionId: z.string().optional(),
+  brokerAccountId: z.string().optional(),
+  symbolContains: z.string().optional(),
+  instrumentType: z.enum(["stock", "crypto", "futures"]).optional(),
+  executionMode: z.enum(["paper_only", "live_allowed"]).optional(),
+});
 
 export const tradeDecisionSchema = z.object({
   action: z.enum(["trade", "no_trade"]),
@@ -64,6 +73,18 @@ export const tradeIdSchema = z.object({ tradeId: z.string().min(1) });
 export const approveTradeSchema = z.object({
   tradeId: z.string().min(1),
   approved: z.boolean(),
+});
+
+export const approvalListFiltersSchema = z
+  .object({
+    status: z.enum(["pending", "approved", "rejected"]).optional(),
+  })
+  .optional();
+
+export const approvalDecideSchema = z.object({
+  id: z.string().min(1),
+  decision: z.enum(["approved", "rejected"]),
+  decisionNote: z.string().max(2000).optional(),
 });
 
 export const apiKeySchema = z.object({

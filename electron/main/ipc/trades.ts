@@ -1,12 +1,36 @@
 import { ipcMain } from "electron";
-import { approveTradeSchema, tradeIdSchema } from "@/lib/schemas";
+import { approveTradeSchema, listTradesFiltersSchema, tradeIdSchema } from "@/lib/schemas";
 import { channels } from "@electron/shared/channels";
 import type { AppServices } from "../services/app-services";
+import { decideApproval } from "./approvals";
 import { handle } from "./handle";
 
 export function registerTradeHandlers(services: AppServices): void {
-  handle(ipcMain, channels.trades.listActive, async () => {
-    return services.repos.trades.listAll(services.repos.session.getFocused()?.id);
+  handle(ipcMain, channels.trades.listActive, async (payload) => {
+    const filters = listTradesFiltersSchema.parse(payload ?? {});
+    const focused = services.repos.session.getFocused();
+    const sessionScope = focused?.id;
+
+    const merged = {
+      ...filters,
+      sessionId: filters.sessionId ?? sessionScope,
+    };
+
+    const trades = services.repos.trades.listAllFiltered({
+      sessionId: merged.sessionId,
+      brokerAccountId: merged.brokerAccountId,
+      symbolContains: merged.symbolContains,
+      instrumentType: merged.instrumentType,
+      executionMode: merged.executionMode,
+    });
+
+    const sessions = services.repos.session.list({ includeArchived: true });
+    const nameById = new Map(sessions.map((s) => [s.id, s.name]));
+
+    return trades.map((t) => ({
+      ...t,
+      sessionName: t.sessionId ? nameById.get(t.sessionId) ?? t.sessionId : undefined,
+    }));
   });
 
   handle(ipcMain, channels.trades.getDetail, async (payload) => {
@@ -31,6 +55,13 @@ export function registerTradeHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.trades.approve, async (payload) => {
     const { tradeId, approved } = approveTradeSchema.parse(payload);
+    const pending = services.repos.tradeApprovals.findPendingByTradeId(tradeId);
+    if (pending) {
+      return decideApproval(services, {
+        approvalId: pending.id,
+        decision: approved ? "approved" : "rejected",
+      });
+    }
     const trade = services.repos.trades.require(tradeId);
     if (trade.sessionId) {
       services.runtimeManager.get(trade.sessionId)?.orchestrator.resolveApproval(tradeId, approved);

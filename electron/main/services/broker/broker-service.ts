@@ -1,8 +1,8 @@
 import type { BrokerCredentials, ConnectionTestResult } from "@/lib/types";
-import { AlpacaAdapter } from "../broker/alpaca-adapter";
-import type { BrokerAdapter, OrderRequest } from "../broker/broker-adapter";
-import { MockBrokerAdapter } from "../broker/mock-adapter";
-import { secretKeys, type SecretsService } from "./secrets-service";
+import { AlpacaAdapter } from "../../broker/alpaca-adapter";
+import type { BrokerAdapter, OrderRequest } from "../../broker/broker-adapter";
+import { MockBrokerAdapter } from "../../broker/mock-adapter";
+import { secretKeys, type SecretsService } from "../infra/secrets-service";
 
 export class BrokerService {
   private adapter: BrokerAdapter = new MockBrokerAdapter();

@@ -158,6 +158,22 @@ export const StrategyConfig = () => {
             </div>
           </Card>
           <CostSummaryCard strategy={strategy} roleProviders={roleProviderSummary} />
+          <Card>
+            <SectionTitle>Prompt assets</SectionTitle>
+            <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
+              Bundled Markdown for the active role tab. When <strong>prompt source</strong> is Default, the editor shows this file. Phase 7 can add richer versioning; for now the first line of the prompt text is treated as a title if it starts with <code>#</code>.
+            </p>
+            <div style={{ marginTop: 14, fontSize: 12, color: "var(--text2)" }}>
+              <div style={{ color: "var(--text3)", fontSize: 11, marginBottom: 4 }}>Bundled file path</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, wordBreak: "break-all" }}>
+                {currentRole.promptAssetPath ?? "—"}
+              </div>
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12, color: "var(--text2)" }}>
+              <div style={{ color: "var(--text3)", fontSize: 11, marginBottom: 4 }}>Header / version hint</div>
+              <div>{promptHeaderSummary(currentRole.promptMarkdown)}</div>
+            </div>
+          </Card>
         </div>
 
         <AiRoleConfigCard
@@ -223,3 +239,9 @@ const formGridStyle = { display: "grid", gap: 14, marginTop: 16 } as const;
 const inputStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)" } as const;
 const warningStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(251,191,36,0.24)", background: "rgba(251,191,36,0.08)", color: "#fbbf24", fontSize: 12 } as const;
 const warningButtonStyle = { padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(251,191,36,0.28)", background: "rgba(251,191,36,0.14)", color: "#fbbf24", cursor: "pointer" } as const;
+
+function promptHeaderSummary(markdown: string): string {
+  const first = markdown.split("\n")[0]?.trim() ?? "";
+  if (first.startsWith("#")) return first.replace(/^#+\s*/, "");
+  return "No markdown heading on first line";
+}

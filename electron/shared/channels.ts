@@ -54,6 +54,10 @@ export const channels = {
     list: "events:list",
     getAgentTraces: "events:get-agent-traces",
   },
+  approvals: {
+    list: "approval:list",
+    decide: "approval:decide",
+  },
 } as const;
 
 export const mainToRendererEvents = [

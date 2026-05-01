@@ -1,5 +1,6 @@
 import type { AppServices } from "../services/app-services";
 import { registerAccountHandlers } from "./accounts";
+import { registerApprovalHandlers } from "./approvals";
 import { registerConfigHandlers } from "./config";
 import { registerDashboardHandlers } from "./dashboard";
 import { registerEventHandlers } from "./events";
@@ -12,6 +13,7 @@ import { registerWorkspaceHandlers } from "./workspace";
 export function registerIpcHandlers(services: AppServices): void {
   registerDashboardHandlers(services);
   registerTradeHandlers(services);
+  registerApprovalHandlers(services);
   registerSessionHandlers(services);
   registerStrategyHandlers(services);
   registerWorkspaceHandlers(services);

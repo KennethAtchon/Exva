@@ -2,9 +2,12 @@ import { contextBridge, ipcRenderer } from "electron";
 import { channels, mainToRendererEvents, type ExvaEventName } from "@electron/shared/channels";
 import {
   apiKeySchema,
+  approvalDecideSchema,
+  approvalListFiltersSchema,
   approveTradeSchema,
   brokerCredentialsSchema,
   eventFiltersSchema,
+  listTradesFiltersSchema,
   sessionConfigSchema,
   tradeIdSchema,
 } from "@/lib/schemas";
@@ -22,7 +25,7 @@ const exva: ExvaApi = {
     getCostBreakdown: (dateRange) => invoke(channels.dashboard.getCostBreakdown, { dateRange }),
   },
   trades: {
-    listActive: () => invoke(channels.trades.listActive),
+    listActive: (filters) => invoke(channels.trades.listActive, listTradesFiltersSchema.parse(filters ?? {})),
     getDetail: (tradeId) => invoke(channels.trades.getDetail, tradeIdSchema.parse({ tradeId })),
     forceClose: (tradeId) => invoke(channels.trades.forceClose, tradeIdSchema.parse({ tradeId })),
     approve: (tradeId, approved) =>
@@ -70,6 +73,10 @@ const exva: ExvaApi = {
     removeBroker: () => invoke(channels.accounts.removeBroker),
     saveApiKey: (keyType, value) =>
       invoke(channels.accounts.saveApiKey, apiKeySchema.parse({ keyType, value })),
+  },
+  approvals: {
+    list: (filters) => invoke(channels.approvals.list, approvalListFiltersSchema.parse(filters ?? {})),
+    decide: (input) => invoke(channels.approvals.decide, approvalDecideSchema.parse(input)),
   },
   events: {
     list: (filters) => invoke(channels.events.list, eventFiltersSchema.parse(filters)),

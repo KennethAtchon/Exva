@@ -1,7 +1,9 @@
 import type { WorkspaceSession } from "@/lib/types";
-import type { PreflightResult } from "../session-types";
+import type { PreflightStepFailure } from "../session-types";
 
-export async function taskBoundaryCheck(session: WorkspaceSession): Promise<PreflightResult> {
+type StepResult = { ok: true } | PreflightStepFailure;
+
+export async function taskBoundaryCheck(session: WorkspaceSession): Promise<StepResult> {
   if (!session.name.trim()) {
     return { ok: false, code: "VALIDATION_FAILED", message: "Session name is required." };
   }

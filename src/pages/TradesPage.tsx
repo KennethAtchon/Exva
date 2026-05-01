@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge, Card, PageShell } from "@/components/atoms";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { api } from "@/lib/exva";
 import { fmt } from "@/lib/formatters";
+import type { ExecutionMode, InstrumentClass } from "@/lib/types";
 import { useTradeStore } from "@/store/tradeStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
@@ -10,13 +11,52 @@ type Filter = "all" | "open" | "closed";
 
 export const TradesPage = () => {
   const [filter, setFilter] = useState<Filter>("all");
+  const [symbolContains, setSymbolContains] = useState("");
+  const [instrumentType, setInstrumentType] = useState<"" | InstrumentClass>("");
+  const [executionMode, setExecutionMode] = useState<"" | ExecutionMode>("");
+  const [brokerAccountId, setBrokerAccountId] = useState("");
+  const [sessionFilterId, setSessionFilterId] = useState("");
+
+  const [sessionOptions, setSessionOptions] = useState<Array<{ id: string; name: string }>>([]);
+
   const viewMode = useWorkspaceStore((state) => state.viewMode);
+  const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const preferences = useWorkspaceStore((state) => state.preferences);
   const setViewMode = useWorkspaceStore((state) => state.setViewMode);
   const loadWorkspaceView = useWorkspaceStore((state) => state.loadWorkspaceView);
   const allTrades = useTradeStore((s) => s.trades);
+  const setTrades = useTradeStore((s) => s.setTrades);
   const selectedId = useTradeStore((s) => s.selectedId);
   const setSelected = useTradeStore((s) => s.setSelected);
+
+  const apiFilters = useMemo(() => {
+    const f: {
+      sessionId?: string;
+      brokerAccountId?: string;
+      symbolContains?: string;
+      instrumentType?: InstrumentClass;
+      executionMode?: ExecutionMode;
+    } = {};
+    if (viewMode === "global" && sessionFilterId) f.sessionId = sessionFilterId;
+    if (brokerAccountId.trim()) f.brokerAccountId = brokerAccountId.trim();
+    if (symbolContains.trim()) f.symbolContains = symbolContains.trim();
+    if (instrumentType) f.instrumentType = instrumentType;
+    if (executionMode) f.executionMode = executionMode;
+    return f;
+  }, [viewMode, sessionFilterId, brokerAccountId, symbolContains, instrumentType, executionMode]);
+
+  useEffect(() => {
+    void api.listSessions({ includeArchived: preferences?.globalIncludeArchived }).then((r) => {
+      setSessionOptions(r.sessions.map((s) => ({ id: s.id, name: s.name })));
+    });
+  }, [preferences?.globalIncludeArchived]);
+
+  useEffect(() => {
+    void api
+      .getActiveTrades(Object.keys(apiFilters).length ? apiFilters : undefined)
+      .then(setTrades)
+      .catch(() => {});
+  }, [apiFilters, setTrades, viewMode, focusedSessionId]);
 
   const trades = allTrades.filter((t) => filter === "all" || t.status === filter);
   const closed = allTrades.filter((t) => t.status === "closed");
@@ -57,6 +97,69 @@ export const TradesPage = () => {
         )}
       </div>
 
+      <Card style={{ padding: "14px 18px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+        <label style={filterLabelStyle}>
+          Symbol
+          <input
+            value={symbolContains}
+            onChange={(e) => setSymbolContains(e.target.value)}
+            placeholder="e.g. AAPL"
+            style={filterInputStyle}
+          />
+        </label>
+        <label style={filterLabelStyle}>
+          Class
+          <select
+            value={instrumentType}
+            onChange={(e) => setInstrumentType(e.target.value as "" | InstrumentClass)}
+            style={filterInputStyle}
+          >
+            <option value="">Any</option>
+            <option value="stock">Stock</option>
+            <option value="crypto">Crypto</option>
+            <option value="futures">Futures</option>
+          </select>
+        </label>
+        <label style={filterLabelStyle}>
+          Execution
+          <select
+            value={executionMode}
+            onChange={(e) => setExecutionMode(e.target.value as "" | ExecutionMode)}
+            style={filterInputStyle}
+          >
+            <option value="">Any</option>
+            <option value="paper_only">Paper only</option>
+            <option value="live_allowed">Live allowed</option>
+          </select>
+        </label>
+        <label style={filterLabelStyle}>
+          Broker account id
+          <input
+            value={brokerAccountId}
+            onChange={(e) => setBrokerAccountId(e.target.value)}
+            placeholder="UUID"
+            style={filterInputStyle}
+          />
+        </label>
+        {viewMode === "global" ? (
+          <label style={filterLabelStyle}>
+            Session
+            <select
+              value={sessionFilterId}
+              onChange={(e) => setSessionFilterId(e.target.value)}
+              style={filterInputStyle}
+            >
+              <option value="">All sessions</option>
+              {sessionOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </Card>
+
       <div style={{ display: "flex", gap: 14 }}>
         {[
           ["Realized P&L", fmt.pnl(realPnl), realPnl >= 0 ? "#34d399" : "#f87171"],
@@ -64,7 +167,7 @@ export const TradesPage = () => {
           ["Total Trades", `${allTrades.length}`, "var(--text1)"],
           ["Open", `${allTrades.filter((t) => t.status === "open").length}`, "#60a5fa"],
         ].map(([lbl, val, color]) => (
-          <Card key={lbl} style={{ flex: 1, padding: "18px 22px" }}>
+          <Card key={String(lbl)} style={{ flex: 1, padding: "18px 22px" }}>
             <div style={{ fontSize: 11, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8, fontWeight: 600 }}>
               {lbl}
             </div>
@@ -114,6 +217,7 @@ export const TradesPage = () => {
             const isOpen = t.status === "open";
             const pnl = (isOpen ? t.unrealized_pnl : t.final_pnl_usd) ?? null;
             const pos = pnl != null && pnl >= 0;
+            const sessionLabel = t.sessionName ?? t.sessionId ?? "—";
             return (
               <div
                 key={t.id}
@@ -127,7 +231,11 @@ export const TradesPage = () => {
                   transition: "background 0.1s", minWidth: 780,
                 }}
               >
-                {viewMode === "global" && <span style={{ fontSize: 12, color: "var(--text3)" }}>{t.sessionId ?? "—"}</span>}
+                {viewMode === "global" && (
+                  <span style={{ fontSize: 12, color: "var(--text3)", overflow: "hidden", textOverflow: "ellipsis" }} title={sessionLabel}>
+                    {sessionLabel}
+                  </span>
+                )}
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{t.instrumentSymbol}</span>
                 <Badge variant={t.side === "BUY" ? "success" : "danger"} size="sm">{t.side}</Badge>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{fmt.usd(t.position_size_usd, 0)}</span>
@@ -151,4 +259,16 @@ export const TradesPage = () => {
       </Card>
     </PageShell>
   );
+};
+
+const filterLabelStyle = { display: "flex", flexDirection: "column" as const, gap: 6, fontSize: 11, color: "var(--text3)", textTransform: "uppercase" as const, letterSpacing: "0.06em" };
+const filterInputStyle = {
+  minWidth: 120,
+  padding: "7px 10px",
+  borderRadius: 8,
+  border: "1px solid var(--border)",
+  background: "var(--surface2)",
+  color: "var(--text1)",
+  fontSize: 13,
+  fontFamily: "var(--font-sans)",
 };

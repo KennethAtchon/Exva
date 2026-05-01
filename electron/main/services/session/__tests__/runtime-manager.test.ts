@@ -4,9 +4,18 @@ import { AgentRunsRepo } from "../../../db/repositories/agent-runs-repo";
 import { EventsRepo } from "../../../db/repositories/events-repo";
 import { SessionRepo } from "../../../db/repositories/session-repo";
 import { StatsRepo } from "../../../db/repositories/stats-repo";
+import { TradeApprovalsRepo } from "../../../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../../../db/repositories/trades-repo";
-import { EventBus } from "../../event-bus";
-import { createLogger } from "../../log";
+import { BrokerAccountsRepo } from "../../../db/repositories/broker-accounts-repo";
+import { BrokerRoutingRepo } from "../../../db/repositories/broker-routing-repo";
+import { CapitalReservationsRepo } from "../../../db/repositories/capital-reservations-repo";
+import { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts-repo";
+import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
+import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
+import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
+import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
+import { EventBus } from "../../infra/event-bus";
+import { createLogger } from "../../infra/log";
 import { SessionRuntimeManager } from "../session-runtime-manager";
 
 describe("SessionRuntimeManager", () => {
@@ -83,6 +92,7 @@ function createManager(
 ) {
   const sessionRepo = new SessionRepo(db);
   const tradesRepo = new TradesRepo(db);
+  const tradeApprovalsRepo = new TradeApprovalsRepo(db);
   const agentRunsRepo = new AgentRunsRepo(db);
   const eventsRepo = new EventsRepo(db);
   const statsRepo = new StatsRepo(db);
@@ -91,9 +101,18 @@ function createManager(
   return new SessionRuntimeManager({
     sessionRepo,
     tradesRepo,
+    tradeApprovalsRepo,
     agentRunsRepo,
     eventsRepo,
     statsRepo,
+    sessionAiRolesRepo: new SessionAiRolesRepo(db),
+    sessionSelectorSettingsRepo: new SessionSelectorSettingsRepo(db),
+    providerAccountsRepo: new ProviderAccountsRepo(db),
+    workspacePreferencesRepo: new WorkspacePreferencesRepo(db),
+    capitalReservationsRepo: new CapitalReservationsRepo(db),
+    brokerRoutingRepo: new BrokerRoutingRepo(db),
+    sessionBrokerAssignmentsRepo: new SessionBrokerAssignmentsRepo(db),
+    brokerAccountsRepo: new BrokerAccountsRepo(db),
     ai: {} as never,
     broker: {} as never,
     riskEngine: {} as never,
@@ -105,7 +124,8 @@ function createManager(
       resume: async () => undefined,
       stop: async () => hooks.onStop?.(sessionId),
       runApprovalRecheck: async () => undefined,
-      resolveApproval: () => undefined,
+      resolveApproval: () => false,
+      hasApprovalCallback: () => false,
     }),
     createTradeMonitor: () => ({
       start: () => undefined,

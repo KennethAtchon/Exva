@@ -8,7 +8,11 @@ export interface ExvaEventMap {
   trade_closed: Trade;
   agent_event: EventRow;
   approval_required: TradeDecisionPayload;
-  approval_resolved: { approvalId: string; status: "approved" | "rejected" };
+  approval_resolved: {
+    approvalId: string;
+    tradeId: string;
+    status: "approved" | "rejected";
+  };
   session_started: {};
   session_stopped: { reason: string };
   session_status_changed: { sessionId: string; status: SessionStatus };

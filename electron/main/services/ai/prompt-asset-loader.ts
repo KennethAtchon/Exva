@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { app } from "electron";
 import type { AgentRole } from "@/lib/types";
-import { env } from "../config/env";
+import { env } from "../../config/env";
 
 function resolvePromptsDir(): string {
   if (env.promptsDirOverride) return env.promptsDirOverride;

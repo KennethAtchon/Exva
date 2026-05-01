@@ -4,7 +4,7 @@ import type { z } from "zod";
 import type { AgentRole, AgentRun } from "@/lib/types";
 import { tradeDecisionSchema } from "@/lib/schemas";
 import { AppError } from "@electron/shared/errors";
-import { secretKeys, type SecretsService } from "./secrets-service";
+import { secretKeys, type SecretsService } from "../infra/secrets-service";
 
 export interface AgentResult<T> {
   run: AgentRun;

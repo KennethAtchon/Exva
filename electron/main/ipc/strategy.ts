@@ -4,7 +4,7 @@ import { AppError } from "@electron/shared/errors";
 import { channels } from "@electron/shared/channels";
 import type { AgentRole, SessionAiRole, SessionStrategy } from "@/lib/types";
 import type { AppServices } from "../services/app-services";
-import { MODEL_CATALOG } from "../services/provider-model-catalog";
+import { MODEL_CATALOG } from "../services/ai/provider-model-catalog";
 import { handle } from "./handle";
 
 export function registerStrategyHandlers(services: AppServices): void {

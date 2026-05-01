@@ -1,6 +1,7 @@
 import type {
   AgentRole,
   AgentRun,
+  ApprovalSummary,
   BrokerCredentials,
   ConnectionTestResult,
   CostBreakdown,
@@ -98,7 +99,7 @@ export interface ExvaEventMap {
   trade_closed: Trade;
   agent_event: EventRow;
   approval_required: TradeDecisionPayload;
-  approval_resolved: { approvalId: string; status: "approved" | "rejected" };
+  approval_resolved: { approvalId: string; tradeId: string; status: "approved" | "rejected" };
   session_started: {};
   session_stopped: { reason: string };
   session_status_changed: { sessionId: string; status: SessionStatus };
@@ -113,8 +114,25 @@ export interface ExvaApi {
     getStats(): Promise<DashboardStats>;
     getCostBreakdown(dateRange?: string): Promise<CostBreakdown>;
   };
+  approvals: {
+    list(filters?: { status?: "pending" | "approved" | "rejected" }): Promise<{
+      workspaceViewMode: WorkspaceViewMode;
+      approvals: ApprovalSummary[];
+    }>;
+    decide(input: {
+      id: string;
+      decision: "approved" | "rejected";
+      decisionNote?: string;
+    }): Promise<{ status: "approved" | "rejected"; resolvedAt: string }>;
+  };
   trades: {
-    listActive(): Promise<Trade[]>;
+    listActive(filters?: {
+      sessionId?: string;
+      brokerAccountId?: string;
+      symbolContains?: string;
+      instrumentType?: InstrumentClass;
+      executionMode?: ExecutionMode;
+    }): Promise<Trade[]>;
     getDetail(tradeId: string): Promise<TradeDetail>;
     forceClose(tradeId: string): Promise<void>;
     approve(tradeId: string, approved: boolean): Promise<void>;
@@ -186,6 +204,7 @@ export interface ExvaApi {
       agentType?: AgentRole;
       search?: string;
       limit?: number;
+      sessionId?: string;
     }): Promise<EventRow[]>;
     getAgentTraces(tradeId: string): Promise<AgentRun[]>;
     subscribe<K extends ExvaEventName>(name: K, handler: (payload: ExvaEventMap[K]) => void): () => void;

@@ -22,8 +22,9 @@ export class SessionService {
 
     const preflight = await this.deps.preflight(session, this.deps.orchestratorDeps);
     if (!preflight.ok) {
-      this.emitSessionEvent(sessionId, "ERROR", preflight.message, "preflight");
-      throw new AppError(preflight.message, preflight.code, preflight.details);
+      const fullMessage = `Preflight ${preflight.check} failed: ${preflight.message}`;
+      this.emitSessionEvent(sessionId, "ERROR", fullMessage, "preflight");
+      throw new AppError(fullMessage, preflight.code, preflight.details);
     }
 
     await this.deps.runtimeManager.startSession(sessionId);

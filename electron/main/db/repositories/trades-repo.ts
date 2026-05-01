@@ -1,5 +1,5 @@
 import type { DbClient } from "../client";
-import type { Trade, TradeStatus } from "@/lib/types";
+import type { ExecutionMode, InstrumentClass, Trade, TradeStatus } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import { toTrade } from "./mappers";
 
@@ -12,6 +12,55 @@ export class TradesRepo {
           .prepare("SELECT * FROM trades WHERE session_id = ? ORDER BY created_at DESC")
           .all(sessionId) as Record<string, unknown>[]))
       : ((this.client.sqlite.prepare("SELECT * FROM trades ORDER BY created_at DESC").all() as Record<string, unknown>[]));
+    return rows.map(toTrade);
+  }
+
+  /** Optional filters; `sessionId` when set restricts to that session (omit for all sessions). */
+  listAllFiltered(filters: {
+    sessionId?: string;
+    brokerAccountId?: string;
+    symbolContains?: string;
+    instrumentType?: InstrumentClass;
+    executionMode?: ExecutionMode;
+  }): Trade[] {
+    const clauses: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.sessionId) {
+      clauses.push("trades.session_id = ?");
+      params.push(filters.sessionId);
+    }
+    if (filters.brokerAccountId) {
+      clauses.push("trades.broker_account_id = ?");
+      params.push(filters.brokerAccountId);
+    }
+    if (filters.symbolContains?.trim()) {
+      clauses.push("LOWER(trades.instrument_symbol) LIKE ?");
+      params.push(`%${filters.symbolContains.trim().toLowerCase()}%`);
+    }
+    if (filters.instrumentType) {
+      clauses.push("trades.instrument_type = ?");
+      params.push(filters.instrumentType);
+    }
+    if (filters.executionMode) {
+      clauses.push("sessions.execution_mode = ?");
+      params.push(filters.executionMode);
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+    const needsSessionJoin = filters.executionMode != null;
+    const from = needsSessionJoin
+      ? "FROM trades INNER JOIN sessions ON sessions.id = trades.session_id"
+      : "FROM trades";
+
+    const sql = `
+      SELECT trades.*
+      ${from}
+      ${where}
+      ORDER BY trades.created_at DESC
+    `;
+
+    const rows = this.client.sqlite.prepare(sql).all(...params) as Record<string, unknown>[];
     return rows.map(toTrade);
   }
 
@@ -100,6 +149,46 @@ export class TradesRepo {
       )
       .run({ id, status, now, final_pnl_usd: finalPnlUsd });
     return this.require(id);
+  }
+
+  patchPendingExecution(
+    id: string,
+    patch: Partial<Pick<Trade, "side" | "position_size_usd" | "confidence_score" | "brokerAccountId">>,
+  ): void {
+    const fields: string[] = [];
+    const params: Record<string, unknown> = { id };
+
+    if (patch.side != null) {
+      fields.push("side = @side");
+      params.side = patch.side;
+    }
+    if (patch.position_size_usd != null) {
+      fields.push("position_size_usd = @position_size_usd");
+      params.position_size_usd = patch.position_size_usd;
+    }
+    if (patch.confidence_score != null) {
+      fields.push("confidence_score = @confidence_score");
+      params.confidence_score = patch.confidence_score;
+    }
+    if (patch.brokerAccountId !== undefined) {
+      fields.push("broker_account_id = @broker_account_id");
+      params.broker_account_id = patch.brokerAccountId;
+    }
+
+    if (fields.length === 0) return;
+
+    this.client.sqlite
+      .prepare(
+        `
+        UPDATE trades SET
+          ${fields.join(", ")}
+        WHERE id = @id AND status = 'pending'
+        `,
+      )
+      .run({
+        ...params,
+        id,
+      });
   }
 
   markOpen(id: string, brokerOrderId: string, entryPrice: number): Trade {
