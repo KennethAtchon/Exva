@@ -18,7 +18,7 @@ export type AgentRole =
   | "instrument_selector";
 
 export type PromptSource = "default" | "session_override";
-export type ProviderType = "anthropic" | "openai" | "opencode";
+export type ProviderType = "anthropic" | "openai" | "openrouter";
 export type SearchProviderType = "brave" | "tavily";
 export type BrokerMode = "paper" | "live";
 

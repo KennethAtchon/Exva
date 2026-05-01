@@ -17,5 +17,5 @@ export const MODEL_CATALOG: Record<ProviderType, ModelEntry[]> = {
     { id: "gpt-4o-mini", label: "GPT-4o Mini", maxContextTokens: 128000 },
     { id: "o3-mini", label: "o3-mini", maxContextTokens: 200000 },
   ],
-  opencode: [],
+  openrouter: [],
 };

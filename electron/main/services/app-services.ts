@@ -16,13 +16,15 @@ import { StatsRepo } from "../db/repositories/stats-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace-prefs-repo";
-import { AiSdkService } from "./ai/ai-sdk-service";
+import { AiRuntime } from "./ai/ai-runtime";
 import { AgentOrchestrator } from "./orchestration/agent-orchestrator";
 import { BrokerService } from "./broker/broker-service";
 import { EventBus } from "./infra/event-bus";
 import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { PromptAssetLoader } from "./ai/prompt-asset-loader";
+import { ProviderRegistry } from "./ai/provider-registry";
+import { SearchRegistry } from "./ai/search/search-registry";
 import { RiskEngine } from "./orchestration/risk-engine";
 import { SecretsService } from "./infra/secrets-service";
 import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
@@ -52,7 +54,7 @@ export interface AppServices {
     trades: TradesRepo;
     workspacePreferences: WorkspacePreferencesRepo;
   };
-  ai: AiSdkService;
+  ai: AiRuntime;
   broker: BrokerService;
   eventBus: EventBus;
   notifications: NotificationService;
@@ -93,9 +95,18 @@ export async function createAppServices(app: App): Promise<AppServices> {
 
   const eventBus = new EventBus();
   const risk = new RiskEngine();
-  const ai = new AiSdkService(secrets);
+  const providerRegistry = new ProviderRegistry(repos.providerAccounts, secrets);
+  const searchRegistry = new SearchRegistry(repos.providerAccounts, secrets);
   const notifications = new NotificationService(eventBus);
   const promptAssetLoader = new PromptAssetLoader();
+  const ai = new AiRuntime(
+    providerRegistry,
+    searchRegistry,
+    promptAssetLoader,
+    repos.sessionAiRoles,
+    repos.session,
+    repos.workspacePreferences,
+  );
   const logger = createLogger("app-services");
 
   let runtimeManager: SessionRuntimeManager;

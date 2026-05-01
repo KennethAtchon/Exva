@@ -8,6 +8,8 @@ import {
   brokerCredentialsSchema,
   eventFiltersSchema,
   listTradesFiltersSchema,
+  providerAccountSaveSchema,
+  providerAccountTestSchema,
   sessionConfigSchema,
   tradeIdSchema,
 } from "@/lib/schemas";
@@ -73,6 +75,9 @@ const exva: ExvaApi = {
     removeBroker: () => invoke(channels.accounts.removeBroker),
     saveApiKey: (keyType, value) =>
       invoke(channels.accounts.saveApiKey, apiKeySchema.parse({ keyType, value })),
+    listProviders: () => invoke(channels.accounts.listProviders),
+    saveProvider: (input) => invoke(channels.accounts.saveProvider, providerAccountSaveSchema.parse(input)),
+    testProvider: (input) => invoke(channels.accounts.testProvider, providerAccountTestSchema.parse(input)),
   },
   approvals: {
     list: (filters) => invoke(channels.approvals.list, approvalListFiltersSchema.parse(filters ?? {})),

@@ -46,6 +46,12 @@ export const AiRoleConfigCard = ({
 }) => {
   const selectorDisabled = role.role === "instrument_selector" && selectionMode === "manual_shortlist";
   const providerOptions = providers.filter((provider) => provider.category === "ai");
+  const selectedProvider = providerOptions.find((provider) => provider.id === role.providerKey);
+  const selectedProviderType = selectedProvider ? String(selectedProvider.providerType) : "";
+  const useModelTextInput =
+    selectedProviderType === "openrouter" ||
+    selectedProviderType === "opencode" ||
+    models.length === 0;
 
   return (
     <Card>
@@ -93,17 +99,27 @@ export const AiRoleConfigCard = ({
 
         <div style={rowStyle}>
           <div style={labelStyle}>Model</div>
-          <select
-            value={role.modelId}
-            onChange={(event) => void onRoleChange({ modelId: event.target.value })}
-            disabled={disabled || selectorDisabled || !role.providerKey}
-            style={inputStyle}
-          >
-            <option value="">Select model</option>
-            {models.map((model) => (
-              <option key={model.id} value={model.id}>{model.label}</option>
-            ))}
-          </select>
+          {useModelTextInput ? (
+            <input
+              value={role.modelId}
+              onChange={(event) => void onRoleChange({ modelId: event.target.value })}
+              disabled={disabled || selectorDisabled || !role.providerKey}
+              placeholder="Enter model id"
+              style={inputStyle}
+            />
+          ) : (
+            <select
+              value={role.modelId}
+              onChange={(event) => void onRoleChange({ modelId: event.target.value })}
+              disabled={disabled || selectorDisabled || !role.providerKey}
+              style={inputStyle}
+            >
+              <option value="">Select model</option>
+              {models.map((model) => (
+                <option key={model.id} value={model.id}>{model.label}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

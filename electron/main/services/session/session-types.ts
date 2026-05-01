@@ -14,7 +14,7 @@ import type { StatsRepo } from "../../db/repositories/stats-repo";
 import type { TradeApprovalsRepo } from "../../db/repositories/trade-approvals-repo";
 import type { TradesRepo } from "../../db/repositories/trades-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
-import type { AiSdkService } from "../ai/ai-sdk-service";
+import type { AiRuntime } from "../ai/ai-runtime";
 import type { BrokerService } from "../broker/broker-service";
 import type { EventBus } from "../infra/event-bus";
 import type { Logger } from "../infra/log";
@@ -51,7 +51,7 @@ export interface OrchestratorDeps {
   brokerRoutingRepo: BrokerRoutingRepo;
   sessionBrokerAssignmentsRepo: SessionBrokerAssignmentsRepo;
   brokerAccountsRepo: BrokerAccountsRepo;
-  ai: AiSdkService;
+  ai: AiRuntime;
   broker: BrokerService;
   riskEngine: RiskEngine;
   bus: EventBus;

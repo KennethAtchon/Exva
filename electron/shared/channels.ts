@@ -49,6 +49,9 @@ export const channels = {
     testBroker: "accounts:test-broker",
     removeBroker: "accounts:remove-broker",
     saveApiKey: "accounts:save-api-key",
+    listProviders: "accounts:providers:list",
+    saveProvider: "accounts:providers:save",
+    testProvider: "accounts:providers:test",
   },
   events: {
     list: "events:list",

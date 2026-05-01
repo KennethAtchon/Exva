@@ -225,26 +225,32 @@ export class AgentOrchestrator {
     instrumentClass: InstrumentClass,
     config: SessionConfig,
   ): Promise<{ bull: AiResearchRun; bear: AiResearchRun; review: AiReviewRun; decision: AiDecisionRun } | null> {
-    const bull = await this.deps.ai.runResearcher({ instrumentSymbol }, "bull");
+    const bull = await this.deps.ai.runResearcher({ instrumentSymbol }, "bull", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
-    const bear = await this.deps.ai.runResearcher({ instrumentSymbol }, "bear");
+    const bear = await this.deps.ai.runResearcher({ instrumentSymbol }, "bear", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
-    const review = await this.deps.ai.runReviewer({
-      instrumentSymbol,
-      bullCase: bull.output,
-      bearCase: bear.output,
-    });
+    const review = await this.deps.ai.runReviewer(
+      {
+        instrumentSymbol,
+        bullCase: bull.output,
+        bearCase: bear.output,
+      },
+      this.sessionId,
+    );
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
-    const decision = await this.deps.ai.runDecisionMaker({
-      instrumentSymbol,
-      bullCase: bull.output,
-      bearCase: bear.output,
-      review: review.output,
-      maxPositionUsd: config.max_position_usd,
-    });
+    const decision = await this.deps.ai.runDecisionMaker(
+      {
+        instrumentSymbol,
+        bullCase: bull.output,
+        bearCase: bear.output,
+        review: review.output,
+        maxPositionUsd: config.max_position_usd,
+      },
+      this.sessionId,
+    );
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
     return { bull, bear, review, decision };

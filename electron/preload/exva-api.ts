@@ -197,6 +197,16 @@ export interface ExvaApi {
     testBroker(): Promise<ConnectionTestResult>;
     removeBroker(): Promise<void>;
     saveApiKey(keyType: string, value: string): Promise<void>;
+    listProviders(): Promise<{ providers: ProviderAccount[] }>;
+    saveProvider(input: {
+      id?: string;
+      name: string;
+      category: "ai" | "search";
+      providerType: ProviderAccount["providerType"];
+      apiKey: string;
+      metadata?: { baseUrl?: string };
+    }): Promise<{ id: string; isConfigured: boolean }>;
+    testProvider(input: { id: string }): Promise<{ ok: boolean; error?: string }>;
   };
   events: {
     list(filters?: {

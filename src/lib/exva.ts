@@ -169,6 +169,16 @@ export const api = {
   removeBrokerAccount: (): Promise<void> => bridge().accounts.removeBroker(),
   saveApiKey: (keyType: string, value: string): Promise<void> =>
     bridge().accounts.saveApiKey(keyType, value),
+  listProviders: (): Promise<{ providers: ProviderAccount[] }> => bridge().accounts.listProviders(),
+  saveProvider: (input: {
+    id?: string;
+    name: string;
+    category: "ai" | "search";
+    providerType: ProviderAccount["providerType"];
+    apiKey: string;
+    metadata?: { baseUrl?: string };
+  }): Promise<{ id: string; isConfigured: boolean }> => bridge().accounts.saveProvider(input),
+  testProvider: (id: string): Promise<{ ok: boolean; error?: string }> => bridge().accounts.testProvider({ id }),
 
   getEvents: (filters?: {
     minLevel?: string;

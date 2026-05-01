@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge, Card, Dot, PageShell, SectionTitle } from "@/components/atoms";
 import { api } from "@/lib/exva";
 
@@ -55,12 +55,28 @@ export const AccountsPage = () => {
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ broker: boolean; ai: boolean }>({ broker: false, ai: false });
+  const [anthropicProviderId, setAnthropicProviderId] = useState("provider-anthropic");
+
+  useEffect(() => {
+    const loadProviders = async () => {
+      const list = await api.listProviders();
+      const anthropic = list.providers.find((provider) => provider.providerType === "anthropic");
+      if (anthropic) {
+        setAnthropicProviderId(anthropic.id);
+        setStatus((prev) => ({ ...prev, ai: anthropic.lastTestStatus === "ok" }));
+      }
+    };
+    void loadProviders();
+  }, []);
 
   const test = async () => {
     setTesting(true);
     try {
-      const r = await api.testBrokerConnection();
-      setStatus({ broker: r.ok, ai: true });
+      const [broker, ai] = await Promise.all([
+        api.testBrokerConnection().catch(() => ({ ok: false })),
+        api.testProvider(anthropicProviderId).catch(() => ({ ok: false })),
+      ]);
+      setStatus({ broker: broker.ok, ai: ai.ok });
     } catch {
       setStatus({ broker: false, ai: false });
     } finally {
@@ -71,7 +87,16 @@ export const AccountsPage = () => {
   const save = async () => {
     setSaving(true);
     try {
-      if (anthropicKey) await api.saveApiKey("anthropic", anthropicKey);
+      if (anthropicKey) {
+        const result = await api.saveProvider({
+          id: anthropicProviderId,
+          name: "Anthropic",
+          category: "ai",
+          providerType: "anthropic",
+          apiKey: anthropicKey,
+        });
+        setAnthropicProviderId(result.id);
+      }
       if (alpacaKey && alpacaSecret) {
         await api.addBrokerAccount({
           provider: "alpaca", api_key: alpacaKey, secret_key: alpacaSecret, mode: alpacaMode,

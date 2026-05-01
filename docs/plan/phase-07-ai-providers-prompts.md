@@ -14,7 +14,7 @@
 ## Goal
 
 1. A `ProviderAdapter` interface that `AiSdkService` (renamed to `AiRuntime`) uses to call any provider.
-2. Concrete adapters: `AnthropicAdapter`, `OpenAiAdapter`, `OpenCodeAdapter`.
+2. Concrete adapters: `AnthropicAdapter`, `OpenAiAdapter`, `OpenRouterAdapter`.
 3. System prompts loaded from `electron/prompts/*.md` at runtime.
 4. Per-session, per-role provider+model+prompt resolved at call time from `SessionAiRole` rows.
 5. Web search provider resolution is explicit: session default first, workspace default second, no per-role search-provider picker in v1.
@@ -142,7 +142,7 @@ const client = createOpenAI({ apiKey: this.apiKey });
 // then client(opts.model) per generateText/generateObject pattern above
 ```
 
-### `OpenCodeAdapter` — `electron/main/services/ai/adapters/opencode-adapter.ts`
+### `OpenRouterAdapter` — `electron/main/services/ai/adapters/openrouter-adapter.ts`
 
 OpenAI-compatible endpoint. Takes `baseUrl` in addition to API key:
 
@@ -151,9 +151,9 @@ const { createOpenAI } = await import("@ai-sdk/openai");
 const client = createOpenAI({ apiKey: this.apiKey, baseURL: this.baseUrl });
 ```
 
-#### OpenCode model list — decision (P1.5)
+#### OpenRouter model list — decision (P1.5)
 
-OpenCode-compatible providers do not have a uniform `/models` endpoint we can rely on. **Decision: drop the dynamic model list claim.** The user types the model id directly into the Strategy page model field for any `opencode` provider. The Strategy UI shows a free-text input instead of a combobox when `providerType === "opencode"`. `MODEL_CATALOG.opencode` stays `[]` and the model selector falls back to a text input when the array is empty.
+OpenRouter-compatible providers do not have a uniform `/models` endpoint we can rely on. **Decision: drop the dynamic model list claim.** The user types the model id directly into the Strategy page model field for any `openrouter` provider. The Strategy UI shows a free-text input instead of a combobox when `providerType === "openrouter"`. `MODEL_CATALOG.openrouter` stays `[]` and the model selector falls back to a text input when the array is empty.
 
 ## Provider Registry
 
@@ -193,9 +193,9 @@ export class ProviderRegistry {
     switch (account.providerType) {
       case "anthropic": return new AnthropicAdapter(secret);
       case "openai":    return new OpenAiAdapter(secret);
-      case "opencode": {
+      case "openrouter": {
         const metadata = account.metadataJson ? JSON.parse(account.metadataJson) : null;
-        return new OpenCodeAdapter(secret, metadata?.baseUrl);
+        return new OpenRouterAdapter(secret, metadata?.baseUrl);
       }
     }
   }
@@ -332,7 +332,7 @@ File: `electron/main/ipc/accounts.ts` — extend with:
   category: "ai" | "search";
   providerType: ProviderType | SearchProviderType;
   apiKey: string;       // written to keychain, not stored in DB
-  metadata?: { baseUrl?: string }; // for opencode providers
+  metadata?: { baseUrl?: string }; // for openrouter providers
 }
 // Response: { id: string; isConfigured: boolean }
 ```
@@ -490,7 +490,7 @@ The same policy applies to broker adapter calls in Phase 8 with one difference: 
 | Create | `electron/main/services/ai/adapters/provider-adapter.ts` |
 | Create | `electron/main/services/ai/adapters/anthropic-adapter.ts` |
 | Create | `electron/main/services/ai/adapters/openai-adapter.ts` |
-| Create | `electron/main/services/ai/adapters/opencode-adapter.ts` |
+| Create | `electron/main/services/ai/adapters/openrouter-adapter.ts` |
 | Create | `electron/main/services/ai/provider-registry.ts` |
 | Create | `electron/main/services/ai/ai-runtime.ts` |
 | Create | `electron/main/services/ai/ai-runtime-types.ts` |
@@ -511,7 +511,7 @@ The same policy applies to broker adapter calls in Phase 8 with one difference: 
 | Modify | `electron/main/ipc/accounts.ts` — add provider list/save/test handlers |
 | Modify | `electron/main/services/app-services.ts` — wire ProviderRegistry, SearchRegistry, AiRuntime |
 | Delete | `electron/main/services/ai-sdk-service.ts` — replaced by AiRuntime |
-| Modify | `src/pages/AccountsPage.tsx` — provider list UI expansion (free-text model input for opencode, P1.5) |
+| Modify | `src/pages/AccountsPage.tsx` — provider list UI expansion (free-text model input for openrouter, P1.5) |
 
 ## Acceptance Criteria
 

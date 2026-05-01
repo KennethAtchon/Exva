@@ -14,7 +14,14 @@ export class PromptAssetLoader {
   private readonly assetDir = resolvePromptsDir();
 
   load(role: AgentRole): string {
-    return fs.readFileSync(this.assetPath(role), "utf8");
+    const raw = fs.readFileSync(this.assetPath(role), "utf8");
+    return raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
+  }
+
+  version(role: AgentRole): string {
+    const raw = fs.readFileSync(this.assetPath(role), "utf8");
+    const match = raw.match(/<!--\s*version:\s*([\d.]+)\s*-->/i);
+    return match?.[1] ?? "unknown";
   }
 
   assetPath(role: AgentRole): string {

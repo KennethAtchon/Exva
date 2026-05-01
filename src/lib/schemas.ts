@@ -91,3 +91,20 @@ export const apiKeySchema = z.object({
   keyType: z.enum(["anthropic", "brave", "tavily"]),
   value: z.string().min(1),
 });
+
+export const providerAccountSaveSchema = z.object({
+  id: z.string().min(1).optional(),
+  name: z.string().min(1),
+  category: z.enum(["ai", "search"]),
+  providerType: z.enum(["anthropic", "openai", "openrouter", "brave", "tavily"]),
+  apiKey: z.string().min(1),
+  metadata: z
+    .object({
+      baseUrl: z.string().url().optional(),
+    })
+    .optional(),
+});
+
+export const providerAccountTestSchema = z.object({
+  id: z.string().min(1),
+});
