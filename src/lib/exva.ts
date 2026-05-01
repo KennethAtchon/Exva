@@ -8,8 +8,11 @@ import type {
   ExecutionMode,
   EventRow,
   InstrumentClass,
+  ProviderAccount,
   SelectionMode,
-  SessionConfig,
+  SessionAiRole,
+  SessionSelectorSettings,
+  SessionStrategy,
   SessionStatus,
   SessionTemplatePayload,
   Trade,
@@ -57,6 +60,23 @@ export interface SessionCreateInput {
   executionMode: ExecutionMode;
   brokerAccountIds: string[];
   brokerOverridesByInstrumentClass?: Partial<Record<InstrumentClass, string | null>>;
+}
+
+export interface StrategyGetResponse {
+  strategy: SessionStrategy;
+  aiRoles: SessionAiRole[];
+  selectorSettings: SessionSelectorSettings;
+  providers: ProviderAccount[];
+  sessionStatus: SessionStatus;
+  selectionMode: SelectionMode;
+  defaultSearchProviderId: string | null;
+  workspaceDefaultSearchProviderId: string | null;
+}
+
+export interface ProviderModelEntry {
+  id: string;
+  label: string;
+  maxContextTokens: number;
 }
 
 const SHOW_MOCK = false;
@@ -217,9 +237,32 @@ export const api = {
       clearedFields: [],
     }),
 
+  getStrategy: (sessionId: string) =>
+    call<StrategyGetResponse>(() => window.exva!.strategy.get(sessionId), {
+      strategy: MOCK.strategy,
+      aiRoles: MOCK.aiRoles,
+      selectorSettings: { sessionId: "default-session", aiPickerEnabled: true, updatedAt: new Date().toISOString() },
+      providers: MOCK.providers,
+      sessionStatus: "idle",
+      selectionMode: "manual_shortlist",
+      defaultSearchProviderId: null,
+      workspaceDefaultSearchProviderId: null,
+    }),
+  saveStrategy: (input: { sessionId: string; strategy: Partial<SessionStrategy>; aiRoles: SessionAiRole[] }) =>
+    call<{ savedAt: string }>(() => window.exva!.strategy.save(input), { savedAt: new Date().toISOString() }),
+  getStrategyProviderModels: (providerKey: string) =>
+    call<{ models: ProviderModelEntry[] }>(() => window.exva!.strategy.getProviderModels(providerKey), {
+      models: providerKey ? [{ id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", maxContextTokens: 200000 }] : [],
+    }),
+  resetStrategyPrompt: (role: AgentRole) =>
+    call<{ promptMarkdown: string; promptAssetPath: string }>(() => window.exva!.strategy.resetPrompt(role), {
+      promptMarkdown: `<!-- version: 0.1.0 -->\n\nMock prompt for ${role}.`,
+      promptAssetPath: `/mock/prompts/${role}.md`,
+    }),
+
   getStrategyConfig: () =>
-    call<SessionConfig>(() => window.exva!.config.getStrategy(), MOCK.config),
-  saveStrategyConfig: (cfg: SessionConfig) =>
+    call<SessionStrategy>(() => window.exva!.config.getStrategy(), MOCK.strategy),
+  saveStrategyConfig: (cfg: SessionStrategy) =>
     call<void>(() => window.exva!.config.saveStrategy(cfg), undefined as void),
 
   addBrokerAccount: (creds: BrokerCredentials) =>

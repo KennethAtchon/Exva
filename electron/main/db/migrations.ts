@@ -296,6 +296,16 @@ function seedCompatibilityDefaults(sqlite: Database.Database): void {
   sqlite
     .prepare(
       `
+      INSERT OR IGNORE INTO provider_accounts (
+        id, name, category, provider_type, secret_ref, metadata_json, is_configured, last_test_status, updated_at
+      ) VALUES (?, ?, 'ai', 'anthropic', ?, NULL, 1, 'ok', ?)
+      `,
+    )
+    .run("provider-anthropic", "Anthropic", "provider-anthropic", now);
+
+  sqlite
+    .prepare(
+      `
       INSERT OR IGNORE INTO broker_accounts (
         id, name, broker_type, supported_instrument_classes, mode, secret_ref, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -389,7 +399,7 @@ function seedCompatibilityDefaults(sqlite: Database.Database): void {
         ) VALUES (?, ?, ?, ?, ?, 0.7, 4096, 0, 'default', '', NULL)
         `,
       )
-      .run(`default-session:${role}`, "default-session", role, "unconfigured", "unconfigured");
+      .run(`default-session:${role}`, "default-session", role, "provider-anthropic", "claude-sonnet-4-6");
   }
 
   sqlite

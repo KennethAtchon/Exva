@@ -2,13 +2,16 @@
 // Kept close to the original jsx mocks so the UI renders identically.
 
 import type {
+  AgentRole,
   InstrumentClass,
+  ProviderAccount,
+  SessionAiRole,
+  SessionStrategy,
   Trade,
   AgentRun,
   EventRow,
   DashboardStats,
   CostBreakdown,
-  SessionConfig,
 } from "./types";
 
 const trades: Trade[] = [
@@ -79,17 +82,51 @@ const costs: CostBreakdown = {
   ],
 };
 
-const config: SessionConfig = {
-  strategy: "passive_income",
-  max_position_usd: 500,
-  stop_loss_pct: 2.0,
-  take_profit_pct: 4.0,
-  max_concurrent_trades: 3,
-  research_depth: "balanced",
-  daily_loss_limit_usd: 200,
-  profit_target_usd: 1000,
-  max_api_spend_usd: 5.0,
-  human_approval_required: false,
+const strategy: SessionStrategy = {
+  sessionId: "default-session",
+  strategyProfile: "passive_income",
+  maxPositionUsd: 500,
+  stopLossPct: 2.0,
+  takeProfitPct: 4.0,
+  maxConcurrentTrades: 3,
+  researchDepth: "balanced",
+  dailyLossLimitUsd: 200,
+  profitTargetUsd: 1000,
+  maxAiSpendUsd: 5.0,
+  humanApprovalRequired: false,
 };
 
-export const MOCK = { trades, runs, events, stats, costs, config };
+const providers: ProviderAccount[] = [
+  {
+    id: "provider-anthropic",
+    name: "Anthropic",
+    category: "ai",
+    providerType: "anthropic",
+    secretRef: "provider-anthropic",
+    metadataJson: null,
+    isConfigured: true,
+    lastTestStatus: "ok",
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+const aiRoles: SessionAiRole[] = ([
+  "researcher_bull",
+  "researcher_bear",
+  "reviewer",
+  "decision_maker",
+  "instrument_selector",
+] as AgentRole[]).map((role) => ({
+  sessionId: "default-session",
+  role,
+  providerKey: "provider-anthropic",
+  modelId: "claude-sonnet-4-6",
+  temperature: 0.7,
+  maxTokens: 4096,
+  webSearchEnabled: role !== "decision_maker",
+  promptSource: "default",
+  promptMarkdown: `<!-- version: 0.1.0 -->\n\nMock prompt for ${role}.`,
+  promptAssetPath: `/mock/prompts/${role}.md`,
+}));
+
+export const MOCK = { trades, runs, events, stats, costs, strategy, providers, aiRoles };

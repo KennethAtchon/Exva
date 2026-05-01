@@ -99,7 +99,7 @@ export class SessionRepo {
             INSERT INTO session_ai_roles (
               id, session_id, role, provider_key, model_id, temperature,
               max_tokens, web_search_enabled, prompt_source, prompt_markdown, prompt_asset_path
-            ) VALUES (?, ?, ?, 'unconfigured', 'unconfigured', 0.7, 4096, 0, 'default', '', NULL)
+            ) VALUES (?, ?, ?, 'provider-anthropic', 'claude-sonnet-4-6', 0.7, 4096, 0, 'default', '', NULL)
             `,
           )
           .run(`${sessionId}:${role}`, sessionId, role);

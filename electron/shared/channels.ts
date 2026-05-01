@@ -33,6 +33,12 @@ export const channels = {
     delete: "template:delete",
     use: "template:use",
   },
+  strategy: {
+    get: "strategy:get",
+    save: "strategy:save",
+    getProviderModels: "strategy:get-provider-models",
+    resetPrompt: "strategy:reset-prompt",
+  },
   config: {
     getStrategy: "config:get-strategy",
     saveStrategy: "config:save-strategy",

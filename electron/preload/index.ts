@@ -42,6 +42,12 @@ const exva: ExvaApi = {
     archive: (id) => invoke(channels.session.archive, { id }),
     duplicate: (sourceId, name) => invoke(channels.session.duplicate, { sourceId, name }),
   },
+  strategy: {
+    get: (sessionId) => invoke(channels.strategy.get, { sessionId }),
+    save: (input) => invoke(channels.strategy.save, input),
+    getProviderModels: (providerKey) => invoke(channels.strategy.getProviderModels, { providerKey }),
+    resetPrompt: (role) => invoke(channels.strategy.resetPrompt, { role }),
+  },
   workspace: {
     getView: () => invoke(channels.workspace.viewGet),
     patchPreferences: (patch) => invoke(channels.workspace.prefsPatch, patch),

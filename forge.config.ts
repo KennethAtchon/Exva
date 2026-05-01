@@ -9,6 +9,7 @@ import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-nati
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    extraResource: ["electron/prompts"],
   },
   rebuildConfig: {},
   makers: [

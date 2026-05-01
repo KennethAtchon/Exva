@@ -22,6 +22,7 @@ import { BrokerService } from "./broker-service";
 import { EventBus } from "./event-bus";
 import { createLogger } from "./log";
 import { NotificationService } from "./notification-service";
+import { PromptAssetLoader } from "./prompt-asset-loader";
 import { RiskEngine } from "./risk-engine";
 import { SecretsService } from "./secrets-service";
 import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
@@ -51,6 +52,7 @@ export interface AppServices {
   broker: BrokerService;
   eventBus: EventBus;
   notifications: NotificationService;
+  promptAssetLoader: PromptAssetLoader;
   runtimeManager: SessionRuntimeManager;
   risk: RiskEngine;
   secrets: SecretsService;
@@ -86,6 +88,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const risk = new RiskEngine();
   const ai = new AiSdkService(secrets);
   const notifications = new NotificationService(eventBus);
+  const promptAssetLoader = new PromptAssetLoader();
   const logger = createLogger("app-services");
 
   const runtimeManager = new SessionRuntimeManager({
@@ -132,6 +135,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     broker,
     eventBus,
     notifications,
+    promptAssetLoader,
     runtimeManager,
     risk,
     secrets,

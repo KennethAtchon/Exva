@@ -8,9 +8,12 @@ import type {
   ExecutionMode,
   EventRow,
   InstrumentClass,
+  ProviderAccount,
   SelectionMode,
-  SessionConfig,
+  SessionAiRole,
   SessionStatus,
+  SessionStrategy,
+  SessionSelectorSettings,
   SessionTemplatePayload,
   Trade,
   TradeDecisionPayload,
@@ -70,6 +73,23 @@ export interface SessionCreateInput {
   executionMode: ExecutionMode;
   brokerAccountIds: string[];
   brokerOverridesByInstrumentClass?: Partial<Record<InstrumentClass, string | null>>;
+}
+
+export interface StrategyGetResponse {
+  strategy: SessionStrategy;
+  aiRoles: SessionAiRole[];
+  selectorSettings: SessionSelectorSettings;
+  providers: ProviderAccount[];
+  sessionStatus: SessionStatus;
+  selectionMode: SelectionMode;
+  defaultSearchProviderId: string | null;
+  workspaceDefaultSearchProviderId: string | null;
+}
+
+export interface ProviderModelEntry {
+  id: string;
+  label: string;
+  maxContextTokens: number;
 }
 
 export interface ExvaEventMap {
@@ -142,9 +162,15 @@ export interface ExvaApi {
     delete(id: string): Promise<{ deleted: true }>;
     use(id: string): Promise<{ payload: SessionTemplatePayload; clearedFields: string[] }>;
   };
+  strategy: {
+    get(sessionId: string): Promise<StrategyGetResponse>;
+    save(input: { sessionId: string; strategy: Partial<SessionStrategy>; aiRoles: SessionAiRole[] }): Promise<{ savedAt: string }>;
+    getProviderModels(providerKey: string): Promise<{ models: ProviderModelEntry[] }>;
+    resetPrompt(role: AgentRole): Promise<{ promptMarkdown: string; promptAssetPath: string }>;
+  };
   config: {
-    getStrategy(): Promise<SessionConfig>;
-    saveStrategy(config: SessionConfig): Promise<void>;
+    getStrategy(): Promise<SessionStrategy>;
+    saveStrategy(config: SessionStrategy): Promise<void>;
   };
   accounts: {
     saveBroker(credentials: BrokerCredentials): Promise<ConnectionTestResult>;
