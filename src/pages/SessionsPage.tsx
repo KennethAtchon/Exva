@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
-import { Button } from "@/components/ui";
+import { Button, Checkbox } from "@/components/ui";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import type { InstrumentClass, SessionStatus } from "@/lib/types";
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
@@ -213,13 +213,12 @@ export const SessionsPage = () => {
             ]}
           />
           <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 12, whiteSpace: "nowrap" }}>
-            <input
-              type="checkbox"
+            <Checkbox
               checked={preferences?.globalIncludeArchived ?? false}
-              onChange={async (event) => {
+              onCheckedChange={async (checked) => {
                 setError(null);
                 try {
-                  await api.patchWorkspacePreferences({ globalIncludeArchived: event.target.checked });
+                  await api.patchWorkspacePreferences({ globalIncludeArchived: checked === true });
                   await loadWorkspaceView();
                 } catch (prefsError) {
                   setError(prefsError instanceof Error ? prefsError.message : "Failed to update workspace preferences.");

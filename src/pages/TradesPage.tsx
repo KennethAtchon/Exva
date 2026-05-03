@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
-import { Button } from "@/components/ui";
+import { Button, Checkbox } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { api } from "@/lib/exva";
 import { fmt } from "@/lib/formatters";
@@ -85,11 +85,10 @@ export const TradesPage = () => {
         />
         {viewMode === "global" && (
           <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 12 }}>
-            <input
-              type="checkbox"
+            <Checkbox
               checked={preferences?.globalIncludeArchived ?? false}
-              onChange={async (event) => {
-                await api.patchWorkspacePreferences({ globalIncludeArchived: event.target.checked });
+              onCheckedChange={async (checked) => {
+                await api.patchWorkspacePreferences({ globalIncludeArchived: checked === true });
                 await loadWorkspaceView();
               }}
             />

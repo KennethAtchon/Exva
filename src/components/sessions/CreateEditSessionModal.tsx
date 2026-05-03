@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
 import { ShadcnSelect } from "@/components/custom-ui";
-import { Button, Dialog, DialogContent } from "@/components/ui";
+import { Button, Checkbox, Dialog, DialogContent, Switch } from "@/components/ui";
 
 interface Props {
   open: boolean;
@@ -144,13 +144,12 @@ export const CreateEditSessionModal = ({
                   const checked = form.instrumentClasses.includes(instrumentClass);
                   return (
                     <label key={instrumentClass} style={{ ...toggleChipStyle, borderColor: checked ? "var(--accent-dim)" : "var(--border)" }}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={checked}
-                        onChange={(event) =>
+                        onCheckedChange={(nextChecked) =>
                           setForm({
                             ...form,
-                            instrumentClasses: toggleInstrumentClass(form.instrumentClasses, instrumentClass, event.target.checked),
+                            instrumentClasses: toggleInstrumentClass(form.instrumentClasses, instrumentClass, nextChecked === true),
                           })
                         }
                       />
@@ -170,13 +169,12 @@ export const CreateEditSessionModal = ({
               />
             </Field>
             <label style={switchRowStyle}>
-              <input
-                type="checkbox"
+              <Switch
                 checked={form.selectorSettings.aiPickerEnabled}
-                onChange={(event) =>
+                onCheckedChange={(checked) =>
                   setForm({
                     ...form,
-                    selectorSettings: { aiPickerEnabled: event.target.checked },
+                    selectorSettings: { aiPickerEnabled: checked },
                   })
                 }
               />

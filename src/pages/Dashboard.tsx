@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState, type CSSProperties } from "react";
 import { Badge, Card, Divider, Dot, SectionTitle } from "@/components/custom-ui";
+import { Checkbox } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { fmt } from "@/lib/formatters";
@@ -248,11 +249,10 @@ export const Dashboard = () => {
       </div>
       {viewMode === "global" && (
         <label style={ds.archivedToggle}>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={preferences?.globalIncludeArchived ?? false}
-            onChange={async (event) => {
-              await api.patchWorkspacePreferences({ globalIncludeArchived: event.target.checked });
+            onCheckedChange={async (checked) => {
+              await api.patchWorkspacePreferences({ globalIncludeArchived: checked === true });
               await loadWorkspaceView();
             }}
           />

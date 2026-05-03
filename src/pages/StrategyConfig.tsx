@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { Card, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
+import { Switch } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiRoleConfigCard } from "@/components/strategy/AiRoleConfigCard";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";
@@ -173,7 +174,11 @@ export const StrategyConfig = () => {
                 <input type="number" step="0.5" value={strategy.maxAiSpendUsd} onChange={(event) => updateStrategy({ maxAiSpendUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
               </Field>
               <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 13 }}>
-                <input type="checkbox" checked={strategy.humanApprovalRequired} onChange={(event) => updateStrategy({ humanApprovalRequired: event.target.checked })} disabled={isLocked} />
+                <Switch
+                  checked={strategy.humanApprovalRequired}
+                  onCheckedChange={(checked) => updateStrategy({ humanApprovalRequired: checked })}
+                  disabled={isLocked}
+                />
                 Human Approval Required
               </label>
             </div>

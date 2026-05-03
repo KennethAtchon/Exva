@@ -1,5 +1,5 @@
 import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
-import { Button } from "@/components/ui";
+import { Button, Switch, Toggle } from "@/components/ui";
 import { PromptEditor } from "./PromptEditor";
 import type { AgentRole, ProviderAccount, SessionAiRole, SelectionMode } from "@/lib/types";
 import type { ProviderModelEntry } from "@/lib/exva";
@@ -177,32 +177,35 @@ export const AiRoleConfigCard = ({
         </div>
 
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: disabled || selectorTabLocked ? "var(--text3)" : "var(--text2)" }}>
-          <input
-            type="checkbox"
+          <Switch
             checked={role.webSearchEnabled}
-            onChange={(event) => void onRoleChange({ webSearchEnabled: event.target.checked })}
+            onCheckedChange={(checked) => void onRoleChange({ webSearchEnabled: checked })}
             disabled={disabled || selectorTabLocked}
           />
           Web Search Enabled
         </label>
 
         <div style={{ display: "flex", gap: 6 }}>
-          <Button
-            onClick={() => void onRoleChange({ promptSource: "default" })}
+          <Toggle
+            pressed={role.promptSource === "default"}
+            onPressedChange={(pressed) => {
+              if (pressed) void onRoleChange({ promptSource: "default" });
+            }}
             disabled={disabled || selectorTabLocked}
-            variant="ghost"
             style={{ ...toggleStyle, ...(role.promptSource === "default" ? activeToggleStyle : {}) }}
           >
             Default Prompt
-          </Button>
-          <Button
-            onClick={() => void onRoleChange({ promptSource: "session_override" })}
+          </Toggle>
+          <Toggle
+            pressed={role.promptSource === "session_override"}
+            onPressedChange={(pressed) => {
+              if (pressed) void onRoleChange({ promptSource: "session_override" });
+            }}
             disabled={disabled || selectorTabLocked}
-            variant="ghost"
             style={{ ...toggleStyle, ...(role.promptSource === "session_override" ? activeToggleStyle : {}) }}
           >
             Session Override
-          </Button>
+          </Toggle>
         </div>
 
         <div>
