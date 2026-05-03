@@ -1,5 +1,5 @@
 import pino, { type Logger } from "pino";
-import { env } from "../../config/env";
+import { env } from "../config/env";
 
 const redact = [
   "api_key",

@@ -7,6 +7,8 @@
 >
 > **Note:** This phase amends earlier phase outputs. Per `CODING_GUIDELINES.md` §1.1–§1.2, broker adapters live under `services/broker/adapters/`, not at top-level `electron/main/broker/`. The directory structure below reflects that.
 
+> **Status:** Done (2026-05-02). Broker adapters under `services/broker/adapters/`; `risk-engine` under `services/risk/`; cross-cutting `infra/*` hoisted to `services/` root; `agent-orchestrator`, `selector-definition-hash`, and `trade-monitor` at services root; `InstrumentCacheService` in `services/instrument/`; path aliases `@main/*` and `@shared/*` in `tsconfig.json`, `vite.main.config.ts`, and `vitest.config.ts`.
+
 ## Goal
 
 As services multiply across phases 5–9, the flat `services/` directory becomes hard to navigate. This phase reorganizes into domain-scoped modules that match the mental model of the system.

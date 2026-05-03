@@ -19,9 +19,11 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "*": ["./*"], 
+      "*": ["./*"],
       "@/*": ["./src/*"],
-      "@electron/*": ["./electron/*"]
+      "@electron/*": ["./electron/*"],
+      "@main/*": ["./electron/main/*"],
+      "@shared/*": ["./electron/shared/*"]
     }
   },
   "include": ["src", "electron", "forge.config.ts", "vite.*.config.ts"]

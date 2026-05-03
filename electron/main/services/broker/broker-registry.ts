@@ -1,12 +1,12 @@
 import type { BrokerAccount } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
-import type { BrokerAccountsRepo } from "../db/repositories/broker-accounts-repo";
-import type { SecretsService } from "../services/infra/secrets-service";
-import { AlpacaAdapter } from "./alpaca-adapter";
-import type { BrokerAdapter } from "./broker-adapter";
-import { CoinbaseAdvancedTradeAdapter, type CoinbaseAdvancedCredentials } from "./coinbase-advanced-trade-adapter";
-import { MockBrokerAdapter } from "./mock-adapter";
-import { TradovateAdapter, type TradovateCredentials } from "./tradovate-adapter";
+import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
+import type { SecretsService } from "../secrets-service";
+import { AlpacaAdapter } from "./adapters/alpaca-adapter";
+import type { BrokerAdapter } from "./adapters/broker-adapter";
+import { CoinbaseAdvancedTradeAdapter, type CoinbaseAdvancedCredentials } from "./adapters/coinbase-advanced-trade-adapter";
+import { MockBrokerAdapter } from "./adapters/mock-adapter";
+import { TradovateAdapter, type TradovateCredentials } from "./adapters/tradovate-adapter";
 import type { BrokerCredentials } from "@/lib/types";
 
 export class BrokerRegistry {

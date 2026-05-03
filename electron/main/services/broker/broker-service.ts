@@ -1,6 +1,6 @@
 import type { BrokerCredentials, ConnectionTestResult } from "@/lib/types";
-import type { BrokerRegistry } from "../../broker/broker-registry";
-import type { CloseResult } from "../../broker/broker-adapter";
+import type { BrokerRegistry } from "./broker-registry";
+import type { CloseResult } from "./adapters/broker-adapter";
 
 /** Thin helper for IPC paths that close by broker account + order id. */
 export class BrokerService {

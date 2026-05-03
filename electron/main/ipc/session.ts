@@ -10,7 +10,6 @@ import {
   sessionUpdateInputSchema,
 } from "@electron/shared/schemas";
 import type { AppServices } from "../services/app-services";
-import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "../services/orchestration/selector-definition-hash";
 import { handle } from "./handle";
 
 export function registerSessionHandlers(services: AppServices): void {
@@ -72,18 +71,7 @@ export function registerSessionHandlers(services: AppServices): void {
   handle(ipcMain, channels.session.instrumentCacheGet, async (payload) => {
     const { sessionId } = sessionIdParamSchema.parse(payload);
     const session = services.repos.session.requireById(sessionId);
-    const currentHash = hashSelectorDefinition(
-      buildSelectorDefinitionFingerprint(session, services.orchestratorDeps),
-    );
-    const row = services.repos.instrumentCache.get(sessionId);
-    if (!row) {
-      return { instruments: null, selectedAt: null, definitionHashMatches: true };
-    }
-    return {
-      instruments: JSON.parse(row.instruments) as Array<{ symbol: string; instrumentClass: string }>,
-      selectedAt: row.selectedAt,
-      definitionHashMatches: row.definitionHash === currentHash,
-    };
+    return services.instrumentCacheService.getView(session);
   });
 
   handle(ipcMain, channels.session.instrumentCacheClear, async (payload) => {
@@ -92,7 +80,7 @@ export function registerSessionHandlers(services: AppServices): void {
     if (!isSessionEditable(session.status)) {
       throw new AppError("Stop the session before clearing the instrument cache.", "LOCKED", { sessionId });
     }
-    services.repos.instrumentCache.clear(sessionId);
+    services.instrumentCacheService.clear(sessionId);
     return { cleared: true as const };
   });
 }

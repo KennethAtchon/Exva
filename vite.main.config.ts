@@ -5,6 +5,8 @@ export default defineConfig({
   resolve: {
     alias: {
       "@electron": path.resolve(__dirname, "electron"),
+      "@main": path.resolve(__dirname, "electron/main"),
+      "@shared": path.resolve(__dirname, "electron/shared"),
       "@": path.resolve(__dirname, "src"),
     },
   },

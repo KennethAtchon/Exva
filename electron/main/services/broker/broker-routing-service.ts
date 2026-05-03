@@ -3,8 +3,8 @@ import { AppError } from "@electron/shared/errors";
 import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
 import type { BrokerRoutingRepo } from "../../db/repositories/broker-routing-repo";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
-import type { BrokerRegistry } from "../../broker/broker-registry";
-import type { BrokerAdapter } from "../../broker/broker-adapter";
+import type { BrokerRegistry } from "./broker-registry";
+import type { BrokerAdapter } from "./adapters/broker-adapter";
 
 export class BrokerRoutingService {
   constructor(

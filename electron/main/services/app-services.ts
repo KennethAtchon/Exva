@@ -1,5 +1,5 @@
 import type { App } from "electron";
-import { createDbClient } from "../db/client";
+import { createDbClient } from "@main/db/client";
 import { AgentRunsRepo } from "../db/repositories/agent-runs-repo";
 import { BrokerAccountsRepo } from "../db/repositories/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../db/repositories/broker-routing-repo";
@@ -17,31 +17,29 @@ import { StatsRepo } from "../db/repositories/stats-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace-prefs-repo";
-import { BrokerRegistry } from "../broker/broker-registry";
-import { InstrumentNormalizer } from "../broker/instrument-normalizer";
 import { AiRuntime } from "./ai/ai-runtime";
-import { AgentOrchestrator } from "./orchestration/agent-orchestrator";
-import { BrokerRoutingService } from "./broker/broker-routing-service";
-import { BrokerService } from "./broker/broker-service";
-import { EventBus } from "./infra/event-bus";
-import { createLogger } from "./infra/log";
-import { NotificationService } from "./infra/notification-service";
+import { AgentOrchestrator } from "./agent-orchestrator";
+import { BrokerRegistry, BrokerRoutingService, BrokerService, InstrumentNormalizer } from "./broker";
+import { EventBus } from "./event-bus";
+import { createLogger } from "./log";
+import { NotificationService } from "./notification-service";
 import { PromptAssetLoader } from "./ai/prompt-asset-loader";
 import { ProviderRegistry } from "./ai/provider-registry";
 import { SearchRegistry } from "./ai/search/search-registry";
-import { RiskEngine } from "./orchestration/risk-engine";
-import { SecretsService } from "./infra/secrets-service";
+import { SecretsService } from "./secrets-service";
 import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
 import type { OrchestratorDeps, SessionRuntimeManagerDeps } from "./session";
 import { SessionListingService } from "./session/listing-service";
 import { SessionTemplateService } from "./session/template-service";
 import { SessionWriteService } from "./session/write-service";
-import { TradeMonitor } from "./broker/trade-monitor";
-import { CapitalReservationService } from "./risk/capital-reservation-service";
+import { TradeMonitor } from "./trade-monitor";
+import { InstrumentCacheService } from "./instrument";
+import { CapitalReservationService, RiskEngine } from "./risk";
 
 export interface AppServices {
   /** Shared deps shape for IPC helpers (e.g. instrument cache fingerprint). */
   orchestratorDeps: OrchestratorDeps;
+  instrumentCacheService: InstrumentCacheService;
   db: ReturnType<typeof createDbClient>;
   repos: {
     agentRuns: AgentRunsRepo;
@@ -177,6 +175,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   runtimeManager = new SessionRuntimeManager(runtimeManagerDeps);
 
   const orchestratorDeps = orchestratorDepsBase;
+  const instrumentCacheService = new InstrumentCacheService(repos.instrumentCache, () => orchestratorDeps);
 
   const session = new SessionService({
     sessionRepo: repos.session,
@@ -217,6 +216,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   return {
     db,
     orchestratorDeps,
+    instrumentCacheService,
     repos,
     ai,
     providerRegistry,

@@ -1,8 +1,8 @@
 import PQueue from "p-queue";
 import type { EventSourceType, InstrumentClass, SessionConfig, Trade, WorkspaceSession } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
-import type { OrderRequest } from "../../broker/broker-adapter";
-import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
+import type { OrderRequest } from "./broker/adapters/broker-adapter";
+import type { ApprovalRecheckInput, OrchestratorDeps } from "./session";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
 
 type ResolvedInstrument = { symbol: string; instrumentClass: InstrumentClass };
@@ -500,7 +500,9 @@ export class AgentOrchestrator {
     this.emitEvent("INFO", null, "Running instrument selector agent...");
     const result = await this.deps.ai.runInstrumentSelector(session.id, session.instrumentScope);
 
-    const filtered = result.output.instruments.filter((row) => session.instrumentClasses.includes(row.instrumentClass));
+    const filtered = result.output.instruments.filter((row: ResolvedInstrument) =>
+      session.instrumentClasses.includes(row.instrumentClass),
+    );
     if (filtered.length === 0) {
       throw new AppError(
         "Instrument selector returned no instruments compatible with this session's instrument classes.",
@@ -509,7 +511,7 @@ export class AgentOrchestrator {
     }
 
     const limited = filtered.slice(0, config.max_concurrent_trades);
-    const payload: ResolvedInstrument[] = limited.map((row) => ({
+    const payload: ResolvedInstrument[] = limited.map((row: ResolvedInstrument) => ({
       symbol: row.symbol,
       instrumentClass: row.instrumentClass,
     }));
