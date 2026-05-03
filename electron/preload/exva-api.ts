@@ -2,7 +2,9 @@ import type {
   AgentRole,
   AgentRun,
   ApprovalSummary,
+  BrokerAccount,
   BrokerCredentials,
+  BrokerRoutingDefault,
   ConnectionTestResult,
   CostBreakdown,
   DashboardStats,
@@ -155,6 +157,12 @@ export interface ExvaApi {
     goGlobal(): Promise<{ workspaceViewMode: "global"; focusedSessionId: null }>;
     archive(id: string): Promise<{ archived: true }>;
     duplicate(sourceId: string, name: string): Promise<{ id: string; status: "draft" }>;
+    instrumentCacheGet(sessionId: string): Promise<{
+      instruments: Array<{ symbol: string; instrumentClass: InstrumentClass }> | null;
+      selectedAt: string | null;
+      definitionHashMatches: boolean;
+    }>;
+    instrumentCacheClear(sessionId: string): Promise<{ cleared: true }>;
   };
   workspace: {
     getView(): Promise<WorkspaceViewResponse>;
@@ -207,6 +215,28 @@ export interface ExvaApi {
       metadata?: { baseUrl?: string };
     }): Promise<{ id: string; isConfigured: boolean }>;
     testProvider(input: { id: string }): Promise<{ ok: boolean; error?: string }>;
+    listBrokers(): Promise<{ brokers: BrokerAccount[] }>;
+    addBroker(input: {
+      id?: string;
+      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "mock";
+      name: string;
+      mode: "paper" | "live";
+      credentials: Record<string, string>;
+    }): Promise<
+      | { ok: true; id: string; supportedInstrumentClasses: InstrumentClass[] }
+      | { ok: false; id: string; message: string; supportedInstrumentClasses: InstrumentClass[] }
+    >;
+    removeBrokerAccount(input: { id: string }): Promise<{ ok: true }>;
+    testBrokerAccount(input: { id: string }): Promise<ConnectionTestResult>;
+    testBrokerEphemeral(input: {
+      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "mock";
+      mode: "paper" | "live";
+      credentials: Record<string, string>;
+    }): Promise<ConnectionTestResult>;
+    routingGet(): Promise<{ routing: BrokerRoutingDefault[] }>;
+    routingUpdate(input: {
+      routing: Array<{ instrumentClass: InstrumentClass; defaultBrokerAccountId: string }>;
+    }): Promise<{ savedAt: string }>;
   };
   events: {
     list(filters?: {

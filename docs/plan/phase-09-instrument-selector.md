@@ -1,5 +1,7 @@
 # Phase 9 — Instrument Selector Role + AI-Selected Universe
 
+**Status (2026-05-03):** Implemented — `session_instrument_cache` table + repo, definition-hash invalidation, `AiRuntime.runInstrumentSelector` via `generateObject` + `instrumentSelectionSchema`, orchestrator `resolveInstruments` (cache hit / manual / AI path), agent run persistence for selector, IPC `session:instrument-cache:*`, Strategy tab rules + session drawer last-selection UI, default `instrument_selector.md` prompt aligned with structured output.
+
 > Add the `instrument_selector` AI role.
 > Enable sessions to use an AI-driven universe selection flow instead of a fixed manual shortlist.
 >
@@ -122,6 +124,7 @@ File: `electron/main/services/agent-orchestrator.ts`
 async start(session: WorkspaceSession): Promise<void> {
   const strategy = this.deps.strategyRepo.get(session.id);
   this.queue.concurrency = strategy.maxConcurrentTrades;
+  // Instrument-selector AI runs use the same `buildStrategyTimeframeContext(strategy)` prefix as other roles (Phase 7) so universe picks match the session’s bar size and hold style.
 
   const instruments = await this.resolveInstruments(session);
 

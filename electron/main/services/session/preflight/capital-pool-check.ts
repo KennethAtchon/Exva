@@ -17,9 +17,10 @@ export async function capitalPoolCheck(session: WorkspaceSession, deps: Orchestr
     };
   }
 
-  const reserved = deps.capitalReservationsRepo.sumActiveReservedUsd();
-  const requested = reserved + session.capitalLimitUsd;
-  if (requested > ceiling) {
+  const gate = deps.capitalReservation.checkSessionStartFits(session.id, session.capitalLimitUsd);
+  if (!gate.ok) {
+    const reserved = gate.reserved;
+    const requested = reserved + session.capitalLimitUsd;
     return {
       ok: false,
       code: "CAPITAL_POOL_EXCEEDED",

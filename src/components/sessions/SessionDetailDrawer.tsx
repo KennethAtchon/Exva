@@ -3,11 +3,20 @@ import { Badge } from "@/components/atoms";
 import { api, type SessionSummary } from "@/lib/exva";
 import type { EventRow, InstrumentClass, SessionTemplatePayload } from "@/lib/types";
 
+type InstrumentCacheView = {
+  instruments: Array<{ symbol: string; instrumentClass: string }> | null;
+  selectedAt: string | null;
+  definitionHashMatches: boolean;
+};
+
 export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSummary | null; onClose: () => void }) => {
   const [payload, setPayload] = useState<SessionTemplatePayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentEvents, setRecentEvents] = useState<EventRow[]>([]);
+  const [instrumentCache, setInstrumentCache] = useState<InstrumentCacheView | null>(null);
+  const [cacheLoading, setCacheLoading] = useState(false);
+  const [cacheAction, setCacheAction] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -19,6 +28,26 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
       })
       .catch(() => {
         if (!cancelled) setRecentEvents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    setCacheLoading(true);
+    void api
+      .getSessionInstrumentCache(session.id)
+      .then((row) => {
+        if (!cancelled) setInstrumentCache(row);
+      })
+      .catch(() => {
+        if (!cancelled) setInstrumentCache(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCacheLoading(false);
       });
     return () => {
       cancelled = true;
@@ -71,6 +100,65 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
             <MetricRow label="Selection mode" value={session.selectionMode === "ai_selected_universe" ? "AI selected universe" : "Manual shortlist"} />
             <MetricRow label="Search provider override" value={session.defaultSearchProviderId ?? "Workspace default"} />
             <MetricRow label="AI picker" value={payload?.selectorSettings.aiPickerEnabled ? "Enabled" : "Disabled"} />
+            {session.selectionMode === "ai_selected_universe" ? (
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ color: "var(--text3)", fontSize: 11 }}>Last selection (AI universe)</div>
+                {cacheLoading ? (
+                  <div style={mutedTextStyle}>Loading cache…</div>
+                ) : instrumentCache?.instruments?.length ? (
+                  <>
+                    <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                      {instrumentCache.selectedAt ? `Selected at ${formatTimestamp(instrumentCache.selectedAt)}` : "—"}
+                    </div>
+                    {!instrumentCache.definitionHashMatches ? (
+                      <Badge variant="warn">Definition changed — next start recomputes universe</Badge>
+                    ) : null}
+                    <ul style={{ margin: 0, paddingLeft: 18, color: "var(--text1)", fontSize: 13 }}>
+                      {instrumentCache.instruments.map((row) => (
+                        <li key={`${row.symbol}-${row.instrumentClass}`}>
+                          {row.symbol} · {row.instrumentClass}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!session) return;
+                        if (session.status === "active" || session.status === "paused") {
+                          setCacheAction("Stop the session before clearing the selector cache.");
+                          return;
+                        }
+                        setCacheAction(null);
+                        try {
+                          await api.clearSessionInstrumentCache(session.id);
+                          const next = await api.getSessionInstrumentCache(session.id);
+                          setInstrumentCache(next);
+                          setCacheAction("Cache cleared. Selector will run on next session start.");
+                        } catch (err) {
+                          setCacheAction(err instanceof Error ? err.message : "Clear failed");
+                        }
+                      }}
+                      disabled={session.status === "active" || session.status === "paused"}
+                      style={{
+                        alignSelf: "flex-start",
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: "1px solid var(--border)",
+                        background: "var(--surface2)",
+                        color: "var(--text2)",
+                        cursor: session.status === "active" || session.status === "paused" ? "not-allowed" : "pointer",
+                        fontSize: 12,
+                      }}
+                    >
+                      Re-run selector on next start
+                    </button>
+                    {cacheAction ? <div style={{ fontSize: 12, color: "var(--text3)" }}>{cacheAction}</div> : null}
+                  </>
+                ) : (
+                  <div style={mutedTextStyle}>No cached selection yet (selector runs when you start with AI picker on).</div>
+                )}
+              </div>
+            ) : null}
           </Section>
 
           <Section title="Execution Setup">

@@ -7,13 +7,14 @@
 
 ## Goal
 
-Each session owns five AI roles (`researcher_bull`, `researcher_bear`, `reviewer`, `decision_maker`, `instrument_selector`). The Strategy page lets the user configure provider, model, temperature, max tokens, web search, and system prompt for each role independently. Web search resolution uses the session's `defaultSearchProviderId` when present, otherwise the workspace default search provider. All edits are blocked while the session is active or paused.
+Each session owns five AI roles (`researcher_bull`, `researcher_bear`, `reviewer`, `decision_maker`, `instrument_selector`). The Strategy page lets the user configure provider, model, temperature, max tokens, web search, and system prompt for each role independently. The same page configures **trading timeframe and holding horizon** on `SessionStrategy`: primary bar/timeframe for analysis, coarse holding style, optional target and maximum hold (calendar days), and free-form notes so agents and humans share one definition of “how we trade this session.” Web search resolution uses the session's `defaultSearchProviderId` when present, otherwise the workspace default search provider. All edits are blocked while the session is active or paused.
 
 ## Hard Problems
 
 1. **Prompt source toggle** — when `promptSource = "default"`, the editor shows the bundled Markdown prompt read-only. When `promptSource = "session_override"`, the editor becomes writable. Switching from override back to default must prompt "Discard your custom prompt for this role?" with confirmation.
 2. **Provider/model cascade** — changing provider must clear the model selection and re-fetch the model list for that provider. The model list is not static; it comes from `ProviderAccount.providerType` and a static map per provider.
 3. **Dirty state per role tab** — changes to one role tab must not reset unsaved changes on another role tab. Use a flat `dirtyRoles: Set<AgentRole>` structure and merge on save.
+4. **Timeframe vs holding style coherence** — `holdingStyle = intraday_flat` with `primaryTradingTimeframe = 1w` is legal but contradictory; show a non-blocking warning. Enforce numeric consistency when both day fields are set (`maxHoldDays >= targetHoldDays`, non-negative).
 
 ## IPC API
 
@@ -154,6 +155,24 @@ export const MODEL_CATALOG: Record<ProviderType, ModelEntry[]> = {
 
 File: `src/pages/StrategyConfig.tsx`
 
+### Timeframe & holding horizon (left column — with existing risk / limits fields)
+
+Group with the session’s numeric strategy controls (position size, stops, concurrency, etc.):
+
+```
+Card: "Timeframe & holding horizon"
+  Primary trading timeframe: single-select (`TradingTimeframe`: 1m … 1w)
+    Helper: "Bar size agents assume for setup, stops, and thesis — not the broker poll interval."
+  Holding style: single-select (`HoldingStyle`: intraday_flat | multi_day_swing | weeks_position | custom)
+  Target hold (days): optional number input, nullable — "typical" horizon guidance for agents
+  Max hold (days): optional number input, nullable — ceiling for humans/agents; v1 may not auto-exit
+  Notes (textarea): `timeframeNotes` — session-specific caveats (e.g. "no new entries Friday after 12 ET")
+```
+
+If `intraday_flat` is selected and primary timeframe is `1d` or `1w`, show inline warning: "Intraday style usually uses intraday timeframes; consider 5m–1h."
+
+`updateStrategy()` marks `dirtyFields` for these keys like any other `SessionStrategy` field; they persist via the same `strategy:save` payload.
+
 ### New sections to add (right column):
 
 **AI Role Configuration Card:**
@@ -291,6 +310,10 @@ sequenceDiagram
 | Web search enabled but no search provider configured | "Connect a web search provider to enable internet search for this role." |
 | Web search enabled and session override is unset | Uses workspace default search provider automatically; no per-role picker in v1 |
 | Instrument selector role enabled but session is manual_shortlist | Tab disabled — no validation needed |
+| `targetHoldDays` or `maxHoldDays` set and `< 0` | "Hold days cannot be negative." |
+| Both `targetHoldDays` and `maxHoldDays` set and `maxHoldDays < targetHoldDays` | "Max hold must be greater than or equal to target hold." |
+| `primaryTradingTimeframe` missing or not a known enum value | "Select a primary trading timeframe." |
+| `holdingStyle` missing or unknown | "Select a holding style." |
 
 ## Files Created / Modified
 
@@ -298,6 +321,7 @@ sequenceDiagram
 |--------|------|
 | Modify | `src/pages/StrategyConfig.tsx` — add AI role config right column |
 | Create | `src/components/strategy/AiRoleConfigCard.tsx` |
+| Create | `src/components/strategy/TimeframeHorizonCard.tsx` |
 | Create | `src/components/strategy/PromptEditor.tsx` |
 | Create | `src/components/strategy/CostSummaryCard.tsx` |
 | Create | `src/store/strategyStore.ts` |
@@ -332,3 +356,5 @@ The store exposes `state: "no_session" | "editable" | "locked"` derived from `wo
 - Save blocked (inline error) when any role has unconfigured provider or empty model.
 - Instrument Selector tab is disabled for manual_shortlist sessions.
 - Prompt files load correctly in both dev and packaged builds (resolves via `env.promptsDirOverride`, `process.resourcesPath`, or `app.getAppPath()`).
+- Timeframe & holding fields load/save with `SessionStrategy`; validation rejects negative days and `maxHoldDays < targetHoldDays` when both set.
+- Mismatch warning appears for intraday holding style with daily/weekly primary timeframe (non-blocking).

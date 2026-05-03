@@ -17,6 +17,7 @@ export interface SessionPreflight {
 export interface DecisionRiskInput {
   config: SessionConfig;
   stats: DashboardStats;
+  /** Includes `instrumentType` for broker routing (Phase 8). */
   order: OrderRequest;
   confidence: number;
 }

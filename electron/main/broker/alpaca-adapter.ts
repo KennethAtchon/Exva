@@ -1,16 +1,20 @@
 import type { BrokerCredentials, ConnectionTestResult } from "@/lib/types";
+import type { InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import type {
   BrokerAdapter,
+  BrokerOrder,
+  BrokerOrderResult,
+  BrokerPosition,
   CloseResult,
   MarketSnapshot,
-  OrderRequest,
-  OrderResult,
   OrderStatus,
 } from "./broker-adapter";
 
 export class AlpacaAdapter implements BrokerAdapter {
-  readonly id = "alpaca" as const;
+  readonly brokerType = "alpaca";
+  readonly supportedInstrumentClasses = ["stock"] as const satisfies readonly InstrumentClass[];
+
   private readonly baseUrl: string;
 
   constructor(private readonly credentials: BrokerCredentials) {
@@ -52,7 +56,12 @@ export class AlpacaAdapter implements BrokerAdapter {
     };
   }
 
-  async placeOrder(order: OrderRequest): Promise<OrderResult> {
+  async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
+    if (order.instrumentType !== "stock") {
+      throw new AppError("Alpaca adapter supports stocks only", "UNSUPPORTED_INSTRUMENT", {
+        instrumentType: order.instrumentType,
+      });
+    }
     const result = await this.request<{ id: string; filled_avg_price?: string }>(
       "/v2/orders",
       {
@@ -72,8 +81,35 @@ export class AlpacaAdapter implements BrokerAdapter {
     };
   }
 
+  async cancelOrder(brokerOrderId: string): Promise<void> {
+    await this.request(`/v2/orders/${encodeURIComponent(brokerOrderId)}`, { method: "DELETE" });
+  }
+
+  async getPositions(): Promise<BrokerPosition[]> {
+    const raw = await this.request<
+      | Array<{
+          symbol: string;
+          qty: string;
+          market_value?: string;
+          unrealized_pl?: string;
+          asset_class?: string;
+        }>
+      | Record<string, never>
+    >("/v2/positions");
+    const rows = Array.isArray(raw) ? raw : [];
+    return rows
+      .filter((row) => (row.asset_class ?? "us_equity") === "us_equity")
+      .map((row) => ({
+        instrumentSymbol: row.symbol,
+        instrumentType: "stock" as const,
+        side: Number(row.qty) >= 0 ? ("long" as const) : ("short" as const),
+        sizeUsd: Math.abs(Number(row.market_value ?? 0)),
+        unrealizedPnl: Number(row.unrealized_pl ?? 0),
+      }));
+  }
+
   async closeOrder(orderId: string): Promise<CloseResult> {
-    await this.request(`/v2/orders/${encodeURIComponent(orderId)}`, { method: "DELETE" });
+    await this.cancelOrder(orderId);
     return { brokerOrderId: orderId, realizedPnlUsd: 0 };
   }
 

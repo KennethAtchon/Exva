@@ -7,7 +7,7 @@
 
 ## Goal
 
-All session, strategy, selector-settings, AI role, provider, broker, routing, search-default, reservation, template, and approval data lives in typed Drizzle schema tables with enforced foreign keys and correct indexes.
+All session, strategy, selector-settings, AI role, provider, broker, routing, search-default, reservation, template, and approval data lives in typed Drizzle schema tables with enforced foreign keys and correct indexes. Session strategy rows include **timeframe and holding-horizon** columns (`primary_trading_timeframe`, `holding_style`, optional hold-day reals, `timeframe_notes`) aligned with `SessionStrategy` in Phase 1.
 
 ## Hard Problems
 
@@ -62,6 +62,11 @@ export const sessionStrategies = sqliteTable("session_strategies", {
   maxAiSpendUsd:        real("max_ai_spend_usd").notNull().default(5),
   humanApprovalRequired: integer("human_approval_required", { mode: "boolean" })
                            .notNull().default(false),
+  primaryTradingTimeframe: text("primary_trading_timeframe").notNull().default("1d"),
+  holdingStyle:         text("holding_style").notNull().default("multi_day_swing"),
+  targetHoldDays:       real("target_hold_days"), // nullable
+  maxHoldDays:          real("max_hold_days"), // nullable
+  timeframeNotes:       text("timeframe_notes").notNull().default(""),
 });
 
 export const sessionAiRoles = sqliteTable("session_ai_roles", {

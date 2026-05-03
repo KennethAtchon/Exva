@@ -9,14 +9,19 @@ import type { ProviderAccountsRepo } from "../../db/repositories/provider-accoun
 import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
+import type { SessionStrategiesRepo } from "../../db/repositories/session-strategies-repo";
 import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";
 import type { StatsRepo } from "../../db/repositories/stats-repo";
 import type { TradeApprovalsRepo } from "../../db/repositories/trade-approvals-repo";
 import type { TradesRepo } from "../../db/repositories/trades-repo";
+import type { InstrumentCacheRepo } from "../../db/repositories/instrument-cache-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
 import type { AiRuntime } from "../ai/ai-runtime";
-import type { BrokerService } from "../broker/broker-service";
+import type { BrokerRegistry } from "../../broker/broker-registry";
+import type { InstrumentNormalizer } from "../../broker/instrument-normalizer";
+import type { BrokerRoutingService } from "../broker/broker-routing-service";
 import type { EventBus } from "../infra/event-bus";
+import type { CapitalReservationService } from "../risk/capital-reservation-service";
 import type { Logger } from "../infra/log";
 import type { RiskEngine } from "../orchestration/risk-engine";
 
@@ -38,6 +43,7 @@ export interface RuntimeTradeMonitor {
 
 export interface OrchestratorDeps {
   sessionRepo: SessionRepo;
+  sessionStrategiesRepo: SessionStrategiesRepo;
   tradesRepo: TradesRepo;
   tradeApprovalsRepo: TradeApprovalsRepo;
   agentRunsRepo: AgentRunsRepo;
@@ -48,14 +54,19 @@ export interface OrchestratorDeps {
   providerAccountsRepo: ProviderAccountsRepo;
   workspacePreferencesRepo: WorkspacePreferencesRepo;
   capitalReservationsRepo: CapitalReservationsRepo;
+  /** Shared-pool reservation lifecycle (Phase 8). */
+  capitalReservation: CapitalReservationService;
   brokerRoutingRepo: BrokerRoutingRepo;
   sessionBrokerAssignmentsRepo: SessionBrokerAssignmentsRepo;
   brokerAccountsRepo: BrokerAccountsRepo;
+  brokerRegistry: BrokerRegistry;
+  brokerRouting: BrokerRoutingService;
+  instrumentNormalizer: InstrumentNormalizer;
   ai: AiRuntime;
-  broker: BrokerService;
   riskEngine: RiskEngine;
   bus: EventBus;
   logger: Logger;
+  instrumentCacheRepo: InstrumentCacheRepo;
 }
 
 /** Per-check failure (preflight runner adds `check` name). */

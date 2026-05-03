@@ -22,6 +22,8 @@ export const channels = {
     goGlobal: "session:go-global",
     archive: "session:archive",
     duplicate: "session:duplicate",
+    instrumentCacheGet: "session:instrument-cache:get",
+    instrumentCacheClear: "session:instrument-cache:clear",
   },
   workspace: {
     viewGet: "workspace:view:get",
@@ -52,6 +54,13 @@ export const channels = {
     listProviders: "accounts:providers:list",
     saveProvider: "accounts:providers:save",
     testProvider: "accounts:providers:test",
+    listBrokers: "accounts:brokers:list",
+    addBroker: "accounts:brokers:add",
+    removeBrokerAccount: "accounts:brokers:remove",
+    testBrokerAccount: "accounts:brokers:test",
+    testBrokerEphemeral: "accounts:brokers:test-ephemeral",
+    routingGet: "accounts:routing:get",
+    routingUpdate: "accounts:routing:update",
   },
   events: {
     list: "events:list",

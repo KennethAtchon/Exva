@@ -1,5 +1,7 @@
 # Phase 8 — Broker Accounts + Instrument Routing
 
+**Status (2026-05-02):** Implemented in codebase — multi-broker `BrokerRegistry`, `BrokerRoutingService`, `InstrumentNormalizer`, orchestrator collision checks + routed `placeOrder`, IPC (`accounts:brokers:*`, `accounts:routing:*`), Accounts UI (broker list, add modal, routing defaults, capital allocation). Seed `default-broker` is `mock` with all instrument classes. **Coinbase Advanced Trade** uses **CCXT** (`coinbaseadvanced`) for live REST (CDP keys; live mode only). **Tradovate** remains **simulated v1** until a real SDK/REST path is wired.
+
 > Replace single Alpaca singleton with a multi-broker account model.
 > Use workspace routing defaults with optional per-session overrides.
 >
@@ -161,8 +163,9 @@ Declare `supportedInstrumentClasses = ["stock"] as const`.
 ### `CoinbaseAdvancedTradeAdapter`
 
 - supports `crypto`
-- translates canonical `BTC-USD` into Coinbase product ids
-- validates venue-specific minimums and step sizes
+- uses **CCXT** `coinbaseadvanced` (JWT/CDP credentials: API key + EC private key PEM as `secret`)
+- broker symbols like `BTC-USD` map to CCXT unified `BTC/USD`
+- live mode only (no Coinbase paper API)
 
 ### `TradovateAdapter`
 

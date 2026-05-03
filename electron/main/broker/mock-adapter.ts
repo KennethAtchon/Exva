@@ -1,16 +1,20 @@
+import type { ConnectionTestResult } from "@/lib/types";
+import type { InstrumentClass } from "@/lib/types";
 import type {
   BrokerAdapter,
+  BrokerOrder,
+  BrokerOrderResult,
+  BrokerPosition,
   CloseResult,
   MarketSnapshot,
-  OrderRequest,
-  OrderResult,
   OrderStatus,
 } from "./broker-adapter";
-import type { ConnectionTestResult } from "@/lib/types";
 
 export class MockBrokerAdapter implements BrokerAdapter {
-  readonly id = "mock" as const;
-  private readonly orders = new Map<string, { order: OrderRequest; price: number }>();
+  readonly brokerType = "mock";
+  readonly supportedInstrumentClasses: readonly InstrumentClass[] = ["stock", "crypto", "futures"];
+
+  private readonly orders = new Map<string, { order: BrokerOrder; price: number }>();
 
   async testConnection(): Promise<ConnectionTestResult> {
     return { ok: true, message: "Mock broker connected", account_balance: 100000 };
@@ -28,11 +32,25 @@ export class MockBrokerAdapter implements BrokerAdapter {
     };
   }
 
-  async placeOrder(order: OrderRequest): Promise<OrderResult> {
+  async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
     const brokerOrderId = `mock_${crypto.randomUUID()}`;
     const filledAvgPrice = this.priceFor(order.instrumentSymbol);
     this.orders.set(brokerOrderId, { order, price: filledAvgPrice });
     return { brokerOrderId, filledAvgPrice };
+  }
+
+  async cancelOrder(orderId: string): Promise<void> {
+    this.orders.delete(orderId);
+  }
+
+  async getPositions(): Promise<BrokerPosition[]> {
+    return [...this.orders.entries()].map(([id, { order, price }]) => ({
+      instrumentSymbol: order.instrumentSymbol,
+      instrumentType: order.instrumentType,
+      side: "long" as const,
+      sizeUsd: order.sizeUsd,
+      unrealizedPnl: Number((price * 0.001).toFixed(2)),
+    }));
   }
 
   async closeOrder(orderId: string): Promise<CloseResult> {
@@ -46,7 +64,7 @@ export class MockBrokerAdapter implements BrokerAdapter {
     const existing = this.orders.get(orderId);
     return {
       brokerOrderId: orderId,
-      status: existing ? "open" : "unknown",
+      status: existing ? "open" : "closed",
       latestPrice: existing ? this.priceFor(existing.order.instrumentSymbol) : null,
       realizedPnlUsd: null,
     };

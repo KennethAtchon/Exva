@@ -1,13 +1,16 @@
 import { ipcMain } from "electron";
+import { isSessionEditable } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/errors";
 import { channels } from "@electron/shared/channels";
 import {
   sessionCreateInputSchema,
   sessionDuplicateInputSchema,
+  sessionIdParamSchema,
   sessionListFiltersSchema,
   sessionUpdateInputSchema,
 } from "@electron/shared/schemas";
 import type { AppServices } from "../services/app-services";
+import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "../services/orchestration/selector-definition-hash";
 import { handle } from "./handle";
 
 export function registerSessionHandlers(services: AppServices): void {
@@ -64,5 +67,32 @@ export function registerSessionHandlers(services: AppServices): void {
     const { sourceId, name } = sessionDuplicateInputSchema.parse(payload);
     const session = services.repos.session.duplicate(sourceId, { name });
     return { id: session.id, status: "draft" as const };
+  });
+
+  handle(ipcMain, channels.session.instrumentCacheGet, async (payload) => {
+    const { sessionId } = sessionIdParamSchema.parse(payload);
+    const session = services.repos.session.requireById(sessionId);
+    const currentHash = hashSelectorDefinition(
+      buildSelectorDefinitionFingerprint(session, services.orchestratorDeps),
+    );
+    const row = services.repos.instrumentCache.get(sessionId);
+    if (!row) {
+      return { instruments: null, selectedAt: null, definitionHashMatches: true };
+    }
+    return {
+      instruments: JSON.parse(row.instruments) as Array<{ symbol: string; instrumentClass: string }>,
+      selectedAt: row.selectedAt,
+      definitionHashMatches: row.definitionHash === currentHash,
+    };
+  });
+
+  handle(ipcMain, channels.session.instrumentCacheClear, async (payload) => {
+    const { sessionId } = sessionIdParamSchema.parse(payload);
+    const session = services.repos.session.requireById(sessionId);
+    if (!isSessionEditable(session.status)) {
+      throw new AppError("Stop the session before clearing the instrument cache.", "LOCKED", { sessionId });
+    }
+    services.repos.instrumentCache.clear(sessionId);
+    return { cleared: true as const };
   });
 }

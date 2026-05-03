@@ -62,6 +62,24 @@ export type SelectionMode = "manual_shortlist" | "ai_selected_universe";
 export type ExecutionMode = "paper_only" | "live_allowed";
 export type ResearchDepth = "light" | "balanced" | "deep";
 export type StrategyProfile = "passive_income" | "growth" | "conservative" | "custom";
+
+/** Bar size the session uses for analysis, agent prompts, and (later) data pulls. */
+export type TradingTimeframe =
+  | "1m"
+  | "5m"
+  | "15m"
+  | "30m"
+  | "1h"
+  | "4h"
+  | "1d"
+  | "1w";
+
+/** How long positions are intended to be held — steers researcher/reviewer/decision prompts. */
+export type HoldingStyle =
+  | "intraday_flat"      // flat by session end / no overnight by default
+  | "multi_day_swing"    // days to a few weeks
+  | "weeks_position"     // weeks+ / slower thesis
+  | "custom";            // user explains in notes only
 export type WorkspaceViewMode = "session" | "global";
 export type CapitalAllocationMode = "per_session_only" | "shared_global_pool";
 
@@ -136,6 +154,16 @@ export interface SessionStrategy {
   profitTargetUsd: number;
   maxAiSpendUsd: number;
   humanApprovalRequired: boolean;
+  /** Primary chart / decision cadence (e.g. swing on 4h vs day-trade on 5m). */
+  primaryTradingTimeframe: TradingTimeframe;
+  /** Coarse hold intent; pair with optional day bounds below. */
+  holdingStyle: HoldingStyle;
+  /** Soft target for typical hold length (calendar days); null = unspecified. */
+  targetHoldDays: number | null;
+  /** Optional hard ceiling (calendar days) for UI + future orchestrator exit rules; null = no cap in v1. */
+  maxHoldDays: number | null;
+  /** Free text shown in Strategy UI and injected into agent context (e.g. "avoid FOMC week entries"). */
+  timeframeNotes: string;
 }
 
 export interface SessionAiRole {
@@ -341,6 +369,8 @@ Every later phase that adds a session-mutating channel adds a row to this matrix
 | Web search resolution uses session default first, then workspace default; save/start blocked if role enables search and neither exists | `SessionService` + `AiRuntime` |
 | `workspace_preferences` always has exactly one row (id=1) | DB `INSERT OR IGNORE` on migration |
 | Shared global pool reserves capital across approvals and live orders when enabled | `CapitalReservationService` |
+| If both hold-day fields are set, `maxHoldDays >= targetHoldDays`; both must be ≥ 0 when non-null | `strategy:save` validation (Phase 5) |
+| `intraday_flat` with `primaryTradingTimeframe` in `1d` / `1w` is allowed but UI may warn (mismatch) | Renderer warning only in Phase 5 |
 
 ## Files Created / Modified in This Phase
 

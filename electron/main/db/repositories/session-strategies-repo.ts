@@ -37,7 +37,12 @@ export class SessionStrategiesRepo {
           daily_loss_limit_usd = @daily_loss_limit_usd,
           profit_target_usd = @profit_target_usd,
           max_ai_spend_usd = @max_ai_spend_usd,
-          human_approval_required = @human_approval_required
+          human_approval_required = @human_approval_required,
+          primary_trading_timeframe = @primary_trading_timeframe,
+          holding_style = @holding_style,
+          target_hold_days = @target_hold_days,
+          max_hold_days = @max_hold_days,
+          timeframe_notes = @timeframe_notes
         WHERE session_id = @session_id
         `,
       )
@@ -53,6 +58,11 @@ export class SessionStrategiesRepo {
         profit_target_usd: next.profitTargetUsd,
         max_ai_spend_usd: next.maxAiSpendUsd,
         human_approval_required: next.humanApprovalRequired ? 1 : 0,
+        primary_trading_timeframe: next.primaryTradingTimeframe,
+        holding_style: next.holdingStyle,
+        target_hold_days: next.targetHoldDays,
+        max_hold_days: next.maxHoldDays,
+        timeframe_notes: next.timeframeNotes,
       });
 
     return this.get(sessionId);

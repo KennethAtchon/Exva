@@ -1,6 +1,11 @@
 import PQueue from "p-queue";
-import type { EventSourceType, InstrumentClass, SessionConfig, Trade } from "@/lib/types";
+import type { EventSourceType, InstrumentClass, SessionConfig, Trade, WorkspaceSession } from "@/lib/types";
+import { AppError } from "@electron/shared/errors";
+import type { OrderRequest } from "../../broker/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
+import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
+
+type ResolvedInstrument = { symbol: string; instrumentClass: InstrumentClass };
 
 type AiResearchRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runResearcher"]>>;
 type AiReviewRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runReviewer"]>>;
@@ -35,12 +40,22 @@ export class AgentOrchestrator {
       return;
     }
 
+    const session = this.deps.sessionRepo.requireById(this.sessionId);
     const config = this.deps.sessionRepo.getConfig(this.sessionId);
     this.queue.concurrency = config.max_concurrent_trades;
     this.started = true;
 
-    for (const instrumentSymbol of this.getInstruments(this.deps.sessionRepo.requireById(this.sessionId), config)) {
-      this.queue.add(() => this.runTradeCycle(instrumentSymbol, "stock")).catch((error) => {
+    let instruments: ResolvedInstrument[];
+    try {
+      instruments = await this.resolveInstruments(session, config);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.emitEvent("ERROR", null, `Instrument resolution failed: ${message}`);
+      throw error instanceof AppError ? error : new AppError(message, "VALIDATION_FAILED");
+    }
+
+    for (const { symbol, instrumentClass } of instruments) {
+      this.queue.add(() => this.runTradeCycle(symbol, instrumentClass)).catch((error) => {
         this.emitEvent(
           "ERROR",
           null,
@@ -61,7 +76,7 @@ export class AgentOrchestrator {
   async stop(): Promise<void> {
     this.queue.clear();
     for (const approvalId of this.pendingApprovalIds.values()) {
-      this.deps.capitalReservationsRepo.releaseByApproval(approvalId);
+      this.deps.capitalReservation.releaseByApproval(approvalId);
     }
     this.pendingApprovalIds.clear();
     for (const resolve of this.approvalCallbacks.values()) resolve(false);
@@ -113,6 +128,7 @@ export class AgentOrchestrator {
       stats,
       order: {
         instrumentSymbol: updated.instrumentSymbol,
+        instrumentType: input.instrumentClass,
         side: updated.side,
         sizeUsd: updated.position_size_usd,
       },
@@ -127,18 +143,25 @@ export class AgentOrchestrator {
     const workspace = this.deps.workspacePreferencesRepo.get();
     if (workspace.capitalAllocationMode === "shared_global_pool") {
       const target = risk.value.sizeUsd;
-      this.deps.capitalReservationsRepo.updateReservedAmountForApproval(approval.id, target);
+      this.deps.capitalReservation.updateReservedAmountForApproval(approval.id, target);
     }
 
-    const order = await this.deps.broker.placeOrder(risk.value);
-    const opened = this.deps.tradesRepo.markOpen(trade.id, order.brokerOrderId, order.filledAvgPrice);
-    this.deps.capitalReservationsRepo.convertApprovalToOpenOrder(approval.id, trade.id);
+    const placed = await this.placeRoutedOrder(updated, input.instrumentClass, risk.value);
+    if (!placed) {
+      this.failRecheck(trade.id, approval.id, "Instrument conflict or broker routing blocked order placement.");
+      return;
+    }
+    const opened = this.deps.tradesRepo.markOpen(trade.id, placed.brokerOrderId, placed.filledAvgPrice);
+    this.deps.capitalReservation.convertApprovalToOpenOrder(approval.id, trade.id);
+    if (workspace.capitalAllocationMode === "shared_global_pool") {
+      this.deps.capitalReservation.convertOrderToPosition(trade.id);
+    }
     this.emitEvent("INFO", trade.id, `Placed ${updated.side} ${updated.instrumentSymbol} $${updated.position_size_usd} via broker (post-approval recheck).`, "broker");
     this.deps.bus.emit("trade_opened", opened);
   }
 
   private failRecheck(tradeId: string, approvalId: string, message: string): void {
-    this.deps.capitalReservationsRepo.releaseByApproval(approvalId);
+    this.deps.capitalReservation.releaseByApproval(approvalId);
     const rejected = this.deps.tradesRepo.updateStatus(tradeId, "rejected", 0);
     this.emitEvent("WARN", tradeId, message);
     this.deps.bus.emit("trade_closed", rejected);
@@ -187,6 +210,7 @@ export class AgentOrchestrator {
       stats,
       order: {
         instrumentSymbol: trade.instrumentSymbol,
+        instrumentType: instrumentClass,
         side: trade.side,
         sizeUsd: trade.position_size_usd,
       },
@@ -203,7 +227,7 @@ export class AgentOrchestrator {
       const { approved, approvalId } = await this.waitForApproval(trade, instrumentClass, decision.output, risk.reason);
       approvalIdForCapital = approvalId;
       if (!approved) {
-        this.deps.capitalReservationsRepo.releaseByApproval(approvalId);
+        this.deps.capitalReservation.releaseByApproval(approvalId);
         const rejected = this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
         this.emitEvent("WARN", trade.id, "Trade rejected by user");
         this.deps.bus.emit("trade_closed", rejected);
@@ -211,13 +235,55 @@ export class AgentOrchestrator {
       }
     }
 
-    const order = await this.deps.broker.placeOrder(risk.value);
-    const opened = this.deps.tradesRepo.markOpen(trade.id, order.brokerOrderId, order.filledAvgPrice);
+    const placed = await this.placeRoutedOrder(trade, instrumentClass, risk.value);
+    if (!placed) {
+      this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+      this.emitEvent("WARN", trade.id, "Instrument conflict or broker routing blocked order placement.");
+      this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
+      return;
+    }
+
+    const opened = this.deps.tradesRepo.markOpen(trade.id, placed.brokerOrderId, placed.filledAvgPrice);
     if (approvalIdForCapital) {
-      this.deps.capitalReservationsRepo.convertApprovalToOpenOrder(approvalIdForCapital, trade.id);
+      this.deps.capitalReservation.convertApprovalToOpenOrder(approvalIdForCapital, trade.id);
+    }
+    const workspace = this.deps.workspacePreferencesRepo.get();
+    if (workspace.capitalAllocationMode === "shared_global_pool" && approvalIdForCapital) {
+      this.deps.capitalReservation.convertOrderToPosition(trade.id);
     }
     this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`, "broker");
     this.deps.bus.emit("trade_opened", opened);
+  }
+
+  private async placeRoutedOrder(
+    trade: Trade,
+    instrumentClass: InstrumentClass,
+    riskOrder: OrderRequest,
+  ): Promise<{ brokerOrderId: string; filledAvgPrice: number } | null> {
+    const { adapter, brokerAccountId } = await this.deps.brokerRouting.resolveAdapter(this.sessionId, instrumentClass);
+
+    if (this.deps.tradesRepo.checkInstrumentConflict(brokerAccountId, trade.instrumentSymbol, this.sessionId)) {
+      return null;
+    }
+
+    const wireSymbol = this.deps.instrumentNormalizer.toBrokerSymbol({
+      symbol: trade.instrumentSymbol,
+      instrumentClass,
+      brokerType: adapter.brokerType,
+    });
+
+    const result = await adapter.placeOrder({
+      instrumentSymbol: wireSymbol,
+      instrumentType: instrumentClass,
+      side: riskOrder.side,
+      sizeUsd: riskOrder.sizeUsd,
+    });
+
+    if (trade.brokerAccountId !== brokerAccountId) {
+      this.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId });
+    }
+
+    return { brokerOrderId: result.brokerOrderId, filledAvgPrice: result.filledAvgPrice };
   }
 
   private async runAiPipeline(
@@ -267,6 +333,7 @@ export class AgentOrchestrator {
       this.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId: resolvedBroker });
     }
 
+    const sessionStrategy = this.deps.sessionStrategiesRepo.get(this.sessionId);
     const approval = this.deps.tradeApprovalsRepo.createPending({
       sessionId: this.sessionId,
       tradeId: trade.id,
@@ -279,12 +346,19 @@ export class AgentOrchestrator {
         confidence: trade.confidence_score,
         reasoning: decisionOut.reasoning,
         riskNote: riskNote ?? null,
+        sessionHorizon: {
+          primaryTradingTimeframe: sessionStrategy.primaryTradingTimeframe,
+          holdingStyle: sessionStrategy.holdingStyle,
+          targetHoldDays: sessionStrategy.targetHoldDays,
+          maxHoldDays: sessionStrategy.maxHoldDays,
+          timeframeNotes: sessionStrategy.timeframeNotes.trim() || undefined,
+        },
       }),
     });
 
     const workspace = this.deps.workspacePreferencesRepo.get();
     if (workspace.capitalAllocationMode === "shared_global_pool") {
-      this.deps.capitalReservationsRepo.reserveForApproval({
+      this.deps.capitalReservation.reserveForApproval({
         sessionId: this.sessionId,
         approvalId: approval.id,
         amountUsd: trade.position_size_usd,
@@ -314,11 +388,7 @@ export class AgentOrchestrator {
   }
 
   private resolveBrokerAccountId(instrumentClass: InstrumentClass): string {
-    const routed = this.deps.brokerRoutingRepo.resolveBrokerAccountId(this.sessionId, instrumentClass);
-    if (routed) return routed;
-    const assigned = this.deps.sessionBrokerAssignmentsRepo.listBrokerAccountIds(this.sessionId);
-    if (assigned[0]) return assigned[0];
-    throw new Error("No broker account is assigned for this session.");
+    return this.deps.brokerRouting.resolveBrokerAccountId(this.sessionId, instrumentClass);
   }
 
   /** Fresh sizing for an existing pending trade after a recheck decision. */
@@ -406,11 +476,86 @@ export class AgentOrchestrator {
     this.deps.bus.emit("agent_event", event);
   }
 
-  private getInstruments(session: { instrumentScope: string }, config: SessionConfig): string[] {
-    return session.instrumentScope
+  private async resolveInstruments(
+    session: WorkspaceSession,
+    config: SessionConfig,
+  ): Promise<ResolvedInstrument[]> {
+    const selectorSettings = this.deps.sessionSelectorSettingsRepo.get(session.id);
+    const fingerprint = buildSelectorDefinitionFingerprint(session, this.deps);
+    const definitionHash = hashSelectorDefinition(fingerprint);
+
+    const cached = this.deps.instrumentCacheRepo.get(session.id);
+    if (cached?.definitionHash === definitionHash) {
+      const parsed = JSON.parse(cached.instruments) as ResolvedInstrument[];
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        throw new AppError("Cached instrument list is invalid or empty.", "VALIDATION_FAILED");
+      }
+      return parsed;
+    }
+
+    if (session.selectionMode === "manual_shortlist" || !selectorSettings.aiPickerEnabled) {
+      return this.parseManualShortlist(session, config);
+    }
+
+    this.emitEvent("INFO", null, "Running instrument selector agent...");
+    const result = await this.deps.ai.runInstrumentSelector(session.id, session.instrumentScope);
+
+    const filtered = result.output.instruments.filter((row) => session.instrumentClasses.includes(row.instrumentClass));
+    if (filtered.length === 0) {
+      throw new AppError(
+        "Instrument selector returned no instruments compatible with this session's instrument classes.",
+        "VALIDATION_FAILED",
+      );
+    }
+
+    const limited = filtered.slice(0, config.max_concurrent_trades);
+    const payload: ResolvedInstrument[] = limited.map((row) => ({
+      symbol: row.symbol,
+      instrumentClass: row.instrumentClass,
+    }));
+
+    this.deps.agentRunsRepo.insert({
+      ...result.run,
+      session_id: this.sessionId,
+      trade_id: null,
+    });
+
+    this.deps.instrumentCacheRepo.save({
+      sessionId: session.id,
+      instruments: JSON.stringify(payload),
+      definitionHash,
+      selectedAt: new Date().toISOString(),
+      selectorAgentRunId: result.run.id,
+    });
+
+    this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`);
+    return payload;
+  }
+
+  private parseManualShortlist(session: WorkspaceSession, config: SessionConfig): ResolvedInstrument[] {
+    const symbols = session.instrumentScope
       .split(/[\n,]+/)
       .map((symbol) => symbol.trim().toUpperCase())
-      .filter((symbol) => symbol.length > 0)
-      .slice(0, config.max_concurrent_trades);
+      .filter((symbol) => symbol.length > 0);
+
+    const out: ResolvedInstrument[] = [];
+    for (const symbol of symbols) {
+      const instrumentClass = this.inferInstrumentClass(symbol, session.instrumentClasses);
+      if (!session.instrumentClasses.includes(instrumentClass)) continue;
+      out.push({ symbol, instrumentClass });
+    }
+    if (out.length === 0) {
+      throw new AppError("Manual instrument shortlist is empty after parsing.", "VALIDATION_FAILED");
+    }
+    return out.slice(0, config.max_concurrent_trades);
+  }
+
+  private inferInstrumentClass(symbol: string, classes: InstrumentClass[]): InstrumentClass {
+    if (classes.length === 1) return classes[0]!;
+    const upper = symbol.toUpperCase();
+    if (classes.includes("crypto") && upper.includes("-")) return "crypto";
+    if (classes.includes("futures") && /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d{1,2}$/i.test(upper)) return "futures";
+    if (classes.includes("stock")) return "stock";
+    return classes[0]!;
   }
 }

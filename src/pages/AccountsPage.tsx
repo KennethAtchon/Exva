@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Badge, Card, Dot, PageShell, SectionTitle } from "@/components/atoms";
+import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
 import { api } from "@/lib/exva";
+import type { BrokerAccount, BrokerRoutingDefault, InstrumentClass, WorkspacePreferences } from "@/lib/types";
 
 const InputField = ({
   label, hint, type = "text", value, onChange, placeholder, mono,
@@ -49,13 +51,29 @@ const ConnBadge = ({ ok }: { ok: boolean }) => (
 
 export const AccountsPage = () => {
   const [anthropicKey, setAnthropicKey] = useState("");
-  const [alpacaKey, setAlpacaKey] = useState("");
-  const [alpacaSecret, setAlpacaSecret] = useState("");
-  const [alpacaMode, setAlpacaMode] = useState<"paper" | "live">("paper");
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ broker: boolean; ai: boolean }>({ broker: false, ai: false });
   const [anthropicProviderId, setAnthropicProviderId] = useState("provider-anthropic");
+  const [brokers, setBrokers] = useState<BrokerAccount[]>([]);
+  const [prefs, setPrefs] = useState<WorkspacePreferences | null>(null);
+  const [brokerModalOpen, setBrokerModalOpen] = useState(false);
+  const [routingDraft, setRoutingDraft] = useState<Partial<Record<InstrumentClass, string>>>({});
+
+  const loadWorkspaceAccounts = async () => {
+    const [b, r, view] = await Promise.all([
+      api.listBrokerAccounts(),
+      api.getBrokerRoutingDefaults(),
+      api.getWorkspaceView(),
+    ]);
+    setBrokers(b.brokers);
+    setPrefs(view.preferences);
+    const draft: Partial<Record<InstrumentClass, string>> = {};
+    for (const row of r.routing) {
+      draft[row.instrumentClass] = row.defaultBrokerAccountId;
+    }
+    setRoutingDraft(draft);
+  };
 
   useEffect(() => {
     const loadProviders = async () => {
@@ -67,16 +85,19 @@ export const AccountsPage = () => {
       }
     };
     void loadProviders();
+    void loadWorkspaceAccounts();
   }, []);
 
   const test = async () => {
     setTesting(true);
     try {
-      const [broker, ai] = await Promise.all([
-        api.testBrokerConnection().catch(() => ({ ok: false })),
-        api.testProvider(anthropicProviderId).catch(() => ({ ok: false })),
-      ]);
-      setStatus({ broker: broker.ok, ai: ai.ok });
+      const ai = await api.testProvider(anthropicProviderId).catch(() => ({ ok: false }));
+      let brokerOk = false;
+      if (brokers[0]) {
+        const t = await api.testSavedBrokerAccount(brokers[0].id).catch(() => ({ ok: false }));
+        brokerOk = t.ok;
+      }
+      setStatus({ broker: brokerOk, ai: ai.ok });
     } catch {
       setStatus({ broker: false, ai: false });
     } finally {
@@ -96,11 +117,6 @@ export const AccountsPage = () => {
           apiKey: anthropicKey,
         });
         setAnthropicProviderId(result.id);
-      }
-      if (alpacaKey && alpacaSecret) {
-        await api.addBrokerAccount({
-          provider: "alpaca", api_key: alpacaKey, secret_key: alpacaSecret, mode: alpacaMode,
-        });
       }
       await test();
     } finally {
@@ -141,58 +157,225 @@ export const AccountsPage = () => {
           </Card>
 
           <Card>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 3 }}>Broker — Alpaca</div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>Trade execution and portfolio data</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 3 }}>Broker accounts</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>Multi-broker routing — keys in OS keychain</div>
               </div>
               <ConnBadge ok={status.broker} />
             </div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              {(
-                [
-                  ["paper", "🧪 Paper Trading"],
-                  ["live", "⚡ Live Trading"],
-                ] as ["paper" | "live", string][]
-              ).map(([m, lbl]) => (
-                <button
-                  key={m}
-                  onClick={() => setAlpacaMode(m)}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {brokers.length === 0 && (
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>No broker accounts yet. Add one to enable trading.</div>
+              )}
+              {brokers.map((b) => (
+                <div
+                  key={b.id}
                   style={{
-                    flex: 1, padding: "9px 14px", fontSize: 13, borderRadius: 9,
-                    cursor: "pointer", transition: "all 0.15s",
-                    fontFamily: "var(--font-sans)",
-                    fontWeight: alpacaMode === m ? 600 : 400,
-                    background: alpacaMode === m
-                      ? (m === "live" ? "rgba(248,113,113,0.12)" : "rgba(96,165,250,0.1)")
-                      : "var(--surface2)",
-                    border: alpacaMode === m
-                      ? (m === "live" ? "1px solid rgba(248,113,113,0.3)" : "1px solid rgba(96,165,250,0.3)")
-                      : "1px solid var(--border)",
-                    color: alpacaMode === m
-                      ? (m === "live" ? "#f87171" : "#60a5fa")
-                      : "var(--text2)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    padding: "10px 12px",
+                    borderRadius: 9,
+                    border: "1px solid var(--border)",
+                    background: "var(--surface2)",
                   }}
                 >
-                  {lbl}
-                </button>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text1)" }}>{b.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--text3)", fontFamily: "var(--font-mono)" }}>
+                      {b.brokerType} · {b.mode} · {b.supportedInstrumentClasses.join(", ")}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const r = await api.testSavedBrokerAccount(b.id);
+                        setStatus((s) => ({ ...s, broker: r.ok }));
+                      }}
+                      style={{ fontSize: 11, padding: "6px 10px", borderRadius: 7, border: "1px solid var(--border)", background: "var(--surface)", cursor: "pointer" }}
+                    >
+                      Test
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!confirm(`Remove broker “${b.name}”? Routing rows that reference it will be deleted.`)) return;
+                        await api.deleteBrokerAccount(b.id);
+                        await loadWorkspaceAccounts();
+                      }}
+                      style={{ fontSize: 11, padding: "6px 10px", borderRadius: 7, border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", background: "transparent", cursor: "pointer" }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
-            {alpacaMode === "live" && (
-              <div style={{ marginBottom: 14, padding: "10px 14px", background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 9 }}>
-                <span style={{ fontSize: 12, color: "#f87171", fontWeight: 500 }}>
-                  Live mode — trades will use real money and execute on the market
-                </span>
-              </div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <InputField label="API Key ID" type="password" value={alpacaKey} onChange={setAlpacaKey} placeholder="PKXXXXXXXX" mono />
-              <InputField label="Secret Key" type="password" value={alpacaSecret} onChange={setAlpacaSecret} placeholder="Secret…" mono />
-            </div>
+            <button
+              type="button"
+              onClick={() => setBrokerModalOpen(true)}
+              style={{
+                marginTop: 12,
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 9,
+                border: "1px dashed var(--border)",
+                background: "transparent",
+                color: "var(--text2)",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              + Add broker account
+            </button>
           </Card>
         </div>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
+          <Card>
+            <SectionTitle>Workspace routing defaults</SectionTitle>
+            <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 6, marginBottom: 12 }}>
+              Per-class default broker (session overrides live on the Strategy / session editor).
+            </p>
+            {(["stock", "crypto", "futures"] as InstrumentClass[]).map((ic) => (
+              <div key={ic} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>{ic}</div>
+                <select
+                  value={routingDraft[ic] ?? ""}
+                  onChange={(e) => setRoutingDraft((d) => ({ ...d, [ic]: e.target.value }))}
+                  style={{
+                    width: "100%",
+                    padding: "9px 12px",
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--surface2)",
+                    color: "var(--text1)",
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="">Select broker</option>
+                  {brokers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.brokerType})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={async () => {
+                const rows: BrokerRoutingDefault[] = (["stock", "crypto", "futures"] as InstrumentClass[])
+                  .map((instrumentClass) => ({
+                    instrumentClass,
+                    defaultBrokerAccountId: routingDraft[instrumentClass] ?? "",
+                  }))
+                  .filter((r) => r.defaultBrokerAccountId.length > 0);
+                if (rows.length < 3) {
+                  alert("Pick a default broker for stock, crypto, and futures.");
+                  return;
+                }
+                await api.saveBrokerRoutingDefaults(rows);
+                await loadWorkspaceAccounts();
+              }}
+              style={{
+                marginTop: 8,
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 9,
+                border: "none",
+                background: "var(--accent)",
+                color: "#fff",
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              Save routing defaults
+            </button>
+          </Card>
+
+          <Card>
+            <SectionTitle>Capital allocation</SectionTitle>
+            <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 6, marginBottom: 12 }}>
+              Shared pool mode reserves capital across sessions (see Phase 8 spec).
+            </p>
+            {prefs && (
+              <>
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>Mode</div>
+                  <select
+                    value={prefs.capitalAllocationMode}
+                    onChange={(e) =>
+                      setPrefs((p) =>
+                        p
+                          ? {
+                              ...p,
+                              capitalAllocationMode: e.target.value as WorkspacePreferences["capitalAllocationMode"],
+                            }
+                          : p,
+                      )
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "9px 12px",
+                      borderRadius: 8,
+                      border: "1px solid var(--border)",
+                      background: "var(--surface2)",
+                      color: "var(--text1)",
+                      fontSize: 13,
+                    }}
+                  >
+                    <option value="per_session_only">Per-session only</option>
+                    <option value="shared_global_pool">Shared global pool</option>
+                  </select>
+                </div>
+                {prefs.capitalAllocationMode === "shared_global_pool" && (
+                  <InputField
+                    label="Global pool (USD)"
+                    type="number"
+                    value={String(prefs.globalCapitalPoolUsd ?? "")}
+                    onChange={(v) =>
+                      setPrefs((p) =>
+                        p ? { ...p, globalCapitalPoolUsd: v === "" ? null : Number(v) } : p,
+                      )
+                    }
+                    placeholder="100000"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!prefs) return;
+                    await api.patchWorkspacePreferences({
+                      capitalAllocationMode: prefs.capitalAllocationMode,
+                      globalCapitalPoolUsd: prefs.globalCapitalPoolUsd,
+                    });
+                    const view = await api.getWorkspaceView();
+                    setPrefs(view.preferences);
+                  }}
+                  style={{
+                    marginTop: 12,
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 9,
+                    border: "none",
+                    background: "var(--accent)",
+                    color: "#fff",
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  Save capital settings
+                </button>
+              </>
+            )}
+          </Card>
+
           <Card>
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 3 }}>Web Search</div>
@@ -268,6 +451,12 @@ export const AccountsPage = () => {
           </div>
         </div>
       </div>
+
+      <AddBrokerModal
+        open={brokerModalOpen}
+        onClose={() => setBrokerModalOpen(false)}
+        onSaved={loadWorkspaceAccounts}
+      />
     </PageShell>
   );
 };

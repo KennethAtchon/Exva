@@ -4,13 +4,16 @@ import type { AgentRole, AgentRun } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
+import type { SessionStrategiesRepo } from "../../db/repositories/session-strategies-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
 import type { GenerateObjectResult, GenerateResult } from "./adapters/provider-adapter";
-import { tradeDecisionSchema } from "./ai-runtime-schemas";
+import { instrumentSelectionSchema, tradeDecisionSchema } from "./ai-runtime-schemas";
+import type { InstrumentSelection } from "./ai-runtime-schemas";
 import type { AgentResult } from "./ai-runtime-types";
 import type { PromptAssetLoader } from "./prompt-asset-loader";
 import type { ProviderRegistry } from "./provider-registry";
 import type { SearchRegistry } from "./search";
+import { prependStrategyHorizonToUserPrompt } from "./strategy-prompt-context";
 
 export interface ResearcherInput {
   instrumentSymbol: string;
@@ -46,6 +49,7 @@ export class AiRuntime {
     private readonly searchRegistry: SearchRegistry,
     private readonly promptLoader: PromptAssetLoader,
     private readonly aiRolesRepo: SessionAiRolesRepo,
+    private readonly sessionStrategiesRepo: SessionStrategiesRepo,
     private readonly sessionRepo: SessionRepo,
     private readonly workspacePrefsRepo: WorkspacePreferencesRepo,
   ) {}
@@ -79,16 +83,44 @@ ${input.review}`;
     return this.runDecisionRole(sessionId, prompt);
   }
 
+  /** AI-selected universe (Phase 9): structured instruments via `generateObject`. */
+  async runInstrumentSelector(sessionId: string, selectionInstructions: string): Promise<AgentResult<InstrumentSelection>> {
+    const role = "instrument_selector" as const;
+    const config = this.aiRolesRepo.requireByRole(sessionId, role);
+    const adapter = await this.registry.get(config.providerKey);
+    const systemPrompt = this.resolvePrompt(role, config.promptSource, config.promptMarkdown);
+    const tools = config.webSearchEnabled ? { web_search: await this.resolveSearchTool(sessionId) } : undefined;
+    const fullUserPrompt = this.withSessionHorizonUserPrompt(sessionId, selectionInstructions);
+
+    const result = await this.withRetry(() =>
+      adapter.generateObject({
+        model: config.modelId,
+        systemPrompt,
+        userPrompt: fullUserPrompt,
+        schema: instrumentSelectionSchema,
+        temperature: config.temperature,
+        maxTokens: config.maxTokens,
+        tools,
+      }),
+    );
+
+    return {
+      run: this.toRun(role, config.modelId, result),
+      output: result.object,
+    };
+  }
+
   async runRole(sessionId: string, role: AgentRole, userPrompt: string): Promise<AgentResult<string>> {
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
     const systemPrompt = this.resolvePrompt(role, config.promptSource, config.promptMarkdown);
     const tools = config.webSearchEnabled ? { web_search: await this.resolveSearchTool(sessionId) } : undefined;
+    const fullUserPrompt = this.withSessionHorizonUserPrompt(sessionId, userPrompt);
     const result = await this.withRetry(() =>
       adapter.generateText({
         model: config.modelId,
         systemPrompt,
-        userPrompt,
+        userPrompt: fullUserPrompt,
         temperature: config.temperature,
         maxTokens: config.maxTokens,
         tools,
@@ -106,12 +138,13 @@ ${input.review}`;
     const adapter = await this.registry.get(config.providerKey);
     const systemPrompt = this.resolvePrompt(role, config.promptSource, config.promptMarkdown);
     const tools = config.webSearchEnabled ? { web_search: await this.resolveSearchTool(sessionId) } : undefined;
+    const fullUserPrompt = this.withSessionHorizonUserPrompt(sessionId, userPrompt);
 
     const result = await this.withRetry(() =>
       adapter.generateObject({
         model: config.modelId,
         systemPrompt,
-        userPrompt,
+        userPrompt: fullUserPrompt,
         temperature: config.temperature,
         maxTokens: config.maxTokens,
         schema: tradeDecisionSchema,
@@ -152,21 +185,42 @@ ${input.review}`;
   }
 
   private shouldRetry(error: unknown): boolean {
-    if (error instanceof AppError && (error.code === "MISSING_SECRET" || error.code === "PROVIDER_NOT_CONFIGURED")) {
+    if (
+      error instanceof AppError &&
+      (error.code === "MISSING_SECRET" ||
+        error.code === "PROVIDER_NOT_CONFIGURED" ||
+        error.code === "SEARCH_PROVIDER_REQUIRED")
+    ) {
       return false;
     }
-    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-    if (message.includes("429")) return true;
-    if (message.includes("5")) return true;
-    if (message.includes("timeout") || message.includes("econnreset") || message.includes("network")) return true;
-    if (message.includes("validation") || message.includes("schema")) return false;
+    const raw = error instanceof Error ? error.message : String(error);
+    const lower = raw.toLowerCase();
+    if (lower.includes("validation") || lower.includes("schema")) return false;
+    if (/\b4\d\d\b/.test(raw) && !/\b429\b/.test(raw)) return false;
+    if (/\b429\b/.test(raw)) return true;
+    if (/\b5\d{2}\b/.test(raw)) return true;
+    if (
+      lower.includes("timeout") ||
+      lower.includes("econnreset") ||
+      lower.includes("econnrefused") ||
+      lower.includes("etimedout") ||
+      lower.includes("network") ||
+      lower.includes("fetch failed")
+    ) {
+      return true;
+    }
     return false;
   }
 
   private wrapProviderError(error: unknown): AppError {
     if (error instanceof AppError) return error;
     const message = error instanceof Error ? error.message : String(error);
-    return new AppError(`Provider request failed: ${message}`, "UNKNOWN");
+    return new AppError(`Provider unreachable: ${message}`, "PROVIDER_UNREACHABLE");
+  }
+
+  private withSessionHorizonUserPrompt(sessionId: string, userPrompt: string): string {
+    const strategy = this.sessionStrategiesRepo.get(sessionId);
+    return prependStrategyHorizonToUserPrompt(strategy, userPrompt);
   }
 
   private async resolveSearchTool(sessionId: string) {
@@ -198,7 +252,7 @@ ${input.review}`;
   private toRun(agentType: AgentRole, model: string, result: GenerateResult): AgentRun {
     return {
       id: crypto.randomUUID(),
-      trade_id: "",
+      trade_id: null,
       agent_type: agentType,
       model,
       input_tokens: result.inputTokens,

@@ -25,6 +25,7 @@ export const AiRoleConfigCard = ({
   providers,
   models,
   selectionMode,
+  aiPickerEnabled,
   disabled,
   errors,
   roleErrors,
@@ -37,6 +38,8 @@ export const AiRoleConfigCard = ({
   providers: ProviderAccount[];
   models: ProviderModelEntry[];
   selectionMode: SelectionMode | null;
+  /** When null, treated as enabled (loading). */
+  aiPickerEnabled?: boolean | null;
   disabled: boolean;
   errors: string[];
   roleErrors: Record<AgentRole, string[]>;
@@ -44,7 +47,10 @@ export const AiRoleConfigCard = ({
   onRoleChange: (patch: Partial<SessionAiRole>) => void | Promise<void>;
   onResetPrompt: () => void | Promise<void>;
 }) => {
-  const selectorDisabled = role.role === "instrument_selector" && selectionMode === "manual_shortlist";
+  const selectorTabLocked =
+    role.role === "instrument_selector" &&
+    (selectionMode === "manual_shortlist" ||
+      (selectionMode === "ai_selected_universe" && aiPickerEnabled === false));
   const providerOptions = providers.filter((provider) => provider.category === "ai");
   const selectedProvider = providerOptions.find((provider) => provider.id === role.providerKey);
   const selectedProviderType = selectedProvider ? String(selectedProvider.providerType) : "";
@@ -56,22 +62,44 @@ export const AiRoleConfigCard = ({
   return (
     <Card>
       <SectionTitle>AI Role Configuration</SectionTitle>
+      {selectionMode === "ai_selected_universe" && aiPickerEnabled === false ? (
+        <div
+          style={{
+            marginTop: 12,
+            marginBottom: 8,
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid rgba(96,165,250,0.25)",
+            background: "rgba(96,165,250,0.08)",
+            color: "var(--text2)",
+            fontSize: 12,
+            lineHeight: 1.5,
+          }}
+        >
+          AI picker is disabled for this session. Enable it in session settings (create/edit session) to use the
+          instrument selector agent.
+        </div>
+      ) : null}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16, marginBottom: 16 }}>
         {ROLE_ORDER.map((entry) => {
-          const disabledTab = entry === "instrument_selector" && selectionMode === "manual_shortlist";
+          const disabledTabManual = entry === "instrument_selector" && selectionMode === "manual_shortlist";
           return (
             <button
               key={entry}
-              onClick={() => !disabledTab && onTabChange(entry)}
-              title={disabledTab ? "Enable AI-selected universe in session settings to configure this role." : undefined}
+              onClick={() => !disabledTabManual && onTabChange(entry)}
+              title={
+                disabledTabManual
+                  ? "Enable AI-selected universe in session settings to configure this role."
+                  : undefined
+              }
               style={{
                 padding: "7px 10px",
                 borderRadius: 8,
                 border: "1px solid var(--border)",
                 background: activeRole === entry ? "rgba(96,165,250,0.1)" : "var(--surface2)",
-                color: disabledTab ? "var(--text3)" : activeRole === entry ? "#60a5fa" : "var(--text2)",
-                cursor: disabledTab ? "not-allowed" : "pointer",
-                opacity: disabledTab ? 0.6 : 1,
+                color: disabledTabManual ? "var(--text3)" : activeRole === entry ? "#60a5fa" : "var(--text2)",
+                cursor: disabledTabManual ? "not-allowed" : "pointer",
+                opacity: disabledTabManual ? 0.6 : 1,
               }}
             >
               {ROLE_LABELS[entry]}
@@ -87,7 +115,7 @@ export const AiRoleConfigCard = ({
           <select
             value={role.providerKey}
             onChange={(event) => void onRoleChange({ providerKey: event.target.value })}
-            disabled={disabled || selectorDisabled}
+            disabled={disabled || selectorTabLocked}
             style={inputStyle}
           >
             <option value="">Select provider</option>
@@ -103,7 +131,7 @@ export const AiRoleConfigCard = ({
             <input
               value={role.modelId}
               onChange={(event) => void onRoleChange({ modelId: event.target.value })}
-              disabled={disabled || selectorDisabled || !role.providerKey}
+              disabled={disabled || selectorTabLocked || !role.providerKey}
               placeholder="Enter model id"
               style={inputStyle}
             />
@@ -111,7 +139,7 @@ export const AiRoleConfigCard = ({
             <select
               value={role.modelId}
               onChange={(event) => void onRoleChange({ modelId: event.target.value })}
-              disabled={disabled || selectorDisabled || !role.providerKey}
+              disabled={disabled || selectorTabLocked || !role.providerKey}
               style={inputStyle}
             >
               <option value="">Select model</option>
@@ -132,7 +160,7 @@ export const AiRoleConfigCard = ({
               step={0.1}
               value={role.temperature}
               onChange={(event) => void onRoleChange({ temperature: Number(event.target.value) || 0 })}
-              disabled={disabled || selectorDisabled}
+              disabled={disabled || selectorTabLocked}
               style={inputStyle}
             />
           </div>
@@ -144,18 +172,18 @@ export const AiRoleConfigCard = ({
               step={1}
               value={role.maxTokens}
               onChange={(event) => void onRoleChange({ maxTokens: Number(event.target.value) || 0 })}
-              disabled={disabled || selectorDisabled}
+              disabled={disabled || selectorTabLocked}
               style={inputStyle}
             />
           </div>
         </div>
 
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: disabled || selectorDisabled ? "var(--text3)" : "var(--text2)" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: disabled || selectorTabLocked ? "var(--text3)" : "var(--text2)" }}>
           <input
             type="checkbox"
             checked={role.webSearchEnabled}
             onChange={(event) => void onRoleChange({ webSearchEnabled: event.target.checked })}
-            disabled={disabled || selectorDisabled}
+            disabled={disabled || selectorTabLocked}
           />
           Web Search Enabled
         </label>
@@ -163,14 +191,14 @@ export const AiRoleConfigCard = ({
         <div style={{ display: "flex", gap: 6 }}>
           <button
             onClick={() => void onRoleChange({ promptSource: "default" })}
-            disabled={disabled || selectorDisabled}
+            disabled={disabled || selectorTabLocked}
             style={{ ...toggleStyle, ...(role.promptSource === "default" ? activeToggleStyle : {}) }}
           >
             Default Prompt
           </button>
           <button
             onClick={() => void onRoleChange({ promptSource: "session_override" })}
-            disabled={disabled || selectorDisabled}
+            disabled={disabled || selectorTabLocked}
             style={{ ...toggleStyle, ...(role.promptSource === "session_override" ? activeToggleStyle : {}) }}
           >
             Session Override
@@ -184,12 +212,12 @@ export const AiRoleConfigCard = ({
           </div>
           <PromptEditor
             value={role.promptMarkdown}
-            readOnly={role.promptSource === "default" || disabled || selectorDisabled}
+            readOnly={role.promptSource === "default" || disabled || selectorTabLocked}
             onChange={(value) => void onRoleChange({ promptMarkdown: value })}
           />
           {role.promptSource === "session_override" && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-              <button onClick={() => void onResetPrompt()} disabled={disabled || selectorDisabled} style={secondaryButtonStyle}>
+              <button onClick={() => void onResetPrompt()} disabled={disabled || selectorTabLocked} style={secondaryButtonStyle}>
                 Reset to Default Prompt
               </button>
             </div>

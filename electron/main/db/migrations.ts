@@ -103,7 +103,12 @@ export function runMigrations(sqlite: Database.Database): void {
       daily_loss_limit_usd REAL NOT NULL DEFAULT 200,
       profit_target_usd REAL NOT NULL DEFAULT 1000,
       max_ai_spend_usd REAL NOT NULL DEFAULT 5.0,
-      human_approval_required INTEGER NOT NULL DEFAULT 0
+      human_approval_required INTEGER NOT NULL DEFAULT 0,
+      primary_trading_timeframe TEXT NOT NULL DEFAULT '1d',
+      holding_style TEXT NOT NULL DEFAULT 'multi_day_swing',
+      target_hold_days REAL,
+      max_hold_days REAL,
+      timeframe_notes TEXT NOT NULL DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS session_ai_roles (
@@ -272,7 +277,53 @@ export function runMigrations(sqlite: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_approval ON capital_reservations(approval_id);
   `);
 
+  migrateSessionStrategyHorizonColumns(sqlite);
+  migrateSessionInstrumentCache(sqlite);
   seedCompatibilityDefaults(sqlite);
+}
+
+function tableColumnNames(sqlite: Database.Database, table: string): Set<string> {
+  const rows = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  return new Set(rows.map((row) => row.name));
+}
+
+/** Persisted AI instrument selector output (Phase 9). */
+function migrateSessionInstrumentCache(sqlite: Database.Database): void {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS session_instrument_cache (
+      session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+      instruments TEXT NOT NULL,
+      definition_hash TEXT NOT NULL,
+      selected_at TEXT NOT NULL,
+      selector_agent_run_id TEXT REFERENCES agent_runs(id) ON DELETE SET NULL
+    );
+  `);
+}
+
+/** Add timeframe / hold horizon columns when upgrading from older DB files. */
+function migrateSessionStrategyHorizonColumns(sqlite: Database.Database): void {
+  let cols = tableColumnNames(sqlite, "session_strategies");
+  if (!cols.has("primary_trading_timeframe")) {
+    sqlite.exec(
+      "ALTER TABLE session_strategies ADD COLUMN primary_trading_timeframe TEXT NOT NULL DEFAULT '1d'",
+    );
+    cols = tableColumnNames(sqlite, "session_strategies");
+  }
+  if (!cols.has("holding_style")) {
+    sqlite.exec("ALTER TABLE session_strategies ADD COLUMN holding_style TEXT NOT NULL DEFAULT 'multi_day_swing'");
+    cols = tableColumnNames(sqlite, "session_strategies");
+  }
+  if (!cols.has("target_hold_days")) {
+    sqlite.exec("ALTER TABLE session_strategies ADD COLUMN target_hold_days REAL");
+    cols = tableColumnNames(sqlite, "session_strategies");
+  }
+  if (!cols.has("max_hold_days")) {
+    sqlite.exec("ALTER TABLE session_strategies ADD COLUMN max_hold_days REAL");
+    cols = tableColumnNames(sqlite, "session_strategies");
+  }
+  if (!cols.has("timeframe_notes")) {
+    sqlite.exec("ALTER TABLE session_strategies ADD COLUMN timeframe_notes TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 function shouldResetSchema(sqlite: Database.Database): boolean {
@@ -311,7 +362,7 @@ function seedCompatibilityDefaults(sqlite: Database.Database): void {
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
     )
-    .run("default-broker", "Default Broker", "alpaca", '["stock","crypto","futures"]', "paper", "default-broker", now);
+    .run("default-broker", "Default Broker", "mock", '["stock","crypto","futures"]', "paper", "default-broker", now);
 
   sqlite
     .prepare(
@@ -321,6 +372,24 @@ function seedCompatibilityDefaults(sqlite: Database.Database): void {
       `,
     )
     .run("stock", "default-broker");
+
+  sqlite
+    .prepare(
+      `
+      INSERT OR IGNORE INTO broker_routing (instrument_class, default_broker_account_id)
+      VALUES (?, ?)
+      `,
+    )
+    .run("crypto", "default-broker");
+
+  sqlite
+    .prepare(
+      `
+      INSERT OR IGNORE INTO broker_routing (instrument_class, default_broker_account_id)
+      VALUES (?, ?)
+      `,
+    )
+    .run("futures", "default-broker");
 
   sqlite
     .prepare(
@@ -373,8 +442,9 @@ function seedCompatibilityDefaults(sqlite: Database.Database): void {
       INSERT OR IGNORE INTO session_strategies (
         session_id, strategy_profile, max_position_usd, stop_loss_pct, take_profit_pct,
         max_concurrent_trades, research_depth, daily_loss_limit_usd, profit_target_usd,
-        max_ai_spend_usd, human_approval_required
-      ) VALUES (?, 'passive_income', 500, 2, 4, 3, 'balanced', 200, 1000, 5, 0)
+        max_ai_spend_usd, human_approval_required,
+        primary_trading_timeframe, holding_style, target_hold_days, max_hold_days, timeframe_notes
+      ) VALUES (?, 'passive_income', 500, 2, 4, 3, 'balanced', 200, 1000, 5, 0, '1d', 'multi_day_swing', NULL, NULL, '')
       `,
     )
     .run("default-session");

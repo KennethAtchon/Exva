@@ -16,6 +16,7 @@ import type {
   WorkspacePreferences,
   WorkspaceSession,
 } from "@/lib/types";
+import { isHoldingStyle, isTradingTimeframe } from "@electron/shared/domain";
 
 type Row = Record<string, unknown>;
 
@@ -47,7 +48,7 @@ export function toAgentRun(row: Row): AgentRun {
   return {
     id: String(row.id),
     session_id: String(row.session_id),
-    trade_id: nullableString(row.trade_id) ?? "",
+    trade_id: nullableString(row.trade_id),
     agent_type: row.agent_type as AgentRun["agent_type"],
     model: String(row.model),
     input_tokens: Number(row.input_tokens),
@@ -113,6 +114,8 @@ export function toSessionSelectorSettings(row: Row): SessionSelectorSettings {
 }
 
 export function toSessionStrategy(row: Row): SessionStrategy {
+  const primaryTf = row.primary_trading_timeframe;
+  const holdStyle = row.holding_style;
   return {
     sessionId: String(row.session_id),
     strategyProfile: row.strategy_profile as SessionStrategy["strategyProfile"],
@@ -125,6 +128,11 @@ export function toSessionStrategy(row: Row): SessionStrategy {
     profitTargetUsd: Number(row.profit_target_usd),
     maxAiSpendUsd: Number(row.max_ai_spend_usd),
     humanApprovalRequired: Boolean(row.human_approval_required),
+    primaryTradingTimeframe: isTradingTimeframe(primaryTf) ? primaryTf : "1d",
+    holdingStyle: isHoldingStyle(holdStyle) ? holdStyle : "multi_day_swing",
+    targetHoldDays: nullableNumber(row.target_hold_days),
+    maxHoldDays: nullableNumber(row.max_hold_days),
+    timeframeNotes: row.timeframe_notes != null ? String(row.timeframe_notes) : "",
   };
 }
 

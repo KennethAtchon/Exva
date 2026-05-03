@@ -94,6 +94,11 @@ const strategy: SessionStrategy = {
   profitTargetUsd: 1000,
   maxAiSpendUsd: 5.0,
   humanApprovalRequired: false,
+  primaryTradingTimeframe: "1d",
+  holdingStyle: "multi_day_swing",
+  targetHoldDays: null,
+  maxHoldDays: null,
+  timeframeNotes: "",
 };
 
 const providers: ProviderAccount[] = [

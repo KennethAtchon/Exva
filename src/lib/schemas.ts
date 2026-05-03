@@ -58,6 +58,21 @@ export const listTradesFiltersSchema = z.object({
   executionMode: z.enum(["paper_only", "live_allowed"]).optional(),
 });
 
+export const instrumentSelectionSchema = z.object({
+  instruments: z
+    .array(
+      z.object({
+        symbol: z.string().min(1).max(32).transform((s) => s.trim().toUpperCase()),
+        instrumentClass: z.enum(["stock", "crypto", "futures"]),
+        rationale: z.string().optional(),
+      }),
+    )
+    .min(1)
+    .max(50),
+});
+
+export type InstrumentSelection = z.infer<typeof instrumentSelectionSchema>;
+
 export const tradeDecisionSchema = z.object({
   action: z.enum(["trade", "no_trade"]),
   side: tradeSideSchema.optional(),
@@ -107,4 +122,35 @@ export const providerAccountSaveSchema = z.object({
 
 export const providerAccountTestSchema = z.object({
   id: z.string().min(1),
+});
+
+export const instrumentClassSchema = z.enum(["stock", "crypto", "futures"]);
+
+export const brokerTypeSchema = z.enum(["alpaca", "coinbase_advanced_trade", "tradovate", "mock"]);
+
+export const brokerAccountAddSchema = z.object({
+  id: z.string().min(1).optional(),
+  brokerType: brokerTypeSchema,
+  name: z.string().min(1),
+  mode: z.enum(["paper", "live"]),
+  credentials: z.record(z.string()),
+});
+
+export const brokerAccountIdSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const brokerTestEphemeralSchema = z.object({
+  brokerType: brokerTypeSchema,
+  mode: z.enum(["paper", "live"]),
+  credentials: z.record(z.string()),
+});
+
+export const brokerRoutingUpdateSchema = z.object({
+  routing: z.array(
+    z.object({
+      instrumentClass: instrumentClassSchema,
+      defaultBrokerAccountId: z.string().min(1),
+    }),
+  ),
 });

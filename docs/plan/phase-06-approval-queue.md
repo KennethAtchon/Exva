@@ -13,6 +13,7 @@
 2. On app restart, pending approvals remain visible and actionable, but approving an old item must trigger a fresh decision/risk pass rather than resuming the exact old order intent.
 3. The dashboard renders a `Pending Approvals` panel (session mode = filtered; global mode = aggregated).
 4. The user resolves approvals via `approval:decide` IPC call.
+5. Human-facing approval copy includes the session’s **timeframe and hold intent** (from `SessionStrategy`: primary timeframe, holding style, optional target/max hold days) inside `decisionSummaryJson` or an adjacent UI field so approvers judge the trade against the same horizon the agents used.
 
 ## Hard Problems
 

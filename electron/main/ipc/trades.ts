@@ -45,11 +45,12 @@ export function registerTradeHandlers(services: AppServices): void {
     const { tradeId } = tradeIdSchema.parse(payload);
     const trade = services.repos.trades.require(tradeId);
     let pnl = 0;
-    if (trade.broker_order_id) {
-      const result = await services.broker.closeOrder(trade.broker_order_id);
+    if (trade.broker_order_id && trade.brokerAccountId) {
+      const result = await services.broker.closeOrder(trade.brokerAccountId, trade.broker_order_id);
       pnl = result.realizedPnlUsd;
     }
     const closed = services.repos.trades.updateStatus(tradeId, "closed", pnl);
+    services.capitalReservation.releaseOnClose(tradeId);
     services.eventBus.emit("trade_closed", closed);
   });
 

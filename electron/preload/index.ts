@@ -1,11 +1,16 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { channels, mainToRendererEvents, type ExvaEventName } from "@electron/shared/channels";
+import { sessionIdParamSchema } from "../shared/schemas";
 import {
   apiKeySchema,
   approvalDecideSchema,
   approvalListFiltersSchema,
   approveTradeSchema,
+  brokerAccountAddSchema,
+  brokerAccountIdSchema,
   brokerCredentialsSchema,
+  brokerRoutingUpdateSchema,
+  brokerTestEphemeralSchema,
   eventFiltersSchema,
   listTradesFiltersSchema,
   providerAccountSaveSchema,
@@ -46,6 +51,10 @@ const exva: ExvaApi = {
     goGlobal: () => invoke(channels.session.goGlobal, { mode: "global" }),
     archive: (id) => invoke(channels.session.archive, { id }),
     duplicate: (sourceId, name) => invoke(channels.session.duplicate, { sourceId, name }),
+    instrumentCacheGet: (sessionId) =>
+      invoke(channels.session.instrumentCacheGet, sessionIdParamSchema.parse({ sessionId })),
+    instrumentCacheClear: (sessionId) =>
+      invoke(channels.session.instrumentCacheClear, sessionIdParamSchema.parse({ sessionId })),
   },
   strategy: {
     get: (sessionId) => invoke(channels.strategy.get, { sessionId }),
@@ -78,6 +87,14 @@ const exva: ExvaApi = {
     listProviders: () => invoke(channels.accounts.listProviders),
     saveProvider: (input) => invoke(channels.accounts.saveProvider, providerAccountSaveSchema.parse(input)),
     testProvider: (input) => invoke(channels.accounts.testProvider, providerAccountTestSchema.parse(input)),
+    listBrokers: () => invoke(channels.accounts.listBrokers),
+    addBroker: (input) => invoke(channels.accounts.addBroker, brokerAccountAddSchema.parse(input)),
+    removeBrokerAccount: (input) => invoke(channels.accounts.removeBrokerAccount, brokerAccountIdSchema.parse(input)),
+    testBrokerAccount: (input) => invoke(channels.accounts.testBrokerAccount, brokerAccountIdSchema.parse(input)),
+    testBrokerEphemeral: (input) =>
+      invoke(channels.accounts.testBrokerEphemeral, brokerTestEphemeralSchema.parse(input)),
+    routingGet: () => invoke(channels.accounts.routingGet),
+    routingUpdate: (input) => invoke(channels.accounts.routingUpdate, brokerRoutingUpdateSchema.parse(input)),
   },
   approvals: {
     list: (filters) => invoke(channels.approvals.list, approvalListFiltersSchema.parse(filters ?? {})),

@@ -66,6 +66,57 @@ export class CapitalReservationsRepo {
     return Number(row.total ?? 0);
   }
 
+  listActiveBySession(sessionId: string): CapitalReservation[] {
+    const rows = this.client.sqlite
+      .prepare(
+        "SELECT * FROM capital_reservations WHERE session_id = ? AND status IN ('reserved', 'consumed') ORDER BY created_at ASC",
+      )
+      .all(sessionId) as Record<string, unknown>[];
+    return rows.map(toCapitalReservation);
+  }
+
+  convertOrderToPosition(tradeId: string): void {
+    this.client.sqlite
+      .prepare(
+        `
+        UPDATE capital_reservations
+        SET reason = 'open_position'
+        WHERE trade_id = ? AND status = 'consumed' AND reason = 'open_order'
+        `,
+      )
+      .run(tradeId);
+  }
+
+  releaseOnCancel(tradeId: string): void {
+    const now = new Date().toISOString();
+    this.client.sqlite
+      .prepare(
+        `
+        UPDATE capital_reservations
+        SET status = 'released', released_at = ?
+        WHERE trade_id = ? AND status = 'consumed' AND reason = 'open_order'
+        `,
+      )
+      .run(now, tradeId);
+  }
+
+  releaseOnFailure(tradeId: string): void {
+    this.releaseOnCancel(tradeId);
+  }
+
+  releaseOnClose(tradeId: string): void {
+    const now = new Date().toISOString();
+    this.client.sqlite
+      .prepare(
+        `
+        UPDATE capital_reservations
+        SET status = 'released', released_at = ?
+        WHERE trade_id = ? AND status = 'consumed' AND reason IN ('open_order', 'open_position')
+        `,
+      )
+      .run(now, tradeId);
+  }
+
   private require(id: string): CapitalReservation {
     const row = this.client.sqlite
       .prepare("SELECT * FROM capital_reservations WHERE id = ?")

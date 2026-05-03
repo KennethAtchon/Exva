@@ -3,6 +3,7 @@ import { Card, PageShell, SectionTitle } from "@/components/atoms";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiRoleConfigCard } from "@/components/strategy/AiRoleConfigCard";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";
+import { TimeframeHorizonCard } from "@/components/strategy/TimeframeHorizonCard";
 import { api } from "@/lib/exva";
 import { useSessionStore } from "@/store/sessionStore";
 import { useStrategyStore } from "@/store/strategyStore";
@@ -20,12 +21,14 @@ export const StrategyConfig = () => {
   const aiRoles = useStrategyStore((state) => state.aiRoles);
   const providers = useStrategyStore((state) => state.providers);
   const selectionMode = useStrategyStore((state) => state.selectionMode);
+  const selectorSettings = useStrategyStore((state) => state.selectorSettings);
   const dirtyFields = useStrategyStore((state) => state.dirtyFields);
   const activeRoleTab = useStrategyStore((state) => state.activeRoleTab);
   const providerModels = useStrategyStore((state) => state.providerModels);
   const isSaving = useStrategyStore((state) => state.isSaving);
   const pageState = useStrategyStore((state) => state.state);
   const roleErrors = useStrategyStore((state) => state.roleErrors);
+  const strategyErrors = useStrategyStore((state) => state.strategyErrors);
   const loadStrategy = useStrategyStore((state) => state.loadStrategy);
   const updateStrategy = useStrategyStore((state) => state.updateStrategy);
   const updateRole = useStrategyStore((state) => state.updateRole);
@@ -69,6 +72,14 @@ export const StrategyConfig = () => {
   return (
     <PageShell>
       <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
+
+      {strategyErrors.length > 0 && (
+        <div style={{ ...warningStyle, marginBottom: 12, borderColor: "rgba(248,113,113,0.28)", color: "#fca5a5" }}>
+          {strategyErrors.map((message) => (
+            <div key={message}>{message}</div>
+          ))}
+        </div>
+      )}
 
       {isLocked && (
         <div style={warningStyle}>
@@ -157,6 +168,7 @@ export const StrategyConfig = () => {
               </label>
             </div>
           </Card>
+          <TimeframeHorizonCard strategy={strategy} disabled={isLocked} onChange={updateStrategy} />
           <CostSummaryCard strategy={strategy} roleProviders={roleProviderSummary} />
           <Card>
             <SectionTitle>Prompt assets</SectionTitle>
@@ -182,6 +194,7 @@ export const StrategyConfig = () => {
           providers={providers}
           models={providerModels[currentRole.providerKey] ?? []}
           selectionMode={selectionMode}
+          aiPickerEnabled={selectorSettings?.aiPickerEnabled ?? true}
           disabled={isLocked}
           errors={roleErrors[activeRoleTab]}
           roleErrors={roleErrors}

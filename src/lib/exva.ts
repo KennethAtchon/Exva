@@ -2,7 +2,9 @@ import type {
   AgentRole,
   AgentRun,
   ApprovalSummary,
+  BrokerAccount,
   BrokerCredentials,
+  BrokerRoutingDefault,
   ConnectionTestResult,
   CostBreakdown,
   DashboardStats,
@@ -139,6 +141,8 @@ export const api = {
   goGlobal: () => bridge().session.goGlobal(),
   archiveSession: (id: string) => bridge().session.archive(id),
   duplicateSession: (sourceId: string, name: string) => bridge().session.duplicate(sourceId, name),
+  getSessionInstrumentCache: (sessionId: string) => bridge().session.instrumentCacheGet(sessionId),
+  clearSessionInstrumentCache: (sessionId: string) => bridge().session.instrumentCacheClear(sessionId),
 
   getWorkspaceView: (): Promise<WorkspaceViewResponse> => bridge().workspace.getView(),
   patchWorkspacePreferences: (patch: Partial<Omit<WorkspacePreferences, "id">>) =>
@@ -179,6 +183,26 @@ export const api = {
     metadata?: { baseUrl?: string };
   }): Promise<{ id: string; isConfigured: boolean }> => bridge().accounts.saveProvider(input),
   testProvider: (id: string): Promise<{ ok: boolean; error?: string }> => bridge().accounts.testProvider({ id }),
+
+  listBrokerAccounts: (): Promise<{ brokers: BrokerAccount[] }> => bridge().accounts.listBrokers(),
+  registerBrokerAccount: (input: {
+    id?: string;
+    brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "mock";
+    name: string;
+    mode: "paper" | "live";
+    credentials: Record<string, string>;
+  }) => bridge().accounts.addBroker(input),
+  deleteBrokerAccount: (id: string) => bridge().accounts.removeBrokerAccount({ id }),
+  testSavedBrokerAccount: (id: string): Promise<ConnectionTestResult> =>
+    bridge().accounts.testBrokerAccount({ id }),
+  testBrokerCredentials: (input: {
+    brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "mock";
+    mode: "paper" | "live";
+    credentials: Record<string, string>;
+  }): Promise<ConnectionTestResult> => bridge().accounts.testBrokerEphemeral(input),
+  getBrokerRoutingDefaults: (): Promise<{ routing: BrokerRoutingDefault[] }> => bridge().accounts.routingGet(),
+  saveBrokerRoutingDefaults: (routing: BrokerRoutingDefault[]) =>
+    bridge().accounts.routingUpdate({ routing }),
 
   getEvents: (filters?: {
     minLevel?: string;

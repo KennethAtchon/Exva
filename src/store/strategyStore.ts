@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { validateSessionStrategyTimeframeFields } from "../../electron/shared/domain";
 import { api, type ProviderModelEntry, type StrategyGetResponse } from "@/lib/exva";
 import type { AgentRole, SessionAiRole, SessionStrategy } from "@/lib/types";
 
@@ -17,6 +18,7 @@ interface StrategyStoreState {
   activeRoleTab: AgentRole;
   providerModels: Record<string, ProviderModelEntry[]>;
   roleErrors: Record<AgentRole, string[]>;
+  strategyErrors: string[];
   isSaving: boolean;
   isLocked: boolean;
   state: StrategyPageState;
@@ -49,6 +51,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   activeRoleTab: "researcher_bull",
   providerModels: {},
   roleErrors: emptyRoleErrors(),
+  strategyErrors: [],
   isSaving: false,
   isLocked: false,
   state: "no_session",
@@ -78,6 +81,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       activeRoleTab: "researcher_bull",
       providerModels,
       roleErrors: emptyRoleErrors(),
+      strategyErrors: [],
       isSaving: false,
       isLocked: result.sessionStatus === "active" || result.sessionStatus === "paused",
       state: result.sessionStatus === "active" || result.sessionStatus === "paused" ? "locked" : "editable",
@@ -88,7 +92,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     if (!strategy) return;
     const dirtyFields = new Set(get().dirtyFields);
     for (const key of Object.keys(patch)) dirtyFields.add(`strategy.${key}`);
-    set({ strategy: { ...strategy, ...patch }, dirtyFields });
+    set({ strategy: { ...strategy, ...patch }, dirtyFields, strategyErrors: [] });
   },
   updateRole: async (role, patch) => {
     const current = get().aiRoles[role];
@@ -116,16 +120,23 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   saveAll: async (sessionId) => {
     const strategy = get().strategy;
     if (!strategy) return;
+    try {
+      validateSessionStrategyTimeframeFields(strategy);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Invalid timeframe fields.";
+      set({ strategyErrors: [message] });
+      return;
+    }
     const roleErrors = validateRoles(get());
     const hasErrors = Object.values(roleErrors).some((errors) => errors.length > 0);
     if (hasErrors) {
-      set({ roleErrors });
+      set({ roleErrors, strategyErrors: [] });
       return;
     }
-    set({ isSaving: true });
+    set({ isSaving: true, strategyErrors: [] });
     try {
       await api.saveStrategy({ sessionId, strategy, aiRoles: Object.values(get().aiRoles) });
-      set({ dirtyFields: new Set(), dirtyRoles: new Set(), roleErrors: emptyRoleErrors() });
+      set({ dirtyFields: new Set(), dirtyRoles: new Set(), roleErrors: emptyRoleErrors(), strategyErrors: [] });
     } finally {
       set({ isSaving: false });
     }
@@ -169,6 +180,10 @@ function validateRoles(state: StrategyStoreState): Record<AgentRole, string[]> {
   const errors = emptyRoleErrors();
 
   for (const role of Object.values(state.aiRoles)) {
+    if (role.role === "instrument_selector") {
+      if (state.selectionMode === "manual_shortlist") continue;
+      if (state.selectorSettings && !state.selectorSettings.aiPickerEnabled) continue;
+    }
     const provider = state.providers.find((entry) => entry.id === role.providerKey);
     if (!provider || !provider.isConfigured) {
       errors[role.role].push("Connect this provider in Accounts before assigning it to a role.");

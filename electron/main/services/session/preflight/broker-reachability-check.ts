@@ -3,10 +3,6 @@ import type { OrchestratorDeps, PreflightStepFailure } from "../session-types";
 
 type StepResult = { ok: true } | PreflightStepFailure;
 
-/**
- * Verifies each broker assigned to the session exists, then runs a single adapter connectivity test
- * (current app uses one live broker adapter in BrokerService).
- */
 export async function brokerReachabilityCheck(session: WorkspaceSession, deps: OrchestratorDeps): Promise<StepResult> {
   const assignedIds = deps.sessionBrokerAssignmentsRepo.listBrokerAccountIds(session.id);
   if (assignedIds.length === 0) {
@@ -40,33 +36,31 @@ export async function brokerReachabilityCheck(session: WorkspaceSession, deps: O
   }
 
   for (const ic of session.instrumentClasses) {
-    const resolved = deps.brokerRoutingRepo.resolveBrokerAccountId(session.id, ic);
-    if (!resolved) {
+    try {
+      deps.brokerRouting.resolveBrokerAccountId(session.id, ic);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         ok: false,
         code: "NO_BROKER",
-        message: `No broker routing is configured for instrument class "${ic}". Set defaults in Accounts or session overrides.`,
+        message: `Cannot resolve broker for instrument class "${ic}": ${message}`,
         details: { instrumentClass: ic },
-      };
-    }
-    if (!assignedIds.includes(resolved)) {
-      return {
-        ok: false,
-        code: "ROUTING_AMBIGUOUS",
-        message: `Resolved broker for ${ic} is not among this session's assigned brokers.`,
-        details: { instrumentClass: ic, brokerAccountId: resolved },
       };
     }
   }
 
-  const result = await deps.broker.testConnection();
-  if (!result.ok) {
-    return {
-      ok: false,
-      code: "BROKER_UNREACHABLE",
-      message: result.message || "Broker is not reachable.",
-      details: { brokerMessage: result.message },
-    };
+  for (const brokerAccountId of assignedIds) {
+    const adapter = await deps.brokerRegistry.get(brokerAccountId);
+    const result = await adapter.testConnection();
+    if (!result.ok) {
+      return {
+        ok: false,
+        code: "BROKER_UNREACHABLE",
+        message: result.message || `Broker ${brokerAccountId} is not reachable.`,
+        details: { brokerAccountId, brokerMessage: result.message },
+      };
+    }
   }
+
   return { ok: true };
 }

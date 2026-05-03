@@ -13,10 +13,13 @@ import { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts
 import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
+import { SessionStrategiesRepo } from "../../../db/repositories/session-strategies-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
+import { InstrumentCacheRepo } from "../../../db/repositories/instrument-cache-repo";
 import { EventBus } from "../../infra/event-bus";
 import { createLogger } from "../../infra/log";
 import { SessionRuntimeManager } from "../session-runtime-manager";
+import type { CapitalReservationService } from "../../risk/capital-reservation-service";
 
 describe("SessionRuntimeManager", () => {
   let db = createTestDb();
@@ -100,6 +103,7 @@ function createManager(
 
   return new SessionRuntimeManager({
     sessionRepo,
+    sessionStrategiesRepo: new SessionStrategiesRepo(db),
     tradesRepo,
     tradeApprovalsRepo,
     agentRunsRepo,
@@ -110,11 +114,31 @@ function createManager(
     providerAccountsRepo: new ProviderAccountsRepo(db),
     workspacePreferencesRepo: new WorkspacePreferencesRepo(db),
     capitalReservationsRepo: new CapitalReservationsRepo(db),
+    capitalReservation: {
+      checkSessionStartFits: () => ({ ok: true as const }),
+      reserveForApproval: () => ({}) as never,
+      releaseByApproval: () => undefined,
+      convertApprovalToOpenOrder: () => undefined,
+      convertOrderToPosition: () => undefined,
+      releaseOnCancel: () => undefined,
+      releaseOnFailure: () => undefined,
+      releaseOnClose: () => undefined,
+      sumActiveReservedUsd: () => 0,
+      listActiveBySession: () => [],
+      updateReservedAmountForApproval: () => undefined,
+    } as unknown as CapitalReservationService,
     brokerRoutingRepo: new BrokerRoutingRepo(db),
     sessionBrokerAssignmentsRepo: new SessionBrokerAssignmentsRepo(db),
     brokerAccountsRepo: new BrokerAccountsRepo(db),
+    brokerRegistry: {} as never,
+    brokerRouting: {
+      resolveBrokerAccountId: () => "default-broker",
+      resolveAdapter: async () => ({}) as never,
+      preflightSession: async () => undefined,
+    } as never,
+    instrumentNormalizer: { toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol } as never,
+    instrumentCacheRepo: new InstrumentCacheRepo(db),
     ai: {} as never,
-    broker: {} as never,
     riskEngine: {} as never,
     bus: eventBus,
     logger: createLogger("runtime-manager-test"),

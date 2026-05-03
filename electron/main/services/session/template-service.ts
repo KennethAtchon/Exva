@@ -171,6 +171,11 @@ export class SessionTemplateService {
         profitTargetUsd: strategy.profitTargetUsd,
         maxAiSpendUsd: strategy.maxAiSpendUsd,
         humanApprovalRequired: strategy.humanApprovalRequired,
+        primaryTradingTimeframe: strategy.primaryTradingTimeframe,
+        holdingStyle: strategy.holdingStyle,
+        targetHoldDays: strategy.targetHoldDays,
+        maxHoldDays: strategy.maxHoldDays,
+        timeframeNotes: strategy.timeframeNotes,
       },
       aiRoles: aiRoles.map((role) => ({
         role: role.role,

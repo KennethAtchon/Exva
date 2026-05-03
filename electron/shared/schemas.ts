@@ -6,6 +6,8 @@ export const executionModeSchema = z.enum(["paper_only", "live_allowed"]);
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
 export const researchDepthSchema = z.enum(["light", "balanced", "deep"]);
 export const strategyProfileSchema = z.enum(["passive_income", "growth", "conservative", "custom"]);
+export const tradingTimeframeSchema = z.enum(["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]);
+export const holdingStyleSchema = z.enum(["intraday_flat", "multi_day_swing", "weeks_position", "custom"]);
 export const agentRoleSchema = z.enum([
   "researcher_bull",
   "researcher_bear",
@@ -42,6 +44,11 @@ export const sessionStrategyPayloadSchema = z.object({
   profitTargetUsd: z.number().nonnegative(),
   maxAiSpendUsd: z.number().nonnegative(),
   humanApprovalRequired: z.boolean(),
+  primaryTradingTimeframe: tradingTimeframeSchema.default("1d"),
+  holdingStyle: holdingStyleSchema.default("multi_day_swing"),
+  targetHoldDays: z.union([z.number().nonnegative(), z.null()]).optional().default(null),
+  maxHoldDays: z.union([z.number().nonnegative(), z.null()]).optional().default(null),
+  timeframeNotes: z.string().optional().default(""),
 });
 
 export const sessionAiRolePayloadSchema = z.object({
@@ -106,3 +113,5 @@ export const sessionDuplicateInputSchema = z.object({
   sourceId: z.string().min(1),
   name: z.string().min(1).max(80),
 });
+
+export const sessionIdParamSchema = z.object({ sessionId: z.string().min(1) });

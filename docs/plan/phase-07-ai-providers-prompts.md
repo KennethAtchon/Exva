@@ -18,12 +18,14 @@
 3. System prompts loaded from `electron/prompts/*.md` at runtime.
 4. Per-session, per-role provider+model+prompt resolved at call time from `SessionAiRole` rows.
 5. Web search provider resolution is explicit: session default first, workspace default second, no per-role search-provider picker in v1.
+6. Every researcher / reviewer / decision-maker call receives the session’s **timeframe and holding-horizon** block (from `SessionStrategy`: `primaryTradingTimeframe`, `holdingStyle`, optional `targetHoldDays` / `maxHoldDays`, `timeframeNotes`) prepended or appended to the user prompt so model behavior matches the Strategy page (Phase 5). Instrument selector runs include the same block when AI universe selection is enabled.
 
 ## Hard Problems
 
 1. **Key injection at call time** — the Vercel AI SDK pattern (`anthropic(model)`) requires the API key in the environment. For multi-provider support, each adapter must inject its own key without polluting `process.env` globally. Use adapter-level key resolution instead.
 2. **Provider SDK tree shaking** — `@ai-sdk/anthropic`, `@ai-sdk/openai` are separate npm packages. Only include the ones actually configured by the user. Use dynamic `import()` inside each adapter to avoid loading unused SDKs at startup.
 3. **Prompt versioning in v1** — version is a header in each Markdown file (`<!-- version: 1.0.0 -->`). The loader extracts it. No history — latest snapshot only, matching the spec.
+4. **Timeframe context vs token budget** — the strategy horizon block is short (structured text, typically under a few hundred characters). If `timeframeNotes` is very long, truncation with ellipsis is acceptable for v1; full notes remain visible on the Strategy page.
 
 ## Provider Adapter Interface
 
@@ -202,6 +204,29 @@ export class ProviderRegistry {
 }
 ```
 
+## Session timeframe block (injected into user prompts)
+
+Add a small pure helper (e.g. `electron/main/services/ai/strategy-prompt-context.ts` or next to orchestrator):
+
+```typescript
+import type { SessionStrategy } from "../../../shared/domain";
+
+/** Fixed template so every role sees the same facts before task-specific content. */
+export function buildStrategyTimeframeContext(s: SessionStrategy): string {
+  const lines = [
+    "## Session trading horizon (authoritative)",
+    `- Primary timeframe: ${s.primaryTradingTimeframe}`,
+    `- Holding style: ${s.holdingStyle}`,
+    s.targetHoldDays != null ? `- Target hold: ~${s.targetHoldDays} calendar days` : null,
+    s.maxHoldDays != null ? `- Max hold: ${s.maxHoldDays} calendar days` : null,
+    s.timeframeNotes.trim() ? `- Notes: ${s.timeframeNotes.trim()}` : null,
+  ].filter(Boolean);
+  return lines.join("\n");
+}
+```
+
+**Wiring:** `AgentOrchestrator` (or `AiRuntime` if it receives `SessionStrategiesRepo`) loads `SessionStrategy` for `sessionId`, builds the block once per step, and passes `buildStrategyTimeframeContext(strategy) + "\n\n" + userPrompt` into `runRole` / `runDecisionRole`. Default bundled prompts (below) instruct roles to treat this block as binding for invalidation speed and position-management tone.
+
 ## AI Runtime (replaces `AiSdkService`)
 
 File: `electron/main/services/ai/ai-runtime.ts`
@@ -270,6 +295,7 @@ You are the bull researcher. Your job is to build the strongest evidence-backed
 long thesis for the given instrument.
 
 ## Instructions
+- Honor the **Session trading horizon** section in the user message: align setups, indicators, and catalysts with that timeframe and intended hold length; do not argue for a multi-week position when the session is intraday_flat unless the user notes explicitly allow it.
 - Focus on growth catalysts, technical momentum, and fundamental tailwinds.
 - Cite specific data points when available.
 - Do not hedge — present the strongest plausible bull case.
@@ -486,6 +512,7 @@ The same policy applies to broker adapter calls in Phase 8 with one difference: 
 
 | Action | File |
 |--------|------|
+| Create | `electron/main/services/ai/strategy-prompt-context.ts` — `buildStrategyTimeframeContext` |
 | Create | `electron/main/services/ai/index.ts` |
 | Create | `electron/main/services/ai/adapters/provider-adapter.ts` |
 | Create | `electron/main/services/ai/adapters/anthropic-adapter.ts` |
@@ -522,3 +549,4 @@ The same policy applies to broker adapter calls in Phase 8 with one difference: 
 - Provider test returns `{ ok: true }` for a correctly configured provider, `{ ok: false }` with error for bad key.
 - When web search is enabled, the runtime resolves the provider from session default first and workspace default second.
 - TypeScript compiles; `AiSdkService` is fully removed.
+- Researcher, reviewer, decision-maker, and (when used) instrument-selector prompts receive `buildStrategyTimeframeContext(sessionStrategy)` ahead of the task-specific user prompt on every run.

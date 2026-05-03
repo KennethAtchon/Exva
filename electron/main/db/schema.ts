@@ -62,6 +62,11 @@ export const sessionStrategies = sqliteTable("session_strategies", {
   profitTargetUsd: real("profit_target_usd").notNull().default(1000),
   maxAiSpendUsd: real("max_ai_spend_usd").notNull().default(5),
   humanApprovalRequired: integer("human_approval_required", { mode: "boolean" }).notNull().default(false),
+  primaryTradingTimeframe: text("primary_trading_timeframe").notNull().default("1d"),
+  holdingStyle: text("holding_style").notNull().default("multi_day_swing"),
+  targetHoldDays: real("target_hold_days"),
+  maxHoldDays: real("max_hold_days"),
+  timeframeNotes: text("timeframe_notes").notNull().default(""),
 });
 
 export const sessionAiRoles = sqliteTable("session_ai_roles", {
@@ -177,6 +182,16 @@ export const agentRuns = sqliteTable("agent_runs", {
   outputText: text("output_text").notNull(),
   durationMs: integer("duration_ms").notNull(),
   createdAt: text("created_at").notNull(),
+});
+
+export const sessionInstrumentCache = sqliteTable("session_instrument_cache", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  instruments: text("instruments").notNull(),
+  definitionHash: text("definition_hash").notNull(),
+  selectedAt: text("selected_at").notNull(),
+  selectorAgentRunId: text("selector_agent_run_id").references(() => agentRuns.id, { onDelete: "set null" }),
 });
 
 export const events = sqliteTable("events", {

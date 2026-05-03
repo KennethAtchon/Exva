@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { Badge } from "@/components/atoms";
 import { fmt } from "@/lib/formatters";
 import type { ApprovalSummary } from "@/lib/types";
@@ -69,6 +69,8 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
             Session: <strong style={{ color: "var(--text1)" }}>{approval.sessionName}</strong>
           </p>
         )}
+
+        {renderSessionHorizon(summary.sessionHorizon)}
 
         <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)" }}>
           <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 6 }}>Decision snapshot</div>
@@ -176,3 +178,34 @@ const btnGhost: CSSProperties = {
   borderColor: "var(--border)",
   color: "var(--text2)",
 };
+
+function renderSessionHorizon(value: unknown): ReactNode {
+  if (!value || typeof value !== "object") return null;
+  const h = value as Record<string, unknown>;
+  const tf = typeof h.primaryTradingTimeframe === "string" ? h.primaryTradingTimeframe : null;
+  const hs = typeof h.holdingStyle === "string" ? h.holdingStyle : null;
+  if (!tf && !hs) return null;
+  const target = h.targetHoldDays;
+  const max = h.maxHoldDays;
+  const notes = typeof h.timeframeNotes === "string" && h.timeframeNotes.trim() ? h.timeframeNotes.trim() : null;
+  return (
+    <div
+      style={{
+        marginTop: 4,
+        padding: 12,
+        borderRadius: 10,
+        background: "rgba(96,165,250,0.08)",
+        border: "1px solid rgba(96,165,250,0.22)",
+      }}
+    >
+      <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 8 }}>Session trading horizon</div>
+      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--text2)", lineHeight: 1.55 }}>
+        {tf ? <li>Primary timeframe: {tf}</li> : null}
+        {hs ? <li>Holding style: {hs}</li> : null}
+        {typeof target === "number" ? <li>Target hold: ~{target} days</li> : null}
+        {typeof max === "number" ? <li>Max hold: {max} days</li> : null}
+        {notes ? <li>Notes: {notes}</li> : null}
+      </ul>
+    </div>
+  );
+}

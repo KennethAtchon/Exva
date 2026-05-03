@@ -7,6 +7,76 @@ export type SelectionMode = "manual_shortlist" | "ai_selected_universe";
 export type ExecutionMode = "paper_only" | "live_allowed";
 export type ResearchDepth = "light" | "balanced" | "deep";
 export type StrategyProfile = "passive_income" | "growth" | "conservative" | "custom";
+
+/** Bar size the session uses for analysis and agent context. */
+export type TradingTimeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
+
+/** Coarse intended hold length — steers prompts and approval copy. */
+export type HoldingStyle = "intraday_flat" | "multi_day_swing" | "weeks_position" | "custom";
+
+export const TRADING_TIMEFRAMES: readonly TradingTimeframe[] = [
+  "1m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "4h",
+  "1d",
+  "1w",
+];
+
+export const HOLDING_STYLES: readonly HoldingStyle[] = [
+  "intraday_flat",
+  "multi_day_swing",
+  "weeks_position",
+  "custom",
+];
+
+export function isTradingTimeframe(value: unknown): value is TradingTimeframe {
+  return typeof value === "string" && (TRADING_TIMEFRAMES as readonly string[]).includes(value);
+}
+
+export function isHoldingStyle(value: unknown): value is HoldingStyle {
+  return typeof value === "string" && (HOLDING_STYLES as readonly string[]).includes(value);
+}
+
+/** Injected ahead of task-specific user prompts (Phase 7 orchestration). */
+export function buildStrategyTimeframeContext(s: SessionStrategy): string {
+  const lines = [
+    "## Session trading horizon (authoritative)",
+    `- Primary timeframe: ${s.primaryTradingTimeframe}`,
+    `- Holding style: ${s.holdingStyle}`,
+    s.targetHoldDays != null ? `- Target hold: ~${s.targetHoldDays} calendar days` : null,
+    s.maxHoldDays != null ? `- Max hold: ${s.maxHoldDays} calendar days` : null,
+    s.timeframeNotes.trim() ? `- Notes: ${s.timeframeNotes.trim()}` : null,
+  ].filter(Boolean) as string[];
+  return lines.join("\n");
+}
+
+export function validateSessionStrategyTimeframeFields(s: SessionStrategy): void {
+  if (!isTradingTimeframe(s.primaryTradingTimeframe)) {
+    throw new Error("Select a primary trading timeframe.");
+  }
+  if (!isHoldingStyle(s.holdingStyle)) {
+    throw new Error("Select a holding style.");
+  }
+  if (s.targetHoldDays != null && s.targetHoldDays < 0) {
+    throw new Error("Hold days cannot be negative.");
+  }
+  if (s.maxHoldDays != null && s.maxHoldDays < 0) {
+    throw new Error("Hold days cannot be negative.");
+  }
+  if (s.targetHoldDays != null && s.maxHoldDays != null && s.maxHoldDays < s.targetHoldDays) {
+    throw new Error("Max hold must be greater than or equal to target hold.");
+  }
+}
+
+/** Non-blocking UX hint: intraday intent with very slow primary bar. */
+export function timeframeHoldMismatchWarning(s: SessionStrategy): string | null {
+  if (s.holdingStyle !== "intraday_flat") return null;
+  if (s.primaryTradingTimeframe !== "1d" && s.primaryTradingTimeframe !== "1w") return null;
+  return "Intraday style usually uses intraday timeframes; consider 5m–1h.";
+}
 export type WorkspaceViewMode = "session" | "global";
 export type CapitalAllocationMode = "per_session_only" | "shared_global_pool";
 
@@ -86,6 +156,11 @@ export interface SessionStrategy {
   profitTargetUsd: number;
   maxAiSpendUsd: number;
   humanApprovalRequired: boolean;
+  primaryTradingTimeframe: TradingTimeframe;
+  holdingStyle: HoldingStyle;
+  targetHoldDays: number | null;
+  maxHoldDays: number | null;
+  timeframeNotes: string;
 }
 
 export interface SessionAiRole {
@@ -230,7 +305,8 @@ export interface Trade {
 export interface AgentRun {
   id: string;
   session_id?: string;
-  trade_id: string;
+  /** Null for runs not tied to a trade (e.g. instrument selector). */
+  trade_id: string | null;
   agent_type: AgentRole;
   model: string;
   input_tokens: number;

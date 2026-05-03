@@ -84,8 +84,9 @@ export class SessionRepo {
           INSERT INTO session_strategies (
             session_id, strategy_profile, max_position_usd, stop_loss_pct, take_profit_pct,
             max_concurrent_trades, research_depth, daily_loss_limit_usd, profit_target_usd,
-            max_ai_spend_usd, human_approval_required
-          ) VALUES (?, 'passive_income', 500, 2, 4, 3, 'balanced', 200, 1000, 5, 0)
+            max_ai_spend_usd, human_approval_required,
+            primary_trading_timeframe, holding_style, target_hold_days, max_hold_days, timeframe_notes
+          ) VALUES (?, 'passive_income', 500, 2, 4, 3, 'balanced', 200, 1000, 5, 0, '1d', 'multi_day_swing', NULL, NULL, '')
           `,
         )
         .run(sessionId);
@@ -289,11 +290,13 @@ export class SessionRepo {
           INSERT INTO session_strategies (
             session_id, strategy_profile, max_position_usd, stop_loss_pct, take_profit_pct,
             max_concurrent_trades, research_depth, daily_loss_limit_usd, profit_target_usd,
-            max_ai_spend_usd, human_approval_required
+            max_ai_spend_usd, human_approval_required,
+            primary_trading_timeframe, holding_style, target_hold_days, max_hold_days, timeframe_notes
           )
           SELECT ?, strategy_profile, max_position_usd, stop_loss_pct, take_profit_pct,
             max_concurrent_trades, research_depth, daily_loss_limit_usd, profit_target_usd,
-            max_ai_spend_usd, human_approval_required
+            max_ai_spend_usd, human_approval_required,
+            primary_trading_timeframe, holding_style, target_hold_days, max_hold_days, timeframe_notes
           FROM session_strategies WHERE session_id = ?
           `,
         )

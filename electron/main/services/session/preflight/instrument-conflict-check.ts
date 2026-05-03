@@ -25,12 +25,15 @@ export async function instrumentConflictCheck(session: WorkspaceSession, deps: O
   }
 
   for (const ic of session.instrumentClasses) {
-    const brokerAccountId = deps.brokerRoutingRepo.resolveBrokerAccountId(session.id, ic);
-    if (!brokerAccountId) {
+    let brokerAccountId: string;
+    try {
+      brokerAccountId = deps.brokerRouting.resolveBrokerAccountId(session.id, ic);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         ok: false,
         code: "NO_BROKER",
-        message: `Cannot check instrument conflicts: no broker resolved for ${ic}.`,
+        message: `Cannot check instrument conflicts: ${message}`,
         details: { instrumentClass: ic },
       };
     }

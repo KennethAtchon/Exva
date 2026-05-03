@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { isSessionEditable } from "@electron/shared/domain";
+import { isSessionEditable, validateSessionStrategyTimeframeFields } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/errors";
 import { channels } from "@electron/shared/channels";
 import type { AgentRole, SessionAiRole, SessionStrategy } from "@/lib/types";
@@ -44,6 +44,13 @@ export function registerStrategyHandlers(services: AppServices): void {
       throw new AppError("Stop this session before editing its strategy or AI configuration.", "LOCKED", { sessionId });
     }
 
+    const merged = { ...services.repos.sessionStrategies.get(sessionId), ...input.strategy, sessionId };
+    try {
+      validateSessionStrategyTimeframeFields(merged);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Invalid strategy timeframe fields.";
+      throw new AppError(message, "VALIDATION_FAILED");
+    }
     validateStrategySave(services, sessionId, input.aiRoles);
     services.repos.sessionStrategies.update(sessionId, input.strategy);
     services.repos.sessionAiRoles.replaceAll(sessionId, input.aiRoles);
@@ -77,8 +84,13 @@ function resolveSessionId(services: AppServices, payload: { sessionId?: string }
 function validateStrategySave(services: AppServices, sessionId: string, aiRoles: SessionAiRole[]): void {
   const session = services.repos.session.requireById(sessionId);
   const workspacePrefs = services.repos.workspacePreferences.get();
+  const selectorSettings = services.repos.sessionSelectorSettings.get(sessionId);
 
   for (const role of aiRoles) {
+    if (role.role === "instrument_selector") {
+      if (session.selectionMode === "manual_shortlist") continue;
+      if (!selectorSettings.aiPickerEnabled) continue;
+    }
     const provider = services.repos.providerAccounts.find(role.providerKey);
     if (!provider || !provider.isConfigured) {
       throw new AppError("Connect this provider in Accounts before assigning it to a role.", "PROVIDER_NOT_CONFIGURED", {
