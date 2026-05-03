@@ -1,8 +1,8 @@
-import type { StatsRepo } from "../db/repositories/stats-repo";
-import type { TradesRepo } from "../db/repositories/trades-repo";
-import type { BrokerRegistry } from "./broker/broker-registry";
-import type { EventBus } from "./event-bus";
-import type { SessionRepo } from "../db/repositories/session-repo";
+import type { StatsRepo } from "../../db/repositories/stats-repo";
+import type { TradesRepo } from "../../db/repositories/trades-repo";
+import type { BrokerRegistry } from "../broker/broker-registry";
+import type { EventBus } from "../infra/event-bus";
+import type { SessionRepo } from "../../db/repositories/session-repo";
 
 export class TradeMonitor {
   private timer: NodeJS.Timeout | null = null;

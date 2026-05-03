@@ -1,6 +1,6 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { toIpcError } from "@shared/errors";
-import { createLogger } from "../services/log";
+import { createLogger } from "../services/infra/log";
 
 const logger = createLogger("ipc");
 

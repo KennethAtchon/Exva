@@ -20,9 +20,9 @@ import type { AiRuntime } from "../ai/ai-runtime";
 import type { BrokerRegistry } from "../broker/broker-registry";
 import type { InstrumentNormalizer } from "../broker/instrument-normalizer";
 import type { BrokerRoutingService } from "../broker/broker-routing-service";
-import type { EventBus } from "../event-bus";
+import type { EventBus } from "../infra/event-bus";
 import type { CapitalReservationService } from "../risk/capital-reservation-service";
-import type { Logger } from "../log";
+import type { Logger } from "../infra/log";
 import type { RiskEngine } from "../risk/risk-engine";
 
 export interface SessionOrchestrator {

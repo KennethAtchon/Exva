@@ -16,8 +16,8 @@ import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-se
 import { SessionStrategiesRepo } from "../../../db/repositories/session-strategies-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { InstrumentCacheRepo } from "../../../db/repositories/instrument-cache-repo";
-import { EventBus } from "../../event-bus";
-import { createLogger } from "../../log";
+import { EventBus } from "../../infra/event-bus";
+import { createLogger } from "../../infra/log";
 import { SessionRuntimeManager } from "../session-runtime-manager";
 import type { CapitalReservationService } from "../../risk/capital-reservation-service";
 

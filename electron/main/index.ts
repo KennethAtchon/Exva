@@ -1,7 +1,7 @@
 import "electron-squirrel-startup";
 import { app, BrowserWindow } from "electron";
 import { registerIpcHandlers } from "./ipc/register";
-import { createLogger } from "./services/log";
+import { createLogger } from "./services/infra/log";
 import { createAppServices, type AppServices } from "./services/app-services";
 import { createMainWindow } from "./window";
 

@@ -1,7 +1,7 @@
 import { AppError } from "@electron/shared/errors";
 import type { ProviderAccount } from "@/lib/types";
 import type { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts-repo";
-import type { SecretsService } from "../../secrets-service";
+import type { SecretsService } from "../../infra/secrets-service";
 import { BraveAdapter } from "./adapters/brave-adapter";
 import { TavilyAdapter } from "./adapters/tavily-adapter";
 import type { SearchAdapter } from "./search-types";

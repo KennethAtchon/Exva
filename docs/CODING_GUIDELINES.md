@@ -156,17 +156,12 @@ electron/main/services/session/
 
 The `preflight/` subfolder is itself a small domain. Each check is a pure function returning a `PreflightResult`; `runPreflight` composes them and short-circuits on first failure. This makes Phase 1.7 of the review ("Session-Start Preflight Pipeline") trivially testable.
 
-### 1.3 What stays a single file
+### 1.3 What stays at `services/` root
 
-Cross-cutting services that have no adapters and no internal collaborators stay flat at `electron/main/services/`:
-- `event-bus.ts`
-- `notification-service.ts`
-- `secrets-service.ts`
-- `trade-monitor.ts`
-- `app-services.ts` (the wiring file — must stay flat to wire everything)
-- `agent-orchestrator.ts` (per Phase 10 — root-level because it ties domains together; the orchestrator is the integration layer, not a domain)
+Only the composition root stays directly under `electron/main/services/`:
+- `app-services.ts` — wires repositories, domain services, and IPC-facing singletons.
 
-If one of these grows past the "big service" thresholds above, promote it to a folder following the same pattern.
+Everything else lives in a domain or support subfolder (e.g. `ai/`, `broker/`, `session/`, `risk/`, `instrument/`, `infra/` for cross-cutting platform helpers, `orchestration/` for `agent-orchestrator`, `trade-monitor`, and selector-definition hashing). If a single file grows past the "big service" thresholds in §1.1, promote it to a folder following the same pattern.
 
 ---
 

@@ -1,8 +1,8 @@
 import PQueue from "p-queue";
 import type { EventSourceType, InstrumentClass, SessionConfig, Trade, WorkspaceSession } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
-import type { OrderRequest } from "./broker/adapters/broker-adapter";
-import type { ApprovalRecheckInput, OrchestratorDeps } from "./session";
+import type { OrderRequest } from "../broker/adapters/broker-adapter";
+import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
 
 type ResolvedInstrument = { symbol: string; instrumentClass: InstrumentClass };

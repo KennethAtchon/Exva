@@ -7,7 +7,7 @@
 >
 > **Note:** This phase amends earlier phase outputs. Per `CODING_GUIDELINES.md` §1.1–§1.2, broker adapters live under `services/broker/adapters/`, not at top-level `electron/main/broker/`. The directory structure below reflects that.
 
-> **Status:** Done (2026-05-02). Broker adapters under `services/broker/adapters/`; `risk-engine` under `services/risk/`; cross-cutting `infra/*` hoisted to `services/` root; `agent-orchestrator`, `selector-definition-hash`, and `trade-monitor` at services root; `InstrumentCacheService` in `services/instrument/`; path aliases `@main/*` and `@shared/*` in `tsconfig.json`, `vite.main.config.ts`, and `vitest.config.ts`.
+> **Status:** Done (2026-05-02). Broker adapters under `services/broker/adapters/`; `risk-engine` under `services/risk/`; cross-cutting code in `services/infra/`; orchestration integration in `services/orchestration/` (`agent-orchestrator`, `trade-monitor`, `selector-definition-hash`); `InstrumentCacheService` in `services/instrument/`; **only** `app-services.ts` at `services/` root; path aliases `@main/*` and `@shared/*` in `tsconfig.json`, `vite.main.config.ts`, and `vitest.config.ts`.
 
 ## Goal
 
@@ -99,13 +99,16 @@ electron/main/
     │       ├── capital-pool-check.ts
     │       ├── selector-config-check.ts
     │       └── instrument-conflict-check.ts
-    ├── agent-orchestrator.ts           (stays at root — integration layer)
-    ├── app-services.ts                 (stays at root — wires everything)
-    ├── event-bus.ts                    (stays at root)
-    ├── log.ts                          (stays at root — createLogger)
-    ├── notification-service.ts         (stays at root)
-    ├── secrets-service.ts              (stays at root — cross-cutting)
-    └── trade-monitor.ts                (stays at root)
+    ├── infra/
+    │   ├── event-bus.ts
+    │   ├── log.ts                      (createLogger)
+    │   ├── notification-service.ts
+    │   └── secrets-service.ts
+    ├── orchestration/
+    │   ├── agent-orchestrator.ts       (integration layer)
+    │   ├── selector-definition-hash.ts
+    │   └── trade-monitor.ts
+    └── app-services.ts                 (only file at services/ root — wires everything)
 ```
 
 **Removed:** the previous top-level `electron/main/broker/` directory. Adapters belong under their domain service per `CODING_GUIDELINES.md` §1.2.
@@ -120,7 +123,7 @@ broker/ → shared/domain, db/repositories, secrets-service, broker/adapters
 risk/ → shared/domain, db/repositories
 session/ → shared/domain, db/repositories, broker/, ai/, risk/
 instrument/ → shared/domain, db/repositories, ai/
-agent-orchestrator → session/, ai/, broker/, instrument/, risk/, event-bus
+agent-orchestrator (under orchestration/) → session/, ai/, broker/, instrument/, risk/, infra/event-bus
 ipc/ → services/ (any domain subfolder)
 ```
 
@@ -151,13 +154,12 @@ No domain subfolder imports from `agent-orchestrator` or `ipc/`.
 | `broker/broker-registry.ts` | `services/broker/broker-registry.ts` |
 | `broker/instrument-normalizer.ts` | `services/broker/instrument-normalizer.ts` |
 
-Files that stay at `services/` root (cross-cutting, no natural subdomain):
-- `agent-orchestrator.ts`
-- `app-services.ts`
-- `event-bus.ts`
-- `notification-service.ts`
-- `secrets-service.ts`
-- `trade-monitor.ts`
+Files that stay at `services/` root:
+- `app-services.ts` only (composition root).
+
+Cross-cutting and integration live in subfolders:
+- `infra/` — `event-bus.ts`, `log.ts`, `notification-service.ts`, `secrets-service.ts`
+- `orchestration/` — `agent-orchestrator.ts`, `selector-definition-hash.ts`, `trade-monitor.ts`
 
 ## `app-services.ts` After Refactor
 
@@ -168,9 +170,11 @@ import { AiRuntime } from "./ai/ai-runtime";
 import { ProviderRegistry } from "./ai/provider-registry";
 import { PromptAssetLoader } from "./ai/prompt-asset-loader";
 import { BrokerRegistry, BrokerRoutingService } from "./broker";
+import { EventBus } from "./infra/event-bus";
+import { createLogger } from "./infra/log";
+import { AgentOrchestrator } from "./orchestration/agent-orchestrator";
 import { RiskEngine } from "./risk/risk-engine";
 import { SessionService } from "./session/session-service";
-import { AgentOrchestrator } from "./agent-orchestrator";
 // ...
 ```
 

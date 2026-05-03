@@ -1,7 +1,7 @@
 import type { BrokerAccount } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
-import type { SecretsService } from "../secrets-service";
+import type { SecretsService } from "../infra/secrets-service";
 import { AlpacaAdapter } from "./adapters/alpaca-adapter";
 import type { BrokerAdapter } from "./adapters/broker-adapter";
 import { CoinbaseAdvancedTradeAdapter, type CoinbaseAdvancedCredentials } from "./adapters/coinbase-advanced-trade-adapter";
