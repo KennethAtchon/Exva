@@ -1,6 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+  --background: 220 23% 5%;
+  --foreground: 210 33% 94%;
+  --card: 218 30% 8%;
+  --card-foreground: 210 33% 94%;
+  --popover: 218 30% 8%;
+  --popover-foreground: 210 33% 94%;
+  --primary: 231 87% 69%;
+  --primary-foreground: 220 40% 8%;
+  --secondary: 216 30% 14%;
+  --secondary-foreground: 210 33% 94%;
+  --muted: 216 22% 20%;
+  --muted-foreground: 214 19% 61%;
+  --accent: 231 87% 69%;
+  --accent-foreground: 220 40% 8%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 216 30% 17%;
+  --input: 216 30% 17%;
+  --ring: 231 87% 69%;
+  --radius: 0.6rem;
+
   --bg:         #080b10;
   --surface:    #0d1219;
   --surface2:   #121a24;
@@ -14,6 +39,28 @@
   --accent-dim: rgba(96,165,250,0.2);
   --font-sans:  'Inter', system-ui, sans-serif;
   --font-mono:  'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.dark {
+  --background: 220 23% 5%;
+  --foreground: 210 33% 94%;
+  --card: 218 30% 8%;
+  --card-foreground: 210 33% 94%;
+  --popover: 218 30% 8%;
+  --popover-foreground: 210 33% 94%;
+  --primary: 231 87% 69%;
+  --primary-foreground: 220 40% 8%;
+  --secondary: 216 30% 14%;
+  --secondary-foreground: 210 33% 94%;
+  --muted: 216 22% 20%;
+  --muted-foreground: 214 19% 61%;
+  --accent: 231 87% 69%;
+  --accent-foreground: 220 40% 8%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 216 30% 17%;
+  --input: 216 30% 17%;
+  --ring: 231 87% 69%;
 }
 
 html, body, #root {
