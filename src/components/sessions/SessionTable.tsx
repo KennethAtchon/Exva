@@ -43,10 +43,23 @@ export const SessionTable = ({
               boxShadow: session.isFocused ? "0 18px 40px rgba(2,6,23,0.32)" : "none",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", minWidth: 0 }}>
               <button onClick={() => onOpen(session)} style={titleButtonStyle}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 17, fontWeight: 700, color: "var(--text1)" }}>{session.name}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
+                  <span
+                    style={{
+                      fontSize: 17,
+                      fontWeight: 700,
+                      color: "var(--text1)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      minWidth: 0,
+                      flex: "1 1 200px",
+                    }}
+                  >
+                    {session.name}
+                  </span>
                   {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
                   <Badge variant={statusVariant(session.status)}>{session.status}</Badge>
                 </div>
@@ -167,7 +180,7 @@ const titleButtonStyle = {
   cursor: "pointer",
   padding: 0,
   flex: 1,
-  minWidth: 260,
+  minWidth: 0,
 } as const;
 
 const metricStripStyle = {

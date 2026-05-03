@@ -23,15 +23,20 @@ export const WorkspaceContextChip = ({ onSwitchSession, onGoGlobal }: WorkspaceC
   return (
     <div style={{ position: "relative" }}>
       <button
+        type="button"
         onClick={() => setOpen((current) => !current)}
         style={{
-          padding: "6px 10px",
+          padding: "7px 12px",
           borderRadius: 999,
           border: "1px solid var(--border)",
           background: "var(--surface2)",
           color: "var(--text2)",
           fontSize: 12,
           cursor: "pointer",
+          maxWidth: "min(280px, 42vw)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
         }}
       >
         {viewMode === "global" ? "Global Workspace" : focused?.name ?? "Focused Session"}
@@ -41,14 +46,18 @@ export const WorkspaceContextChip = ({ onSwitchSession, onGoGlobal }: WorkspaceC
           style={{
             position: "absolute",
             top: "calc(100% + 8px)",
-            left: 0,
-            width: 260,
+            right: 0,
+            left: "auto",
+            width: "min(280px, calc(100vw - 48px))",
+            maxHeight: "min(360px, calc(100vh - 100px))",
+            overflowY: "auto",
+            overscrollBehavior: "contain",
             background: "var(--surface)",
             border: "1px solid var(--border)",
             borderRadius: 10,
             boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
             padding: 10,
-            zIndex: 20,
+            zIndex: 200,
           }}
         >
           <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 8, textTransform: "uppercase" }}>Workspace Context</div>

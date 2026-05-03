@@ -104,21 +104,25 @@ const TradesPanel = () => {
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={ds.trHead}>
-        {["Instrument", "Entry", "Current", "P&L", "Size", "Confidence", "Status", "Time"].map((h) => (
-          <span key={h}>{h}</span>
-        ))}
-      </div>
-      <div style={{ overflowY: "auto", flex: 1 }}>
-        {sorted.map((t) => (
-          <TradeRow
-            key={t.id}
-            trade={t}
-            selected={t.id === selectedId}
-            onClick={() => setSelected(t.id === selectedId ? null : t.id)}
-          />
-        ))}
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, minWidth: 0 }}>
+      <div style={ds.tradesScroll}>
+        <div style={ds.tradesTableMin}>
+          <div style={ds.trHead}>
+            {["Instrument", "Entry", "Current", "P&L", "Size", "Confidence", "Status", "Time"].map((h) => (
+              <span key={h}>{h}</span>
+            ))}
+          </div>
+          <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+            {sorted.map((t) => (
+              <TradeRow
+                key={t.id}
+                trade={t}
+                selected={t.id === selectedId}
+                onClick={() => setSelected(t.id === selectedId ? null : t.id)}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -211,17 +215,25 @@ export const Dashboard = () => {
   useExvaEvent("approval_required", () => refreshApprovals());
   useExvaEvent("approval_resolved", () => refreshApprovals());
 
-  if (!stats) return <div style={{ padding: 40, color: "var(--text3)" }}>Loading…</div>;
+  if (!stats) {
+    return (
+      <div style={{ ...ds.page, padding: "36px 40px", justifyContent: "center" }}>
+        <div style={{ color: "var(--text3)", fontSize: 14 }}>Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div style={ds.page}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>Dashboard</h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
+      <div style={ds.headerRow}>
+        <div style={ds.headerTitleBlock}>
+          <div style={ds.headerEyebrow}>Control room</div>
+          <h1 style={ds.headerH1}>Dashboard</h1>
+          <p style={ds.headerSub}>
             {viewMode === "global" ? "Global workspace metrics" : "Focused session metrics"}
           </p>
         </div>
+        <div style={ds.headerChipWrap}>
         <WorkspaceContextChip
           onSwitchSession={async (id) => {
             await api.focusSession(id);
@@ -232,9 +244,10 @@ export const Dashboard = () => {
             setViewMode("global", null);
           }}
         />
+        </div>
       </div>
       {viewMode === "global" && (
-        <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 12, marginBottom: 10 }}>
+        <label style={ds.archivedToggle}>
           <input
             type="checkbox"
             checked={preferences?.globalIncludeArchived ?? false}
@@ -257,7 +270,7 @@ export const Dashboard = () => {
       </div>
 
       <div style={ds.grid}>
-        <Card style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", padding: "20px 0 0" }}>
+        <Card style={{ flex: "1 1 320px", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden", padding: "20px 0 0" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px 16px" }}>
             <SectionTitle>Trades</SectionTitle>
             <div style={{ display: "flex", gap: 8 }}>
@@ -268,7 +281,7 @@ export const Dashboard = () => {
           <TradesPanel />
         </Card>
 
-        <Card style={{ width: 340, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden", padding: "20px 0 0" }}>
+        <Card style={{ flex: "0 1 320px", width: "clamp(280px, 32vw, 340px)", maxWidth: "100%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden", padding: "20px 0 0" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px 14px" }}>
             <SectionTitle>Agent Feed</SectionTitle>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -286,12 +299,59 @@ export const Dashboard = () => {
 };
 
 const ds: Record<string, CSSProperties> = {
-  page: { display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", gap: 0 },
-  strip: {
-    display: "flex", alignItems: "stretch", borderBottom: "1px solid var(--border)",
-    background: "var(--surface)", flexShrink: 0,
+  page: {
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    minHeight: 0,
+    overflow: "hidden",
+    gap: 0,
+    padding: "28px 40px 32px",
+    boxSizing: "border-box",
   },
-  stripItem: { flex: 1, display: "flex", flexDirection: "column", gap: 5, padding: "20px 28px" },
+  headerRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 16,
+    marginBottom: 18,
+    flexShrink: 0,
+    minWidth: 0,
+  },
+  headerTitleBlock: { minWidth: 0, flex: "1 1 auto" },
+  headerEyebrow: {
+    fontSize: 10,
+    letterSpacing: "0.16em",
+    textTransform: "uppercase",
+    color: "var(--text3)",
+    fontWeight: 600,
+    marginBottom: 6,
+  },
+  headerH1: { margin: 0, fontSize: 26, fontWeight: 700, color: "var(--text1)", letterSpacing: "-0.02em" },
+  headerSub: { margin: "6px 0 0", fontSize: 13, color: "var(--text2)", lineHeight: 1.45, maxWidth: 520 },
+  headerChipWrap: { flexShrink: 0, paddingTop: 2 },
+  archivedToggle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    color: "var(--text2)",
+    fontSize: 12,
+    marginBottom: 12,
+    flexShrink: 0,
+  },
+  strip: {
+    display: "flex",
+    alignItems: "stretch",
+    borderRadius: 12,
+    border: "1px solid var(--border)",
+    margin: "0 0 4px",
+    background: "linear-gradient(180deg, rgba(18,26,36,0.55), var(--surface))",
+    flexShrink: 0,
+    overflowX: "auto",
+    overscrollBehaviorX: "contain",
+    WebkitOverflowScrolling: "touch",
+  },
+  stripItem: { flex: "1 0 120px", display: "flex", flexDirection: "column", gap: 5, padding: "18px 20px", minWidth: 0 },
   stripLabel: {
     fontSize: 11, color: "var(--text3)", textTransform: "uppercase",
     letterSpacing: "0.08em", fontWeight: 600,
@@ -300,8 +360,28 @@ const ds: Record<string, CSSProperties> = {
     fontFamily: "var(--font-mono)", fontSize: 28, fontWeight: 700,
     color: "var(--text1)", lineHeight: 1.1,
   },
-  approvalsWrap: { padding: "0 28px 12px", flexShrink: 0 },
-  grid: { flex: 1, display: "flex", gap: 16, overflow: "hidden", padding: "12px 28px 20px" },
+  approvalsWrap: { padding: "0 0 14px", flexShrink: 0, minWidth: 0 },
+  grid: {
+    flex: 1,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 16,
+    overflow: "hidden",
+    minHeight: 0,
+    minWidth: 0,
+    padding: "8px 0 0",
+    alignContent: "stretch",
+  },
+  tradesScroll: {
+    display: "flex",
+    flexDirection: "column",
+    overflowX: "auto",
+    overscrollBehaviorX: "contain",
+    flex: 1,
+    minHeight: 0,
+    minWidth: 0,
+  },
+  tradesTableMin: { display: "flex", flexDirection: "column", flex: 1, minWidth: 720, minHeight: 0 },
   trHead: {
     display: "grid",
     gridTemplateColumns: "130px 90px 90px 90px 70px 110px 70px 60px",
