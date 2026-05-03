@@ -1,4 +1,4 @@
-import { Card, SectionTitle } from "@/components/atoms";
+import { Card, SectionTitle } from "@/components/custom-ui";
 import { PromptEditor } from "./PromptEditor";
 import type { AgentRole, ProviderAccount, SessionAiRole, SelectionMode } from "@/lib/types";
 import type { ProviderModelEntry } from "@/lib/exva";

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/atoms";
+import { Badge } from "@/components/custom-ui";
 import { api, type SessionSummary } from "@/lib/exva";
 import type { EventRow, InstrumentClass, SessionTemplatePayload } from "@/lib/types";
 

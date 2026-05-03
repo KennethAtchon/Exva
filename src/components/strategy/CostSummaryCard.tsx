@@ -1,4 +1,4 @@
-import { Card, SectionTitle } from "@/components/atoms";
+import { Card, SectionTitle } from "@/components/custom-ui";
 import type { AgentRole, SessionStrategy } from "@/lib/types";
 
 export const CostSummaryCard = ({

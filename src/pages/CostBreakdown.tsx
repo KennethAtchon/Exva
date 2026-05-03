@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AgentLabel, Card, PageShell, SectionTitle } from "@/components/atoms";
+import { AgentLabel, Card, PageShell, SectionTitle } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import type { AgentRole, CostBreakdown } from "@/lib/types";

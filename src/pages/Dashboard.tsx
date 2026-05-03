@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, type CSSProperties } from "react";
-import { Badge, Card, Divider, Dot, SectionTitle } from "@/components/atoms";
+import { Badge, Card, Divider, Dot, SectionTitle } from "@/components/custom-ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { fmt } from "@/lib/formatters";

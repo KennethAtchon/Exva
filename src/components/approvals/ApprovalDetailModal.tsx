@@ -1,5 +1,6 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
-import { Badge } from "@/components/atoms";
+import { useState, type ReactNode } from "react";
+import { Badge } from "@/components/custom-ui";
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui";
 import { fmt } from "@/lib/formatters";
 import type { ApprovalSummary } from "@/lib/types";
 
@@ -18,7 +19,6 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   if (!approval) return null;
 
   let summary: Record<string, unknown> = {};
@@ -45,24 +45,23 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
   };
 
   return (
-    <div style={overlay} onClick={onClose} role="presentation">
-      <div
-        style={panel}
-        onClick={(ev) => ev.stopPropagation()}
-        role="dialog"
-        aria-labelledby="approval-detail-title"
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <div>
-            <h2 id="approval-detail-title" style={{ margin: 0, fontSize: 18, color: "var(--text1)" }}>
-              {approval.instrumentSymbol}
-            </h2>
-            <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text3)" }}>
-              {approval.proposedSide} · {fmt.usd(approval.proposedSizeUsd, 0)} · {approval.brokerName}
-            </p>
+    <Dialog open onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-[14px] border-border bg-[var(--surface)] p-6 sm:max-w-[480px]">
+        <DialogHeader className="space-y-0">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <DialogTitle id="approval-detail-title" className="text-lg text-[var(--text1)]">
+                {approval.instrumentSymbol}
+              </DialogTitle>
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text3)" }}>
+                {approval.proposedSide} · {fmt.usd(approval.proposedSizeUsd, 0)} · {approval.brokerName}
+              </p>
+            </div>
+            <Badge variant={approval.status === "pending" ? "warn" : "default"} size="sm">
+              {approval.status}
+            </Badge>
           </div>
-          <Badge variant={approval.status === "pending" ? "warn" : "default"} size="sm">{approval.status}</Badge>
-        </div>
+        </DialogHeader>
 
         {workspaceViewMode === "global" && (
           <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--text2)" }}>
@@ -93,90 +92,40 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
           Note (optional)
           <textarea
             value={note}
-            onChange={(e) => setNote(e.target.value)}
+            onChange={(event) => setNote(event.target.value)}
             rows={2}
-            style={{
-              display: "block",
-              width: "100%",
-              marginTop: 6,
-              padding: 8,
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "var(--surface)",
-              color: "var(--text1)",
-              fontFamily: "inherit",
-              fontSize: 13,
-              resize: "vertical",
-            }}
+            className="mt-1 block w-full resize-y rounded-lg border border-border bg-[var(--surface)] p-2 text-[13px] text-[var(--text1)]"
           />
         </label>
 
-        {error && (
-          <p style={{ marginTop: 10, fontSize: 12, color: "#f87171" }}>{error}</p>
-        )}
+        {error && <p style={{ marginTop: 10, fontSize: 12, color: "#f87171" }}>{error}</p>}
 
         <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
-          <button type="button" style={btnGhost} onClick={onClose} disabled={busy != null}>
+          <Button type="button" variant="outline" onClick={onClose} disabled={busy != null}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            style={{ ...btn, borderColor: "#f87171", color: "#f87171" }}
+            variant="outline"
+            className="border-red-400/60 text-red-400 hover:bg-red-500/10 hover:text-red-300"
             onClick={() => void run("rejected")}
             disabled={busy != null || approval.status !== "pending"}
           >
             {busy === "reject" ? "…" : "Reject"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            style={{ ...btn, borderColor: "#34d399", color: "#34d399" }}
+            variant="outline"
+            className="border-emerald-400/60 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
             onClick={() => void run("approved")}
             disabled={busy != null || approval.status !== "pending"}
           >
             {busy === "approve" ? "…" : "Approve"}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-};
-
-const overlay: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.55)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 1000,
-  padding: 24,
-};
-
-const panel: CSSProperties = {
-  width: "min(480px, 100%)",
-  maxHeight: "90vh",
-  overflowY: "auto",
-  background: "var(--surface)",
-  borderRadius: 14,
-  border: "1px solid var(--border)",
-  padding: "22px 24px",
-  boxShadow: "0 16px 48px rgba(0,0,0,0.35)",
-};
-
-const btn: CSSProperties = {
-  padding: "8px 16px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 600,
-};
-
-const btnGhost: CSSProperties = {
-  ...btn,
-  borderColor: "var(--border)",
-  color: "var(--text2)",
 };
 
 function renderSessionHorizon(value: unknown): ReactNode {

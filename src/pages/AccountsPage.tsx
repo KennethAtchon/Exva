@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Badge, Card, Dot, PageShell, SectionTitle } from "@/components/atoms";
+import { Badge, Card, Dot, PageShell, SectionTitle } from "@/components/custom-ui";
 import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
 import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
 import { api } from "@/lib/exva";

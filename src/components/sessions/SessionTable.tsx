@@ -1,4 +1,4 @@
-import { Badge } from "@/components/atoms";
+import { Badge } from "@/components/custom-ui";
 import type { SessionSummary } from "@/lib/exva";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";

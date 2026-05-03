@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { DashboardStats, SessionStatus } from "@/lib/types";
-import { Dot } from "./atoms";
+import { Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 
 export type PageKey =

@@ -1,4 +1,4 @@
-import { Card, SectionTitle } from "@/components/atoms";
+import { Card, SectionTitle } from "@/components/custom-ui";
 import type { SessionStrategy } from "@/lib/types";
 import { HOLDING_STYLES, TRADING_TIMEFRAMES, timeframeHoldMismatchWarning } from "../../../electron/shared/domain";
 

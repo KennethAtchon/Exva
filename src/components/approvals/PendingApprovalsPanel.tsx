@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { Badge, Card, SectionTitle } from "@/components/atoms";
+import { Badge, Card, SectionTitle } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import type { ApprovalSummary } from "@/lib/types";
 import { ApprovalDetailModal } from "./ApprovalDetailModal";

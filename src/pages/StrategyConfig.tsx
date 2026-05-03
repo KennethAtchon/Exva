@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { Card, PageShell, SectionTitle } from "@/components/atoms";
+import { Card, PageShell, SectionTitle } from "@/components/custom-ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiRoleConfigCard } from "@/components/strategy/AiRoleConfigCard";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";

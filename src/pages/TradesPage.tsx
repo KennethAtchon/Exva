@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Card, PageShell } from "@/components/atoms";
+import { Badge, Card, PageShell } from "@/components/custom-ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { api } from "@/lib/exva";
 import { fmt } from "@/lib/formatters";

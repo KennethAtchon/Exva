@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AgentLabel, Dot, PageShell } from "@/components/atoms";
+import { AgentLabel, Dot, PageShell } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
