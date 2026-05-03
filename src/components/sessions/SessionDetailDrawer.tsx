@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/custom-ui";
 import { api, type SessionSummary } from "@/lib/exva";
 import type { EventRow, InstrumentClass, SessionTemplatePayload } from "@/lib/types";
+import { Button, Dialog, DialogContent } from "@/components/ui";
 
 type InstrumentCacheView = {
   instruments: Array<{ symbol: string; instrumentClass: string }> | null;
@@ -78,7 +79,8 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
   if (!session) return null;
 
   return (
-    <div style={overlayStyle} onClick={(event) => event.target === event.currentTarget && onClose()}>
+    <Dialog open={!!session} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="h-[92vh] max-w-[96vw] overflow-auto border-border bg-transparent p-0 sm:max-w-[460px]">
       <div style={drawerStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
           <div>
@@ -89,7 +91,7 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
             </div>
             <div style={{ marginTop: 8, color: "var(--text2)", fontSize: 13, lineHeight: 1.5 }}>{session.objective}</div>
           </div>
-          <button onClick={onClose} style={closeStyle}>✕</button>
+          <Button onClick={onClose} variant="ghost" className="h-auto p-1 text-[var(--text3)]">✕</Button>
         </div>
 
         {error ? <div style={errorBannerStyle}>{error}</div> : null}
@@ -120,7 +122,7 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
                         </li>
                       ))}
                     </ul>
-                    <button
+                    <Button
                       type="button"
                       onClick={async () => {
                         if (!session) return;
@@ -139,19 +141,11 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
                         }
                       }}
                       disabled={session.status === "active" || session.status === "paused"}
-                      style={{
-                        alignSelf: "flex-start",
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        border: "1px solid var(--border)",
-                        background: "var(--surface2)",
-                        color: "var(--text2)",
-                        cursor: session.status === "active" || session.status === "paused" ? "not-allowed" : "pointer",
-                        fontSize: 12,
-                      }}
+                      variant="outline"
+                      className="self-start border-border bg-[var(--surface2)] text-xs text-[var(--text2)]"
                     >
                       Re-run selector on next start
-                    </button>
+                    </Button>
                     {cacheAction ? <div style={{ fontSize: 12, color: "var(--text3)" }}>{cacheAction}</div> : null}
                   </>
                 ) : (
@@ -215,7 +209,8 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
           </Section>
         </div>
       </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -273,10 +268,8 @@ function formatTimestamp(value: string): string {
   return new Date(value).toLocaleString();
 }
 
-const overlayStyle = { position: "fixed", inset: 0, background: "rgba(3,6,11,0.68)", zIndex: 35 } as const;
-const drawerStyle = { position: "absolute", top: 0, right: 0, width: 460, maxWidth: "100vw", height: "100%", overflow: "auto", background: "linear-gradient(180deg, rgba(13,18,25,0.99), rgba(9,13,18,0.99))", borderLeft: "1px solid var(--border)", padding: 22, boxShadow: "-16px 0 40px rgba(2,6,23,0.42)" } as const;
+const drawerStyle = { width: 460, maxWidth: "100vw", minHeight: "100%", overflow: "auto", background: "linear-gradient(180deg, rgba(13,18,25,0.99), rgba(9,13,18,0.99))", borderLeft: "1px solid var(--border)", padding: 22, boxShadow: "-16px 0 40px rgba(2,6,23,0.42)" } as const;
 const sectionStyle = { border: "1px solid var(--border)", borderRadius: 16, padding: 16, background: "rgba(18,26,36,0.72)" } as const;
 const roleCardStyle = { border: "1px solid var(--border)", borderRadius: 12, padding: 12, background: "rgba(7,10,15,0.34)" } as const;
 const mutedTextStyle = { color: "var(--text3)", fontSize: 13 } as const;
-const closeStyle = { background: "transparent", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: 18 } as const;
 const errorBannerStyle = { marginBottom: 16, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(248,113,113,0.34)", background: "rgba(248,113,113,0.08)", color: "#fca5a5", fontSize: 13 } as const;

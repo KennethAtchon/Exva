@@ -15,6 +15,6 @@ export function createDbClient(userDataPath: string): DbClient {
   fs.mkdirSync(userDataPath, { recursive: true });
   const sqlite = new BetterSqlite3(env.dbPath ?? path.join(userDataPath, "exva.db"));
   sqlite.pragma("journal_mode = WAL");
-  runMigrations(sqlite);
+  runMigrations(sqlite, { rebuildFromScratch: env.dbRebuildFromScratch });
   return { sqlite, db: drizzle(sqlite, { schema }) };
 }

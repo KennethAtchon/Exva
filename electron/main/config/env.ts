@@ -4,6 +4,10 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   EXVA_LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
   EXVA_DB_PATH: z.string().optional(),
+  EXVA_DB_REBUILD_FROM_SCRATCH: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
   EXVA_DEV_BYPASS_KEYCHAIN: z
     .string()
     .optional()
@@ -23,6 +27,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     isProd: parsed.data.NODE_ENV === "production",
     logLevel: parsed.data.EXVA_LOG_LEVEL,
     dbPath: parsed.data.EXVA_DB_PATH,
+    dbRebuildFromScratch: parsed.data.EXVA_DB_REBUILD_FROM_SCRATCH ?? false,
     devBypassKeychain: parsed.data.EXVA_DEV_BYPASS_KEYCHAIN ?? false,
     promptsDirOverride: parsed.data.EXVA_PROMPTS_DIR_OVERRIDE,
   });

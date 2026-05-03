@@ -3,6 +3,7 @@ import { AgentLabel, Badge } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import type { AgentRun, Trade } from "@/lib/types";
+import { Button, Dialog, DialogContent } from "@/components/ui";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {
   researcher_bull: { bar: "#34d399", bg: "rgba(52,211,153,0.06)" },
@@ -92,7 +93,8 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
   const pos = pnl != null && pnl >= 0;
 
   return (
-    <div style={ts.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <Dialog open={!!trade} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="h-[92vh] max-w-[96vw] overflow-auto border-border bg-transparent p-0 sm:max-w-[480px]">
       <div style={ts.panel}>
         <div style={ts.header}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -102,7 +104,7 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
             <Badge variant={trade.side === "BUY" ? "success" : "danger"}>{trade.side}</Badge>
             <Badge variant={isOpen ? "success" : "default"}>{trade.status}</Badge>
           </div>
-          <button onClick={onClose} style={ts.closeBtn}>✕</button>
+          <Button onClick={onClose} variant="ghost" className="h-auto p-1 text-[var(--text3)]">✕</Button>
         </div>
 
         <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
@@ -202,27 +204,20 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
           )}
         </div>
       </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
 const ts: Record<string, CSSProperties> = {
-  overlay: {
-    position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
-    display: "flex", justifyContent: "flex-end", zIndex: 100, backdropFilter: "blur(2px)",
-  },
   panel: {
-    width: 480, height: "100%", background: "var(--surface)",
+    width: 480, minHeight: "100%", background: "var(--surface)",
     borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column",
     animation: "slideIn 0.22s ease-out",
   },
   header: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     padding: "20px 24px", borderBottom: "1px solid var(--border)", flexShrink: 0,
-  },
-  closeBtn: {
-    background: "none", border: "none", color: "var(--text3)",
-    cursor: "pointer", fontSize: 18, padding: "2px 6px", borderRadius: 6,
   },
   hero: {
     display: "flex", justifyContent: "space-between", alignItems: "flex-end",

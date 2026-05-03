@@ -1,4 +1,4 @@
-import { Card, SectionTitle } from "@/components/custom-ui";
+import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import type { SessionStrategy } from "@/lib/types";
 import { HOLDING_STYLES, TRADING_TIMEFRAMES, timeframeHoldMismatchWarning } from "../../../electron/shared/domain";
 
@@ -20,34 +20,22 @@ export const TimeframeHorizonCard = ({ strategy, disabled, onChange }: Props) =>
       </p>
       <div style={formGridStyle}>
         <Field label="Primary trading timeframe">
-          <select
+          <ShadcnSelect
             value={strategy.primaryTradingTimeframe}
-            onChange={(event) =>
-              onChange({ primaryTradingTimeframe: event.target.value as SessionStrategy["primaryTradingTimeframe"] })
+            onValueChange={(value) =>
+              onChange({ primaryTradingTimeframe: value as SessionStrategy["primaryTradingTimeframe"] })
             }
             disabled={disabled}
-            style={inputStyle}
-          >
-            {TRADING_TIMEFRAMES.map((tf) => (
-              <option key={tf} value={tf}>
-                {tf}
-              </option>
-            ))}
-          </select>
+            options={TRADING_TIMEFRAMES.map((timeframe) => ({ value: timeframe, label: timeframe }))}
+          />
         </Field>
         <Field label="Holding style">
-          <select
+          <ShadcnSelect
             value={strategy.holdingStyle}
-            onChange={(event) => onChange({ holdingStyle: event.target.value as SessionStrategy["holdingStyle"] })}
+            onValueChange={(value) => onChange({ holdingStyle: value as SessionStrategy["holdingStyle"] })}
             disabled={disabled}
-            style={inputStyle}
-          >
-            {HOLDING_STYLES.map((style) => (
-              <option key={style} value={style}>
-                {holdingStyleLabel(style)}
-              </option>
-            ))}
-          </select>
+            options={HOLDING_STYLES.map((style) => ({ value: style, label: holdingStyleLabel(style) }))}
+          />
         </Field>
         <Field label="Target hold (days, optional)">
           <input

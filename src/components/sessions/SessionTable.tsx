@@ -1,4 +1,5 @@
 import { Badge } from "@/components/custom-ui";
+import { Button } from "@/components/ui";
 import type { SessionSummary } from "@/lib/exva";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";
@@ -44,7 +45,7 @@ export const SessionTable = ({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", minWidth: 0 }}>
-              <button onClick={() => onOpen(session)} style={titleButtonStyle}>
+              <Button onClick={() => onOpen(session)} variant="ghost" style={titleButtonStyle}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
                   <span
                     style={{
@@ -64,7 +65,7 @@ export const SessionTable = ({
                   <Badge variant={statusVariant(session.status)}>{session.status}</Badge>
                 </div>
                 <div style={{ marginTop: 8, color: "var(--text2)", fontSize: 13, lineHeight: 1.5 }}>{session.objective}</div>
-              </button>
+              </Button>
 
               <div style={{ minWidth: 220, display: "grid", gap: 10 }}>
                 <div style={metricStripStyle}>
@@ -92,41 +93,41 @@ export const SessionTable = ({
             </div>
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-              <button onClick={() => onFocus(session.id)} style={actionButtonStyle} disabled={busy || session.isFocused}>
+              <Button onClick={() => onFocus(session.id)} variant="outline" style={actionButtonStyle} disabled={busy || session.isFocused}>
                 {session.isFocused ? "Focused" : "Focus"}
-              </button>
-              <button onClick={() => onEdit(session)} style={actionButtonStyle} disabled={busy || locked}>
+              </Button>
+              <Button onClick={() => onEdit(session)} variant="outline" style={actionButtonStyle} disabled={busy || locked}>
                 Edit
-              </button>
-              <button onClick={() => onDuplicate(session)} style={actionButtonStyle} disabled={busy}>
+              </Button>
+              <Button onClick={() => onDuplicate(session)} variant="outline" style={actionButtonStyle} disabled={busy}>
                 Duplicate
-              </button>
-              <button onClick={() => onSaveTemplate(session)} style={actionButtonStyle} disabled={busy}>
+              </Button>
+              <Button onClick={() => onSaveTemplate(session)} variant="outline" style={actionButtonStyle} disabled={busy}>
                 Save Template
-              </button>
+              </Button>
               {session.status === "draft" || session.status === "idle" || session.status === "stopped" ? (
-                <button onClick={() => onLifecycle(session, "start")} style={primaryActionButtonStyle} disabled={busy}>
+                <Button onClick={() => onLifecycle(session, "start")} variant="ghost" style={primaryActionButtonStyle} disabled={busy}>
                   Start
-                </button>
+                </Button>
               ) : null}
               {session.status === "active" ? (
-                <button onClick={() => onLifecycle(session, "pause")} style={actionButtonStyle} disabled={busy}>
+                <Button onClick={() => onLifecycle(session, "pause")} variant="outline" style={actionButtonStyle} disabled={busy}>
                   Pause
-                </button>
+                </Button>
               ) : null}
               {session.status === "paused" ? (
-                <button onClick={() => onLifecycle(session, "resume")} style={primaryActionButtonStyle} disabled={busy}>
+                <Button onClick={() => onLifecycle(session, "resume")} variant="ghost" style={primaryActionButtonStyle} disabled={busy}>
                   Resume
-                </button>
+                </Button>
               ) : null}
               {session.status === "active" || session.status === "paused" ? (
-                <button onClick={() => onLifecycle(session, "stop")} style={dangerButtonStyle} disabled={busy}>
+                <Button onClick={() => onLifecycle(session, "stop")} variant="ghost" style={dangerButtonStyle} disabled={busy}>
                   Stop
-                </button>
+                </Button>
               ) : null}
-              <button onClick={() => onArchive(session.id)} style={actionButtonStyle} disabled={busy || locked}>
+              <Button onClick={() => onArchive(session.id)} variant="outline" style={actionButtonStyle} disabled={busy || locked}>
                 Archive
-              </button>
+              </Button>
             </div>
           </article>
         );

@@ -7,7 +7,7 @@ import type { DbClient } from "./client";
 export function createTestDb(): DbClient {
   const sqlite = new BetterSqlite3(":memory:");
   sqlite.pragma("journal_mode = WAL");
-  runMigrations(sqlite);
+  runMigrations(sqlite, { rebuildFromScratch: false });
   return {
     sqlite,
     db: drizzle(sqlite, { schema }),

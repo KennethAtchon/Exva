@@ -1,4 +1,5 @@
-import { Card, SectionTitle } from "@/components/custom-ui";
+import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
+import { Button } from "@/components/ui";
 import { PromptEditor } from "./PromptEditor";
 import type { AgentRole, ProviderAccount, SessionAiRole, SelectionMode } from "@/lib/types";
 import type { ProviderModelEntry } from "@/lib/exva";
@@ -84,9 +85,10 @@ export const AiRoleConfigCard = ({
         {ROLE_ORDER.map((entry) => {
           const disabledTabManual = entry === "instrument_selector" && selectionMode === "manual_shortlist";
           return (
-            <button
+            <Button
               key={entry}
               onClick={() => !disabledTabManual && onTabChange(entry)}
+              variant="ghost"
               title={
                 disabledTabManual
                   ? "Enable AI-selected universe in session settings to configure this role."
@@ -104,7 +106,7 @@ export const AiRoleConfigCard = ({
             >
               {ROLE_LABELS[entry]}
               {roleErrors[entry].length > 0 ? ` (${roleErrors[entry].length})` : ""}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -112,17 +114,15 @@ export const AiRoleConfigCard = ({
       <div style={{ display: "grid", gap: 14 }}>
         <div style={rowStyle}>
           <div style={labelStyle}>Provider</div>
-          <select
+          <ShadcnSelect
             value={role.providerKey}
-            onChange={(event) => void onRoleChange({ providerKey: event.target.value })}
+            onValueChange={(value) => void onRoleChange({ providerKey: value })}
             disabled={disabled || selectorTabLocked}
-            style={inputStyle}
-          >
-            <option value="">Select provider</option>
-            {providerOptions.map((provider) => (
-              <option key={provider.id} value={provider.id}>{provider.name}</option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "Select provider" },
+              ...providerOptions.map((provider) => ({ value: provider.id, label: provider.name })),
+            ]}
+          />
         </div>
 
         <div style={rowStyle}>
@@ -136,17 +136,15 @@ export const AiRoleConfigCard = ({
               style={inputStyle}
             />
           ) : (
-            <select
+            <ShadcnSelect
               value={role.modelId}
-              onChange={(event) => void onRoleChange({ modelId: event.target.value })}
+              onValueChange={(value) => void onRoleChange({ modelId: value })}
               disabled={disabled || selectorTabLocked || !role.providerKey}
-              style={inputStyle}
-            >
-              <option value="">Select model</option>
-              {models.map((model) => (
-                <option key={model.id} value={model.id}>{model.label}</option>
-              ))}
-            </select>
+              options={[
+                { value: "", label: "Select model" },
+                ...models.map((model) => ({ value: model.id, label: model.label })),
+              ]}
+            />
           )}
         </div>
 
@@ -189,20 +187,22 @@ export const AiRoleConfigCard = ({
         </label>
 
         <div style={{ display: "flex", gap: 6 }}>
-          <button
+          <Button
             onClick={() => void onRoleChange({ promptSource: "default" })}
             disabled={disabled || selectorTabLocked}
+            variant="ghost"
             style={{ ...toggleStyle, ...(role.promptSource === "default" ? activeToggleStyle : {}) }}
           >
             Default Prompt
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => void onRoleChange({ promptSource: "session_override" })}
             disabled={disabled || selectorTabLocked}
+            variant="ghost"
             style={{ ...toggleStyle, ...(role.promptSource === "session_override" ? activeToggleStyle : {}) }}
           >
             Session Override
-          </button>
+          </Button>
         </div>
 
         <div>
@@ -217,9 +217,9 @@ export const AiRoleConfigCard = ({
           />
           {role.promptSource === "session_override" && (
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-              <button onClick={() => void onResetPrompt()} disabled={disabled || selectorTabLocked} style={secondaryButtonStyle}>
+              <Button onClick={() => void onResetPrompt()} disabled={disabled || selectorTabLocked} variant="outline" style={secondaryButtonStyle}>
                 Reset to Default Prompt
-              </button>
+              </Button>
             </div>
           )}
         </div>

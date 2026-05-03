@@ -1,32 +1,14 @@
 import type Database from "better-sqlite3";
 
-const REQUIRED_TABLES = [
-  "sessions",
-  "session_selector_settings",
-  "session_strategies",
-  "session_ai_roles",
-  "provider_accounts",
-  "broker_accounts",
-  "broker_routing",
-  "session_broker_routing_overrides",
-  "session_broker_assignments",
-  "workspace_preferences",
-  "session_templates",
-  "trades",
-  "agent_runs",
-  "events",
-  "trade_approvals",
-  "capital_reservations",
-];
-
-export function runMigrations(sqlite: Database.Database): void {
+export function runMigrations(sqlite: Database.Database, options?: { rebuildFromScratch?: boolean }): void {
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("journal_mode = WAL");
 
-  if (shouldResetSchema(sqlite)) {
+  if (options?.rebuildFromScratch) {
     sqlite.exec(`
       DROP TABLE IF EXISTS capital_reservations;
       DROP TABLE IF EXISTS trade_approvals;
+      DROP TABLE IF EXISTS session_instrument_cache;
       DROP TABLE IF EXISTS events;
       DROP TABLE IF EXISTS agent_runs;
       DROP TABLE IF EXISTS trades;
@@ -246,6 +228,14 @@ export function runMigrations(sqlite: Database.Database): void {
       released_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS session_instrument_cache (
+      session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+      instruments TEXT NOT NULL,
+      definition_hash TEXT NOT NULL,
+      selected_at TEXT NOT NULL,
+      selector_agent_run_id TEXT REFERENCES agent_runs(id) ON DELETE SET NULL
+    );
+
     CREATE TRIGGER IF NOT EXISTS trg_focus_singleton_insert
     BEFORE INSERT ON sessions
     FOR EACH ROW WHEN NEW.is_focused = 1
@@ -276,121 +266,6 @@ export function runMigrations(sqlite: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_session ON capital_reservations(session_id, status);
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_approval ON capital_reservations(approval_id);
   `);
-
-  migrateSessionStrategyHorizonColumns(sqlite);
-  migrateSessionInstrumentCache(sqlite);
-  seedCompatibilityDefaults(sqlite);
-}
-
-function tableColumnNames(sqlite: Database.Database, table: string): Set<string> {
-  const rows = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-  return new Set(rows.map((row) => row.name));
-}
-
-/** Persisted AI instrument selector output (Phase 9). */
-function migrateSessionInstrumentCache(sqlite: Database.Database): void {
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS session_instrument_cache (
-      session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-      instruments TEXT NOT NULL,
-      definition_hash TEXT NOT NULL,
-      selected_at TEXT NOT NULL,
-      selector_agent_run_id TEXT REFERENCES agent_runs(id) ON DELETE SET NULL
-    );
-  `);
-}
-
-/** Add timeframe / hold horizon columns when upgrading from older DB files. */
-function migrateSessionStrategyHorizonColumns(sqlite: Database.Database): void {
-  let cols = tableColumnNames(sqlite, "session_strategies");
-  if (!cols.has("primary_trading_timeframe")) {
-    sqlite.exec(
-      "ALTER TABLE session_strategies ADD COLUMN primary_trading_timeframe TEXT NOT NULL DEFAULT '1d'",
-    );
-    cols = tableColumnNames(sqlite, "session_strategies");
-  }
-  if (!cols.has("holding_style")) {
-    sqlite.exec("ALTER TABLE session_strategies ADD COLUMN holding_style TEXT NOT NULL DEFAULT 'multi_day_swing'");
-    cols = tableColumnNames(sqlite, "session_strategies");
-  }
-  if (!cols.has("target_hold_days")) {
-    sqlite.exec("ALTER TABLE session_strategies ADD COLUMN target_hold_days REAL");
-    cols = tableColumnNames(sqlite, "session_strategies");
-  }
-  if (!cols.has("max_hold_days")) {
-    sqlite.exec("ALTER TABLE session_strategies ADD COLUMN max_hold_days REAL");
-    cols = tableColumnNames(sqlite, "session_strategies");
-  }
-  if (!cols.has("timeframe_notes")) {
-    sqlite.exec("ALTER TABLE session_strategies ADD COLUMN timeframe_notes TEXT NOT NULL DEFAULT ''");
-  }
-}
-
-function shouldResetSchema(sqlite: Database.Database): boolean {
-  const existingTables = sqlite
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
-    .all() as Array<{ name: string }>;
-
-  if (existingTables.length === 0) {
-    return false;
-  }
-
-  const names = new Set(existingTables.map((row) => row.name));
-  return REQUIRED_TABLES.some((table) => !names.has(table));
-}
-
-function seedCompatibilityDefaults(sqlite: Database.Database): void {
-  // TODO(phase-04/phase-08): Remove this compatibility seed once the Sessions UI fully owns
-  // initial session creation and broker setup instead of relying on default-session/default-broker.
-  const now = new Date().toISOString();
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO provider_accounts (
-        id, name, category, provider_type, secret_ref, metadata_json, is_configured, last_test_status, updated_at
-      ) VALUES (?, ?, 'ai', 'anthropic', ?, NULL, 1, 'ok', ?)
-      `,
-    )
-    .run("provider-anthropic", "Anthropic", "provider-anthropic", now);
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO broker_accounts (
-        id, name, broker_type, supported_instrument_classes, mode, secret_ref, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-      `,
-    )
-    .run("default-broker", "Default Broker", "mock", '["stock","crypto","futures"]', "paper", "default-broker", now);
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO broker_routing (instrument_class, default_broker_account_id)
-      VALUES (?, ?)
-      `,
-    )
-    .run("stock", "default-broker");
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO broker_routing (instrument_class, default_broker_account_id)
-      VALUES (?, ?)
-      `,
-    )
-    .run("crypto", "default-broker");
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO broker_routing (instrument_class, default_broker_account_id)
-      VALUES (?, ?)
-      `,
-    )
-    .run("futures", "default-broker");
-
   sqlite
     .prepare(
       `
@@ -399,85 +274,5 @@ function seedCompatibilityDefaults(sqlite: Database.Database): void {
       ) VALUES (1, 0, 'per_session_only', NULL, ?)
       `,
     )
-    .run(now);
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO sessions (
-        id, name, objective, status, is_focused, selection_mode, instrument_classes,
-        instrument_scope, default_search_provider_id, capital_limit_usd, execution_mode,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-    )
-    .run(
-      "default-session",
-      "Primary Session",
-      "Default workspace session",
-      "idle",
-      1,
-      "manual_shortlist",
-      '["stock"]',
-      "SPY,QQQ",
-      null,
-      10000,
-      "paper_only",
-      now,
-      now,
-    );
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO session_selector_settings (session_id, ai_picker_enabled, updated_at)
-      VALUES (?, 1, ?)
-      `,
-    )
-    .run("default-session", now);
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO session_strategies (
-        session_id, strategy_profile, max_position_usd, stop_loss_pct, take_profit_pct,
-        max_concurrent_trades, research_depth, daily_loss_limit_usd, profit_target_usd,
-        max_ai_spend_usd, human_approval_required,
-        primary_trading_timeframe, holding_style, target_hold_days, max_hold_days, timeframe_notes
-      ) VALUES (?, 'passive_income', 500, 2, 4, 3, 'balanced', 200, 1000, 5, 0, '1d', 'multi_day_swing', NULL, NULL, '')
-      `,
-    )
-    .run("default-session");
-
-  const defaultRoles = [
-    "researcher_bull",
-    "researcher_bear",
-    "reviewer",
-    "decision_maker",
-    "instrument_selector",
-  ];
-
-  for (const role of defaultRoles) {
-    // TODO(phase-05/phase-07): Replace the unconfigured placeholder AI roles with
-    // real per-role defaults sourced from the session/AI configuration flow.
-    sqlite
-      .prepare(
-        `
-        INSERT OR IGNORE INTO session_ai_roles (
-          id, session_id, role, provider_key, model_id, temperature,
-          max_tokens, web_search_enabled, prompt_source, prompt_markdown, prompt_asset_path
-        ) VALUES (?, ?, ?, ?, ?, 0.7, 4096, 0, 'default', '', NULL)
-        `,
-      )
-      .run(`default-session:${role}`, "default-session", role, "provider-anthropic", "claude-sonnet-4-6");
-  }
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO session_broker_assignments (session_id, broker_account_id)
-      VALUES (?, ?)
-      `,
-    )
-    .run("default-session", "default-broker");
+    .run(new Date().toISOString());
 }

@@ -1,38 +1,11 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { api } from "@/lib/exva";
+import { ShadcnSelect } from "@/components/custom-ui";
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Input } from "@/components/ui";
 
 export type AiProviderType = "anthropic" | "openai" | "openrouter";
 
-const overlay: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.45)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 80,
-};
-
-const panel: CSSProperties = {
-  width: "min(440px, 92vw)",
-  background: "var(--surface)",
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  padding: 20,
-  maxHeight: "90vh",
-  overflowY: "auto",
-};
-
 const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 };
-const inputStyle: CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text1)",
-  fontSize: 13,
-};
 
 const DEFAULT_NAMES: Record<AiProviderType, string> = {
   anthropic: "Anthropic",
@@ -111,35 +84,42 @@ export const AddAiProviderModal = ({
   };
 
   return (
-    <div style={overlay} role="presentation" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={panel} onMouseDown={(e) => e.stopPropagation()}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", marginBottom: 4 }}>Add AI provider</div>
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-[var(--surface)] p-5 sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle className="text-base font-bold text-[var(--text1)]">Add AI provider</DialogTitle>
+        </DialogHeader>
         <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 16, lineHeight: 1.45 }}>
           Keys are stored in the OS keychain. Pick a provider, then assign models per role on the Strategy page.
         </p>
 
         <div style={{ marginBottom: 14 }}>
           <div style={labelStyle}>Provider</div>
-          <select
+          <ShadcnSelect
             value={providerType}
-            onChange={(e) => onTypeChange(e.target.value as AiProviderType)}
-            style={{ ...inputStyle, cursor: "pointer" }}
-          >
-            <option value="anthropic">Anthropic (Claude)</option>
-            <option value="openai">OpenAI</option>
-            <option value="openrouter">OpenRouter</option>
-          </select>
+            onValueChange={(value) => onTypeChange(value as AiProviderType)}
+            options={[
+              { value: "anthropic", label: "Anthropic (Claude)" },
+              { value: "openai", label: "OpenAI" },
+              { value: "openrouter", label: "OpenRouter" },
+            ]}
+          />
         </div>
 
         <div style={{ marginBottom: 14 }}>
           <div style={labelStyle}>Display name</div>
-          <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder={DEFAULT_NAMES[providerType]} />
+          <Input
+            className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={DEFAULT_NAMES[providerType]}
+          />
         </div>
 
         <div style={{ marginBottom: 14 }}>
           <div style={labelStyle}>API key</div>
-          <input
-            style={{ ...inputStyle, fontFamily: "var(--font-mono)", letterSpacing: "0.03em" }}
+          <Input
+            className="h-10 border-border bg-[var(--surface2)] font-mono text-[13px] tracking-[0.03em] text-[var(--text1)]"
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
@@ -153,8 +133,8 @@ export const AddAiProviderModal = ({
         {providerType === "openrouter" ? (
           <div style={{ marginBottom: 14 }}>
             <div style={labelStyle}>API base URL (optional)</div>
-            <input
-              style={{ ...inputStyle, fontFamily: "var(--font-mono)", fontSize: 12 }}
+            <Input
+              className="h-10 border-border bg-[var(--surface2)] font-mono text-[12px] text-[var(--text1)]"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder="https://openrouter.ai/api/v1"
@@ -188,43 +168,19 @@ export const AddAiProviderModal = ({
         ) : null}
 
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              flex: 1,
-              padding: "10px 14px",
-              borderRadius: 9,
-              border: "1px solid var(--border)",
-              background: "var(--surface2)",
-              color: "var(--text2)",
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
+          <Button type="button" variant="outline" className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             disabled={saving}
             onClick={() => void save()}
-            style={{
-              flex: 1,
-              padding: "10px 14px",
-              borderRadius: 9,
-              border: "none",
-              background: "var(--accent)",
-              color: "#fff",
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: saving ? "wait" : "pointer",
-              opacity: saving ? 0.85 : 1,
-            }}
+            className="flex-1 bg-[var(--accent)] text-white hover:opacity-95"
           >
             {saving ? "Saving…" : "Save & test"}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

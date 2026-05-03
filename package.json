@@ -6,6 +6,7 @@
   "main": ".vite/build/main.cjs",
   "scripts": {
     "dev": "electron-forge start",
+    "dev:rebuild-db": "EXVA_DB_REBUILD_FROM_SCRATCH=true electron-forge start",
     "dev:renderer": "vite",
     "build": "tsc --noEmit && electron-forge package",
     "preview": "vite preview",

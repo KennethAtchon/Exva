@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import type { DashboardStats, SessionStatus } from "@/lib/types";
 import { Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
+import { Button } from "@/components/ui";
 
 export type PageKey =
   | "dashboard"
@@ -65,14 +66,15 @@ export const TopNav = ({
         {NAV_ITEMS.map((item) => {
           const active = activePage === item.id;
           return (
-            <button
+            <Button
               key={item.id}
               onClick={() => onNavigate(item.id)}
+              variant="ghost"
               style={{ ...s.navItem, ...(active ? s.navItemActive : {}) }}
             >
               {item.label}
               {active && <div style={s.navUnderline} />}
-            </button>
+            </Button>
           );
         })}
       </nav>
@@ -101,22 +103,23 @@ export const TopNav = ({
         </div>
 
         {sessionStatus !== "active" && (
-          <button
+          <Button
             style={s.btnStart}
+            variant="ghost"
             onClick={() => onSessionAction(sessionStatus === "paused" ? "resume" : "start")}
           >
             ▶ {sessionStatus === "paused" ? "Resume" : "Start"}
-          </button>
+          </Button>
         )}
         {sessionStatus === "active" && (
-          <button style={s.btnPause} onClick={() => onSessionAction("pause")}>
+          <Button variant="ghost" style={s.btnPause} onClick={() => onSessionAction("pause")}>
             ⏸ Pause
-          </button>
+          </Button>
         )}
         {isRunning && (
-          <button style={s.btnStop} onClick={() => onSessionAction("stop")}>
+          <Button variant="ghost" style={s.btnStop} onClick={() => onSessionAction("stop")}>
             ■
-          </button>
+          </Button>
         )}
       </div>
     </header>

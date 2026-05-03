@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
+import { ShadcnSelect } from "@/components/custom-ui";
+import { Button, Dialog, DialogContent } from "@/components/ui";
 
 interface Props {
   open: boolean;
@@ -67,7 +69,8 @@ export const CreateEditSessionModal = ({
   if (!open) return null;
 
   return (
-    <div style={overlayStyle} onClick={(event) => event.target === event.currentTarget && onClose()}>
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-auto rounded-[20px] border-border bg-transparent p-0 sm:max-w-[920px]">
       <div style={panelStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <div>
@@ -76,7 +79,7 @@ export const CreateEditSessionModal = ({
               Identity, task boundary, and execution routing in one place.
             </div>
           </div>
-          <button onClick={onClose} style={closeStyle}>✕</button>
+          <Button onClick={onClose} variant="ghost" className="h-auto p-1 text-[var(--text3)]">✕</Button>
         </div>
 
         {templateWarnings?.length ? (
@@ -112,14 +115,16 @@ export const CreateEditSessionModal = ({
             <SectionHeader title="Task Boundary" caption="Universe selection, scope, and search-provider behavior." />
             <div style={twoColumnGridStyle}>
               <Field label="Selection mode">
-                <select
+                <ShadcnSelect
                   value={form.selectionMode}
-                  onChange={(event) => setForm({ ...form, selectionMode: event.target.value as SessionCreateInput["selectionMode"] })}
-                  style={inputStyle}
-                >
-                  <option value="manual_shortlist">Manual shortlist</option>
-                  <option value="ai_selected_universe">AI selected universe</option>
-                </select>
+                  onValueChange={(value) =>
+                    setForm({ ...form, selectionMode: value as SessionCreateInput["selectionMode"] })
+                  }
+                  options={[
+                    { value: "manual_shortlist", label: "Manual shortlist" },
+                    { value: "ai_selected_universe", label: "AI selected universe" },
+                  ]}
+                />
               </Field>
               <Field label="Search provider override">
                 <input
@@ -188,14 +193,16 @@ export const CreateEditSessionModal = ({
             <SectionHeader title="Execution Setup" caption="Broker attachments and routing overrides." />
             <div style={twoColumnGridStyle}>
               <Field label="Execution mode">
-                <select
+                <ShadcnSelect
                   value={form.executionMode}
-                  onChange={(event) => setForm({ ...form, executionMode: event.target.value as SessionCreateInput["executionMode"] })}
-                  style={inputStyle}
-                >
-                  <option value="paper_only">Paper only</option>
-                  <option value="live_allowed">Live allowed</option>
-                </select>
+                  onValueChange={(value) =>
+                    setForm({ ...form, executionMode: value as SessionCreateInput["executionMode"] })
+                  }
+                  options={[
+                    { value: "paper_only", label: "Paper only" },
+                    { value: "live_allowed", label: "Live allowed" },
+                  ]}
+                />
               </Field>
               <Field label="Assigned broker account IDs">
                 <textarea
@@ -235,8 +242,8 @@ export const CreateEditSessionModal = ({
             {loadingSeed ? "Loading persisted strategy, broker assignments, and routing..." : ""}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button onClick={onClose} style={secondaryButtonStyle}>Cancel</button>
-            <button
+            <Button onClick={onClose} variant="outline" className="border-border bg-[var(--surface2)] text-[var(--text2)]">Cancel</Button>
+            <Button
               onClick={async () => {
                 setSaving(true);
                 setError(null);
@@ -249,15 +256,16 @@ export const CreateEditSessionModal = ({
                   setSaving(false);
                 }
               }}
-              style={primaryButtonStyle}
+              className="bg-[var(--accent)] text-white"
               disabled={saving || loadingSeed || !isValid}
             >
               {saving ? "Saving..." : initialSession ? "Save Session" : "Create Session"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -341,14 +349,10 @@ function formatInstrumentClass(value: InstrumentClass): string {
   return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : "Futures";
 }
 
-const overlayStyle = { position: "fixed", inset: 0, background: "rgba(3,6,11,0.74)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40, padding: 18 } as const;
 const panelStyle = { width: 920, maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", background: "linear-gradient(180deg, rgba(13,18,25,0.98), rgba(9,13,18,0.98))", border: "1px solid var(--border)", borderRadius: 20, padding: 24, boxShadow: "0 26px 60px rgba(2,6,23,0.48)" } as const;
 const sectionStyle = { border: "1px solid var(--border)", borderRadius: 16, padding: 18, background: "rgba(18,26,36,0.72)" } as const;
 const inputStyle = { width: "100%", padding: "11px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "rgba(7,10,15,0.5)", color: "var(--text1)" } as const;
 const textareaStyle = { ...inputStyle, resize: "vertical" as const, minHeight: 88 };
-const closeStyle = { background: "transparent", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: 18 } as const;
-const secondaryButtonStyle = { padding: "10px 15px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", cursor: "pointer" } as const;
-const primaryButtonStyle = { padding: "10px 15px", borderRadius: 10, border: "none", background: "var(--accent)", color: "white", cursor: "pointer" } as const;
 const toggleChipStyle = { display: "inline-flex", alignItems: "center", gap: 8, border: "1px solid var(--border)", borderRadius: 999, padding: "8px 11px", background: "rgba(7,10,15,0.38)", color: "var(--text2)", fontSize: 12 } as const;
 const switchRowStyle = { display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--border)", background: "rgba(7,10,15,0.34)" } as const;
 const twoColumnGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 } as const;

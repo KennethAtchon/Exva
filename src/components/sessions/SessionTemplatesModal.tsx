@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
+import { ShadcnSelect } from "@/components/custom-ui";
+import { Button, Dialog, DialogContent, Input } from "@/components/ui";
 
 type TemplateListItem = {
   id: string;
@@ -55,7 +57,8 @@ export const SessionTemplatesModal = ({
   if (!open) return null;
 
   return (
-    <div style={overlayStyle} onClick={(event) => event.target === event.currentTarget && onClose()}>
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-auto rounded-[20px] border-border bg-transparent p-0 sm:max-w-[920px]">
       <div style={panelStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <div>
@@ -64,7 +67,7 @@ export const SessionTemplatesModal = ({
               Capture a full session payload or seed a new one from saved structure.
             </div>
           </div>
-          <button onClick={onClose} style={closeStyle}>✕</button>
+          <Button onClick={onClose} variant="ghost" className="h-auto p-1 text-[var(--text3)]">✕</Button>
         </div>
 
         {error ? <div style={errorBannerStyle}>{error}</div> : null}
@@ -81,9 +84,9 @@ export const SessionTemplatesModal = ({
           </div>
 
           <div style={{ display: "grid", gap: 10 }}>
-            <input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" style={inputStyle} />
+            <Input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" className="h-10 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]" />
             <textarea value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder="What this template is for" rows={3} style={textareaStyle} />
-            <button
+            <Button
               onClick={async () => {
                 if (!sourceSession || !templateName.trim()) return;
                 setSaving(true);
@@ -107,22 +110,27 @@ export const SessionTemplatesModal = ({
                   setSaving(false);
                 }
               }}
-              style={primaryButtonStyle}
+              className="bg-[var(--accent)] text-white"
               disabled={saving || !sourceSession || !templateName.trim()}
             >
               {saving ? "Saving Template..." : "Save Full Session Payload"}
-            </button>
+            </Button>
           </div>
         </div>
 
         <div style={toolbarStyle}>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search templates" style={{ ...inputStyle, flex: 1 }} />
-          <select value={instrumentClass} onChange={(event) => setInstrumentClass(event.target.value as InstrumentClass | "all")} style={inputStyle}>
-            <option value="all">All instruments</option>
-            <option value="stock">Stocks</option>
-            <option value="crypto">Crypto</option>
-            <option value="futures">Futures</option>
-          </select>
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search templates" className="h-10 flex-1 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]" />
+          <ShadcnSelect
+            value={instrumentClass}
+            onValueChange={(value) => setInstrumentClass(value as InstrumentClass | "all")}
+            className="w-[180px]"
+            options={[
+              { value: "all", label: "All instruments" },
+              { value: "stock", label: "Stocks" },
+              { value: "crypto", label: "Crypto" },
+              { value: "futures", label: "Futures" },
+            ]}
+          />
         </div>
 
         <div style={{ display: "grid", gap: 10 }}>
@@ -147,7 +155,7 @@ export const SessionTemplatesModal = ({
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
-                      <button
+                      <Button
                         onClick={async () => {
                           setError(null);
                           try {
@@ -158,11 +166,11 @@ export const SessionTemplatesModal = ({
                             setError(useError instanceof Error ? useError.message : "Failed to apply template.");
                           }
                         }}
-                        style={primaryButtonStyle}
+                        className="bg-[var(--accent)] text-white"
                       >
                         Use Template
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         onClick={async () => {
                           setError(null);
                           try {
@@ -172,10 +180,11 @@ export const SessionTemplatesModal = ({
                             setError(deleteError instanceof Error ? deleteError.message : "Failed to delete template.");
                           }
                         }}
-                        style={secondaryButtonStyle}
+                        variant="outline"
+                        className="border-border bg-[var(--surface2)] text-[var(--text2)]"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -183,7 +192,8 @@ export const SessionTemplatesModal = ({
             : null}
         </div>
       </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -211,7 +221,6 @@ function formatTimestamp(value: string): string {
   return new Date(value).toLocaleString();
 }
 
-const overlayStyle = { position: "fixed", inset: 0, background: "rgba(3,6,11,0.74)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 40, padding: 18 } as const;
 const panelStyle = { width: 920, maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", background: "linear-gradient(180deg, rgba(13,18,25,0.98), rgba(9,13,18,0.98))", border: "1px solid var(--border)", borderRadius: 20, padding: 24, boxShadow: "0 26px 60px rgba(2,6,23,0.48)" } as const;
 const heroCardStyle = { display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 18, alignItems: "start", marginBottom: 18, padding: 18, borderRadius: 18, border: "1px solid var(--accent-dim)", background: "linear-gradient(135deg, rgba(96,165,250,0.12), rgba(15,23,42,0.18))" } as const;
 const toolbarStyle = { display: "flex", gap: 10, alignItems: "center", marginBottom: 14, flexWrap: "wrap" } as const;
@@ -220,7 +229,4 @@ const emptyStateStyle = { border: "1px dashed var(--border)", borderRadius: 16, 
 const inputStyle = { padding: "11px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "rgba(7,10,15,0.5)", color: "var(--text1)" } as const;
 const textareaStyle = { ...inputStyle, resize: "vertical" as const, minHeight: 84 };
 const chipStyle = { padding: "4px 9px", borderRadius: 999, border: "1px solid var(--border)", background: "rgba(7,10,15,0.38)", color: "var(--text2)", fontSize: 11 } as const;
-const closeStyle = { background: "transparent", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: 18 } as const;
-const secondaryButtonStyle = { padding: "10px 13px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", cursor: "pointer" } as const;
-const primaryButtonStyle = { padding: "10px 13px", borderRadius: 10, border: "none", background: "var(--accent)", color: "white", cursor: "pointer" } as const;
 const errorBannerStyle = { marginBottom: 16, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(248,113,113,0.34)", background: "rgba(248,113,113,0.08)", color: "#fca5a5", fontSize: 13 } as const;

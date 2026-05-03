@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { AgentRole, EventSourceType, LogLevel } from "@/lib/types";
 import { Badge as UIBadge, Card as UICard, Separator } from "@/components/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 type BadgeVariant = "default" | "success" | "danger" | "warn" | "blue" | "purple";
@@ -119,3 +120,45 @@ export const Card = ({
     {children}
   </UICard>
 );
+
+type SelectOption = {
+  value: string;
+  label: string;
+};
+
+export const ShadcnSelect = ({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  className,
+  disabled,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+  options: SelectOption[];
+  placeholder?: string;
+  className?: string;
+  disabled?: boolean;
+}) => {
+  const EMPTY_VALUE = "__empty_option__";
+  const normalized = value === "" ? EMPTY_VALUE : value;
+  return (
+    <Select
+      value={normalized}
+      onValueChange={(next) => onValueChange(next === EMPTY_VALUE ? "" : next)}
+      disabled={disabled}
+    >
+      <SelectTrigger className={cn("h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]", className)}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value || EMPTY_VALUE} value={option.value === "" ? EMPTY_VALUE : option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};

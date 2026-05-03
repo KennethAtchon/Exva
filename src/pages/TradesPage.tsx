@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Card, PageShell } from "@/components/custom-ui";
+import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
+import { Button } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { api } from "@/lib/exva";
 import { fmt } from "@/lib/formatters";
@@ -109,28 +110,30 @@ export const TradesPage = () => {
         </label>
         <label style={filterLabelStyle}>
           Class
-          <select
+          <ShadcnSelect
             value={instrumentType}
-            onChange={(e) => setInstrumentType(e.target.value as "" | InstrumentClass)}
-            style={filterInputStyle}
-          >
-            <option value="">Any</option>
-            <option value="stock">Stock</option>
-            <option value="crypto">Crypto</option>
-            <option value="futures">Futures</option>
-          </select>
+            onValueChange={(value) => setInstrumentType(value as "" | InstrumentClass)}
+            className="min-w-[120px]"
+            options={[
+              { value: "", label: "Any" },
+              { value: "stock", label: "Stock" },
+              { value: "crypto", label: "Crypto" },
+              { value: "futures", label: "Futures" },
+            ]}
+          />
         </label>
         <label style={filterLabelStyle}>
           Execution
-          <select
+          <ShadcnSelect
             value={executionMode}
-            onChange={(e) => setExecutionMode(e.target.value as "" | ExecutionMode)}
-            style={filterInputStyle}
-          >
-            <option value="">Any</option>
-            <option value="paper_only">Paper only</option>
-            <option value="live_allowed">Live allowed</option>
-          </select>
+            onValueChange={(value) => setExecutionMode(value as "" | ExecutionMode)}
+            className="min-w-[120px]"
+            options={[
+              { value: "", label: "Any" },
+              { value: "paper_only", label: "Paper only" },
+              { value: "live_allowed", label: "Live allowed" },
+            ]}
+          />
         </label>
         <label style={filterLabelStyle}>
           Broker account id
@@ -144,18 +147,15 @@ export const TradesPage = () => {
         {viewMode === "global" ? (
           <label style={filterLabelStyle}>
             Session
-            <select
+            <ShadcnSelect
               value={sessionFilterId}
-              onChange={(e) => setSessionFilterId(e.target.value)}
-              style={filterInputStyle}
-            >
-              <option value="">All sessions</option>
-              {sessionOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              onValueChange={setSessionFilterId}
+              className="min-w-[180px]"
+              options={[
+                { value: "", label: "All sessions" },
+                ...sessionOptions.map((session) => ({ value: session.id, label: session.name })),
+              ]}
+            />
           </label>
         ) : null}
       </Card>
@@ -181,9 +181,10 @@ export const TradesPage = () => {
       <Card style={{ padding: 0, overflow: "hidden" }}>
         <div style={{ display: "flex", gap: 6, padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
           {(["all", "open", "closed"] as Filter[]).map((s) => (
-            <button
+            <Button
               key={s}
               onClick={() => setFilter(s)}
+              variant="ghost"
               style={{
                 padding: "5px 14px", fontSize: 12, borderRadius: 7, cursor: "pointer",
                 background: filter === s ? "var(--surface3)" : "transparent",
@@ -193,7 +194,7 @@ export const TradesPage = () => {
               }}
             >
               {s}
-            </button>
+            </Button>
           ))}
         </div>
         <div style={{ overflowX: "auto" }}>

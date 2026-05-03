@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Badge, Card, PageShell } from "@/components/custom-ui";
+import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
+import { Button } from "@/components/ui";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import type { InstrumentClass, SessionStatus } from "@/lib/types";
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
@@ -89,16 +90,17 @@ export const SessionsPage = () => {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
+          <Button
             onClick={() => {
               setTemplateSourceSession(focusedSession);
               setTemplatesOpen(true);
             }}
+            variant="outline"
             style={secondaryButtonStyle}
           >
             Templates
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={async () => {
               setError(null);
               try {
@@ -108,22 +110,24 @@ export const SessionsPage = () => {
                 setError(goGlobalError instanceof Error ? goGlobalError.message : "Failed to switch to global mode.");
               }
             }}
+            variant="outline"
             style={secondaryButtonStyle}
             disabled={sessions.filter((session) => session.status !== "archived").length === 0 || viewMode === "global"}
           >
             Go Global
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               setEditing(null);
               setTemplateInput(null);
               setTemplateWarnings([]);
               setModalOpen(true);
             }}
+            variant="ghost"
             style={primaryButtonStyle}
           >
             New Session
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -156,24 +160,24 @@ export const SessionsPage = () => {
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {focusedSession && (focusedSession.status === "draft" || focusedSession.status === "idle" || focusedSession.status === "stopped") ? (
-                <button onClick={() => void runLifecycleAction(focusedSession, "start")} style={primaryButtonStyle} disabled={actionSessionId === focusedSession.id}>
+                <Button variant="ghost" onClick={() => void runLifecycleAction(focusedSession, "start")} style={primaryButtonStyle} disabled={actionSessionId === focusedSession.id}>
                   Start
-                </button>
+                </Button>
               ) : null}
               {focusedSession?.status === "active" ? (
-                <button onClick={() => void runLifecycleAction(focusedSession, "pause")} style={secondaryButtonStyle} disabled={actionSessionId === focusedSession.id}>
+                <Button variant="outline" onClick={() => void runLifecycleAction(focusedSession, "pause")} style={secondaryButtonStyle} disabled={actionSessionId === focusedSession.id}>
                   Pause
-                </button>
+                </Button>
               ) : null}
               {focusedSession?.status === "paused" ? (
-                <button onClick={() => void runLifecycleAction(focusedSession, "resume")} style={primaryButtonStyle} disabled={actionSessionId === focusedSession.id}>
+                <Button variant="ghost" onClick={() => void runLifecycleAction(focusedSession, "resume")} style={primaryButtonStyle} disabled={actionSessionId === focusedSession.id}>
                   Resume
-                </button>
+                </Button>
               ) : null}
               {focusedSession && (focusedSession.status === "active" || focusedSession.status === "paused") ? (
-                <button onClick={() => void runLifecycleAction(focusedSession, "stop")} style={dangerButtonStyle} disabled={actionSessionId === focusedSession.id}>
+                <Button variant="ghost" onClick={() => void runLifecycleAction(focusedSession, "stop")} style={dangerButtonStyle} disabled={actionSessionId === focusedSession.id}>
                   Stop
-                </button>
+                </Button>
               ) : null}
             </div>
           </div>
@@ -183,21 +187,31 @@ export const SessionsPage = () => {
       <Card>
         <div style={toolbarStyle}>
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name or objective" style={{ ...inputStyle, flex: 1 }} />
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as SessionStatus | "all")} style={inputStyle}>
-            <option value="all">All statuses</option>
-            <option value="draft">Draft</option>
-            <option value="idle">Idle</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="stopped">Stopped</option>
-            <option value="archived">Archived</option>
-          </select>
-          <select value={instrumentFilter} onChange={(event) => setInstrumentFilter(event.target.value as InstrumentClass | "all")} style={inputStyle}>
-            <option value="all">All instruments</option>
-            <option value="stock">Stocks</option>
-            <option value="crypto">Crypto</option>
-            <option value="futures">Futures</option>
-          </select>
+          <ShadcnSelect
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value as SessionStatus | "all")}
+            className="w-[180px]"
+            options={[
+              { value: "all", label: "All statuses" },
+              { value: "draft", label: "Draft" },
+              { value: "idle", label: "Idle" },
+              { value: "active", label: "Active" },
+              { value: "paused", label: "Paused" },
+              { value: "stopped", label: "Stopped" },
+              { value: "archived", label: "Archived" },
+            ]}
+          />
+          <ShadcnSelect
+            value={instrumentFilter}
+            onValueChange={(value) => setInstrumentFilter(value as InstrumentClass | "all")}
+            className="w-[180px]"
+            options={[
+              { value: "all", label: "All instruments" },
+              { value: "stock", label: "Stocks" },
+              { value: "crypto", label: "Crypto" },
+              { value: "futures", label: "Futures" },
+            ]}
+          />
           <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 12, whiteSpace: "nowrap" }}>
             <input
               type="checkbox"

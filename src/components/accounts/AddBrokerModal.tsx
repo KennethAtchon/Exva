@@ -1,37 +1,10 @@
 import { useState, type CSSProperties } from "react";
 import type { InstrumentClass } from "@/lib/types";
 import { api } from "@/lib/exva";
-
-const overlay: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.45)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 80,
-};
-
-const panel: CSSProperties = {
-  width: "min(440px, 92vw)",
-  background: "var(--surface)",
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  padding: 20,
-  maxHeight: "90vh",
-  overflowY: "auto",
-};
+import { ShadcnSelect } from "@/components/custom-ui";
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Input } from "@/components/ui";
 
 const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 };
-const inputStyle: CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text1)",
-  fontSize: 13,
-};
 
 export const AddBrokerModal = ({
   open,
@@ -129,28 +102,30 @@ export const AddBrokerModal = ({
   };
 
   return (
-    <div style={overlay} onMouseDown={onClose}>
-      <div style={panel} onMouseDown={(e) => e.stopPropagation()}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", marginBottom: 14 }}>Add broker account</div>
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-[var(--surface)] p-5 sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle className="text-base font-bold text-[var(--text1)]">Add broker account</DialogTitle>
+        </DialogHeader>
 
         <div style={{ marginBottom: 12 }}>
           <div style={labelStyle}>Broker type</div>
-          <select
+          <ShadcnSelect
             value={brokerType}
-            onChange={(e) => {
-              const next = e.target.value as typeof brokerType;
+            onValueChange={(value) => {
+              const next = value as typeof brokerType;
               setBrokerType(next);
               if (next === "coinbase_advanced_trade") setMode("live");
               setTestOk(null);
               setMessage(null);
             }}
-            style={inputStyle}
-          >
-            <option value="mock">Mock (dev — all instrument classes)</option>
-            <option value="alpaca">Alpaca (stocks)</option>
-            <option value="coinbase_advanced_trade">Coinbase Advanced Trade (crypto — CCXT)</option>
-            <option value="tradovate">Tradovate (futures — simulated v1)</option>
-          </select>
+            options={[
+              { value: "mock", label: "Mock (dev — all instrument classes)" },
+              { value: "alpaca", label: "Alpaca (stocks)" },
+              { value: "coinbase_advanced_trade", label: "Coinbase Advanced Trade (crypto — CCXT)" },
+              { value: "tradovate", label: "Tradovate (futures — simulated v1)" },
+            ]}
+          />
           <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>
             Supports: {supportedHint().join(", ")}
           </div>
@@ -158,26 +133,35 @@ export const AddBrokerModal = ({
 
         <div style={{ marginBottom: 12 }}>
           <div style={labelStyle}>Display name</div>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Main Alpaca" style={inputStyle} />
+          <Input
+            className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Main Alpaca"
+          />
         </div>
 
         <div style={{ marginBottom: 12 }}>
           <div style={labelStyle}>Mode</div>
-          <select value={mode} onChange={(e) => setMode(e.target.value as "paper" | "live")} style={inputStyle}>
-            <option value="paper">Paper</option>
-            <option value="live">Live</option>
-          </select>
+          <ShadcnSelect
+            value={mode}
+            onValueChange={(value) => setMode(value as "paper" | "live")}
+            options={[
+              { value: "paper", label: "Paper" },
+              { value: "live", label: "Live" },
+            ]}
+          />
         </div>
 
         {brokerType === "alpaca" && (
           <>
             <div style={{ marginBottom: 12 }}>
               <div style={labelStyle}>API key ID</div>
-              <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} type="password" style={inputStyle} />
+              <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={apiKey} onChange={(e) => setApiKey(e.target.value)} type="password" />
             </div>
             <div style={{ marginBottom: 12 }}>
               <div style={labelStyle}>Secret key</div>
-              <input value={secretKey} onChange={(e) => setSecretKey(e.target.value)} type="password" style={inputStyle} />
+              <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} type="password" />
             </div>
           </>
         )}
@@ -186,15 +170,15 @@ export const AddBrokerModal = ({
           <>
             <div style={{ marginBottom: 12 }}>
               <div style={labelStyle}>API key</div>
-              <input value={apiKey} onChange={(e) => setApiKey(e.target.value)} type="password" style={inputStyle} />
+              <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={apiKey} onChange={(e) => setApiKey(e.target.value)} type="password" />
             </div>
             <div style={{ marginBottom: 12 }}>
               <div style={labelStyle}>API secret (CDP EC private key, PEM)</div>
-              <input value={secretKey} onChange={(e) => setSecretKey(e.target.value)} type="password" style={inputStyle} />
+              <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} type="password" />
             </div>
             <div style={{ marginBottom: 12 }}>
               <div style={labelStyle}>Passphrase (if required)</div>
-              <input value={passphrase} onChange={(e) => setPassphrase(e.target.value)} type="password" style={inputStyle} />
+              <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} type="password" />
             </div>
           </>
         )}
@@ -203,11 +187,11 @@ export const AddBrokerModal = ({
           <>
             <div style={{ marginBottom: 12 }}>
               <div style={labelStyle}>Username</div>
-              <input value={username} onChange={(e) => setUsername(e.target.value)} style={inputStyle} />
+              <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={username} onChange={(e) => setUsername(e.target.value)} />
             </div>
             <div style={{ marginBottom: 12 }}>
               <div style={labelStyle}>Password</div>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" style={inputStyle} />
+              <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={password} onChange={(e) => setPassword(e.target.value)} type="password" />
             </div>
           </>
         )}
@@ -228,29 +212,22 @@ export const AddBrokerModal = ({
         )}
 
         <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-          <button type="button" onClick={() => void runTest()} disabled={testing} style={{ ...inputStyle, cursor: "pointer" }}>
+          <Button type="button" variant="outline" onClick={() => void runTest()} disabled={testing} className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]">
             {testing ? "Testing…" : "Test connection"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => void save()}
             disabled={saving || testOk !== true}
-            style={{
-              ...inputStyle,
-              cursor: "pointer",
-              background: "var(--accent)",
-              color: "#fff",
-              border: "none",
-              opacity: testOk === true ? 1 : 0.45,
-            }}
+            className="flex-1 bg-[var(--accent)] text-white hover:opacity-95 disabled:opacity-45"
           >
             {saving ? "Saving…" : "Save"}
-          </button>
-          <button type="button" onClick={onClose} style={{ ...inputStyle, cursor: "pointer" }}>
+          </Button>
+          <Button type="button" variant="outline" onClick={onClose} className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]">
             Cancel
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

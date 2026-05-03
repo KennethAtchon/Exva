@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { Card, PageShell, SectionTitle } from "@/components/custom-ui";
+import { Card, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiRoleConfigCard } from "@/components/strategy/AiRoleConfigCard";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";
@@ -127,19 +127,29 @@ export const StrategyConfig = () => {
             <SectionTitle>Trading Rules</SectionTitle>
             <div style={formGridStyle}>
               <Field label="Strategy Profile">
-                <select value={strategy.strategyProfile} onChange={(event) => updateStrategy({ strategyProfile: event.target.value as typeof strategy.strategyProfile })} disabled={isLocked} style={inputStyle}>
-                  <option value="passive_income">Passive Income</option>
-                  <option value="growth">Growth</option>
-                  <option value="conservative">Conservative</option>
-                  <option value="custom">Custom</option>
-                </select>
+                <ShadcnSelect
+                  value={strategy.strategyProfile}
+                  onValueChange={(value) => updateStrategy({ strategyProfile: value as typeof strategy.strategyProfile })}
+                  disabled={isLocked}
+                  options={[
+                    { value: "passive_income", label: "Passive Income" },
+                    { value: "growth", label: "Growth" },
+                    { value: "conservative", label: "Conservative" },
+                    { value: "custom", label: "Custom" },
+                  ]}
+                />
               </Field>
               <Field label="Research Depth">
-                <select value={strategy.researchDepth} onChange={(event) => updateStrategy({ researchDepth: event.target.value as typeof strategy.researchDepth })} disabled={isLocked} style={inputStyle}>
-                  <option value="light">Light</option>
-                  <option value="balanced">Balanced</option>
-                  <option value="deep">Deep</option>
-                </select>
+                <ShadcnSelect
+                  value={strategy.researchDepth}
+                  onValueChange={(value) => updateStrategy({ researchDepth: value as typeof strategy.researchDepth })}
+                  disabled={isLocked}
+                  options={[
+                    { value: "light", label: "Light" },
+                    { value: "balanced", label: "Balanced" },
+                    { value: "deep", label: "Deep" },
+                  ]}
+                />
               </Field>
               <Field label="Max Position USD">
                 <input type="number" value={strategy.maxPositionUsd} onChange={(event) => updateStrategy({ maxPositionUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />

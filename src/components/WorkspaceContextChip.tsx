@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type SessionSummary } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui";
 
 interface WorkspaceContextChipProps {
   onSwitchSession?: (id: string) => void;
@@ -21,83 +22,41 @@ export const WorkspaceContextChip = ({ onSwitchSession, onGoGlobal }: WorkspaceC
   const focused = sessions.find((session) => session.id === focusedSessionId);
 
   return (
-    <div style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        style={{
-          padding: "7px 12px",
-          borderRadius: 999,
-          border: "1px solid var(--border)",
-          background: "var(--surface2)",
-          color: "var(--text2)",
-          fontSize: 12,
-          cursor: "pointer",
-          maxWidth: "min(280px, 42vw)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {viewMode === "global" ? "Global Workspace" : focused?.name ?? "Focused Session"}
-      </button>
-      {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: 0,
-            left: "auto",
-            width: "min(280px, calc(100vw - 48px))",
-            maxHeight: "min(360px, calc(100vh - 100px))",
-            overflowY: "auto",
-            overscrollBehavior: "contain",
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: 10,
-            boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
-            padding: 10,
-            zIndex: 200,
-          }}
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="max-w-[min(280px,42vw)] overflow-hidden rounded-full border-border bg-[var(--surface2)] px-3 py-2 text-xs text-[var(--text2)]"
         >
-          <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 8, textTransform: "uppercase" }}>Workspace Context</div>
-          <button
+          <span className="truncate">{viewMode === "global" ? "Global Workspace" : focused?.name ?? "Focused Session"}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="z-[200] w-[min(280px,calc(100vw-48px))] border-border bg-[var(--surface)] p-2">
+        <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 8, textTransform: "uppercase" }}>Workspace Context</div>
+        <DropdownMenuItem
+          onClick={() => {
+            setOpen(false);
+            onGoGlobal?.();
+          }}
+          className="justify-between rounded-lg text-[var(--text2)]"
+        >
+          Global Workspace
+        </DropdownMenuItem>
+        {sessions.map((session) => (
+          <DropdownMenuItem
+            key={session.id}
             onClick={() => {
               setOpen(false);
-              onGoGlobal?.();
+              onSwitchSession?.(session.id);
             }}
-            style={menuButtonStyle}
+            className="justify-between rounded-lg text-[var(--text2)]"
           >
-            Global Workspace
-          </button>
-          {sessions.map((session) => (
-            <button
-              key={session.id}
-              onClick={() => {
-                setOpen(false);
-                onSwitchSession?.(session.id);
-              }}
-              style={menuButtonStyle}
-            >
-              <span>{session.name}</span>
-              <span style={{ color: "var(--text3)", fontSize: 11 }}>{session.status}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+            <span>{session.name}</span>
+            <span style={{ color: "var(--text3)", fontSize: 11 }}>{session.status}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
-
-const menuButtonStyle = {
-  width: "100%",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: "8px 10px",
-  background: "transparent",
-  border: "none",
-  borderRadius: 8,
-  color: "var(--text2)",
-  cursor: "pointer",
-} as const;

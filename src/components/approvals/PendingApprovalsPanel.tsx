@@ -1,5 +1,6 @@
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { Badge, Card, SectionTitle } from "@/components/custom-ui";
+import { Button } from "@/components/ui";
 import { fmt } from "@/lib/formatters";
 import type { ApprovalSummary } from "@/lib/types";
 import { ApprovalDetailModal } from "./ApprovalDetailModal";
@@ -37,11 +38,12 @@ export const PendingApprovalsPanel = ({
         ) : (
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             {pending.map((a) => (
-              <button
+              <Button
                 key={a.id}
                 type="button"
                 onClick={() => setSelected(a)}
-                style={row}
+                variant="outline"
+                className="h-auto w-full justify-between gap-3 rounded-[10px] border-border bg-[var(--surface2)] p-[10px_12px] text-left"
               >
                 <div style={{ textAlign: "left" }}>
                   {workspaceViewMode === "global" && (
@@ -59,7 +61,7 @@ export const PendingApprovalsPanel = ({
                   <div style={{ fontSize: 10, color: "var(--text3)", marginTop: 4 }}>{fmt.time(a.requestedAt)}</div>
                 </div>
                 <Badge variant="warn" size="sm">pending</Badge>
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -78,17 +80,3 @@ export const PendingApprovalsPanel = ({
   );
 };
 
-const row: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 12,
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  cursor: "pointer",
-  width: "100%",
-  textAlign: "left",
-  font: "inherit",
-};

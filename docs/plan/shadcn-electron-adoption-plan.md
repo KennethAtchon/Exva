@@ -272,17 +272,17 @@ Update this table in the same PR when a phase materially changes.
 | Phase | Status          | Notes                                                                                           |
 | ----- | --------------- | ----------------------------------------------------------------------------------------------- |
 | 0     | **Complete**    | Tailwind, PostCSS, `components.json`, `src/components/ui/`*, `cn`, `docs/shadcn-usage-guide.md` |
-| 1     | **In progress** | HSL semantic vars and legacy vars coexist; deduplicate and run parity checklist                 |
-| 2     | **Not started** | Atoms still export mixed primitives; feature files rarely import `@/components/ui` directly     |
-| 3     | **Not started** | Many modals still use inline overlay/panel styles                                               |
+| 1     | **In progress** | Token collision fixes landed (`accent`/`border`/`input` semantic vars split); parity checklist still pending |
+| 2     | **In progress** | `atoms.tsx` removed, custom wrappers moved to `src/components/custom-ui/`, native `<select>` replaced with shadcn-based select controls |
+| 3     | **In progress** | Approval modal migrated to shadcn `Dialog`; other fullscreen overlays/drawers still in progress |
 
 
 **Suggested next engineering tasks**
 
-1. Finish Phase 1 token audit in `src/styles.css` and resolve duplicate or shadowed variables so Tailwind `hsl(var(--token))` colors stay valid.
-2. Migrate one representative modal (for example session create/edit) to `Dialog` + `Button` + `Input` as the pattern for the rest.
-3. Replace `PageShell` and `SectionTitle` with class-based layout or small shared layout components using semantic utilities.
-4. Remove `@/components/atoms` imports file by file, then delete or empty `atoms.tsx`.
+1. Complete the remaining modal/drawer conversions to shadcn (`AddBrokerModal`, `AddAiProviderModal`, `CreateEditSessionModal`, `SessionTemplatesModal`, `TradeDetail`).
+2. Replace ad hoc button/input classes with shadcn `Button` and `Input` where feasible to reduce remaining inline-style control surface.
+3. Finish Phase 1 visual parity pass and record snapshot comparisons for core controls.
+4. Update migration matrix row statuses in [§14](#14-appendix-page-and-surface-migration-matrix) as each surface reaches shadcn-first composition.
 
 ## 13. Appendix: Token bridge reference
 

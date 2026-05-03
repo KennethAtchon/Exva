@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Badge, Card, Dot, PageShell, SectionTitle } from "@/components/custom-ui";
+import { Badge, Card, Dot, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
 import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
 import { api } from "@/lib/exva";
@@ -445,26 +445,18 @@ export const AccountsPage = () => {
             {(["stock", "crypto", "futures"] as InstrumentClass[]).map((ic) => (
               <div key={ic} style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>{ic}</div>
-                <select
+                <ShadcnSelect
                   value={routingDraft[ic] ?? ""}
-                  onChange={(e) => setRoutingDraft((d) => ({ ...d, [ic]: e.target.value }))}
-                  style={{
-                    width: "100%",
-                    padding: "9px 12px",
-                    borderRadius: 8,
-                    border: "1px solid var(--border)",
-                    background: "var(--surface2)",
-                    color: "var(--text1)",
-                    fontSize: 13,
-                  }}
-                >
-                  <option value="">Select broker</option>
-                  {brokers.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.brokerType})
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(value) => setRoutingDraft((d) => ({ ...d, [ic]: value }))}
+                  className="w-full"
+                  options={[
+                    { value: "", label: "Select broker" },
+                    ...brokers.map((broker) => ({
+                      value: broker.id,
+                      label: `${broker.name} (${broker.brokerType})`,
+                    })),
+                  ]}
+                />
               </div>
             ))}
             <button
@@ -509,31 +501,24 @@ export const AccountsPage = () => {
               <>
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>Mode</div>
-                  <select
+                  <ShadcnSelect
                     value={prefs.capitalAllocationMode}
-                    onChange={(e) =>
-                      setPrefs((p) =>
-                        p
+                    onValueChange={(value) =>
+                      setPrefs((current) =>
+                        current
                           ? {
-                              ...p,
-                              capitalAllocationMode: e.target.value as WorkspacePreferences["capitalAllocationMode"],
+                              ...current,
+                              capitalAllocationMode: value as WorkspacePreferences["capitalAllocationMode"],
                             }
-                          : p,
+                          : current,
                       )
                     }
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      borderRadius: 8,
-                      border: "1px solid var(--border)",
-                      background: "var(--surface2)",
-                      color: "var(--text1)",
-                      fontSize: 13,
-                    }}
-                  >
-                    <option value="per_session_only">Per-session only</option>
-                    <option value="shared_global_pool">Shared global pool</option>
-                  </select>
+                    className="w-full"
+                    options={[
+                      { value: "per_session_only", label: "Per-session only" },
+                      { value: "shared_global_pool", label: "Shared global pool" },
+                    ]}
+                  />
                 </div>
                 {prefs.capitalAllocationMode === "shared_global_pool" && (
                   <InputField
