@@ -73,8 +73,8 @@ export const Divider = ({
   );
 
 const AGENT_LABEL: Record<AgentRole, { label: string; variant: BadgeVariant }> = {
-  researcher_bull: { label: "bull", variant: "success" },
-  researcher_bear: { label: "bear", variant: "danger" },
+  analyst_technical: { label: "tech", variant: "success" },
+  analyst_fundamental: { label: "fund", variant: "danger" },
   reviewer: { label: "review", variant: "blue" },
   decision_maker: { label: "decide", variant: "purple" },
   instrument_selector: { label: "select", variant: "default" },

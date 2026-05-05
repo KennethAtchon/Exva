@@ -31,8 +31,8 @@ interface StrategyStoreState {
 }
 
 const EMPTY_AI_ROLES = (): Record<AgentRole, SessionAiRole> => ({
-  researcher_bull: emptyRole("researcher_bull"),
-  researcher_bear: emptyRole("researcher_bear"),
+  analyst_technical: emptyRole("analyst_technical"),
+  analyst_fundamental: emptyRole("analyst_fundamental"),
   reviewer: emptyRole("reviewer"),
   decision_maker: emptyRole("decision_maker"),
   instrument_selector: emptyRole("instrument_selector"),
@@ -48,7 +48,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   workspaceDefaultSearchProviderId: null,
   dirtyFields: new Set(),
   dirtyRoles: new Set(),
-  activeRoleTab: "researcher_bull",
+  activeRoleTab: "analyst_technical",
   providerModels: {},
   roleErrors: emptyRoleErrors(),
   strategyErrors: [],
@@ -78,7 +78,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       workspaceDefaultSearchProviderId: result.workspaceDefaultSearchProviderId,
       dirtyFields: new Set(),
       dirtyRoles: new Set(),
-      activeRoleTab: "researcher_bull",
+      activeRoleTab: "analyst_technical",
       providerModels,
       roleErrors: emptyRoleErrors(),
       strategyErrors: [],
@@ -168,8 +168,8 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
 
 function emptyRoleErrors(): Record<AgentRole, string[]> {
   return {
-    researcher_bull: [],
-    researcher_bear: [],
+    analyst_technical: [],
+    analyst_fundamental: [],
     reviewer: [],
     decision_maker: [],
     instrument_selector: [],

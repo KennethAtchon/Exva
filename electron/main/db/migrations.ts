@@ -18,6 +18,9 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       DROP TABLE IF EXISTS session_broker_routing_overrides;
       DROP TABLE IF EXISTS broker_routing;
       DROP TABLE IF EXISTS session_ai_roles;
+      DROP TABLE IF EXISTS session_timeframe_config;
+      DROP TABLE IF EXISTS session_risk_config;
+      DROP TABLE IF EXISTS session_strategy_profile;
       DROP TABLE IF EXISTS session_strategies;
       DROP TABLE IF EXISTS session_selector_settings;
       DROP TABLE IF EXISTS sessions;
@@ -91,6 +94,47 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       target_hold_days REAL,
       max_hold_days REAL,
       timeframe_notes TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE IF NOT EXISTS session_strategy_profile (
+      session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+      strategy_type TEXT NOT NULL DEFAULT 'custom',
+      side_bias TEXT NOT NULL DEFAULT 'both',
+      entry_style TEXT NOT NULL DEFAULT 'breakout',
+      exit_style TEXT NOT NULL DEFAULT 'fixed_pct',
+      scaling_mode TEXT NOT NULL DEFAULT 'single_entry',
+      strategy_brief_markdown TEXT NOT NULL DEFAULT '',
+      custom_instructions TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS session_risk_config (
+      session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+      max_position_usd REAL NOT NULL DEFAULT 500,
+      stop_loss_pct REAL,
+      take_profit_pct REAL,
+      stop_loss_type TEXT NOT NULL DEFAULT 'fixed_pct',
+      atr_stop_multiplier REAL,
+      kelly_fraction REAL NOT NULL DEFAULT 0.25,
+      prediction_edge_threshold REAL NOT NULL DEFAULT 0.08,
+      max_exposure_usd REAL,
+      wait_for_open_threshold REAL NOT NULL DEFAULT 0.80,
+      max_concurrent_trades INTEGER NOT NULL DEFAULT 3,
+      daily_loss_limit_usd REAL NOT NULL DEFAULT 200,
+      profit_target_usd REAL NOT NULL DEFAULT 1000,
+      max_ai_spend_usd REAL NOT NULL DEFAULT 5.0,
+      human_approval_required INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS session_timeframe_config (
+      session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+      primary_trading_timeframe TEXT NOT NULL DEFAULT '1d',
+      holding_style TEXT NOT NULL DEFAULT 'multi_day_swing',
+      target_hold_days REAL,
+      max_hold_days REAL,
+      timeframe_notes TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS session_ai_roles (
@@ -265,6 +309,96 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     CREATE INDEX IF NOT EXISTS idx_session_broker_override ON session_broker_routing_overrides(session_id, instrument_class);
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_session ON capital_reservations(session_id, status);
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_approval ON capital_reservations(approval_id);
+  `);
+
+  sqlite.exec(`
+    INSERT OR IGNORE INTO session_strategy_profile (
+      session_id, strategy_type, side_bias, entry_style, exit_style, scaling_mode,
+      strategy_brief_markdown, custom_instructions, updated_at
+    )
+    SELECT
+      session_id,
+      'custom',
+      'both',
+      'breakout',
+      'fixed_pct',
+      'single_entry',
+      '',
+      '',
+      CURRENT_TIMESTAMP
+    FROM session_strategies;
+
+    INSERT OR IGNORE INTO session_risk_config (
+      session_id, max_position_usd, stop_loss_pct, take_profit_pct, stop_loss_type,
+      atr_stop_multiplier, kelly_fraction, prediction_edge_threshold, max_exposure_usd,
+      wait_for_open_threshold, max_concurrent_trades, daily_loss_limit_usd,
+      profit_target_usd, max_ai_spend_usd, human_approval_required, updated_at
+    )
+    SELECT
+      session_id,
+      max_position_usd,
+      stop_loss_pct,
+      take_profit_pct,
+      'fixed_pct',
+      NULL,
+      0.25,
+      0.08,
+      NULL,
+      0.80,
+      max_concurrent_trades,
+      daily_loss_limit_usd,
+      profit_target_usd,
+      max_ai_spend_usd,
+      human_approval_required,
+      CURRENT_TIMESTAMP
+    FROM session_strategies;
+
+    INSERT OR IGNORE INTO session_timeframe_config (
+      session_id, primary_trading_timeframe, holding_style, target_hold_days,
+      max_hold_days, timeframe_notes, updated_at
+    )
+    SELECT
+      session_id,
+      primary_trading_timeframe,
+      holding_style,
+      target_hold_days,
+      max_hold_days,
+      timeframe_notes,
+      CURRENT_TIMESTAMP
+    FROM session_strategies;
+
+    UPDATE session_ai_roles
+    SET role = CASE
+      WHEN role = 'researcher_bull' THEN 'analyst_technical'
+      WHEN role = 'researcher_bear' THEN 'analyst_fundamental'
+      ELSE role
+    END
+    WHERE role IN ('researcher_bull', 'researcher_bear');
+
+    UPDATE agent_runs
+    SET agent_type = CASE
+      WHEN agent_type = 'researcher_bull' THEN 'analyst_technical'
+      WHEN agent_type = 'researcher_bear' THEN 'analyst_fundamental'
+      ELSE agent_type
+    END
+    WHERE agent_type IN ('researcher_bull', 'researcher_bear');
+
+    UPDATE events
+    SET agent_type = CASE
+      WHEN agent_type = 'researcher_bull' THEN 'analyst_technical'
+      WHEN agent_type = 'researcher_bear' THEN 'analyst_fundamental'
+      ELSE agent_type
+    END
+    WHERE agent_type IN ('researcher_bull', 'researcher_bear');
+
+    UPDATE session_templates
+    SET template_payload_json = replace(
+      replace(template_payload_json, 'researcher_bull', 'analyst_technical'),
+      'researcher_bear',
+      'analyst_fundamental'
+    )
+    WHERE template_payload_json LIKE '%researcher_bull%'
+       OR template_payload_json LIKE '%researcher_bear%';
   `);
   sqlite
     .prepare(

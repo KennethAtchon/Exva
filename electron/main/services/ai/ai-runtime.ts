@@ -22,8 +22,8 @@ export interface ResearcherInput {
 
 export interface ReviewerInput {
   instrumentSymbol: string;
-  bullCase: string;
-  bearCase: string;
+  technicalAnalysis: string;
+  fundamentalAnalysis: string;
 }
 
 export interface DecisionInput extends ReviewerInput {
@@ -54,16 +54,20 @@ export class AiRuntime {
     private readonly workspacePrefsRepo: WorkspacePreferencesRepo,
   ) {}
 
-  async runResearcher(input: ResearcherInput, stance: "bull" | "bear", sessionId?: string): Promise<AgentResult<string>> {
+  async runAnalyst(
+    input: ResearcherInput,
+    role: "technical" | "fundamental",
+    sessionId?: string,
+  ): Promise<AgentResult<string>> {
     if (!sessionId) throw new AppError("Session id is required for AI role execution", "VALIDATION_FAILED");
-    const role: AgentRole = stance === "bull" ? "researcher_bull" : "researcher_bear";
+    const agentRole: AgentRole = role === "technical" ? "analyst_technical" : "analyst_fundamental";
     const userPrompt = `Instrument: ${input.instrumentSymbol}\nContext: ${input.context ?? "None"}`;
-    return this.runRole(sessionId, role, userPrompt);
+    return this.runRole(sessionId, agentRole, userPrompt);
   }
 
   async runReviewer(input: ReviewerInput, sessionId?: string): Promise<AgentResult<string>> {
     if (!sessionId) throw new AppError("Session id is required for AI role execution", "VALIDATION_FAILED");
-    const prompt = `Instrument: ${input.instrumentSymbol}\n\nBull case:\n${input.bullCase}\n\nBear case:\n${input.bearCase}`;
+    const prompt = `Instrument: ${input.instrumentSymbol}\n\nTechnical analysis:\n${input.technicalAnalysis}\n\nFundamental analysis:\n${input.fundamentalAnalysis}`;
     return this.runRole(sessionId, "reviewer", prompt);
   }
 
@@ -72,11 +76,11 @@ export class AiRuntime {
     const prompt = `Instrument: ${input.instrumentSymbol}
 Max position USD: ${input.maxPositionUsd}
 
-Bull case:
-${input.bullCase}
+Technical analysis:
+${input.technicalAnalysis}
 
-Bear case:
-${input.bearCase}
+Fundamental analysis:
+${input.fundamentalAnalysis}
 
 Review:
 ${input.review}`;

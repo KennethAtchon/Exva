@@ -6,11 +6,34 @@ export const executionModeSchema = z.enum(["paper_only", "live_allowed"]);
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
 export const researchDepthSchema = z.enum(["light", "balanced", "deep"]);
 export const strategyProfileSchema = z.enum(["passive_income", "growth", "conservative", "custom"]);
+export const strategyTypeSchema = z.enum([
+  "momentum",
+  "mean_reversion",
+  "trend_following",
+  "short_bias",
+  "pairs",
+  "fundamental",
+  "event_driven",
+  "prediction_market",
+  "custom",
+]);
+export const strategySideBiasSchema = z.enum(["long_only", "short_only", "both", "market_neutral", "n_a"]);
+export const strategyEntryStyleSchema = z.enum(["breakout", "pullback", "reversal", "range_fade", "event", "probability_edge"]);
+export const strategyExitStyleSchema = z.enum([
+  "fixed_pct",
+  "trailing_atr",
+  "partial_exits",
+  "time_based",
+  "thesis_based",
+  "market_resolution",
+]);
+export const strategyScalingModeSchema = z.enum(["single_entry", "scale_in_2", "scale_in_3", "scale_out_partial"]);
+export const stopLossTypeSchema = z.enum(["fixed_pct", "trailing_atr", "broker_native_trailing", "none"]);
 export const tradingTimeframeSchema = z.enum(["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]);
 export const holdingStyleSchema = z.enum(["intraday_flat", "multi_day_swing", "weeks_position", "custom"]);
 export const agentRoleSchema = z.enum([
-  "researcher_bull",
-  "researcher_bear",
+  "analyst_technical",
+  "analyst_fundamental",
   "reviewer",
   "decision_maker",
   "instrument_selector",

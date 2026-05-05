@@ -6,10 +6,13 @@ import type {
   EventRow,
   ProviderAccount,
   SessionAiRole,
+  SessionRiskConfig,
   SessionBrokerRoutingOverride,
   SessionConfig,
   SessionSelectorSettings,
   SessionStrategy,
+  SessionStrategyProfile,
+  SessionTimeframeConfig,
   SessionTemplate,
   Trade,
   TradeApproval,
@@ -148,6 +151,55 @@ export function toSessionAiRole(row: Row): SessionAiRole {
     promptSource: row.prompt_source as SessionAiRole["promptSource"],
     promptMarkdown: String(row.prompt_markdown),
     promptAssetPath: nullableString(row.prompt_asset_path),
+  };
+}
+
+export function toSessionStrategyProfile(row: Row): SessionStrategyProfile {
+  return {
+    sessionId: String(row.session_id),
+    strategyType: row.strategy_type as SessionStrategyProfile["strategyType"],
+    sideBias: row.side_bias as SessionStrategyProfile["sideBias"],
+    entryStyle: row.entry_style as SessionStrategyProfile["entryStyle"],
+    exitStyle: row.exit_style as SessionStrategyProfile["exitStyle"],
+    scalingMode: row.scaling_mode as SessionStrategyProfile["scalingMode"],
+    strategyBriefMarkdown: row.strategy_brief_markdown != null ? String(row.strategy_brief_markdown) : "",
+    customInstructions: row.custom_instructions != null ? String(row.custom_instructions) : "",
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function toSessionRiskConfig(row: Row): SessionRiskConfig {
+  return {
+    sessionId: String(row.session_id),
+    maxPositionUsd: Number(row.max_position_usd),
+    stopLossPct: nullableNumber(row.stop_loss_pct),
+    takeProfitPct: nullableNumber(row.take_profit_pct),
+    stopLossType: row.stop_loss_type as SessionRiskConfig["stopLossType"],
+    atrStopMultiplier: nullableNumber(row.atr_stop_multiplier),
+    kellyFraction: Number(row.kelly_fraction),
+    predictionEdgeThreshold: Number(row.prediction_edge_threshold),
+    maxExposureUsd: nullableNumber(row.max_exposure_usd),
+    waitForOpenThreshold: Number(row.wait_for_open_threshold),
+    maxConcurrentTrades: Number(row.max_concurrent_trades),
+    dailyLossLimitUsd: Number(row.daily_loss_limit_usd),
+    profitTargetUsd: Number(row.profit_target_usd),
+    maxAiSpendUsd: Number(row.max_ai_spend_usd),
+    humanApprovalRequired: Boolean(row.human_approval_required),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function toSessionTimeframeConfig(row: Row): SessionTimeframeConfig {
+  const primaryTf = row.primary_trading_timeframe;
+  const holdStyle = row.holding_style;
+  return {
+    sessionId: String(row.session_id),
+    primaryTradingTimeframe: isTradingTimeframe(primaryTf) ? primaryTf : "1d",
+    holdingStyle: isHoldingStyle(holdStyle) ? holdStyle : "multi_day_swing",
+    targetHoldDays: nullableNumber(row.target_hold_days),
+    maxHoldDays: nullableNumber(row.max_hold_days),
+    timeframeNotes: row.timeframe_notes != null ? String(row.timeframe_notes) : "",
+    updatedAt: String(row.updated_at),
   };
 }
 

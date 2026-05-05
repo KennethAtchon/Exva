@@ -6,8 +6,8 @@ import type { AgentRun, Trade } from "@/lib/types";
 import { Button, Dialog, DialogContent } from "@/components/ui";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {
-  researcher_bull: { bar: "#34d399", bg: "rgba(52,211,153,0.06)" },
-  researcher_bear: { bar: "#f87171", bg: "rgba(248,113,113,0.06)" },
+  analyst_technical: { bar: "#34d399", bg: "rgba(52,211,153,0.06)" },
+  analyst_fundamental: { bar: "#f87171", bg: "rgba(248,113,113,0.06)" },
   reviewer:        { bar: "#60a5fa", bg: "rgba(96,165,250,0.06)" },
   decision_maker:  { bar: "#a78bfa", bg: "rgba(167,139,250,0.06)" },
 };

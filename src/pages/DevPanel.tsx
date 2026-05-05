@@ -92,7 +92,7 @@ export const DevPanel = () => {
               ))}
             </div>
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-              {["all", "researcher_bull", "researcher_bear", "reviewer", "decision_maker"].map((a) => (
+              {["all", "analyst_technical", "analyst_fundamental", "reviewer", "decision_maker"].map((a) => (
                 <button
                   key={a}
                   onClick={() => setAgentFilter(a)}
@@ -104,7 +104,7 @@ export const DevPanel = () => {
                     fontFamily: "var(--font-mono)",
                   }}
                 >
-                  {a === "all" ? "all" : a.replace("researcher_", "res/")}
+                  {a === "all" ? "all" : a.replace("analyst_", "an/")}
                 </button>
               ))}
             </div>
@@ -191,7 +191,7 @@ export const DevPanel = () => {
                   </div>
                   {selRuns.map((r) => {
                     const ac: Record<string, string> = {
-                      researcher_bull: "#34d399", researcher_bear: "#f87171",
+                      analyst_technical: "#34d399", analyst_fundamental: "#f87171",
                       reviewer: "#60a5fa", decision_maker: "#a78bfa",
                     };
                     return (

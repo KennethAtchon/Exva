@@ -1,7 +1,7 @@
 # Trading Strategy Configuration — Plan
 
 > **Date:** 2026-05-03
-> **Status:** In Review (implementation-ready)
+> **Status:** In Progress
 > **Deciders:** Kenneth Atchon
 
 ---
@@ -430,6 +430,8 @@ This is the smallest approach that solves all four real problems at once: wrong 
 
 ### Phase 1: Additive Schema Split + Compatibility Layer
 
+**Status:** Implemented 2026-05-04
+
 **Goal:** Create the new tables and keep the app behavior stable during migration.
 
 **Done criteria:** New sessions write to new tables, existing sessions are backfilled, and legacy readers still work through mirror writes or composite reads.
@@ -459,9 +461,18 @@ This is the smallest approach that solves all four real problems at once: wrong 
 
 **Rollback:** New tables are additive. Stop reading them and continue using `session_strategies` if needed.
 
+**Implementation notes:**
+
+- Added `session_strategy_profile`, `session_risk_config`, and `session_timeframe_config` to the DB schema and migrations.
+- `SessionRepo.create()` and `SessionRepo.duplicate()` now seed/copy the new tables.
+- `SessionStrategiesRepo.update()` and legacy config writes now mirror compatible fields into the new risk/timeframe tables so the app stays bootable while old readers still exist.
+- Added dedicated repos plus a `SessionStrategyContextService` composite reader for the next phases.
+
 ---
 
 ### Phase 2: Analyst Rename + Prompt Migration
+
+**Status:** Implemented 2026-05-04
 
 **Goal:** Replace stance-based research with methodology-based research.
 
@@ -509,6 +520,12 @@ Do not force a side.
 **Dependencies:** Phase 1
 
 **Rollback:** Revert code and prompt references as one unit; DB migration can remap roles back if absolutely necessary.
+
+**Implementation notes:**
+
+- Renamed the canonical role keys to `analyst_technical` and `analyst_fundamental` across shared types, schemas, runtime calls, UI labels, mock data, and prompt assets.
+- Added migration rewrites for `session_ai_roles.role`, `agent_runs.agent_type`, `events.agent_type`, and stored template payload JSON.
+- `AiRuntime.runResearcher()` was replaced with `AiRuntime.runAnalyst()` and the orchestrator now passes technical/fundamental analysis into reviewer and decision-maker prompts.
 
 ---
 

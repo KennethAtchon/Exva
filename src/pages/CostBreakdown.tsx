@@ -28,7 +28,7 @@ export const CostBreakdownPage = () => {
   const pct = (d.total / budget) * 100;
   const barColor = pct > 80 ? "#f87171" : pct > 60 ? "#fbbf24" : "var(--accent)";
   const agentColors: Record<AgentRole, string> = {
-    researcher_bull: "#34d399", researcher_bear: "#f87171",
+    analyst_technical: "#34d399", analyst_fundamental: "#f87171",
     reviewer: "#60a5fa", decision_maker: "#a78bfa",
     instrument_selector: "#fbbf24",
   };

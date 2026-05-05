@@ -24,16 +24,16 @@ const trades: Trade[] = [
 ];
 
 const runs: AgentRun[] = [
-  { id: "ar-001", trade_id: "t-001", agent_type: "researcher_bull", model: "claude-haiku-4-5", input_tokens: 4820, output_tokens: 612, cost_usd: 0.078, duration_ms: 3241, output_text: "NVDA shows strong momentum following GTC announcements. Blackwell demand remains supply-constrained. Data center capex from hyperscalers continues to accelerate. RSI at 58 — room to run. Suggest bullish entry on current pullback.", created_at: "2026-04-21T09:13:10Z" },
-  { id: "ar-002", trade_id: "t-001", agent_type: "researcher_bear", model: "claude-haiku-4-5", input_tokens: 4650, output_tokens: 580, cost_usd: 0.074, duration_ms: 3108, output_text: "Valuation stretched at 35x forward. China export restrictions remain a meaningful headwind. AMD gaining share in inference. Broad market showing signs of fatigue. Downside risk to $860 on any macro catalyst.", created_at: "2026-04-21T09:13:14Z" },
+  { id: "ar-001", trade_id: "t-001", agent_type: "analyst_technical", model: "claude-haiku-4-5", input_tokens: 4820, output_tokens: 612, cost_usd: 0.078, duration_ms: 3241, output_text: "NVDA shows strong momentum following GTC announcements. Blackwell demand remains supply-constrained. Data center capex from hyperscalers continues to accelerate. RSI at 58 — room to run. Suggest bullish entry on current pullback.", created_at: "2026-04-21T09:13:10Z" },
+  { id: "ar-002", trade_id: "t-001", agent_type: "analyst_fundamental", model: "claude-haiku-4-5", input_tokens: 4650, output_tokens: 580, cost_usd: 0.074, duration_ms: 3108, output_text: "Valuation stretched at 35x forward. China export restrictions remain a meaningful headwind. AMD gaining share in inference. Broad market showing signs of fatigue. Downside risk to $860 on any macro catalyst.", created_at: "2026-04-21T09:13:14Z" },
   { id: "ar-003", trade_id: "t-001", agent_type: "reviewer",        model: "claude-haiku-4-5", input_tokens: 6200, output_tokens: 420, cost_usd: 0.089, duration_ms: 2870, output_text: "Bull case stronger on near-term catalysts. Bear case valid but longer-dated. Trade thesis is coherent with strategy parameters. Risk/reward acceptable at current levels.", created_at: "2026-04-21T09:13:48Z" },
   { id: "ar-004", trade_id: "t-001", agent_type: "decision_maker",  model: "claude-haiku-4-5", input_tokens: 7100, output_tokens: 310, cost_usd: 0.067, duration_ms: 2210, output_text: "Decision: BUY. Confidence: 0.82. Size: 90% of max position. Stop at -2%, target at +4%. Strong near-term catalyst alignment.", created_at: "2026-04-21T09:14:10Z" },
 ];
 
 const events: EventRow[] = [
   { id: "e-001", trade_id: "t-003", level: "INFO",  agent_type: "decision_maker",  message: "Trade cycle complete — TSLA SELL opened at $245.80",                    created_at: "2026-04-21T11:33:05Z" },
-  { id: "e-002", trade_id: "t-003", level: "INFO",  agent_type: "researcher_bear", message: "Web search: TSLA Q1 delivery miss confirmed, analyst downgrades incoming", created_at: "2026-04-21T11:31:44Z" },
-  { id: "e-003", trade_id: "t-003", level: "INFO",  agent_type: "researcher_bull", message: "Cybertruck ramp improving, energy division outperforming expectations",    created_at: "2026-04-21T11:31:42Z" },
+  { id: "e-002", trade_id: "t-003", level: "INFO",  agent_type: "analyst_fundamental", message: "Web search: TSLA Q1 delivery miss confirmed, analyst downgrades incoming", created_at: "2026-04-21T11:31:44Z" },
+  { id: "e-003", trade_id: "t-003", level: "INFO",  agent_type: "analyst_technical", message: "Cybertruck ramp improving, energy division outperforming expectations",    created_at: "2026-04-21T11:31:42Z" },
   { id: "e-004", trade_id: "t-002", level: "INFO",  agent_type: "decision_maker",  message: "Trade cycle complete — AAPL BUY opened at $198.55",                       created_at: "2026-04-21T10:02:11Z" },
   { id: "e-005", trade_id: null,    level: "WARN",  agent_type: null,              message: "Daily P&L approaching 35% of loss limit — monitoring closely",             created_at: "2026-04-21T09:58:00Z" },
   { id: "e-006", trade_id: "t-001", level: "INFO",  agent_type: "decision_maker",  message: "Trade cycle complete — NVDA BUY opened at $891.20",                       created_at: "2026-04-21T09:14:22Z" },
@@ -63,8 +63,8 @@ const stats: DashboardStats = {
 const costs: CostBreakdown = {
   total: 2.14,
   by_agent: [
-    { name: "researcher_bull", tokens: 18200, cost: 0.58 },
-    { name: "researcher_bear", tokens: 17800, cost: 0.56 },
+    { name: "analyst_technical", tokens: 18200, cost: 0.58 },
+    { name: "analyst_fundamental", tokens: 17800, cost: 0.56 },
     { name: "reviewer",        tokens: 12400, cost: 0.48 },
     { name: "decision_maker",  tokens: 8800,  cost: 0.32 },
   ],
@@ -116,8 +116,8 @@ const providers: ProviderAccount[] = [
 ];
 
 const aiRoles: SessionAiRole[] = ([
-  "researcher_bull",
-  "researcher_bear",
+  "analyst_technical",
+  "analyst_fundamental",
   "reviewer",
   "decision_maker",
   "instrument_selector",

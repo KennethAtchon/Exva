@@ -7,6 +7,27 @@ export type SelectionMode = "manual_shortlist" | "ai_selected_universe";
 export type ExecutionMode = "paper_only" | "live_allowed";
 export type ResearchDepth = "light" | "balanced" | "deep";
 export type StrategyProfile = "passive_income" | "growth" | "conservative" | "custom";
+export type StrategyType =
+  | "momentum"
+  | "mean_reversion"
+  | "trend_following"
+  | "short_bias"
+  | "pairs"
+  | "fundamental"
+  | "event_driven"
+  | "prediction_market"
+  | "custom";
+export type StrategySideBias = "long_only" | "short_only" | "both" | "market_neutral" | "n_a";
+export type StrategyEntryStyle = "breakout" | "pullback" | "reversal" | "range_fade" | "event" | "probability_edge";
+export type StrategyExitStyle =
+  | "fixed_pct"
+  | "trailing_atr"
+  | "partial_exits"
+  | "time_based"
+  | "thesis_based"
+  | "market_resolution";
+export type StrategyScalingMode = "single_entry" | "scale_in_2" | "scale_in_3" | "scale_out_partial";
+export type StopLossType = "fixed_pct" | "trailing_atr" | "broker_native_trailing" | "none";
 
 /** Bar size the session uses for analysis and agent context. */
 export type TradingTimeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
@@ -81,8 +102,8 @@ export type WorkspaceViewMode = "session" | "global";
 export type CapitalAllocationMode = "per_session_only" | "shared_global_pool";
 
 export type AgentRole =
-  | "researcher_bull"
-  | "researcher_bear"
+  | "analyst_technical"
+  | "analyst_fundamental"
   | "reviewer"
   | "decision_maker"
   | "instrument_selector";
@@ -161,6 +182,53 @@ export interface SessionStrategy {
   targetHoldDays: number | null;
   maxHoldDays: number | null;
   timeframeNotes: string;
+}
+
+export interface SessionStrategyProfile {
+  sessionId: string;
+  strategyType: StrategyType;
+  sideBias: StrategySideBias;
+  entryStyle: StrategyEntryStyle;
+  exitStyle: StrategyExitStyle;
+  scalingMode: StrategyScalingMode;
+  strategyBriefMarkdown: string;
+  customInstructions: string;
+  updatedAt: string;
+}
+
+export interface SessionRiskConfig {
+  sessionId: string;
+  maxPositionUsd: number;
+  stopLossPct: number | null;
+  takeProfitPct: number | null;
+  stopLossType: StopLossType;
+  atrStopMultiplier: number | null;
+  kellyFraction: number;
+  predictionEdgeThreshold: number;
+  maxExposureUsd: number | null;
+  waitForOpenThreshold: number;
+  maxConcurrentTrades: number;
+  dailyLossLimitUsd: number;
+  profitTargetUsd: number;
+  maxAiSpendUsd: number;
+  humanApprovalRequired: boolean;
+  updatedAt: string;
+}
+
+export interface SessionTimeframeConfig {
+  sessionId: string;
+  primaryTradingTimeframe: TradingTimeframe;
+  holdingStyle: HoldingStyle;
+  targetHoldDays: number | null;
+  maxHoldDays: number | null;
+  timeframeNotes: string;
+  updatedAt: string;
+}
+
+export interface SessionStrategyContext {
+  profile: SessionStrategyProfile;
+  riskConfig: SessionRiskConfig;
+  timeframe: SessionTimeframeConfig;
 }
 
 export interface SessionAiRole {

@@ -8,9 +8,12 @@ import { EventsRepo } from "../db/repositories/events-repo";
 import { ProviderAccountsRepo } from "../db/repositories/provider-accounts-repo";
 import { SessionAiRolesRepo } from "../db/repositories/session-ai-roles-repo";
 import { SessionBrokerAssignmentsRepo } from "../db/repositories/session-broker-assignments-repo";
+import { SessionRiskConfigRepo } from "../db/repositories/session-risk-config-repo";
 import { SessionSelectorSettingsRepo } from "../db/repositories/session-selector-settings-repo";
+import { SessionStrategyProfileRepo } from "../db/repositories/session-strategy-profile-repo";
 import { SessionStrategiesRepo } from "../db/repositories/session-strategies-repo";
 import { SessionTemplatesRepo } from "../db/repositories/session-templates-repo";
+import { SessionTimeframeConfigRepo } from "../db/repositories/session-timeframe-config-repo";
 import { SessionRepo } from "../db/repositories/session-repo";
 import { InstrumentCacheRepo } from "../db/repositories/instrument-cache-repo";
 import { StatsRepo } from "../db/repositories/stats-repo";
@@ -29,6 +32,7 @@ import { SearchRegistry } from "./ai/search/search-registry";
 import { SecretsService } from "./infra/secrets-service";
 import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
 import type { OrchestratorDeps, SessionRuntimeManagerDeps } from "./session";
+import { SessionStrategyContextService } from "./session/session-strategy-context-service";
 import { SessionListingService } from "./session/listing-service";
 import { SessionTemplateService } from "./session/template-service";
 import { SessionWriteService } from "./session/write-service";
@@ -50,10 +54,13 @@ export interface AppServices {
     providerAccounts: ProviderAccountsRepo;
     sessionAiRoles: SessionAiRolesRepo;
     sessionBrokerAssignments: SessionBrokerAssignmentsRepo;
+    sessionRiskConfig: SessionRiskConfigRepo;
     sessionSelectorSettings: SessionSelectorSettingsRepo;
     session: SessionRepo;
+    sessionStrategyProfile: SessionStrategyProfileRepo;
     sessionStrategies: SessionStrategiesRepo;
     sessionTemplates: SessionTemplatesRepo;
+    sessionTimeframeConfig: SessionTimeframeConfigRepo;
     stats: StatsRepo;
     tradeApprovals: TradeApprovalsRepo;
     trades: TradesRepo;
@@ -74,6 +81,7 @@ export interface AppServices {
   secrets: SecretsService;
   session: SessionService;
   sessionListing: SessionListingService;
+  strategyContext: SessionStrategyContextService;
   sessionTemplates: SessionTemplateService;
   sessionWrites: SessionWriteService;
 }
@@ -90,10 +98,13 @@ export async function createAppServices(app: App): Promise<AppServices> {
     providerAccounts: new ProviderAccountsRepo(db),
     sessionAiRoles: new SessionAiRolesRepo(db),
     sessionBrokerAssignments: new SessionBrokerAssignmentsRepo(db),
+    sessionRiskConfig: new SessionRiskConfigRepo(db),
     sessionSelectorSettings: new SessionSelectorSettingsRepo(db),
     session: new SessionRepo(db),
+    sessionStrategyProfile: new SessionStrategyProfileRepo(db),
     sessionStrategies: new SessionStrategiesRepo(db),
     sessionTemplates: new SessionTemplatesRepo(db),
+    sessionTimeframeConfig: new SessionTimeframeConfigRepo(db),
     stats: new StatsRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
     trades: new TradesRepo(db),
@@ -192,6 +203,12 @@ export async function createAppServices(app: App): Promise<AppServices> {
     runtimeManager,
   });
 
+  const strategyContext = new SessionStrategyContextService(
+    repos.sessionStrategyProfile,
+    repos.sessionRiskConfig,
+    repos.sessionTimeframeConfig,
+  );
+
   const sessionTemplates = new SessionTemplateService({
     templates: repos.sessionTemplates,
     sessions: repos.session,
@@ -232,6 +249,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     secrets,
     session,
     sessionListing,
+    strategyContext,
     sessionTemplates,
     sessionWrites,
   };

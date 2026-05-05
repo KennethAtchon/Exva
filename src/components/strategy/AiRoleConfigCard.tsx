@@ -5,16 +5,16 @@ import type { AgentRole, ProviderAccount, SessionAiRole, SelectionMode } from "@
 import type { ProviderModelEntry } from "@/lib/exva";
 
 const ROLE_LABELS: Record<AgentRole, string> = {
-  researcher_bull: "Bull Researcher",
-  researcher_bear: "Bear Researcher",
+  analyst_technical: "Technical Analyst",
+  analyst_fundamental: "Fundamental Analyst",
   reviewer: "Reviewer",
   decision_maker: "Decision Maker",
-  instrument_selector: "Instrument Selector",
+  instrument_selector: "Universe Researcher",
 };
 
 const ROLE_ORDER: AgentRole[] = [
-  "researcher_bull",
-  "researcher_bear",
+  "analyst_technical",
+  "analyst_fundamental",
   "reviewer",
   "decision_maker",
   "instrument_selector",
@@ -78,7 +78,7 @@ export const AiRoleConfigCard = ({
           }}
         >
           AI picker is disabled for this session. Enable it in session settings (create/edit session) to use the
-          instrument selector agent.
+          universe researcher.
         </div>
       ) : null}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16, marginBottom: 16 }}>

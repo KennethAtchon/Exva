@@ -69,6 +69,53 @@ export const sessionStrategies = sqliteTable("session_strategies", {
   timeframeNotes: text("timeframe_notes").notNull().default(""),
 });
 
+export const sessionStrategyProfile = sqliteTable("session_strategy_profile", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  strategyType: text("strategy_type").notNull().default("custom"),
+  sideBias: text("side_bias").notNull().default("both"),
+  entryStyle: text("entry_style").notNull().default("breakout"),
+  exitStyle: text("exit_style").notNull().default("fixed_pct"),
+  scalingMode: text("scaling_mode").notNull().default("single_entry"),
+  strategyBriefMarkdown: text("strategy_brief_markdown").notNull().default(""),
+  customInstructions: text("custom_instructions").notNull().default(""),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const sessionRiskConfig = sqliteTable("session_risk_config", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  maxPositionUsd: real("max_position_usd").notNull().default(500),
+  stopLossPct: real("stop_loss_pct"),
+  takeProfitPct: real("take_profit_pct"),
+  stopLossType: text("stop_loss_type").notNull().default("fixed_pct"),
+  atrStopMultiplier: real("atr_stop_multiplier"),
+  kellyFraction: real("kelly_fraction").notNull().default(0.25),
+  predictionEdgeThreshold: real("prediction_edge_threshold").notNull().default(0.08),
+  maxExposureUsd: real("max_exposure_usd"),
+  waitForOpenThreshold: real("wait_for_open_threshold").notNull().default(0.8),
+  maxConcurrentTrades: integer("max_concurrent_trades").notNull().default(3),
+  dailyLossLimitUsd: real("daily_loss_limit_usd").notNull().default(200),
+  profitTargetUsd: real("profit_target_usd").notNull().default(1000),
+  maxAiSpendUsd: real("max_ai_spend_usd").notNull().default(5),
+  humanApprovalRequired: integer("human_approval_required", { mode: "boolean" }).notNull().default(false),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const sessionTimeframeConfig = sqliteTable("session_timeframe_config", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  primaryTradingTimeframe: text("primary_trading_timeframe").notNull().default("1d"),
+  holdingStyle: text("holding_style").notNull().default("multi_day_swing"),
+  targetHoldDays: real("target_hold_days"),
+  maxHoldDays: real("max_hold_days"),
+  timeframeNotes: text("timeframe_notes").notNull().default(""),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const sessionAiRoles = sqliteTable("session_ai_roles", {
   id: text("id").primaryKey(),
   sessionId: text("session_id")

@@ -91,9 +91,44 @@ export class SessionRepo {
         )
         .run(sessionId);
 
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_strategy_profile (
+            session_id, strategy_type, side_bias, entry_style, exit_style,
+            scaling_mode, strategy_brief_markdown, custom_instructions, updated_at
+          ) VALUES (?, 'custom', 'both', 'breakout', 'fixed_pct', 'single_entry', '', '', ?)
+          `,
+        )
+        .run(sessionId, now);
+
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_risk_config (
+            session_id, max_position_usd, stop_loss_pct, take_profit_pct, stop_loss_type,
+            atr_stop_multiplier, kelly_fraction, prediction_edge_threshold, max_exposure_usd,
+            wait_for_open_threshold, max_concurrent_trades, daily_loss_limit_usd,
+            profit_target_usd, max_ai_spend_usd, human_approval_required, updated_at
+          ) VALUES (?, 500, 2, 4, 'fixed_pct', NULL, 0.25, 0.08, NULL, 0.80, 3, 200, 1000, 5, 0, ?)
+          `,
+        )
+        .run(sessionId, now);
+
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_timeframe_config (
+            session_id, primary_trading_timeframe, holding_style, target_hold_days,
+            max_hold_days, timeframe_notes, updated_at
+          ) VALUES (?, '1d', 'multi_day_swing', NULL, NULL, '', ?)
+          `,
+        )
+        .run(sessionId, now);
+
       // TODO(phase-05/phase-07): Replace these placeholder role rows with canonical defaults
       // from the session AI role setup flow once provider/model configuration exists.
-      for (const role of ["researcher_bull", "researcher_bear", "reviewer", "decision_maker", "instrument_selector"]) {
+      for (const role of ["analyst_technical", "analyst_fundamental", "reviewer", "decision_maker", "instrument_selector"]) {
         this.client.sqlite
           .prepare(
             `
@@ -302,6 +337,52 @@ export class SessionRepo {
         )
         .run(newId, sourceId);
 
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_strategy_profile (
+            session_id, strategy_type, side_bias, entry_style, exit_style,
+            scaling_mode, strategy_brief_markdown, custom_instructions, updated_at
+          )
+          SELECT ?, strategy_type, side_bias, entry_style, exit_style,
+            scaling_mode, strategy_brief_markdown, custom_instructions, ?
+          FROM session_strategy_profile WHERE session_id = ?
+          `,
+        )
+        .run(newId, now, sourceId);
+
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_risk_config (
+            session_id, max_position_usd, stop_loss_pct, take_profit_pct, stop_loss_type,
+            atr_stop_multiplier, kelly_fraction, prediction_edge_threshold, max_exposure_usd,
+            wait_for_open_threshold, max_concurrent_trades, daily_loss_limit_usd,
+            profit_target_usd, max_ai_spend_usd, human_approval_required, updated_at
+          )
+          SELECT ?, max_position_usd, stop_loss_pct, take_profit_pct, stop_loss_type,
+            atr_stop_multiplier, kelly_fraction, prediction_edge_threshold, max_exposure_usd,
+            wait_for_open_threshold, max_concurrent_trades, daily_loss_limit_usd,
+            profit_target_usd, max_ai_spend_usd, human_approval_required, ?
+          FROM session_risk_config WHERE session_id = ?
+          `,
+        )
+        .run(newId, now, sourceId);
+
+      this.client.sqlite
+        .prepare(
+          `
+          INSERT INTO session_timeframe_config (
+            session_id, primary_trading_timeframe, holding_style, target_hold_days,
+            max_hold_days, timeframe_notes, updated_at
+          )
+          SELECT ?, primary_trading_timeframe, holding_style, target_hold_days,
+            max_hold_days, timeframe_notes, ?
+          FROM session_timeframe_config WHERE session_id = ?
+          `,
+        )
+        .run(newId, now, sourceId);
+
       // ai roles
       const sourceRoles = this.client.sqlite
         .prepare("SELECT * FROM session_ai_roles WHERE session_id = ?")
@@ -381,36 +462,68 @@ export class SessionRepo {
   saveConfig(config: SessionConfig, sessionId = this.getFocusedSessionId()): void {
     // TODO(phase-05): Retire this compatibility writer after config saves go through
     // SessionStrategiesRepo and the richer strategy/session edit flows.
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE session_strategies SET
-          strategy_profile = @strategy_profile,
-          max_position_usd = @max_position_usd,
-          stop_loss_pct = @stop_loss_pct,
-          take_profit_pct = @take_profit_pct,
-          max_concurrent_trades = @max_concurrent_trades,
-          research_depth = @research_depth,
-          daily_loss_limit_usd = @daily_loss_limit_usd,
-          profit_target_usd = @profit_target_usd,
-          max_ai_spend_usd = @max_ai_spend_usd,
-          human_approval_required = @human_approval_required
-        WHERE session_id = @session_id
-        `,
-      )
-      .run({
-        session_id: sessionId,
-        strategy_profile: config.strategy,
-        max_position_usd: config.max_position_usd,
-        stop_loss_pct: config.stop_loss_pct,
-        take_profit_pct: config.take_profit_pct,
-        max_concurrent_trades: config.max_concurrent_trades,
-        research_depth: config.research_depth,
-        daily_loss_limit_usd: config.daily_loss_limit_usd,
-        profit_target_usd: config.profit_target_usd,
-        max_ai_spend_usd: config.max_api_spend_usd,
-        human_approval_required: config.human_approval_required ? 1 : 0,
-      });
+    const updatedAt = new Date().toISOString();
+    this.client.sqlite.transaction(() => {
+      this.client.sqlite
+        .prepare(
+          `
+          UPDATE session_strategies SET
+            strategy_profile = @strategy_profile,
+            max_position_usd = @max_position_usd,
+            stop_loss_pct = @stop_loss_pct,
+            take_profit_pct = @take_profit_pct,
+            max_concurrent_trades = @max_concurrent_trades,
+            research_depth = @research_depth,
+            daily_loss_limit_usd = @daily_loss_limit_usd,
+            profit_target_usd = @profit_target_usd,
+            max_ai_spend_usd = @max_ai_spend_usd,
+            human_approval_required = @human_approval_required
+          WHERE session_id = @session_id
+          `,
+        )
+        .run({
+          session_id: sessionId,
+          strategy_profile: config.strategy,
+          max_position_usd: config.max_position_usd,
+          stop_loss_pct: config.stop_loss_pct,
+          take_profit_pct: config.take_profit_pct,
+          max_concurrent_trades: config.max_concurrent_trades,
+          research_depth: config.research_depth,
+          daily_loss_limit_usd: config.daily_loss_limit_usd,
+          profit_target_usd: config.profit_target_usd,
+          max_ai_spend_usd: config.max_api_spend_usd,
+          human_approval_required: config.human_approval_required ? 1 : 0,
+        });
+
+      this.client.sqlite
+        .prepare(
+          `
+          UPDATE session_risk_config SET
+            max_position_usd = @max_position_usd,
+            stop_loss_pct = @stop_loss_pct,
+            take_profit_pct = @take_profit_pct,
+            max_concurrent_trades = @max_concurrent_trades,
+            daily_loss_limit_usd = @daily_loss_limit_usd,
+            profit_target_usd = @profit_target_usd,
+            max_ai_spend_usd = @max_ai_spend_usd,
+            human_approval_required = @human_approval_required,
+            updated_at = @updated_at
+          WHERE session_id = @session_id
+          `,
+        )
+        .run({
+          session_id: sessionId,
+          max_position_usd: config.max_position_usd,
+          stop_loss_pct: config.stop_loss_pct,
+          take_profit_pct: config.take_profit_pct,
+          max_concurrent_trades: config.max_concurrent_trades,
+          daily_loss_limit_usd: config.daily_loss_limit_usd,
+          profit_target_usd: config.profit_target_usd,
+          max_ai_spend_usd: config.max_api_spend_usd,
+          human_approval_required: config.human_approval_required ? 1 : 0,
+          updated_at: updatedAt,
+        });
+    })();
   }
 
 }

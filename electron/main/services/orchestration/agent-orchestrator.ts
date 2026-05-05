@@ -7,7 +7,7 @@ import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./se
 
 type ResolvedInstrument = { symbol: string; instrumentClass: InstrumentClass };
 
-type AiResearchRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runResearcher"]>>;
+type AiResearchRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runAnalyst"]>>;
 type AiReviewRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runReviewer"]>>;
 type AiDecisionRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runDecisionMaker"]>>;
 
@@ -102,9 +102,9 @@ export class AgentOrchestrator {
     const pipeline = await this.runAiPipeline(input.instrumentSymbol, input.instrumentClass, config);
     if (!pipeline) return;
 
-    const { bull, bear, review, decision } = pipeline;
+    const { technical, fundamental, review, decision } = pipeline;
 
-    for (const run of [bull.run, bear.run, review.run, decision.run]) {
+    for (const run of [technical.run, fundamental.run, review.run, decision.run]) {
       this.deps.agentRunsRepo.insert({ ...run, session_id: this.sessionId, trade_id: trade.id });
     }
 
@@ -195,11 +195,11 @@ export class AgentOrchestrator {
     const pipeline = await this.runAiPipeline(instrumentSymbol, instrumentClass, config);
     if (!pipeline) return;
 
-    const { bull, bear, review, decision } = pipeline;
+    const { technical, fundamental, review, decision } = pipeline;
 
     const trade = this.createTradeFromDecision(instrumentSymbol, instrumentClass, config, decision.output);
     this.deps.tradesRepo.insert(trade);
-    for (const run of [bull.run, bear.run, review.run, decision.run]) {
+    for (const run of [technical.run, fundamental.run, review.run, decision.run]) {
       this.deps.agentRunsRepo.insert({ ...run, session_id: this.sessionId, trade_id: trade.id });
     }
 
@@ -290,18 +290,18 @@ export class AgentOrchestrator {
     instrumentSymbol: string,
     instrumentClass: InstrumentClass,
     config: SessionConfig,
-  ): Promise<{ bull: AiResearchRun; bear: AiResearchRun; review: AiReviewRun; decision: AiDecisionRun } | null> {
-    const bull = await this.deps.ai.runResearcher({ instrumentSymbol }, "bull", this.sessionId);
+  ): Promise<{ technical: AiResearchRun; fundamental: AiResearchRun; review: AiReviewRun; decision: AiDecisionRun } | null> {
+    const technical = await this.deps.ai.runAnalyst({ instrumentSymbol }, "technical", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
-    const bear = await this.deps.ai.runResearcher({ instrumentSymbol }, "bear", this.sessionId);
+    const fundamental = await this.deps.ai.runAnalyst({ instrumentSymbol }, "fundamental", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
     const review = await this.deps.ai.runReviewer(
       {
         instrumentSymbol,
-        bullCase: bull.output,
-        bearCase: bear.output,
+        technicalAnalysis: technical.output,
+        fundamentalAnalysis: fundamental.output,
       },
       this.sessionId,
     );
@@ -310,8 +310,8 @@ export class AgentOrchestrator {
     const decision = await this.deps.ai.runDecisionMaker(
       {
         instrumentSymbol,
-        bullCase: bull.output,
-        bearCase: bear.output,
+        technicalAnalysis: technical.output,
+        fundamentalAnalysis: fundamental.output,
         review: review.output,
         maxPositionUsd: config.max_position_usd,
       },
@@ -319,7 +319,7 @@ export class AgentOrchestrator {
     );
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
-    return { bull, bear, review, decision };
+    return { technical, fundamental, review, decision };
   }
 
   private waitForApproval(
