@@ -1,22 +1,16 @@
 # Trading Strategy Configuration — Plan
 
 > **Date:** 2026-05-03
-> **Status:** Draft (updated 2026-05-03)
+> **Status:** In Review (implementation-ready)
 > **Deciders:** Kenneth Atchon
 
 ---
 
 ## 1. Problem Statement
 
-The current strategy system (`session_strategies` table + `StrategyConfig` UI) captures only mechanical execution parameters: stop-loss %, take-profit %, max position USD, holding style, and timeframe. There is no concept of *what kind of trading* the AI agents should be doing. Four related problems compound this:
+The current strategy system is still a legacy execution-settings blob. `session_strategies` stores stop-loss, take-profit, position sizing, AI spend, and timeframe settings together, while the runtime only injects the trading horizon into prompts. That means Exva can tell an agent how long to hold, but not what style of trade it is supposed to find, what side bias to honor, what kind of entry qualifies, or what special rules apply for a prediction market. At the same time, the current bull/bear researcher framing pushes the agents into advocacy rather than investigation, and the instrument selector is still modeled as a lightweight picker instead of the primary discovery role.
 
-**1. Bull/bear researcher framing is wrong.** The current `researcher_bull` / `researcher_bear` agents are prompted to argue predetermined sides. The actual intent is two *independent analysts* who research using different methodologies and whose conclusions can be compared for quality. Forcing a "bull case" framing means the bull agent will find reasons to buy even when it shouldn't. The two researchers need to be differentiated by *how* they research (methodology), not by which conclusion they're expected to reach.
-
-**2. The instrument selector role is undersized.** It's currently described as just a "picker" but it is actually the most important agent in the workflow — a heavy research process that scans a broad universe, evaluates candidates, and hands the trade cycle a ranked shortlist with evidence. The entire quality of subsequent trades depends on the instrument selector's output. Its name, prompt, and position in the plan should reflect this.
-
-**3. Strategy and risk management are one blob.** `session_strategies` mixes strategy type (what we're trading and why) with risk management rules (how much we risk). These are independent concerns. A momentum strategy and a mean-reversion strategy can both use the same stop-loss %, or a user can run momentum with tight stops vs. momentum with wide stops. Keeping them in one table makes the UI confusing and blocks mix-and-match configuration.
-
-**4. Polymarket (prediction markets) is not modeled.** The user wants to trade Polymarket (binary outcome prediction markets on Polygon/USDC). This is a fundamentally different instrument class: no price direction, no stop-loss in the traditional sense, resolution-based exit, and edge is expressed as probability calibration vs. the market's implied probability. It needs its own strategy type and its own broker adapter.
+This must be fixed now because the harness plan depends on a canonical strategy snapshot, methodology-differentiated analysts, and a first-class `prediction_market` mode. Without those contracts, richer prompts will be inconsistent, the audit trail will not know what rules the model was following, and Polymarket cannot be represented correctly in the domain model.
 
 ---
 
@@ -26,193 +20,175 @@ The current strategy system (`session_strategies` table + `StrategyConfig` UI) c
 
 | # | Goal | Success Looks Like |
 |---|------|--------------------|
-| 1 | Rename `researcher_bull`/`researcher_bear` to methodology-differentiated analysts; update prompts | Agents produce genuinely different research via different lenses, not forced conclusions |
-| 2 | Instrument selector is treated as primary research agent; prompt + position in workflow reflect this | Universe researcher runs first, output gates the rest of the session |
-| 3 | Schema split: `session_strategy_profile` + `session_risk_config` as distinct tables, mix-and-matchable | Changing risk config does not require touching strategy type and vice versa |
-| 4 | Strategy brief composer gives users peak customizability via a structured form | User sees assembled markdown brief, can override any section |
-| 5 | Polymarket is a first-class strategy type with its own adapter, research approach, and sizing model | A session with `strategyType = prediction_market` executes on Polymarket CLOB via USDC |
-| 6 | All strategy context is auditable — every agent run snapshots the strategy + risk config at call time | `agent_runs` includes `strategy_snapshot_json` |
+| 1 | Replace bull/bear advocacy with methodology-based analysts | Agents research through different lenses rather than forcing opposite conclusions |
+| 2 | Elevate the instrument selector to a first-class universe researcher | Discovery happens before analysis and gates the rest of the cycle |
+| 3 | Separate strategy, risk, and timeframe configuration into focused tables | Risk can change without rewriting strategy intent, and timeframe can evolve independently |
+| 4 | Compose an authoritative strategy brief and inject it into every agent run | Every agent receives the same strategy/risk/timeframe ground truth |
+| 5 | Make strategy context fully auditable | `agent_messages.strategy_snapshot_json` stores the exact injected strategy state for each run |
+| 6 | Add a complete prediction-market domain model and Polymarket execution path | A prediction-market session can discover, analyze, size, place, monitor, and close trades correctly |
 
 **Non-Goals**
 
 | # | Non-Goal | Reason |
 |---|----------|--------|
-| 1 | Backtesting / paper simulation | Separate concern |
-| 2 | Automatic strategy switching (regime detection) | Phase 2+ |
-| 3 | Options spreads/straddles | Broker adapter doesn't support options execution yet |
-| 4 | Quantitative parameter optimization | User sets parameters manually |
-| 5 | Polymarket market-making (quoting bid/ask) | This plan covers directional/probability trading only; market-making is future |
+| 1 | Backtesting and parameter optimization | Separate product surface |
+| 2 | Automatic regime switching between strategies | Future iteration |
+| 3 | Option spreads or advanced derivatives strategies | Execution adapters do not support them |
+| 4 | Cross-session shared strategy presets with version history | Templates remain latest-snapshot only in this phase |
+| 5 | Fully automated prompt mutation from trade autopsies | Human-initiated only |
 
 ---
 
 ## 3. Background & Context
 
-**Current DB state** (`electron/main/db/schema.ts`):
-```
-sessionStrategies (one blob):
-  strategyProfile: "passive_income" | "growth" | "conservative" | "custom"  ← DEAD COLUMN
-  maxPositionUsd, stopLossPct, takeProfitPct, maxConcurrentTrades            ← risk
-  researchDepth: "light" | "balanced" | "deep"
-  dailyLossLimitUsd, profitTargetUsd, maxAiSpendUsd                          ← risk
-  humanApprovalRequired                                                       ← risk
-  primaryTradingTimeframe, holdingStyle, targetHoldDays, maxHoldDays, timeframeNotes
-```
+**Current repo reality**
 
-`strategyProfile` is stored but never read by anything. No strategy type, no side bias, no entry/exit logic reaches the agents.
+| Area | Current state | Gap this plan closes |
+|---|---|---|
+| `session_strategies` | One table mixes strategy-ish fields, risk fields, and timeframe fields | No clean ownership boundaries |
+| `strategy-prompt-context.ts` | Only prepends timeframe/horizon context | No full strategy/risk prompt context |
+| `AgentRole` union | `researcher_bull`, `researcher_bear`, `reviewer`, `decision_maker`, `instrument_selector` | Wrong analyst semantics |
+| `AiRuntime.runResearcher()` | Chooses role by bull/bear stance | No methodology-based routing |
+| `Trade` / broker domain | Only understands `stock`, `crypto`, `futures` and `BUY`/`SELL` | Cannot represent Polymarket YES/NO outcome positions |
 
-**Agent roles today:**
-```
-researcher_bull     — "find the strongest long thesis"  ← forced framing
-researcher_bear     — "find the strongest short thesis" ← forced framing
-reviewer            — synthesizes bull + bear
-decision_maker      — outputs trade/no_trade + side
-instrument_selector — "picks" symbols from scope        ← undersized role
-```
+**Relevant current files**
 
-The bull/bear framing forces agents to advocate rather than investigate. An agent told to find a bull case will find one even when the evidence is weak. The value of having two researchers is *independent verification via different lenses*, not debate prep.
+- `electron/shared/domain.ts`
+- `electron/main/db/schema.ts`
+- `electron/main/db/repositories/session-strategies-repo.ts`
+- `electron/main/services/ai/strategy-prompt-context.ts`
+- `electron/main/services/ai/ai-runtime.ts`
+- `electron/main/services/orchestration/agent-orchestrator.ts`
 
-**Related plans:** Phase 5 (`phase-05-strategy-ai-roles.md`) set up per-role AI config (model, provider, custom prompts). This plan defines what should be *in* those prompts and how the schema should be restructured to support it.
+**Constraint from the existing codebase**
+
+The current runtime, risk engine, and session creation flow still read from `session_strategies`. A safe cutover must therefore be additive first: create the new tables, backfill them, introduce a composite read service, and only remove the legacy blob after all readers have moved. Even though Exva is local-first and does not require long-term backward compatibility, the staged cutover keeps the system bootable throughout the migration.
+
+**Cross-plan contract with the harness**
+
+This plan and `docs/plan/ai-harness-architecture.md` share these canonical decisions:
+
+1. The post-migration analyst role names are `analyst_technical` and `analyst_fundamental`.
+2. `instrument_selector` remains the code/DB key, but the UI label becomes **Universe Researcher**.
+3. The detailed strategy snapshot is stored on `agent_messages.strategy_snapshot_json`.
+4. Stock fundamental analysis assumes the harness injects `## Fundamentals` in addition to `## Market Data` and `## News`.
+5. Reviewer runs as a bounded tool-use verifier; analysts remain strictly parallel and independent.
 
 ---
 
 ## 4. Research Summary
 
 **Bull/bear framing vs. methodology differentiation**
-Research on multi-agent LLM debate (Nature Scientific Reports, 2025) shows that when agents are given fixed positions, a confident adversarial agent can lower group accuracy by 10–40% and increase consensus on wrong answers by >30%. The risk: if one "bull" agent makes a strong confident argument, the system converges to a trade even when the actual evidence is weak. TradingAgents (ICML 2025) uses methodology-differentiated analysts instead — a Fundamental Analyst and a Technical Analyst who look at genuinely different data sources — and achieves better Sharpe ratio than adversarial debate variants. Independent analysis from different data dimensions is stronger than forced advocacy. Source: [Nature multi-agent debate](https://www.nature.com/articles/s41598-026-42705-7), [TradingAgents paper](https://arxiv.org/pdf/2412.20138v6)
+Research on multi-agent LLM debate shows that forcing fixed positions can lower group accuracy and increase confident convergence on wrong answers. Trading systems benefit more from analysts that examine different evidence sources than from agents instructed to argue opposite conclusions. Source: [Nature Scientific Reports](https://www.nature.com/articles/s41598-026-42705-7), [TradingAgents paper](https://arxiv.org/pdf/2412.20138v6)
 
-**Key insight:** Rename bull/bear to methodology-differentiated analysts: `analyst_technical` (price, volume, indicators, patterns) + `analyst_fundamental` (earnings, revenue, sector, macro, news). These agents look at completely different data. Their outputs will naturally diverge when the evidence is mixed — no forced framing needed.
+**Key insight:** Exva should encode analyst diversity in method, not in forced stance.
 
 **Polymarket architecture**
-Polymarket is a prediction market (binary outcomes: YES/NO shares, priced 0–100¢) on Polygon, settling in USDC.e. It uses a CLOB (Central Limit Order Book) — off-chain matching, on-chain settlement. Official Python SDK: `py-clob-client`. TypeScript: `@polymarket/clob-client`. Rate limits: 100 REST req/min, 60 orders/min. Positions expire at market resolution (event outcome). No traditional stop-loss — risk is managed via position size and Kelly fraction. Source: [Polymarket docs](https://docs.polymarket.com/), [py-clob-client](https://github.com/Polymarket/py-clob-client), [QuantVPS Polymarket guide](https://www.quantvps.com/blog/automated-trading-polymarket)
+Polymarket is a binary outcome market on Polygon with YES/NO outcome tokens and CLOB-based trading. The important distinction is that direction is not `BUY` vs `SELL`; `BUY` and `SELL` are order actions, while YES/NO is the thesis or outcome leg being traded. Source: [Polymarket docs](https://docs.polymarket.com/), [py-clob-client](https://github.com/Polymarket/py-clob-client), [QuantVPS guide](https://www.quantvps.com/blog/automated-trading-polymarket)
 
-**Key insight:** Polymarket requires a new broker adapter (`PolymarketAdapter` implementing `BrokerAdapter`) plus different risk logic. Kelly criterion replaces fixed stop-loss %. The hold period is event-driven (market resolves), not time-based. The research task is "estimate outcome probability and compare to market's implied probability" — entirely different from "find price momentum signals."
+**Key insight:** Exva must add a separate prediction-market outcome field instead of trying to overload `TradeSide`.
 
-**PolySwarm framework (arXiv 2604.03888, April 2025)**
-A production multi-agent LLM framework for Polymarket trading. Deploys 50 diverse LLM personas (macro economists, technical analysts, contrarian investors, political scientists, domain specialists) that independently estimate outcome probabilities. Aggregates via confidence-weighted Bayesian combination. Uses quarter-Kelly position sizing. Employs KL divergence to detect cross-market inefficiencies. Source: [PolySwarm arXiv](https://arxiv.org/abs/2604.03888)
+**PolySwarm framework**
+PolySwarm shows that independent probability estimates from different personas can outperform a single generalized view when trading prediction markets. The important pattern is not the exact number of agents, but separating base-rate reasoning from contextual/news reasoning. Source: [PolySwarm arXiv](https://arxiv.org/abs/2604.03888)
 
-**Key insight for Exva:** You don't need 50 personas. But the core insight — multiple agents with different epistemic backgrounds independently estimate a probability, and you trade when your aggregated estimate diverges enough from the market price — is the right model for Polymarket sessions. Two independent analysts with different lenses (geopolitical, statistical, fundamental) is sufficient to get the diversity benefit.
+**Key insight:** Exva only needs two differentiated prediction-market analysts to capture the main benefit: statistical/base-rate reasoning and contextual/current-events reasoning.
 
 **Schema separation precedent**
-Quantitative trading systems universally separate strategy logic (entry signals, trading rules, holding conditions) from risk management (position sizing, stop placement, drawdown limits). These are maintained in separate modules with independent versioning because they are changed by different people at different cadences. Mixing them creates "strategy drift" — changing a risk parameter accidentally changes the trading logic. Source: [QuantConnect architecture](https://www.quantconnect.com/), industry standard in systematic funds.
+Quantitative systems generally separate strategy rules from risk controls because they change at different cadences and are owned by different decision processes. Mixing them causes accidental coupling and confusing UIs. Source: [QuantConnect](https://www.quantconnect.com/)
+
+**Key insight:** The strategy/risk/timeframe split should be explicit in the schema and mirrored in the UI.
 
 ---
 
-## 5. Researcher Role: The Case for Renaming
+## 5. Researcher Role: Methodology, Not Advocacy
 
-**Current state:**
+**Current state**
+
+```text
+researcher_bull  -> find the strongest long thesis
+researcher_bear  -> find the strongest short thesis
 ```
-researcher_bull  → "find the strongest long thesis"
-researcher_bear  → "find the strongest short thesis"
-```
 
-**The problem:** Both agents analyze the same instrument with the same data. The only difference is the conclusion they're required to reach. This is debate-club research, not independent analysis. It adds confirmation bias risk: the decision-maker now sees *two advocates* instead of two investigators.
+**Problem**
 
-**Recommendation: Methodology differentiation.**
+Both roles look at the same instrument and are rewarded for arguing, not investigating. That creates confirmation bias and makes disagreement less informative.
 
-Rename and reprompt as:
+**Recommendation**
 
-| Old | New | What it analyzes |
-|-----|-----|-----------------|
-| `researcher_bull` | `analyst_technical` | Price action, OHLCV, volume, RSI, ATR, MA structure, chart patterns, support/resistance |
-| `researcher_bear` | `analyst_fundamental` | Earnings, revenue growth, FCF, sector trends, macro indicators, analyst ratings, news catalysts |
+| Old | New | What it owns |
+|---|---|---|
+| `researcher_bull` | `analyst_technical` | Price, volume, market structure, indicator state, support/resistance |
+| `researcher_bear` | `analyst_fundamental` | Earnings, growth, valuation, sector context, catalysts, macro/news |
 
-**Why this is better:**
-- Agents look at genuinely different data — divergence in conclusions is meaningful, not manufactured
-- No forced conclusion — both agents may independently flag a long setup (strong confirmation) or both may flag caution (meaningful warning)
-- Reviewer and decision-maker get richer, non-redundant context
-- For prediction markets: rename to `analyst_statistical` (base rates, historical resolution patterns) + `analyst_contextual` (recent news, expert opinion, policy context)
-- `prompt_asset_loader` loads from `analyst_technical.md` / `analyst_fundamental.md` — file rename only
+**Rules**
 
-**DB change:** `session_ai_roles.role` values `researcher_bull`/`researcher_bear` migrate to `analyst_technical`/`analyst_fundamental`. Existing sessions: one-time migration or null-out + re-configure.
+1. Analysts do not see each other’s output.
+2. Analysts are allowed to agree.
+3. Analysts are not told what side to conclude.
+4. Reviewer compares and synthesizes; decision maker decides.
+
+**Migration policy**
+
+Because Exva does not need long-term backward compatibility, the plan does **not** keep deprecated runtime aliases indefinitely. The migration updates stored `session_ai_roles.role` values and the code switches to the new names in one controlled phase.
 
 ---
 
-## 6. Instrument Selector: The Universe Researcher
+## 6. Instrument Selector: Universe Researcher
 
-**Current understanding (undersized):** The instrument selector "picks" symbols from a pre-defined scope. It's treated as a routing step.
+The role key remains `instrument_selector`, but its product meaning changes. It is not a passive scoring step; it is the first and most consequential research stage.
 
-**Correct understanding:** The universe researcher is the **most consequential agent in the entire workflow.** Every trade that follows is constrained by what it chose. A bad pick means a bad trade regardless of downstream analysis quality.
+**Responsibilities**
 
-**The fundamental shift — discovery, not scoring:**
-The universe researcher does not receive a list of symbols and score them. It *discovers* what is worth trading right now by searching the web for what is trending, moving, and why. The question it answers is: "Given the current strategy, what instruments are setting up right now and why?" This is closer to how a professional trader starts their morning — scanning news, scanning movers, asking "what's hot and why" — not running a fixed watchlist through a filter.
+1. Discover instruments or markets worth analyzing now.
+2. Respect session strategy type, side bias, instrument class restrictions, and broker compatibility.
+3. Return a ranked shortlist with evidence, not just symbols.
+4. Cache outputs behind a definition hash so repeated cycles can reuse recent results when appropriate.
 
-The user can optionally provide a symbol shortlist as a constraint ("only consider these 10 symbols"), but the default mode is open discovery.
+**Modes**
 
-**What it should actually do:**
-1. **Discovery mode (default):** Web search for trending instruments, top movers, sector momentum, breaking catalysts — scoped to the session's strategy type (e.g., for momentum: "stocks breaking out with high volume today"; for event-driven: "stocks with major catalyst in last 24 hours")
-2. **Constrained mode (user-provided list):** If the user supplies a symbol list in the session scope, focus discovery on those symbols only — but still use web search to understand *why* they're moving, not just that they are
-3. **Evaluate discovered candidates** against the session's strategy criteria: does the setup match the configured entry style, timeframe, side bias?
-4. **Apply instrument class filter:** only return symbols compatible with the session's `instrumentClasses` and the configured broker
-5. Return a **ranked shortlist** (top N = `maxConcurrentTrades`) with a confidence score and 3-5 sentence evidence summary per symbol — the "why this, why now"
-6. This output is **cached with a definition hash** (current behavior) — avoid re-running if scope + strategy hasn't changed
+1. **Open discovery**: search broadly for setups matching the strategy.
+2. **Constrained discovery**: if the user provides a shortlist, search only within it, but still explain *why now*.
 
-**Why discovery > scoring:**
-Scoring a fixed list tells you which pre-known symbol scores best. Discovery tells you what you don't know about yet. The best momentum trade today might be a name the user has never heard of. The universe researcher's job is to find it.
+**UI/wording decision**
 
-**Rename in code:** `instrument_selector` role → keep the role key (DB migration cost), rename in UI labels to "Universe Researcher." Prompt file rewritten below.
+- DB key and prompt file key stay `instrument_selector`.
+- UI label changes to `Universe Researcher`.
 
-**Prompt update (`instrument_selector.md`):**
-```markdown
-# Universe Researcher
-
-You are the universe researcher. Your job is the most important in the session:
-discover what instruments are worth trading RIGHT NOW and return a ranked
-shortlist with evidence. Bad picks here mean bad trades regardless of what
-happens downstream.
-
-This is discovery research, not a filter pass. Think like a trader scanning
-the morning: what is moving, what is setting up, and why?
-
-## Instructions
-- Web search is REQUIRED — do not proceed without it
-- Search for: top movers, trending instruments, breaking catalysts, sector
-  momentum — scoped to the session's strategy type (provided below)
-- If the session has a symbol shortlist, constrain your search to those symbols
-  but still use web search to understand why they are moving
-- Evaluate each discovered candidate against the Session Strategy Brief
-- Score on: strategy fit, signal strength, risk/reward, timing urgency
-- For each shortlisted symbol: 3-5 sentences — what is happening and why now
-- Return ONLY instruments with score ≥ 0.65 (0–1 scale)
-- If no instruments meet threshold: return empty list with explanation
-- Honor instrument class restrictions (provided below)
-```
+This keeps migrations small while aligning the product language with the actual role.
 
 ---
 
-## 7. Schema Redesign: Split Session Strategy
+## 7. Schema Redesign: Canonical Strategy Context
 
-**Current (bad):** One `session_strategies` table with 14 columns mixing strategy type, risk limits, and timeframe config.
+The target model is three focused tables plus one legacy compatibility table during migration.
 
-**Proposed (good):** Three focused tables, all foreign-keyed to `sessions.id`, mix-and-matchable.
-
-```
+```text
 sessions
- └── session_strategy_profile   ← what/how: type, side, entry/exit logic, brief
- └── session_risk_config        ← how much: stop, position size, daily limits
- └── session_timeframe          ← when: trading timeframe, holding style (existing logic, renamed)
+  -> session_strategy_profile
+  -> session_risk_config
+  -> session_timeframe_config
+  -> session_strategies (legacy compatibility only during cutover; removed in Phase 5)
 ```
 
 ### `session_strategy_profile`
 
 ```sql
 CREATE TABLE session_strategy_profile (
-  session_id          TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-  strategy_type       TEXT NOT NULL DEFAULT 'custom',
+  session_id                TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  strategy_type             TEXT NOT NULL DEFAULT 'custom',
   -- momentum | mean_reversion | trend_following | short_bias | pairs |
   -- fundamental | event_driven | prediction_market | custom
-  side_bias           TEXT NOT NULL DEFAULT 'both',
-  -- long_only | short_only | both | market_neutral | n_a (prediction markets)
-  entry_style         TEXT NOT NULL DEFAULT 'breakout',
+  side_bias                 TEXT NOT NULL DEFAULT 'both',
+  -- long_only | short_only | both | market_neutral | n_a
+  entry_style               TEXT NOT NULL DEFAULT 'breakout',
   -- breakout | pullback | reversal | range_fade | event | probability_edge
-  exit_style          TEXT NOT NULL DEFAULT 'fixed_pct',
+  exit_style                TEXT NOT NULL DEFAULT 'fixed_pct',
   -- fixed_pct | trailing_atr | partial_exits | time_based | thesis_based | market_resolution
-  scaling_mode        TEXT NOT NULL DEFAULT 'single_entry',
+  scaling_mode              TEXT NOT NULL DEFAULT 'single_entry',
   -- single_entry | scale_in_2 | scale_in_3 | scale_out_partial
-  strategy_brief_markdown TEXT NOT NULL DEFAULT '',
-  -- assembled markdown document, max 2000 chars
-  custom_instructions TEXT NOT NULL DEFAULT '',
-  -- user free-text override, max 1000 chars
-  updated_at          TEXT NOT NULL
+  strategy_brief_markdown   TEXT NOT NULL DEFAULT '',
+  custom_instructions       TEXT NOT NULL DEFAULT '',
+  updated_at                TEXT NOT NULL
 );
 ```
 
@@ -220,398 +196,567 @@ CREATE TABLE session_strategy_profile (
 
 ```sql
 CREATE TABLE session_risk_config (
-  session_id              TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-  max_position_usd        REAL NOT NULL DEFAULT 500,
-  stop_loss_pct           REAL NOT NULL DEFAULT 2,
-  take_profit_pct         REAL NOT NULL DEFAULT 4,
-  stop_loss_type          TEXT NOT NULL DEFAULT 'fixed_pct',
-  -- fixed_pct | trailing_atr | broker_native_trailing | none (prediction markets)
-  atr_stop_multiplier     REAL NOT NULL DEFAULT 1.5,  -- used when stop_loss_type = trailing_atr
-  kelly_fraction          REAL NOT NULL DEFAULT 0.25, -- used for prediction_market strategy type
-  max_concurrent_trades   INTEGER NOT NULL DEFAULT 3,
-  daily_loss_limit_usd    REAL NOT NULL DEFAULT 200,
-  profit_target_usd       REAL NOT NULL DEFAULT 1000,
-  max_ai_spend_usd        REAL NOT NULL DEFAULT 5,
-  human_approval_required INTEGER NOT NULL DEFAULT 0,
-  updated_at              TEXT NOT NULL
+  session_id                TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  max_position_usd          REAL NOT NULL DEFAULT 500,
+  stop_loss_pct             REAL,
+  take_profit_pct           REAL,
+  stop_loss_type            TEXT NOT NULL DEFAULT 'fixed_pct',
+  -- fixed_pct | trailing_atr | broker_native_trailing | none
+  atr_stop_multiplier       REAL,
+  kelly_fraction            REAL NOT NULL DEFAULT 0.25,
+  prediction_edge_threshold REAL NOT NULL DEFAULT 0.08,
+  max_exposure_usd          REAL,
+  wait_for_open_threshold   REAL NOT NULL DEFAULT 0.80,
+  max_concurrent_trades     INTEGER NOT NULL DEFAULT 3,
+  daily_loss_limit_usd      REAL NOT NULL DEFAULT 200,
+  profit_target_usd         REAL NOT NULL DEFAULT 1000,
+  max_ai_spend_usd          REAL NOT NULL DEFAULT 5,
+  human_approval_required   INTEGER NOT NULL DEFAULT 0,
+  updated_at                TEXT NOT NULL
 );
 ```
 
-### Migration path
+### `session_timeframe_config`
 
-1. Create both new tables with defaults matching current `session_strategies` values
-2. Copy data from `session_strategies` into both new tables
-3. Update all repos: `SessionStrategiesRepo` splits into `SessionStrategyProfileRepo` + `SessionRiskConfigRepo`
-4. Drop deprecated columns from `session_strategies` (or keep as legacy, soft-deprecated)
-5. `strategyProfile` column in original table: drop — it has been dead since creation
+```sql
+CREATE TABLE session_timeframe_config (
+  session_id                TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  primary_trading_timeframe TEXT NOT NULL DEFAULT '1d',
+  holding_style             TEXT NOT NULL DEFAULT 'multi_day_swing',
+  target_hold_days          REAL,
+  max_hold_days             REAL,
+  timeframe_notes           TEXT NOT NULL DEFAULT '',
+  updated_at                TEXT NOT NULL
+);
+```
 
-**Why keep `session_strategies` at all?** The timeframe fields (`primaryTradingTimeframe`, `holdingStyle`, `targetHoldDays`, etc.) are cohesive and worth keeping together. Rename `session_strategies` → `session_timeframe_config` and strip out the moved columns.
+### Canonical strategy snapshot stored with each agent run
+
+This snapshot is injected into prompts and stored in `agent_messages.strategy_snapshot_json` by the harness:
+
+```json
+{
+  "version": 1,
+  "profile": {
+    "strategyType": "momentum",
+    "sideBias": "long_only",
+    "entryStyle": "breakout",
+    "exitStyle": "trailing_atr",
+    "scalingMode": "single_entry",
+    "strategyBriefMarkdown": "...",
+    "customInstructions": "..."
+  },
+  "riskConfig": {
+    "maxPositionUsd": 500,
+    "stopLossPct": 2,
+    "takeProfitPct": 4,
+    "stopLossType": "fixed_pct",
+    "atrStopMultiplier": 1.5,
+    "kellyFraction": 0.25,
+    "predictionEdgeThreshold": 0.08,
+    "maxExposureUsd": null,
+    "waitForOpenThreshold": 0.8,
+    "maxConcurrentTrades": 3,
+    "dailyLossLimitUsd": 200,
+    "profitTargetUsd": 1000,
+    "maxAiSpendUsd": 5,
+    "humanApprovalRequired": false
+  },
+  "timeframe": {
+    "primaryTradingTimeframe": "1d",
+    "holdingStyle": "multi_day_swing",
+    "targetHoldDays": null,
+    "maxHoldDays": 7,
+    "timeframeNotes": "..."
+  }
+}
+```
 
 ---
 
-## 8. Options Considered
+## 8. Canonical Polymarket Domain Model
 
-### Option A: Status Quo — extend `timeframeNotes` as a free-text catch-all
+This is the missing contract that makes `prediction_market` implementable.
 
-(unchanged from previous version — rejected for same reasons)
+### Core decisions
 
-**Rejected:** No structured guidance reaches agents. No validation. No auditing.
+1. `InstrumentClass` gains a fourth value: `prediction_market`.
+2. `TradeSide` remains `BUY | SELL` everywhere. It continues to mean order action.
+3. A new nullable field `predictionOutcome` is added wherever a tradeable position is represented.
+4. `instrumentSymbol` for prediction markets is the canonical market identity, not the outcome leg.
+
+### Canonical identity shape
+
+For prediction markets:
+
+- `instrumentSymbol = pm:<conditionId>`
+- `instrumentDisplayName = <human-readable market question>`
+- `predictionOutcome = YES | NO`
+- `instrumentMetadataJson = { slug, conditionId, outcomeTokenId, category, resolutionTime }`
+
+### Required domain changes
+
+**Type-level changes**
+
+- `InstrumentClass` -> add `prediction_market`
+- `OrderRequest`, `BrokerOrder`, `BrokerPosition`, `Trade`, and `TradeApproval`
+  - add `predictionOutcome?: 'YES' | 'NO' | null`
+  - add `instrumentDisplayName?: string | null` where persisted history needs a human-readable label
+  - add `instrumentMetadataJson?: string | null` where token IDs / resolution time must be retained
+
+**Persistence changes**
+
+`trades` gains:
+
+```sql
+prediction_outcome   TEXT,
+instrument_display_name TEXT,
+instrument_metadata_json TEXT
+```
+
+`trade_approvals` gains the same three fields so approval history fully describes the intended order.
+
+### Order semantics
+
+| User intent | Stored `side` | Stored `predictionOutcome` | Meaning |
+|---|---|---|---|
+| Open YES position | `BUY` | `YES` | Buy YES shares |
+| Open NO position | `BUY` | `NO` | Buy NO shares |
+| Exit YES early | `SELL` | `YES` | Sell YES shares already owned |
+| Exit NO early | `SELL` | `NO` | Sell NO shares already owned |
+
+This avoids overloading `BUY` to mean YES and `SELL` to mean NO.
+
+### Decision-maker output for prediction markets
+
+```ts
+{
+  action: "trade" | "no_trade";
+  outcome?: "YES" | "NO";
+  estimatedProb?: number;
+  impliedProb?: number;
+  edgePctPts?: number;
+  sizeUsd?: number;
+  reasoning: string;
+}
+```
+
+### Monitoring / close semantics
+
+1. Resolution close: position is marked closed when Polymarket settles the outcome.
+2. Early exit: Exva places a `SELL` order on the same `predictionOutcome` leg.
+3. `maxHoldDays` or `maxExposureUsd` breach: deterministic non-LLM exit at current market price.
 
 ---
 
-### Option B: Structured columns on existing `session_strategies` table
+## 9. Options Considered
 
-Add `strategyType`, `sideAllowed`, `entryStyle`, etc. as columns on the existing blob table.
+### Option A: Keep `session_strategies` and expand `timeframeNotes`
 
-**Rejected:** Still mixes risk + strategy. Harder to migrate. Doesn't solve the schema separation concern.
-
----
-
-### Option C: Strategy Brief + Schema Split (RECOMMENDED)
-
-Three focused tables (`session_strategy_profile`, `session_risk_config`, `session_timeframe_config`) with a composable strategy brief injected into agent system prompts. Strategy type and risk config are independent — mix any type with any risk rules.
+Use free text and a few extra columns on the legacy blob.
 
 | Dimension | Assessment |
-|-----------|------------|
-| Complexity | High but phased; each table is independently usable |
-| Performance | Negligible — brief is ~200-500 tokens, injected once per role call |
-| Reliability | Structured form prevents blank/incoherent config |
-| Cost | ~4-5 days engineering across phases |
-| Reversibility | New tables are additive; original columns can be kept as fallback |
-| Stack fit | Extends Phase 5 prompt system cleanly |
-| Team readiness | Yes |
+|---|---|
+| Complexity | Low |
+| Performance | Neutral |
+| Reliability | Poor validation and poor auditability |
+| Cost | Low |
+| Reversibility | High |
+| Stack fit | Short-term only |
+| Team readiness | High |
+
+Risks:
+- Strategy intent remains ambiguous.
+- Prompt injection stays inconsistent.
+- Polymarket still has no canonical domain model.
+
+### Option B: Add structured columns to the existing table only
+
+Keep one table but add strategy-type and entry/exit columns.
+
+| Dimension | Assessment |
+|---|---|
+| Complexity | Medium |
+| Performance | Neutral |
+| Reliability | Better than free text, still conflated concerns |
+| Cost | Moderate |
+| Reversibility | Medium |
+| Stack fit | Acceptable but messy |
+| Team readiness | High |
+
+Risks:
+- Continues mixing strategy, risk, and timeframe.
+- Harder to reason about migration boundaries.
+- Does not force a proper Polymarket domain model.
+
+### Option C: Strategy / Risk / Timeframe split with canonical snapshot (RECOMMENDED)
+
+Use dedicated tables, a structured strategy brief composer, methodology-based analysts, and a canonical strategy snapshot stored with each agent trace.
+
+| Dimension | Assessment |
+|---|---|
+| Complexity | High but phaseable |
+| Performance | Negligible prompt cost increase |
+| Reliability | Best validation, auditability, and cross-plan consistency |
+| Cost | Moderate engineering effort |
+| Reversibility | High while compatibility table exists |
+| Stack fit | Best match for the harness direction |
+| Team readiness | Good |
+
+Risks:
+- Requires a compatibility layer during cutover.
+- Depends on harness snapshot injection landing cleanly.
+- Polymarket touches multiple domain surfaces at once.
 
 ---
 
-## 9. Recommendation
+## 10. Recommendation
 
-**We recommend Option C: Strategy Brief + Schema Split.**
+**We recommend Option C: Strategy / Risk / Timeframe split with canonical snapshot.**
 
-Additionally:
-- **Rename researchers** to `analyst_technical` + `analyst_fundamental` — methodology differentiation is empirically better than forced advocacy framing
-- **Elevate instrument selector** to primary research agent in the UI and harness plan
-- **Add `prediction_market` strategy type** with Polymarket-specific config and a new broker adapter
+This is the smallest approach that solves all four real problems at once: wrong analyst framing, undersized selector role, schema coupling, and missing prediction-market modeling. The strategy snapshot becomes a durable contract between the strategy UI and the harness, while the Polymarket domain model prevents semantic bugs caused by trying to map YES/NO positions onto `BUY`/`SELL` alone.
 
-These changes are independent and can ship in separate PRs.
+**Important companion decisions**
+
+1. Rename `researcher_bull` -> `analyst_technical`.
+2. Rename `researcher_bear` -> `analyst_fundamental`.
+3. Keep `instrument_selector` as the persisted key, but rename its product label.
+4. Store strategy snapshots on `agent_messages`, not `agent_runs`.
+5. Make `prediction_market` a first-class instrument class with an explicit outcome field.
 
 ---
 
-## 10. Implementation Plan
+## 11. Implementation Plan
 
-### Phase 1: Schema Split + Migration
+### Phase 1: Additive Schema Split + Compatibility Layer
 
-**Goal:** Create `session_strategy_profile` and `session_risk_config` tables. Migrate data. No behavioral change.
+**Goal:** Create the new tables and keep the app behavior stable during migration.
+
+**Done criteria:** New sessions write to new tables, existing sessions are backfilled, and legacy readers still work through mirror writes or composite reads.
 
 **Deliverables:**
-- [ ] `schema.ts` — add `sessionStrategyProfile` and `sessionRiskConfig` tables
-- [ ] Migration: create tables, copy data from `session_strategies`, add NOT NULL defaults
-- [ ] `session-strategy-profile-repo.ts` + `session-risk-config-repo.ts`
-- [ ] Update `AppServices` to include both new repos
-- [ ] Rename `session_strategies` → `session_timeframe_config` in schema + migration
-- [ ] Drop `strategyProfile` dead column
+
+- `schema.ts`
+  - add `session_strategy_profile`
+  - add `session_risk_config`
+  - add `session_timeframe_config`
+- migration
+  - create all three tables
+  - backfill from `session_strategies`
+- new repos
+  - `session-strategy-profile-repo.ts`
+  - `session-risk-config-repo.ts`
+  - `session-timeframe-config-repo.ts`
+- composite context service
+  - `session-strategy-context-service.ts`
+  - reads profile + risk + timeframe into one authoritative object
+- compatibility layer
+  - current save paths mirror legacy-compatible fields into `session_strategies` until all old readers are retired
+- `SessionRepo.create()`
+  - seed all three new tables for new sessions
 
 **Dependencies:** None
 
-**Rollback:** New tables are additive; old table untouched until confirmed working.
+**Rollback:** New tables are additive. Stop reading them and continue using `session_strategies` if needed.
 
 ---
 
-### Phase 2: Researcher Rename + Prompt Update
+### Phase 2: Analyst Rename + Prompt Migration
 
-**Goal:** Rename `researcher_bull`/`researcher_bear` to `analyst_technical`/`analyst_fundamental` with updated prompts.
+**Goal:** Replace stance-based research with methodology-based research.
+
+**Done criteria:** Runtime, UI, prompts, and stored role rows all use `analyst_technical` / `analyst_fundamental`.
 
 **Deliverables:**
-- [ ] Rename prompt files: `researcher_bull.md` → `analyst_technical.md`, `researcher_bear.md` → `analyst_fundamental.md`
-- [ ] Rewrite both prompts — remove forced framing, add methodology focus (see prompts below)
-- [ ] `AgentRole` type in `shared/domain.ts` — add new values, keep old as deprecated union members
-- [ ] DB migration: `session_ai_roles.role` — update values for existing sessions
-- [ ] Update `AiRuntime` — `runResearcher(stance)` → `runAnalyst(role: AnalystRole)`
-- [ ] Update `AgentOrchestrator` — call `runAnalyst('technical')` + `runAnalyst('fundamental')`
-- [ ] Update UI labels everywhere `researcher_bull`/`researcher_bear` appear
 
-**Prompt: `analyst_technical.md`**
+- `shared/domain.ts`
+  - replace legacy role names in `AgentRole`
+- DB migration
+  - update `session_ai_roles.role`
+- prompt assets
+  - `analyst_technical.md`
+  - `analyst_fundamental.md`
+- `AiRuntime`
+  - `runResearcher(stance)` -> `runAnalyst(role)`
+- `AgentOrchestrator`
+  - run technical + fundamental analysts explicitly
+- UI labels and tabs
+
+**Prompt rules**
+
+`analyst_technical.md`
+
 ```markdown
-<!-- version: 2.0.0 -->
 # Technical Analyst
 
-You are the technical analyst. Research this instrument using price action and market data.
-
-## Instructions
-- Honor the **Session Strategy Brief** and **Session trading horizon** blocks in this message
-- Analyze: price trend, volume profile, key moving averages, RSI, ATR, support/resistance levels,
-  chart patterns (breakouts, flags, wedges, ranges), relative strength vs. sector/index
-- Cite specific levels (numbers, not adjectives: "price is 3.2% above 50MA" not "price is above average")
-- Do not predict — describe what the data shows and what it implies for the strategy type
-- Output: structured technical analysis, 200–350 words
+Use the injected `## Market Data` and `## News` blocks as authoritative.
+Analyze price trend, volume structure, moving averages, ATR, RSI, support/resistance,
+and chart pattern quality. Cite specific levels and percentages. Do not force a side.
 ```
 
-**Prompt: `analyst_fundamental.md`**
+`analyst_fundamental.md`
+
 ```markdown
-<!-- version: 2.0.0 -->
 # Fundamental Analyst
 
-You are the fundamental analyst. Research this instrument using financial and macro data.
-
-## Instructions
-- Honor the **Session Strategy Brief** and **Session trading horizon** blocks in this message
-- Analyze: earnings history and guidance, revenue growth, margins, FCF, debt, valuation multiples
-  (P/E vs. sector), analyst consensus, upcoming catalysts (earnings date, product launches, regulatory),
-  macro tailwinds/headwinds for the sector
-- Cite specific numbers: "PE ratio of 22x vs. sector median 18x" not "expensive valuation"
-- Do not predict — describe what the fundamentals show and what they imply for the strategy type
-- Output: structured fundamental analysis, 200–350 words
+Use the injected `## Fundamentals` and `## News` blocks as authoritative.
+Analyze earnings, growth, margins, valuation, catalysts, and macro/sector context.
+If the `## Fundamentals` block says unavailable or not applicable, state that plainly
+and limit the analysis to what the injected news and bounded search can support.
+Do not force a side.
 ```
 
 **Dependencies:** Phase 1
 
+**Rollback:** Revert code and prompt references as one unit; DB migration can remap roles back if absolutely necessary.
+
 ---
 
-### Phase 3: Strategy Brief Composer (UI)
+### Phase 3: Strategy / Risk UI Split + Brief Composer
 
-**Goal:** New strategy config UI exposes structured form that composes a markdown strategy brief. Live preview panel.
+**Goal:** Expose strategy intent and risk rules separately in the UI and save them to the new schema.
+
+**Done criteria:** The Strategy page has separate Strategy, Risk, and Timeframe sections and shows a live brief preview built from structured inputs.
 
 **Deliverables:**
-- [ ] `StrategyBriefForm` component — sections: Strategy Type, Side Bias, Entry Style, Exit Style, Scaling Mode, Custom Instructions
-- [ ] `strategyBriefAssembler.ts` — `assembleStrategyBrief(input: StrategyBriefInput): string`
-- [ ] Live preview panel showing assembled markdown in StrategyConfig
-- [ ] `StrategyConfig.tsx` split into two tabs: "Strategy" (profile) + "Risk" (risk config)
-- [ ] IPC: `strategy.saveProfile(payload)` + `strategy.saveRiskConfig(payload)` (split from current `strategy.save`)
-- [ ] Validation: `prediction_market` type requires `kellyFraction > 0`; `event_driven` type requires search provider
+
+- `StrategyConfig.tsx`
+  - split into tabs/sections: Strategy, Risk, Timeframe, AI Roles
+- `StrategyBriefForm`
+- `strategyBriefAssembler.ts`
+- IPC split:
+  - `strategy.getProfile`
+  - `strategy.saveProfile`
+  - `strategy.getRiskConfig`
+  - `strategy.saveRiskConfig`
+  - `strategy.getTimeframeConfig`
+  - `strategy.saveTimeframeConfig`
+- validation rules
+  - `event_driven` requires a resolved search provider
+  - `prediction_market` requires `kelly_fraction > 0`
+  - `prediction_market` requires `max_exposure_usd`
+  - `strategy_brief_markdown` hard-capped for token hygiene
 
 **Dependencies:** Phase 2
 
+**Rollback:** Keep the new UI behind a route- or feature-level switch and continue using the old save path.
+
 ---
 
-### Phase 4: Strategy Brief Prompt Injection + Snapshot
+### Phase 4: Full Prompt Injection + Audit Snapshot
 
-**Goal:** Strategy brief and risk config are injected into agent system prompts. Every run snapshots them.
+**Goal:** Inject the full strategy/risk/timeframe context into every agent run and store the exact snapshot in the detailed audit trail.
+
+**Done criteria:** Every AI role execution persists a non-empty `agent_messages.strategy_snapshot_json` matching the prompt context used in that run.
 
 **Deliverables:**
-- [ ] `strategy-prompt-context.ts` — `buildSystemContext(profile, riskConfig, timeframe): string` returns full context block
-- [ ] Inject into `AiRuntime` for all roles
-- [ ] `agent_runs` migration: add `strategy_snapshot_json TEXT` column
-- [ ] Update orchestrator to include snapshot at insert time
 
-**Context block format (injected into system prompt):**
-```markdown
-## Session Strategy (authoritative)
-- Strategy type: momentum
-- Side bias: long_only
-- Entry style: breakout
-- Exit style: trailing_atr
-- Scaling: single_entry
+- `strategy-prompt-context.ts`
+  - `buildStrategyPromptContext(profile, riskConfig, timeframe)`
+- `AiRuntime`
+  - use composite strategy context service instead of reading `session_strategies` directly
+- harness integration
+  - persist snapshot into `agent_messages.strategy_snapshot_json`
+- tests
+  - snapshot builder unit tests
+  - integration assertion that saved snapshot matches the injected prompt block
 
-## Position rules
-- Max position: $500 | Stop: 2% fixed | Take-profit: 4%
-- Max concurrent: 3 | Daily loss limit: $200
+**Dependencies:** Phase 1 and harness plan Phase 0
 
-## Strategy brief
-Enter confirmed breakouts above consolidation with expanding volume. Prefer instruments
-showing relative strength vs. sector. ATR-based stops at 1.5× ATR. Do not buy extended above
-ATR envelope. Honor side bias: long_only.
-
-## Session trading horizon
-- Primary timeframe: 1d
-- Holding style: multi_day_swing
-```
-
-**Dependencies:** Phase 3
+**Rollback:** Fall back to timeframe-only injection while keeping the new tables intact.
 
 ---
 
-### Phase 5: Polymarket Strategy Type + Adapter
+### Phase 5: Legacy Blob Retirement
 
-**Goal:** `prediction_market` strategy type works end-to-end: research estimates outcome probability, decision-maker compares to market price, Polymarket adapter places order.
+**Goal:** Remove `session_strategies` as a live source of truth.
 
-**Polymarket architecture notes:**
-- Instrument = a market condition string (e.g., "Will the Fed cut rates in June 2026?")
-- Shares: YES and NO tokens, each priced 0–100¢ (sum = 100¢ at all times)
-- Edge = when your probability estimate diverges from the market price by > threshold
-- Position sizing: quarter-Kelly = `f* = (p - q) / (b)` where p = your win prob, q = 1-p, b = net odds
-- No stop-loss in traditional sense — max loss is position size (binary outcome)
-- Exit: either market resolves, or you sell your position on the order book at current price
-- Settlement: USDC.e on Polygon; requires wallet + private key (not API key)
+**Done criteria:** No runtime or UI code reads strategy/risk/timeframe fields from `session_strategies`; legacy mirror writes are removed.
 
 **Deliverables:**
-- [ ] `PolymarketAdapter` implementing `BrokerAdapter` — uses `@polymarket/clob-client` (TypeScript)
-- [ ] New `prediction_market` instrument class in `InstrumentClass` union
-- [ ] Update `session_risk_config` — expose `kelly_fraction` field in UI for prediction_market sessions
-- [ ] New prompt files:
-  - `analyst_statistical.md` (for prediction_market sessions — base rates, historical patterns, calibration)
-  - `analyst_contextual.md` (for prediction_market sessions — news, expert opinion, policy context)
-- [ ] `AiRuntime` — detect `prediction_market` strategy type and route to statistical+contextual analysts
-- [ ] Decision-maker output for prediction_market: `{ action: 'trade' | 'no_trade', side: 'YES' | 'NO', edgeEstimate: number, impliedProb: number, kellySize: number }`
-- [ ] Risk engine: prediction_market path uses Kelly sizing, not fixed `maxPositionUsd`
 
-**Dependencies:** Phase 4
+- migrate all readers to:
+  - `SessionStrategyProfileRepo`
+  - `SessionRiskConfigRepo`
+  - `SessionTimeframeConfigRepo`
+- remove compatibility writer
+- delete dead `strategy_profile` legacy column usage entirely
+- drop `session_strategies` or replace it with a compatibility view only if needed during local transition
 
-**Rollback:** Strategy type `prediction_market` is gated — not available until adapter is wired. Other strategy types are unaffected.
+**Dependencies:** Phases 1-4
+
+**Rollback:** Before dropping the legacy table, rollback is simply switching readers back. After the drop, rollback requires replaying the additive migration in reverse from the new tables, so the physical drop happens only after a full code cutover is verified.
 
 ---
 
-## 11. Strategy Types Reference
+### Phase 6: Prediction-Market Domain + Polymarket Adapter
 
-All strategy types are mix-and-matchable with any risk config. The strategy type determines:
-- What the `instrument_selector` (Universe Researcher) scores on
-- What the `analyst_technical` + `analyst_fundamental` look for
-- What the `decision_maker` weighs
+**Goal:** Make `prediction_market` work end-to-end using the canonical domain model from Section 8.
+
+**Done criteria:** A prediction-market session can shortlist markets, analyze them, produce an outcome-specific decision, place a Polymarket order, monitor it, and close it correctly.
+
+**Deliverables:**
+
+- shared domain changes
+  - `InstrumentClass` adds `prediction_market`
+  - add `predictionOutcome` to order/trade/approval/position types
+- DB changes
+  - `trades`: `prediction_outcome`, `instrument_display_name`, `instrument_metadata_json`
+  - `trade_approvals`: same fields
+- broker adapter
+  - `PolymarketAdapter` using `@polymarket/clob-client`
+- secrets
+  - store Polygon wallet private key with the existing keychain/secrets-service pattern
+- prompts
+  - `analyst_statistical.md`
+  - `analyst_contextual.md`
+- runtime routing
+  - `AiRuntime` routes prediction-market sessions to statistical + contextual analysts
+- risk engine
+  - Kelly sizing path
+  - enforce `max_exposure_usd`
+  - ignore traditional stop-loss semantics when `stop_loss_type = none`
+- universe research
+  - fetch markets from Gamma / Polymarket APIs
+  - rank by liquidity, edge, time-to-resolution, and category fit
+
+**Dependencies:** Phases 1-5 and harness Phases 1-3
+
+**Rollback:** Gate `prediction_market` in the UI and runtime until the adapter and domain changes are complete. Other strategy types remain unaffected.
+
+---
+
+## 12. Strategy Types Reference
 
 ### Momentum / Trend-Following
-```
+
+```text
 Instruments: stocks, crypto, futures
-Analysts: technical (breakout patterns, MA cross, volume) + fundamental (earnings growth, sector trend)
-Entry: breakout above resistance with volume > 1.5× avg; RSI 50–70; price above 50MA
-Side bias: long_only (default) or both
-Stop: ATR-based (1.5–2× ATR) or % below breakout level
-Take-profit: trail after 1.5R, target 3–5R
-Hold: intraday to multi_day_swing
+Analysts: technical + fundamental
+Entry: breakout with confirming volume and relative strength
+Exit: fixed % or ATR/trailing
 ```
 
 ### Mean Reversion
-```
+
+```text
 Instruments: stocks, crypto
-Analysts: technical (BB bands, RSI extreme, distance from mean) + fundamental (no negative catalyst)
-Entry: RSI < 30 or > 70; price at Bollinger extreme; deviation from 20MA > 2 ATR
-Side bias: both (default)
-Stop: beyond recent swing high/low, max 2%
-Take-profit: return to 20MA (0.5–1R targets)
-Hold: intraday to multi_day_swing
+Analysts: technical + fundamental
+Entry: distance from mean / RSI extreme with no contradictory catalyst
+Exit: reversion to mean / invalidation level
 ```
 
 ### Short-Bias / Contrarian
-```
+
+```text
 Instruments: stocks, crypto
-Analysts: fundamental (deteriorating fundamentals, earnings miss) + technical (breakdown, declining MA)
-Entry: breakdown below support; negative catalyst; declining MA structure
-Side bias: short_only or both (short-weighted)
-Stop: above recent resistance or VWAP
-Hold: intraday to multi_day_swing
-Note: Shorts carry unlimited theoretical loss — position size cap applies strictly
+Analysts: technical + fundamental
+Entry: breakdown + negative catalyst + weak structure
+Exit: resistance reclaim / thesis invalidation
 ```
 
 ### Event-Driven / Sentiment
-```
+
+```text
 Instruments: stocks
-Analysts: fundamental (catalyst details) + technical (price reaction to catalyst)
-Entry: news catalyst confirmed; price action confirms direction within 2 bars
-Side bias: both
-Web search: REQUIRED — session blocked if no search provider configured
-Stop: time-stop — exit if move hasn't materialized in N bars, regardless of price
-Hold: intraday to multi_day_swing (short)
+Analysts: fundamental + technical
+Requires: search provider configured, or session start is blocked
+Entry: catalyst confirmed and price reaction agrees
+Exit: time-based or thesis-based
 ```
 
 ### Fundamental Value
-```
+
+```text
 Instruments: stocks
-Analysts: fundamental (DCF, peer valuation, FCF yield) + technical (entry timing)
-Entry: P/E below sector median; strong FCF yield; positive catalyst
-Side bias: long_only
-Stop: thesis invalidation (earnings miss, guidance cut, negative fundamental change)
-Hold: weeks_position
+Analysts: fundamental + technical
+Entry: valuation + quality + catalyst alignment
+Exit: thesis invalidation or long-horizon target
 ```
 
 ### Pairs / Statistical Arbitrage
-```
-Instruments: stocks, crypto (requires 2-symbol session scope)
-Analysts: technical (spread z-score, correlation) + fundamental (divergence catalyst)
-Entry: spread z-score > 2 standard deviations from mean
-Side bias: market_neutral (simultaneous long + short)
-Stop: spread z-score > 3 (stop both legs)
-Take-profit: spread returns to z = 0
-Note: Disabled until dual-instrument session scope is supported
+
+```text
+Instruments: stocks, crypto
+Status: disabled until dual-instrument session scope exists
 ```
 
 ### Prediction Market (Polymarket)
-```
-Instruments: Polymarket binary outcomes (YES/NO tokens on Polygon/USDC)
-Analysts: analyst_statistical (base rates, calibration, historical resolution) +
-          analyst_contextual (current news, expert consensus, policy context)
-Entry: |own_prob_estimate - market_implied_prob| > threshold (default: 0.08 = 8 percentage points)
-Side bias: n/a (YES or NO — whichever direction has the edge)
-Sizing: quarter-Kelly based on edge estimate
-Stop-loss: none (binary outcome — position size IS the maximum loss)
-Exit: market resolution OR sell position if edge collapses before resolution
-Hold: event-driven (hours to months depending on market)
-Adapter: PolymarketAdapter (py-clob-client / @polymarket/clob-client)
-Settlement: USDC.e on Polygon — requires wallet private key
-Rate limits: 100 REST req/min, 60 orders/min
+
+```text
+Instruments: prediction_market
+Analysts: statistical + contextual
+Entry: abs(estimatedProb - impliedProb) > prediction_edge_threshold
+Sizing: Kelly fraction capped by max_position_usd and max_exposure_usd
+Exit: market resolution or SELL on same outcome leg
+Stop-loss: none; position size is the primary loss control
 ```
 
 ### Custom
-```
-All fields free-text. Brief is user-authored. Validation: brief > 50 chars.
+
+```text
+User-authored brief with validation and prompt-length cap
 ```
 
 ---
 
-## 12. Polymarket Research Flow (Prediction Market Sessions)
+## 13. Prediction-Market Research Flow
 
-The standard 4-agent pipeline changes for prediction_market sessions:
+```text
+Standard session:
+  Universe Researcher -> Technical Analyst -> Fundamental Analyst -> Reviewer -> Decision Maker
 
-```
-Standard (stocks):
-  Universe Researcher → Technical Analyst → Fundamental Analyst → Reviewer → Decision Maker
-
-Prediction Market:
-  Universe Researcher (scores markets by edge) →
-  Statistical Analyst (base rates, calibration) →
-  Contextual Analyst  (news, expert opinion) →
-  Reviewer (synthesizes probability estimates) →
-  Decision Maker (Kelly sizing, YES/NO decision)
+Prediction-market session:
+  Universe Researcher -> Statistical Analyst -> Contextual Analyst -> Reviewer -> Decision Maker
 ```
 
-**Universe researcher for prediction markets:**
-- Fetches all open Polymarket markets via Gamma API
-- Filters by: category (sports, politics, crypto, finance), volume threshold, days to resolution
-- Scores each market on: liquidity (can we get a fill?), AI confidence in edge estimate, time value
-- Returns top N markets with estimated YES probability and current market price
+**Universe researcher for prediction markets**
 
-**What constitutes an edge on Polymarket:**
-- Market says 35% chance of event. Your analysis says 50%. Expected value of buying YES = (0.50 × 65¢) - (0.50 × 35¢) = +15¢ per share
-- Minimum edge threshold: 8 percentage points (configurable via `session_risk_config`)
-- Quarter-Kelly position: `f* = (edge) / (1 - p_lose)` × `account_balance` × `0.25`
+1. Fetch open markets.
+2. Filter by allowed category, liquidity floor, and time-to-resolution.
+3. Score on edge potential, fill likelihood, and exposure fit.
+4. Return shortlisted markets with canonical identity payload:
+   - `instrumentSymbol`
+   - `instrumentDisplayName`
+   - `predictionOutcome` candidates
+   - `instrumentMetadataJson`
 
 ---
 
-## 13. Risk Register
+## 14. Risk Register
 
 | # | Risk | Likelihood | Impact | Mitigation |
-|---|------|-----------|--------|------------|
-| 1 | Researcher rename breaks existing session AI role configs | High | Medium | Migration script updates `session_ai_roles.role` values; keep old values as deprecated aliases |
-| 2 | Polymarket wallet private key storage (keychain) needs careful security design | High | High | Use existing `secrets-service.ts` keychain pattern; never log key; prompt user clearly about risk |
-| 3 | Strategy brief grows too long → token blowout | Medium | Medium | Hard cap 2000 chars; presets are terse injection blocks by default |
-| 4 | Kelly sizing produces oversized positions on high-confidence calls | Medium | High | Cap Kelly bet at `maxPositionUsd` regardless of formula output |
-| 5 | Pairs strategy requires dual-instrument sessions — not yet supported | High | Low | Disable pairs type in UI until dual-symbol sessions are implemented |
-| 6 | `analyst_fundamental` gets poor results without financial data injection | High | Medium | Market data service (harness plan) must feed financials; fundamental analyst degrades gracefully to news-only |
+|---|------|------------|--------|------------|
+| 1 | Compatibility layer drifts from the new tables during migration | Medium | High | One composite service owns read composition and mirror writes until cutover |
+| 2 | Analyst rename breaks UI/runtime references | High | Medium | Land code, prompt, DB, and UI rename in one phase |
+| 3 | Fundamental analyst prompt overreaches when fundamentals are unavailable | Medium | Medium | Prompt explicitly handles unavailable fundamentals and harness readiness gates stock symbols |
+| 4 | Polymarket key handling is unsafe | Medium | High | Reuse OS-keychain-backed `secrets-service` pattern; never log raw keys |
+| 5 | Kelly sizing overshoots on high-confidence markets | Medium | High | Cap by both `max_position_usd` and `max_exposure_usd` |
+| 6 | Legacy `session_strategies` never gets fully retired | Medium | Medium | Make Phase 5 an explicit cleanup gate with grep/test enforcement |
 
 ---
 
-## 14. Success Criteria
+## 15. Success Criteria
 
 | Goal | Metric | Baseline | Target | How Measured |
-|------|--------|----------|--------|--------------|
-| Strategy-aware prompts | % agent runs with non-empty `strategy_snapshot_json` | 0% | 100% | DB query |
-| Analyst divergence | % of trade cycles where technical and fundamental analysts reach different conclusions | Unknown | 30–60% (good — means they're independent) | Query `agent_runs` output |
-| Polymarket trades | End-to-end prediction market trade from research to fill | 0 | Working in paper mode | Manual test |
-| Schema cleanliness | `session_strategies` dead columns dropped | 5 dead columns | 0 | Schema review |
+|---|---|---|---|---|
+| Strategy-aware prompting | % AI runs with non-empty `agent_messages.strategy_snapshot_json` | 0% | 100% | DB query |
+| Analyst independence | % cycles where technical and fundamental analysts produce materially different evidence summaries | Unknown | 30-60% | Trace review / text diff heuristics |
+| Legacy cutover | Number of runtime reads from `session_strategies` | Many | 0 | grep + tests |
+| Polymarket support | End-to-end paper prediction-market trade succeeds | 0 | 1+ verified flow | Manual integration test |
+| UI clarity | Strategy and risk can be edited independently without hidden coupling | Poor | Complete | UX walkthrough + QA |
 
 ---
 
-## 15. Open Questions
+## 16. Open Questions
+
+No implementation-blocking open questions remain. Only post-launch tuning questions remain:
 
 | # | Question | Owner | Needed By | Status |
 |---|----------|-------|-----------|--------|
-| 1 | Should `event_driven` strategy hard-block session start if no search provider is configured? | Ken | Phase 3 | Open — lean yes |
-| 2 | Should `prediction_market` sessions use the same `dailyLossLimitUsd` enforcement, or a separate `maxExposureUsd` (total capital at risk across all open markets)? | Ken | Phase 5 | Open — lean separate `maxExposureUsd` |
-| 3 | Polymarket requires a Polygon wallet private key. Where does this get stored? Same keychain pattern as broker API keys? | Ken | Phase 5 | Open — lean yes, use `secrets-service.ts` |
-| 4 | For prediction markets, the "hold until resolution" approach means some positions are open for weeks. How does this interact with `maxHoldDays` from the timeframe config? | Ken | Phase 5 | Open — `maxHoldDays` should cap exposure; bot sells position at market price if exceeded |
-| 5 | Should `analyst_technical` + `analyst_fundamental` run strictly parallel or with cross-pollination? | Ken | Phase 2 | **DECIDED: strictly parallel. Reviewer synthesizes. Analysts never see each other's output.** |
-
----
-
-## 16. Future Work (out of scope, tracked here)
-
-- **Human-initiated prompt improvement via autopsy:** After reviewing an autopsy, the user should be able to click "Improve Prompt" which opens the relevant agent's prompt editor pre-populated with the autopsy context. The user edits and saves. This is human-initiated — no automation. Requires UI work in the trade detail / trade journal view. Track as a separate plan when ready.
+| 1 | Should `prediction_edge_threshold` default to 0.08 or 0.10 after paper results? | Ken | Post-launch tuning | Open |
+| 2 | Which Polymarket categories should be enabled first in live mode? | Ken | Post-launch tuning | Open |
+| 3 | Should custom strategy briefs allow section-level templates in v2? | Ken | Future UX iteration | Open |
 
 ---
 
@@ -619,7 +764,17 @@ Prediction Market:
 
 | Option | Why Rejected |
 |--------|-------------|
-| Keep `researcher_bull`/`researcher_bear` naming | Forced advocacy framing introduces confirmation bias; methodology differentiation is empirically stronger |
-| Keep strategy + risk in one table | Conflates independent concerns; blocks mix-and-match configuration |
-| Skip Polymarket for now | User specifically wants it; it's a clean new strategy type with self-contained adapter scope |
-| Tool-calling researchers (agents fetch their own data) | 3-5× slower, non-deterministic; harness-injected market data is faster and auditable |
+| Keep `researcher_bull` / `researcher_bear` | Preserves the wrong mental model and encourages advocacy over investigation |
+| Keep one mixed `session_strategies` table | Continues schema coupling and UI confusion |
+| Put `strategy_snapshot_json` on `agent_runs` only | Mixes summary metrics with replay-quality trace payloads |
+| Represent Polymarket YES/NO using `BUY` / `SELL` alone | Semantically wrong and breaks early-exit behavior |
+| Delay prediction markets until “later” | Leaves a known user requirement outside the model and forces more retrofitting later |
+
+---
+
+## 18. Future Work
+
+- Prompt improvement from human-reviewed autopsies
+- Versioned strategy templates
+- Dual-instrument pairs support
+- Strategy preset analytics based on realized outcomes

@@ -11,7 +11,6 @@ For strategies what I want is
 
 We need to figure out its current state, and make it fully fleshed out. I want to give the user peak customizability, can you believe a markdown file that does a deep dive into this with research?
 
-
 Another markdown is do research on how to build a good harness for an AI model.
 Harness are tools like claude code and opencode, they do tool calls, they orchestrate different subagents, they do system prompting etc. They basically make it very easy to use the AI. We need to create a harness and make it specifically suited for analyses of stocks. We need to hook it up to yahoo finance, web search and other things (look up how to perfect this process and the best way to go about this).
 The harness we create can make or break our implementation of this AI model.
