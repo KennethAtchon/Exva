@@ -159,6 +159,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     repos.session,
     repos.workspacePreferences,
     repos.apiCallLog,
+    brokerRouting,
+    brokerRegistry,
     strategyContext,
   );
   const logger = createLogger("app-services");

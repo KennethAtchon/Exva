@@ -9,12 +9,17 @@ export type BurstInstrument = {
 };
 
 export class MarketHoursService {
-  /**
-   * Placeholder implementation: keep all instruments. This file centralizes
-   * market-hours gating so broker/exchange-specific calendars can be added
-   * without changing orchestrator flow.
-   */
   filterTradable(instruments: BurstInstrument[]): BurstInstrument[] {
-    return instruments;
+    const now = new Date();
+    return instruments.filter((instrument) => this.isTradableNow(instrument, now));
+  }
+
+  private isTradableNow(instrument: BurstInstrument, now: Date): boolean {
+    if (instrument.instrumentClass === "crypto" || instrument.instrumentClass === "prediction_market") {
+      return true;
+    }
+    const day = now.getUTCDay();
+    const isWeekend = day === 0 || day === 6;
+    return !isWeekend;
   }
 }

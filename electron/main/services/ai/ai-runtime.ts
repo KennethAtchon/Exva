@@ -20,6 +20,9 @@ import type { SearchRegistry } from "./search";
 import type { SessionStrategyContextService } from "../session/session-strategy-context-service";
 import { prependStrategyContextToUserPrompt } from "./strategy-prompt-context";
 import { createSearchTool } from "./tools/search-tool";
+import { createMarketTools } from "./tools/market-tools";
+import type { BrokerRoutingService } from "../broker/broker-routing-service";
+import type { BrokerRegistry } from "../broker/broker-registry";
 
 export interface ResearcherInput {
   instrumentSymbol: string;
@@ -61,6 +64,8 @@ export class AiRuntime {
     private readonly sessionRepo: SessionRepo,
     private readonly workspacePrefsRepo: WorkspacePreferencesRepo,
     private readonly apiCallLogRepo: ApiCallLogRepo,
+    private readonly brokerRouting?: BrokerRoutingService,
+    private readonly brokerRegistry?: BrokerRegistry,
     strategyContextService?: SessionStrategyContextService,
   ) {
     this.strategyContextService = strategyContextService ?? null;
@@ -131,6 +136,24 @@ ${input.review}`;
     };
     if (config.webSearchEnabled) {
       tools.search_web = await this.resolveSearchTool(sessionId, { cycleId: cycleId ?? null });
+    }
+    if (this.brokerRouting && this.brokerRegistry) {
+      const marketTools = createMarketTools({
+        sessionId,
+        brokerRegistry: this.brokerRegistry,
+        brokerAccountIdByClass: (instrumentClass) => {
+          try {
+            return this.brokerRouting?.resolveBrokerAccountId(sessionId, instrumentClass) ?? null;
+          } catch {
+            return null;
+          }
+        },
+        searchRegistry: this.searchRegistry,
+        searchProviderId: this.resolveSearchProviderId(sessionId),
+      });
+      tools.get_quote = marketTools.get_quote;
+      tools.get_ohlcv = marketTools.get_ohlcv;
+      tools.get_news = marketTools.get_news;
     }
 
     const caps = ROLE_HARNESS_CAPS[role];
@@ -361,9 +384,7 @@ ${input.review}`;
   }
 
   private async resolveSearchTool(sessionId: string, context?: { cycleId?: string | null; tradeId?: string | null }) {
-    const session = this.sessionRepo.requireById(sessionId);
-    const prefs = this.workspacePrefsRepo.get();
-    const searchProviderId = session.defaultSearchProviderId ?? prefs.defaultSearchProviderId;
+    const searchProviderId = this.resolveSearchProviderId(sessionId);
     if (!searchProviderId) {
       throw new AppError(
         "Session cannot enable web search because no search provider is configured.",
@@ -379,6 +400,12 @@ ${input.review}`;
       cycleId: context?.cycleId ?? null,
       tradeId: context?.tradeId ?? null,
     });
+  }
+
+  private resolveSearchProviderId(sessionId: string): string | null {
+    const session = this.sessionRepo.requireById(sessionId);
+    const prefs = this.workspacePrefsRepo.get();
+    return session.defaultSearchProviderId ?? prefs.defaultSearchProviderId;
   }
 
   private resolvePrompt(sessionId: string, role: AgentRole, promptSource: "default" | "session_override", promptMarkdown: string): string {

@@ -4,6 +4,7 @@ import { AppError } from "@electron/shared/errors";
 import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
+import { ResearchBurstService } from "./research-burst-service";
 
 type ResolvedInstrument = {
   symbol: string;
@@ -33,6 +34,8 @@ type DecisionOutput = {
   takeProfitPct?: number;
   reasoning: string;
 };
+
+type PredictionToken = { outcome?: unknown; token_id?: unknown };
 
 export class AgentOrchestrator {
   private readonly queue = new PQueue({ concurrency: 1 });
@@ -64,7 +67,7 @@ export class AgentOrchestrator {
     const cycleId = crypto.randomUUID();
     this.deps.bus.emit("research_phase_started", { sessionId: this.sessionId, phase: "selector", cycleId });
     try {
-      instruments = await this.resolveInstruments(session, config);
+      instruments = await this.runResearchBurst(session, config);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.emitEvent("ERROR", null, `Instrument resolution failed: ${message}`);
@@ -165,14 +168,14 @@ export class AgentOrchestrator {
     const risk = this.deps.riskEngine.validateDecision({
       config,
       stats,
-        order: {
-          instrumentSymbol: updated.instrumentSymbol,
-          instrumentDisplayName: updated.instrumentDisplayName ?? null,
-          predictionOutcome: updated.predictionOutcome ?? null,
-          instrumentMetadataJson: updated.instrumentMetadataJson ?? null,
-          instrumentType: input.instrumentClass,
-          side: updated.side,
-          sizeUsd: updated.position_size_usd,
+      order: {
+        instrumentSymbol: updated.instrumentSymbol,
+        instrumentDisplayName: updated.instrumentDisplayName ?? null,
+        predictionOutcome: updated.predictionOutcome ?? null,
+        instrumentMetadataJson: updated.instrumentMetadataJson ?? null,
+        instrumentType: input.instrumentClass,
+        side: updated.side,
+        sizeUsd: updated.position_size_usd,
       },
       confidence: updated.confidence_score ?? 0,
       maxExposureUsd:
@@ -255,21 +258,21 @@ export class AgentOrchestrator {
     const risk = this.deps.riskEngine.validateDecision({
       config,
       stats,
-        order: {
-          instrumentSymbol: trade.instrumentSymbol,
-          instrumentDisplayName: trade.instrumentDisplayName ?? null,
-          predictionOutcome: trade.predictionOutcome ?? null,
-          instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
-          instrumentType: instrument.instrumentClass,
-          side: trade.side,
-          sizeUsd: trade.position_size_usd,
-        },
-        confidence: trade.confidence_score ?? 0,
-        maxExposureUsd:
-          instrument.instrumentClass === "prediction_market"
-            ? this.deps.strategyContextService.get(this.sessionId).riskConfig.maxExposureUsd
-            : null,
-      });
+      order: {
+        instrumentSymbol: trade.instrumentSymbol,
+        instrumentDisplayName: trade.instrumentDisplayName ?? null,
+        predictionOutcome: trade.predictionOutcome ?? null,
+        instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
+        instrumentType: instrument.instrumentClass,
+        side: trade.side,
+        sizeUsd: trade.position_size_usd,
+      },
+      confidence: trade.confidence_score ?? 0,
+      maxExposureUsd:
+        instrument.instrumentClass === "prediction_market"
+          ? this.deps.strategyContextService.get(this.sessionId).riskConfig.maxExposureUsd
+          : null,
+    });
     if (!risk.allowed || !risk.value) {
       this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
       this.emitEvent("WARN", trade.id, risk.reason ?? "Trade rejected by risk engine");
@@ -542,7 +545,7 @@ export class AgentOrchestrator {
           const session = this.deps.sessionRepo.requireById(this.sessionId);
           const config = this.getSessionConfig();
           this.queue.concurrency = config.max_concurrent_trades;
-          const instruments = await this.resolveInstruments(session, config);
+          const instruments = await this.runResearchBurst(session, config);
           this.emitEvent("INFO", null, `Trade closed; restarting research cycle for ${instruments.length} instruments.`, "orchestrator");
           this.enqueueTradeCycles(instruments);
         })
@@ -580,6 +583,11 @@ export class AgentOrchestrator {
   // Exposed for ResearchBurstService integration.
   async resolveInstrumentsForBurst(session: WorkspaceSession, config: SessionConfig): Promise<ResolvedInstrument[]> {
     return this.resolveInstruments(session, config);
+  }
+
+  private async runResearchBurst(session: WorkspaceSession, config: SessionConfig): Promise<ResolvedInstrument[]> {
+    const burst = new ResearchBurstService(this);
+    return burst.resolve(session, config);
   }
 
   private emitEvent(
@@ -818,10 +826,20 @@ export class AgentOrchestrator {
       if (!conditionId || !question || tokens.length === 0) continue;
 
       // reason: Gamma API returns tokens as untyped JSON; narrowing outcome and token_id before use
-      const yes = tokens.find((token) => token && typeof token === "object" && (token as { outcome?: unknown }).outcome === "Yes");
-      const no = tokens.find((token) => token && typeof token === "object" && (token as { outcome?: unknown }).outcome === "No");
-      const yesTokenId = typeof (yes as { token_id?: unknown } | undefined)?.token_id === "string" ? (yes as { token_id: string }).token_id : null;
-      const noTokenId = typeof (no as { token_id?: unknown } | undefined)?.token_id === "string" ? (no as { token_id: string }).token_id : null;
+      const yes = tokens.find(
+        (token) => token && typeof token === "object" && (token as PredictionToken).outcome === "Yes",
+      );
+      const no = tokens.find(
+        (token) => token && typeof token === "object" && (token as PredictionToken).outcome === "No",
+      );
+      const yesTokenId =
+        typeof (yes as PredictionToken | undefined)?.token_id === "string"
+          ? (yes as { token_id: string }).token_id
+          : null;
+      const noTokenId =
+        typeof (no as PredictionToken | undefined)?.token_id === "string"
+          ? (no as { token_id: string }).token_id
+          : null;
       if (!yesTokenId || !noTokenId) continue;
 
       const timeScore = resolutionTime ? predictionResolutionScore(resolutionTime) : 0;
@@ -853,7 +871,11 @@ export class AgentOrchestrator {
       .sort((a, b) => b.score - a.score)
       .slice(0, 20)
       .map(({ symbol, instrumentClass, instrumentDisplayName, predictionOutcome, instrumentMetadataJson }): ResolvedInstrument => ({
-        symbol, instrumentClass, instrumentDisplayName, predictionOutcome, instrumentMetadataJson,
+        symbol,
+        instrumentClass,
+        instrumentDisplayName,
+        predictionOutcome,
+        instrumentMetadataJson,
       }));
   }
 }

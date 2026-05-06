@@ -12,9 +12,10 @@ const PALETTE: Record<string, { bar: string; bg: string }> = {
   decision_maker: { bar: "#a78bfa", bg: "rgba(167,139,250,0.06)" },
   instrument_selector: { bar: "#fbbf24", bg: "rgba(251,191,36,0.08)" },
 };
+const EMPTY_VALUE = "—";
 
 function previewJson(raw: string | null, max = 2400): string {
-  if (raw == null || raw === "") return "—";
+  if (raw == null || raw === "") return EMPTY_VALUE;
   try {
     const parsed: unknown = JSON.parse(raw);
     const s = JSON.stringify(parsed, null, 2);
@@ -193,7 +194,7 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
   if (!trade) return null;
   const isOpen = trade.status === "open";
   const pnl = (isOpen ? trade.unrealized_pnl : trade.final_pnl_usd) ?? null;
-  const pos = pnl != null && pnl >= 0;
+  const hasPositivePnl = pnl != null && pnl >= 0;
 
   return (
     <Dialog open={!!trade} onOpenChange={(next) => !next && onClose()}>
@@ -219,11 +220,11 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
           <div style={ts.hero}>
             <div>
               <div style={ts.heroLabel}>{isOpen ? "Unrealized P&L" : "Final P&L"}</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 40, fontWeight: 700, color: pos ? "#34d399" : "#f87171", lineHeight: 1 }}>
-                {pnl != null ? fmt.pnl(pnl) : "—"}
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: 40, fontWeight: 700, color: hasPositivePnl ? "#34d399" : "#f87171", lineHeight: 1 }}>
+                {pnl != null ? fmt.pnl(pnl) : EMPTY_VALUE}
               </div>
               {pnl != null && (
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: pos ? "#34d399" : "#f87171", marginTop: 4 }}>
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: hasPositivePnl ? "#34d399" : "#f87171", marginTop: 4 }}>
                   {fmt.pct(pnl / trade.position_size_usd)}
                 </div>
               )}
@@ -271,13 +272,13 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
               {(
                 [
                   ["Position Size", fmt.usd(trade.position_size_usd)],
-                  ["Display Name", trade.instrumentDisplayName ?? "—"],
-                  ["Outcome", trade.predictionOutcome ?? "—"],
-                  ["Broker ID", trade.broker_order_id ?? "—"],
-                  ["Stop Loss", trade.stop_loss_price != null ? fmt.usd(trade.stop_loss_price) : "—"],
-                  ["Take Profit", trade.take_profit_price != null ? fmt.usd(trade.take_profit_price) : "—"],
-                  ["Opened", trade.opened_at ? fmt.time(trade.opened_at) : "—"],
-                  ["Closed", trade.closed_at ? fmt.time(trade.closed_at) : "—"],
+                  ["Display Name", trade.instrumentDisplayName ?? EMPTY_VALUE],
+                  ["Outcome", trade.predictionOutcome ?? EMPTY_VALUE],
+                  ["Broker ID", trade.broker_order_id ?? EMPTY_VALUE],
+                  ["Stop Loss", trade.stop_loss_price != null ? fmt.usd(trade.stop_loss_price) : EMPTY_VALUE],
+                  ["Take Profit", trade.take_profit_price != null ? fmt.usd(trade.take_profit_price) : EMPTY_VALUE],
+                  ["Opened", trade.opened_at ? fmt.time(trade.opened_at) : EMPTY_VALUE],
+                  ["Closed", trade.closed_at ? fmt.time(trade.closed_at) : EMPTY_VALUE],
                   ["AI Cost", fmt.usd(trade.ai_cost_usd, 4)],
                   ["Strategy", trade.strategy],
                 ] as [string, string][]

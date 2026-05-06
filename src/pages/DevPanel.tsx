@@ -10,6 +10,13 @@ const LEVELS: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];
 const LEVEL_COLOR: Record<LogLevel, string> = {
   DEBUG: "#374151", INFO: "#60a5fa", WARN: "#fbbf24", ERROR: "#f87171",
 };
+const AGENT_FILTERS = ["all", "analyst_technical", "analyst_fundamental", "reviewer", "decision_maker"] as const;
+const RUN_AGENT_COLOR: Record<string, string> = {
+  analyst_technical: "#34d399",
+  analyst_fundamental: "#f87171",
+  reviewer: "#60a5fa",
+  decision_maker: "#a78bfa",
+};
 
 export const DevPanel = () => {
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -104,7 +111,7 @@ export const DevPanel = () => {
               ))}
             </div>
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-              {["all", "analyst_technical", "analyst_fundamental", "reviewer", "decision_maker"].map((a) => (
+              {AGENT_FILTERS.map((a) => (
                 <button
                   key={a}
                   onClick={() => setAgentFilter(a)}
@@ -202,12 +209,8 @@ export const DevPanel = () => {
                     Agent Runs · {sel.trade_id}
                   </div>
                   {selRuns.map((r) => {
-                    const ac: Record<string, string> = {
-                      analyst_technical: "#34d399", analyst_fundamental: "#f87171",
-                      reviewer: "#60a5fa", decision_maker: "#a78bfa",
-                    };
                     return (
-                      <div key={r.id} style={{ marginBottom: 10, border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", borderLeft: `3px solid ${ac[r.agent_type]}` }}>
+                      <div key={r.id} style={{ marginBottom: 10, border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", borderLeft: `3px solid ${RUN_AGENT_COLOR[r.agent_type]}` }}>
                         <div style={{ padding: "8px 12px", background: "var(--surface2)", display: "flex", alignItems: "center", gap: 8 }}>
                           <AgentLabel type={r.agent_type} />
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)", marginLeft: "auto" }}>

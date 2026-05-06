@@ -10,11 +10,11 @@ export class ResearchBurstService {
   ) {}
 
   async resolve(session: WorkspaceSession, config: SessionConfig): Promise<BurstInstrument[]> {
-    const instruments = await this.orchestrator.resolveInstrumentsForBurst(session, config);
-    const tradable = this.marketHours.filterTradable(instruments);
-    if (tradable.length === 0) {
+    const resolvedInstruments = await this.orchestrator.resolveInstrumentsForBurst(session, config);
+    const tradableInstruments = this.marketHours.filterTradable(resolvedInstruments);
+    if (tradableInstruments.length === 0) {
       throw new AppError("Research burst produced no tradable instruments.", "VALIDATION_FAILED");
     }
-    return tradable;
+    return tradableInstruments;
   }
 }
