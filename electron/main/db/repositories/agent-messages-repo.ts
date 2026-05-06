@@ -1,40 +1,49 @@
 import type { DbClient } from "../client";
 import type { AgentMessage } from "@/lib/types";
+import { asc, eq } from "drizzle-orm";
+import { agentMessages } from "../schema";
 
 export class AgentMessagesRepo {
   constructor(private readonly client: DbClient) {}
 
   listByTrade(tradeId: string): AgentMessage[] {
-    const rows = this.client.sqlite
-      .prepare("SELECT * FROM agent_messages WHERE trade_id = ? ORDER BY created_at ASC")
-      .all(tradeId) as Record<string, unknown>[];
+    const rows = this.client.db
+      .select()
+      .from(agentMessages)
+      .where(eq(agentMessages.tradeId, tradeId))
+      .orderBy(asc(agentMessages.createdAt))
+      .all();
     return rows.map(toAgentMessage);
   }
 
   insert(message: AgentMessage): void {
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO agent_messages (
-          id, agent_run_id, session_id, trade_id, cycle_id, role, provider_key, model_id,
-          messages_json, thinking_json, tool_calls_json, output_json, output_schema_name,
-          parse_fallback, strategy_snapshot_json, market_snapshot_json, created_at
-        ) VALUES (
-          @id, @agent_run_id, @session_id, @trade_id, @cycle_id, @role, @provider_key, @model_id,
-          @messages_json, @thinking_json, @tool_calls_json, @output_json, @output_schema_name,
-          @parse_fallback, @strategy_snapshot_json, @market_snapshot_json, @created_at
-        )
-        `,
-      )
-      .run({
-        ...message,
-        cycle_id: message.cycle_id ?? null,
-        parse_fallback: message.parse_fallback ? 1 : 0,
-      });
+    this.client.db
+      .insert(agentMessages)
+      .values({
+        id: message.id,
+        agentRunId: message.agent_run_id,
+        sessionId: message.session_id,
+        tradeId: message.trade_id,
+        cycleId: message.cycle_id ?? null,
+        role: message.role,
+        providerKey: message.provider_key,
+        modelId: message.model_id,
+        messagesJson: message.messages_json,
+        thinkingJson: message.thinking_json,
+        toolCallsJson: message.tool_calls_json,
+        outputJson: message.output_json,
+        outputSchemaName: message.output_schema_name,
+        parseFallback: message.parse_fallback ? 1 : 0,
+        strategySnapshotJson: message.strategy_snapshot_json,
+        marketSnapshotJson: message.market_snapshot_json,
+        createdAt: message.created_at,
+      })
+      .run();
   }
 }
 
 function toAgentMessage(row: Record<string, unknown>): AgentMessage {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     agent_run_id: String(row.agent_run_id),
@@ -54,4 +63,15 @@ function toAgentMessage(row: Record<string, unknown>): AgentMessage {
     market_snapshot_json: row.market_snapshot_json == null ? null : String(row.market_snapshot_json),
     created_at: String(row.created_at),
   };
+}
+
+function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
+  const normalized: Record<string, unknown> = { ...row };
+  for (const [key, value] of Object.entries(row)) {
+    const snakeKey = key.replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`);
+    if (!(snakeKey in normalized)) {
+      normalized[snakeKey] = value;
+    }
+  }
+  return normalized;
 }

@@ -26,5 +26,12 @@
       "@shared/*": ["./electron/shared/*"]
     }
   },
-  "include": ["src", "electron", "forge.config.ts", "vite.*.config.ts"]
+  "include": [
+    "src",
+    "electron",
+    "forge.config.ts",
+    "vite.config.ts",
+    "vite.*.config.ts",
+    "vitest.config.ts"
+  ]
 }

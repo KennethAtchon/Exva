@@ -40,7 +40,9 @@ export class BrokerRoutingService {
 
     if (!chosen) {
       if (compatible.length === 1) {
-        chosen = compatible[0]!;
+        const only = compatible[0];
+        if (!only) throw new AppError("No compatible broker for this instrument class", "NO_BROKER", { sessionId, instrumentClass });
+        chosen = only;
       } else {
         throw new AppError(
           `No routing default configured for ${instrumentClass} and multiple brokers are compatible.`,

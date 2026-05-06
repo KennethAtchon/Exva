@@ -1,7 +1,6 @@
 import type { SessionStatus } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import { canTransition } from "@electron/shared/domain";
-import { runPreflight } from "./preflight";
 import type { SessionLifecycleDeps } from "./session-types";
 
 export class SessionService {

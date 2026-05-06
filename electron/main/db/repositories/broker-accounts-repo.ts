@@ -1,18 +1,20 @@
 import type { DbClient } from "../client";
 import type { BrokerAccount, BrokerMode, InstrumentClass } from "@/lib/types";
+import { asc, eq } from "drizzle-orm";
 import { AppError } from "@electron/shared/errors";
+import { brokerAccounts } from "../schema";
 import { toBrokerAccount } from "./mappers";
 
 export class BrokerAccountsRepo {
   constructor(private readonly client: DbClient) {}
 
   list(): BrokerAccount[] {
-    const rows = this.client.sqlite.prepare("SELECT * FROM broker_accounts ORDER BY name ASC").all() as Record<string, unknown>[];
+    const rows = this.client.db.select().from(brokerAccounts).orderBy(asc(brokerAccounts.name)).all();
     return rows.map(toBrokerAccount);
   }
 
   find(id: string): BrokerAccount | null {
-    const row = this.client.sqlite.prepare("SELECT * FROM broker_accounts WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    const row = this.client.db.select().from(brokerAccounts).where(eq(brokerAccounts.id, id)).get();
     return row ? toBrokerAccount(row) : null;
   }
 
@@ -31,27 +33,22 @@ export class BrokerAccountsRepo {
     secretRef: string;
   }): BrokerAccount {
     const now = new Date().toISOString();
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO broker_accounts (
-          id, name, broker_type, supported_instrument_classes, mode, secret_ref, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        `,
-      )
-      .run(
-        input.id,
-        input.name,
-        input.brokerType,
-        JSON.stringify(input.supportedInstrumentClasses),
-        input.mode,
-        input.secretRef,
-        now,
-      );
+    this.client.db
+      .insert(brokerAccounts)
+      .values({
+        id: input.id,
+        name: input.name,
+        brokerType: input.brokerType,
+        supportedInstrumentClasses: JSON.stringify(input.supportedInstrumentClasses),
+        mode: input.mode,
+        secretRef: input.secretRef,
+        updatedAt: now,
+      })
+      .run();
     return this.require(input.id);
   }
 
   delete(id: string): void {
-    this.client.sqlite.prepare("DELETE FROM broker_accounts WHERE id = ?").run(id);
+    this.client.db.delete(brokerAccounts).where(eq(brokerAccounts.id, id)).run();
   }
 }

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { inArray } from "drizzle-orm";
+import { sessions as sessionsTable } from "../../../db/schema";
 import { createTestDb } from "../../../db/test-helpers";
 import { AgentMessagesRepo } from "../../../db/repositories/agent-messages-repo";
 import { AgentRunsRepo } from "../../../db/repositories/agent-runs-repo";
@@ -53,7 +55,11 @@ describe("SessionRuntimeManager", () => {
       capitalLimitUsd: 5000,
       executionMode: "paper_only",
     }).id;
-    db.sqlite.prepare("UPDATE sessions SET status = 'active' WHERE id IN (?, ?)").run(sessionAlphaId, sessionBetaId);
+    db.db
+      .update(sessionsTable)
+      .set({ status: "active" })
+      .where(inArray(sessionsTable.id, [sessionAlphaId, sessionBetaId]))
+      .run();
   });
 
   afterEach(() => {

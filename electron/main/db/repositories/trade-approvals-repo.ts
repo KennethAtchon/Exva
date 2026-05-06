@@ -1,5 +1,7 @@
 import type { DbClient } from "../client";
 import type { InstrumentClass, TradeApproval, TradeSide } from "@/lib/types";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { sessions, tradeApprovals } from "../schema";
 import { AppError } from "@electron/shared/errors";
 import { toTradeApproval } from "./mappers";
 
@@ -27,66 +29,54 @@ export class TradeApprovalsRepo {
   }): TradeApproval {
     const id = crypto.randomUUID();
     const requestedAt = new Date().toISOString();
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO trade_approvals (
-          id, session_id, trade_id, broker_account_id, instrument_symbol, instrument_display_name,
-          prediction_outcome, instrument_metadata_json, instrument_class, proposed_side,
-          proposed_size_usd, decision_summary_json, status, requested_at, resolved_at, decision_note
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL, NULL)
-        `,
-      )
-      .run(
+    this.client.db
+      .insert(tradeApprovals)
+      .values({
         id,
-        input.sessionId,
-        input.tradeId,
-        input.brokerAccountId,
-        input.instrumentSymbol,
-        input.instrumentDisplayName ?? null,
-        input.predictionOutcome ?? null,
-        input.instrumentMetadataJson ?? null,
-        input.instrumentClass,
-        input.proposedSide,
-        input.proposedSizeUsd,
-        input.decisionSummaryJson,
+        sessionId: input.sessionId,
+        tradeId: input.tradeId,
+        brokerAccountId: input.brokerAccountId,
+        instrumentSymbol: input.instrumentSymbol,
+        instrumentDisplayName: input.instrumentDisplayName ?? null,
+        predictionOutcome: input.predictionOutcome ?? null,
+        instrumentMetadataJson: input.instrumentMetadataJson ?? null,
+        instrumentClass: input.instrumentClass,
+        proposedSide: input.proposedSide,
+        proposedSizeUsd: input.proposedSizeUsd,
+        decisionSummaryJson: input.decisionSummaryJson,
+        status: "pending",
         requestedAt,
-      );
+        resolvedAt: null,
+        decisionNote: null,
+      })
+      .run();
 
     return this.require(id);
   }
 
-  /** Full row insert (tests / migrations). */
   create(input: Omit<TradeApproval, "id">): TradeApproval {
     const id = crypto.randomUUID();
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO trade_approvals (
-          id, session_id, trade_id, broker_account_id, instrument_symbol, instrument_display_name,
-          prediction_outcome, instrument_metadata_json, instrument_class, proposed_side,
-          proposed_size_usd, decision_summary_json, status, requested_at, resolved_at, decision_note
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-      )
-      .run(
+    this.client.db
+      .insert(tradeApprovals)
+      .values({
         id,
-        input.sessionId,
-        input.tradeId,
-        input.brokerAccountId,
-        input.instrumentSymbol,
-        input.instrumentDisplayName,
-        input.predictionOutcome,
-        input.instrumentMetadataJson,
-        input.instrumentClass,
-        input.proposedSide,
-        input.proposedSizeUsd,
-        input.decisionSummaryJson,
-        input.status,
-        input.requestedAt,
-        input.resolvedAt,
-        input.decisionNote,
-      );
+        sessionId: input.sessionId,
+        tradeId: input.tradeId,
+        brokerAccountId: input.brokerAccountId,
+        instrumentSymbol: input.instrumentSymbol,
+        instrumentDisplayName: input.instrumentDisplayName,
+        predictionOutcome: input.predictionOutcome,
+        instrumentMetadataJson: input.instrumentMetadataJson,
+        instrumentClass: input.instrumentClass,
+        proposedSide: input.proposedSide,
+        proposedSizeUsd: input.proposedSizeUsd,
+        decisionSummaryJson: input.decisionSummaryJson,
+        status: input.status,
+        requestedAt: input.requestedAt,
+        resolvedAt: input.resolvedAt,
+        decisionNote: input.decisionNote,
+      })
+      .run();
 
     return this.require(id);
   }
@@ -96,51 +86,49 @@ export class TradeApprovalsRepo {
   }
 
   listAll(filters: ApprovalListFilters): TradeApproval[] {
-    const clauses: string[] = [];
-    const params: unknown[] = [];
-
+    const conditions = [];
     if (filters.status) {
-      clauses.push("trade_approvals.status = ?");
-      params.push(filters.status);
+      conditions.push(eq(tradeApprovals.status, filters.status));
     }
-
     if (filters.sessionIds?.length) {
-      const placeholders = filters.sessionIds.map(() => "?").join(", ");
-      clauses.push(`trade_approvals.session_id IN (${placeholders})`);
-      params.push(...filters.sessionIds);
+      conditions.push(inArray(tradeApprovals.sessionId, filters.sessionIds));
     }
-
-    let join = "";
     if (filters.excludeArchivedSessions) {
-      join = " INNER JOIN sessions ON sessions.id = trade_approvals.session_id ";
-      clauses.push("sessions.status != 'archived'");
+      const activeSessionIds = this.client.db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(ne(sessions.status, "archived"))
+        .all()
+        .map((row) => row.id);
+      if (activeSessionIds.length === 0) return [];
+      conditions.push(inArray(tradeApprovals.sessionId, activeSessionIds));
     }
 
-    const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-    const sql = `SELECT trade_approvals.* FROM trade_approvals ${join} ${where} ORDER BY trade_approvals.requested_at DESC`;
-
-    const rows = this.client.sqlite.prepare(sql).all(...params) as Record<string, unknown>[];
+    const query = this.client.db.select().from(tradeApprovals).orderBy(desc(tradeApprovals.requestedAt));
+    const rows = conditions.length > 0 ? query.where(and(...conditions)).all() : query.all();
     return rows.map(toTradeApproval);
   }
 
   findPendingByTradeId(tradeId: string): TradeApproval | null {
-    const row = this.client.sqlite
-      .prepare("SELECT * FROM trade_approvals WHERE trade_id = ? AND status = 'pending'")
-      .get(tradeId) as Record<string, unknown> | undefined;
+    const row = this.client.db
+      .select()
+      .from(tradeApprovals)
+      .where(and(eq(tradeApprovals.tradeId, tradeId), eq(tradeApprovals.status, "pending")))
+      .get();
     return row ? toTradeApproval(row) : null;
   }
 
   resolve(id: string, decision: "approved" | "rejected", note?: string): TradeApproval {
     const now = new Date().toISOString();
-    const result = this.client.sqlite
-      .prepare(
-        `
-        UPDATE trade_approvals
-        SET status = ?, resolved_at = ?, decision_note = COALESCE(?, decision_note)
-        WHERE id = ? AND status = 'pending'
-        `,
-      )
-      .run(decision, now, note ?? null, id);
+    const result = this.client.db
+      .update(tradeApprovals)
+      .set({
+        status: decision,
+        resolvedAt: now,
+        decisionNote: note ?? undefined,
+      })
+      .where(and(eq(tradeApprovals.id, id), eq(tradeApprovals.status, "pending")))
+      .run();
 
     if (result.changes === 0) {
       throw new AppError("Approval was not pending or was not found", "VALIDATION_FAILED", { id });
@@ -150,7 +138,7 @@ export class TradeApprovalsRepo {
   }
 
   require(id: string): TradeApproval {
-    const row = this.client.sqlite.prepare("SELECT * FROM trade_approvals WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    const row = this.client.db.select().from(tradeApprovals).where(eq(tradeApprovals.id, id)).get();
     if (!row) {
       throw new AppError(`Trade approval ${id} was not found`, "NOT_FOUND");
     }

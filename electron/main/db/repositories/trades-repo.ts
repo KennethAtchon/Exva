@@ -1,5 +1,7 @@
 import type { DbClient } from "../client";
 import type { ExecutionMode, InstrumentClass, Trade, TradeStatus } from "@/lib/types";
+import { and, desc, eq, inArray, like, ne, sql } from "drizzle-orm";
+import { sessions, trades } from "../schema";
 import { AppError } from "@electron/shared/errors";
 import { toTrade } from "./mappers";
 
@@ -7,15 +9,11 @@ export class TradesRepo {
   constructor(private readonly client: DbClient) {}
 
   listAll(sessionId?: string): Trade[] {
-    const rows = sessionId
-      ? ((this.client.sqlite
-          .prepare("SELECT * FROM trades WHERE session_id = ? ORDER BY created_at DESC")
-          .all(sessionId) as Record<string, unknown>[]))
-      : ((this.client.sqlite.prepare("SELECT * FROM trades ORDER BY created_at DESC").all() as Record<string, unknown>[]));
+    const query = this.client.db.select().from(trades).orderBy(desc(trades.createdAt));
+    const rows = sessionId ? query.where(eq(trades.sessionId, sessionId)).all() : query.all();
     return rows.map(toTrade);
   }
 
-  /** Optional filters; `sessionId` when set restricts to that session (omit for all sessions). */
   listAllFiltered(filters: {
     sessionId?: string;
     brokerAccountId?: string;
@@ -23,83 +21,63 @@ export class TradesRepo {
     instrumentType?: InstrumentClass;
     executionMode?: ExecutionMode;
   }): Trade[] {
-    const clauses: string[] = [];
-    const params: unknown[] = [];
+    const conditions = [];
 
-    if (filters.sessionId) {
-      clauses.push("trades.session_id = ?");
-      params.push(filters.sessionId);
-    }
-    if (filters.brokerAccountId) {
-      clauses.push("trades.broker_account_id = ?");
-      params.push(filters.brokerAccountId);
-    }
+    if (filters.sessionId) conditions.push(eq(trades.sessionId, filters.sessionId));
+    if (filters.brokerAccountId) conditions.push(eq(trades.brokerAccountId, filters.brokerAccountId));
     if (filters.symbolContains?.trim()) {
-      clauses.push("LOWER(trades.instrument_symbol) LIKE ?");
-      params.push(`%${filters.symbolContains.trim().toLowerCase()}%`);
+      conditions.push(like(sql`lower(${trades.instrumentSymbol})`, `%${filters.symbolContains.trim().toLowerCase()}%`));
     }
-    if (filters.instrumentType) {
-      clauses.push("trades.instrument_type = ?");
-      params.push(filters.instrumentType);
-    }
+    if (filters.instrumentType) conditions.push(eq(trades.instrumentType, filters.instrumentType));
     if (filters.executionMode) {
-      clauses.push("sessions.execution_mode = ?");
-      params.push(filters.executionMode);
+      const sessionIds = this.client.db
+        .select({ id: sessions.id })
+        .from(sessions)
+        .where(eq(sessions.executionMode, filters.executionMode))
+        .all()
+        .map((row) => row.id);
+      if (sessionIds.length === 0) return [];
+      conditions.push(inArray(trades.sessionId, sessionIds));
     }
 
-    const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
-    const needsSessionJoin = filters.executionMode != null;
-    const from = needsSessionJoin
-      ? "FROM trades INNER JOIN sessions ON sessions.id = trades.session_id"
-      : "FROM trades";
-
-    const sql = `
-      SELECT trades.*
-      ${from}
-      ${where}
-      ORDER BY trades.created_at DESC
-    `;
-
-    const rows = this.client.sqlite.prepare(sql).all(...params) as Record<string, unknown>[];
+    const query = this.client.db.select().from(trades).orderBy(desc(trades.createdAt));
+    const rows = conditions.length ? query.where(and(...conditions)).all() : query.all();
     return rows.map(toTrade);
   }
 
   listOpenAndPending(sessionId?: string): Trade[] {
-    const rows = sessionId
-      ? ((this.client.sqlite
-          .prepare(
-            "SELECT * FROM trades WHERE session_id = ? AND status IN ('open', 'pending') ORDER BY created_at DESC",
-          )
-          .all(sessionId) as Record<string, unknown>[]))
-      : ((this.client.sqlite
-          .prepare("SELECT * FROM trades WHERE status IN ('open', 'pending') ORDER BY created_at DESC")
-          .all() as Record<string, unknown>[]));
+    const baseConditions = [inArray(trades.status, ["open", "pending"])];
+    if (sessionId) baseConditions.push(eq(trades.sessionId, sessionId));
+    const rows = this.client.db
+      .select()
+      .from(trades)
+      .where(and(...baseConditions))
+      .orderBy(desc(trades.createdAt))
+      .all();
     return rows.map(toTrade);
   }
 
   checkInstrumentConflict(brokerAccountId: string, instrumentSymbol: string, excludeSessionId: string): boolean {
-    const row = this.client.sqlite
-      .prepare(
-        `
-        SELECT COUNT(*) AS count
-        FROM trades
-        JOIN sessions ON sessions.id = trades.session_id
-        WHERE trades.broker_account_id = ?
-          AND trades.instrument_symbol = ?
-          AND trades.session_id != ?
-          AND trades.status IN ('open', 'pending')
-          AND sessions.status IN ('active', 'paused')
-        `,
+    const row = this.client.db
+      .select({ count: sql<number>`count(*)` })
+      .from(trades)
+      .innerJoin(sessions, eq(sessions.id, trades.sessionId))
+      .where(
+        and(
+          eq(trades.brokerAccountId, brokerAccountId),
+          eq(trades.instrumentSymbol, instrumentSymbol),
+          ne(trades.sessionId, excludeSessionId),
+          inArray(trades.status, ["open", "pending"]),
+          inArray(sessions.status, ["active", "paused"]),
+        ),
       )
-      .get(brokerAccountId, instrumentSymbol, excludeSessionId) as { count?: number } | undefined;
+      .get();
 
     return Number(row?.count ?? 0) > 0;
   }
 
   find(id: string): Trade | null {
-    const row = this.client.sqlite
-      .prepare("SELECT * FROM trades WHERE id = ?")
-      .get(id) as Record<string, unknown> | undefined;
+    const row = this.client.db.select().from(trades).where(eq(trades.id, id)).get();
     return row ? toTrade(row) : null;
   }
 
@@ -110,49 +88,47 @@ export class TradesRepo {
   }
 
   insert(trade: Trade): void {
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO trades (
-          id, session_id, broker_account_id, instrument_symbol, instrument_display_name,
-          prediction_outcome, instrument_metadata_json, instrument_type, side,
-          entry_price, position_size_usd, stop_loss_price, take_profit_price, strategy,
-          status, opened_at, closed_at, final_pnl_usd, ai_cost_usd, confidence_score,
-          broker_order_id, created_at
-        ) VALUES (
-          @id, @session_id, @broker_account_id, @instrument_symbol, @instrument_display_name,
-          @prediction_outcome, @instrument_metadata_json, @instrument_type, @side,
-          @entry_price, @position_size_usd, @stop_loss_price, @take_profit_price, @strategy,
-          @status, @opened_at, @closed_at, @final_pnl_usd, @ai_cost_usd, @confidence_score,
-          @broker_order_id, @created_at
-        )
-        `,
-      )
-      .run({
-        ...trade,
-        session_id: trade.sessionId,
-        broker_account_id: trade.brokerAccountId ?? null,
-        instrument_symbol: trade.instrumentSymbol,
-        instrument_display_name: trade.instrumentDisplayName ?? null,
-        prediction_outcome: trade.predictionOutcome ?? null,
-        instrument_metadata_json: trade.instrumentMetadataJson ?? null,
-        instrument_type: trade.instrumentType,
-      });
+    this.client.db
+      .insert(trades)
+      .values({
+        id: trade.id,
+        sessionId: trade.sessionId as string,
+        brokerAccountId: trade.brokerAccountId ?? null,
+        instrumentSymbol: trade.instrumentSymbol,
+        instrumentDisplayName: trade.instrumentDisplayName ?? null,
+        predictionOutcome: trade.predictionOutcome ?? null,
+        instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
+        instrumentType: trade.instrumentType,
+        side: trade.side,
+        entryPrice: trade.entry_price,
+        positionSizeUsd: trade.position_size_usd,
+        stopLossPrice: trade.stop_loss_price,
+        takeProfitPrice: trade.take_profit_price,
+        strategy: trade.strategy,
+        status: trade.status,
+        openedAt: trade.opened_at,
+        closedAt: trade.closed_at,
+        finalPnlUsd: trade.final_pnl_usd,
+        aiCostUsd: trade.ai_cost_usd,
+        confidenceScore: trade.confidence_score,
+        brokerOrderId: trade.broker_order_id,
+        createdAt: trade.created_at,
+      })
+      .run();
   }
 
   updateStatus(id: string, status: TradeStatus, finalPnlUsd: number | null = null): Trade {
+    const current = this.require(id);
     const now = new Date().toISOString();
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE trades SET
-          status = @status,
-          closed_at = CASE WHEN @status IN ('closed', 'rejected') THEN @now ELSE closed_at END,
-          final_pnl_usd = COALESCE(@final_pnl_usd, final_pnl_usd)
-        WHERE id = @id
-        `,
-      )
-      .run({ id, status, now, final_pnl_usd: finalPnlUsd });
+    this.client.db
+      .update(trades)
+      .set({
+        status,
+        closedAt: status === "closed" || status === "rejected" ? now : current.closed_at,
+        finalPnlUsd: finalPnlUsd ?? current.final_pnl_usd,
+      })
+      .where(eq(trades.id, id))
+      .run();
     return this.require(id);
   }
 
@@ -160,60 +136,31 @@ export class TradesRepo {
     id: string,
     patch: Partial<Pick<Trade, "side" | "position_size_usd" | "confidence_score" | "brokerAccountId">>,
   ): void {
-    const fields: string[] = [];
-    const params: Record<string, unknown> = { id };
+    const next: Record<string, unknown> = {};
+    if (patch.side != null) next.side = patch.side;
+    if (patch.position_size_usd != null) next.positionSizeUsd = patch.position_size_usd;
+    if (patch.confidence_score != null) next.confidenceScore = patch.confidence_score;
+    if (patch.brokerAccountId !== undefined) next.brokerAccountId = patch.brokerAccountId;
+    if (Object.keys(next).length === 0) return;
 
-    if (patch.side != null) {
-      fields.push("side = @side");
-      params.side = patch.side;
-    }
-    if (patch.position_size_usd != null) {
-      fields.push("position_size_usd = @position_size_usd");
-      params.position_size_usd = patch.position_size_usd;
-    }
-    if (patch.confidence_score != null) {
-      fields.push("confidence_score = @confidence_score");
-      params.confidence_score = patch.confidence_score;
-    }
-    if (patch.brokerAccountId !== undefined) {
-      fields.push("broker_account_id = @broker_account_id");
-      params.broker_account_id = patch.brokerAccountId;
-    }
-
-    if (fields.length === 0) return;
-
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE trades SET
-          ${fields.join(", ")}
-        WHERE id = @id AND status = 'pending'
-        `,
-      )
-      .run({
-        ...params,
-        id,
-      });
+    this.client.db
+      .update(trades)
+      .set(next)
+      .where(and(eq(trades.id, id), eq(trades.status, "pending")))
+      .run();
   }
 
   markOpen(id: string, brokerOrderId: string, entryPrice: number): Trade {
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE trades SET
-          status = 'open',
-          broker_order_id = @broker_order_id,
-          entry_price = @entry_price,
-          opened_at = @opened_at
-        WHERE id = @id
-        `,
-      )
-      .run({
-        id,
-        broker_order_id: brokerOrderId,
-        entry_price: entryPrice,
-        opened_at: new Date().toISOString(),
-      });
+    this.client.db
+      .update(trades)
+      .set({
+        status: "open",
+        brokerOrderId,
+        entryPrice,
+        openedAt: new Date().toISOString(),
+      })
+      .where(eq(trades.id, id))
+      .run();
     return this.require(id);
   }
 }

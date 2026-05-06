@@ -13,6 +13,7 @@ export class BrokerService {
 
   /** @deprecated Legacy Alpaca-only flow — prefer broker registry IPC. */
   async saveBroker(_credentials: BrokerCredentials): Promise<ConnectionTestResult> {
+    void _credentials;
     return { ok: false, message: "Use Accounts → Add broker to register a broker account." };
   }
 

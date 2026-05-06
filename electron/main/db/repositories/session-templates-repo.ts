@@ -1,12 +1,14 @@
 import type { DbClient } from "../client";
 import type { SessionTemplate, SessionTemplatePayload } from "@/lib/types";
+import { asc, eq } from "drizzle-orm";
+import { sessionTemplates } from "../schema";
 import { toSessionTemplate } from "./mappers";
 
 export class SessionTemplatesRepo {
   constructor(private readonly client: DbClient) {}
 
   list(): SessionTemplate[] {
-    const rows = this.client.sqlite.prepare("SELECT * FROM session_templates ORDER BY name ASC").all() as Record<string, unknown>[];
+    const rows = this.client.db.select().from(sessionTemplates).orderBy(asc(sessionTemplates.name)).all();
     return rows.map(toSessionTemplate);
   }
 
@@ -18,33 +20,28 @@ export class SessionTemplatesRepo {
   }): { id: string; updatedAt: string } {
     const id = crypto.randomUUID();
     const updatedAt = new Date().toISOString();
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO session_templates (
-          id, name, description, source_session_id, template_payload_json, instrument_classes, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        `,
-      )
-      .run(
+    this.client.db
+      .insert(sessionTemplates)
+      .values({
         id,
-        input.name,
-        input.description ?? null,
-        input.sourceSessionId ?? null,
-        JSON.stringify(input.payload),
-        JSON.stringify(input.payload.identity.instrumentClasses),
+        name: input.name,
+        description: input.description ?? null,
+        sourceSessionId: input.sourceSessionId ?? null,
+        templatePayloadJson: JSON.stringify(input.payload),
+        instrumentClasses: JSON.stringify(input.payload.identity.instrumentClasses),
         updatedAt,
-      );
+      })
+      .run();
     return { id, updatedAt };
   }
 
   delete(id: string): boolean {
-    const result = this.client.sqlite.prepare("DELETE FROM session_templates WHERE id = ?").run(id);
+    const result = this.client.db.delete(sessionTemplates).where(eq(sessionTemplates.id, id)).run();
     return result.changes > 0;
   }
 
   get(id: string): SessionTemplate | null {
-    const row = this.client.sqlite.prepare("SELECT * FROM session_templates WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    const row = this.client.db.select().from(sessionTemplates).where(eq(sessionTemplates.id, id)).get();
     return row ? toSessionTemplate(row) : null;
   }
 }

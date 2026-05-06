@@ -1,5 +1,7 @@
 import type { DbClient } from "../client";
 import type { CapitalReservation } from "@/lib/types";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { capitalReservations } from "../schema";
 import { toCapitalReservation } from "./mappers";
 
 export class CapitalReservationsRepo {
@@ -9,95 +11,95 @@ export class CapitalReservationsRepo {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO capital_reservations (
-          id, session_id, approval_id, trade_id, amount_usd, reason, status, created_at, released_at
-        ) VALUES (?, ?, ?, NULL, ?, 'approval', 'reserved', ?, NULL)
-        `,
-      )
-      .run(id, input.sessionId, input.approvalId, input.amountUsd, createdAt);
+    this.client.db
+      .insert(capitalReservations)
+      .values({
+        id,
+        sessionId: input.sessionId,
+        approvalId: input.approvalId,
+        tradeId: null,
+        amountUsd: input.amountUsd,
+        reason: "approval",
+        status: "reserved",
+        createdAt,
+        releasedAt: null,
+      })
+      .run();
 
     return this.require(id);
   }
 
   convertApprovalToOpenOrder(approvalId: string, tradeId: string): void {
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE capital_reservations
-        SET trade_id = ?, reason = 'open_order', status = 'consumed'
-        WHERE approval_id = ? AND status = 'reserved'
-        `,
-      )
-      .run(tradeId, approvalId);
+    this.client.db
+      .update(capitalReservations)
+      .set({ tradeId, reason: "open_order", status: "consumed" })
+      .where(and(eq(capitalReservations.approvalId, approvalId), eq(capitalReservations.status, "reserved")))
+      .run();
   }
 
   releaseByApproval(approvalId: string): void {
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE capital_reservations
-        SET status = 'released', released_at = ?
-        WHERE approval_id = ? AND status IN ('reserved', 'consumed')
-        `,
-      )
-      .run(new Date().toISOString(), approvalId);
+    this.client.db
+      .update(capitalReservations)
+      .set({ status: "released", releasedAt: new Date().toISOString() })
+      .where(and(eq(capitalReservations.approvalId, approvalId), inArray(capitalReservations.status, ["reserved", "consumed"])))
+      .run();
   }
 
   /** Adjust reserved amount when a fresh risk pass shrinks the intended order size. */
   updateReservedAmountForApproval(approvalId: string, amountUsd: number): void {
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE capital_reservations
-        SET amount_usd = ?
-        WHERE approval_id = ? AND status = 'reserved'
-        `,
-      )
-      .run(amountUsd, approvalId);
+    this.client.db
+      .update(capitalReservations)
+      .set({ amountUsd })
+      .where(and(eq(capitalReservations.approvalId, approvalId), eq(capitalReservations.status, "reserved")))
+      .run();
   }
 
   sumActiveReservedUsd(): number {
-    const row = this.client.sqlite
-      .prepare("SELECT COALESCE(SUM(amount_usd), 0) AS total FROM capital_reservations WHERE status IN ('reserved', 'consumed')")
-      .get() as { total?: number };
-    return Number(row.total ?? 0);
+    const row = this.client.db
+      .select({ total: sql<number>`coalesce(sum(${capitalReservations.amountUsd}), 0)` })
+      .from(capitalReservations)
+      .where(inArray(capitalReservations.status, ["reserved", "consumed"]))
+      .get();
+    return Number(row?.total ?? 0);
   }
 
   listActiveBySession(sessionId: string): CapitalReservation[] {
-    const rows = this.client.sqlite
-      .prepare(
-        "SELECT * FROM capital_reservations WHERE session_id = ? AND status IN ('reserved', 'consumed') ORDER BY created_at ASC",
-      )
-      .all(sessionId) as Record<string, unknown>[];
+    const rows = this.client.db
+      .select()
+      .from(capitalReservations)
+      .where(and(eq(capitalReservations.sessionId, sessionId), inArray(capitalReservations.status, ["reserved", "consumed"])))
+      .orderBy(asc(capitalReservations.createdAt))
+      .all();
     return rows.map(toCapitalReservation);
   }
 
   convertOrderToPosition(tradeId: string): void {
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE capital_reservations
-        SET reason = 'open_position'
-        WHERE trade_id = ? AND status = 'consumed' AND reason = 'open_order'
-        `,
+    this.client.db
+      .update(capitalReservations)
+      .set({ reason: "open_position" })
+      .where(
+        and(
+          eq(capitalReservations.tradeId, tradeId),
+          eq(capitalReservations.status, "consumed"),
+          eq(capitalReservations.reason, "open_order"),
+        ),
       )
-      .run(tradeId);
+      .run();
   }
 
   releaseOnCancel(tradeId: string): void {
     const now = new Date().toISOString();
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE capital_reservations
-        SET status = 'released', released_at = ?
-        WHERE trade_id = ? AND status = 'consumed' AND reason = 'open_order'
-        `,
+    this.client.db
+      .update(capitalReservations)
+      .set({ status: "released", releasedAt: now })
+      .where(
+        and(
+          eq(capitalReservations.tradeId, tradeId),
+          eq(capitalReservations.status, "consumed"),
+          eq(capitalReservations.reason, "open_order"),
+        ),
       )
-      .run(now, tradeId);
+      .run();
   }
 
   releaseOnFailure(tradeId: string): void {
@@ -106,21 +108,21 @@ export class CapitalReservationsRepo {
 
   releaseOnClose(tradeId: string): void {
     const now = new Date().toISOString();
-    this.client.sqlite
-      .prepare(
-        `
-        UPDATE capital_reservations
-        SET status = 'released', released_at = ?
-        WHERE trade_id = ? AND status = 'consumed' AND reason IN ('open_order', 'open_position')
-        `,
+    this.client.db
+      .update(capitalReservations)
+      .set({ status: "released", releasedAt: now })
+      .where(
+        and(
+          eq(capitalReservations.tradeId, tradeId),
+          eq(capitalReservations.status, "consumed"),
+          inArray(capitalReservations.reason, ["open_order", "open_position"]),
+        ),
       )
-      .run(now, tradeId);
+      .run();
   }
 
   private require(id: string): CapitalReservation {
-    const row = this.client.sqlite
-      .prepare("SELECT * FROM capital_reservations WHERE id = ?")
-      .get(id) as Record<string, unknown> | undefined;
+    const row = this.client.db.select().from(capitalReservations).where(eq(capitalReservations.id, id)).get();
     if (!row) {
       throw new Error(`Capital reservation ${id} was not found`);
     }

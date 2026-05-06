@@ -13,7 +13,7 @@ export interface ExvaEventMap {
     tradeId: string;
     status: "approved" | "rejected";
   };
-  session_started: {};
+  session_started: Record<string, never>;
   session_stopped: { reason: string };
   session_status_changed: { sessionId: string; status: SessionStatus };
   trade_status_changed: Trade;

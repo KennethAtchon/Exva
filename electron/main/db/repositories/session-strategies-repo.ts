@@ -1,5 +1,7 @@
 import type { DbClient } from "../client";
 import type { SessionConfig, SessionStrategy } from "@/lib/types";
+import { eq } from "drizzle-orm";
+import { sessionRiskConfig, sessionStrategies, sessionStrategyProfile, sessionTimeframeConfig } from "../schema";
 import { AppError } from "@electron/shared/errors";
 import { toSessionConfig, toSessionStrategy } from "./mappers";
 
@@ -7,9 +9,7 @@ export class SessionStrategiesRepo {
   constructor(private readonly client: DbClient) {}
 
   get(sessionId: string): SessionStrategy {
-    const row = this.client.sqlite
-      .prepare("SELECT * FROM session_strategies WHERE session_id = ?")
-      .get(sessionId) as Record<string, unknown> | undefined;
+    const row = this.client.db.select().from(sessionStrategies).where(eq(sessionStrategies.sessionId, sessionId)).get();
     if (!row) {
       throw new AppError(`Strategy for session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
     }
@@ -26,120 +26,66 @@ export class SessionStrategiesRepo {
 
     const updatedAt = new Date().toISOString();
 
-    this.client.sqlite.transaction(() => {
-      this.client.sqlite
-        .prepare(
-          `
-          UPDATE session_strategies SET
-            strategy_profile = @strategy_profile,
-            max_position_usd = @max_position_usd,
-            stop_loss_pct = @stop_loss_pct,
-            take_profit_pct = @take_profit_pct,
-            max_concurrent_trades = @max_concurrent_trades,
-            research_depth = @research_depth,
-            daily_loss_limit_usd = @daily_loss_limit_usd,
-            profit_target_usd = @profit_target_usd,
-            max_ai_spend_usd = @max_ai_spend_usd,
-            human_approval_required = @human_approval_required,
-            primary_trading_timeframe = @primary_trading_timeframe,
-            holding_style = @holding_style,
-            target_hold_days = @target_hold_days,
-            max_hold_days = @max_hold_days,
-            timeframe_notes = @timeframe_notes
-          WHERE session_id = @session_id
-          `,
-        )
-        .run({
-          session_id: sessionId,
-          strategy_profile: next.strategyProfile,
-          max_position_usd: next.maxPositionUsd,
-          stop_loss_pct: next.stopLossPct,
-          take_profit_pct: next.takeProfitPct,
-          max_concurrent_trades: next.maxConcurrentTrades,
-          research_depth: next.researchDepth,
-          daily_loss_limit_usd: next.dailyLossLimitUsd,
-          profit_target_usd: next.profitTargetUsd,
-          max_ai_spend_usd: next.maxAiSpendUsd,
-          human_approval_required: next.humanApprovalRequired ? 1 : 0,
-          primary_trading_timeframe: next.primaryTradingTimeframe,
-          holding_style: next.holdingStyle,
-          target_hold_days: next.targetHoldDays,
-          max_hold_days: next.maxHoldDays,
-          timeframe_notes: next.timeframeNotes,
-        });
+    this.client.db.transaction((tx) => {
+      tx.update(sessionStrategies)
+        .set({
+          strategyProfile: next.strategyProfile,
+          maxPositionUsd: next.maxPositionUsd,
+          stopLossPct: next.stopLossPct,
+          takeProfitPct: next.takeProfitPct,
+          maxConcurrentTrades: next.maxConcurrentTrades,
+          researchDepth: next.researchDepth,
+          dailyLossLimitUsd: next.dailyLossLimitUsd,
+          profitTargetUsd: next.profitTargetUsd,
+          maxAiSpendUsd: next.maxAiSpendUsd,
+          humanApprovalRequired: next.humanApprovalRequired,
+          primaryTradingTimeframe: next.primaryTradingTimeframe,
+          holdingStyle: next.holdingStyle,
+          targetHoldDays: next.targetHoldDays,
+          maxHoldDays: next.maxHoldDays,
+          timeframeNotes: next.timeframeNotes,
+        })
+        .where(eq(sessionStrategies.sessionId, sessionId))
+        .run();
 
-      this.client.sqlite
-        .prepare(
-          `
-          UPDATE session_strategy_profile SET
-            updated_at = @updated_at
-          WHERE session_id = @session_id
-          `,
-        )
-        .run({ session_id: sessionId, updated_at: updatedAt });
+      tx.update(sessionStrategyProfile)
+        .set({ updatedAt })
+        .where(eq(sessionStrategyProfile.sessionId, sessionId))
+        .run();
 
-      this.client.sqlite
-        .prepare(
-          `
-          UPDATE session_risk_config SET
-            max_position_usd = @max_position_usd,
-            stop_loss_pct = @stop_loss_pct,
-            take_profit_pct = @take_profit_pct,
-            max_concurrent_trades = @max_concurrent_trades,
-            daily_loss_limit_usd = @daily_loss_limit_usd,
-            profit_target_usd = @profit_target_usd,
-            max_ai_spend_usd = @max_ai_spend_usd,
-            human_approval_required = @human_approval_required,
-            updated_at = @updated_at
-          WHERE session_id = @session_id
-          `,
-        )
-        .run({
-          session_id: sessionId,
-          max_position_usd: next.maxPositionUsd,
-          stop_loss_pct: next.stopLossPct,
-          take_profit_pct: next.takeProfitPct,
-          max_concurrent_trades: next.maxConcurrentTrades,
-          daily_loss_limit_usd: next.dailyLossLimitUsd,
-          profit_target_usd: next.profitTargetUsd,
-          max_ai_spend_usd: next.maxAiSpendUsd,
-          human_approval_required: next.humanApprovalRequired ? 1 : 0,
-          updated_at: updatedAt,
-        });
+      tx.update(sessionRiskConfig)
+        .set({
+          maxPositionUsd: next.maxPositionUsd,
+          stopLossPct: next.stopLossPct,
+          takeProfitPct: next.takeProfitPct,
+          maxConcurrentTrades: next.maxConcurrentTrades,
+          dailyLossLimitUsd: next.dailyLossLimitUsd,
+          profitTargetUsd: next.profitTargetUsd,
+          maxAiSpendUsd: next.maxAiSpendUsd,
+          humanApprovalRequired: next.humanApprovalRequired,
+          updatedAt,
+        })
+        .where(eq(sessionRiskConfig.sessionId, sessionId))
+        .run();
 
-      this.client.sqlite
-        .prepare(
-          `
-          UPDATE session_timeframe_config SET
-            primary_trading_timeframe = @primary_trading_timeframe,
-            holding_style = @holding_style,
-            target_hold_days = @target_hold_days,
-            max_hold_days = @max_hold_days,
-            timeframe_notes = @timeframe_notes,
-            updated_at = @updated_at
-          WHERE session_id = @session_id
-          `,
-        )
-        .run({
-          session_id: sessionId,
-          primary_trading_timeframe: next.primaryTradingTimeframe,
-          holding_style: next.holdingStyle,
-          target_hold_days: next.targetHoldDays,
-          max_hold_days: next.maxHoldDays,
-          timeframe_notes: next.timeframeNotes,
-          updated_at: updatedAt,
-        });
-    })();
+      tx.update(sessionTimeframeConfig)
+        .set({
+          primaryTradingTimeframe: next.primaryTradingTimeframe,
+          holdingStyle: next.holdingStyle,
+          targetHoldDays: next.targetHoldDays,
+          maxHoldDays: next.maxHoldDays,
+          timeframeNotes: next.timeframeNotes,
+          updatedAt,
+        })
+        .where(eq(sessionTimeframeConfig.sessionId, sessionId))
+        .run();
+    });
 
     return this.get(sessionId);
   }
 
   getConfig(sessionId: string): SessionConfig {
-    // TODO(phase-05): Remove this compatibility bridge once SessionConfig is deleted
-    // and callers use SessionStrategy directly.
-    const row = this.client.sqlite
-      .prepare("SELECT * FROM session_strategies WHERE session_id = ?")
-      .get(sessionId) as Record<string, unknown> | undefined;
+    const row = this.client.db.select().from(sessionStrategies).where(eq(sessionStrategies.sessionId, sessionId)).get();
     if (!row) {
       throw new AppError(`Strategy config for session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
     }
@@ -147,71 +93,40 @@ export class SessionStrategiesRepo {
   }
 
   updateConfig(sessionId: string, config: SessionConfig): SessionConfig {
-    // TODO(phase-05): Remove this compatibility writer once SessionConfig is deleted
-    // and callers write SessionStrategy fields directly.
     const updatedAt = new Date().toISOString();
 
-    this.client.sqlite.transaction(() => {
-      this.client.sqlite
-        .prepare(
-          `
-          UPDATE session_strategies SET
-            strategy_profile = @strategy_profile,
-            max_position_usd = @max_position_usd,
-            stop_loss_pct = @stop_loss_pct,
-            take_profit_pct = @take_profit_pct,
-            max_concurrent_trades = @max_concurrent_trades,
-            research_depth = @research_depth,
-            daily_loss_limit_usd = @daily_loss_limit_usd,
-            profit_target_usd = @profit_target_usd,
-            max_ai_spend_usd = @max_ai_spend_usd,
-            human_approval_required = @human_approval_required
-          WHERE session_id = @session_id
-          `,
-        )
-        .run({
-          session_id: sessionId,
-          strategy_profile: config.strategy,
-          max_position_usd: config.max_position_usd,
-          stop_loss_pct: config.stop_loss_pct,
-          take_profit_pct: config.take_profit_pct,
-          max_concurrent_trades: config.max_concurrent_trades,
-          research_depth: config.research_depth,
-          daily_loss_limit_usd: config.daily_loss_limit_usd,
-          profit_target_usd: config.profit_target_usd,
-          max_ai_spend_usd: config.max_api_spend_usd,
-          human_approval_required: config.human_approval_required ? 1 : 0,
-        });
+    this.client.db.transaction((tx) => {
+      tx.update(sessionStrategies)
+        .set({
+          strategyProfile: config.strategy,
+          maxPositionUsd: config.max_position_usd,
+          stopLossPct: config.stop_loss_pct,
+          takeProfitPct: config.take_profit_pct,
+          maxConcurrentTrades: config.max_concurrent_trades,
+          researchDepth: config.research_depth,
+          dailyLossLimitUsd: config.daily_loss_limit_usd,
+          profitTargetUsd: config.profit_target_usd,
+          maxAiSpendUsd: config.max_api_spend_usd,
+          humanApprovalRequired: config.human_approval_required,
+        })
+        .where(eq(sessionStrategies.sessionId, sessionId))
+        .run();
 
-      this.client.sqlite
-        .prepare(
-          `
-          UPDATE session_risk_config SET
-            max_position_usd = @max_position_usd,
-            stop_loss_pct = @stop_loss_pct,
-            take_profit_pct = @take_profit_pct,
-            max_concurrent_trades = @max_concurrent_trades,
-            daily_loss_limit_usd = @daily_loss_limit_usd,
-            profit_target_usd = @profit_target_usd,
-            max_ai_spend_usd = @max_ai_spend_usd,
-            human_approval_required = @human_approval_required,
-            updated_at = @updated_at
-          WHERE session_id = @session_id
-          `,
-        )
-        .run({
-          session_id: sessionId,
-          max_position_usd: config.max_position_usd,
-          stop_loss_pct: config.stop_loss_pct,
-          take_profit_pct: config.take_profit_pct,
-          max_concurrent_trades: config.max_concurrent_trades,
-          daily_loss_limit_usd: config.daily_loss_limit_usd,
-          profit_target_usd: config.profit_target_usd,
-          max_ai_spend_usd: config.max_api_spend_usd,
-          human_approval_required: config.human_approval_required ? 1 : 0,
-          updated_at: updatedAt,
-        });
-    })();
+      tx.update(sessionRiskConfig)
+        .set({
+          maxPositionUsd: config.max_position_usd,
+          stopLossPct: config.stop_loss_pct,
+          takeProfitPct: config.take_profit_pct,
+          maxConcurrentTrades: config.max_concurrent_trades,
+          dailyLossLimitUsd: config.daily_loss_limit_usd,
+          profitTargetUsd: config.profit_target_usd,
+          maxAiSpendUsd: config.max_api_spend_usd,
+          humanApprovalRequired: config.human_approval_required,
+          updatedAt,
+        })
+        .where(eq(sessionRiskConfig.sessionId, sessionId))
+        .run();
+    });
 
     return this.getConfig(sessionId);
   }

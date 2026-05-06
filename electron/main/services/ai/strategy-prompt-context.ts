@@ -3,7 +3,6 @@ import {
   buildStrategySnapshot,
   type SessionStrategyContext,
   type StrategySnapshot,
-  STRATEGY_BRIEF_MARKDOWN_MAX_CHARS,
 } from "@electron/shared/domain";
 
 const MAX_NOTES_CHARS = 500;

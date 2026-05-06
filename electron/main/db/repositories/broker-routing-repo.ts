@@ -1,35 +1,41 @@
 import type { DbClient } from "../client";
 import type { BrokerRoutingDefault, InstrumentClass, SessionBrokerRoutingOverride } from "@/lib/types";
+import { and, asc, eq } from "drizzle-orm";
+import { brokerRoutingDefaults, sessionBrokerRoutingOverrides } from "../schema";
 import { toBrokerRoutingDefault, toSessionBrokerRoutingOverride } from "./mappers";
 
 export class BrokerRoutingRepo {
   constructor(private readonly client: DbClient) {}
 
   listGlobalDefaults(): BrokerRoutingDefault[] {
-    const rows = this.client.sqlite.prepare("SELECT * FROM broker_routing ORDER BY instrument_class ASC").all() as Record<string, unknown>[];
+    const rows = this.client.db.select().from(brokerRoutingDefaults).orderBy(asc(brokerRoutingDefaults.instrumentClass)).all();
     return rows.map(toBrokerRoutingDefault);
   }
 
   upsertGlobalDefaults(input: BrokerRoutingDefault[]): void {
-    const stmt = this.client.sqlite.prepare(
-      `
-      INSERT INTO broker_routing (instrument_class, default_broker_account_id)
-      VALUES (?, ?)
-      ON CONFLICT(instrument_class) DO UPDATE SET default_broker_account_id = excluded.default_broker_account_id
-      `,
-    );
-
-    this.client.sqlite.transaction(() => {
+    this.client.db.transaction((tx) => {
       for (const row of input) {
-        stmt.run(row.instrumentClass, row.defaultBrokerAccountId);
+        tx.insert(brokerRoutingDefaults)
+          .values({
+            instrumentClass: row.instrumentClass,
+            defaultBrokerAccountId: row.defaultBrokerAccountId,
+          })
+          .onConflictDoUpdate({
+            target: brokerRoutingDefaults.instrumentClass,
+            set: { defaultBrokerAccountId: row.defaultBrokerAccountId },
+          })
+          .run();
       }
-    })();
+    });
   }
 
   listSessionOverrides(sessionId: string): SessionBrokerRoutingOverride[] {
-    const rows = this.client.sqlite
-      .prepare("SELECT * FROM session_broker_routing_overrides WHERE session_id = ? ORDER BY instrument_class ASC")
-      .all(sessionId) as Record<string, unknown>[];
+    const rows = this.client.db
+      .select()
+      .from(sessionBrokerRoutingOverrides)
+      .where(eq(sessionBrokerRoutingOverrides.sessionId, sessionId))
+      .orderBy(asc(sessionBrokerRoutingOverrides.instrumentClass))
+      .all();
     return rows.map(toSessionBrokerRoutingOverride);
   }
 
@@ -37,43 +43,56 @@ export class BrokerRoutingRepo {
     sessionId: string,
     input: Array<{ instrumentClass: InstrumentClass; brokerAccountId: string | null }>,
   ): void {
-    const deleteStmt = this.client.sqlite.prepare(
-      "DELETE FROM session_broker_routing_overrides WHERE session_id = ? AND instrument_class = ?",
-    );
-    const upsertStmt = this.client.sqlite.prepare(
-      `
-      INSERT INTO session_broker_routing_overrides (session_id, instrument_class, broker_account_id)
-      VALUES (?, ?, ?)
-      ON CONFLICT(session_id, instrument_class) DO UPDATE SET broker_account_id = excluded.broker_account_id
-      `,
-    );
-
-    this.client.sqlite.transaction(() => {
+    this.client.db.transaction((tx) => {
       for (const row of input) {
         if (row.brokerAccountId === null) {
-          deleteStmt.run(sessionId, row.instrumentClass);
+          tx.delete(sessionBrokerRoutingOverrides)
+            .where(
+              and(
+                eq(sessionBrokerRoutingOverrides.sessionId, sessionId),
+                eq(sessionBrokerRoutingOverrides.instrumentClass, row.instrumentClass),
+              ),
+            )
+            .run();
           continue;
         }
 
-        upsertStmt.run(sessionId, row.instrumentClass, row.brokerAccountId);
+        tx.insert(sessionBrokerRoutingOverrides)
+          .values({
+            sessionId,
+            instrumentClass: row.instrumentClass,
+            brokerAccountId: row.brokerAccountId,
+          })
+          .onConflictDoUpdate({
+            target: [sessionBrokerRoutingOverrides.sessionId, sessionBrokerRoutingOverrides.instrumentClass],
+            set: { brokerAccountId: row.brokerAccountId },
+          })
+          .run();
       }
-    })();
+    });
   }
 
   resolveBrokerAccountId(sessionId: string, instrumentClass: InstrumentClass): string | null {
-    const override = this.client.sqlite
-      .prepare(
-        "SELECT broker_account_id FROM session_broker_routing_overrides WHERE session_id = ? AND instrument_class = ?",
+    const override = this.client.db
+      .select({ brokerAccountId: sessionBrokerRoutingOverrides.brokerAccountId })
+      .from(sessionBrokerRoutingOverrides)
+      .where(
+        and(
+          eq(sessionBrokerRoutingOverrides.sessionId, sessionId),
+          eq(sessionBrokerRoutingOverrides.instrumentClass, instrumentClass),
+        ),
       )
-      .get(sessionId, instrumentClass) as { broker_account_id?: string } | undefined;
-    if (override?.broker_account_id) {
-      return override.broker_account_id;
+      .get();
+    if (override?.brokerAccountId) {
+      return override.brokerAccountId;
     }
 
-    const globalDefault = this.client.sqlite
-      .prepare("SELECT default_broker_account_id FROM broker_routing WHERE instrument_class = ?")
-      .get(instrumentClass) as { default_broker_account_id?: string } | undefined;
+    const globalDefault = this.client.db
+      .select({ defaultBrokerAccountId: brokerRoutingDefaults.defaultBrokerAccountId })
+      .from(brokerRoutingDefaults)
+      .where(eq(brokerRoutingDefaults.instrumentClass, instrumentClass))
+      .get();
 
-    return globalDefault?.default_broker_account_id ?? null;
+    return globalDefault?.defaultBrokerAccountId ?? null;
   }
 }

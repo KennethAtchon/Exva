@@ -1,5 +1,7 @@
 import type { DbClient } from "../client";
 import type { EventRow, EventSourceType, LogLevel } from "@/lib/types";
+import { desc } from "drizzle-orm";
+import { events } from "../schema";
 import { toEventRow } from "./mappers";
 
 export interface EventFilters {
@@ -33,14 +35,18 @@ export class EventsRepo {
       created_at: event.created_at ?? new Date().toISOString(),
     };
 
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO events (id, session_id, trade_id, level, agent_type, message, created_at)
-        VALUES (@id, @session_id, @trade_id, @level, @agent_type, @message, @created_at)
-        `,
-      )
-      .run(row);
+    this.client.db
+      .insert(events)
+      .values({
+        id: row.id,
+        sessionId: row.session_id,
+        tradeId: row.trade_id,
+        level: row.level,
+        agentType: row.agent_type,
+        message: row.message,
+        createdAt: row.created_at,
+      })
+      .run();
     return row;
   }
 
@@ -48,9 +54,7 @@ export class EventsRepo {
     const minLevel = filters.minLevel ?? filters.min_level;
     const agentType = filters.agentType ?? filters.agent_type;
     const limit = Math.min(filters.limit ?? 200, 1000);
-    const rows = this.client.sqlite
-      .prepare("SELECT * FROM events ORDER BY created_at DESC LIMIT ?")
-      .all(limit * 3) as Record<string, unknown>[];
+    const rows = this.client.db.select().from(events).orderBy(desc(events.createdAt)).limit(limit * 3).all();
 
     return rows
       .map(toEventRow)

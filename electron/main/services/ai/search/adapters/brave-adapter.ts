@@ -9,7 +9,8 @@ async function fetchWithRetry(url: string, init: RequestInit): Promise<Response>
   const delays = [0, 1000, 2000, 4000];
   let last: Response | null = null;
   for (let i = 0; i < delays.length; i++) {
-    if (delays[i]! > 0) await new Promise((r) => setTimeout(r, delays[i]! + Math.floor(Math.random() * (delays[i]! || 1))));
+    const delay = delays[i] ?? 0;
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay + Math.floor(Math.random() * (delay || 1))));
     last = await fetch(url, init);
     if (last.status !== 429) return last;
   }

@@ -1,4 +1,4 @@
-import type { InstrumentClass, SessionTemplate, SessionTemplatePayload } from "@/lib/types";
+import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
 import { sessionTemplatePayloadSchema, templateCreateInputSchema } from "@electron/shared/schemas";
 import { AppError } from "@electron/shared/errors";
 import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
@@ -129,13 +129,16 @@ export class SessionTemplateService {
       return assignment;
     });
 
+    const nextOverrides: Partial<Record<InstrumentClass, string>> = {};
     for (const [key, brokerAccountId] of Object.entries(payload.brokerOverridesByInstrumentClass)) {
       const ic = key as InstrumentClass;
       if (brokerAccountId && !brokerIds.has(brokerAccountId)) {
         clearedFields.push(`brokerOverridesByInstrumentClass.${ic}`);
-        delete payload.brokerOverridesByInstrumentClass[ic];
+        continue;
       }
+      if (brokerAccountId) nextOverrides[ic] = brokerAccountId;
     }
+    payload.brokerOverridesByInstrumentClass = nextOverrides;
 
     return { payload: payload as SessionTemplatePayload, clearedFields };
   }

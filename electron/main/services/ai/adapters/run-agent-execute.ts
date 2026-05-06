@@ -118,8 +118,11 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     conditions.push(loopFingerprintGuard());
   }
 
-  const stopWhen =
-    params.tools && conditions.length > 0 ? (conditions.length === 1 ? conditions[0]! : conditions) : stepCountIs(1);
+  let stopWhen: StopCondition<ToolSet> | StopCondition<ToolSet>[] = stepCountIs(1);
+  if (params.tools && conditions.length > 0) {
+    const first = conditions[0];
+    stopWhen = conditions.length === 1 && first ? first : conditions;
+  }
 
   const baseArgs = {
     model: params.model,

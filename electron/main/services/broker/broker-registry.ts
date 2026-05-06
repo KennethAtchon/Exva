@@ -19,7 +19,8 @@ export class BrokerRegistry {
   ) {}
 
   async get(brokerAccountId: string): Promise<BrokerAdapter> {
-    if (this.adapters.has(brokerAccountId)) return this.adapters.get(brokerAccountId)!;
+    const existing = this.adapters.get(brokerAccountId);
+    if (existing) return existing;
 
     const account = this.brokerAccountsRepo.require(brokerAccountId);
     const secret = await this.secrets.get(account.secretRef);

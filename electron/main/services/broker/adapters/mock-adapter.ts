@@ -44,7 +44,7 @@ export class MockBrokerAdapter implements BrokerAdapter {
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
-    return [...this.orders.entries()].map(([id, { order, price }]) => ({
+    return [...this.orders.entries()].map(([, { order, price }]) => ({
       instrumentSymbol: order.instrumentSymbol,
       instrumentDisplayName: order.instrumentDisplayName ?? null,
       predictionOutcome: order.predictionOutcome ?? null,

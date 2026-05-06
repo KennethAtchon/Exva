@@ -12,7 +12,7 @@ import {
 import { channels } from "@electron/shared/channels";
 import { AppError } from "@electron/shared/errors";
 import type { AppServices } from "../services/app-services";
-import { serializeBrokerCredentials, supportedInstrumentClassesFor, tempBrokerAccount } from "./broker-account-helpers";
+import { serializeBrokerCredentials, tempBrokerAccount } from "./broker-account-helpers";
 import { secretKeys } from "../services/infra/secrets-service";
 import { handle } from "./handle";
 

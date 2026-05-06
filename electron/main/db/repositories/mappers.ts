@@ -24,6 +24,7 @@ import { isHoldingStyle, isTradingTimeframe } from "@electron/shared/domain";
 type Row = Record<string, unknown>;
 
 export function toTrade(row: Row): Trade {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     sessionId: String(row.session_id),
@@ -51,6 +52,7 @@ export function toTrade(row: Row): Trade {
 }
 
 export function toAgentRun(row: Row): AgentRun {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     session_id: String(row.session_id),
@@ -69,6 +71,7 @@ export function toAgentRun(row: Row): AgentRun {
 }
 
 export function toEventRow(row: Row): EventRow {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     session_id: nullableString(row.session_id),
@@ -81,6 +84,7 @@ export function toEventRow(row: Row): EventRow {
 }
 
 export function toSessionConfig(row: Row): SessionConfig {
+  row = normalizeRow(row);
   return {
     strategy: String(row.strategy_profile),
     max_position_usd: Number(row.max_position_usd),
@@ -96,6 +100,7 @@ export function toSessionConfig(row: Row): SessionConfig {
 }
 
 export function toWorkspaceSession(row: Row): WorkspaceSession {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     name: String(row.name),
@@ -114,6 +119,7 @@ export function toWorkspaceSession(row: Row): WorkspaceSession {
 }
 
 export function toSessionSelectorSettings(row: Row): SessionSelectorSettings {
+  row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
     aiPickerEnabled: Boolean(row.ai_picker_enabled),
@@ -122,6 +128,7 @@ export function toSessionSelectorSettings(row: Row): SessionSelectorSettings {
 }
 
 export function toSessionStrategy(row: Row): SessionStrategy {
+  row = normalizeRow(row);
   const primaryTf = row.primary_trading_timeframe;
   const holdStyle = row.holding_style;
   return {
@@ -145,6 +152,7 @@ export function toSessionStrategy(row: Row): SessionStrategy {
 }
 
 export function toSessionAiRole(row: Row): SessionAiRole {
+  row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
     role: row.role as SessionAiRole["role"],
@@ -160,6 +168,7 @@ export function toSessionAiRole(row: Row): SessionAiRole {
 }
 
 export function toSessionStrategyProfile(row: Row): SessionStrategyProfile {
+  row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
     strategyType: row.strategy_type as SessionStrategyProfile["strategyType"],
@@ -174,6 +183,7 @@ export function toSessionStrategyProfile(row: Row): SessionStrategyProfile {
 }
 
 export function toSessionRiskConfig(row: Row): SessionRiskConfig {
+  row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
     maxPositionUsd: Number(row.max_position_usd),
@@ -196,6 +206,7 @@ export function toSessionRiskConfig(row: Row): SessionRiskConfig {
 }
 
 export function toSessionTimeframeConfig(row: Row): SessionTimeframeConfig {
+  row = normalizeRow(row);
   const primaryTf = row.primary_trading_timeframe;
   const holdStyle = row.holding_style;
   return {
@@ -210,6 +221,7 @@ export function toSessionTimeframeConfig(row: Row): SessionTimeframeConfig {
 }
 
 export function toProviderAccount(row: Row): ProviderAccount {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     name: String(row.name),
@@ -224,6 +236,7 @@ export function toProviderAccount(row: Row): ProviderAccount {
 }
 
 export function toBrokerAccount(row: Row): BrokerAccount {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     name: String(row.name),
@@ -236,6 +249,7 @@ export function toBrokerAccount(row: Row): BrokerAccount {
 }
 
 export function toBrokerRoutingDefault(row: Row): BrokerRoutingDefault {
+  row = normalizeRow(row);
   return {
     instrumentClass: row.instrument_class as BrokerRoutingDefault["instrumentClass"],
     defaultBrokerAccountId: String(row.default_broker_account_id),
@@ -243,6 +257,7 @@ export function toBrokerRoutingDefault(row: Row): BrokerRoutingDefault {
 }
 
 export function toSessionBrokerRoutingOverride(row: Row): SessionBrokerRoutingOverride {
+  row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
     instrumentClass: row.instrument_class as SessionBrokerRoutingOverride["instrumentClass"],
@@ -251,6 +266,7 @@ export function toSessionBrokerRoutingOverride(row: Row): SessionBrokerRoutingOv
 }
 
 export function toWorkspacePreferences(row: Row): WorkspacePreferences {
+  row = normalizeRow(row);
   return {
     id: 1,
     globalIncludeArchived: Boolean(row.global_include_archived),
@@ -262,6 +278,7 @@ export function toWorkspacePreferences(row: Row): WorkspacePreferences {
 }
 
 export function toSessionTemplate(row: Row): SessionTemplate {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     name: String(row.name),
@@ -274,6 +291,7 @@ export function toSessionTemplate(row: Row): SessionTemplate {
 }
 
 export function toTradeApproval(row: Row): TradeApproval {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     sessionId: String(row.session_id),
@@ -295,6 +313,7 @@ export function toTradeApproval(row: Row): TradeApproval {
 }
 
 export function toCapitalReservation(row: Row): CapitalReservation {
+  row = normalizeRow(row);
   return {
     id: String(row.id),
     sessionId: String(row.session_id),
@@ -324,4 +343,15 @@ function nullableString(value: unknown): string | null {
 
 function nullableNumber(value: unknown): number | null {
   return value === null || value === undefined ? null : Number(value);
+}
+
+function normalizeRow(row: Row): Row {
+  const normalized: Row = { ...row };
+  for (const [key, value] of Object.entries(row)) {
+    const snakeKey = key.replace(/[A-Z]/g, (char) => `_${char.toLowerCase()}`);
+    if (!(snakeKey in normalized)) {
+      normalized[snakeKey] = value;
+    }
+  }
+  return normalized;
 }

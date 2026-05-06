@@ -17,6 +17,5 @@ export function useExvaEvent<K extends ExvaEventName>(
       cancelled = true;
       if (unlisten) unlisten();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 }

@@ -99,7 +99,11 @@ function bridge() {
       "EXVA bridge unavailable. Run `bun run dev` / `bun run start` (Electron host) instead of the renderer-only dev server.",
     );
   }
-  return window.exva!;
+  const exva = window.exva;
+  if (!exva) {
+    throw new Error("EXVA bridge unavailable.");
+  }
+  return exva;
 }
 
 export const api = {
@@ -126,8 +130,8 @@ export const api = {
   }): Promise<Trade[]> => bridge().trades.listActive(filters),
   getTradeDetail: (tradeId: string): Promise<TradeDetail> => bridge().trades.getDetail(tradeId),
   forceCloseTrade: (tradeId: string): Promise<void> => bridge().trades.forceClose(tradeId),
-  summarizeTradeAutopsy: (tradeId: string) => bridge().trades.summarizeAutopsy(tradeId),
-  listTradeAutopsies: (tradeId: string) => bridge().trades.listAutopsies(tradeId),
+  summarizeTradeAutopsy: (tradeId: string): Promise<TradeAutopsy> => bridge().trades.summarizeAutopsy(tradeId),
+  listTradeAutopsies: (tradeId: string): Promise<TradeAutopsy[]> => bridge().trades.listAutopsies(tradeId),
   approveTrade: async (tradeId: string, approved: boolean): Promise<void> => {
     await bridge().trades.approve(tradeId, approved);
   },
@@ -255,7 +259,7 @@ export interface ExvaEventMap {
   agent_event: EventRow;
   approval_required: TradeDecisionPayload;
   approval_resolved: { approvalId: string; tradeId: string; status: "approved" | "rejected" };
-  session_started: {};
+  session_started: Record<string, never>;
   session_stopped: { reason: string };
   session_status_changed: { sessionId: string; status: SessionStatus };
   trade_status_changed: Trade;

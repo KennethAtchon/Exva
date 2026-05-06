@@ -1,17 +1,19 @@
 import type { DbClient } from "../client";
 import type { ProviderAccount } from "@/lib/types";
+import { asc, eq } from "drizzle-orm";
+import { providerAccounts } from "../schema";
 import { toProviderAccount } from "./mappers";
 
 export class ProviderAccountsRepo {
   constructor(private readonly client: DbClient) {}
 
   list(): ProviderAccount[] {
-    const rows = this.client.sqlite.prepare("SELECT * FROM provider_accounts ORDER BY name ASC").all() as Record<string, unknown>[];
+    const rows = this.client.db.select().from(providerAccounts).orderBy(asc(providerAccounts.name)).all();
     return rows.map(toProviderAccount);
   }
 
   find(id: string): ProviderAccount | null {
-    const row = this.client.sqlite.prepare("SELECT * FROM provider_accounts WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+    const row = this.client.db.select().from(providerAccounts).where(eq(providerAccounts.id, id)).get();
     return row ? toProviderAccount(row) : null;
   }
 
@@ -24,39 +26,40 @@ export class ProviderAccountsRepo {
     metadataJson: string | null;
     isConfigured: boolean;
   }): void {
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO provider_accounts (
-          id, name, category, provider_type, secret_ref, metadata_json, is_configured, last_test_status, updated_at
-        ) VALUES (
-          @id, @name, @category, @provider_type, @secret_ref, @metadata_json, @is_configured, 'unknown', @updated_at
-        )
-        ON CONFLICT(id) DO UPDATE SET
-          name = excluded.name,
-          category = excluded.category,
-          provider_type = excluded.provider_type,
-          secret_ref = excluded.secret_ref,
-          metadata_json = excluded.metadata_json,
-          is_configured = excluded.is_configured,
-          updated_at = excluded.updated_at
-        `,
-      )
-      .run({
+    const updatedAt = new Date().toISOString();
+    this.client.db
+      .insert(providerAccounts)
+      .values({
         id: input.id,
         name: input.name,
         category: input.category,
-        provider_type: input.providerType,
-        secret_ref: input.secretRef,
-        metadata_json: input.metadataJson,
-        is_configured: input.isConfigured ? 1 : 0,
-        updated_at: new Date().toISOString(),
-      });
+        providerType: input.providerType,
+        secretRef: input.secretRef,
+        metadataJson: input.metadataJson,
+        isConfigured: input.isConfigured,
+        lastTestStatus: "unknown",
+        updatedAt,
+      })
+      .onConflictDoUpdate({
+        target: providerAccounts.id,
+        set: {
+          name: input.name,
+          category: input.category,
+          providerType: input.providerType,
+          secretRef: input.secretRef,
+          metadataJson: input.metadataJson,
+          isConfigured: input.isConfigured,
+          updatedAt,
+        },
+      })
+      .run();
   }
 
   setLastTestStatus(id: string, status: ProviderAccount["lastTestStatus"]): void {
-    this.client.sqlite
-      .prepare("UPDATE provider_accounts SET last_test_status = ?, updated_at = ? WHERE id = ?")
-      .run(status, new Date().toISOString(), id);
+    this.client.db
+      .update(providerAccounts)
+      .set({ lastTestStatus: status, updatedAt: new Date().toISOString() })
+      .where(eq(providerAccounts.id, id))
+      .run();
   }
 }

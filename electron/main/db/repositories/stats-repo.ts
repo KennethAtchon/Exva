@@ -1,5 +1,7 @@
 import type { DbClient } from "../client";
 import type { CostBreakdown, DashboardStats, SessionStatus } from "@/lib/types";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { agentRuns, trades } from "../schema";
 
 export class StatsRepo {
   constructor(private readonly client: DbClient) {}
@@ -12,18 +14,21 @@ export class StatsRepo {
     apiBudget: number,
   ): DashboardStats {
     const today = new Date().toISOString().slice(0, 10);
-    const tradeRows = sessionId
-      ? ((this.client.sqlite
-          .prepare("SELECT * FROM trades WHERE session_id = ? AND substr(created_at, 1, 10) = ?")
-          .all(sessionId, today) as Array<{ status: string; final_pnl_usd: number | null; ai_cost_usd: number | null }>))
-      : ((this.client.sqlite
-          .prepare("SELECT * FROM trades WHERE substr(created_at, 1, 10) = ?")
-          .all(today) as Array<{ status: string; final_pnl_usd: number | null; ai_cost_usd: number | null }>));
-    const openTrades = sessionId
-      ? ((this.client.sqlite
-          .prepare("SELECT COUNT(*) AS count FROM trades WHERE session_id = ? AND status = 'open'")
-          .get(sessionId) as { count: number }))
-      : ((this.client.sqlite.prepare("SELECT COUNT(*) AS count FROM trades WHERE status = 'open'").get() as { count: number }));
+    const todayCondition = sql`substr(${trades.createdAt}, 1, 10) = ${today}`;
+    const tradeRows = this.client.db
+      .select({
+        status: trades.status,
+        final_pnl_usd: trades.finalPnlUsd,
+        ai_cost_usd: trades.aiCostUsd,
+      })
+      .from(trades)
+      .where(sessionId ? and(eq(trades.sessionId, sessionId), todayCondition) : todayCondition)
+      .all();
+    const openTrades = this.client.db
+      .select({ count: sql<number>`count(*)` })
+      .from(trades)
+      .where(sessionId ? and(eq(trades.sessionId, sessionId), eq(trades.status, "open")) : eq(trades.status, "open"))
+      .get();
 
     const closed = tradeRows.filter((row) => row.status === "closed");
     const dailyPnl = closed.reduce((sum, row) => sum + Number(row.final_pnl_usd ?? 0), 0);
@@ -37,7 +42,7 @@ export class StatsRepo {
       total_trades_today: tradeRows.length,
       closed_trades_today: closed.length,
       win_rate_today: closed.length ? wins / closed.length : 0,
-      open_trades: Number(openTrades.count ?? 0),
+      open_trades: Number(openTrades?.count ?? 0),
       daily_api_spend: spend,
       api_budget: apiBudget,
       portfolio_value: portfolioValue,
@@ -47,42 +52,38 @@ export class StatsRepo {
   }
 
   costBreakdown(): CostBreakdown {
-    const byAgent = this.client.sqlite
-      .prepare(
-        `
-        SELECT agent_type AS name,
-          SUM(input_tokens + output_tokens) AS tokens,
-          SUM(cost_usd) AS cost
-        FROM agent_runs
-        GROUP BY agent_type
-        ORDER BY cost DESC
-        `,
-      )
+    const byAgent = this.client.db
+      .select({
+        name: agentRuns.agentType,
+        tokens: sql<number>`sum(${agentRuns.inputTokens} + ${agentRuns.outputTokens})`,
+        cost: sql<number>`sum(${agentRuns.costUsd})`,
+      })
+      .from(agentRuns)
+      .groupBy(agentRuns.agentType)
+      .orderBy(desc(sql`sum(${agentRuns.costUsd})`))
       .all() as CostBreakdown["by_agent"];
 
-    const byTrade = this.client.sqlite
-      .prepare(
-        `
-        SELECT trades.instrument_symbol AS instrumentSymbol, SUM(agent_runs.cost_usd) AS cost
-        FROM agent_runs
-        JOIN trades ON trades.id = agent_runs.trade_id
-        GROUP BY trades.id
-        ORDER BY cost DESC
-        LIMIT 20
-        `,
-      )
+    const byTrade = this.client.db
+      .select({
+        instrumentSymbol: trades.instrumentSymbol,
+        cost: sql<number>`sum(${agentRuns.costUsd})`,
+      })
+      .from(agentRuns)
+      .innerJoin(trades, eq(trades.id, agentRuns.tradeId))
+      .groupBy(trades.id)
+      .orderBy(desc(sql`sum(${agentRuns.costUsd})`))
+      .limit(20)
       .all() as CostBreakdown["by_trade"];
 
-    const dailyHistory = this.client.sqlite
-      .prepare(
-        `
-        SELECT substr(created_at, 1, 10) AS date, SUM(cost_usd) AS cost
-        FROM agent_runs
-        GROUP BY substr(created_at, 1, 10)
-        ORDER BY date DESC
-        LIMIT 7
-        `,
-      )
+    const dailyHistory = this.client.db
+      .select({
+        date: sql<string>`substr(${agentRuns.createdAt}, 1, 10)`,
+        cost: sql<number>`sum(${agentRuns.costUsd})`,
+      })
+      .from(agentRuns)
+      .groupBy(sql`substr(${agentRuns.createdAt}, 1, 10)`)
+      .orderBy(desc(sql`substr(${agentRuns.createdAt}, 1, 10)`))
+      .limit(7)
       .all() as CostBreakdown["daily_history"];
 
     return {

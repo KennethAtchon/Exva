@@ -1,35 +1,41 @@
 import type { TradeAutopsy } from "@/lib/types";
 import type { DbClient } from "../client";
+import { desc, eq } from "drizzle-orm";
+import { tradeAutopsies } from "../schema";
 
 export class TradeAutopsiesRepo {
   constructor(private readonly client: DbClient) {}
 
   listByTrade(tradeId: string): TradeAutopsy[] {
-    const rows = this.client.sqlite
-      .prepare("SELECT * FROM trade_autopsies WHERE trade_id = ? ORDER BY created_at DESC")
-      .all(tradeId) as Record<string, unknown>[];
+    const rows = this.client.db
+      .select()
+      .from(tradeAutopsies)
+      .where(eq(tradeAutopsies.tradeId, tradeId))
+      .orderBy(desc(tradeAutopsies.createdAt))
+      .all();
     return rows.map((row) => ({
       id: String(row.id),
-      trade_id: String(row.trade_id),
-      session_id: String(row.session_id),
-      model_id: String(row.model_id),
+      trade_id: String(row.tradeId),
+      session_id: String(row.sessionId),
+      model_id: String(row.modelId),
       summary: String(row.summary),
-      created_at: String(row.created_at),
-      created_by: String(row.created_by),
+      created_at: String(row.createdAt),
+      created_by: String(row.createdBy),
     }));
   }
 
   insert(input: TradeAutopsy): void {
-    this.client.sqlite
-      .prepare(
-        `
-        INSERT INTO trade_autopsies (
-          id, trade_id, session_id, model_id, summary, created_at, created_by
-        ) VALUES (
-          @id, @trade_id, @session_id, @model_id, @summary, @created_at, @created_by
-        )
-        `,
-      )
-      .run(input);
+    this.client.db
+      .insert(tradeAutopsies)
+      .values({
+        id: input.id,
+        tradeId: input.trade_id,
+        sessionId: input.session_id,
+        modelId: input.model_id,
+        summary: input.summary,
+        createdAt: input.created_at,
+        createdBy: input.created_by,
+      })
+      .run();
   }
 }

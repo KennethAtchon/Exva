@@ -88,8 +88,8 @@ export default function App() {
       } else if (action === "stop") {
         setStatus(await api.stopSession());
       }
-    } catch (err) {
-      console.error("session action failed", err);
+    } catch (error) {
+      void error;
     }
   };
 
