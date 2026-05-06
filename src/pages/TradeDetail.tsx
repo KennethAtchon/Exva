@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { AgentLabel, Badge } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
-import type { AgentMessage, AgentRun, Trade } from "@/lib/types";
+import type { AgentMessage, AgentRun, Trade, TradeAutopsy } from "@/lib/types";
 import { Button, Dialog, DialogContent } from "@/components/ui";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {
@@ -152,6 +152,8 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
   const [trade, setTrade] = useState<Trade | null>(null);
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [autopsies, setAutopsies] = useState<TradeAutopsy[]>([]);
+  const [autopsyLoading, setAutopsyLoading] = useState(false);
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
@@ -161,6 +163,9 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
       setTrade(d.trade);
       setRuns(d.runs);
       setMessages(d.messages ?? []);
+    }).catch(() => {});
+    api.listTradeAutopsies(tradeId).then((rows) => {
+      if (!cancelled) setAutopsies(rows);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [tradeId]);
@@ -172,6 +177,16 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
       onClose();
     } finally {
       setClosing(false);
+    }
+  };
+
+  const handleGenerateAutopsy = async () => {
+    setAutopsyLoading(true);
+    try {
+      const row = await api.summarizeTradeAutopsy(tradeId);
+      setAutopsies((prev) => [row, ...prev]);
+    } finally {
+      setAutopsyLoading(false);
     }
   };
 
@@ -296,6 +311,40 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
                   {fmt.usd(runs.reduce((s, r) => s + r.cost_usd, 0), 4)}
                 </span>
               </div>
+            </div>
+          )}
+
+          {!isOpen && (
+            <div style={{ padding: "0 24px 20px", borderTop: "1px solid var(--border)", paddingTop: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <div style={ts.secTitle}>Trade autopsy</div>
+                <button
+                  onClick={handleGenerateAutopsy}
+                  disabled={autopsyLoading}
+                  style={{
+                    padding: "6px 10px",
+                    fontSize: 11,
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--surface2)",
+                    color: "var(--text2)",
+                  }}
+                >
+                  {autopsyLoading ? "Generating…" : "Generate autopsy"}
+                </button>
+              </div>
+              {autopsies.length === 0 ? (
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>No autopsy yet.</div>
+              ) : (
+                autopsies.map((a) => (
+                  <div key={a.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "var(--surface2)", marginBottom: 8 }}>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)", marginBottom: 6 }}>
+                      {a.model_id} · {fmt.time(a.created_at)}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{a.summary}</div>
+                  </div>
+                ))
+              )}
             </div>
           )}
 

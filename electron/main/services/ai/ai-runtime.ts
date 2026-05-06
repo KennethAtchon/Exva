@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { AgentMessage, AgentRole, AgentRun } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";
+import type { ApiCallLogRepo } from "../../db/repositories/api-call-log-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
 import {
@@ -16,9 +17,9 @@ import { estimateCostUsd } from "./model-pricing";
 import type { PromptAssetLoader } from "./prompt-asset-loader";
 import type { ProviderRegistry } from "./provider-registry";
 import type { SearchRegistry } from "./search";
-import { sanitizeSearchQuery } from "./search/sanitize-search-query";
 import type { SessionStrategyContextService } from "../session/session-strategy-context-service";
 import { prependStrategyContextToUserPrompt } from "./strategy-prompt-context";
+import { createSearchTool } from "./tools/search-tool";
 
 export interface ResearcherInput {
   instrumentSymbol: string;
@@ -59,6 +60,7 @@ export class AiRuntime {
     private readonly aiRolesRepo: SessionAiRolesRepo,
     private readonly sessionRepo: SessionRepo,
     private readonly workspacePrefsRepo: WorkspacePreferencesRepo,
+    private readonly apiCallLogRepo: ApiCallLogRepo,
     strategyContextService?: SessionStrategyContextService,
   ) {
     this.strategyContextService = strategyContextService ?? null;
@@ -128,7 +130,7 @@ ${input.review}`;
       submit_candidates: submitCandidates,
     };
     if (config.webSearchEnabled) {
-      tools.search_web = await this.resolveSearchTool(sessionId);
+      tools.search_web = await this.resolveSearchTool(sessionId, { cycleId: cycleId ?? null });
     }
 
     const caps = ROLE_HARNESS_CAPS[role];
@@ -180,7 +182,7 @@ ${input.review}`;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
     const systemPrompt = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
-    const tools = config.webSearchEnabled ? { search_web: await this.resolveSearchTool(sessionId) } : undefined;
+    const tools = config.webSearchEnabled ? { search_web: await this.resolveSearchTool(sessionId, { cycleId: opts?.cycleId ?? null }) } : undefined;
     const promptContext = this.withSessionStrategyUserPrompt(sessionId, userPrompt);
     const caps = ROLE_HARNESS_CAPS[role];
 
@@ -358,7 +360,7 @@ ${input.review}`;
     return prependStrategyContextToUserPrompt(this.requireStrategyContextService().get(sessionId), userPrompt);
   }
 
-  private async resolveSearchTool(sessionId: string) {
+  private async resolveSearchTool(sessionId: string, context?: { cycleId?: string | null; tradeId?: string | null }) {
     const session = this.sessionRepo.requireById(sessionId);
     const prefs = this.workspacePrefsRepo.get();
     const searchProviderId = session.defaultSearchProviderId ?? prefs.defaultSearchProviderId;
@@ -369,11 +371,13 @@ ${input.review}`;
       );
     }
 
-    const adapter = await this.searchRegistry.get(searchProviderId);
-    return tool({
-      description: "Search the web for current information.",
-      inputSchema: z.object({ query: z.string().min(1) }),
-      execute: async (input: { query: string }) => adapter.search(sanitizeSearchQuery(input.query)),
+    return createSearchTool({
+      sessionId,
+      searchProviderId,
+      searchRegistry: this.searchRegistry,
+      apiCallLogRepo: this.apiCallLogRepo,
+      cycleId: context?.cycleId ?? null,
+      tradeId: context?.tradeId ?? null,
     });
   }
 

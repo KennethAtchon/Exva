@@ -8,6 +8,8 @@ export const channels = {
     getDetail: "trades:get-detail",
     forceClose: "trades:force-close",
     approve: "trades:approve",
+    summarizeAutopsy: "trades:autopsy:summarize",
+    listAutopsies: "trades:autopsy:list",
   },
   session: {
     start: "session:start",
@@ -89,6 +91,10 @@ export const mainToRendererEvents = [
   "session_status_changed",
   "trade_status_changed",
   "selector_run_completed",
+  "research_phase_started",
+  "research_phase_step",
+  "research_phase_complete",
+  "research_phase_failed",
   "stats_update",
   "notification",
 ] as const;

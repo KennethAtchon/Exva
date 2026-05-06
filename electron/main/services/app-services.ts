@@ -2,6 +2,7 @@ import type { App } from "electron";
 import { createDbClient } from "@main/db/client";
 import { AgentRunsRepo } from "../db/repositories/agent-runs-repo";
 import { AgentMessagesRepo } from "../db/repositories/agent-messages-repo";
+import { ApiCallLogRepo } from "../db/repositories/api-call-log-repo";
 import { BrokerAccountsRepo } from "../db/repositories/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../db/repositories/broker-routing-repo";
 import { CapitalReservationsRepo } from "../db/repositories/capital-reservations-repo";
@@ -18,6 +19,7 @@ import { SessionTimeframeConfigRepo } from "../db/repositories/session-timeframe
 import { SessionRepo } from "../db/repositories/session-repo";
 import { InstrumentCacheRepo } from "../db/repositories/instrument-cache-repo";
 import { StatsRepo } from "../db/repositories/stats-repo";
+import { TradeAutopsiesRepo } from "../db/repositories/trade-autopsies-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace-prefs-repo";
@@ -38,6 +40,7 @@ import { SessionListingService } from "./session/listing-service";
 import { SessionTemplateService } from "./session/template-service";
 import { SessionWriteService } from "./session/write-service";
 import { TradeMonitor } from "./orchestration/trade-monitor";
+import { TradeAutopsyService } from "./orchestration/trade-autopsy-service";
 import { InstrumentCacheService } from "./instrument";
 import { CapitalReservationService, RiskEngine } from "./risk";
 
@@ -49,6 +52,7 @@ export interface AppServices {
   repos: {
     agentRuns: AgentRunsRepo;
     agentMessages: AgentMessagesRepo;
+    apiCallLog: ApiCallLogRepo;
     brokerAccounts: BrokerAccountsRepo;
     brokerRouting: BrokerRoutingRepo;
     capitalReservations: CapitalReservationsRepo;
@@ -64,6 +68,7 @@ export interface AppServices {
     sessionTemplates: SessionTemplatesRepo;
     sessionTimeframeConfig: SessionTimeframeConfigRepo;
     stats: StatsRepo;
+    tradeAutopsies: TradeAutopsiesRepo;
     tradeApprovals: TradeApprovalsRepo;
     trades: TradesRepo;
     workspacePreferences: WorkspacePreferencesRepo;
@@ -86,6 +91,7 @@ export interface AppServices {
   strategyContext: SessionStrategyContextService;
   sessionTemplates: SessionTemplateService;
   sessionWrites: SessionWriteService;
+  tradeAutopsy: TradeAutopsyService;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -94,6 +100,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const repos = {
     agentRuns: new AgentRunsRepo(db),
     agentMessages: new AgentMessagesRepo(db),
+    apiCallLog: new ApiCallLogRepo(db),
     brokerAccounts: new BrokerAccountsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),
     capitalReservations: new CapitalReservationsRepo(db),
@@ -109,6 +116,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionTemplates: new SessionTemplatesRepo(db),
     sessionTimeframeConfig: new SessionTimeframeConfigRepo(db),
     stats: new StatsRepo(db),
+    tradeAutopsies: new TradeAutopsiesRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
     trades: new TradesRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),
@@ -150,6 +158,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     repos.sessionAiRoles,
     repos.session,
     repos.workspacePreferences,
+    repos.apiCallLog,
     strategyContext,
   );
   const logger = createLogger("app-services");
@@ -245,6 +254,13 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerAccounts: repos.brokerAccounts,
   });
 
+  const tradeAutopsy = new TradeAutopsyService(
+    repos.trades,
+    repos.agentMessages,
+    repos.tradeAutopsies,
+    providerRegistry,
+  );
+
   return {
     db,
     orchestratorDeps,
@@ -267,5 +283,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     strategyContext,
     sessionTemplates,
     sessionWrites,
+    tradeAutopsy,
   };
 }

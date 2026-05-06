@@ -61,13 +61,22 @@ export class AgentOrchestrator {
     this.started = true;
 
     let instruments: ResolvedInstrument[];
+    const cycleId = crypto.randomUUID();
+    this.deps.bus.emit("research_phase_started", { sessionId: this.sessionId, phase: "selector", cycleId });
     try {
       instruments = await this.resolveInstruments(session, config);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.emitEvent("ERROR", null, `Instrument resolution failed: ${message}`);
+      this.deps.bus.emit("research_phase_failed", { sessionId: this.sessionId, phase: "selector", cycleId, error: message });
       throw error instanceof AppError ? error : new AppError(message, "VALIDATION_FAILED");
     }
+    this.deps.bus.emit("research_phase_complete", {
+      sessionId: this.sessionId,
+      phase: "selector",
+      cycleId,
+      instrumentCount: instruments.length,
+    });
 
     this.enqueueTradeCycles(instruments);
   }
@@ -568,6 +577,11 @@ export class AgentOrchestrator {
     }
   }
 
+  // Exposed for ResearchBurstService integration.
+  async resolveInstrumentsForBurst(session: WorkspaceSession, config: SessionConfig): Promise<ResolvedInstrument[]> {
+    return this.resolveInstruments(session, config);
+  }
+
   private emitEvent(
     level: "DEBUG" | "INFO" | "WARN" | "ERROR",
     tradeId: string | null,
@@ -607,6 +621,12 @@ export class AgentOrchestrator {
 
     this.emitEvent("INFO", null, "Running instrument selector agent...");
     const cycleId = crypto.randomUUID();
+    this.deps.bus.emit("research_phase_step", {
+      sessionId: this.sessionId,
+      phase: "selector",
+      cycleId,
+      message: "Running instrument selector",
+    });
     const result = await this.deps.ai.runInstrumentSelector(
       session.id,
       await this.buildSelectionInstructions(session),
@@ -655,6 +675,12 @@ export class AgentOrchestrator {
     });
 
     this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`);
+    this.deps.bus.emit("research_phase_step", {
+      sessionId: this.sessionId,
+      phase: "selector",
+      cycleId,
+      message: `Selector chose ${payload.length} instruments`,
+    });
     return payload;
   }
 

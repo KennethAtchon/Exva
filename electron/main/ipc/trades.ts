@@ -69,4 +69,14 @@ export function registerTradeHandlers(services: AppServices): void {
       services.runtimeManager.get(trade.sessionId)?.orchestrator.resolveApproval(tradeId, approved);
     }
   });
+
+  handle(ipcMain, channels.trades.summarizeAutopsy, async (payload) => {
+    const { tradeId } = tradeIdSchema.parse(payload);
+    return services.tradeAutopsy.summarize(tradeId);
+  });
+
+  handle(ipcMain, channels.trades.listAutopsies, async (payload) => {
+    const { tradeId } = tradeIdSchema.parse(payload);
+    return services.tradeAutopsy.list(tradeId);
+  });
 }

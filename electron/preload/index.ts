@@ -41,6 +41,10 @@ const exva: ExvaApi = {
     forceClose: (tradeId) => invoke(channels.trades.forceClose, tradeIdSchema.parse({ tradeId })),
     approve: (tradeId, approved) =>
       invoke(channels.trades.approve, approveTradeSchema.parse({ tradeId, approved })),
+    summarizeAutopsy: (tradeId) =>
+      invoke(channels.trades.summarizeAutopsy, tradeIdSchema.parse({ tradeId })),
+    listAutopsies: (tradeId) =>
+      invoke(channels.trades.listAutopsies, tradeIdSchema.parse({ tradeId })),
   },
   session: {
     start: () => invoke(channels.session.start),

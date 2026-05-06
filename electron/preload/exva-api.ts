@@ -22,6 +22,7 @@ import type {
   SessionTemplatePayload,
   SessionTimeframeConfig,
   Trade,
+  TradeAutopsy,
   TradeDecisionPayload,
   TradeDetail,
   WorkspacePreferences,
@@ -39,6 +40,10 @@ export type ExvaEventName =
   | "session_status_changed"
   | "trade_status_changed"
   | "selector_run_completed"
+  | "research_phase_started"
+  | "research_phase_step"
+  | "research_phase_complete"
+  | "research_phase_failed"
   | "stats_update"
   | "notification";
 
@@ -112,6 +117,10 @@ export interface ExvaEventMap {
   session_status_changed: { sessionId: string; status: SessionStatus };
   trade_status_changed: Trade;
   selector_run_completed: { sessionId: string; count: number };
+  research_phase_started: { sessionId: string; phase: string; cycleId: string };
+  research_phase_step: { sessionId: string; phase: string; message: string; cycleId: string };
+  research_phase_complete: { sessionId: string; phase: string; cycleId: string; instrumentCount: number };
+  research_phase_failed: { sessionId: string; phase: string; cycleId: string; error: string };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 }
@@ -143,6 +152,8 @@ export interface ExvaApi {
     getDetail(tradeId: string): Promise<TradeDetail>;
     forceClose(tradeId: string): Promise<void>;
     approve(tradeId: string, approved: boolean): Promise<void>;
+    summarizeAutopsy(tradeId: string): Promise<TradeAutopsy>;
+    listAutopsies(tradeId: string): Promise<TradeAutopsy[]>;
   };
   session: {
     start(): Promise<SessionStatus>;

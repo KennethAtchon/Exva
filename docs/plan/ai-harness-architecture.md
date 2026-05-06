@@ -439,16 +439,17 @@ CREATE TABLE agent_messages (
 
 #### Deliverables
 
-- `electron/main/services/ai/adapters/provider-adapter.ts` — new `runAgent()` contract
-- `electron/main/services/ai/adapters/anthropic-adapter.ts` — implement `runAgent()` with `onStepFinish`, `stopWhen`
-- `electron/main/services/ai/adapters/openai-adapter.ts` — same
-- `electron/main/services/ai/adapters/openrouter-adapter.ts` — same
-- `electron/main/services/ai/ai-runtime-types.ts` — `RunTrace`, `StepTrace`, `ToolCallRecord`, `AgentMessage`
-- `electron/main/services/ai/model-pricing.ts` — per-model cost table
-- `electron/main/services/ai/ai-runtime.ts` — single `runAgent()` path; `decision_maker` always passes `tools: undefined`
-- `electron/main/db/schema.ts` + migrations DDL — `provider_key`, `finish_reason` on `agent_runs`; `agent_messages` with `cycle_id`
-- `electron/main/db/repositories/agent-messages-repo.ts`
-- `TradeDetail.tsx` / `DevPanel.tsx` — message trace viewer
+- [x] `electron/main/services/ai/adapters/provider-adapter.ts` — new `runAgent()` contract
+- [x] `electron/main/services/ai/adapters/anthropic-adapter.ts` — implement `runAgent()` with `onStepFinish`, `stopWhen`
+- [x] `electron/main/services/ai/adapters/openai-adapter.ts` — same
+- [x] `electron/main/services/ai/adapters/openrouter-adapter.ts` — same
+- [x] `electron/main/services/ai/ai-runtime-types.ts` — `RunTrace`, `StepTrace`, `ToolCallRecord`, `AgentMessage`
+- [x] `electron/main/services/ai/model-pricing.ts` — per-model cost table
+- [x] `electron/main/services/ai/ai-runtime.ts` — single `runAgent()` path; `decision_maker` always passes `tools: undefined`
+- [x] `electron/main/db/schema.ts` + migrations DDL — `provider_key`, `finish_reason` on `agent_runs`; `agent_messages` with `cycle_id`
+- [x] `electron/main/db/repositories/agent-messages-repo.ts`
+- [x] `TradeDetail.tsx` — message trace viewer
+- [x] `DevPanel.tsx` — message trace viewer
 
 **Dependencies:** None
 
@@ -535,10 +536,10 @@ type MarketDataSnapshot = {
 - `electron/main/services/market-data/snapshot-readiness.ts` — role-readiness checks
 - `electron/main/services/market-data/technicals.ts` — computes ATR, RSI, SMAs from raw OHLCV
 - `electron/main/services/session/preflight/market-data-capability-check.ts`
-- `electron/main/db/schema.ts` + migration — `api_call_log`, `max_data_spend_usd`
-- `electron/main/db/repositories/api-call-log-repo.ts`
+- [x] `electron/main/db/schema.ts` + migration — `api_call_log`, `max_data_spend_usd`
+- [x] `electron/main/db/repositories/api-call-log-repo.ts`
 - `AiRuntime` — inject snapshot blocks for analyst roles; attach `market_snapshot_json`
-- Search adapters — update to return `SearchToolResult` (structured, not flat string); add session cache; add retry backoff
+- [x] Search adapters — update to return `SearchToolResult` (structured, not flat string); add session cache; add retry backoff
 
 **Dependencies:** Phase 0
 
@@ -631,14 +632,14 @@ Tool execution errors return structured `{ error: string }` — they do not thro
 
 #### Deliverables
 
-- `electron/main/services/ai/tool-use-harness.ts`
-- `electron/main/services/ai/tools/market-tools.ts` — `get_quote`, `get_ohlcv`, `get_news`
-- `electron/main/services/ai/tools/search-tool.ts` — `search_web` with cache + sanitization + retry
-- `electron/main/services/orchestration/research-burst-service.ts`
-- `electron/main/services/orchestration/market-hours-service.ts`
-- `electron/main/db/schema.ts` + migration — `cycle_id`, `research_briefs_json`, `research_generated_at` on `session_instrument_cache`
-- `AgentOrchestrator.start()` — invoke research burst before queueing trade cycles
-- UI progress events: `research_phase_started`, `research_phase_step`, `research_phase_complete`, `research_phase_failed`
+- [x] `electron/main/services/ai/tool-use-harness.ts`
+- [x] `electron/main/services/ai/tools/market-tools.ts` — `get_quote`, `get_ohlcv`, `get_news`
+- [x] `electron/main/services/ai/tools/search-tool.ts` — `search_web` with cache + sanitization + retry
+- [x] `electron/main/services/orchestration/research-burst-service.ts`
+- [x] `electron/main/services/orchestration/market-hours-service.ts`
+- [x] `electron/main/db/schema.ts` + migration — `cycle_id`, `research_briefs_json`, `research_generated_at` on `session_instrument_cache`
+- [x] `AgentOrchestrator.start()` — invoke research burst before queueing trade cycles
+- [x] UI progress events: `research_phase_started`, `research_phase_step`, `research_phase_complete`, `research_phase_failed`
 
 **Dependencies:** Phases 0–1
 
@@ -656,10 +657,10 @@ Tool execution errors return structured `{ error: string }` — they do not thro
 
 ```ts
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
-  intraday_flat:    5_000,
-  multi_day_swing:  60_000,
-  weeks_position:   300_000,
-  prediction_market: 300_000,
+  intraday_flat:   5_000,
+  multi_day_swing: 60_000,
+  weeks_position:  300_000,
+  custom:          300_000,
 };
 ```
 
@@ -701,12 +702,12 @@ CREATE TABLE trade_autopsies (
 
 #### Deliverables
 
-- `TradeMonitor` — holding-style cadence
-- `electron/main/services/orchestration/position-manager-service.ts`
-- `electron/main/services/orchestration/trade-autopsy-service.ts`
-- `electron/main/db/schema.ts` + migration — `trade_autopsies`
-- `AgentOrchestrator` — `trade_closed` subscription + cycle restart with new `cycleId`
-- UI — session cycle state, autopsy button + result in trade detail
+- [x] `TradeMonitor` — holding-style cadence
+- [x] `electron/main/services/orchestration/position-manager-service.ts`
+- [x] `electron/main/services/orchestration/trade-autopsy-service.ts`
+- [x] `electron/main/db/schema.ts` + migration — `trade_autopsies`
+- [x] `AgentOrchestrator` — `trade_closed` subscription + cycle restart with new `cycleId`
+- [x] UI — session cycle state, autopsy button + result in trade detail
 
 **Dependencies:** Phase 2
 

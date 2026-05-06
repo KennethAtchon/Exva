@@ -3,7 +3,7 @@ import { AgentLabel, Dot, PageShell } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
-import type { AgentRun, EventRow, LogLevel } from "@/lib/types";
+import type { AgentMessage, AgentRun, EventRow, LogLevel } from "@/lib/types";
 import { useSessionStore } from "@/store/sessionStore";
 
 const LEVELS: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];
@@ -18,6 +18,8 @@ export const DevPanel = () => {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selRuns, setSelRuns] = useState<AgentRun[]>([]);
+  const [selMessages, setSelMessages] = useState<AgentMessage[]>([]);
+  const [cycleState, setCycleState] = useState<string>("idle");
   const stats = useSessionStore((s) => s.stats);
 
   useEffect(() => { api.getEvents({ limit: 500 }).then(setEvents).catch(() => {}); }, []);
@@ -25,9 +27,19 @@ export const DevPanel = () => {
 
   const sel = selectedId ? events.find((e) => e.id === selectedId) ?? null : null;
   useEffect(() => {
-    if (sel?.trade_id) api.getAgentTraces(sel.trade_id).then(setSelRuns).catch(() => {});
-    else setSelRuns([]);
+    if (!sel?.trade_id) {
+      setSelRuns([]);
+      setSelMessages([]);
+      return;
+    }
+    api.getAgentTraces(sel.trade_id).then(setSelRuns).catch(() => {});
+    api.getTradeDetail(sel.trade_id).then((detail) => setSelMessages(detail.messages ?? [])).catch(() => setSelMessages([]));
   }, [sel?.trade_id]);
+
+  useExvaEvent("research_phase_started", (ev) => setCycleState(`started:${ev.phase}`));
+  useExvaEvent("research_phase_step", (ev) => setCycleState(`step:${ev.message}`));
+  useExvaEvent("research_phase_complete", (ev) => setCycleState(`complete:${ev.phase} (${ev.instrumentCount})`));
+  useExvaEvent("research_phase_failed", (ev) => setCycleState(`failed:${ev.error}`));
 
   const filtered = useMemo(
     () =>
@@ -210,6 +222,23 @@ export const DevPanel = () => {
                   })}
                 </div>
               )}
+              {selMessages.length > 0 && (
+                <div style={{ padding: "0 18px 16px" }}>
+                  <div style={{ fontSize: 11, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10, fontWeight: 600 }}>
+                    Message Trace
+                  </div>
+                  {selMessages.map((m) => (
+                    <div key={m.id} style={{ marginBottom: 8, border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", background: "var(--surface2)" }}>
+                      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)", marginBottom: 4 }}>
+                        {m.role} · {m.provider_key} · {m.model_id}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text2)", lineHeight: 1.5 }}>
+                        {(m.output_json ?? m.messages_json).slice(0, 220)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ padding: "18px 18px", overflow: "auto", flex: 1 }}>
@@ -224,6 +253,7 @@ export const DevPanel = () => {
                   ["Model", "claude-haiku-4-5"],
                   ["Session ID", "sess-20260421-001"],
                   ["Uptime", stats ? fmt.uptime(stats.session_uptime_min) : "—"],
+                  ["Cycle", cycleState],
                   ["Events", `${events.length}`],
                 ] as [string, string][]
               ).map(([k, v]) => (
