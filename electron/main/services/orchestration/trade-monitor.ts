@@ -79,7 +79,7 @@ export class TradeMonitor {
     for (const trade of predictionTrades) {
       const resolutionTime = readResolutionTime(trade.instrumentMetadataJson);
       if (resolutionTime && resolutionTime.getTime() <= Date.now()) {
-        await this.closePredictionTrade(trade, "Prediction market reached resolution time.");
+        await this.closePredictionTrade(trade);
       }
     }
 
@@ -88,35 +88,32 @@ export class TradeMonitor {
         const openedAt = new Date(trade.opened_at ?? trade.created_at).getTime();
         const ageDays = (Date.now() - openedAt) / (1000 * 60 * 60 * 24);
         if (ageDays > maxHoldDays) {
-          await this.closePredictionTrade(trade, `Prediction market exceeded max hold of ${maxHoldDays} days.`);
+          await this.closePredictionTrade(trade);
         }
       }
     }
 
     if (maxExposureUsd != null) {
-      let remaining = this.tradesRepo
+      const remaining = this.tradesRepo
         .listOpenAndPending(this.sessionId)
         .filter((trade) => trade.status === "open" && trade.instrumentType === "prediction_market");
       let exposure = remaining.reduce((sum, trade) => sum + trade.position_size_usd, 0);
       for (const trade of remaining.sort((a, b) => new Date(a.opened_at ?? a.created_at).getTime() - new Date(b.opened_at ?? b.created_at).getTime())) {
         if (exposure <= maxExposureUsd) break;
-        await this.closePredictionTrade(trade, `Prediction-market exposure exceeded $${maxExposureUsd}.`);
+        await this.closePredictionTrade(trade);
         exposure -= trade.position_size_usd;
       }
     }
   }
 
-  private async closePredictionTrade(
-    trade: ReturnType<TradesRepo["require"]>,
-    reason: string,
-  ): Promise<void> {
+  private async closePredictionTrade(trade: ReturnType<TradesRepo["require"]>): Promise<void> {
     if (!trade.broker_order_id || !trade.brokerAccountId) return;
     const adapter = await this.brokerRegistry.get(trade.brokerAccountId);
     const result = await adapter.closeOrder(trade.broker_order_id);
-    this.closeTrade(trade.id, result.realizedPnlUsd, reason);
+    this.closeTrade(trade.id, result.realizedPnlUsd);
   }
 
-  private closeTrade(tradeId: string, pnl: number, _reason?: string) {
+  private closeTrade(tradeId: string, pnl: number) {
     const closed = this.tradesRepo.updateStatus(tradeId, "closed", pnl);
     this.capitalReservation.releaseOnClose(tradeId);
     this.eventBus.emit("trade_closed", closed);

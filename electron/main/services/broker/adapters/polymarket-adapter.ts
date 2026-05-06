@@ -10,8 +10,10 @@ import type {
   BrokerOrderResult,
   BrokerPosition,
   CloseResult,
+  MarketDiscoveryAdapter,
   MarketSnapshot,
   OrderStatus,
+  PolymarketMarketRow,
 } from "./broker-adapter";
 
 type PolymarketCredentials = {
@@ -29,7 +31,7 @@ type PredictionInstrumentMetadata = {
   resolutionTime?: string;
 };
 
-export class PolymarketAdapter implements BrokerAdapter {
+export class PolymarketAdapter implements BrokerAdapter, MarketDiscoveryAdapter {
   readonly brokerType = "polymarket";
   readonly supportedInstrumentClasses = ["prediction_market"] as const satisfies readonly InstrumentClass[];
 
@@ -186,8 +188,17 @@ export class PolymarketAdapter implements BrokerAdapter {
     return new ClobClient(host, chainId, walletClient, creds, 0, funderAddress, undefined, undefined, undefined, undefined, undefined, undefined, true);
   }
 
+  async fetchMarketCandidates(): Promise<PolymarketMarketRow[]> {
+    const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=25");
+    if (!response.ok) {
+      return [];
+    }
+    return (await response.json()) as PolymarketMarketRow[];
+  }
+
   private async resolveReferencePrice(client: ClobClient, tokenId: string): Promise<number> {
     const raw = await client.getLastTradePrice(tokenId).catch(() => null);
+    // reason: SDK getLastTradePrice returns number | { price: string | number } depending on market state
     const price = typeof raw === "number" ? raw : Number((raw as { price?: string | number } | null)?.price ?? 0);
     return price > 0 ? price : 0.5;
   }
@@ -226,15 +237,16 @@ function parseConditionId(instrumentSymbol: string): string {
 
 function extractOrderId(response: unknown): string {
   if (typeof response === "object" && response !== null) {
-    const candidate = (response as { orderID?: unknown; orderId?: unknown; id?: unknown }).orderID
-      ?? (response as { orderID?: unknown; orderId?: unknown; id?: unknown }).orderId
-      ?? (response as { orderID?: unknown; orderId?: unknown; id?: unknown }).id;
+    // reason: CLOB client returns untyped JSON; field name varies by order type
+    const obj = response as { orderID?: unknown; orderId?: unknown; id?: unknown };
+    const candidate = obj.orderID ?? obj.orderId ?? obj.id;
     if (typeof candidate === "string" && candidate.trim()) return candidate;
   }
   throw new AppError("Polymarket did not return an order id.", "BROKER_ERROR");
 }
 
 function pickFirstToken(market: unknown): { outcome: "YES" | "NO" | null; price: number | null } | null {
+  // reason: CLOB client returns untyped market objects; narrow before field access
   const tokens = (market as { tokens?: Array<{ outcome?: unknown; price?: unknown }> } | null)?.tokens;
   const token = Array.isArray(tokens) ? tokens[0] : null;
   if (!token) return null;
@@ -244,11 +256,13 @@ function pickFirstToken(market: unknown): { outcome: "YES" | "NO" | null; price:
 }
 
 function readQuestion(market: unknown): string | null {
+  // reason: CLOB client returns untyped market objects; narrow before field access
   const question = (market as { question?: unknown } | null)?.question;
   return typeof question === "string" ? question : null;
 }
 
 function readMarketResolutionTime(market: unknown): Date | null {
+  // reason: CLOB client returns untyped market objects; field name varies between REST endpoints
   const raw = (market as { endDate?: unknown; end_date?: unknown } | null)?.endDate
     ?? (market as { endDate?: unknown; end_date?: unknown } | null)?.end_date;
   if (typeof raw !== "string") return null;

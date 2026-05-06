@@ -1,12 +1,13 @@
 import { ipcMain } from "electron";
 import {
   strategyAiRolesSaveSchema,
+  strategyGetProviderModelsSchema,
   strategyProfileSaveSchema,
+  strategyResetPromptSchema,
   strategyRiskConfigSaveSchema,
   strategyTimeframeConfigSaveSchema,
 } from "@electron/shared/schemas";
 import { channels } from "@electron/shared/channels";
-import type { AgentRole } from "@/lib/types";
 import type { AppServices } from "../services/app-services";
 import { MODEL_CATALOG } from "../services/ai/provider-model-catalog";
 import { handle } from "./handle";
@@ -61,7 +62,7 @@ export function registerStrategyHandlers(services: AppServices): void {
   });
 
   handle(ipcMain, channels.strategy.getProviderModels, async (payload) => {
-    const providerKey = (payload as { providerKey: string }).providerKey;
+    const { providerKey } = strategyGetProviderModelsSchema.parse(payload);
     const provider = services.repos.providerAccounts.find(providerKey);
     if (!provider || provider.category !== "ai") {
       return { models: [] };
@@ -70,7 +71,7 @@ export function registerStrategyHandlers(services: AppServices): void {
   });
 
   handle(ipcMain, channels.strategy.resetPrompt, async (payload) => {
-    const role = (payload as { role: AgentRole }).role;
+    const { role } = strategyResetPromptSchema.parse(payload);
     return services.strategyContext.resetPrompt(role);
   });
 }

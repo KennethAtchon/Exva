@@ -3,8 +3,10 @@ import { isSessionEditable } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/errors";
 import { channels } from "@electron/shared/channels";
 import {
+  sessionArchiveSchema,
   sessionCreateInputSchema,
   sessionDuplicateInputSchema,
+  sessionFocusSchema,
   sessionIdParamSchema,
   sessionListFiltersSchema,
   sessionUpdateInputSchema,
@@ -35,7 +37,7 @@ export function registerSessionHandlers(services: AppServices): void {
   });
 
   handle(ipcMain, channels.session.focus, async (payload) => {
-    const id = (payload as { id: string }).id;
+    const { id } = sessionFocusSchema.parse(payload);
     services.repos.session.setFocus(id);
     return { workspaceViewMode: "session" as const, focusedSessionId: id };
   });
@@ -50,7 +52,7 @@ export function registerSessionHandlers(services: AppServices): void {
   });
 
   handle(ipcMain, channels.session.archive, async (payload) => {
-    const id = (payload as { id: string }).id;
+    const { id } = sessionArchiveSchema.parse(payload);
     const session = services.repos.session.requireById(id);
     if (session.status === "active" || session.status === "paused") {
       throw new AppError("Stop the session before archiving it.", "INVALID_TRANSITION", { id });

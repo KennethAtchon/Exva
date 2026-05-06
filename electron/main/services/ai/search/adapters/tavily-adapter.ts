@@ -1,3 +1,4 @@
+import { AppError } from "@electron/shared/errors";
 import type { SearchAdapter, SearchResult } from "../search-types";
 
 function normalize(results: unknown[]): string {
@@ -31,7 +32,7 @@ export class TavilyAdapter implements SearchAdapter {
       }),
     });
     if (!response.ok) {
-      throw new Error(`Tavily search failed with ${response.status}`);
+      throw new AppError(`Tavily search failed with ${response.status}`, "PROVIDER_UNREACHABLE");
     }
     const body = (await response.json()) as { results?: unknown[] };
     return { results: normalize(body.results ?? []) };

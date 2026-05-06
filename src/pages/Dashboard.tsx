@@ -9,7 +9,7 @@ import { useTradeStore } from "@/store/tradeStore";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { PendingApprovalsPanel } from "@/components/approvals/PendingApprovalsPanel";
-import type { AgentRole, ApprovalSummary, DashboardStats, EventRow, EventSourceType, Trade } from "@/lib/types";
+import type { ApprovalSummary, DashboardStats, EventRow, EventSourceType, Trade } from "@/lib/types";
 
 const AGENT_PALETTE: Partial<Record<EventSourceType, { color: string; label: string; bg: string }>> = {
   analyst_technical: { color: "#34d399", label: "Technical", bg: "rgba(52,211,153,0.07)" },
@@ -135,24 +135,23 @@ const TradesPanel = () => {
 
 const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
   const ap = ev.agent_type ? AGENT_PALETTE[ev.agent_type] : null;
-  const isAgent = !!ap;
   return (
     <div style={{ display: "flex", gap: 0, position: "relative" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 32, flexShrink: 0, paddingTop: 14 }}>
         <div
           style={{
             width: 8, height: 8, borderRadius: "50%",
-            background: isAgent ? ap!.color : LEVEL_COLOR[ev.level],
+            background: ap ? ap.color : LEVEL_COLOR[ev.level],
             flexShrink: 0, border: "2px solid var(--surface)",
-            boxShadow: isAgent ? `0 0 6px ${ap!.color}60` : "none",
+            boxShadow: ap ? `0 0 6px ${ap.color}60` : "none",
           }}
         />
         {!isLast && <div style={{ width: 1, flex: 1, minHeight: 8, background: "var(--border)", marginTop: 4 }} />}
       </div>
       <div style={{ flex: 1, paddingBottom: 10, paddingRight: 16, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: isAgent ? 6 : 0, paddingTop: 10 }}>
-          {isAgent ? (
-            <span style={{ fontSize: 11, fontWeight: 600, color: ap!.color, letterSpacing: "0.02em" }}>{ap!.label}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: ap ? 6 : 0, paddingTop: 10 }}>
+          {ap ? (
+            <span style={{ fontSize: 11, fontWeight: 600, color: ap.color, letterSpacing: "0.02em" }}>{ap.label}</span>
           ) : (
             <span style={{ fontSize: 11, color: LEVEL_COLOR[ev.level], fontFamily: "var(--font-mono)", fontWeight: 600, letterSpacing: "0.04em" }}>{ev.level}</span>
           )}
@@ -165,8 +164,8 @@ const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
             {fmt.time(ev.created_at)}
           </span>
         </div>
-        {isAgent ? (
-          <div style={{ background: ap!.bg, borderLeft: `2px solid ${ap!.color}`, borderRadius: "0 8px 8px 0", padding: "8px 10px" }}>
+        {ap ? (
+          <div style={{ background: ap.bg, borderLeft: `2px solid ${ap.color}`, borderRadius: "0 8px 8px 0", padding: "8px 10px" }}>
             <span style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.55 }}>{ev.message}</span>
           </div>
         ) : (

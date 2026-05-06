@@ -154,6 +154,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
   );
   const logger = createLogger("app-services");
 
+  // reason: forward reference — createTradeMonitor closure reads runtimeManager before it's assigned below
+  // eslint-disable-next-line prefer-const
   let runtimeManager: SessionRuntimeManager;
   const orchestratorDepsBase: OrchestratorDeps = {
     sessionRepo: repos.session,

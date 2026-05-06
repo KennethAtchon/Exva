@@ -209,3 +209,18 @@ export const sessionDuplicateInputSchema = z.object({
 });
 
 export const sessionIdParamSchema = z.object({ sessionId: z.string().min(1) });
+
+export const sessionFocusSchema = z.object({ id: z.string().min(1) });
+export const sessionArchiveSchema = z.object({ id: z.string().min(1) });
+
+export const workspacePrefsPatchSchema = z
+  .object({
+    globalIncludeArchived: z.boolean().optional(),
+    defaultSearchProviderId: z.string().nullable().optional(),
+    capitalAllocationMode: z.enum(["per_session_only", "shared_global_pool"]).optional(),
+    globalCapitalPoolUsd: z.number().nullable().optional(),
+  })
+  .strict();
+
+export const strategyGetProviderModelsSchema = z.object({ providerKey: z.string().min(1) });
+export const strategyResetPromptSchema = z.object({ role: agentRoleSchema });

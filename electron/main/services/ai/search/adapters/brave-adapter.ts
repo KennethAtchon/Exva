@@ -1,3 +1,4 @@
+import { AppError } from "@electron/shared/errors";
 import type { SearchAdapter, SearchResult } from "../search-types";
 
 function toSearchSummary(items: unknown[]): string {
@@ -30,7 +31,7 @@ export class BraveAdapter implements SearchAdapter {
       },
     });
     if (!response.ok) {
-      throw new Error(`Brave search failed with ${response.status}`);
+      throw new AppError(`Brave search failed with ${response.status}`, "PROVIDER_UNREACHABLE");
     }
     const body = (await response.json()) as { web?: { results?: unknown[] } };
     const results = toSearchSummary(body.web?.results ?? []);

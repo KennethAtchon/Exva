@@ -14,6 +14,7 @@ export function handle<T>(ipcMain: IpcMain, channel: string, handler: Handler<T>
       const ipcError = toIpcError(error);
       logger.error({ err: error, channel, code: ipcError.code }, "ipc handler failed");
       const wrapped = new Error(ipcError.message);
+      // reason: Electron only serializes plain Error across the context bridge; we attach code so the renderer can distinguish error types without message-matching
       (wrapped as Error & { code?: string }).code = ipcError.code;
       throw wrapped;
     }

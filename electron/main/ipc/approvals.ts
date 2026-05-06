@@ -27,7 +27,7 @@ export async function decideApproval(
       tradeId: approval.tradeId,
       status: "rejected",
     });
-    return { status: "rejected", resolvedAt: resolved.resolvedAt! };
+    return { status: "rejected", resolvedAt: resolved.resolvedAt ?? new Date().toISOString() };
   }
 
   const runtime = services.runtimeManager.get(approval.sessionId);
@@ -58,7 +58,7 @@ export async function decideApproval(
     status: "approved",
   });
 
-  return { status: "approved", resolvedAt: resolved.resolvedAt! };
+  return { status: "approved", resolvedAt: resolved.resolvedAt ?? new Date().toISOString() };
 }
 
 function parseConfidenceFromSummary(json: string): number | undefined {

@@ -1,7 +1,7 @@
 import PQueue from "p-queue";
 import { toLegacySessionConfig, type EventSourceType, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
-import type { OrderRequest } from "../broker/adapters/broker-adapter";
+import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
 
@@ -626,13 +626,13 @@ export class AgentOrchestrator {
   }
 
   private inferInstrumentClass(symbol: string, classes: InstrumentClass[]): InstrumentClass {
-    if (classes.length === 1) return classes[0]!;
+    if (classes.length === 1) return classes[0] ?? "stock";
     const upper = symbol.toUpperCase();
     if (classes.includes("crypto") && upper.includes("-")) return "crypto";
     if (classes.includes("futures") && /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d{1,2}$/i.test(upper)) return "futures";
     if (classes.includes("prediction_market") && symbol.startsWith("pm:")) return "prediction_market";
     if (classes.includes("stock")) return "stock";
-    return classes[0]!;
+    return classes[0] ?? "stock";
   }
 
   private parseManualInstrumentLine(line: string, classes: InstrumentClass[]): ResolvedInstrument {
@@ -718,12 +718,15 @@ export class AgentOrchestrator {
   }
 
   private async fetchPredictionMarketCandidates(): Promise<ResolvedInstrument[]> {
-    const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=25");
-    if (!response.ok) {
-      this.emitEvent("WARN", null, `Polymarket candidate fetch failed: ${response.status}`);
+    let rows: PolymarketMarketRow[];
+    try {
+      const { adapter } = await this.deps.brokerRouting.resolveAdapter(this.sessionId, "prediction_market");
+      if (!isMarketDiscoveryAdapter(adapter)) return [];
+      rows = await adapter.fetchMarketCandidates();
+    } catch {
+      this.emitEvent("WARN", null, "Polymarket candidate fetch failed: no adapter or fetch error");
       return [];
     }
-    const rows = (await response.json()) as Array<Record<string, unknown>>;
     const out: Array<ResolvedInstrument & { score: number }> = [];
 
     for (const row of rows) {
@@ -736,6 +739,7 @@ export class AgentOrchestrator {
       const tokens = Array.isArray(row.tokens) ? row.tokens : [];
       if (!conditionId || !question || tokens.length === 0) continue;
 
+      // reason: Gamma API returns tokens as untyped JSON; narrowing outcome and token_id before use
       const yes = tokens.find((token) => token && typeof token === "object" && (token as { outcome?: unknown }).outcome === "Yes");
       const no = tokens.find((token) => token && typeof token === "object" && (token as { outcome?: unknown }).outcome === "No");
       const yesTokenId = typeof (yes as { token_id?: unknown } | undefined)?.token_id === "string" ? (yes as { token_id: string }).token_id : null;
@@ -770,7 +774,9 @@ export class AgentOrchestrator {
     return out
       .sort((a, b) => b.score - a.score)
       .slice(0, 20)
-      .map(({ score: _score, ...instrument }) => instrument);
+      .map(({ symbol, instrumentClass, instrumentDisplayName, predictionOutcome, instrumentMetadataJson }): ResolvedInstrument => ({
+        symbol, instrumentClass, instrumentDisplayName, predictionOutcome, instrumentMetadataJson,
+      }));
   }
 }
 

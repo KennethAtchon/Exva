@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import { AppError } from "@electron/shared/errors";
 import { channels } from "@electron/shared/channels";
+import { workspacePrefsPatchSchema } from "@electron/shared/schemas";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
 
@@ -15,8 +16,8 @@ export function registerWorkspaceHandlers(services: AppServices): void {
   });
 
   handle(ipcMain, channels.workspace.prefsPatch, async (payload) => {
+    const patch = workspacePrefsPatchSchema.parse(payload ?? {});
     const current = services.repos.workspacePreferences.get();
-    const patch = (payload ?? {}) as Partial<Omit<typeof current, "id">>;
     const next = { ...current, ...patch };
 
     if (next.capitalAllocationMode === "shared_global_pool") {

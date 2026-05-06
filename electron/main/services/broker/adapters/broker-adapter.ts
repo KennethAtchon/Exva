@@ -73,3 +73,25 @@ export interface BrokerAdapter {
   getOrderStatus(orderId: string): Promise<OrderStatus>;
   closeOrder(orderId: string): Promise<CloseResult>;
 }
+
+/** Raw row shape returned by Polymarket Gamma REST API. */
+export interface PolymarketMarketRow {
+  conditionId?: unknown;
+  question?: unknown;
+  slug?: unknown;
+  category?: unknown;
+  endDate?: unknown;
+  liquidity?: unknown;
+  liquidityClob?: unknown;
+  volume?: unknown;
+  tokens?: unknown;
+}
+
+/** Implemented by adapters that can enumerate available markets (e.g. Polymarket). */
+export interface MarketDiscoveryAdapter {
+  fetchMarketCandidates(): Promise<PolymarketMarketRow[]>;
+}
+
+export function isMarketDiscoveryAdapter(adapter: BrokerAdapter): adapter is BrokerAdapter & MarketDiscoveryAdapter {
+  return "fetchMarketCandidates" in adapter && typeof (adapter as Partial<MarketDiscoveryAdapter>).fetchMarketCandidates === "function";
+}
