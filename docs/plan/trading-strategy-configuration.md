@@ -19,24 +19,28 @@ This must be fixed now because the harness plan depends on a canonical strategy 
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Replace bull/bear advocacy with methodology-based analysts | Agents research through different lenses rather than forcing opposite conclusions |
-| 2 | Elevate the instrument selector to a first-class universe researcher | Discovery happens before analysis and gates the rest of the cycle |
-| 3 | Separate strategy, risk, and timeframe configuration into focused tables | Risk can change without rewriting strategy intent, and timeframe can evolve independently |
-| 4 | Compose an authoritative strategy brief and inject it into every agent run | Every agent receives the same strategy/risk/timeframe ground truth |
-| 5 | Make strategy context fully auditable | `agent_messages.strategy_snapshot_json` stores the exact injected strategy state for each run |
-| 6 | Add a complete prediction-market domain model and Polymarket execution path | A prediction-market session can discover, analyze, size, place, monitor, and close trades correctly |
+
+| #   | Goal                                                                        | Success Looks Like                                                                                  |
+| --- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 1   | Replace bull/bear advocacy with methodology-based analysts                  | Agents research through different lenses rather than forcing opposite conclusions                   |
+| 2   | Elevate the instrument selector to a first-class universe researcher        | Discovery happens before analysis and gates the rest of the cycle                                   |
+| 3   | Separate strategy, risk, and timeframe configuration into focused tables    | Risk can change without rewriting strategy intent, and timeframe can evolve independently           |
+| 4   | Compose an authoritative strategy brief and inject it into every agent run  | Every agent receives the same strategy/risk/timeframe ground truth                                  |
+| 5   | Make strategy context fully auditable                                       | `agent_messages.strategy_snapshot_json` stores the exact injected strategy state for each run       |
+| 6   | Add a complete prediction-market domain model and Polymarket execution path | A prediction-market session can discover, analyze, size, place, monitor, and close trades correctly |
+
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Backtesting and parameter optimization | Separate product surface |
-| 2 | Automatic regime switching between strategies | Future iteration |
-| 3 | Option spreads or advanced derivatives strategies | Execution adapters do not support them |
-| 4 | Cross-session shared strategy presets with version history | Templates remain latest-snapshot only in this phase |
-| 5 | Fully automated prompt mutation from trade autopsies | Human-initiated only |
+
+| #   | Non-Goal                                                   | Reason                                              |
+| --- | ---------------------------------------------------------- | --------------------------------------------------- |
+| 1   | Backtesting and parameter optimization                     | Separate product surface                            |
+| 2   | Automatic regime switching between strategies              | Future iteration                                    |
+| 3   | Option spreads or advanced derivatives strategies          | Execution adapters do not support them              |
+| 4   | Cross-session shared strategy presets with version history | Templates remain latest-snapshot only in this phase |
+| 5   | Fully automated prompt mutation from trade autopsies       | Human-initiated only                                |
+
 
 ---
 
@@ -44,13 +48,15 @@ This must be fixed now because the harness plan depends on a canonical strategy 
 
 **Current repo reality**
 
-| Area | Current state | Gap this plan closes |
-|---|---|---|
-| `session_strategies` | One table mixes strategy-ish fields, risk fields, and timeframe fields | No clean ownership boundaries |
-| `strategy-prompt-context.ts` | Only prepends timeframe/horizon context | No full strategy/risk prompt context |
-| `AgentRole` union | `researcher_bull`, `researcher_bear`, `reviewer`, `decision_maker`, `instrument_selector` | Wrong analyst semantics |
-| `AiRuntime.runResearcher()` | Chooses role by bull/bear stance | No methodology-based routing |
-| `Trade` / broker domain | Only understands `stock`, `crypto`, `futures` and `BUY`/`SELL` | Cannot represent Polymarket YES/NO outcome positions |
+
+| Area                         | Current state                                                                             | Gap this plan closes                                 |
+| ---------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `session_strategies`         | One table mixes strategy-ish fields, risk fields, and timeframe fields                    | No clean ownership boundaries                        |
+| `strategy-prompt-context.ts` | Only prepends timeframe/horizon context                                                   | No full strategy/risk prompt context                 |
+| `AgentRole` union            | `researcher_bull`, `researcher_bear`, `reviewer`, `decision_maker`, `instrument_selector` | Wrong analyst semantics                              |
+| `AiRuntime.runResearcher()`  | Chooses role by bull/bear stance                                                          | No methodology-based routing                         |
+| `Trade` / broker domain      | Only understands `stock`, `crypto`, `futures` and `BUY`/`SELL`                            | Cannot represent Polymarket YES/NO outcome positions |
+
 
 **Relevant current files**
 
@@ -116,10 +122,12 @@ Both roles look at the same instrument and are rewarded for arguing, not investi
 
 **Recommendation**
 
-| Old | New | What it owns |
-|---|---|---|
-| `researcher_bull` | `analyst_technical` | Price, volume, market structure, indicator state, support/resistance |
-| `researcher_bear` | `analyst_fundamental` | Earnings, growth, valuation, sector context, catalysts, macro/news |
+
+| Old               | New                   | What it owns                                                         |
+| ----------------- | --------------------- | -------------------------------------------------------------------- |
+| `researcher_bull` | `analyst_technical`   | Price, volume, market structure, indicator state, support/resistance |
+| `researcher_bear` | `analyst_fundamental` | Earnings, growth, valuation, sector context, catalysts, macro/news   |
+
 
 **Rules**
 
@@ -319,12 +327,14 @@ instrument_metadata_json TEXT
 
 ### Order semantics
 
-| User intent | Stored `side` | Stored `predictionOutcome` | Meaning |
-|---|---|---|---|
-| Open YES position | `BUY` | `YES` | Buy YES shares |
-| Open NO position | `BUY` | `NO` | Buy NO shares |
-| Exit YES early | `SELL` | `YES` | Sell YES shares already owned |
-| Exit NO early | `SELL` | `NO` | Sell NO shares already owned |
+
+| User intent       | Stored `side` | Stored `predictionOutcome` | Meaning                       |
+| ----------------- | ------------- | -------------------------- | ----------------------------- |
+| Open YES position | `BUY`         | `YES`                      | Buy YES shares                |
+| Open NO position  | `BUY`         | `NO`                       | Buy NO shares                 |
+| Exit YES early    | `SELL`        | `YES`                      | Sell YES shares already owned |
+| Exit NO early     | `SELL`        | `NO`                       | Sell NO shares already owned  |
+
 
 This avoids overloading `BUY` to mean YES and `SELL` to mean NO.
 
@@ -356,17 +366,20 @@ This avoids overloading `BUY` to mean YES and `SELL` to mean NO.
 
 Use free text and a few extra columns on the legacy blob.
 
-| Dimension | Assessment |
-|---|---|
-| Complexity | Low |
-| Performance | Neutral |
-| Reliability | Poor validation and poor auditability |
-| Cost | Low |
-| Reversibility | High |
-| Stack fit | Short-term only |
-| Team readiness | High |
+
+| Dimension      | Assessment                            |
+| -------------- | ------------------------------------- |
+| Complexity     | Low                                   |
+| Performance    | Neutral                               |
+| Reliability    | Poor validation and poor auditability |
+| Cost           | Low                                   |
+| Reversibility  | High                                  |
+| Stack fit      | Short-term only                       |
+| Team readiness | High                                  |
+
 
 Risks:
+
 - Strategy intent remains ambiguous.
 - Prompt injection stays inconsistent.
 - Polymarket still has no canonical domain model.
@@ -375,17 +388,20 @@ Risks:
 
 Keep one table but add strategy-type and entry/exit columns.
 
-| Dimension | Assessment |
-|---|---|
-| Complexity | Medium |
-| Performance | Neutral |
-| Reliability | Better than free text, still conflated concerns |
-| Cost | Moderate |
-| Reversibility | Medium |
-| Stack fit | Acceptable but messy |
-| Team readiness | High |
+
+| Dimension      | Assessment                                      |
+| -------------- | ----------------------------------------------- |
+| Complexity     | Medium                                          |
+| Performance    | Neutral                                         |
+| Reliability    | Better than free text, still conflated concerns |
+| Cost           | Moderate                                        |
+| Reversibility  | Medium                                          |
+| Stack fit      | Acceptable but messy                            |
+| Team readiness | High                                            |
+
 
 Risks:
+
 - Continues mixing strategy, risk, and timeframe.
 - Harder to reason about migration boundaries.
 - Does not force a proper Polymarket domain model.
@@ -394,17 +410,20 @@ Risks:
 
 Use dedicated tables, a structured strategy brief composer, methodology-based analysts, and a canonical strategy snapshot stored with each agent trace.
 
-| Dimension | Assessment |
-|---|---|
-| Complexity | High but phaseable |
-| Performance | Negligible prompt cost increase |
-| Reliability | Best validation, auditability, and cross-plan consistency |
-| Cost | Moderate engineering effort |
-| Reversibility | High while compatibility table exists |
-| Stack fit | Best match for the harness direction |
-| Team readiness | Good |
+
+| Dimension      | Assessment                                                |
+| -------------- | --------------------------------------------------------- |
+| Complexity     | High but phaseable                                        |
+| Performance    | Negligible prompt cost increase                           |
+| Reliability    | Best validation, auditability, and cross-plan consistency |
+| Cost           | Moderate engineering effort                               |
+| Reversibility  | High while compatibility table exists                     |
+| Stack fit      | Best match for the harness direction                      |
+| Team readiness | Good                                                      |
+
 
 Risks:
+
 - Requires a compatibility layer during cutover.
 - Depends on harness snapshot injection landing cleanly.
 - Polymarket touches multiple domain surfaces at once.
@@ -633,7 +652,7 @@ Do not force a side.
 
 ### Phase 6: Prediction-Market Domain + Polymarket Adapter
 
-**Status:** In Progress
+**Status:** Implemented 2026-05-05
 
 **Goal:** Make `prediction_market` work end-to-end using the canonical domain model from Section 8.
 
@@ -670,27 +689,15 @@ Do not force a side.
 
 **Implementation notes:**
 
-- **Done in this slice:**
-- Prediction-market instrument/trade/approval fields now exist in shared types and DB persistence.
-- A `polymarket` broker type is wired through broker-account UI/helpers/registry, and `@polymarket/clob-client` is installed for the adapter path.
-- `PolymarketAdapter` exists with authenticated market-order placement, price lookup, and outcome-token routing from stored metadata.
-- Prediction-market selector candidates are hydrated from Gamma and passed to the universe researcher as canonical `pm:<conditionId>` rows with YES/NO metadata.
-- Prediction-market sessions dynamically use statistical/contextual prompt assets while keeping the persisted analyst role keys unchanged.
-- Risk now enforces per-order `max_exposure_usd` caps for prediction-market trades.
--
-- **Still remaining:**
-- Full live validation against real Polymarket credentials and real response payloads.
-- Deterministic monitor/close lifecycle for prediction-market positions beyond the current adapter/order path.
-- End-to-end prediction-market execution verification in an environment where the native SQLite test stack is working.
-- Category/liquidity/time-to-resolution ranking is still basic candidate hydration, not the full ranking pass described in the plan.
-- Traditional stop-loss semantics are not yet fully specialized beyond the existing `none`/exposure-driven path.
--
 - Added first-class `prediction_market` support to the shared instrument/trade/approval domain plus DB columns for `prediction_outcome`, `instrument_display_name`, and `instrument_metadata_json`.
 - Added broker-account/UI wiring for a new `polymarket` broker type and installed `@polymarket/clob-client` for the adapter implementation.
-- Added `PolymarketAdapter` scaffolding with authenticated order placement, price lookup, and outcome-token routing based on stored metadata.
-- Prediction-market selector candidates are now hydrated from the Gamma API and passed to the universe researcher as canonical `pm:<conditionId>` rows with YES/NO token metadata.
+- Added `PolymarketAdapter` with authenticated order placement, price lookup, outcome-token routing, and outcome-leg close support based on stored metadata.
+- Prediction-market selector candidates are now hydrated from the Gamma API, ranked by liquidity/time-to-resolution/category availability, and passed to the universe researcher as canonical `pm:<conditionId>` rows with YES/NO token metadata.
 - Prediction-market sessions reuse persisted `analyst_technical` / `analyst_fundamental` role keys but dynamically load `analyst_statistical.md` / `analyst_contextual.md` prompts. This is an intentional implementation deviation to avoid widening the stored role set mid-cutover.
-- Remaining work: full live validation against Polymarket credentials/order responses, deterministic exposure/close lifecycle beyond per-order caps, and end-to-end prediction-market execution verification in an environment with working native test DB support.
+- Prediction-market trades now preserve outcome/display metadata through selector, decision, approval, order placement, trade history, and trade-detail/approval UI.
+- Deterministic prediction-market close rules are now wired in `TradeMonitor`: resolution-time close, max-hold close, and max-exposure breach close.
+- Kelly-style sizing is now applied for prediction-market trades when the decision maker supplies estimated and implied probabilities, capped by `max_position_usd` and `max_exposure_usd`.
+- Verification remains partially blocked in this environment: live Polymarket credentials are not available and DB-backed runtime tests still hit the local `better-sqlite3` ABI mismatch.
 
 ---
 
@@ -784,35 +791,39 @@ Prediction-market session:
 2. Filter by allowed category, liquidity floor, and time-to-resolution.
 3. Score on edge potential, fill likelihood, and exposure fit.
 4. Return shortlisted markets with canonical identity payload:
-   - `instrumentSymbol`
-   - `instrumentDisplayName`
-   - `predictionOutcome` candidates
-   - `instrumentMetadataJson`
+  - `instrumentSymbol`
+  - `instrumentDisplayName`
+  - `predictionOutcome` candidates
+  - `instrumentMetadataJson`
 
 ---
 
 ## 14. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|------------|--------|------------|
-| 1 | Compatibility layer drifts from the new tables during migration | Medium | High | One composite service owns read composition and mirror writes until cutover |
-| 2 | Analyst rename breaks UI/runtime references | High | Medium | Land code, prompt, DB, and UI rename in one phase |
-| 3 | Fundamental analyst prompt overreaches when fundamentals are unavailable | Medium | Medium | Prompt explicitly handles unavailable fundamentals and harness readiness gates stock symbols |
-| 4 | Polymarket key handling is unsafe | Medium | High | Reuse OS-keychain-backed `secrets-service` pattern; never log raw keys |
-| 5 | Kelly sizing overshoots on high-confidence markets | Medium | High | Cap by both `max_position_usd` and `max_exposure_usd` |
-| 6 | Legacy `session_strategies` never gets fully retired | Medium | Medium | Make Phase 5 an explicit cleanup gate with grep/test enforcement |
+
+| #   | Risk                                                                     | Likelihood | Impact | Mitigation                                                                                   |
+| --- | ------------------------------------------------------------------------ | ---------- | ------ | -------------------------------------------------------------------------------------------- |
+| 1   | Compatibility layer drifts from the new tables during migration          | Medium     | High   | One composite service owns read composition and mirror writes until cutover                  |
+| 2   | Analyst rename breaks UI/runtime references                              | High       | Medium | Land code, prompt, DB, and UI rename in one phase                                            |
+| 3   | Fundamental analyst prompt overreaches when fundamentals are unavailable | Medium     | Medium | Prompt explicitly handles unavailable fundamentals and harness readiness gates stock symbols |
+| 4   | Polymarket key handling is unsafe                                        | Medium     | High   | Reuse OS-keychain-backed `secrets-service` pattern; never log raw keys                       |
+| 5   | Kelly sizing overshoots on high-confidence markets                       | Medium     | High   | Cap by both `max_position_usd` and `max_exposure_usd`                                        |
+| 6   | Legacy `session_strategies` never gets fully retired                     | Medium     | Medium | Make Phase 5 an explicit cleanup gate with grep/test enforcement                             |
+
 
 ---
 
 ## 15. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|---|---|---|---|---|
-| Strategy-aware prompting | % AI runs with non-empty `agent_messages.strategy_snapshot_json` | 0% | 100% | DB query |
-| Analyst independence | % cycles where technical and fundamental analysts produce materially different evidence summaries | Unknown | 30-60% | Trace review / text diff heuristics |
-| Legacy cutover | Number of runtime reads from `session_strategies` | Many | 0 | grep + tests |
-| Polymarket support | End-to-end paper prediction-market trade succeeds | 0 | 1+ verified flow | Manual integration test |
-| UI clarity | Strategy and risk can be edited independently without hidden coupling | Poor | Complete | UX walkthrough + QA |
+
+| Goal                     | Metric                                                                                            | Baseline | Target           | How Measured                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------- | -------- | ---------------- | ----------------------------------- |
+| Strategy-aware prompting | % AI runs with non-empty `agent_messages.strategy_snapshot_json`                                  | 0%       | 100%             | DB query                            |
+| Analyst independence     | % cycles where technical and fundamental analysts produce materially different evidence summaries | Unknown  | 30-60%           | Trace review / text diff heuristics |
+| Legacy cutover           | Number of runtime reads from `session_strategies`                                                 | Many     | 0                | grep + tests                        |
+| Polymarket support       | End-to-end paper prediction-market trade succeeds                                                 | 0        | 1+ verified flow | Manual integration test             |
+| UI clarity               | Strategy and risk can be edited independently without hidden coupling                             | Poor     | Complete         | UX walkthrough + QA                 |
+
 
 ---
 
@@ -820,23 +831,27 @@ Prediction-market session:
 
 No implementation-blocking open questions remain. Only post-launch tuning questions remain:
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| 1 | Should `prediction_edge_threshold` default to 0.08 or 0.10 after paper results? | Ken | Post-launch tuning | Open |
-| 2 | Which Polymarket categories should be enabled first in live mode? | Ken | Post-launch tuning | Open |
-| 3 | Should custom strategy briefs allow section-level templates in v2? | Ken | Future UX iteration | Open |
+
+| #   | Question                                                                        | Owner | Needed By           | Status |
+| --- | ------------------------------------------------------------------------------- | ----- | ------------------- | ------ |
+| 1   | Should `prediction_edge_threshold` default to 0.08 or 0.10 after paper results? | Ken   | Post-launch tuning  | Open   |
+| 2   | Which Polymarket categories should be enabled first in live mode?               | Ken   | Post-launch tuning  | Open   |
+| 3   | Should custom strategy briefs allow section-level templates in v2?              | Ken   | Future UX iteration | Open   |
+
 
 ---
 
 ## 17. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|-------------|
-| Keep `researcher_bull` / `researcher_bear` | Preserves the wrong mental model and encourages advocacy over investigation |
-| Keep one mixed `session_strategies` table | Continues schema coupling and UI confusion |
-| Put `strategy_snapshot_json` on `agent_runs` only | Mixes summary metrics with replay-quality trace payloads |
-| Represent Polymarket YES/NO using `BUY` / `SELL` alone | Semantically wrong and breaks early-exit behavior |
-| Delay prediction markets until “later” | Leaves a known user requirement outside the model and forces more retrofitting later |
+
+| Option                                                 | Why Rejected                                                                         |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Keep `researcher_bull` / `researcher_bear`             | Preserves the wrong mental model and encourages advocacy over investigation          |
+| Keep one mixed `session_strategies` table              | Continues schema coupling and UI confusion                                           |
+| Put `strategy_snapshot_json` on `agent_runs` only      | Mixes summary metrics with replay-quality trace payloads                             |
+| Represent Polymarket YES/NO using `BUY` / `SELL` alone | Semantically wrong and breaks early-exit behavior                                    |
+| Delay prediction markets until “later”                 | Leaves a known user requirement outside the model and forces more retrofitting later |
+
 
 ---
 

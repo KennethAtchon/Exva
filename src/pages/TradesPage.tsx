@@ -236,8 +236,14 @@ export const TradesPage = () => {
                     {sessionLabel}
                   </span>
                 )}
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{t.instrumentSymbol}</span>
-                <Badge variant={t.side === "BUY" ? "success" : "danger"} size="sm">{t.side}</Badge>
+                <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{t.instrumentSymbol}</span>
+                  {t.instrumentDisplayName ? <span style={{ fontSize: 11, color: "var(--text3)", overflow: "hidden", textOverflow: "ellipsis" }}>{t.instrumentDisplayName}</span> : null}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {t.predictionOutcome ? <Badge variant="purple" size="sm">{t.predictionOutcome}</Badge> : null}
+                  <Badge variant={t.side === "BUY" ? "success" : "danger"} size="sm">{t.side}</Badge>
+                </div>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{fmt.usd(t.position_size_usd, 0)}</span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{t.entry_price != null ? fmt.usd(t.entry_price) : "—"}</span>
                 <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{isOpen && t.current_price != null ? fmt.usd(t.current_price) : "—"}</span>

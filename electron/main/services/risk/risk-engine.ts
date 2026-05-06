@@ -33,6 +33,9 @@ export class RiskEngine {
   validateDecision(input: DecisionRiskInput): RiskResult<OrderRequest> {
     const statsResult = this.checkStats(input.config, input.stats);
     if (!statsResult.allowed) return { allowed: false, reason: statsResult.reason };
+    if (input.order.sizeUsd <= 0) {
+      return { allowed: false, reason: "Position size must be greater than zero" };
+    }
     if (input.stats.open_trades >= input.config.max_concurrent_trades) {
       return { allowed: false, reason: "Maximum concurrent trades reached" };
     }

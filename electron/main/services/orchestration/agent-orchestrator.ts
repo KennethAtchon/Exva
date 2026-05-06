@@ -112,7 +112,13 @@ export class AgentOrchestrator {
     );
 
     const pipeline = await this.runAiPipeline(
-      { symbol: input.instrumentSymbol, instrumentClass: input.instrumentClass },
+      {
+        symbol: trade.instrumentSymbol,
+        instrumentClass: trade.instrumentType,
+        instrumentDisplayName: trade.instrumentDisplayName ?? undefined,
+        predictionOutcome: trade.predictionOutcome ?? null,
+        instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
+      },
       config,
     );
     if (!pipeline) return;
@@ -132,7 +138,13 @@ export class AgentOrchestrator {
 
     const nextTrade = this.buildTradeFromDecision(
       trade.id,
-      { symbol: input.instrumentSymbol, instrumentClass: input.instrumentClass },
+      {
+        symbol: trade.instrumentSymbol,
+        instrumentClass: trade.instrumentType,
+        instrumentDisplayName: trade.instrumentDisplayName ?? undefined,
+        predictionOutcome: trade.predictionOutcome ?? null,
+        instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
+      },
       config,
       fresh,
     );
@@ -310,6 +322,9 @@ export class AgentOrchestrator {
 
     const result = await adapter.placeOrder({
       instrumentSymbol: wireSymbol,
+      instrumentDisplayName: trade.instrumentDisplayName ?? null,
+      predictionOutcome: trade.predictionOutcome ?? null,
+      instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
       instrumentType: instrumentClass,
       side: riskOrder.side,
       sizeUsd: riskOrder.sizeUsd,
@@ -441,6 +456,7 @@ export class AgentOrchestrator {
   ): Trade {
     const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
     const prediction = this.resolvePredictionTradeFields(instrument, decision);
+    const positionSizeUsd = this.resolvePositionSizeUsd(instrument.instrumentClass, config, decision);
     return {
       id: tradeId,
       sessionId: this.sessionId,
@@ -452,7 +468,7 @@ export class AgentOrchestrator {
       instrumentType: instrument.instrumentClass,
       side: decision.side ?? "BUY",
       entry_price: null,
-      position_size_usd: Math.min(decision.sizeUsd ?? config.max_position_usd, config.max_position_usd),
+      position_size_usd: positionSizeUsd,
       stop_loss_price: null,
       take_profit_price: null,
       strategy: config.strategy,
@@ -476,6 +492,7 @@ export class AgentOrchestrator {
     const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
     const isTrade = decision.action === "trade";
     const prediction = this.resolvePredictionTradeFields(instrument, decision);
+    const positionSizeUsd = this.resolvePositionSizeUsd(instrument.instrumentClass, config, decision);
     return {
       id,
       sessionId: this.sessionId,
@@ -487,7 +504,7 @@ export class AgentOrchestrator {
       instrumentType: instrument.instrumentClass,
       side: decision.side ?? "BUY",
       entry_price: null,
-      position_size_usd: Math.min(decision.sizeUsd ?? config.max_position_usd, config.max_position_usd),
+      position_size_usd: positionSizeUsd,
       stop_loss_price: null,
       take_profit_price: null,
       strategy: config.strategy,
@@ -654,6 +671,37 @@ export class AgentOrchestrator {
     return { instrumentDisplayName, predictionOutcome, instrumentMetadataJson };
   }
 
+  private resolvePositionSizeUsd(
+    instrumentClass: InstrumentClass,
+    config: SessionConfig,
+    decision: DecisionOutput,
+  ): number {
+    if (instrumentClass !== "prediction_market") {
+      return Math.min(decision.sizeUsd ?? config.max_position_usd, config.max_position_usd);
+    }
+
+    const strategy = this.deps.strategyContextService.get(this.sessionId);
+    const capitalBase = Math.min(
+      this.deps.sessionRepo.requireById(this.sessionId).capitalLimitUsd,
+      strategy.riskConfig.maxExposureUsd ?? Number.POSITIVE_INFINITY,
+    );
+    const explicit = decision.sizeUsd ?? null;
+    const estimatedProb = decision.estimatedProb ?? null;
+    const impliedProb = decision.impliedProb ?? null;
+
+    if (explicit != null) {
+      return Math.min(explicit, config.max_position_usd, strategy.riskConfig.maxExposureUsd ?? Number.POSITIVE_INFINITY);
+    }
+
+    if (estimatedProb == null || impliedProb == null || capitalBase <= 0) {
+      return Math.min(config.max_position_usd, strategy.riskConfig.maxExposureUsd ?? config.max_position_usd);
+    }
+
+    const fullKelly = Math.max(0, (estimatedProb - impliedProb) / Math.max(1 - impliedProb, 0.01));
+    const sized = capitalBase * strategy.riskConfig.kellyFraction * fullKelly;
+    return Math.min(Math.max(sized, 0), config.max_position_usd, strategy.riskConfig.maxExposureUsd ?? Number.POSITIVE_INFINITY);
+  }
+
   private async buildSelectionInstructions(session: WorkspaceSession): Promise<string> {
     if (!session.instrumentClasses.includes("prediction_market")) {
       return session.instrumentScope;
@@ -676,7 +724,7 @@ export class AgentOrchestrator {
       return [];
     }
     const rows = (await response.json()) as Array<Record<string, unknown>>;
-    const out: ResolvedInstrument[] = [];
+    const out: Array<ResolvedInstrument & { score: number }> = [];
 
     for (const row of rows) {
       const conditionId = typeof row.conditionId === "string" ? row.conditionId : null;
@@ -684,6 +732,7 @@ export class AgentOrchestrator {
       const slug = typeof row.slug === "string" ? row.slug : null;
       const category = typeof row.category === "string" ? row.category : null;
       const resolutionTime = typeof row.endDate === "string" ? row.endDate : null;
+      const liquidity = Number(row.liquidity ?? row.liquidityClob ?? row.volume ?? 0);
       const tokens = Array.isArray(row.tokens) ? row.tokens : [];
       if (!conditionId || !question || tokens.length === 0) continue;
 
@@ -692,6 +741,10 @@ export class AgentOrchestrator {
       const yesTokenId = typeof (yes as { token_id?: unknown } | undefined)?.token_id === "string" ? (yes as { token_id: string }).token_id : null;
       const noTokenId = typeof (no as { token_id?: unknown } | undefined)?.token_id === "string" ? (no as { token_id: string }).token_id : null;
       if (!yesTokenId || !noTokenId) continue;
+
+      const timeScore = resolutionTime ? predictionResolutionScore(resolutionTime) : 0;
+      const categoryScore = category ? 10 : 0;
+      const score = Math.min(liquidity / 1000, 100) + timeScore + categoryScore;
 
       for (const [predictionOutcome, outcomeTokenId] of [["YES", yesTokenId], ["NO", noTokenId]] as const) {
         out.push({
@@ -706,13 +759,18 @@ export class AgentOrchestrator {
             yesOutcomeTokenId: yesTokenId,
             noOutcomeTokenId: noTokenId,
             category,
+            liquidity,
             resolutionTime,
           }),
+          score,
         });
       }
     }
 
-    return out.slice(0, 20);
+    return out
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 20)
+      .map(({ score: _score, ...instrument }) => instrument);
   }
 }
 
@@ -728,4 +786,14 @@ function remapPredictionMetadataForOutcome(
   };
   const outcomeTokenId = predictionOutcome === "YES" ? parsed.yesOutcomeTokenId : parsed.noOutcomeTokenId;
   return JSON.stringify({ ...parsed, outcomeTokenId: outcomeTokenId ?? parsed.outcomeTokenId });
+}
+
+function predictionResolutionScore(resolutionTime: string): number {
+  const ms = new Date(resolutionTime).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return 0;
+  const days = ms / (1000 * 60 * 60 * 24);
+  if (days <= 1) return 30;
+  if (days <= 7) return 20;
+  if (days <= 30) return 10;
+  return 4;
 }

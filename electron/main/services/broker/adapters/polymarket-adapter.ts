@@ -145,9 +145,12 @@ export class PolymarketAdapter implements BrokerAdapter {
     const order = await client.getOrder(orderId);
     const status = String(order.status ?? "").toLowerCase();
     const latestPrice = order.asset_id ? await this.resolveOptionalPrice(client, order.asset_id) : null;
+    const market = typeof order.market === "string" ? await this.getReadOnlyClient().getMarket(order.market).catch(() => null) : null;
+    const resolutionTime = readMarketResolutionTime(market);
+    const resolvedByTime = resolutionTime != null && resolutionTime.getTime() <= Date.now();
     return {
       brokerOrderId: order.id ?? orderId,
-      status: status === "live" || status === "delayed" ? "open" : "closed",
+      status: status === "live" || status === "delayed" || !resolvedByTime ? "open" : "closed",
       latestPrice,
       realizedPnlUsd: null,
     };
@@ -243,4 +246,12 @@ function pickFirstToken(market: unknown): { outcome: "YES" | "NO" | null; price:
 function readQuestion(market: unknown): string | null {
   const question = (market as { question?: unknown } | null)?.question;
   return typeof question === "string" ? question : null;
+}
+
+function readMarketResolutionTime(market: unknown): Date | null {
+  const raw = (market as { endDate?: unknown; end_date?: unknown } | null)?.endDate
+    ?? (market as { endDate?: unknown; end_date?: unknown } | null)?.end_date;
+  if (typeof raw !== "string") return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
 }

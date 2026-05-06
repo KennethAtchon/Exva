@@ -53,7 +53,11 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
               <DialogTitle id="approval-detail-title" className="text-lg text-[var(--text1)]">
                 {approval.instrumentSymbol}
               </DialogTitle>
+              {approval.instrumentDisplayName ? (
+                <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text2)" }}>{approval.instrumentDisplayName}</p>
+              ) : null}
               <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text3)" }}>
+                {approval.predictionOutcome ? `${approval.predictionOutcome} · ` : ""}
                 {approval.proposedSide} · {fmt.usd(approval.proposedSizeUsd, 0)} · {approval.brokerName}
               </p>
             </div>

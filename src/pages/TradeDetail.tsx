@@ -101,6 +101,7 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 22, fontWeight: 700, color: "var(--text1)" }}>
               {trade.instrumentSymbol}
             </span>
+            {trade.predictionOutcome ? <Badge variant="purple">{trade.predictionOutcome}</Badge> : null}
             <Badge variant={trade.side === "BUY" ? "success" : "danger"}>{trade.side}</Badge>
             <Badge variant={isOpen ? "success" : "default"}>{trade.status}</Badge>
           </div>
@@ -108,6 +109,10 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
         </div>
 
         <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
+          {trade.instrumentDisplayName ? (
+            <div style={{ padding: "0 24px 14px", color: "var(--text2)", fontSize: 13 }}>{trade.instrumentDisplayName}</div>
+          ) : null}
+
           <div style={ts.hero}>
             <div>
               <div style={ts.heroLabel}>{isOpen ? "Unrealized P&L" : "Final P&L"}</div>
@@ -163,6 +168,8 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
               {(
                 [
                   ["Position Size", fmt.usd(trade.position_size_usd)],
+                  ["Display Name", trade.instrumentDisplayName ?? "—"],
+                  ["Outcome", trade.predictionOutcome ?? "—"],
                   ["Broker ID", trade.broker_order_id ?? "—"],
                   ["Stop Loss", trade.stop_loss_price != null ? fmt.usd(trade.stop_loss_price) : "—"],
                   ["Take Profit", trade.take_profit_price != null ? fmt.usd(trade.take_profit_price) : "—"],

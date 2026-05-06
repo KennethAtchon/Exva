@@ -18,23 +18,27 @@ This gap matters now because the strategy plan is introducing strategy-aware pro
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Add a canonical AI runtime contract that supports message arrays, bounded tool-use loops, and raw execution traces | Provider adapters can return full run traces instead of text-only summaries |
-| 2 | Inject authoritative market, fundamentals, and news context before agents analyze an instrument | Analyst prompts include structured `## Market Data`, `## Fundamentals`, and `## News` blocks |
-| 3 | Run a pre-session research burst before the first trade | Session start triggers selector discovery, per-symbol analysis, and review before order placement |
-| 4 | Persist a complete audit trail for every agent run | `agent_runs` stores summary metrics and `agent_messages` stores full messages, tool calls, and strategy snapshot |
-| 5 | Keep monitoring non-LLM and restart the research loop after trade close | Broker polling, optional time-based exits, autopsy, and next-cycle restart all work without a monitor agent |
+
+| #   | Goal                                                                                                               | Success Looks Like                                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| 1   | Add a canonical AI runtime contract that supports message arrays, bounded tool-use loops, and raw execution traces | Provider adapters can return full run traces instead of text-only summaries                                      |
+| 2   | Inject authoritative market, fundamentals, and news context before agents analyze an instrument                    | Analyst prompts include structured `## Market Data`, `## Fundamentals`, and `## News` blocks                     |
+| 3   | Run a pre-session research burst before the first trade                                                            | Session start triggers selector discovery, per-symbol analysis, and review before order placement                |
+| 4   | Persist a complete audit trail for every agent run                                                                 | `agent_runs` stores summary metrics and `agent_messages` stores full messages, tool calls, and strategy snapshot |
+| 5   | Keep monitoring non-LLM and restart the research loop after trade close                                            | Broker polling, optional time-based exits, autopsy, and next-cycle restart all work without a monitor agent      |
+
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Real-time tick streaming | Daily and swing sessions only need bounded snapshots and periodic polling |
-| 2 | Fully autonomous unrestricted tool use for all roles | Deterministic injection plus bounded search is easier to audit and cheaper to run |
-| 3 | Cross-session collaborative research | Each session remains isolated; no shared agent memory in this phase |
-| 4 | Automatic prompt self-modification | Autopsy remains human review only |
-| 5 | Options-chain or advanced derivatives research | Current execution surface does not support it |
+
+| #   | Non-Goal                                             | Reason                                                                            |
+| --- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 1   | Real-time tick streaming                             | Daily and swing sessions only need bounded snapshots and periodic polling         |
+| 2   | Fully autonomous unrestricted tool use for all roles | Deterministic injection plus bounded search is easier to audit and cheaper to run |
+| 3   | Cross-session collaborative research                 | Each session remains isolated; no shared agent memory in this phase               |
+| 4   | Automatic prompt self-modification                   | Autopsy remains human review only                                                 |
+| 5   | Options-chain or advanced derivatives research       | Current execution surface does not support it                                     |
+
 
 ---
 
@@ -45,42 +49,40 @@ The harness is the infrastructure around the model: prompt assembly, structured 
 
 **Current state in code:**
 
-| Component | Current reality | Gap this plan closes |
-|---|---|---|
-| `ProviderAdapter` | Accepts `systemPrompt`, `userPrompt`, optional `tools`; returns only text/object, token counts, duration | Cannot expose message arrays, step telemetry, tool traces, or reasoning payloads |
-| `AiRuntime` | Runs one-shot roles and a structured instrument selector | No market-data injection, no bounded generic tool-use harness, no raw message logging |
-| `AgentOrchestrator` | Resolves instruments, then runs one symbol-level sequential cycle | No research burst, no per-cycle autopsy and restart |
-| `session_strategies` + `strategy-prompt-context.ts` | Only inject timeframe/horizon context today | No full strategy/risk snapshot injection |
-| `agent_runs` | Stores summary metrics only | No durable raw prompt, tool call, or strategy snapshot trail |
-| `TradeMonitor` | Polls every 5s regardless of holding style | No style-based cadence; no time-based exit service |
+
+| Component                                           | Current reality                                                                                          | Gap this plan closes                                                                  |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `ProviderAdapter`                                   | Accepts `systemPrompt`, `userPrompt`, optional `tools`; returns only text/object, token counts, duration | Cannot expose message arrays, step telemetry, tool traces, or reasoning payloads      |
+| `AiRuntime`                                         | Runs one-shot roles and a structured instrument selector                                                 | No market-data injection, no bounded generic tool-use harness, no raw message logging |
+| `AgentOrchestrator`                                 | Resolves instruments, then runs one symbol-level sequential cycle                                        | No research burst, no per-cycle autopsy and restart                                   |
+| `session_strategies` + `strategy-prompt-context.ts` | Only inject timeframe/horizon context today                                                              | No full strategy/risk snapshot injection                                              |
+| `agent_runs`                                        | Stores summary metrics only                                                                              | No durable raw prompt, tool call, or strategy snapshot trail                          |
+| `TradeMonitor`                                      | Polls every 5s regardless of holding style                                                               | No style-based cadence; no time-based exit service                                    |
+
 
 **Canonical cross-plan contracts**
 
 This plan depends on and standardizes the following contracts with `docs/plan/trading-strategy-configuration.md`:
 
 1. **Role names**
-   The authoritative role set after the strategy migration is:
-   - `analyst_technical`
-   - `analyst_fundamental`
-   - `reviewer`
-   - `decision_maker`
-   - `instrument_selector`
-
+  The authoritative role set after the strategy migration is:
+  - `analyst_technical`
+  - `analyst_fundamental`
+  - `reviewer`
+  - `decision_maker`
+  - `instrument_selector`
 2. **Audit ownership**
-   - `agent_runs` remains the summary table for cost, latency, final output text, and finish reason.
-   - `agent_messages` is the detailed trace table for raw messages, tool calls, structured output payloads, and `strategy_snapshot_json`.
-
+  - `agent_runs` remains the summary table for cost, latency, final output text, and finish reason.
+  - `agent_messages` is the detailed trace table for raw messages, tool calls, structured output payloads, and `strategy_snapshot_json`.
 3. **Strategy snapshot location**
-   The authoritative injected strategy/risk/timeframe snapshot is stored in `agent_messages.strategy_snapshot_json`, not `agent_runs`.
-
+  The authoritative injected strategy/risk/timeframe snapshot is stored in `agent_messages.strategy_snapshot_json`, not `agent_runs`.
 4. **Analyst data contract**
-   Stock analysis requires three injected blocks:
-   - `## Market Data`
-   - `## Fundamentals`
-   - `## News`
-
+  Stock analysis requires three injected blocks:
+  - `## Market Data`
+  - `## Fundamentals`
+  - `## News`
 5. **Reviewer execution model**
-   Reviewer is a bounded tool-use agent with `search_web` only and `maxSteps` 1-2. It is not a static synthesis-only role in this plan.
+  Reviewer is a bounded tool-use agent with `search_web` only and `maxSteps` 1-2. It is not a static synthesis-only role in this plan.
 
 **Related files in the current repo:**
 
@@ -130,17 +132,20 @@ The direct question was whether Exva needs a long-running AI monitor for open po
 
 Add a market-data snapshot to analyst prompts, keep the current sequential pipeline, and do no research burst or trace overhaul.
 
-| Dimension | Assessment |
-|---|---|
-| Complexity | Low |
-| Performance | Minimal latency increase |
-| Reliability | Few moving parts, but still little observability |
-| Cost | Low engineering cost |
-| Reversibility | High |
-| Stack fit | Good |
-| Team readiness | High |
+
+| Dimension      | Assessment                                       |
+| -------------- | ------------------------------------------------ |
+| Complexity     | Low                                              |
+| Performance    | Minimal latency increase                         |
+| Reliability    | Few moving parts, but still little observability |
+| Cost           | Low engineering cost                             |
+| Reversibility  | High                                             |
+| Stack fit      | Good                                             |
+| Team readiness | High                                             |
+
 
 Risks:
+
 - Does not solve discovery quality.
 - Leaves auditing incomplete.
 - Still depends on one-shot prompts that cannot explain how the selector found a symbol.
@@ -149,17 +154,20 @@ Risks:
 
 Add market/fundamentals/news injection and persist full traces, but keep all roles single-shot.
 
-| Dimension | Assessment |
-|---|---|
-| Complexity | Medium |
-| Performance | Acceptable |
-| Reliability | Better auditing, but discovery still weak |
-| Cost | Moderate |
-| Reversibility | High |
-| Stack fit | Good |
-| Team readiness | High |
+
+| Dimension      | Assessment                                |
+| -------------- | ----------------------------------------- |
+| Complexity     | Medium                                    |
+| Performance    | Acceptable                                |
+| Reliability    | Better auditing, but discovery still weak |
+| Cost           | Moderate                                  |
+| Reversibility  | High                                      |
+| Stack fit      | Good                                      |
+| Team readiness | High                                      |
+
 
 Risks:
+
 - Universe discovery remains constrained.
 - Reviewer cannot independently verify claims.
 - Strategy plan’s “Universe Researcher” concept remains undersized.
@@ -168,17 +176,20 @@ Risks:
 
 Every role gets tools and runs unconstrained ReAct-style loops.
 
-| Dimension | Assessment |
-|---|---|
-| Complexity | Very high |
-| Performance | Slowest and least predictable |
-| Reliability | Highest risk of loops and budget blowouts |
-| Cost | High |
-| Reversibility | Low |
-| Stack fit | Poor for the current repo |
-| Team readiness | Low |
+
+| Dimension      | Assessment                                |
+| -------------- | ----------------------------------------- |
+| Complexity     | Very high                                 |
+| Performance    | Slowest and least predictable             |
+| Reliability    | Highest risk of loops and budget blowouts |
+| Cost           | High                                      |
+| Reversibility  | Low                                       |
+| Stack fit      | Poor for the current repo                 |
+| Team readiness | Low                                       |
+
 
 Risks:
+
 - Hard to audit and test.
 - Too much behavioral surface area changes at once.
 - Decision maker gains tools it does not need.
@@ -187,25 +198,30 @@ Risks:
 
 Use role-differentiated execution models:
 
-| Agent | Tools | `maxSteps` | Execution model |
-|---|---|---:|---|
-| `instrument_selector` | `search_web`, `get_quote`, `get_ohlcv`, `get_news` | 5 / 10 / 15 | Discovery loop |
-| `analyst_technical` | `search_web`, `get_news` | 2 / 3 / 5 | Depth loop on injected structured data |
-| `analyst_fundamental` | `search_web`, `get_news` | 2 / 3 / 5 | Depth loop on injected structured data |
-| `reviewer` | `search_web` | 1 / 1 / 2 | Spot-check verification + synthesis |
-| `decision_maker` | none | — | Single-shot structured decision |
 
-| Dimension | Assessment |
-|---|---|
-| Complexity | Medium-high |
-| Performance | Acceptable for a pre-session research burst |
-| Reliability | Bounded, observable, and reversible per role |
-| Cost | Higher than static injection, lower than full unrestricted tool use |
-| Reversibility | High |
-| Stack fit | Best match for current architecture |
-| Team readiness | Good |
+| Agent                 | Tools                                              | `maxSteps`  | Execution model                        |
+| --------------------- | -------------------------------------------------- | ----------- | -------------------------------------- |
+| `instrument_selector` | `search_web`, `get_quote`, `get_ohlcv`, `get_news` | 5 / 10 / 15 | Discovery loop                         |
+| `analyst_technical`   | `search_web`, `get_news`                           | 2 / 3 / 5   | Depth loop on injected structured data |
+| `analyst_fundamental` | `search_web`, `get_news`                           | 2 / 3 / 5   | Depth loop on injected structured data |
+| `reviewer`            | `search_web`                                       | 1 / 1 / 2   | Spot-check verification + synthesis    |
+| `decision_maker`      | none                                               | —           | Single-shot structured decision        |
+
+
+
+| Dimension      | Assessment                                                          |
+| -------------- | ------------------------------------------------------------------- |
+| Complexity     | Medium-high                                                         |
+| Performance    | Acceptable for a pre-session research burst                         |
+| Reliability    | Bounded, observable, and reversible per role                        |
+| Cost           | Higher than static injection, lower than full unrestricted tool use |
+| Reversibility  | High                                                                |
+| Stack fit      | Best match for current architecture                                 |
+| Team readiness | Good                                                                |
+
 
 Risks:
+
 - Requires an AI runtime contract upgrade before feature work.
 - Requires strict source readiness checks for the fundamental analyst.
 - Adds more orchestration complexity than the current single cycle.
@@ -432,13 +448,15 @@ type MarketDataSnapshot = {
 
 **Role-readiness rules**
 
-| Role | Required snapshot fields | If unavailable |
-|---|---|---|
-| `instrument_selector` | quote OR searchable news | continue with available sources |
-| `analyst_technical` | quote + OHLCV + technicals + news | symbol is dropped from this cycle with warning event |
-| `analyst_fundamental` on stock | fundamentals + news | symbol is dropped from this cycle with warning event |
-| `analyst_fundamental` on crypto/futures | news, plus `## Fundamentals (not applicable)` | continue |
-| `reviewer` | analyst briefs only | continue |
+
+| Role                                    | Required snapshot fields                      | If unavailable                                       |
+| --------------------------------------- | --------------------------------------------- | ---------------------------------------------------- |
+| `instrument_selector`                   | quote OR searchable news                      | continue with available sources                      |
+| `analyst_technical`                     | quote + OHLCV + technicals + news             | symbol is dropped from this cycle with warning event |
+| `analyst_fundamental` on stock          | fundamentals + news                           | symbol is dropped from this cycle with warning event |
+| `analyst_fundamental` on crypto/futures | news, plus `## Fundamentals (not applicable)` | continue                                             |
+| `reviewer`                              | analyst briefs only                           | continue                                             |
+
 
 **Example injected blocks**
 
@@ -534,12 +552,14 @@ type MarketDataSnapshot = {
 
 **Role tool matrix**
 
-| Role | Tools | `light` | `balanced` | `deep` | Timeout |
-|---|---|---:|---:|---:|---|
-| `instrument_selector` | `search_web`, `get_quote`, `get_ohlcv`, `get_news` | 5 | 10 | 15 | 60s / 120s / 180s |
-| `analyst_technical` | `search_web`, `get_news` | 2 | 3 | 5 | 20s / 30s / 45s |
-| `analyst_fundamental` | `search_web`, `get_news` | 2 | 3 | 5 | 20s / 30s / 45s |
-| `reviewer` | `search_web` | 1 | 1 | 2 | 10s / 10s / 15s |
+
+| Role                  | Tools                                              | `light` | `balanced` | `deep` | Timeout           |
+| --------------------- | -------------------------------------------------- | ------- | ---------- | ------ | ----------------- |
+| `instrument_selector` | `search_web`, `get_quote`, `get_ohlcv`, `get_news` | 5       | 10         | 15     | 60s / 120s / 180s |
+| `analyst_technical`   | `search_web`, `get_news`                           | 2       | 3          | 5      | 20s / 30s / 45s   |
+| `analyst_fundamental` | `search_web`, `get_news`                           | 2       | 3          | 5      | 20s / 30s / 45s   |
+| `reviewer`            | `search_web`                                       | 1       | 1          | 2      | 10s / 10s / 15s   |
+
 
 **Safeguards**
 
@@ -548,8 +568,8 @@ type MarketDataSnapshot = {
 3. Loop detection on repeated identical `(tool, args)`.
 4. Per-role watchdog timeout.
 5. Structured output validation only for roles whose output feeds automation directly:
-   - `instrument_selector`
-   - `decision_maker`
+  - `instrument_selector`
+  - `decision_maker`
 
 Analyst and reviewer outputs remain markdown/text and are passed downstream unchanged.
 
@@ -622,12 +642,14 @@ Analyst and reviewer outputs remain markdown/text and are passed downstream unch
 
 Exva should resolve market-data sources by `instrumentClass + routed broker account`, not by a single global provider switch.
 
-| Instrument class | Primary source | Fallback | Policy |
-|---|---|---|---|
-| `stock` | Alpaca Data API | Yahoo metadata for fundamentals only | Live quote and bars must be broker-native or exchange-grade |
-| `crypto` | Coinbase Advanced public candles/spot when routed there | No live-quote fallback; Yahoo may be used for delayed chart metadata only | If live quote is unavailable, technical analysis for that symbol is skipped |
-| `futures` | Broker-native / Tradovate market data if available | None | If required snapshot fields cannot be produced, preflight blocks futures research for that session |
-| `prediction_market` | Polymarket CLOB + Gamma market metadata | None | Enabled only with the strategy plan’s prediction-market domain changes |
+
+| Instrument class    | Primary source                                          | Fallback                                                                  | Policy                                                                                             |
+| ------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `stock`             | Alpaca Data API                                         | Yahoo metadata for fundamentals only                                      | Live quote and bars must be broker-native or exchange-grade                                        |
+| `crypto`            | Coinbase Advanced public candles/spot when routed there | No live-quote fallback; Yahoo may be used for delayed chart metadata only | If live quote is unavailable, technical analysis for that symbol is skipped                        |
+| `futures`           | Broker-native / Tradovate market data if available      | None                                                                      | If required snapshot fields cannot be produced, preflight blocks futures research for that session |
+| `prediction_market` | Polymarket CLOB + Gamma market metadata                 | None                                                                      | Enabled only with the strategy plan’s prediction-market domain changes                             |
+
 
 **Implications:**
 
@@ -641,14 +663,16 @@ Exva should resolve market-data sources by `instrumentClass + routed broker acco
 
 **Do not build a long-running AI monitor agent.**
 
-| Concern | Needs AI monitor? | Solution |
-|---|---|---|
-| Stop-loss / take-profit enforcement | No | Broker-native orders when supported |
-| Trailing stop enforcement | No | Broker-native trailing stop or deterministic non-LLM order manager |
-| Detect broker close | No | `TradeMonitor` polling |
-| Time-based exits | No | `PositionManagerService.dailyCheck()` |
-| Prediction-market max-hold / max-exposure exits | No | Deterministic daily or 5-minute check, depending on market |
-| In-trade re-analysis | No | Next research cycle happens after close |
+
+| Concern                                         | Needs AI monitor? | Solution                                                           |
+| ----------------------------------------------- | ----------------- | ------------------------------------------------------------------ |
+| Stop-loss / take-profit enforcement             | No                | Broker-native orders when supported                                |
+| Trailing stop enforcement                       | No                | Broker-native trailing stop or deterministic non-LLM order manager |
+| Detect broker close                             | No                | `TradeMonitor` polling                                             |
+| Time-based exits                                | No                | `PositionManagerService.dailyCheck()`                              |
+| Prediction-market max-hold / max-exposure exits | No                | Deterministic daily or 5-minute check, depending on market         |
+| In-trade re-analysis                            | No                | Next research cycle happens after close                            |
+
 
 The LLM adds value in research and decision. Once an order is open, monitoring is state synchronization and rule enforcement.
 
@@ -656,28 +680,32 @@ The LLM adds value in research and decision. Once an order is open, monitoring i
 
 ## 11. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|------------|--------|------------|
-| 1 | Provider adapters cannot expose consistent step telemetry | Medium | High | Phase 0 first; if this fails, stop at Option B |
-| 2 | Fundamental analyst receives incomplete stock data and produces bad-quality output | Medium | High | Snapshot readiness gating; drop symbol from cycle instead of injecting partial fundamentals |
-| 3 | Research burst exceeds AI budget | Medium | Medium | Per-tool spend guard, lower `researchDepth`, selector cache |
-| 4 | Tool-use loops repeat uselessly | Medium | Medium | Loop detection + hard `maxSteps` + reviewer tool cap |
-| 5 | `agent_messages` grows quickly | High | Low | Retention/archival policy after audit needs are met |
-| 6 | Futures data support lags behind stock/crypto | Medium | Medium | Preflight block unsupported classes rather than silently degrading |
-| 7 | Automatic cycle restart can churn in sideways markets | Medium | Medium | Session-level stop conditions and cooldown event hooks |
+
+| #   | Risk                                                                               | Likelihood | Impact | Mitigation                                                                                  |
+| --- | ---------------------------------------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------------- |
+| 1   | Provider adapters cannot expose consistent step telemetry                          | Medium     | High   | Phase 0 first; if this fails, stop at Option B                                              |
+| 2   | Fundamental analyst receives incomplete stock data and produces bad-quality output | Medium     | High   | Snapshot readiness gating; drop symbol from cycle instead of injecting partial fundamentals |
+| 3   | Research burst exceeds AI budget                                                   | Medium     | Medium | Per-tool spend guard, lower `researchDepth`, selector cache                                 |
+| 4   | Tool-use loops repeat uselessly                                                    | Medium     | Medium | Loop detection + hard `maxSteps` + reviewer tool cap                                        |
+| 5   | `agent_messages` grows quickly                                                     | High       | Low    | Retention/archival policy after audit needs are met                                         |
+| 6   | Futures data support lags behind stock/crypto                                      | Medium     | Medium | Preflight block unsupported classes rather than silently degrading                          |
+| 7   | Automatic cycle restart can churn in sideways markets                              | Medium     | Medium | Session-level stop conditions and cooldown event hooks                                      |
+
 
 ---
 
 ## 12. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|---|---|---|---|---|
-| Runtime contract upgrade | % provider adapters returning canonical `RunTrace` | 0% | 100% | Adapter tests |
-| Market-data injection | % analyst runs with non-empty `market_snapshot_json` | 0% | 100% for supported classes | DB query on `agent_messages` |
-| Detailed audit coverage | % `agent_runs` with matching `agent_messages` row | 0% | 100% | DB join |
-| Research burst adoption | % sessions that complete burst before first trade | 0% | 90% | Session events |
-| Monitoring correctness | % closed trades followed by exactly one autopsy event | 0% | 95% | Session event sequence |
-| Cost control | Average AI spend per research cycle | Unknown | <$0.50 | `agent_runs.cost_usd` aggregation |
+
+| Goal                     | Metric                                                | Baseline | Target                     | How Measured                      |
+| ------------------------ | ----------------------------------------------------- | -------- | -------------------------- | --------------------------------- |
+| Runtime contract upgrade | % provider adapters returning canonical `RunTrace`    | 0%       | 100%                       | Adapter tests                     |
+| Market-data injection    | % analyst runs with non-empty `market_snapshot_json`  | 0%       | 100% for supported classes | DB query on `agent_messages`      |
+| Detailed audit coverage  | % `agent_runs` with matching `agent_messages` row     | 0%       | 100%                       | DB join                           |
+| Research burst adoption  | % sessions that complete burst before first trade     | 0%       | 90%                        | Session events                    |
+| Monitoring correctness   | % closed trades followed by exactly one autopsy event | 0%       | 95%                        | Session event sequence            |
+| Cost control             | Average AI spend per research cycle                   | Unknown  | <$0.50                     | `agent_runs.cost_usd` aggregation |
+
 
 ---
 
@@ -685,23 +713,27 @@ The LLM adds value in research and decision. Once an order is open, monitoring i
 
 No implementation-blocking open questions remain in this plan. The remaining unknowns are tuning questions to revisit after paper-trading data exists:
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| 1 | Should `waitForOpenThreshold` remain 0.80 after the first 25 real research bursts? | Ken | Post-launch tuning | Open |
-| 2 | Should `weeks_position` monitoring use 5m or 15m polling by default? | Ken | Post-launch tuning | Open |
-| 3 | How many days of detailed `agent_messages` traces should remain hot before archival? | Ken | Post-launch tuning | Open |
+
+| #   | Question                                                                             | Owner | Needed By          | Status |
+| --- | ------------------------------------------------------------------------------------ | ----- | ------------------ | ------ |
+| 1   | Should `waitForOpenThreshold` remain 0.80 after the first 25 real research bursts?   | Ken   | Post-launch tuning | Open   |
+| 2   | Should `weeks_position` monitoring use 5m or 15m polling by default?                 | Ken   | Post-launch tuning | Open   |
+| 3   | How many days of detailed `agent_messages` traces should remain hot before archival? | Ken   | Post-launch tuning | Open   |
+
 
 ---
 
 ## 14. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|-------------|
+
+| Option                                      | Why Rejected                                                                     |
+| ------------------------------------------- | -------------------------------------------------------------------------------- |
 | Store raw messages directly on `agent_runs` | Bloats the summary table and mixes dashboard concerns with replay-quality traces |
-| Static reviewer with no search | Cannot independently verify analyst claims before synthesis |
-| Uniform unrestricted tool use for all roles | Too expensive, too nondeterministic, and unnecessary for decision maker |
-| AI monitor bot | Polling and rule enforcement are deterministic system work, not reasoning work |
-| Silent fallback to incomplete market data | Produces low-trust analysis and hides operational gaps |
+| Static reviewer with no search              | Cannot independently verify analyst claims before synthesis                      |
+| Uniform unrestricted tool use for all roles | Too expensive, too nondeterministic, and unnecessary for decision maker          |
+| AI monitor bot                              | Polling and rule enforcement are deterministic system work, not reasoning work   |
+| Silent fallback to incomplete market data   | Produces low-trust analysis and hides operational gaps                           |
+
 
 ---
 
@@ -711,3 +743,4 @@ No implementation-blocking open questions remain in this plan. The remaining unk
 - Cross-cycle comparative analytics for selector quality
 - Shared research cache across sessions, if isolation rules later allow it
 - Richer replay tooling for prompt/trace diffing between profitable and unprofitable trades
+

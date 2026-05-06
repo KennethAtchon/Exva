@@ -75,7 +75,11 @@ const TradeRow = ({
       style={{ ...ds.tradeRow, background: selected ? "var(--surface2)" : "transparent" }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)", width: 46 }}>{trade.instrumentSymbol}</span>
+        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)", width: 46 }}>{trade.instrumentSymbol}</span>
+          {trade.instrumentDisplayName ? <span style={{ fontSize: 10, color: "var(--text3)", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>{trade.instrumentDisplayName}</span> : null}
+        </div>
+        {trade.predictionOutcome ? <Badge variant="purple" size="sm">{trade.predictionOutcome}</Badge> : null}
         <Badge variant={trade.side === "BUY" ? "success" : "danger"} size="sm">{trade.side}</Badge>
       </div>
       <span style={ds.trCell}>{trade.entry_price != null ? fmt.usd(trade.entry_price) : "—"}</span>

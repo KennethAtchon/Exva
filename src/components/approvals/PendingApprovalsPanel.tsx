@@ -52,7 +52,11 @@ export const PendingApprovalsPanel = ({
                   <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text1)" }}>
                     {a.instrumentSymbol}
                   </div>
+                  {a.instrumentDisplayName ? (
+                    <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>{a.instrumentDisplayName}</div>
+                  ) : null}
                   <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                    {a.predictionOutcome ? `${a.predictionOutcome} · ` : ""}
                     {a.proposedSide} · {fmt.usd(a.proposedSizeUsd, 0)}
                     {a.confidenceScore != null && (
                       <> · {Math.round(a.confidenceScore * 100)}% conf</>
@@ -79,4 +83,3 @@ export const PendingApprovalsPanel = ({
     </>
   );
 };
-

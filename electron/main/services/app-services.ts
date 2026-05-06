@@ -194,6 +194,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
         repos.stats,
         repos.session,
         brokerRegistry,
+        strategyContext,
+        capitalReservation,
         () => 100000,
         eventBus,
         () => strategyContext.get(sessionId).riskConfig.maxAiSpendUsd,
