@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "electron-forge start",
     "dev:rebuild-db": "EXVA_DB_REBUILD_FROM_SCRATCH=true electron-forge start",
+    "db:reset": "EXVA_DB_REBUILD_FROM_SCRATCH=true bun run start",
     "dev:renderer": "vite",
     "build": "tsc --noEmit && electron-forge package",
     "preview": "vite preview",

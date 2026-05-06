@@ -210,7 +210,7 @@ export type TradeSide = "BUY" | "SELL";
 export type PredictionOutcome = "YES" | "NO";
 
 const LEGAL_TRANSITIONS: Partial<Record<SessionStatus, SessionStatus[]>> = {
-  draft: ["idle", "archived"],
+  draft: ["idle", "active", "archived"],
   idle: ["active", "archived"],
   active: ["paused", "stopped"],
   paused: ["active", "stopped"],

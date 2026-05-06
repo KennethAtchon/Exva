@@ -39,6 +39,7 @@ describe("domain session helpers", () => {
 
   it("accepts legal session transitions", () => {
     expect(canTransition("draft", "idle")).toBe(true);
+    expect(canTransition("draft", "active")).toBe(true);
     expect(canTransition("active", "paused")).toBe(true);
     expect(canTransition("stopped", "archived")).toBe(true);
   });
