@@ -214,7 +214,7 @@ function payloadToInput(payload: SessionTemplatePayload): SessionCreateInput {
 }
 
 function formatInstrumentClass(value: InstrumentClass): string {
-  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : "Futures";
+  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : value === "futures" ? "Futures" : "Prediction Markets";
 }
 
 function formatTimestamp(value: string): string {

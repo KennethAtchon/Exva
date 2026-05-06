@@ -342,6 +342,7 @@ Per phase:
 
 ## 15. Build and Tooling
 
+- Bun is the only supported package manager and script runner for this repo. Use `bun install`, `bun run <script>`, and `bun x <bin>` exclusively. Do not commit `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml`.
 - TypeScript strict mode. `tsc --noEmit` runs on every commit (pre-push hook or CI).
 - ESLint with `@typescript-eslint/strict` ruleset. No warnings allowed in CI.
 - Path aliases (`@main/*`, `@shared/*`, `@/*`) configured once in Phase 10. Use them; do not write `../../../` chains.

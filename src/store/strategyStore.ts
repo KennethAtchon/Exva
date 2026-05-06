@@ -1,12 +1,22 @@
 import { create } from "zustand";
-import { validateSessionStrategyTimeframeFields } from "../../electron/shared/domain";
+import { buildStrategyBriefMarkdown, validateSessionStrategyContext } from "../../electron/shared/domain";
 import { api, type ProviderModelEntry, type StrategyGetResponse } from "@/lib/exva";
-import type { AgentRole, SessionAiRole, SessionStrategy } from "@/lib/types";
+import type {
+  AgentRole,
+  SessionAiRole,
+  SessionRiskConfig,
+  SessionStrategyContext,
+  SessionStrategyProfile,
+  SessionTimeframeConfig,
+} from "@/lib/types";
 
 type StrategyPageState = "no_session" | "editable" | "locked";
+type StrategySectionTab = "strategy" | "risk" | "timeframe" | "ai_roles";
 
 interface StrategyStoreState {
-  strategy: SessionStrategy | null;
+  profile: SessionStrategyProfile | null;
+  riskConfig: SessionRiskConfig | null;
+  timeframe: SessionTimeframeConfig | null;
   aiRoles: Record<AgentRole, SessionAiRole>;
   providers: StrategyGetResponse["providers"];
   selectorSettings: StrategyGetResponse["selectorSettings"] | null;
@@ -16,6 +26,7 @@ interface StrategyStoreState {
   dirtyFields: Set<string>;
   dirtyRoles: Set<AgentRole>;
   activeRoleTab: AgentRole;
+  activeSection: StrategySectionTab;
   providerModels: Record<string, ProviderModelEntry[]>;
   roleErrors: Record<AgentRole, string[]>;
   strategyErrors: string[];
@@ -23,11 +34,14 @@ interface StrategyStoreState {
   isLocked: boolean;
   state: StrategyPageState;
   loadStrategy: (sessionId: string) => Promise<void>;
-  updateStrategy: (patch: Partial<SessionStrategy>) => void;
+  updateProfile: (patch: Partial<SessionStrategyProfile>) => void;
+  updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
+  updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
   updateRole: (role: AgentRole, patch: Partial<SessionAiRole>) => Promise<void>;
   saveAll: (sessionId: string) => Promise<void>;
   resetRole: (role: AgentRole) => Promise<void>;
   setActiveTab: (role: AgentRole) => void;
+  setActiveSection: (section: StrategySectionTab) => void;
 }
 
 const EMPTY_AI_ROLES = (): Record<AgentRole, SessionAiRole> => ({
@@ -39,7 +53,9 @@ const EMPTY_AI_ROLES = (): Record<AgentRole, SessionAiRole> => ({
 });
 
 export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
-  strategy: null,
+  profile: null,
+  riskConfig: null,
+  timeframe: null,
   aiRoles: EMPTY_AI_ROLES(),
   providers: [],
   selectorSettings: null,
@@ -49,6 +65,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   dirtyFields: new Set(),
   dirtyRoles: new Set(),
   activeRoleTab: "analyst_technical",
+  activeSection: "strategy",
   providerModels: {},
   roleErrors: emptyRoleErrors(),
   strategyErrors: [],
@@ -69,7 +86,9 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     }
 
     set({
-      strategy: result.strategy,
+      profile: result.profile,
+      riskConfig: result.riskConfig,
+      timeframe: result.timeframe,
       aiRoles,
       providers: result.providers,
       selectorSettings: result.selectorSettings,
@@ -79,6 +98,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       dirtyFields: new Set(),
       dirtyRoles: new Set(),
       activeRoleTab: "analyst_technical",
+      activeSection: "strategy",
       providerModels,
       roleErrors: emptyRoleErrors(),
       strategyErrors: [],
@@ -87,12 +107,26 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       state: result.sessionStatus === "active" || result.sessionStatus === "paused" ? "locked" : "editable",
     });
   },
-  updateStrategy: (patch) => {
-    const strategy = get().strategy;
-    if (!strategy) return;
+  updateProfile: (patch) => {
+    const profile = get().profile;
+    if (!profile) return;
     const dirtyFields = new Set(get().dirtyFields);
-    for (const key of Object.keys(patch)) dirtyFields.add(`strategy.${key}`);
-    set({ strategy: { ...strategy, ...patch }, dirtyFields, strategyErrors: [] });
+    for (const key of Object.keys(patch)) dirtyFields.add(`profile.${key}`);
+    set({ profile: { ...profile, ...patch }, dirtyFields, strategyErrors: [] });
+  },
+  updateRiskConfig: (patch) => {
+    const riskConfig = get().riskConfig;
+    if (!riskConfig) return;
+    const dirtyFields = new Set(get().dirtyFields);
+    for (const key of Object.keys(patch)) dirtyFields.add(`riskConfig.${key}`);
+    set({ riskConfig: { ...riskConfig, ...patch }, dirtyFields, strategyErrors: [] });
+  },
+  updateTimeframe: (patch) => {
+    const timeframe = get().timeframe;
+    if (!timeframe) return;
+    const dirtyFields = new Set(get().dirtyFields);
+    for (const key of Object.keys(patch)) dirtyFields.add(`timeframe.${key}`);
+    set({ timeframe: { ...timeframe, ...patch }, dirtyFields, strategyErrors: [] });
   },
   updateRole: async (role, patch) => {
     const current = get().aiRoles[role];
@@ -118,25 +152,45 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     }
   },
   saveAll: async (sessionId) => {
-    const strategy = get().strategy;
-    if (!strategy) return;
+    const context = currentContext(get());
+    if (!context) return;
+
+    const profileWithBrief = {
+      ...context.profile,
+      strategyBriefMarkdown: buildStrategyBriefMarkdown(context),
+    };
+
     try {
-      validateSessionStrategyTimeframeFields(strategy);
+      validateSessionStrategyContext(
+        { ...context, profile: profileWithBrief },
+        { hasSearchProvider: Boolean(get().defaultSearchProviderId || get().workspaceDefaultSearchProviderId) },
+      );
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Invalid timeframe fields.";
+      const message = err instanceof Error ? err.message : "Invalid strategy configuration.";
       set({ strategyErrors: [message] });
       return;
     }
+
     const roleErrors = validateRoles(get());
     const hasErrors = Object.values(roleErrors).some((errors) => errors.length > 0);
     if (hasErrors) {
       set({ roleErrors, strategyErrors: [] });
       return;
     }
+
     set({ isSaving: true, strategyErrors: [] });
     try {
-      await api.saveStrategy({ sessionId, strategy, aiRoles: Object.values(get().aiRoles) });
-      set({ dirtyFields: new Set(), dirtyRoles: new Set(), roleErrors: emptyRoleErrors(), strategyErrors: [] });
+      await api.saveStrategyProfile({ sessionId, profile: profileWithBrief });
+      await api.saveStrategyRiskConfig({ sessionId, riskConfig: context.riskConfig });
+      await api.saveStrategyTimeframeConfig({ sessionId, timeframe: context.timeframe });
+      await api.saveStrategyAiRoles({ sessionId, aiRoles: Object.values(get().aiRoles) });
+      set({
+        profile: profileWithBrief,
+        dirtyFields: new Set(),
+        dirtyRoles: new Set(),
+        roleErrors: emptyRoleErrors(),
+        strategyErrors: [],
+      });
     } finally {
       set({ isSaving: false });
     }
@@ -164,7 +218,17 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     });
   },
   setActiveTab: (role) => set({ activeRoleTab: role }),
+  setActiveSection: (section) => set({ activeSection: section }),
 }));
+
+function currentContext(state: StrategyStoreState): SessionStrategyContext | null {
+  if (!state.profile || !state.riskConfig || !state.timeframe) return null;
+  return {
+    profile: state.profile,
+    riskConfig: state.riskConfig,
+    timeframe: state.timeframe,
+  };
+}
 
 function emptyRoleErrors(): Record<AgentRole, string[]> {
   return {

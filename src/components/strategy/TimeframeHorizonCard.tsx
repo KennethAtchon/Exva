@@ -1,15 +1,15 @@
 import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
-import type { SessionStrategy } from "@/lib/types";
-import { HOLDING_STYLES, TRADING_TIMEFRAMES, timeframeHoldMismatchWarning } from "../../../electron/shared/domain";
+import type { SessionTimeframeConfig } from "@/lib/types";
+import { HOLDING_STYLES, TRADING_TIMEFRAMES, timeframeConfigHoldMismatchWarning } from "../../../electron/shared/domain";
 
 type Props = {
-  strategy: SessionStrategy;
+  timeframe: SessionTimeframeConfig;
   disabled: boolean;
-  onChange: (patch: Partial<SessionStrategy>) => void;
+  onChange: (patch: Partial<SessionTimeframeConfig>) => void;
 };
 
-export const TimeframeHorizonCard = ({ strategy, disabled, onChange }: Props) => {
-  const mismatch = timeframeHoldMismatchWarning(strategy);
+export const TimeframeHorizonCard = ({ timeframe, disabled, onChange }: Props) => {
+  const mismatch = timeframeConfigHoldMismatchWarning(timeframe);
 
   return (
     <Card>
@@ -20,29 +20,29 @@ export const TimeframeHorizonCard = ({ strategy, disabled, onChange }: Props) =>
       </p>
       <div style={formGridStyle}>
         <Field label="Primary trading timeframe">
-          <ShadcnSelect
-            value={strategy.primaryTradingTimeframe}
-            onValueChange={(value) =>
-              onChange({ primaryTradingTimeframe: value as SessionStrategy["primaryTradingTimeframe"] })
-            }
+            <ShadcnSelect
+              value={timeframe.primaryTradingTimeframe}
+              onValueChange={(value) =>
+                onChange({ primaryTradingTimeframe: value as SessionTimeframeConfig["primaryTradingTimeframe"] })
+              }
             disabled={disabled}
             options={TRADING_TIMEFRAMES.map((timeframe) => ({ value: timeframe, label: timeframe }))}
           />
         </Field>
         <Field label="Holding style">
-          <ShadcnSelect
-            value={strategy.holdingStyle}
-            onValueChange={(value) => onChange({ holdingStyle: value as SessionStrategy["holdingStyle"] })}
-            disabled={disabled}
-            options={HOLDING_STYLES.map((style) => ({ value: style, label: holdingStyleLabel(style) }))}
-          />
+            <ShadcnSelect
+              value={timeframe.holdingStyle}
+              onValueChange={(value) => onChange({ holdingStyle: value as SessionTimeframeConfig["holdingStyle"] })}
+              disabled={disabled}
+              options={HOLDING_STYLES.map((style) => ({ value: style, label: holdingStyleLabel(style) }))}
+            />
         </Field>
         <Field label="Target hold (days, optional)">
           <input
             type="number"
             min={0}
             step={1}
-            value={strategy.targetHoldDays ?? ""}
+            value={timeframe.targetHoldDays ?? ""}
             placeholder="—"
             onChange={(event) => {
               const raw = event.target.value;
@@ -57,7 +57,7 @@ export const TimeframeHorizonCard = ({ strategy, disabled, onChange }: Props) =>
             type="number"
             min={0}
             step={1}
-            value={strategy.maxHoldDays ?? ""}
+            value={timeframe.maxHoldDays ?? ""}
             placeholder="—"
             onChange={(event) => {
               const raw = event.target.value;
@@ -69,7 +69,7 @@ export const TimeframeHorizonCard = ({ strategy, disabled, onChange }: Props) =>
         </Field>
         <Field label="Timeframe notes">
           <textarea
-            value={strategy.timeframeNotes}
+            value={timeframe.timeframeNotes}
             onChange={(event) => onChange({ timeframeNotes: event.target.value })}
             disabled={disabled}
             rows={3}
@@ -85,7 +85,7 @@ export const TimeframeHorizonCard = ({ strategy, disabled, onChange }: Props) =>
   );
 };
 
-function holdingStyleLabel(style: SessionStrategy["holdingStyle"]): string {
+function holdingStyleLabel(style: SessionTimeframeConfig["holdingStyle"]): string {
   switch (style) {
     case "intraday_flat":
       return "Intraday (flat by default)";

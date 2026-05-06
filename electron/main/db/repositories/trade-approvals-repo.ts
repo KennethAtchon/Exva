@@ -17,6 +17,9 @@ export class TradeApprovalsRepo {
     tradeId: string;
     brokerAccountId: string;
     instrumentSymbol: string;
+    instrumentDisplayName?: string | null;
+    predictionOutcome?: TradeApproval["predictionOutcome"];
+    instrumentMetadataJson?: string | null;
     instrumentClass: InstrumentClass;
     proposedSide: TradeSide;
     proposedSizeUsd: number;
@@ -28,9 +31,10 @@ export class TradeApprovalsRepo {
       .prepare(
         `
         INSERT INTO trade_approvals (
-          id, session_id, trade_id, broker_account_id, instrument_symbol, instrument_class,
-          proposed_side, proposed_size_usd, decision_summary_json, status, requested_at, resolved_at, decision_note
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL, NULL)
+          id, session_id, trade_id, broker_account_id, instrument_symbol, instrument_display_name,
+          prediction_outcome, instrument_metadata_json, instrument_class, proposed_side,
+          proposed_size_usd, decision_summary_json, status, requested_at, resolved_at, decision_note
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL, NULL)
         `,
       )
       .run(
@@ -39,6 +43,9 @@ export class TradeApprovalsRepo {
         input.tradeId,
         input.brokerAccountId,
         input.instrumentSymbol,
+        input.instrumentDisplayName ?? null,
+        input.predictionOutcome ?? null,
+        input.instrumentMetadataJson ?? null,
         input.instrumentClass,
         input.proposedSide,
         input.proposedSizeUsd,
@@ -56,9 +63,10 @@ export class TradeApprovalsRepo {
       .prepare(
         `
         INSERT INTO trade_approvals (
-          id, session_id, trade_id, broker_account_id, instrument_symbol, instrument_class,
-          proposed_side, proposed_size_usd, decision_summary_json, status, requested_at, resolved_at, decision_note
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, session_id, trade_id, broker_account_id, instrument_symbol, instrument_display_name,
+          prediction_outcome, instrument_metadata_json, instrument_class, proposed_side,
+          proposed_size_usd, decision_summary_json, status, requested_at, resolved_at, decision_note
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
       )
       .run(
@@ -67,6 +75,9 @@ export class TradeApprovalsRepo {
         input.tradeId,
         input.brokerAccountId,
         input.instrumentSymbol,
+        input.instrumentDisplayName,
+        input.predictionOutcome,
+        input.instrumentMetadataJson,
         input.instrumentClass,
         input.proposedSide,
         input.proposedSizeUsd,

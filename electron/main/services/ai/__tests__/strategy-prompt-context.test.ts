@@ -1,45 +1,68 @@
 import { describe, expect, it } from "vitest";
-import type { SessionStrategy } from "@electron/shared/domain";
-import { buildStrategyTimeframeContext, prependStrategyHorizonToUserPrompt } from "../strategy-prompt-context";
+import type { SessionStrategyContext } from "@electron/shared/domain";
+import { buildStrategyPromptContext, prependStrategyContextToUserPrompt } from "../strategy-prompt-context";
 
-function baseStrategy(overrides: Partial<SessionStrategy> = {}): SessionStrategy {
+function baseContext(): SessionStrategyContext {
   return {
-    sessionId: "s1",
-    strategyProfile: "custom",
-    maxPositionUsd: 100,
-    stopLossPct: 2,
-    takeProfitPct: 4,
-    maxConcurrentTrades: 1,
-    researchDepth: "balanced",
-    dailyLossLimitUsd: 50,
-    profitTargetUsd: 200,
-    maxAiSpendUsd: 5,
-    humanApprovalRequired: false,
-    primaryTradingTimeframe: "1h",
-    holdingStyle: "multi_day_swing",
-    targetHoldDays: 3,
-    maxHoldDays: 10,
-    timeframeNotes: "",
-    ...overrides,
+    profile: {
+      sessionId: "s1",
+      strategyType: "momentum",
+      sideBias: "long_only",
+      entryStyle: "breakout",
+      exitStyle: "trailing_atr",
+      scalingMode: "single_entry",
+      strategyBriefMarkdown: "",
+      customInstructions: "Avoid earnings week.",
+      updatedAt: "2026-05-05T00:00:00.000Z",
+    },
+    riskConfig: {
+      sessionId: "s1",
+      maxPositionUsd: 100,
+      stopLossPct: 2,
+      takeProfitPct: 4,
+      stopLossType: "fixed_pct",
+      atrStopMultiplier: 1.5,
+      kellyFraction: 0.25,
+      predictionEdgeThreshold: 0.08,
+      maxExposureUsd: null,
+      waitForOpenThreshold: 0.8,
+      maxConcurrentTrades: 1,
+      dailyLossLimitUsd: 50,
+      profitTargetUsd: 200,
+      maxAiSpendUsd: 5,
+      humanApprovalRequired: false,
+      updatedAt: "2026-05-05T00:00:00.000Z",
+    },
+    timeframe: {
+      sessionId: "s1",
+      primaryTradingTimeframe: "1h",
+      holdingStyle: "multi_day_swing",
+      targetHoldDays: 3,
+      maxHoldDays: 10,
+      timeframeNotes: "",
+      updatedAt: "2026-05-05T00:00:00.000Z",
+    },
   };
 }
 
 describe("strategy-prompt-context", () => {
-  it("truncates very long timeframe notes for AI prompts", () => {
-    const long = "x".repeat(600);
-    const text = buildStrategyTimeframeContext(baseStrategy({ timeframeNotes: long }));
-    expect(text).toContain("…");
-    expect(text.length).toBeLessThan(long.length + 200);
-    expect(text).toContain("Primary timeframe");
+  it("truncates long timeframe notes inside the prompt snapshot", () => {
+    const context = baseContext();
+    context.timeframe.timeframeNotes = "x".repeat(600);
+
+    const built = buildStrategyPromptContext(context);
+
+    expect(built.snapshot.timeframe.timeframeNotes).toContain("...");
+    expect(built.prompt).toContain("## Session trading horizon");
+    expect(built.prompt.length).toBeLessThan(2200);
   });
 
-  it("prepends horizon before user content", () => {
-    const out = prependStrategyHorizonToUserPrompt(
-      baseStrategy({ primaryTradingTimeframe: "5m", holdingStyle: "intraday_flat" }),
-      "Instrument: AAPL",
-    );
-    expect(out.startsWith("## Session trading horizon")).toBe(true);
-    expect(out).toContain("5m");
-    expect(out.endsWith("Instrument: AAPL")).toBe(true);
+  it("prepends full strategy context before user content", () => {
+    const out = prependStrategyContextToUserPrompt(baseContext(), "Instrument: AAPL");
+
+    expect(out.prompt.startsWith("## Session strategy")).toBe(true);
+    expect(out.prompt).toContain("momentum");
+    expect(out.prompt.endsWith("Instrument: AAPL")).toBe(true);
+    expect(out.snapshot.profile.strategyType).toBe("momentum");
   });
 });

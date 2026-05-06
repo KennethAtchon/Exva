@@ -1,6 +1,7 @@
 import type { AppErrorCode } from "@electron/shared/errors";
 import type { InstrumentClass, SessionRuntimeStatus, WorkspaceSession } from "@/lib/types";
 import type { AgentRunsRepo } from "../../db/repositories/agent-runs-repo";
+import type { AgentMessagesRepo } from "../../db/repositories/agent-messages-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
 import type { BrokerRoutingRepo } from "../../db/repositories/broker-routing-repo";
 import type { CapitalReservationsRepo } from "../../db/repositories/capital-reservations-repo";
@@ -24,6 +25,7 @@ import type { EventBus } from "../infra/event-bus";
 import type { CapitalReservationService } from "../risk/capital-reservation-service";
 import type { Logger } from "../infra/log";
 import type { RiskEngine } from "../risk/risk-engine";
+import type { SessionStrategyContextService } from "./session-strategy-context-service";
 
 export interface SessionOrchestrator {
   start(): Promise<void>;
@@ -44,9 +46,11 @@ export interface RuntimeTradeMonitor {
 export interface OrchestratorDeps {
   sessionRepo: SessionRepo;
   sessionStrategiesRepo: SessionStrategiesRepo;
+  strategyContextService: SessionStrategyContextService;
   tradesRepo: TradesRepo;
   tradeApprovalsRepo: TradeApprovalsRepo;
   agentRunsRepo: AgentRunsRepo;
+  agentMessagesRepo: AgentMessagesRepo;
   eventsRepo: EventsRepo;
   statsRepo: StatsRepo;
   sessionAiRolesRepo: SessionAiRolesRepo;

@@ -18,6 +18,11 @@ export class PromptAssetLoader {
     return raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
   }
 
+  loadNamedAsset(name: string): string {
+    const raw = fs.readFileSync(this.namedAssetPath(name), "utf8");
+    return raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
+  }
+
   version(role: AgentRole): string {
     const raw = fs.readFileSync(this.assetPath(role), "utf8");
     const match = raw.match(/<!--\s*version:\s*([\d.]+)\s*-->/i);
@@ -26,5 +31,9 @@ export class PromptAssetLoader {
 
   assetPath(role: AgentRole): string {
     return path.join(this.assetDir, `${role}.md`);
+  }
+
+  namedAssetPath(name: string): string {
+    return path.join(this.assetDir, `${name}.md`);
   }
 }

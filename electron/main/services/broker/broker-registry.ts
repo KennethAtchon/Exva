@@ -6,6 +6,7 @@ import { AlpacaAdapter } from "./adapters/alpaca-adapter";
 import type { BrokerAdapter } from "./adapters/broker-adapter";
 import { CoinbaseAdvancedTradeAdapter, type CoinbaseAdvancedCredentials } from "./adapters/coinbase-advanced-trade-adapter";
 import { MockBrokerAdapter } from "./adapters/mock-adapter";
+import { PolymarketAdapter } from "./adapters/polymarket-adapter";
 import { TradovateAdapter, type TradovateCredentials } from "./adapters/tradovate-adapter";
 import type { BrokerCredentials } from "@/lib/types";
 
@@ -56,6 +57,15 @@ export class BrokerRegistry {
       case "tradovate": {
         const parsed = JSON.parse(credsJson) as TradovateCredentials;
         return new TradovateAdapter(parsed, account.mode);
+      }
+      case "polymarket": {
+        const parsed = JSON.parse(credsJson) as {
+          privateKey: string;
+          funderAddress: string;
+          host?: string;
+          chainId?: number;
+        };
+        return new PolymarketAdapter(parsed);
       }
       case "mock":
         return new MockBrokerAdapter();

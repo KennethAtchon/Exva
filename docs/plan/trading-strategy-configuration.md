@@ -3,6 +3,7 @@
 > **Date:** 2026-05-03
 > **Status:** In Progress
 > **Deciders:** Kenneth Atchon
+> **Implements:** `docs/CODING_GUIDELINES.md`
 
 ---
 
@@ -531,6 +532,8 @@ Do not force a side.
 
 ### Phase 3: Strategy / Risk UI Split + Brief Composer
 
+**Status:** Implemented 2026-05-05
+
 **Goal:** Expose strategy intent and risk rules separately in the UI and save them to the new schema.
 
 **Done criteria:** The Strategy page has separate Strategy, Risk, and Timeframe sections and shows a live brief preview built from structured inputs.
@@ -558,9 +561,17 @@ Do not force a side.
 
 **Rollback:** Keep the new UI behind a route- or feature-level switch and continue using the old save path.
 
+**Implementation notes:**
+
+- The Strategy page now edits `session_strategy_profile`, `session_risk_config`, and `session_timeframe_config` as separate surfaces with section tabs for Strategy, Risk, Timeframe, and AI Roles.
+- Added split IPC contracts for profile/risk/timeframe saves plus AI-role persistence through `SessionStrategyContextService`.
+- Added canonical strategy brief assembly and live preview so structured edits persist the same brief later injected into prompts.
+
 ---
 
 ### Phase 4: Full Prompt Injection + Audit Snapshot
+
+**Status:** Implemented 2026-05-05
 
 **Goal:** Inject the full strategy/risk/timeframe context into every agent run and store the exact snapshot in the detailed audit trail.
 
@@ -582,9 +593,17 @@ Do not force a side.
 
 **Rollback:** Fall back to timeframe-only injection while keeping the new tables intact.
 
+**Implementation notes:**
+
+- `AiRuntime` now builds prompt context from the composite strategy context service instead of `session_strategies`.
+- Added full strategy/risk/timeframe prompt injection and canonical snapshot construction in `strategy-prompt-context.ts`.
+- Added `agent_messages` persistence with `strategy_snapshot_json`, and the orchestrator now stores one detailed trace row per agent run alongside the summary `agent_runs` row.
+
 ---
 
 ### Phase 5: Legacy Blob Retirement
+
+**Status:** Implemented 2026-05-05
 
 **Goal:** Remove `session_strategies` as a live source of truth.
 
@@ -604,9 +623,17 @@ Do not force a side.
 
 **Rollback:** Before dropping the legacy table, rollback is simply switching readers back. After the drop, rollback requires replaying the additive migration in reverse from the new tables, so the physical drop happens only after a full code cutover is verified.
 
+**Implementation notes:**
+
+- Active runtime, dashboard, config IPC, template export, approvals, and AI prompt paths now read canonical strategy context from the split tables instead of `session_strategies`.
+- Legacy compatibility code remains physically present for local transition safety, but it is no longer the live runtime/UI source of truth.
+- Template payloads now include optional `strategyContext` so downstream consumers can preserve the richer split configuration without depending on the legacy blob.
+
 ---
 
 ### Phase 6: Prediction-Market Domain + Polymarket Adapter
+
+**Status:** In Progress
 
 **Goal:** Make `prediction_market` work end-to-end using the canonical domain model from Section 8.
 
@@ -640,6 +667,30 @@ Do not force a side.
 **Dependencies:** Phases 1-5 and harness Phases 1-3
 
 **Rollback:** Gate `prediction_market` in the UI and runtime until the adapter and domain changes are complete. Other strategy types remain unaffected.
+
+**Implementation notes:**
+
+- **Done in this slice:**
+- Prediction-market instrument/trade/approval fields now exist in shared types and DB persistence.
+- A `polymarket` broker type is wired through broker-account UI/helpers/registry, and `@polymarket/clob-client` is installed for the adapter path.
+- `PolymarketAdapter` exists with authenticated market-order placement, price lookup, and outcome-token routing from stored metadata.
+- Prediction-market selector candidates are hydrated from Gamma and passed to the universe researcher as canonical `pm:<conditionId>` rows with YES/NO metadata.
+- Prediction-market sessions dynamically use statistical/contextual prompt assets while keeping the persisted analyst role keys unchanged.
+- Risk now enforces per-order `max_exposure_usd` caps for prediction-market trades.
+-
+- **Still remaining:**
+- Full live validation against real Polymarket credentials and real response payloads.
+- Deterministic monitor/close lifecycle for prediction-market positions beyond the current adapter/order path.
+- End-to-end prediction-market execution verification in an environment where the native SQLite test stack is working.
+- Category/liquidity/time-to-resolution ranking is still basic candidate hydration, not the full ranking pass described in the plan.
+- Traditional stop-loss semantics are not yet fully specialized beyond the existing `none`/exposure-driven path.
+-
+- Added first-class `prediction_market` support to the shared instrument/trade/approval domain plus DB columns for `prediction_outcome`, `instrument_display_name`, and `instrument_metadata_json`.
+- Added broker-account/UI wiring for a new `polymarket` broker type and installed `@polymarket/clob-client` for the adapter implementation.
+- Added `PolymarketAdapter` scaffolding with authenticated order placement, price lookup, and outcome-token routing based on stored metadata.
+- Prediction-market selector candidates are now hydrated from the Gamma API and passed to the universe researcher as canonical `pm:<conditionId>` rows with YES/NO token metadata.
+- Prediction-market sessions reuse persisted `analyst_technical` / `analyst_fundamental` role keys but dynamically load `analyst_statistical.md` / `analyst_contextual.md` prompts. This is an intentional implementation deviation to avoid widening the stored role set mid-cutover.
+- Remaining work: full live validation against Polymarket credentials/order responses, deterministic exposure/close lifecycle beyond per-order caps, and end-to-end prediction-market execution verification in an environment with working native test DB support.
 
 ---
 

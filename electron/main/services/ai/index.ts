@@ -1,5 +1,5 @@
 export { AiRuntime } from "./ai-runtime";
-export { buildStrategyTimeframeContext, prependStrategyHorizonToUserPrompt } from "./strategy-prompt-context";
+export { buildStrategyPromptContext, prependStrategyContextToUserPrompt } from "./strategy-prompt-context";
 export type { TradeDecision } from "./ai-runtime";
 export type { AgentResult } from "./ai-runtime-types";
 export { tradeDecisionSchema } from "./ai-runtime-schemas";

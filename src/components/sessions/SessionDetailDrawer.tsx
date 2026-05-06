@@ -251,7 +251,7 @@ function statusVariant(status: SessionSummary["status"]): "default" | "success" 
 }
 
 function formatInstrumentClass(value: InstrumentClass): string {
-  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : "Futures";
+  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : value === "futures" ? "Futures" : "Prediction Markets";
 }
 
 function formatOverrides(overrides?: Partial<Record<InstrumentClass, string>>): string {

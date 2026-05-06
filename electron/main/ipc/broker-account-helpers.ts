@@ -10,8 +10,10 @@ export function supportedInstrumentClassesFor(brokerType: string): InstrumentCla
       return ["crypto"];
     case "tradovate":
       return ["futures"];
+    case "polymarket":
+      return ["prediction_market"];
     case "mock":
-      return ["stock", "crypto", "futures"];
+      return ["stock", "crypto", "futures", "prediction_market"];
     default:
       throw new AppError(`Unknown broker type: ${brokerType}`, "UNKNOWN_BROKER");
   }
@@ -45,6 +47,13 @@ export function serializeBrokerCredentials(
       });
     case "mock":
       return "{}";
+    case "polymarket":
+      return JSON.stringify({
+        privateKey: creds.privateKey ?? creds.private_key ?? "",
+        funderAddress: creds.funderAddress ?? creds.funder_address ?? "",
+        host: creds.host ?? "https://clob.polymarket.com",
+        chainId: Number(creds.chainId ?? creds.chain_id ?? 137),
+      });
     default:
       throw new AppError(`Unknown broker type: ${brokerType}`, "UNKNOWN_BROKER");
   }

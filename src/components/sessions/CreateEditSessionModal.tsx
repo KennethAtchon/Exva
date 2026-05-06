@@ -140,7 +140,7 @@ export const CreateEditSessionModal = ({
             </div>
             <Field label="Instrument classes">
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {(["stock", "crypto", "futures"] as const).map((instrumentClass) => {
+                {(["stock", "crypto", "futures", "prediction_market"] as const).map((instrumentClass) => {
                   const checked = form.instrumentClasses.includes(instrumentClass);
                   return (
                     <label key={instrumentClass} style={{ ...toggleChipStyle, borderColor: checked ? "var(--accent-dim)" : "var(--border)" }}>
@@ -213,7 +213,7 @@ export const CreateEditSessionModal = ({
               </Field>
             </div>
             <div style={threeColumnGridStyle}>
-              {(["stock", "crypto", "futures"] as const).map((instrumentClass) => (
+              {(["stock", "crypto", "futures", "prediction_market"] as const).map((instrumentClass) => (
                 <Field key={instrumentClass} label={`${formatInstrumentClass(instrumentClass)} route override`}>
                   <input
                     value={form.brokerOverridesByInstrumentClass?.[instrumentClass] ?? ""}
@@ -344,7 +344,13 @@ function toggleInstrumentClass(current: InstrumentClass[], value: InstrumentClas
 }
 
 function formatInstrumentClass(value: InstrumentClass): string {
-  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : "Futures";
+  return value === "stock"
+    ? "Stocks"
+    : value === "crypto"
+      ? "Crypto"
+      : value === "futures"
+        ? "Futures"
+        : "Prediction Markets";
 }
 
 const panelStyle = { width: 920, maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", background: "linear-gradient(180deg, rgba(13,18,25,0.98), rgba(9,13,18,0.98))", border: "1px solid var(--border)", borderRadius: 20, padding: 24, boxShadow: "0 26px 60px rgba(2,6,23,0.48)" } as const;

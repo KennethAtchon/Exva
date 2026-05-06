@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb } from "../../../db/test-helpers";
+import { AgentMessagesRepo } from "../../../db/repositories/agent-messages-repo";
 import { AgentRunsRepo } from "../../../db/repositories/agent-runs-repo";
 import { EventsRepo } from "../../../db/repositories/events-repo";
 import { SessionRepo } from "../../../db/repositories/session-repo";
+import { SessionRiskConfigRepo } from "../../../db/repositories/session-risk-config-repo";
+import { SessionStrategyProfileRepo } from "../../../db/repositories/session-strategy-profile-repo";
 import { StatsRepo } from "../../../db/repositories/stats-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../../../db/repositories/trades-repo";
@@ -14,10 +17,13 @@ import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-re
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
 import { SessionStrategiesRepo } from "../../../db/repositories/session-strategies-repo";
+import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { InstrumentCacheRepo } from "../../../db/repositories/instrument-cache-repo";
+import { PromptAssetLoader } from "../../ai/prompt-asset-loader";
 import { EventBus } from "../../infra/event-bus";
 import { createLogger } from "../../infra/log";
+import { SessionStrategyContextService } from "../session-strategy-context-service";
 import { SessionRuntimeManager } from "../session-runtime-manager";
 import type { CapitalReservationService } from "../../risk/capital-reservation-service";
 
@@ -53,6 +59,9 @@ describe("SessionRuntimeManager", () => {
       );
     db.sqlite.prepare("INSERT INTO session_selector_settings (session_id, ai_picker_enabled, updated_at) VALUES (?, 1, ?)").run("session-b", new Date().toISOString());
     db.sqlite.prepare("INSERT INTO session_strategies (session_id) VALUES (?)").run("session-b");
+    db.sqlite.prepare("INSERT INTO session_strategy_profile (session_id, updated_at) VALUES (?, ?)").run("session-b", new Date().toISOString());
+    db.sqlite.prepare("INSERT INTO session_risk_config (session_id, updated_at) VALUES (?, ?)").run("session-b", new Date().toISOString());
+    db.sqlite.prepare("INSERT INTO session_timeframe_config (session_id, updated_at) VALUES (?, ?)").run("session-b", new Date().toISOString());
   });
 
   afterEach(() => {
@@ -96,23 +105,41 @@ function createManager(
   const sessionRepo = new SessionRepo(db);
   const tradesRepo = new TradesRepo(db);
   const tradeApprovalsRepo = new TradeApprovalsRepo(db);
+  const agentMessagesRepo = new AgentMessagesRepo(db);
   const agentRunsRepo = new AgentRunsRepo(db);
   const eventsRepo = new EventsRepo(db);
   const statsRepo = new StatsRepo(db);
   const eventBus = new EventBus();
+  const sessionAiRolesRepo = new SessionAiRolesRepo(db);
+  const sessionSelectorSettingsRepo = new SessionSelectorSettingsRepo(db);
+  const providerAccountsRepo = new ProviderAccountsRepo(db);
+  const workspacePreferencesRepo = new WorkspacePreferencesRepo(db);
+  const strategyContextService = new SessionStrategyContextService({
+    sessionRepo,
+    profileRepo: new SessionStrategyProfileRepo(db),
+    riskRepo: new SessionRiskConfigRepo(db),
+    timeframeRepo: new SessionTimeframeConfigRepo(db),
+    aiRolesRepo: sessionAiRolesRepo,
+    selectorSettingsRepo: sessionSelectorSettingsRepo,
+    providerAccountsRepo,
+    workspacePrefsRepo: workspacePreferencesRepo,
+    promptAssetLoader: new PromptAssetLoader(),
+  });
 
   return new SessionRuntimeManager({
     sessionRepo,
     sessionStrategiesRepo: new SessionStrategiesRepo(db),
+    strategyContextService,
     tradesRepo,
     tradeApprovalsRepo,
+    agentMessagesRepo,
     agentRunsRepo,
     eventsRepo,
     statsRepo,
-    sessionAiRolesRepo: new SessionAiRolesRepo(db),
-    sessionSelectorSettingsRepo: new SessionSelectorSettingsRepo(db),
-    providerAccountsRepo: new ProviderAccountsRepo(db),
-    workspacePreferencesRepo: new WorkspacePreferencesRepo(db),
+    sessionAiRolesRepo,
+    sessionSelectorSettingsRepo,
+    providerAccountsRepo,
+    workspacePreferencesRepo,
     capitalReservationsRepo: new CapitalReservationsRepo(db),
     capitalReservation: {
       checkSessionStartFits: () => ({ ok: true as const }),

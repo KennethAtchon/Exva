@@ -15,6 +15,7 @@ export class TradeMonitor {
     private readonly brokerRegistry: BrokerRegistry,
     private readonly portfolioValue: () => number,
     private readonly eventBus: EventBus,
+    private readonly getMaxAiSpendUsd: () => number,
     private readonly uptimeMin: () => number = () => 0,
   ) {}
 
@@ -49,7 +50,7 @@ export class TradeMonitor {
         this.sessionRepo.getStatus(this.sessionId),
         this.portfolioValue(),
         this.uptimeMin(),
-        this.sessionRepo.getConfig(this.sessionId).max_api_spend_usd,
+        this.getMaxAiSpendUsd(),
       ),
     );
   }

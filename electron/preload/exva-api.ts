@@ -14,10 +14,13 @@ import type {
   ProviderAccount,
   SelectionMode,
   SessionAiRole,
+  SessionRiskConfig,
   SessionStatus,
   SessionStrategy,
+  SessionStrategyProfile,
   SessionSelectorSettings,
   SessionTemplatePayload,
+  SessionTimeframeConfig,
   Trade,
   TradeDecisionPayload,
   TradeDetail,
@@ -80,7 +83,9 @@ export interface SessionCreateInput {
 }
 
 export interface StrategyGetResponse {
-  strategy: SessionStrategy;
+  profile: SessionStrategyProfile;
+  riskConfig: SessionRiskConfig;
+  timeframe: SessionTimeframeConfig;
   aiRoles: SessionAiRole[];
   selectorSettings: SessionSelectorSettings;
   providers: ProviderAccount[];
@@ -192,7 +197,13 @@ export interface ExvaApi {
   };
   strategy: {
     get(sessionId: string): Promise<StrategyGetResponse>;
-    save(input: { sessionId: string; strategy: Partial<SessionStrategy>; aiRoles: SessionAiRole[] }): Promise<{ savedAt: string }>;
+    getProfile(sessionId: string): Promise<SessionStrategyProfile>;
+    saveProfile(input: { sessionId: string; profile: Partial<SessionStrategyProfile> }): Promise<{ savedAt: string }>;
+    getRiskConfig(sessionId: string): Promise<SessionRiskConfig>;
+    saveRiskConfig(input: { sessionId: string; riskConfig: Partial<SessionRiskConfig> }): Promise<{ savedAt: string }>;
+    getTimeframeConfig(sessionId: string): Promise<SessionTimeframeConfig>;
+    saveTimeframeConfig(input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }): Promise<{ savedAt: string }>;
+    saveAiRoles(input: { sessionId: string; aiRoles: SessionAiRole[] }): Promise<{ savedAt: string }>;
     getProviderModels(providerKey: string): Promise<{ models: ProviderModelEntry[] }>;
     resetPrompt(role: AgentRole): Promise<{ promptMarkdown: string; promptAssetPath: string }>;
   };
@@ -218,7 +229,7 @@ export interface ExvaApi {
     listBrokers(): Promise<{ brokers: BrokerAccount[] }>;
     addBroker(input: {
       id?: string;
-      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "mock";
+        brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock";
       name: string;
       mode: "paper" | "live";
       credentials: Record<string, string>;
@@ -229,7 +240,7 @@ export interface ExvaApi {
     removeBrokerAccount(input: { id: string }): Promise<{ ok: true }>;
     testBrokerAccount(input: { id: string }): Promise<ConnectionTestResult>;
     testBrokerEphemeral(input: {
-      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "mock";
+      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock";
       mode: "paper" | "live";
       credentials: Record<string, string>;
     }): Promise<ConnectionTestResult>;

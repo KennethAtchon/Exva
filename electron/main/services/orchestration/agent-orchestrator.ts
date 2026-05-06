@@ -1,11 +1,17 @@
 import PQueue from "p-queue";
-import type { EventSourceType, InstrumentClass, SessionConfig, Trade, WorkspaceSession } from "@/lib/types";
+import { toLegacySessionConfig, type EventSourceType, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import type { OrderRequest } from "../broker/adapters/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
 
-type ResolvedInstrument = { symbol: string; instrumentClass: InstrumentClass };
+type ResolvedInstrument = {
+  symbol: string;
+  instrumentClass: InstrumentClass;
+  instrumentDisplayName?: string;
+  predictionOutcome?: "YES" | "NO" | null;
+  instrumentMetadataJson?: string | null;
+};
 
 type AiResearchRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runAnalyst"]>>;
 type AiReviewRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runReviewer"]>>;
@@ -14,7 +20,13 @@ type AiDecisionRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runDecisionMaker
 type DecisionOutput = {
   action: "trade" | "no_trade";
   instrumentSymbol?: string;
+  instrumentDisplayName?: string;
   side?: "BUY" | "SELL";
+  outcome?: "YES" | "NO";
+  estimatedProb?: number;
+  impliedProb?: number;
+  edgePctPts?: number;
+  instrumentMetadataJson?: string;
   sizeUsd?: number;
   confidence: number;
   stopLossPct?: number;
@@ -41,7 +53,7 @@ export class AgentOrchestrator {
     }
 
     const session = this.deps.sessionRepo.requireById(this.sessionId);
-    const config = this.deps.sessionRepo.getConfig(this.sessionId);
+    const config = this.getSessionConfig();
     this.queue.concurrency = config.max_concurrent_trades;
     this.started = true;
 
@@ -54,8 +66,8 @@ export class AgentOrchestrator {
       throw error instanceof AppError ? error : new AppError(message, "VALIDATION_FAILED");
     }
 
-    for (const { symbol, instrumentClass } of instruments) {
-      this.queue.add(() => this.runTradeCycle(symbol, instrumentClass)).catch((error) => {
+    for (const instrument of instruments) {
+      this.queue.add(() => this.runTradeCycle(instrument)).catch((error) => {
         this.emitEvent(
           "ERROR",
           null,
@@ -90,7 +102,7 @@ export class AgentOrchestrator {
     const trade = this.deps.tradesRepo.require(approval.tradeId);
     if (trade.status !== "pending") return;
 
-    const config = this.deps.sessionRepo.getConfig(this.sessionId);
+    const config = this.getSessionConfig();
     const stats = this.deps.statsRepo.dashboardStats(
       this.sessionId,
       this.deps.sessionRepo.getStatus(this.sessionId),
@@ -99,13 +111,17 @@ export class AgentOrchestrator {
       config.max_api_spend_usd,
     );
 
-    const pipeline = await this.runAiPipeline(input.instrumentSymbol, input.instrumentClass, config);
+    const pipeline = await this.runAiPipeline(
+      { symbol: input.instrumentSymbol, instrumentClass: input.instrumentClass },
+      config,
+    );
     if (!pipeline) return;
 
     const { technical, fundamental, review, decision } = pipeline;
 
-    for (const run of [technical.run, fundamental.run, review.run, decision.run]) {
-      this.deps.agentRunsRepo.insert({ ...run, session_id: this.sessionId, trade_id: trade.id });
+    for (const result of [technical, fundamental, review, decision]) {
+      this.deps.agentRunsRepo.insert({ ...result.run, session_id: this.sessionId, trade_id: trade.id });
+      this.deps.agentMessagesRepo.insert({ ...result.message, session_id: this.sessionId, trade_id: trade.id });
     }
 
     const fresh = decision.output;
@@ -114,7 +130,12 @@ export class AgentOrchestrator {
       return;
     }
 
-    const nextTrade = this.buildTradeFromDecision(trade.id, input.instrumentSymbol, input.instrumentClass, config, fresh);
+    const nextTrade = this.buildTradeFromDecision(
+      trade.id,
+      { symbol: input.instrumentSymbol, instrumentClass: input.instrumentClass },
+      config,
+      fresh,
+    );
     this.deps.tradesRepo.patchPendingExecution(trade.id, {
       side: nextTrade.side,
       position_size_usd: nextTrade.position_size_usd,
@@ -126,13 +147,20 @@ export class AgentOrchestrator {
     const risk = this.deps.riskEngine.validateDecision({
       config,
       stats,
-      order: {
-        instrumentSymbol: updated.instrumentSymbol,
-        instrumentType: input.instrumentClass,
-        side: updated.side,
-        sizeUsd: updated.position_size_usd,
+        order: {
+          instrumentSymbol: updated.instrumentSymbol,
+          instrumentDisplayName: updated.instrumentDisplayName ?? null,
+          predictionOutcome: updated.predictionOutcome ?? null,
+          instrumentMetadataJson: updated.instrumentMetadataJson ?? null,
+          instrumentType: input.instrumentClass,
+          side: updated.side,
+          sizeUsd: updated.position_size_usd,
       },
       confidence: updated.confidence_score ?? 0,
+      maxExposureUsd:
+        input.instrumentClass === "prediction_market"
+          ? this.deps.strategyContextService.get(this.sessionId).riskConfig.maxExposureUsd
+          : null,
     });
 
     if (!risk.allowed || !risk.value) {
@@ -180,10 +208,10 @@ export class AgentOrchestrator {
     return true;
   }
 
-  private async runTradeCycle(instrumentSymbol: string, instrumentClass: InstrumentClass): Promise<void> {
+  private async runTradeCycle(instrument: ResolvedInstrument): Promise<void> {
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
 
-    const config = this.deps.sessionRepo.getConfig(this.sessionId);
+    const config = this.getSessionConfig();
     const stats = this.deps.statsRepo.dashboardStats(
       this.sessionId,
       this.deps.sessionRepo.getStatus(this.sessionId),
@@ -192,15 +220,16 @@ export class AgentOrchestrator {
       config.max_api_spend_usd,
     );
 
-    const pipeline = await this.runAiPipeline(instrumentSymbol, instrumentClass, config);
+    const pipeline = await this.runAiPipeline(instrument, config);
     if (!pipeline) return;
 
     const { technical, fundamental, review, decision } = pipeline;
 
-    const trade = this.createTradeFromDecision(instrumentSymbol, instrumentClass, config, decision.output);
+    const trade = this.createTradeFromDecision(instrument, config, decision.output);
     this.deps.tradesRepo.insert(trade);
-    for (const run of [technical.run, fundamental.run, review.run, decision.run]) {
-      this.deps.agentRunsRepo.insert({ ...run, session_id: this.sessionId, trade_id: trade.id });
+    for (const result of [technical, fundamental, review, decision]) {
+      this.deps.agentRunsRepo.insert({ ...result.run, session_id: this.sessionId, trade_id: trade.id });
+      this.deps.agentMessagesRepo.insert({ ...result.message, session_id: this.sessionId, trade_id: trade.id });
     }
 
     if (decision.output.action !== "trade") return;
@@ -208,14 +237,21 @@ export class AgentOrchestrator {
     const risk = this.deps.riskEngine.validateDecision({
       config,
       stats,
-      order: {
-        instrumentSymbol: trade.instrumentSymbol,
-        instrumentType: instrumentClass,
-        side: trade.side,
-        sizeUsd: trade.position_size_usd,
-      },
-      confidence: trade.confidence_score ?? 0,
-    });
+        order: {
+          instrumentSymbol: trade.instrumentSymbol,
+          instrumentDisplayName: trade.instrumentDisplayName ?? null,
+          predictionOutcome: trade.predictionOutcome ?? null,
+          instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
+          instrumentType: instrument.instrumentClass,
+          side: trade.side,
+          sizeUsd: trade.position_size_usd,
+        },
+        confidence: trade.confidence_score ?? 0,
+        maxExposureUsd:
+          instrument.instrumentClass === "prediction_market"
+            ? this.deps.strategyContextService.get(this.sessionId).riskConfig.maxExposureUsd
+            : null,
+      });
     if (!risk.allowed || !risk.value) {
       this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
       this.emitEvent("WARN", trade.id, risk.reason ?? "Trade rejected by risk engine");
@@ -224,7 +260,7 @@ export class AgentOrchestrator {
 
     let approvalIdForCapital: string | null = null;
     if (config.human_approval_required) {
-      const { approved, approvalId } = await this.waitForApproval(trade, instrumentClass, decision.output, risk.reason);
+      const { approved, approvalId } = await this.waitForApproval(trade, instrument.instrumentClass, decision.output, risk.reason);
       approvalIdForCapital = approvalId;
       if (!approved) {
         this.deps.capitalReservation.releaseByApproval(approvalId);
@@ -235,7 +271,7 @@ export class AgentOrchestrator {
       }
     }
 
-    const placed = await this.placeRoutedOrder(trade, instrumentClass, risk.value);
+    const placed = await this.placeRoutedOrder(trade, instrument.instrumentClass, risk.value);
     if (!placed) {
       this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
       this.emitEvent("WARN", trade.id, "Instrument conflict or broker routing blocked order placement.");
@@ -287,19 +323,18 @@ export class AgentOrchestrator {
   }
 
   private async runAiPipeline(
-    instrumentSymbol: string,
-    instrumentClass: InstrumentClass,
+    instrument: ResolvedInstrument,
     config: SessionConfig,
   ): Promise<{ technical: AiResearchRun; fundamental: AiResearchRun; review: AiReviewRun; decision: AiDecisionRun } | null> {
-    const technical = await this.deps.ai.runAnalyst({ instrumentSymbol }, "technical", this.sessionId);
+    const technical = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: instrument.instrumentDisplayName }, "technical", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
-    const fundamental = await this.deps.ai.runAnalyst({ instrumentSymbol }, "fundamental", this.sessionId);
+    const fundamental = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: instrument.instrumentDisplayName }, "fundamental", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
     const review = await this.deps.ai.runReviewer(
       {
-        instrumentSymbol,
+        instrumentSymbol: instrument.symbol,
         technicalAnalysis: technical.output,
         fundamentalAnalysis: fundamental.output,
       },
@@ -309,7 +344,7 @@ export class AgentOrchestrator {
 
     const decision = await this.deps.ai.runDecisionMaker(
       {
-        instrumentSymbol,
+        instrumentSymbol: instrument.symbol,
         technicalAnalysis: technical.output,
         fundamentalAnalysis: fundamental.output,
         review: review.output,
@@ -333,12 +368,15 @@ export class AgentOrchestrator {
       this.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId: resolvedBroker });
     }
 
-    const sessionStrategy = this.deps.sessionStrategiesRepo.get(this.sessionId);
+    const sessionStrategy = this.deps.strategyContextService.get(this.sessionId).timeframe;
     const approval = this.deps.tradeApprovalsRepo.createPending({
       sessionId: this.sessionId,
       tradeId: trade.id,
       brokerAccountId: resolvedBroker,
       instrumentSymbol: trade.instrumentSymbol,
+      instrumentDisplayName: trade.instrumentDisplayName ?? null,
+      predictionOutcome: trade.predictionOutcome ?? null,
+      instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
       instrumentClass,
       proposedSide: trade.side,
       proposedSizeUsd: trade.position_size_usd,
@@ -370,6 +408,9 @@ export class AgentOrchestrator {
       approval_id: approval.id,
       session_id: this.sessionId,
       instrumentSymbol: trade.instrumentSymbol,
+      instrumentDisplayName: trade.instrumentDisplayName ?? undefined,
+      predictionOutcome: trade.predictionOutcome ?? null,
+      instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
       side: trade.side,
       size_usd: trade.position_size_usd,
       confidence: trade.confidence_score ?? 0,
@@ -394,18 +435,21 @@ export class AgentOrchestrator {
   /** Fresh sizing for an existing pending trade after a recheck decision. */
   private buildTradeFromDecision(
     tradeId: string,
-    instrumentSymbol: string,
-    instrumentClass: InstrumentClass,
+    instrument: ResolvedInstrument,
     config: SessionConfig,
     decision: DecisionOutput,
   ): Trade {
-    const brokerAccountId = this.resolveBrokerAccountId(instrumentClass);
+    const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
+    const prediction = this.resolvePredictionTradeFields(instrument, decision);
     return {
       id: tradeId,
       sessionId: this.sessionId,
       brokerAccountId,
-      instrumentSymbol: decision.instrumentSymbol ?? instrumentSymbol,
-      instrumentType: instrumentClass,
+      instrumentSymbol: decision.instrumentSymbol ?? instrument.symbol,
+      instrumentDisplayName: prediction.instrumentDisplayName,
+      predictionOutcome: prediction.predictionOutcome,
+      instrumentMetadataJson: prediction.instrumentMetadataJson,
+      instrumentType: instrument.instrumentClass,
       side: decision.side ?? "BUY",
       entry_price: null,
       position_size_usd: Math.min(decision.sizeUsd ?? config.max_position_usd, config.max_position_usd),
@@ -424,20 +468,23 @@ export class AgentOrchestrator {
   }
 
   private createTradeFromDecision(
-    instrumentSymbol: string,
-    instrumentClass: InstrumentClass,
+    instrument: ResolvedInstrument,
     config: SessionConfig,
     decision: DecisionOutput,
   ): Trade {
     const id = crypto.randomUUID();
-    const brokerAccountId = this.resolveBrokerAccountId(instrumentClass);
+    const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
     const isTrade = decision.action === "trade";
+    const prediction = this.resolvePredictionTradeFields(instrument, decision);
     return {
       id,
       sessionId: this.sessionId,
       brokerAccountId,
-      instrumentSymbol: decision.instrumentSymbol ?? instrumentSymbol,
-      instrumentType: instrumentClass,
+      instrumentSymbol: decision.instrumentSymbol ?? instrument.symbol,
+      instrumentDisplayName: prediction.instrumentDisplayName,
+      predictionOutcome: prediction.predictionOutcome,
+      instrumentMetadataJson: prediction.instrumentMetadataJson,
+      instrumentType: instrument.instrumentClass,
       side: decision.side ?? "BUY",
       entry_price: null,
       position_size_usd: Math.min(decision.sizeUsd ?? config.max_position_usd, config.max_position_usd),
@@ -498,7 +545,7 @@ export class AgentOrchestrator {
     }
 
     this.emitEvent("INFO", null, "Running instrument selector agent...");
-    const result = await this.deps.ai.runInstrumentSelector(session.id, session.instrumentScope);
+    const result = await this.deps.ai.runInstrumentSelector(session.id, await this.buildSelectionInstructions(session));
 
     const filtered = result.output.instruments.filter((row: ResolvedInstrument) =>
       session.instrumentClasses.includes(row.instrumentClass),
@@ -514,10 +561,18 @@ export class AgentOrchestrator {
     const payload: ResolvedInstrument[] = limited.map((row: ResolvedInstrument) => ({
       symbol: row.symbol,
       instrumentClass: row.instrumentClass,
+      instrumentDisplayName: row.instrumentDisplayName,
+      predictionOutcome: row.predictionOutcome ?? null,
+      instrumentMetadataJson: row.instrumentMetadataJson ?? null,
     }));
 
     this.deps.agentRunsRepo.insert({
       ...result.run,
+      session_id: this.sessionId,
+      trade_id: null,
+    });
+    this.deps.agentMessagesRepo.insert({
+      ...result.message,
       session_id: this.sessionId,
       trade_id: null,
     });
@@ -537,14 +592,15 @@ export class AgentOrchestrator {
   private parseManualShortlist(session: WorkspaceSession, config: SessionConfig): ResolvedInstrument[] {
     const symbols = session.instrumentScope
       .split(/[\n,]+/)
-      .map((symbol) => symbol.trim().toUpperCase())
-      .filter((symbol) => symbol.length > 0);
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
 
     const out: ResolvedInstrument[] = [];
-    for (const symbol of symbols) {
-      const instrumentClass = this.inferInstrumentClass(symbol, session.instrumentClasses);
+    for (const line of symbols) {
+      const parsed = this.parseManualInstrumentLine(line, session.instrumentClasses);
+      const instrumentClass = parsed.instrumentClass;
       if (!session.instrumentClasses.includes(instrumentClass)) continue;
-      out.push({ symbol, instrumentClass });
+      out.push(parsed);
     }
     if (out.length === 0) {
       throw new AppError("Manual instrument shortlist is empty after parsing.", "VALIDATION_FAILED");
@@ -557,7 +613,119 @@ export class AgentOrchestrator {
     const upper = symbol.toUpperCase();
     if (classes.includes("crypto") && upper.includes("-")) return "crypto";
     if (classes.includes("futures") && /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d{1,2}$/i.test(upper)) return "futures";
+    if (classes.includes("prediction_market") && symbol.startsWith("pm:")) return "prediction_market";
     if (classes.includes("stock")) return "stock";
     return classes[0]!;
   }
+
+  private parseManualInstrumentLine(line: string, classes: InstrumentClass[]): ResolvedInstrument {
+    if (line.startsWith("{")) {
+      const parsed = JSON.parse(line) as ResolvedInstrument;
+      return {
+        symbol: parsed.symbol,
+        instrumentClass: parsed.instrumentClass,
+        instrumentDisplayName: parsed.instrumentDisplayName,
+        predictionOutcome: parsed.predictionOutcome ?? null,
+        instrumentMetadataJson: parsed.instrumentMetadataJson ?? null,
+      };
+    }
+    const symbol = line.startsWith("pm:") ? line : line.toUpperCase();
+    return {
+      symbol,
+      instrumentClass: this.inferInstrumentClass(symbol, classes),
+    };
+  }
+
+  private getSessionConfig(): SessionConfig {
+    return toLegacySessionConfig(this.deps.strategyContextService.get(this.sessionId));
+  }
+
+  private resolvePredictionTradeFields(
+    instrument: ResolvedInstrument,
+    decision: DecisionOutput,
+  ): Pick<Trade, "instrumentDisplayName" | "predictionOutcome" | "instrumentMetadataJson"> {
+    const instrumentDisplayName = decision.instrumentDisplayName ?? instrument.instrumentDisplayName ?? null;
+    const predictionOutcome = decision.outcome ?? instrument.predictionOutcome ?? null;
+    const instrumentMetadataJson =
+      instrument.instrumentClass === "prediction_market"
+        ? remapPredictionMetadataForOutcome(decision.instrumentMetadataJson ?? instrument.instrumentMetadataJson ?? null, predictionOutcome)
+        : decision.instrumentMetadataJson ?? instrument.instrumentMetadataJson ?? null;
+
+    return { instrumentDisplayName, predictionOutcome, instrumentMetadataJson };
+  }
+
+  private async buildSelectionInstructions(session: WorkspaceSession): Promise<string> {
+    if (!session.instrumentClasses.includes("prediction_market")) {
+      return session.instrumentScope;
+    }
+
+    const candidates = await this.fetchPredictionMarketCandidates();
+    if (candidates.length === 0) {
+      return session.instrumentScope;
+    }
+
+    return `${session.instrumentScope}\n\nPrediction-market candidates (return only these canonical rows for prediction_market):\n${candidates
+      .map((candidate) => `- ${JSON.stringify(candidate)}`)
+      .join("\n")}`;
+  }
+
+  private async fetchPredictionMarketCandidates(): Promise<ResolvedInstrument[]> {
+    const response = await fetch("https://gamma-api.polymarket.com/markets?active=true&closed=false&limit=25");
+    if (!response.ok) {
+      this.emitEvent("WARN", null, `Polymarket candidate fetch failed: ${response.status}`);
+      return [];
+    }
+    const rows = (await response.json()) as Array<Record<string, unknown>>;
+    const out: ResolvedInstrument[] = [];
+
+    for (const row of rows) {
+      const conditionId = typeof row.conditionId === "string" ? row.conditionId : null;
+      const question = typeof row.question === "string" ? row.question : null;
+      const slug = typeof row.slug === "string" ? row.slug : null;
+      const category = typeof row.category === "string" ? row.category : null;
+      const resolutionTime = typeof row.endDate === "string" ? row.endDate : null;
+      const tokens = Array.isArray(row.tokens) ? row.tokens : [];
+      if (!conditionId || !question || tokens.length === 0) continue;
+
+      const yes = tokens.find((token) => token && typeof token === "object" && (token as { outcome?: unknown }).outcome === "Yes");
+      const no = tokens.find((token) => token && typeof token === "object" && (token as { outcome?: unknown }).outcome === "No");
+      const yesTokenId = typeof (yes as { token_id?: unknown } | undefined)?.token_id === "string" ? (yes as { token_id: string }).token_id : null;
+      const noTokenId = typeof (no as { token_id?: unknown } | undefined)?.token_id === "string" ? (no as { token_id: string }).token_id : null;
+      if (!yesTokenId || !noTokenId) continue;
+
+      for (const [predictionOutcome, outcomeTokenId] of [["YES", yesTokenId], ["NO", noTokenId]] as const) {
+        out.push({
+          symbol: `pm:${conditionId}`,
+          instrumentClass: "prediction_market",
+          instrumentDisplayName: question,
+          predictionOutcome,
+          instrumentMetadataJson: JSON.stringify({
+            slug,
+            conditionId,
+            outcomeTokenId,
+            yesOutcomeTokenId: yesTokenId,
+            noOutcomeTokenId: noTokenId,
+            category,
+            resolutionTime,
+          }),
+        });
+      }
+    }
+
+    return out.slice(0, 20);
+  }
+}
+
+function remapPredictionMetadataForOutcome(
+  raw: string | null,
+  predictionOutcome: "YES" | "NO" | null,
+): string | null {
+  if (!raw || !predictionOutcome) return raw;
+  const parsed = JSON.parse(raw) as {
+    yesOutcomeTokenId?: string;
+    noOutcomeTokenId?: string;
+    outcomeTokenId?: string;
+  };
+  const outcomeTokenId = predictionOutcome === "YES" ? parsed.yesOutcomeTokenId : parsed.noOutcomeTokenId;
+  return JSON.stringify({ ...parsed, outcomeTokenId: outcomeTokenId ?? parsed.outcomeTokenId });
 }

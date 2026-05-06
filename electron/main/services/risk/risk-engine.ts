@@ -20,6 +20,7 @@ export interface DecisionRiskInput {
   /** Includes `instrumentType` for broker routing (Phase 8). */
   order: OrderRequest;
   confidence: number;
+  maxExposureUsd?: number | null;
 }
 
 export class RiskEngine {
@@ -40,6 +41,17 @@ export class RiskEngine {
         allowed: true,
         value: { ...input.order, sizeUsd: input.config.max_position_usd },
         reason: "Position size reduced to configured maximum",
+      };
+    }
+    if (
+      input.order.instrumentType === "prediction_market" &&
+      input.maxExposureUsd != null &&
+      input.order.sizeUsd > input.maxExposureUsd
+    ) {
+      return {
+        allowed: true,
+        value: { ...input.order, sizeUsd: input.maxExposureUsd },
+        reason: "Prediction-market position reduced to max exposure",
       };
     }
     if (input.confidence < 0.6) return { allowed: false, reason: "Decision confidence is too low" };

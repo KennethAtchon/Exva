@@ -203,6 +203,9 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
       broker_account_id TEXT REFERENCES broker_accounts(id) ON DELETE SET NULL,
       instrument_symbol TEXT NOT NULL,
+      instrument_display_name TEXT,
+      prediction_outcome TEXT,
+      instrument_metadata_json TEXT,
       instrument_type TEXT NOT NULL DEFAULT 'stock',
       side TEXT NOT NULL CHECK (side IN ('BUY','SELL')),
       entry_price REAL,
@@ -234,6 +237,25 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS agent_messages (
+      id TEXT PRIMARY KEY,
+      agent_run_id TEXT NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      trade_id TEXT REFERENCES trades(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      provider_key TEXT NOT NULL,
+      model_id TEXT NOT NULL,
+      messages_json TEXT NOT NULL,
+      thinking_json TEXT,
+      tool_calls_json TEXT,
+      output_json TEXT,
+      output_schema_name TEXT,
+      parse_fallback INTEGER NOT NULL DEFAULT 0,
+      strategy_snapshot_json TEXT NOT NULL,
+      market_snapshot_json TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS events (
       id TEXT PRIMARY KEY,
       session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
@@ -250,6 +272,9 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       trade_id TEXT NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
       broker_account_id TEXT NOT NULL,
       instrument_symbol TEXT NOT NULL,
+      instrument_display_name TEXT,
+      prediction_outcome TEXT,
+      instrument_metadata_json TEXT,
       instrument_class TEXT NOT NULL,
       proposed_side TEXT NOT NULL CHECK (proposed_side IN ('BUY','SELL')),
       proposed_size_usd REAL NOT NULL,
@@ -304,12 +329,20 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
     CREATE INDEX IF NOT EXISTS idx_trades_instrument ON trades(instrument_symbol, broker_account_id, status);
     CREATE INDEX IF NOT EXISTS idx_agent_runs_session ON agent_runs(session_id);
+    CREATE INDEX IF NOT EXISTS idx_agent_messages_run ON agent_messages(agent_run_id);
     CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
     CREATE INDEX IF NOT EXISTS idx_approvals_session ON trade_approvals(session_id, status);
     CREATE INDEX IF NOT EXISTS idx_session_broker_override ON session_broker_routing_overrides(session_id, instrument_class);
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_session ON capital_reservations(session_id, status);
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_approval ON capital_reservations(approval_id);
   `);
+
+  addColumnIfMissing(sqlite, "trades", "instrument_display_name", "TEXT");
+  addColumnIfMissing(sqlite, "trades", "prediction_outcome", "TEXT");
+  addColumnIfMissing(sqlite, "trades", "instrument_metadata_json", "TEXT");
+  addColumnIfMissing(sqlite, "trade_approvals", "instrument_display_name", "TEXT");
+  addColumnIfMissing(sqlite, "trade_approvals", "prediction_outcome", "TEXT");
+  addColumnIfMissing(sqlite, "trade_approvals", "instrument_metadata_json", "TEXT");
 
   sqlite.exec(`
     INSERT OR IGNORE INTO session_strategy_profile (
@@ -409,4 +442,15 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       `,
     )
     .run(new Date().toISOString());
+}
+
+function addColumnIfMissing(
+  sqlite: Database.Database,
+  tableName: string,
+  columnName: string,
+  columnDefinition: string,
+): void {
+  const rows = sqlite.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name?: unknown }>;
+  if (rows.some((row) => row.name === columnName)) return;
+  sqlite.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition};`);
 }

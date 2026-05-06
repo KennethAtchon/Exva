@@ -198,6 +198,9 @@ export const trades = sqliteTable("trades", {
     .references(() => sessions.id, { onDelete: "cascade" }),
   brokerAccountId: text("broker_account_id").references(() => brokerAccounts.id, { onDelete: "set null" }),
   instrumentSymbol: text("instrument_symbol").notNull(),
+  instrumentDisplayName: text("instrument_display_name"),
+  predictionOutcome: text("prediction_outcome"),
+  instrumentMetadataJson: text("instrument_metadata_json"),
   instrumentType: text("instrument_type").notNull().default("stock"),
   side: text("side").notNull(),
   entryPrice: real("entry_price"),
@@ -231,6 +234,29 @@ export const agentRuns = sqliteTable("agent_runs", {
   createdAt: text("created_at").notNull(),
 });
 
+export const agentMessages = sqliteTable("agent_messages", {
+  id: text("id").primaryKey(),
+  agentRunId: text("agent_run_id")
+    .notNull()
+    .references(() => agentRuns.id, { onDelete: "cascade" }),
+  sessionId: text("session_id")
+    .notNull()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  tradeId: text("trade_id").references(() => trades.id, { onDelete: "cascade" }),
+  role: text("role").notNull(),
+  providerKey: text("provider_key").notNull(),
+  modelId: text("model_id").notNull(),
+  messagesJson: text("messages_json").notNull(),
+  thinkingJson: text("thinking_json"),
+  toolCallsJson: text("tool_calls_json"),
+  outputJson: text("output_json"),
+  outputSchemaName: text("output_schema_name"),
+  parseFallback: integer("parse_fallback").notNull().default(0),
+  strategySnapshotJson: text("strategy_snapshot_json").notNull(),
+  marketSnapshotJson: text("market_snapshot_json"),
+  createdAt: text("created_at").notNull(),
+});
+
 export const sessionInstrumentCache = sqliteTable("session_instrument_cache", {
   sessionId: text("session_id")
     .primaryKey()
@@ -261,6 +287,9 @@ export const tradeApprovals = sqliteTable("trade_approvals", {
     .references(() => trades.id, { onDelete: "cascade" }),
   brokerAccountId: text("broker_account_id").notNull(),
   instrumentSymbol: text("instrument_symbol").notNull(),
+  instrumentDisplayName: text("instrument_display_name"),
+  predictionOutcome: text("prediction_outcome"),
+  instrumentMetadataJson: text("instrument_metadata_json"),
   instrumentClass: text("instrument_class").notNull(),
   proposedSide: text("proposed_side").notNull(),
   proposedSizeUsd: real("proposed_size_usd").notNull(),

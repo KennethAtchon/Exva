@@ -8,7 +8,7 @@ How to install, run, and interact with the desktop app.
 
 | Tool | Version | Notes |
 |---|---|---|
-| Node | 20+ | for Electron Forge, Vite, and TypeScript |
+| Bun | 1.3+ | required package manager and script runner for Electron Forge, Vite, and TypeScript |
 | Platform build tools | current OS toolchain | required by Electron native modules such as `better-sqlite3` and `keytar` |
 
 ---
@@ -16,7 +16,7 @@ How to install, run, and interact with the desktop app.
 ## 2. Install
 
 ```bash
-npm install
+bun install
 ```
 
 That pulls the React/TS frontend deps, Electron Forge, and native modules.
@@ -26,12 +26,12 @@ That pulls the React/TS frontend deps, Electron Forge, and native modules.
 ## 3. Run in dev
 
 ```bash
-npm run start
+bun run start
 ```
 
 Starts Electron Forge with Vite for the main process, preload bridge, and React renderer. Hot reload works for renderer edits; main/preload edits restart the Electron shell.
 
-**Browser fallback.** `npm run dev:renderer` loads the UI in a regular browser tab. The typed Exva wrapper detects no Electron preload API and serves mock data, so you can iterate on UI without spinning the desktop shell.
+**Browser fallback.** `bun run dev:renderer` loads the UI in a regular browser tab. The typed Exva wrapper detects no Electron preload API and serves mock data, so you can iterate on UI without spinning the desktop shell.
 
 ---
 
@@ -81,8 +81,8 @@ rm "$HOME/Library/Application Support/Exva/exva.db"
 ## 7. Bundling
 
 ```bash
-npm run package
-npm run make
+bun run package
+bun run make
 ```
 
 Packaged output lands in `out/`.
@@ -93,7 +93,7 @@ Packaged output lands in `out/`.
 
 - **Open devtools in the desktop window**: right-click → Inspect (only in dev).
 - **IPC command failed?** Errors are normalized by the Electron IPC handler. Check the renderer console and terminal log.
-- **Main-process logs**: `EXVA_LOG_LEVEL=debug npm run start`.
+- **Main-process logs**: `EXVA_LOG_LEVEL=debug bun run start`.
 - **DB inspection**: `sqlite3 "$HOME/Library/Application Support/com.exva.app/exva.db"`.
 - **Mock broker**: default until you save Alpaca creds. Trades execute "successfully" but go nowhere.
 

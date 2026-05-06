@@ -14,10 +14,13 @@ import type {
   ProviderAccount,
   SelectionMode,
   SessionAiRole,
+  SessionRiskConfig,
   SessionSelectorSettings,
+  SessionStrategyProfile,
   SessionStrategy,
   SessionStatus,
   SessionTemplatePayload,
+  SessionTimeframeConfig,
   Trade,
   TradeDecisionPayload,
   TradeDetail,
@@ -66,7 +69,9 @@ export interface SessionCreateInput {
 }
 
 export interface StrategyGetResponse {
-  strategy: SessionStrategy;
+  profile: SessionStrategyProfile;
+  riskConfig: SessionRiskConfig;
+  timeframe: SessionTimeframeConfig;
   aiRoles: SessionAiRole[];
   selectorSettings: SessionSelectorSettings;
   providers: ProviderAccount[];
@@ -90,7 +95,7 @@ const hasExva =
 function bridge() {
   if (!hasExva) {
     throw new Error(
-      "EXVA bridge unavailable. Run `npm run dev` / `npm start` (Electron host) instead of the renderer-only dev server.",
+      "EXVA bridge unavailable. Run `bun run dev` / `bun run start` (Electron host) instead of the renderer-only dev server.",
     );
   }
   return window.exva!;
@@ -158,8 +163,17 @@ export const api = {
     bridge().templates.buildPayloadFromSession(sessionId),
 
   getStrategy: (sessionId: string): Promise<StrategyGetResponse> => bridge().strategy.get(sessionId),
-  saveStrategy: (input: { sessionId: string; strategy: Partial<SessionStrategy>; aiRoles: SessionAiRole[] }) =>
-    bridge().strategy.save(input),
+  getStrategyProfile: (sessionId: string): Promise<SessionStrategyProfile> => bridge().strategy.getProfile(sessionId),
+  saveStrategyProfile: (input: { sessionId: string; profile: Partial<SessionStrategyProfile> }) =>
+    bridge().strategy.saveProfile(input),
+  getStrategyRiskConfig: (sessionId: string): Promise<SessionRiskConfig> => bridge().strategy.getRiskConfig(sessionId),
+  saveStrategyRiskConfig: (input: { sessionId: string; riskConfig: Partial<SessionRiskConfig> }) =>
+    bridge().strategy.saveRiskConfig(input),
+  getStrategyTimeframeConfig: (sessionId: string): Promise<SessionTimeframeConfig> =>
+    bridge().strategy.getTimeframeConfig(sessionId),
+  saveStrategyTimeframeConfig: (input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }) =>
+    bridge().strategy.saveTimeframeConfig(input),
+  saveStrategyAiRoles: (input: { sessionId: string; aiRoles: SessionAiRole[] }) => bridge().strategy.saveAiRoles(input),
   getStrategyProviderModels: (providerKey: string): Promise<{ models: ProviderModelEntry[] }> =>
     bridge().strategy.getProviderModels(providerKey),
   resetStrategyPrompt: (role: AgentRole) => bridge().strategy.resetPrompt(role),
@@ -187,7 +201,7 @@ export const api = {
   listBrokerAccounts: (): Promise<{ brokers: BrokerAccount[] }> => bridge().accounts.listBrokers(),
   registerBrokerAccount: (input: {
     id?: string;
-    brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "mock";
+      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock";
     name: string;
     mode: "paper" | "live";
     credentials: Record<string, string>;
@@ -196,7 +210,7 @@ export const api = {
   testSavedBrokerAccount: (id: string): Promise<ConnectionTestResult> =>
     bridge().accounts.testBrokerAccount({ id }),
   testBrokerCredentials: (input: {
-    brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "mock";
+      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock";
     mode: "paper" | "live";
     credentials: Record<string, string>;
   }): Promise<ConnectionTestResult> => bridge().accounts.testBrokerEphemeral(input),

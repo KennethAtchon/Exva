@@ -1,14 +1,18 @@
-import type { ConnectionTestResult } from "@/lib/types";
-import type { InstrumentClass } from "@/lib/types";
+import type { ConnectionTestResult, InstrumentClass, PredictionOutcome } from "@/lib/types";
 
 export interface MarketSnapshot {
   instrumentSymbol: string;
+  instrumentDisplayName?: string | null;
+  predictionOutcome?: PredictionOutcome | null;
   price: number;
   timestamp: string;
 }
 
 export interface BrokerOrder {
   instrumentSymbol: string;
+  instrumentDisplayName?: string | null;
+  predictionOutcome?: PredictionOutcome | null;
+  instrumentMetadataJson?: string | null;
   instrumentType: InstrumentClass;
   side: "BUY" | "SELL";
   sizeUsd: number;
@@ -23,6 +27,9 @@ export interface BrokerOrderResult {
 
 export interface BrokerPosition {
   instrumentSymbol: string;
+  instrumentDisplayName?: string | null;
+  predictionOutcome?: PredictionOutcome | null;
+  instrumentMetadataJson?: string | null;
   instrumentType: InstrumentClass;
   side: "long" | "short";
   sizeUsd: number;
@@ -44,6 +51,9 @@ export interface CloseResult {
 /** Used by risk engine / orchestrator before routing normalizes symbols. */
 export interface OrderRequest {
   instrumentSymbol: string;
+  instrumentDisplayName?: string | null;
+  predictionOutcome?: PredictionOutcome | null;
+  instrumentMetadataJson?: string | null;
   instrumentType: InstrumentClass;
   side: "BUY" | "SELL";
   sizeUsd: number;

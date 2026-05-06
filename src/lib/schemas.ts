@@ -54,7 +54,7 @@ export const listTradesFiltersSchema = z.object({
   sessionId: z.string().optional(),
   brokerAccountId: z.string().optional(),
   symbolContains: z.string().optional(),
-  instrumentType: z.enum(["stock", "crypto", "futures"]).optional(),
+  instrumentType: z.enum(["stock", "crypto", "futures", "prediction_market"]).optional(),
   executionMode: z.enum(["paper_only", "live_allowed"]).optional(),
 });
 
@@ -62,8 +62,14 @@ export const instrumentSelectionSchema = z.object({
   instruments: z
     .array(
       z.object({
-        symbol: z.string().min(1).max(32).transform((s) => s.trim().toUpperCase()),
-        instrumentClass: z.enum(["stock", "crypto", "futures"]),
+        symbol: z.string().min(1).max(160).transform((s) => {
+          const trimmed = s.trim();
+          return trimmed.startsWith("pm:") ? trimmed : trimmed.toUpperCase();
+        }),
+        instrumentClass: z.enum(["stock", "crypto", "futures", "prediction_market"]),
+        instrumentDisplayName: z.string().optional(),
+        predictionOutcome: z.enum(["YES", "NO"]).nullable().optional(),
+        instrumentMetadataJson: z.string().optional(),
         rationale: z.string().optional(),
       }),
     )
@@ -77,6 +83,12 @@ export const tradeDecisionSchema = z.object({
   action: z.enum(["trade", "no_trade"]),
   side: tradeSideSchema.optional(),
   instrumentSymbol: z.string().min(1),
+  instrumentDisplayName: z.string().optional(),
+  outcome: z.enum(["YES", "NO"]).optional(),
+  estimatedProb: z.number().min(0).max(1).optional(),
+  impliedProb: z.number().min(0).max(1).optional(),
+  edgePctPts: z.number().optional(),
+  instrumentMetadataJson: z.string().optional(),
   sizeUsd: z.number().positive().optional(),
   confidence: z.number().min(0).max(1),
   stopLossPct: z.number().positive().optional(),
@@ -124,9 +136,9 @@ export const providerAccountTestSchema = z.object({
   id: z.string().min(1),
 });
 
-export const instrumentClassSchema = z.enum(["stock", "crypto", "futures"]);
+export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 
-export const brokerTypeSchema = z.enum(["alpaca", "coinbase_advanced_trade", "tradovate", "mock"]);
+export const brokerTypeSchema = z.enum(["alpaca", "coinbase_advanced_trade", "tradovate", "polymarket", "mock"]);
 
 export const brokerAccountAddSchema = z.object({
   id: z.string().min(1).optional(),
@@ -153,4 +165,92 @@ export const brokerRoutingUpdateSchema = z.object({
       defaultBrokerAccountId: z.string().min(1),
     }),
   ),
+});
+
+const strategyTypeSchema = z.enum([
+  "momentum",
+  "mean_reversion",
+  "trend_following",
+  "short_bias",
+  "pairs",
+  "fundamental",
+  "event_driven",
+  "prediction_market",
+  "custom",
+]);
+const strategySideBiasSchema = z.enum(["long_only", "short_only", "both", "market_neutral", "n_a"]);
+const strategyEntryStyleSchema = z.enum(["breakout", "pullback", "reversal", "range_fade", "event", "probability_edge"]);
+const strategyExitStyleSchema = z.enum(["fixed_pct", "trailing_atr", "partial_exits", "time_based", "thesis_based", "market_resolution"]);
+const strategyScalingModeSchema = z.enum(["single_entry", "scale_in_2", "scale_in_3", "scale_out_partial"]);
+const stopLossTypeSchema = z.enum(["fixed_pct", "trailing_atr", "broker_native_trailing", "none"]);
+const tradingTimeframeSchema = z.enum(["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]);
+const holdingStyleSchema = z.enum(["intraday_flat", "multi_day_swing", "weeks_position", "custom"]);
+const promptSourceSchema = z.enum(["default", "session_override"]);
+const aiRoleSchema = z.enum([
+  "analyst_technical",
+  "analyst_fundamental",
+  "reviewer",
+  "decision_maker",
+  "instrument_selector",
+]);
+
+const sessionAiRolePayloadSchema = z.object({
+  role: aiRoleSchema,
+  providerKey: z.string(),
+  modelId: z.string(),
+  temperature: z.number().min(0).max(2),
+  maxTokens: z.number().int().positive(),
+  webSearchEnabled: z.boolean(),
+  promptSource: promptSourceSchema,
+  promptMarkdown: z.string(),
+  promptAssetPath: z.string().nullable(),
+});
+
+export const strategyProfileSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  profile: z.object({
+    strategyType: strategyTypeSchema.optional(),
+    sideBias: strategySideBiasSchema.optional(),
+    entryStyle: strategyEntryStyleSchema.optional(),
+    exitStyle: strategyExitStyleSchema.optional(),
+    scalingMode: strategyScalingModeSchema.optional(),
+    strategyBriefMarkdown: z.string().max(1200).optional(),
+    customInstructions: z.string().optional(),
+  }),
+});
+
+export const strategyRiskConfigSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  riskConfig: z.object({
+    maxPositionUsd: z.number().nonnegative().optional(),
+    stopLossPct: z.union([z.number().nonnegative(), z.null()]).optional(),
+    takeProfitPct: z.union([z.number().nonnegative(), z.null()]).optional(),
+    stopLossType: stopLossTypeSchema.optional(),
+    atrStopMultiplier: z.union([z.number().nonnegative(), z.null()]).optional(),
+    kellyFraction: z.number().nonnegative().optional(),
+    predictionEdgeThreshold: z.number().nonnegative().optional(),
+    maxExposureUsd: z.union([z.number().nonnegative(), z.null()]).optional(),
+    waitForOpenThreshold: z.number().nonnegative().optional(),
+    maxConcurrentTrades: z.number().int().nonnegative().optional(),
+    dailyLossLimitUsd: z.number().nonnegative().optional(),
+    profitTargetUsd: z.number().nonnegative().optional(),
+    maxAiSpendUsd: z.number().nonnegative().optional(),
+    humanApprovalRequired: z.boolean().optional(),
+  }),
+});
+
+export const strategyTimeframeConfigSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  timeframe: z.object({
+    primaryTradingTimeframe: tradingTimeframeSchema.optional(),
+    holdingStyle: holdingStyleSchema.optional(),
+    targetHoldDays: z.union([z.number().nonnegative(), z.null()]).optional(),
+    maxHoldDays: z.union([z.number().nonnegative(), z.null()]).optional(),
+    timeframeNotes: z.string().optional(),
+  }),
+});
+
+export const strategyAiRolesSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  aiRoles: z.array(sessionAiRolePayloadSchema),
 });

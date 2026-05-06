@@ -15,9 +15,11 @@ export class SessionRuntimeManager {
     const orchestratorDeps: OrchestratorDeps = {
       sessionRepo: this.deps.sessionRepo,
       sessionStrategiesRepo: this.deps.sessionStrategiesRepo,
+      strategyContextService: this.deps.strategyContextService,
       tradesRepo: this.deps.tradesRepo,
       tradeApprovalsRepo: this.deps.tradeApprovalsRepo,
       agentRunsRepo: this.deps.agentRunsRepo,
+      agentMessagesRepo: this.deps.agentMessagesRepo,
       eventsRepo: this.deps.eventsRepo,
       statsRepo: this.deps.statsRepo,
       sessionAiRolesRepo: this.deps.sessionAiRolesRepo,

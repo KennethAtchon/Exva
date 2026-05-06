@@ -10,14 +10,14 @@ See [`docs/System_Design.md`](./docs/System_Design.md) for architecture, [`docs/
 
 ## Run
 
-Prereqs: Node 20+ and platform build tools for Electron native modules.
+Prereqs: Bun 1.3+ and platform build tools for Electron native modules.
 
 ```bash
-npm install
-npm run start        # starts Electron Forge + Vite
+bun install
+bun run start        # starts Electron Forge + Vite
 ```
 
-To produce a packaged app, run `npm run package`. To create platform installers, run `npm run make`.
+To produce a packaged app, run `bun run package`. To create platform installers, run `bun run make`.
 
 ## Implementation status
 
@@ -40,4 +40,4 @@ Search the repo for `TODO` to find every pending piece.
 - **IPC boundary**: frontend never touches the DB, keychain, or external APIs directly. Everything flows through the preload-exposed `window.exva` API. See `src/lib/exva.ts`.
 - **Live updates**: the Electron main process emits `stats_update`, `agent_event`, `trade_opened`, and `trade_closed` events. Frontend subscribes via `useExvaEvent`. It also polls stats every 5s as a fallback.
 - **Secrets**: only ever in the OS keychain through `keytar`. SQLite never stores keys.
-- **Browser dev**: `npm run dev:renderer` launches Vite in a browser. The typed wrapper falls back to mock data so the UI still renders.
+- **Browser dev**: `bun run dev:renderer` launches Vite in a browser. The typed wrapper falls back to mock data so the UI still renders.

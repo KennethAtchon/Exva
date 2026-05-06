@@ -1,4 +1,4 @@
-export type InstrumentClass = "stock" | "crypto" | "futures";
+export type InstrumentClass = "stock" | "crypto" | "futures" | "prediction_market";
 
 export type SessionStatus = "draft" | "idle" | "active" | "paused" | "stopped" | "archived";
 export type SessionRuntimeStatus = "starting" | "active" | "paused" | "stopping";
@@ -28,6 +28,60 @@ export type StrategyExitStyle =
   | "market_resolution";
 export type StrategyScalingMode = "single_entry" | "scale_in_2" | "scale_in_3" | "scale_out_partial";
 export type StopLossType = "fixed_pct" | "trailing_atr" | "broker_native_trailing" | "none";
+
+export const STRATEGY_TYPES: readonly StrategyType[] = [
+  "momentum",
+  "mean_reversion",
+  "trend_following",
+  "short_bias",
+  "pairs",
+  "fundamental",
+  "event_driven",
+  "prediction_market",
+  "custom",
+];
+
+export const STRATEGY_SIDE_BIASES: readonly StrategySideBias[] = [
+  "long_only",
+  "short_only",
+  "both",
+  "market_neutral",
+  "n_a",
+];
+
+export const STRATEGY_ENTRY_STYLES: readonly StrategyEntryStyle[] = [
+  "breakout",
+  "pullback",
+  "reversal",
+  "range_fade",
+  "event",
+  "probability_edge",
+];
+
+export const STRATEGY_EXIT_STYLES: readonly StrategyExitStyle[] = [
+  "fixed_pct",
+  "trailing_atr",
+  "partial_exits",
+  "time_based",
+  "thesis_based",
+  "market_resolution",
+];
+
+export const STRATEGY_SCALING_MODES: readonly StrategyScalingMode[] = [
+  "single_entry",
+  "scale_in_2",
+  "scale_in_3",
+  "scale_out_partial",
+];
+
+export const STOP_LOSS_TYPES: readonly StopLossType[] = [
+  "fixed_pct",
+  "trailing_atr",
+  "broker_native_trailing",
+  "none",
+];
+
+export const STRATEGY_BRIEF_MARKDOWN_MAX_CHARS = 1_200;
 
 /** Bar size the session uses for analysis and agent context. */
 export type TradingTimeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
@@ -92,11 +146,39 @@ export function validateSessionStrategyTimeframeFields(s: SessionStrategy): void
   }
 }
 
+export function validateSessionTimeframeConfigFields(timeframe: SessionTimeframeConfig): void {
+  if (!isTradingTimeframe(timeframe.primaryTradingTimeframe)) {
+    throw new Error("Select a primary trading timeframe.");
+  }
+  if (!isHoldingStyle(timeframe.holdingStyle)) {
+    throw new Error("Select a holding style.");
+  }
+  if (timeframe.targetHoldDays != null && timeframe.targetHoldDays < 0) {
+    throw new Error("Hold days cannot be negative.");
+  }
+  if (timeframe.maxHoldDays != null && timeframe.maxHoldDays < 0) {
+    throw new Error("Hold days cannot be negative.");
+  }
+  if (
+    timeframe.targetHoldDays != null &&
+    timeframe.maxHoldDays != null &&
+    timeframe.maxHoldDays < timeframe.targetHoldDays
+  ) {
+    throw new Error("Max hold must be greater than or equal to target hold.");
+  }
+}
+
 /** Non-blocking UX hint: intraday intent with very slow primary bar. */
 export function timeframeHoldMismatchWarning(s: SessionStrategy): string | null {
   if (s.holdingStyle !== "intraday_flat") return null;
   if (s.primaryTradingTimeframe !== "1d" && s.primaryTradingTimeframe !== "1w") return null;
   return "Intraday style usually uses intraday timeframes; consider 5m–1h.";
+}
+
+export function timeframeConfigHoldMismatchWarning(timeframe: SessionTimeframeConfig): string | null {
+  if (timeframe.holdingStyle !== "intraday_flat") return null;
+  if (timeframe.primaryTradingTimeframe !== "1d" && timeframe.primaryTradingTimeframe !== "1w") return null;
+  return "Intraday style usually uses intraday timeframes; consider 5m-1h.";
 }
 export type WorkspaceViewMode = "session" | "global";
 export type CapitalAllocationMode = "per_session_only" | "shared_global_pool";
@@ -125,6 +207,7 @@ export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
 /** Matches `trades.status` CHECK in migrations (Phase 2). */
 export type TradeStatus = "pending" | "open" | "closed" | "cancelled" | "failed" | "rejected";
 export type TradeSide = "BUY" | "SELL";
+export type PredictionOutcome = "YES" | "NO";
 
 const LEGAL_TRANSITIONS: Partial<Record<SessionStatus, SessionStatus[]>> = {
   draft: ["idle", "archived"],
@@ -231,6 +314,42 @@ export interface SessionStrategyContext {
   timeframe: SessionTimeframeConfig;
 }
 
+export interface StrategySnapshot {
+  version: 1;
+  profile: {
+    strategyType: StrategyType;
+    sideBias: StrategySideBias;
+    entryStyle: StrategyEntryStyle;
+    exitStyle: StrategyExitStyle;
+    scalingMode: StrategyScalingMode;
+    strategyBriefMarkdown: string;
+    customInstructions: string;
+  };
+  riskConfig: {
+    maxPositionUsd: number;
+    stopLossPct: number | null;
+    takeProfitPct: number | null;
+    stopLossType: StopLossType;
+    atrStopMultiplier: number | null;
+    kellyFraction: number;
+    predictionEdgeThreshold: number;
+    maxExposureUsd: number | null;
+    waitForOpenThreshold: number;
+    maxConcurrentTrades: number;
+    dailyLossLimitUsd: number;
+    profitTargetUsd: number;
+    maxAiSpendUsd: number;
+    humanApprovalRequired: boolean;
+  };
+  timeframe: {
+    primaryTradingTimeframe: TradingTimeframe;
+    holdingStyle: HoldingStyle;
+    targetHoldDays: number | null;
+    maxHoldDays: number | null;
+    timeframeNotes: string;
+  };
+}
+
 export interface SessionAiRole {
   sessionId: string;
   role: AgentRole;
@@ -310,6 +429,7 @@ export interface SessionTemplatePayload {
   selectorSettings: {
     aiPickerEnabled: boolean;
   };
+  strategyContext?: SessionStrategyContext;
   strategy: Omit<SessionStrategy, "sessionId">;
   aiRoles: Array<Omit<SessionAiRole, "sessionId">>;
   brokerAssignments: Array<{ brokerAccountId: string }>;
@@ -322,6 +442,9 @@ export interface TradeApproval {
   tradeId: string;
   brokerAccountId: string;
   instrumentSymbol: string;
+  instrumentDisplayName: string | null;
+  predictionOutcome: PredictionOutcome | null;
+  instrumentMetadataJson: string | null;
   instrumentClass: InstrumentClass;
   proposedSide: TradeSide;
   proposedSizeUsd: number;
@@ -351,6 +474,9 @@ export interface Trade {
   sessionName?: string;
   brokerAccountId?: string | null;
   instrumentSymbol: string;
+  instrumentDisplayName?: string | null;
+  predictionOutcome?: PredictionOutcome | null;
+  instrumentMetadataJson?: string | null;
   instrumentType: InstrumentClass;
   side: TradeSide;
   entry_price: number | null;
@@ -385,6 +511,25 @@ export interface AgentRun {
   created_at: string;
 }
 
+export interface AgentMessage {
+  id: string;
+  agent_run_id: string;
+  session_id: string;
+  trade_id: string | null;
+  role: AgentRole;
+  provider_key: string;
+  model_id: string;
+  messages_json: string;
+  thinking_json: string | null;
+  tool_calls_json: string | null;
+  output_json: string | null;
+  output_schema_name: string | null;
+  parse_fallback: boolean;
+  strategy_snapshot_json: string;
+  market_snapshot_json: string | null;
+  created_at: string;
+}
+
 export interface EventRow {
   id: string;
   session_id?: string | null;
@@ -408,6 +553,139 @@ export interface SessionConfig {
   profit_target_usd: number;
   max_api_spend_usd: number;
   human_approval_required: boolean;
+}
+
+export function buildStrategyBriefMarkdown(context: SessionStrategyContext): string {
+  const { profile, riskConfig, timeframe } = context;
+  const lines = [
+    `# ${labelizeToken(profile.strategyType)} Strategy Brief`,
+    "",
+    "## Strategy Intent",
+    `- Strategy type: ${labelizeToken(profile.strategyType)}`,
+    `- Side bias: ${labelizeToken(profile.sideBias)}`,
+    `- Entry style: ${labelizeToken(profile.entryStyle)}`,
+    `- Exit style: ${labelizeToken(profile.exitStyle)}`,
+    `- Scaling mode: ${labelizeToken(profile.scalingMode)}`,
+    "",
+    "## Risk Controls",
+    `- Max position: $${riskConfig.maxPositionUsd}`,
+    `- Stop loss type: ${labelizeToken(riskConfig.stopLossType)}`,
+    riskConfig.stopLossPct != null ? `- Stop loss: ${riskConfig.stopLossPct}%` : null,
+    riskConfig.takeProfitPct != null ? `- Take profit: ${riskConfig.takeProfitPct}%` : null,
+    riskConfig.atrStopMultiplier != null ? `- ATR stop multiplier: ${riskConfig.atrStopMultiplier}` : null,
+    `- Max concurrent trades: ${riskConfig.maxConcurrentTrades}`,
+    riskConfig.maxExposureUsd != null ? `- Max exposure: $${riskConfig.maxExposureUsd}` : null,
+    `- Human approval required: ${riskConfig.humanApprovalRequired ? "yes" : "no"}`,
+    "",
+    "## Timeframe",
+    `- Primary timeframe: ${timeframe.primaryTradingTimeframe}`,
+    `- Holding style: ${labelizeToken(timeframe.holdingStyle)}`,
+    timeframe.targetHoldDays != null ? `- Target hold: ${timeframe.targetHoldDays} days` : null,
+    timeframe.maxHoldDays != null ? `- Max hold: ${timeframe.maxHoldDays} days` : null,
+    timeframe.timeframeNotes.trim() ? `- Notes: ${timeframe.timeframeNotes.trim()}` : null,
+    profile.customInstructions.trim() ? "" : null,
+    profile.customInstructions.trim() ? "## Special Instructions" : null,
+    profile.customInstructions.trim() ? profile.customInstructions.trim() : null,
+  ].filter((line): line is string => line != null);
+
+  const markdown = lines.join("\n").trim();
+  return markdown.length > STRATEGY_BRIEF_MARKDOWN_MAX_CHARS
+    ? `${markdown.slice(0, STRATEGY_BRIEF_MARKDOWN_MAX_CHARS).trimEnd()}...`
+    : markdown;
+}
+
+export function buildStrategySnapshot(context: SessionStrategyContext): StrategySnapshot {
+  return {
+    version: 1,
+    profile: {
+      strategyType: context.profile.strategyType,
+      sideBias: context.profile.sideBias,
+      entryStyle: context.profile.entryStyle,
+      exitStyle: context.profile.exitStyle,
+      scalingMode: context.profile.scalingMode,
+      strategyBriefMarkdown: context.profile.strategyBriefMarkdown,
+      customInstructions: context.profile.customInstructions,
+    },
+    riskConfig: {
+      maxPositionUsd: context.riskConfig.maxPositionUsd,
+      stopLossPct: context.riskConfig.stopLossPct,
+      takeProfitPct: context.riskConfig.takeProfitPct,
+      stopLossType: context.riskConfig.stopLossType,
+      atrStopMultiplier: context.riskConfig.atrStopMultiplier,
+      kellyFraction: context.riskConfig.kellyFraction,
+      predictionEdgeThreshold: context.riskConfig.predictionEdgeThreshold,
+      maxExposureUsd: context.riskConfig.maxExposureUsd,
+      waitForOpenThreshold: context.riskConfig.waitForOpenThreshold,
+      maxConcurrentTrades: context.riskConfig.maxConcurrentTrades,
+      dailyLossLimitUsd: context.riskConfig.dailyLossLimitUsd,
+      profitTargetUsd: context.riskConfig.profitTargetUsd,
+      maxAiSpendUsd: context.riskConfig.maxAiSpendUsd,
+      humanApprovalRequired: context.riskConfig.humanApprovalRequired,
+    },
+    timeframe: {
+      primaryTradingTimeframe: context.timeframe.primaryTradingTimeframe,
+      holdingStyle: context.timeframe.holdingStyle,
+      targetHoldDays: context.timeframe.targetHoldDays,
+      maxHoldDays: context.timeframe.maxHoldDays,
+      timeframeNotes: context.timeframe.timeframeNotes,
+    },
+  };
+}
+
+export function validateSessionStrategyContext(
+  context: SessionStrategyContext,
+  options: { hasSearchProvider: boolean },
+): void {
+  validateSessionTimeframeConfigFields(context.timeframe);
+
+  if (context.riskConfig.maxPositionUsd < 0) throw new Error("Max position must be zero or greater.");
+  if (context.riskConfig.maxConcurrentTrades < 0) throw new Error("Max concurrent trades must be zero or greater.");
+  if (context.riskConfig.dailyLossLimitUsd < 0) throw new Error("Daily loss limit must be zero or greater.");
+  if (context.riskConfig.profitTargetUsd < 0) throw new Error("Profit target must be zero or greater.");
+  if (context.riskConfig.maxAiSpendUsd < 0) throw new Error("Max AI spend must be zero or greater.");
+  if (context.riskConfig.stopLossPct != null && context.riskConfig.stopLossPct < 0) {
+    throw new Error("Stop loss percent must be zero or greater.");
+  }
+  if (context.riskConfig.takeProfitPct != null && context.riskConfig.takeProfitPct < 0) {
+    throw new Error("Take profit percent must be zero or greater.");
+  }
+  if (context.profile.strategyType === "event_driven" && !options.hasSearchProvider) {
+    throw new Error("Event-driven strategies require a configured search provider.");
+  }
+  if (context.profile.strategyType === "prediction_market") {
+    if (context.riskConfig.kellyFraction <= 0) {
+      throw new Error("Prediction-market strategies require kelly fraction greater than zero.");
+    }
+    if (context.riskConfig.maxExposureUsd == null || context.riskConfig.maxExposureUsd <= 0) {
+      throw new Error("Prediction-market strategies require max exposure USD.");
+    }
+  }
+  if (context.profile.strategyBriefMarkdown.length > STRATEGY_BRIEF_MARKDOWN_MAX_CHARS) {
+    throw new Error(`Strategy brief must stay under ${STRATEGY_BRIEF_MARKDOWN_MAX_CHARS} characters.`);
+  }
+}
+
+export function toLegacySessionConfig(context: SessionStrategyContext): SessionConfig {
+  return {
+    strategy: context.profile.strategyType,
+    max_position_usd: context.riskConfig.maxPositionUsd,
+    stop_loss_pct: context.riskConfig.stopLossPct ?? 0,
+    take_profit_pct: context.riskConfig.takeProfitPct ?? 0,
+    max_concurrent_trades: context.riskConfig.maxConcurrentTrades,
+    research_depth: "balanced",
+    daily_loss_limit_usd: context.riskConfig.dailyLossLimitUsd,
+    profit_target_usd: context.riskConfig.profitTargetUsd,
+    max_api_spend_usd: context.riskConfig.maxAiSpendUsd,
+    human_approval_required: context.riskConfig.humanApprovalRequired,
+  };
+}
+
+function labelizeToken(token: string): string {
+  return token
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 export interface DashboardStats {
@@ -456,6 +734,9 @@ export interface TradeDecisionPayload {
   approval_id?: string;
   session_id?: string;
   instrumentSymbol: string;
+  instrumentDisplayName?: string;
+  predictionOutcome?: PredictionOutcome | null;
+  instrumentMetadataJson?: string | null;
   side: TradeSide;
   size_usd: number;
   confidence: number;

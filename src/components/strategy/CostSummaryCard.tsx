@@ -1,11 +1,11 @@
 import { Card, SectionTitle } from "@/components/custom-ui";
-import type { AgentRole, SessionStrategy } from "@/lib/types";
+import type { AgentRole, SessionRiskConfig } from "@/lib/types";
 
 export const CostSummaryCard = ({
-  strategy,
+  riskConfig,
   roleProviders,
 }: {
-  strategy: SessionStrategy;
+  riskConfig: SessionRiskConfig;
   roleProviders: Array<{ role: AgentRole; providerLabel: string; modelId: string }>;
 }) => {
   const providerCounts = roleProviders.reduce<Record<string, number>>((accumulator, entry) => {
@@ -19,7 +19,7 @@ export const CostSummaryCard = ({
       <SectionTitle>Cost / Latency Summary</SectionTitle>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
         <div style={{ fontSize: 12, color: "var(--text2)" }}>
-          Estimated parallel call count: {strategy.maxConcurrentTrades * 4}
+          Estimated parallel call count: {riskConfig.maxConcurrentTrades * 4}
         </div>
         {roleProviders.map((entry) => (
           <div key={entry.role} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12 }}>

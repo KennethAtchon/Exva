@@ -16,6 +16,10 @@ import {
   providerAccountSaveSchema,
   providerAccountTestSchema,
   sessionConfigSchema,
+  strategyAiRolesSaveSchema,
+  strategyProfileSaveSchema,
+  strategyRiskConfigSaveSchema,
+  strategyTimeframeConfigSaveSchema,
   tradeIdSchema,
 } from "@/lib/schemas";
 import type { ExvaApi, ExvaEventMap } from "./exva-api";
@@ -58,7 +62,14 @@ const exva: ExvaApi = {
   },
   strategy: {
     get: (sessionId) => invoke(channels.strategy.get, { sessionId }),
-    save: (input) => invoke(channels.strategy.save, input),
+    getProfile: (sessionId) => invoke(channels.strategy.getProfile, { sessionId }),
+    saveProfile: (input) => invoke(channels.strategy.saveProfile, strategyProfileSaveSchema.parse(input)),
+    getRiskConfig: (sessionId) => invoke(channels.strategy.getRiskConfig, { sessionId }),
+    saveRiskConfig: (input) => invoke(channels.strategy.saveRiskConfig, strategyRiskConfigSaveSchema.parse(input)),
+    getTimeframeConfig: (sessionId) => invoke(channels.strategy.getTimeframeConfig, { sessionId }),
+    saveTimeframeConfig: (input) =>
+      invoke(channels.strategy.saveTimeframeConfig, strategyTimeframeConfigSaveSchema.parse(input)),
+    saveAiRoles: (input) => invoke(channels.strategy.saveAiRoles, strategyAiRolesSaveSchema.parse(input)),
     getProviderModels: (providerKey) => invoke(channels.strategy.getProviderModels, { providerKey }),
     resetPrompt: (role) => invoke(channels.strategy.resetPrompt, { role }),
   },

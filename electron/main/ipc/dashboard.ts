@@ -8,7 +8,7 @@ function aggregateApiBudgetUsd(services: AppServices): number {
   let sum = 0;
   for (const s of sessions) {
     if (s.status === "archived") continue;
-    sum += services.repos.session.getConfig(s.id).max_api_spend_usd;
+    sum += services.strategyContext.get(s.id).riskConfig.maxAiSpendUsd;
   }
   return sum;
 }
@@ -27,7 +27,7 @@ export function registerDashboardHandlers(services: AppServices): void {
     const sessionId = focused?.id ?? null;
 
     const apiBudget = focused
-      ? services.repos.session.getConfig(focused.id).max_api_spend_usd
+      ? services.strategyContext.get(focused.id).riskConfig.maxAiSpendUsd
       : aggregateApiBudgetUsd(services);
 
     const uptimeMin = focused ? services.session.uptimeMin(focused.id) : aggregateUptimeMin(services);

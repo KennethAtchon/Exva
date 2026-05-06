@@ -9,6 +9,9 @@ export type CanonicalInstrument = {
 export class InstrumentNormalizer {
   /** Wire-format symbol for a specific broker implementation. */
   toBrokerSymbol(input: { symbol: string; instrumentClass: InstrumentClass; brokerType: string }): string {
+    if (input.instrumentClass === "prediction_market") {
+      return input.symbol.trim();
+    }
     const s = input.symbol.trim().toUpperCase();
     switch (input.brokerType) {
       case "alpaca":

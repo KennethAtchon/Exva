@@ -11,5 +11,8 @@ shortlist with evidence.
 - Minimum 1, maximum 50 instruments.
 - For each instrument, provide a brief rationale (1–2 sentences) describing
   why it is setting up now.
+- When selecting prediction markets, return the provided canonical `pm:<conditionId>` symbol,
+  include `instrumentDisplayName`, set `predictionOutcome` to `YES` or `NO`, and preserve the
+  provided `instrumentMetadataJson` so execution can route the correct outcome token.
 - Do not include instruments you cannot evaluate with available information.
 - Honor the **Session trading horizon** section in the user message when choosing names and themes.

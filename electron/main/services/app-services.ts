@@ -1,6 +1,7 @@
 import type { App } from "electron";
 import { createDbClient } from "@main/db/client";
 import { AgentRunsRepo } from "../db/repositories/agent-runs-repo";
+import { AgentMessagesRepo } from "../db/repositories/agent-messages-repo";
 import { BrokerAccountsRepo } from "../db/repositories/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../db/repositories/broker-routing-repo";
 import { CapitalReservationsRepo } from "../db/repositories/capital-reservations-repo";
@@ -47,6 +48,7 @@ export interface AppServices {
   db: ReturnType<typeof createDbClient>;
   repos: {
     agentRuns: AgentRunsRepo;
+    agentMessages: AgentMessagesRepo;
     brokerAccounts: BrokerAccountsRepo;
     brokerRouting: BrokerRoutingRepo;
     capitalReservations: CapitalReservationsRepo;
@@ -91,6 +93,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const db = createDbClient(app.getPath("userData"));
   const repos = {
     agentRuns: new AgentRunsRepo(db),
+    agentMessages: new AgentMessagesRepo(db),
     brokerAccounts: new BrokerAccountsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),
     capitalReservations: new CapitalReservationsRepo(db),
@@ -129,14 +132,25 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const searchRegistry = new SearchRegistry(repos.providerAccounts, secrets);
   const notifications = new NotificationService(eventBus);
   const promptAssetLoader = new PromptAssetLoader();
+  const strategyContext = new SessionStrategyContextService({
+    sessionRepo: repos.session,
+    profileRepo: repos.sessionStrategyProfile,
+    riskRepo: repos.sessionRiskConfig,
+    timeframeRepo: repos.sessionTimeframeConfig,
+    aiRolesRepo: repos.sessionAiRoles,
+    selectorSettingsRepo: repos.sessionSelectorSettings,
+    providerAccountsRepo: repos.providerAccounts,
+    workspacePrefsRepo: repos.workspacePreferences,
+    promptAssetLoader,
+  });
   const ai = new AiRuntime(
     providerRegistry,
     searchRegistry,
     promptAssetLoader,
     repos.sessionAiRoles,
-    repos.sessionStrategies,
     repos.session,
     repos.workspacePreferences,
+    strategyContext,
   );
   const logger = createLogger("app-services");
 
@@ -144,9 +158,11 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const orchestratorDepsBase: OrchestratorDeps = {
     sessionRepo: repos.session,
     sessionStrategiesRepo: repos.sessionStrategies,
+    strategyContextService: strategyContext,
     tradesRepo: repos.trades,
     tradeApprovalsRepo: repos.tradeApprovals,
     agentRunsRepo: repos.agentRuns,
+    agentMessagesRepo: repos.agentMessages,
     eventsRepo: repos.events,
     statsRepo: repos.stats,
     sessionAiRolesRepo: repos.sessionAiRoles,
@@ -180,6 +196,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
         brokerRegistry,
         () => 100000,
         eventBus,
+        () => strategyContext.get(sessionId).riskConfig.maxAiSpendUsd,
         () => runtimeManager.get(sessionId)?.uptimeMin() ?? 0,
       ),
   };
@@ -203,16 +220,10 @@ export async function createAppServices(app: App): Promise<AppServices> {
     runtimeManager,
   });
 
-  const strategyContext = new SessionStrategyContextService(
-    repos.sessionStrategyProfile,
-    repos.sessionRiskConfig,
-    repos.sessionTimeframeConfig,
-  );
-
   const sessionTemplates = new SessionTemplateService({
     templates: repos.sessionTemplates,
     sessions: repos.session,
-    strategies: repos.sessionStrategies,
+    strategyContext,
     aiRoles: repos.sessionAiRoles,
     selectorSettings: repos.sessionSelectorSettings,
     brokerAssignments: repos.sessionBrokerAssignments,

@@ -247,7 +247,7 @@ Conventions:
 - Tests use a real in-memory SQLite (`new Database(":memory:")`), never mocks.
 - Each test gets a fresh DB. No shared state across tests.
 - Coverage threshold gates `services/` and `db/repositories/` at 80% (per `CODING_GUIDELINES.md` §13).
-- `npm test` runs all tests once. `npm run test:watch` watches.
+- `bun run test` runs all tests once. `bun run test:watch` watches.
 
 ## Tooling Setup (P2.2)
 

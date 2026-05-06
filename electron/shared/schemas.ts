@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const instrumentClassSchema = z.enum(["stock", "crypto", "futures"]);
+export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 export const selectionModeSchema = z.enum(["manual_shortlist", "ai_selected_universe"]);
 export const executionModeSchema = z.enum(["paper_only", "live_allowed"]);
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
@@ -86,6 +86,61 @@ export const sessionAiRolePayloadSchema = z.object({
   promptAssetPath: z.string().nullable(),
 });
 
+export const sessionStrategyProfilePayloadSchema = z.object({
+  strategyType: strategyTypeSchema,
+  sideBias: strategySideBiasSchema,
+  entryStyle: strategyEntryStyleSchema,
+  exitStyle: strategyExitStyleSchema,
+  scalingMode: strategyScalingModeSchema,
+  strategyBriefMarkdown: z.string().max(1200),
+  customInstructions: z.string(),
+});
+
+export const sessionRiskConfigPayloadSchema = z.object({
+  maxPositionUsd: z.number().nonnegative(),
+  stopLossPct: z.union([z.number().nonnegative(), z.null()]),
+  takeProfitPct: z.union([z.number().nonnegative(), z.null()]),
+  stopLossType: stopLossTypeSchema,
+  atrStopMultiplier: z.union([z.number().nonnegative(), z.null()]),
+  kellyFraction: z.number().nonnegative(),
+  predictionEdgeThreshold: z.number().nonnegative(),
+  maxExposureUsd: z.union([z.number().nonnegative(), z.null()]),
+  waitForOpenThreshold: z.number().nonnegative(),
+  maxConcurrentTrades: z.number().int().nonnegative(),
+  dailyLossLimitUsd: z.number().nonnegative(),
+  profitTargetUsd: z.number().nonnegative(),
+  maxAiSpendUsd: z.number().nonnegative(),
+  humanApprovalRequired: z.boolean(),
+});
+
+export const sessionTimeframeConfigPayloadSchema = z.object({
+  primaryTradingTimeframe: tradingTimeframeSchema,
+  holdingStyle: holdingStyleSchema,
+  targetHoldDays: z.union([z.number().nonnegative(), z.null()]),
+  maxHoldDays: z.union([z.number().nonnegative(), z.null()]),
+  timeframeNotes: z.string(),
+});
+
+export const strategyProfileSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  profile: sessionStrategyProfilePayloadSchema.partial(),
+});
+
+export const strategyRiskConfigSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  riskConfig: sessionRiskConfigPayloadSchema.partial(),
+});
+
+export const strategyTimeframeConfigSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  timeframe: sessionTimeframeConfigPayloadSchema.partial(),
+});
+
+export const strategyAiRolesSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  aiRoles: z.array(sessionAiRolePayloadSchema),
+});
+
 export const sessionTemplatePayloadSchema = z.object({
   version: z.literal(1),
   identity: z.object({
@@ -98,6 +153,22 @@ export const sessionTemplatePayloadSchema = z.object({
     defaultSearchProviderId: z.string().nullable(),
   }),
   selectorSettings: z.object({ aiPickerEnabled: z.boolean() }),
+  strategyContext: z
+    .object({
+      profile: sessionStrategyProfilePayloadSchema.extend({
+        sessionId: z.string().min(1),
+        updatedAt: z.string().min(1),
+      }),
+      riskConfig: sessionRiskConfigPayloadSchema.extend({
+        sessionId: z.string().min(1),
+        updatedAt: z.string().min(1),
+      }),
+      timeframe: sessionTimeframeConfigPayloadSchema.extend({
+        sessionId: z.string().min(1),
+        updatedAt: z.string().min(1),
+      }),
+    })
+    .optional(),
   strategy: sessionStrategyPayloadSchema,
   aiRoles: z.array(sessionAiRolePayloadSchema),
   brokerAssignments: z.array(z.object({ brokerAccountId: z.string() })),

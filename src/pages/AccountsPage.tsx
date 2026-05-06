@@ -442,7 +442,7 @@ export const AccountsPage = () => {
             <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 6, marginBottom: 12 }}>
               Per-class default broker (session overrides live on the Strategy / session editor).
             </p>
-            {(["stock", "crypto", "futures"] as InstrumentClass[]).map((ic) => (
+            {(["stock", "crypto", "futures", "prediction_market"] as InstrumentClass[]).map((ic) => (
               <div key={ic} style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>{ic}</div>
                 <ShadcnSelect
@@ -462,14 +462,14 @@ export const AccountsPage = () => {
             <button
               type="button"
               onClick={async () => {
-                const rows: BrokerRoutingDefault[] = (["stock", "crypto", "futures"] as InstrumentClass[])
+                const rows: BrokerRoutingDefault[] = (["stock", "crypto", "futures", "prediction_market"] as InstrumentClass[])
                   .map((instrumentClass) => ({
                     instrumentClass,
                     defaultBrokerAccountId: routingDraft[instrumentClass] ?? "",
                   }))
                   .filter((r) => r.defaultBrokerAccountId.length > 0);
-                if (rows.length < 3) {
-                  alert("Pick a default broker for stock, crypto, and futures.");
+                if (rows.length < 4) {
+                  alert("Pick a default broker for stock, crypto, futures, and prediction markets.");
                   return;
                 }
                 await api.saveBrokerRoutingDefaults(rows);

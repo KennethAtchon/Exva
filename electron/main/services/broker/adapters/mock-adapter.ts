@@ -12,7 +12,7 @@ import type {
 
 export class MockBrokerAdapter implements BrokerAdapter {
   readonly brokerType = "mock";
-  readonly supportedInstrumentClasses: readonly InstrumentClass[] = ["stock", "crypto", "futures"];
+  readonly supportedInstrumentClasses: readonly InstrumentClass[] = ["stock", "crypto", "futures", "prediction_market"];
 
   private readonly orders = new Map<string, { order: BrokerOrder; price: number }>();
 
@@ -46,6 +46,9 @@ export class MockBrokerAdapter implements BrokerAdapter {
   async getPositions(): Promise<BrokerPosition[]> {
     return [...this.orders.entries()].map(([id, { order, price }]) => ({
       instrumentSymbol: order.instrumentSymbol,
+      instrumentDisplayName: order.instrumentDisplayName ?? null,
+      predictionOutcome: order.predictionOutcome ?? null,
+      instrumentMetadataJson: order.instrumentMetadataJson ?? null,
       instrumentType: order.instrumentType,
       side: "long" as const,
       sizeUsd: order.sizeUsd,

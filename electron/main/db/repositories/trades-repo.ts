@@ -114,12 +114,14 @@ export class TradesRepo {
       .prepare(
         `
         INSERT INTO trades (
-          id, session_id, broker_account_id, instrument_symbol, instrument_type, side,
+          id, session_id, broker_account_id, instrument_symbol, instrument_display_name,
+          prediction_outcome, instrument_metadata_json, instrument_type, side,
           entry_price, position_size_usd, stop_loss_price, take_profit_price, strategy,
           status, opened_at, closed_at, final_pnl_usd, ai_cost_usd, confidence_score,
           broker_order_id, created_at
         ) VALUES (
-          @id, @session_id, @broker_account_id, @instrument_symbol, @instrument_type, @side,
+          @id, @session_id, @broker_account_id, @instrument_symbol, @instrument_display_name,
+          @prediction_outcome, @instrument_metadata_json, @instrument_type, @side,
           @entry_price, @position_size_usd, @stop_loss_price, @take_profit_price, @strategy,
           @status, @opened_at, @closed_at, @final_pnl_usd, @ai_cost_usd, @confidence_score,
           @broker_order_id, @created_at
@@ -131,6 +133,9 @@ export class TradesRepo {
         session_id: trade.sessionId,
         broker_account_id: trade.brokerAccountId ?? null,
         instrument_symbol: trade.instrumentSymbol,
+        instrument_display_name: trade.instrumentDisplayName ?? null,
+        prediction_outcome: trade.predictionOutcome ?? null,
+        instrument_metadata_json: trade.instrumentMetadataJson ?? null,
         instrument_type: trade.instrumentType,
       });
   }

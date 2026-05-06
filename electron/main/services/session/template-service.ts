@@ -7,9 +7,9 @@ import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
 import type { BrokerRoutingRepo } from "../../db/repositories/broker-routing-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
-import type { SessionStrategiesRepo } from "../../db/repositories/session-strategies-repo";
 import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";
 import type { SessionTemplatesRepo } from "../../db/repositories/session-templates-repo";
+import type { SessionStrategyContextService } from "./session-strategy-context-service";
 
 export interface TemplateListItem {
   id: string;
@@ -31,7 +31,7 @@ export class SessionTemplateService {
     private readonly deps: {
       templates: SessionTemplatesRepo;
       sessions: SessionRepo;
-      strategies: SessionStrategiesRepo;
+      strategyContext: SessionStrategyContextService;
       aiRoles: SessionAiRolesRepo;
       selectorSettings: SessionSelectorSettingsRepo;
       brokerAssignments: SessionBrokerAssignmentsRepo;
@@ -142,7 +142,7 @@ export class SessionTemplateService {
 
   buildPayloadFromSession(sessionId: string): SessionTemplatePayload {
     const session = this.deps.sessions.requireById(sessionId);
-    const strategy = this.deps.strategies.get(sessionId);
+    const strategyContext = this.deps.strategyContext.get(sessionId);
     const aiRoles = this.deps.aiRoles.listBySession(sessionId);
     const selector = this.deps.selectorSettings.get(sessionId);
     const brokerIds = this.deps.brokerAssignments.listBrokerAccountIds(sessionId);
@@ -160,22 +160,23 @@ export class SessionTemplateService {
         defaultSearchProviderId: session.defaultSearchProviderId,
       },
       selectorSettings: { aiPickerEnabled: selector.aiPickerEnabled },
+      strategyContext,
       strategy: {
-        strategyProfile: strategy.strategyProfile,
-        maxPositionUsd: strategy.maxPositionUsd,
-        stopLossPct: strategy.stopLossPct,
-        takeProfitPct: strategy.takeProfitPct,
-        maxConcurrentTrades: strategy.maxConcurrentTrades,
-        researchDepth: strategy.researchDepth,
-        dailyLossLimitUsd: strategy.dailyLossLimitUsd,
-        profitTargetUsd: strategy.profitTargetUsd,
-        maxAiSpendUsd: strategy.maxAiSpendUsd,
-        humanApprovalRequired: strategy.humanApprovalRequired,
-        primaryTradingTimeframe: strategy.primaryTradingTimeframe,
-        holdingStyle: strategy.holdingStyle,
-        targetHoldDays: strategy.targetHoldDays,
-        maxHoldDays: strategy.maxHoldDays,
-        timeframeNotes: strategy.timeframeNotes,
+        strategyProfile: "custom",
+        maxPositionUsd: strategyContext.riskConfig.maxPositionUsd,
+        stopLossPct: strategyContext.riskConfig.stopLossPct ?? 0,
+        takeProfitPct: strategyContext.riskConfig.takeProfitPct ?? 0,
+        maxConcurrentTrades: strategyContext.riskConfig.maxConcurrentTrades,
+        researchDepth: "balanced",
+        dailyLossLimitUsd: strategyContext.riskConfig.dailyLossLimitUsd,
+        profitTargetUsd: strategyContext.riskConfig.profitTargetUsd,
+        maxAiSpendUsd: strategyContext.riskConfig.maxAiSpendUsd,
+        humanApprovalRequired: strategyContext.riskConfig.humanApprovalRequired,
+        primaryTradingTimeframe: strategyContext.timeframe.primaryTradingTimeframe,
+        holdingStyle: strategyContext.timeframe.holdingStyle,
+        targetHoldDays: strategyContext.timeframe.targetHoldDays,
+        maxHoldDays: strategyContext.timeframe.maxHoldDays,
+        timeframeNotes: strategyContext.timeframe.timeframeNotes,
       },
       aiRoles: aiRoles.map((role) => ({
         role: role.role,

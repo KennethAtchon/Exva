@@ -15,7 +15,7 @@ export const AddBrokerModal = ({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) => {
-  const [brokerType, setBrokerType] = useState<"alpaca" | "coinbase_advanced_trade" | "tradovate" | "mock">("mock");
+  const [brokerType, setBrokerType] = useState<"alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock">("mock");
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"paper" | "live">("paper");
   const [apiKey, setApiKey] = useState("");
@@ -23,6 +23,8 @@ export const AddBrokerModal = ({
   const [passphrase, setPassphrase] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [privateKey, setPrivateKey] = useState("");
+  const [funderAddress, setFunderAddress] = useState("");
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testOk, setTestOk] = useState<boolean | null>(null);
@@ -38,6 +40,8 @@ export const AddBrokerModal = ({
         return { apiKey, apiSecret: secretKey, passphrase };
       case "tradovate":
         return { username, password };
+      case "polymarket":
+        return { privateKey, funderAddress };
       default:
         return {};
     }
@@ -80,6 +84,8 @@ export const AddBrokerModal = ({
       setPassphrase("");
       setUsername("");
       setPassword("");
+      setPrivateKey("");
+      setFunderAddress("");
       setTestOk(null);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Save failed");
@@ -96,8 +102,10 @@ export const AddBrokerModal = ({
         return ["crypto"];
       case "tradovate":
         return ["futures"];
+      case "polymarket":
+        return ["prediction_market"];
       default:
-        return ["stock", "crypto", "futures"];
+        return ["stock", "crypto", "futures", "prediction_market"];
     }
   };
 
@@ -124,6 +132,7 @@ export const AddBrokerModal = ({
               { value: "alpaca", label: "Alpaca (stocks)" },
               { value: "coinbase_advanced_trade", label: "Coinbase Advanced Trade (crypto — CCXT)" },
               { value: "tradovate", label: "Tradovate (futures — simulated v1)" },
+              { value: "polymarket", label: "Polymarket (prediction markets)" },
             ]}
           />
           <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>
@@ -192,6 +201,19 @@ export const AddBrokerModal = ({
             <div style={{ marginBottom: 12 }}>
               <div style={labelStyle}>Password</div>
               <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={password} onChange={(e) => setPassword(e.target.value)} type="password" />
+            </div>
+          </>
+        )}
+
+        {brokerType === "polymarket" && (
+          <>
+            <div style={{ marginBottom: 12 }}>
+              <div style={labelStyle}>Polygon private key</div>
+              <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={privateKey} onChange={(e) => setPrivateKey(e.target.value)} type="password" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <div style={labelStyle}>Polymarket funder/profile address</div>
+              <Input className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]" value={funderAddress} onChange={(e) => setFunderAddress(e.target.value)} />
             </div>
           </>
         )}
