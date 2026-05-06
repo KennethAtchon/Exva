@@ -100,6 +100,7 @@ export const sessionRiskConfig = sqliteTable("session_risk_config", {
   dailyLossLimitUsd: real("daily_loss_limit_usd").notNull().default(200),
   profitTargetUsd: real("profit_target_usd").notNull().default(1000),
   maxAiSpendUsd: real("max_ai_spend_usd").notNull().default(5),
+  maxDataSpendUsd: real("max_data_spend_usd").notNull().default(5),
   humanApprovalRequired: integer("human_approval_required", { mode: "boolean" }).notNull().default(false),
   updatedAt: text("updated_at").notNull(),
 });
@@ -226,6 +227,8 @@ export const agentRuns = sqliteTable("agent_runs", {
   tradeId: text("trade_id").references(() => trades.id, { onDelete: "cascade" }),
   agentType: text("agent_type").notNull(),
   model: text("model").notNull(),
+  providerKey: text("provider_key").notNull().default("unknown"),
+  finishReason: text("finish_reason").notNull().default("stop"),
   inputTokens: integer("input_tokens").notNull(),
   outputTokens: integer("output_tokens").notNull(),
   costUsd: real("cost_usd").notNull(),
@@ -243,6 +246,7 @@ export const agentMessages = sqliteTable("agent_messages", {
     .notNull()
     .references(() => sessions.id, { onDelete: "cascade" }),
   tradeId: text("trade_id").references(() => trades.id, { onDelete: "cascade" }),
+  cycleId: text("cycle_id"),
   role: text("role").notNull(),
   providerKey: text("provider_key").notNull(),
   modelId: text("model_id").notNull(),
@@ -265,6 +269,39 @@ export const sessionInstrumentCache = sqliteTable("session_instrument_cache", {
   definitionHash: text("definition_hash").notNull(),
   selectedAt: text("selected_at").notNull(),
   selectorAgentRunId: text("selector_agent_run_id").references(() => agentRuns.id, { onDelete: "set null" }),
+  cycleId: text("cycle_id").notNull().default(""),
+  researchBriefsJson: text("research_briefs_json"),
+  researchGeneratedAt: text("research_generated_at"),
+});
+
+export const apiCallLog = sqliteTable("api_call_log", {
+  id: text("id").primaryKey(),
+  sessionId: text("session_id").references(() => sessions.id, { onDelete: "cascade" }),
+  tradeId: text("trade_id").references(() => trades.id, { onDelete: "cascade" }),
+  cycleId: text("cycle_id"),
+  provider: text("provider").notNull(),
+  endpoint: text("endpoint").notNull(),
+  callType: text("call_type").notNull(),
+  creditsUsed: integer("credits_used"),
+  costUsd: real("cost_usd"),
+  latencyMs: integer("latency_ms").notNull(),
+  status: text("status").notNull(),
+  fromCache: integer("from_cache", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull(),
+});
+
+export const tradeAutopsies = sqliteTable("trade_autopsies", {
+  id: text("id").primaryKey(),
+  tradeId: text("trade_id")
+    .notNull()
+    .references(() => trades.id, { onDelete: "cascade" }),
+  sessionId: text("session_id")
+    .notNull()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  modelId: text("model_id").notNull(),
+  summary: text("summary").notNull(),
+  createdAt: text("created_at").notNull(),
+  createdBy: text("created_by").notNull().default("user"),
 });
 
 export const events = sqliteTable("events", {

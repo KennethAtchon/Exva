@@ -38,6 +38,7 @@ export function registerTradeHandlers(services: AppServices): void {
     return {
       trade: services.repos.trades.require(tradeId),
       runs: services.repos.agentRuns.listByTrade(tradeId),
+      messages: services.repos.agentMessages.listByTrade(tradeId),
     };
   });
 

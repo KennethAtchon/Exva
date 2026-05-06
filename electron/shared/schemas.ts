@@ -110,6 +110,7 @@ export const sessionRiskConfigPayloadSchema = z.object({
   dailyLossLimitUsd: z.number().nonnegative(),
   profitTargetUsd: z.number().nonnegative(),
   maxAiSpendUsd: z.number().nonnegative(),
+  maxDataSpendUsd: z.number().nonnegative(),
   humanApprovalRequired: z.boolean(),
 });
 

@@ -109,8 +109,8 @@ export class SessionRepo {
             session_id, max_position_usd, stop_loss_pct, take_profit_pct, stop_loss_type,
             atr_stop_multiplier, kelly_fraction, prediction_edge_threshold, max_exposure_usd,
             wait_for_open_threshold, max_concurrent_trades, daily_loss_limit_usd,
-            profit_target_usd, max_ai_spend_usd, human_approval_required, updated_at
-          ) VALUES (?, 500, 2, 4, 'fixed_pct', NULL, 0.25, 0.08, NULL, 0.80, 3, 200, 1000, 5, 0, ?)
+            profit_target_usd, max_ai_spend_usd, max_data_spend_usd, human_approval_required, updated_at
+          ) VALUES (?, 500, 2, 4, 'fixed_pct', NULL, 0.25, 0.08, NULL, 0.80, 3, 200, 1000, 5, 5, 0, ?)
           `,
         )
         .run(sessionId, now);
@@ -358,12 +358,12 @@ export class SessionRepo {
             session_id, max_position_usd, stop_loss_pct, take_profit_pct, stop_loss_type,
             atr_stop_multiplier, kelly_fraction, prediction_edge_threshold, max_exposure_usd,
             wait_for_open_threshold, max_concurrent_trades, daily_loss_limit_usd,
-            profit_target_usd, max_ai_spend_usd, human_approval_required, updated_at
+            profit_target_usd, max_ai_spend_usd, max_data_spend_usd, human_approval_required, updated_at
           )
           SELECT ?, max_position_usd, stop_loss_pct, take_profit_pct, stop_loss_type,
             atr_stop_multiplier, kelly_fraction, prediction_edge_threshold, max_exposure_usd,
             wait_for_open_threshold, max_concurrent_trades, daily_loss_limit_usd,
-            profit_target_usd, max_ai_spend_usd, human_approval_required, ?
+            profit_target_usd, max_ai_spend_usd, max_data_spend_usd, human_approval_required, ?
           FROM session_risk_config WHERE session_id = ?
           `,
         )
@@ -463,6 +463,10 @@ export class SessionRepo {
     // TODO(phase-05): Retire this compatibility writer after config saves go through
     // SessionStrategiesRepo and the richer strategy/session edit flows.
     const updatedAt = new Date().toISOString();
+    const existingRisk = this.client.sqlite
+      .prepare("SELECT max_data_spend_usd FROM session_risk_config WHERE session_id = ?")
+      .get(sessionId) as { max_data_spend_usd?: number } | undefined;
+    const maxDataSpendUsd = existingRisk?.max_data_spend_usd ?? config.max_api_spend_usd;
     this.client.sqlite.transaction(() => {
       this.client.sqlite
         .prepare(
@@ -506,6 +510,7 @@ export class SessionRepo {
             daily_loss_limit_usd = @daily_loss_limit_usd,
             profit_target_usd = @profit_target_usd,
             max_ai_spend_usd = @max_ai_spend_usd,
+            max_data_spend_usd = @max_data_spend_usd,
             human_approval_required = @human_approval_required,
             updated_at = @updated_at
           WHERE session_id = @session_id
@@ -520,6 +525,7 @@ export class SessionRepo {
           daily_loss_limit_usd: config.daily_loss_limit_usd,
           profit_target_usd: config.profit_target_usd,
           max_ai_spend_usd: config.max_api_spend_usd,
+          max_data_spend_usd: maxDataSpendUsd,
           human_approval_required: config.human_approval_required ? 1 : 0,
           updated_at: updatedAt,
         });

@@ -29,39 +29,31 @@ import type { CapitalReservationService } from "../../risk/capital-reservation-s
 
 describe("SessionRuntimeManager", () => {
   let db = createTestDb();
+  let sessionAlphaId = "";
+  let sessionBetaId = "";
 
   beforeEach(() => {
     db = createTestDb();
-    db.sqlite.prepare("UPDATE sessions SET status = 'active' WHERE id = 'default-session'").run();
-    db.sqlite
-      .prepare(
-        `
-        INSERT INTO sessions (
-          id, name, objective, status, is_focused, selection_mode,
-          instrument_classes, instrument_scope, capital_limit_usd,
-          execution_mode, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-      )
-      .run(
-        "session-b",
-        "Session B",
-        "Second runtime",
-        "active",
-        0,
-        "manual_shortlist",
-        '["stock"]',
-        "AAPL",
-        5000,
-        "paper_only",
-        new Date().toISOString(),
-        new Date().toISOString(),
-      );
-    db.sqlite.prepare("INSERT INTO session_selector_settings (session_id, ai_picker_enabled, updated_at) VALUES (?, 1, ?)").run("session-b", new Date().toISOString());
-    db.sqlite.prepare("INSERT INTO session_strategies (session_id) VALUES (?)").run("session-b");
-    db.sqlite.prepare("INSERT INTO session_strategy_profile (session_id, updated_at) VALUES (?, ?)").run("session-b", new Date().toISOString());
-    db.sqlite.prepare("INSERT INTO session_risk_config (session_id, updated_at) VALUES (?, ?)").run("session-b", new Date().toISOString());
-    db.sqlite.prepare("INSERT INTO session_timeframe_config (session_id, updated_at) VALUES (?, ?)").run("session-b", new Date().toISOString());
+    const sessions = new SessionRepo(db);
+    sessionAlphaId = sessions.create({
+      name: "Alpha",
+      objective: "First runtime",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "NVDA",
+      capitalLimitUsd: 5000,
+      executionMode: "paper_only",
+    }).id;
+    sessionBetaId = sessions.create({
+      name: "Session B",
+      objective: "Second runtime",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "AAPL",
+      capitalLimitUsd: 5000,
+      executionMode: "paper_only",
+    }).id;
+    db.sqlite.prepare("UPDATE sessions SET status = 'active' WHERE id IN (?, ?)").run(sessionAlphaId, sessionBetaId);
   });
 
   afterEach(() => {
@@ -79,7 +71,7 @@ describe("SessionRuntimeManager", () => {
     await manager.rehydrateFromDb();
 
     expect(manager.listActive()).toHaveLength(2);
-    expect(started).toEqual(["default-session", "session-b"]);
+    expect(started.sort()).toEqual([sessionAlphaId, sessionBetaId].sort());
     expect(stopped).toEqual([]);
   });
 
@@ -90,11 +82,11 @@ describe("SessionRuntimeManager", () => {
     });
 
     await manager.rehydrateFromDb();
-    await manager.stopSession("default-session");
+    await manager.stopSession(sessionAlphaId);
 
-    expect(manager.get("default-session")).toBeNull();
-    expect(manager.get("session-b")).not.toBeNull();
-    expect(stopped).toEqual(["default-session"]);
+    expect(manager.get(sessionAlphaId)).toBeNull();
+    expect(manager.get(sessionBetaId)).not.toBeNull();
+    expect(stopped).toEqual([sessionAlphaId]);
   });
 });
 

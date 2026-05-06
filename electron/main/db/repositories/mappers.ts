@@ -57,6 +57,8 @@ export function toAgentRun(row: Row): AgentRun {
     trade_id: nullableString(row.trade_id),
     agent_type: row.agent_type as AgentRun["agent_type"],
     model: String(row.model),
+    provider_key: row.provider_key != null ? String(row.provider_key) : "unknown",
+    finish_reason: (row.finish_reason as AgentRun["finish_reason"]) ?? "stop",
     input_tokens: Number(row.input_tokens),
     output_tokens: Number(row.output_tokens),
     cost_usd: Number(row.cost_usd),
@@ -187,6 +189,7 @@ export function toSessionRiskConfig(row: Row): SessionRiskConfig {
     dailyLossLimitUsd: Number(row.daily_loss_limit_usd),
     profitTargetUsd: Number(row.profit_target_usd),
     maxAiSpendUsd: Number(row.max_ai_spend_usd),
+    maxDataSpendUsd: row.max_data_spend_usd != null ? Number(row.max_data_spend_usd) : 5,
     humanApprovalRequired: Boolean(row.human_approval_required),
     updatedAt: String(row.updated_at),
   };

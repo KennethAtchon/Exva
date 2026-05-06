@@ -1,21 +1,19 @@
 import { AppError } from "@electron/shared/errors";
-import type { SearchAdapter, SearchResult } from "../search-types";
+import type { SearchAdapter, SearchToolResult } from "../search-types";
 
-function toSearchSummary(items: unknown[]): string {
-  const lines: string[] = [];
-  for (const [index, item] of items.entries()) {
-    if (typeof item !== "object" || item === null) continue;
-    const title = typeof (item as { title?: unknown }).title === "string" ? (item as { title: string }).title : "";
-    const description =
-      typeof (item as { description?: unknown }).description === "string"
-        ? (item as { description: string }).description
-        : "";
-    const url = typeof (item as { url?: unknown }).url === "string" ? (item as { url: string }).url : "";
-    const snippet = [title, description, url].filter(Boolean).join(" — ");
-    if (!snippet) continue;
-    lines.push(`${index + 1}. ${snippet}`);
+function clampSnippet(text: string, max = 2000): string {
+  return text.length <= max ? text : `${text.slice(0, max)}…`;
+}
+
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  const delays = [0, 1000, 2000, 4000];
+  let last: Response | null = null;
+  for (let i = 0; i < delays.length; i++) {
+    if (delays[i]! > 0) await new Promise((r) => setTimeout(r, delays[i]! + Math.floor(Math.random() * (delays[i]! || 1))));
+    last = await fetch(url, init);
+    if (last.status !== 429) return last;
   }
-  return lines.join("\n");
+  return last ?? new Response("", { status: 599 });
 }
 
 export class BraveAdapter implements SearchAdapter {
@@ -23,8 +21,8 @@ export class BraveAdapter implements SearchAdapter {
 
   constructor(private readonly apiKey: string) {}
 
-  async search(query: string): Promise<SearchResult> {
-    const response = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}`, {
+  async search(query: string): Promise<SearchToolResult> {
+    const response = await fetchWithRetry(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}`, {
       headers: {
         Accept: "application/json",
         "X-Subscription-Token": this.apiKey,
@@ -34,8 +32,36 @@ export class BraveAdapter implements SearchAdapter {
       throw new AppError(`Brave search failed with ${response.status}`, "PROVIDER_UNREACHABLE");
     }
     const body = (await response.json()) as { web?: { results?: unknown[] } };
-    const results = toSearchSummary(body.web?.results ?? []);
-    return { results };
+    const raw = body.web?.results ?? [];
+    const results: SearchToolResult["results"] = [];
+    for (const item of raw) {
+      if (typeof item !== "object" || item === null) continue;
+      const title = typeof (item as { title?: unknown }).title === "string" ? (item as { title: string }).title : "";
+      const description =
+        typeof (item as { description?: unknown }).description === "string" ? (item as { description: string }).description : "";
+      const url = typeof (item as { url?: unknown }).url === "string" ? (item as { url: string }).url : "";
+      const published =
+        typeof (item as { age?: unknown }).age === "string"
+          ? (item as { age: string }).age
+          : typeof (item as { page_age?: unknown }).page_age === "string"
+            ? (item as { page_age: string }).page_age
+            : null;
+      const snippet = clampSnippet([title, description].filter(Boolean).join(" — ") || url);
+      if (!snippet && !url) continue;
+      results.push({
+        url: url || "",
+        title: title || url || "result",
+        snippet,
+        publishedDate: published,
+      });
+    }
+    return {
+      results,
+      query,
+      provider: "brave",
+      creditsUsed: 1,
+      cachedAt: null,
+    };
   }
 
   async testConnection(): Promise<{ ok: boolean; error?: string }> {

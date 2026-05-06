@@ -8,10 +8,13 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     sqlite.exec(`
       DROP TABLE IF EXISTS capital_reservations;
       DROP TABLE IF EXISTS trade_approvals;
-      DROP TABLE IF EXISTS session_instrument_cache;
+      DROP TABLE IF EXISTS trade_autopsies;
+      DROP TABLE IF EXISTS api_call_log;
       DROP TABLE IF EXISTS events;
+      DROP TABLE IF EXISTS agent_messages;
       DROP TABLE IF EXISTS agent_runs;
       DROP TABLE IF EXISTS trades;
+      DROP TABLE IF EXISTS session_instrument_cache;
       DROP TABLE IF EXISTS session_templates;
       DROP TABLE IF EXISTS workspace_preferences;
       DROP TABLE IF EXISTS session_broker_assignments;
@@ -123,6 +126,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       daily_loss_limit_usd REAL NOT NULL DEFAULT 200,
       profit_target_usd REAL NOT NULL DEFAULT 1000,
       max_ai_spend_usd REAL NOT NULL DEFAULT 5.0,
+      max_data_spend_usd REAL NOT NULL DEFAULT 5.0,
       human_approval_required INTEGER NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
     );
@@ -229,6 +233,8 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       trade_id TEXT REFERENCES trades(id) ON DELETE CASCADE,
       agent_type TEXT NOT NULL,
       model TEXT NOT NULL,
+      provider_key TEXT NOT NULL DEFAULT 'unknown',
+      finish_reason TEXT NOT NULL DEFAULT 'stop',
       input_tokens INTEGER NOT NULL,
       output_tokens INTEGER NOT NULL,
       cost_usd REAL NOT NULL,
@@ -242,6 +248,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       agent_run_id TEXT NOT NULL REFERENCES agent_runs(id) ON DELETE CASCADE,
       session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
       trade_id TEXT REFERENCES trades(id) ON DELETE CASCADE,
+      cycle_id TEXT,
       role TEXT NOT NULL,
       provider_key TEXT NOT NULL,
       model_id TEXT NOT NULL,
@@ -254,6 +261,32 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       strategy_snapshot_json TEXT NOT NULL,
       market_snapshot_json TEXT,
       created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS api_call_log (
+      id TEXT PRIMARY KEY,
+      session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
+      trade_id TEXT REFERENCES trades(id) ON DELETE CASCADE,
+      cycle_id TEXT,
+      provider TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      call_type TEXT NOT NULL,
+      credits_used INTEGER,
+      cost_usd REAL,
+      latency_ms INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      from_cache INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS trade_autopsies (
+      id TEXT PRIMARY KEY,
+      trade_id TEXT NOT NULL REFERENCES trades(id) ON DELETE CASCADE,
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      model_id TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      created_by TEXT NOT NULL DEFAULT 'user'
     );
 
     CREATE TABLE IF NOT EXISTS events (
@@ -302,7 +335,10 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       instruments TEXT NOT NULL,
       definition_hash TEXT NOT NULL,
       selected_at TEXT NOT NULL,
-      selector_agent_run_id TEXT REFERENCES agent_runs(id) ON DELETE SET NULL
+      selector_agent_run_id TEXT REFERENCES agent_runs(id) ON DELETE SET NULL,
+      cycle_id TEXT NOT NULL DEFAULT '',
+      research_briefs_json TEXT,
+      research_generated_at TEXT
     );
 
     CREATE TRIGGER IF NOT EXISTS trg_focus_singleton_insert
@@ -330,19 +366,16 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     CREATE INDEX IF NOT EXISTS idx_trades_instrument ON trades(instrument_symbol, broker_account_id, status);
     CREATE INDEX IF NOT EXISTS idx_agent_runs_session ON agent_runs(session_id);
     CREATE INDEX IF NOT EXISTS idx_agent_messages_run ON agent_messages(agent_run_id);
+    CREATE INDEX IF NOT EXISTS idx_agent_messages_trade ON agent_messages(trade_id);
     CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
     CREATE INDEX IF NOT EXISTS idx_approvals_session ON trade_approvals(session_id, status);
     CREATE INDEX IF NOT EXISTS idx_session_broker_override ON session_broker_routing_overrides(session_id, instrument_class);
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_session ON capital_reservations(session_id, status);
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_approval ON capital_reservations(approval_id);
+    CREATE INDEX IF NOT EXISTS idx_api_call_log_session ON api_call_log(session_id);
+    CREATE INDEX IF NOT EXISTS idx_api_call_log_created ON api_call_log(created_at);
+    CREATE INDEX IF NOT EXISTS idx_trade_autopsies_trade ON trade_autopsies(trade_id);
   `);
-
-  addColumnIfMissing(sqlite, "trades", "instrument_display_name", "TEXT");
-  addColumnIfMissing(sqlite, "trades", "prediction_outcome", "TEXT");
-  addColumnIfMissing(sqlite, "trades", "instrument_metadata_json", "TEXT");
-  addColumnIfMissing(sqlite, "trade_approvals", "instrument_display_name", "TEXT");
-  addColumnIfMissing(sqlite, "trade_approvals", "prediction_outcome", "TEXT");
-  addColumnIfMissing(sqlite, "trade_approvals", "instrument_metadata_json", "TEXT");
 
   sqlite.exec(`
     INSERT OR IGNORE INTO session_strategy_profile (
@@ -365,7 +398,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       session_id, max_position_usd, stop_loss_pct, take_profit_pct, stop_loss_type,
       atr_stop_multiplier, kelly_fraction, prediction_edge_threshold, max_exposure_usd,
       wait_for_open_threshold, max_concurrent_trades, daily_loss_limit_usd,
-      profit_target_usd, max_ai_spend_usd, human_approval_required, updated_at
+      profit_target_usd, max_ai_spend_usd, max_data_spend_usd, human_approval_required, updated_at
     )
     SELECT
       session_id,
@@ -382,6 +415,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       daily_loss_limit_usd,
       profit_target_usd,
       max_ai_spend_usd,
+      5.0,
       human_approval_required,
       CURRENT_TIMESTAMP
     FROM session_strategies;
@@ -433,6 +467,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     WHERE template_payload_json LIKE '%researcher_bull%'
        OR template_payload_json LIKE '%researcher_bear%';
   `);
+
   sqlite
     .prepare(
       `
@@ -442,15 +477,4 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       `,
     )
     .run(new Date().toISOString());
-}
-
-function addColumnIfMissing(
-  sqlite: Database.Database,
-  tableName: string,
-  columnName: string,
-  columnDefinition: string,
-): void {
-  const rows = sqlite.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name?: unknown }>;
-  if (rows.some((row) => row.name === columnName)) return;
-  sqlite.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition};`);
 }

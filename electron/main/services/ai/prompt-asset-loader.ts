@@ -6,8 +6,10 @@ import { env } from "../../config/env";
 
 function resolvePromptsDir(): string {
   if (env.promptsDirOverride) return env.promptsDirOverride;
-  if (app.isPackaged) return path.join(process.resourcesPath, "prompts");
-  return path.join(app.getAppPath(), "electron", "prompts");
+  if (app?.isPackaged) return path.join(process.resourcesPath, "prompts");
+  const appPath = typeof app?.getAppPath === "function" ? app.getAppPath() : null;
+  if (appPath) return path.join(appPath, "electron", "prompts");
+  return path.join(process.cwd(), "electron", "prompts");
 }
 
 export class PromptAssetLoader {

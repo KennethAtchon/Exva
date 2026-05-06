@@ -25,6 +25,7 @@ export interface ExvaEventMap {
 export class EventBus {
   private windows = new Set<BrowserWindow>();
   private runtimeStatuses = new Map<string, SessionRuntimeStatus>();
+  private listeners = new Map<ExvaEventName, Set<(payload: unknown) => void>>();
 
   attach(window: BrowserWindow): void {
     this.windows.add(window);
@@ -35,6 +36,23 @@ export class EventBus {
     for (const window of this.windows) {
       if (!window.isDestroyed()) window.webContents.send(name, payload);
     }
+    const handlers = this.listeners.get(name);
+    if (!handlers) return;
+    for (const handler of handlers) {
+      handler(payload);
+    }
+  }
+
+  on<K extends ExvaEventName>(name: K, handler: (payload: ExvaEventMap[K]) => void): () => void {
+    const handlers = this.listeners.get(name) ?? new Set();
+    handlers.add(handler as (payload: unknown) => void);
+    this.listeners.set(name, handlers);
+    return () => {
+      const next = this.listeners.get(name);
+      if (!next) return;
+      next.delete(handler as (payload: unknown) => void);
+      if (next.size === 0) this.listeners.delete(name);
+    };
   }
 
   setRuntimeStatus(sessionId: string, status: SessionRuntimeStatus): void {

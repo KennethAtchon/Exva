@@ -42,6 +42,7 @@ export class SessionRiskConfigRepo {
           daily_loss_limit_usd = @daily_loss_limit_usd,
           profit_target_usd = @profit_target_usd,
           max_ai_spend_usd = @max_ai_spend_usd,
+          max_data_spend_usd = @max_data_spend_usd,
           human_approval_required = @human_approval_required,
           updated_at = @updated_at
         WHERE session_id = @session_id
@@ -62,6 +63,7 @@ export class SessionRiskConfigRepo {
         daily_loss_limit_usd: next.dailyLossLimitUsd,
         profit_target_usd: next.profitTargetUsd,
         max_ai_spend_usd: next.maxAiSpendUsd,
+        max_data_spend_usd: next.maxDataSpendUsd,
         human_approval_required: next.humanApprovalRequired ? 1 : 0,
         updated_at: next.updatedAt,
       });

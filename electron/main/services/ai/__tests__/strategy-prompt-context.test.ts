@@ -30,6 +30,7 @@ function baseContext(): SessionStrategyContext {
       dailyLossLimitUsd: 50,
       profitTargetUsd: 200,
       maxAiSpendUsd: 5,
+      maxDataSpendUsd: 5,
       humanApprovalRequired: false,
       updatedAt: "2026-05-05T00:00:00.000Z",
     },

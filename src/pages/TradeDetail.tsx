@@ -2,15 +2,27 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { AgentLabel, Badge } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
-import type { AgentRun, Trade } from "@/lib/types";
+import type { AgentMessage, AgentRun, Trade } from "@/lib/types";
 import { Button, Dialog, DialogContent } from "@/components/ui";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {
   analyst_technical: { bar: "#34d399", bg: "rgba(52,211,153,0.06)" },
   analyst_fundamental: { bar: "#f87171", bg: "rgba(248,113,113,0.06)" },
-  reviewer:        { bar: "#60a5fa", bg: "rgba(96,165,250,0.06)" },
-  decision_maker:  { bar: "#a78bfa", bg: "rgba(167,139,250,0.06)" },
+  reviewer: { bar: "#60a5fa", bg: "rgba(96,165,250,0.06)" },
+  decision_maker: { bar: "#a78bfa", bg: "rgba(167,139,250,0.06)" },
+  instrument_selector: { bar: "#fbbf24", bg: "rgba(251,191,36,0.08)" },
 };
+
+function previewJson(raw: string | null, max = 2400): string {
+  if (raw == null || raw === "") return "—";
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    const s = JSON.stringify(parsed, null, 2);
+    return s.length > max ? `${s.slice(0, max).trimEnd()}…` : s;
+  } catch {
+    return raw.length > max ? `${raw.slice(0, max)}…` : raw;
+  }
+}
 
 const AgentTrace = ({ run }: { run: AgentRun }) => {
   const [open, setOpen] = useState(false);
@@ -26,7 +38,8 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
       >
         <AgentLabel type={run.agent_type} />
         <span style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-          {fmt.tokens(run.input_tokens + run.output_tokens)} tok · {fmt.usd(run.cost_usd, 4)} · {fmt.duration(run.duration_ms)}
+          {run.provider_key.replace(/^provider-/, "")} · {run.finish_reason} · {fmt.tokens(run.input_tokens + run.output_tokens)} tok ·{" "}
+          {fmt.usd(run.cost_usd, 4)} · {fmt.duration(run.duration_ms)}
         </span>
         <span style={{ fontSize: 11, color: "var(--text3)" }}>{open ? "▲" : "▼"}</span>
       </div>
@@ -35,6 +48,8 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
           <div style={{ display: "flex", gap: 20 }}>
             {(
               [
+                ["Provider", run.provider_key],
+                ["Finish", run.finish_reason],
                 ["In", `${fmt.tokens(run.input_tokens)} tok`],
                 ["Out", `${fmt.tokens(run.output_tokens)} tok`],
                 ["Cost", fmt.usd(run.cost_usd, 4)],
@@ -62,9 +77,81 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
   );
 };
 
+const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
+  const [open, setOpen] = useState(false);
+  const p = PALETTE[msg.role] ?? { bar: "var(--text3)", bg: "var(--surface2)" };
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", marginBottom: 8 }}>
+      <div
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 14px",
+          cursor: "pointer",
+          background: p.bg,
+          borderLeft: `3px solid ${p.bar}`,
+        }}
+      >
+        <AgentLabel type={msg.role} />
+        <span style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>
+          {msg.provider_key.replace(/^provider-/, "")} · {msg.model_id}
+          {msg.cycle_id ? ` · cycle ${msg.cycle_id.slice(0, 8)}…` : ""}
+        </span>
+        <span style={{ fontSize: 11, color: "var(--text3)" }}>{open ? "▲" : "▼"}</span>
+      </div>
+      {open && (
+        <div style={{ padding: 12, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
+          <pre
+            style={{
+              margin: 0,
+              fontSize: 11,
+              lineHeight: 1.45,
+              color: "var(--text2)",
+              background: "var(--surface2)",
+              borderRadius: 8,
+              padding: 12,
+              overflow: "auto",
+              maxHeight: 280,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {previewJson(msg.messages_json)}
+          </pre>
+          {msg.tool_calls_json ? (
+            <div>
+              <div style={{ fontSize: 10, color: "var(--text3)", marginBottom: 6 }}>Tool calls</div>
+              <pre
+                style={{
+                  margin: 0,
+                  fontSize: 11,
+                  lineHeight: 1.45,
+                  color: "var(--text2)",
+                  background: "var(--surface2)",
+                  borderRadius: 8,
+                  padding: 12,
+                  overflow: "auto",
+                  maxHeight: 200,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {previewJson(msg.tool_calls_json, 1600)}
+              </pre>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: () => void }) => {
   const [trade, setTrade] = useState<Trade | null>(null);
   const [runs, setRuns] = useState<AgentRun[]>([]);
+  const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
@@ -73,6 +160,7 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
       if (cancelled) return;
       setTrade(d.trade);
       setRuns(d.runs);
+      setMessages(d.messages ?? []);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [tradeId]);
@@ -187,9 +275,18 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
             </div>
           </div>
 
+          {messages.length > 0 && (
+            <div style={{ padding: "0 24px 20px", borderTop: "1px solid var(--border)", paddingTop: 20 }}>
+              <div style={{ ...ts.secTitle, marginBottom: 12 }}>Harness messages</div>
+              {messages.map((m) => (
+                <MessageTrace key={m.id} msg={m} />
+              ))}
+            </div>
+          )}
+
           {runs.length > 0 && (
             <div style={{ padding: "0 24px 20px", borderTop: "1px solid var(--border)", paddingTop: 20 }}>
-              <div style={{ ...ts.secTitle, marginBottom: 12 }}>Agent Traces</div>
+              <div style={{ ...ts.secTitle, marginBottom: 12 }}>Agent runs</div>
               {runs.map((r) => <AgentTrace key={r.id} run={r} />)}
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, padding: "10px 14px", background: "var(--surface2)", borderRadius: 8 }}>
                 <span style={{ fontSize: 12, color: "var(--text3)" }}>

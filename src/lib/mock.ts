@@ -24,10 +24,66 @@ const trades: Trade[] = [
 ];
 
 const runs: AgentRun[] = [
-  { id: "ar-001", trade_id: "t-001", agent_type: "analyst_technical", model: "claude-haiku-4-5", input_tokens: 4820, output_tokens: 612, cost_usd: 0.078, duration_ms: 3241, output_text: "NVDA shows strong momentum following GTC announcements. Blackwell demand remains supply-constrained. Data center capex from hyperscalers continues to accelerate. RSI at 58 — room to run. Suggest bullish entry on current pullback.", created_at: "2026-04-21T09:13:10Z" },
-  { id: "ar-002", trade_id: "t-001", agent_type: "analyst_fundamental", model: "claude-haiku-4-5", input_tokens: 4650, output_tokens: 580, cost_usd: 0.074, duration_ms: 3108, output_text: "Valuation stretched at 35x forward. China export restrictions remain a meaningful headwind. AMD gaining share in inference. Broad market showing signs of fatigue. Downside risk to $860 on any macro catalyst.", created_at: "2026-04-21T09:13:14Z" },
-  { id: "ar-003", trade_id: "t-001", agent_type: "reviewer",        model: "claude-haiku-4-5", input_tokens: 6200, output_tokens: 420, cost_usd: 0.089, duration_ms: 2870, output_text: "Bull case stronger on near-term catalysts. Bear case valid but longer-dated. Trade thesis is coherent with strategy parameters. Risk/reward acceptable at current levels.", created_at: "2026-04-21T09:13:48Z" },
-  { id: "ar-004", trade_id: "t-001", agent_type: "decision_maker",  model: "claude-haiku-4-5", input_tokens: 7100, output_tokens: 310, cost_usd: 0.067, duration_ms: 2210, output_text: "Decision: BUY. Confidence: 0.82. Size: 90% of max position. Stop at -2%, target at +4%. Strong near-term catalyst alignment.", created_at: "2026-04-21T09:14:10Z" },
+  {
+    id: "ar-001",
+    trade_id: "t-001",
+    agent_type: "analyst_technical",
+    model: "claude-haiku-4-5",
+    provider_key: "provider-anthropic",
+    finish_reason: "stop",
+    input_tokens: 4820,
+    output_tokens: 612,
+    cost_usd: 0.078,
+    duration_ms: 3241,
+    output_text:
+      "NVDA shows strong momentum following GTC announcements. Blackwell demand remains supply-constrained. Data center capex from hyperscalers continues to accelerate. RSI at 58 — room to run. Suggest bullish entry on current pullback.",
+    created_at: "2026-04-21T09:13:10Z",
+  },
+  {
+    id: "ar-002",
+    trade_id: "t-001",
+    agent_type: "analyst_fundamental",
+    model: "claude-haiku-4-5",
+    provider_key: "provider-anthropic",
+    finish_reason: "stop",
+    input_tokens: 4650,
+    output_tokens: 580,
+    cost_usd: 0.074,
+    duration_ms: 3108,
+    output_text:
+      "Valuation stretched at 35x forward. China export restrictions remain a meaningful headwind. AMD gaining share in inference. Broad market showing signs of fatigue. Downside risk to $860 on any macro catalyst.",
+    created_at: "2026-04-21T09:13:14Z",
+  },
+  {
+    id: "ar-003",
+    trade_id: "t-001",
+    agent_type: "reviewer",
+    model: "claude-haiku-4-5",
+    provider_key: "provider-anthropic",
+    finish_reason: "stop",
+    input_tokens: 6200,
+    output_tokens: 420,
+    cost_usd: 0.089,
+    duration_ms: 2870,
+    output_text:
+      "Bull case stronger on near-term catalysts. Bear case valid but longer-dated. Trade thesis is coherent with strategy parameters. Risk/reward acceptable at current levels.",
+    created_at: "2026-04-21T09:13:48Z",
+  },
+  {
+    id: "ar-004",
+    trade_id: "t-001",
+    agent_type: "decision_maker",
+    model: "claude-haiku-4-5",
+    provider_key: "provider-anthropic",
+    finish_reason: "stop",
+    input_tokens: 7100,
+    output_tokens: 310,
+    cost_usd: 0.067,
+    duration_ms: 2210,
+    output_text:
+      "Decision: BUY. Confidence: 0.82. Size: 90% of max position. Stop at -2%, target at +4%. Strong near-term catalyst alignment.",
+    created_at: "2026-04-21T09:14:10Z",
+  },
 ];
 
 const events: EventRow[] = [

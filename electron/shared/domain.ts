@@ -294,6 +294,7 @@ export interface SessionRiskConfig {
   dailyLossLimitUsd: number;
   profitTargetUsd: number;
   maxAiSpendUsd: number;
+  maxDataSpendUsd: number;
   humanApprovalRequired: boolean;
   updatedAt: string;
 }
@@ -339,6 +340,7 @@ export interface StrategySnapshot {
     dailyLossLimitUsd: number;
     profitTargetUsd: number;
     maxAiSpendUsd: number;
+    maxDataSpendUsd: number;
     humanApprovalRequired: boolean;
   };
   timeframe: {
@@ -496,6 +498,9 @@ export interface Trade {
   unrealized_pnl?: number | null;
 }
 
+/** Persisted on `agent_runs.finish_reason` — aligns with harness telemetry (§5 plan). */
+export type AgentRunFinishReason = "stop" | "length" | "tool_budget" | "timeout" | "error";
+
 export interface AgentRun {
   id: string;
   session_id?: string;
@@ -503,6 +508,8 @@ export interface AgentRun {
   trade_id: string | null;
   agent_type: AgentRole;
   model: string;
+  provider_key: string;
+  finish_reason: AgentRunFinishReason;
   input_tokens: number;
   output_tokens: number;
   cost_usd: number;
@@ -511,11 +518,40 @@ export interface AgentRun {
   created_at: string;
 }
 
+/** External API observability row (`api_call_log`). */
+export interface ApiCallLogEntry {
+  id: string;
+  session_id: string | null;
+  trade_id: string | null;
+  cycle_id: string | null;
+  provider: string;
+  endpoint: string;
+  call_type: string;
+  credits_used: number | null;
+  cost_usd: number | null;
+  latency_ms: number;
+  status: string;
+  from_cache: boolean;
+  created_at: string;
+}
+
+export interface TradeAutopsy {
+  id: string;
+  trade_id: string;
+  session_id: string;
+  model_id: string;
+  summary: string;
+  created_at: string;
+  created_by: string;
+}
+
 export interface AgentMessage {
   id: string;
   agent_run_id: string;
   session_id: string;
   trade_id: string | null;
+  /** Research burst correlation id; null when not part of a burst. */
+  cycle_id: string | null;
   role: AgentRole;
   provider_key: string;
   model_id: string;
@@ -575,6 +611,7 @@ export function buildStrategyBriefMarkdown(context: SessionStrategyContext): str
     riskConfig.atrStopMultiplier != null ? `- ATR stop multiplier: ${riskConfig.atrStopMultiplier}` : null,
     `- Max concurrent trades: ${riskConfig.maxConcurrentTrades}`,
     riskConfig.maxExposureUsd != null ? `- Max exposure: $${riskConfig.maxExposureUsd}` : null,
+    `- Max data spend: $${riskConfig.maxDataSpendUsd}`,
     `- Human approval required: ${riskConfig.humanApprovalRequired ? "yes" : "no"}`,
     "",
     "## Timeframe",
@@ -620,6 +657,7 @@ export function buildStrategySnapshot(context: SessionStrategyContext): Strategy
       dailyLossLimitUsd: context.riskConfig.dailyLossLimitUsd,
       profitTargetUsd: context.riskConfig.profitTargetUsd,
       maxAiSpendUsd: context.riskConfig.maxAiSpendUsd,
+      maxDataSpendUsd: context.riskConfig.maxDataSpendUsd,
       humanApprovalRequired: context.riskConfig.humanApprovalRequired,
     },
     timeframe: {
@@ -643,6 +681,7 @@ export function validateSessionStrategyContext(
   if (context.riskConfig.dailyLossLimitUsd < 0) throw new Error("Daily loss limit must be zero or greater.");
   if (context.riskConfig.profitTargetUsd < 0) throw new Error("Profit target must be zero or greater.");
   if (context.riskConfig.maxAiSpendUsd < 0) throw new Error("Max AI spend must be zero or greater.");
+  if (context.riskConfig.maxDataSpendUsd < 0) throw new Error("Max data spend must be zero or greater.");
   if (context.riskConfig.stopLossPct != null && context.riskConfig.stopLossPct < 0) {
     throw new Error("Stop loss percent must be zero or greater.");
   }
@@ -714,6 +753,7 @@ export interface CostBreakdown {
 export interface TradeDetail {
   trade: Trade;
   runs: AgentRun[];
+  messages: AgentMessage[];
 }
 
 export interface ConnectionTestResult {

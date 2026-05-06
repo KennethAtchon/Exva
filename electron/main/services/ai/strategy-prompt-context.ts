@@ -57,6 +57,7 @@ export function buildStrategyPromptContext(context: SessionStrategyContext): Str
     `- Daily loss limit USD: ${snapshot.riskConfig.dailyLossLimitUsd}`,
     `- Profit target USD: ${snapshot.riskConfig.profitTargetUsd}`,
     `- Max AI spend USD: ${snapshot.riskConfig.maxAiSpendUsd}`,
+    `- Max data spend USD: ${snapshot.riskConfig.maxDataSpendUsd}`,
     `- Human approval required: ${snapshot.riskConfig.humanApprovalRequired ? "yes" : "no"}`,
     "",
     "## Session trading horizon (authoritative)",

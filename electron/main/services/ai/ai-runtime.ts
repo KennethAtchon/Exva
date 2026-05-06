@@ -1,23 +1,29 @@
-import { tool } from "ai";
+import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import type { AgentMessage, AgentRole, AgentRun } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
-import type { GenerateObjectResult, GenerateResult } from "./adapters/provider-adapter";
-import { instrumentSelectionSchema, tradeDecisionSchema } from "./ai-runtime-schemas";
-import type { InstrumentSelection } from "./ai-runtime-schemas";
-import type { AgentResult } from "./ai-runtime-types";
+import {
+  instrumentSelectionSchema,
+  tradeDecisionSchema,
+  type InstrumentSelection,
+} from "./ai-runtime-schemas";
+import type { AgentResult, AnalystInjectionBlocks, RuntimeAgentMessage, RunTrace } from "./ai-runtime-types";
+import { ROLE_HARNESS_CAPS } from "./ai-runtime-types";
+import { estimateCostUsd } from "./model-pricing";
 import type { PromptAssetLoader } from "./prompt-asset-loader";
 import type { ProviderRegistry } from "./provider-registry";
 import type { SearchRegistry } from "./search";
+import { sanitizeSearchQuery } from "./search/sanitize-search-query";
 import type { SessionStrategyContextService } from "../session/session-strategy-context-service";
 import { prependStrategyContextToUserPrompt } from "./strategy-prompt-context";
 
 export interface ResearcherInput {
   instrumentSymbol: string;
   context?: string;
+  injection?: AnalystInjectionBlocks;
 }
 
 export interface ReviewerInput {
@@ -69,8 +75,12 @@ export class AiRuntime {
   ): Promise<AgentResult<string>> {
     if (!sessionId) throw new AppError("Session id is required for AI role execution", "VALIDATION_FAILED");
     const agentRole: AgentRole = role === "technical" ? "analyst_technical" : "analyst_fundamental";
-    const userPrompt = `Instrument: ${input.instrumentSymbol}\nContext: ${input.context ?? "None"}`;
-    return this.runRole(sessionId, agentRole, userPrompt);
+    const blocks = input.injection;
+    const tail = `Instrument: ${input.instrumentSymbol}\nContext: ${input.context ?? "None"}`;
+    const userPrompt = blocks ? `${blocks.marketMarkdown}\n\n${blocks.fundamentalsMarkdown}\n\n${blocks.newsMarkdown}\n\n${tail}` : tail;
+    return this.runRole(sessionId, agentRole, userPrompt, {
+      marketSnapshotJson: blocks?.snapshotJson ?? null,
+    });
   }
 
   async runReviewer(input: ReviewerInput, sessionId?: string): Promise<AgentResult<string>> {
@@ -97,124 +107,194 @@ ${input.review}`;
     return this.runDecisionRole(sessionId, prompt);
   }
 
-  /** AI-selected universe (Phase 9): structured instruments via `generateObject`. */
-  async runInstrumentSelector(sessionId: string, selectionInstructions: string): Promise<AgentResult<InstrumentSelection>> {
+  async runInstrumentSelector(
+    sessionId: string,
+    selectionInstructions: string,
+    cycleId?: string | null,
+  ): Promise<AgentResult<InstrumentSelection>> {
     const role = "instrument_selector" as const;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
     const systemPrompt = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
-    const tools = config.webSearchEnabled ? { web_search: await this.resolveSearchTool(sessionId) } : undefined;
     const promptContext = this.withSessionStrategyUserPrompt(sessionId, selectionInstructions);
 
-    const result = await this.withRetry(() =>
-      adapter.generateObject({
+    const submitCandidates = tool({
+      description: "Submit the final shortlist when research is complete.",
+      inputSchema: instrumentSelectionSchema,
+      execute: async (candidates: InstrumentSelection) => candidates,
+    });
+
+    const tools: ToolSet = {
+      submit_candidates: submitCandidates,
+    };
+    if (config.webSearchEnabled) {
+      tools.search_web = await this.resolveSearchTool(sessionId);
+    }
+
+    const caps = ROLE_HARNESS_CAPS[role];
+
+    const messages: RuntimeAgentMessage[] = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: promptContext.prompt },
+    ];
+
+    const trace = await this.withRetry(() =>
+      adapter.runAgent({
         model: config.modelId,
-        systemPrompt,
-        userPrompt: promptContext.prompt,
-        schema: instrumentSelectionSchema,
+        messages,
+        tools,
+        maxSteps: caps.maxSteps,
+        spendLimitUsd: caps.spendUsd,
         temperature: config.temperature,
         maxTokens: config.maxTokens,
-        tools,
       }),
     );
 
-    const run = this.toRun(role, config.modelId, result);
+    const selection = this.parseInstrumentSelection(trace);
+    const run = this.toRunFromTrace(role, config.modelId, config.providerKey, trace);
     return {
       run,
-      message: this.buildMessage({
+      message: this.buildTraceMessage({
         run,
         role,
         config,
         sessionId,
         tradeId: null,
-        systemPrompt,
-        userPrompt: promptContext.prompt,
-        result,
-        outputJson: JSON.stringify(result.object),
+        cycleId: cycleId ?? null,
+        trace,
+        outputJson: JSON.stringify(selection),
         outputSchemaName: "instrumentSelection",
         strategySnapshotJson: JSON.stringify(promptContext.snapshot),
+        marketSnapshotJson: null,
       }),
-      output: result.object,
+      output: selection,
     };
   }
 
-  async runRole(sessionId: string, role: AgentRole, userPrompt: string): Promise<AgentResult<string>> {
+  async runRole(
+    sessionId: string,
+    role: AgentRole,
+    userPrompt: string,
+    opts?: { marketSnapshotJson?: string | null; cycleId?: string | null },
+  ): Promise<AgentResult<string>> {
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
     const systemPrompt = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
-    const tools = config.webSearchEnabled ? { web_search: await this.resolveSearchTool(sessionId) } : undefined;
+    const tools = config.webSearchEnabled ? { search_web: await this.resolveSearchTool(sessionId) } : undefined;
     const promptContext = this.withSessionStrategyUserPrompt(sessionId, userPrompt);
-    const result = await this.withRetry(() =>
-      adapter.generateText({
+    const caps = ROLE_HARNESS_CAPS[role];
+
+    const messages: RuntimeAgentMessage[] = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: promptContext.prompt },
+    ];
+
+    const trace = await this.withRetry(() =>
+      adapter.runAgent({
         model: config.modelId,
-        systemPrompt,
-        userPrompt: promptContext.prompt,
+        messages,
+        tools,
+        maxSteps: caps.maxSteps,
+        spendLimitUsd: caps.spendUsd,
         temperature: config.temperature,
         maxTokens: config.maxTokens,
-        tools,
       }),
     );
-    const run = this.toRun(role, config.modelId, result);
+
+    const run = this.toRunFromTrace(role, config.modelId, config.providerKey, trace);
     return {
       run,
-      message: this.buildMessage({
+      message: this.buildTraceMessage({
         run,
         role,
         config,
         sessionId,
         tradeId: null,
-        systemPrompt,
-        userPrompt: promptContext.prompt,
-        result,
-        outputJson: JSON.stringify({ text: result.text }),
+        cycleId: opts?.cycleId ?? null,
+        trace,
+        outputJson: JSON.stringify({ text: trace.assistantText }),
         outputSchemaName: null,
         strategySnapshotJson: JSON.stringify(promptContext.snapshot),
+        marketSnapshotJson: opts?.marketSnapshotJson ?? null,
       }),
-      output: result.text,
+      output: trace.assistantText,
     };
   }
 
-  async runDecisionRole(sessionId: string, userPrompt: string): Promise<AgentResult<TradeDecision>> {
+  async runDecisionRole(sessionId: string, userPrompt: string, cycleId?: string | null): Promise<AgentResult<TradeDecision>> {
     const role: AgentRole = "decision_maker";
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
     const systemPrompt = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
-    const tools = config.webSearchEnabled ? { web_search: await this.resolveSearchTool(sessionId) } : undefined;
     const promptContext = this.withSessionStrategyUserPrompt(sessionId, userPrompt);
+    const caps = ROLE_HARNESS_CAPS[role];
 
-    const result = await this.withRetry(() =>
-      adapter.generateObject({
+    const messages: RuntimeAgentMessage[] = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: promptContext.prompt },
+    ];
+
+    const trace = await this.withRetry(() =>
+      adapter.runAgent({
         model: config.modelId,
-        systemPrompt,
-        userPrompt: promptContext.prompt,
+        messages,
+        maxSteps: caps.maxSteps,
+        spendLimitUsd: caps.spendUsd,
         temperature: config.temperature,
         maxTokens: config.maxTokens,
         schema: tradeDecisionSchema,
-        tools,
       }),
     );
 
-    const run = this.toRun(role, config.modelId, result);
+    const obj = trace.structuredOutput;
+    if (!obj) {
+      throw new AppError("Decision maker returned no structured trade decision.", "VALIDATION_FAILED");
+    }
+
+    const run = this.toRunFromTrace(role, config.modelId, config.providerKey, trace);
     return {
       run,
-      message: this.buildMessage({
+      message: this.buildTraceMessage({
         run,
         role,
         config,
         sessionId,
         tradeId: null,
-        systemPrompt,
-        userPrompt: promptContext.prompt,
-        result,
-        outputJson: JSON.stringify(result.object),
+        cycleId: cycleId ?? null,
+        trace,
+        outputJson: JSON.stringify(obj),
         outputSchemaName: "tradeDecision",
         strategySnapshotJson: JSON.stringify(promptContext.snapshot),
+        marketSnapshotJson: null,
+        parseFallback: trace.parseFallback,
       }),
-      output: result.object,
+      output: obj,
     };
   }
 
-  private async withRetry<T extends GenerateResult | GenerateObjectResult<unknown>>(action: () => Promise<T>): Promise<T> {
+  private parseInstrumentSelection(trace: RunTrace<undefined>): InstrumentSelection {
+    for (let i = trace.steps.length - 1; i >= 0; i--) {
+      const step = trace.steps[i];
+      if (!step) continue;
+      for (const tc of step.toolCalls) {
+        if (tc.tool !== "submit_candidates") continue;
+        const parsed = instrumentSelectionSchema.safeParse(JSON.parse(tc.resultJson));
+        if (parsed.success) return parsed.data;
+      }
+    }
+    try {
+      const fromText = instrumentSelectionSchema.safeParse(JSON.parse(trace.assistantText));
+      if (fromText.success) return fromText.data;
+    } catch {
+      /* ignore malformed assistant JSON */
+    }
+    throw new AppError(
+      "Instrument selector must call submit_candidates with a valid instrument list.",
+      "VALIDATION_FAILED",
+    );
+  }
+
+  private async withRetry<T>(action: () => Promise<T>): Promise<T> {
     try {
       return await this.withTimeout(action);
     } catch (error) {
@@ -293,7 +373,7 @@ ${input.review}`;
     return tool({
       description: "Search the web for current information.",
       inputSchema: z.object({ query: z.string().min(1) }),
-      execute: async (input: { query: string }) => adapter.search(input.query),
+      execute: async (input: { query: string }) => adapter.search(sanitizeSearchQuery(input.query)),
     });
   }
 
@@ -316,61 +396,60 @@ ${input.review}`;
       : { first: "Technical analysis", second: "Fundamental analysis" };
   }
 
-  private toRun(agentType: AgentRole, model: string, result: GenerateResult): AgentRun {
+  private toRunFromTrace(agentType: AgentRole, model: string, providerKey: string, trace: RunTrace<unknown>): AgentRun {
     return {
       id: crypto.randomUUID(),
       trade_id: null,
       agent_type: agentType,
       model,
-      input_tokens: result.inputTokens,
-      output_tokens: result.outputTokens,
-      cost_usd: this.estimateCostUsd(model, result.inputTokens, result.outputTokens),
-      output_text: result.text,
-      duration_ms: result.durationMs,
+      provider_key: providerKey,
+      finish_reason: trace.finishReason,
+      input_tokens: trace.inputTokens,
+      output_tokens: trace.outputTokens,
+      cost_usd: estimateCostUsd(model, trace.inputTokens, trace.outputTokens),
+      output_text: trace.assistantText,
+      duration_ms: trace.durationMs,
       created_at: new Date().toISOString(),
     };
   }
 
-  private estimateCostUsd(_model: string, inputTokens: number, outputTokens: number): number {
-    return Number(((inputTokens / 1_000_000) * 3 + (outputTokens / 1_000_000) * 15).toFixed(6));
-  }
-
-  private buildMessage(input: {
+  private buildTraceMessage(input: {
     run: AgentRun;
     role: AgentRole;
     config: { providerKey: string; modelId: string };
     sessionId: string;
     tradeId: string | null;
-    systemPrompt: string;
-    userPrompt: string;
-    result: GenerateResult;
+    cycleId?: string | null;
+    trace: RunTrace<unknown>;
     outputJson: string | null;
     outputSchemaName: string | null;
     strategySnapshotJson: string;
+    marketSnapshotJson?: string | null;
+    parseFallback?: boolean;
   }): AgentMessage {
-    const message: AgentMessage = {
+    const thinking =
+      input.trace.thinkingText != null && input.trace.thinkingText !== ""
+        ? JSON.stringify({ text: input.trace.thinkingText })
+        : null;
+    return {
       id: crypto.randomUUID(),
       agent_run_id: input.run.id,
       session_id: input.sessionId,
       trade_id: input.tradeId,
+      cycle_id: input.cycleId ?? null,
       role: input.role,
       provider_key: input.config.providerKey,
       model_id: input.config.modelId,
-      messages_json: JSON.stringify([
-        { role: "system", content: input.systemPrompt },
-        { role: "user", content: input.userPrompt },
-        { role: "assistant", content: input.result.text },
-      ]),
-      thinking_json: null,
-      tool_calls_json: null,
+      messages_json: input.trace.auditMessagesJson,
+      thinking_json: thinking,
+      tool_calls_json: JSON.stringify(input.trace.steps),
       output_json: input.outputJson,
       output_schema_name: input.outputSchemaName,
-      parse_fallback: false,
+      parse_fallback: input.parseFallback ?? input.trace.parseFallback,
       strategy_snapshot_json: input.strategySnapshotJson,
-      market_snapshot_json: null,
+      market_snapshot_json: input.marketSnapshotJson ?? null,
       created_at: input.run.created_at,
     };
-    return message;
   }
 
   private requireStrategyContextService(): SessionStrategyContextService {

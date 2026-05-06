@@ -1,19 +1,23 @@
 import { AppError } from "@electron/shared/errors";
-import type { SearchAdapter, SearchResult } from "../search-types";
+import type { SearchAdapter, SearchToolResult } from "../search-types";
 
-function normalize(results: unknown[]): string {
-  const lines: string[] = [];
-  for (const [index, item] of results.entries()) {
-    if (typeof item !== "object" || item === null) continue;
-    const title = typeof (item as { title?: unknown }).title === "string" ? (item as { title: string }).title : "";
-    const content =
-      typeof (item as { content?: unknown }).content === "string" ? (item as { content: string }).content : "";
-    const url = typeof (item as { url?: unknown }).url === "string" ? (item as { url: string }).url : "";
-    const snippet = [title, content, url].filter(Boolean).join(" — ");
-    if (!snippet) continue;
-    lines.push(`${index + 1}. ${snippet}`);
+function clampSnippet(text: string, max = 2000): string {
+  return text.length <= max ? text : `${text.slice(0, max)}…`;
+}
+
+async function postWithRetry(body: Record<string, unknown>): Promise<Response> {
+  const delays = [0, 1000, 2000, 4000];
+  let last: Response | null = null;
+  for (let i = 0; i < delays.length; i++) {
+    if (delays[i]! > 0) await new Promise((r) => setTimeout(r, delays[i]! + Math.floor(Math.random() * (delays[i]! || 1))));
+    last = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (last.status !== 429) return last;
   }
-  return lines.join("\n");
+  return last ?? new Response("", { status: 599 });
 }
 
 export class TavilyAdapter implements SearchAdapter {
@@ -21,21 +25,38 @@ export class TavilyAdapter implements SearchAdapter {
 
   constructor(private readonly apiKey: string) {}
 
-  async search(query: string): Promise<SearchResult> {
-    const response = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: this.apiKey,
-        query,
-        max_results: 5,
-      }),
+  async search(query: string): Promise<SearchToolResult> {
+    const response = await postWithRetry({
+      api_key: this.apiKey,
+      query,
+      max_results: 5,
     });
     if (!response.ok) {
       throw new AppError(`Tavily search failed with ${response.status}`, "PROVIDER_UNREACHABLE");
     }
     const body = (await response.json()) as { results?: unknown[] };
-    return { results: normalize(body.results ?? []) };
+    const raw = body.results ?? [];
+    const results: SearchToolResult["results"] = [];
+    for (const item of raw) {
+      if (typeof item !== "object" || item === null) continue;
+      const title = typeof (item as { title?: unknown }).title === "string" ? (item as { title: string }).title : "";
+      const content =
+        typeof (item as { content?: unknown }).content === "string" ? (item as { content: string }).content : "";
+      const url = typeof (item as { url?: unknown }).url === "string" ? (item as { url: string }).url : "";
+      results.push({
+        url: url || "",
+        title: title || url || "result",
+        snippet: clampSnippet([title, content].filter(Boolean).join(" — ") || url),
+        publishedDate: null,
+      });
+    }
+    return {
+      results,
+      query,
+      provider: "tavily",
+      creditsUsed: 1,
+      cachedAt: null,
+    };
   }
 
   async testConnection(): Promise<{ ok: boolean; error?: string }> {

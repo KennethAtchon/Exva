@@ -17,11 +17,11 @@ export class AgentRunsRepo {
       .prepare(
         `
         INSERT INTO agent_runs (
-          id, session_id, trade_id, agent_type, model, input_tokens, output_tokens,
-          cost_usd, output_text, duration_ms, created_at
+          id, session_id, trade_id, agent_type, model, provider_key, finish_reason,
+          input_tokens, output_tokens, cost_usd, output_text, duration_ms, created_at
         ) VALUES (
-          @id, @session_id, @trade_id, @agent_type, @model, @input_tokens, @output_tokens,
-          @cost_usd, @output_text, @duration_ms, @created_at
+          @id, @session_id, @trade_id, @agent_type, @model, @provider_key, @finish_reason,
+          @input_tokens, @output_tokens, @cost_usd, @output_text, @duration_ms, @created_at
         )
         `,
       )

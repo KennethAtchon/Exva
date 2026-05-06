@@ -5,9 +5,18 @@ import type { BrokerRegistry } from "../broker/broker-registry";
 import type { EventBus } from "../infra/event-bus";
 import type { SessionRepo } from "../../db/repositories/session-repo";
 import type { CapitalReservationService } from "../risk/capital-reservation-service";
+import type { HoldingStyle } from "@/lib/types";
+
+const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
+  intraday_flat: 5_000,
+  multi_day_swing: 60_000,
+  weeks_position: 300_000,
+  custom: 300_000,
+};
 
 export class TradeMonitor {
   private timer: NodeJS.Timeout | null = null;
+  private pollIntervalMs = POLL_INTERVAL_MS.multi_day_swing;
 
   constructor(
     private readonly sessionId: string,
@@ -25,9 +34,10 @@ export class TradeMonitor {
 
   start(): void {
     if (this.timer) return;
+    this.pollIntervalMs = this.resolvePollIntervalMs();
     this.timer = setInterval(() => {
       void this.tick();
-    }, 5000);
+    }, this.pollIntervalMs);
   }
 
   stop(): void {
@@ -38,8 +48,10 @@ export class TradeMonitor {
   private async tick(): Promise<void> {
     const openTrades = this.tradesRepo.listOpenAndPending(this.sessionId).filter((trade) => trade.status === "open");
     const strategyContext = this.strategyContextService.get(this.sessionId);
+    this.ensurePollInterval(strategyContext.timeframe.holdingStyle);
 
-    await this.enforcePredictionMarketPolicy(openTrades, strategyContext.timeframe.maxHoldDays, strategyContext.riskConfig.maxExposureUsd);
+    await this.enforceMaxHoldDays(openTrades, strategyContext.timeframe.maxHoldDays);
+    await this.enforcePredictionMarketPolicy(openTrades, strategyContext.riskConfig.maxExposureUsd);
 
     const remainingOpenTrades = this.tradesRepo.listOpenAndPending(this.sessionId).filter((trade) => trade.status === "open");
     for (const trade of remainingOpenTrades) {
@@ -65,7 +77,6 @@ export class TradeMonitor {
 
   private async enforcePredictionMarketPolicy(
     openTrades: ReturnType<TradesRepo["listOpenAndPending"]>,
-    maxHoldDays: number | null,
     maxExposureUsd: number | null,
   ): Promise<void> {
     const predictionTrades = openTrades
@@ -79,17 +90,7 @@ export class TradeMonitor {
     for (const trade of predictionTrades) {
       const resolutionTime = readResolutionTime(trade.instrumentMetadataJson);
       if (resolutionTime && resolutionTime.getTime() <= Date.now()) {
-        await this.closePredictionTrade(trade);
-      }
-    }
-
-    if (maxHoldDays != null) {
-      for (const trade of predictionTrades) {
-        const openedAt = new Date(trade.opened_at ?? trade.created_at).getTime();
-        const ageDays = (Date.now() - openedAt) / (1000 * 60 * 60 * 24);
-        if (ageDays > maxHoldDays) {
-          await this.closePredictionTrade(trade);
-        }
+        await this.closeTradeAtBroker(trade);
       }
     }
 
@@ -100,13 +101,27 @@ export class TradeMonitor {
       let exposure = remaining.reduce((sum, trade) => sum + trade.position_size_usd, 0);
       for (const trade of remaining.sort((a, b) => new Date(a.opened_at ?? a.created_at).getTime() - new Date(b.opened_at ?? b.created_at).getTime())) {
         if (exposure <= maxExposureUsd) break;
-        await this.closePredictionTrade(trade);
+        await this.closeTradeAtBroker(trade);
         exposure -= trade.position_size_usd;
       }
     }
   }
 
-  private async closePredictionTrade(trade: ReturnType<TradesRepo["require"]>): Promise<void> {
+  private async enforceMaxHoldDays(
+    openTrades: ReturnType<TradesRepo["listOpenAndPending"]>,
+    maxHoldDays: number | null,
+  ): Promise<void> {
+    if (maxHoldDays == null) return;
+    for (const trade of openTrades) {
+      const openedAt = new Date(trade.opened_at ?? trade.created_at).getTime();
+      const ageDays = (Date.now() - openedAt) / (1000 * 60 * 60 * 24);
+      if (ageDays > maxHoldDays) {
+        await this.closeTradeAtBroker(trade);
+      }
+    }
+  }
+
+  private async closeTradeAtBroker(trade: ReturnType<TradesRepo["require"]>): Promise<void> {
     if (!trade.broker_order_id || !trade.brokerAccountId) return;
     const adapter = await this.brokerRegistry.get(trade.brokerAccountId);
     const result = await adapter.closeOrder(trade.broker_order_id);
@@ -118,6 +133,21 @@ export class TradeMonitor {
     this.capitalReservation.releaseOnClose(tradeId);
     this.eventBus.emit("trade_closed", closed);
     return closed;
+  }
+
+  private resolvePollIntervalMs(): number {
+    const holdingStyle = this.strategyContextService.get(this.sessionId).timeframe.holdingStyle;
+    return POLL_INTERVAL_MS[holdingStyle] ?? POLL_INTERVAL_MS.multi_day_swing;
+  }
+
+  private ensurePollInterval(holdingStyle: HoldingStyle): void {
+    const next = POLL_INTERVAL_MS[holdingStyle] ?? POLL_INTERVAL_MS.multi_day_swing;
+    if (next === this.pollIntervalMs || !this.timer) return;
+    clearInterval(this.timer);
+    this.pollIntervalMs = next;
+    this.timer = setInterval(() => {
+      void this.tick();
+    }, this.pollIntervalMs);
   }
 }
 

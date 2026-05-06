@@ -39,6 +39,8 @@ export class AgentOrchestrator {
   private readonly approvalCallbacks = new Map<string, (approved: boolean) => void>();
   /** Trade id → approval id while waiting for human decision. */
   private readonly pendingApprovalIds = new Map<string, string>();
+  private unsubscribeTradeClosed: (() => void) | null = null;
+  private cycleRestartInFlight = false;
   private started = false;
 
   constructor(
@@ -55,6 +57,7 @@ export class AgentOrchestrator {
     const session = this.deps.sessionRepo.requireById(this.sessionId);
     const config = this.getSessionConfig();
     this.queue.concurrency = config.max_concurrent_trades;
+    this.attachTradeClosedListener();
     this.started = true;
 
     let instruments: ResolvedInstrument[];
@@ -66,15 +69,7 @@ export class AgentOrchestrator {
       throw error instanceof AppError ? error : new AppError(message, "VALIDATION_FAILED");
     }
 
-    for (const instrument of instruments) {
-      this.queue.add(() => this.runTradeCycle(instrument)).catch((error) => {
-        this.emitEvent(
-          "ERROR",
-          null,
-          `Trade cycle failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      });
-    }
+    this.enqueueTradeCycles(instruments);
   }
 
   async pause(): Promise<void> {
@@ -87,6 +82,8 @@ export class AgentOrchestrator {
 
   async stop(): Promise<void> {
     this.queue.clear();
+    this.detachTradeClosedListener();
+    this.cycleRestartInFlight = false;
     for (const approvalId of this.pendingApprovalIds.values()) {
       this.deps.capitalReservation.releaseByApproval(approvalId);
     }
@@ -524,6 +521,53 @@ export class AgentOrchestrator {
     return null;
   }
 
+  private attachTradeClosedListener(): void {
+    if (this.unsubscribeTradeClosed) return;
+    this.unsubscribeTradeClosed = this.deps.bus.on("trade_closed", (trade) => {
+      if (trade.sessionId !== this.sessionId || trade.status !== "closed") return;
+      if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
+      if (this.cycleRestartInFlight) return;
+      this.cycleRestartInFlight = true;
+      this.queue
+        .add(async () => {
+          const session = this.deps.sessionRepo.requireById(this.sessionId);
+          const config = this.getSessionConfig();
+          this.queue.concurrency = config.max_concurrent_trades;
+          const instruments = await this.resolveInstruments(session, config);
+          this.emitEvent("INFO", null, `Trade closed; restarting research cycle for ${instruments.length} instruments.`, "orchestrator");
+          this.enqueueTradeCycles(instruments);
+        })
+        .catch((error) => {
+          this.emitEvent(
+            "ERROR",
+            null,
+            `Trade-closed cycle restart failed: ${error instanceof Error ? error.message : String(error)}`,
+            "orchestrator",
+          );
+        })
+        .finally(() => {
+          this.cycleRestartInFlight = false;
+        });
+    });
+  }
+
+  private detachTradeClosedListener(): void {
+    this.unsubscribeTradeClosed?.();
+    this.unsubscribeTradeClosed = null;
+  }
+
+  private enqueueTradeCycles(instruments: ResolvedInstrument[]): void {
+    for (const instrument of instruments) {
+      this.queue.add(() => this.runTradeCycle(instrument)).catch((error) => {
+        this.emitEvent(
+          "ERROR",
+          null,
+          `Trade cycle failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+    }
+  }
+
   private emitEvent(
     level: "DEBUG" | "INFO" | "WARN" | "ERROR",
     tradeId: string | null,
@@ -562,7 +606,12 @@ export class AgentOrchestrator {
     }
 
     this.emitEvent("INFO", null, "Running instrument selector agent...");
-    const result = await this.deps.ai.runInstrumentSelector(session.id, await this.buildSelectionInstructions(session));
+    const cycleId = crypto.randomUUID();
+    const result = await this.deps.ai.runInstrumentSelector(
+      session.id,
+      await this.buildSelectionInstructions(session),
+      cycleId,
+    );
 
     const filtered = result.output.instruments.filter((row: ResolvedInstrument) =>
       session.instrumentClasses.includes(row.instrumentClass),
@@ -600,6 +649,9 @@ export class AgentOrchestrator {
       definitionHash,
       selectedAt: new Date().toISOString(),
       selectorAgentRunId: result.run.id,
+      cycleId,
+      researchBriefsJson: null,
+      researchGeneratedAt: null,
     });
 
     this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`);

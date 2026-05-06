@@ -1,5 +1,14 @@
 import { AppError } from "@electron/shared/errors";
-import type { GenerateObjectOptions, GenerateObjectResult, GenerateResult, GenerateTextOptions, ProviderAdapter } from "./provider-adapter";
+import type {
+  AgentRunOptions,
+  GenerateObjectOptions,
+  GenerateObjectResult,
+  GenerateResult,
+  GenerateTextOptions,
+  ProviderAdapter,
+} from "./provider-adapter";
+import { executeRunAgent } from "./run-agent-execute";
+import type { RunTrace } from "../ai-runtime-types";
 
 function readUsage(usage: { inputTokens?: number; outputTokens?: number; promptTokens?: number; completionTokens?: number } | undefined): {
   inputTokens: number;
@@ -36,6 +45,23 @@ export class AnthropicAdapter implements ProviderAdapter {
       outputTokens: usage.outputTokens,
       durationMs: Date.now() - started,
     };
+  }
+
+  async runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>> {
+    const { createAnthropic } = await import("@ai-sdk/anthropic");
+    const client = createAnthropic({ apiKey: this.apiKey });
+    return executeRunAgent({
+      model: client(opts.model),
+      modelId: opts.model,
+      messages: opts.messages,
+      tools: opts.tools,
+      maxSteps: opts.maxSteps,
+      spendLimitUsd: opts.spendLimitUsd,
+      temperature: opts.temperature,
+      maxOutputTokens: opts.maxTokens,
+      abortSignal: opts.abortSignal,
+      schema: opts.schema,
+    });
   }
 
   async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>> {
