@@ -127,7 +127,6 @@ export const sessionAiRoles = sqliteTable("session_ai_roles", {
   modelId: text("model_id").notNull(),
   temperature: real("temperature").notNull().default(0.7),
   maxTokens: integer("max_tokens").notNull().default(4096),
-  webSearchEnabled: integer("web_search_enabled", { mode: "boolean" }).notNull().default(false),
   promptSource: text("prompt_source").notNull().default("default"),
   promptMarkdown: text("prompt_markdown").notNull().default(""),
   promptAssetPath: text("prompt_asset_path"),

@@ -160,7 +160,6 @@ export function toSessionAiRole(row: Row): SessionAiRole {
     modelId: String(row.model_id),
     temperature: Number(row.temperature),
     maxTokens: Number(row.max_tokens),
-    webSearchEnabled: Boolean(row.web_search_enabled),
     promptSource: row.prompt_source as SessionAiRole["promptSource"],
     promptMarkdown: String(row.prompt_markdown),
     promptAssetPath: nullableString(row.prompt_asset_path),

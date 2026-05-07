@@ -46,15 +46,6 @@ export interface TaskBoundaryInput {
 
 const DEFAULT_ROLES = ["analyst_technical", "analyst_fundamental", "reviewer", "decision_maker", "instrument_selector"] as const;
 
-function defaultWebSearchEnabled(role: (typeof DEFAULT_ROLES)[number]): boolean {
-  return (
-    role === "instrument_selector" ||
-    role === "analyst_technical" ||
-    role === "analyst_fundamental" ||
-    role === "reviewer"
-  );
-}
-
 export class SessionRepo {
   constructor(private readonly client: DbClient) {}
 
@@ -168,7 +159,6 @@ export class SessionRepo {
             modelId: "claude-sonnet-4-6",
             temperature: 0.7,
             maxTokens: 4096,
-            webSearchEnabled: defaultWebSearchEnabled(role),
             promptSource: "default",
             promptMarkdown: "",
             promptAssetPath: null,

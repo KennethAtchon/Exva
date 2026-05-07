@@ -144,11 +144,6 @@ export class SessionStrategyContextService {
           field: "promptMarkdown",
         });
       }
-      if (role.webSearchEnabled && !session.defaultSearchProviderId && !workspacePrefs.defaultSearchProviderId) {
-        throw new AppError("Connect a web search provider to enable internet search for this role.", "SEARCH_PROVIDER_REQUIRED", {
-          role: role.role,
-        });
-      }
     }
 
     this.deps.aiRolesRepo.replaceAll(sessionId, aiRoles);

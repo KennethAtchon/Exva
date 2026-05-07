@@ -9,7 +9,6 @@ import { ROLE_TOOL_POLICY } from "./ai-runtime-types";
 export async function buildRoleTools(input: {
   sessionId: string;
   role: AgentRole;
-  webSearchEnabled: boolean;
   cycleId: string | null;
   resolveSearchTool: (sessionId: string, context?: { cycleId?: string | null; tradeId?: string | null }) => Promise<ToolSet[keyof ToolSet]>;
   searchRegistry: SearchRegistry;
@@ -18,10 +17,11 @@ export async function buildRoleTools(input: {
   resolveSearchProviderId: (sessionId: string) => string | null;
 }): Promise<ToolSet | undefined> {
   const policy = ROLE_TOOL_POLICY[input.role];
-  if (policy.enforceNoTools || !input.webSearchEnabled) return undefined;
+  if (policy.enforceNoTools) return undefined;
 
   const tools: ToolSet = {};
-  if (policy.allowSearch) {
+  const searchProviderId = input.resolveSearchProviderId(input.sessionId);
+  if (policy.allowSearch && searchProviderId) {
     tools.search_web = await input.resolveSearchTool(input.sessionId, { cycleId: input.cycleId });
   }
   if (policy.allowMarketNewsTool) {

@@ -80,7 +80,6 @@ export const sessionAiRolePayloadSchema = z.object({
   modelId: z.string(),
   temperature: z.number().min(0).max(2),
   maxTokens: z.number().int().positive(),
-  webSearchEnabled: z.boolean(),
   promptSource: promptSourceSchema,
   promptMarkdown: z.string(),
   promptAssetPath: z.string().nullable(),

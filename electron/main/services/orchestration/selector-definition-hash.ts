@@ -13,7 +13,6 @@ export type SelectorDefinitionFingerprint = {
     modelId: string;
     promptSource: PromptSource;
     promptMarkdown: string;
-    webSearchEnabled: boolean;
   };
   routingSnapshot: Array<{
     instrumentClass: InstrumentClass;
@@ -75,14 +74,12 @@ export function buildSelectorDefinitionFingerprint(
           modelId: role.modelId,
           promptSource: role.promptSource,
           promptMarkdown: role.promptMarkdown,
-          webSearchEnabled: role.webSearchEnabled,
         }
       : {
           providerKey: "",
           modelId: "",
           promptSource: "default" as PromptSource,
           promptMarkdown: "",
-          webSearchEnabled: false,
         },
     routingSnapshot: routingSnapshot(session.id, session.instrumentClasses, deps.brokerRouting),
   };

@@ -107,7 +107,6 @@ describe("SessionTemplateService", () => {
             modelId: "claude-sonnet-4-6",
             temperature: 0.7,
             maxTokens: 4096,
-            webSearchEnabled: false,
             promptSource: "default",
             promptMarkdown: "",
             promptAssetPath: null,

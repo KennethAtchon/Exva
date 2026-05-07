@@ -351,7 +351,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
               onApplyModelConfigToOtherRoles={async () => {
                 const roleLabel = currentRole.role.replaceAll("_", " ");
                 const confirmed = window.confirm(
-                  `Apply ${roleLabel} model settings to the other roles?\n\nThis copies provider, model, temperature, max tokens, and web search.`,
+                  `Apply ${roleLabel} model settings to the other roles?\n\nThis copies provider, model, temperature, and max tokens.`,
                 );
                 if (!confirmed) return;
 
@@ -360,7 +360,6 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
                   modelId: currentRole.modelId,
                   temperature: currentRole.temperature,
                   maxTokens: currentRole.maxTokens,
-                  webSearchEnabled: currentRole.webSearchEnabled,
                 };
 
                 for (const role of ROLE_ORDER) {

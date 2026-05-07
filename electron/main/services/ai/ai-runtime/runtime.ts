@@ -12,7 +12,7 @@ import {
   type InstrumentSelection,
 } from "@/lib/schemas";
 import type { AgentResult, RuntimeAgentMessage } from "./ai-runtime-types";
-import { ROLE_HARNESS_CAPS } from "./ai-runtime-types";
+import { ROLE_HARNESS_CAPS, ROLE_TOOL_POLICY } from "./ai-runtime-types";
 import type { PromptAssetLoader } from "../prompt-asset-loader";
 import type { ProviderRegistry } from "../provider-registry";
 import type { SearchRegistry } from "../search";
@@ -175,7 +175,9 @@ ${input.review}`;
     const tools: ToolSet = {
       submit_candidates: submitCandidates,
     };
-    if (config.webSearchEnabled) {
+    const selectorPolicy = ROLE_TOOL_POLICY.instrument_selector;
+    const searchProviderId = this.resolveSearchProviderId(sessionId);
+    if (selectorPolicy.allowSearch && searchProviderId) {
       tools.search_web = await this.resolveSearchTool(sessionId, { cycleId: cycleId ?? null });
     }
     if (this.brokerRouting && this.brokerRegistry) {
@@ -261,7 +263,6 @@ ${input.review}`;
     const tools = await buildRoleTools({
       sessionId,
       role,
-      webSearchEnabled: config.webSearchEnabled,
       cycleId: opts?.cycleId ?? null,
       resolveSearchTool: this.resolveSearchTool.bind(this),
       searchRegistry: this.searchRegistry,

@@ -149,7 +149,6 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       model_id TEXT NOT NULL,
       temperature REAL NOT NULL DEFAULT 0.7,
       max_tokens INTEGER NOT NULL DEFAULT 4096,
-      web_search_enabled INTEGER NOT NULL DEFAULT 0,
       prompt_source TEXT NOT NULL DEFAULT 'default',
       prompt_markdown TEXT NOT NULL DEFAULT '',
       prompt_asset_path TEXT
@@ -467,6 +466,15 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     WHERE template_payload_json LIKE '%researcher_bull%'
        OR template_payload_json LIKE '%researcher_bear%';
   `);
+
+  try {
+    const cols = sqlite.prepare(`PRAGMA table_info(session_ai_roles)`).all() as Array<{ name: string }>;
+    if (cols.some((c) => c.name === "web_search_enabled")) {
+      sqlite.exec(`ALTER TABLE session_ai_roles DROP COLUMN web_search_enabled`);
+    }
+  } catch (err) {
+    console.warn("[migrations] Could not drop legacy session_ai_roles.web_search_enabled", err);
+  }
 
   sqlite
     .prepare(

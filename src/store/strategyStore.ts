@@ -265,9 +265,6 @@ function validateRoles(state: StrategyStoreState): Record<AgentRole, string[]> {
     if (role.promptSource === "session_override" && !role.promptMarkdown.trim()) {
       errors[role.role].push("Prompt cannot be empty. Reset to default or add content.");
     }
-    if (role.webSearchEnabled && !state.defaultSearchProviderId && !state.workspaceDefaultSearchProviderId) {
-      errors[role.role].push("Connect a web search provider to enable internet search for this role.");
-    }
   }
 
   return errors;
@@ -281,11 +278,6 @@ function emptyRole(role: AgentRole): SessionAiRole {
     modelId: "",
     temperature: 0.7,
     maxTokens: 4096,
-    webSearchEnabled:
-      role === "instrument_selector" ||
-      role === "analyst_technical" ||
-      role === "analyst_fundamental" ||
-      role === "reviewer",
     promptSource: "default",
     promptMarkdown: "",
     promptAssetPath: null,

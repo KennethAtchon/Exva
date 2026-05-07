@@ -359,7 +359,6 @@ export interface SessionAiRole {
   modelId: string;
   temperature: number;
   maxTokens: number;
-  webSearchEnabled: boolean;
   promptSource: PromptSource;
   promptMarkdown: string;
   promptAssetPath: string | null;

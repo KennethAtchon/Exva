@@ -44,7 +44,6 @@ export class SessionAiRolesRepo {
             modelId: aiRole.modelId,
             temperature: aiRole.temperature,
             maxTokens: aiRole.maxTokens,
-            webSearchEnabled: aiRole.webSearchEnabled,
             promptSource: aiRole.promptSource,
             promptMarkdown: aiRole.promptMarkdown,
             promptAssetPath: aiRole.promptAssetPath,

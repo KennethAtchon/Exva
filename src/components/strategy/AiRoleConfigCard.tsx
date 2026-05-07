@@ -1,5 +1,5 @@
 import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
-import { Button, Switch, Toggle } from "@/components/ui";
+import { Button, Toggle } from "@/components/ui";
 import { PromptEditor } from "./PromptEditor";
 import type { AgentRole, ProviderAccount, SessionAiRole, SelectionMode } from "@/lib/types";
 import type { ProviderModelEntry } from "@/lib/exva";
@@ -177,7 +177,7 @@ export const AiRoleConfigCard = ({
               onClick={() => void onApplyModelConfigToOtherRoles()}
               disabled={disabled || selectorTabLocked || !role.providerKey || !role.modelId.trim()}
               style={secondaryButtonStyle}
-              title="Apply provider/model/temperature/token/search settings to the other roles"
+              title="Apply provider, model, temperature, and max tokens to the other roles"
             >
               Set for Other Roles
             </Button>
@@ -211,15 +211,6 @@ export const AiRoleConfigCard = ({
             />
           </div>
         </div>
-
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: disabled || selectorTabLocked ? "var(--text3)" : "var(--text2)" }}>
-          <Switch
-            checked={role.webSearchEnabled}
-            onCheckedChange={(checked) => void onRoleChange({ webSearchEnabled: checked })}
-            disabled={disabled || selectorTabLocked}
-          />
-          Web Search Enabled
-        </label>
 
         <div style={{ display: "flex", gap: 6 }}>
           <Toggle
