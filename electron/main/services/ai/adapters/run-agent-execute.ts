@@ -3,6 +3,9 @@ import type { z } from "zod";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
 import type { RuntimeAgentMessage, RunTrace, StepTrace, ToolCallRecord } from "../ai-runtime-types";
+import { createLogger } from "../../infra/log";
+
+const logger = createLogger("run-agent-execute");
 
 export interface RunAgentExecuteParams<T> {
   model: LanguageModel;
@@ -106,6 +109,18 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   const started = Date.now();
   const { system, rest } = splitSystem(params.messages);
   const prompt = userPromptFrom(rest);
+  logger.debug(
+    {
+      modelId: params.modelId,
+      hasTools: Boolean(params.tools),
+      hasSchema: Boolean(params.schema),
+      promptChars: prompt.length,
+      promptTooLong: prompt.length > 2_000,
+      maxSteps: params.maxSteps,
+      spendLimitUsd: params.spendLimitUsd ?? null,
+    },
+    "execute run agent start",
+  );
 
   const conditions: StopCondition<ToolSet>[] = [];
   if (params.tools && params.maxSteps > 0) {
@@ -163,6 +178,22 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   } catch {
     auditMessagesJson = JSON.stringify(persistedMessages(system, prompt, result.text));
   }
+
+  logger.info(
+    {
+      modelId: params.modelId,
+      finishReason: result.finishReason,
+      mappedFinishReason: mapFinishReason(result.finishReason, { spendExceeded, stepCapHit }),
+      steps: result.steps.length,
+      inputTokens: totalIn,
+      outputTokens: totalOut,
+      durationMs,
+      totalCostUsd: totalCost,
+      spendExceeded,
+      stepCapHit,
+    },
+    "execute run agent complete",
+  );
 
   return {
     assistantText: result.text,

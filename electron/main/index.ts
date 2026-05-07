@@ -12,10 +12,15 @@ app.disableHardwareAcceleration();
 
 app.whenReady().then(async () => {
   try {
+    logger.info({ pid: process.pid, nodeEnv: process.env.NODE_ENV }, "starting Exva main process");
     services = await createAppServices(app);
+    logger.info("app services initialized");
     await services.runtimeManager.rehydrateFromDb();
+    logger.info("runtime manager rehydrated from database");
     registerIpcHandlers(services);
+    logger.info("ipc handlers registered");
     await createMainWindow(services);
+    logger.info("main window created");
   } catch (error) {
     logger.error({ err: error }, "failed to start Exva");
     app.quit();

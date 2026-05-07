@@ -23,6 +23,10 @@ import { createSearchTool } from "./tools/search-tool";
 import { createMarketTools } from "./tools/market-tools";
 import type { BrokerRoutingService } from "../broker/broker-routing-service";
 import type { BrokerRegistry } from "../broker/broker-registry";
+import { createLogger } from "../infra/log";
+import { textMeta } from "../infra/log-safety";
+
+const logger = createLogger("ai-runtime");
 
 export interface ResearcherInput {
   instrumentSymbol: string;
@@ -85,6 +89,18 @@ export class AiRuntime {
     const blocks = input.injection;
     const tail = `Instrument: ${input.instrumentSymbol}\nContext: ${input.context ?? "None"}`;
     const userPrompt = blocks ? `${blocks.marketMarkdown}\n\n${blocks.fundamentalsMarkdown}\n\n${blocks.newsMarkdown}\n\n${tail}` : tail;
+    const prompt = textMeta(userPrompt);
+    logger.info(
+      {
+        sessionId,
+        role: agentRole,
+        instrumentSymbol: input.instrumentSymbol,
+        promptChars: prompt.length,
+        promptTooLong: prompt.tooLong,
+        promptLooksSensitive: prompt.looksSensitive,
+      },
+      "ai role start",
+    );
     return this.runRole(sessionId, agentRole, userPrompt, {
       marketSnapshotJson: blocks?.snapshotJson ?? null,
     });
@@ -94,6 +110,17 @@ export class AiRuntime {
     if (!sessionId) throw new AppError("Session id is required for AI role execution", "VALIDATION_FAILED");
     const labels = this.analysisLabels(sessionId);
     const prompt = `Instrument: ${input.instrumentSymbol}\n\n${labels.first}:\n${input.technicalAnalysis}\n\n${labels.second}:\n${input.fundamentalAnalysis}`;
+    const promptInfo = textMeta(prompt);
+    logger.info(
+      {
+        sessionId,
+        role: "reviewer",
+        instrumentSymbol: input.instrumentSymbol,
+        promptChars: promptInfo.length,
+        promptTooLong: promptInfo.tooLong,
+      },
+      "ai role start",
+    );
     return this.runRole(sessionId, "reviewer", prompt);
   }
 
@@ -111,6 +138,17 @@ ${input.fundamentalAnalysis}
 
 Review:
 ${input.review}`;
+    const promptInfo = textMeta(prompt);
+    logger.info(
+      {
+        sessionId,
+        role: "decision_maker",
+        instrumentSymbol: input.instrumentSymbol,
+        promptChars: promptInfo.length,
+        promptTooLong: promptInfo.tooLong,
+      },
+      "ai role start",
+    );
     return this.runDecisionRole(sessionId, prompt);
   }
 
@@ -124,6 +162,17 @@ ${input.review}`;
     const adapter = await this.registry.get(config.providerKey);
     const systemPrompt = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
     const promptContext = this.withSessionStrategyUserPrompt(sessionId, selectionInstructions);
+    const promptInfo = textMeta(promptContext.prompt);
+    logger.info(
+      {
+        sessionId,
+        role,
+        cycleId: cycleId ?? null,
+        promptChars: promptInfo.length,
+        promptTooLong: promptInfo.tooLong,
+      },
+      "ai role start",
+    );
 
     const submitCandidates = tool({
       description: "Submit the final shortlist when research is complete.",
@@ -177,6 +226,18 @@ ${input.review}`;
 
     const selection = this.parseInstrumentSelection(trace);
     const run = this.toRunFromTrace(role, config.modelId, config.providerKey, trace);
+    logger.info(
+      {
+        sessionId,
+        role,
+        cycleId: cycleId ?? null,
+        inputTokens: run.input_tokens,
+        outputTokens: run.output_tokens,
+        durationMs: run.duration_ms,
+        costUsd: run.cost_usd,
+      },
+      "ai role complete",
+    );
     return {
       run,
       message: this.buildTraceMessage({
@@ -227,6 +288,18 @@ ${input.review}`;
     );
 
     const run = this.toRunFromTrace(role, config.modelId, config.providerKey, trace);
+    logger.info(
+      {
+        sessionId,
+        role,
+        cycleId: opts?.cycleId ?? null,
+        inputTokens: run.input_tokens,
+        outputTokens: run.output_tokens,
+        durationMs: run.duration_ms,
+        costUsd: run.cost_usd,
+      },
+      "ai role complete",
+    );
     return {
       run,
       message: this.buildTraceMessage({
@@ -277,6 +350,18 @@ ${input.review}`;
     }
 
     const run = this.toRunFromTrace(role, config.modelId, config.providerKey, trace);
+    logger.info(
+      {
+        sessionId,
+        role,
+        cycleId: cycleId ?? null,
+        inputTokens: run.input_tokens,
+        outputTokens: run.output_tokens,
+        durationMs: run.duration_ms,
+        costUsd: run.cost_usd,
+      },
+      "ai role complete",
+    );
     return {
       run,
       message: this.buildTraceMessage({

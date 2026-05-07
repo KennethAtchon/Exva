@@ -9,7 +9,12 @@ export class SessionRuntimeManager {
 
   async startSession(sessionId: string): Promise<SessionRuntime> {
     const existing = this.runtimes.get(sessionId);
-    if (existing) return existing;
+    if (existing) {
+      this.deps.logger.debug({ sessionId }, "runtime already active");
+      return existing;
+    }
+
+    this.deps.logger.info({ sessionId }, "starting runtime");
 
     const session = this.deps.sessionRepo.requireById(sessionId);
     const orchestratorDeps: OrchestratorDeps = {
@@ -56,35 +61,43 @@ export class SessionRuntimeManager {
 
     try {
       await runtime.initialize(runtimeStatus);
+      this.deps.logger.info({ sessionId, runtimeStatus }, "runtime started");
       return runtime;
     } catch (error) {
       this.runtimes.delete(sessionId);
       this.deps.bus.clearRuntimeStatus(sessionId);
+      this.deps.logger.error({ err: error, sessionId }, "runtime start failed");
       throw error;
     }
   }
 
   async pauseSession(sessionId: string): Promise<void> {
+    this.deps.logger.info({ sessionId }, "pausing runtime");
     const runtime = this.requireRuntime(sessionId);
     this.deps.bus.setRuntimeStatus(sessionId, "paused");
     this.deps.sessionRepo.setStatus("paused", sessionId);
     await runtime.pause();
+    this.deps.logger.info({ sessionId }, "runtime paused");
   }
 
   async resumeSession(sessionId: string): Promise<void> {
+    this.deps.logger.info({ sessionId }, "resuming runtime");
     const runtime = this.runtimes.get(sessionId) ?? (await this.startSession(sessionId));
     this.deps.bus.setRuntimeStatus(sessionId, "active");
     this.deps.sessionRepo.setStatus("active", sessionId);
     await runtime.resume();
+    this.deps.logger.info({ sessionId }, "runtime resumed");
   }
 
   async stopSession(sessionId: string): Promise<void> {
+    this.deps.logger.info({ sessionId }, "stopping runtime");
     const runtime = this.requireRuntime(sessionId);
     this.deps.bus.setRuntimeStatus(sessionId, "stopping");
     this.deps.sessionRepo.setStatus("stopped", sessionId);
     await runtime.stop();
     this.runtimes.delete(sessionId);
     this.deps.bus.clearRuntimeStatus(sessionId);
+    this.deps.logger.info({ sessionId }, "runtime stopped");
   }
 
   get(sessionId: string): SessionRuntime | null {
@@ -97,12 +110,15 @@ export class SessionRuntimeManager {
 
   async rehydrateFromDb(): Promise<void> {
     const sessions = this.deps.sessionRepo.listByStatuses(["active", "paused"]);
+    this.deps.logger.info({ sessionCount: sessions.length }, "rehydrating runtimes from db");
     for (const session of sessions) {
       await this.startSession(session.id);
     }
+    this.deps.logger.info({ sessionCount: sessions.length }, "runtime rehydration complete");
   }
 
   async enqueueApprovalRecheck(input: ApprovalRecheckInput): Promise<void> {
+    this.deps.logger.debug({ sessionId: input.sessionId, approvalId: input.approvalId }, "enqueue approval recheck");
     const runtime = this.requireRuntime(input.sessionId);
     await runtime.orchestrator.runApprovalRecheck(input);
   }

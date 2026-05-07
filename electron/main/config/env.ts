@@ -2,7 +2,8 @@ import { z } from "zod";
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  EXVA_LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
+  EXVA_LOG_LEVEL: z.enum(["error", "warn", "info", "debug", "trace"]).default("info"),
+  EXVA_LOG_DIR: z.string().optional(),
   EXVA_DB_PATH: z.string().optional(),
   EXVA_DB_REBUILD_FROM_SCRATCH: z
     .string()
@@ -26,6 +27,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     isTest: parsed.data.NODE_ENV === "test",
     isProd: parsed.data.NODE_ENV === "production",
     logLevel: parsed.data.EXVA_LOG_LEVEL,
+    logDir: parsed.data.EXVA_LOG_DIR,
     dbPath: parsed.data.EXVA_DB_PATH,
     dbRebuildFromScratch: parsed.data.EXVA_DB_REBUILD_FROM_SCRATCH ?? false,
     devBypassKeychain: parsed.data.EXVA_DEV_BYPASS_KEYCHAIN ?? false,

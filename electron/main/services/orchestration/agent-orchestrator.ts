@@ -53,6 +53,7 @@ export class AgentOrchestrator {
 
   async start(): Promise<void> {
     if (this.started) {
+      this.deps.logger.debug({ sessionId: this.sessionId }, "orchestrator already started; resuming queue");
       this.queue.start();
       return;
     }
@@ -60,6 +61,7 @@ export class AgentOrchestrator {
     const session = this.deps.sessionRepo.requireById(this.sessionId);
     const config = this.getSessionConfig();
     this.queue.concurrency = config.max_concurrent_trades;
+    this.deps.logger.info({ sessionId: this.sessionId, concurrency: this.queue.concurrency }, "orchestrator starting");
     this.attachTradeClosedListener();
     this.started = true;
 
@@ -82,6 +84,7 @@ export class AgentOrchestrator {
     });
 
     this.enqueueTradeCycles(instruments);
+    this.deps.logger.info({ sessionId: this.sessionId, instrumentCount: instruments.length }, "orchestrator started");
   }
 
   async pause(): Promise<void> {
@@ -93,6 +96,10 @@ export class AgentOrchestrator {
   }
 
   async stop(): Promise<void> {
+    this.deps.logger.info(
+      { sessionId: this.sessionId, pendingApprovals: this.pendingApprovalIds.size, queuedApprovals: this.approvalCallbacks.size },
+      "orchestrator stopping",
+    );
     this.queue.clear();
     this.detachTradeClosedListener();
     this.cycleRestartInFlight = false;
@@ -102,6 +109,7 @@ export class AgentOrchestrator {
     this.pendingApprovalIds.clear();
     for (const resolve of this.approvalCallbacks.values()) resolve(false);
     this.approvalCallbacks.clear();
+    this.deps.logger.info({ sessionId: this.sessionId }, "orchestrator stopped");
   }
 
   async runApprovalRecheck(input: ApprovalRecheckInput): Promise<void> {
@@ -231,6 +239,10 @@ export class AgentOrchestrator {
 
   private async runTradeCycle(instrument: ResolvedInstrument): Promise<void> {
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
+    this.deps.logger.debug(
+      { sessionId: this.sessionId, instrumentSymbol: instrument.symbol, instrumentClass: instrument.instrumentClass },
+      "trade cycle start",
+    );
 
     const config = this.getSessionConfig();
     const stats = this.deps.statsRepo.dashboardStats(
@@ -310,6 +322,17 @@ export class AgentOrchestrator {
     }
     this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`, "broker");
     this.deps.bus.emit("trade_opened", opened);
+    this.deps.logger.info(
+      {
+        sessionId: this.sessionId,
+        tradeId: trade.id,
+        instrumentSymbol: trade.instrumentSymbol,
+        instrumentClass: instrument.instrumentClass,
+        side: trade.side,
+        sizeUsd: trade.position_size_usd,
+      },
+      "trade opened",
+    );
   }
 
   private async placeRoutedOrder(
@@ -318,6 +341,10 @@ export class AgentOrchestrator {
     riskOrder: OrderRequest,
   ): Promise<{ brokerOrderId: string; filledAvgPrice: number } | null> {
     const { adapter, brokerAccountId } = await this.deps.brokerRouting.resolveAdapter(this.sessionId, instrumentClass);
+    this.deps.logger.debug(
+      { sessionId: this.sessionId, tradeId: trade.id, brokerAccountId, instrumentClass, brokerType: adapter.brokerType },
+      "resolved broker adapter",
+    );
 
     if (this.deps.tradesRepo.checkInstrumentConflict(brokerAccountId, trade.instrumentSymbol, this.sessionId)) {
       return null;
@@ -343,6 +370,17 @@ export class AgentOrchestrator {
       this.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId });
     }
 
+    this.deps.logger.info(
+      {
+        sessionId: this.sessionId,
+        tradeId: trade.id,
+        brokerAccountId,
+        brokerOrderIdLength: result.brokerOrderId.length,
+        filledAvgPrice: result.filledAvgPrice,
+      },
+      "broker order placed",
+    );
+
     return { brokerOrderId: result.brokerOrderId, filledAvgPrice: result.filledAvgPrice };
   }
 
@@ -350,6 +388,10 @@ export class AgentOrchestrator {
     instrument: ResolvedInstrument,
     config: SessionConfig,
   ): Promise<{ technical: AiResearchRun; fundamental: AiResearchRun; review: AiReviewRun; decision: AiDecisionRun } | null> {
+    this.deps.logger.debug(
+      { sessionId: this.sessionId, instrumentSymbol: instrument.symbol, instrumentClass: instrument.instrumentClass },
+      "ai pipeline start",
+    );
     const technical = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: instrument.instrumentDisplayName }, "technical", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
@@ -377,6 +419,16 @@ export class AgentOrchestrator {
       this.sessionId,
     );
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
+
+    this.deps.logger.debug(
+      {
+        sessionId: this.sessionId,
+        instrumentSymbol: instrument.symbol,
+        decisionAction: decision.output.action,
+        confidence: decision.output.confidence,
+      },
+      "ai pipeline complete",
+    );
 
     return { technical, fundamental, review, decision };
   }
@@ -569,6 +621,7 @@ export class AgentOrchestrator {
   }
 
   private enqueueTradeCycles(instruments: ResolvedInstrument[]): void {
+    this.deps.logger.info({ sessionId: this.sessionId, instrumentCount: instruments.length }, "enqueueing trade cycles");
     for (const instrument of instruments) {
       this.queue.add(() => this.runTradeCycle(instrument)).catch((error) => {
         this.emitEvent(
