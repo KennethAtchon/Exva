@@ -1,3 +1,4 @@
+import type { OpenAIProvider, OpenAIProviderSettings } from "@ai-sdk/openai";
 import type {
   AgentRunOptions,
   GenerateObjectOptions,
@@ -29,15 +30,19 @@ export class OpenRouterAdapter implements ProviderAdapter {
     private readonly baseUrl?: string,
   ) {}
 
-  async runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>> {
+  private async createClient(): Promise<OpenAIProvider> {
     const { createOpenAI } = await import("@ai-sdk/openai");
-    const client = createOpenAI({
+    const opts: OpenAIProviderSettings = {
       apiKey: this.apiKey,
       baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
-      compatibility: "compatible",
-    });
+    };
+    return createOpenAI(opts);
+  }
+
+  async runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>> {
+    const client = await this.createClient();
     return executeRunAgent({
-      model: client(opts.model),
+      model: client.chat(opts.model),
       modelId: opts.model,
       messages: opts.messages,
       tools: opts.tools,
@@ -51,16 +56,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
   }
 
   async generateText(opts: GenerateTextOptions): Promise<GenerateResult> {
-    const { createOpenAI } = await import("@ai-sdk/openai");
     const { generateText } = await import("ai");
-    const client = createOpenAI({
-      apiKey: this.apiKey,
-      baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
-      compatibility: "compatible",
-    });
+    const client = await this.createClient();
     const started = Date.now();
     const result = await generateText({
-      model: client(opts.model),
+      model: client.chat(opts.model),
       system: opts.systemPrompt,
       prompt: opts.userPrompt,
       temperature: opts.temperature,
@@ -77,16 +77,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
   }
 
   async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>> {
-    const { createOpenAI } = await import("@ai-sdk/openai");
     const { generateObject } = await import("ai");
-    const client = createOpenAI({
-      apiKey: this.apiKey,
-      baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
-      compatibility: "compatible",
-    });
+    const client = await this.createClient();
     const started = Date.now();
     const result = await generateObject({
-      model: client(opts.model),
+      model: client.chat(opts.model),
       system: opts.systemPrompt,
       prompt: opts.userPrompt,
       schema: opts.schema,

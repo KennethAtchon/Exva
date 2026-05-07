@@ -1,4 +1,6 @@
 export * from "./badge";
+export * from "./command";
+export * from "./popover";
 export * from "./button";
 export * from "./card";
 export * from "./checkbox";
