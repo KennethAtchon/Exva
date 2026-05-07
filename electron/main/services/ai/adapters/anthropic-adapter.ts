@@ -5,6 +5,7 @@ import type {
   GenerateObjectResult,
   GenerateResult,
   GenerateTextOptions,
+  ModelEntry,
   ProviderAdapter,
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
@@ -102,5 +103,21 @@ export class AnthropicAdapter implements ProviderAdapter {
       if (error instanceof AppError) return { ok: false, error: error.message };
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
+  }
+
+  async listModels(): Promise<ModelEntry[]> {
+    const res = await fetch("https://api.anthropic.com/v1/models?limit=100", {
+      headers: {
+        "x-api-key": this.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+    });
+    if (!res.ok) throw new Error(`Anthropic models fetch failed: ${res.status}`);
+    const json = await res.json() as { data: { id: string; display_name: string }[] };
+    return json.data.map((m) => ({
+      id: m.id,
+      label: m.display_name,
+      maxContextTokens: 200000,
+    }));
   }
 }

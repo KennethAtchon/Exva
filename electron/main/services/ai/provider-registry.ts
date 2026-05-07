@@ -5,7 +5,7 @@ import type { SecretsService } from "../infra/secrets-service";
 import { AnthropicAdapter } from "./adapters/anthropic-adapter";
 import { OpenAiAdapter } from "./adapters/openai-adapter";
 import { OpenRouterAdapter } from "./adapters/openrouter-adapter";
-import type { ProviderAdapter } from "./adapters/provider-adapter";
+import type { ModelEntry, ProviderAdapter } from "./adapters/provider-adapter";
 
 type OpenRouterMetadata = {
   baseUrl?: string;
@@ -50,6 +50,11 @@ export class ProviderRegistry {
     const adapter = this.buildAdapter(account, secret);
     this.adapters.set(providerKey, adapter);
     return adapter;
+  }
+
+  async listModels(providerKey: string): Promise<ModelEntry[]> {
+    const adapter = await this.get(providerKey);
+    return adapter.listModels();
   }
 
   invalidate(providerKey: string): void {

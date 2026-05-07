@@ -9,7 +9,6 @@ import {
 } from "@electron/shared/schemas";
 import { channels } from "@electron/shared/channels";
 import type { AppServices } from "../services/app-services";
-import { MODEL_CATALOG } from "../services/ai/provider-model-catalog";
 import { handle } from "./handle";
 
 export function registerStrategyHandlers(services: AppServices): void {
@@ -67,7 +66,12 @@ export function registerStrategyHandlers(services: AppServices): void {
     if (!provider || provider.category !== "ai") {
       return { models: [] };
     }
-    return { models: MODEL_CATALOG[provider.providerType as keyof typeof MODEL_CATALOG] ?? [] };
+    try {
+      const models = await services.providerRegistry.listModels(providerKey);
+      return { models };
+    } catch {
+      return { models: [] };
+    }
   });
 
   handle(ipcMain, channels.strategy.resetPrompt, async (payload) => {

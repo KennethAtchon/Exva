@@ -4,6 +4,7 @@ import type {
   GenerateObjectResult,
   GenerateResult,
   GenerateTextOptions,
+  ModelEntry,
   ProviderAdapter,
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
@@ -33,6 +34,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
     const client = createOpenAI({
       apiKey: this.apiKey,
       baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
+      compatibility: "compatible",
     });
     return executeRunAgent({
       model: client(opts.model),
@@ -54,6 +56,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
     const client = createOpenAI({
       apiKey: this.apiKey,
       baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
+      compatibility: "compatible",
     });
     const started = Date.now();
     const result = await generateText({
@@ -79,6 +82,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
     const client = createOpenAI({
       apiKey: this.apiKey,
       baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
+      compatibility: "compatible",
     });
     const started = Date.now();
     const result = await generateObject({
@@ -98,6 +102,20 @@ export class OpenRouterAdapter implements ProviderAdapter {
       outputTokens: usage.outputTokens,
       durationMs: Date.now() - started,
     };
+  }
+
+  async listModels(): Promise<ModelEntry[]> {
+    const baseURL = this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL;
+    const res = await fetch(`${baseURL}/models`, {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+    });
+    if (!res.ok) throw new Error(`OpenRouter models fetch failed: ${res.status}`);
+    const json = await res.json() as { data: { id: string; name: string; context_length: number }[] };
+    return json.data.map((m) => ({
+      id: m.id,
+      label: m.name,
+      maxContextTokens: m.context_length ?? 0,
+    }));
   }
 
   async testConnection(): Promise<{ ok: boolean; error?: string }> {

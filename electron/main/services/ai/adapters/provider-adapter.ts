@@ -39,10 +39,17 @@ export interface AgentRunOptions<T = undefined> {
   schema?: z.ZodType<T>;
 }
 
+export interface ModelEntry {
+  id: string;
+  label: string;
+  maxContextTokens: number;
+}
+
 export interface ProviderAdapter {
   readonly providerType: ProviderType;
   generateText(opts: GenerateTextOptions): Promise<GenerateResult>;
   generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>>;
   runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>>;
   testConnection(): Promise<{ ok: boolean; error?: string }>;
+  listModels(): Promise<ModelEntry[]>;
 }

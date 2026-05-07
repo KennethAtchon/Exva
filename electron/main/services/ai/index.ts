@@ -5,5 +5,5 @@ export type { AgentResult } from "./ai-runtime/ai-runtime-types";
 export { tradeDecisionSchema } from "@/lib/schemas";
 export { PromptAssetLoader } from "./prompt-asset-loader";
 export { ProviderRegistry } from "./provider-registry";
-export { MODEL_CATALOG } from "./provider-model-catalog";
+export type { ModelEntry } from "./adapters/provider-adapter";
 export * from "./search";

@@ -1,6 +1,6 @@
 import { tool, type ToolSet } from "ai";
 import type { AgentRole, InstrumentClass } from "@/lib/types";
-import { instrumentSelectionSchema, type InstrumentSelection } from "@/lib/schemas";
+import { instrumentSelectionToolInputSchema, type InstrumentSelection } from "@/lib/schemas";
 import type { SearchRegistry } from "../search";
 import { createMarketTools } from "../tools/market-tools";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
@@ -69,8 +69,13 @@ export async function buildHarnessToolSet(input: {
   if (availability.submitCandidates) {
     tools.submit_candidates = tool({
       description: "Submit the final shortlist when research is complete.",
-      inputSchema: instrumentSelectionSchema,
-      execute: async (candidates: InstrumentSelection) => candidates,
+      inputSchema: instrumentSelectionToolInputSchema,
+      execute: async (candidates): Promise<InstrumentSelection> => ({
+        instruments: candidates.instruments.map((instrument) => ({
+          ...instrument,
+          symbol: normalizeSymbol(instrument.symbol),
+        })),
+      }),
     });
   }
 
@@ -108,4 +113,9 @@ export async function buildHarnessToolSet(input: {
   }
 
   return Object.keys(tools).length > 0 ? tools : undefined;
+}
+
+function normalizeSymbol(symbol: string): string {
+  const trimmed = symbol.trim();
+  return trimmed.startsWith("pm:") ? trimmed : trimmed.toUpperCase();
 }

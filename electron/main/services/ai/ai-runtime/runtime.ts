@@ -30,6 +30,21 @@ import { parseInstrumentSelection } from "./instrument-selection-parser";
 
 const logger = createLogger("ai-runtime");
 
+function resolveTemperature(modelId: string, configured: number | undefined): number | undefined {
+  if (configured == null) return undefined;
+  const id = modelId.toLowerCase();
+  if (
+    id.includes("gpt-5") ||
+    id.includes("o1") ||
+    id.includes("o3") ||
+    id.includes("o4") ||
+    id.includes("reasoning")
+  ) {
+    return undefined;
+  }
+  return configured;
+}
+
 export interface ResearcherInput {
   instrumentSymbol: string;
   context?: string;
@@ -189,7 +204,7 @@ ${input.review}`;
         tools,
         maxSteps: caps.maxSteps,
         spendLimitUsd: caps.spendUsd,
-        temperature: config.temperature,
+        temperature: resolveTemperature(config.modelId, config.temperature),
         maxTokens: config.maxTokens,
       }),
     );
@@ -263,7 +278,7 @@ ${input.review}`;
           tools,
         maxSteps: caps.maxSteps,
         spendLimitUsd: caps.spendUsd,
-        temperature: config.temperature,
+        temperature: resolveTemperature(config.modelId, config.temperature),
         maxTokens: config.maxTokens,
       }),
     );
@@ -320,7 +335,7 @@ ${input.review}`;
         messages,
         maxSteps: caps.maxSteps,
         spendLimitUsd: caps.spendUsd,
-        temperature: config.temperature,
+        temperature: resolveTemperature(config.modelId, config.temperature),
         maxTokens: config.maxTokens,
         schema: tradeDecisionSchema,
       }),

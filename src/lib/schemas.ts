@@ -79,6 +79,26 @@ export const instrumentSelectionSchema = z.object({
 
 export type InstrumentSelection = z.infer<typeof instrumentSelectionSchema>;
 
+/**
+ * Provider-safe schema for tool input (no transforms/effects in JSON schema export).
+ * Runtime normalization is applied after tool execution.
+ */
+export const instrumentSelectionToolInputSchema = z.object({
+  instruments: z
+    .array(
+      z.object({
+        symbol: z.string().min(1).max(160),
+        instrumentClass: z.enum(["stock", "crypto", "futures", "prediction_market"]),
+        instrumentDisplayName: z.string().optional(),
+        predictionOutcome: z.enum(["YES", "NO"]).nullable().optional(),
+        instrumentMetadataJson: z.string().optional(),
+        rationale: z.string().optional(),
+      }),
+    )
+    .min(1)
+    .max(50),
+});
+
 export const tradeDecisionSchema = z.object({
   action: z.enum(["trade", "no_trade"]),
   side: tradeSideSchema.optional(),

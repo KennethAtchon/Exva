@@ -4,6 +4,7 @@ import type {
   GenerateObjectResult,
   GenerateResult,
   GenerateTextOptions,
+  ModelEntry,
   ProviderAdapter,
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
@@ -100,5 +101,17 @@ export class OpenAiAdapter implements ProviderAdapter {
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
+  }
+
+  async listModels(): Promise<ModelEntry[]> {
+    const res = await fetch("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${this.apiKey}` },
+    });
+    if (!res.ok) throw new Error(`OpenAI models fetch failed: ${res.status}`);
+    const json = await res.json() as { data: { id: string }[] };
+    const relevant = json.data
+      .filter((m) => /^(gpt-4|gpt-3\.5|o1|o3|o4|chatgpt)/.test(m.id) && !m.id.includes("instruct"))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    return relevant.map((m) => ({ id: m.id, label: m.id, maxContextTokens: 0 }));
   }
 }
