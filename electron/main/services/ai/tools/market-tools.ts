@@ -17,6 +17,34 @@ type SyntheticBar = {
   volume: number | null;
 };
 
+export interface MockNewsItem {
+  title: string;
+  snippet: string;
+  url: string;
+  publishedAt: string;
+}
+
+export const DEFAULT_MOCK_NEWS: MockNewsItem[] = [
+  {
+    title: "Markets steady as macro data comes in mixed",
+    snippet: "Equities remain range-bound with no clear directional catalyst after this week's data releases.",
+    url: "https://mock.local/news/1",
+    publishedAt: new Date().toISOString(),
+  },
+  {
+    title: "No significant corporate news for this instrument this week",
+    snippet: "Volume has been below average. No earnings, no filings, no analyst upgrades or downgrades.",
+    url: "https://mock.local/news/2",
+    publishedAt: new Date().toISOString(),
+  },
+  {
+    title: "Sector rotation continues as investors reassess positioning",
+    snippet: "Broad sector moves reflect ongoing macro uncertainty. Individual stock fundamentals remain the primary driver.",
+    url: "https://mock.local/news/3",
+    publishedAt: new Date().toISOString(),
+  },
+];
+
 export type MarketToolsInclude = {
   quote: boolean;
   ohlcv: boolean;
@@ -30,6 +58,8 @@ export function createMarketTools(deps: {
   searchRegistry?: SearchRegistry;
   searchProviderId?: string | null;
   include: MarketToolsInclude;
+  getMockOhlcv?: (symbol: string) => SyntheticBar[];
+  mockNewsData?: MockNewsItem[];
 }) {
   const out: Partial<ToolSet> = {};
 
@@ -55,6 +85,9 @@ export function createMarketTools(deps: {
       description: "Get OHLCV bars for a symbol. Returns up to 200 daily bars.",
       inputSchema: z.object({ symbol: z.string(), instrumentClass: instrumentClassSchema }),
       execute: async ({ symbol, instrumentClass }: { symbol: string; instrumentClass: InstrumentClass }) => {
+        if (deps.getMockOhlcv) {
+          return { symbol, timeframe: "1d", bars: deps.getMockOhlcv(symbol) };
+        }
         const brokerAccountId = deps.brokerAccountIdByClass(instrumentClass);
         if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
         try {
@@ -78,6 +111,9 @@ export function createMarketTools(deps: {
       description: "Get recent news headlines for a symbol.",
       inputSchema: z.object({ symbol: z.string() }),
       execute: async ({ symbol }: { symbol: string }) => {
+        if (deps.mockNewsData) {
+          return { results: deps.mockNewsData.map((n) => ({ ...n, query: symbol })) };
+        }
         if (!deps.searchRegistry || !deps.searchProviderId) {
           return { error: "Search provider not configured for news tool." };
         }

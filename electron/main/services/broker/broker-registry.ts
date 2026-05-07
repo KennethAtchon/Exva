@@ -42,6 +42,15 @@ export class BrokerRegistry {
     this.adapters.delete(brokerAccountId);
   }
 
+  isMockAccount(brokerAccountId: string): boolean {
+    try {
+      const account = this.brokerAccountsRepo.find(brokerAccountId);
+      return account?.brokerType === "mock";
+    } catch {
+      return false;
+    }
+  }
+
   private buildAdapter(account: BrokerAccount, credsJson: string): BrokerAdapter {
     switch (account.brokerType) {
       case "alpaca": {

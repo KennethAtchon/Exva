@@ -27,12 +27,19 @@ import { toRunFromTrace, buildTraceMessage } from "./runtime-trace";
 import { withProviderRetry } from "./runtime-retry";
 import { analysisLabelsForStrategy, resolvePromptForRole } from "./runtime-prompt";
 import { parseInstrumentSelection } from "./instrument-selection-parser";
+import { MockBrokerAdapter } from "../../broker/adapters/mock-adapter";
+import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
+import { DEFAULT_MOCK_NEWS } from "../tools/market-tools";
 
 const logger = createLogger("ai-runtime");
 
 function resolveTemperature(modelId: string, configured: number | undefined): number | undefined {
   if (configured == null) return undefined;
   const id = modelId.toLowerCase();
+  // OpenRouter/OpenCode model IDs use "provider/model" format.
+  // @ai-sdk/openai treats any model not starting with gpt-3/4/5-chat as a reasoning model,
+  // so it warns about temperature for every non-OpenAI model. Skip it for all slash-namespaced IDs.
+  if (id.includes("/")) return undefined;
   if (
     id.includes("gpt-5") ||
     id.includes("o1") ||
@@ -165,7 +172,8 @@ ${input.review}`;
     const adapter = await this.registry.get(config.providerKey);
     const searchProviderId = this.resolveSearchProviderId(sessionId);
     const harnessAvail = harnessToolAvailabilityForRole(role, searchProviderId, this.hasBrokerWiring());
-    const promptPack = this.buildPromptPack(sessionId, role, config, {
+    const mockCtx = await this.getMockContext(sessionId);
+    const promptPack = await this.buildPromptPack(sessionId, role, config, {
       bodyMarkdown: selectionInstructions,
       cycleId: cycleId ?? null,
     }, harnessAvail);
@@ -177,6 +185,7 @@ ${input.review}`;
         cycleId: cycleId ?? null,
         promptChars: promptInfo.length,
         promptTooLong: promptInfo.tooLong,
+        sandboxMode: mockCtx.isMock,
       },
       "ai role start",
     );
@@ -191,6 +200,8 @@ ${input.review}`;
       searchRegistry: this.searchRegistry,
       brokerRouting: this.brokerRouting,
       brokerRegistry: this.brokerRegistry,
+      getMockOhlcv: mockCtx.getMockOhlcv,
+      mockNewsData: mockCtx.mockNewsData,
     });
 
     const caps = ROLE_HARNESS_CAPS[role];
@@ -252,7 +263,8 @@ ${input.review}`;
     const adapter = await this.registry.get(config.providerKey);
     const searchProviderId = this.resolveSearchProviderId(sessionId);
     const harnessAvail = harnessToolAvailabilityForRole(role, searchProviderId, this.hasBrokerWiring());
-    const promptPack = this.buildPromptPack(sessionId, role, config, {
+    const mockCtx = await this.getMockContext(sessionId);
+    const promptPack = await this.buildPromptPack(sessionId, role, config, {
       bodyMarkdown: userPrompt,
       cycleId: opts?.cycleId ?? null,
     }, harnessAvail);
@@ -266,6 +278,8 @@ ${input.review}`;
       searchRegistry: this.searchRegistry,
       brokerRouting: this.brokerRouting,
       brokerRegistry: this.brokerRegistry,
+      getMockOhlcv: mockCtx.getMockOhlcv,
+      mockNewsData: mockCtx.mockNewsData,
     });
     const caps = ROLE_HARNESS_CAPS[role];
 
@@ -321,7 +335,7 @@ ${input.review}`;
     const adapter = await this.registry.get(config.providerKey);
     const searchProviderId = this.resolveSearchProviderId(sessionId);
     const harnessAvail = harnessToolAvailabilityForRole(role, searchProviderId, this.hasBrokerWiring());
-    const promptPack = this.buildPromptPack(sessionId, role, config, {
+    const promptPack = await this.buildPromptPack(sessionId, role, config, {
       bodyMarkdown: userPrompt,
       cycleId: cycleId ?? null,
     }, harnessAvail);
@@ -379,7 +393,7 @@ ${input.review}`;
     };
   }
 
-  private buildPromptPack(
+  private async buildPromptPack(
     sessionId: string,
     role: AgentRole,
     config: { promptSource: "default" | "session_override"; promptMarkdown: string },
@@ -387,13 +401,58 @@ ${input.review}`;
     harnessToolAvailability: HarnessToolAvailability,
   ) {
     const basePromptMarkdown = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
+    const sandboxMode = await this.isMockSession(sessionId);
     return new AgentPromptPackBuilder(this.requireStrategyContextService()).build({
       sessionId,
       role,
       basePromptMarkdown,
       task,
       harnessToolAvailability,
+      sandboxMode,
     });
+  }
+
+  private async isMockSession(sessionId: string): Promise<boolean> {
+    if (!this.brokerRouting || !this.brokerRegistry) return false;
+    try {
+      const accountId = this.brokerRouting.resolveBrokerAccountId(sessionId, "stock");
+      return this.brokerRegistry.isMockAccount(accountId);
+    } catch {
+      try {
+        const accountId = this.brokerRouting.resolveBrokerAccountId(sessionId, "crypto");
+        return this.brokerRegistry.isMockAccount(accountId);
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  private async resolveMockAdapter(sessionId: string): Promise<MockBrokerAdapter | null> {
+    if (!this.brokerRouting || !this.brokerRegistry) return null;
+    for (const cls of ["stock", "crypto", "futures", "prediction_market"] as const) {
+      try {
+        const accountId = this.brokerRouting.resolveBrokerAccountId(sessionId, cls);
+        const adapter = await this.brokerRegistry.get(accountId);
+        if (adapter.brokerType === "mock") return adapter as MockBrokerAdapter;
+      } catch {
+        // try next class
+      }
+    }
+    return null;
+  }
+
+  private async getMockContext(sessionId: string): Promise<{
+    isMock: boolean;
+    getMockOhlcv: ((symbol: string) => MockOhlcvBar[]) | undefined;
+    mockNewsData: typeof DEFAULT_MOCK_NEWS | undefined;
+  }> {
+    const mockAdapter = await this.resolveMockAdapter(sessionId);
+    if (!mockAdapter) return { isMock: false, getMockOhlcv: undefined, mockNewsData: undefined };
+    return {
+      isMock: true,
+      getMockOhlcv: (symbol: string) => mockAdapter.getMockOhlcv(symbol),
+      mockNewsData: DEFAULT_MOCK_NEWS,
+    };
   }
 
   private hasBrokerWiring(): boolean {

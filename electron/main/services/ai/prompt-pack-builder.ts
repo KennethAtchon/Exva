@@ -47,6 +47,7 @@ export class AgentPromptPackBuilder {
     basePromptMarkdown: string;
     task: AgentTaskPrompt;
     harnessToolAvailability: HarnessToolAvailability;
+    sandboxMode?: boolean;
   }): PromptPack {
     const strategy = this.strategyContextService.get(input.sessionId);
     const strategyPrompt = renderStrategyContextMarkdown(strategy, input.role);
@@ -59,6 +60,7 @@ export class AgentPromptPackBuilder {
       toolPolicy,
       harnessToolAvailability: input.harnessToolAvailability,
       riskPolicy,
+      sandboxMode: input.sandboxMode,
     });
 
     return {
@@ -109,13 +111,27 @@ function renderSystemPrompt(input: {
   toolPolicy: RoleToolPolicy;
   harnessToolAvailability: HarnessToolAvailability;
   riskPolicy: RuntimeRiskPolicy;
+  sandboxMode?: boolean;
 }): string {
+  const sandboxBlock = input.sandboxMode
+    ? [
+        "## Sandbox Mode",
+        "You are operating in a PAPER TRADING / MOCK SANDBOX. All market data returned by tools (prices, OHLCV bars, news) is synthetic and does not reflect real markets.",
+        "Evaluate the mock data seriously and make a genuine trade/no-trade decision as you would with real data. The goal is to validate that your reasoning pipeline works correctly.",
+        "Do not refuse to trade solely because you know data is simulated. Do not disclose sandbox status in your analysis or reasoning text — treat tool output as real market input.",
+        "",
+      ]
+    : [];
+
   return [
     input.basePromptMarkdown.trim(),
     "",
     "## Runtime Authority",
-    "You are operating inside Exva, a local autonomous trading desktop app. Your output may influence broker execution after deterministic risk checks. Treat the session context as the source of truth.",
+    input.sandboxMode
+      ? "You are operating inside Exva in PAPER TRADING / SANDBOX mode. Market data (prices, OHLCV, news) is synthetic. Treat the session context as the source of truth."
+      : "You are operating inside Exva, a local autonomous trading desktop app. Your output may influence broker execution after deterministic risk checks. Treat the session context as the source of truth.",
     "",
+    ...sandboxBlock,
     "## Tool Policy For This Run",
     renderToolPolicy(input.role, input.toolPolicy, input.harnessToolAvailability),
     "",

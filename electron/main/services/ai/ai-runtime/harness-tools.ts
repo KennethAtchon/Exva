@@ -2,11 +2,12 @@ import { tool, type ToolSet } from "ai";
 import type { AgentRole, InstrumentClass } from "@/lib/types";
 import { instrumentSelectionToolInputSchema, type InstrumentSelection } from "@/lib/schemas";
 import type { SearchRegistry } from "../search";
-import { createMarketTools } from "../tools/market-tools";
+import { createMarketTools, type MockNewsItem } from "../tools/market-tools";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { RoleToolPolicy } from "./ai-runtime-types";
 import { ROLE_TOOL_POLICY } from "./ai-runtime-types";
+import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
 
 /** Tools actually registered for this run (policy ∩ infra). Drives prompts and ToolSet construction. */
 export type HarnessToolAvailability = {
@@ -62,6 +63,8 @@ export async function buildHarnessToolSet(input: {
   searchRegistry: SearchRegistry;
   brokerRouting?: BrokerRoutingService;
   brokerRegistry?: BrokerRegistry;
+  getMockOhlcv?: (symbol: string) => MockOhlcvBar[];
+  mockNewsData?: MockNewsItem[];
 }): Promise<ToolSet | undefined> {
   const { availability } = input;
   const tools: ToolSet = {};
@@ -106,6 +109,8 @@ export async function buildHarnessToolSet(input: {
         ohlcv: availability.getOhlcv,
         news: availability.getNews,
       },
+      getMockOhlcv: input.getMockOhlcv,
+      mockNewsData: input.mockNewsData,
     });
     if (marketTools.get_quote) tools.get_quote = marketTools.get_quote;
     if (marketTools.get_ohlcv) tools.get_ohlcv = marketTools.get_ohlcv;

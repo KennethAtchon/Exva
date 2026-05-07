@@ -109,15 +109,20 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   const started = Date.now();
   const { system, rest } = splitSystem(params.messages);
   const prompt = userPromptFrom(rest);
-  logger.debug(
+
+  logger.info(
     {
       modelId: params.modelId,
+      temperature: params.temperature ?? null,
       hasTools: Boolean(params.tools),
+      toolNames: params.tools ? Object.keys(params.tools) : [],
       hasSchema: Boolean(params.schema),
+      systemChars: system?.length ?? 0,
       promptChars: prompt.length,
-      promptTooLong: prompt.length > 2_000,
       maxSteps: params.maxSteps,
       spendLimitUsd: params.spendLimitUsd ?? null,
+      systemPrompt: system ?? null,
+      userPromptPreview: prompt.slice(0, 300),
     },
     "execute run agent start",
   );
@@ -150,12 +155,51 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     stopWhen,
   } as const;
 
+  const onStepFinish = (step: StepResult<ToolSet>, stepIndex: number) => {
+    if (step.toolCalls.length > 0) {
+      const resultsById = new Map<string, unknown>();
+      for (const tr of step.toolResults) {
+        resultsById.set(tr.toolCallId, "output" in tr ? tr.output : undefined);
+      }
+      for (const tc of step.toolCalls) {
+        const rawOut = resultsById.get(tc.toolCallId);
+        const resultPreview = typeof rawOut === "string"
+          ? rawOut.slice(0, 200)
+          : JSON.stringify(rawOut ?? null).slice(0, 200);
+        logger.info(
+          {
+            modelId: params.modelId,
+            step: stepIndex + 1,
+            tool: String(tc.toolName),
+            argsPreview: JSON.stringify(tc.input).slice(0, 200),
+            resultPreview,
+          },
+          "agent tool call",
+        );
+      }
+    }
+    if (step.text) {
+      logger.info(
+        { modelId: params.modelId, step: stepIndex + 1, textPreview: step.text.slice(0, 500) },
+        "agent step text",
+      );
+    }
+  };
+
+  let stepIndex = 0;
+  const wrappedBaseArgs = {
+    ...baseArgs,
+    onStepFinish: (step: StepResult<ToolSet>) => {
+      onStepFinish(step, stepIndex++);
+    },
+  };
+
   const result = params.schema
     ? await generateText({
-        ...baseArgs,
+        ...wrappedBaseArgs,
         experimental_output: Output.object({ schema: params.schema }),
       })
-    : await generateText(baseArgs);
+    : await generateText(wrappedBaseArgs);
 
   const durationMs = Date.now() - started;
   const steps = buildStepTraces(result.steps, durationMs);
@@ -179,6 +223,13 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     auditMessagesJson = JSON.stringify(persistedMessages(system, prompt, result.text));
   }
 
+  if (result.reasoningText) {
+    logger.info(
+      { modelId: params.modelId, thinkingChars: result.reasoningText.length, thinking: result.reasoningText },
+      "agent reasoning",
+    );
+  }
+
   logger.info(
     {
       modelId: params.modelId,
@@ -191,6 +242,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
       totalCostUsd: totalCost,
       spendExceeded,
       stepCapHit,
+      responsePreview: result.text.slice(0, 500),
     },
     "execute run agent complete",
   );
