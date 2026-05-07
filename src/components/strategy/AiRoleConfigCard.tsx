@@ -22,6 +22,7 @@ const ROLE_ORDER: AgentRole[] = [
 
 export const AiRoleConfigCard = ({
   activeRole,
+  roles,
   role,
   providers,
   models,
@@ -36,6 +37,7 @@ export const AiRoleConfigCard = ({
   onResetPrompt,
 }: {
   activeRole: AgentRole;
+  roles: Record<AgentRole, SessionAiRole>;
   role: SessionAiRole;
   providers: ProviderAccount[];
   models: ProviderModelEntry[];
@@ -88,7 +90,9 @@ export const AiRoleConfigCard = ({
           const disabledTabManual = entry === "instrument_selector" && selectionMode === "manual_shortlist";
           const roleData = roleErrors[entry];
           const isActive = entry === activeRole;
-          const providerConnected = isActive ? !!selectedProvider : true;
+          const roleState = roles[entry];
+          const roleProvider = providerOptions.find((provider) => provider.id === roleState.providerKey);
+          const providerConnected = !!roleProvider && roleState.modelId.trim().length > 0;
           return (
             <Button
               key={entry}
@@ -98,7 +102,7 @@ export const AiRoleConfigCard = ({
                 disabledTabManual
                   ? "Enable AI-selected universe in session settings to configure this role."
                   : !providerConnected
-                    ? "No provider connected — select one below."
+                    ? "Not connected — select provider and model below."
                     : undefined
               }
               style={{

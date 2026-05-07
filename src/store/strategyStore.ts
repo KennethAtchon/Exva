@@ -136,7 +136,11 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     for (const key of Object.keys(patch)) dirtyFields.add(`${role}.${key}`);
     dirtyRoles.add(role);
 
-    if (patch.providerKey !== undefined) {
+    if (
+      patch.providerKey !== undefined &&
+      patch.modelId === undefined &&
+      patch.providerKey !== current.providerKey
+    ) {
       next.modelId = "";
     }
 
@@ -191,6 +195,9 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
         roleErrors: emptyRoleErrors(),
         strategyErrors: [],
       });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save strategy configuration.";
+      set({ strategyErrors: [message] });
     } finally {
       set({ isSaving: false });
     }

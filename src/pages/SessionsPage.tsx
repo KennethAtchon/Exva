@@ -139,7 +139,7 @@ export const SessionsPage = ({ onGoToStrategy }: { onGoToStrategy?: () => void }
 
       {error ? <div style={errorBannerStyle}>{error}</div> : null}
 
-      <Card accent style={{ padding: 0, overflow: "hidden" }}>
+      <Card accent style={{ padding: 0 }}>
         <div style={contextHeroStyle}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

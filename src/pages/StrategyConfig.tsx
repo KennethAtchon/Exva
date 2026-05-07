@@ -104,11 +104,12 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const briefPreview = buildStrategyBriefMarkdown(strategyContext);
   const roleProviderSummary = Object.values(aiRoles).map((role) => {
     const connectedProvider = providers.find((provider) => provider.id === role.providerKey);
+    const hasModel = role.modelId.trim().length > 0;
     return {
       role: role.role,
-      providerLabel: connectedProvider?.name ?? "",
-      modelId: connectedProvider ? role.modelId : "",
-      connected: !!connectedProvider,
+      providerLabel: connectedProvider?.name ?? (role.providerKey.trim().length > 0 ? role.providerKey : "No provider"),
+      modelId: hasModel ? role.modelId : "Model not set",
+      connected: !!connectedProvider && hasModel,
     };
   });
   const unconfiguredRoles = roleProviderSummary.filter((entry) => !entry.connected);
@@ -328,6 +329,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
           {activeSection === "ai_roles" && (
             <AiRoleConfigCard
               activeRole={activeRoleTab}
+              roles={aiRoles}
               role={currentRole}
               providers={providers}
               models={providerModels[currentRole.providerKey] ?? []}

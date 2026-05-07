@@ -87,6 +87,20 @@ describe("AgentPromptPackBuilder", () => {
     expect(pack.marketSnapshotJson).toBeNull();
   });
 
+  it("renders selector-specific market tools and terminal tool policy", () => {
+    const pack = builderFor(baseContext()).build({
+      sessionId: "s1",
+      role: "instrument_selector",
+      basePromptMarkdown: "# Universe Researcher",
+      task: { bodyMarkdown: "Find candidates" },
+    });
+
+    expect(pack.messages[0].content).toContain("`get_quote`");
+    expect(pack.messages[0].content).toContain("`get_ohlcv`");
+    expect(pack.messages[0].content).toContain("`get_news`");
+    expect(pack.messages[0].content).toContain("`submit_candidates` is the terminal tool");
+  });
+
   it("builds runtime risk policy from session risk config", () => {
     const policy = buildRuntimeRiskPolicy(baseContext().riskConfig);
 
