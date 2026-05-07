@@ -11,6 +11,7 @@ export async function createSearchTool(deps: {
   apiCallLogRepo: ApiCallLogRepo;
   cycleId?: string | null;
   tradeId?: string | null;
+  maxDataSpendUsd?: number | null;
 }) {
   const adapter = await deps.searchRegistry.get(deps.searchProviderId);
   return tool({
@@ -19,6 +20,9 @@ export async function createSearchTool(deps: {
     execute: async (input: { query: string }) => {
       const startedAt = Date.now();
       const createdAt = new Date().toISOString();
+      if (deps.maxDataSpendUsd != null && deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >= deps.maxDataSpendUsd) {
+        return { error: "Session max data spend reached; search blocked by runtime policy." };
+      }
       try {
         const out = await adapter.search(sanitizeSearchQuery(input.query));
         deps.apiCallLogRepo.insert({

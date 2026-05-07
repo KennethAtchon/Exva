@@ -47,13 +47,6 @@ export interface AgentResult<T> {
   output: T;
 }
 
-export type AnalystInjectionBlocks = {
-  marketMarkdown: string;
-  fundamentalsMarkdown: string;
-  newsMarkdown: string;
-  snapshotJson: string | null;
-};
-
 /** Role-specific harness caps (plan §4). */
 export const ROLE_HARNESS_CAPS: Record<AgentRole, { maxSteps: number; spendUsd: number }> = {
   instrument_selector: { maxSteps: 25, spendUsd: 0.15 },

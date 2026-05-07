@@ -11,16 +11,16 @@ import {
   tradeDecisionSchema,
   type InstrumentSelection,
 } from "@/lib/schemas";
-import type { AgentResult, AnalystInjectionBlocks, RuntimeAgentMessage } from "./ai-runtime-types";
+import type { AgentResult, RuntimeAgentMessage } from "./ai-runtime-types";
 import { ROLE_HARNESS_CAPS } from "./ai-runtime-types";
 import type { PromptAssetLoader } from "../prompt-asset-loader";
 import type { ProviderRegistry } from "../provider-registry";
 import type { SearchRegistry } from "../search";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
-import { prependStrategyContextToUserPrompt } from "../strategy-prompt-context";
 import { createSearchTool } from "../tools/search-tool";
 import { createMarketTools } from "../tools/market-tools";
 import { buildRoleTools } from "./role-tools";
+import { AgentPromptPackBuilder, type AgentTaskPrompt } from "../prompt-pack-builder";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import { createLogger } from "../../infra/log";
@@ -35,7 +35,6 @@ const logger = createLogger("ai-runtime");
 export interface ResearcherInput {
   instrumentSymbol: string;
   context?: string;
-  injection?: AnalystInjectionBlocks;
 }
 
 export interface ReviewerInput {
@@ -81,9 +80,7 @@ export class AiRuntime {
   ): Promise<AgentResult<string>> {
     if (!sessionId) throw new AppError("Session id is required for AI role execution", "VALIDATION_FAILED");
     const agentRole: AgentRole = role === "technical" ? "analyst_technical" : "analyst_fundamental";
-    const blocks = input.injection;
-    const tail = `Instrument: ${input.instrumentSymbol}\nContext: ${input.context ?? "None"}`;
-    const userPrompt = blocks ? `${blocks.marketMarkdown}\n\n${blocks.fundamentalsMarkdown}\n\n${blocks.newsMarkdown}\n\n${tail}` : tail;
+    const userPrompt = `Instrument: ${input.instrumentSymbol}\nContext: ${input.context ?? "None"}`;
     const prompt = textMeta(userPrompt);
     logger.info(
       {
@@ -96,9 +93,7 @@ export class AiRuntime {
       },
       "ai role start",
     );
-    return this.runRole(sessionId, agentRole, userPrompt, {
-      marketSnapshotJson: blocks?.snapshotJson ?? null,
-    });
+    return this.runRole(sessionId, agentRole, userPrompt);
   }
 
   async runReviewer(input: ReviewerInput, sessionId?: string): Promise<AgentResult<string>> {
@@ -155,9 +150,11 @@ ${input.review}`;
     const role = "instrument_selector" as const;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
-    const systemPrompt = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
-    const promptContext = this.withSessionStrategyUserPrompt(sessionId, selectionInstructions);
-    const promptInfo = textMeta(promptContext.prompt);
+    const promptPack = this.buildPromptPack(sessionId, role, config, {
+      bodyMarkdown: selectionInstructions,
+      cycleId: cycleId ?? null,
+    });
+    const promptInfo = textMeta(promptPack.messages[1]?.content ?? selectionInstructions);
     logger.info(
       {
         sessionId,
@@ -202,10 +199,7 @@ ${input.review}`;
 
     const caps = ROLE_HARNESS_CAPS[role];
 
-    const messages: RuntimeAgentMessage[] = [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: promptContext.prompt },
-    ];
+    const messages: RuntimeAgentMessage[] = promptPack.messages;
 
     const trace = await withProviderRetry(() =>
       adapter.runAgent({
@@ -245,8 +239,8 @@ ${input.review}`;
         trace,
         outputJson: JSON.stringify(selection),
         outputSchemaName: "instrumentSelection",
-        strategySnapshotJson: JSON.stringify(promptContext.snapshot),
-        marketSnapshotJson: null,
+        strategySnapshotJson: JSON.stringify(promptPack.strategySnapshot),
+        marketSnapshotJson: promptPack.marketSnapshotJson,
       }),
       output: selection,
     };
@@ -256,11 +250,14 @@ ${input.review}`;
     sessionId: string,
     role: AgentRole,
     userPrompt: string,
-    opts?: { marketSnapshotJson?: string | null; cycleId?: string | null },
+    opts?: { cycleId?: string | null },
   ): Promise<AgentResult<string>> {
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
-    const systemPrompt = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
+    const promptPack = this.buildPromptPack(sessionId, role, config, {
+      bodyMarkdown: userPrompt,
+      cycleId: opts?.cycleId ?? null,
+    });
     const tools = await buildRoleTools({
       sessionId,
       role,
@@ -272,13 +269,9 @@ ${input.review}`;
       brokerRegistry: this.brokerRegistry,
       resolveSearchProviderId: this.resolveSearchProviderId.bind(this),
     });
-    const promptContext = this.withSessionStrategyUserPrompt(sessionId, userPrompt);
     const caps = ROLE_HARNESS_CAPS[role];
 
-    const messages: RuntimeAgentMessage[] = [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: promptContext.prompt },
-    ];
+    const messages: RuntimeAgentMessage[] = promptPack.messages;
 
     const trace = await withProviderRetry(() =>
       adapter.runAgent({
@@ -317,8 +310,8 @@ ${input.review}`;
         trace,
         outputJson: JSON.stringify({ text: trace.assistantText }),
         outputSchemaName: null,
-        strategySnapshotJson: JSON.stringify(promptContext.snapshot),
-        marketSnapshotJson: opts?.marketSnapshotJson ?? null,
+        strategySnapshotJson: JSON.stringify(promptPack.strategySnapshot),
+        marketSnapshotJson: promptPack.marketSnapshotJson,
       }),
       output: trace.assistantText,
     };
@@ -328,14 +321,13 @@ ${input.review}`;
     const role: AgentRole = "decision_maker";
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
-    const systemPrompt = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
-    const promptContext = this.withSessionStrategyUserPrompt(sessionId, userPrompt);
+    const promptPack = this.buildPromptPack(sessionId, role, config, {
+      bodyMarkdown: userPrompt,
+      cycleId: cycleId ?? null,
+    });
     const caps = ROLE_HARNESS_CAPS[role];
 
-    const messages: RuntimeAgentMessage[] = [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: promptContext.prompt },
-    ];
+    const messages: RuntimeAgentMessage[] = promptPack.messages;
 
     const trace = await withProviderRetry(() =>
       adapter.runAgent({
@@ -379,16 +371,27 @@ ${input.review}`;
         trace,
         outputJson: JSON.stringify(obj),
         outputSchemaName: "tradeDecision",
-        strategySnapshotJson: JSON.stringify(promptContext.snapshot),
-        marketSnapshotJson: null,
+        strategySnapshotJson: JSON.stringify(promptPack.strategySnapshot),
+        marketSnapshotJson: promptPack.marketSnapshotJson,
         parseFallback: trace.parseFallback,
       }),
       output: obj,
     };
   }
 
-  private withSessionStrategyUserPrompt(sessionId: string, userPrompt: string) {
-    return prependStrategyContextToUserPrompt(this.requireStrategyContextService().get(sessionId), userPrompt);
+  private buildPromptPack(
+    sessionId: string,
+    role: AgentRole,
+    config: { promptSource: "default" | "session_override"; promptMarkdown: string },
+    task: AgentTaskPrompt,
+  ) {
+    const basePromptMarkdown = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
+    return new AgentPromptPackBuilder(this.requireStrategyContextService()).build({
+      sessionId,
+      role,
+      basePromptMarkdown,
+      task,
+    });
   }
 
   private async resolveSearchTool(sessionId: string, context?: { cycleId?: string | null; tradeId?: string | null }) {
@@ -407,6 +410,7 @@ ${input.review}`;
       apiCallLogRepo: this.apiCallLogRepo,
       cycleId: context?.cycleId ?? null,
       tradeId: context?.tradeId ?? null,
+      maxDataSpendUsd: this.requireStrategyContextService().get(sessionId).riskConfig.maxDataSpendUsd,
     });
   }
 

@@ -105,6 +105,38 @@ describe("RiskEngine", () => {
           sizeUsd: 100,
         },
       }),
-    ).toEqual({ allowed: false, reason: "Decision confidence is too low" });
+    ).toEqual({ allowed: false, reason: "Decision confidence is below wait-for-open threshold" });
+  });
+
+  it("uses the session wait-for-open threshold when provided", () => {
+    expect(
+      engine.validateDecision({
+        config,
+        stats,
+        confidence: 0.7,
+        riskPolicy: { waitForOpenThreshold: 0.8, maxExposureUsd: null },
+        order: {
+          instrumentSymbol: "AAPL",
+          instrumentType: "stock",
+          side: "BUY",
+          sizeUsd: 100,
+        },
+      }),
+    ).toEqual({ allowed: false, reason: "Decision confidence is below wait-for-open threshold" });
+
+    expect(
+      engine.validateDecision({
+        config,
+        stats,
+        confidence: 0.81,
+        riskPolicy: { waitForOpenThreshold: 0.8, maxExposureUsd: null },
+        order: {
+          instrumentSymbol: "AAPL",
+          instrumentType: "stock",
+          side: "BUY",
+          sizeUsd: 100,
+        },
+      }).allowed,
+    ).toBe(true);
   });
 });

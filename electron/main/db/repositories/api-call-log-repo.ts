@@ -1,6 +1,7 @@
 import type { ApiCallLogEntry } from "@/lib/types";
 import type { DbClient } from "../client";
 import { apiCallLog } from "../schema";
+import { and, eq, sql } from "drizzle-orm";
 
 export class ApiCallLogRepo {
   constructor(private readonly client: DbClient) {}
@@ -24,5 +25,14 @@ export class ApiCallLogRepo {
         createdAt: entry.created_at,
       })
       .run();
+  }
+
+  dailyDataSpendUsd(sessionId: string, date = new Date().toISOString().slice(0, 10)): number {
+    const row = this.client.db
+      .select({ total: sql<number>`coalesce(sum(${apiCallLog.costUsd}), 0)` })
+      .from(apiCallLog)
+      .where(and(eq(apiCallLog.sessionId, sessionId), sql`substr(${apiCallLog.createdAt}, 1, 10) = ${date}`))
+      .get();
+    return Number(row?.total ?? 0);
   }
 }

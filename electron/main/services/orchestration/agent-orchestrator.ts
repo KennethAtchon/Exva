@@ -173,6 +173,7 @@ export class AgentOrchestrator {
     });
     const updated = this.deps.tradesRepo.require(trade.id);
 
+    const riskConfig = this.deps.strategyContextService.get(this.sessionId).riskConfig;
     const risk = this.deps.riskEngine.validateDecision({
       config,
       stats,
@@ -186,10 +187,10 @@ export class AgentOrchestrator {
         sizeUsd: updated.position_size_usd,
       },
       confidence: updated.confidence_score ?? 0,
-      maxExposureUsd:
-        input.instrumentClass === "prediction_market"
-          ? this.deps.strategyContextService.get(this.sessionId).riskConfig.maxExposureUsd
-          : null,
+      riskPolicy: {
+        waitForOpenThreshold: riskConfig.waitForOpenThreshold,
+        maxExposureUsd: input.instrumentClass === "prediction_market" ? riskConfig.maxExposureUsd : null,
+      },
     });
 
     if (!risk.allowed || !risk.value) {
@@ -267,6 +268,7 @@ export class AgentOrchestrator {
 
     if (decision.output.action !== "trade") return;
 
+    const riskConfig = this.deps.strategyContextService.get(this.sessionId).riskConfig;
     const risk = this.deps.riskEngine.validateDecision({
       config,
       stats,
@@ -280,10 +282,10 @@ export class AgentOrchestrator {
         sizeUsd: trade.position_size_usd,
       },
       confidence: trade.confidence_score ?? 0,
-      maxExposureUsd:
-        instrument.instrumentClass === "prediction_market"
-          ? this.deps.strategyContextService.get(this.sessionId).riskConfig.maxExposureUsd
-          : null,
+      riskPolicy: {
+        waitForOpenThreshold: riskConfig.waitForOpenThreshold,
+        maxExposureUsd: instrument.instrumentClass === "prediction_market" ? riskConfig.maxExposureUsd : null,
+      },
     });
     if (!risk.allowed || !risk.value) {
       this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);

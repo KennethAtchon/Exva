@@ -1,0 +1,132 @@
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import type { SessionStrategyContext } from "@electron/shared/domain";
+import { AgentPromptPackBuilder, buildRuntimeRiskPolicy } from "../prompt-pack-builder";
+import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
+
+function baseContext(): SessionStrategyContext {
+  return {
+    profile: {
+      sessionId: "s1",
+      strategyType: "momentum",
+      sideBias: "long_only",
+      entryStyle: "breakout",
+      exitStyle: "trailing_atr",
+      scalingMode: "single_entry",
+      strategyBriefMarkdown: "Trade clean breakouts with confirmation.",
+      customInstructions: "Avoid earnings week.",
+      updatedAt: "2026-05-05T00:00:00.000Z",
+    },
+    riskConfig: {
+      sessionId: "s1",
+      maxPositionUsd: 100,
+      stopLossPct: 2,
+      takeProfitPct: 4,
+      stopLossType: "fixed_pct",
+      atrStopMultiplier: 1.5,
+      kellyFraction: 0.25,
+      predictionEdgeThreshold: 0.08,
+      maxExposureUsd: null,
+      waitForOpenThreshold: 0.8,
+      maxConcurrentTrades: 1,
+      dailyLossLimitUsd: 50,
+      profitTargetUsd: 200,
+      maxAiSpendUsd: 5,
+      maxDataSpendUsd: 3,
+      humanApprovalRequired: true,
+      updatedAt: "2026-05-05T00:00:00.000Z",
+    },
+    timeframe: {
+      sessionId: "s1",
+      primaryTradingTimeframe: "1h",
+      holdingStyle: "multi_day_swing",
+      targetHoldDays: 3,
+      maxHoldDays: 10,
+      timeframeNotes: "Prefer setups that can resolve within a week.",
+      updatedAt: "2026-05-05T00:00:00.000Z",
+    },
+  };
+}
+
+function builderFor(context: SessionStrategyContext): AgentPromptPackBuilder {
+  return new AgentPromptPackBuilder({ get: () => context } as unknown as SessionStrategyContextService);
+}
+
+describe("AgentPromptPackBuilder", () => {
+  it("builds separated system and user context with strategy snapshot", () => {
+    const pack = builderFor(baseContext()).build({
+      sessionId: "s1",
+      role: "decision_maker",
+      basePromptMarkdown: "# Decision Maker\n\n## Role\nYou decide.",
+      task: { bodyMarkdown: "Instrument: AAPL" },
+    });
+
+    expect(pack.messages).toHaveLength(2);
+    expect(pack.messages[0].content).toContain("## Runtime Authority");
+    expect(pack.messages[0].content).toContain("## Tool Policy For This Run");
+    expect(pack.messages[0].content).toContain("no tools");
+    expect(pack.messages[1].content).toContain("<trusted_session_context>");
+    expect(pack.messages[1].content).toContain("## Runtime interpretation");
+    expect(pack.messages[1].content).toContain("<task>");
+    expect(pack.strategySnapshot.riskConfig.waitForOpenThreshold).toBe(0.8);
+    expect(pack.riskPolicy.maxDataSpendUsd).toBe(3);
+  });
+
+  it("renders an explicit market-context placeholder for analyst roles", () => {
+    const pack = builderFor(baseContext()).build({
+      sessionId: "s1",
+      role: "analyst_technical",
+      basePromptMarkdown: "# Technical Analyst",
+      task: { bodyMarkdown: "Instrument: AAPL" },
+    });
+
+    expect(pack.messages[1].content).toContain("<trusted_market_context>");
+    expect(pack.messages[1].content).toContain("Market context unavailable");
+    expect(pack.messages[1].content).toContain("Do not invent quote, OHLCV, fundamental, or news facts");
+    expect(pack.marketSnapshotJson).toBeNull();
+  });
+
+  it("builds runtime risk policy from session risk config", () => {
+    const policy = buildRuntimeRiskPolicy(baseContext().riskConfig);
+
+    expect(policy).toMatchObject({
+      maxPositionUsd: 100,
+      waitForOpenThreshold: 0.8,
+      maxDataSpendUsd: 3,
+      humanApprovalRequired: true,
+    });
+  });
+});
+
+describe("prompt assets", () => {
+  const roles = [
+    "instrument_selector",
+    "analyst_technical",
+    "analyst_fundamental",
+    "analyst_statistical",
+    "analyst_contextual",
+    "reviewer",
+    "decision_maker",
+  ];
+  const requiredSections = [
+    "## Role",
+    "## Objective",
+    "## Context You Will Receive",
+    "## Authority And Safety",
+    "## Tools",
+    "## Method",
+    "## Output Requirements",
+  ];
+
+  for (const role of roles) {
+    it(`${role} prompt is a versioned operating manual`, () => {
+      const prompt = fs.readFileSync(path.join(process.cwd(), "electron", "prompts", `${role}.md`), "utf8");
+
+      expect(prompt).toContain("<!-- version: 3.0.0 -->");
+      for (const section of requiredSections) {
+        expect(prompt).toContain(section);
+      }
+    });
+  }
+});

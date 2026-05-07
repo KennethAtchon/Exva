@@ -23,6 +23,10 @@ export interface DecisionRiskInput {
   /** Includes `instrumentType` for broker routing (Phase 8). */
   order: OrderRequest;
   confidence: number;
+  riskPolicy?: {
+    waitForOpenThreshold: number;
+    maxExposureUsd: number | null;
+  };
   maxExposureUsd?: number | null;
 }
 
@@ -67,22 +71,20 @@ export class RiskEngine {
       logger.info({ originalSizeUsd: input.order.sizeUsd, reducedToUsd: input.config.max_position_usd }, "risk decision size reduced");
       return reduced;
     }
-    if (
-      input.order.instrumentType === "prediction_market" &&
-      input.maxExposureUsd != null &&
-      input.order.sizeUsd > input.maxExposureUsd
-    ) {
+    const maxExposureUsd = this.maxExposureUsd(input);
+    if (input.order.instrumentType === "prediction_market" && maxExposureUsd != null && input.order.sizeUsd > maxExposureUsd) {
       const reduced = {
         allowed: true,
-        value: { ...input.order, sizeUsd: input.maxExposureUsd },
+        value: { ...input.order, sizeUsd: maxExposureUsd },
         reason: "Prediction-market position reduced to max exposure",
       };
-      logger.info({ originalSizeUsd: input.order.sizeUsd, reducedToUsd: input.maxExposureUsd }, "risk decision exposure reduced");
+      logger.info({ originalSizeUsd: input.order.sizeUsd, reducedToUsd: maxExposureUsd }, "risk decision exposure reduced");
       return reduced;
     }
-    if (input.confidence < 0.6) {
-      logger.warn({ confidence: input.confidence }, "risk decision denied due to confidence");
-      return { allowed: false, reason: "Decision confidence is too low" };
+    const confidenceThreshold = input.riskPolicy?.waitForOpenThreshold ?? 0.6;
+    if (input.confidence < confidenceThreshold) {
+      logger.warn({ confidence: input.confidence, confidenceThreshold }, "risk decision denied due to confidence");
+      return { allowed: false, reason: "Decision confidence is below wait-for-open threshold" };
     }
     logger.debug(
       {
@@ -111,5 +113,9 @@ export class RiskEngine {
       return { allowed: false, reason: "Profit target reached" };
     }
     return { allowed: true };
+  }
+
+  private maxExposureUsd(input: DecisionRiskInput): number | null | undefined {
+    return input.riskPolicy?.maxExposureUsd ?? input.maxExposureUsd;
   }
 }
