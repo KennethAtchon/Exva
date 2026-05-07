@@ -31,4 +31,26 @@ export default tseslint.config(
       "no-restricted-syntax": "off",
     },
   },
+  {
+    files: ["electron/main/services/**/*.ts", "electron/main/ipc/**/*.ts", "electron/main/index.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "pino",
+              message: "Use createLogger from electron/main/services/infra/log.ts instead of importing pino directly.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["electron/main/services/infra/log.ts", "electron/shared/logger.ts"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
 );

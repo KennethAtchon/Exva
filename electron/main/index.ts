@@ -4,6 +4,7 @@ import { registerIpcHandlers } from "./ipc/register";
 import { createLogger } from "./services/infra/log";
 import { createAppServices, type AppServices } from "./services/app-services";
 import { createMainWindow } from "./window";
+import { env } from "./config/env";
 
 let services: AppServices | null = null;
 const logger = createLogger("main");
@@ -12,7 +13,7 @@ app.disableHardwareAcceleration();
 
 app.whenReady().then(async () => {
   try {
-    logger.info({ pid: process.pid, nodeEnv: process.env.NODE_ENV }, "starting Exva main process");
+    logger.info({ pid: process.pid, nodeEnv: env.isProd ? "production" : env.isTest ? "test" : "development" }, "starting Exva main process");
     services = await createAppServices(app);
     logger.info("app services initialized");
     await services.runtimeManager.rehydrateFromDb();
