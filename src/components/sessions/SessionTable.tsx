@@ -26,7 +26,7 @@ export const SessionTable = ({
   onLifecycle: (session: SessionSummary, action: LifecycleAction) => void;
 }) => {
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div style={{ display: "grid", gap: 10 }}>
       {sessions.map((session) => {
         const locked = session.status === "active" || session.status === "paused";
         const busy = busySessionId === session.id;
@@ -35,65 +35,68 @@ export const SessionTable = ({
           <article
             key={session.id}
             style={{
-              border: `1px solid ${session.isFocused ? "var(--accent-dim)" : "var(--border)"}`,
-              borderRadius: 18,
-              padding: 18,
+              border: `1px solid ${session.isFocused ? "rgba(96,165,250,0.30)" : "var(--border)"}`,
+              borderRadius: 16,
+              padding: "16px 18px",
               background: session.isFocused
-                ? "linear-gradient(180deg, rgba(96,165,250,0.10), rgba(13,18,25,0.95))"
-                : "linear-gradient(180deg, rgba(18,26,36,0.95), rgba(13,18,25,0.98))",
-              boxShadow: session.isFocused ? "0 18px 40px rgba(2,6,23,0.32)" : "none",
+                ? "linear-gradient(135deg, rgba(96,165,250,0.07) 0%, rgba(13,18,25,0.97) 60%)"
+                : "rgba(13,18,25,0.97)",
+              boxShadow: session.isFocused
+                ? "0 0 0 1px rgba(96,165,250,0.08) inset, 0 8px 24px rgba(2,6,23,0.24)"
+                : "none",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", minWidth: 0 }}>
-              <Button onClick={() => onOpen(session)} variant="ghost" style={titleButtonStyle}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", minWidth: 0 }}>
-                  <span
-                    style={{
-                      fontSize: 17,
-                      fontWeight: 700,
-                      color: "var(--text1)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      minWidth: 0,
-                      flex: "1 1 200px",
-                    }}
-                  >
+            {/* Top row: name+objective | metrics+chips */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 220px", gap: 16, alignItems: "start" }}>
+              {/* Left: clickable name + objective */}
+              <button type="button" onClick={() => onOpen(session)} style={titleButtonStyle}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", minWidth: 0 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text1)", letterSpacing: "-0.01em" }}>
                     {session.name}
                   </span>
                   {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
                   <Badge variant={statusVariant(session.status)}>{session.status}</Badge>
                 </div>
-                <div style={{ marginTop: 8, color: "var(--text2)", fontSize: 13, lineHeight: 1.5 }}>{session.objective}</div>
-              </Button>
+                <div style={objectiveStyle}>{session.objective}</div>
+              </button>
 
-              <div style={{ minWidth: 220, display: "grid", gap: 10 }}>
+              {/* Right: metrics + chips */}
+              <div style={{ display: "grid", gap: 8 }}>
                 <div style={metricStripStyle}>
-                  <Metric label="uptime" value={session.uptimeMin > 0 ? `${session.uptimeMin} min` : "offline"} />
-                  <Metric label="open trades" value={String(session.openTradeCount)} />
+                  <Metric label="uptime" value={session.uptimeMin > 0 ? `${session.uptimeMin}m` : "—"} />
+                  <Metric label="trades" value={String(session.openTradeCount)} />
                   <Metric label="brokers" value={String(session.brokerCount)} />
                 </div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  {session.instrumentClasses.map((instrumentClass) => (
-                    <span key={instrumentClass} style={chipStyle}>
-                      {formatInstrumentClass(instrumentClass)}
-                    </span>
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {session.instrumentClasses.map((ic) => (
+                    <span key={ic} style={chipStyle}>{formatInstrumentClass(ic)}</span>
                   ))}
-                  <span style={chipStyle}>{session.selectionMode === "ai_selected_universe" ? "AI universe" : "Manual shortlist"}</span>
-                  <span style={chipStyle}>{session.executionMode === "live_allowed" ? "Live allowed" : "Paper only"}</span>
+                  <span style={{ ...chipStyle, color: "var(--text3)" }}>
+                    {session.selectionMode === "ai_selected_universe" ? "AI" : "Manual"}
+                  </span>
+                  <span style={{ ...chipStyle, color: "var(--text3)" }}>
+                    {session.executionMode === "live_allowed" ? "Live" : "Paper"}
+                  </span>
                 </div>
               </div>
             </div>
 
+            {/* Meta strip */}
             <div style={metaGridStyle}>
-              <MetaBlock label="Instrument scope" value={session.instrumentScope} />
-              <MetaBlock label="Capital limit" value={`$${session.capitalLimitUsd.toLocaleString()}`} />
-              <MetaBlock label="Search override" value={session.defaultSearchProviderId ?? "Workspace default"} />
+              <MetaBlock label="Scope" value={session.instrumentScope} />
+              <MetaBlock label="Capital" value={`$${session.capitalLimitUsd.toLocaleString()}`} />
+              <MetaBlock label="Search" value={session.defaultSearchProviderId ?? "Workspace default"} />
               <MetaBlock label="Updated" value={formatTimestamp(session.updatedAt)} />
             </div>
 
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-              <Button onClick={() => onFocus(session.id)} variant="outline" style={actionButtonStyle} disabled={busy || session.isFocused}>
+            {/* Action buttons */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 14, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+              <Button
+                onClick={() => onFocus(session.id)}
+                variant="outline"
+                style={{ ...actionButtonStyle, ...(session.isFocused ? focusedButtonStyle : {}) }}
+                disabled={busy || session.isFocused}
+              >
                 {session.isFocused ? "Focused" : "Focus"}
               </Button>
               <Button onClick={() => onEdit(session)} variant="outline" style={actionButtonStyle} disabled={busy || locked}>
@@ -105,6 +108,7 @@ export const SessionTable = ({
               <Button onClick={() => onSaveTemplate(session)} variant="outline" style={actionButtonStyle} disabled={busy}>
                 Save Template
               </Button>
+              <div style={{ flex: 1 }} />
               {session.status === "draft" || session.status === "idle" || session.status === "stopped" ? (
                 <Button onClick={() => onLifecycle(session, "start")} variant="ghost" style={primaryActionButtonStyle} disabled={busy}>
                   Start
@@ -137,36 +141,31 @@ export const SessionTable = ({
 };
 
 const Metric = ({ label, value }: { label: string; value: string }) => (
-  <div>
-    <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text3)" }}>{label}</div>
-    <div style={{ marginTop: 4, color: "var(--text1)", fontSize: 14, fontWeight: 600 }}>{value}</div>
+  <div style={{ textAlign: "center" }}>
+    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text1)", fontVariantNumeric: "tabular-nums" }}>{value}</div>
+    <div style={{ marginTop: 2, fontSize: 10, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--text3)" }}>{label}</div>
   </div>
 );
 
 const MetaBlock = ({ label, value }: { label: string; value: string }) => (
   <div style={{ minWidth: 0 }}>
-    <div style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text3)" }}>{label}</div>
-    <div style={{ marginTop: 6, color: "var(--text2)", fontSize: 13, lineHeight: 1.45, wordBreak: "break-word" }}>{value}</div>
+    <div style={{ fontSize: 10, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--text3)", marginBottom: 3 }}>{label}</div>
+    <div style={{ color: "var(--text2)", fontSize: 12, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</div>
   </div>
 );
 
 function statusVariant(status: SessionSummary["status"]): "default" | "success" | "warn" | "danger" | "purple" {
   switch (status) {
-    case "active":
-      return "success";
-    case "paused":
-      return "warn";
-    case "archived":
-      return "danger";
-    case "stopped":
-      return "purple";
-    default:
-      return "default";
+    case "active": return "success";
+    case "paused": return "warn";
+    case "archived": return "danger";
+    case "stopped": return "purple";
+    default: return "default";
   }
 }
 
 function formatInstrumentClass(value: SessionSummary["instrumentClasses"][number]): string {
-  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : value === "futures" ? "Futures" : "Prediction Markets";
+  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : value === "futures" ? "Futures" : "Predict";
 }
 
 function formatTimestamp(value: string): string {
@@ -177,47 +176,69 @@ const titleButtonStyle = {
   background: "transparent",
   border: "none",
   color: "inherit",
-  textAlign: "left",
+  textAlign: "left" as const,
   cursor: "pointer",
   padding: 0,
-  flex: 1,
+  width: "100%",
   minWidth: 0,
+  display: "block",
+} as const;
+
+const objectiveStyle = {
+  marginTop: 6,
+  color: "var(--text2)",
+  fontSize: 12,
+  lineHeight: 1.5,
+  overflow: "hidden",
+  display: "-webkit-box",
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: "vertical" as const,
 } as const;
 
 const metricStripStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  gap: 12,
-  padding: "10px 12px",
-  borderRadius: 12,
+  gap: 8,
+  padding: "10px 10px",
+  borderRadius: 10,
   border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.38)",
+  background: "rgba(7,10,15,0.5)",
 } as const;
 
 const metaGridStyle = {
-  marginTop: 16,
+  marginTop: 14,
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
   gap: 12,
+  padding: "12px 0 0",
+  borderTop: "1px solid var(--border)",
 } as const;
 
 const chipStyle = {
-  padding: "5px 9px",
+  padding: "3px 8px",
   borderRadius: 999,
   border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.44)",
+  background: "rgba(7,10,15,0.5)",
   color: "var(--text2)",
-  fontSize: 11,
+  fontSize: 10,
+  fontWeight: 500,
+  letterSpacing: "0.02em",
 } as const;
 
 const actionButtonStyle = {
-  padding: "8px 11px",
-  borderRadius: 10,
+  height: 30,
+  padding: "0 10px",
+  borderRadius: 8,
   border: "1px solid var(--border)",
-  background: "var(--surface2)",
+  background: "transparent",
   color: "var(--text2)",
-  cursor: "pointer",
   fontSize: 12,
+  fontWeight: 500,
+} as const;
+
+const focusedButtonStyle = {
+  border: "1px solid rgba(96,165,250,0.3)",
+  color: "rgba(96,165,250,0.8)",
 } as const;
 
 const primaryActionButtonStyle = {
@@ -225,6 +246,7 @@ const primaryActionButtonStyle = {
   border: "1px solid transparent",
   background: "var(--accent)",
   color: "white",
+  fontWeight: 600,
 } as const;
 
 const dangerButtonStyle = {

@@ -67,7 +67,6 @@ export const SessionTemplatesModal = ({
               Capture a full session payload or seed a new one from saved structure.
             </div>
           </div>
-          <Button onClick={onClose} variant="ghost" className="h-auto p-1 text-[var(--text3)]">✕</Button>
         </div>
 
         {error ? <div style={errorBannerStyle}>{error}</div> : null}

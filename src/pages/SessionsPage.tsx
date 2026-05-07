@@ -11,7 +11,7 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";
 
-export const SessionsPage = () => {
+export const SessionsPage = ({ onGoToStrategy }: { onGoToStrategy?: () => void }) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const preferences = useWorkspaceStore((state) => state.preferences);
@@ -31,6 +31,8 @@ export const SessionsPage = () => {
   const [loading, setLoading] = useState(false);
   const [actionSessionId, setActionSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const aiReady = useWorkspaceStore((state) => state.focusedSessionAiReady);
+  const checkAiReady = useWorkspaceStore((state) => state.checkAiReady);
 
   const load = async () => {
     setLoading(true);
@@ -54,6 +56,10 @@ export const SessionsPage = () => {
   useEffect(() => {
     void load();
   }, [search, statusFilter, instrumentFilter, preferences?.globalIncludeArchived]);
+
+  useEffect(() => {
+    if (focusedSessionId) void checkAiReady(focusedSessionId);
+  }, [focusedSessionId, checkAiReady]);
 
   const focusedSession = useMemo(() => sessions.find((session) => session.id === focusedSessionId) ?? null, [sessions, focusedSessionId]);
   const activeCount = useMemo(() => sessions.filter((session) => session.status === "active").length, [sessions]);
@@ -160,7 +166,13 @@ export const SessionsPage = () => {
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {focusedSession && (focusedSession.status === "draft" || focusedSession.status === "idle" || focusedSession.status === "stopped") ? (
-                <Button variant="ghost" onClick={() => void runLifecycleAction(focusedSession, "start")} style={primaryButtonStyle} disabled={actionSessionId === focusedSession.id}>
+                <Button
+                  variant="ghost"
+                  onClick={() => void runLifecycleAction(focusedSession, "start")}
+                  style={{ ...primaryButtonStyle, ...(aiReady === false ? disabledStartStyle : {}) }}
+                  disabled={actionSessionId === focusedSession.id || aiReady === false}
+                  title={aiReady === false ? "AI providers not connected — configure in Strategy tab before starting" : undefined}
+                >
                   Start
                 </Button>
               ) : null}
@@ -180,6 +192,16 @@ export const SessionsPage = () => {
                 </Button>
               ) : null}
             </div>
+            {focusedSession && (focusedSession.status === "draft" || focusedSession.status === "idle" || focusedSession.status === "stopped") && onGoToStrategy ? (
+              <div style={strategyNudgeBannerStyle}>
+                <span style={{ color: "var(--text2)", fontSize: 12 }}>
+                  Configure AI roles, risk limits, and strategy before starting.
+                </span>
+                <button type="button" onClick={onGoToStrategy} style={strategyNudgeButtonStyle}>
+                  Open Strategy →
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </Card>
@@ -349,4 +371,7 @@ const emptyStateStyle = { border: "1px dashed var(--border)", borderRadius: 16, 
 const secondaryButtonStyle = { padding: "10px 13px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", cursor: "pointer" } as const;
 const primaryButtonStyle = { padding: "10px 13px", borderRadius: 10, border: "none", background: "var(--accent)", color: "white", cursor: "pointer" } as const;
 const dangerButtonStyle = { padding: "10px 13px", borderRadius: 10, border: "1px solid rgba(248,113,113,0.32)", background: "rgba(127,29,29,0.16)", color: "#fca5a5", cursor: "pointer" } as const;
+const disabledStartStyle = { opacity: 0.45, cursor: "not-allowed", background: "var(--surface3)", color: "var(--text3)" } as const;
+const strategyNudgeBannerStyle = { marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(96,165,250,0.18)", background: "rgba(96,165,250,0.06)" } as const;
+const strategyNudgeButtonStyle = { padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(96,165,250,0.28)", background: "rgba(96,165,250,0.12)", color: "rgba(96,165,250,0.9)", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" } as const;
 const errorBannerStyle = { padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(248,113,113,0.34)", background: "rgba(248,113,113,0.08)", color: "#fca5a5", fontSize: 13 } as const;

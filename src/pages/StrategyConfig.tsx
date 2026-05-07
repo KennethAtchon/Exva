@@ -19,7 +19,7 @@ import {
   STRATEGY_TYPES,
 } from "../../electron/shared/domain";
 
-export const StrategyConfig = () => {
+export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void }) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const setViewMode = useWorkspaceStore((state) => state.setViewMode);
@@ -62,12 +62,26 @@ export const StrategyConfig = () => {
     return (
       <PageShell>
         <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
-        <Card>
-          <SectionTitle>No Focused Session</SectionTitle>
-          <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 12 }}>
-            Choose a session to configure its strategy and AI role behavior.
+        <div style={emptyStateStyle}>
+          <div style={{ fontSize: 32, marginBottom: 16 }}>⚙</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", marginBottom: 8 }}>
+            No session focused
+          </div>
+          <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.65, maxWidth: 380, margin: "0 auto 20px" }}>
+            Strategy configuration is session-scoped. You need to focus a session first, then come back here to configure its AI roles, risk limits, and strategy behavior.
           </p>
-        </Card>
+          <div style={stepListStyle}>
+            <Step n={1} text='Go to Sessions' />
+            <Step n={2} text='Find the session you want to configure' />
+            <Step n={3} text='Click "Focus" on that session' />
+            <Step n={4} text='Return here to configure strategy' />
+          </div>
+          {onGoToSessions && (
+            <button type="button" onClick={onGoToSessions} style={goToSessionsButtonStyle}>
+              Go to Sessions →
+            </button>
+          )}
+        </div>
       </PageShell>
     );
   }
@@ -80,15 +94,29 @@ export const StrategyConfig = () => {
   const hasDirty = dirtyFields.size > 0;
   const strategyContext = { profile, riskConfig, timeframe };
   const briefPreview = buildStrategyBriefMarkdown(strategyContext);
-  const roleProviderSummary = Object.values(aiRoles).map((role) => ({
-    role: role.role,
-    providerLabel: providers.find((provider) => provider.id === role.providerKey)?.name ?? "Unassigned",
-    modelId: role.modelId,
-  }));
+  const roleProviderSummary = Object.values(aiRoles).map((role) => {
+    const connectedProvider = providers.find((provider) => provider.id === role.providerKey);
+    return {
+      role: role.role,
+      providerLabel: connectedProvider?.name ?? "",
+      modelId: connectedProvider ? role.modelId : "",
+      connected: !!connectedProvider,
+    };
+  });
+  const unconfiguredRoles = roleProviderSummary.filter((entry) => !entry.connected);
 
   return (
     <PageShell>
       <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
+
+      {unconfiguredRoles.length > 0 && (
+        <div style={{ ...warningStyle, marginBottom: 12, borderColor: "rgba(248,113,113,0.28)", color: "#fca5a5", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
+          <strong>AI providers not connected — session cannot start</strong>
+          <div style={{ color: "#fca5a5", opacity: 0.85 }}>
+            {unconfiguredRoles.map((r) => r.role.replaceAll("_", " ")).join(", ")} — go to the AI Roles tab and select a provider account for each role.
+          </div>
+        </div>
+      )}
 
       {strategyErrors.length > 0 && (
         <div style={{ ...warningStyle, marginBottom: 12, borderColor: "rgba(248,113,113,0.28)", color: "#fca5a5" }}>
@@ -386,6 +414,29 @@ function promptHeaderSummary(markdown: string): string {
   if (first.startsWith("#")) return first.replace(/^#+\s*/, "");
   return "No markdown heading on first line";
 }
+
+const Step = ({ n, text }: { n: number; text: string }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--surface3)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--text2)", flexShrink: 0 }}>{n}</div>
+    <span style={{ color: "var(--text2)", fontSize: 13 }}>{text}</span>
+  </div>
+);
+
+const emptyStateStyle = {
+  display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center",
+  textAlign: "center" as const, padding: "60px 24px",
+  border: "1px solid var(--border)", borderRadius: 16, background: "rgba(18,26,36,0.6)",
+} as const;
+
+const stepListStyle = {
+  display: "grid", gap: 10, textAlign: "left" as const, marginBottom: 24, width: "100%", maxWidth: 340,
+} as const;
+
+const goToSessionsButtonStyle = {
+  padding: "10px 22px", borderRadius: 10,
+  border: "1px solid rgba(96,165,250,0.3)", background: "rgba(96,165,250,0.1)",
+  color: "rgba(96,165,250,0.95)", fontSize: 13, fontWeight: 600, cursor: "pointer",
+} as const;
 
 const tabRowStyle = { display: "flex", gap: 10, flexWrap: "wrap" } as const;
 const activeTabStyle = { padding: "8px 12px", borderRadius: 999, border: "1px solid var(--accent)", background: "rgba(59,130,246,0.12)", color: "var(--text1)", cursor: "pointer" } as const;

@@ -99,18 +99,48 @@ export class SessionWriteService {
 
     const brokers = this.deps.brokerAccounts.list();
     const brokerById = new Map(brokers.map((broker) => [broker.id, broker]));
+    const selectedBrokerIds = [...new Set(input.brokerAccountIds)];
+    const requiredMode = input.executionMode === "live_allowed" ? "live" : "paper";
 
-    for (const id of input.brokerAccountIds) {
+    if (selectedBrokerIds.length === 0) {
+      throw new AppError("Select at least one broker account.", "VALIDATION_FAILED", {
+        field: "brokerAccountIds",
+      });
+    }
+
+    const selectedBrokers = selectedBrokerIds.map((id) => {
       const broker = brokerById.get(id);
       if (!broker) {
         throw new AppError(`Broker account ${id} was not found.`, "NOT_FOUND", { brokerAccountId: id });
       }
+      if (broker.mode !== requiredMode) {
+        throw new AppError(
+          `Broker "${broker.name}" is ${broker.mode} but session mode is ${requiredMode}.`,
+          "VALIDATION_FAILED",
+          { brokerAccountId: id, brokerMode: broker.mode, requiredMode },
+        );
+      }
+      return broker;
+    });
+
+    for (const broker of selectedBrokers) {
       const overlap = broker.supportedInstrumentClasses.some((cls) => input.instrumentClasses.includes(cls));
       if (!overlap) {
         throw new AppError(
           `Broker "${broker.name}" does not support any of the selected instrument classes.`,
           "VALIDATION_FAILED",
-          { brokerAccountId: id, supports: broker.supportedInstrumentClasses, requested: input.instrumentClasses },
+          { brokerAccountId: broker.id, supports: broker.supportedInstrumentClasses, requested: input.instrumentClasses },
+        );
+      }
+    }
+
+    for (const instrumentClass of input.instrumentClasses) {
+      const covered = selectedBrokers.some((broker) => broker.supportedInstrumentClasses.includes(instrumentClass));
+      if (!covered) {
+        throw new AppError(
+          `No selected broker can trade ${instrumentClass}.`,
+          "VALIDATION_FAILED",
+          { instrumentClass, field: "brokerAccountIds" },
         );
       }
     }

@@ -96,9 +96,9 @@ export default function App() {
   const pageEl = () => {
     switch (page) {
       case "dashboard": return <Dashboard />;
-      case "sessions":  return <SessionsPage />;
+      case "sessions":  return <SessionsPage onGoToStrategy={() => setPage("strategy")} />;
       case "trades":    return <TradesPage />;
-      case "strategy":  return <StrategyConfig />;
+      case "strategy":  return <StrategyConfig onGoToSessions={() => setPage("sessions")} />;
       case "costs":     return <CostBreakdownPage />;
       case "devpanel":  return <DevPanel />;
       case "accounts":  return <AccountsPage />;

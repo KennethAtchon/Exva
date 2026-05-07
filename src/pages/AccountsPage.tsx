@@ -364,7 +364,6 @@ export const AccountsPage = () => {
                 <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 3 }}>Broker accounts</div>
                 <div style={{ fontSize: 12, color: "var(--text3)" }}>Multi-broker routing — keys in OS keychain</div>
               </div>
-              <ConnBadge ok={status.broker} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {brokers.length === 0 && (

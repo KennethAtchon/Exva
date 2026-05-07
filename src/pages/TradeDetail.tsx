@@ -209,7 +209,6 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
             <Badge variant={trade.side === "BUY" ? "success" : "danger"}>{trade.side}</Badge>
             <Badge variant={isOpen ? "success" : "default"}>{trade.status}</Badge>
           </div>
-          <Button onClick={onClose} variant="ghost" className="h-auto p-1 text-[var(--text3)]">✕</Button>
         </div>
 
         <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 0 }}>

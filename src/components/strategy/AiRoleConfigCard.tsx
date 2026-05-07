@@ -84,6 +84,9 @@ export const AiRoleConfigCard = ({
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16, marginBottom: 16 }}>
         {ROLE_ORDER.map((entry) => {
           const disabledTabManual = entry === "instrument_selector" && selectionMode === "manual_shortlist";
+          const roleData = roleErrors[entry];
+          const isActive = entry === activeRole;
+          const providerConnected = isActive ? !!selectedProvider : true;
           return (
             <Button
               key={entry}
@@ -92,24 +95,35 @@ export const AiRoleConfigCard = ({
               title={
                 disabledTabManual
                   ? "Enable AI-selected universe in session settings to configure this role."
-                  : undefined
+                  : !providerConnected
+                    ? "No provider connected — select one below."
+                    : undefined
               }
               style={{
                 padding: "7px 10px",
                 borderRadius: 8,
-                border: "1px solid var(--border)",
-                background: activeRole === entry ? "rgba(96,165,250,0.1)" : "var(--surface2)",
-                color: disabledTabManual ? "var(--text3)" : activeRole === entry ? "#60a5fa" : "var(--text2)",
+                border: `1px solid ${roleData.length > 0 || !providerConnected ? "rgba(248,113,113,0.4)" : "var(--border)"}`,
+                background: isActive ? "rgba(96,165,250,0.1)" : "var(--surface2)",
+                color: disabledTabManual ? "var(--text3)" : isActive ? "#60a5fa" : "var(--text2)",
                 cursor: disabledTabManual ? "not-allowed" : "pointer",
                 opacity: disabledTabManual ? 0.6 : 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
               }}
             >
               {ROLE_LABELS[entry]}
-              {roleErrors[entry].length > 0 ? ` (${roleErrors[entry].length})` : ""}
+              {roleData.length > 0 ? ` (${roleData.length})` : ""}
             </Button>
           );
         })}
       </div>
+
+      {!selectedProvider && (
+        <div style={noProviderBannerStyle}>
+          No provider connected for this role. Select a provider account below — the model field will appear once connected.
+        </div>
+      )}
 
       <div style={{ display: "grid", gap: 14 }}>
         <div style={rowStyle}>
@@ -127,7 +141,11 @@ export const AiRoleConfigCard = ({
 
         <div style={rowStyle}>
           <div style={labelStyle}>Model</div>
-          {useModelTextInput ? (
+          {!selectedProvider ? (
+            <div style={{ ...inputStyle, color: "var(--text3)", fontStyle: "italic" }}>
+              Not set — connect a provider first
+            </div>
+          ) : useModelTextInput ? (
             <input
               value={role.modelId}
               onChange={(event) => void onRoleChange({ modelId: event.target.value })}
@@ -242,6 +260,7 @@ export const AiRoleConfigCard = ({
 const rowStyle = { display: "grid", gap: 6 } as const;
 const labelStyle = { fontSize: 12, color: "var(--text3)" } as const;
 const inputStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)" } as const;
+const noProviderBannerStyle = { padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(248,113,113,0.28)", background: "rgba(248,113,113,0.07)", color: "#fca5a5", fontSize: 12, lineHeight: 1.55, marginBottom: 8 } as const;
 const toggleStyle = { padding: "7px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", cursor: "pointer" } as const;
 const activeToggleStyle = { background: "rgba(96,165,250,0.1)", color: "#60a5fa", borderColor: "rgba(96,165,250,0.3)" } as const;
 const secondaryButtonStyle = { padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", cursor: "pointer" } as const;
