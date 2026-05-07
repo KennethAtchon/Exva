@@ -164,7 +164,18 @@ export const AddAiProviderModal = ({
         ) : null}
 
         {message ? (
-          <div style={{ fontSize: 12, color: "#f87171", marginBottom: 12, lineHeight: 1.4 }}>{message}</div>
+          <div
+            style={{
+              fontSize: 12,
+              color: "#f87171",
+              marginBottom: 12,
+              lineHeight: 1.4,
+              overflowWrap: "anywhere",
+              wordBreak: "break-word",
+            }}
+          >
+            {message}
+          </div>
         ) : null}
 
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>

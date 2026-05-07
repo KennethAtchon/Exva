@@ -23,7 +23,7 @@ import { TradeAutopsiesRepo } from "../db/repositories/trade-autopsies-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace-prefs-repo";
-import { AiRuntime } from "./ai/ai-runtime";
+import { AiRuntime } from "./ai/ai-runtime/index";
 import { BrokerRegistry, BrokerRoutingService, BrokerService, InstrumentNormalizer } from "./broker";
 import { EventBus } from "./infra/event-bus";
 import { createLogger } from "./infra/log";

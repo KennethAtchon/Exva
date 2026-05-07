@@ -28,23 +28,27 @@ This matters now because the strategy plan introduces methodology-based analysts
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|---|---|
-| 1 | Canonical AI runtime contract: message arrays, self-terminating tool loops, per-step traces | Provider adapters return full `RunTrace` with step telemetry |
-| 2 | Inject authoritative market, fundamentals, and news context before analysis | Analyst prompts include `## Market Data`, `## Fundamentals`, `## News` blocks |
-| 3 | Pre-session research burst before the first trade | Session start triggers selector discovery, per-symbol analysis, and review |
-| 4 | Complete audit trail for every agent run | `agent_runs` for summary; `agent_messages` for full messages, tool calls, strategy snapshot |
-| 5 | Non-LLM monitoring with cycle restart after trade close | Polling, time-based exits, and cycle restart all work deterministically |
+
+| #   | Goal                                                                                        | Success Looks Like                                                                          |
+| --- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 1   | Canonical AI runtime contract: message arrays, self-terminating tool loops, per-step traces | Provider adapters return full `RunTrace` with step telemetry                                |
+| 2   | Inject authoritative market, fundamentals, and news context before analysis                 | Analyst prompts include `## Market Data`, `## Fundamentals`, `## News` blocks               |
+| 3   | Pre-session research burst before the first trade                                           | Session start triggers selector discovery, per-symbol analysis, and review                  |
+| 4   | Complete audit trail for every agent run                                                    | `agent_runs` for summary; `agent_messages` for full messages, tool calls, strategy snapshot |
+| 5   | Non-LLM monitoring with cycle restart after trade close                                     | Polling, time-based exits, and cycle restart all work deterministically                     |
+
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|---|---|
-| 1 | Real-time tick streaming | Snapshots sufficient for daily/swing sessions |
-| 2 | Unrestricted tool use for all roles | Bounded search is cheaper and auditable |
-| 3 | Cross-session collaborative research | Sessions remain isolated |
-| 4 | Automatic autopsy on every trade | Autopsy is user-initiated on demand |
-| 5 | Options-chain or derivatives research | Execution surface does not support it |
+
+| #   | Non-Goal                              | Reason                                        |
+| --- | ------------------------------------- | --------------------------------------------- |
+| 1   | Real-time tick streaming              | Snapshots sufficient for daily/swing sessions |
+| 2   | Unrestricted tool use for all roles   | Bounded search is cheaper and auditable       |
+| 3   | Cross-session collaborative research  | Sessions remain isolated                      |
+| 4   | Automatic autopsy on every trade      | Autopsy is user-initiated on demand           |
+| 5   | Options-chain or derivatives research | Execution surface does not support it         |
+
 
 ---
 
@@ -54,6 +58,7 @@ This matters now because the strategy plan introduces methodology-based analysts
 Prompt assembly, structured context injection, tool registration, execution bounds, retries, output validation, logging, and orchestration. Primary files: `electron/main/services/ai/ai-runtime.ts`, `electron/main/services/orchestration/agent-orchestrator.ts`, `electron/main/db/`.
 
 **Related files:**
+
 - `electron/main/services/ai/adapters/provider-adapter.ts`
 - `electron/main/services/ai/ai-runtime.ts`
 - `electron/main/services/ai/strategy-prompt-context.ts`
@@ -78,13 +83,15 @@ Prompt assembly, structured context injection, tool registration, execution boun
 
 Each role uses a differentiated execution model. Tools are role-specific. The model self-terminates when it has enough information; safety caps and spend guards fire only when something goes wrong.
 
-| Agent | Tools | Safety cap | Budget limit | Execution model |
-|---|---|---|---|---|
-| `instrument_selector` | `search_web`, `get_quote`, `get_ohlcv`, `get_news`, `submit_candidates` | 25 steps | $0.15/burst | Discovery loop; terminates by calling `submit_candidates` |
-| `analyst_technical` | `search_web`, `get_news` | 12 steps | $0.08/run | Depth loop on injected structured data |
-| `analyst_fundamental` | `search_web`, `get_news` | 12 steps | $0.08/run | Depth loop on injected structured data |
-| `reviewer` | `search_web` | 8 steps | $0.05/run | Spot-check verification + synthesis |
-| `decision_maker` | none | — | $0.04/run | Single-shot structured decision |
+
+| Agent                 | Tools                                                                   | Safety cap | Budget limit | Execution model                                           |
+| --------------------- | ----------------------------------------------------------------------- | ---------- | ------------ | --------------------------------------------------------- |
+| `instrument_selector` | `search_web`, `get_quote`, `get_ohlcv`, `get_news`, `submit_candidates` | 25 steps   | $0.15/burst  | Discovery loop; terminates by calling `submit_candidates` |
+| `analyst_technical`   | `search_web`, `get_news`                                                | 12 steps   | $0.08/run    | Depth loop on injected structured data                    |
+| `analyst_fundamental` | `search_web`, `get_news`                                                | 12 steps   | $0.08/run    | Depth loop on injected structured data                    |
+| `reviewer`            | `search_web`                                                            | 8 steps    | $0.05/run    | Spot-check verification + synthesis                       |
+| `decision_maker`      | none                                                                    | —          | $0.04/run    | Single-shot structured decision                           |
+
 
 `decision_maker` ignores `webSearchEnabled` unconditionally — the harness enforces this regardless of session config.
 
@@ -191,7 +198,7 @@ SESSION START
     - persist to trade_autopsies table
 ```
 
-**`waitForOpenThreshold`:** minimum `confidence_score` from `decision_maker` required before order placement proceeds. Default 0.80. If the model returns confidence below this value, the trade is logged as `no_trade` and the research brief is preserved. Checked in the risk engine after decision output validation.
+`**waitForOpenThreshold`:** minimum `confidence_score` from `decision_maker` required before order placement proceeds. Default 0.80. If the model returns confidence below this value, the trade is logged as `no_trade` and the research brief is preserved. Checked in the risk engine after decision output validation.
 
 ---
 
@@ -199,12 +206,14 @@ SESSION START
 
 Market data resolves by `instrumentClass + routed broker account`. No silent fallback from live data to stale scraped data.
 
-| Instrument class | Quote + OHLCV | Fundamentals | News |
-|---|---|---|---|
-| `stock` | Alpaca Data API v2 (REST snapshots) | Financial Modeling Prep (FMP) REST API | FMP Stock News API |
-| `crypto` | Coinbase Advanced public candles endpoint | Not applicable — `## Fundamentals (not applicable)` | FMP or search-derived |
-| `futures` | Broker-native / Tradovate | Not applicable | Not applicable |
-| `prediction_market` | Polymarket CLOB + Gamma market metadata | Not applicable | Not applicable |
+
+| Instrument class    | Quote + OHLCV                             | Fundamentals                                        | News                  |
+| ------------------- | ----------------------------------------- | --------------------------------------------------- | --------------------- |
+| `stock`             | Alpaca Data API v2 (REST snapshots)       | Financial Modeling Prep (FMP) REST API              | FMP Stock News API    |
+| `crypto`            | Coinbase Advanced public candles endpoint | Not applicable — `## Fundamentals (not applicable)` | FMP or search-derived |
+| `futures`           | Broker-native / Tradovate                 | Not applicable                                      | Not applicable        |
+| `prediction_market` | Polymarket CLOB + Gamma market metadata   | Not applicable                                      | Not applicable        |
+
 
 **No yfinance.** yfinance is a Python scraper library with no REST API. It cannot be called from TypeScript without a Python sidecar process. FMP provides all fundamentals fields as a native REST API callable with `fetch`.
 
@@ -214,24 +223,28 @@ Market data resolves by `instrumentClass + routed broker account`. No silent fal
 
 **Snapshot freshness TTL:**
 
-| Instrument class | TTL |
-|---|---|
-| `stock` (intraday session) | 15 minutes |
-| `stock` (swing/position session) | 4 hours |
-| `crypto` | 10 minutes |
-| `prediction_market` | 30 minutes |
+
+| Instrument class                 | TTL        |
+| -------------------------------- | ---------- |
+| `stock` (intraday session)       | 15 minutes |
+| `stock` (swing/position session) | 4 hours    |
+| `crypto`                         | 10 minutes |
+| `prediction_market`              | 30 minutes |
+
 
 A snapshot older than its TTL is refetched before use. The cycle cache key is `(sessionId, symbol, cycleId)` — a new cycle always starts with fresh data.
 
 ### Role-readiness rules
 
-| Role | Required snapshot fields | If unavailable |
-|---|---|---|
-| `instrument_selector` | quote OR searchable news | Continue with available sources |
-| `analyst_technical` | quote + OHLCV (≥200 bars) + technicals + news | Symbol dropped from cycle with warning event |
-| `analyst_fundamental` on stock | fundamentals + news | Symbol dropped from cycle with warning event |
-| `analyst_fundamental` on crypto/futures | news only | Continue; inject `## Fundamentals (not applicable)` |
-| `reviewer` | analyst briefs only | Continue |
+
+| Role                                    | Required snapshot fields                      | If unavailable                                      |
+| --------------------------------------- | --------------------------------------------- | --------------------------------------------------- |
+| `instrument_selector`                   | quote OR searchable news                      | Continue with available sources                     |
+| `analyst_technical`                     | quote + OHLCV (≥200 bars) + technicals + news | Symbol dropped from cycle with warning event        |
+| `analyst_fundamental` on stock          | fundamentals + news                           | Symbol dropped from cycle with warning event        |
+| `analyst_fundamental` on crypto/futures | news only                                     | Continue; inject `## Fundamentals (not applicable)` |
+| `reviewer`                              | analyst briefs only                           | Continue                                            |
+
 
 ### Example injected blocks
 
@@ -280,6 +293,7 @@ URLs are preserved in the result and stored in `tool_calls_json` per step. The m
 ### Query sanitization
 
 Every query is sanitized before reaching the provider:
+
 1. Truncate to 200 characters (provider limit)
 2. Strip leading explanation text ("I'll search for...", "Let me look up...")
 3. Escape characters that break URL encoding
@@ -288,17 +302,20 @@ Every query is sanitized before reaching the provider:
 
 Search results are cached in-memory per session, keyed by normalized query hash (lowercased, punctuation stripped). TTL by content type:
 
-| Query type | TTL |
-|---|---|
+
+| Query type              | TTL        |
+| ----------------------- | ---------- |
 | News / financial events | 20 minutes |
-| Company fundamentals | 4 hours |
-| General market context | 1 hour |
+| Company fundamentals    | 4 hours    |
+| General market context  | 1 hour     |
+
 
 Before every search API call the harness checks the cache. A cache hit sets `cachedAt` in the result and skips the API call entirely. This prevents duplicate credit spend during research bursts where multiple roles may search for the same company.
 
 ### Rate limit handling
 
 All search adapters retry on 429 with exponential backoff + jitter:
+
 - Attempt 1: immediate
 - Attempt 2: 1s + random(0–1s)
 - Attempt 3: 2s + random(0–2s)
@@ -309,12 +326,14 @@ A single rate-limit hit does not kill a research burst.
 
 ### Per-role search configuration
 
-| Role | Provider | `search_depth` | `time_range` | `include_domains` |
-|---|---|---|---|---|
-| `instrument_selector` | Brave | — | `week` | — |
-| `analyst_technical` | Tavily | `advanced` | `month` | — |
-| `analyst_fundamental` | Tavily | `advanced` | `year` | `["sec.gov", "reuters.com", "ft.com", "wsj.com"]` |
-| `reviewer` | Tavily | `basic` | `week` | — |
+
+| Role                  | Provider | `search_depth` | `time_range` | `include_domains`                                 |
+| --------------------- | -------- | -------------- | ------------ | ------------------------------------------------- |
+| `instrument_selector` | Brave    | —              | `week`       | —                                                 |
+| `analyst_technical`   | Tavily   | `advanced`     | `month`      | —                                                 |
+| `analyst_fundamental` | Tavily   | `advanced`     | `year`       | `["sec.gov", "reuters.com", "ft.com", "wsj.com"]` |
+| `reviewer`            | Tavily   | `basic`        | `week`       | —                                                 |
+
 
 Tavily `advanced` depth (2 credits) is worth the cost for analyst roles. Brave is used for the selector's broad discovery pass. Exa is a future optional adapter for `analyst_fundamental` on stocks (`depth=deep-reasoning`, semantic search across SEC filings).
 
@@ -439,17 +458,17 @@ CREATE TABLE agent_messages (
 
 #### Deliverables
 
-- [x] `electron/main/services/ai/adapters/provider-adapter.ts` — new `runAgent()` contract
-- [x] `electron/main/services/ai/adapters/anthropic-adapter.ts` — implement `runAgent()` with `onStepFinish`, `stopWhen`
-- [x] `electron/main/services/ai/adapters/openai-adapter.ts` — same
-- [x] `electron/main/services/ai/adapters/openrouter-adapter.ts` — same
-- [x] `electron/main/services/ai/ai-runtime-types.ts` — `RunTrace`, `StepTrace`, `ToolCallRecord`, `AgentMessage`
-- [x] `electron/main/services/ai/model-pricing.ts` — per-model cost table
-- [x] `electron/main/services/ai/ai-runtime.ts` — single `runAgent()` path; `decision_maker` always passes `tools: undefined`
-- [x] `electron/main/db/schema.ts` + migrations DDL — `provider_key`, `finish_reason` on `agent_runs`; `agent_messages` with `cycle_id`
-- [x] `electron/main/db/repositories/agent-messages-repo.ts`
-- [x] `TradeDetail.tsx` — message trace viewer
-- [x] `DevPanel.tsx` — message trace viewer
+- `electron/main/services/ai/adapters/provider-adapter.ts` — new `runAgent()` contract
+- `electron/main/services/ai/adapters/anthropic-adapter.ts` — implement `runAgent()` with `onStepFinish`, `stopWhen`
+- `electron/main/services/ai/adapters/openai-adapter.ts` — same
+- `electron/main/services/ai/adapters/openrouter-adapter.ts` — same
+- `electron/main/services/ai/ai-runtime-types.ts` — `RunTrace`, `StepTrace`, `ToolCallRecord`, `AgentMessage`
+- `electron/main/services/ai/model-pricing.ts` — per-model cost table
+- `electron/main/services/ai/ai-runtime.ts` — single `runAgent()` path; `decision_maker` always passes `tools: undefined`
+- `electron/main/db/schema.ts` + migrations DDL — `provider_key`, `finish_reason` on `agent_runs`; `agent_messages` with `cycle_id`
+- `electron/main/db/repositories/agent-messages-repo.ts`
+- `TradeDetail.tsx` — message trace viewer
+- `DevPanel.tsx` — message trace viewer
 
 **Dependencies:** None
 
@@ -484,6 +503,7 @@ CREATE TABLE api_call_log (
 ```
 
 Add to `session_risk_config`:
+
 ```sql
 ALTER TABLE session_risk_config ADD COLUMN max_data_spend_usd REAL DEFAULT 5.0;
 ```
@@ -536,10 +556,10 @@ type MarketDataSnapshot = {
 - `electron/main/services/market-data/snapshot-readiness.ts` — role-readiness checks
 - `electron/main/services/market-data/technicals.ts` — computes ATR, RSI, SMAs from raw OHLCV
 - `electron/main/services/session/preflight/market-data-capability-check.ts`
-- [x] `electron/main/db/schema.ts` + migration — `api_call_log`, `max_data_spend_usd`
-- [x] `electron/main/db/repositories/api-call-log-repo.ts`
+- `electron/main/db/schema.ts` + migration — `api_call_log`, `max_data_spend_usd`
+- `electron/main/db/repositories/api-call-log-repo.ts`
 - `AiRuntime` — inject snapshot blocks for analyst roles; attach `market_snapshot_json`
-- [x] Search adapters — update to return `SearchToolResult` (structured, not flat string); add session cache; add retry backoff
+- Search adapters — update to return `SearchToolResult` (structured, not flat string); add session cache; add retry backoff
 
 **Dependencies:** Phase 0
 
@@ -570,8 +590,8 @@ ALTER TABLE session_instrument_cache ADD COLUMN research_generated_at TEXT;
 3. `MarketHoursService` filters shortlist.
 4. For each surviving symbol, `MarketDataService.buildSnapshot()` runs in parallel.
 5. `analyst_technical` and `analyst_fundamental` run in parallel per symbol, each with independent tool logs.
-   - If both fail: symbol dropped, `WARN` event emitted, cycle continues.
-   - If one fails: reviewer receives available analysis + explicit gap flag ("Fundamental analysis unavailable: {reason}").
+  - If both fail: symbol dropped, `WARN` event emitted, cycle continues.
+  - If one fails: reviewer receives available analysis + explicit gap flag ("Fundamental analysis unavailable: {reason}").
 6. `reviewer` runs spot-check and synthesis.
 7. Research brief (reviewer output + snapshot summary) cached in `session_instrument_cache.research_briefs_json`.
 
@@ -632,14 +652,14 @@ Tool execution errors return structured `{ error: string }` — they do not thro
 
 #### Deliverables
 
-- [x] `electron/main/services/ai/tool-use-harness.ts`
-- [x] `electron/main/services/ai/tools/market-tools.ts` — `get_quote`, `get_ohlcv`, `get_news`
-- [x] `electron/main/services/ai/tools/search-tool.ts` — `search_web` with cache + sanitization + retry
-- [x] `electron/main/services/orchestration/research-burst-service.ts`
-- [x] `electron/main/services/orchestration/market-hours-service.ts`
-- [x] `electron/main/db/schema.ts` + migration — `cycle_id`, `research_briefs_json`, `research_generated_at` on `session_instrument_cache`
-- [x] `AgentOrchestrator.start()` — invoke research burst before queueing trade cycles
-- [x] UI progress events: `research_phase_started`, `research_phase_step`, `research_phase_complete`, `research_phase_failed`
+- `electron/main/services/ai/tool-use-harness.ts`
+- `electron/main/services/ai/tools/market-tools.ts` — `get_quote`, `get_ohlcv`, `get_news`
+- `electron/main/services/ai/tools/search-tool.ts` — `search_web` with cache + sanitization + retry
+- `electron/main/services/orchestration/research-burst-service.ts`
+- `electron/main/services/orchestration/market-hours-service.ts`
+- `electron/main/db/schema.ts` + migration — `cycle_id`, `research_briefs_json`, `research_generated_at` on `session_instrument_cache`
+- `AgentOrchestrator.start()` — invoke research burst before queueing trade cycles
+- UI progress events: `research_phase_started`, `research_phase_step`, `research_phase_complete`, `research_phase_failed`
 
 **Dependencies:** Phases 0–1
 
@@ -669,12 +689,14 @@ Timer is restarted with the correct interval when the session starts, not hardco
 #### `PositionManagerService.dailyCheck()`
 
 Enforces `maxHoldDays` for all instrument classes (not just prediction markets). Called once per day at session open:
+
 - If `trade.opened_at` + `maxHoldDays` ≤ today: close at market
 - Prediction-market max-exposure cap: closes oldest trades first until under cap
 
 #### Cycle restart
 
 `AgentOrchestrator` subscribes to `trade_closed`. On receipt:
+
 1. Check session limits: daily loss, profit target, AI spend, data spend, exposure caps.
 2. If all limits allow: generate new `cycleId`, restart Research Burst.
 3. If any limit is hit: emit `session_stopped` event, stop cleanly.
@@ -702,12 +724,12 @@ CREATE TABLE trade_autopsies (
 
 #### Deliverables
 
-- [x] `TradeMonitor` — holding-style cadence
-- [x] `electron/main/services/orchestration/position-manager-service.ts`
-- [x] `electron/main/services/orchestration/trade-autopsy-service.ts`
-- [x] `electron/main/db/schema.ts` + migration — `trade_autopsies`
-- [x] `AgentOrchestrator` — `trade_closed` subscription + cycle restart with new `cycleId`
-- [x] UI — session cycle state, autopsy button + result in trade detail
+- `TradeMonitor` — holding-style cadence
+- `electron/main/services/orchestration/position-manager-service.ts`
+- `electron/main/services/orchestration/trade-autopsy-service.ts`
+- `electron/main/db/schema.ts` + migration — `trade_autopsies`
+- `AgentOrchestrator` — `trade_closed` subscription + cycle restart with new `cycleId`
+- UI — session cycle state, autopsy button + result in trade detail
 
 **Dependencies:** Phase 2
 
@@ -717,44 +739,50 @@ CREATE TABLE trade_autopsies (
 
 ## 10. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|---|
-| 1 | Provider adapters expose step telemetry inconsistently | Medium | High | Phase 0 adapter tests with replay fixtures per provider |
-| 2 | FMP free tier (250 calls/day) exhausted during development | Medium | Low | Use session cache aggressively; upgrade to starter plan for testing |
-| 3 | Fundamental analyst receives incomplete stock data | Medium | High | Snapshot readiness gating; drop symbol rather than inject partial data |
-| 4 | Research burst exceeds AI budget | Medium | Medium | Per-role spend guard in USD; selector `submit_candidates` terminal tool |
-| 5 | Tool-use loops repeat uselessly | Medium | Medium | `loopGuard()` stopWhen condition detects repeated `(tool, args)` fingerprints |
-| 6 | `agent_messages` grows quickly | High | Low | Retention policy: archive rows older than 90 days |
-| 7 | Alpaca Data API v2 unavailable for a symbol (OTC, foreign) | Medium | Medium | Drop symbol from cycle with preflight warning |
-| 8 | Parallel analyst errors collapse reviewer with incomplete input | Medium | Low | Reviewer receives gap flag; decision maker can still proceed |
-| 9 | Cycle restart loops in sideways markets | Medium | Medium | Session-level stop conditions + cooldown between cycles |
-| 10 | FMP news freshness insufficient for intraday sessions | Low | Medium | Fall back to search-derived news for intraday |
+
+| #   | Risk                                                            | Likelihood | Impact | Mitigation                                                                    |
+| --- | --------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------- |
+| 1   | Provider adapters expose step telemetry inconsistently          | Medium     | High   | Phase 0 adapter tests with replay fixtures per provider                       |
+| 2   | FMP free tier (250 calls/day) exhausted during development      | Medium     | Low    | Use session cache aggressively; upgrade to starter plan for testing           |
+| 3   | Fundamental analyst receives incomplete stock data              | Medium     | High   | Snapshot readiness gating; drop symbol rather than inject partial data        |
+| 4   | Research burst exceeds AI budget                                | Medium     | Medium | Per-role spend guard in USD; selector `submit_candidates` terminal tool       |
+| 5   | Tool-use loops repeat uselessly                                 | Medium     | Medium | `loopGuard()` stopWhen condition detects repeated `(tool, args)` fingerprints |
+| 6   | `agent_messages` grows quickly                                  | High       | Low    | Retention policy: archive rows older than 90 days                             |
+| 7   | Alpaca Data API v2 unavailable for a symbol (OTC, foreign)      | Medium     | Medium | Drop symbol from cycle with preflight warning                                 |
+| 8   | Parallel analyst errors collapse reviewer with incomplete input | Medium     | Low    | Reviewer receives gap flag; decision maker can still proceed                  |
+| 9   | Cycle restart loops in sideways markets                         | Medium     | Medium | Session-level stop conditions + cooldown between cycles                       |
+| 10  | FMP news freshness insufficient for intraday sessions           | Low        | Medium | Fall back to search-derived news for intraday                                 |
+
 
 ---
 
 ## 11. Success Criteria
 
-| Goal | Metric | Target | How Measured |
-|---|---|---|---|
-| Runtime contract | % adapters returning canonical `RunTrace` with `steps[]` | 100% | Adapter tests |
-| Market data injection | % analyst runs with non-null `market_snapshot_json` | 100% for supported classes | DB query |
-| Audit coverage | % `agent_runs` with matching `agent_messages` row | 100% | DB join |
-| Research burst adoption | % sessions completing burst before first trade | 90% | Session events |
-| Selector self-termination | % selector runs ending via `submit_candidates` vs cap | >85% | `finish_reason` in `agent_runs` |
-| Cost control (AI) | Average AI spend per research cycle | <$0.50 | `agent_runs.cost_usd` |
-| Cost control (data) | Average data API spend per research cycle | <$0.20 | `api_call_log` |
-| Monitoring correctness | % closed trades followed by cycle restart or clean stop | 95% | Session event sequence |
+
+| Goal                      | Metric                                                   | Target                     | How Measured                    |
+| ------------------------- | -------------------------------------------------------- | -------------------------- | ------------------------------- |
+| Runtime contract          | % adapters returning canonical `RunTrace` with `steps[]` | 100%                       | Adapter tests                   |
+| Market data injection     | % analyst runs with non-null `market_snapshot_json`      | 100% for supported classes | DB query                        |
+| Audit coverage            | % `agent_runs` with matching `agent_messages` row        | 100%                       | DB join                         |
+| Research burst adoption   | % sessions completing burst before first trade           | 90%                        | Session events                  |
+| Selector self-termination | % selector runs ending via `submit_candidates` vs cap    | >85%                       | `finish_reason` in `agent_runs` |
+| Cost control (AI)         | Average AI spend per research cycle                      | <$0.50                     | `agent_runs.cost_usd`           |
+| Cost control (data)       | Average data API spend per research cycle                | <$0.20                     | `api_call_log`                  |
+| Monitoring correctness    | % closed trades followed by cycle restart or clean stop  | 95%                        | Session event sequence          |
+
 
 ---
 
 ## 12. Open Questions
 
-| # | Question | Owner | Needed By |
-|---|---|---|---|
-| 1 | Should `waitForOpenThreshold` default stay at 0.80 after first 25 research bursts? | Ken | Post-launch tuning |
-| 2 | Should `weeks_position` polling use 5m or 15m by default? | Ken | Post-launch tuning |
-| 3 | How many days of `agent_messages` traces stay hot before archival? | Ken | Post-launch tuning |
-| 4 | Should Exa be added as a third search adapter for `analyst_fundamental`? | Ken | Phase 2 planning |
+
+| #   | Question                                                                           | Owner | Needed By          |
+| --- | ---------------------------------------------------------------------------------- | ----- | ------------------ |
+| 1   | Should `waitForOpenThreshold` default stay at 0.80 after first 25 research bursts? | Ken   | Post-launch tuning |
+| 2   | Should `weeks_position` polling use 5m or 15m by default?                          | Ken   | Post-launch tuning |
+| 3   | How many days of `agent_messages` traces stay hot before archival?                 | Ken   | Post-launch tuning |
+| 4   | Should Exa be added as a third search adapter for `analyst_fundamental`?           | Ken   | Phase 2 planning   |
+
 
 ---
 
@@ -765,3 +793,4 @@ CREATE TABLE trade_autopsies (
 - Exa adapter for fundamental research on public companies
 - Richer replay tooling for prompt/trace diffing between profitable and unprofitable trades
 - Search result deduplication across roles in the same research burst (shared session cache partially addresses this)
+

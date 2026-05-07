@@ -3,7 +3,7 @@ import { AgentLabel, Badge } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import type { AgentMessage, AgentRun, Trade, TradeAutopsy } from "@/lib/types";
-import { Button, Dialog, DialogContent } from "@/components/ui";
+import { Dialog, DialogContent } from "@/components/ui";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {
   analyst_technical: { bar: "#34d399", bg: "rgba(52,211,153,0.06)" },

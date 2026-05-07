@@ -259,6 +259,7 @@ export const SessionsPage = ({ onGoToStrategy }: { onGoToStrategy?: () => void }
           <SessionTable
             sessions={sessions}
             busySessionId={actionSessionId}
+            focusedSessionAiReady={aiReady}
             onFocus={async (id) => {
               setError(null);
               try {

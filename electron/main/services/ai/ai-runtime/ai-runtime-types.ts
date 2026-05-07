@@ -62,3 +62,17 @@ export const ROLE_HARNESS_CAPS: Record<AgentRole, { maxSteps: number; spendUsd: 
   reviewer: { maxSteps: 8, spendUsd: 0.05 },
   decision_maker: { maxSteps: 1, spendUsd: 0.04 },
 };
+
+export type RoleToolPolicy = {
+  allowSearch: boolean;
+  allowMarketNewsTool: boolean;
+  enforceNoTools: boolean;
+};
+
+export const ROLE_TOOL_POLICY: Record<AgentRole, RoleToolPolicy> = {
+  instrument_selector: { allowSearch: true, allowMarketNewsTool: false, enforceNoTools: false },
+  analyst_technical: { allowSearch: true, allowMarketNewsTool: true, enforceNoTools: false },
+  analyst_fundamental: { allowSearch: true, allowMarketNewsTool: true, enforceNoTools: false },
+  reviewer: { allowSearch: true, allowMarketNewsTool: false, enforceNoTools: false },
+  decision_maker: { allowSearch: false, allowMarketNewsTool: false, enforceNoTools: true },
+};

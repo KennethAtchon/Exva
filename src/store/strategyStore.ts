@@ -274,7 +274,11 @@ function emptyRole(role: AgentRole): SessionAiRole {
     modelId: "",
     temperature: 0.7,
     maxTokens: 4096,
-    webSearchEnabled: false,
+    webSearchEnabled:
+      role === "instrument_selector" ||
+      role === "analyst_technical" ||
+      role === "analyst_fundamental" ||
+      role === "reviewer",
     promptSource: "default",
     promptMarkdown: "",
     promptAssetPath: null,

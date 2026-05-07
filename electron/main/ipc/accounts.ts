@@ -7,6 +7,7 @@ import {
   brokerRoutingUpdateSchema,
   brokerTestEphemeralSchema,
   providerAccountSaveSchema,
+  providerAccountDeleteSchema,
   providerAccountTestSchema,
 } from "@/lib/schemas";
 import { channels } from "@electron/shared/channels";
@@ -57,6 +58,17 @@ export function registerAccountHandlers(services: AppServices): void {
     services.providerRegistry.invalidate(id);
     services.searchRegistry.invalidate(id);
     return { id, isConfigured: true };
+  });
+
+  handle(ipcMain, channels.accounts.deleteProvider, async (payload) => {
+    const { id } = providerAccountDeleteSchema.parse(payload);
+    const account = services.repos.providerAccounts.find(id);
+    if (!account) throw new AppError(`Provider ${id} was not found`, "NOT_FOUND", { id });
+    await services.secrets.delete(account.secretRef);
+    services.repos.providerAccounts.delete(id);
+    services.providerRegistry.invalidate(id);
+    services.searchRegistry.invalidate(id);
+    return { ok: true as const };
   });
 
   handle(ipcMain, channels.accounts.testProvider, async (payload) => {

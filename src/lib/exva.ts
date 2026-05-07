@@ -203,6 +203,7 @@ export const api = {
     apiKey: string;
     metadata?: { baseUrl?: string };
   }): Promise<{ id: string; isConfigured: boolean }> => bridge().accounts.saveProvider(input),
+  deleteProvider: (id: string): Promise<{ ok: true }> => bridge().accounts.deleteProvider({ id }),
   testProvider: (id: string): Promise<{ ok: boolean; error?: string }> => bridge().accounts.testProvider({ id }),
 
   listBrokerAccounts: (): Promise<{ brokers: BrokerAccount[] }> => bridge().accounts.listBrokers(),

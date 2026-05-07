@@ -7,7 +7,7 @@ import type {
   ProviderAdapter,
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
-import type { RunTrace } from "../ai-runtime-types";
+import type { RunTrace } from "../ai-runtime/ai-runtime-types";
 
 function readUsage(usage: { inputTokens?: number; outputTokens?: number; promptTokens?: number; completionTokens?: number } | undefined): {
   inputTokens: number;

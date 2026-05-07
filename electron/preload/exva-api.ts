@@ -236,6 +236,7 @@ export interface ExvaApi {
       apiKey: string;
       metadata?: { baseUrl?: string };
     }): Promise<{ id: string; isConfigured: boolean }>;
+    deleteProvider(input: { id: string }): Promise<{ ok: true }>;
     testProvider(input: { id: string }): Promise<{ ok: boolean; error?: string }>;
     listBrokers(): Promise<{ brokers: BrokerAccount[] }>;
     addBroker(input: {

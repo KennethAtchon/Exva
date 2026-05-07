@@ -7,6 +7,7 @@ type LifecycleAction = "start" | "pause" | "resume" | "stop";
 export const SessionTable = ({
   sessions,
   busySessionId,
+  focusedSessionAiReady,
   onFocus,
   onEdit,
   onOpen,
@@ -17,6 +18,7 @@ export const SessionTable = ({
 }: {
   sessions: SessionSummary[];
   busySessionId?: string | null;
+  focusedSessionAiReady?: boolean | null;
   onFocus: (id: string) => void;
   onEdit: (session: SessionSummary) => void;
   onOpen: (session: SessionSummary) => void;
@@ -30,6 +32,7 @@ export const SessionTable = ({
       {sessions.map((session) => {
         const locked = session.status === "active" || session.status === "paused";
         const busy = busySessionId === session.id;
+        const aiBlocked = session.isFocused && focusedSessionAiReady === false;
 
         return (
           <article
@@ -110,7 +113,13 @@ export const SessionTable = ({
               </Button>
               <div style={{ flex: 1 }} />
               {session.status === "draft" || session.status === "idle" || session.status === "stopped" ? (
-                <Button onClick={() => onLifecycle(session, "start")} variant="ghost" style={primaryActionButtonStyle} disabled={busy}>
+                <Button
+                  onClick={() => onLifecycle(session, "start")}
+                  variant="ghost"
+                  style={{ ...primaryActionButtonStyle, ...(aiBlocked ? blockedStyle : {}) }}
+                  disabled={busy || aiBlocked}
+                  title={aiBlocked ? "AI providers not connected — configure in Strategy tab" : undefined}
+                >
                   Start
                 </Button>
               ) : null}
@@ -253,4 +262,9 @@ const dangerButtonStyle = {
   ...actionButtonStyle,
   border: "1px solid rgba(248,113,113,0.32)",
   color: "#fca5a5",
+} as const;
+
+const blockedStyle = {
+  opacity: 0.4,
+  cursor: "not-allowed",
 } as const;

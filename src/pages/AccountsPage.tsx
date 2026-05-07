@@ -183,6 +183,21 @@ export const AccountsPage = () => {
     }
   };
 
+  const deleteProvider = async (p: ProviderAccount) => {
+    const ok = window.confirm(`Delete provider "${p.name}"? This removes the stored key from keychain.`);
+    if (!ok) return;
+    setRowSavingId(p.id);
+    try {
+      await api.deleteProvider(p.id);
+      if (editingProviderId === p.id) cancelEditProviderKey();
+      await loadAiProviders();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not delete provider.");
+    } finally {
+      setRowSavingId(null);
+    }
+  };
+
   return (
     <PageShell>
       <div>
@@ -257,6 +272,7 @@ export const AccountsPage = () => {
                           </button>
                           <button
                             type="button"
+                            disabled={rowSavingId === p.id}
                             onClick={async () => {
                               const r = await api.testProvider(p.id).catch(() => ({ ok: false as const }));
                               setStatus((s) => ({ ...s, ai: r.ok || s.ai }));
@@ -272,6 +288,22 @@ export const AccountsPage = () => {
                             }}
                           >
                             Test
+                          </button>
+                          <button
+                            type="button"
+                            disabled={rowSavingId === p.id}
+                            onClick={() => void deleteProvider(p)}
+                            style={{
+                              fontSize: 11,
+                              padding: "6px 10px",
+                              borderRadius: 7,
+                              border: "1px solid rgba(248,113,113,0.35)",
+                              background: "rgba(248,113,113,0.08)",
+                              cursor: rowSavingId === p.id ? "wait" : "pointer",
+                              color: "#fca5a5",
+                            }}
+                          >
+                            {rowSavingId === p.id ? "Deleting…" : "Delete"}
                           </button>
                         </div>
                       ) : null}

@@ -136,6 +136,10 @@ export const providerAccountTestSchema = z.object({
   id: z.string().min(1),
 });
 
+export const providerAccountDeleteSchema = z.object({
+  id: z.string().min(1),
+});
+
 export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 
 export const brokerTypeSchema = z.enum(["alpaca", "coinbase_advanced_trade", "tradovate", "polymarket", "mock"]);

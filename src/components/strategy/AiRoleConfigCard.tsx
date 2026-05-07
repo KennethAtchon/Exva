@@ -32,6 +32,7 @@ export const AiRoleConfigCard = ({
   roleErrors,
   onTabChange,
   onRoleChange,
+  onApplyModelConfigToOtherRoles,
   onResetPrompt,
 }: {
   activeRole: AgentRole;
@@ -46,6 +47,7 @@ export const AiRoleConfigCard = ({
   roleErrors: Record<AgentRole, string[]>;
   onTabChange: (role: AgentRole) => void;
   onRoleChange: (patch: Partial<SessionAiRole>) => void | Promise<void>;
+  onApplyModelConfigToOtherRoles: () => void | Promise<void>;
   onResetPrompt: () => void | Promise<void>;
 }) => {
   const selectorTabLocked =
@@ -164,6 +166,18 @@ export const AiRoleConfigCard = ({
               ]}
             />
           )}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void onApplyModelConfigToOtherRoles()}
+              disabled={disabled || selectorTabLocked || !role.providerKey || !role.modelId.trim()}
+              style={secondaryButtonStyle}
+              title="Apply provider/model/temperature/token/search settings to the other roles"
+            >
+              Set for Other Roles
+            </Button>
+          </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>

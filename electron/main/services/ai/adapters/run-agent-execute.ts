@@ -2,7 +2,7 @@ import { generateText, Output, stepCountIs, type FinishReason, type LanguageMode
 import type { z } from "zod";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
-import type { RuntimeAgentMessage, RunTrace, StepTrace, ToolCallRecord } from "../ai-runtime-types";
+import type { RuntimeAgentMessage, RunTrace, StepTrace, ToolCallRecord } from "../ai-runtime/ai-runtime-types";
 import { createLogger } from "../../infra/log";
 
 const logger = createLogger("run-agent-execute");
@@ -136,7 +136,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   let stopWhen: StopCondition<ToolSet> | StopCondition<ToolSet>[] = stepCountIs(1);
   if (params.tools && conditions.length > 0) {
     const first = conditions[0];
-    stopWhen = conditions.length === 1 && first ? first : conditions;
+    stopWhen = conditions.length === 1 ? first : conditions;
   }
 
   const baseArgs = {

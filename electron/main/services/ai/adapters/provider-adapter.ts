@@ -1,7 +1,7 @@
 import type { ProviderType } from "@/lib/types";
 import type { ToolSet } from "ai";
 import type { z } from "zod";
-import type { RuntimeAgentMessage, RunTrace } from "../ai-runtime-types";
+import type { RuntimeAgentMessage, RunTrace } from "../ai-runtime/ai-runtime-types";
 
 export interface GenerateTextOptions {
   model: string;

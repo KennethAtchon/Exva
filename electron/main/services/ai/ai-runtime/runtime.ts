@@ -2,29 +2,30 @@ import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import type { AgentMessage, AgentRole, AgentRun } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
-import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";
-import type { ApiCallLogRepo } from "../../db/repositories/api-call-log-repo";
-import type { SessionRepo } from "../../db/repositories/session-repo";
-import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
+import type { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
+import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
+import type { SessionRepo } from "../../../db/repositories/session-repo";
+import type { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import {
   instrumentSelectionSchema,
   tradeDecisionSchema,
   type InstrumentSelection,
-} from "./ai-runtime-schemas";
+} from "@/lib/schemas";
 import type { AgentResult, AnalystInjectionBlocks, RuntimeAgentMessage, RunTrace } from "./ai-runtime-types";
 import { ROLE_HARNESS_CAPS } from "./ai-runtime-types";
-import { estimateCostUsd } from "./model-pricing";
-import type { PromptAssetLoader } from "./prompt-asset-loader";
-import type { ProviderRegistry } from "./provider-registry";
-import type { SearchRegistry } from "./search";
-import type { SessionStrategyContextService } from "../session/session-strategy-context-service";
-import { prependStrategyContextToUserPrompt } from "./strategy-prompt-context";
-import { createSearchTool } from "./tools/search-tool";
-import { createMarketTools } from "./tools/market-tools";
-import type { BrokerRoutingService } from "../broker/broker-routing-service";
-import type { BrokerRegistry } from "../broker/broker-registry";
-import { createLogger } from "../infra/log";
-import { textMeta } from "../infra/log-safety";
+import { estimateCostUsd } from "../model-pricing";
+import type { PromptAssetLoader } from "../prompt-asset-loader";
+import type { ProviderRegistry } from "../provider-registry";
+import type { SearchRegistry } from "../search";
+import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
+import { prependStrategyContextToUserPrompt } from "../strategy-prompt-context";
+import { createSearchTool } from "../tools/search-tool";
+import { createMarketTools } from "../tools/market-tools";
+import { buildRoleTools } from "./role-tools";
+import type { BrokerRoutingService } from "../../broker/broker-routing-service";
+import type { BrokerRegistry } from "../../broker/broker-registry";
+import { createLogger } from "../../infra/log";
+import { textMeta } from "../../infra/log-safety";
 
 const logger = createLogger("ai-runtime");
 
@@ -56,6 +57,7 @@ const RETRY_CONFIG: RetryConfig = {
   timeoutMs: 60_000,
   backoffMs: 1_000,
 };
+
 
 export class AiRuntime {
   private strategyContextService: SessionStrategyContextService | null;
@@ -266,7 +268,17 @@ ${input.review}`;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
     const systemPrompt = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
-    const tools = config.webSearchEnabled ? { search_web: await this.resolveSearchTool(sessionId, { cycleId: opts?.cycleId ?? null }) } : undefined;
+    const tools = await buildRoleTools({
+      sessionId,
+      role,
+      webSearchEnabled: config.webSearchEnabled,
+      cycleId: opts?.cycleId ?? null,
+      resolveSearchTool: this.resolveSearchTool.bind(this),
+      searchRegistry: this.searchRegistry,
+      brokerRouting: this.brokerRouting,
+      brokerRegistry: this.brokerRegistry,
+      resolveSearchProviderId: this.resolveSearchProviderId.bind(this),
+    });
     const promptContext = this.withSessionStrategyUserPrompt(sessionId, userPrompt);
     const caps = ROLE_HARNESS_CAPS[role];
 
@@ -277,9 +289,9 @@ ${input.review}`;
 
     const trace = await this.withRetry(() =>
       adapter.runAgent({
-        model: config.modelId,
-        messages,
-        tools,
+          model: config.modelId,
+          messages,
+          tools,
         maxSteps: caps.maxSteps,
         spendLimitUsd: caps.spendUsd,
         temperature: config.temperature,

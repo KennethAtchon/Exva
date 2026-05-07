@@ -19,6 +19,14 @@ import {
   STRATEGY_TYPES,
 } from "../../electron/shared/domain";
 
+const ROLE_ORDER = [
+  "analyst_technical",
+  "analyst_fundamental",
+  "reviewer",
+  "decision_maker",
+  "instrument_selector",
+] as const;
+
 export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void }) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
@@ -337,6 +345,33 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
                   return;
                 }
                 await updateRole(currentRole.role, patch);
+              }}
+              onApplyModelConfigToOtherRoles={async () => {
+                const roleLabel = currentRole.role.replaceAll("_", " ");
+                const confirmed = window.confirm(
+                  `Apply ${roleLabel} model settings to the other roles?\n\nThis copies provider, model, temperature, max tokens, and web search.`,
+                );
+                if (!confirmed) return;
+
+                const patch = {
+                  providerKey: currentRole.providerKey,
+                  modelId: currentRole.modelId,
+                  temperature: currentRole.temperature,
+                  maxTokens: currentRole.maxTokens,
+                  webSearchEnabled: currentRole.webSearchEnabled,
+                };
+
+                for (const role of ROLE_ORDER) {
+                  if (role === currentRole.role) continue;
+                  if (
+                    role === "instrument_selector" &&
+                    (selectionMode === "manual_shortlist" ||
+                      (selectionMode === "ai_selected_universe" && selectorSettings?.aiPickerEnabled === false))
+                  ) {
+                    continue;
+                  }
+                  await updateRole(role, patch);
+                }
               }}
               onResetPrompt={async () => {
                 const confirmed = window.confirm("Discard your custom prompt for this role?");

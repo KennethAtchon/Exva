@@ -62,4 +62,8 @@ export class ProviderAccountsRepo {
       .where(eq(providerAccounts.id, id))
       .run();
   }
+
+  delete(id: string): void {
+    this.client.db.delete(providerAccounts).where(eq(providerAccounts.id, id)).run();
+  }
 }

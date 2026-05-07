@@ -61,6 +61,7 @@ export const channels = {
     saveApiKey: "accounts:save-api-key",
     listProviders: "accounts:providers:list",
     saveProvider: "accounts:providers:save",
+    deleteProvider: "accounts:providers:delete",
     testProvider: "accounts:providers:test",
     listBrokers: "accounts:brokers:list",
     addBroker: "accounts:brokers:add",

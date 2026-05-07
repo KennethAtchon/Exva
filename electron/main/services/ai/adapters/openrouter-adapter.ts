@@ -7,7 +7,7 @@ import type {
   ProviderAdapter,
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
-import type { RunTrace } from "../ai-runtime-types";
+import type { RunTrace } from "../ai-runtime/ai-runtime-types";
 
 function readUsage(usage: { inputTokens?: number; outputTokens?: number; promptTokens?: number; completionTokens?: number } | undefined): {
   inputTokens: number;
@@ -21,6 +21,7 @@ function readUsage(usage: { inputTokens?: number; outputTokens?: number; promptT
 
 export class OpenRouterAdapter implements ProviderAdapter {
   readonly providerType = "openrouter" as const;
+  private static readonly DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 
   constructor(
     private readonly apiKey: string,
@@ -29,7 +30,10 @@ export class OpenRouterAdapter implements ProviderAdapter {
 
   async runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>> {
     const { createOpenAI } = await import("@ai-sdk/openai");
-    const client = createOpenAI({ apiKey: this.apiKey, baseURL: this.baseUrl });
+    const client = createOpenAI({
+      apiKey: this.apiKey,
+      baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
+    });
     return executeRunAgent({
       model: client(opts.model),
       modelId: opts.model,
@@ -47,7 +51,10 @@ export class OpenRouterAdapter implements ProviderAdapter {
   async generateText(opts: GenerateTextOptions): Promise<GenerateResult> {
     const { createOpenAI } = await import("@ai-sdk/openai");
     const { generateText } = await import("ai");
-    const client = createOpenAI({ apiKey: this.apiKey, baseURL: this.baseUrl });
+    const client = createOpenAI({
+      apiKey: this.apiKey,
+      baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
+    });
     const started = Date.now();
     const result = await generateText({
       model: client(opts.model),
@@ -69,7 +76,10 @@ export class OpenRouterAdapter implements ProviderAdapter {
   async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>> {
     const { createOpenAI } = await import("@ai-sdk/openai");
     const { generateObject } = await import("ai");
-    const client = createOpenAI({ apiKey: this.apiKey, baseURL: this.baseUrl });
+    const client = createOpenAI({
+      apiKey: this.apiKey,
+      baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
+    });
     const started = Date.now();
     const result = await generateObject({
       model: client(opts.model),
@@ -93,7 +103,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
   async testConnection(): Promise<{ ok: boolean; error?: string }> {
     try {
       await this.generateText({
-        model: "gpt-4o-mini",
+        model: "openai/gpt-4o-mini",
         systemPrompt: "Reply with the single word: ok",
         userPrompt: "ping",
         temperature: 0,
@@ -101,7 +111,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
       });
       return { ok: true };
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      const raw = error instanceof Error ? error.message : String(error);
+      const message = raw.includes("platform.openai.com/account/api-keys")
+        ? "OpenRouter authentication failed. Check that your key starts with `sk-or-` and that the base URL is `https://openrouter.ai/api/v1` (or left empty)."
+        : raw;
+      return { ok: false, error: message };
     }
   }
 }
