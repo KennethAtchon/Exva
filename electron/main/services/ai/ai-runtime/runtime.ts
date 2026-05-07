@@ -1,6 +1,6 @@
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import type { AgentMessage, AgentRole, AgentRun } from "@/lib/types";
+import type { AgentRole } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import type { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
 import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
@@ -11,9 +11,8 @@ import {
   tradeDecisionSchema,
   type InstrumentSelection,
 } from "@/lib/schemas";
-import type { AgentResult, AnalystInjectionBlocks, RuntimeAgentMessage, RunTrace } from "./ai-runtime-types";
+import type { AgentResult, AnalystInjectionBlocks, RuntimeAgentMessage } from "./ai-runtime-types";
 import { ROLE_HARNESS_CAPS } from "./ai-runtime-types";
-import { estimateCostUsd } from "../model-pricing";
 import type { PromptAssetLoader } from "../prompt-asset-loader";
 import type { ProviderRegistry } from "../provider-registry";
 import type { SearchRegistry } from "../search";
@@ -26,6 +25,10 @@ import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import { createLogger } from "../../infra/log";
 import { textMeta } from "../../infra/log-safety";
+import { toRunFromTrace, buildTraceMessage } from "./runtime-trace";
+import { withProviderRetry } from "./runtime-retry";
+import { analysisLabelsForStrategy, resolvePromptForRole } from "./runtime-prompt";
+import { parseInstrumentSelection } from "./instrument-selection-parser";
 
 const logger = createLogger("ai-runtime");
 
@@ -47,16 +50,6 @@ export interface DecisionInput extends ReviewerInput {
 }
 
 export type TradeDecision = z.infer<typeof tradeDecisionSchema>;
-
-type RetryConfig = {
-  timeoutMs: number;
-  backoffMs: number;
-};
-
-const RETRY_CONFIG: RetryConfig = {
-  timeoutMs: 60_000,
-  backoffMs: 1_000,
-};
 
 
 export class AiRuntime {
@@ -214,7 +207,7 @@ ${input.review}`;
       { role: "user", content: promptContext.prompt },
     ];
 
-    const trace = await this.withRetry(() =>
+    const trace = await withProviderRetry(() =>
       adapter.runAgent({
         model: config.modelId,
         messages,
@@ -226,8 +219,8 @@ ${input.review}`;
       }),
     );
 
-    const selection = this.parseInstrumentSelection(trace);
-    const run = this.toRunFromTrace(role, config.modelId, config.providerKey, trace);
+    const selection = parseInstrumentSelection(trace);
+    const run = toRunFromTrace(role, config.modelId, config.providerKey, trace);
     logger.info(
       {
         sessionId,
@@ -242,7 +235,7 @@ ${input.review}`;
     );
     return {
       run,
-      message: this.buildTraceMessage({
+      message: buildTraceMessage({
         run,
         role,
         config,
@@ -287,7 +280,7 @@ ${input.review}`;
       { role: "user", content: promptContext.prompt },
     ];
 
-    const trace = await this.withRetry(() =>
+    const trace = await withProviderRetry(() =>
       adapter.runAgent({
           model: config.modelId,
           messages,
@@ -299,7 +292,7 @@ ${input.review}`;
       }),
     );
 
-    const run = this.toRunFromTrace(role, config.modelId, config.providerKey, trace);
+    const run = toRunFromTrace(role, config.modelId, config.providerKey, trace);
     logger.info(
       {
         sessionId,
@@ -314,7 +307,7 @@ ${input.review}`;
     );
     return {
       run,
-      message: this.buildTraceMessage({
+      message: buildTraceMessage({
         run,
         role,
         config,
@@ -344,7 +337,7 @@ ${input.review}`;
       { role: "user", content: promptContext.prompt },
     ];
 
-    const trace = await this.withRetry(() =>
+    const trace = await withProviderRetry(() =>
       adapter.runAgent({
         model: config.modelId,
         messages,
@@ -361,7 +354,7 @@ ${input.review}`;
       throw new AppError("Decision maker returned no structured trade decision.", "VALIDATION_FAILED");
     }
 
-    const run = this.toRunFromTrace(role, config.modelId, config.providerKey, trace);
+    const run = toRunFromTrace(role, config.modelId, config.providerKey, trace);
     logger.info(
       {
         sessionId,
@@ -376,7 +369,7 @@ ${input.review}`;
     );
     return {
       run,
-      message: this.buildTraceMessage({
+      message: buildTraceMessage({
         run,
         role,
         config,
@@ -392,88 +385,6 @@ ${input.review}`;
       }),
       output: obj,
     };
-  }
-
-  private parseInstrumentSelection(trace: RunTrace<undefined>): InstrumentSelection {
-    for (let i = trace.steps.length - 1; i >= 0; i--) {
-      const step = trace.steps[i];
-      if (!step) continue;
-      for (const tc of step.toolCalls) {
-        if (tc.tool !== "submit_candidates") continue;
-        const parsed = instrumentSelectionSchema.safeParse(JSON.parse(tc.resultJson));
-        if (parsed.success) return parsed.data;
-      }
-    }
-    try {
-      const fromText = instrumentSelectionSchema.safeParse(JSON.parse(trace.assistantText));
-      if (fromText.success) return fromText.data;
-    } catch {
-      /* ignore malformed assistant JSON */
-    }
-    throw new AppError(
-      "Instrument selector must call submit_candidates with a valid instrument list.",
-      "VALIDATION_FAILED",
-    );
-  }
-
-  private async withRetry<T>(action: () => Promise<T>): Promise<T> {
-    try {
-      return await this.withTimeout(action);
-    } catch (error) {
-      if (!this.shouldRetry(error)) throw this.wrapProviderError(error);
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, RETRY_CONFIG.backoffMs));
-
-    try {
-      return await this.withTimeout(action);
-    } catch (error) {
-      throw this.wrapProviderError(error);
-    }
-  }
-
-  private async withTimeout<T>(action: () => Promise<T>): Promise<T> {
-    const timeoutPromise = new Promise<T>((_, reject) => {
-      const id = setTimeout(() => {
-        clearTimeout(id);
-        reject(new Error("AI request timed out"));
-      }, RETRY_CONFIG.timeoutMs);
-    });
-    return Promise.race([action(), timeoutPromise]);
-  }
-
-  private shouldRetry(error: unknown): boolean {
-    if (
-      error instanceof AppError &&
-      (error.code === "MISSING_SECRET" ||
-        error.code === "PROVIDER_NOT_CONFIGURED" ||
-        error.code === "SEARCH_PROVIDER_REQUIRED")
-    ) {
-      return false;
-    }
-    const raw = error instanceof Error ? error.message : String(error);
-    const lower = raw.toLowerCase();
-    if (lower.includes("validation") || lower.includes("schema")) return false;
-    if (/\b4\d\d\b/.test(raw) && !/\b429\b/.test(raw)) return false;
-    if (/\b429\b/.test(raw)) return true;
-    if (/\b5\d{2}\b/.test(raw)) return true;
-    if (
-      lower.includes("timeout") ||
-      lower.includes("econnreset") ||
-      lower.includes("econnrefused") ||
-      lower.includes("etimedout") ||
-      lower.includes("network") ||
-      lower.includes("fetch failed")
-    ) {
-      return true;
-    }
-    return false;
-  }
-
-  private wrapProviderError(error: unknown): AppError {
-    if (error instanceof AppError) return error;
-    const message = error instanceof Error ? error.message : String(error);
-    return new AppError(`Provider unreachable: ${message}`, "PROVIDER_UNREACHABLE");
   }
 
   private withSessionStrategyUserPrompt(sessionId: string, userPrompt: string) {
@@ -506,78 +417,19 @@ ${input.review}`;
   }
 
   private resolvePrompt(sessionId: string, role: AgentRole, promptSource: "default" | "session_override", promptMarkdown: string): string {
-    if (promptSource === "session_override" && promptMarkdown.trim()) {
-      return promptMarkdown.trim();
-    }
     const strategyType = this.strategyContextService?.get(sessionId).profile.strategyType;
-    if (strategyType === "prediction_market") {
-      if (role === "analyst_technical") return this.promptLoader.loadNamedAsset("analyst_statistical");
-      if (role === "analyst_fundamental") return this.promptLoader.loadNamedAsset("analyst_contextual");
-    }
-    return this.promptLoader.load(role);
+    return resolvePromptForRole({
+      role,
+      promptSource,
+      promptMarkdown,
+      strategyType,
+      promptLoader: this.promptLoader,
+    });
   }
 
   private analysisLabels(sessionId: string): { first: string; second: string } {
     const strategyType = this.requireStrategyContextService().get(sessionId).profile.strategyType;
-    return strategyType === "prediction_market"
-      ? { first: "Statistical analysis", second: "Contextual analysis" }
-      : { first: "Technical analysis", second: "Fundamental analysis" };
-  }
-
-  private toRunFromTrace(agentType: AgentRole, model: string, providerKey: string, trace: RunTrace<unknown>): AgentRun {
-    return {
-      id: crypto.randomUUID(),
-      trade_id: null,
-      agent_type: agentType,
-      model,
-      provider_key: providerKey,
-      finish_reason: trace.finishReason,
-      input_tokens: trace.inputTokens,
-      output_tokens: trace.outputTokens,
-      cost_usd: estimateCostUsd(model, trace.inputTokens, trace.outputTokens),
-      output_text: trace.assistantText,
-      duration_ms: trace.durationMs,
-      created_at: new Date().toISOString(),
-    };
-  }
-
-  private buildTraceMessage(input: {
-    run: AgentRun;
-    role: AgentRole;
-    config: { providerKey: string; modelId: string };
-    sessionId: string;
-    tradeId: string | null;
-    cycleId?: string | null;
-    trace: RunTrace<unknown>;
-    outputJson: string | null;
-    outputSchemaName: string | null;
-    strategySnapshotJson: string;
-    marketSnapshotJson?: string | null;
-    parseFallback?: boolean;
-  }): AgentMessage {
-    const thinking =
-      input.trace.thinkingText != null && input.trace.thinkingText !== ""
-        ? JSON.stringify({ text: input.trace.thinkingText })
-        : null;
-    return {
-      id: crypto.randomUUID(),
-      agent_run_id: input.run.id,
-      session_id: input.sessionId,
-      trade_id: input.tradeId,
-      cycle_id: input.cycleId ?? null,
-      role: input.role,
-      provider_key: input.config.providerKey,
-      model_id: input.config.modelId,
-      messages_json: input.trace.auditMessagesJson,
-      thinking_json: thinking,
-      tool_calls_json: JSON.stringify(input.trace.steps),
-      output_json: input.outputJson,
-      output_schema_name: input.outputSchemaName,
-      parse_fallback: input.parseFallback ?? input.trace.parseFallback,
-      strategy_snapshot_json: input.strategySnapshotJson,
-      market_snapshot_json: input.marketSnapshotJson ?? null,
-      created_at: input.run.created_at,
-    };
+    return analysisLabelsForStrategy(strategyType);
   }
 
   private requireStrategyContextService(): SessionStrategyContextService {
