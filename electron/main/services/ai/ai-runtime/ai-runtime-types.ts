@@ -57,15 +57,52 @@ export const ROLE_HARNESS_CAPS: Record<AgentRole, { maxSteps: number; spendUsd: 
 };
 
 export type RoleToolPolicy = {
+  /** Session/workspace search provider → `search_web` tool when configured. */
   allowSearch: boolean;
+  /** Broker wiring + search provider → `get_news` market tool (same backend as web search). */
   allowMarketNewsTool: boolean;
+  /** Broker wiring → `get_quote` and `get_ohlcv`. */
+  allowMarketQuoteTools: boolean;
+  /** Universe researcher terminal tool `submit_candidates`. */
+  allowSubmitCandidates: boolean;
+  /** Structured-output path with no tool loop (decision maker). */
   enforceNoTools: boolean;
 };
 
 export const ROLE_TOOL_POLICY: Record<AgentRole, RoleToolPolicy> = {
-  instrument_selector: { allowSearch: true, allowMarketNewsTool: false, enforceNoTools: false },
-  analyst_technical: { allowSearch: true, allowMarketNewsTool: true, enforceNoTools: false },
-  analyst_fundamental: { allowSearch: true, allowMarketNewsTool: true, enforceNoTools: false },
-  reviewer: { allowSearch: true, allowMarketNewsTool: false, enforceNoTools: false },
-  decision_maker: { allowSearch: false, allowMarketNewsTool: false, enforceNoTools: true },
+  instrument_selector: {
+    allowSearch: true,
+    allowMarketNewsTool: true,
+    allowMarketQuoteTools: true,
+    allowSubmitCandidates: true,
+    enforceNoTools: false,
+  },
+  analyst_technical: {
+    allowSearch: true,
+    allowMarketNewsTool: true,
+    allowMarketQuoteTools: false,
+    allowSubmitCandidates: false,
+    enforceNoTools: false,
+  },
+  analyst_fundamental: {
+    allowSearch: true,
+    allowMarketNewsTool: true,
+    allowMarketQuoteTools: false,
+    allowSubmitCandidates: false,
+    enforceNoTools: false,
+  },
+  reviewer: {
+    allowSearch: true,
+    allowMarketNewsTool: false,
+    allowMarketQuoteTools: false,
+    allowSubmitCandidates: false,
+    enforceNoTools: false,
+  },
+  decision_maker: {
+    allowSearch: false,
+    allowMarketNewsTool: false,
+    allowMarketQuoteTools: false,
+    allowSubmitCandidates: false,
+    enforceNoTools: true,
+  },
 };

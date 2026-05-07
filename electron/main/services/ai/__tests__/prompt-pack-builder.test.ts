@@ -4,6 +4,11 @@ import { describe, expect, it } from "vitest";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { AgentPromptPackBuilder, buildRuntimeRiskPolicy } from "../prompt-pack-builder";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
+import { harnessToolAvailabilityForRole } from "../ai-runtime/harness-tools";
+
+function availability(role: Parameters<typeof harnessToolAvailabilityForRole>[0], searchId: string | null, broker: boolean) {
+  return harnessToolAvailabilityForRole(role, searchId, broker);
+}
 
 function baseContext(): SessionStrategyContext {
   return {
@@ -60,6 +65,7 @@ describe("AgentPromptPackBuilder", () => {
       role: "decision_maker",
       basePromptMarkdown: "# Decision Maker\n\n## Role\nYou decide.",
       task: { bodyMarkdown: "Instrument: AAPL" },
+      harnessToolAvailability: availability("decision_maker", null, false),
     });
 
     expect(pack.messages).toHaveLength(2);
@@ -79,6 +85,7 @@ describe("AgentPromptPackBuilder", () => {
       role: "analyst_technical",
       basePromptMarkdown: "# Technical Analyst",
       task: { bodyMarkdown: "Instrument: AAPL" },
+      harnessToolAvailability: availability("analyst_technical", "search-prov", true),
     });
 
     expect(pack.messages[1].content).toContain("<trusted_market_context>");
@@ -93,6 +100,7 @@ describe("AgentPromptPackBuilder", () => {
       role: "instrument_selector",
       basePromptMarkdown: "# Universe Researcher",
       task: { bodyMarkdown: "Find candidates" },
+      harnessToolAvailability: availability("instrument_selector", "search-prov", true),
     });
 
     expect(pack.messages[0].content).toContain("`get_quote`");

@@ -473,7 +473,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       sqlite.exec(`ALTER TABLE session_ai_roles DROP COLUMN web_search_enabled`);
     }
   } catch (err) {
-    console.warn("[migrations] Could not drop legacy session_ai_roles.web_search_enabled", err);
+    console.warn("[migrations] Could not drop obsolete session_ai_roles.web_search_enabled column", err);
   }
 
   sqlite

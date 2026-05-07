@@ -12,6 +12,7 @@ describe("market-tools", () => {
       sessionId: "s1",
       brokerRegistry: { get: vi.fn() } as never,
       brokerAccountIdByClass: () => null,
+      include: { quote: true, ohlcv: false, news: false },
     });
 
     const getQuote = tools.get_quote as unknown as StockToolExecutor;
@@ -30,6 +31,7 @@ describe("market-tools", () => {
       sessionId: "s1",
       brokerRegistry: brokerRegistry as never,
       brokerAccountIdByClass: () => "b1",
+      include: { quote: false, ohlcv: true, news: false },
     });
 
     const getOhlcv = tools.get_ohlcv as unknown as OhlcvToolExecutor;

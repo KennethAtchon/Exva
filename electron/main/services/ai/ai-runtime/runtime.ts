@@ -1,4 +1,3 @@
-import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import type { AgentRole } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
@@ -6,20 +5,19 @@ import type { SessionAiRolesRepo } from "../../../db/repositories/session-ai-rol
 import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
 import type { SessionRepo } from "../../../db/repositories/session-repo";
 import type { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
-import {
-  instrumentSelectionSchema,
-  tradeDecisionSchema,
-  type InstrumentSelection,
-} from "@/lib/schemas";
+import { tradeDecisionSchema, type InstrumentSelection } from "@/lib/schemas";
 import type { AgentResult, RuntimeAgentMessage } from "./ai-runtime-types";
-import { ROLE_HARNESS_CAPS, ROLE_TOOL_POLICY } from "./ai-runtime-types";
+import { ROLE_HARNESS_CAPS } from "./ai-runtime-types";
+import {
+  buildHarnessToolSet,
+  harnessToolAvailabilityForRole,
+  type HarnessToolAvailability,
+} from "./harness-tools";
 import type { PromptAssetLoader } from "../prompt-asset-loader";
 import type { ProviderRegistry } from "../provider-registry";
 import type { SearchRegistry } from "../search";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
 import { createSearchTool } from "../tools/search-tool";
-import { createMarketTools } from "../tools/market-tools";
-import { buildRoleTools } from "./role-tools";
 import { AgentPromptPackBuilder, type AgentTaskPrompt } from "../prompt-pack-builder";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
@@ -150,10 +148,12 @@ ${input.review}`;
     const role = "instrument_selector" as const;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
+    const searchProviderId = this.resolveSearchProviderId(sessionId);
+    const harnessAvail = harnessToolAvailabilityForRole(role, searchProviderId, this.hasBrokerWiring());
     const promptPack = this.buildPromptPack(sessionId, role, config, {
       bodyMarkdown: selectionInstructions,
       cycleId: cycleId ?? null,
-    });
+    }, harnessAvail);
     const promptInfo = textMeta(promptPack.messages[1]?.content ?? selectionInstructions);
     logger.info(
       {
@@ -166,38 +166,17 @@ ${input.review}`;
       "ai role start",
     );
 
-    const submitCandidates = tool({
-      description: "Submit the final shortlist when research is complete.",
-      inputSchema: instrumentSelectionSchema,
-      execute: async (candidates: InstrumentSelection) => candidates,
+    const tools = await buildHarnessToolSet({
+      sessionId,
+      role,
+      cycleId: cycleId ?? null,
+      availability: harnessAvail,
+      searchProviderId,
+      resolveSearchTool: this.resolveSearchTool.bind(this),
+      searchRegistry: this.searchRegistry,
+      brokerRouting: this.brokerRouting,
+      brokerRegistry: this.brokerRegistry,
     });
-
-    const tools: ToolSet = {
-      submit_candidates: submitCandidates,
-    };
-    const selectorPolicy = ROLE_TOOL_POLICY.instrument_selector;
-    const searchProviderId = this.resolveSearchProviderId(sessionId);
-    if (selectorPolicy.allowSearch && searchProviderId) {
-      tools.search_web = await this.resolveSearchTool(sessionId, { cycleId: cycleId ?? null });
-    }
-    if (this.brokerRouting && this.brokerRegistry) {
-      const marketTools = createMarketTools({
-        sessionId,
-        brokerRegistry: this.brokerRegistry,
-        brokerAccountIdByClass: (instrumentClass) => {
-          try {
-            return this.brokerRouting?.resolveBrokerAccountId(sessionId, instrumentClass) ?? null;
-          } catch {
-            return null;
-          }
-        },
-        searchRegistry: this.searchRegistry,
-        searchProviderId: this.resolveSearchProviderId(sessionId),
-      });
-      tools.get_quote = marketTools.get_quote;
-      tools.get_ohlcv = marketTools.get_ohlcv;
-      tools.get_news = marketTools.get_news;
-    }
 
     const caps = ROLE_HARNESS_CAPS[role];
 
@@ -256,19 +235,22 @@ ${input.review}`;
   ): Promise<AgentResult<string>> {
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
+    const searchProviderId = this.resolveSearchProviderId(sessionId);
+    const harnessAvail = harnessToolAvailabilityForRole(role, searchProviderId, this.hasBrokerWiring());
     const promptPack = this.buildPromptPack(sessionId, role, config, {
       bodyMarkdown: userPrompt,
       cycleId: opts?.cycleId ?? null,
-    });
-    const tools = await buildRoleTools({
+    }, harnessAvail);
+    const tools = await buildHarnessToolSet({
       sessionId,
       role,
       cycleId: opts?.cycleId ?? null,
+      availability: harnessAvail,
+      searchProviderId,
       resolveSearchTool: this.resolveSearchTool.bind(this),
       searchRegistry: this.searchRegistry,
       brokerRouting: this.brokerRouting,
       brokerRegistry: this.brokerRegistry,
-      resolveSearchProviderId: this.resolveSearchProviderId.bind(this),
     });
     const caps = ROLE_HARNESS_CAPS[role];
 
@@ -322,10 +304,12 @@ ${input.review}`;
     const role: AgentRole = "decision_maker";
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
+    const searchProviderId = this.resolveSearchProviderId(sessionId);
+    const harnessAvail = harnessToolAvailabilityForRole(role, searchProviderId, this.hasBrokerWiring());
     const promptPack = this.buildPromptPack(sessionId, role, config, {
       bodyMarkdown: userPrompt,
       cycleId: cycleId ?? null,
-    });
+    }, harnessAvail);
     const caps = ROLE_HARNESS_CAPS[role];
 
     const messages: RuntimeAgentMessage[] = promptPack.messages;
@@ -385,6 +369,7 @@ ${input.review}`;
     role: AgentRole,
     config: { promptSource: "default" | "session_override"; promptMarkdown: string },
     task: AgentTaskPrompt,
+    harnessToolAvailability: HarnessToolAvailability,
   ) {
     const basePromptMarkdown = this.resolvePrompt(sessionId, role, config.promptSource, config.promptMarkdown);
     return new AgentPromptPackBuilder(this.requireStrategyContextService()).build({
@@ -392,7 +377,12 @@ ${input.review}`;
       role,
       basePromptMarkdown,
       task,
+      harnessToolAvailability,
     });
+  }
+
+  private hasBrokerWiring(): boolean {
+    return Boolean(this.brokerRouting && this.brokerRegistry);
   }
 
   private async resolveSearchTool(sessionId: string, context?: { cycleId?: string | null; tradeId?: string | null }) {

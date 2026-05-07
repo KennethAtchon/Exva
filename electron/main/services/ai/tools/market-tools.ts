@@ -1,4 +1,4 @@
-import { tool } from "ai";
+import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import type { InstrumentClass } from "@/lib/types";
 import type { BrokerRegistry } from "../../broker/broker-registry";
@@ -17,66 +17,81 @@ type SyntheticBar = {
   volume: number | null;
 };
 
+export type MarketToolsInclude = {
+  quote: boolean;
+  ohlcv: boolean;
+  news: boolean;
+};
+
 export function createMarketTools(deps: {
   sessionId: string;
   brokerRegistry: BrokerRegistry;
   brokerAccountIdByClass: (instrumentClass: InstrumentClass) => string | null;
   searchRegistry?: SearchRegistry;
   searchProviderId?: string | null;
+  include: MarketToolsInclude;
 }) {
-  const get_quote = tool({
-    description: "Get current price and basic quote data for a symbol.",
-    inputSchema: z.object({ symbol: z.string(), instrumentClass: instrumentClassSchema }),
-    execute: async ({ symbol, instrumentClass }: { symbol: string; instrumentClass: InstrumentClass }) => {
-      const brokerAccountId = deps.brokerAccountIdByClass(instrumentClass);
-      if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
-      try {
-        const adapter = await deps.brokerRegistry.get(brokerAccountId);
-        return await adapter.getMarketSnapshot(symbol);
-      } catch (error) {
-        return toToolError(error);
-      }
-    },
-  });
+  const out: Partial<ToolSet> = {};
 
-  const get_ohlcv = tool({
-    description: "Get OHLCV bars for a symbol. Returns up to 200 daily bars.",
-    inputSchema: z.object({ symbol: z.string(), instrumentClass: instrumentClassSchema }),
-    execute: async ({ symbol, instrumentClass }: { symbol: string; instrumentClass: InstrumentClass }) => {
-      const brokerAccountId = deps.brokerAccountIdByClass(instrumentClass);
-      if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
-      try {
-        const adapter = await deps.brokerRegistry.get(brokerAccountId);
-        const snap = await adapter.getMarketSnapshot(symbol);
-        return {
-          symbol,
-          timeframe: "1d",
-          bars: buildSyntheticBars(snap.price),
-          note: "Synthetic OHLCV generated from latest market snapshot.",
-        };
-      } catch (error) {
-        return toToolError(error);
-      }
-    },
-  });
+  if (deps.include.quote) {
+    out.get_quote = tool({
+      description: "Get current price and basic quote data for a symbol.",
+      inputSchema: z.object({ symbol: z.string(), instrumentClass: instrumentClassSchema }),
+      execute: async ({ symbol, instrumentClass }: { symbol: string; instrumentClass: InstrumentClass }) => {
+        const brokerAccountId = deps.brokerAccountIdByClass(instrumentClass);
+        if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
+        try {
+          const adapter = await deps.brokerRegistry.get(brokerAccountId);
+          return await adapter.getMarketSnapshot(symbol);
+        } catch (error) {
+          return toToolError(error);
+        }
+      },
+    });
+  }
 
-  const get_news = tool({
-    description: "Get recent news headlines for a symbol.",
-    inputSchema: z.object({ symbol: z.string() }),
-    execute: async ({ symbol }: { symbol: string }) => {
-      if (!deps.searchRegistry || !deps.searchProviderId) {
-        return { error: "Search provider not configured for news tool." };
-      }
-      try {
-        const adapter = await deps.searchRegistry.get(deps.searchProviderId);
-        return adapter.search(sanitizeSearchQuery(`${symbol} latest market news`));
-      } catch (error) {
-        return toToolError(error);
-      }
-    },
-  });
+  if (deps.include.ohlcv) {
+    out.get_ohlcv = tool({
+      description: "Get OHLCV bars for a symbol. Returns up to 200 daily bars.",
+      inputSchema: z.object({ symbol: z.string(), instrumentClass: instrumentClassSchema }),
+      execute: async ({ symbol, instrumentClass }: { symbol: string; instrumentClass: InstrumentClass }) => {
+        const brokerAccountId = deps.brokerAccountIdByClass(instrumentClass);
+        if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
+        try {
+          const adapter = await deps.brokerRegistry.get(brokerAccountId);
+          const snap = await adapter.getMarketSnapshot(symbol);
+          return {
+            symbol,
+            timeframe: "1d",
+            bars: buildSyntheticBars(snap.price),
+            note: "Synthetic OHLCV generated from latest market snapshot.",
+          };
+        } catch (error) {
+          return toToolError(error);
+        }
+      },
+    });
+  }
 
-  return { get_quote, get_ohlcv, get_news };
+  if (deps.include.news) {
+    out.get_news = tool({
+      description: "Get recent news headlines for a symbol.",
+      inputSchema: z.object({ symbol: z.string() }),
+      execute: async ({ symbol }: { symbol: string }) => {
+        if (!deps.searchRegistry || !deps.searchProviderId) {
+          return { error: "Search provider not configured for news tool." };
+        }
+        try {
+          const adapter = await deps.searchRegistry.get(deps.searchProviderId);
+          return adapter.search(sanitizeSearchQuery(`${symbol} latest market news`));
+        } catch (error) {
+          return toToolError(error);
+        }
+      },
+    });
+  }
+
+  return out;
 }
 
 function buildSyntheticBars(spot: number): SyntheticBar[] {
