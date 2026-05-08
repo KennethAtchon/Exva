@@ -6,12 +6,23 @@ import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
 import { ResearchBurstService } from "./research-burst-service";
 
+type ToolStepTrace = {
+  step: number;
+  toolCalls: Array<{
+    step: number;
+    tool: string;
+    argsJson: string;
+    resultJson: string;
+  }>;
+};
+
 type ResolvedInstrument = {
   symbol: string;
   instrumentClass: InstrumentClass;
   instrumentDisplayName?: string;
   predictionOutcome?: "YES" | "NO" | null;
   instrumentMetadataJson?: string | null;
+  selectorResearchBrief?: string | null;
 };
 
 type AiResearchRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runAnalyst"]>>;
@@ -420,10 +431,11 @@ export class AgentOrchestrator {
       { sessionId: this.sessionId, instrumentSymbol: instrument.symbol, instrumentClass: instrument.instrumentClass },
       "ai pipeline start",
     );
-    const technical = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: instrument.instrumentDisplayName }, "technical", this.sessionId);
+    const analystContext = this.buildAnalystContext(instrument);
+    const technical = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "technical", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
-    const fundamental = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: instrument.instrumentDisplayName }, "fundamental", this.sessionId);
+    const fundamental = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "fundamental", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
     const review = await this.deps.ai.runReviewer(
@@ -459,6 +471,127 @@ export class AgentOrchestrator {
     );
 
     return { technical, fundamental, review, decision };
+  }
+
+  private validateSelectorOutput(
+    session: WorkspaceSession,
+    toolCallsJson: string | null,
+    instruments: Array<ResolvedInstrument & { rationale?: string }>,
+  ): { instruments: ResolvedInstrument[]; researchBriefsBySymbol: Record<string, string> } {
+    const traces = this.parseToolTraces(toolCallsJson);
+    const strategy = this.deps.strategyContextService.get(session.id).profile;
+    const hadSearch = traces.some((step) => step.toolCalls.some((call) => call.tool === "search_web"));
+    const valid: ResolvedInstrument[] = [];
+    const researchBriefsBySymbol: Record<string, string> = {};
+
+    for (const instrument of instruments) {
+      if (!session.instrumentClasses.includes(instrument.instrumentClass)) continue;
+      if (!instrument.rationale?.trim()) continue;
+      if (!this.hasSuccessfulQuote(traces, instrument)) continue;
+      if (!this.hasDiscoveryEvidence(traces, instrument, hadSearch)) continue;
+      if (this.contradictsStrategy(strategy.sideBias, instrument.rationale)) continue;
+
+      const selectorResearchBrief = this.buildSelectorResearchBrief(instrument, traces);
+      researchBriefsBySymbol[instrument.symbol] = selectorResearchBrief;
+      valid.push({
+        symbol: instrument.symbol,
+        instrumentClass: instrument.instrumentClass,
+        instrumentDisplayName: instrument.instrumentDisplayName,
+        predictionOutcome: instrument.predictionOutcome ?? null,
+        instrumentMetadataJson: instrument.instrumentMetadataJson ?? null,
+        selectorResearchBrief,
+      });
+    }
+
+    if (valid.length === 0) {
+      throw new AppError(
+        "Instrument selector returned no candidates with valid discovery evidence and tradability checks.",
+        "VALIDATION_FAILED",
+      );
+    }
+
+    return { instruments: valid, researchBriefsBySymbol };
+  }
+
+  private parseToolTraces(toolCallsJson: string | null): ToolStepTrace[] {
+    if (!toolCallsJson) return [];
+    try {
+      const parsed = JSON.parse(toolCallsJson) as ToolStepTrace[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private hasSuccessfulQuote(traces: ToolStepTrace[], instrument: ResolvedInstrument): boolean {
+    return traces.some((step) =>
+      step.toolCalls.some((call) => {
+        if (call.tool !== "get_quote") return false;
+        const args = this.safeParseJson(call.argsJson);
+        const result = this.safeParseJson(call.resultJson);
+        return args?.symbol === instrument.symbol &&
+          args?.instrumentClass === instrument.instrumentClass &&
+          result != null &&
+          !Object.hasOwn(result, "error");
+      }),
+    );
+  }
+
+  private hasDiscoveryEvidence(traces: ToolStepTrace[], instrument: ResolvedInstrument, hadSearch: boolean): boolean {
+    if (traces.some((step) =>
+      step.toolCalls.some((call) => {
+        if (call.tool !== "get_news") return false;
+        const args = this.safeParseJson(call.argsJson);
+        const result = this.safeParseJson(call.resultJson);
+        return args?.symbol === instrument.symbol && result != null && !Object.hasOwn(result, "error");
+      }),
+    )) {
+      return true;
+    }
+    return hadSearch;
+  }
+
+  private contradictsStrategy(sideBias: string, rationale: string): boolean {
+    const text = rationale.toLowerCase();
+    if (sideBias === "long_only") {
+      return /downtrend|bearish|selloff|breakdown|short setup/.test(text);
+    }
+    if (sideBias === "short_only") {
+      return /bullish|uptrend|breakout|long setup/.test(text);
+    }
+    return false;
+  }
+
+  private buildSelectorResearchBrief(instrument: ResolvedInstrument & { rationale?: string }, traces: ToolStepTrace[]): string {
+    const relevantCalls = traces.flatMap((step) => step.toolCalls).filter((call) => {
+      const args = this.safeParseJson(call.argsJson);
+      if (call.tool === "search_web") return true;
+      return args?.symbol === instrument.symbol;
+    });
+
+    return [
+      instrument.instrumentDisplayName ? `Display name: ${instrument.instrumentDisplayName}` : null,
+      `Selector rationale: ${instrument.rationale?.trim() ?? "No rationale recorded."}`,
+      `Relevant selector tools: ${relevantCalls.map((call) => call.tool).join(", ") || "none"}`,
+    ].filter(Boolean).join("\n");
+  }
+
+  private buildAnalystContext(instrument: ResolvedInstrument): string {
+    return [
+      instrument.instrumentDisplayName ? `Instrument display name: ${instrument.instrumentDisplayName}` : null,
+      instrument.selectorResearchBrief ?? null,
+    ].filter(Boolean).join("\n\n") || "No selector context available.";
+  }
+
+  private safeParseJson(raw: string | null): Record<string, string> | null {
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== "object") return null;
+      return parsed as Record<string, string>;
+    } catch {
+      return null;
+    }
   }
 
   private waitForApproval(
@@ -725,7 +858,9 @@ export class AgentOrchestrator {
       cycleId,
     );
 
-    const filtered = result.output.instruments.filter((row: ResolvedInstrument) =>
+    const selectorValidation = this.validateSelectorOutput(session, result.message.tool_calls_json, result.output.instruments);
+
+    const filtered = selectorValidation.instruments.filter((row: ResolvedInstrument) =>
       session.instrumentClasses.includes(row.instrumentClass),
     );
     if (filtered.length === 0) {
@@ -742,6 +877,7 @@ export class AgentOrchestrator {
       instrumentDisplayName: row.instrumentDisplayName,
       predictionOutcome: row.predictionOutcome ?? null,
       instrumentMetadataJson: row.instrumentMetadataJson ?? null,
+      selectorResearchBrief: row.selectorResearchBrief ?? null,
     }));
 
     this.deps.agentRunsRepo.insert({
@@ -762,8 +898,8 @@ export class AgentOrchestrator {
       selectedAt: new Date().toISOString(),
       selectorAgentRunId: result.run.id,
       cycleId,
-      researchBriefsJson: null,
-      researchGeneratedAt: null,
+      researchBriefsJson: JSON.stringify(selectorValidation.researchBriefsBySymbol),
+      researchGeneratedAt: new Date().toISOString(),
     });
 
     this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`);

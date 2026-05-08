@@ -37,6 +37,8 @@ export interface AgentRunOptions<T = undefined> {
   maxTokens?: number;
   abortSignal?: AbortSignal;
   schema?: z.ZodType<T>;
+  terminalToolNames?: string[];
+  prepareStep?: any;
 }
 
 export interface ModelEntry {

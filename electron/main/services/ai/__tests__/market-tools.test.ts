@@ -5,6 +5,9 @@ type StockToolExecutor = { execute: (input: { symbol: string; instrumentClass: "
 type OhlcvToolExecutor = {
   execute: (input: { symbol: string; instrumentClass: "stock" }) => Promise<{ bars?: unknown[] }>;
 };
+type NewsToolExecutor = {
+  execute: (input: { symbol: string }) => Promise<{ results?: unknown[] }>;
+};
 
 describe("market-tools", () => {
   it("returns routing error when no broker account exists", async () => {
@@ -39,5 +42,22 @@ describe("market-tools", () => {
 
     expect(Array.isArray(out.bars)).toBe(true);
     expect(out.bars?.length).toBe(30);
+  });
+
+  it("returns mock news when provided", async () => {
+    const tools = createMarketTools({
+      sessionId: "s1",
+      brokerRegistry: { get: vi.fn() } as never,
+      brokerAccountIdByClass: () => "b1",
+      include: { quote: false, ohlcv: false, news: true },
+      mockNewsData: [
+        { title: "Mock catalyst", snippet: "Catalyst snippet", url: "https://mock.local/1", publishedAt: "2026-05-08T00:00:00.000Z" },
+      ],
+    });
+
+    const getNews = tools.get_news as unknown as NewsToolExecutor;
+    const out = await getNews.execute({ symbol: "AAPL" });
+
+    expect(out.results).toHaveLength(1);
   });
 });

@@ -22,6 +22,7 @@ export function deriveHarnessToolAvailability(
   policy: RoleToolPolicy,
   searchProviderId: string | null,
   hasBrokerWiring: boolean,
+  hasMockNewsData = false,
 ): HarnessToolAvailability {
   if (policy.enforceNoTools) {
     return {
@@ -34,12 +35,13 @@ export function deriveHarnessToolAvailability(
   }
   const searchOk = Boolean(searchProviderId);
   const brokerOk = hasBrokerWiring;
+  const newsOk = brokerOk && (searchOk || hasMockNewsData);
   return {
     submitCandidates: policy.allowSubmitCandidates,
     searchWeb: policy.allowSearch && searchOk,
     getQuote: policy.allowMarketQuoteTools && brokerOk,
     getOhlcv: policy.allowMarketQuoteTools && brokerOk,
-    getNews: policy.allowMarketNewsTool && brokerOk && searchOk,
+    getNews: policy.allowMarketNewsTool && newsOk,
   };
 }
 
@@ -47,8 +49,9 @@ export function harnessToolAvailabilityForRole(
   role: AgentRole,
   searchProviderId: string | null,
   hasBrokerWiring: boolean,
+  hasMockNewsData = false,
 ): HarnessToolAvailability {
-  return deriveHarnessToolAvailability(ROLE_TOOL_POLICY[role], searchProviderId, hasBrokerWiring);
+  return deriveHarnessToolAvailability(ROLE_TOOL_POLICY[role], searchProviderId, hasBrokerWiring, hasMockNewsData);
 }
 
 export async function buildHarnessToolSet(input: {

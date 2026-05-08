@@ -1,0 +1,41 @@
+import { describe, expect, it } from "vitest";
+import { selectorConfigCheck } from "./selector-config-check";
+
+describe("selectorConfigCheck", () => {
+  const baseSession = {
+    id: "s1",
+    selectionMode: "ai_selected_universe",
+    defaultSearchProviderId: null,
+  };
+
+  it("requires a search provider for ai-selected universe", async () => {
+    const result = await selectorConfigCheck(baseSession as never, {
+      sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+      workspacePreferencesRepo: { get: () => ({ defaultSearchProviderId: null }) },
+      providerAccountsRepo: { find: () => null },
+      sessionAiRolesRepo: { getByRole: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
+    } as never);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.code).toBe("SEARCH_PROVIDER_REQUIRED");
+  });
+
+  it("accepts configured search provider and selector role", async () => {
+    const result = await selectorConfigCheck({ ...baseSession, defaultSearchProviderId: "search-1" } as never, {
+      sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+      workspacePreferencesRepo: { get: () => ({ defaultSearchProviderId: null }) },
+      providerAccountsRepo: {
+        find: (id: string) =>
+          id === "search-1"
+            ? { id, category: "search", isConfigured: true }
+            : id === "ai-1"
+              ? { id, category: "ai", isConfigured: true }
+            : null,
+      },
+      sessionAiRolesRepo: { getByRole: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
+    } as never);
+
+    expect(result).toEqual({ ok: true });
+  });
+});

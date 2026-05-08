@@ -1,4 +1,4 @@
-import { generateText, Output, stepCountIs, type FinishReason, type LanguageModel, type StepResult, type StopCondition, type ToolSet } from "ai";
+import { generateText, hasToolCall, Output, stepCountIs, type FinishReason, type LanguageModel, type StepResult, type StopCondition, type ToolSet } from "ai";
 import type { z } from "zod";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
@@ -18,6 +18,8 @@ export interface RunAgentExecuteParams<T> {
   maxOutputTokens?: number;
   abortSignal?: AbortSignal;
   schema?: z.ZodType<T>;
+  terminalToolNames?: string[];
+  prepareStep?: any;
 }
 
 function splitSystem(messages: RuntimeAgentMessage[]): { system: string | undefined; rest: RuntimeAgentMessage[] } {
@@ -131,6 +133,9 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   if (params.tools && params.maxSteps > 0) {
     conditions.push(stepCapStop(params.maxSteps));
   }
+  for (const toolName of params.terminalToolNames ?? []) {
+    conditions.push(hasToolCall(toolName));
+  }
   if (params.spendLimitUsd != null && params.spendLimitUsd > 0) {
     conditions.push(spendGuardUsd(params.modelId, params.spendLimitUsd));
   }
@@ -153,6 +158,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     maxOutputTokens: params.maxOutputTokens,
     abortSignal: params.abortSignal,
     stopWhen,
+    prepareStep: params.prepareStep,
   } as const;
 
   const onStepFinish = (step: StepResult<ToolSet>, stepIndex: number) => {

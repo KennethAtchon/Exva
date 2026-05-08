@@ -9,6 +9,25 @@ export async function selectorConfigCheck(session: WorkspaceSession, deps: Orche
     return { ok: true };
   }
 
+  const searchProviderId = session.defaultSearchProviderId ?? deps.workspacePreferencesRepo.get().defaultSearchProviderId ?? null;
+  if (!searchProviderId) {
+    return {
+      ok: false,
+      code: "SEARCH_PROVIDER_REQUIRED",
+      message: "AI-selected universe requires a configured search provider. Set a session override or workspace default before starting.",
+      details: { sessionId: session.id },
+    };
+  }
+  const searchAccount = deps.providerAccountsRepo.find(searchProviderId);
+  if (!searchAccount || searchAccount.category !== "search" || !searchAccount.isConfigured) {
+    return {
+      ok: false,
+      code: "SEARCH_PROVIDER_REQUIRED",
+      message: "The configured search provider for AI-selected universe is missing or not connected. Fix it in Accounts before starting.",
+      details: { sessionId: session.id, providerKey: searchProviderId },
+    };
+  }
+
   const role = deps.sessionAiRolesRepo.getByRole(session.id, "instrument_selector");
   if (!role) {
     return {

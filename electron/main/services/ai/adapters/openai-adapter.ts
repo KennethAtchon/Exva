@@ -39,6 +39,8 @@ export class OpenAiAdapter implements ProviderAdapter {
       maxOutputTokens: opts.maxTokens,
       abortSignal: opts.abortSignal,
       schema: opts.schema,
+      terminalToolNames: opts.terminalToolNames,
+      prepareStep: opts.prepareStep,
     });
   }
 

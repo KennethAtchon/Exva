@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
-import type { BrokerAccount, InstrumentClass, SessionTemplatePayload } from "@/lib/types";
+import type { BrokerAccount, InstrumentClass, ProviderAccount, SessionTemplatePayload } from "@/lib/types";
 import { ShadcnSelect } from "@/components/custom-ui";
 import { Button, Checkbox, Dialog, DialogContent, Switch } from "@/components/ui";
 
@@ -24,7 +24,6 @@ export const CreateEditSessionModal = ({
   const [form, setForm] = useState<SessionCreateInput>(defaultInput());
   const [searchEverything, setSearchEverything] = useState(false);
   const [searchEverythingSnapshot, setSearchEverythingSnapshot] = useState<{
-    instrumentClasses: InstrumentClass[];
     instrumentScope: string;
     aiPickerEnabled: boolean;
   } | null>(null);
@@ -32,6 +31,7 @@ export const CreateEditSessionModal = ({
   const [loadingSeed, setLoadingSeed] = useState(false);
   const [loadingBrokers, setLoadingBrokers] = useState(false);
   const [brokerAccounts, setBrokerAccounts] = useState<BrokerAccount[]>([]);
+  const [searchProviders, setSearchProviders] = useState<ProviderAccount[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -87,6 +87,25 @@ export const CreateEditSessionModal = ({
       })
       .finally(() => {
         if (!cancelled) setLoadingBrokers(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void api
+      .listProviders()
+      .then((response) => {
+        if (cancelled) return;
+        setSearchProviders(response.providers.filter((provider) => provider.category === "search" && provider.isConfigured));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSearchProviders([]);
       });
 
     return () => {
@@ -185,7 +204,6 @@ export const CreateEditSessionModal = ({
                         setForm({
                           ...form,
                           selectionMode: nextMode,
-                          instrumentClasses: searchEverythingSnapshot?.instrumentClasses ?? form.instrumentClasses,
                           instrumentScope: searchEverythingSnapshot?.instrumentScope ?? form.instrumentScope,
                           selectorSettings: {
                             aiPickerEnabled: searchEverythingSnapshot?.aiPickerEnabled ?? form.selectorSettings.aiPickerEnabled,
@@ -203,14 +221,18 @@ export const CreateEditSessionModal = ({
                   />
                 </Field>
                 <Field label="Search provider override">
-                  <input
-                    value={form.defaultSearchProviderId ?? ""}
-                    onChange={(event) => setForm({
-                      ...form,
-                      defaultSearchProviderId: event.target.value.trim() ? event.target.value.trim() : null,
-                    })}
-                    placeholder="workspace default"
-                    style={inputStyle}
+                  <ShadcnSelect
+                    value={form.defaultSearchProviderId ?? "__workspace_default__"}
+                    onValueChange={(value) =>
+                      setForm({
+                        ...form,
+                        defaultSearchProviderId: value === "__workspace_default__" ? null : value,
+                      })
+                    }
+                    options={[
+                      { value: "__workspace_default__", label: "Workspace default" },
+                      ...searchProviders.map((provider) => ({ value: provider.id, label: provider.name })),
+                    ]}
                   />
                 </Field>
               </div>
@@ -221,13 +243,11 @@ export const CreateEditSessionModal = ({
                     onCheckedChange={(checked) => {
                       if (checked) {
                         setSearchEverythingSnapshot({
-                          instrumentClasses: form.instrumentClasses,
                           instrumentScope: form.instrumentScope,
                           aiPickerEnabled: form.selectorSettings.aiPickerEnabled,
                         });
                         setForm({
                           ...form,
-                          instrumentClasses: ALL_INSTRUMENT_CLASSES,
                           instrumentScope: SEARCH_EVERYTHING_SCOPE,
                           selectorSettings: { aiPickerEnabled: true },
                         });
@@ -236,7 +256,6 @@ export const CreateEditSessionModal = ({
 
                       setForm({
                         ...form,
-                        instrumentClasses: searchEverythingSnapshot?.instrumentClasses ?? ["stock"],
                         instrumentScope: searchEverythingSnapshot?.instrumentScope ?? "SPY,QQQ",
                         selectorSettings: {
                           aiPickerEnabled: searchEverythingSnapshot?.aiPickerEnabled ?? true,
@@ -258,10 +277,9 @@ export const CreateEditSessionModal = ({
                   {(["stock", "crypto", "futures", "prediction_market"] as const).map((instrumentClass) => {
                     const checked = form.instrumentClasses.includes(instrumentClass);
                     return (
-                      <label key={instrumentClass} style={{ ...toggleChipStyle, borderColor: checked ? "var(--accent-dim)" : "var(--border)", opacity: searchEverything ? 0.6 : 1 }}>
+                      <label key={instrumentClass} style={{ ...toggleChipStyle, borderColor: checked ? "var(--accent-dim)" : "var(--border)" }}>
                         <Checkbox
                           checked={checked}
-                          disabled={searchEverything}
                           onCheckedChange={(nextChecked) =>
                             setForm({
                               ...form,
@@ -509,11 +527,9 @@ function formatInstrumentClass(value: InstrumentClass): string {
 
 function isSearchEverythingInput(input: SessionCreateInput): boolean {
   return input.instrumentScope.trim() === SEARCH_EVERYTHING_SCOPE &&
-    ALL_INSTRUMENT_CLASSES.every((instrumentClass) => input.instrumentClasses.includes(instrumentClass)) &&
     input.selectorSettings.aiPickerEnabled;
 }
 
-const ALL_INSTRUMENT_CLASSES: InstrumentClass[] = ["stock", "crypto", "futures", "prediction_market"];
 const SEARCH_EVERYTHING_SCOPE = "Search the entire tradable universe for the selected instrument classes.";
 
 const panelStyle = { width: 900, maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", background: "linear-gradient(180deg, rgba(13,18,25,0.99) 0%, rgba(9,13,18,0.99) 100%)", border: "1px solid var(--border)", borderRadius: 20, padding: 22, boxShadow: "0 26px 60px rgba(2,6,23,0.48)" } as const;

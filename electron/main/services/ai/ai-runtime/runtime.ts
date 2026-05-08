@@ -172,8 +172,13 @@ ${input.review}`;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
     const searchProviderId = this.resolveSearchProviderId(sessionId);
-    const harnessAvail = harnessToolAvailabilityForRole(role, searchProviderId, this.hasBrokerWiring());
     const mockCtx = await this.getMockContext(sessionId);
+    const harnessAvail = harnessToolAvailabilityForRole(
+      role,
+      searchProviderId,
+      this.hasBrokerWiring(),
+      Boolean(mockCtx.mockNewsData),
+    );
     const promptPack = await this.buildPromptPack(sessionId, role, config, {
       bodyMarkdown: selectionInstructions,
       cycleId: cycleId ?? null,
@@ -187,6 +192,8 @@ ${input.review}`;
         promptChars: promptInfo.length,
         promptTooLong: promptInfo.tooLong,
         sandboxMode: mockCtx.isMock,
+        searchProviderId,
+        toolAvailability: harnessAvail,
       },
       "ai role start",
     );
@@ -218,6 +225,16 @@ ${input.review}`;
         spendLimitUsd: caps.spendUsd,
         temperature: resolveTemperature(config.modelId, config.temperature),
         maxTokens: config.maxTokens,
+        terminalToolNames: ["submit_candidates"],
+        prepareStep: harnessAvail.searchWeb
+          ? ({ stepNumber }: { stepNumber: number }) => {
+              if (stepNumber !== 0) return {};
+              return {
+                activeTools: ["search_web"],
+                toolChoice: { type: "tool" as const, toolName: "search_web" as const },
+              };
+            }
+          : undefined,
       }),
     );
 
@@ -263,8 +280,13 @@ ${input.review}`;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
     const searchProviderId = this.resolveSearchProviderId(sessionId);
-    const harnessAvail = harnessToolAvailabilityForRole(role, searchProviderId, this.hasBrokerWiring());
     const mockCtx = await this.getMockContext(sessionId);
+    const harnessAvail = harnessToolAvailabilityForRole(
+      role,
+      searchProviderId,
+      this.hasBrokerWiring(),
+      Boolean(mockCtx.mockNewsData),
+    );
     const promptPack = await this.buildPromptPack(sessionId, role, config, {
       bodyMarkdown: userPrompt,
       cycleId: opts?.cycleId ?? null,
@@ -335,7 +357,13 @@ ${input.review}`;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
     const searchProviderId = this.resolveSearchProviderId(sessionId);
-    const harnessAvail = harnessToolAvailabilityForRole(role, searchProviderId, this.hasBrokerWiring());
+    const mockCtx = await this.getMockContext(sessionId);
+    const harnessAvail = harnessToolAvailabilityForRole(
+      role,
+      searchProviderId,
+      this.hasBrokerWiring(),
+      Boolean(mockCtx.mockNewsData),
+    );
     const promptPack = await this.buildPromptPack(sessionId, role, config, {
       bodyMarkdown: userPrompt,
       cycleId: cycleId ?? null,
