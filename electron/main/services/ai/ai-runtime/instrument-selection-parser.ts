@@ -3,7 +3,9 @@ import { instrumentSelectionSchema, type InstrumentSelection } from "@/lib/schem
 import type { RunTrace } from "./ai-runtime-types";
 
 export function parseInstrumentSelection(trace: RunTrace<undefined>): InstrumentSelection {
-  for (let i = trace.steps.length - 1; i >= 0; i--) {
+  // `submit_candidates` is terminal. Use the first valid call in chronological order.
+  // This prevents later non-terminal calls from overriding an earlier "no candidates" submission.
+  for (let i = 0; i < trace.steps.length; i++) {
     const step = trace.steps[i];
     if (!step) continue;
     for (const tc of step.toolCalls) {

@@ -31,6 +31,7 @@ Explain whether the instrument's technical setup supports the active session str
 - Call out mismatch between the chart setup and the session horizon.
 
 ## Output Requirements
-- Write structured analysis in 200-400 words.
+- Write a structured handoff memo in 700-1400 words for downstream reviewer and decision-maker agents.
+- Use clear section headers: Setup Summary, Evidence, Risks/Invalidation, Horizon Fit, and Technical Fit Assessment.
 - Use concrete levels and percentages only when supplied or derived from supplied data.
 - End with a short technical fit assessment: strong, mixed, weak, or insufficient evidence.

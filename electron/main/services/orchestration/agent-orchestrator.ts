@@ -48,6 +48,7 @@ type DecisionOutput = {
 };
 
 type PredictionToken = { outcome?: unknown; token_id?: unknown };
+const NO_INSTRUMENT_RETRY_MS = 3 * 60 * 1000; // 3 minutes
 
 export class AgentOrchestrator {
   private readonly queue = new PQueue({ concurrency: 1 });
@@ -57,6 +58,7 @@ export class AgentOrchestrator {
   private unsubscribeTradeClosed: (() => void) | null = null;
   private cycleRestartInFlight = false;
   private started = false;
+  private noInstrumentRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     readonly sessionId: string,
@@ -95,12 +97,13 @@ export class AgentOrchestrator {
       instrumentCount: instruments.length,
     });
 
-    this.enqueueTradeCycles(instruments);
+    this.handleResolvedInstruments(instruments, "Initial research cycle complete");
     this.deps.logger.info({ sessionId: this.sessionId, instrumentCount: instruments.length }, "orchestrator started");
   }
 
   async pause(): Promise<void> {
     this.queue.pause();
+    this.clearNoInstrumentRetry();
   }
 
   async resume(): Promise<void> {
@@ -118,6 +121,7 @@ export class AgentOrchestrator {
     );
     this.queue.clear();
     this.detachTradeClosedListener();
+    this.clearNoInstrumentRetry();
     this.cycleRestartInFlight = false;
     for (const approvalId of this.pendingApprovalIds.values()) {
       this.deps.capitalReservation.releaseByApproval(approvalId);
@@ -503,13 +507,6 @@ export class AgentOrchestrator {
       });
     }
 
-    if (valid.length === 0) {
-      throw new AppError(
-        "Instrument selector returned no candidates with valid discovery evidence and tradability checks.",
-        "VALIDATION_FAILED",
-      );
-    }
-
     return { instruments: valid, researchBriefsBySymbol };
   }
 
@@ -762,8 +759,7 @@ export class AgentOrchestrator {
           const config = this.getSessionConfig();
           this.queue.concurrency = config.max_concurrent_trades;
           const instruments = await this.runResearchBurst(session, config);
-          this.emitEvent("INFO", null, `Research cycle complete; ${instruments.length} new cycles enqueued.`, "orchestrator");
-          this.enqueueTradeCycles(instruments);
+          this.handleResolvedInstruments(instruments, "Trade-closed research cycle complete");
         })
         .catch((error) => {
           this.emitEvent(
@@ -795,6 +791,52 @@ export class AgentOrchestrator {
         );
       });
     }
+  }
+
+  private handleResolvedInstruments(instruments: ResolvedInstrument[], context: string): void {
+    if (instruments.length === 0) {
+      this.emitEvent(
+        "INFO",
+        null,
+        `${context}; no tradable instruments were selected. Re-evaluating in 30 minutes.`,
+        "orchestrator",
+      );
+      this.scheduleNoInstrumentRetry();
+      return;
+    }
+    this.clearNoInstrumentRetry();
+    this.emitEvent("INFO", null, `${context}; ${instruments.length} cycles enqueued.`, "orchestrator");
+    this.enqueueTradeCycles(instruments);
+  }
+
+  private scheduleNoInstrumentRetry(): void {
+    if (this.noInstrumentRetryTimer) return;
+    this.noInstrumentRetryTimer = setTimeout(() => {
+      this.noInstrumentRetryTimer = null;
+      if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
+      this.queue
+        .add(async () => {
+          const session = this.deps.sessionRepo.requireById(this.sessionId);
+          const config = this.getSessionConfig();
+          this.queue.concurrency = config.max_concurrent_trades;
+          const instruments = await this.runResearchBurst(session, config);
+          this.handleResolvedInstruments(instruments, "Scheduled selector retry complete");
+        })
+        .catch((error) => {
+          this.emitEvent(
+            "ERROR",
+            null,
+            `Scheduled selector retry failed: ${error instanceof Error ? error.message : String(error)}`,
+            "orchestrator",
+          );
+        });
+    }, NO_INSTRUMENT_RETRY_MS);
+  }
+
+  private clearNoInstrumentRetry(): void {
+    if (!this.noInstrumentRetryTimer) return;
+    clearTimeout(this.noInstrumentRetryTimer);
+    this.noInstrumentRetryTimer = null;
   }
 
   // Exposed for ResearchBurstService integration.
@@ -863,12 +905,7 @@ export class AgentOrchestrator {
     const filtered = selectorValidation.instruments.filter((row: ResolvedInstrument) =>
       session.instrumentClasses.includes(row.instrumentClass),
     );
-    if (filtered.length === 0) {
-      throw new AppError(
-        "Instrument selector returned no instruments compatible with this session's instrument classes.",
-        "VALIDATION_FAILED",
-      );
-    }
+    if (filtered.length === 0) return [];
 
     const limited = filtered.slice(0, config.max_concurrent_trades);
     const payload: ResolvedInstrument[] = limited.map((row: ResolvedInstrument) => ({

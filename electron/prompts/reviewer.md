@@ -30,6 +30,7 @@ Identify whether the combined evidence is strong, internally consistent, aligned
 - Do not make the final trade decision; prepare the decision maker.
 
 ## Output Requirements
-- Write a balanced synthesis in 200-350 words.
+- Write a balanced synthesis memo in 600-1200 words for the decision-maker agent.
+- Use clear section headers: Consensus vs Conflict, Evidence Quality, Missing Information, and Decision Tension.
 - Include evidence quality, conflicts, missing information, and decision tension.
 - End with one short paragraph naming the key decision tension.

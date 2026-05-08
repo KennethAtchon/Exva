@@ -31,6 +31,7 @@ Explain whether the current real-world context supports the candidate prediction
 - Call out what new information would most change the assessment.
 
 ## Output Requirements
-- Write structured analysis in 200-400 words.
+- Write a structured handoff memo in 700-1400 words for downstream reviewer and decision-maker agents.
+- Use clear section headers: Resolution Context, Current Evidence, Uncertainty, Directional View, and Contextual Fit Assessment.
 - Include resolution-context summary, current-event evidence, uncertainty, and directional context.
 - End with a contextual fit assessment: supportive, mixed, adverse, or insufficient evidence.

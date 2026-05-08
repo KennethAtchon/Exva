@@ -1030,7 +1030,7 @@ export const DevPanel = () => {
       </div>
 
       {/* Split view */}
-      <div style={{ flex: 1, display: "flex", gap: 12, minHeight: 0, overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", gap: 12, minHeight: 0 }}>
         {/* Timeline — 60% */}
         <div style={{ flex: "0 0 60%", display: "flex", flexDirection: "column", minWidth: 0 }}>
           <EventTimeline

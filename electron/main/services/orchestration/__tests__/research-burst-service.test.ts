@@ -22,11 +22,11 @@ describe("research-burst-service", () => {
     expect(out[0]?.symbol).toBe("BTC-USD");
   });
 
-  it("throws when burst resolves to empty list", async () => {
+  it("returns empty list when burst resolves to no tradable instruments", async () => {
     const service = new ResearchBurstService(
       { resolveInstrumentsForBurst: async () => [] } as never,
       { filterTradable: () => [] } as unknown as MarketHoursService,
     );
-    await expect(service.resolve({} as never, {} as never)).rejects.toThrow("Research burst produced no tradable instruments.");
+    await expect(service.resolve({} as never, {} as never)).resolves.toEqual([]);
   });
 });

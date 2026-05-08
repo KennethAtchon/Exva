@@ -30,6 +30,7 @@ Estimate whether a prediction market offers enough probability edge to fit the a
 - Apply Kelly fraction conservatively; do not imply sizing above max position or exposure limits.
 
 ## Output Requirements
-- Write structured analysis in 200-400 words.
+- Write a structured handoff memo in 700-1400 words for downstream reviewer and decision-maker agents.
+- Use clear section headers: Market Framing, Probability Estimate, Edge Analysis, Execution Constraints, and Statistical Fit Assessment.
 - Include probability estimate, implied probability comparison, edge assessment, and key uncertainty.
 - End with a statistical fit assessment: strong edge, marginal edge, no edge, or insufficient evidence.

@@ -186,7 +186,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     }
     if (step.text) {
       logger.info(
-        { modelId: params.modelId, step: stepIndex + 1, textPreview: step.text.slice(0, 500) },
+        { modelId: params.modelId, step: stepIndex + 1, fullText: step.text },
         "agent step text",
       );
     }

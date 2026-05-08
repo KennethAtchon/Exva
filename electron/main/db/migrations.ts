@@ -148,7 +148,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       provider_key TEXT NOT NULL,
       model_id TEXT NOT NULL,
       temperature REAL NOT NULL DEFAULT 0.7,
-      max_tokens INTEGER NOT NULL DEFAULT 4096,
+      max_tokens INTEGER NOT NULL DEFAULT 8192,
       prompt_source TEXT NOT NULL DEFAULT 'default',
       prompt_markdown TEXT NOT NULL DEFAULT '',
       prompt_asset_path TEXT
@@ -440,6 +440,10 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       ELSE role
     END
     WHERE role IN ('researcher_bull', 'researcher_bear');
+
+    UPDATE session_ai_roles
+    SET max_tokens = 8192
+    WHERE max_tokens = 4096;
 
     UPDATE agent_runs
     SET agent_type = CASE

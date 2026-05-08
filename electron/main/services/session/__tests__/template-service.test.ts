@@ -106,7 +106,7 @@ describe("SessionTemplateService", () => {
             providerKey: "missing-provider",
             modelId: "claude-sonnet-4-6",
             temperature: 0.7,
-            maxTokens: 4096,
+            maxTokens: 8192,
             promptSource: "default",
             promptMarkdown: "",
             promptAssetPath: null,

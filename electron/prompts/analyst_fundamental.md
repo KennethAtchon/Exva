@@ -31,6 +31,7 @@ Explain whether the fundamental and catalyst context supports the active session
 - Call out missing context that would materially change the conclusion.
 
 ## Output Requirements
-- Write structured analysis in 200-400 words.
+- Write a structured handoff memo in 700-1400 words for downstream reviewer and decision-maker agents.
+- Use clear section headers: Thesis Summary, Supporting Evidence, Risks/Counterpoints, Horizon Fit, and Fundamental Fit Assessment.
 - Cite concrete figures only when available from supplied context or tools.
 - End with a short fundamental fit assessment: strong, mixed, weak, not applicable, or insufficient evidence.

@@ -183,7 +183,7 @@ const aiRoles: SessionAiRole[] = ([
   providerKey: "provider-anthropic",
   modelId: "claude-sonnet-4-6",
   temperature: 0.7,
-  maxTokens: 4096,
+  maxTokens: 8192,
   promptSource: "default",
   promptMarkdown: `<!-- version: 0.1.0 -->\n\nMock prompt for ${role}.`,
   promptAssetPath: `/mock/prompts/${role}.md`,
