@@ -14,9 +14,11 @@ import {
   STOP_LOSS_TYPES,
   STRATEGY_ENTRY_STYLES,
   STRATEGY_EXIT_STYLES,
+  STRATEGY_PRESETS,
   STRATEGY_SCALING_MODES,
   STRATEGY_SIDE_BIASES,
   STRATEGY_TYPES,
+  type StrategyPreset,
 } from "../../electron/shared/domain";
 
 const ROLE_ORDER = [
@@ -196,6 +198,8 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {activeSection === "strategy" && (
             <>
+              {!isLocked && <PresetRow onSelect={(preset) => updateProfile(preset.profile)} />}
+
               <Card>
                 <SectionTitle>Strategy Intent</SectionTitle>
                 <div style={formGridStyle}>
@@ -437,6 +441,17 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   </div>
 );
 
+const PresetRow = ({ onSelect }: { onSelect: (preset: StrategyPreset) => void }) => (
+  <div style={presetRowStyle}>
+    {STRATEGY_PRESETS.map((preset) => (
+      <button key={preset.id} type="button" title={preset.description} onClick={() => onSelect(preset)} style={presetChipStyle}>
+        <span style={presetChipLabelStyle}>{preset.label}</span>
+        <span style={presetChipDescriptionStyle}>{preset.description}</span>
+      </button>
+    ))}
+  </div>
+);
+
 function labelize(value: string): string {
   return value
     .split("_")
@@ -482,3 +497,7 @@ const formGridStyle = { display: "grid", gap: 14, marginTop: 16 } as const;
 const inputStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)" } as const;
 const warningStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(251,191,36,0.24)", background: "rgba(251,191,36,0.08)", color: "#fbbf24", fontSize: 12 } as const;
 const warningButtonStyle = { padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(251,191,36,0.28)", background: "rgba(251,191,36,0.14)", color: "#fbbf24", cursor: "pointer" } as const;
+const presetRowStyle = { display: "flex", gap: 10, overflowX: "auto", paddingBottom: 2 } as const;
+const presetChipStyle = { minWidth: 168, maxWidth: 210, textAlign: "left" as const, padding: "11px 12px", borderRadius: 14, border: "1px solid rgba(96,165,250,0.24)", background: "linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.92))", color: "var(--text1)", cursor: "pointer", boxShadow: "0 10px 28px rgba(2,6,23,0.18)" } as const;
+const presetChipLabelStyle = { display: "block", fontSize: 13, fontWeight: 800, letterSpacing: 0.2, marginBottom: 4 } as const;
+const presetChipDescriptionStyle = { display: "block", color: "var(--text3)", fontSize: 11, lineHeight: 1.4 } as const;

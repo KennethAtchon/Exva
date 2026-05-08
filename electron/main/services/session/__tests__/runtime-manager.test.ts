@@ -66,7 +66,7 @@ describe("SessionRuntimeManager", () => {
     db.sqlite.close();
   });
 
-  it("rehydrates one runtime per active session", async () => {
+  it("rehydrates previously active sessions as paused runtimes", async () => {
     const started: string[] = [];
     const stopped: string[] = [];
     const manager = createManager(db, {
@@ -77,8 +77,12 @@ describe("SessionRuntimeManager", () => {
     await manager.rehydrateFromDb();
 
     expect(manager.listActive()).toHaveLength(2);
-    expect(started.sort()).toEqual([sessionAlphaId, sessionBetaId].sort());
+    expect(started).toEqual([]);
     expect(stopped).toEqual([]);
+
+    const sessions = new SessionRepo(db);
+    expect(sessions.requireById(sessionAlphaId).status).toBe("paused");
+    expect(sessions.requireById(sessionBetaId).status).toBe("paused");
   });
 
   it("stopping one session tears down only that runtime", async () => {

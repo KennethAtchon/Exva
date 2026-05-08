@@ -81,6 +81,102 @@ export const STOP_LOSS_TYPES: readonly StopLossType[] = [
   "none",
 ];
 
+export type StrategyPresetId =
+  | "momentum_long"
+  | "momentum_short"
+  | "mean_reversion"
+  | "trend_following"
+  | "event_driven"
+  | "prediction_market";
+
+export interface StrategyPreset {
+  id: StrategyPresetId;
+  label: string;
+  description: string;
+  profile: {
+    strategyType: StrategyType;
+    sideBias: StrategySideBias;
+    entryStyle: StrategyEntryStyle;
+    exitStyle: StrategyExitStyle;
+    scalingMode: StrategyScalingMode;
+  };
+}
+
+export const STRATEGY_PRESETS: readonly StrategyPreset[] = [
+  {
+    id: "momentum_long",
+    label: "Momentum Long",
+    description: "Breakout entries on upward momentum. Long-only.",
+    profile: {
+      strategyType: "momentum",
+      sideBias: "long_only",
+      entryStyle: "breakout",
+      exitStyle: "trailing_atr",
+      scalingMode: "single_entry",
+    },
+  },
+  {
+    id: "momentum_short",
+    label: "Momentum Short",
+    description: "Short breakdowns with short bias.",
+    profile: {
+      strategyType: "short_bias",
+      sideBias: "short_only",
+      entryStyle: "breakout",
+      exitStyle: "fixed_pct",
+      scalingMode: "single_entry",
+    },
+  },
+  {
+    id: "mean_reversion",
+    label: "Mean Reversion",
+    description: "Fade overextended moves back to mean.",
+    profile: {
+      strategyType: "mean_reversion",
+      sideBias: "both",
+      entryStyle: "reversal",
+      exitStyle: "fixed_pct",
+      scalingMode: "scale_in_2",
+    },
+  },
+  {
+    id: "trend_following",
+    label: "Trend Following",
+    description: "Ride established trends with pullback entries.",
+    profile: {
+      strategyType: "trend_following",
+      sideBias: "both",
+      entryStyle: "pullback",
+      exitStyle: "trailing_atr",
+      scalingMode: "scale_in_2",
+    },
+  },
+  {
+    id: "event_driven",
+    label: "Event Driven",
+    description: "Trade catalysts: earnings, macro, announcements.",
+    profile: {
+      strategyType: "event_driven",
+      sideBias: "both",
+      entryStyle: "event",
+      exitStyle: "time_based",
+      scalingMode: "single_entry",
+    },
+  },
+  {
+    id: "prediction_market",
+    label: "Prediction Market",
+    description: "Probability-edge bets on binary outcomes.",
+    profile: {
+      strategyType: "prediction_market",
+      sideBias: "both",
+      entryStyle: "probability_edge",
+      exitStyle: "market_resolution",
+      scalingMode: "single_entry",
+    },
+  },
+];
+
 export const STRATEGY_BRIEF_MARKDOWN_MAX_CHARS = 1_200;
 
 /** Bar size the session uses for analysis and agent context. */

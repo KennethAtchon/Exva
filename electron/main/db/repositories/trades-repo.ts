@@ -150,6 +150,10 @@ export class TradesRepo {
       .run();
   }
 
+  patchAiCost(id: string, costUsd: number): void {
+    this.client.db.update(trades).set({ aiCostUsd: costUsd }).where(eq(trades.id, id)).run();
+  }
+
   markOpen(id: string, brokerOrderId: string, entryPrice: number): Trade {
     this.client.db
       .update(trades)

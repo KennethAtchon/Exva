@@ -112,6 +112,10 @@ export class SessionRuntimeManager {
     const sessions = this.deps.sessionRepo.listByStatuses(["active", "paused"]);
     this.deps.logger.info({ sessionCount: sessions.length }, "rehydrating runtimes from db");
     for (const session of sessions) {
+      if (session.status === "active") {
+        this.deps.logger.warn({ sessionId: session.id }, "startup resume gate pausing previously active session");
+        this.deps.sessionRepo.setStatus("paused", session.id);
+      }
       await this.startSession(session.id);
     }
     this.deps.logger.info({ sessionCount: sessions.length }, "runtime rehydration complete");

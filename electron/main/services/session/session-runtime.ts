@@ -22,11 +22,11 @@ export class SessionRuntime {
   async initialize(initialStatus: Extract<SessionRuntimeStatus, "active" | "paused">): Promise<void> {
     await this.lifecycle.add(async () => {
       this.status = initialStatus === "active" ? "active" : "paused";
-      await this.orchestrator.start();
       if (initialStatus === "paused") {
         await this.orchestrator.pause();
         this.tradeMonitor.stop();
       } else {
+        await this.orchestrator.start();
         this.tradeMonitor.start();
       }
     });

@@ -17,6 +17,7 @@ type ResolvedInstrument = {
 type AiResearchRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runAnalyst"]>>;
 type AiReviewRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runReviewer"]>>;
 type AiDecisionRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runDecisionMaker"]>>;
+type AiPipelineResult = { technical: AiResearchRun; fundamental: AiResearchRun; review: AiReviewRun; decision: AiDecisionRun };
 
 type DecisionOutput = {
   action: "trade" | "no_trade";
@@ -92,6 +93,10 @@ export class AgentOrchestrator {
   }
 
   async resume(): Promise<void> {
+    if (!this.started) {
+      await this.start();
+      return;
+    }
     this.queue.start();
   }
 
@@ -141,11 +146,13 @@ export class AgentOrchestrator {
     if (!pipeline) return;
 
     const { technical, fundamental, review, decision } = pipeline;
+    const totalAiCostUsd = sumAiPipelineCost(pipeline);
 
     for (const result of [technical, fundamental, review, decision]) {
       this.deps.agentRunsRepo.insert({ ...result.run, session_id: this.sessionId, trade_id: trade.id });
       this.deps.agentMessagesRepo.insert({ ...result.message, session_id: this.sessionId, trade_id: trade.id });
     }
+    this.deps.tradesRepo.patchAiCost(trade.id, totalAiCostUsd);
 
     const fresh = decision.output;
     if (fresh.action !== "trade") {
@@ -164,6 +171,7 @@ export class AgentOrchestrator {
       },
       config,
       fresh,
+      totalAiCostUsd,
     );
     this.deps.tradesRepo.patchPendingExecution(trade.id, {
       side: nextTrade.side,
@@ -216,6 +224,12 @@ export class AgentOrchestrator {
     }
     this.emitEvent("INFO", trade.id, `Placed ${updated.side} ${updated.instrumentSymbol} $${updated.position_size_usd} via broker (post-approval recheck).`, "broker");
     this.deps.bus.emit("trade_opened", opened);
+    this.emitEvent(
+      "INFO",
+      trade.id,
+      `Trade opened ${updated.side} ${updated.instrumentSymbol}; session waiting for position to close before next cycle.`,
+      "orchestrator",
+    );
   }
 
   private failRecheck(tradeId: string, approvalId: string, message: string): void {
@@ -258,15 +272,24 @@ export class AgentOrchestrator {
     if (!pipeline) return;
 
     const { technical, fundamental, review, decision } = pipeline;
+    const totalAiCostUsd = sumAiPipelineCost(pipeline);
 
-    const trade = this.createTradeFromDecision(instrument, config, decision.output);
+    const trade = this.createTradeFromDecision(instrument, config, decision.output, totalAiCostUsd);
     this.deps.tradesRepo.insert(trade);
     for (const result of [technical, fundamental, review, decision]) {
       this.deps.agentRunsRepo.insert({ ...result.run, session_id: this.sessionId, trade_id: trade.id });
       this.deps.agentMessagesRepo.insert({ ...result.message, session_id: this.sessionId, trade_id: trade.id });
     }
 
-    if (decision.output.action !== "trade") return;
+    if (decision.output.action !== "trade") {
+      this.emitEvent(
+        "INFO",
+        trade.id,
+        `No trade decision for ${trade.instrumentSymbol}; cycle complete.`,
+        "orchestrator",
+      );
+      return;
+    }
 
     const riskConfig = this.deps.strategyContextService.get(this.sessionId).riskConfig;
     const risk = this.deps.riskEngine.validateDecision({
@@ -324,6 +347,12 @@ export class AgentOrchestrator {
     }
     this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`, "broker");
     this.deps.bus.emit("trade_opened", opened);
+    this.emitEvent(
+      "INFO",
+      trade.id,
+      `Trade opened ${trade.side} ${trade.instrumentSymbol}; session waiting for position to close before next cycle.`,
+      "orchestrator",
+    );
     this.deps.logger.info(
       {
         sessionId: this.sessionId,
@@ -386,10 +415,7 @@ export class AgentOrchestrator {
     return { brokerOrderId: result.brokerOrderId, filledAvgPrice: result.filledAvgPrice };
   }
 
-  private async runAiPipeline(
-    instrument: ResolvedInstrument,
-    config: SessionConfig,
-  ): Promise<{ technical: AiResearchRun; fundamental: AiResearchRun; review: AiReviewRun; decision: AiDecisionRun } | null> {
+  private async runAiPipeline(instrument: ResolvedInstrument, config: SessionConfig): Promise<AiPipelineResult | null> {
     this.deps.logger.debug(
       { sessionId: this.sessionId, instrumentSymbol: instrument.symbol, instrumentClass: instrument.instrumentClass },
       "ai pipeline start",
@@ -516,6 +542,7 @@ export class AgentOrchestrator {
     instrument: ResolvedInstrument,
     config: SessionConfig,
     decision: DecisionOutput,
+    aiCostUsd: number,
   ): Trade {
     const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
     const prediction = this.resolvePredictionTradeFields(instrument, decision);
@@ -539,7 +566,7 @@ export class AgentOrchestrator {
       opened_at: null,
       closed_at: null,
       final_pnl_usd: null,
-      ai_cost_usd: 0,
+      ai_cost_usd: aiCostUsd,
       confidence_score: decision.confidence,
       broker_order_id: null,
       created_at: new Date().toISOString(),
@@ -550,6 +577,7 @@ export class AgentOrchestrator {
     instrument: ResolvedInstrument,
     config: SessionConfig,
     decision: DecisionOutput,
+    aiCostUsd: number,
   ): Trade {
     const id = crypto.randomUUID();
     const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
@@ -575,7 +603,7 @@ export class AgentOrchestrator {
       opened_at: null,
       closed_at: isTrade ? null : new Date().toISOString(),
       final_pnl_usd: isTrade ? null : 0,
-      ai_cost_usd: 0,
+      ai_cost_usd: aiCostUsd,
       confidence_score: decision.confidence,
       broker_order_id: null,
       created_at: new Date().toISOString(),
@@ -594,13 +622,14 @@ export class AgentOrchestrator {
       if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
       if (this.cycleRestartInFlight) return;
       this.cycleRestartInFlight = true;
+      this.emitEvent("INFO", trade.id, "Trade closed; session restarting research cycle.", "orchestrator");
       this.queue
         .add(async () => {
           const session = this.deps.sessionRepo.requireById(this.sessionId);
           const config = this.getSessionConfig();
           this.queue.concurrency = config.max_concurrent_trades;
           const instruments = await this.runResearchBurst(session, config);
-          this.emitEvent("INFO", null, `Trade closed; restarting research cycle for ${instruments.length} instruments.`, "orchestrator");
+          this.emitEvent("INFO", null, `Research cycle complete; ${instruments.length} new cycles enqueued.`, "orchestrator");
           this.enqueueTradeCycles(instruments);
         })
         .catch((error) => {
@@ -933,6 +962,15 @@ export class AgentOrchestrator {
         instrumentMetadataJson,
       }));
   }
+}
+
+function sumAiPipelineCost(pipeline: AiPipelineResult): number {
+  return Number(
+    (pipeline.technical.run.cost_usd +
+      pipeline.fundamental.run.cost_usd +
+      pipeline.review.run.cost_usd +
+      pipeline.decision.run.cost_usd).toFixed(6),
+  );
 }
 
 function remapPredictionMetadataForOutcome(

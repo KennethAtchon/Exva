@@ -27,6 +27,7 @@ import { toRunFromTrace, buildTraceMessage } from "./runtime-trace";
 import { withProviderRetry } from "./runtime-retry";
 import { analysisLabelsForStrategy, resolvePromptForRole } from "./runtime-prompt";
 import { parseInstrumentSelection } from "./instrument-selection-parser";
+import { tryParseDecisionFromText } from "./decision-parse";
 import { MockBrokerAdapter } from "../../broker/adapters/mock-adapter";
 import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
 import { DEFAULT_MOCK_NEWS } from "../tools/market-tools";
@@ -355,9 +356,27 @@ ${input.review}`;
       }),
     );
 
-    const obj = trace.structuredOutput;
+    let obj = trace.structuredOutput;
+    let parsedFromAssistantText = false;
     if (!obj) {
-      throw new AppError("Decision maker returned no structured trade decision.", "VALIDATION_FAILED");
+      const fallback = tryParseDecisionFromText(trace.assistantText);
+      if (!fallback) {
+        throw new AppError(
+          `Decision maker returned no parseable trade decision. textPreview=${trace.assistantText.slice(0, 200)}`,
+          "VALIDATION_FAILED",
+        );
+      }
+      obj = fallback;
+      parsedFromAssistantText = true;
+      logger.warn(
+        {
+          sessionId,
+          role,
+          cycleId: cycleId ?? null,
+          textLength: trace.assistantText.length,
+        },
+        "decision maker structured output missing; parsed from assistant text",
+      );
     }
 
     const run = toRunFromTrace(role, config.modelId, config.providerKey, trace);
@@ -387,7 +406,7 @@ ${input.review}`;
         outputSchemaName: "tradeDecision",
         strategySnapshotJson: JSON.stringify(promptPack.strategySnapshot),
         marketSnapshotJson: promptPack.marketSnapshotJson,
-        parseFallback: trace.parseFallback,
+        parseFallback: parsedFromAssistantText || trace.parseFallback,
       }),
       output: obj,
     };
