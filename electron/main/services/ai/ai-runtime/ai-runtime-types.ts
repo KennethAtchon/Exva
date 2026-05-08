@@ -48,12 +48,13 @@ export interface AgentResult<T> {
 }
 
 /** Role-specific harness caps (plan §4). */
+/* Loosen spend USD to 1$, max step to 50 each. */
 export const ROLE_HARNESS_CAPS: Record<AgentRole, { maxSteps: number; spendUsd: number }> = {
-  instrument_selector: { maxSteps: 25, spendUsd: 0.15 },
-  analyst_technical: { maxSteps: 12, spendUsd: 0.08 },
-  analyst_fundamental: { maxSteps: 12, spendUsd: 0.08 },
-  reviewer: { maxSteps: 8, spendUsd: 0.05 },
-  decision_maker: { maxSteps: 1, spendUsd: 0.04 },
+  instrument_selector: { maxSteps: 50, spendUsd: 1.0 },
+  analyst_technical: { maxSteps: 50, spendUsd: 1.0 },
+  analyst_fundamental: { maxSteps: 50, spendUsd: 1.0 },
+  reviewer: { maxSteps: 50, spendUsd: 1.0 },
+  decision_maker: { maxSteps: 50, spendUsd: 1.0 },
 };
 
 export type RoleToolPolicy = {
