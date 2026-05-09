@@ -19,6 +19,8 @@ describe("selectorConfigCheck", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.code).toBe("SEARCH_PROVIDER_REQUIRED");
+    expect(result.message).toContain("Brave or Tavily");
+    expect(result.message).toContain("OpenRouter");
   });
 
   it("accepts configured search provider and selector role", async () => {

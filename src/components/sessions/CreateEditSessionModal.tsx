@@ -9,6 +9,7 @@ interface Props {
   initialSession?: SessionSummary | null;
   templateInput?: SessionCreateInput | null;
   templateWarnings?: string[];
+  onOpenAccounts?: () => void;
   onClose: () => void;
   onSubmit: (input: SessionCreateInput, sessionId?: string) => Promise<void>;
 }
@@ -18,6 +19,7 @@ export const CreateEditSessionModal = ({
   initialSession,
   templateInput,
   templateWarnings,
+  onOpenAccounts,
   onClose,
   onSubmit,
 }: Props) => {
@@ -32,6 +34,7 @@ export const CreateEditSessionModal = ({
   const [loadingBrokers, setLoadingBrokers] = useState(false);
   const [brokerAccounts, setBrokerAccounts] = useState<BrokerAccount[]>([]);
   const [searchProviders, setSearchProviders] = useState<ProviderAccount[]>([]);
+  const [workspaceDefaultSearchProviderId, setWorkspaceDefaultSearchProviderId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -97,15 +100,16 @@ export const CreateEditSessionModal = ({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    void api
-      .listProviders()
-      .then((response) => {
+    void Promise.all([api.listProviders(), api.getWorkspaceView()])
+      .then(([providerResponse, workspaceView]) => {
         if (cancelled) return;
-        setSearchProviders(response.providers.filter((provider) => provider.category === "search" && provider.isConfigured));
+        setSearchProviders(providerResponse.providers.filter((provider) => provider.category === "search" && provider.isConfigured));
+        setWorkspaceDefaultSearchProviderId(workspaceView.preferences.defaultSearchProviderId);
       })
       .catch(() => {
         if (cancelled) return;
         setSearchProviders([]);
+        setWorkspaceDefaultSearchProviderId(null);
       });
 
     return () => {
@@ -135,6 +139,11 @@ export const CreateEditSessionModal = ({
   );
   const isValid = form.name.trim().length > 0 && form.objective.trim().length > 0 && form.instrumentClasses.length > 0;
   const hasBrokerCoverage = uncoveredInstrumentClasses.length === 0 && form.brokerAccountIds.length > 0;
+  const requiresSearchProviderSetup =
+    form.selectionMode === "ai_selected_universe" &&
+    form.selectorSettings.aiPickerEnabled &&
+    searchProviders.length === 0;
+  const workspaceDefaultSearchProviderName = searchProviders.find((provider) => provider.id === workspaceDefaultSearchProviderId)?.name ?? null;
 
   useEffect(() => {
     if (brokerAccounts.length === 0) return;
@@ -230,12 +239,27 @@ export const CreateEditSessionModal = ({
                       })
                     }
                     options={[
-                      { value: "__workspace_default__", label: "Workspace default" },
+                      {
+                        value: "__workspace_default__",
+                        label: workspaceDefaultSearchProviderName
+                          ? `Workspace default (${workspaceDefaultSearchProviderName})`
+                          : "Workspace default (not set)",
+                      },
                       ...searchProviders.map((provider) => ({ value: provider.id, label: provider.name })),
                     ]}
                   />
                 </Field>
               </div>
+              {requiresSearchProviderSetup ? (
+                <div style={warningBannerStyle}>
+                  AI-selected universe needs a configured search provider account before this session can be saved in selector mode. Add Brave or Tavily in Accounts. OpenRouter model accounts do not satisfy this requirement.
+                  {onOpenAccounts ? (
+                    <div style={{ marginTop: 10 }}>
+                      <button type="button" onClick={onOpenAccounts} style={inlineActionButtonStyle}>Open Accounts setup</button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               {form.selectionMode === "ai_selected_universe" ? (
                 <label style={switchRowStyle}>
                   <Switch
@@ -423,7 +447,7 @@ export const CreateEditSessionModal = ({
                 }
               }}
               className="bg-[var(--accent)] text-white"
-              disabled={saving || loadingSeed || !isValid || !hasBrokerCoverage}
+              disabled={saving || loadingSeed || !isValid || !hasBrokerCoverage || requiresSearchProviderSetup}
             >
               {saving ? "Saving..." : initialSession ? "Save Session" : "Create Session"}
             </Button>
@@ -547,6 +571,7 @@ const modeToggleStyle = { display: "grid", gridTemplateColumns: "repeat(2, minma
 const modeToggleButtonStyle = { border: "1px solid var(--border)", background: "transparent", color: "var(--text2)", borderRadius: 8, padding: "8px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" } as const;
 const modeToggleButtonActiveStyle = { background: "var(--accent)", color: "white", borderColor: "var(--accent)" } as const;
 const selectAllButtonStyle = { marginTop: 2, border: "1px solid var(--border)", background: "transparent", color: "var(--text2)", borderRadius: 8, padding: "7px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", justifySelf: "start" } as const;
+const inlineActionButtonStyle = { border: "1px solid rgba(251,191,36,0.34)", background: "rgba(7,10,15,0.34)", color: "#fde68a", borderRadius: 8, padding: "8px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" } as const;
 const warningTextStyle = { color: "#fbbf24", fontSize: 12, fontWeight: 600 } as const;
 const successTextStyle = { color: "#86efac", fontSize: 12, fontWeight: 600 } as const;
 const warningBannerStyle = { marginBottom: 16, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(251,191,36,0.34)", background: "rgba(251,191,36,0.08)", color: "#fcd34d", fontSize: 13, lineHeight: 1.5 } as const;

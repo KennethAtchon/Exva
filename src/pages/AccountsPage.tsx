@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Badge, Card, Dot, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
+import { AddSearchProviderModal } from "@/components/accounts/AddSearchProviderModal";
 import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
 import { api } from "@/lib/exva";
 import type { BrokerAccount, BrokerRoutingDefault, InstrumentClass, ProviderAccount, WorkspacePreferences } from "@/lib/types";
@@ -25,6 +26,10 @@ function aiProviderTypeLabel(providerType: string): string {
       return "OpenAI";
     case "openrouter":
       return "OpenRouter";
+    case "brave":
+      return "Brave Search";
+    case "tavily":
+      return "Tavily";
     default:
       return providerType;
   }
@@ -77,12 +82,14 @@ const ConnBadge = ({ ok }: { ok: boolean }) => (
 
 export const AccountsPage = () => {
   const [aiProviders, setAiProviders] = useState<ProviderAccount[]>([]);
+  const [searchProviders, setSearchProviders] = useState<ProviderAccount[]>([]);
   const [testing, setTesting] = useState(false);
-  const [status, setStatus] = useState<{ broker: boolean; ai: boolean }>({ broker: false, ai: false });
+  const [status, setStatus] = useState<{ broker: boolean; ai: boolean; search: boolean }>({ broker: false, ai: false, search: false });
   const [brokers, setBrokers] = useState<BrokerAccount[]>([]);
   const [prefs, setPrefs] = useState<WorkspacePreferences | null>(null);
   const [brokerModalOpen, setBrokerModalOpen] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [editApiKey, setEditApiKey] = useState("");
   const [editBaseUrl, setEditBaseUrl] = useState("");
@@ -104,18 +111,21 @@ export const AccountsPage = () => {
     setRoutingDraft(draft);
   };
 
-  const loadAiProviders = async () => {
+  const loadProviders = async () => {
     const list = await api.listProviders();
-    const next = list.providers.filter((p) => p.category === "ai");
-    setAiProviders(next);
+    const nextAi = list.providers.filter((p) => p.category === "ai");
+    const nextSearch = list.providers.filter((p) => p.category === "search");
+    setAiProviders(nextAi);
+    setSearchProviders(nextSearch);
     setStatus((prev) => ({
       ...prev,
-      ai: next.length > 0 && next.some((p) => p.lastTestStatus === "ok"),
+      ai: nextAi.length > 0 && nextAi.some((p) => p.lastTestStatus === "ok"),
+      search: nextSearch.length > 0 && nextSearch.some((p) => p.lastTestStatus === "ok"),
     }));
   };
 
   useEffect(() => {
-    void loadAiProviders();
+    void loadProviders();
     void loadWorkspaceAccounts();
   }, []);
 
@@ -124,21 +134,27 @@ export const AccountsPage = () => {
     try {
       const [provList, brokerResp] = await Promise.all([api.listProviders(), api.listBrokerAccounts()]);
       const aiList = provList.providers.filter((p) => p.category === "ai");
+      const searchList = provList.providers.filter((p) => p.category === "search");
       let anyAiOk = false;
+      let anySearchOk = false;
       for (const p of aiList) {
         const r = await api.testProvider(p.id).catch(() => ({ ok: false as const }));
         if (r.ok) anyAiOk = true;
       }
-      await loadAiProviders();
+      for (const p of searchList) {
+        const r = await api.testProvider(p.id).catch(() => ({ ok: false as const }));
+        if (r.ok) anySearchOk = true;
+      }
+      await loadProviders();
 
       let anyBrokerOk = false;
       for (const b of brokerResp.brokers) {
         const t = await api.testSavedBrokerAccount(b.id).catch(() => ({ ok: false as const }));
         if (t.ok) anyBrokerOk = true;
       }
-      setStatus({ broker: anyBrokerOk, ai: anyAiOk });
+      setStatus({ broker: anyBrokerOk, ai: anyAiOk, search: anySearchOk });
     } catch {
-      setStatus({ broker: false, ai: false });
+      setStatus({ broker: false, ai: false, search: false });
     } finally {
       setTesting(false);
     }
@@ -168,13 +184,14 @@ export const AccountsPage = () => {
       await api.saveProvider({
         id: p.id,
         name: p.name,
-        category: "ai",
+        category: p.category,
         providerType: p.providerType as ProviderAccount["providerType"],
         apiKey: trimmed,
         metadata,
       });
       await api.testProvider(p.id).catch(() => ({ ok: false }));
-      await loadAiProviders();
+      await loadProviders();
+      await loadWorkspaceAccounts();
       cancelEditProviderKey();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Could not save provider key.");
@@ -190,7 +207,8 @@ export const AccountsPage = () => {
     try {
       await api.deleteProvider(p.id);
       if (editingProviderId === p.id) cancelEditProviderKey();
-      await loadAiProviders();
+      await loadProviders();
+      await loadWorkspaceAccounts();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Could not delete provider.");
     } finally {
@@ -276,7 +294,7 @@ export const AccountsPage = () => {
                             onClick={async () => {
                               const r = await api.testProvider(p.id).catch(() => ({ ok: false as const }));
                               setStatus((s) => ({ ...s, ai: r.ok || s.ai }));
-                              await loadAiProviders();
+                              await loadProviders();
                             }}
                             style={{
                               fontSize: 11,
@@ -598,25 +616,219 @@ export const AccountsPage = () => {
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text1)", marginBottom: 3 }}>Web Search</div>
               <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                Researcher agents use this to fetch live news and market data
+                AI-selected universe sessions require a dedicated search account. Brave and Tavily are supported today.
               </div>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              {["Brave", "Tavily"].map((p) => (
-                <div
-                  key={p}
-                  style={{
-                    flex: 1, padding: "14px 16px",
-                    background: "var(--surface2)", border: "1px solid var(--border)",
-                    borderRadius: 10, display: "flex",
-                    justifyContent: "space-between", alignItems: "center",
-                  }}
-                >
-                  <span style={{ fontSize: 13, color: "var(--text2)", fontWeight: 500 }}>{p}</span>
-                  <Badge variant="default" size="sm">configure</Badge>
-                </div>
-              ))}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
+              <div style={{ fontSize: 12, color: "var(--text3)", maxWidth: 360, lineHeight: 1.5 }}>
+                OpenRouter model accounts do not satisfy this requirement. Configure a search account and optionally set a workspace default for AI-selected sessions.
+              </div>
+              {searchProviders.length === 0 ? (
+                <span style={{ fontSize: 11, color: "var(--text3)", fontWeight: 500 }}>None yet</span>
+              ) : (
+                <ConnBadge ok={status.search} />
+              )}
             </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {searchProviders.length === 0 && (
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                  No search providers yet. Add Brave or Tavily to unblock AI-selected universe mode.
+                </div>
+              )}
+              {searchProviders.map((p) => {
+                const statusColor =
+                  p.lastTestStatus === "ok" ? "#34d399" : p.lastTestStatus === "error" ? "#f87171" : "var(--text3)";
+                const statusLabel =
+                  p.lastTestStatus === "ok" ? "OK" : p.lastTestStatus === "error" ? "Error" : "Untested";
+                const isEditing = editingProviderId === p.id;
+                const isWorkspaceDefault = prefs?.defaultSearchProviderId === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 9,
+                      border: "1px solid var(--border)",
+                      background: "var(--surface2)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text1)" }}>{p.name}</div>
+                          {isWorkspaceDefault ? <Badge variant="blue" size="sm">workspace default</Badge> : null}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text3)", fontFamily: "var(--font-mono)" }}>
+                          {aiProviderTypeLabel(p.providerType)}
+                        </div>
+                        <div style={{ fontSize: 11, color: statusColor, marginTop: 4, fontWeight: 600 }}>{statusLabel}</div>
+                      </div>
+                      {!isEditing ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
+                          <button
+                            type="button"
+                            onClick={() => beginEditProviderKey(p)}
+                            style={{
+                              fontSize: 11,
+                              padding: "6px 10px",
+                              borderRadius: 7,
+                              border: "1px solid var(--border)",
+                              background: "var(--surface)",
+                              cursor: "pointer",
+                              color: "var(--text2)",
+                            }}
+                          >
+                            Update key
+                          </button>
+                          <button
+                            type="button"
+                            disabled={rowSavingId === p.id}
+                            onClick={async () => {
+                              const r = await api.testProvider(p.id).catch(() => ({ ok: false as const }));
+                              setStatus((s) => ({ ...s, search: r.ok || s.search }));
+                              await loadProviders();
+                            }}
+                            style={{
+                              fontSize: 11,
+                              padding: "6px 10px",
+                              borderRadius: 7,
+                              border: "1px solid var(--border)",
+                              background: "var(--surface)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Test
+                          </button>
+                          <button
+                            type="button"
+                            disabled={rowSavingId === p.id}
+                            onClick={() => void deleteProvider(p)}
+                            style={{
+                              fontSize: 11,
+                              padding: "6px 10px",
+                              borderRadius: 7,
+                              border: "1px solid rgba(248,113,113,0.35)",
+                              background: "rgba(248,113,113,0.08)",
+                              cursor: rowSavingId === p.id ? "wait" : "pointer",
+                              color: "#fca5a5",
+                            }}
+                          >
+                            {rowSavingId === p.id ? "Deleting…" : "Delete"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    {isEditing ? (
+                      <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+                        <InputField
+                          label="New API key"
+                          hint="stored in OS keychain"
+                          type="password"
+                          value={editApiKey}
+                          onChange={setEditApiKey}
+                          placeholder="Paste key…"
+                          mono
+                        />
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            disabled={rowSavingId === p.id}
+                            onClick={() => void saveEditedProviderKey(p)}
+                            style={{
+                              fontSize: 12,
+                              padding: "8px 12px",
+                              borderRadius: 8,
+                              border: "none",
+                              background: "var(--accent)",
+                              color: "#fff",
+                              fontWeight: 600,
+                              cursor: rowSavingId === p.id ? "wait" : "pointer",
+                              opacity: rowSavingId === p.id ? 0.85 : 1,
+                            }}
+                          >
+                            {rowSavingId === p.id ? "Saving…" : "Save to keychain"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={rowSavingId === p.id}
+                            onClick={cancelEditProviderKey}
+                            style={{
+                              fontSize: 12,
+                              padding: "8px 12px",
+                              borderRadius: 8,
+                              border: "1px solid var(--border)",
+                              background: "transparent",
+                              color: "var(--text2)",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>Workspace default search provider</div>
+                <ShadcnSelect
+                  value={prefs?.defaultSearchProviderId ?? ""}
+                  onValueChange={(value) =>
+                    setPrefs((current) =>
+                      current
+                        ? { ...current, defaultSearchProviderId: value || null }
+                        : current,
+                    )
+                  }
+                  className="w-full"
+                  options={[
+                    { value: "", label: searchProviders.length > 0 ? "No workspace default" : "No search providers configured" },
+                    ...searchProviders.map((provider) => ({ value: provider.id, label: provider.name })),
+                  ]}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!prefs) return;
+                  await api.patchWorkspacePreferences({ defaultSearchProviderId: prefs.defaultSearchProviderId });
+                  await loadWorkspaceAccounts();
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 9,
+                  border: "none",
+                  background: "var(--accent)",
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                Save search settings
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSearchModalOpen(true)}
+              style={{
+                marginTop: 12,
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 9,
+                border: "1px dashed var(--border)",
+                background: "transparent",
+                color: "var(--text2)",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              + Add search provider
+            </button>
           </Card>
 
           <Card accent>
@@ -671,7 +883,15 @@ export const AccountsPage = () => {
       <AddAiProviderModal
         open={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
-        onSaved={loadAiProviders}
+        onSaved={loadProviders}
+      />
+      <AddSearchProviderModal
+        open={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        onSaved={async () => {
+          await loadProviders();
+          await loadWorkspaceAccounts();
+        }}
       />
     </PageShell>
   );

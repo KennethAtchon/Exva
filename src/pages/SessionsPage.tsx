@@ -11,7 +11,7 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";
 
-export const SessionsPage = ({ onGoToStrategy }: { onGoToStrategy?: () => void }) => {
+export const SessionsPage = ({ onGoToStrategy, onGoToAccounts }: { onGoToStrategy?: () => void; onGoToAccounts?: () => void }) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const preferences = useWorkspaceStore((state) => state.preferences);
@@ -316,6 +316,7 @@ export const SessionsPage = ({ onGoToStrategy }: { onGoToStrategy?: () => void }
         initialSession={editing}
         templateInput={templateInput}
         templateWarnings={templateWarnings}
+        onOpenAccounts={onGoToAccounts}
         onClose={() => setModalOpen(false)}
         onSubmit={async (input, sessionId) => {
           if (sessionId) {
