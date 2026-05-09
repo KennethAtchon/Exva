@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ChevronsUpDown, Check } from "lucide-react";
 import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import {
@@ -25,6 +25,7 @@ const ModelCombobox = ({
   loading?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
+  const listId = useId();
   const selected = options.find((o) => o.id === value);
 
   return (
@@ -34,6 +35,8 @@ const ModelCombobox = ({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          aria-controls={listId}
+          aria-haspopup="listbox"
           disabled={disabled || loading}
           className="h-10 w-full justify-between border-border bg-[var(--surface2)] px-3 text-[13px] font-normal text-[var(--text1)] hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
         >
@@ -46,7 +49,7 @@ const ModelCombobox = ({
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command>
           <CommandInput placeholder="Search models…" />
-          <CommandList>
+          <CommandList id={listId}>
             <CommandEmpty className="px-3 py-3 text-[12px] text-[var(--text3)]">
               No models found.
             </CommandEmpty>

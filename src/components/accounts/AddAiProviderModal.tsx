@@ -7,6 +7,17 @@ export type AiProviderType = "anthropic" | "openai" | "openrouter";
 
 const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 };
 
+const anthropicHintStyle: CSSProperties = {
+  marginBottom: 16,
+  padding: "10px 12px",
+  background: "rgba(52,211,153,0.06)",
+  border: "1px solid rgba(52,211,153,0.15)",
+  borderRadius: 9,
+  fontSize: 12,
+  color: "var(--text3)",
+  lineHeight: 1.45,
+};
+
 const DEFAULT_NAMES: Record<AiProviderType, string> = {
   anthropic: "Anthropic",
   openai: "OpenAI",
@@ -139,25 +150,14 @@ export const AddAiProviderModal = ({
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder="https://openrouter.ai/api/v1"
             />
-            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 6 }}>
               Leave empty to use the default OpenRouter endpoint. Use a full https URL if you override it.
             </div>
           </div>
         ) : null}
 
         {providerType === "anthropic" ? (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: "10px 12px",
-              background: "rgba(52,211,153,0.06)",
-              border: "1px solid rgba(52,211,153,0.15)",
-              borderRadius: 9,
-              fontSize: 12,
-              color: "var(--text3)",
-              lineHeight: 1.45,
-            }}
-          >
+          <div style={anthropicHintStyle}>
             <span style={{ color: "#34d399", fontWeight: 600 }}>Prompt caching</span> is used on Anthropic models where
             supported, which typically cuts cost on repeated agent calls.
           </div>

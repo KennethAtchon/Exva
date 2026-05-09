@@ -177,7 +177,7 @@ export const STRATEGY_PRESETS: readonly StrategyPreset[] = [
   },
 ];
 
-export const STRATEGY_BRIEF_MARKDOWN_MAX_CHARS = 1_200;
+const STRATEGY_BRIEF_MARKDOWN_MAX_CHARS = 1_200;
 
 /** Bar size the session uses for analysis and agent context. */
 export type TradingTimeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
@@ -242,7 +242,7 @@ export function validateSessionStrategyTimeframeFields(s: SessionStrategy): void
   }
 }
 
-export function validateSessionTimeframeConfigFields(timeframe: SessionTimeframeConfig): void {
+function validateSessionTimeframeConfigFields(timeframe: SessionTimeframeConfig): void {
   if (!isTradingTimeframe(timeframe.primaryTradingTimeframe)) {
     throw new Error("Select a primary trading timeframe.");
   }
