@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getSearchProviderDisplayName } from "@electron/shared/search-providers";
 import { AgentLabel, Dot, PageShell } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
@@ -291,7 +292,10 @@ const ExecutionCard = ({ session, stats }: { session: SessionSummary | null; sta
   <div style={S.card}>
     <div style={S.cardTitle}>Execution</div>
     <DataRow label="exec mode" value={session?.executionMode ?? "—"} />
-    <DataRow label="search" value={session?.defaultSearchProviderId ?? <span style={{ color: "var(--text3)" }}>workspace default</span>} />
+    <DataRow
+      label="search"
+      value={session ? getSearchProviderDisplayName(session.defaultSearchProviderId) : <span style={{ color: "var(--text3)" }}>workspace default</span>}
+    />
     <DataRow label="open trades" value={stats?.open_trades ?? "—"} />
     <DataRow label="daily spend" value={stats ? fmt.usd(stats.daily_api_spend, 4) : "—"} />
     <DataRow label="selection" value={session?.selectionMode?.replace("_", " ") ?? "—"} />

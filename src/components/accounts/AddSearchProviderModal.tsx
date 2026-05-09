@@ -82,7 +82,7 @@ export const AddSearchProviderModal = ({
           <DialogTitle className="text-base font-bold text-[var(--text1)]">Add search provider</DialogTitle>
         </DialogHeader>
         <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 16, lineHeight: 1.45 }}>
-          Search accounts power `search_web` and search-backed market news for AI-selected universe sessions.
+          Exva already includes DuckDuckGo as the built-in default search path. Add Brave or Tavily here only if you want an API-backed provider instead.
         </p>
 
         <div style={{ marginBottom: 14 }}>
@@ -131,7 +131,7 @@ export const AddSearchProviderModal = ({
             lineHeight: 1.45,
           }}
         >
-          Configure at least one search provider, then optionally set it as the workspace default so AI-selected sessions inherit it automatically.
+          Optional providers let you override the built-in default for sessions that need a specific backend.
         </div>
 
         {message ? (

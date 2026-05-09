@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/search-providers";
 import { selectorConfigCheck } from "./selector-config-check";
 
 describe("selectorConfigCheck", () => {
@@ -19,7 +20,7 @@ describe("selectorConfigCheck", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.code).toBe("SEARCH_PROVIDER_REQUIRED");
-    expect(result.message).toContain("Brave or Tavily");
+    expect(result.message).toContain("DuckDuckGo");
     expect(result.message).toContain("OpenRouter");
   });
 
@@ -34,6 +35,24 @@ describe("selectorConfigCheck", () => {
             : id === "ai-1"
               ? { id, category: "ai", isConfigured: true }
             : null,
+      },
+      sessionAiRolesRepo: { getByRole: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
+    } as never);
+
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("accepts the built-in workspace default search provider", async () => {
+    const result = await selectorConfigCheck(baseSession as never, {
+      sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+      workspacePreferencesRepo: { get: () => ({ defaultSearchProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID }) },
+      providerAccountsRepo: {
+        find: (id: string) =>
+          id === BUILT_IN_DUCKDUCKGO_PROVIDER_ID
+            ? { id, category: "search", isConfigured: true }
+            : id === "ai-1"
+              ? { id, category: "ai", isConfigured: true }
+              : null,
       },
       sessionAiRolesRepo: { getByRole: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
     } as never);

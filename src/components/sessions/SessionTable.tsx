@@ -1,6 +1,7 @@
 import { Badge } from "@/components/custom-ui";
 import { Button } from "@/components/ui";
 import type { SessionSummary } from "@/lib/exva";
+import { getSearchProviderDisplayName } from "@electron/shared/search-providers";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";
 
@@ -88,7 +89,7 @@ export const SessionTable = ({
             <div style={metaGridStyle}>
               <MetaBlock label="Scope" value={session.instrumentScope} />
               <MetaBlock label="Capital" value={`$${session.capitalLimitUsd.toLocaleString()}`} />
-              <MetaBlock label="Search" value={session.defaultSearchProviderId ?? "Workspace default"} />
+              <MetaBlock label="Search" value={getSearchProviderDisplayName(session.defaultSearchProviderId)} />
               <MetaBlock label="Updated" value={formatTimestamp(session.updatedAt)} />
             </div>
 

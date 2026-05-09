@@ -1,8 +1,10 @@
 import { AppError } from "@electron/shared/errors";
+import { isBuiltInSearchProviderAccount } from "@electron/shared/search-providers";
 import type { ProviderAccount } from "@/lib/types";
 import type { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts-repo";
 import type { SecretsService } from "../../infra/secrets-service";
 import { BraveAdapter } from "./adapters/brave-adapter";
+import { DuckDuckGoAdapter } from "./adapters/duckduckgo-adapter";
 import { TavilyAdapter } from "./adapters/tavily-adapter";
 import type { SearchAdapter } from "./search-types";
 
@@ -23,8 +25,8 @@ export class SearchRegistry {
       throw new AppError(`Search provider not configured: ${providerKey}`, "SEARCH_PROVIDER_REQUIRED", { providerKey });
     }
 
-    const secret = await this.secrets.get(account.secretRef);
-    if (!secret) {
+    const secret = isBuiltInSearchProviderAccount(account) ? null : await this.secrets.get(account.secretRef);
+    if (!isBuiltInSearchProviderAccount(account) && !secret) {
       throw new AppError(`No secret for search provider: ${providerKey}`, "MISSING_SECRET", { providerKey });
     }
 
@@ -37,12 +39,14 @@ export class SearchRegistry {
     this.adapters.delete(providerKey);
   }
 
-  private buildAdapter(account: ProviderAccount, secret: string): SearchAdapter {
+  private buildAdapter(account: ProviderAccount, secret: string | null): SearchAdapter {
     switch (account.providerType) {
+      case "duckduckgo":
+        return new DuckDuckGoAdapter();
       case "brave":
-        return new BraveAdapter(secret);
+        return new BraveAdapter(secret ?? "");
       case "tavily":
-        return new TavilyAdapter(secret);
+        return new TavilyAdapter(secret ?? "");
       default:
         throw new AppError(`Unsupported search provider type: ${account.providerType}`, "SEARCH_PROVIDER_REQUIRED");
     }

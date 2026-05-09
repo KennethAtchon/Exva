@@ -142,7 +142,8 @@ export const CreateEditSessionModal = ({
   const requiresSearchProviderSetup =
     form.selectionMode === "ai_selected_universe" &&
     form.selectorSettings.aiPickerEnabled &&
-    searchProviders.length === 0;
+    !form.defaultSearchProviderId &&
+    !workspaceDefaultSearchProviderId;
   const workspaceDefaultSearchProviderName = searchProviders.find((provider) => provider.id === workspaceDefaultSearchProviderId)?.name ?? null;
 
   useEffect(() => {
@@ -252,7 +253,7 @@ export const CreateEditSessionModal = ({
               </div>
               {requiresSearchProviderSetup ? (
                 <div style={warningBannerStyle}>
-                  AI-selected universe needs a configured search provider account before this session can be saved in selector mode. Add Brave or Tavily in Accounts. OpenRouter model accounts do not satisfy this requirement.
+                  AI-selected universe needs a search provider before this session can be saved in selector mode. DuckDuckGo is built in by default, and you can optionally add Brave or Tavily in Accounts. OpenRouter model accounts do not satisfy this requirement.
                   {onOpenAccounts ? (
                     <div style={{ marginTop: 10 }}>
                       <button type="button" onClick={onOpenAccounts} style={inlineActionButtonStyle}>Open Accounts setup</button>

@@ -14,7 +14,7 @@ export async function selectorConfigCheck(session: WorkspaceSession, deps: Orche
     return {
       ok: false,
       code: "SEARCH_PROVIDER_REQUIRED",
-      message: "AI-selected universe needs a configured search provider account (Brave or Tavily). Set a session override or workspace default before starting. OpenRouter model accounts do not satisfy this requirement.",
+      message: "AI-selected universe needs a search provider. Use the built-in DuckDuckGo default or configure Brave/Tavily in Accounts. OpenRouter model accounts do not satisfy this requirement.",
       details: { sessionId: session.id },
     };
   }
@@ -23,7 +23,7 @@ export async function selectorConfigCheck(session: WorkspaceSession, deps: Orche
     return {
       ok: false,
       code: "SEARCH_PROVIDER_REQUIRED",
-      message: "The configured search provider for AI-selected universe is missing or not connected. Fix the Brave or Tavily account in Accounts before starting.",
+      message: "The configured search provider for AI-selected universe is missing or not connected. Fix the search provider setting in Accounts before starting.",
       details: { sessionId: session.id, providerKey: searchProviderId },
     };
   }

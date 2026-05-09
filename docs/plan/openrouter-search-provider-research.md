@@ -191,7 +191,7 @@ Reason:
 
 1. Should Exva continue with separate search accounts long-term, or eventually support provider-native web-search tools from model vendors where available?
 2. Is Brave or Tavily the intended default recommendation for users, based on cost and result quality?
-3. After search-provider setup is fixed, is `google/gemma-*` on OpenRouter strong enough for `instrument_selector`, especially when first-step search and tool-use discipline are required?
+3. After search-provider setup is fixed, is `google/gemma-`* on OpenRouter strong enough for `instrument_selector`, especially when first-step search and tool-use discipline are required?
 
 ## Bottom Line
 

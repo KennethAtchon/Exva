@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isBuiltInSearchProviderAccount, parseProviderMetadata } from "@electron/shared/search-providers";
 import { Badge, Card, Dot, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
 import { AddSearchProviderModal } from "@/components/accounts/AddSearchProviderModal";
@@ -6,19 +7,7 @@ import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
 import { api } from "@/lib/exva";
 import type { BrokerAccount, BrokerRoutingDefault, InstrumentClass, ProviderAccount, WorkspacePreferences } from "@/lib/types";
 
-function parseProviderAccountMetadata(json: string | null): { baseUrl?: string } {
-  if (!json) return {};
-  try {
-    const v = JSON.parse(json) as unknown;
-    if (typeof v !== "object" || v === null) return {};
-    const raw = (v as { baseUrl?: unknown }).baseUrl;
-    return typeof raw === "string" && raw.trim().length > 0 ? { baseUrl: raw.trim() } : {};
-  } catch {
-    return {};
-  }
-}
-
-function aiProviderTypeLabel(providerType: string): string {
+function providerTypeLabel(providerType: string): string {
   switch (providerType) {
     case "anthropic":
       return "Anthropic";
@@ -30,6 +19,8 @@ function aiProviderTypeLabel(providerType: string): string {
       return "Brave Search";
     case "tavily":
       return "Tavily";
+    case "duckduckgo":
+      return "DuckDuckGo";
     default:
       return providerType;
   }
@@ -95,6 +86,7 @@ export const AccountsPage = () => {
   const [editBaseUrl, setEditBaseUrl] = useState("");
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [routingDraft, setRoutingDraft] = useState<Partial<Record<InstrumentClass, string>>>({});
+  const hasTestedSearchProvider = searchProviders.some((provider) => provider.lastTestStatus !== "unknown");
 
   const loadWorkspaceAccounts = async () => {
     const [b, r, view] = await Promise.all([
@@ -163,7 +155,8 @@ export const AccountsPage = () => {
   const beginEditProviderKey = (p: ProviderAccount) => {
     setEditingProviderId(p.id);
     setEditApiKey("");
-    setEditBaseUrl(parseProviderAccountMetadata(p.metadataJson).baseUrl ?? "");
+    const metadata = parseProviderMetadata(p.metadataJson);
+    setEditBaseUrl(metadata.baseUrl ?? "");
   };
 
   const cancelEditProviderKey = () => {
@@ -178,9 +171,9 @@ export const AccountsPage = () => {
     setRowSavingId(p.id);
     try {
       const metadata =
-        p.providerType === "openrouter" && editBaseUrl.trim().length > 0
-          ? { baseUrl: editBaseUrl.trim() }
-          : undefined;
+        p.providerType === "openrouter"
+          ? (editBaseUrl.trim().length > 0 ? { baseUrl: editBaseUrl.trim() } : undefined)
+            : undefined;
       await api.saveProvider({
         id: p.id,
         name: p.name,
@@ -267,7 +260,7 @@ export const AccountsPage = () => {
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text1)" }}>{p.name}</div>
                         <div style={{ fontSize: 11, color: "var(--text3)", fontFamily: "var(--font-mono)" }}>
-                          {aiProviderTypeLabel(p.providerType)}
+                          {providerTypeLabel(p.providerType)}
                         </div>
                         <div style={{ fontSize: 11, color: statusColor, marginTop: 4, fontWeight: 600 }}>{statusLabel}</div>
                       </div>
@@ -621,21 +614,19 @@ export const AccountsPage = () => {
             </div>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
               <div style={{ fontSize: 12, color: "var(--text3)", maxWidth: 360, lineHeight: 1.5 }}>
-                OpenRouter model accounts do not satisfy this requirement. Configure a search account and optionally set a workspace default for AI-selected sessions.
+                OpenRouter model accounts do not satisfy this requirement. DuckDuckGo is built in by default, and you can add Brave or Tavily if you want an API-backed override.
               </div>
               {searchProviders.length === 0 ? (
                 <span style={{ fontSize: 11, color: "var(--text3)", fontWeight: 500 }}>None yet</span>
+              ) : !hasTestedSearchProvider ? (
+                <span style={{ fontSize: 11, color: "var(--text3)", fontWeight: 500 }}>Built-in default</span>
               ) : (
                 <ConnBadge ok={status.search} />
               )}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {searchProviders.length === 0 && (
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                  No search providers yet. Add Brave or Tavily to unblock AI-selected universe mode.
-                </div>
-              )}
               {searchProviders.map((p) => {
+                const isBuiltIn = isBuiltInSearchProviderAccount(p);
                 const statusColor =
                   p.lastTestStatus === "ok" ? "#34d399" : p.lastTestStatus === "error" ? "#f87171" : "var(--text3)";
                 const statusLabel =
@@ -653,33 +644,36 @@ export const AccountsPage = () => {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text1)" }}>{p.name}</div>
-                          {isWorkspaceDefault ? <Badge variant="blue" size="sm">workspace default</Badge> : null}
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text1)" }}>{p.name}</div>
+                            {isWorkspaceDefault ? <Badge variant="blue" size="sm">workspace default</Badge> : null}
+                            {isBuiltIn ? <Badge variant="default" size="sm">built-in</Badge> : null}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--text3)", fontFamily: "var(--font-mono)" }}>
+                            {providerTypeLabel(p.providerType)}
+                          </div>
+                          <div style={{ fontSize: 11, color: statusColor, marginTop: 4, fontWeight: 600 }}>{statusLabel}</div>
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--text3)", fontFamily: "var(--font-mono)" }}>
-                          {aiProviderTypeLabel(p.providerType)}
-                        </div>
-                        <div style={{ fontSize: 11, color: statusColor, marginTop: 4, fontWeight: 600 }}>{statusLabel}</div>
-                      </div>
                       {!isEditing ? (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "flex-end" }}>
-                          <button
-                            type="button"
-                            onClick={() => beginEditProviderKey(p)}
-                            style={{
-                              fontSize: 11,
-                              padding: "6px 10px",
-                              borderRadius: 7,
-                              border: "1px solid var(--border)",
-                              background: "var(--surface)",
-                              cursor: "pointer",
-                              color: "var(--text2)",
-                            }}
-                          >
-                            Update key
-                          </button>
+                          {!isBuiltIn ? (
+                            <button
+                              type="button"
+                              onClick={() => beginEditProviderKey(p)}
+                              style={{
+                                fontSize: 11,
+                                padding: "6px 10px",
+                                borderRadius: 7,
+                                border: "1px solid var(--border)",
+                                background: "var(--surface)",
+                                cursor: "pointer",
+                                color: "var(--text2)",
+                              }}
+                            >
+                              Update key
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             disabled={rowSavingId === p.id}
@@ -699,22 +693,24 @@ export const AccountsPage = () => {
                           >
                             Test
                           </button>
-                          <button
-                            type="button"
-                            disabled={rowSavingId === p.id}
-                            onClick={() => void deleteProvider(p)}
-                            style={{
-                              fontSize: 11,
-                              padding: "6px 10px",
-                              borderRadius: 7,
-                              border: "1px solid rgba(248,113,113,0.35)",
-                              background: "rgba(248,113,113,0.08)",
-                              cursor: rowSavingId === p.id ? "wait" : "pointer",
-                              color: "#fca5a5",
-                            }}
-                          >
-                            {rowSavingId === p.id ? "Deleting…" : "Delete"}
-                          </button>
+                          {!isBuiltIn ? (
+                            <button
+                              type="button"
+                              disabled={rowSavingId === p.id}
+                              onClick={() => void deleteProvider(p)}
+                              style={{
+                                fontSize: 11,
+                                padding: "6px 10px",
+                                borderRadius: 7,
+                                border: "1px solid rgba(248,113,113,0.35)",
+                                background: "rgba(248,113,113,0.08)",
+                                cursor: rowSavingId === p.id ? "wait" : "pointer",
+                                color: "#fca5a5",
+                              }}
+                            >
+                              {rowSavingId === p.id ? "Deleting…" : "Delete"}
+                            </button>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
@@ -785,7 +781,7 @@ export const AccountsPage = () => {
                   }
                   className="w-full"
                   options={[
-                    { value: "", label: searchProviders.length > 0 ? "No workspace default" : "No search providers configured" },
+                    { value: "", label: "No workspace default" },
                     ...searchProviders.map((provider) => ({ value: provider.id, label: provider.name })),
                   ]}
                 />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getSearchProviderDisplayName } from "@electron/shared/search-providers";
 import { Badge } from "@/components/custom-ui";
 import { api, type SessionSummary } from "@/lib/exva";
 import type { EventRow, InstrumentClass, ProviderAccount, SessionTemplatePayload } from "@/lib/types";
@@ -87,7 +88,7 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
             <Section title="Task Definition">
               <Row label="Instrument scope" value={session.instrumentScope} />
               <Row label="Selection mode" value={session.selectionMode === "ai_selected_universe" ? "AI selected universe" : "Manual shortlist"} />
-              <Row label="Search provider" value={session.defaultSearchProviderId ?? "Workspace default"} />
+              <Row label="Search provider" value={getSearchProviderDisplayName(session.defaultSearchProviderId)} />
               <Row label="AI picker" value={payload?.selectorSettings.aiPickerEnabled ? "Enabled" : "Disabled"} />
               {session.selectionMode === "ai_selected_universe" ? (
                 <div style={{ marginTop: 4 }}>

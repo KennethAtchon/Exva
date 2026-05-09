@@ -12,6 +12,7 @@ import {
 } from "@/lib/schemas";
 import { channels } from "@electron/shared/channels";
 import { AppError } from "@electron/shared/errors";
+import { isBuiltInSearchProviderAccount } from "@electron/shared/search-providers";
 import type { AppServices } from "../services/app-services";
 import { serializeBrokerCredentials, tempBrokerAccount } from "./broker-account-helpers";
 import { secretKeys } from "../services/infra/secrets-service";
@@ -44,6 +45,10 @@ export function registerAccountHandlers(services: AppServices): void {
   handle(ipcMain, channels.accounts.saveProvider, async (payload) => {
     const input = providerAccountSaveSchema.parse(payload);
     const id = input.id ?? crypto.randomUUID();
+    const existing = input.id ? services.repos.providerAccounts.find(input.id) : null;
+    if (existing && isBuiltInSearchProviderAccount(existing)) {
+      throw new AppError("Built-in search providers cannot be edited.", "VALIDATION_FAILED", { id: existing.id });
+    }
     const secretRef = `provider:${id}`;
     await services.secrets.set(secretRef, input.apiKey);
     services.repos.providerAccounts.upsert({
@@ -64,6 +69,9 @@ export function registerAccountHandlers(services: AppServices): void {
     const { id } = providerAccountDeleteSchema.parse(payload);
     const account = services.repos.providerAccounts.find(id);
     if (!account) throw new AppError(`Provider ${id} was not found`, "NOT_FOUND", { id });
+    if (isBuiltInSearchProviderAccount(account)) {
+      throw new AppError("Built-in search providers cannot be deleted.", "VALIDATION_FAILED", { id });
+    }
     await services.secrets.delete(account.secretRef);
     services.repos.providerAccounts.delete(id);
     services.providerRegistry.invalidate(id);
