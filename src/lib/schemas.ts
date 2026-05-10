@@ -73,7 +73,6 @@ export const instrumentSelectionSchema = z.object({
         rationale: z.string().optional(),
       }),
     )
-    .min(1)
     .max(50),
 });
 
@@ -95,7 +94,6 @@ export const instrumentSelectionToolInputSchema = z.object({
         rationale: z.string().optional(),
       }),
     )
-    .min(1)
     .max(50),
 });
 
