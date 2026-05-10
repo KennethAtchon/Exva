@@ -74,6 +74,9 @@ export const channels = {
   events: {
     list: "events:list",
     getAgentTraces: "events:get-agent-traces",
+    getAgentTracesByCycle: "events:get-agent-traces-by-cycle",
+    getMessagesByCycle: "events:get-messages-by-cycle",
+    getApiCallLog: "events:get-api-call-log",
   },
   approvals: {
     list: "approval:list",

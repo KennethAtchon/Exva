@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMarketTools } from "../tools/market-tools";
+import { createMarketTools, scenarioMockNews } from "../tools/market-tools";
 
 type StockToolExecutor = { execute: (input: { symbol: string; instrumentClass: "stock" }) => Promise<unknown> };
 type OhlcvToolExecutor = {
@@ -51,7 +51,7 @@ describe("market-tools", () => {
       brokerAccountIdByClass: () => "b1",
       include: { quote: false, ohlcv: false, news: true },
       mockNewsData: [
-        { title: "Mock catalyst", snippet: "Catalyst snippet", url: "https://mock.local/1", publishedAt: "2026-05-08T00:00:00.000Z" },
+        { title: "{symbol} catalyst", snippet: "Catalyst snippet for {symbol}", url: "https://mock.local/1", publishedAt: "2026-05-08T00:00:00.000Z" },
       ],
     });
 
@@ -59,5 +59,24 @@ describe("market-tools", () => {
     const out = await getNews.execute({ symbol: "AAPL" });
 
     expect(out.results).toHaveLength(1);
+    expect(out.results?.[0]).toMatchObject({
+      title: "AAPL catalyst",
+      snippet: "Catalyst snippet for AAPL",
+      query: "AAPL",
+    });
+  });
+
+  it("returns bullish scenario news with momentum wording", () => {
+    const news = scenarioMockNews("bullish");
+    const combined = news.map((item) => `${item.title} ${item.snippet}`).join(" ").toLowerCase();
+
+    expect(news).toHaveLength(3);
+    expect(combined).toMatch(/breakout|momentum|bullish|strength/);
+  });
+
+  it("returns three news items for every scenario", () => {
+    for (const bias of ["bullish", "bearish", "sideways", "volatile"] as const) {
+      expect(scenarioMockNews(bias)).toHaveLength(3);
+    }
   });
 });

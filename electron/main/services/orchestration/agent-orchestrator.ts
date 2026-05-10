@@ -481,6 +481,7 @@ export class AgentOrchestrator {
     session: WorkspaceSession,
     toolCallsJson: string | null,
     instruments: Array<ResolvedInstrument & { rationale?: string }>,
+    cycleId?: string | null,
   ): { instruments: ResolvedInstrument[]; researchBriefsBySymbol: Record<string, string> } {
     const traces = this.parseToolTraces(toolCallsJson);
     const strategy = this.deps.strategyContextService.get(session.id).profile;
@@ -489,11 +490,26 @@ export class AgentOrchestrator {
     const researchBriefsBySymbol: Record<string, string> = {};
 
     for (const instrument of instruments) {
-      if (!session.instrumentClasses.includes(instrument.instrumentClass)) continue;
-      if (!instrument.rationale?.trim()) continue;
-      if (!this.hasSuccessfulQuote(traces, instrument)) continue;
-      if (!this.hasDiscoveryEvidence(traces, instrument, hadSearch)) continue;
-      if (this.contradictsStrategy(strategy.sideBias, instrument.rationale)) continue;
+      if (!session.instrumentClasses.includes(instrument.instrumentClass)) {
+        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - class ${instrument.instrumentClass} not enabled for session`, "orchestrator", cycleId ?? null);
+        continue;
+      }
+      if (!instrument.rationale?.trim()) {
+        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - missing rationale`, "orchestrator", cycleId ?? null);
+        continue;
+      }
+      if (!this.hasSuccessfulQuote(traces, instrument)) {
+        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - missing successful quote call`, "orchestrator", cycleId ?? null);
+        continue;
+      }
+      if (!this.hasDiscoveryEvidence(traces, instrument, hadSearch)) {
+        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - no discovery evidence from news/search`, "orchestrator", cycleId ?? null);
+        continue;
+      }
+      if (this.contradictsStrategy(strategy.sideBias, instrument.rationale)) {
+        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - rationale contradicts ${strategy.sideBias}`, "orchestrator", cycleId ?? null);
+        continue;
+      }
 
       const selectorResearchBrief = this.buildSelectorResearchBrief(instrument, traces);
       researchBriefsBySymbol[instrument.symbol] = selectorResearchBrief;
@@ -854,10 +870,12 @@ export class AgentOrchestrator {
     tradeId: string | null,
     message: string,
     agentType: EventSourceType | null = null,
+    cycleId: string | null = null,
   ): void {
     const event = this.deps.eventsRepo.insert({
       session_id: this.sessionId,
       trade_id: tradeId,
+      cycle_id: cycleId,
       level,
       agent_type: agentType,
       message,
@@ -886,8 +904,8 @@ export class AgentOrchestrator {
       return this.parseManualShortlist(session, config);
     }
 
-    this.emitEvent("INFO", null, "Running instrument selector agent...");
     const cycleId = crypto.randomUUID();
+    this.emitEvent("INFO", null, "Running instrument selector agent...", "orchestrator", cycleId);
     this.deps.bus.emit("research_phase_step", {
       sessionId: this.sessionId,
       phase: "selector",
@@ -900,7 +918,7 @@ export class AgentOrchestrator {
       cycleId,
     );
 
-    const selectorValidation = this.validateSelectorOutput(session, result.message.tool_calls_json, result.output.instruments);
+    const selectorValidation = this.validateSelectorOutput(session, result.message.tool_calls_json, result.output.instruments, cycleId);
 
     const filtered = selectorValidation.instruments.filter((row: ResolvedInstrument) =>
       session.instrumentClasses.includes(row.instrumentClass),
@@ -939,7 +957,7 @@ export class AgentOrchestrator {
       researchGeneratedAt: new Date().toISOString(),
     });
 
-    this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`);
+    this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`, "orchestrator", cycleId);
     this.deps.bus.emit("research_phase_step", {
       sessionId: this.sessionId,
       phase: "selector",

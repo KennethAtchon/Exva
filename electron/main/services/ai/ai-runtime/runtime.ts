@@ -30,7 +30,7 @@ import { parseInstrumentSelection } from "./instrument-selection-parser";
 import { tryParseDecisionFromText } from "./decision-parse";
 import { MockBrokerAdapter } from "../../broker/adapters/mock-adapter";
 import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
-import { DEFAULT_MOCK_NEWS } from "../tools/market-tools";
+import { scenarioMockNews, type MockNewsItem } from "../tools/market-tools";
 
 const logger = createLogger("ai-runtime");
 
@@ -219,6 +219,7 @@ ${input.review}`;
     const trace = await withProviderRetry(() =>
       adapter.runAgent({
         model: config.modelId,
+        role,
         messages,
         tools,
         maxSteps: caps.maxSteps,
@@ -310,9 +311,10 @@ ${input.review}`;
 
     const trace = await withProviderRetry(() =>
       adapter.runAgent({
-          model: config.modelId,
-          messages,
-          tools,
+        model: config.modelId,
+        role,
+        messages,
+        tools,
         maxSteps: caps.maxSteps,
         spendLimitUsd: caps.spendUsd,
         temperature: resolveTemperature(config.modelId, config.temperature),
@@ -375,6 +377,7 @@ ${input.review}`;
     const trace = await withProviderRetry(() =>
       adapter.runAgent({
         model: config.modelId,
+        role,
         messages,
         maxSteps: caps.maxSteps,
         spendLimitUsd: caps.spendUsd,
@@ -491,14 +494,14 @@ ${input.review}`;
   private async getMockContext(sessionId: string): Promise<{
     isMock: boolean;
     getMockOhlcv: ((symbol: string) => MockOhlcvBar[]) | undefined;
-    mockNewsData: typeof DEFAULT_MOCK_NEWS | undefined;
+    mockNewsData: MockNewsItem[] | undefined;
   }> {
     const mockAdapter = await this.resolveMockAdapter(sessionId);
     if (!mockAdapter) return { isMock: false, getMockOhlcv: undefined, mockNewsData: undefined };
     return {
       isMock: true,
       getMockOhlcv: (symbol: string) => mockAdapter.getMockOhlcv(symbol),
-      mockNewsData: DEFAULT_MOCK_NEWS,
+      mockNewsData: scenarioMockNews(mockAdapter.getScenarioBias()),
     };
   }
 

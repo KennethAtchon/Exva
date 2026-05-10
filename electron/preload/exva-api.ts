@@ -1,5 +1,7 @@
 import type {
+  AgentMessage,
   AgentRole,
+  ApiCallLogEntry,
   AgentRun,
   ApprovalSummary,
   BrokerAccount,
@@ -270,6 +272,9 @@ export interface ExvaApi {
       sessionId?: string;
     }): Promise<EventRow[]>;
     getAgentTraces(tradeId: string): Promise<AgentRun[]>;
+    getAgentTracesByCycle(cycleId: string): Promise<AgentRun[]>;
+    getMessagesByCycle(cycleId: string): Promise<AgentMessage[]>;
+    getApiCallLog(filters: { sessionId: string; cycleId?: string | null; tradeId?: string | null }): Promise<ApiCallLogEntry[]>;
     subscribe<K extends ExvaEventName>(name: K, handler: (payload: ExvaEventMap[K]) => void): () => void;
   };
 }

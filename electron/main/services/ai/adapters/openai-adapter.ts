@@ -31,6 +31,7 @@ export class OpenAiAdapter implements ProviderAdapter {
     return executeRunAgent({
       model: client(opts.model),
       modelId: opts.model,
+      role: opts.role,
       messages: opts.messages,
       tools: opts.tools,
       maxSteps: opts.maxSteps,

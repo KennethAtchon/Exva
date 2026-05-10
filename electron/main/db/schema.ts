@@ -307,6 +307,7 @@ export const events = sqliteTable("events", {
   id: text("id").primaryKey(),
   sessionId: text("session_id").references(() => sessions.id, { onDelete: "set null" }),
   tradeId: text("trade_id").references(() => trades.id, { onDelete: "set null" }),
+  cycleId: text("cycle_id"),
   level: text("level").notNull(),
   agentType: text("agent_type"),
   message: text("message").notNull(),

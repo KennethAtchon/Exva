@@ -1156,7 +1156,156 @@ Defense in depth. No single layer is perfect but together they make exploitation
 
 ---
 
-## 12. File Map
+## 12. Model vs. Prompt Attribution — What's Actually Broken and Why
+
+This section addresses a critical diagnostic question before implementing anything: **how much of the bad research behavior is the model's fault vs. the system design's fault?** Getting this wrong means fixing the wrong thing.
+
+### 12.1 The Observed Behavior (from hello.json)
+
+The AI (`google/gemma-4-31b-it` via OpenRouter) runs 6-9 tool calls per cycle:
+- 3-5 `search_web` calls ✓ (appropriate)
+- 3-5 `get_quote` calls ✓ (appropriate)
+- 3-5 `get_ohlcv` calls ✓ (appropriate)
+- 1-2 `get_news` calls ✓ (appropriate)
+- Then: `submit_candidates({"instruments":[]})` ✗
+
+The model does the research steps. It reaches the correct conclusion given its inputs. **The inputs are what are broken.**
+
+But there is also a secondary failure: the queries are all generic ("top momentum stocks NASDAQ NYSE 2025") and all point to the same highly-visible SEO-optimized sites. This is a combined failure of both the model and the prompt.
+
+### 12.2 Attribution Breakdown
+
+**~35% model, ~65% system design.**
+
+The split is not even. The structural problems (no `fetch_url`, mock data, no source guidance) would defeat any model. But even after fixing those, Gemma 4 31B will underperform a frontier model on this specific task.
+
+---
+
+#### System Design Failures (65%)
+
+These would break any model, including Claude Opus or GPT-4o.
+
+| Failure | Impact | Fix |
+|---------|--------|-----|
+| No `fetch_url` tool | Model literally cannot read any page it finds. Every search is blindfolded. | Add `fetch_url` (Phase 1) |
+| Mock OHLCV is flat/declining | Model correctly reads "no momentum" and submits empty. Not a model failure — correct behavior given bad inputs. | Fix mock data (separate plan) |
+| Mock news is identical for every symbol | Model sees zero differentiation between NVDA, TSLA, SOL. No signal to distinguish candidates. | Fix mock news (separate plan) |
+| Search tool description: "Search the web for current information." | Zero guidance on where to search, what makes a good query, or what signal looks like. Any model will default to the most common financial query patterns from training data. | Rewrite description (Phase 2) |
+| Instrument selector prompt has no search strategy | "Phase 1: discover with `search_web`" — no source list, no query fan-out, no fetch pattern, no example of what good research output looks like. | Prompt rewrite (Phase 4) |
+| No Reddit / social tools | Model cannot access the actual high-signal sources where non-obvious setups are discussed. | Add tools (Phase 3) |
+
+#### Model Failures (35%)
+
+These persist even after fixing the system design.
+
+**1. Gemma 4 31B is the wrong model for multi-step agentic research.**
+
+This is the core model problem. The task requires:
+- Sustained multi-step tool use (up to 50 steps)
+- Self-directed research expansion ("my current evidence is insufficient — search differently")
+- Financial domain reasoning with nuance
+- Complex instruction following across a 5000-char system prompt
+
+Gemma 4 31B is a capable instruction model at $0.10/$0.30 per 1M tokens. It is not a frontier agentic model. Observable consequences:
+
+- **Premature termination**: After a few searches return nothing obvious, the model calls `submit_candidates([])` rather than trying different query angles. Frontier models recognize insufficient evidence and self-direct to try harder.
+- **Query homogeneity**: Without explicit instruction, the model generates small variations on the same query theme ("top momentum stocks 2025", "best momentum stocks breakout"). A frontier model infers that the same approach returning nothing means it needs a different approach.
+- **Training data memorization over research**: When query results are ambiguous, Gemma 4 31B fills in the gaps with memorized knowledge (NVDA, TSLA, BTC are momentum stocks → quote them → data looks meh → submit empty). A stronger model is more likely to trust the evidence over memorized priors.
+- **Instruction compliance at scale**: The system prompt says "Do not sample obvious symbols from memory just because they are liquid or famous. Discover first, then verify." Gemma partially follows this — it doesn't submit those symbols. But it also doesn't push harder when discovery produces nothing. A frontier model would more faithfully follow the spirit of the instruction.
+
+**2. The model cannot tell the difference between "I found nothing" and "I searched badly."**
+
+This is the most important distinction. Good research behavior:
+1. Query 1 returns no usable signal → recognize the query was bad, not the market
+2. Try a different angle — change the query target, not just the wording
+3. If 3 different approaches yield nothing, THEN conclude no opportunity
+
+Gemma 4 31B:
+1. Query 1 returns no usable signal
+2. Try variations on the same query type
+3. Conclude no opportunity
+
+This is a model-capability gap. You cannot fully prompt-engineer around it with a 31B open-weight model. You can push it toward better patterns with explicit instruction, but it won't self-recognize when its research approach is flawed.
+
+**3. Structured output reliability under a long tool-use chain.**
+
+After 6-9 tool steps, the model needs to synthesize all results and make a `submit_candidates` call with well-formed structured output. Gemma 4 31B is generally reliable here, but it's more prone to structured output failures (parse fallbacks, malformed tool inputs) than frontier models under long agentic chains. Not the primary problem here, but a real risk as tool count increases.
+
+---
+
+### 12.3 The Counterfactual Test
+
+To isolate model contribution, run the **exact same session** with `anthropic/claude-3-5-sonnet` via OpenRouter (already in the pricing table). Keep prompt, tools, and mock data identical. Do not change anything else.
+
+**Prediction:**
+
+| Behavior | Gemma 4 31B | Claude Sonnet |
+|----------|-------------|---------------|
+| Uses only generic search queries | Yes | No — tries category shifts |
+| Recognizes bad search and tries different angles | Rarely | Consistently |
+| Calls `fetch_url` if available | Sometimes | Reliably |
+| Reads and extracts specific symbols from fetched content | Inconsistent | Reliable |
+| Submits candidates based on web evidence even if OHLCV is mediocre | No | Sometimes yes |
+| Follows "discover first, don't use memory" instruction | Partially | More faithfully |
+| Produces coherent rationale per candidate | Yes | Yes, more detailed |
+
+**If Claude Sonnet also submits empty with same mock data**: the failure is primarily system design (mock data, tools). Fix the system.
+
+**If Claude Sonnet submits candidates with same mock data**: the failure is 50%+ model. Upgrade the model as part of the fix.
+
+My prediction: Claude Sonnet submits 1-3 candidates with same mock data and current (pre-fix) prompt, because it pushes harder and interprets web search evidence with more nuance. Gemma 4 31B terminates as soon as tool results are ambiguous.
+
+---
+
+### 12.4 Model Recommendations
+
+The architecture already supports per-role model configuration. Each `SessionAiRole` has its own `providerKey` and `modelId`. Use this.
+
+**Role-level model allocation:**
+
+| Role | Requirement | Recommended Model | Cost/1M in | Reason |
+|------|-------------|-------------------|------------|--------|
+| `instrument_selector` | Multi-step agentic research, self-directed, domain reasoning | `anthropic/claude-3-5-sonnet` or `openai/gpt-4o` | $3 / $2.50 | This is the critical role. It determines all downstream work. Skimp here = bad candidates = everything else doesn't matter. |
+| `analyst_technical` | Structured analysis, OHLCV interpretation | `google/gemini-2.5-flash` or `deepseek/deepseek-r1` | $0.15 / $0.55 | Clear task with well-defined inputs. Mid-tier model handles it. |
+| `analyst_fundamental` | News synthesis, qualitative reasoning | `google/gemini-2.5-flash` or `deepseek/deepseek-chat` | $0.15 / $0.27 | Same as technical — structured task. |
+| `reviewer` | Synthesis of two analyses, consistency check | `google/gemini-2.5-flash` | $0.15 | Moderate complexity, good at synthesis. |
+| `decision_maker` | Structured output (trade/no-trade schema), final call | `google/gemini-2.5-flash` or `openai/gpt-4o-mini` | $0.15 | Needs reliable structured output. Flash is sufficient. |
+
+**Cost comparison for one full cycle (approx, from hello.json data):**
+
+- Current (Gemma 4 31B for all roles): ~$0.006-0.008/cycle (36K input tokens × $0.10/1M + 500 output × $0.30/1M)
+- Recommended (Sonnet for selector, Flash for rest): ~$0.12-0.18/cycle (selector: 36K × $3/1M = $0.108; analysts/reviewer/decision ~4K × $0.15/1M each ≈ $0.002)
+- GPT-4o for selector: ~$0.10/cycle (similar)
+
+At $0.15/cycle with Sonnet selector: 1000 cycles = $150. That's the cost of actually having good research.
+
+**The cheap path that doesn't work**: Trying to make Gemma 4 31B do frontier-quality financial research by improving prompts. You will get marginal improvement in query diversity but will never get the self-directed research expansion and domain nuance that makes the difference. The prompt cannot substitute for model capability on this task.
+
+**The right path**: Upgrade `instrument_selector` to Sonnet or GPT-4o. Keep analysts/reviewer/decision on cheap models. Total cost increase is ~20x for the selector role, but the selector is a small fraction of token volume vs. the analysis roles — realistic per-cycle cost goes from $0.007 to $0.15-0.20. Worth it entirely.
+
+---
+
+### 12.5 Why "Dumb Imagination of a Smart Person" Is the Right Diagnosis
+
+A person pretending to be a researcher would:
+- Search obvious sources because they're easy to name ("I'll check CNBC, Yahoo Finance")
+- Pick famous instruments because they're recognizable ("everyone knows NVDA is momentum")
+- Write a rationale that sounds plausible but is synthesized from memory, not research
+- Conclude "no trade" when nothing obvious surfaces rather than searching harder
+
+This is exactly what a mid-tier instruction model does when given an agentic research task without precise guidance. It pattern-matches on "how researchers talk" rather than executing actual research. The system prompt describes what a researcher does but cannot give the model the capability to actually do it.
+
+Two things fix this:
+1. **Better tools** — `fetch_url`, Reddit, trending symbols. These give the model actual data to work with instead of forcing it to extrapolate from snippets.
+2. **Better model** — A frontier model will use the tools better, self-direct more effectively, and produce non-obvious candidates rather than defaulting to recognizable names.
+
+Neither alone is sufficient. A frontier model with the current tools is better but still blind. Better tools with Gemma 4 31B gives it more data but it won't know how to use it as well.
+
+**Do both.** Phase 1-4 of this plan (tools + prompts) + model upgrade to Sonnet/GPT-4o for the selector role.
+
+---
+
+## 13. File Map
 
 ```
 electron/main/services/ai/tools/

@@ -601,6 +601,7 @@ export interface AgentRun {
   session_id?: string;
   /** Null for runs not tied to a trade (e.g. instrument selector). */
   trade_id: string | null;
+  cycle_id?: string | null;
   agent_type: AgentRole;
   model: string;
   provider_key: string;
@@ -665,6 +666,7 @@ export interface EventRow {
   id: string;
   session_id?: string | null;
   trade_id: string | null;
+  cycle_id?: string | null;
   level: LogLevel;
   agent_type: EventSourceType | null;
   message: string;

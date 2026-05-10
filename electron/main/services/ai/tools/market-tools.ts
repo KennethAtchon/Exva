@@ -2,6 +2,7 @@ import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import type { InstrumentClass } from "@/lib/types";
 import type { BrokerRegistry } from "../../broker/broker-registry";
+import type { MockScenarioBias } from "../../broker/adapters/mock-adapter";
 import type { SearchRegistry } from "../search";
 import { sanitizeSearchQuery } from "../search/sanitize-search-query";
 
@@ -24,7 +25,7 @@ export interface MockNewsItem {
   publishedAt: string;
 }
 
-export const DEFAULT_MOCK_NEWS: MockNewsItem[] = [
+const NEUTRAL_MOCK_NEWS: MockNewsItem[] = [
   {
     title: "Markets steady as macro data comes in mixed",
     snippet: "Equities remain range-bound with no clear directional catalyst after this week's data releases.",
@@ -44,6 +45,76 @@ export const DEFAULT_MOCK_NEWS: MockNewsItem[] = [
     publishedAt: new Date().toISOString(),
   },
 ];
+
+export const MOCK_NEWS_BY_SCENARIO: Record<MockScenarioBias, MockNewsItem[]> = {
+  bullish: [
+    {
+      title: "{symbol} shows continued breakout momentum on rising volume",
+      snippet: "{symbol} is pressing into fresh short-term highs with above-average volume and follow-through buying interest.",
+      url: "https://mock.local/news/bullish-1",
+      publishedAt: new Date().toISOString(),
+    },
+    {
+      title: "Institutional accumulation builds in {symbol}",
+      snippet: "Buyers continue to support {symbol} after a strong multi-session move, with traders watching for continuation entries.",
+      url: "https://mock.local/news/bullish-2",
+      publishedAt: new Date().toISOString(),
+    },
+    {
+      title: "Momentum traders eye {symbol} after catalyst-driven strength",
+      snippet: "Recent strength in {symbol} is being reinforced by bullish sentiment, expanding participation, and favorable breakout structure.",
+      url: "https://mock.local/news/bullish-3",
+      publishedAt: new Date().toISOString(),
+    },
+  ],
+  bearish: [
+    {
+      title: "{symbol} slips as sellers press recent support",
+      snippet: "Selling pressure in {symbol} is building as failed bounces and weak tape point to distribution.",
+      url: "https://mock.local/news/bearish-1",
+      publishedAt: new Date().toISOString(),
+    },
+    {
+      title: "Risk-off flow weighs on {symbol}",
+      snippet: "Participants are cutting exposure in {symbol} as momentum fades and downside follow-through increases.",
+      url: "https://mock.local/news/bearish-2",
+      publishedAt: new Date().toISOString(),
+    },
+    {
+      title: "Failed breakout leaves {symbol} vulnerable",
+      snippet: "A rejected move higher in {symbol} has traders watching for continuation lower if support breaks.",
+      url: "https://mock.local/news/bearish-3",
+      publishedAt: new Date().toISOString(),
+    },
+  ],
+  sideways: NEUTRAL_MOCK_NEWS,
+  volatile: [
+    {
+      title: "{symbol} whipsaws as volatility expands",
+      snippet: "Large intraday swings in {symbol} are creating short-term trading opportunities without a stable directional trend.",
+      url: "https://mock.local/news/volatile-1",
+      publishedAt: new Date().toISOString(),
+    },
+    {
+      title: "Fast reversals keep {symbol} range traders active",
+      snippet: "{symbol} is bouncing sharply between support and resistance as traders react to unstable risk sentiment.",
+      url: "https://mock.local/news/volatile-2",
+      publishedAt: new Date().toISOString(),
+    },
+    {
+      title: "{symbol} sees elevated volume in choppy tape",
+      snippet: "Volatility remains high in {symbol}, favoring quick reaction trades over clean trend continuation.",
+      url: "https://mock.local/news/volatile-3",
+      publishedAt: new Date().toISOString(),
+    },
+  ],
+};
+
+export function scenarioMockNews(bias: MockScenarioBias = "bullish"): MockNewsItem[] {
+  return MOCK_NEWS_BY_SCENARIO[bias].map((item) => ({ ...item }));
+}
+
+export const DEFAULT_MOCK_NEWS: MockNewsItem[] = scenarioMockNews("bullish");
 
 export type MarketToolsInclude = {
   quote: boolean;
@@ -112,7 +183,15 @@ export function createMarketTools(deps: {
       inputSchema: z.object({ symbol: z.string() }),
       execute: async ({ symbol }: { symbol: string }) => {
         if (deps.mockNewsData) {
-          return { results: deps.mockNewsData.map((n) => ({ ...n, query: symbol })) };
+          const symbolToken = symbol.toUpperCase();
+          return {
+            results: deps.mockNewsData.map((n) => ({
+              ...n,
+              title: n.title.replaceAll("{symbol}", symbolToken),
+              snippet: n.snippet.replaceAll("{symbol}", symbolToken),
+              query: symbol,
+            })),
+          };
         }
         if (!deps.searchRegistry || !deps.searchProviderId) {
           return { error: "Search provider not configured for news tool." };

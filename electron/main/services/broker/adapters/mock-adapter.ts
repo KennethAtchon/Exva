@@ -36,6 +36,12 @@ const SCENARIO_DRIFT: Record<MockScenarioBias, number> = {
   volatile: 0.001,
 };
 
+export const DEFAULT_MOCK_SCENARIO: Required<MockScenario> = {
+  bias: "bullish",
+  volatilityPct: 0.018,
+  trendPctPerDay: 0.006,
+};
+
 function symbolSeed(symbol: string): number {
   return [...symbol].reduce((sum, char) => sum + char.charCodeAt(0), 0);
 }
@@ -56,7 +62,7 @@ export class MockBrokerAdapter implements BrokerAdapter {
 
   private readonly orders = new Map<string, { order: BrokerOrder; price: number }>();
 
-  constructor(private readonly scenario: MockScenario = {}) {}
+  constructor(private readonly scenario: MockScenario = DEFAULT_MOCK_SCENARIO) {}
 
   async testConnection(): Promise<ConnectionTestResult> {
     return { ok: true, message: "Mock broker connected", account_balance: 100000 };
@@ -121,15 +127,17 @@ export class MockBrokerAdapter implements BrokerAdapter {
     const bias = this.scenario.bias ?? "sideways";
     const dailyDrift = this.scenario.trendPctPerDay ?? SCENARIO_DRIFT[bias];
     const dailyVol = this.scenario.volatilityPct ?? 0.015;
+    const noiseScale = bias === "volatile" ? 1.15 : bias === "sideways" ? 0.75 : 0.35;
 
     const bars: MockOhlcvBar[] = [];
-    let price = base * Math.exp(-dailyDrift * barCount);
+    const trendStart = base * Math.exp(-dailyDrift * Math.max(0, barCount - 1));
 
     for (let i = 0; i < barCount; i++) {
-      const noise = seededNormal(seed + i) * dailyVol;
-      const ret = dailyDrift + noise;
-      const open = round2(Math.max(0.01, price));
-      const close = round2(Math.max(0.01, price * (1 + ret)));
+      const trendPrice = trendStart * Math.exp(dailyDrift * i);
+      const openNoise = seededNormal(seed + i) * dailyVol * noiseScale;
+      const closeNoise = seededNormal(seed + i + 500) * dailyVol * noiseScale;
+      const open = round2(Math.max(0.01, trendPrice * (1 + openNoise)));
+      const close = round2(Math.max(0.01, trendPrice * (1 + closeNoise)));
       const high = round2(Math.max(open, close) * (1 + Math.abs(seededNormal(seed + i + 1000)) * 0.005));
       const low = round2(Math.min(open, close) * (1 - Math.abs(seededNormal(seed + i + 2000)) * 0.005));
       const volume = Math.round(base * (500 + (seed + i) % 1000));
@@ -141,9 +149,12 @@ export class MockBrokerAdapter implements BrokerAdapter {
         close,
         volume,
       });
-      price = close;
     }
     return bars;
+  }
+
+  getScenarioBias(): MockScenarioBias {
+    return this.scenario.bias ?? DEFAULT_MOCK_SCENARIO.bias;
   }
 
   private priceFor(instrumentSymbol: string): number {

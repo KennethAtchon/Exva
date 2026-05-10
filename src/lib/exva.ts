@@ -1,5 +1,7 @@
 import type {
+  AgentMessage,
   AgentRole,
+  ApiCallLogEntry,
   AgentRun,
   ApprovalSummary,
   BrokerAccount,
@@ -234,6 +236,10 @@ export const api = {
     sessionId?: string;
   }): Promise<EventRow[]> => bridge().events.list(filters),
   getAgentTraces: (tradeId: string): Promise<AgentRun[]> => bridge().events.getAgentTraces(tradeId),
+  getAgentTracesByCycle: (cycleId: string): Promise<AgentRun[]> => bridge().events.getAgentTracesByCycle(cycleId),
+  getMessagesByCycle: (cycleId: string): Promise<AgentMessage[]> => bridge().events.getMessagesByCycle(cycleId),
+  getApiCallLog: (filters: { sessionId: string; cycleId?: string | null; tradeId?: string | null }): Promise<ApiCallLogEntry[]> =>
+    bridge().events.getApiCallLog(filters),
 };
 
 export type ExvaEventName =

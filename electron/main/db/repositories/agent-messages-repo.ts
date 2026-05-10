@@ -16,6 +16,16 @@ export class AgentMessagesRepo {
     return rows.map(toAgentMessage);
   }
 
+  listByCycle(cycleId: string): AgentMessage[] {
+    const rows = this.client.db
+      .select()
+      .from(agentMessages)
+      .where(eq(agentMessages.cycleId, cycleId))
+      .orderBy(asc(agentMessages.createdAt))
+      .all();
+    return rows.map(toAgentMessage);
+  }
+
   insert(message: AgentMessage): void {
     this.client.db
       .insert(agentMessages)

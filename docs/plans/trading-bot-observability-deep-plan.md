@@ -46,7 +46,7 @@ Additionally: the `resultPreview` logged in `run-agent-execute.ts` is sliced to 
 
 Two distinct truncation layers:
 
-1. **Log layer** (`run-agent-execute.ts:127,251`): `userPromptPreview: prompt.slice(0, 300)` and `responsePreview: result.text.slice(0, 500)`. These are log entries only — the actual DB storage is untruncated. Low priority, but causes confusion reading raw logs.
+1. **Log layer** (`run-agent-execute.ts:127,251`): `userPromptPreview: prompt.slice(0, 300)` and `responsePreview: result.text.slice(0, 500)`. Tool-call logs also emit truncated `argsPreview` and `resultPreview`. These are log-entry-only preview field names with truncated payloads — the DB storage is already untruncated — but they make the common log file incomplete for debugging and need to be upgraded to full-value fields.
 
 2. **DevPanel UI layer** (`DevPanel.tsx:687`): `RunCard` renders `run.output_text.slice(0, 500)` with a trailing `…`. No expand button. The `JsonBlock` component truncates to 2000 chars with a "show full" toggle. Both cap analysis output that can easily exceed 2,000 tokens.
 
@@ -205,7 +205,7 @@ Result: the AI instrument selector sees a rising trend + bullish news for multip
 
 `RunAgentExecuteParams` gains a `role?: AgentRole` field. All start/step/complete log lines in `run-agent-execute.ts` emit `role` when present. The `ai-runtime.ts` call sites pass `role` through. Grepping `"instrument_selector"` in logs returns all adapter-level log lines for that role.
 
-Log previews (`userPromptPreview`, `responsePreview`, `argsPreview`, `resultPreview`) remain as previews — they exist for log readability. Full content lives in DB. This is correct and no change needed here.
+Common log file entries stop using preview-style field names and truncated values for AI inputs/outputs and tool-call payloads. `userPromptPreview`, `responsePreview`, `argsPreview`, and `resultPreview` are renamed to full-value fields such as `userPrompt`, `responseText`, `toolArgs`, and `toolResult`, and each field logs the complete untruncated payload so the shared log file is a complete debugging source without having to cross-reference the DB.
 
 ### 5.3 DevPanel
 
@@ -237,7 +237,7 @@ Search tool description updated to be more specific about expected query format 
 | Mock OHLCV | Sideways bias, deterministic decline | Bullish bias with clear uptrend for momentum | `MockBrokerAdapter` constructor accepts strategy-derived scenario |
 | Mock news | 3 neutral identical headlines for every symbol | Bullish, symbol-specific headlines that mention the instrument | Replace `DEFAULT_MOCK_NEWS` with scenario-aware factory |
 | Mock scenario wiring | Hardcoded `scenario: {}` in registry | Registry reads from a mock config or session strategy | `broker-registry.ts` passes scenario to `MockBrokerAdapter` |
-| Role in logs | Missing from `run-agent-execute` logs | Present on all log lines in adapter | Add `role` param to `RunAgentExecuteParams`, thread through |
+| Role in logs | Missing from `run-agent-execute` logs and payload fields are preview-truncated | Present on all log lines in adapter with full payload fields | Add `role` param to `RunAgentExecuteParams`, thread through, rename preview fields to full-value names, and log full payloads |
 | UI truncation | `RunCard` cuts at 500 chars, `JsonBlock` at 2000 | Full text with collapse toggle | Remove hard slice, add expand in `RunCard` |
 | Selector inspection | Requires `trade_id`; selector has none | Load by `cycle_id` when no `trade_id` | DevPanel `useEffect` checks `cycle_id` fallback |
 | Decision context | Buried in `output_json` JsonBlock | Dedicated rendered section | Parse decision fields and render as `DataRow` cards |
@@ -479,13 +479,14 @@ export interface RunAgentExecuteParams<T> {
 }
 ```
 
-Thread into all logger calls:
+Thread into all logger calls and rename preview fields to full-value fields in the common log file:
 
 ```ts
 logger.info(
   {
     role: params.role ?? null,
     modelId: params.modelId,
+    userPrompt: prompt,
     // ...rest unchanged
   },
   "execute run agent start",
@@ -499,8 +500,8 @@ logger.info(
     modelId: params.modelId,
     step: stepIndex + 1,
     tool: String(tc.toolName),
-    argsPreview: JSON.stringify(tc.input).slice(0, 200),
-    resultPreview,
+    toolArgs: tc.input,
+    toolResult: result,
   },
   "agent tool call",
 );
@@ -533,6 +534,8 @@ adapter.runAgent({
 ```
 
 The `RunAgentInput` type (or equivalent in each adapter) is extended to include `role?: string`.
+
+The same change applies to start/complete entries that currently log `userPromptPreview` and `responsePreview`: rename them to `userPrompt` and `responseText` and log the full prompt/response text instead of sliced previews so the file logger captures the complete exchange.
 
 ### 9.3 Phase 3: DevPanel Observability
 
@@ -778,7 +781,7 @@ This requires a new IPC handler `getApiCallLog` that accepts `{sessionId, cycleI
 The search tool description in `search-tool.ts` is generic. Update to guide the AI toward financial-specific queries:
 
 ```ts
-description: "Search the web for current financial news, market data, and asset-specific information. Use specific symbol names, company names, or asset names combined with terms like 'stock momentum', 'breakout', 'earnings', 'price catalyst', or 'market news'. For best results, include the current timeframe in queries.",
+description: "Search the web and social media sources for current financial news, market data, trending themes, and asset-specific information. Use it to discover interesting instruments, including symbols gaining attention on social platforms, but only choose instruments that still meet the strategy and validation checks. Use specific symbol names, company names, or asset names combined with terms like 'stock momentum', 'breakout', 'earnings', 'price catalyst', 'trending', 'social sentiment', or 'market news'. For best results, include the current timeframe in queries.",
 ```
 
 This is a prompt-engineering change that costs nothing and may improve query specificity. It won't solve the fundamental issue of snippet-only content from DDG, but it's directionally correct.
@@ -791,13 +794,16 @@ No structural change to DuckDuckGo adapter. Full-page content fetching is out of
 
 ### Phase 1 — Mock Data Fix (Priority: Critical, Est: 2-3 hours)
 
+Status: Partially implemented on 2026-05-10. Default bullish mock scenario, scenario-aware mock news, and targeted unit verification are complete; end-to-end mock trade execution is still pending runtime verification.
+
 **Objective:** Get the bot to produce at least one trade in mock mode end-to-end.
 
 **Checklist:**
-- [ ] `mock-adapter.ts`: Define `DEFAULT_MOCK_SCENARIO = { bias: "bullish", volatilityPct: 0.018, trendPctPerDay: 0.006 }`, use as constructor default
-- [ ] `mock-adapter.ts`: Add `getScenarioBias(): MockScenarioBias` accessor
-- [ ] `market-tools.ts`: Add `MOCK_NEWS_BY_SCENARIO` with bullish/bearish/volatile/sideways arrays, add `scenarioMockNews()` factory, update `DEFAULT_MOCK_NEWS` to point to bullish
-- [ ] `runtime.ts`: Update `getMockContext()` to call `mockAdapter.getScenarioBias()` and pass to `scenarioMockNews()`
+- [x] `mock-adapter.ts`: Define `DEFAULT_MOCK_SCENARIO = { bias: "bullish", volatilityPct: 0.018, trendPctPerDay: 0.006 }`, use as constructor default
+- [x] `mock-adapter.ts`: Add `getScenarioBias(): MockScenarioBias` accessor
+- [x] `market-tools.ts`: Add `MOCK_NEWS_BY_SCENARIO` with bullish/bearish/volatile/sideways arrays, add `scenarioMockNews()` factory, update `DEFAULT_MOCK_NEWS` to point to bullish
+- [x] `runtime.ts`: Update `getMockContext()` to call `mockAdapter.getScenarioBias()` and pass to `scenarioMockNews()`
+- [x] Targeted unit tests: verify default mock bars trend upward and scenario-aware mock news is bullish plus symbol-aware
 - [ ] Run the bot in mock mode, confirm selector submits ≥1 candidate
 - [ ] Confirm trade pipeline runs through to a placed mock order
 
@@ -811,41 +817,50 @@ No structural change to DuckDuckGo adapter. Full-page content fetching is out of
 
 ### Phase 2 — Role in Logs (Priority: High, Est: 1 hour)
 
-**Objective:** All `run-agent-execute` log lines include the agent role.
+Status: Partially implemented on 2026-05-10. Code wiring and targeted unit verification are complete; live log-output verification is still pending.
+
+**Objective:** All `run-agent-execute` log lines include the agent role and emit full payloads under non-preview field names in the common log file.
 
 **Checklist:**
-- [ ] `run-agent-execute.ts`: Add `role?: string` to `RunAgentExecuteParams`
-- [ ] `run-agent-execute.ts`: Add `role: params.role ?? null` to start, tool-call, and complete log entries
-- [ ] Each adapter (`anthropic-adapter.ts`, `openai-adapter.ts`, `openrouter-adapter.ts`): Thread `role` from `RunAgentInput` into `executeRunAgent` params
-- [ ] `runtime.ts`: Pass `role` when calling `adapter.runAgent()` at all 3 call sites (`runRole`, `runDecisionRole`, `runInstrumentSelector`)
+- [x] `run-agent-execute.ts`: Add `role?: string` to `RunAgentExecuteParams`
+- [x] `run-agent-execute.ts`: Add `role: params.role ?? null` to start, tool-call, and complete log entries
+- [x] `run-agent-execute.ts`: Rename `userPromptPreview`, `responsePreview`, `argsPreview`, and `resultPreview` to full-value field names such as `userPrompt`, `responseText`, `toolArgs`, and `toolResult`
+- [x] `run-agent-execute.ts`: Log complete untruncated prompt/response/tool payloads in those renamed fields
+- [x] Each adapter (`anthropic-adapter.ts`, `openai-adapter.ts`, `openrouter-adapter.ts`): Thread `role` from `RunAgentInput` into `executeRunAgent` params
+- [x] `runtime.ts`: Pass `role` when calling `adapter.runAgent()` at all 3 call sites (`runRole`, `runDecisionRole`, `runInstrumentSelector`)
+- [x] Targeted unit test: verify `executeRunAgent` emits `role`, `userPrompt`, `toolArgs`, `toolResult`, and `responseText` without preview truncation
 - [ ] Verify logs show `"role": "instrument_selector"` in adapter-level entries
+- [ ] Verify tool-call log entries contain full `toolArgs` and `toolResult` objects, not preview strings
 
-**Validation:** Search log file for `"agent tool call"` — all entries must have a `role` field.
+**Validation:** Search log file for `"agent tool call"` — all entries must have a `role` field, must use the renamed full-value fields, and must not contain preview-only truncation fields.
 
 **Rollback:** Remove `role` param (backward compatible — it's optional).
 
-**Done criteria:** `grep '"agent tool call"' <logfile> | grep -v '"role"'` returns zero results.
+**Done criteria:** `grep '"agent tool call"' <logfile> | grep -v '"role"'` returns zero results, no `userPromptPreview`, `responsePreview`, `argsPreview`, or `resultPreview` fields remain in `run-agent-execute` log output, and the replacement fields contain full prompt/response/tool payloads.
 
 ---
 
 ### Phase 3 — DevPanel Observability (Priority: High, Est: 4-6 hours)
 
+Status: Partially implemented on 2026-05-10. Code wiring for cycle-based inspection, decision summaries, selector rejection breadcrumbs, and live external-call visibility is complete; renderer/runtime manual verification is still pending.
+
 **Objective:** DevPanel shows full AI output, selector event traces, decision context, rejection reasons, and external calls.
 
 **Checklist:**
-- [ ] `DevPanel.tsx`: Add `CollapsibleText` component
-- [ ] `DevPanel.tsx`: Replace `RunCard` text slice with `CollapsibleText`
-- [ ] `DevPanel.tsx`: Increase `JsonBlock` preview from 2000 to 4000 chars
-- [ ] `agent-runs-repo.ts`: Add `findByCycleId(cycleId: string)` method
-- [ ] `agent-messages-repo.ts`: Add `findByCycleId(cycleId: string)` method
-- [ ] IPC: Add `getAgentTracesByCycle` and `getMessagesByCycle` handlers
-- [ ] `src/lib/exva.ts` (API client): Add `getAgentTracesByCycle` and `getMessagesByCycle` functions
-- [ ] `DevPanel.tsx`: Update inspector `useEffect` to try `cycle_id` when `trade_id` is absent
-- [ ] `DevPanel.tsx`: Add `DecisionSummary` component for decision maker messages
-- [ ] `agent-orchestrator.ts`: Add per-instrument `emitEvent("DEBUG", ...)` calls in `validateSelectorOutput`
-- [ ] IPC: Add `getApiCallLog` handler accepting `{sessionId, cycleId}`
-- [ ] `DevPanel.tsx`: Replace `ExternalCallsTab` stub with live component
-- [ ] Pass `sessionId` and `cycleId` from `InspectorPanel` down to `ExternalCallsTab`
+- [x] `DevPanel.tsx`: Add `CollapsibleText` component
+- [x] `DevPanel.tsx`: Replace `RunCard` text slice with `CollapsibleText`
+- [x] `DevPanel.tsx`: Increase `JsonBlock` preview from 2000 to 4000 chars
+- [x] `agent-runs-repo.ts`: Add cycle-based run lookup (implemented via `agent_messages` join because `agent_runs` has no `cycle_id` column)
+- [x] `agent-messages-repo.ts`: Add `listByCycle(cycleId: string)` method
+- [x] IPC: Add `getAgentTracesByCycle` and `getMessagesByCycle` handlers
+- [x] `src/lib/exva.ts` (API client): Add `getAgentTracesByCycle` and `getMessagesByCycle` functions
+- [x] `DevPanel.tsx`: Update inspector `useEffect` to try `cycle_id` when `trade_id` is absent
+- [x] `DevPanel.tsx`: Add `DecisionSummary` component for decision maker messages
+- [x] `agent-orchestrator.ts`: Add per-instrument `emitEvent("DEBUG", ...)` calls in `validateSelectorOutput`
+- [x] IPC: Add `getApiCallLog` handler accepting `{sessionId, cycleId}`
+- [x] `DevPanel.tsx`: Replace `ExternalCallsTab` stub with live component
+- [x] Pass `sessionId`, `cycleId`, and `tradeId` from `InspectorPanel` down to `ExternalCallsTab`
+- [x] Add persisted `events.cycle_id` support so selector/debug events can be reloaded with cycle context
 
 **Validation:**
 1. Click an `instrument_selector` event in DevPanel → Runs tab shows selector agent run → Trace tab shows messages
@@ -861,8 +876,10 @@ No structural change to DuckDuckGo adapter. Full-page content fetching is out of
 
 ### Phase 4 — Search Tool Description (Priority: Low, Est: 15 minutes)
 
+Status: Implemented on 2026-05-10.
+
 **Checklist:**
-- [ ] `tools/search-tool.ts`: Update tool description string to be financial-specific
+- [x] `tools/search-tool.ts`: Update tool description string to be financial-specific
 - [ ] Optional: update `sanitize-search-query.ts` to preserve financial terms that might be incorrectly stripped
 
 **Done criteria:** Qualitative — next AI search run produces more specific queries with symbol names.

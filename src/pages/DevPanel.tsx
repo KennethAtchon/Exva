@@ -5,7 +5,7 @@ import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { useSessionStore } from "@/store/sessionStore";
-import type { AgentMessage, AgentRun, EventRow, LogLevel, SessionAiRole } from "@/lib/types";
+import type { AgentMessage, AgentRun, ApiCallLogEntry, EventRow, LogLevel, SessionAiRole } from "@/lib/types";
 import type { SessionSummary, StrategyGetResponse } from "@/lib/exva";
 
 // ─── Extended types for spec fields not yet in schema ───────────────────────
@@ -184,8 +184,8 @@ const JsonBlock = ({ data, label }: { data: string | null | undefined; label: st
   const [expanded, setExpanded] = useState(false);
   if (!data) return null;
   const pretty = formatJsonPretty(data);
-  const preview = pretty.slice(0, 2000);
-  const needsTrunc = pretty.length > 2000;
+  const preview = pretty.slice(0, 4000);
+  const needsTrunc = pretty.length > 4000;
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
@@ -213,6 +213,31 @@ const JsonBlock = ({ data, label }: { data: string | null | undefined; label: st
       }}>
         {needsTrunc && !expanded ? preview + "\n…" : pretty}
       </pre>
+    </div>
+  );
+};
+
+const CollapsibleText = ({ text, collapseAt = 800 }: { text: string | null | undefined; collapseAt?: number }) => {
+  const [expanded, setExpanded] = useState(false);
+  if (!text) {
+    return <span style={{ color: "var(--text3)", fontFamily: "var(--font-mono)", fontSize: 10 }}>No output text</span>;
+  }
+  const needsCollapse = text.length > collapseAt;
+  const displayed = needsCollapse && !expanded ? text.slice(0, collapseAt) : text;
+  return (
+    <div>
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text2)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+        {displayed}
+        {needsCollapse && !expanded ? "…" : ""}
+      </div>
+      {needsCollapse && (
+        <button
+          onClick={() => setExpanded((value) => !value)}
+          style={{ marginTop: 6, background: "transparent", border: "none", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", cursor: "pointer" }}
+        >
+          {expanded ? "collapse" : `show full (${(text.length / 1000).toFixed(1)}k chars)`}
+        </button>
+      )}
     </div>
   );
 };
@@ -683,9 +708,7 @@ const RunCard = ({ run, accent, copyPayload }: { run: ExtAgentRun; accent: strin
       </div>
       {open && (
         <div style={{ padding: "10px 12px", borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text2)", lineHeight: 1.6, fontStyle: "italic" }}>
-            {run.output_text ? `"${run.output_text.slice(0, 500)}${run.output_text.length > 500 ? "…" : ""}"` : "No output text"}
-          </div>
+          <CollapsibleText text={run.output_text ? `"${run.output_text}"` : null} />
           {run.cycle_id && (
             <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>
               cycle: {run.cycle_id}
@@ -693,6 +716,44 @@ const RunCard = ({ run, accent, copyPayload }: { run: ExtAgentRun; accent: strin
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+const DecisionSummary = ({ outputJson }: { outputJson: string | null }) => {
+  const decision = parseJsonSafe(outputJson) as {
+    action?: string;
+    instrumentSymbol?: string;
+    reasoning?: string;
+    confidence?: number;
+    side?: string;
+    sizeUsd?: number;
+  } | null;
+
+  if (!decision) return null;
+
+  const isNoTrade = decision.action === "no_trade";
+  const accent = isNoTrade ? "#ff4757" : "#00e5a0";
+
+  return (
+    <div style={{
+      background: isNoTrade ? "rgba(255,71,87,0.06)" : "rgba(0,229,160,0.06)",
+      border: `1px solid ${isNoTrade ? "rgba(255,71,87,0.2)" : "rgba(0,229,160,0.2)"}`,
+      borderRadius: 7,
+      padding: "10px 12px",
+      marginBottom: 10,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 800, color: accent, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          {isNoTrade ? "No Trade" : `Trade${decision.side ? ` - ${decision.side}` : ""}`}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {decision.instrumentSymbol && <span style={{ ...S.monoValue, fontSize: 9 }}>{decision.instrumentSymbol}</span>}
+          {decision.confidence != null && <span style={{ ...S.monoValue, fontSize: 9 }}>confidence {(decision.confidence * 100).toFixed(0)}%</span>}
+          {decision.sizeUsd != null && <span style={{ ...S.monoValue, fontSize: 9 }}>{fmt.usd(decision.sizeUsd)}</span>}
+        </div>
+      </div>
+      {decision.reasoning && <CollapsibleText text={decision.reasoning} collapseAt={1200} />}
     </div>
   );
 };
@@ -734,6 +795,7 @@ const MessageTraceTab = ({ messages, loading }: { messages: AgentMessage[]; load
               </div>
             </div>
             <div style={{ padding: "10px 12px", background: "var(--bg)" }}>
+              {m.output_schema_name === "tradeDecision" && <DecisionSummary outputJson={m.output_json} />}
               <JsonBlock data={m.output_json} label="output" />
               <JsonBlock data={m.tool_calls_json} label="tool calls" />
               <JsonBlock data={m.thinking_json} label="thinking" />
@@ -746,11 +808,80 @@ const MessageTraceTab = ({ messages, loading }: { messages: AgentMessage[]; load
   );
 };
 
-const ExternalCallsTab = () => (
-  <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-    No external calls recorded for this selection.
-  </div>
-);
+const ExternalCallsTab = ({
+  sessionId,
+  cycleId,
+  tradeId,
+}: {
+  sessionId: string | null | undefined;
+  cycleId: string | null | undefined;
+  tradeId: string | null | undefined;
+}) => {
+  const [calls, setCalls] = useState<ApiCallLogEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!sessionId) {
+      setCalls([]);
+      return;
+    }
+    setLoading(true);
+    api.getApiCallLog({ sessionId, cycleId: cycleId ?? null, tradeId: tradeId ?? null })
+      .then(setCalls)
+      .catch(() => setCalls([]))
+      .finally(() => setLoading(false));
+  }, [sessionId, cycleId, tradeId]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
+        loading external calls…
+      </div>
+    );
+  }
+
+  if (!sessionId) {
+    return (
+      <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
+        No session scope available for external call lookup.
+      </div>
+    );
+  }
+
+  if (calls.length === 0) {
+    return (
+      <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
+        No external API calls recorded for this selection.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+      {calls.map((call) => {
+        const ok = call.status === "ok";
+        return (
+          <div key={call.id} style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", background: "var(--bg)" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: ok ? "#00e5a0" : "#ff4757" }}>
+                {call.status.toUpperCase()}
+              </span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text2)" }}>{call.provider}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{call.call_type}</span>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{call.latency_ms}ms</span>
+              {call.credits_used != null && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{call.credits_used} credits</span>}
+              {call.cost_usd != null && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{fmt.usd(call.cost_usd, 4)}</span>}
+              {call.from_cache && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4da6ff" }}>cache</span>}
+            </div>
+            <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", wordBreak: "break-all" }}>
+              {call.endpoint}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 const RawJsonTab = ({ ev }: { ev: ExtEventRow }) => {
   const pretty = JSON.stringify(ev, null, 2);
@@ -838,7 +969,7 @@ const InspectorPanel = ({
         {tab === "event" && <EventDetailTab ev={sel} />}
         {tab === "runs" && <AgentRunsTab runs={selRuns} loading={runsLoading} />}
         {tab === "trace" && <MessageTraceTab messages={selMessages} loading={messagesLoading} />}
-        {tab === "calls" && <ExternalCallsTab />}
+        {tab === "calls" && <ExternalCallsTab sessionId={sel.session_id} cycleId={sel.cycle_id} tradeId={sel.trade_id} />}
         {tab === "raw" && <RawJsonTab ev={sel} />}
       </div>
     </div>
@@ -914,22 +1045,41 @@ export const DevPanel = () => {
   const sel = selectedId ? (events.find((e) => e.id === selectedId) as ExtEventRow | undefined) ?? null : null;
 
   useEffect(() => {
-    if (!sel?.trade_id) {
+    const tradeId = sel?.trade_id ?? null;
+    const cycleId = sel?.cycle_id ?? null;
+
+    if (!tradeId && !cycleId) {
       setSelRuns([]);
       setSelMessages([]);
+      setRunsLoading(false);
+      setMessagesLoading(false);
       return;
     }
+
     setRunsLoading(true);
     setMessagesLoading(true);
-    api.getAgentTraces(sel.trade_id)
+
+    if (tradeId) {
+      api.getAgentTraces(tradeId)
+        .then((runs) => setSelRuns(runs as ExtAgentRun[]))
+        .catch(() => setSelRuns([]))
+        .finally(() => setRunsLoading(false));
+      api.getTradeDetail(tradeId)
+        .then((detail) => setSelMessages(detail.messages ?? []))
+        .catch(() => setSelMessages([]))
+        .finally(() => setMessagesLoading(false));
+      return;
+    }
+
+    api.getAgentTracesByCycle(cycleId as string)
       .then((runs) => setSelRuns(runs as ExtAgentRun[]))
       .catch(() => setSelRuns([]))
       .finally(() => setRunsLoading(false));
-    api.getTradeDetail(sel.trade_id)
-      .then((detail) => setSelMessages(detail.messages ?? []))
+    api.getMessagesByCycle(cycleId as string)
+      .then((messages) => setSelMessages(messages))
       .catch(() => setSelMessages([]))
       .finally(() => setMessagesLoading(false));
-  }, [sel?.trade_id]);
+  }, [sel?.trade_id, sel?.cycle_id]);
 
   const filtered = useMemo(() => events.filter((ev) => {
     if (LEVELS.indexOf(ev.level) < LEVELS.indexOf(minLevel)) return false;

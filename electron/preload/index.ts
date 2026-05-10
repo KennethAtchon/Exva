@@ -16,6 +16,8 @@ import {
   providerAccountSaveSchema,
   providerAccountDeleteSchema,
   providerAccountTestSchema,
+  apiCallLogFiltersSchema,
+  cycleIdSchema,
   sessionConfigSchema,
   strategyAiRolesSaveSchema,
   strategyProfileSaveSchema,
@@ -120,6 +122,9 @@ const exva: ExvaApi = {
   events: {
     list: (filters) => invoke(channels.events.list, eventFiltersSchema.parse(filters)),
     getAgentTraces: (tradeId) => invoke(channels.events.getAgentTraces, tradeIdSchema.parse({ tradeId })),
+    getAgentTracesByCycle: (cycleId) => invoke(channels.events.getAgentTracesByCycle, cycleIdSchema.parse({ cycleId })),
+    getMessagesByCycle: (cycleId) => invoke(channels.events.getMessagesByCycle, cycleIdSchema.parse({ cycleId })),
+    getApiCallLog: (filters) => invoke(channels.events.getApiCallLog, apiCallLogFiltersSchema.parse(filters)),
     subscribe: <K extends ExvaEventName>(name: K, handler: (payload: ExvaEventMap[K]) => void) => {
       if (!eventAllowlist.has(name)) return () => {};
       const listener = (_event: Electron.IpcRendererEvent, payload: ExvaEventMap[K]) => handler(payload);

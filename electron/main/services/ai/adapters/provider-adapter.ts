@@ -1,4 +1,4 @@
-import type { ProviderType } from "@/lib/types";
+import type { AgentRole, ProviderType } from "@/lib/types";
 import type { ToolSet } from "ai";
 import type { z } from "zod";
 import type { RuntimeAgentMessage, RunTrace } from "../ai-runtime/ai-runtime-types";
@@ -29,6 +29,7 @@ export interface GenerateObjectResult<T> extends GenerateResult {
 
 export interface AgentRunOptions<T = undefined> {
   model: string;
+  role?: AgentRole;
   messages: RuntimeAgentMessage[];
   tools?: ToolSet;
   maxSteps: number;

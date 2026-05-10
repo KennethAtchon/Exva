@@ -1,5 +1,6 @@
 import { generateText, hasToolCall, Output, stepCountIs, type FinishReason, type LanguageModel, type StepResult, type StopCondition, type ToolSet } from "ai";
 import type { z } from "zod";
+import type { AgentRole } from "@/lib/types";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
 import type { RuntimeAgentMessage, RunTrace, StepTrace, ToolCallRecord } from "../ai-runtime/ai-runtime-types";
@@ -10,6 +11,7 @@ const logger = createLogger("run-agent-execute");
 export interface RunAgentExecuteParams<T> {
   model: LanguageModel;
   modelId: string;
+  role?: AgentRole;
   messages: RuntimeAgentMessage[];
   tools?: ToolSet;
   maxSteps: number;
@@ -114,6 +116,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
 
   logger.info(
     {
+      role: params.role ?? null,
       modelId: params.modelId,
       temperature: params.temperature ?? null,
       hasTools: Boolean(params.tools),
@@ -124,7 +127,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
       maxSteps: params.maxSteps,
       spendLimitUsd: params.spendLimitUsd ?? null,
       systemPrompt: system ?? null,
-      userPromptPreview: prompt.slice(0, 300),
+      userPrompt: prompt,
     },
     "execute run agent start",
   );
@@ -169,16 +172,14 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
       }
       for (const tc of step.toolCalls) {
         const rawOut = resultsById.get(tc.toolCallId);
-        const resultPreview = typeof rawOut === "string"
-          ? rawOut.slice(0, 200)
-          : JSON.stringify(rawOut ?? null).slice(0, 200);
         logger.info(
           {
+            role: params.role ?? null,
             modelId: params.modelId,
             step: stepIndex + 1,
             tool: String(tc.toolName),
-            argsPreview: JSON.stringify(tc.input).slice(0, 200),
-            resultPreview,
+            toolArgs: tc.input,
+            toolResult: rawOut ?? null,
           },
           "agent tool call",
         );
@@ -186,7 +187,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     }
     if (step.text) {
       logger.info(
-        { modelId: params.modelId, step: stepIndex + 1, fullText: step.text },
+        { role: params.role ?? null, modelId: params.modelId, step: stepIndex + 1, fullText: step.text },
         "agent step text",
       );
     }
@@ -231,13 +232,14 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
 
   if (result.reasoningText) {
     logger.info(
-      { modelId: params.modelId, thinkingChars: result.reasoningText.length, thinking: result.reasoningText },
+      { role: params.role ?? null, modelId: params.modelId, thinkingChars: result.reasoningText.length, thinking: result.reasoningText },
       "agent reasoning",
     );
   }
 
   logger.info(
     {
+      role: params.role ?? null,
       modelId: params.modelId,
       finishReason: result.finishReason,
       mappedFinishReason: mapFinishReason(result.finishReason, { spendExceeded, stepCapHit }),
@@ -248,7 +250,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
       totalCostUsd: totalCost,
       spendExceeded,
       stepCapHit,
-      responsePreview: result.text.slice(0, 500),
+      responseText: result.text,
     },
     "execute run agent complete",
   );

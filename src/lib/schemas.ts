@@ -115,6 +115,12 @@ export const tradeDecisionSchema = z.object({
 });
 
 export const tradeIdSchema = z.object({ tradeId: z.string().min(1) });
+export const cycleIdSchema = z.object({ cycleId: z.string().min(1) });
+export const apiCallLogFiltersSchema = z.object({
+  sessionId: z.string().min(1),
+  cycleId: z.string().min(1).nullable().optional(),
+  tradeId: z.string().min(1).nullable().optional(),
+});
 export const approveTradeSchema = z.object({
   tradeId: z.string().min(1),
   approved: z.boolean(),

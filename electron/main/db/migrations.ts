@@ -292,6 +292,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       id TEXT PRIMARY KEY,
       session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
       trade_id TEXT REFERENCES trades(id) ON DELETE SET NULL,
+      cycle_id TEXT,
       level TEXT NOT NULL CHECK (level IN ('DEBUG','INFO','WARN','ERROR')),
       agent_type TEXT,
       message TEXT NOT NULL,
@@ -367,6 +368,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     CREATE INDEX IF NOT EXISTS idx_agent_messages_run ON agent_messages(agent_run_id);
     CREATE INDEX IF NOT EXISTS idx_agent_messages_trade ON agent_messages(trade_id);
     CREATE INDEX IF NOT EXISTS idx_events_session_id ON events(session_id);
+    CREATE INDEX IF NOT EXISTS idx_events_cycle_id ON events(cycle_id);
     CREATE INDEX IF NOT EXISTS idx_approvals_session ON trade_approvals(session_id, status);
     CREATE INDEX IF NOT EXISTS idx_session_broker_override ON session_broker_routing_overrides(session_id, instrument_class);
     CREATE INDEX IF NOT EXISTS idx_capital_reservations_session ON capital_reservations(session_id, status);
@@ -478,6 +480,16 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     }
   } catch (err) {
     console.warn("[migrations] Could not drop obsolete session_ai_roles.web_search_enabled column", err);
+  }
+
+  try {
+    const eventCols = sqlite.prepare(`PRAGMA table_info(events)`).all() as Array<{ name: string }>;
+    if (!eventCols.some((c) => c.name === "cycle_id")) {
+      sqlite.exec(`ALTER TABLE events ADD COLUMN cycle_id TEXT`);
+    }
+    sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_events_cycle_id ON events(cycle_id)`);
+  } catch (err) {
+    console.warn("[migrations] Could not align events.cycle_id column", err);
   }
 
   sqlite

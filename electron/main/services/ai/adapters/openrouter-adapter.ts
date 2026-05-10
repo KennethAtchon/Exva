@@ -44,6 +44,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
     return executeRunAgent({
       model: client.chat(opts.model),
       modelId: opts.model,
+      role: opts.role,
       messages: opts.messages,
       tools: opts.tools,
       maxSteps: opts.maxSteps,

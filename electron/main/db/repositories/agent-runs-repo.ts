@@ -1,7 +1,7 @@
 import type { DbClient } from "../client";
 import type { AgentRun } from "@/lib/types";
 import { asc, eq } from "drizzle-orm";
-import { agentRuns } from "../schema";
+import { agentMessages, agentRuns } from "../schema";
 import { toAgentRun } from "./mappers";
 
 export class AgentRunsRepo {
@@ -15,6 +15,40 @@ export class AgentRunsRepo {
       .orderBy(asc(agentRuns.createdAt))
       .all();
     return rows.map(toAgentRun);
+  }
+
+  listByCycle(cycleId: string): AgentRun[] {
+    const rows = this.client.db
+      .select({
+        id: agentRuns.id,
+        sessionId: agentRuns.sessionId,
+        tradeId: agentRuns.tradeId,
+        cycleId: agentMessages.cycleId,
+        agentType: agentRuns.agentType,
+        model: agentRuns.model,
+        providerKey: agentRuns.providerKey,
+        finishReason: agentRuns.finishReason,
+        inputTokens: agentRuns.inputTokens,
+        outputTokens: agentRuns.outputTokens,
+        costUsd: agentRuns.costUsd,
+        outputText: agentRuns.outputText,
+        durationMs: agentRuns.durationMs,
+        createdAt: agentRuns.createdAt,
+      })
+      .from(agentMessages)
+      .innerJoin(agentRuns, eq(agentMessages.agentRunId, agentRuns.id))
+      .where(eq(agentMessages.cycleId, cycleId))
+      .orderBy(asc(agentRuns.createdAt))
+      .all();
+
+    const seen = new Set<string>();
+    return rows
+      .filter((row) => {
+        if (seen.has(row.id)) return false;
+        seen.add(row.id);
+        return true;
+      })
+      .map((row) => toAgentRun(row));
   }
 
   insert(run: AgentRun): void {
