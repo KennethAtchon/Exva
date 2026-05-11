@@ -38,6 +38,7 @@ function baseContext(): SessionStrategyContext {
     },
     riskConfig: {
       sessionId: "s1",
+      riskPresetId: "custom" as const,
       maxPositionUsd: 100,
       stopLossPct: 2,
       takeProfitPct: 4,
@@ -57,6 +58,7 @@ function baseContext(): SessionStrategyContext {
     },
     timeframe: {
       sessionId: "s1",
+      timeframePresetId: "custom" as const,
       primaryTradingTimeframe: "1h",
       holdingStyle: "multi_day_swing",
       targetHoldDays: 3,

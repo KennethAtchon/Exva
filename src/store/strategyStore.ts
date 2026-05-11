@@ -1,6 +1,17 @@
 import { create } from "zustand";
-import { buildTradeRulesMarkdown, validateSessionStrategyContext } from "../../electron/shared/domain";
-import { api, type ProviderModelEntry, type StrategyGetResponse } from "@/lib/exva";
+import {
+  buildTradeRulesMarkdown,
+  validateSessionStrategyContext,
+  RISK_PRESETS,
+  TIMEFRAME_PRESETS,
+  RESEARCH_POSTURE_PRESETS,
+  TRADE_RULE_PRESETS,
+} from "../../electron/shared/domain";
+import type { GlobalStrategyPreset } from "../../electron/shared/presets";
+
+const RESEARCH_POSTURE_PRESETS_MAP = Object.fromEntries(RESEARCH_POSTURE_PRESETS.map((p) => [p.id, p]));
+const TRADE_RULE_PRESETS_MAP = Object.fromEntries(TRADE_RULE_PRESETS.map((p) => [p.id, p]));
+import { api, type ProviderModelEntry, type StrategyGetResponse, type UserGlobalPresetRow } from "@/lib/exva";
 import type {
   AgentRole,
   SessionAiRole,
@@ -27,6 +38,9 @@ interface StrategyStoreState {
   selectionMode: StrategyGetResponse["selectionMode"] | null;
   defaultSearchProviderId: string | null;
   workspaceDefaultSearchProviderId: string | null;
+  workspaceDefaultModelProviderKey: string;
+  workspaceDefaultModelModelId: string;
+  globalPresets: UserGlobalPresetRow[];
   dirtyFields: Set<string>;
   dirtyRoles: Set<AgentRole>;
   activeRoleTab: AgentRole;
@@ -38,6 +52,7 @@ interface StrategyStoreState {
   isLocked: boolean;
   state: StrategyPageState;
   loadStrategy: (sessionId: string) => Promise<void>;
+  loadGlobalPresets: () => Promise<void>;
   updateResearchPosture: (patch: Partial<SessionResearchPosture>) => void;
   updateRules: (patch: Partial<SessionTradeRules>) => void;
   updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
@@ -47,6 +62,8 @@ interface StrategyStoreState {
     patch: Partial<Pick<SessionAiRoleProfile, "profileJson">>,
   ) => void;
   updateRole: (role: AgentRole, patch: Partial<SessionAiRole>) => Promise<void>;
+  applyGlobalPreset: (preset: GlobalStrategyPreset) => void;
+  applyWorkspaceDefaultToAllRoles: () => void;
   saveAll: (sessionId: string) => Promise<void>;
   resetRole: (role: AgentRole) => Promise<void>;
   setActiveTab: (role: AgentRole) => void;
@@ -73,6 +90,9 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   selectionMode: null,
   defaultSearchProviderId: null,
   workspaceDefaultSearchProviderId: null,
+  workspaceDefaultModelProviderKey: "",
+  workspaceDefaultModelModelId: "",
+  globalPresets: [],
   dirtyFields: new Set(),
   dirtyRoles: new Set(),
   activeRoleTab: "analyst_technical",
@@ -87,7 +107,20 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     const result = await api.getStrategy(sessionId);
     const aiRoles = EMPTY_AI_ROLES();
     for (const role of result.aiRoles) {
-      aiRoles[role.role] = role;
+      // Auto-fill empty roles from workspace default model
+      if (
+        (role.providerKey === "" || role.modelId === "") &&
+        result.workspaceDefaultModelProviderKey &&
+        result.workspaceDefaultModelModelId
+      ) {
+        aiRoles[role.role] = {
+          ...role,
+          providerKey: role.providerKey || result.workspaceDefaultModelProviderKey,
+          modelId: role.modelId || result.workspaceDefaultModelModelId,
+        };
+      } else {
+        aiRoles[role.role] = role;
+      }
     }
 
     const providerModels: Record<string, ProviderModelEntry[]> = {};
@@ -95,6 +128,8 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       const models = await api.getStrategyProviderModels(provider.id);
       providerModels[provider.id] = models.models;
     }
+
+    const globalPresetsResult = await api.listGlobalPresets();
 
     set({
       researchPosture: result.researchPosture,
@@ -108,6 +143,9 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       selectionMode: result.selectionMode,
       defaultSearchProviderId: result.defaultSearchProviderId,
       workspaceDefaultSearchProviderId: result.workspaceDefaultSearchProviderId,
+      workspaceDefaultModelProviderKey: result.workspaceDefaultModelProviderKey,
+      workspaceDefaultModelModelId: result.workspaceDefaultModelModelId,
+      globalPresets: globalPresetsResult.presets,
       dirtyFields: new Set(),
       dirtyRoles: new Set(),
       activeRoleTab: "analyst_technical",
@@ -119,6 +157,10 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       isLocked: result.sessionStatus === "active" || result.sessionStatus === "paused",
       state: result.sessionStatus === "active" || result.sessionStatus === "paused" ? "locked" : "editable",
     });
+  },
+  loadGlobalPresets: async () => {
+    const result = await api.listGlobalPresets();
+    set({ globalPresets: result.presets });
   },
   updateResearchPosture: (patch) => {
     const researchPosture = get().researchPosture;
@@ -184,6 +226,50 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       const models = await api.getStrategyProviderModels(patch.providerKey);
       set({ providerModels: { ...get().providerModels, [patch.providerKey]: models.models } });
     }
+  },
+  applyGlobalPreset: (preset) => {
+    const { researchPosture, rules, riskConfig, timeframe } = get();
+    if (!researchPosture || !rules || !riskConfig || !timeframe) return;
+
+    const stylePreset = RESEARCH_POSTURE_PRESETS_MAP[preset.posturePresetId];
+    const rulesPreset = TRADE_RULE_PRESETS_MAP[preset.rulesPresetId];
+    const riskPreset = RISK_PRESETS.find((p) => p.id === preset.riskPresetId);
+    const timeframePreset = TIMEFRAME_PRESETS.find((p) => p.id === preset.timeframePresetId);
+
+    const dirtyFields = new Set(get().dirtyFields);
+
+    if (stylePreset) {
+      for (const key of Object.keys(stylePreset.posture)) dirtyFields.add(`researchPosture.${key}`);
+      set({ researchPosture: { ...researchPosture, ...stylePreset.posture } });
+    }
+    if (rulesPreset) {
+      for (const key of Object.keys(rulesPreset.rules)) dirtyFields.add(`rules.${key}`);
+      set({ rules: { ...rules, ...rulesPreset.rules } });
+    }
+    if (riskPreset && Object.keys(riskPreset.values).length > 0) {
+      for (const key of Object.keys(riskPreset.values)) dirtyFields.add(`riskConfig.${key}`);
+      set({ riskConfig: { ...riskConfig, ...riskPreset.values } });
+    }
+    if (timeframePreset && Object.keys(timeframePreset.values).length > 0) {
+      for (const key of Object.keys(timeframePreset.values)) dirtyFields.add(`timeframe.${key}`);
+      set({ timeframe: { ...timeframe, ...timeframePreset.values } });
+    }
+
+    set({ dirtyFields, strategyErrors: [] });
+  },
+  applyWorkspaceDefaultToAllRoles: () => {
+    const { workspaceDefaultModelProviderKey, workspaceDefaultModelModelId, aiRoles } = get();
+    if (!workspaceDefaultModelProviderKey || !workspaceDefaultModelModelId) return;
+    const dirtyFields = new Set(get().dirtyFields);
+    const dirtyRoles = new Set(get().dirtyRoles);
+    const next = { ...aiRoles };
+    for (const role of Object.keys(next) as AgentRole[]) {
+      next[role] = { ...next[role], providerKey: workspaceDefaultModelProviderKey, modelId: workspaceDefaultModelModelId };
+      dirtyFields.add(`${role}.providerKey`);
+      dirtyFields.add(`${role}.modelId`);
+      dirtyRoles.add(role);
+    }
+    set({ aiRoles: next, dirtyFields, dirtyRoles });
   },
   saveAll: async (sessionId) => {
     const context = currentContext(get());

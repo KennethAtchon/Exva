@@ -28,6 +28,7 @@ export class SessionRiskConfigRepo {
     this.client.db
       .update(sessionRiskConfig)
       .set({
+        riskPresetId: next.riskPresetId,
         maxPositionUsd: next.maxPositionUsd,
         stopLossPct: next.stopLossPct,
         takeProfitPct: next.takeProfitPct,

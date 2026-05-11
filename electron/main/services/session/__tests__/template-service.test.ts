@@ -70,6 +70,7 @@ describe("SessionTemplateService", () => {
           },
           riskConfig: {
             sessionId: "s1",
+            riskPresetId: "custom" as const,
             maxPositionUsd: 500,
             stopLossPct: 2,
             takeProfitPct: 4,
@@ -89,6 +90,7 @@ describe("SessionTemplateService", () => {
           },
           timeframe: {
             sessionId: "s1",
+            timeframePresetId: "custom" as const,
             primaryTradingTimeframe: "1d",
             holdingStyle: "multi_day_swing",
             targetHoldDays: null,

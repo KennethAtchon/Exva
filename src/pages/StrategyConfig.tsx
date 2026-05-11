@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Card, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { Switch } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
@@ -6,6 +6,7 @@ import { AiRoleConfigCard } from "@/components/strategy/AiRoleConfigCard";
 import { AiRoleProfileCard } from "@/components/strategy/AiRoleProfileCard";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";
 import { TimeframeHorizonCard } from "@/components/strategy/TimeframeHorizonCard";
+import { GlobalPresetGrid, CreateEditGlobalPresetModal, type UserGlobalPresetInput } from "@/components/strategy/GlobalPresetComponents";
 import { api } from "@/lib/exva";
 import { useSessionStore } from "@/store/sessionStore";
 import { useStrategyStore } from "@/store/strategyStore";
@@ -16,6 +17,8 @@ import {
   STOP_LOSS_TYPES,
   SETUP_TYPES,
   TRADE_RULE_PRESETS,
+  RISK_PRESETS,
+  TIMEFRAME_PRESETS,
   STRATEGY_ENTRY_STYLES,
   STRATEGY_EXIT_STYLES,
   STRATEGY_SCALING_MODES,
@@ -26,6 +29,8 @@ import {
   RESEARCH_FUNDAMENTAL_STRICTNESS,
   RESEARCH_POSTURE_PRESETS,
 } from "../../electron/shared/domain";
+import { GLOBAL_STRATEGY_PRESETS } from "../../electron/shared/presets";
+import type { GlobalStrategyPreset } from "../../electron/shared/presets";
 
 const ROLE_ORDER = [
   "analyst_technical",
@@ -59,17 +64,27 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const pageState = useStrategyStore((state) => state.state);
   const roleErrors = useStrategyStore((state) => state.roleErrors);
   const strategyErrors = useStrategyStore((state) => state.strategyErrors);
+  const globalPresets = useStrategyStore((state) => state.globalPresets);
+  const workspaceDefaultModelProviderKey = useStrategyStore((state) => state.workspaceDefaultModelProviderKey);
+  const workspaceDefaultModelModelId = useStrategyStore((state) => state.workspaceDefaultModelModelId);
   const loadStrategy = useStrategyStore((state) => state.loadStrategy);
+  const loadGlobalPresets = useStrategyStore((state) => state.loadGlobalPresets);
   const updateResearchPosture = useStrategyStore((state) => state.updateResearchPosture);
   const updateRules = useStrategyStore((state) => state.updateRules);
   const updateRiskConfig = useStrategyStore((state) => state.updateRiskConfig);
   const updateTimeframe = useStrategyStore((state) => state.updateTimeframe);
   const updateAiRoleProfile = useStrategyStore((state) => state.updateAiRoleProfile);
   const updateRole = useStrategyStore((state) => state.updateRole);
+  const applyGlobalPreset = useStrategyStore((state) => state.applyGlobalPreset);
+  const applyWorkspaceDefaultToAllRoles = useStrategyStore((state) => state.applyWorkspaceDefaultToAllRoles);
   const saveAll = useStrategyStore((state) => state.saveAll);
   const resetRole = useStrategyStore((state) => state.resetRole);
   const setActiveTab = useStrategyStore((state) => state.setActiveTab);
   const setActiveSection = useStrategyStore((state) => state.setActiveSection);
+
+  const [customizeExpanded, setCustomizeExpanded] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingPreset, setEditingPreset] = useState<UserGlobalPresetInput & { id: string } | null>(null);
 
   useEffect(() => {
     if (viewMode !== "session" || !focusedSessionId) return;
@@ -189,28 +204,60 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
         </button>
       </div>
 
-      <div style={tabRowStyle}>
-        {[
-          ["style", "Style"],
-          ["rules", "Rules"],
-          ["risk", "Risk"],
-          ["timeframe", "Timeframe"],
-          ["role_profiles", "Role profiles"],
-          ["ai_roles", "AI Roles"],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            onClick={() =>
-              setActiveSection(value as "style" | "rules" | "risk" | "timeframe" | "role_profiles" | "ai_roles")
-            }
-            style={activeSection === value ? activeTabStyle : inactiveTabStyle}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <GlobalPresetGrid
+        builtInPresets={GLOBAL_STRATEGY_PRESETS as GlobalStrategyPreset[]}
+        userPresets={globalPresets}
+        currentPosturePresetId={researchPosture.posturePresetId}
+        currentRulesPresetId={rules.rulesPresetId}
+        currentRiskPresetId={riskConfig.riskPresetId ?? "custom"}
+        currentTimeframePresetId={timeframe.timeframePresetId ?? "custom"}
+        disabled={isLocked}
+        expanded={customizeExpanded}
+        onToggleExpand={() => setCustomizeExpanded((v) => !v)}
+        onApply={(preset) => applyGlobalPreset(preset)}
+        onCreatePreset={() => setCreateModalOpen(true)}
+        onEditPreset={(p) => {
+          const j = JSON.parse(p.presetJson) as Partial<UserGlobalPresetInput>;
+          setEditingPreset({
+            id: p.id,
+            name: p.name,
+            posturePresetId: j.posturePresetId ?? "custom",
+            rulesPresetId: j.rulesPresetId ?? "custom",
+            riskPresetId: j.riskPresetId ?? "custom",
+            timeframePresetId: j.timeframePresetId ?? "custom",
+          });
+        }}
+        onDeletePreset={async (id) => {
+          if (!window.confirm("Delete this preset?")) return;
+          await api.deleteGlobalPreset({ id });
+          await loadGlobalPresets();
+        }}
+      />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+      {customizeExpanded && (
+        <div style={tabRowStyle}>
+          {[
+            ["style", "Style"],
+            ["rules", "Rules"],
+            ["risk", "Risk"],
+            ["timeframe", "Timeframe"],
+            ["role_profiles", "Role profiles"],
+            ["ai_roles", "AI Roles"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() =>
+                setActiveSection(value as "style" | "rules" | "risk" | "timeframe" | "role_profiles" | "ai_roles")
+              }
+              style={activeSection === value ? activeTabStyle : inactiveTabStyle}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: customizeExpanded ? "grid" : "none", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {activeSection === "style" && (
             <>
@@ -380,6 +427,18 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
             <Card>
               <SectionTitle>Risk Controls</SectionTitle>
               <div style={formGridStyle}>
+                <Field label="Risk preset">
+                  <ShadcnSelect
+                    value={riskConfig.riskPresetId ?? "custom"}
+                    onValueChange={(value) => {
+                      const preset = RISK_PRESETS.find((p) => p.id === value);
+                      if (!preset) return;
+                      updateRiskConfig({ riskPresetId: preset.id, ...preset.values });
+                    }}
+                    disabled={isLocked}
+                    options={RISK_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+                  />
+                </Field>
                 <Field label="Max position USD">
                   <input type="number" value={riskConfig.maxPositionUsd} onChange={(event) => updateRiskConfig({ maxPositionUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
                 </Field>
@@ -437,7 +496,26 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
           )}
 
           {activeSection === "timeframe" && (
-            <TimeframeHorizonCard timeframe={timeframe} disabled={isLocked} onChange={updateTimeframe} />
+            <>
+              <Card>
+                <SectionTitle>Timeframe Preset</SectionTitle>
+                <div style={formGridStyle}>
+                  <Field label="Timeframe preset">
+                    <ShadcnSelect
+                      value={timeframe.timeframePresetId ?? "custom"}
+                      onValueChange={(value) => {
+                        const preset = TIMEFRAME_PRESETS.find((p) => p.id === value);
+                        if (!preset) return;
+                        updateTimeframe({ timeframePresetId: preset.id, ...preset.values });
+                      }}
+                      disabled={isLocked}
+                      options={TIMEFRAME_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+                    />
+                  </Field>
+                </div>
+              </Card>
+              <TimeframeHorizonCard timeframe={timeframe} disabled={isLocked} onChange={updateTimeframe} />
+            </>
           )}
 
           {activeSection === "role_profiles" && (
@@ -450,6 +528,31 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
               onTabChange={setActiveTab}
               onPatch={(role, patch) => updateAiRoleProfile(role, patch)}
             />
+          )}
+
+          {activeSection === "ai_roles" && workspaceDefaultModelProviderKey && workspaceDefaultModelModelId && (
+            <Card>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text1)" }}>Workspace default model</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
+                    {workspaceDefaultModelProviderKey} / {workspaceDefaultModelModelId}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={isLocked}
+                  onClick={() => applyWorkspaceDefaultToAllRoles()}
+                  style={{
+                    padding: "7px 13px", borderRadius: 8, border: "1px solid var(--border)",
+                    background: "var(--surface3)", color: "var(--text2)", fontSize: 12,
+                    cursor: isLocked ? "not-allowed" : "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  Apply to all roles
+                </button>
+              </div>
+            </Card>
           )}
 
           {activeSection === "ai_roles" && (
@@ -530,6 +633,48 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
           </Card>
         </div>
       </div>
+      <CreateEditGlobalPresetModal
+        open={createModalOpen}
+        onSave={async (input) => {
+          await api.createGlobalPreset({
+            name: input.name,
+            preset: {
+              description: "",
+              summaryBullets: [],
+              posturePresetId: input.posturePresetId,
+              rulesPresetId: input.rulesPresetId,
+              riskPresetId: input.riskPresetId,
+              timeframePresetId: input.timeframePresetId,
+            },
+          });
+          await loadGlobalPresets();
+          setCreateModalOpen(false);
+        }}
+        onClose={() => setCreateModalOpen(false)}
+      />
+
+      <CreateEditGlobalPresetModal
+        open={!!editingPreset}
+        initial={editingPreset ?? undefined}
+        onSave={async (input) => {
+          if (!editingPreset) return;
+          await api.updateGlobalPreset({
+            id: editingPreset.id,
+            name: input.name,
+            preset: {
+              description: "",
+              summaryBullets: [],
+              posturePresetId: input.posturePresetId,
+              rulesPresetId: input.rulesPresetId,
+              riskPresetId: input.riskPresetId,
+              timeframePresetId: input.timeframePresetId,
+            },
+          });
+          await loadGlobalPresets();
+          setEditingPreset(null);
+        }}
+        onClose={() => setEditingPreset(null)}
+      />
     </PageShell>
   );
 };

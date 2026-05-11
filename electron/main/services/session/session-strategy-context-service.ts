@@ -39,6 +39,8 @@ export interface StrategyPageData {
   selectionMode: SelectionMode;
   defaultSearchProviderId: string | null;
   workspaceDefaultSearchProviderId: string | null;
+  workspaceDefaultModelProviderKey: string;
+  workspaceDefaultModelModelId: string;
 }
 
 export class SessionStrategyContextService {
@@ -110,6 +112,8 @@ export class SessionStrategyContextService {
       selectionMode: session.selectionMode,
       defaultSearchProviderId: session.defaultSearchProviderId,
       workspaceDefaultSearchProviderId: this.deps.workspacePrefsRepo.get().defaultSearchProviderId,
+      workspaceDefaultModelProviderKey: this.deps.workspacePrefsRepo.get().defaultModelProviderKey,
+      workspaceDefaultModelModelId: this.deps.workspacePrefsRepo.get().defaultModelModelId,
     };
   }
 

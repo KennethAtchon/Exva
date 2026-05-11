@@ -28,6 +28,7 @@ export class SessionTimeframeConfigRepo {
     this.client.db
       .update(sessionTimeframeConfig)
       .set({
+        timeframePresetId: next.timeframePresetId,
         primaryTradingTimeframe: next.primaryTradingTimeframe,
         holdingStyle: next.holdingStyle,
         targetHoldDays: next.targetHoldDays,

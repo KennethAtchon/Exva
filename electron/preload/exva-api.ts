@@ -104,6 +104,15 @@ export interface StrategyGetResponse {
   selectionMode: SelectionMode;
   defaultSearchProviderId: string | null;
   workspaceDefaultSearchProviderId: string | null;
+  workspaceDefaultModelProviderKey: string;
+  workspaceDefaultModelModelId: string;
+}
+
+export interface UserGlobalPresetRow {
+  id: string;
+  name: string;
+  createdAt: number;
+  presetJson: string;
 }
 
 export interface ProviderModelEntry {
@@ -232,6 +241,14 @@ export interface ExvaApi {
     }): Promise<{ savedAt: string }>;
     getProviderModels(providerKey: string): Promise<{ models: ProviderModelEntry[] }>;
     resetPrompt(role: AgentRole): Promise<{ promptMarkdown: string; promptAssetPath: string }>;
+    globalPresets: {
+      list(): Promise<{ presets: UserGlobalPresetRow[] }>;
+      create(input: { name: string; preset: Record<string, unknown> }): Promise<UserGlobalPresetRow>;
+      update(input: { id: string; name: string; preset: Record<string, unknown> }): Promise<{ ok: true }>;
+      delete(input: { id: string }): Promise<{ ok: true }>;
+    };
+    getWorkspaceDefaultModel(): Promise<{ providerKey: string; modelId: string }>;
+    saveWorkspaceDefaultModel(input: { providerKey: string; modelId: string }): Promise<{ savedAt: string }>;
   };
   config: {
     getStrategy(): Promise<SessionStrategy>;

@@ -223,6 +223,7 @@ export function toSessionRiskConfig(row: Row): SessionRiskConfig {
   row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
+    riskPresetId: (row.risk_preset_id as SessionRiskConfig["riskPresetId"]) ?? "custom",
     maxPositionUsd: Number(row.max_position_usd),
     stopLossPct: nullableNumber(row.stop_loss_pct),
     takeProfitPct: nullableNumber(row.take_profit_pct),
@@ -248,6 +249,7 @@ export function toSessionTimeframeConfig(row: Row): SessionTimeframeConfig {
   const holdStyle = row.holding_style;
   return {
     sessionId: String(row.session_id),
+    timeframePresetId: (row.timeframe_preset_id as SessionTimeframeConfig["timeframePresetId"]) ?? "custom",
     primaryTradingTimeframe: isTradingTimeframe(primaryTf) ? primaryTf : "1d",
     holdingStyle: isHoldingStyle(holdStyle) ? holdStyle : "multi_day_swing",
     targetHoldDays: nullableNumber(row.target_hold_days),
@@ -310,6 +312,8 @@ export function toWorkspacePreferences(row: Row): WorkspacePreferences {
     defaultSearchProviderId: nullableString(row.default_search_provider_id),
     capitalAllocationMode: row.capital_allocation_mode as WorkspacePreferences["capitalAllocationMode"],
     globalCapitalPoolUsd: nullableNumber(row.global_capital_pool_usd),
+    defaultModelProviderKey: row.default_model_provider_key != null ? String(row.default_model_provider_key) : "",
+    defaultModelModelId: row.default_model_model_id != null ? String(row.default_model_model_id) : "",
     updatedAt: String(row.updated_at),
   };
 }

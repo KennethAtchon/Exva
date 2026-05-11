@@ -52,6 +52,14 @@ export const channels = {
     saveAiRoleProfiles: "strategy:save-ai-role-profiles",
     getProviderModels: "strategy:get-provider-models",
     resetPrompt: "strategy:reset-prompt",
+    globalPresets: {
+      list: "strategy:global-presets:list",
+      create: "strategy:global-presets:create",
+      update: "strategy:global-presets:update",
+      delete: "strategy:global-presets:delete",
+    },
+    getWorkspaceDefaultModel: "strategy:workspace-default-model:get",
+    saveWorkspaceDefaultModel: "strategy:workspace-default-model:save",
   },
   config: {
     getStrategy: "config:get-strategy",

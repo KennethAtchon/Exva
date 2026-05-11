@@ -25,6 +25,7 @@ app.whenReady().then(async () => {
   } catch (error) {
     logger.error({ err: error }, "failed to start Exva");
     app.quit();
+    process.exit(1);
   }
 
   app.on("activate", () => {
@@ -35,7 +36,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  app.quit();
 });
 
 app.on("before-quit", () => {

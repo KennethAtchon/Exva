@@ -98,6 +98,38 @@ export function registerStrategyHandlers(services: AppServices): void {
     const { role } = strategyResetPromptSchema.parse(payload);
     return services.strategyContext.resetPrompt(role);
   });
+
+  handle(ipcMain, channels.strategy.globalPresets.list, async () => {
+    return { presets: services.repos.globalPresets.list() };
+  });
+
+  handle(ipcMain, channels.strategy.globalPresets.create, async (payload) => {
+    const { name, preset } = payload as { name: string; preset: Record<string, unknown> };
+    return services.repos.globalPresets.insert({ name, preset: preset as Parameters<typeof services.repos.globalPresets.insert>[0]["preset"] });
+  });
+
+  handle(ipcMain, channels.strategy.globalPresets.update, async (payload) => {
+    const { id, name, preset } = payload as { id: string; name: string; preset: Record<string, unknown> };
+    services.repos.globalPresets.update(id, { name, preset: preset as Parameters<typeof services.repos.globalPresets.update>[1]["preset"] });
+    return { ok: true };
+  });
+
+  handle(ipcMain, channels.strategy.globalPresets.delete, async (payload) => {
+    const { id } = payload as { id: string };
+    services.repos.globalPresets.delete(id);
+    return { ok: true };
+  });
+
+  handle(ipcMain, channels.strategy.getWorkspaceDefaultModel, async () => {
+    const prefs = services.repos.workspacePreferences.get();
+    return { providerKey: prefs.defaultModelProviderKey, modelId: prefs.defaultModelModelId };
+  });
+
+  handle(ipcMain, channels.strategy.saveWorkspaceDefaultModel, async (payload) => {
+    const { providerKey, modelId } = payload as { providerKey: string; modelId: string };
+    services.repos.workspacePreferences.update({ defaultModelProviderKey: providerKey, defaultModelModelId: modelId });
+    return { savedAt: new Date().toISOString() };
+  });
 }
 
 function resolveSessionId(services: AppServices, payload: { sessionId?: string } | unknown): string {

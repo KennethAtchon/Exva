@@ -86,6 +86,15 @@ export interface StrategyGetResponse {
   selectionMode: SelectionMode;
   defaultSearchProviderId: string | null;
   workspaceDefaultSearchProviderId: string | null;
+  workspaceDefaultModelProviderKey: string;
+  workspaceDefaultModelModelId: string;
+}
+
+export interface UserGlobalPresetRow {
+  id: string;
+  name: string;
+  createdAt: number;
+  presetJson: string;
 }
 
 export interface ProviderModelEntry {
@@ -201,6 +210,18 @@ export const api = {
   getStrategyProviderModels: (providerKey: string): Promise<{ models: ProviderModelEntry[] }> =>
     bridge().strategy.getProviderModels(providerKey),
   resetStrategyPrompt: (role: AgentRole) => bridge().strategy.resetPrompt(role),
+
+  listGlobalPresets: (): Promise<{ presets: UserGlobalPresetRow[] }> => bridge().strategy.globalPresets.list(),
+  createGlobalPreset: (input: { name: string; preset: Record<string, unknown> }): Promise<UserGlobalPresetRow> =>
+    bridge().strategy.globalPresets.create(input),
+  updateGlobalPreset: (input: { id: string; name: string; preset: Record<string, unknown> }): Promise<{ ok: true }> =>
+    bridge().strategy.globalPresets.update(input),
+  deleteGlobalPreset: (input: { id: string }): Promise<{ ok: true }> =>
+    bridge().strategy.globalPresets.delete(input),
+  getWorkspaceDefaultModel: (): Promise<{ providerKey: string; modelId: string }> =>
+    bridge().strategy.getWorkspaceDefaultModel(),
+  saveWorkspaceDefaultModel: (input: { providerKey: string; modelId: string }): Promise<{ savedAt: string }> =>
+    bridge().strategy.saveWorkspaceDefaultModel(input),
 
   getStrategyConfig: (): Promise<SessionStrategy> => bridge().config.getStrategy(),
   saveStrategyConfig: (cfg: SessionStrategy): Promise<void> => bridge().config.saveStrategy(cfg),

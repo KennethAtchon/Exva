@@ -63,6 +63,10 @@ export type StrategyExitStyle =
 export type StrategyScalingMode = "single_entry" | "scale_in_2" | "scale_in_3" | "scale_out_partial";
 export type StopLossType = "fixed_pct" | "trailing_atr" | "broker_native_trailing" | "none";
 
+export type RiskPresetId = "conservative" | "moderate" | "aggressive" | "prediction_market" | "custom";
+
+export type TimeframePresetId = "intraday" | "swing" | "position" | "prediction" | "custom";
+
 export const RESEARCH_POSTURE_PRESET_IDS: readonly ResearchPosturePresetId[] = [
   "trend_hunt",
   "catalyst_momentum",
@@ -144,11 +148,219 @@ export const STRATEGY_SCALING_MODES: readonly StrategyScalingMode[] = [
   "scale_out_partial",
 ];
 
+export const RISK_PRESET_IDS: readonly RiskPresetId[] = [
+  "conservative",
+  "moderate",
+  "aggressive",
+  "prediction_market",
+  "custom",
+];
+
+export const TIMEFRAME_PRESET_IDS: readonly TimeframePresetId[] = [
+  "intraday",
+  "swing",
+  "position",
+  "prediction",
+  "custom",
+];
+
 export const STOP_LOSS_TYPES: readonly StopLossType[] = [
   "fixed_pct",
   "trailing_atr",
   "broker_native_trailing",
   "none",
+];
+
+export interface RiskPreset {
+  id: RiskPresetId;
+  label: string;
+  description: string;
+  summaryBullets: string[];
+  values: Partial<Omit<SessionRiskConfig, "sessionId" | "updatedAt">>;
+}
+
+export const RISK_PRESETS: readonly RiskPreset[] = [
+  {
+    id: "conservative",
+    label: "Conservative",
+    description: "Small positions, tight stops, daily loss cap enforced, human approval required.",
+    summaryBullets: [
+      "Max position $200, stop loss 2%, daily loss limit $100.",
+      "Human approval required for every trade.",
+      "Confidence threshold set high — wait for strong signals.",
+    ],
+    values: {
+      maxPositionUsd: 200,
+      stopLossType: "fixed_pct",
+      stopLossPct: 2,
+      dailyLossLimitUsd: 100,
+      profitTargetUsd: 400,
+      maxConcurrentTrades: 2,
+      humanApprovalRequired: true,
+      waitForOpenThreshold: 0.85,
+      kellyFraction: 0.1,
+    },
+  },
+  {
+    id: "moderate",
+    label: "Moderate",
+    description: "Balanced position sizing, trailing stops, approval optional.",
+    summaryBullets: [
+      "Max position $500, trailing ATR stops.",
+      "Daily loss limit $200, profit target $1000.",
+      "Up to 3 concurrent trades.",
+    ],
+    values: {
+      maxPositionUsd: 500,
+      stopLossType: "trailing_atr",
+      stopLossPct: null,
+      atrStopMultiplier: 2,
+      dailyLossLimitUsd: 200,
+      profitTargetUsd: 1000,
+      maxConcurrentTrades: 3,
+      humanApprovalRequired: false,
+      waitForOpenThreshold: 0.8,
+      kellyFraction: 0.25,
+    },
+  },
+  {
+    id: "aggressive",
+    label: "Aggressive",
+    description: "Larger positions, wider stops, maximum concurrent exposure.",
+    summaryBullets: [
+      "Max position $1000, wider stops allow trades to breathe.",
+      "Daily loss limit $500, higher profit targets.",
+      "Up to 5 concurrent trades, no mandatory human approval.",
+    ],
+    values: {
+      maxPositionUsd: 1000,
+      stopLossType: "trailing_atr",
+      stopLossPct: null,
+      atrStopMultiplier: 3,
+      dailyLossLimitUsd: 500,
+      profitTargetUsd: 2500,
+      maxConcurrentTrades: 5,
+      humanApprovalRequired: false,
+      waitForOpenThreshold: 0.7,
+      kellyFraction: 0.4,
+    },
+  },
+  {
+    id: "prediction_market",
+    label: "Prediction Market",
+    description: "Kelly-sized positions for event contracts, probability-edge focused.",
+    summaryBullets: [
+      "Kelly fraction 0.25, max exposure $2000 across open contracts.",
+      "Prediction edge threshold 8% — only trade mispriced odds.",
+      "Market resolution exits — no fixed stop loss.",
+    ],
+    values: {
+      maxPositionUsd: 200,
+      stopLossType: "none",
+      stopLossPct: null,
+      kellyFraction: 0.25,
+      predictionEdgeThreshold: 0.08,
+      maxExposureUsd: 2000,
+      dailyLossLimitUsd: 300,
+      profitTargetUsd: 1500,
+      maxConcurrentTrades: 10,
+      humanApprovalRequired: false,
+      waitForOpenThreshold: 0.75,
+    },
+  },
+  {
+    id: "custom",
+    label: "Custom Risk",
+    description: "No preset assumptions — configure all risk fields manually.",
+    summaryBullets: ["All risk fields set independently.", "Use when no built-in preset fits your session."],
+    values: {},
+  },
+];
+
+export interface TimeframePreset {
+  id: TimeframePresetId;
+  label: string;
+  description: string;
+  summaryBullets: string[];
+  values: Partial<Omit<SessionTimeframeConfig, "sessionId" | "updatedAt">>;
+}
+
+export const TIMEFRAME_PRESETS: readonly TimeframePreset[] = [
+  {
+    id: "intraday",
+    label: "Intraday",
+    description: "1h bars, flat by end of session. No overnight exposure.",
+    summaryBullets: [
+      "Primary timeframe: 1h bars.",
+      "Holding style: intraday flat.",
+      "Target hold: same-day close.",
+    ],
+    values: {
+      primaryTradingTimeframe: "1h",
+      holdingStyle: "intraday_flat",
+      targetHoldDays: null,
+      maxHoldDays: 1,
+      timeframeNotes: "",
+    },
+  },
+  {
+    id: "swing",
+    label: "Swing",
+    description: "4h bars, multi-day hold. Closes within 2 weeks.",
+    summaryBullets: [
+      "Primary timeframe: 4h bars.",
+      "Holding style: multi-day swing.",
+      "Target hold: 3–5 days, max 14 days.",
+    ],
+    values: {
+      primaryTradingTimeframe: "4h",
+      holdingStyle: "multi_day_swing",
+      targetHoldDays: 3,
+      maxHoldDays: 14,
+      timeframeNotes: "",
+    },
+  },
+  {
+    id: "position",
+    label: "Position",
+    description: "Daily bars, weeks-long hold. Fundamentals carry weight.",
+    summaryBullets: [
+      "Primary timeframe: 1d bars.",
+      "Holding style: weeks position.",
+      "Target hold: 2–4 weeks.",
+    ],
+    values: {
+      primaryTradingTimeframe: "1d",
+      holdingStyle: "weeks_position",
+      targetHoldDays: 14,
+      maxHoldDays: 60,
+      timeframeNotes: "",
+    },
+  },
+  {
+    id: "prediction",
+    label: "Prediction",
+    description: "Daily bars, hold to event resolution. No fixed time target.",
+    summaryBullets: [
+      "Primary timeframe: 1d bars.",
+      "Holding style: custom (contract-driven).",
+      "Exit at resolution or thesis invalidation.",
+    ],
+    values: {
+      primaryTradingTimeframe: "1d",
+      holdingStyle: "custom",
+      targetHoldDays: null,
+      maxHoldDays: null,
+      timeframeNotes: "Hold to event resolution unless thesis is invalidated early.",
+    },
+  },
+  {
+    id: "custom",
+    label: "Custom Timeframe",
+    description: "No preset assumptions — set timeframe fields manually.",
+    summaryBullets: ["All timeframe fields configured independently."],
+    values: {},
+  },
 ];
 
 export interface ResearchPosturePreset {
@@ -618,6 +830,7 @@ export interface SessionTradeRules {
 
 export interface SessionRiskConfig {
   sessionId: string;
+  riskPresetId: RiskPresetId;
   maxPositionUsd: number;
   stopLossPct: number | null;
   takeProfitPct: number | null;
@@ -638,6 +851,7 @@ export interface SessionRiskConfig {
 
 export interface SessionTimeframeConfig {
   sessionId: string;
+  timeframePresetId: TimeframePresetId;
   primaryTradingTimeframe: TradingTimeframe;
   holdingStyle: HoldingStyle;
   targetHoldDays: number | null;
@@ -755,6 +969,8 @@ export interface WorkspacePreferences {
   defaultSearchProviderId: string | null;
   capitalAllocationMode: CapitalAllocationMode;
   globalCapitalPoolUsd: number | null;
+  defaultModelProviderKey: string;
+  defaultModelModelId: string;
   updatedAt: string;
 }
 

@@ -21,6 +21,7 @@ import { SessionAiRoleProfileRepo } from "../db/repositories/session-ai-role-pro
 import { SessionResearchPostureRepo } from "../db/repositories/session-research-posture-repo";
 import { SessionRepo } from "../db/repositories/session-repo";
 import { InstrumentCacheRepo } from "../db/repositories/instrument-cache-repo";
+import { GlobalPresetsRepo } from "../db/repositories/global-presets-repo";
 import { StatsRepo } from "../db/repositories/stats-repo";
 import { TradeAutopsiesRepo } from "../db/repositories/trade-autopsies-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trade-approvals-repo";
@@ -78,6 +79,7 @@ export interface AppServices {
     trades: TradesRepo;
     workspacePreferences: WorkspacePreferencesRepo;
     instrumentCache: InstrumentCacheRepo;
+    globalPresets: GlobalPresetsRepo;
   };
   ai: AiRuntime;
   providerRegistry: ProviderRegistry;
@@ -128,6 +130,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     trades: new TradesRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),
     instrumentCache: new InstrumentCacheRepo(db),
+    globalPresets: new GlobalPresetsRepo(db),
   };
   const builtInSearchProvider = buildBuiltInDuckDuckGoProviderAccount();
   repos.providerAccounts.upsert({

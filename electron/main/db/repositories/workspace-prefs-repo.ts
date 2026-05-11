@@ -18,6 +18,8 @@ export class WorkspacePreferencesRepo {
       defaultSearchProviderId: row.defaultSearchProviderId,
       capitalAllocationMode: row.capitalAllocationMode as WorkspacePreferences["capitalAllocationMode"],
       globalCapitalPoolUsd: row.globalCapitalPoolUsd,
+      defaultModelProviderKey: row.defaultModelProviderKey ?? "",
+      defaultModelModelId: row.defaultModelModelId ?? "",
       updatedAt: row.updatedAt,
     };
   }
@@ -33,6 +35,8 @@ export class WorkspacePreferencesRepo {
         defaultSearchProviderId: next.defaultSearchProviderId,
         capitalAllocationMode: next.capitalAllocationMode,
         globalCapitalPoolUsd: next.globalCapitalPoolUsd,
+        defaultModelProviderKey: next.defaultModelProviderKey,
+        defaultModelModelId: next.defaultModelModelId,
         updatedAt: next.updatedAt,
       })
       .where(eq(workspacePreferences.id, 1))

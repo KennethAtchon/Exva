@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { aiRoleProfileDocumentSchema } from "../../electron/shared/ai-role-profile";
+import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type TimeframePresetId } from "../../electron/shared/domain";
 
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
 export const tradeSideSchema = z.enum(["BUY", "SELL"]);
@@ -298,6 +299,7 @@ export const strategyRulesSaveSchema = z.object({
 export const strategyRiskConfigSaveSchema = z.object({
   sessionId: z.string().min(1),
   riskConfig: z.object({
+    riskPresetId: z.enum(RISK_PRESET_IDS as [RiskPresetId, ...RiskPresetId[]]).optional(),
     maxPositionUsd: z.number().nonnegative().optional(),
     stopLossPct: z.union([z.number().nonnegative(), z.null()]).optional(),
     takeProfitPct: z.union([z.number().nonnegative(), z.null()]).optional(),
@@ -318,6 +320,7 @@ export const strategyRiskConfigSaveSchema = z.object({
 export const strategyTimeframeConfigSaveSchema = z.object({
   sessionId: z.string().min(1),
   timeframe: z.object({
+    timeframePresetId: z.enum(TIMEFRAME_PRESET_IDS as [TimeframePresetId, ...TimeframePresetId[]]).optional(),
     primaryTradingTimeframe: tradingTimeframeSchema.optional(),
     holdingStyle: holdingStyleSchema.optional(),
     targetHoldDays: z.union([z.number().nonnegative(), z.null()]).optional(),

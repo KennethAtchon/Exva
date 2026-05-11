@@ -117,6 +117,7 @@ export const sessionRiskConfig = sqliteTable("session_risk_config", {
   sessionId: text("session_id")
     .primaryKey()
     .references(() => sessions.id, { onDelete: "cascade" }),
+  riskPresetId: text("risk_preset_id").notNull().default("custom"),
   maxPositionUsd: real("max_position_usd").notNull().default(500),
   stopLossPct: real("stop_loss_pct"),
   takeProfitPct: real("take_profit_pct"),
@@ -139,6 +140,7 @@ export const sessionTimeframeConfig = sqliteTable("session_timeframe_config", {
   sessionId: text("session_id")
     .primaryKey()
     .references(() => sessions.id, { onDelete: "cascade" }),
+  timeframePresetId: text("timeframe_preset_id").notNull().default("custom"),
   primaryTradingTimeframe: text("primary_trading_timeframe").notNull().default("1d"),
   holdingStyle: text("holding_style").notNull().default("multi_day_swing"),
   targetHoldDays: real("target_hold_days"),
@@ -208,7 +210,16 @@ export const workspacePreferences = sqliteTable("workspace_preferences", {
   }),
   capitalAllocationMode: text("capital_allocation_mode").notNull().default("per_session_only"),
   globalCapitalPoolUsd: real("global_capital_pool_usd"),
+  defaultModelProviderKey: text("default_model_provider_key").notNull().default(""),
+  defaultModelModelId: text("default_model_model_id").notNull().default(""),
   updatedAt: text("updated_at").notNull(),
+});
+
+export const globalPresets = sqliteTable("global_presets", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  createdAt: integer("created_at").notNull(),
+  presetJson: text("preset_json").notNull(),
 });
 
 export const sessionTemplates = sqliteTable("session_templates", {

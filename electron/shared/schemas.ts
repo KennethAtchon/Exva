@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { aiRoleProfileDocumentSchema } from "./ai-role-profile";
+import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type TimeframePresetId } from "./domain";
 
 export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 export const selectionModeSchema = z.enum(["manual_shortlist", "ai_selected_universe"]);
@@ -146,6 +147,7 @@ export const sessionTradeRulesPayloadSchema = z.object({
 });
 
 export const sessionRiskConfigPayloadSchema = z.object({
+  riskPresetId: z.enum(RISK_PRESET_IDS as [RiskPresetId, ...RiskPresetId[]]).optional().default("custom"),
   maxPositionUsd: z.number().nonnegative(),
   stopLossPct: z.union([z.number().nonnegative(), z.null()]),
   takeProfitPct: z.union([z.number().nonnegative(), z.null()]),
@@ -164,6 +166,7 @@ export const sessionRiskConfigPayloadSchema = z.object({
 });
 
 export const sessionTimeframeConfigPayloadSchema = z.object({
+  timeframePresetId: z.enum(TIMEFRAME_PRESET_IDS as [TimeframePresetId, ...TimeframePresetId[]]).optional().default("custom"),
   primaryTradingTimeframe: tradingTimeframeSchema,
   holdingStyle: holdingStyleSchema,
   targetHoldDays: z.union([z.number().nonnegative(), z.null()]),

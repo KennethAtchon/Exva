@@ -86,6 +86,14 @@ const exva: ExvaApi = {
       invoke(channels.strategy.saveAiRoleProfiles, strategyAiRoleProfilesSaveSchema.parse(input)),
     getProviderModels: (providerKey) => invoke(channels.strategy.getProviderModels, { providerKey }),
     resetPrompt: (role) => invoke(channels.strategy.resetPrompt, { role }),
+    globalPresets: {
+      list: () => invoke(channels.strategy.globalPresets.list),
+      create: (input) => invoke(channels.strategy.globalPresets.create, input),
+      update: (input) => invoke(channels.strategy.globalPresets.update, input),
+      delete: (input) => invoke(channels.strategy.globalPresets.delete, input),
+    },
+    getWorkspaceDefaultModel: () => invoke(channels.strategy.getWorkspaceDefaultModel),
+    saveWorkspaceDefaultModel: (input) => invoke(channels.strategy.saveWorkspaceDefaultModel, input),
   },
   workspace: {
     getView: () => invoke(channels.workspace.viewGet),

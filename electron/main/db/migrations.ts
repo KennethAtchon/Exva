@@ -32,6 +32,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       DROP TABLE IF EXISTS sessions;
       DROP TABLE IF EXISTS provider_accounts;
       DROP TABLE IF EXISTS broker_accounts;
+      DROP TABLE IF EXISTS global_presets;
       DROP TABLE IF EXISTS session_config;
       DROP TABLE IF EXISTS session_state;
       DROP TABLE IF EXISTS adaptations;
@@ -136,6 +137,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
 
     CREATE TABLE IF NOT EXISTS session_risk_config (
       session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+      risk_preset_id TEXT NOT NULL DEFAULT 'custom',
       max_position_usd REAL NOT NULL DEFAULT 500,
       stop_loss_pct REAL,
       take_profit_pct REAL,
@@ -156,6 +158,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
 
     CREATE TABLE IF NOT EXISTS session_timeframe_config (
       session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+      timeframe_preset_id TEXT NOT NULL DEFAULT 'custom',
       primary_trading_timeframe TEXT NOT NULL DEFAULT '1d',
       holding_style TEXT NOT NULL DEFAULT 'multi_day_swing',
       target_hold_days REAL,
@@ -211,6 +214,8 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       default_search_provider_id TEXT REFERENCES provider_accounts(id) ON DELETE SET NULL,
       capital_allocation_mode TEXT NOT NULL DEFAULT 'per_session_only',
       global_capital_pool_usd REAL,
+      default_model_provider_key TEXT NOT NULL DEFAULT '',
+      default_model_model_id TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -402,6 +407,11 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
   `);
 
   sqlite.exec(`
+    INSERT OR IGNORE INTO workspace_preferences (id, capital_allocation_mode, global_include_archived, updated_at)
+    VALUES (1, 'per_session_only', 0, CURRENT_TIMESTAMP);
+  `);
+
+  sqlite.exec(`
     INSERT OR IGNORE INTO session_research_posture (
       session_id, posture_preset_id, discovery_mode, evidence_mode, catalyst_mode,
       fundamental_strictness, posture_notes, updated_at
@@ -510,5 +520,14 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     )
     WHERE template_payload_json LIKE '%researcher_bull%'
        OR template_payload_json LIKE '%researcher_bear%';
+  `);
+
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS global_presets (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      preset_json TEXT NOT NULL
+    );
   `);
 }
