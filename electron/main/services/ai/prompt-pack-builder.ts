@@ -91,7 +91,7 @@ export function buildRuntimeRiskPolicy(riskConfig: SessionRiskConfig): RuntimeRi
 }
 
 export function renderStrategyContextMarkdown(context: SessionStrategyContext, role: AgentRole) {
-  const built = buildStrategyPromptContext(context);
+  const built = buildStrategyPromptContext(context, { role });
   return {
     snapshot: built.snapshot,
     prompt: [

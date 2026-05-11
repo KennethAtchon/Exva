@@ -3,6 +3,7 @@ import { Card, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom
 import { Switch } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiRoleConfigCard } from "@/components/strategy/AiRoleConfigCard";
+import { AiRoleProfileCard } from "@/components/strategy/AiRoleProfileCard";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";
 import { TimeframeHorizonCard } from "@/components/strategy/TimeframeHorizonCard";
 import { api } from "@/lib/exva";
@@ -45,6 +46,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const rules = useStrategyStore((state) => state.rules);
   const riskConfig = useStrategyStore((state) => state.riskConfig);
   const timeframe = useStrategyStore((state) => state.timeframe);
+  const aiRoleProfiles = useStrategyStore((state) => state.aiRoleProfiles);
   const aiRoles = useStrategyStore((state) => state.aiRoles);
   const providers = useStrategyStore((state) => state.providers);
   const selectionMode = useStrategyStore((state) => state.selectionMode);
@@ -62,6 +64,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const updateRules = useStrategyStore((state) => state.updateRules);
   const updateRiskConfig = useStrategyStore((state) => state.updateRiskConfig);
   const updateTimeframe = useStrategyStore((state) => state.updateTimeframe);
+  const updateAiRoleProfile = useStrategyStore((state) => state.updateAiRoleProfile);
   const updateRole = useStrategyStore((state) => state.updateRole);
   const saveAll = useStrategyStore((state) => state.saveAll);
   const resetRole = useStrategyStore((state) => state.resetRole);
@@ -103,7 +106,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
     );
   }
 
-  if (!researchPosture || !rules || !riskConfig || !timeframe) {
+  if (!researchPosture || !rules || !riskConfig || !timeframe || aiRoleProfiles.length < 1) {
     return <PageShell><div style={{ color: "var(--text3)" }}>Loading strategy...</div></PageShell>;
   }
 
@@ -166,7 +169,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
         <div>
           <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>Strategy</h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
-            Separate trading style, trade rules, risk limits, timeframe rules, and AI role behavior for the focused session.
+            Separate research posture, trade rules, risk limits, timeframe, per-role operating briefs, and AI role models/prompts for the focused session.
           </p>
         </div>
         <button
@@ -192,11 +195,14 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
           ["rules", "Rules"],
           ["risk", "Risk"],
           ["timeframe", "Timeframe"],
+          ["role_profiles", "Role profiles"],
           ["ai_roles", "AI Roles"],
         ].map(([value, label]) => (
           <button
             key={value}
-            onClick={() => setActiveSection(value as "style" | "rules" | "risk" | "timeframe" | "ai_roles")}
+            onClick={() =>
+              setActiveSection(value as "style" | "rules" | "risk" | "timeframe" | "role_profiles" | "ai_roles")
+            }
             style={activeSection === value ? activeTabStyle : inactiveTabStyle}
           >
             {label}
@@ -432,6 +438,18 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
 
           {activeSection === "timeframe" && (
             <TimeframeHorizonCard timeframe={timeframe} disabled={isLocked} onChange={updateTimeframe} />
+          )}
+
+          {activeSection === "role_profiles" && (
+            <AiRoleProfileCard
+              activeRole={activeRoleTab}
+              profiles={aiRoleProfiles}
+              selectionMode={selectionMode}
+              aiPickerEnabled={selectorSettings?.aiPickerEnabled ?? true}
+              disabled={isLocked}
+              onTabChange={setActiveTab}
+              onPatch={(role, patch) => updateAiRoleProfile(role, patch)}
+            />
           )}
 
           {activeSection === "ai_roles" && (

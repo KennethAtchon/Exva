@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import {
+  strategyAiRoleProfilesSaveSchema,
   strategyAiRolesSaveSchema,
   strategyGetProviderModelsSchema,
   strategyResetPromptSchema,
@@ -69,6 +70,13 @@ export function registerStrategyHandlers(services: AppServices): void {
       sessionId,
       input.aiRoles.map((role) => ({ ...role, sessionId })),
     );
+    return { savedAt: new Date().toISOString() };
+  });
+
+  handle(ipcMain, channels.strategy.saveAiRoleProfiles, async (payload) => {
+    const input = strategyAiRoleProfilesSaveSchema.parse(payload);
+    const sessionId = resolveSessionId(services, input);
+    services.strategyContext.saveAiRoleProfiles(sessionId, input.aiRoleProfiles);
     return { savedAt: new Date().toISOString() };
   });
 

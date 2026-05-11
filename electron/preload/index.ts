@@ -19,6 +19,7 @@ import {
   apiCallLogFiltersSchema,
   cycleIdSchema,
   sessionConfigSchema,
+  strategyAiRoleProfilesSaveSchema,
   strategyAiRolesSaveSchema,
   strategyRiskConfigSaveSchema,
   strategyRulesSaveSchema,
@@ -81,6 +82,8 @@ const exva: ExvaApi = {
     saveTimeframeConfig: (input) =>
       invoke(channels.strategy.saveTimeframeConfig, strategyTimeframeConfigSaveSchema.parse(input)),
     saveAiRoles: (input) => invoke(channels.strategy.saveAiRoles, strategyAiRolesSaveSchema.parse(input)),
+    saveAiRoleProfiles: (input) =>
+      invoke(channels.strategy.saveAiRoleProfiles, strategyAiRoleProfilesSaveSchema.parse(input)),
     getProviderModels: (providerKey) => invoke(channels.strategy.getProviderModels, { providerKey }),
     resetPrompt: (role) => invoke(channels.strategy.resetPrompt, { role }),
   },

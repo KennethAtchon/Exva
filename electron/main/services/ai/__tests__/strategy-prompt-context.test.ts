@@ -81,4 +81,27 @@ describe("strategy-prompt-context", () => {
     expect(out.prompt.endsWith("Instrument: AAPL")).toBe(true);
     expect(out.snapshot.rules.setupType).toBe("breakout");
   });
+
+  it("includes authoritative role operating brief when a target role is set", () => {
+    const context = baseContext();
+    context.aiRoleProfiles = [
+      {
+        sessionId: "s1",
+        role: "decision_maker",
+        operatingPresetId: "conviction",
+        notes: "Prefer concise rationale.",
+        operatingSpec: { output_shape: "bullets" },
+        updatedAt: "2026-05-05T00:00:00.000Z",
+      },
+    ];
+
+    const built = buildStrategyPromptContext(context, { role: "decision_maker" });
+
+    expect(built.snapshot.version).toBe(4);
+    expect(built.snapshot.aiRoleProfiles[0]?.operatingPresetId).toBe("conviction");
+    expect(built.prompt).toContain("## Role profile");
+    expect(built.prompt).toContain("preset=conviction");
+    expect(built.prompt).toContain("notes=Prefer concise rationale.");
+    expect(built.prompt).toContain("spec=");
+  });
 });

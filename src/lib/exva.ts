@@ -191,6 +191,15 @@ export const api = {
   saveStrategyTimeframeConfig: (input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }) =>
     bridge().strategy.saveTimeframeConfig(input),
   saveStrategyAiRoles: (input: { sessionId: string; aiRoles: SessionAiRole[] }) => bridge().strategy.saveAiRoles(input),
+  saveStrategyAiRoleProfiles: (input: {
+    sessionId: string;
+    aiRoleProfiles: Array<{
+      role: AgentRole;
+      operatingPresetId?: string;
+      notes?: string;
+      operatingSpec?: Record<string, unknown>;
+    }>;
+  }) => bridge().strategy.saveAiRoleProfiles(input),
   getStrategyProviderModels: (providerKey: string): Promise<{ models: ProviderModelEntry[] }> =>
     bridge().strategy.getProviderModels(providerKey),
   resetStrategyPrompt: (role: AgentRole) => bridge().strategy.resetPrompt(role),

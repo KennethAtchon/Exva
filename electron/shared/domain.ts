@@ -656,7 +656,7 @@ export interface SessionStrategyContext {
 }
 
 export interface StrategySnapshot {
-  version: 3;
+  version: 4;
   researchPosture: {
     posturePresetId: ResearchPosturePresetId;
     discoveryMode: ResearchDiscoveryMode;
@@ -699,6 +699,12 @@ export interface StrategySnapshot {
     maxHoldDays: number | null;
     timeframeNotes: string;
   };
+  aiRoleProfiles: Array<{
+    role: AgentRole;
+    operatingPresetId: string;
+    notes: string;
+    operatingSpec: AgentOperatingSpec;
+  }>;
 }
 
 export interface SessionAiRole {
@@ -986,7 +992,7 @@ export function buildTradeRulesMarkdown(rules: SessionTradeRules): string {
 
 export function buildStrategySnapshot(context: SessionStrategyContext): StrategySnapshot {
   return {
-    version: 3,
+    version: 4,
     researchPosture: {
       posturePresetId: context.researchPosture.posturePresetId,
       discoveryMode: context.researchPosture.discoveryMode,
@@ -1029,6 +1035,12 @@ export function buildStrategySnapshot(context: SessionStrategyContext): Strategy
       maxHoldDays: context.timeframe.maxHoldDays,
       timeframeNotes: context.timeframe.timeframeNotes,
     },
+    aiRoleProfiles: context.aiRoleProfiles.map((p) => ({
+      role: p.role,
+      operatingPresetId: p.operatingPresetId,
+      notes: p.notes,
+      operatingSpec: p.operatingSpec ?? {},
+    })),
   };
 }
 

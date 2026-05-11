@@ -1,4 +1,5 @@
 import type {
+  AgentOperatingSpec,
   AgentRole,
   ProviderAccount,
   SessionAiRole,
@@ -146,6 +147,22 @@ export class SessionStrategyContextService {
     const next = { ...current, timeframe: { ...current.timeframe, ...patch, sessionId } };
     this.validate(next);
     return this.deps.timeframeRepo.upsert(sessionId, next.timeframe);
+  }
+
+  saveAiRoleProfiles(
+    sessionId: string,
+    patches: Array<{
+      role: AgentRole;
+      operatingPresetId?: string;
+      notes?: string;
+      operatingSpec?: AgentOperatingSpec;
+    }>,
+  ): void {
+    this.assertEditable(sessionId);
+    for (const patch of patches) {
+      this.deps.aiRoleProfileRepo.upsert(sessionId, patch.role, patch);
+    }
+    this.validate(this.get(sessionId));
   }
 
   saveAiRoles(sessionId: string, aiRoles: SessionAiRole[]): void {

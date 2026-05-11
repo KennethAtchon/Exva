@@ -199,6 +199,19 @@ export const strategyAiRolesSaveSchema = z.object({
   aiRoles: z.array(sessionAiRolePayloadSchema),
 });
 
+/** Partial upserts per role — merged with existing row server-side. */
+export const strategyAiRoleProfilesSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  aiRoleProfiles: z.array(
+    z.object({
+      role: agentRoleSchema,
+      operatingPresetId: z.string().optional(),
+      notes: z.string().optional(),
+      operatingSpec: agentOperatingSpecSchema.optional(),
+    }),
+  ),
+});
+
 export const sessionTemplatePayloadSchema = z.object({
   version: z.literal(1),
   identity: z.object({

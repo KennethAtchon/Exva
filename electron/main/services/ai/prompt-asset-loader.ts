@@ -3,6 +3,7 @@ import path from "node:path";
 import { app } from "electron";
 import type { AgentRole } from "@/lib/types";
 import { env } from "../../config/env";
+import { NAMED_PROMPT_OPERATING_SUPPLEMENT } from "../../../shared/default-ai-role-operating-notes";
 
 function resolvePromptsDir(): string {
   if (env.promptsDirOverride) return env.promptsDirOverride;
@@ -25,7 +26,11 @@ export class PromptAssetLoader {
 
   loadNamedAsset(name: string): string {
     const raw = fs.readFileSync(this.namedAssetPath(name), "utf8");
-    const body = raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
+    let body = raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
+    const supplement = NAMED_PROMPT_OPERATING_SUPPLEMENT[name];
+    if (supplement?.trim()) {
+      body = `${body}\n\n${supplement.trim()}`;
+    }
     return this.appendSharedHowto(body);
   }
 

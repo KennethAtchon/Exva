@@ -13,7 +13,7 @@ import type {
 } from "@/lib/types";
 
 type StrategyPageState = "no_session" | "editable" | "locked";
-type StrategySectionTab = "style" | "rules" | "risk" | "timeframe" | "ai_roles";
+type StrategySectionTab = "style" | "rules" | "risk" | "timeframe" | "role_profiles" | "ai_roles";
 
 interface StrategyStoreState {
   researchPosture: SessionResearchPosture | null;
@@ -42,6 +42,10 @@ interface StrategyStoreState {
   updateRules: (patch: Partial<SessionTradeRules>) => void;
   updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
   updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
+  updateAiRoleProfile: (
+    role: AgentRole,
+    patch: Partial<Pick<SessionAiRoleProfile, "operatingPresetId" | "notes" | "operatingSpec">>,
+  ) => void;
   updateRole: (role: AgentRole, patch: Partial<SessionAiRole>) => Promise<void>;
   saveAll: (sessionId: string) => Promise<void>;
   resetRole: (role: AgentRole) => Promise<void>;
@@ -137,12 +141,22 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     for (const key of Object.keys(patch)) dirtyFields.add(`riskConfig.${key}`);
     set({ riskConfig: { ...riskConfig, ...patch }, dirtyFields, strategyErrors: [] });
   },
-  updateTimeframe: (patch) => {
+  updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => {
     const timeframe = get().timeframe;
     if (!timeframe) return;
     const dirtyFields = new Set(get().dirtyFields);
     for (const key of Object.keys(patch)) dirtyFields.add(`timeframe.${key}`);
     set({ timeframe: { ...timeframe, ...patch }, dirtyFields, strategyErrors: [] });
+  },
+  updateAiRoleProfile: (role, patch) => {
+    const list = get().aiRoleProfiles;
+    const idx = list.findIndex((p) => p.role === role);
+    if (idx === -1) return;
+    const next = [...list];
+    next[idx] = { ...next[idx], ...patch };
+    const dirtyFields = new Set(get().dirtyFields);
+    dirtyFields.add("aiRoleProfiles");
+    set({ aiRoleProfiles: next, dirtyFields, strategyErrors: [] });
   },
   updateRole: async (role, patch) => {
     const current = get().aiRoles[role];
@@ -205,6 +219,15 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       await api.saveStrategyRiskConfig({ sessionId, riskConfig: context.riskConfig });
       await api.saveStrategyTimeframeConfig({ sessionId, timeframe: context.timeframe });
       await api.saveStrategyAiRoles({ sessionId, aiRoles: Object.values(get().aiRoles) });
+      await api.saveStrategyAiRoleProfiles({
+        sessionId,
+        aiRoleProfiles: get().aiRoleProfiles.map((p) => ({
+          role: p.role,
+          operatingPresetId: p.operatingPresetId,
+          notes: p.notes,
+          operatingSpec: p.operatingSpec,
+        })),
+      });
       set({
         rules: rulesWithMarkdown,
         dirtyFields: new Set(),

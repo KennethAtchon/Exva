@@ -329,3 +329,17 @@ export const strategyAiRolesSaveSchema = z.object({
   sessionId: z.string().min(1),
   aiRoles: z.array(sessionAiRolePayloadSchema),
 });
+
+const agentOperatingSpecSchema = z.record(z.string(), z.unknown());
+
+export const strategyAiRoleProfilesSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  aiRoleProfiles: z.array(
+    z.object({
+      role: aiRoleSchema,
+      operatingPresetId: z.string().optional(),
+      notes: z.string().optional(),
+      operatingSpec: agentOperatingSpecSchema.optional(),
+    }),
+  ),
+});

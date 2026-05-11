@@ -223,6 +223,15 @@ export interface ExvaApi {
     getTimeframeConfig(sessionId: string): Promise<SessionTimeframeConfig>;
     saveTimeframeConfig(input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }): Promise<{ savedAt: string }>;
     saveAiRoles(input: { sessionId: string; aiRoles: SessionAiRole[] }): Promise<{ savedAt: string }>;
+    saveAiRoleProfiles(input: {
+      sessionId: string;
+      aiRoleProfiles: Array<{
+        role: AgentRole;
+        operatingPresetId?: string;
+        notes?: string;
+        operatingSpec?: Record<string, unknown>;
+      }>;
+    }): Promise<{ savedAt: string }>;
     getProviderModels(providerKey: string): Promise<{ models: ProviderModelEntry[] }>;
     resetPrompt(role: AgentRole): Promise<{ promptMarkdown: string; promptAssetPath: string }>;
   };

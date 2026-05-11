@@ -1,19 +1,24 @@
 import {
   buildTradeRulesMarkdown,
   buildStrategySnapshot,
+  type AgentRole,
   type SessionStrategyContext,
   type StrategySnapshot,
 } from "@electron/shared/domain";
 
 const MAX_NOTES_CHARS = 500;
 const MAX_BRIEF_PROMPT_CHARS = 600;
+const MAX_ROLE_SPEC_CHARS = 400;
 
 export interface StrategyPromptContext {
   prompt: string;
   snapshot: StrategySnapshot;
 }
 
-export function buildStrategyPromptContext(context: SessionStrategyContext): StrategyPromptContext {
+export function buildStrategyPromptContext(
+  context: SessionStrategyContext,
+  options?: { role?: AgentRole },
+): StrategyPromptContext {
   const snapshot = buildStrategySnapshot({
     ...context,
     researchPosture: {
@@ -29,7 +34,13 @@ export function buildStrategyPromptContext(context: SessionStrategyContext): Str
       ...context.timeframe,
       timeframeNotes: truncate(context.timeframe.timeframeNotes, MAX_NOTES_CHARS),
     },
+    aiRoleProfiles: context.aiRoleProfiles.map((p) => ({
+      ...p,
+      notes: truncate(p.notes, MAX_NOTES_CHARS),
+    })),
   });
+
+  const roleLines = options?.role != null ? compactRoleProfile(snapshot, options.role) : [];
 
   const lines = [
     "## Session research posture (authoritative)",
@@ -81,6 +92,7 @@ export function buildStrategyPromptContext(context: SessionStrategyContext): Str
     snapshot.timeframe.targetHoldDays != null ? `- Target hold: ~${snapshot.timeframe.targetHoldDays} calendar days` : null,
     snapshot.timeframe.maxHoldDays != null ? `- Max hold: ${snapshot.timeframe.maxHoldDays} calendar days` : null,
     snapshot.timeframe.timeframeNotes.trim() ? `- Notes: ${snapshot.timeframe.timeframeNotes.trim()}` : null,
+    ...roleLines,
   ].filter((line): line is string => line != null);
 
   return {
@@ -95,6 +107,19 @@ export function prependStrategyContextToUserPrompt(context: SessionStrategyConte
     snapshot: built.snapshot,
     prompt: `${built.prompt}\n\n${userPrompt}`,
   };
+}
+
+/** Only added when `buildStrategyPromptContext(..., { role })` — i.e. prompt pack runs. */
+function compactRoleProfile(snapshot: StrategySnapshot, role: AgentRole): string[] {
+  const p = snapshot.aiRoleProfiles.find((x) => x.role === role);
+  if (!p) {
+    return ["", "## Role profile", `- ${role}: (no row)`];
+  }
+  const bits = [`preset=${p.operatingPresetId}`];
+  if (p.notes.trim()) bits.push(`notes=${truncate(p.notes.trim(), 240)}`);
+  const spec = JSON.stringify(p.operatingSpec ?? {});
+  if (spec !== "{}") bits.push(`spec=${truncate(spec, MAX_ROLE_SPEC_CHARS)}`);
+  return ["", "## Role profile", `- ${role}: ${bits.join("; ")}`];
 }
 
 function truncate(value: string, maxChars: number): string {

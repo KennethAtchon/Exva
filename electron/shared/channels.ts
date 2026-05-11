@@ -49,6 +49,7 @@ export const channels = {
     getTimeframeConfig: "strategy:get-timeframe-config",
     saveTimeframeConfig: "strategy:save-timeframe-config",
     saveAiRoles: "strategy:save-ai-roles",
+    saveAiRoleProfiles: "strategy:save-ai-role-profiles",
     getProviderModels: "strategy:get-provider-models",
     resetPrompt: "strategy:reset-prompt",
   },

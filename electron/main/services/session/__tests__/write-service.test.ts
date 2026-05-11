@@ -26,7 +26,7 @@ describe("SessionWriteService", () => {
       name: "Stock Mock",
       brokerType: "mock",
       supportedInstrumentClasses: ["stock"],
-      mode: "paper",
+      mode: "live",
     });
     insertBroker(db, {
       id: "broker-crypto",

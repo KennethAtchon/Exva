@@ -73,7 +73,18 @@ function builderFor(context: SessionStrategyContext): AgentPromptPackBuilder {
 
 describe("AgentPromptPackBuilder", () => {
   it("puts session and market context in system and task-only user message with strategy snapshot", () => {
-    const pack = builderFor(baseContext()).build({
+    const ctx = baseContext();
+    ctx.aiRoleProfiles = [
+      {
+        sessionId: "s1",
+        role: "decision_maker",
+        operatingPresetId: "session_default",
+        notes: "Decide with discipline.",
+        operatingSpec: { pace: "deliberate" },
+        updatedAt: "2026-05-05T00:00:00.000Z",
+      },
+    ];
+    const pack = builderFor(ctx).build({
       sessionId: "s1",
       role: "decision_maker",
       basePromptMarkdown: "# Decision Maker\n\n## Role\nYou decide.",
@@ -86,12 +97,17 @@ describe("AgentPromptPackBuilder", () => {
     expect(pack.messages[0].content).toContain("## Runtime interpretation");
     expect(pack.messages[0].content).toContain("## Session research posture");
     expect(pack.messages[0].content).toContain("## Session trade rules");
+    expect(pack.messages[0].content).toContain("## Role profile");
+    expect(pack.messages[0].content).toContain("session_default");
+    expect(pack.messages[0].content).toContain("Decide with discipline.");
     expect(pack.messages[0].content).toContain("## Runtime Authority");
     expect(pack.messages[0].content).toContain("## Tool Policy For This Run");
     expect(pack.messages[0].content).toContain("no tools");
     expect(pack.messages[1].content).toBe("<task>\nInstrument: AAPL\n</task>");
     expect(pack.strategySnapshot.riskConfig.waitForOpenThreshold).toBe(0.8);
     expect(pack.strategySnapshot.rules.setupType).toBe("breakout");
+    expect(pack.strategySnapshot.version).toBe(4);
+    expect(pack.strategySnapshot.aiRoleProfiles).toHaveLength(1);
     expect(pack.riskPolicy.maxDataSpendUsd).toBe(3);
   });
 
@@ -152,19 +168,13 @@ describe("prompt assets", () => {
     "reviewer",
     "decision_maker",
   ];
-  const requiredSections = [
-    "## Role",
-    "## Objective",
-    "## Tools",
-    "## Method",
-    "## Output Requirements",
-  ];
+  const requiredSections = ["## Role", "## Objective"];
 
   for (const role of roles) {
-    it(`${role} prompt is a versioned operating manual`, () => {
+    it(`${role} prompt is versioned with role charter only (operating detail in DB / supplements)`, () => {
       const prompt = fs.readFileSync(path.join(process.cwd(), "electron", "prompts", `${role}.md`), "utf8");
 
-      expect(prompt).toContain(role === "instrument_selector" ? "<!-- version: 4.0.0 -->" : "<!-- version: 3.0.0 -->");
+      expect(prompt).toContain("<!-- version: 4.1.0 -->");
       for (const section of requiredSections) {
         expect(prompt).toContain(section);
       }

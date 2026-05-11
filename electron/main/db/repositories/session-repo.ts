@@ -14,8 +14,9 @@ import {
   sessionTimeframeConfig,
   sessions,
 } from "../schema";
-import { canTransition, isSessionEditable } from "@electron/shared/domain";
+import { DEFAULT_AI_ROLE_OPERATING_NOTES } from "../../../shared/default-ai-role-operating-notes";
 import { AppError } from "@electron/shared/errors";
+import { canTransition, isSessionEditable } from "@electron/shared/domain";
 import { toSessionConfig, toWorkspaceSession } from "./mappers";
 
 export interface SessionFilters {
@@ -123,7 +124,7 @@ export class SessionRepo {
             role,
             operatingPresetId: "default",
             operatingSpecJson: "{}",
-            notes: "",
+            notes: DEFAULT_AI_ROLE_OPERATING_NOTES[role],
             updatedAt: now,
           })
           .run();
