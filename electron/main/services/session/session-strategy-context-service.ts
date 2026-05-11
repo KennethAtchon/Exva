@@ -1,5 +1,4 @@
 import type {
-  AgentOperatingSpec,
   AgentRole,
   ProviderAccount,
   SessionAiRole,
@@ -153,9 +152,7 @@ export class SessionStrategyContextService {
     sessionId: string,
     patches: Array<{
       role: AgentRole;
-      operatingPresetId?: string;
-      notes?: string;
-      operatingSpec?: AgentOperatingSpec;
+      profileJson?: SessionAiRoleProfile["profileJson"];
     }>,
   ): void {
     this.assertEditable(sessionId);

@@ -195,9 +195,7 @@ export const api = {
     sessionId: string;
     aiRoleProfiles: Array<{
       role: AgentRole;
-      operatingPresetId?: string;
-      notes?: string;
-      operatingSpec?: Record<string, unknown>;
+      profileJson?: SessionAiRoleProfile["profileJson"];
     }>;
   }) => bridge().strategy.saveAiRoleProfiles(input),
   getStrategyProviderModels: (providerKey: string): Promise<{ models: ProviderModelEntry[] }> =>

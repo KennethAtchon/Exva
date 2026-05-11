@@ -44,7 +44,7 @@ interface StrategyStoreState {
   updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
   updateAiRoleProfile: (
     role: AgentRole,
-    patch: Partial<Pick<SessionAiRoleProfile, "operatingPresetId" | "notes" | "operatingSpec">>,
+    patch: Partial<Pick<SessionAiRoleProfile, "profileJson">>,
   ) => void;
   updateRole: (role: AgentRole, patch: Partial<SessionAiRole>) => Promise<void>;
   saveAll: (sessionId: string) => Promise<void>;
@@ -223,9 +223,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
         sessionId,
         aiRoleProfiles: get().aiRoleProfiles.map((p) => ({
           role: p.role,
-          operatingPresetId: p.operatingPresetId,
-          notes: p.notes,
-          operatingSpec: p.operatingSpec,
+          profileJson: p.profileJson,
         })),
       });
       set({

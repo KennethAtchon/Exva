@@ -1,6 +1,8 @@
 import type { DbClient } from "../client";
 import type { AgentRole, SessionAiRoleProfile } from "@/lib/types";
 import { and, eq } from "drizzle-orm";
+import { normalizeAiRoleProfileDocument } from "@electron/shared/ai-role-profile";
+import { createDefaultAiRoleProfileDocument } from "@electron/shared/default-ai-role-profiles";
 import { AppError } from "@electron/shared/errors";
 import { sessionAiRoleProfile } from "../schema";
 import { toSessionAiRoleProfile } from "./mappers";
@@ -33,6 +35,10 @@ export class SessionAiRoleProfileRepo {
     const next: SessionAiRoleProfile = {
       ...current,
       ...patch,
+      profileJson: normalizeAiRoleProfileDocument(
+        patch.profileJson ?? current.profileJson,
+        createDefaultAiRoleProfileDocument(role),
+      ),
       sessionId,
       role,
       updatedAt: new Date().toISOString(),
@@ -41,9 +47,7 @@ export class SessionAiRoleProfileRepo {
     this.client.db
       .update(sessionAiRoleProfile)
       .set({
-        operatingPresetId: next.operatingPresetId,
-        operatingSpecJson: JSON.stringify(next.operatingSpec ?? {}),
-        notes: next.notes,
+        profileJson: JSON.stringify(next.profileJson),
         updatedAt: next.updatedAt,
       })
       .where(and(eq(sessionAiRoleProfile.sessionId, sessionId), eq(sessionAiRoleProfile.role, role)))

@@ -88,20 +88,35 @@ describe("strategy-prompt-context", () => {
       {
         sessionId: "s1",
         role: "decision_maker",
-        operatingPresetId: "conviction",
-        notes: "Prefer concise rationale.",
-        operatingSpec: { output_shape: "bullets" },
+        profileJson: {
+          version: 1,
+          objective: "Return a concise decision.",
+          constraints: ["Prefer no_trade when evidence is weak."],
+          toolPolicy: {},
+          method: {
+            checklist: ["Check confidence threshold before trading."],
+            requiredEvidence: [],
+            avoid: [],
+          },
+          output: {
+            format: "structured_json",
+            requiredSections: [],
+            terminalAction: "Return only the runtime decision schema.",
+          },
+          custom_key: { pace: "deliberate" },
+        },
         updatedAt: "2026-05-05T00:00:00.000Z",
       },
     ];
 
     const built = buildStrategyPromptContext(context, { role: "decision_maker" });
 
-    expect(built.snapshot.version).toBe(4);
-    expect(built.snapshot.aiRoleProfiles[0]?.operatingPresetId).toBe("conviction");
+    expect(built.snapshot.version).toBe(5);
+    expect(built.snapshot.aiRoleProfiles[0]?.profileJson.objective).toBe("Return a concise decision.");
     expect(built.prompt).toContain("## Role profile");
-    expect(built.prompt).toContain("preset=conviction");
-    expect(built.prompt).toContain("notes=Prefer concise rationale.");
-    expect(built.prompt).toContain("spec=");
+    expect(built.prompt).toContain("## Objective");
+    expect(built.prompt).toContain("Return a concise decision.");
+    expect(built.prompt).toContain("## Constraints");
+    expect(built.prompt).toContain("## Additional profile JSON");
   });
 });

@@ -21,6 +21,7 @@ import type {
   WorkspacePreferences,
   WorkspaceSession,
 } from "@/lib/types";
+import { createDefaultAiRoleProfileDocument, materializeAiRoleProfileDocument } from "@electron/shared/default-ai-role-profiles";
 import { isHoldingStyle, isTradingTimeframe } from "@electron/shared/domain";
 
 type Row = Record<string, unknown>;
@@ -186,19 +187,18 @@ export function toSessionResearchPosture(row: Row): SessionResearchPosture {
 
 export function toSessionAiRoleProfile(row: Row): SessionAiRoleProfile {
   row = normalizeRow(row);
-  let operatingSpec: SessionAiRoleProfile["operatingSpec"] = {};
+  const role = row.role as SessionAiRoleProfile["role"];
+  let profileJson = createDefaultAiRoleProfileDocument(role);
   try {
-    const raw = row.operating_spec_json != null ? String(row.operating_spec_json) : "{}";
-    operatingSpec = JSON.parse(raw) as SessionAiRoleProfile["operatingSpec"];
+    const raw = row.profile_json != null ? String(row.profile_json) : '{"version":1}';
+    profileJson = materializeAiRoleProfileDocument(role, JSON.parse(raw));
   } catch {
-    operatingSpec = {};
+    profileJson = createDefaultAiRoleProfileDocument(role);
   }
   return {
     sessionId: String(row.session_id),
-    role: row.role as SessionAiRoleProfile["role"],
-    operatingPresetId: String(row.operating_preset_id ?? "default"),
-    operatingSpec,
-    notes: row.notes != null ? String(row.notes) : "",
+    role,
+    profileJson,
     updatedAt: String(row.updated_at),
   };
 }

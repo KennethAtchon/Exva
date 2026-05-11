@@ -227,9 +227,7 @@ export interface ExvaApi {
       sessionId: string;
       aiRoleProfiles: Array<{
         role: AgentRole;
-        operatingPresetId?: string;
-        notes?: string;
-        operatingSpec?: Record<string, unknown>;
+        profileJson?: SessionAiRoleProfile["profileJson"];
       }>;
     }): Promise<{ savedAt: string }>;
     getProviderModels(providerKey: string): Promise<{ models: ProviderModelEntry[] }>;

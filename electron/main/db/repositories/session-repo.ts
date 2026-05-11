@@ -14,7 +14,6 @@ import {
   sessionTimeframeConfig,
   sessions,
 } from "../schema";
-import { DEFAULT_AI_ROLE_OPERATING_NOTES } from "../../../shared/default-ai-role-operating-notes";
 import { AppError } from "@electron/shared/errors";
 import { canTransition, isSessionEditable } from "@electron/shared/domain";
 import { toSessionConfig, toWorkspaceSession } from "./mappers";
@@ -122,9 +121,7 @@ export class SessionRepo {
           .values({
             sessionId,
             role,
-            operatingPresetId: "default",
-            operatingSpecJson: "{}",
-            notes: DEFAULT_AI_ROLE_OPERATING_NOTES[role],
+            profileJson: JSON.stringify({ version: 1 }),
             updatedAt: now,
           })
           .run();

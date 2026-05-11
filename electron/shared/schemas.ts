@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { aiRoleProfileDocumentSchema } from "./ai-role-profile";
 
 export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 export const selectionModeSchema = z.enum(["manual_shortlist", "ai_selected_universe"]);
@@ -129,12 +130,8 @@ export const sessionResearchPosturePayloadSchema = z.object({
   postureNotes: z.string(),
 });
 
-export const agentOperatingSpecSchema = z.record(z.string(), z.unknown());
-
 export const sessionAiRoleProfilePayloadSchema = z.object({
-  operatingPresetId: z.string(),
-  operatingSpec: agentOperatingSpecSchema,
-  notes: z.string(),
+  profileJson: aiRoleProfileDocumentSchema,
 });
 
 export const sessionTradeRulesPayloadSchema = z.object({
@@ -205,9 +202,7 @@ export const strategyAiRoleProfilesSaveSchema = z.object({
   aiRoleProfiles: z.array(
     z.object({
       role: agentRoleSchema,
-      operatingPresetId: z.string().optional(),
-      notes: z.string().optional(),
-      operatingSpec: agentOperatingSpecSchema.optional(),
+      profileJson: aiRoleProfileDocumentSchema.optional(),
     }),
   ),
 });

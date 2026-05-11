@@ -78,9 +78,19 @@ describe("AgentPromptPackBuilder", () => {
       {
         sessionId: "s1",
         role: "decision_maker",
-        operatingPresetId: "session_default",
-        notes: "Decide with discipline.",
-        operatingSpec: { pace: "deliberate" },
+        profileJson: {
+          version: 1,
+          objective: "Return the runtime decision schema.",
+          constraints: ["Decide with discipline."],
+          toolPolicy: {},
+          method: {
+            checklist: ["Check policy fit before action."],
+            requiredEvidence: [],
+            avoid: [],
+          },
+          output: { format: "structured_json", requiredSections: [] },
+          custom_key: { pace: "deliberate" },
+        },
         updatedAt: "2026-05-05T00:00:00.000Z",
       },
     ];
@@ -98,15 +108,15 @@ describe("AgentPromptPackBuilder", () => {
     expect(pack.messages[0].content).toContain("## Session research posture");
     expect(pack.messages[0].content).toContain("## Session trade rules");
     expect(pack.messages[0].content).toContain("## Role profile");
-    expect(pack.messages[0].content).toContain("session_default");
     expect(pack.messages[0].content).toContain("Decide with discipline.");
+    expect(pack.messages[0].content).toContain("## How context is provided");
     expect(pack.messages[0].content).toContain("## Runtime Authority");
     expect(pack.messages[0].content).toContain("## Tool Policy For This Run");
     expect(pack.messages[0].content).toContain("no tools");
     expect(pack.messages[1].content).toBe("<task>\nInstrument: AAPL\n</task>");
     expect(pack.strategySnapshot.riskConfig.waitForOpenThreshold).toBe(0.8);
     expect(pack.strategySnapshot.rules.setupType).toBe("breakout");
-    expect(pack.strategySnapshot.version).toBe(4);
+    expect(pack.strategySnapshot.version).toBe(5);
     expect(pack.strategySnapshot.aiRoleProfiles).toHaveLength(1);
     expect(pack.riskPolicy.maxDataSpendUsd).toBe(3);
   });
@@ -171,7 +181,7 @@ describe("prompt assets", () => {
   const requiredSections = ["## Role", "## Objective"];
 
   for (const role of roles) {
-    it(`${role} prompt is versioned with role charter only (operating detail in DB / supplements)`, () => {
+    it(`${role} prompt is versioned with role charter text`, () => {
       const prompt = fs.readFileSync(path.join(process.cwd(), "electron", "prompts", `${role}.md`), "utf8");
 
       expect(prompt).toContain("<!-- version: 4.1.0 -->");

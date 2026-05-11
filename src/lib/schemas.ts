@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { aiRoleProfileDocumentSchema } from "../../electron/shared/ai-role-profile";
 
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
 export const tradeSideSchema = z.enum(["BUY", "SELL"]);
@@ -330,16 +331,12 @@ export const strategyAiRolesSaveSchema = z.object({
   aiRoles: z.array(sessionAiRolePayloadSchema),
 });
 
-const agentOperatingSpecSchema = z.record(z.string(), z.unknown());
-
 export const strategyAiRoleProfilesSaveSchema = z.object({
   sessionId: z.string().min(1),
   aiRoleProfiles: z.array(
     z.object({
       role: aiRoleSchema,
-      operatingPresetId: z.string().optional(),
-      notes: z.string().optional(),
-      operatingSpec: agentOperatingSpecSchema.optional(),
+      profileJson: aiRoleProfileDocumentSchema.optional(),
     }),
   ),
 });

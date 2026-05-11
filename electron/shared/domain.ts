@@ -1,3 +1,7 @@
+import type { AiRoleProfileDocument } from "./ai-role-profile";
+
+export type { AiRoleProfileDocument, AiRoleToolMode, AiRoleToolPolicyEntry } from "./ai-role-profile";
+
 export type InstrumentClass = "stock" | "crypto" | "futures" | "prediction_market";
 
 export type SessionStatus = "draft" | "idle" | "active" | "paused" | "stopped" | "archived";
@@ -504,15 +508,10 @@ export type AgentRole =
   | "decision_maker"
   | "instrument_selector";
 
-/** Parsed `session_ai_role_profile.operating_spec_json` — tools/method/output hints for prompts. */
-export type AgentOperatingSpec = Record<string, unknown>;
-
 export interface SessionAiRoleProfile {
   sessionId: string;
   role: AgentRole;
-  operatingPresetId: string;
-  operatingSpec: AgentOperatingSpec;
-  notes: string;
+  profileJson: AiRoleProfileDocument;
   updatedAt: string;
 }
 
@@ -656,7 +655,7 @@ export interface SessionStrategyContext {
 }
 
 export interface StrategySnapshot {
-  version: 4;
+  version: 5;
   researchPosture: {
     posturePresetId: ResearchPosturePresetId;
     discoveryMode: ResearchDiscoveryMode;
@@ -701,9 +700,7 @@ export interface StrategySnapshot {
   };
   aiRoleProfiles: Array<{
     role: AgentRole;
-    operatingPresetId: string;
-    notes: string;
-    operatingSpec: AgentOperatingSpec;
+    profileJson: AiRoleProfileDocument;
   }>;
 }
 
@@ -992,7 +989,7 @@ export function buildTradeRulesMarkdown(rules: SessionTradeRules): string {
 
 export function buildStrategySnapshot(context: SessionStrategyContext): StrategySnapshot {
   return {
-    version: 4,
+    version: 5,
     researchPosture: {
       posturePresetId: context.researchPosture.posturePresetId,
       discoveryMode: context.researchPosture.discoveryMode,
@@ -1037,9 +1034,7 @@ export function buildStrategySnapshot(context: SessionStrategyContext): Strategy
     },
     aiRoleProfiles: context.aiRoleProfiles.map((p) => ({
       role: p.role,
-      operatingPresetId: p.operatingPresetId,
-      notes: p.notes,
-      operatingSpec: p.operatingSpec ?? {},
+      profileJson: p.profileJson,
     })),
   };
 }

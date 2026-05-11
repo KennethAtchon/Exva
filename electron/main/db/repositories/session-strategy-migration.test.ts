@@ -33,6 +33,7 @@ describe("strategy schema migration compatibility", () => {
 
     const profiles = db.db.select().from(sessionAiRoleProfile).where(eq(sessionAiRoleProfile.sessionId, session.id)).all();
     expect(profiles).toHaveLength(5);
+    expect(profiles.every((row) => String(row.profileJson).includes('"version":1'))).toBe(true);
 
     expect(posture?.posturePresetId).toBe("custom");
     expect(rules?.setupType).toBe("custom");

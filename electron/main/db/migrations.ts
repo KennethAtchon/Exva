@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { createDefaultAiRoleProfileDocument } from "@electron/shared/ai-role-profile";
 
 export function runMigrations(sqlite: Database.Database, options?: { rebuildFromScratch?: boolean }): void {
   sqlite.pragma("foreign_keys = ON");
@@ -116,9 +117,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     CREATE TABLE IF NOT EXISTS session_ai_role_profile (
       session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
       role TEXT NOT NULL,
-      operating_preset_id TEXT NOT NULL DEFAULT 'default',
-      operating_spec_json TEXT NOT NULL DEFAULT '{}',
-      notes TEXT NOT NULL DEFAULT '',
+      profile_json TEXT NOT NULL DEFAULT '{"version":1}',
       updated_at TEXT NOT NULL,
       PRIMARY KEY (session_id, role)
     );
@@ -419,19 +418,6 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       CURRENT_TIMESTAMP
     FROM session_strategies;
 
-    INSERT OR IGNORE INTO session_ai_role_profile (
-      session_id, role, operating_preset_id, operating_spec_json, notes, updated_at
-    )
-    SELECT ss.session_id, r.role, 'default', '{}', '', CURRENT_TIMESTAMP
-    FROM session_strategies ss
-    CROSS JOIN (
-      SELECT 'analyst_technical' AS role
-      UNION ALL SELECT 'analyst_fundamental'
-      UNION ALL SELECT 'reviewer'
-      UNION ALL SELECT 'decision_maker'
-      UNION ALL SELECT 'instrument_selector'
-    ) r;
-
     INSERT OR IGNORE INTO session_trade_rules (
       session_id, rules_preset_id, setup_type, side_bias, entry_style, exit_style, scaling_mode,
       trade_rules_markdown, rule_notes, updated_at
@@ -526,33 +512,4 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
     WHERE template_payload_json LIKE '%researcher_bull%'
        OR template_payload_json LIKE '%researcher_bear%';
   `);
-
-  try {
-    const cols = sqlite.prepare(`PRAGMA table_info(session_ai_roles)`).all() as Array<{ name: string }>;
-    if (cols.some((c) => c.name === "web_search_enabled")) {
-      sqlite.exec(`ALTER TABLE session_ai_roles DROP COLUMN web_search_enabled`);
-    }
-  } catch (err) {
-    console.warn("[migrations] Could not drop obsolete session_ai_roles.web_search_enabled column", err);
-  }
-
-  try {
-    const eventCols = sqlite.prepare(`PRAGMA table_info(events)`).all() as Array<{ name: string }>;
-    if (!eventCols.some((c) => c.name === "cycle_id")) {
-      sqlite.exec(`ALTER TABLE events ADD COLUMN cycle_id TEXT`);
-    }
-    sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_events_cycle_id ON events(cycle_id)`);
-  } catch (err) {
-    console.warn("[migrations] Could not align events.cycle_id column", err);
-  }
-
-  sqlite
-    .prepare(
-      `
-      INSERT OR IGNORE INTO workspace_preferences (
-        id, global_include_archived, capital_allocation_mode, global_capital_pool_usd, updated_at
-      ) VALUES (1, 0, 'per_session_only', NULL, ?)
-      `,
-    )
-    .run(new Date().toISOString());
 }

@@ -5,10 +5,11 @@ import {
   type SessionStrategyContext,
   type StrategySnapshot,
 } from "@electron/shared/domain";
+import { renderAiRoleProfileMarkdown } from "@electron/shared/ai-role-profile";
 
 const MAX_NOTES_CHARS = 500;
 const MAX_BRIEF_PROMPT_CHARS = 600;
-const MAX_ROLE_SPEC_CHARS = 400;
+const MAX_ROLE_PROFILE_JSON_CHARS = 700;
 
 export interface StrategyPromptContext {
   prompt: string;
@@ -34,10 +35,6 @@ export function buildStrategyPromptContext(
       ...context.timeframe,
       timeframeNotes: truncate(context.timeframe.timeframeNotes, MAX_NOTES_CHARS),
     },
-    aiRoleProfiles: context.aiRoleProfiles.map((p) => ({
-      ...p,
-      notes: truncate(p.notes, MAX_NOTES_CHARS),
-    })),
   });
 
   const roleLines = options?.role != null ? compactRoleProfile(snapshot, options.role) : [];
@@ -115,11 +112,7 @@ function compactRoleProfile(snapshot: StrategySnapshot, role: AgentRole): string
   if (!p) {
     return ["", "## Role profile", `- ${role}: (no row)`];
   }
-  const bits = [`preset=${p.operatingPresetId}`];
-  if (p.notes.trim()) bits.push(`notes=${truncate(p.notes.trim(), 240)}`);
-  const spec = JSON.stringify(p.operatingSpec ?? {});
-  if (spec !== "{}") bits.push(`spec=${truncate(spec, MAX_ROLE_SPEC_CHARS)}`);
-  return ["", "## Role profile", `- ${role}: ${bits.join("; ")}`];
+  return ["", "## Role profile", ...renderAiRoleProfileMarkdown(p.profileJson, { maxAdditionalJsonChars: MAX_ROLE_PROFILE_JSON_CHARS })];
 }
 
 function truncate(value: string, maxChars: number): string {
