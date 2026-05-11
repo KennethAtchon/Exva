@@ -60,6 +60,12 @@ export const ROLE_HARNESS_CAPS: Record<AgentRole, { maxSteps: number; spendUsd: 
 export type RoleToolPolicy = {
   /** Session/workspace search provider → `search_web` tool when configured. */
   allowSearch: boolean;
+  /** Direct URL fetch and text extraction via `fetch_url`. */
+  allowFetchUrl: boolean;
+  /** Reddit search tool for current discussion and DD. */
+  allowSearchReddit: boolean;
+  /** StockTwits trending symbols tool. */
+  allowTrendingSymbols: boolean;
   /** Broker wiring + search provider → `get_news` market tool (same backend as web search). */
   allowMarketNewsTool: boolean;
   /** Broker wiring → `get_quote` and `get_ohlcv`. */
@@ -73,6 +79,9 @@ export type RoleToolPolicy = {
 export const ROLE_TOOL_POLICY: Record<AgentRole, RoleToolPolicy> = {
   instrument_selector: {
     allowSearch: true,
+    allowFetchUrl: true,
+    allowSearchReddit: true,
+    allowTrendingSymbols: true,
     allowMarketNewsTool: true,
     allowMarketQuoteTools: true,
     allowSubmitCandidates: true,
@@ -80,6 +89,9 @@ export const ROLE_TOOL_POLICY: Record<AgentRole, RoleToolPolicy> = {
   },
   analyst_technical: {
     allowSearch: true,
+    allowFetchUrl: true,
+    allowSearchReddit: false,
+    allowTrendingSymbols: false,
     allowMarketNewsTool: true,
     allowMarketQuoteTools: false,
     allowSubmitCandidates: false,
@@ -87,6 +99,9 @@ export const ROLE_TOOL_POLICY: Record<AgentRole, RoleToolPolicy> = {
   },
   analyst_fundamental: {
     allowSearch: true,
+    allowFetchUrl: false,
+    allowSearchReddit: false,
+    allowTrendingSymbols: false,
     allowMarketNewsTool: true,
     allowMarketQuoteTools: false,
     allowSubmitCandidates: false,
@@ -94,6 +109,9 @@ export const ROLE_TOOL_POLICY: Record<AgentRole, RoleToolPolicy> = {
   },
   reviewer: {
     allowSearch: true,
+    allowFetchUrl: false,
+    allowSearchReddit: false,
+    allowTrendingSymbols: false,
     allowMarketNewsTool: false,
     allowMarketQuoteTools: false,
     allowSubmitCandidates: false,
@@ -101,6 +119,9 @@ export const ROLE_TOOL_POLICY: Record<AgentRole, RoleToolPolicy> = {
   },
   decision_maker: {
     allowSearch: false,
+    allowFetchUrl: false,
+    allowSearchReddit: false,
+    allowTrendingSymbols: false,
     allowMarketNewsTool: false,
     allowMarketQuoteTools: false,
     allowSubmitCandidates: false,

@@ -15,7 +15,13 @@ export async function createSearchTool(deps: {
 }) {
   const adapter = await deps.searchRegistry.get(deps.searchProviderId);
   return tool({
-    description: "Search the web and social media sources for current financial news, market data, trending themes, and asset-specific information. Use it to discover interesting instruments, including symbols gaining attention on social platforms, but only choose instruments that still meet the strategy and validation checks. Use specific symbols, company names, or asset names with terms like breakout, momentum, earnings, catalyst, trending, social sentiment, or market news. Include the current timeframe when recency matters.",
+    description: [
+      "Search the web for current financial news, market signals, catalysts, and trading ideas.",
+      "Use specific queries with tickers, company names, sectors, catalysts, or setup terms such as breakout, momentum, unusual options activity, short interest, insider buying, social sentiment, or earnings surprise.",
+      "Favor high-signal sources like Reddit threads, niche screeners, unusual activity sites, and timely market coverage.",
+      "Avoid generic SEO listicles and broad 'top stocks' queries.",
+      "After finding a promising result, use fetch_url to read the actual content before trusting it.",
+    ].join(" "),
     inputSchema: z.object({ query: z.string().min(1) }),
     execute: async (input: { query: string }) => {
       const startedAt = Date.now();

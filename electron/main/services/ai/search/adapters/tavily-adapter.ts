@@ -30,7 +30,10 @@ export class TavilyAdapter implements SearchAdapter {
     const response = await postWithRetry({
       api_key: this.apiKey,
       query,
-      max_results: 5,
+      search_depth: "advanced",
+      max_results: 7,
+      include_answer: false,
+      include_raw_content: false,
     });
     if (!response.ok) {
       throw new AppError(`Tavily search failed with ${response.status}`, "PROVIDER_UNREACHABLE");
@@ -47,7 +50,7 @@ export class TavilyAdapter implements SearchAdapter {
       results.push({
         url: url || "",
         title: title || url || "result",
-        snippet: clampSnippet([title, content].filter(Boolean).join(" — ") || url),
+        snippet: content ? clampSnippet(content, 6000) : clampSnippet(title || url, 200),
         publishedDate: null,
       });
     }

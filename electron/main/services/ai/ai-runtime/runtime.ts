@@ -31,6 +31,8 @@ import { tryParseDecisionFromText } from "./decision-parse";
 import { MockBrokerAdapter } from "../../broker/adapters/mock-adapter";
 import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
 import { scenarioMockNews, type MockNewsItem } from "../tools/market-tools";
+import { MOCK_REDDIT_POSTS } from "../tools/search-reddit-tool";
+import { MOCK_TRENDING_SYMBOLS } from "../tools/trending-symbols-tool";
 
 const logger = createLogger("ai-runtime");
 
@@ -170,6 +172,7 @@ ${input.review}`;
   ): Promise<AgentResult<InstrumentSelection>> {
     const role = "instrument_selector" as const;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
+    const instrumentClasses = this.sessionRepo.requireById(sessionId).instrumentClasses;
     const adapter = await this.registry.get(config.providerKey);
     const searchProviderId = this.resolveSearchProviderId(sessionId);
     const mockCtx = await this.getMockContext(sessionId);
@@ -206,10 +209,15 @@ ${input.review}`;
       searchProviderId,
       resolveSearchTool: this.resolveSearchTool.bind(this),
       searchRegistry: this.searchRegistry,
+      apiCallLogRepo: this.apiCallLogRepo,
       brokerRouting: this.brokerRouting,
       brokerRegistry: this.brokerRegistry,
+      maxDataSpendUsd: promptPack.riskPolicy.maxDataSpendUsd,
+      instrumentClasses,
       getMockOhlcv: mockCtx.getMockOhlcv,
       mockNewsData: mockCtx.mockNewsData,
+      mockRedditData: mockCtx.mockRedditData,
+      mockTrendingData: mockCtx.mockTrendingData,
     });
 
     const caps = ROLE_HARNESS_CAPS[role];
@@ -279,6 +287,7 @@ ${input.review}`;
     opts?: { cycleId?: string | null },
   ): Promise<AgentResult<string>> {
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
+    const instrumentClasses = this.sessionRepo.requireById(sessionId).instrumentClasses;
     const adapter = await this.registry.get(config.providerKey);
     const searchProviderId = this.resolveSearchProviderId(sessionId);
     const mockCtx = await this.getMockContext(sessionId);
@@ -300,10 +309,15 @@ ${input.review}`;
       searchProviderId,
       resolveSearchTool: this.resolveSearchTool.bind(this),
       searchRegistry: this.searchRegistry,
+      apiCallLogRepo: this.apiCallLogRepo,
       brokerRouting: this.brokerRouting,
       brokerRegistry: this.brokerRegistry,
+      maxDataSpendUsd: promptPack.riskPolicy.maxDataSpendUsd,
+      instrumentClasses,
       getMockOhlcv: mockCtx.getMockOhlcv,
       mockNewsData: mockCtx.mockNewsData,
+      mockRedditData: mockCtx.mockRedditData,
+      mockTrendingData: mockCtx.mockTrendingData,
     });
     const caps = ROLE_HARNESS_CAPS[role];
 
@@ -495,13 +509,25 @@ ${input.review}`;
     isMock: boolean;
     getMockOhlcv: ((symbol: string) => MockOhlcvBar[]) | undefined;
     mockNewsData: MockNewsItem[] | undefined;
+    mockRedditData: typeof MOCK_REDDIT_POSTS | undefined;
+    mockTrendingData: typeof MOCK_TRENDING_SYMBOLS | undefined;
   }> {
     const mockAdapter = await this.resolveMockAdapter(sessionId);
-    if (!mockAdapter) return { isMock: false, getMockOhlcv: undefined, mockNewsData: undefined };
+    if (!mockAdapter) {
+      return {
+        isMock: false,
+        getMockOhlcv: undefined,
+        mockNewsData: undefined,
+        mockRedditData: undefined,
+        mockTrendingData: undefined,
+      };
+    }
     return {
       isMock: true,
       getMockOhlcv: (symbol: string) => mockAdapter.getMockOhlcv(symbol),
       mockNewsData: scenarioMockNews(mockAdapter.getScenarioBias()),
+      mockRedditData: MOCK_REDDIT_POSTS,
+      mockTrendingData: MOCK_TRENDING_SYMBOLS,
     };
   }
 
