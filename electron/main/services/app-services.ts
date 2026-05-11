@@ -17,7 +17,8 @@ import { SessionTradeRulesRepo } from "../db/repositories/session-trade-rules-re
 import { SessionStrategiesRepo } from "../db/repositories/session-strategies-repo";
 import { SessionTemplatesRepo } from "../db/repositories/session-templates-repo";
 import { SessionTimeframeConfigRepo } from "../db/repositories/session-timeframe-config-repo";
-import { SessionTradingStyleRepo } from "../db/repositories/session-trading-style-repo";
+import { SessionAiRoleProfileRepo } from "../db/repositories/session-ai-role-profile-repo";
+import { SessionResearchPostureRepo } from "../db/repositories/session-research-posture-repo";
 import { SessionRepo } from "../db/repositories/session-repo";
 import { InstrumentCacheRepo } from "../db/repositories/instrument-cache-repo";
 import { StatsRepo } from "../db/repositories/stats-repo";
@@ -69,7 +70,8 @@ export interface AppServices {
     sessionStrategies: SessionStrategiesRepo;
     sessionTemplates: SessionTemplatesRepo;
     sessionTimeframeConfig: SessionTimeframeConfigRepo;
-    sessionTradingStyle: SessionTradingStyleRepo;
+    sessionResearchPosture: SessionResearchPostureRepo;
+    sessionAiRoleProfile: SessionAiRoleProfileRepo;
     stats: StatsRepo;
     tradeAutopsies: TradeAutopsiesRepo;
     tradeApprovals: TradeApprovalsRepo;
@@ -118,7 +120,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionStrategies: new SessionStrategiesRepo(db),
     sessionTemplates: new SessionTemplatesRepo(db),
     sessionTimeframeConfig: new SessionTimeframeConfigRepo(db),
-    sessionTradingStyle: new SessionTradingStyleRepo(db),
+    sessionResearchPosture: new SessionResearchPostureRepo(db),
+    sessionAiRoleProfile: new SessionAiRoleProfileRepo(db),
     stats: new StatsRepo(db),
     tradeAutopsies: new TradeAutopsiesRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
@@ -159,7 +162,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const promptAssetLoader = new PromptAssetLoader();
   const strategyContext = new SessionStrategyContextService({
     sessionRepo: repos.session,
-    styleRepo: repos.sessionTradingStyle,
+    researchPostureRepo: repos.sessionResearchPosture,
+    aiRoleProfileRepo: repos.sessionAiRoleProfile,
     rulesRepo: repos.sessionTradeRules,
     riskRepo: repos.sessionRiskConfig,
     timeframeRepo: repos.sessionTimeframeConfig,

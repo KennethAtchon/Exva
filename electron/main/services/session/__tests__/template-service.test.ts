@@ -11,7 +11,8 @@ import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-se
 import { SessionTradeRulesRepo } from "../../../db/repositories/session-trade-rules-repo";
 import { SessionTemplatesRepo } from "../../../db/repositories/session-templates-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
-import { SessionTradingStyleRepo } from "../../../db/repositories/session-trading-style-repo";
+import { SessionAiRoleProfileRepo } from "../../../db/repositories/session-ai-role-profile-repo";
+import { SessionResearchPostureRepo } from "../../../db/repositories/session-research-posture-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
 import { SessionTemplateService } from "../template-service";
@@ -44,16 +45,17 @@ describe("SessionTemplateService", () => {
         },
         selectorSettings: { aiPickerEnabled: false },
         strategyContext: {
-          style: {
+          researchPosture: {
             sessionId: "s1",
-            stylePresetId: "custom",
+            posturePresetId: "custom",
             discoveryMode: "custom",
             evidenceMode: "balanced",
             catalystMode: "preferred",
             fundamentalStrictness: "balanced",
-            styleNotes: "",
+            postureNotes: "",
             updatedAt: new Date().toISOString(),
           },
+          aiRoleProfiles: [],
           rules: {
             sessionId: "s1",
             rulesPresetId: "custom",
@@ -219,7 +221,8 @@ function createTemplateService(db: ReturnType<typeof createTestDb>): SessionTemp
     sessions,
     strategyContext: new SessionStrategyContextService({
       sessionRepo: sessions,
-      styleRepo: new SessionTradingStyleRepo(db),
+      researchPostureRepo: new SessionResearchPostureRepo(db),
+      aiRoleProfileRepo: new SessionAiRoleProfileRepo(db),
       rulesRepo: new SessionTradeRulesRepo(db),
       riskRepo: new SessionRiskConfigRepo(db),
       timeframeRepo: new SessionTimeframeConfigRepo(db),

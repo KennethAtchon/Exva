@@ -5,7 +5,7 @@ import {
   strategyResetPromptSchema,
   strategyRiskConfigSaveSchema,
   strategyRulesSaveSchema,
-  strategyStyleSaveSchema,
+  strategyResearchPostureSaveSchema,
   strategyTimeframeConfigSaveSchema,
 } from "@electron/shared/schemas";
 import { channels } from "@electron/shared/channels";
@@ -18,14 +18,14 @@ export function registerStrategyHandlers(services: AppServices): void {
     return services.strategyContext.getPageData(sessionId);
   });
 
-  handle(ipcMain, channels.strategy.getStyle, async (payload) => {
+  handle(ipcMain, channels.strategy.getResearchPosture, async (payload) => {
     const sessionId = resolveSessionId(services, payload);
-    return services.strategyContext.getStyle(sessionId);
+    return services.strategyContext.getResearchPosture(sessionId);
   });
 
-  handle(ipcMain, channels.strategy.saveStyle, async (payload) => {
-    const input = strategyStyleSaveSchema.parse(payload);
-    services.strategyContext.saveStyle(resolveSessionId(services, input), input.style);
+  handle(ipcMain, channels.strategy.saveResearchPosture, async (payload) => {
+    const input = strategyResearchPostureSaveSchema.parse(payload);
+    services.strategyContext.saveResearchPosture(resolveSessionId(services, input), input.researchPosture);
     return { savedAt: new Date().toISOString() };
   });
 

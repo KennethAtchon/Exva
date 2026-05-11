@@ -11,17 +11,19 @@ function availability(role: Parameters<typeof harnessToolAvailabilityForRole>[0]
 }
 
 function baseContext(): SessionStrategyContext {
+  const ts = "2026-05-05T00:00:00.000Z";
   return {
-    style: {
+    researchPosture: {
       sessionId: "s1",
-      stylePresetId: "trend_hunt",
+      posturePresetId: "trend_hunt",
       discoveryMode: "trend_scan",
       evidenceMode: "price_action_first",
       catalystMode: "preferred",
       fundamentalStrictness: "sanity_check",
-      styleNotes: "Prefer persistent leaders with clean relative strength.",
-      updatedAt: "2026-05-05T00:00:00.000Z",
+      postureNotes: "Prefer persistent leaders with clean relative strength.",
+      updatedAt: ts,
     },
+    aiRoleProfiles: [],
     rules: {
       sessionId: "s1",
       rulesPresetId: "breakout_long",
@@ -70,7 +72,7 @@ function builderFor(context: SessionStrategyContext): AgentPromptPackBuilder {
 }
 
 describe("AgentPromptPackBuilder", () => {
-  it("builds separated system and user context with strategy snapshot", () => {
+  it("puts session and market context in system and task-only user message with strategy snapshot", () => {
     const pack = builderFor(baseContext()).build({
       sessionId: "s1",
       role: "decision_maker",
@@ -80,20 +82,20 @@ describe("AgentPromptPackBuilder", () => {
     });
 
     expect(pack.messages).toHaveLength(2);
+    expect(pack.messages[0].content).toContain("<trusted_session_context>");
+    expect(pack.messages[0].content).toContain("## Runtime interpretation");
+    expect(pack.messages[0].content).toContain("## Session research posture");
+    expect(pack.messages[0].content).toContain("## Session trade rules");
     expect(pack.messages[0].content).toContain("## Runtime Authority");
     expect(pack.messages[0].content).toContain("## Tool Policy For This Run");
     expect(pack.messages[0].content).toContain("no tools");
-    expect(pack.messages[1].content).toContain("<trusted_session_context>");
-    expect(pack.messages[1].content).toContain("## Runtime interpretation");
-    expect(pack.messages[1].content).toContain("<task>");
-    expect(pack.messages[1].content).toContain("## Session trading style");
-    expect(pack.messages[1].content).toContain("## Session trade rules");
+    expect(pack.messages[1].content).toBe("<task>\nInstrument: AAPL\n</task>");
     expect(pack.strategySnapshot.riskConfig.waitForOpenThreshold).toBe(0.8);
     expect(pack.strategySnapshot.rules.setupType).toBe("breakout");
     expect(pack.riskPolicy.maxDataSpendUsd).toBe(3);
   });
 
-  it("renders an explicit market-context placeholder for analyst roles", () => {
+  it("renders an explicit market-context placeholder for analyst roles in system", () => {
     const pack = builderFor(baseContext()).build({
       sessionId: "s1",
       role: "analyst_technical",
@@ -102,9 +104,9 @@ describe("AgentPromptPackBuilder", () => {
       harnessToolAvailability: availability("analyst_technical", "search-prov", true),
     });
 
-    expect(pack.messages[1].content).toContain("<trusted_market_context>");
-    expect(pack.messages[1].content).toContain("Market context unavailable");
-    expect(pack.messages[1].content).toContain("Do not invent quote, OHLCV, fundamental, or news facts");
+    expect(pack.messages[0].content).toContain("<trusted_market_context>");
+    expect(pack.messages[0].content).toContain("Market context unavailable");
+    expect(pack.messages[0].content).toContain("Do not invent quote, OHLCV, fundamental, or news facts");
     expect(pack.marketSnapshotJson).toBeNull();
   });
 
@@ -153,8 +155,6 @@ describe("prompt assets", () => {
   const requiredSections = [
     "## Role",
     "## Objective",
-    "## Context You Will Receive",
-    "## Authority And Safety",
     "## Tools",
     "## Method",
     "## Output Requirements",

@@ -186,7 +186,9 @@ ${input.review}`;
       bodyMarkdown: selectionInstructions,
       cycleId: cycleId ?? null,
     }, harnessAvail);
-    const promptInfo = textMeta(promptPack.messages[1]?.content ?? selectionInstructions);
+    const promptInfo = textMeta(
+      promptPack.messages.map((m) => m.content).join("\n\n") || selectionInstructions,
+    );
     logger.info(
       {
         sessionId,
@@ -562,7 +564,7 @@ ${input.review}`;
   }
 
   private resolvePrompt(sessionId: string, role: AgentRole, promptSource: "default" | "session_override", promptMarkdown: string): string {
-    const discoveryMode = this.strategyContextService?.get(sessionId).style.discoveryMode;
+    const discoveryMode = this.strategyContextService?.get(sessionId).researchPosture.discoveryMode;
     return resolvePromptForRole({
       role,
       promptSource,
@@ -573,7 +575,7 @@ ${input.review}`;
   }
 
   private analysisLabels(sessionId: string): { first: string; second: string } {
-    const discoveryMode = this.requireStrategyContextService().get(sessionId).style.discoveryMode;
+    const discoveryMode = this.requireStrategyContextService().get(sessionId).researchPosture.discoveryMode;
     return analysisLabelsForStrategy(discoveryMode);
   }
 

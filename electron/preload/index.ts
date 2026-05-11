@@ -22,7 +22,7 @@ import {
   strategyAiRolesSaveSchema,
   strategyRiskConfigSaveSchema,
   strategyRulesSaveSchema,
-  strategyStyleSaveSchema,
+  strategyResearchPostureSaveSchema,
   strategyTimeframeConfigSaveSchema,
   tradeIdSchema,
 } from "@/lib/schemas";
@@ -70,8 +70,9 @@ const exva: ExvaApi = {
   },
   strategy: {
     get: (sessionId) => invoke(channels.strategy.get, { sessionId }),
-    getStyle: (sessionId) => invoke(channels.strategy.getStyle, { sessionId }),
-    saveStyle: (input) => invoke(channels.strategy.saveStyle, strategyStyleSaveSchema.parse(input)),
+    getResearchPosture: (sessionId) => invoke(channels.strategy.getResearchPosture, { sessionId }),
+    saveResearchPosture: (input) =>
+      invoke(channels.strategy.saveResearchPosture, strategyResearchPostureSaveSchema.parse(input)),
     getRules: (sessionId) => invoke(channels.strategy.getRules, { sessionId }),
     saveRules: (input) => invoke(channels.strategy.saveRules, strategyRulesSaveSchema.parse(input)),
     getRiskConfig: (sessionId) => invoke(channels.strategy.getRiskConfig, { sessionId }),

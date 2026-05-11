@@ -12,7 +12,8 @@ import type {
   SessionSelectorSettings,
   SessionStrategy,
   SessionTradeRules,
-  SessionTradingStyle,
+  SessionResearchPosture,
+  SessionAiRoleProfile,
   SessionTimeframeConfig,
   SessionTemplate,
   Trade,
@@ -169,16 +170,35 @@ export function toSessionAiRole(row: Row): SessionAiRole {
   };
 }
 
-export function toSessionTradingStyle(row: Row): SessionTradingStyle {
+export function toSessionResearchPosture(row: Row): SessionResearchPosture {
   row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
-    stylePresetId: row.style_preset_id as SessionTradingStyle["stylePresetId"],
-    discoveryMode: row.discovery_mode as SessionTradingStyle["discoveryMode"],
-    evidenceMode: row.evidence_mode as SessionTradingStyle["evidenceMode"],
-    catalystMode: row.catalyst_mode as SessionTradingStyle["catalystMode"],
-    fundamentalStrictness: row.fundamental_strictness as SessionTradingStyle["fundamentalStrictness"],
-    styleNotes: row.style_notes != null ? String(row.style_notes) : "",
+    posturePresetId: row.posture_preset_id as SessionResearchPosture["posturePresetId"],
+    discoveryMode: row.discovery_mode as SessionResearchPosture["discoveryMode"],
+    evidenceMode: row.evidence_mode as SessionResearchPosture["evidenceMode"],
+    catalystMode: row.catalyst_mode as SessionResearchPosture["catalystMode"],
+    fundamentalStrictness: row.fundamental_strictness as SessionResearchPosture["fundamentalStrictness"],
+    postureNotes: row.posture_notes != null ? String(row.posture_notes) : "",
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function toSessionAiRoleProfile(row: Row): SessionAiRoleProfile {
+  row = normalizeRow(row);
+  let operatingSpec: SessionAiRoleProfile["operatingSpec"] = {};
+  try {
+    const raw = row.operating_spec_json != null ? String(row.operating_spec_json) : "{}";
+    operatingSpec = JSON.parse(raw) as SessionAiRoleProfile["operatingSpec"];
+  } catch {
+    operatingSpec = {};
+  }
+  return {
+    sessionId: String(row.session_id),
+    role: row.role as SessionAiRoleProfile["role"],
+    operatingPresetId: String(row.operating_preset_id ?? "default"),
+    operatingSpec,
+    notes: row.notes != null ? String(row.notes) : "",
     updatedAt: String(row.updated_at),
   };
 }

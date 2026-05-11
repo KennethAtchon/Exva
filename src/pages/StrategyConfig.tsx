@@ -11,7 +11,7 @@ import { useStrategyStore } from "@/store/strategyStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
   buildTradeRulesMarkdown,
-  buildTradingStyleMarkdown,
+  buildResearchPostureMarkdown,
   STOP_LOSS_TYPES,
   SETUP_TYPES,
   TRADE_RULE_PRESETS,
@@ -19,11 +19,11 @@ import {
   STRATEGY_EXIT_STYLES,
   STRATEGY_SCALING_MODES,
   STRATEGY_SIDE_BIASES,
-  TRADING_STYLE_CATALYST_MODES,
-  TRADING_STYLE_DISCOVERY_MODES,
-  TRADING_STYLE_EVIDENCE_MODES,
-  TRADING_STYLE_FUNDAMENTAL_STRICTNESS,
-  TRADING_STYLE_PRESETS,
+  RESEARCH_CATALYST_MODES,
+  RESEARCH_DISCOVERY_MODES,
+  RESEARCH_EVIDENCE_MODES,
+  RESEARCH_FUNDAMENTAL_STRICTNESS,
+  RESEARCH_POSTURE_PRESETS,
 } from "../../electron/shared/domain";
 
 const ROLE_ORDER = [
@@ -41,7 +41,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const loadWorkspaceView = useWorkspaceStore((state) => state.loadWorkspaceView);
   const setSessionStatus = useSessionStore((state) => state.setStatus);
 
-  const style = useStrategyStore((state) => state.style);
+  const researchPosture = useStrategyStore((state) => state.researchPosture);
   const rules = useStrategyStore((state) => state.rules);
   const riskConfig = useStrategyStore((state) => state.riskConfig);
   const timeframe = useStrategyStore((state) => state.timeframe);
@@ -58,7 +58,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const roleErrors = useStrategyStore((state) => state.roleErrors);
   const strategyErrors = useStrategyStore((state) => state.strategyErrors);
   const loadStrategy = useStrategyStore((state) => state.loadStrategy);
-  const updateStyle = useStrategyStore((state) => state.updateStyle);
+  const updateResearchPosture = useStrategyStore((state) => state.updateResearchPosture);
   const updateRules = useStrategyStore((state) => state.updateRules);
   const updateRiskConfig = useStrategyStore((state) => state.updateRiskConfig);
   const updateTimeframe = useStrategyStore((state) => state.updateTimeframe);
@@ -103,15 +103,15 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
     );
   }
 
-  if (!style || !rules || !riskConfig || !timeframe) {
+  if (!researchPosture || !rules || !riskConfig || !timeframe) {
     return <PageShell><div style={{ color: "var(--text3)" }}>Loading strategy...</div></PageShell>;
   }
 
   const isLocked = pageState === "locked";
   const hasDirty = dirtyFields.size > 0;
-  const stylePreview = buildTradingStyleMarkdown(style);
+  const stylePreview = buildResearchPostureMarkdown(researchPosture);
   const rulesPreview = buildTradeRulesMarkdown(rules);
-  const selectedStylePreset = TRADING_STYLE_PRESETS.find((preset) => preset.id === style.stylePresetId) ?? TRADING_STYLE_PRESETS[TRADING_STYLE_PRESETS.length - 1];
+  const selectedStylePreset = RESEARCH_POSTURE_PRESETS.find((preset) => preset.id === researchPosture.posturePresetId) ?? RESEARCH_POSTURE_PRESETS[RESEARCH_POSTURE_PRESETS.length - 1];
   const selectedRulesPreset = TRADE_RULE_PRESETS.find((preset) => preset.id === rules.rulesPresetId) ?? TRADE_RULE_PRESETS[TRADE_RULE_PRESETS.length - 1];
   const roleProviderSummary = Object.values(aiRoles).map((role) => {
     const connectedProvider = providers.find((provider) => provider.id === role.providerKey);
@@ -209,56 +209,58 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
           {activeSection === "style" && (
             <>
               <Card>
-                <SectionTitle>Trading Style</SectionTitle>
+                <SectionTitle>Research posture</SectionTitle>
                 <div style={formGridStyle}>
-                  <Field label="Style preset">
+                  <Field label="Posture preset">
                     <ShadcnSelect
-                      value={style.stylePresetId}
+                      value={researchPosture.posturePresetId}
                       onValueChange={(value) => {
-                        const preset = TRADING_STYLE_PRESETS.find((entry) => entry.id === value);
+                        const preset = RESEARCH_POSTURE_PRESETS.find((entry) => entry.id === value);
                         if (!preset) return;
-                        updateStyle(preset.style);
+                        updateResearchPosture(preset.posture);
                       }}
                       disabled={isLocked}
-                      options={TRADING_STYLE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
+                      options={RESEARCH_POSTURE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
                     />
                   </Field>
                   <Field label="Discovery mode">
                     <ShadcnSelect
-                      value={style.discoveryMode}
-                      onValueChange={(value) => updateStyle({ discoveryMode: value as typeof style.discoveryMode })}
+                      value={researchPosture.discoveryMode}
+                      onValueChange={(value) => updateResearchPosture({ discoveryMode: value as typeof researchPosture.discoveryMode })}
                       disabled={isLocked}
-                      options={TRADING_STYLE_DISCOVERY_MODES.map((value) => ({ value, label: labelize(value) }))}
+                      options={RESEARCH_DISCOVERY_MODES.map((value) => ({ value, label: labelize(value) }))}
                     />
                   </Field>
                   <Field label="Evidence mode">
                     <ShadcnSelect
-                      value={style.evidenceMode}
-                      onValueChange={(value) => updateStyle({ evidenceMode: value as typeof style.evidenceMode })}
+                      value={researchPosture.evidenceMode}
+                      onValueChange={(value) => updateResearchPosture({ evidenceMode: value as typeof researchPosture.evidenceMode })}
                       disabled={isLocked}
-                      options={TRADING_STYLE_EVIDENCE_MODES.map((value) => ({ value, label: labelize(value) }))}
+                      options={RESEARCH_EVIDENCE_MODES.map((value) => ({ value, label: labelize(value) }))}
                     />
                   </Field>
                   <Field label="Catalyst posture">
                     <ShadcnSelect
-                      value={style.catalystMode}
-                      onValueChange={(value) => updateStyle({ catalystMode: value as typeof style.catalystMode })}
+                      value={researchPosture.catalystMode}
+                      onValueChange={(value) => updateResearchPosture({ catalystMode: value as typeof researchPosture.catalystMode })}
                       disabled={isLocked}
-                      options={TRADING_STYLE_CATALYST_MODES.map((value) => ({ value, label: labelize(value) }))}
+                      options={RESEARCH_CATALYST_MODES.map((value) => ({ value, label: labelize(value) }))}
                     />
                   </Field>
                   <Field label="Fundamental strictness">
                     <ShadcnSelect
-                      value={style.fundamentalStrictness}
-                      onValueChange={(value) => updateStyle({ fundamentalStrictness: value as typeof style.fundamentalStrictness })}
+                      value={researchPosture.fundamentalStrictness}
+                      onValueChange={(value) =>
+                        updateResearchPosture({ fundamentalStrictness: value as typeof researchPosture.fundamentalStrictness })
+                      }
                       disabled={isLocked}
-                      options={TRADING_STYLE_FUNDAMENTAL_STRICTNESS.map((value) => ({ value, label: labelize(value) }))}
+                      options={RESEARCH_FUNDAMENTAL_STRICTNESS.map((value) => ({ value, label: labelize(value) }))}
                     />
                   </Field>
-                  <Field label="Style notes">
+                  <Field label="Posture notes">
                     <textarea
-                      value={style.styleNotes}
-                      onChange={(event) => updateStyle({ styleNotes: event.target.value })}
+                      value={researchPosture.postureNotes}
+                      onChange={(event) => updateResearchPosture({ postureNotes: event.target.value })}
                       disabled={isLocked}
                       rows={6}
                       placeholder="Describe the edge, posture, and evidence stack this session should favor."

@@ -195,7 +195,7 @@ export const brokerRoutingUpdateSchema = z.object({
   ),
 });
 
-const tradingStylePresetIdSchema = z.enum([
+const researchPosturePresetIdSchema = z.enum([
   "trend_hunt",
   "catalyst_momentum",
   "institutional_quality",
@@ -203,7 +203,7 @@ const tradingStylePresetIdSchema = z.enum([
   "prediction_event_edge",
   "custom",
 ]);
-const tradingStyleDiscoveryModeSchema = z.enum([
+const researchDiscoveryModeSchema = z.enum([
   "trend_scan",
   "catalyst_scan",
   "quality_watchlist",
@@ -211,15 +211,15 @@ const tradingStyleDiscoveryModeSchema = z.enum([
   "event_contract_scan",
   "custom",
 ]);
-const tradingStyleEvidenceModeSchema = z.enum([
+const researchEvidenceModeSchema = z.enum([
   "narrative_first",
   "price_action_first",
   "confirmation_first",
   "probability_edge",
   "balanced",
 ]);
-const tradingStyleCatalystModeSchema = z.enum(["required", "preferred", "not_required"]);
-const tradingStyleFundamentalStrictnessSchema = z.enum([
+const researchCatalystModeSchema = z.enum(["required", "preferred", "not_required"]);
+const researchFundamentalStrictnessSchema = z.enum([
   "sanity_check",
   "balanced",
   "deep_confirmation",
@@ -268,15 +268,15 @@ const sessionAiRolePayloadSchema = z.object({
   promptAssetPath: z.string().nullable(),
 });
 
-export const strategyStyleSaveSchema = z.object({
+export const strategyResearchPostureSaveSchema = z.object({
   sessionId: z.string().min(1),
-  style: z.object({
-    stylePresetId: tradingStylePresetIdSchema.optional(),
-    discoveryMode: tradingStyleDiscoveryModeSchema.optional(),
-    evidenceMode: tradingStyleEvidenceModeSchema.optional(),
-    catalystMode: tradingStyleCatalystModeSchema.optional(),
-    fundamentalStrictness: tradingStyleFundamentalStrictnessSchema.optional(),
-    styleNotes: z.string().optional(),
+  researchPosture: z.object({
+    posturePresetId: researchPosturePresetIdSchema.optional(),
+    discoveryMode: researchDiscoveryModeSchema.optional(),
+    evidenceMode: researchEvidenceModeSchema.optional(),
+    catalystMode: researchCatalystModeSchema.optional(),
+    fundamentalStrictness: researchFundamentalStrictnessSchema.optional(),
+    postureNotes: z.string().optional(),
   }),
 });
 

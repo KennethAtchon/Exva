@@ -2,15 +2,16 @@ import type { DbClient } from "../client";
 import type { SessionConfig, SessionStatus, WorkspaceSession } from "@/lib/types";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import {
+  sessionAiRoleProfile,
   sessionAiRoles,
   sessionBrokerAssignments,
   sessionBrokerRoutingOverrides,
+  sessionResearchPosture,
   sessionRiskConfig,
   sessionSelectorSettings,
   sessionTradeRules,
   sessionStrategies,
   sessionTimeframeConfig,
-  sessionTradingStyle,
   sessions,
 } from "../schema";
 import { canTransition, isSessionEditable } from "@electron/shared/domain";
@@ -102,18 +103,31 @@ export class SessionRepo {
         })
         .run();
 
-      tx.insert(sessionTradingStyle)
+      tx.insert(sessionResearchPosture)
         .values({
           sessionId,
-          stylePresetId: "custom",
+          posturePresetId: "custom",
           discoveryMode: "custom",
           evidenceMode: "balanced",
           catalystMode: "preferred",
           fundamentalStrictness: "balanced",
-          styleNotes: "",
+          postureNotes: "",
           updatedAt: now,
         })
         .run();
+
+      for (const role of DEFAULT_ROLES) {
+        tx.insert(sessionAiRoleProfile)
+          .values({
+            sessionId,
+            role,
+            operatingPresetId: "default",
+            operatingSpecJson: "{}",
+            notes: "",
+            updatedAt: now,
+          })
+          .run();
+      }
 
       tx.insert(sessionTradeRules)
         .values({
@@ -346,15 +360,26 @@ export class SessionRepo {
           .run();
       }
 
-      const tradingStyleRow = tx
+      const researchPostureRow = tx
         .select()
-        .from(sessionTradingStyle)
-        .where(eq(sessionTradingStyle.sessionId, sourceId))
+        .from(sessionResearchPosture)
+        .where(eq(sessionResearchPosture.sessionId, sourceId))
         .get();
-      if (tradingStyleRow) {
-        tx.insert(sessionTradingStyle)
+      if (researchPostureRow) {
+        tx.insert(sessionResearchPosture)
           .values({
-            ...tradingStyleRow,
+            ...researchPostureRow,
+            sessionId: newId,
+            updatedAt: now,
+          })
+          .run();
+      }
+
+      const aiProfiles = tx.select().from(sessionAiRoleProfile).where(eq(sessionAiRoleProfile.sessionId, sourceId)).all();
+      for (const row of aiProfiles) {
+        tx.insert(sessionAiRoleProfile)
+          .values({
+            ...row,
             sessionId: newId,
             updatedAt: now,
           })

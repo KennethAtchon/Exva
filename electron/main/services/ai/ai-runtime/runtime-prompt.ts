@@ -1,11 +1,11 @@
-import type { AgentRole, TradingStyleDiscoveryMode } from "@/lib/types";
+import type { AgentRole, ResearchDiscoveryMode } from "@/lib/types";
 import type { PromptAssetLoader } from "../prompt-asset-loader";
 
 export function resolvePromptForRole(input: {
   role: AgentRole;
   promptSource: "default" | "session_override";
   promptMarkdown: string;
-  discoveryMode?: TradingStyleDiscoveryMode;
+  discoveryMode?: ResearchDiscoveryMode;
   promptLoader: PromptAssetLoader;
 }): string {
   const { role, promptSource, promptMarkdown, discoveryMode, promptLoader } = input;
@@ -19,7 +19,7 @@ export function resolvePromptForRole(input: {
   return promptLoader.load(role);
 }
 
-export function analysisLabelsForStrategy(discoveryMode?: TradingStyleDiscoveryMode): { first: string; second: string } {
+export function analysisLabelsForStrategy(discoveryMode?: ResearchDiscoveryMode): { first: string; second: string } {
   return discoveryMode === "event_contract_scan"
     ? { first: "Statistical analysis", second: "Contextual analysis" }
     : { first: "Technical analysis", second: "Fundamental analysis" };

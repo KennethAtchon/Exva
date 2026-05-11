@@ -16,9 +16,9 @@ export interface StrategyPromptContext {
 export function buildStrategyPromptContext(context: SessionStrategyContext): StrategyPromptContext {
   const snapshot = buildStrategySnapshot({
     ...context,
-    style: {
-      ...context.style,
-      styleNotes: truncate(context.style.styleNotes, MAX_NOTES_CHARS),
+    researchPosture: {
+      ...context.researchPosture,
+      postureNotes: truncate(context.researchPosture.postureNotes, MAX_NOTES_CHARS),
     },
     rules: {
       ...context.rules,
@@ -32,13 +32,15 @@ export function buildStrategyPromptContext(context: SessionStrategyContext): Str
   });
 
   const lines = [
-    "## Session trading style (authoritative)",
-    `- Style preset: ${snapshot.style.stylePresetId}`,
-    `- Discovery mode: ${snapshot.style.discoveryMode}`,
-    `- Evidence mode: ${snapshot.style.evidenceMode}`,
-    `- Catalyst posture: ${snapshot.style.catalystMode}`,
-    `- Fundamental strictness: ${snapshot.style.fundamentalStrictness}`,
-    snapshot.style.styleNotes.trim() ? `- Style notes: ${snapshot.style.styleNotes.trim()}` : null,
+    "## Session research posture (authoritative)",
+    `- Posture preset: ${snapshot.researchPosture.posturePresetId}`,
+    `- Discovery mode: ${snapshot.researchPosture.discoveryMode}`,
+    `- Evidence mode: ${snapshot.researchPosture.evidenceMode}`,
+    `- Catalyst posture: ${snapshot.researchPosture.catalystMode}`,
+    `- Fundamental strictness: ${snapshot.researchPosture.fundamentalStrictness}`,
+    snapshot.researchPosture.postureNotes.trim()
+      ? `- Posture notes: ${snapshot.researchPosture.postureNotes.trim()}`
+      : null,
     "",
     "## Session trade rules (authoritative)",
     `- Rules preset: ${snapshot.rules.rulesPresetId}`,

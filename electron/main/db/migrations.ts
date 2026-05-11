@@ -24,7 +24,8 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       DROP TABLE IF EXISTS session_timeframe_config;
       DROP TABLE IF EXISTS session_risk_config;
       DROP TABLE IF EXISTS session_trade_rules;
-      DROP TABLE IF EXISTS session_trading_style;
+      DROP TABLE IF EXISTS session_ai_role_profile;
+      DROP TABLE IF EXISTS session_research_posture;
       DROP TABLE IF EXISTS session_strategy_profile;
       DROP TABLE IF EXISTS session_strategies;
       DROP TABLE IF EXISTS session_selector_settings;
@@ -101,15 +102,25 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       timeframe_notes TEXT NOT NULL DEFAULT ''
     );
 
-    CREATE TABLE IF NOT EXISTS session_trading_style (
+    CREATE TABLE IF NOT EXISTS session_research_posture (
       session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-      style_preset_id TEXT NOT NULL DEFAULT 'custom',
+      posture_preset_id TEXT NOT NULL DEFAULT 'custom',
       discovery_mode TEXT NOT NULL DEFAULT 'custom',
       evidence_mode TEXT NOT NULL DEFAULT 'balanced',
       catalyst_mode TEXT NOT NULL DEFAULT 'preferred',
       fundamental_strictness TEXT NOT NULL DEFAULT 'balanced',
-      style_notes TEXT NOT NULL DEFAULT '',
+      posture_notes TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS session_ai_role_profile (
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      operating_preset_id TEXT NOT NULL DEFAULT 'default',
+      operating_spec_json TEXT NOT NULL DEFAULT '{}',
+      notes TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (session_id, role)
     );
 
     CREATE TABLE IF NOT EXISTS session_trade_rules (
@@ -393,9 +404,9 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
   `);
 
   sqlite.exec(`
-    INSERT OR IGNORE INTO session_trading_style (
-      session_id, style_preset_id, discovery_mode, evidence_mode, catalyst_mode,
-      fundamental_strictness, style_notes, updated_at
+    INSERT OR IGNORE INTO session_research_posture (
+      session_id, posture_preset_id, discovery_mode, evidence_mode, catalyst_mode,
+      fundamental_strictness, posture_notes, updated_at
     )
     SELECT
       session_id,
@@ -407,6 +418,19 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       '',
       CURRENT_TIMESTAMP
     FROM session_strategies;
+
+    INSERT OR IGNORE INTO session_ai_role_profile (
+      session_id, role, operating_preset_id, operating_spec_json, notes, updated_at
+    )
+    SELECT ss.session_id, r.role, 'default', '{}', '', CURRENT_TIMESTAMP
+    FROM session_strategies ss
+    CROSS JOIN (
+      SELECT 'analyst_technical' AS role
+      UNION ALL SELECT 'analyst_fundamental'
+      UNION ALL SELECT 'reviewer'
+      UNION ALL SELECT 'decision_maker'
+      UNION ALL SELECT 'instrument_selector'
+    ) r;
 
     INSERT OR IGNORE INTO session_trade_rules (
       session_id, rules_preset_id, setup_type, side_bias, entry_style, exit_style, scaling_mode,

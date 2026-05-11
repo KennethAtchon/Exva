@@ -20,7 +20,8 @@ import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-b
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
 import { SessionStrategiesRepo } from "../../../db/repositories/session-strategies-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
-import { SessionTradingStyleRepo } from "../../../db/repositories/session-trading-style-repo";
+import { SessionAiRoleProfileRepo } from "../../../db/repositories/session-ai-role-profile-repo";
+import { SessionResearchPostureRepo } from "../../../db/repositories/session-research-posture-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { InstrumentCacheRepo } from "../../../db/repositories/instrument-cache-repo";
 import { PromptAssetLoader } from "../../ai/prompt-asset-loader";
@@ -119,7 +120,8 @@ function createManager(
   const workspacePreferencesRepo = new WorkspacePreferencesRepo(db);
   const strategyContextService = new SessionStrategyContextService({
     sessionRepo,
-    styleRepo: new SessionTradingStyleRepo(db),
+    researchPostureRepo: new SessionResearchPostureRepo(db),
+    aiRoleProfileRepo: new SessionAiRoleProfileRepo(db),
     rulesRepo: new SessionTradeRulesRepo(db),
     riskRepo: new SessionRiskConfigRepo(db),
     timeframeRepo: new SessionTimeframeConfigRepo(db),

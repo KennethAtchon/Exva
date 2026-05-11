@@ -2,34 +2,37 @@ import type {
   AgentRole,
   ProviderAccount,
   SessionAiRole,
+  SessionAiRoleProfile,
+  SessionResearchPosture,
   SessionRiskConfig,
   SessionSelectorSettings,
   SessionStatus,
   SessionStrategyContext,
   SessionTradeRules,
   SessionTimeframeConfig,
-  SessionTradingStyle,
   SelectionMode,
 } from "@/lib/types";
 import { isSessionEditable, validateSessionStrategyContext } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/errors";
 import type { ProviderAccountsRepo } from "../../db/repositories/provider-accounts-repo";
+import type { SessionAiRoleProfileRepo } from "../../db/repositories/session-ai-role-profile-repo";
 import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
+import type { SessionResearchPostureRepo } from "../../db/repositories/session-research-posture-repo";
 import type { SessionRiskConfigRepo } from "../../db/repositories/session-risk-config-repo";
 import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";
 import type { SessionTradeRulesRepo } from "../../db/repositories/session-trade-rules-repo";
 import type { SessionTimeframeConfigRepo } from "../../db/repositories/session-timeframe-config-repo";
-import type { SessionTradingStyleRepo } from "../../db/repositories/session-trading-style-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
 import type { PromptAssetLoader } from "../ai/prompt-asset-loader";
 
 export interface StrategyPageData {
-  style: SessionTradingStyle;
+  researchPosture: SessionResearchPosture;
   rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
   aiRoles: SessionAiRole[];
+  aiRoleProfiles: SessionAiRoleProfile[];
   selectorSettings: SessionSelectorSettings;
   providers: ProviderAccount[];
   sessionStatus: SessionStatus;
@@ -42,7 +45,8 @@ export class SessionStrategyContextService {
   constructor(
     private readonly deps: {
       sessionRepo: SessionRepo;
-      styleRepo: SessionTradingStyleRepo;
+      researchPostureRepo: SessionResearchPostureRepo;
+      aiRoleProfileRepo: SessionAiRoleProfileRepo;
       rulesRepo: SessionTradeRulesRepo;
       riskRepo: SessionRiskConfigRepo;
       timeframeRepo: SessionTimeframeConfigRepo;
@@ -56,15 +60,20 @@ export class SessionStrategyContextService {
 
   get(sessionId: string): SessionStrategyContext {
     return {
-      style: this.deps.styleRepo.get(sessionId),
+      researchPosture: this.deps.researchPostureRepo.get(sessionId),
       rules: this.deps.rulesRepo.get(sessionId),
       riskConfig: this.deps.riskRepo.get(sessionId),
       timeframe: this.deps.timeframeRepo.get(sessionId),
+      aiRoleProfiles: this.deps.aiRoleProfileRepo.list(sessionId),
     };
   }
 
-  getStyle(sessionId: string): SessionTradingStyle {
-    return this.get(sessionId).style;
+  getResearchPosture(sessionId: string): SessionResearchPosture {
+    return this.get(sessionId).researchPosture;
+  }
+
+  getAiRoleProfile(sessionId: string, role: AgentRole): SessionAiRoleProfile {
+    return this.deps.aiRoleProfileRepo.get(sessionId, role);
   }
 
   getRules(sessionId: string): SessionTradeRules {
@@ -90,8 +99,10 @@ export class SessionStrategyContextService {
       };
     });
 
+    const ctx = this.get(sessionId);
+
     return {
-      ...this.get(sessionId),
+      ...ctx,
       aiRoles,
       selectorSettings: this.deps.selectorSettingsRepo.get(sessionId),
       providers: this.deps.providerAccountsRepo.list().filter((provider) => provider.category === "ai"),
@@ -102,12 +113,15 @@ export class SessionStrategyContextService {
     };
   }
 
-  saveStyle(sessionId: string, patch: Partial<SessionTradingStyle>): SessionTradingStyle {
+  saveResearchPosture(sessionId: string, patch: Partial<SessionResearchPosture>): SessionResearchPosture {
     this.assertEditable(sessionId);
     const current = this.get(sessionId);
-    const next = { ...current, style: { ...current.style, ...patch, sessionId } };
+    const next = {
+      ...current,
+      researchPosture: { ...current.researchPosture, ...patch, sessionId },
+    };
     this.validate(next);
-    return this.deps.styleRepo.upsert(sessionId, next.style);
+    return this.deps.researchPostureRepo.upsert(sessionId, next.researchPosture);
   }
 
   saveRules(sessionId: string, patch: Partial<SessionTradeRules>): SessionTradeRules {
@@ -175,10 +189,10 @@ export class SessionStrategyContextService {
 
   private validate(context: SessionStrategyContext): void {
     try {
-      validateSessionStrategyContext(context, { hasSearchProvider: this.hasSearchProvider(context.style.sessionId) });
+      validateSessionStrategyContext(context, { hasSearchProvider: this.hasSearchProvider(context.researchPosture.sessionId) });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid strategy configuration.";
-      throw new AppError(message, "VALIDATION_FAILED", { sessionId: context.style.sessionId });
+      throw new AppError(message, "VALIDATION_FAILED", { sessionId: context.researchPosture.sessionId });
     }
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { asc, eq } from "drizzle-orm";
-import { sessionAiRoles, sessionRiskConfig, sessionTimeframeConfig, sessionTradeRules, sessionTradingStyle } from "../schema";
+import { sessionAiRoleProfile, sessionAiRoles, sessionResearchPosture, sessionRiskConfig, sessionTimeframeConfig, sessionTradeRules } from "../schema";
 import { createTestDb } from "../test-helpers";
 import { SessionRepo } from "./session-repo";
 import { SessionStrategiesRepo } from "./session-strategies-repo";
@@ -20,7 +20,7 @@ describe("strategy schema migration compatibility", () => {
       executionMode: "paper_only",
     });
 
-    const style = db.db.select().from(sessionTradingStyle).where(eq(sessionTradingStyle.sessionId, session.id)).get();
+    const posture = db.db.select().from(sessionResearchPosture).where(eq(sessionResearchPosture.sessionId, session.id)).get();
     const rules = db.db.select().from(sessionTradeRules).where(eq(sessionTradeRules.sessionId, session.id)).get();
     const risk = db.db.select().from(sessionRiskConfig).where(eq(sessionRiskConfig.sessionId, session.id)).get();
     const timeframe = db.db.select().from(sessionTimeframeConfig).where(eq(sessionTimeframeConfig.sessionId, session.id)).get();
@@ -31,7 +31,10 @@ describe("strategy schema migration compatibility", () => {
       .orderBy(asc(sessionAiRoles.role))
       .all();
 
-    expect(style?.stylePresetId).toBe("custom");
+    const profiles = db.db.select().from(sessionAiRoleProfile).where(eq(sessionAiRoleProfile.sessionId, session.id)).all();
+    expect(profiles).toHaveLength(5);
+
+    expect(posture?.posturePresetId).toBe("custom");
     expect(rules?.setupType).toBe("custom");
     expect(risk?.maxPositionUsd).toBe(500);
     expect(risk?.stopLossType).toBe("fixed_pct");

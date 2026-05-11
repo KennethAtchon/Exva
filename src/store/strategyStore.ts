@@ -4,18 +4,20 @@ import { api, type ProviderModelEntry, type StrategyGetResponse } from "@/lib/ex
 import type {
   AgentRole,
   SessionAiRole,
+  SessionAiRoleProfile,
+  SessionResearchPosture,
   SessionRiskConfig,
   SessionStrategyContext,
   SessionTradeRules,
   SessionTimeframeConfig,
-  SessionTradingStyle,
 } from "@/lib/types";
 
 type StrategyPageState = "no_session" | "editable" | "locked";
 type StrategySectionTab = "style" | "rules" | "risk" | "timeframe" | "ai_roles";
 
 interface StrategyStoreState {
-  style: SessionTradingStyle | null;
+  researchPosture: SessionResearchPosture | null;
+  aiRoleProfiles: SessionAiRoleProfile[];
   rules: SessionTradeRules | null;
   riskConfig: SessionRiskConfig | null;
   timeframe: SessionTimeframeConfig | null;
@@ -36,7 +38,7 @@ interface StrategyStoreState {
   isLocked: boolean;
   state: StrategyPageState;
   loadStrategy: (sessionId: string) => Promise<void>;
-  updateStyle: (patch: Partial<SessionTradingStyle>) => void;
+  updateResearchPosture: (patch: Partial<SessionResearchPosture>) => void;
   updateRules: (patch: Partial<SessionTradeRules>) => void;
   updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
   updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
@@ -56,7 +58,8 @@ const EMPTY_AI_ROLES = (): Record<AgentRole, SessionAiRole> => ({
 });
 
 export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
-  style: null,
+  researchPosture: null,
+  aiRoleProfiles: [],
   rules: null,
   riskConfig: null,
   timeframe: null,
@@ -90,7 +93,8 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     }
 
     set({
-      style: result.style,
+      researchPosture: result.researchPosture,
+      aiRoleProfiles: result.aiRoleProfiles,
       rules: result.rules,
       riskConfig: result.riskConfig,
       timeframe: result.timeframe,
@@ -112,12 +116,12 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       state: result.sessionStatus === "active" || result.sessionStatus === "paused" ? "locked" : "editable",
     });
   },
-  updateStyle: (patch) => {
-    const style = get().style;
-    if (!style) return;
+  updateResearchPosture: (patch) => {
+    const researchPosture = get().researchPosture;
+    if (!researchPosture) return;
     const dirtyFields = new Set(get().dirtyFields);
-    for (const key of Object.keys(patch)) dirtyFields.add(`style.${key}`);
-    set({ style: { ...style, ...patch }, dirtyFields, strategyErrors: [] });
+    for (const key of Object.keys(patch)) dirtyFields.add(`researchPosture.${key}`);
+    set({ researchPosture: { ...researchPosture, ...patch }, dirtyFields, strategyErrors: [] });
   },
   updateRules: (patch) => {
     const rules = get().rules;
@@ -196,7 +200,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
 
     set({ isSaving: true, strategyErrors: [] });
     try {
-      await api.saveStrategyStyle({ sessionId, style: context.style });
+      await api.saveStrategyResearchPosture({ sessionId, researchPosture: context.researchPosture });
       await api.saveTradeRules({ sessionId, rules: rulesWithMarkdown });
       await api.saveStrategyRiskConfig({ sessionId, riskConfig: context.riskConfig });
       await api.saveStrategyTimeframeConfig({ sessionId, timeframe: context.timeframe });
@@ -242,12 +246,13 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
 }));
 
 function currentContext(state: StrategyStoreState): SessionStrategyContext | null {
-  if (!state.style || !state.rules || !state.riskConfig || !state.timeframe) return null;
+  if (!state.researchPosture || !state.rules || !state.riskConfig || !state.timeframe) return null;
   return {
-    style: state.style,
+    researchPosture: state.researchPosture,
     rules: state.rules,
     riskConfig: state.riskConfig,
     timeframe: state.timeframe,
+    aiRoleProfiles: state.aiRoleProfiles,
   };
 }
 

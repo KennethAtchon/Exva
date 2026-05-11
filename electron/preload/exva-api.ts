@@ -23,7 +23,8 @@ import type {
   SessionSelectorSettings,
   SessionTemplatePayload,
   SessionTimeframeConfig,
-  SessionTradingStyle,
+  SessionAiRoleProfile,
+  SessionResearchPosture,
   Trade,
   TradeAutopsy,
   TradeDecisionPayload,
@@ -91,7 +92,8 @@ export interface SessionCreateInput {
 }
 
 export interface StrategyGetResponse {
-  style: SessionTradingStyle;
+  researchPosture: SessionResearchPosture;
+  aiRoleProfiles: SessionAiRoleProfile[];
   rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
@@ -212,8 +214,8 @@ export interface ExvaApi {
   };
   strategy: {
     get(sessionId: string): Promise<StrategyGetResponse>;
-    getStyle(sessionId: string): Promise<SessionTradingStyle>;
-    saveStyle(input: { sessionId: string; style: Partial<SessionTradingStyle> }): Promise<{ savedAt: string }>;
+    getResearchPosture(sessionId: string): Promise<SessionResearchPosture>;
+    saveResearchPosture(input: { sessionId: string; researchPosture: Partial<SessionResearchPosture> }): Promise<{ savedAt: string }>;
     getRules(sessionId: string): Promise<SessionTradeRules>;
     saveRules(input: { sessionId: string; rules: Partial<SessionTradeRules> }): Promise<{ savedAt: string }>;
     getRiskConfig(sessionId: string): Promise<SessionRiskConfig>;

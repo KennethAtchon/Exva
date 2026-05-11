@@ -17,7 +17,8 @@ import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-se
 import { SessionStrategiesRepo } from "../../../db/repositories/session-strategies-repo";
 import { SessionTradeRulesRepo } from "../../../db/repositories/session-trade-rules-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
-import { SessionTradingStyleRepo } from "../../../db/repositories/session-trading-style-repo";
+import { SessionAiRoleProfileRepo } from "../../../db/repositories/session-ai-role-profile-repo";
+import { SessionResearchPostureRepo } from "../../../db/repositories/session-research-posture-repo";
 import { StatsRepo } from "../../../db/repositories/stats-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../../../db/repositories/trades-repo";
@@ -131,7 +132,8 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
   const promptAssetLoader = new PromptAssetLoader();
   const strategyContextService = new SessionStrategyContextService({
     sessionRepo: sessions,
-    styleRepo: new SessionTradingStyleRepo(db),
+    researchPostureRepo: new SessionResearchPostureRepo(db),
+    aiRoleProfileRepo: new SessionAiRoleProfileRepo(db),
     rulesRepo: new SessionTradeRulesRepo(db),
     riskRepo: new SessionRiskConfigRepo(db),
     timeframeRepo: new SessionTimeframeConfigRepo(db),

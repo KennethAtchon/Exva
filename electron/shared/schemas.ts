@@ -6,7 +6,7 @@ export const executionModeSchema = z.enum(["paper_only", "live_allowed"]);
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
 export const researchDepthSchema = z.enum(["light", "balanced", "deep"]);
 export const strategyProfileSchema = z.enum(["passive_income", "growth", "conservative", "custom"]);
-export const tradingStylePresetIdSchema = z.enum([
+export const researchPosturePresetIdSchema = z.enum([
   "trend_hunt",
   "catalyst_momentum",
   "institutional_quality",
@@ -14,7 +14,7 @@ export const tradingStylePresetIdSchema = z.enum([
   "prediction_event_edge",
   "custom",
 ]);
-export const tradingStyleDiscoveryModeSchema = z.enum([
+export const researchDiscoveryModeSchema = z.enum([
   "trend_scan",
   "catalyst_scan",
   "quality_watchlist",
@@ -22,15 +22,15 @@ export const tradingStyleDiscoveryModeSchema = z.enum([
   "event_contract_scan",
   "custom",
 ]);
-export const tradingStyleEvidenceModeSchema = z.enum([
+export const researchEvidenceModeSchema = z.enum([
   "narrative_first",
   "price_action_first",
   "confirmation_first",
   "probability_edge",
   "balanced",
 ]);
-export const tradingStyleCatalystModeSchema = z.enum(["required", "preferred", "not_required"]);
-export const tradingStyleFundamentalStrictnessSchema = z.enum([
+export const researchCatalystModeSchema = z.enum(["required", "preferred", "not_required"]);
+export const researchFundamentalStrictnessSchema = z.enum([
   "sanity_check",
   "balanced",
   "deep_confirmation",
@@ -120,13 +120,21 @@ export const sessionAiRolePayloadSchema = z.object({
   promptAssetPath: z.string().nullable(),
 });
 
-export const sessionTradingStylePayloadSchema = z.object({
-  stylePresetId: tradingStylePresetIdSchema,
-  discoveryMode: tradingStyleDiscoveryModeSchema,
-  evidenceMode: tradingStyleEvidenceModeSchema,
-  catalystMode: tradingStyleCatalystModeSchema,
-  fundamentalStrictness: tradingStyleFundamentalStrictnessSchema,
-  styleNotes: z.string(),
+export const sessionResearchPosturePayloadSchema = z.object({
+  posturePresetId: researchPosturePresetIdSchema,
+  discoveryMode: researchDiscoveryModeSchema,
+  evidenceMode: researchEvidenceModeSchema,
+  catalystMode: researchCatalystModeSchema,
+  fundamentalStrictness: researchFundamentalStrictnessSchema,
+  postureNotes: z.string(),
+});
+
+export const agentOperatingSpecSchema = z.record(z.string(), z.unknown());
+
+export const sessionAiRoleProfilePayloadSchema = z.object({
+  operatingPresetId: z.string(),
+  operatingSpec: agentOperatingSpecSchema,
+  notes: z.string(),
 });
 
 export const sessionTradeRulesPayloadSchema = z.object({
@@ -166,9 +174,9 @@ export const sessionTimeframeConfigPayloadSchema = z.object({
   timeframeNotes: z.string(),
 });
 
-export const strategyStyleSaveSchema = z.object({
+export const strategyResearchPostureSaveSchema = z.object({
   sessionId: z.string().min(1),
-  style: sessionTradingStylePayloadSchema.partial(),
+  researchPosture: sessionResearchPosturePayloadSchema.partial(),
 });
 
 export const strategyRulesSaveSchema = z.object({
@@ -205,7 +213,7 @@ export const sessionTemplatePayloadSchema = z.object({
   selectorSettings: z.object({ aiPickerEnabled: z.boolean() }),
   strategyContext: z
     .object({
-      style: sessionTradingStylePayloadSchema.extend({
+      researchPosture: sessionResearchPosturePayloadSchema.extend({
         sessionId: z.string().min(1),
         updatedAt: z.string().min(1),
       }),
@@ -221,6 +229,15 @@ export const sessionTemplatePayloadSchema = z.object({
         sessionId: z.string().min(1),
         updatedAt: z.string().min(1),
       }),
+      aiRoleProfiles: z
+        .array(
+          sessionAiRoleProfilePayloadSchema.extend({
+            sessionId: z.string().min(1),
+            role: agentRoleSchema,
+            updatedAt: z.string().min(1),
+          }),
+        )
+        .default([]),
     })
     .optional(),
   strategy: sessionStrategyPayloadSchema,

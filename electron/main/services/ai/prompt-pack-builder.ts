@@ -57,6 +57,8 @@ export class AgentPromptPackBuilder {
     const systemMarkdown = renderSystemPrompt({
       role: input.role,
       basePromptMarkdown: input.basePromptMarkdown,
+      strategyPrompt: strategyPrompt.prompt,
+      market,
       toolPolicy,
       harnessToolAvailability: input.harnessToolAvailability,
       riskPolicy,
@@ -66,7 +68,7 @@ export class AgentPromptPackBuilder {
     return {
       messages: [
         { role: "system", content: systemMarkdown },
-        { role: "user", content: renderUserPrompt({ strategyPrompt: strategyPrompt.prompt, market, task: input.task }) },
+        { role: "user", content: renderTaskUserPrompt(input.task) },
       ],
       strategySnapshot: strategyPrompt.snapshot,
       marketSnapshotJson: market.snapshotJson,
@@ -108,6 +110,8 @@ export function renderStrategyContextMarkdown(context: SessionStrategyContext, r
 function renderSystemPrompt(input: {
   role: AgentRole;
   basePromptMarkdown: string;
+  strategyPrompt: string;
+  market: MarketContextPack;
   toolPolicy: RoleToolPolicy;
   harnessToolAvailability: HarnessToolAvailability;
   riskPolicy: RuntimeRiskPolicy;
@@ -125,6 +129,14 @@ function renderSystemPrompt(input: {
 
   return [
     input.basePromptMarkdown.trim(),
+    "",
+    "<trusted_session_context>",
+    input.strategyPrompt,
+    "</trusted_session_context>",
+    "",
+    "<trusted_market_context>",
+    input.market.markdown,
+    "</trusted_market_context>",
     "",
     "## Runtime Authority",
     input.sandboxMode
@@ -169,7 +181,7 @@ function renderToolPolicy(role: AgentRole, policy: RoleToolPolicy, avail: Harnes
 
   if (!anyTool) {
     lines.push(
-      "- **No tools are available on this run.** Use only trusted session context and task text; do not invent live prices, news, or web facts.",
+      "- **No tools are available on this run.** Use only the system context above and the user task; do not invent live prices, news, or web facts.",
     );
   }
 
@@ -249,24 +261,8 @@ function renderToolPolicy(role: AgentRole, policy: RoleToolPolicy, avail: Harnes
   return lines.join("\n");
 }
 
-function renderUserPrompt(input: {
-  strategyPrompt: string;
-  market: MarketContextPack;
-  task: AgentTaskPrompt;
-}): string {
-  return [
-    "<trusted_session_context>",
-    input.strategyPrompt,
-    "</trusted_session_context>",
-    "",
-    "<trusted_market_context>",
-    input.market.markdown,
-    "</trusted_market_context>",
-    "",
-    "<task>",
-    input.task.bodyMarkdown.trim(),
-    "</task>",
-  ].join("\n");
+function renderTaskUserPrompt(task: AgentTaskPrompt): string {
+  return ["<task>", task.bodyMarkdown.trim(), "</task>"].join("\n");
 }
 
 function buildMarketContextPlaceholder(role: AgentRole): MarketContextPack {
@@ -278,7 +274,7 @@ function buildMarketContextPlaceholder(role: AgentRole): MarketContextPack {
   return {
     markdown: [
       "Market context unavailable from a dedicated market-data snapshot service in this build.",
-      "Use only the task text, trusted session context, and permitted tools. Do not invent quote, OHLCV, fundamental, or news facts.",
+      "Use only the user task, system session context above, and permitted tools. Do not invent quote, OHLCV, fundamental, or news facts.",
     ].join("\n"),
     snapshotJson: null,
   };

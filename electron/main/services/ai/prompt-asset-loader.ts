@@ -12,17 +12,29 @@ function resolvePromptsDir(): string {
   return path.join(process.cwd(), "electron", "prompts");
 }
 
+const SHARED_HOWTO_FILE = "_shared-context-howto.md";
+
 export class PromptAssetLoader {
   private readonly assetDir = resolvePromptsDir();
 
   load(role: AgentRole): string {
     const raw = fs.readFileSync(this.assetPath(role), "utf8");
-    return raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
+    const body = raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
+    return this.appendSharedHowto(body);
   }
 
   loadNamedAsset(name: string): string {
     const raw = fs.readFileSync(this.namedAssetPath(name), "utf8");
-    return raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
+    const body = raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
+    return this.appendSharedHowto(body);
+  }
+
+  private appendSharedHowto(roleBody: string): string {
+    const sharedPath = path.join(this.assetDir, SHARED_HOWTO_FILE);
+    if (!fs.existsSync(sharedPath)) return roleBody;
+    const raw = fs.readFileSync(sharedPath, "utf8");
+    const suffix = raw.replace(/^<!--\s*version:\s*[\d.]+\s*-->\s*/i, "").trim();
+    return `${roleBody}\n\n${suffix}`;
   }
 
   version(role: AgentRole): string {

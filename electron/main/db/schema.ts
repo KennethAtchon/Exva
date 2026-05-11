@@ -69,18 +69,40 @@ export const sessionStrategies = sqliteTable("session_strategies", {
   timeframeNotes: text("timeframe_notes").notNull().default(""),
 });
 
-export const sessionTradingStyle = sqliteTable("session_trading_style", {
+/** How the session weights discovery vs evidence vs fundamentals (edge / screening posture). */
+export const sessionResearchPosture = sqliteTable("session_research_posture", {
   sessionId: text("session_id")
     .primaryKey()
     .references(() => sessions.id, { onDelete: "cascade" }),
-  stylePresetId: text("style_preset_id").notNull().default("custom"),
+  posturePresetId: text("posture_preset_id").notNull().default("custom"),
   discoveryMode: text("discovery_mode").notNull().default("custom"),
   evidenceMode: text("evidence_mode").notNull().default("balanced"),
   catalystMode: text("catalyst_mode").notNull().default("preferred"),
   fundamentalStrictness: text("fundamental_strictness").notNull().default("balanced"),
-  styleNotes: text("style_notes").notNull().default(""),
+  postureNotes: text("posture_notes").notNull().default(""),
   updatedAt: text("updated_at").notNull(),
 });
+
+/**
+ * Per-session, per-role operating instructions (tools emphasis, method, output contract).
+ * `operating_spec_json` is app-validated JSON (see AgentOperatingSpec).
+ */
+export const sessionAiRoleProfile = sqliteTable(
+  "session_ai_role_profile",
+  {
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    operatingPresetId: text("operating_preset_id").notNull().default("default"),
+    operatingSpecJson: text("operating_spec_json").notNull().default("{}"),
+    notes: text("notes").notNull().default(""),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.sessionId, table.role] }),
+  }),
+);
 
 export const sessionTradeRules = sqliteTable("session_trade_rules", {
   sessionId: text("session_id")

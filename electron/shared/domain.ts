@@ -7,28 +7,28 @@ export type SelectionMode = "manual_shortlist" | "ai_selected_universe";
 export type ExecutionMode = "paper_only" | "live_allowed";
 export type ResearchDepth = "light" | "balanced" | "deep";
 export type StrategyProfile = "passive_income" | "growth" | "conservative" | "custom";
-export type TradingStylePresetId =
+export type ResearchPosturePresetId =
   | "trend_hunt"
   | "catalyst_momentum"
   | "institutional_quality"
   | "mean_reversion_dislocation"
   | "prediction_event_edge"
   | "custom";
-export type TradingStyleDiscoveryMode =
+export type ResearchDiscoveryMode =
   | "trend_scan"
   | "catalyst_scan"
   | "quality_watchlist"
   | "mean_reversion_scan"
   | "event_contract_scan"
   | "custom";
-export type TradingStyleEvidenceMode =
+export type ResearchEvidenceMode =
   | "narrative_first"
   | "price_action_first"
   | "confirmation_first"
   | "probability_edge"
   | "balanced";
-export type TradingStyleCatalystMode = "required" | "preferred" | "not_required";
-export type TradingStyleFundamentalStrictness =
+export type ResearchCatalystMode = "required" | "preferred" | "not_required";
+export type ResearchFundamentalStrictness =
   | "sanity_check"
   | "balanced"
   | "deep_confirmation"
@@ -59,7 +59,7 @@ export type StrategyExitStyle =
 export type StrategyScalingMode = "single_entry" | "scale_in_2" | "scale_in_3" | "scale_out_partial";
 export type StopLossType = "fixed_pct" | "trailing_atr" | "broker_native_trailing" | "none";
 
-export const TRADING_STYLE_PRESET_IDS: readonly TradingStylePresetId[] = [
+export const RESEARCH_POSTURE_PRESET_IDS: readonly ResearchPosturePresetId[] = [
   "trend_hunt",
   "catalyst_momentum",
   "institutional_quality",
@@ -68,7 +68,7 @@ export const TRADING_STYLE_PRESET_IDS: readonly TradingStylePresetId[] = [
   "custom",
 ];
 
-export const TRADING_STYLE_DISCOVERY_MODES: readonly TradingStyleDiscoveryMode[] = [
+export const RESEARCH_DISCOVERY_MODES: readonly ResearchDiscoveryMode[] = [
   "trend_scan",
   "catalyst_scan",
   "quality_watchlist",
@@ -77,7 +77,7 @@ export const TRADING_STYLE_DISCOVERY_MODES: readonly TradingStyleDiscoveryMode[]
   "custom",
 ];
 
-export const TRADING_STYLE_EVIDENCE_MODES: readonly TradingStyleEvidenceMode[] = [
+export const RESEARCH_EVIDENCE_MODES: readonly ResearchEvidenceMode[] = [
   "narrative_first",
   "price_action_first",
   "confirmation_first",
@@ -85,13 +85,13 @@ export const TRADING_STYLE_EVIDENCE_MODES: readonly TradingStyleEvidenceMode[] =
   "balanced",
 ];
 
-export const TRADING_STYLE_CATALYST_MODES: readonly TradingStyleCatalystMode[] = [
+export const RESEARCH_CATALYST_MODES: readonly ResearchCatalystMode[] = [
   "required",
   "preferred",
   "not_required",
 ];
 
-export const TRADING_STYLE_FUNDAMENTAL_STRICTNESS: readonly TradingStyleFundamentalStrictness[] = [
+export const RESEARCH_FUNDAMENTAL_STRICTNESS: readonly ResearchFundamentalStrictness[] = [
   "sanity_check",
   "balanced",
   "deep_confirmation",
@@ -147,21 +147,21 @@ export const STOP_LOSS_TYPES: readonly StopLossType[] = [
   "none",
 ];
 
-export interface TradingStylePreset {
-  id: TradingStylePresetId;
+export interface ResearchPosturePreset {
+  id: ResearchPosturePresetId;
   label: string;
   thesis: string;
   summaryBullets: string[];
-  style: {
-    stylePresetId: TradingStylePresetId;
-    discoveryMode: TradingStyleDiscoveryMode;
-    evidenceMode: TradingStyleEvidenceMode;
-    catalystMode: TradingStyleCatalystMode;
-    fundamentalStrictness: TradingStyleFundamentalStrictness;
+  posture: {
+    posturePresetId: ResearchPosturePresetId;
+    discoveryMode: ResearchDiscoveryMode;
+    evidenceMode: ResearchEvidenceMode;
+    catalystMode: ResearchCatalystMode;
+    fundamentalStrictness: ResearchFundamentalStrictness;
   };
 }
 
-export const TRADING_STYLE_PRESETS: readonly TradingStylePreset[] = [
+export const RESEARCH_POSTURE_PRESETS: readonly ResearchPosturePreset[] = [
   {
     id: "trend_hunt",
     label: "Trend Hunt",
@@ -172,8 +172,8 @@ export const TRADING_STYLE_PRESETS: readonly TradingStylePreset[] = [
       "Catalysts help but are not mandatory.",
       "Fundamentals only need a sanity check.",
     ],
-    style: {
-      stylePresetId: "trend_hunt",
+    posture: {
+      posturePresetId: "trend_hunt",
       discoveryMode: "trend_scan",
       evidenceMode: "price_action_first",
       catalystMode: "preferred",
@@ -190,8 +190,8 @@ export const TRADING_STYLE_PRESETS: readonly TradingStylePreset[] = [
       "Catalysts are required, not optional.",
       "Fundamentals only need a quick sanity check.",
     ],
-    style: {
-      stylePresetId: "catalyst_momentum",
+    posture: {
+      posturePresetId: "catalyst_momentum",
       discoveryMode: "catalyst_scan",
       evidenceMode: "balanced",
       catalystMode: "required",
@@ -208,8 +208,8 @@ export const TRADING_STYLE_PRESETS: readonly TradingStylePreset[] = [
       "Catalysts are optional unless they strengthen the case.",
       "Fundamental review is deep, not cursory.",
     ],
-    style: {
-      stylePresetId: "institutional_quality",
+    posture: {
+      posturePresetId: "institutional_quality",
       discoveryMode: "quality_watchlist",
       evidenceMode: "confirmation_first",
       catalystMode: "preferred",
@@ -226,8 +226,8 @@ export const TRADING_STYLE_PRESETS: readonly TradingStylePreset[] = [
       "Catalysts are usually not required.",
       "Fundamentals are a light sanity filter.",
     ],
-    style: {
-      stylePresetId: "mean_reversion_dislocation",
+    posture: {
+      posturePresetId: "mean_reversion_dislocation",
       discoveryMode: "mean_reversion_scan",
       evidenceMode: "confirmation_first",
       catalystMode: "not_required",
@@ -244,8 +244,8 @@ export const TRADING_STYLE_PRESETS: readonly TradingStylePreset[] = [
       "Catalysts are required because event flow drives repricing.",
       "Fundamentals are usually not applicable.",
     ],
-    style: {
-      stylePresetId: "prediction_event_edge",
+    posture: {
+      posturePresetId: "prediction_event_edge",
       discoveryMode: "event_contract_scan",
       evidenceMode: "probability_edge",
       catalystMode: "required",
@@ -260,8 +260,8 @@ export const TRADING_STYLE_PRESETS: readonly TradingStylePreset[] = [
       "No preset assumptions beyond what you set below.",
       "Use style notes to define the edge clearly.",
     ],
-    style: {
-      stylePresetId: "custom",
+    posture: {
+      posturePresetId: "custom",
       discoveryMode: "custom",
       evidenceMode: "balanced",
       catalystMode: "preferred",
@@ -504,6 +504,18 @@ export type AgentRole =
   | "decision_maker"
   | "instrument_selector";
 
+/** Parsed `session_ai_role_profile.operating_spec_json` — tools/method/output hints for prompts. */
+export type AgentOperatingSpec = Record<string, unknown>;
+
+export interface SessionAiRoleProfile {
+  sessionId: string;
+  role: AgentRole;
+  operatingPresetId: string;
+  operatingSpec: AgentOperatingSpec;
+  notes: string;
+  updatedAt: string;
+}
+
 export type PromptSource = "default" | "session_override";
 export type ProviderType = "anthropic" | "openai" | "openrouter";
 export type SearchProviderType = "brave" | "tavily" | "duckduckgo";
@@ -581,14 +593,14 @@ export interface SessionStrategy {
   timeframeNotes: string;
 }
 
-export interface SessionTradingStyle {
+export interface SessionResearchPosture {
   sessionId: string;
-  stylePresetId: TradingStylePresetId;
-  discoveryMode: TradingStyleDiscoveryMode;
-  evidenceMode: TradingStyleEvidenceMode;
-  catalystMode: TradingStyleCatalystMode;
-  fundamentalStrictness: TradingStyleFundamentalStrictness;
-  styleNotes: string;
+  posturePresetId: ResearchPosturePresetId;
+  discoveryMode: ResearchDiscoveryMode;
+  evidenceMode: ResearchEvidenceMode;
+  catalystMode: ResearchCatalystMode;
+  fundamentalStrictness: ResearchFundamentalStrictness;
+  postureNotes: string;
   updatedAt: string;
 }
 
@@ -636,21 +648,22 @@ export interface SessionTimeframeConfig {
 }
 
 export interface SessionStrategyContext {
-  style: SessionTradingStyle;
+  researchPosture: SessionResearchPosture;
   rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
+  aiRoleProfiles: SessionAiRoleProfile[];
 }
 
 export interface StrategySnapshot {
-  version: 2;
-  style: {
-    stylePresetId: TradingStylePresetId;
-    discoveryMode: TradingStyleDiscoveryMode;
-    evidenceMode: TradingStyleEvidenceMode;
-    catalystMode: TradingStyleCatalystMode;
-    fundamentalStrictness: TradingStyleFundamentalStrictness;
-    styleNotes: string;
+  version: 3;
+  researchPosture: {
+    posturePresetId: ResearchPosturePresetId;
+    discoveryMode: ResearchDiscoveryMode;
+    evidenceMode: ResearchEvidenceMode;
+    catalystMode: ResearchCatalystMode;
+    fundamentalStrictness: ResearchFundamentalStrictness;
+    postureNotes: string;
   };
   rules: {
     rulesPresetId: TradeRulesPresetId;
@@ -928,19 +941,19 @@ export interface SessionConfig {
   human_approval_required: boolean;
 }
 
-export function buildTradingStyleMarkdown(style: SessionTradingStyle): string {
+export function buildResearchPostureMarkdown(posture: SessionResearchPosture): string {
   const lines = [
-    "# Trading Style",
+    "# Research posture",
     "",
-    "## Edge Posture",
-    `- Style preset: ${labelizeToken(style.stylePresetId)}`,
-    `- Discovery mode: ${labelizeToken(style.discoveryMode)}`,
-    `- Evidence mode: ${labelizeToken(style.evidenceMode)}`,
-    `- Catalyst posture: ${labelizeToken(style.catalystMode)}`,
-    `- Fundamental strictness: ${labelizeToken(style.fundamentalStrictness)}`,
-    style.styleNotes.trim() ? "" : null,
-    style.styleNotes.trim() ? "## Style Notes" : null,
-    style.styleNotes.trim() ? style.styleNotes.trim() : null,
+    "## Edge posture",
+    `- Posture preset: ${labelizeToken(posture.posturePresetId)}`,
+    `- Discovery mode: ${labelizeToken(posture.discoveryMode)}`,
+    `- Evidence mode: ${labelizeToken(posture.evidenceMode)}`,
+    `- Catalyst posture: ${labelizeToken(posture.catalystMode)}`,
+    `- Fundamental strictness: ${labelizeToken(posture.fundamentalStrictness)}`,
+    posture.postureNotes.trim() ? "" : null,
+    posture.postureNotes.trim() ? "## Posture notes" : null,
+    posture.postureNotes.trim() ? posture.postureNotes.trim() : null,
   ].filter((line): line is string => line != null);
 
   const markdown = lines.join("\n").trim();
@@ -973,14 +986,14 @@ export function buildTradeRulesMarkdown(rules: SessionTradeRules): string {
 
 export function buildStrategySnapshot(context: SessionStrategyContext): StrategySnapshot {
   return {
-    version: 2,
-    style: {
-      stylePresetId: context.style.stylePresetId,
-      discoveryMode: context.style.discoveryMode,
-      evidenceMode: context.style.evidenceMode,
-      catalystMode: context.style.catalystMode,
-      fundamentalStrictness: context.style.fundamentalStrictness,
-      styleNotes: context.style.styleNotes,
+    version: 3,
+    researchPosture: {
+      posturePresetId: context.researchPosture.posturePresetId,
+      discoveryMode: context.researchPosture.discoveryMode,
+      evidenceMode: context.researchPosture.evidenceMode,
+      catalystMode: context.researchPosture.catalystMode,
+      fundamentalStrictness: context.researchPosture.fundamentalStrictness,
+      postureNotes: context.researchPosture.postureNotes,
     },
     rules: {
       rulesPresetId: context.rules.rulesPresetId,
@@ -1037,10 +1050,10 @@ export function validateSessionStrategyContext(
   if (context.riskConfig.takeProfitPct != null && context.riskConfig.takeProfitPct < 0) {
     throw new Error("Take profit percent must be zero or greater.");
   }
-  if (tradingStyleNeedsSearchProvider(context.style) && !options.hasSearchProvider) {
+  if (researchPostureNeedsSearchProvider(context.researchPosture) && !options.hasSearchProvider) {
     throw new Error("Catalyst-driven and event-contract styles require a configured search provider.");
   }
-  if (isPredictionEventStyle(context.style) || context.rules.setupType === "probability_edge") {
+  if (isPredictionEventResearchPosture(context.researchPosture) || context.rules.setupType === "probability_edge") {
     if (context.riskConfig.kellyFraction <= 0) {
       throw new Error("Probability-edge rules require kelly fraction greater than zero.");
     }
@@ -1076,12 +1089,12 @@ function labelizeToken(token: string): string {
     .join(" ");
 }
 
-function tradingStyleNeedsSearchProvider(style: SessionTradingStyle): boolean {
-  return style.catalystMode === "required" || style.discoveryMode === "catalyst_scan" || style.discoveryMode === "event_contract_scan";
+function researchPostureNeedsSearchProvider(posture: SessionResearchPosture): boolean {
+  return posture.catalystMode === "required" || posture.discoveryMode === "catalyst_scan" || posture.discoveryMode === "event_contract_scan";
 }
 
-function isPredictionEventStyle(style: SessionTradingStyle): boolean {
-  return style.discoveryMode === "event_contract_scan" || style.evidenceMode === "probability_edge";
+function isPredictionEventResearchPosture(posture: SessionResearchPosture): boolean {
+  return posture.discoveryMode === "event_contract_scan" || posture.evidenceMode === "probability_edge";
 }
 
 export interface DashboardStats {
