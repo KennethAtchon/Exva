@@ -12,15 +12,26 @@ function availability(role: Parameters<typeof harnessToolAvailabilityForRole>[0]
 
 function baseContext(): SessionStrategyContext {
   return {
-    profile: {
+    style: {
       sessionId: "s1",
-      strategyType: "momentum",
+      stylePresetId: "trend_hunt",
+      discoveryMode: "trend_scan",
+      evidenceMode: "price_action_first",
+      catalystMode: "preferred",
+      fundamentalStrictness: "sanity_check",
+      styleNotes: "Prefer persistent leaders with clean relative strength.",
+      updatedAt: "2026-05-05T00:00:00.000Z",
+    },
+    rules: {
+      sessionId: "s1",
+      rulesPresetId: "breakout_long",
+      setupType: "breakout",
       sideBias: "long_only",
       entryStyle: "breakout",
       exitStyle: "trailing_atr",
       scalingMode: "single_entry",
-      strategyBriefMarkdown: "Trade clean breakouts with confirmation.",
-      customInstructions: "Avoid earnings week.",
+      tradeRulesMarkdown: "Trade clean breakouts with confirmation.",
+      ruleNotes: "Avoid earnings week.",
       updatedAt: "2026-05-05T00:00:00.000Z",
     },
     riskConfig: {
@@ -75,7 +86,10 @@ describe("AgentPromptPackBuilder", () => {
     expect(pack.messages[1].content).toContain("<trusted_session_context>");
     expect(pack.messages[1].content).toContain("## Runtime interpretation");
     expect(pack.messages[1].content).toContain("<task>");
+    expect(pack.messages[1].content).toContain("## Session trading style");
+    expect(pack.messages[1].content).toContain("## Session trade rules");
     expect(pack.strategySnapshot.riskConfig.waitForOpenThreshold).toBe(0.8);
+    expect(pack.strategySnapshot.rules.setupType).toBe("breakout");
     expect(pack.riskPolicy.maxDataSpendUsd).toBe(3);
   });
 

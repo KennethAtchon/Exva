@@ -6,8 +6,9 @@ import type {
   SessionSelectorSettings,
   SessionStatus,
   SessionStrategyContext,
-  SessionStrategyProfile,
+  SessionTradeRules,
   SessionTimeframeConfig,
+  SessionTradingStyle,
   SelectionMode,
 } from "@/lib/types";
 import { isSessionEditable, validateSessionStrategyContext } from "@electron/shared/domain";
@@ -17,13 +18,15 @@ import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-
 import type { SessionRepo } from "../../db/repositories/session-repo";
 import type { SessionRiskConfigRepo } from "../../db/repositories/session-risk-config-repo";
 import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";
-import type { SessionStrategyProfileRepo } from "../../db/repositories/session-strategy-profile-repo";
+import type { SessionTradeRulesRepo } from "../../db/repositories/session-trade-rules-repo";
 import type { SessionTimeframeConfigRepo } from "../../db/repositories/session-timeframe-config-repo";
+import type { SessionTradingStyleRepo } from "../../db/repositories/session-trading-style-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
 import type { PromptAssetLoader } from "../ai/prompt-asset-loader";
 
 export interface StrategyPageData {
-  profile: SessionStrategyProfile;
+  style: SessionTradingStyle;
+  rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
   aiRoles: SessionAiRole[];
@@ -39,7 +42,8 @@ export class SessionStrategyContextService {
   constructor(
     private readonly deps: {
       sessionRepo: SessionRepo;
-      profileRepo: SessionStrategyProfileRepo;
+      styleRepo: SessionTradingStyleRepo;
+      rulesRepo: SessionTradeRulesRepo;
       riskRepo: SessionRiskConfigRepo;
       timeframeRepo: SessionTimeframeConfigRepo;
       aiRolesRepo: SessionAiRolesRepo;
@@ -52,14 +56,19 @@ export class SessionStrategyContextService {
 
   get(sessionId: string): SessionStrategyContext {
     return {
-      profile: this.deps.profileRepo.get(sessionId),
+      style: this.deps.styleRepo.get(sessionId),
+      rules: this.deps.rulesRepo.get(sessionId),
       riskConfig: this.deps.riskRepo.get(sessionId),
       timeframe: this.deps.timeframeRepo.get(sessionId),
     };
   }
 
-  getProfile(sessionId: string): SessionStrategyProfile {
-    return this.get(sessionId).profile;
+  getStyle(sessionId: string): SessionTradingStyle {
+    return this.get(sessionId).style;
+  }
+
+  getRules(sessionId: string): SessionTradeRules {
+    return this.get(sessionId).rules;
   }
 
   getRiskConfig(sessionId: string): SessionRiskConfig {
@@ -93,12 +102,20 @@ export class SessionStrategyContextService {
     };
   }
 
-  saveProfile(sessionId: string, patch: Partial<SessionStrategyProfile>): SessionStrategyProfile {
+  saveStyle(sessionId: string, patch: Partial<SessionTradingStyle>): SessionTradingStyle {
     this.assertEditable(sessionId);
     const current = this.get(sessionId);
-    const next = { ...current, profile: { ...current.profile, ...patch, sessionId } };
+    const next = { ...current, style: { ...current.style, ...patch, sessionId } };
     this.validate(next);
-    return this.deps.profileRepo.upsert(sessionId, next.profile);
+    return this.deps.styleRepo.upsert(sessionId, next.style);
+  }
+
+  saveRules(sessionId: string, patch: Partial<SessionTradeRules>): SessionTradeRules {
+    this.assertEditable(sessionId);
+    const current = this.get(sessionId);
+    const next = { ...current, rules: { ...current.rules, ...patch, sessionId } };
+    this.validate(next);
+    return this.deps.rulesRepo.upsert(sessionId, next.rules);
   }
 
   saveRiskConfig(sessionId: string, patch: Partial<SessionRiskConfig>): SessionRiskConfig {
@@ -158,10 +175,10 @@ export class SessionStrategyContextService {
 
   private validate(context: SessionStrategyContext): void {
     try {
-      validateSessionStrategyContext(context, { hasSearchProvider: this.hasSearchProvider(context.profile.sessionId) });
+      validateSessionStrategyContext(context, { hasSearchProvider: this.hasSearchProvider(context.style.sessionId) });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Invalid strategy configuration.";
-      throw new AppError(message, "VALIDATION_FAILED", { sessionId: context.profile.sessionId });
+      throw new AppError(message, "VALIDATION_FAILED", { sessionId: context.style.sessionId });
     }
   }
 

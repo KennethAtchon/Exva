@@ -23,6 +23,8 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       DROP TABLE IF EXISTS session_ai_roles;
       DROP TABLE IF EXISTS session_timeframe_config;
       DROP TABLE IF EXISTS session_risk_config;
+      DROP TABLE IF EXISTS session_trade_rules;
+      DROP TABLE IF EXISTS session_trading_style;
       DROP TABLE IF EXISTS session_strategy_profile;
       DROP TABLE IF EXISTS session_strategies;
       DROP TABLE IF EXISTS session_selector_settings;
@@ -99,15 +101,27 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       timeframe_notes TEXT NOT NULL DEFAULT ''
     );
 
-    CREATE TABLE IF NOT EXISTS session_strategy_profile (
+    CREATE TABLE IF NOT EXISTS session_trading_style (
       session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
-      strategy_type TEXT NOT NULL DEFAULT 'custom',
+      style_preset_id TEXT NOT NULL DEFAULT 'custom',
+      discovery_mode TEXT NOT NULL DEFAULT 'custom',
+      evidence_mode TEXT NOT NULL DEFAULT 'balanced',
+      catalyst_mode TEXT NOT NULL DEFAULT 'preferred',
+      fundamental_strictness TEXT NOT NULL DEFAULT 'balanced',
+      style_notes TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS session_trade_rules (
+      session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+      rules_preset_id TEXT NOT NULL DEFAULT 'custom',
+      setup_type TEXT NOT NULL DEFAULT 'custom',
       side_bias TEXT NOT NULL DEFAULT 'both',
       entry_style TEXT NOT NULL DEFAULT 'breakout',
       exit_style TEXT NOT NULL DEFAULT 'fixed_pct',
       scaling_mode TEXT NOT NULL DEFAULT 'single_entry',
-      strategy_brief_markdown TEXT NOT NULL DEFAULT '',
-      custom_instructions TEXT NOT NULL DEFAULT '',
+      trade_rules_markdown TEXT NOT NULL DEFAULT '',
+      rule_notes TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL
     );
 
@@ -379,12 +393,28 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
   `);
 
   sqlite.exec(`
-    INSERT OR IGNORE INTO session_strategy_profile (
-      session_id, strategy_type, side_bias, entry_style, exit_style, scaling_mode,
-      strategy_brief_markdown, custom_instructions, updated_at
+    INSERT OR IGNORE INTO session_trading_style (
+      session_id, style_preset_id, discovery_mode, evidence_mode, catalyst_mode,
+      fundamental_strictness, style_notes, updated_at
     )
     SELECT
       session_id,
+      'custom',
+      'custom',
+      'balanced',
+      'preferred',
+      'balanced',
+      '',
+      CURRENT_TIMESTAMP
+    FROM session_strategies;
+
+    INSERT OR IGNORE INTO session_trade_rules (
+      session_id, rules_preset_id, setup_type, side_bias, entry_style, exit_style, scaling_mode,
+      trade_rules_markdown, rule_notes, updated_at
+    )
+    SELECT
+      session_id,
+      'custom',
       'custom',
       'both',
       'breakout',

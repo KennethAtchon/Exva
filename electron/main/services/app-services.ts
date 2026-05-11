@@ -13,10 +13,11 @@ import { SessionAiRolesRepo } from "../db/repositories/session-ai-roles-repo";
 import { SessionBrokerAssignmentsRepo } from "../db/repositories/session-broker-assignments-repo";
 import { SessionRiskConfigRepo } from "../db/repositories/session-risk-config-repo";
 import { SessionSelectorSettingsRepo } from "../db/repositories/session-selector-settings-repo";
-import { SessionStrategyProfileRepo } from "../db/repositories/session-strategy-profile-repo";
+import { SessionTradeRulesRepo } from "../db/repositories/session-trade-rules-repo";
 import { SessionStrategiesRepo } from "../db/repositories/session-strategies-repo";
 import { SessionTemplatesRepo } from "../db/repositories/session-templates-repo";
 import { SessionTimeframeConfigRepo } from "../db/repositories/session-timeframe-config-repo";
+import { SessionTradingStyleRepo } from "../db/repositories/session-trading-style-repo";
 import { SessionRepo } from "../db/repositories/session-repo";
 import { InstrumentCacheRepo } from "../db/repositories/instrument-cache-repo";
 import { StatsRepo } from "../db/repositories/stats-repo";
@@ -64,10 +65,11 @@ export interface AppServices {
     sessionRiskConfig: SessionRiskConfigRepo;
     sessionSelectorSettings: SessionSelectorSettingsRepo;
     session: SessionRepo;
-    sessionStrategyProfile: SessionStrategyProfileRepo;
+    sessionTradeRules: SessionTradeRulesRepo;
     sessionStrategies: SessionStrategiesRepo;
     sessionTemplates: SessionTemplatesRepo;
     sessionTimeframeConfig: SessionTimeframeConfigRepo;
+    sessionTradingStyle: SessionTradingStyleRepo;
     stats: StatsRepo;
     tradeAutopsies: TradeAutopsiesRepo;
     tradeApprovals: TradeApprovalsRepo;
@@ -112,10 +114,11 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionRiskConfig: new SessionRiskConfigRepo(db),
     sessionSelectorSettings: new SessionSelectorSettingsRepo(db),
     session: new SessionRepo(db),
-    sessionStrategyProfile: new SessionStrategyProfileRepo(db),
+    sessionTradeRules: new SessionTradeRulesRepo(db),
     sessionStrategies: new SessionStrategiesRepo(db),
     sessionTemplates: new SessionTemplatesRepo(db),
     sessionTimeframeConfig: new SessionTimeframeConfigRepo(db),
+    sessionTradingStyle: new SessionTradingStyleRepo(db),
     stats: new StatsRepo(db),
     tradeAutopsies: new TradeAutopsiesRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
@@ -156,7 +159,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const promptAssetLoader = new PromptAssetLoader();
   const strategyContext = new SessionStrategyContextService({
     sessionRepo: repos.session,
-    profileRepo: repos.sessionStrategyProfile,
+    styleRepo: repos.sessionTradingStyle,
+    rulesRepo: repos.sessionTradeRules,
     riskRepo: repos.sessionRiskConfig,
     timeframeRepo: repos.sessionTimeframeConfig,
     aiRolesRepo: repos.sessionAiRoles,

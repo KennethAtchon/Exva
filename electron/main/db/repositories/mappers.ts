@@ -11,7 +11,8 @@ import type {
   SessionConfig,
   SessionSelectorSettings,
   SessionStrategy,
-  SessionStrategyProfile,
+  SessionTradeRules,
+  SessionTradingStyle,
   SessionTimeframeConfig,
   SessionTemplate,
   Trade,
@@ -168,17 +169,32 @@ export function toSessionAiRole(row: Row): SessionAiRole {
   };
 }
 
-export function toSessionStrategyProfile(row: Row): SessionStrategyProfile {
+export function toSessionTradingStyle(row: Row): SessionTradingStyle {
   row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
-    strategyType: row.strategy_type as SessionStrategyProfile["strategyType"],
-    sideBias: row.side_bias as SessionStrategyProfile["sideBias"],
-    entryStyle: row.entry_style as SessionStrategyProfile["entryStyle"],
-    exitStyle: row.exit_style as SessionStrategyProfile["exitStyle"],
-    scalingMode: row.scaling_mode as SessionStrategyProfile["scalingMode"],
-    strategyBriefMarkdown: row.strategy_brief_markdown != null ? String(row.strategy_brief_markdown) : "",
-    customInstructions: row.custom_instructions != null ? String(row.custom_instructions) : "",
+    stylePresetId: row.style_preset_id as SessionTradingStyle["stylePresetId"],
+    discoveryMode: row.discovery_mode as SessionTradingStyle["discoveryMode"],
+    evidenceMode: row.evidence_mode as SessionTradingStyle["evidenceMode"],
+    catalystMode: row.catalyst_mode as SessionTradingStyle["catalystMode"],
+    fundamentalStrictness: row.fundamental_strictness as SessionTradingStyle["fundamentalStrictness"],
+    styleNotes: row.style_notes != null ? String(row.style_notes) : "",
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function toSessionTradeRules(row: Row): SessionTradeRules {
+  row = normalizeRow(row);
+  return {
+    sessionId: String(row.session_id),
+    rulesPresetId: row.rules_preset_id as SessionTradeRules["rulesPresetId"],
+    setupType: row.setup_type as SessionTradeRules["setupType"],
+    sideBias: row.side_bias as SessionTradeRules["sideBias"],
+    entryStyle: row.entry_style as SessionTradeRules["entryStyle"],
+    exitStyle: row.exit_style as SessionTradeRules["exitStyle"],
+    scalingMode: row.scaling_mode as SessionTradeRules["scalingMode"],
+    tradeRulesMarkdown: row.trade_rules_markdown != null ? String(row.trade_rules_markdown) : "",
+    ruleNotes: row.rule_notes != null ? String(row.rule_notes) : "",
     updatedAt: String(row.updated_at),
   };
 }

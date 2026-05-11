@@ -18,11 +18,12 @@ import type {
   SessionAiRole,
   SessionRiskConfig,
   SessionSelectorSettings,
-  SessionStrategyProfile,
+  SessionTradeRules,
   SessionStrategy,
   SessionStatus,
   SessionTemplatePayload,
   SessionTimeframeConfig,
+  SessionTradingStyle,
   Trade,
   TradeAutopsy,
   TradeDecisionPayload,
@@ -72,7 +73,8 @@ export interface SessionCreateInput {
 }
 
 export interface StrategyGetResponse {
-  profile: SessionStrategyProfile;
+  style: SessionTradingStyle;
+  rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
   aiRoles: SessionAiRole[];
@@ -172,9 +174,12 @@ export const api = {
     bridge().templates.buildPayloadFromSession(sessionId),
 
   getStrategy: (sessionId: string): Promise<StrategyGetResponse> => bridge().strategy.get(sessionId),
-  getStrategyProfile: (sessionId: string): Promise<SessionStrategyProfile> => bridge().strategy.getProfile(sessionId),
-  saveStrategyProfile: (input: { sessionId: string; profile: Partial<SessionStrategyProfile> }) =>
-    bridge().strategy.saveProfile(input),
+  getStrategyStyle: (sessionId: string): Promise<SessionTradingStyle> => bridge().strategy.getStyle(sessionId),
+  saveStrategyStyle: (input: { sessionId: string; style: Partial<SessionTradingStyle> }) =>
+    bridge().strategy.saveStyle(input),
+  getTradeRules: (sessionId: string): Promise<SessionTradeRules> => bridge().strategy.getRules(sessionId),
+  saveTradeRules: (input: { sessionId: string; rules: Partial<SessionTradeRules> }) =>
+    bridge().strategy.saveRules(input),
   getStrategyRiskConfig: (sessionId: string): Promise<SessionRiskConfig> => bridge().strategy.getRiskConfig(sessionId),
   saveStrategyRiskConfig: (input: { sessionId: string; riskConfig: Partial<SessionRiskConfig> }) =>
     bridge().strategy.saveRiskConfig(input),

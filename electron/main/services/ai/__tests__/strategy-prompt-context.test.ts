@@ -4,15 +4,26 @@ import { buildStrategyPromptContext, prependStrategyContextToUserPrompt } from "
 
 function baseContext(): SessionStrategyContext {
   return {
-    profile: {
+    style: {
       sessionId: "s1",
-      strategyType: "momentum",
+      stylePresetId: "trend_hunt",
+      discoveryMode: "trend_scan",
+      evidenceMode: "price_action_first",
+      catalystMode: "preferred",
+      fundamentalStrictness: "sanity_check",
+      styleNotes: "Favor strong leaders with clean trend persistence.",
+      updatedAt: "2026-05-05T00:00:00.000Z",
+    },
+    rules: {
+      sessionId: "s1",
+      rulesPresetId: "breakout_long",
+      setupType: "breakout",
       sideBias: "long_only",
       entryStyle: "breakout",
       exitStyle: "trailing_atr",
       scalingMode: "single_entry",
-      strategyBriefMarkdown: "",
-      customInstructions: "Avoid earnings week.",
+      tradeRulesMarkdown: "",
+      ruleNotes: "Avoid earnings week.",
       updatedAt: "2026-05-05T00:00:00.000Z",
     },
     riskConfig: {
@@ -55,15 +66,17 @@ describe("strategy-prompt-context", () => {
 
     expect(built.snapshot.timeframe.timeframeNotes).toContain("...");
     expect(built.prompt).toContain("## Session trading horizon");
+    expect(built.prompt).toContain("## Session trading style");
+    expect(built.prompt).toContain("## Session trade rules");
     expect(built.prompt.length).toBeLessThan(2200);
   });
 
   it("prepends full strategy context before user content", () => {
     const out = prependStrategyContextToUserPrompt(baseContext(), "Instrument: AAPL");
 
-    expect(out.prompt.startsWith("## Session strategy")).toBe(true);
-    expect(out.prompt).toContain("momentum");
+    expect(out.prompt.startsWith("## Session trading style")).toBe(true);
+    expect(out.prompt).toContain("trend_hunt");
     expect(out.prompt.endsWith("Instrument: AAPL")).toBe(true);
-    expect(out.snapshot.profile.strategyType).toBe("momentum");
+    expect(out.snapshot.rules.setupType).toBe("breakout");
   });
 });

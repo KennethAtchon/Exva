@@ -1,5 +1,5 @@
 import {
-  buildStrategyBriefMarkdown,
+  buildTradeRulesMarkdown,
   buildStrategySnapshot,
   type SessionStrategyContext,
   type StrategySnapshot,
@@ -16,9 +16,14 @@ export interface StrategyPromptContext {
 export function buildStrategyPromptContext(context: SessionStrategyContext): StrategyPromptContext {
   const snapshot = buildStrategySnapshot({
     ...context,
-    profile: {
-      ...context.profile,
-      strategyBriefMarkdown: context.profile.strategyBriefMarkdown.trim() || buildStrategyBriefMarkdown(context),
+    style: {
+      ...context.style,
+      styleNotes: truncate(context.style.styleNotes, MAX_NOTES_CHARS),
+    },
+    rules: {
+      ...context.rules,
+      tradeRulesMarkdown: context.rules.tradeRulesMarkdown.trim() || buildTradeRulesMarkdown(context.rules),
+      ruleNotes: truncate(context.rules.ruleNotes, MAX_NOTES_CHARS),
     },
     timeframe: {
       ...context.timeframe,
@@ -27,17 +32,26 @@ export function buildStrategyPromptContext(context: SessionStrategyContext): Str
   });
 
   const lines = [
-    "## Session strategy (authoritative)",
-    `- Strategy type: ${snapshot.profile.strategyType}`,
-    `- Side bias: ${snapshot.profile.sideBias}`,
-    `- Entry style: ${snapshot.profile.entryStyle}`,
-    `- Exit style: ${snapshot.profile.exitStyle}`,
-    `- Scaling mode: ${snapshot.profile.scalingMode}`,
-    snapshot.profile.strategyBriefMarkdown.trim()
-      ? `- Strategy brief: ${truncate(snapshot.profile.strategyBriefMarkdown.trim(), MAX_BRIEF_PROMPT_CHARS)}`
+    "## Session trading style (authoritative)",
+    `- Style preset: ${snapshot.style.stylePresetId}`,
+    `- Discovery mode: ${snapshot.style.discoveryMode}`,
+    `- Evidence mode: ${snapshot.style.evidenceMode}`,
+    `- Catalyst posture: ${snapshot.style.catalystMode}`,
+    `- Fundamental strictness: ${snapshot.style.fundamentalStrictness}`,
+    snapshot.style.styleNotes.trim() ? `- Style notes: ${snapshot.style.styleNotes.trim()}` : null,
+    "",
+    "## Session trade rules (authoritative)",
+    `- Rules preset: ${snapshot.rules.rulesPresetId}`,
+    `- Setup type: ${snapshot.rules.setupType}`,
+    `- Side bias: ${snapshot.rules.sideBias}`,
+    `- Entry style: ${snapshot.rules.entryStyle}`,
+    `- Exit style: ${snapshot.rules.exitStyle}`,
+    `- Scaling mode: ${snapshot.rules.scalingMode}`,
+    snapshot.rules.tradeRulesMarkdown.trim()
+      ? `- Trade rules markdown: ${truncate(snapshot.rules.tradeRulesMarkdown.trim(), MAX_BRIEF_PROMPT_CHARS)}`
       : null,
-    snapshot.profile.customInstructions.trim()
-      ? `- Custom instructions: ${snapshot.profile.customInstructions.trim()}`
+    snapshot.rules.ruleNotes.trim()
+      ? `- Rule notes: ${snapshot.rules.ruleNotes.trim()}`
       : null,
     "",
     "## Session risk (authoritative)",

@@ -1,20 +1,22 @@
 import { create } from "zustand";
-import { buildStrategyBriefMarkdown, validateSessionStrategyContext } from "../../electron/shared/domain";
+import { buildTradeRulesMarkdown, validateSessionStrategyContext } from "../../electron/shared/domain";
 import { api, type ProviderModelEntry, type StrategyGetResponse } from "@/lib/exva";
 import type {
   AgentRole,
   SessionAiRole,
   SessionRiskConfig,
   SessionStrategyContext,
-  SessionStrategyProfile,
+  SessionTradeRules,
   SessionTimeframeConfig,
+  SessionTradingStyle,
 } from "@/lib/types";
 
 type StrategyPageState = "no_session" | "editable" | "locked";
-type StrategySectionTab = "strategy" | "risk" | "timeframe" | "ai_roles";
+type StrategySectionTab = "style" | "rules" | "risk" | "timeframe" | "ai_roles";
 
 interface StrategyStoreState {
-  profile: SessionStrategyProfile | null;
+  style: SessionTradingStyle | null;
+  rules: SessionTradeRules | null;
   riskConfig: SessionRiskConfig | null;
   timeframe: SessionTimeframeConfig | null;
   aiRoles: Record<AgentRole, SessionAiRole>;
@@ -34,7 +36,8 @@ interface StrategyStoreState {
   isLocked: boolean;
   state: StrategyPageState;
   loadStrategy: (sessionId: string) => Promise<void>;
-  updateProfile: (patch: Partial<SessionStrategyProfile>) => void;
+  updateStyle: (patch: Partial<SessionTradingStyle>) => void;
+  updateRules: (patch: Partial<SessionTradeRules>) => void;
   updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
   updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
   updateRole: (role: AgentRole, patch: Partial<SessionAiRole>) => Promise<void>;
@@ -53,7 +56,8 @@ const EMPTY_AI_ROLES = (): Record<AgentRole, SessionAiRole> => ({
 });
 
 export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
-  profile: null,
+  style: null,
+  rules: null,
   riskConfig: null,
   timeframe: null,
   aiRoles: EMPTY_AI_ROLES(),
@@ -65,7 +69,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   dirtyFields: new Set(),
   dirtyRoles: new Set(),
   activeRoleTab: "analyst_technical",
-  activeSection: "strategy",
+  activeSection: "style",
   providerModels: {},
   roleErrors: emptyRoleErrors(),
   strategyErrors: [],
@@ -86,7 +90,8 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     }
 
     set({
-      profile: result.profile,
+      style: result.style,
+      rules: result.rules,
       riskConfig: result.riskConfig,
       timeframe: result.timeframe,
       aiRoles,
@@ -98,7 +103,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       dirtyFields: new Set(),
       dirtyRoles: new Set(),
       activeRoleTab: "analyst_technical",
-      activeSection: "strategy",
+      activeSection: "style",
       providerModels,
       roleErrors: emptyRoleErrors(),
       strategyErrors: [],
@@ -107,12 +112,19 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       state: result.sessionStatus === "active" || result.sessionStatus === "paused" ? "locked" : "editable",
     });
   },
-  updateProfile: (patch) => {
-    const profile = get().profile;
-    if (!profile) return;
+  updateStyle: (patch) => {
+    const style = get().style;
+    if (!style) return;
     const dirtyFields = new Set(get().dirtyFields);
-    for (const key of Object.keys(patch)) dirtyFields.add(`profile.${key}`);
-    set({ profile: { ...profile, ...patch }, dirtyFields, strategyErrors: [] });
+    for (const key of Object.keys(patch)) dirtyFields.add(`style.${key}`);
+    set({ style: { ...style, ...patch }, dirtyFields, strategyErrors: [] });
+  },
+  updateRules: (patch) => {
+    const rules = get().rules;
+    if (!rules) return;
+    const dirtyFields = new Set(get().dirtyFields);
+    for (const key of Object.keys(patch)) dirtyFields.add(`rules.${key}`);
+    set({ rules: { ...rules, ...patch }, dirtyFields, strategyErrors: [] });
   },
   updateRiskConfig: (patch) => {
     const riskConfig = get().riskConfig;
@@ -159,14 +171,14 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     const context = currentContext(get());
     if (!context) return;
 
-    const profileWithBrief = {
-      ...context.profile,
-      strategyBriefMarkdown: buildStrategyBriefMarkdown(context),
+    const rulesWithMarkdown = {
+      ...context.rules,
+      tradeRulesMarkdown: buildTradeRulesMarkdown(context.rules),
     };
 
     try {
       validateSessionStrategyContext(
-        { ...context, profile: profileWithBrief },
+        { ...context, rules: rulesWithMarkdown },
         { hasSearchProvider: Boolean(get().defaultSearchProviderId || get().workspaceDefaultSearchProviderId) },
       );
     } catch (err) {
@@ -184,12 +196,13 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
 
     set({ isSaving: true, strategyErrors: [] });
     try {
-      await api.saveStrategyProfile({ sessionId, profile: profileWithBrief });
+      await api.saveStrategyStyle({ sessionId, style: context.style });
+      await api.saveTradeRules({ sessionId, rules: rulesWithMarkdown });
       await api.saveStrategyRiskConfig({ sessionId, riskConfig: context.riskConfig });
       await api.saveStrategyTimeframeConfig({ sessionId, timeframe: context.timeframe });
       await api.saveStrategyAiRoles({ sessionId, aiRoles: Object.values(get().aiRoles) });
       set({
-        profile: profileWithBrief,
+        rules: rulesWithMarkdown,
         dirtyFields: new Set(),
         dirtyRoles: new Set(),
         roleErrors: emptyRoleErrors(),
@@ -229,9 +242,10 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
 }));
 
 function currentContext(state: StrategyStoreState): SessionStrategyContext | null {
-  if (!state.profile || !state.riskConfig || !state.timeframe) return null;
+  if (!state.style || !state.rules || !state.riskConfig || !state.timeframe) return null;
   return {
-    profile: state.profile,
+    style: state.style,
+    rules: state.rules,
     riskConfig: state.riskConfig,
     timeframe: state.timeframe,
   };

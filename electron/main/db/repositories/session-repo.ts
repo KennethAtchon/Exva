@@ -7,9 +7,10 @@ import {
   sessionBrokerRoutingOverrides,
   sessionRiskConfig,
   sessionSelectorSettings,
+  sessionTradeRules,
   sessionStrategies,
-  sessionStrategyProfile,
   sessionTimeframeConfig,
+  sessionTradingStyle,
   sessions,
 } from "../schema";
 import { canTransition, isSessionEditable } from "@electron/shared/domain";
@@ -101,16 +102,30 @@ export class SessionRepo {
         })
         .run();
 
-      tx.insert(sessionStrategyProfile)
+      tx.insert(sessionTradingStyle)
         .values({
           sessionId,
-          strategyType: "custom",
+          stylePresetId: "custom",
+          discoveryMode: "custom",
+          evidenceMode: "balanced",
+          catalystMode: "preferred",
+          fundamentalStrictness: "balanced",
+          styleNotes: "",
+          updatedAt: now,
+        })
+        .run();
+
+      tx.insert(sessionTradeRules)
+        .values({
+          sessionId,
+          rulesPresetId: "custom",
+          setupType: "custom",
           sideBias: "both",
           entryStyle: "breakout",
           exitStyle: "fixed_pct",
           scalingMode: "single_entry",
-          strategyBriefMarkdown: "",
-          customInstructions: "",
+          tradeRulesMarkdown: "",
+          ruleNotes: "",
           updatedAt: now,
         })
         .run();
@@ -331,15 +346,30 @@ export class SessionRepo {
           .run();
       }
 
-      const strategyProfileRow = tx
+      const tradingStyleRow = tx
         .select()
-        .from(sessionStrategyProfile)
-        .where(eq(sessionStrategyProfile.sessionId, sourceId))
+        .from(sessionTradingStyle)
+        .where(eq(sessionTradingStyle.sessionId, sourceId))
         .get();
-      if (strategyProfileRow) {
-        tx.insert(sessionStrategyProfile)
+      if (tradingStyleRow) {
+        tx.insert(sessionTradingStyle)
           .values({
-            ...strategyProfileRow,
+            ...tradingStyleRow,
+            sessionId: newId,
+            updatedAt: now,
+          })
+          .run();
+      }
+
+      const tradeRulesRow = tx
+        .select()
+        .from(sessionTradeRules)
+        .where(eq(sessionTradeRules.sessionId, sourceId))
+        .get();
+      if (tradeRulesRow) {
+        tx.insert(sessionTradeRules)
+          .values({
+            ...tradeRulesRow,
             sessionId: newId,
             updatedAt: now,
           })

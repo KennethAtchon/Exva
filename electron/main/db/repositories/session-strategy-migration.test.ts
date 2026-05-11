@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { asc, eq } from "drizzle-orm";
-import { sessionAiRoles, sessionRiskConfig, sessionStrategyProfile, sessionTimeframeConfig } from "../schema";
+import { sessionAiRoles, sessionRiskConfig, sessionTimeframeConfig, sessionTradeRules, sessionTradingStyle } from "../schema";
 import { createTestDb } from "../test-helpers";
 import { SessionRepo } from "./session-repo";
 import { SessionStrategiesRepo } from "./session-strategies-repo";
@@ -20,7 +20,8 @@ describe("strategy schema migration compatibility", () => {
       executionMode: "paper_only",
     });
 
-    const profile = db.db.select().from(sessionStrategyProfile).where(eq(sessionStrategyProfile.sessionId, session.id)).get();
+    const style = db.db.select().from(sessionTradingStyle).where(eq(sessionTradingStyle.sessionId, session.id)).get();
+    const rules = db.db.select().from(sessionTradeRules).where(eq(sessionTradeRules.sessionId, session.id)).get();
     const risk = db.db.select().from(sessionRiskConfig).where(eq(sessionRiskConfig.sessionId, session.id)).get();
     const timeframe = db.db.select().from(sessionTimeframeConfig).where(eq(sessionTimeframeConfig.sessionId, session.id)).get();
     const roles = db.db
@@ -30,7 +31,8 @@ describe("strategy schema migration compatibility", () => {
       .orderBy(asc(sessionAiRoles.role))
       .all();
 
-    expect(profile?.strategyType).toBe("custom");
+    expect(style?.stylePresetId).toBe("custom");
+    expect(rules?.setupType).toBe("custom");
     expect(risk?.maxPositionUsd).toBe(500);
     expect(risk?.stopLossType).toBe("fixed_pct");
     expect(timeframe?.primaryTradingTimeframe).toBe("1d");

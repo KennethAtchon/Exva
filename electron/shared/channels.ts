@@ -40,8 +40,10 @@ export const channels = {
   },
   strategy: {
     get: "strategy:get",
-    getProfile: "strategy:get-profile",
-    saveProfile: "strategy:save-profile",
+    getStyle: "strategy:get-style",
+    saveStyle: "strategy:save-style",
+    getRules: "strategy:get-rules",
+    saveRules: "strategy:save-rules",
     getRiskConfig: "strategy:get-risk-config",
     saveRiskConfig: "strategy:save-risk-config",
     getTimeframeConfig: "strategy:get-timeframe-config",

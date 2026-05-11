@@ -562,19 +562,19 @@ ${input.review}`;
   }
 
   private resolvePrompt(sessionId: string, role: AgentRole, promptSource: "default" | "session_override", promptMarkdown: string): string {
-    const strategyType = this.strategyContextService?.get(sessionId).profile.strategyType;
+    const discoveryMode = this.strategyContextService?.get(sessionId).style.discoveryMode;
     return resolvePromptForRole({
       role,
       promptSource,
       promptMarkdown,
-      strategyType,
+      discoveryMode,
       promptLoader: this.promptLoader,
     });
   }
 
   private analysisLabels(sessionId: string): { first: string; second: string } {
-    const strategyType = this.requireStrategyContextService().get(sessionId).profile.strategyType;
-    return analysisLabelsForStrategy(strategyType);
+    const discoveryMode = this.requireStrategyContextService().get(sessionId).style.discoveryMode;
+    return analysisLabelsForStrategy(discoveryMode);
   }
 
   private requireStrategyContextService(): SessionStrategyContextService {

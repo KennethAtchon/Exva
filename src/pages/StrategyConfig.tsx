@@ -10,15 +10,20 @@ import { useSessionStore } from "@/store/sessionStore";
 import { useStrategyStore } from "@/store/strategyStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
-  buildStrategyBriefMarkdown,
+  buildTradeRulesMarkdown,
+  buildTradingStyleMarkdown,
   STOP_LOSS_TYPES,
+  SETUP_TYPES,
+  TRADE_RULE_PRESETS,
   STRATEGY_ENTRY_STYLES,
   STRATEGY_EXIT_STYLES,
-  STRATEGY_PRESETS,
   STRATEGY_SCALING_MODES,
   STRATEGY_SIDE_BIASES,
-  STRATEGY_TYPES,
-  type StrategyPreset,
+  TRADING_STYLE_CATALYST_MODES,
+  TRADING_STYLE_DISCOVERY_MODES,
+  TRADING_STYLE_EVIDENCE_MODES,
+  TRADING_STYLE_FUNDAMENTAL_STRICTNESS,
+  TRADING_STYLE_PRESETS,
 } from "../../electron/shared/domain";
 
 const ROLE_ORDER = [
@@ -36,7 +41,8 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const loadWorkspaceView = useWorkspaceStore((state) => state.loadWorkspaceView);
   const setSessionStatus = useSessionStore((state) => state.setStatus);
 
-  const profile = useStrategyStore((state) => state.profile);
+  const style = useStrategyStore((state) => state.style);
+  const rules = useStrategyStore((state) => state.rules);
   const riskConfig = useStrategyStore((state) => state.riskConfig);
   const timeframe = useStrategyStore((state) => state.timeframe);
   const aiRoles = useStrategyStore((state) => state.aiRoles);
@@ -52,7 +58,8 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const roleErrors = useStrategyStore((state) => state.roleErrors);
   const strategyErrors = useStrategyStore((state) => state.strategyErrors);
   const loadStrategy = useStrategyStore((state) => state.loadStrategy);
-  const updateProfile = useStrategyStore((state) => state.updateProfile);
+  const updateStyle = useStrategyStore((state) => state.updateStyle);
+  const updateRules = useStrategyStore((state) => state.updateRules);
   const updateRiskConfig = useStrategyStore((state) => state.updateRiskConfig);
   const updateTimeframe = useStrategyStore((state) => state.updateTimeframe);
   const updateRole = useStrategyStore((state) => state.updateRole);
@@ -96,14 +103,16 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
     );
   }
 
-  if (!profile || !riskConfig || !timeframe) {
+  if (!style || !rules || !riskConfig || !timeframe) {
     return <PageShell><div style={{ color: "var(--text3)" }}>Loading strategy...</div></PageShell>;
   }
 
   const isLocked = pageState === "locked";
   const hasDirty = dirtyFields.size > 0;
-  const strategyContext = { profile, riskConfig, timeframe };
-  const briefPreview = buildStrategyBriefMarkdown(strategyContext);
+  const stylePreview = buildTradingStyleMarkdown(style);
+  const rulesPreview = buildTradeRulesMarkdown(rules);
+  const selectedStylePreset = TRADING_STYLE_PRESETS.find((preset) => preset.id === style.stylePresetId) ?? TRADING_STYLE_PRESETS[TRADING_STYLE_PRESETS.length - 1];
+  const selectedRulesPreset = TRADE_RULE_PRESETS.find((preset) => preset.id === rules.rulesPresetId) ?? TRADE_RULE_PRESETS[TRADE_RULE_PRESETS.length - 1];
   const roleProviderSummary = Object.values(aiRoles).map((role) => {
     const connectedProvider = providers.find((provider) => provider.id === role.providerKey);
     const hasModel = role.modelId.trim().length > 0;
@@ -157,7 +166,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
         <div>
           <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>Strategy</h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
-            Separate strategy intent, risk limits, timeframe rules, and AI role behavior for the focused session.
+            Separate trading style, trade rules, risk limits, timeframe rules, and AI role behavior for the focused session.
           </p>
         </div>
         <button
@@ -179,14 +188,15 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
 
       <div style={tabRowStyle}>
         {[
-          ["strategy", "Strategy"],
+          ["style", "Style"],
+          ["rules", "Rules"],
           ["risk", "Risk"],
           ["timeframe", "Timeframe"],
           ["ai_roles", "AI Roles"],
         ].map(([value, label]) => (
           <button
             key={value}
-            onClick={() => setActiveSection(value as "strategy" | "risk" | "timeframe" | "ai_roles")}
+            onClick={() => setActiveSection(value as "style" | "rules" | "risk" | "timeframe" | "ai_roles")}
             style={activeSection === value ? activeTabStyle : inactiveTabStyle}
           >
             {label}
@@ -194,62 +204,64 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {activeSection === "strategy" && (
+          {activeSection === "style" && (
             <>
-              {!isLocked && <PresetRow onSelect={(preset) => updateProfile(preset.profile)} />}
-
               <Card>
-                <SectionTitle>Strategy Intent</SectionTitle>
+                <SectionTitle>Trading Style</SectionTitle>
                 <div style={formGridStyle}>
-                  <Field label="Strategy type">
+                  <Field label="Style preset">
                     <ShadcnSelect
-                      value={profile.strategyType}
-                      onValueChange={(value) => updateProfile({ strategyType: value as typeof profile.strategyType })}
+                      value={style.stylePresetId}
+                      onValueChange={(value) => {
+                        const preset = TRADING_STYLE_PRESETS.find((entry) => entry.id === value);
+                        if (!preset) return;
+                        updateStyle(preset.style);
+                      }}
                       disabled={isLocked}
-                      options={STRATEGY_TYPES.map((value) => ({ value, label: labelize(value) }))}
+                      options={TRADING_STYLE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
                     />
                   </Field>
-                  <Field label="Side bias">
+                  <Field label="Discovery mode">
                     <ShadcnSelect
-                      value={profile.sideBias}
-                      onValueChange={(value) => updateProfile({ sideBias: value as typeof profile.sideBias })}
+                      value={style.discoveryMode}
+                      onValueChange={(value) => updateStyle({ discoveryMode: value as typeof style.discoveryMode })}
                       disabled={isLocked}
-                      options={STRATEGY_SIDE_BIASES.map((value) => ({ value, label: labelize(value) }))}
+                      options={TRADING_STYLE_DISCOVERY_MODES.map((value) => ({ value, label: labelize(value) }))}
                     />
                   </Field>
-                  <Field label="Entry style">
+                  <Field label="Evidence mode">
                     <ShadcnSelect
-                      value={profile.entryStyle}
-                      onValueChange={(value) => updateProfile({ entryStyle: value as typeof profile.entryStyle })}
+                      value={style.evidenceMode}
+                      onValueChange={(value) => updateStyle({ evidenceMode: value as typeof style.evidenceMode })}
                       disabled={isLocked}
-                      options={STRATEGY_ENTRY_STYLES.map((value) => ({ value, label: labelize(value) }))}
+                      options={TRADING_STYLE_EVIDENCE_MODES.map((value) => ({ value, label: labelize(value) }))}
                     />
                   </Field>
-                  <Field label="Exit style">
+                  <Field label="Catalyst posture">
                     <ShadcnSelect
-                      value={profile.exitStyle}
-                      onValueChange={(value) => updateProfile({ exitStyle: value as typeof profile.exitStyle })}
+                      value={style.catalystMode}
+                      onValueChange={(value) => updateStyle({ catalystMode: value as typeof style.catalystMode })}
                       disabled={isLocked}
-                      options={STRATEGY_EXIT_STYLES.map((value) => ({ value, label: labelize(value) }))}
+                      options={TRADING_STYLE_CATALYST_MODES.map((value) => ({ value, label: labelize(value) }))}
                     />
                   </Field>
-                  <Field label="Scaling mode">
+                  <Field label="Fundamental strictness">
                     <ShadcnSelect
-                      value={profile.scalingMode}
-                      onValueChange={(value) => updateProfile({ scalingMode: value as typeof profile.scalingMode })}
+                      value={style.fundamentalStrictness}
+                      onValueChange={(value) => updateStyle({ fundamentalStrictness: value as typeof style.fundamentalStrictness })}
                       disabled={isLocked}
-                      options={STRATEGY_SCALING_MODES.map((value) => ({ value, label: labelize(value) }))}
+                      options={TRADING_STYLE_FUNDAMENTAL_STRICTNESS.map((value) => ({ value, label: labelize(value) }))}
                     />
                   </Field>
-                  <Field label="Custom instructions">
+                  <Field label="Style notes">
                     <textarea
-                      value={profile.customInstructions}
-                      onChange={(event) => updateProfile({ customInstructions: event.target.value })}
+                      value={style.styleNotes}
+                      onChange={(event) => updateStyle({ styleNotes: event.target.value })}
                       disabled={isLocked}
                       rows={6}
-                      placeholder="Add any special entry filters, invalidation rules, or broker-specific instructions."
+                      placeholder="Describe the edge, posture, and evidence stack this session should favor."
                       style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
                     />
                   </Field>
@@ -257,11 +269,101 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
               </Card>
 
               <Card>
-                <SectionTitle>Live Strategy Brief</SectionTitle>
+                <SectionTitle>Selected Style Summary</SectionTitle>
                 <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
-                  This is the canonical brief saved into the strategy profile and injected into every agent run.
+                  Keep style high-level here: what edge you want the AI to pursue and what evidence posture it should adopt.
                 </p>
-                <pre style={briefStyle}>{briefPreview}</pre>
+                <PresetSummaryCard presetLabel={selectedStylePreset.label} thesis={selectedStylePreset.thesis} bullets={selectedStylePreset.summaryBullets} />
+              </Card>
+
+              <Card>
+                <SectionTitle>Live Style Guidance</SectionTitle>
+                <pre style={briefStyle}>{stylePreview}</pre>
+              </Card>
+            </>
+          )}
+
+          {activeSection === "rules" && (
+            <>
+              <Card>
+                <SectionTitle>Trade Rules</SectionTitle>
+                <div style={formGridStyle}>
+                  <Field label="Rules preset">
+                    <ShadcnSelect
+                      value={rules.rulesPresetId}
+                      onValueChange={(value) => {
+                        const preset = TRADE_RULE_PRESETS.find((entry) => entry.id === value);
+                        if (!preset) return;
+                        updateRules(preset.rules);
+                      }}
+                      disabled={isLocked}
+                      options={TRADE_RULE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
+                    />
+                  </Field>
+                  <Field label="Setup type">
+                    <ShadcnSelect
+                      value={rules.setupType}
+                      onValueChange={(value) => updateRules({ setupType: value as typeof rules.setupType })}
+                      disabled={isLocked}
+                      options={SETUP_TYPES.map((value) => ({ value, label: labelize(value) }))}
+                    />
+                  </Field>
+                  <Field label="Side bias">
+                    <ShadcnSelect
+                      value={rules.sideBias}
+                      onValueChange={(value) => updateRules({ sideBias: value as typeof rules.sideBias })}
+                      disabled={isLocked}
+                      options={STRATEGY_SIDE_BIASES.map((value) => ({ value, label: labelize(value) }))}
+                    />
+                  </Field>
+                  <Field label="Entry style">
+                    <ShadcnSelect
+                      value={rules.entryStyle}
+                      onValueChange={(value) => updateRules({ entryStyle: value as typeof rules.entryStyle })}
+                      disabled={isLocked}
+                      options={STRATEGY_ENTRY_STYLES.map((value) => ({ value, label: labelize(value) }))}
+                    />
+                  </Field>
+                  <Field label="Exit style">
+                    <ShadcnSelect
+                      value={rules.exitStyle}
+                      onValueChange={(value) => updateRules({ exitStyle: value as typeof rules.exitStyle })}
+                      disabled={isLocked}
+                      options={STRATEGY_EXIT_STYLES.map((value) => ({ value, label: labelize(value) }))}
+                    />
+                  </Field>
+                  <Field label="Scaling mode">
+                    <ShadcnSelect
+                      value={rules.scalingMode}
+                      onValueChange={(value) => updateRules({ scalingMode: value as typeof rules.scalingMode })}
+                      disabled={isLocked}
+                      options={STRATEGY_SCALING_MODES.map((value) => ({ value, label: labelize(value) }))}
+                    />
+                  </Field>
+                  <Field label="Rule notes">
+                    <textarea
+                      value={rules.ruleNotes}
+                      onChange={(event) => updateRules({ ruleNotes: event.target.value })}
+                      disabled={isLocked}
+                      rows={6}
+                      placeholder="Add setup-specific filters, invalidation rules, liquidity constraints, or execution reminders."
+                      style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
+                    />
+                  </Field>
+                </div>
+              </Card>
+
+              <Card>
+                <SectionTitle>Selected Rules Summary</SectionTitle>
+                <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
+                  Rules define how trades are structured after the style identifies the kind of edge to pursue.
+                </p>
+                <PresetSummaryCard presetLabel={selectedRulesPreset.label} thesis={selectedRulesPreset.thesis} bullets={selectedRulesPreset.summaryBullets} />
+              </Card>
+
+              <Card>
+                <SectionTitle>Live Rules Markdown</SectionTitle>
+                <pre style={briefStyle}>{rulesPreview}</pre>
               </Card>
             </>
           )}
@@ -441,14 +543,23 @@ const Field = ({ label, children }: { label: string; children: ReactNode }) => (
   </div>
 );
 
-const PresetRow = ({ onSelect }: { onSelect: (preset: StrategyPreset) => void }) => (
-  <div style={presetRowStyle}>
-    {STRATEGY_PRESETS.map((preset) => (
-      <button key={preset.id} type="button" title={preset.description} onClick={() => onSelect(preset)} style={presetChipStyle}>
-        <span style={presetChipLabelStyle}>{preset.label}</span>
-        <span style={presetChipDescriptionStyle}>{preset.description}</span>
-      </button>
-    ))}
+const PresetSummaryCard = ({
+  presetLabel,
+  thesis,
+  bullets,
+}: {
+  presetLabel: string;
+  thesis: string;
+  bullets: string[];
+}) => (
+  <div style={presetSummaryStyle}>
+    <div style={presetBadgeStyle}>{presetLabel}</div>
+    <div style={presetThesisStyle}>{thesis}</div>
+    <div style={{ display: "grid", gap: 8 }}>
+      {bullets.map((bullet) => (
+        <div key={bullet} style={presetBulletStyle}>{bullet}</div>
+      ))}
+    </div>
   </div>
 );
 
@@ -497,7 +608,7 @@ const formGridStyle = { display: "grid", gap: 14, marginTop: 16 } as const;
 const inputStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)" } as const;
 const warningStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(251,191,36,0.24)", background: "rgba(251,191,36,0.08)", color: "#fbbf24", fontSize: 12 } as const;
 const warningButtonStyle = { padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(251,191,36,0.28)", background: "rgba(251,191,36,0.14)", color: "#fbbf24", cursor: "pointer" } as const;
-const presetRowStyle = { display: "flex", gap: 10, overflowX: "auto", paddingBottom: 2 } as const;
-const presetChipStyle = { minWidth: 168, maxWidth: 210, textAlign: "left" as const, padding: "11px 12px", borderRadius: 14, border: "1px solid rgba(96,165,250,0.24)", background: "linear-gradient(135deg, rgba(30,41,59,0.95), rgba(15,23,42,0.92))", color: "var(--text1)", cursor: "pointer", boxShadow: "0 10px 28px rgba(2,6,23,0.18)" } as const;
-const presetChipLabelStyle = { display: "block", fontSize: 13, fontWeight: 800, letterSpacing: 0.2, marginBottom: 4 } as const;
-const presetChipDescriptionStyle = { display: "block", color: "var(--text3)", fontSize: 11, lineHeight: 1.4 } as const;
+const presetSummaryStyle = { display: "grid", gap: 12, marginTop: 14, padding: 14, borderRadius: 12, border: "1px solid rgba(96,165,250,0.22)", background: "linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.82))" } as const;
+const presetBadgeStyle = { display: "inline-flex", width: "fit-content", padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(96,165,250,0.28)", background: "rgba(96,165,250,0.12)", color: "rgba(191,219,254,0.96)", fontSize: 11, fontWeight: 700, letterSpacing: 0.2 } as const;
+const presetThesisStyle = { color: "var(--text1)", fontSize: 13, lineHeight: 1.55, fontWeight: 600 } as const;
+const presetBulletStyle = { color: "var(--text3)", fontSize: 12, lineHeight: 1.5 } as const;

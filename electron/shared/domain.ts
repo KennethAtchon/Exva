@@ -7,15 +7,45 @@ export type SelectionMode = "manual_shortlist" | "ai_selected_universe";
 export type ExecutionMode = "paper_only" | "live_allowed";
 export type ResearchDepth = "light" | "balanced" | "deep";
 export type StrategyProfile = "passive_income" | "growth" | "conservative" | "custom";
-export type StrategyType =
-  | "momentum"
-  | "mean_reversion"
-  | "trend_following"
-  | "short_bias"
-  | "pairs"
-  | "fundamental"
-  | "event_driven"
-  | "prediction_market"
+export type TradingStylePresetId =
+  | "trend_hunt"
+  | "catalyst_momentum"
+  | "institutional_quality"
+  | "mean_reversion_dislocation"
+  | "prediction_event_edge"
+  | "custom";
+export type TradingStyleDiscoveryMode =
+  | "trend_scan"
+  | "catalyst_scan"
+  | "quality_watchlist"
+  | "mean_reversion_scan"
+  | "event_contract_scan"
+  | "custom";
+export type TradingStyleEvidenceMode =
+  | "narrative_first"
+  | "price_action_first"
+  | "confirmation_first"
+  | "probability_edge"
+  | "balanced";
+export type TradingStyleCatalystMode = "required" | "preferred" | "not_required";
+export type TradingStyleFundamentalStrictness =
+  | "sanity_check"
+  | "balanced"
+  | "deep_confirmation"
+  | "not_applicable";
+export type TradeRulesPresetId =
+  | "breakout_long"
+  | "pullback_trend"
+  | "event_entry"
+  | "reversal_fade"
+  | "probability_edge"
+  | "custom";
+export type SetupType =
+  | "breakout"
+  | "pullback_trend"
+  | "event_entry"
+  | "reversal_fade"
+  | "probability_edge"
   | "custom";
 export type StrategySideBias = "long_only" | "short_only" | "both" | "market_neutral" | "n_a";
 export type StrategyEntryStyle = "breakout" | "pullback" | "reversal" | "range_fade" | "event" | "probability_edge";
@@ -29,15 +59,51 @@ export type StrategyExitStyle =
 export type StrategyScalingMode = "single_entry" | "scale_in_2" | "scale_in_3" | "scale_out_partial";
 export type StopLossType = "fixed_pct" | "trailing_atr" | "broker_native_trailing" | "none";
 
-export const STRATEGY_TYPES: readonly StrategyType[] = [
-  "momentum",
-  "mean_reversion",
-  "trend_following",
-  "short_bias",
-  "pairs",
-  "fundamental",
-  "event_driven",
-  "prediction_market",
+export const TRADING_STYLE_PRESET_IDS: readonly TradingStylePresetId[] = [
+  "trend_hunt",
+  "catalyst_momentum",
+  "institutional_quality",
+  "mean_reversion_dislocation",
+  "prediction_event_edge",
+  "custom",
+];
+
+export const TRADING_STYLE_DISCOVERY_MODES: readonly TradingStyleDiscoveryMode[] = [
+  "trend_scan",
+  "catalyst_scan",
+  "quality_watchlist",
+  "mean_reversion_scan",
+  "event_contract_scan",
+  "custom",
+];
+
+export const TRADING_STYLE_EVIDENCE_MODES: readonly TradingStyleEvidenceMode[] = [
+  "narrative_first",
+  "price_action_first",
+  "confirmation_first",
+  "probability_edge",
+  "balanced",
+];
+
+export const TRADING_STYLE_CATALYST_MODES: readonly TradingStyleCatalystMode[] = [
+  "required",
+  "preferred",
+  "not_required",
+];
+
+export const TRADING_STYLE_FUNDAMENTAL_STRICTNESS: readonly TradingStyleFundamentalStrictness[] = [
+  "sanity_check",
+  "balanced",
+  "deep_confirmation",
+  "not_applicable",
+];
+
+export const SETUP_TYPES: readonly SetupType[] = [
+  "breakout",
+  "pullback_trend",
+  "event_entry",
+  "reversal_fade",
+  "probability_edge",
   "custom",
 ];
 
@@ -81,20 +147,137 @@ export const STOP_LOSS_TYPES: readonly StopLossType[] = [
   "none",
 ];
 
-export type StrategyPresetId =
-  | "momentum_long"
-  | "momentum_short"
-  | "mean_reversion"
-  | "trend_following"
-  | "event_driven"
-  | "prediction_market";
-
-export interface StrategyPreset {
-  id: StrategyPresetId;
+export interface TradingStylePreset {
+  id: TradingStylePresetId;
   label: string;
-  description: string;
-  profile: {
-    strategyType: StrategyType;
+  thesis: string;
+  summaryBullets: string[];
+  style: {
+    stylePresetId: TradingStylePresetId;
+    discoveryMode: TradingStyleDiscoveryMode;
+    evidenceMode: TradingStyleEvidenceMode;
+    catalystMode: TradingStyleCatalystMode;
+    fundamentalStrictness: TradingStyleFundamentalStrictness;
+  };
+}
+
+export const TRADING_STYLE_PRESETS: readonly TradingStylePreset[] = [
+  {
+    id: "trend_hunt",
+    label: "Trend Hunt",
+    thesis: "Find persistent trends early and lean on price action to stay in motion.",
+    summaryBullets: [
+      "Discovery favors trend scans and relative-strength leaders.",
+      "Evidence leans price-action first with confirmation.",
+      "Catalysts help but are not mandatory.",
+      "Fundamentals only need a sanity check.",
+    ],
+    style: {
+      stylePresetId: "trend_hunt",
+      discoveryMode: "trend_scan",
+      evidenceMode: "price_action_first",
+      catalystMode: "preferred",
+      fundamentalStrictness: "sanity_check",
+    },
+  },
+  {
+    id: "catalyst_momentum",
+    label: "Catalyst Momentum",
+    thesis: "Chase clean momentum only when fresh catalysts can keep attention and volume alive.",
+    summaryBullets: [
+      "Discovery starts from catalyst and news scans.",
+      "Evidence balances narrative with tape confirmation.",
+      "Catalysts are required, not optional.",
+      "Fundamentals only need a quick sanity check.",
+    ],
+    style: {
+      stylePresetId: "catalyst_momentum",
+      discoveryMode: "catalyst_scan",
+      evidenceMode: "balanced",
+      catalystMode: "required",
+      fundamentalStrictness: "sanity_check",
+    },
+  },
+  {
+    id: "institutional_quality",
+    label: "Institutional Quality",
+    thesis: "Wait for durable, high-quality names and demand stronger confirmation before committing.",
+    summaryBullets: [
+      "Discovery starts from curated quality watchlists.",
+      "Evidence favors confirmation before action.",
+      "Catalysts are optional unless they strengthen the case.",
+      "Fundamental review is deep, not cursory.",
+    ],
+    style: {
+      stylePresetId: "institutional_quality",
+      discoveryMode: "quality_watchlist",
+      evidenceMode: "confirmation_first",
+      catalystMode: "preferred",
+      fundamentalStrictness: "deep_confirmation",
+    },
+  },
+  {
+    id: "mean_reversion_dislocation",
+    label: "Mean Reversion Dislocation",
+    thesis: "Hunt overstretched moves where odds favor a snap-back once panic or euphoria cools.",
+    summaryBullets: [
+      "Discovery looks for dislocations and exhaustion.",
+      "Evidence waits for reversal confirmation.",
+      "Catalysts are usually not required.",
+      "Fundamentals are a light sanity filter.",
+    ],
+    style: {
+      stylePresetId: "mean_reversion_dislocation",
+      discoveryMode: "mean_reversion_scan",
+      evidenceMode: "confirmation_first",
+      catalystMode: "not_required",
+      fundamentalStrictness: "sanity_check",
+    },
+  },
+  {
+    id: "prediction_event_edge",
+    label: "Prediction Event Edge",
+    thesis: "Trade event contracts where evidence can shift implied probabilities before resolution.",
+    summaryBullets: [
+      "Discovery focuses on event contracts and resolution timelines.",
+      "Evidence is probability-edge first.",
+      "Catalysts are required because event flow drives repricing.",
+      "Fundamentals are usually not applicable.",
+    ],
+    style: {
+      stylePresetId: "prediction_event_edge",
+      discoveryMode: "event_contract_scan",
+      evidenceMode: "probability_edge",
+      catalystMode: "required",
+      fundamentalStrictness: "not_applicable",
+    },
+  },
+  {
+    id: "custom",
+    label: "Custom Style",
+    thesis: "Blend your own discovery and evidence posture.",
+    summaryBullets: [
+      "No preset assumptions beyond what you set below.",
+      "Use style notes to define the edge clearly.",
+    ],
+    style: {
+      stylePresetId: "custom",
+      discoveryMode: "custom",
+      evidenceMode: "balanced",
+      catalystMode: "preferred",
+      fundamentalStrictness: "balanced",
+    },
+  },
+];
+
+export interface TradeRulesPreset {
+  id: TradeRulesPresetId;
+  label: string;
+  thesis: string;
+  summaryBullets: string[];
+  rules: {
+    rulesPresetId: TradeRulesPresetId;
+    setupType: SetupType;
     sideBias: StrategySideBias;
     entryStyle: StrategyEntryStyle;
     exitStyle: StrategyExitStyle;
@@ -102,13 +285,19 @@ export interface StrategyPreset {
   };
 }
 
-export const STRATEGY_PRESETS: readonly StrategyPreset[] = [
+export const TRADE_RULE_PRESETS: readonly TradeRulesPreset[] = [
   {
-    id: "momentum_long",
-    label: "Momentum Long",
-    description: "Breakout entries on upward momentum. Long-only.",
-    profile: {
-      strategyType: "momentum",
+    id: "breakout_long",
+    label: "Breakout Long",
+    thesis: "Enter strength only after price clears a meaningful level with follow-through.",
+    summaryBullets: [
+      "Long-biased breakout structure.",
+      "Trailing exits let winners expand.",
+      "Best when momentum and liquidity are clean.",
+    ],
+    rules: {
+      rulesPresetId: "breakout_long",
+      setupType: "breakout",
       sideBias: "long_only",
       entryStyle: "breakout",
       exitStyle: "trailing_atr",
@@ -116,35 +305,17 @@ export const STRATEGY_PRESETS: readonly StrategyPreset[] = [
     },
   },
   {
-    id: "momentum_short",
-    label: "Momentum Short",
-    description: "Short breakdowns with short bias.",
-    profile: {
-      strategyType: "short_bias",
-      sideBias: "short_only",
-      entryStyle: "breakout",
-      exitStyle: "fixed_pct",
-      scalingMode: "single_entry",
-    },
-  },
-  {
-    id: "mean_reversion",
-    label: "Mean Reversion",
-    description: "Fade overextended moves back to mean.",
-    profile: {
-      strategyType: "mean_reversion",
-      sideBias: "both",
-      entryStyle: "reversal",
-      exitStyle: "fixed_pct",
-      scalingMode: "scale_in_2",
-    },
-  },
-  {
-    id: "trend_following",
-    label: "Trend Following",
-    description: "Ride established trends with pullback entries.",
-    profile: {
-      strategyType: "trend_following",
+    id: "pullback_trend",
+    label: "Pullback Trend",
+    thesis: "Wait for established trends to retrace, then rejoin once continuation confirms.",
+    summaryBullets: [
+      "Bi-directional if the broader trend supports it.",
+      "Pullback entries reduce chasing.",
+      "Scaling allows layered participation.",
+    ],
+    rules: {
+      rulesPresetId: "pullback_trend",
+      setupType: "pullback_trend",
       sideBias: "both",
       entryStyle: "pullback",
       exitStyle: "trailing_atr",
@@ -152,11 +323,17 @@ export const STRATEGY_PRESETS: readonly StrategyPreset[] = [
     },
   },
   {
-    id: "event_driven",
-    label: "Event Driven",
-    description: "Trade catalysts: earnings, macro, announcements.",
-    profile: {
-      strategyType: "event_driven",
+    id: "event_entry",
+    label: "Event Entry",
+    thesis: "Trade defined event reactions with time-sensitive entries and thesis-based exits.",
+    summaryBullets: [
+      "Event-driven trigger logic.",
+      "Single-shot execution keeps exposure tight.",
+      "Best when catalysts and timing are explicit.",
+    ],
+    rules: {
+      rulesPresetId: "event_entry",
+      setupType: "event_entry",
       sideBias: "both",
       entryStyle: "event",
       exitStyle: "time_based",
@@ -164,20 +341,61 @@ export const STRATEGY_PRESETS: readonly StrategyPreset[] = [
     },
   },
   {
-    id: "prediction_market",
-    label: "Prediction Market",
-    description: "Probability-edge bets on binary outcomes.",
-    profile: {
-      strategyType: "prediction_market",
+    id: "reversal_fade",
+    label: "Reversal Fade",
+    thesis: "Fade exhaustion once price shows a credible reversal signal back toward fair value.",
+    summaryBullets: [
+      "Mean-reversion posture.",
+      "Reversal entries demand confirmation.",
+      "Scaling helps stage into volatile fades.",
+    ],
+    rules: {
+      rulesPresetId: "reversal_fade",
+      setupType: "reversal_fade",
+      sideBias: "both",
+      entryStyle: "reversal",
+      exitStyle: "fixed_pct",
+      scalingMode: "scale_in_2",
+    },
+  },
+  {
+    id: "probability_edge",
+    label: "Probability Edge",
+    thesis: "Only take trades where market odds appear materially mispriced versus evidence.",
+    summaryBullets: [
+      "Probability-first framing.",
+      "Entry waits for quantified edge.",
+      "Exits often resolve on thesis or contract outcome.",
+    ],
+    rules: {
+      rulesPresetId: "probability_edge",
+      setupType: "probability_edge",
       sideBias: "both",
       entryStyle: "probability_edge",
       exitStyle: "market_resolution",
       scalingMode: "single_entry",
     },
   },
+  {
+    id: "custom",
+    label: "Custom Rules",
+    thesis: "Define your own mechanics for entries, exits, and scaling.",
+    summaryBullets: [
+      "No preset assumptions beyond the current field values.",
+      "Use rule notes for setup-specific filters and invalidation.",
+    ],
+    rules: {
+      rulesPresetId: "custom",
+      setupType: "custom",
+      sideBias: "both",
+      entryStyle: "breakout",
+      exitStyle: "fixed_pct",
+      scalingMode: "single_entry",
+    },
+  },
 ];
 
-const STRATEGY_BRIEF_MARKDOWN_MAX_CHARS = 1_200;
+const TRADE_RULES_MARKDOWN_MAX_CHARS = 1_200;
 
 /** Bar size the session uses for analysis and agent context. */
 export type TradingTimeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
@@ -363,15 +581,27 @@ export interface SessionStrategy {
   timeframeNotes: string;
 }
 
-export interface SessionStrategyProfile {
+export interface SessionTradingStyle {
   sessionId: string;
-  strategyType: StrategyType;
+  stylePresetId: TradingStylePresetId;
+  discoveryMode: TradingStyleDiscoveryMode;
+  evidenceMode: TradingStyleEvidenceMode;
+  catalystMode: TradingStyleCatalystMode;
+  fundamentalStrictness: TradingStyleFundamentalStrictness;
+  styleNotes: string;
+  updatedAt: string;
+}
+
+export interface SessionTradeRules {
+  sessionId: string;
+  rulesPresetId: TradeRulesPresetId;
+  setupType: SetupType;
   sideBias: StrategySideBias;
   entryStyle: StrategyEntryStyle;
   exitStyle: StrategyExitStyle;
   scalingMode: StrategyScalingMode;
-  strategyBriefMarkdown: string;
-  customInstructions: string;
+  tradeRulesMarkdown: string;
+  ruleNotes: string;
   updatedAt: string;
 }
 
@@ -406,21 +636,31 @@ export interface SessionTimeframeConfig {
 }
 
 export interface SessionStrategyContext {
-  profile: SessionStrategyProfile;
+  style: SessionTradingStyle;
+  rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
 }
 
 export interface StrategySnapshot {
-  version: 1;
-  profile: {
-    strategyType: StrategyType;
+  version: 2;
+  style: {
+    stylePresetId: TradingStylePresetId;
+    discoveryMode: TradingStyleDiscoveryMode;
+    evidenceMode: TradingStyleEvidenceMode;
+    catalystMode: TradingStyleCatalystMode;
+    fundamentalStrictness: TradingStyleFundamentalStrictness;
+    styleNotes: string;
+  };
+  rules: {
+    rulesPresetId: TradeRulesPresetId;
+    setupType: SetupType;
     sideBias: StrategySideBias;
     entryStyle: StrategyEntryStyle;
     exitStyle: StrategyExitStyle;
     scalingMode: StrategyScalingMode;
-    strategyBriefMarkdown: string;
-    customInstructions: string;
+    tradeRulesMarkdown: string;
+    ruleNotes: string;
   };
   riskConfig: {
     maxPositionUsd: number;
@@ -688,57 +928,69 @@ export interface SessionConfig {
   human_approval_required: boolean;
 }
 
-export function buildStrategyBriefMarkdown(context: SessionStrategyContext): string {
-  const { profile, riskConfig, timeframe } = context;
+export function buildTradingStyleMarkdown(style: SessionTradingStyle): string {
   const lines = [
-    `# ${labelizeToken(profile.strategyType)} Strategy Brief`,
+    "# Trading Style",
     "",
-    "## Strategy Intent",
-    `- Strategy type: ${labelizeToken(profile.strategyType)}`,
-    `- Side bias: ${labelizeToken(profile.sideBias)}`,
-    `- Entry style: ${labelizeToken(profile.entryStyle)}`,
-    `- Exit style: ${labelizeToken(profile.exitStyle)}`,
-    `- Scaling mode: ${labelizeToken(profile.scalingMode)}`,
-    "",
-    "## Risk Controls",
-    `- Max position: $${riskConfig.maxPositionUsd}`,
-    `- Stop loss type: ${labelizeToken(riskConfig.stopLossType)}`,
-    riskConfig.stopLossPct != null ? `- Stop loss: ${riskConfig.stopLossPct}%` : null,
-    riskConfig.takeProfitPct != null ? `- Take profit: ${riskConfig.takeProfitPct}%` : null,
-    riskConfig.atrStopMultiplier != null ? `- ATR stop multiplier: ${riskConfig.atrStopMultiplier}` : null,
-    `- Max concurrent trades: ${riskConfig.maxConcurrentTrades}`,
-    riskConfig.maxExposureUsd != null ? `- Max exposure: $${riskConfig.maxExposureUsd}` : null,
-    `- Max data spend: $${riskConfig.maxDataSpendUsd}`,
-    `- Human approval required: ${riskConfig.humanApprovalRequired ? "yes" : "no"}`,
-    "",
-    "## Timeframe",
-    `- Primary timeframe: ${timeframe.primaryTradingTimeframe}`,
-    `- Holding style: ${labelizeToken(timeframe.holdingStyle)}`,
-    timeframe.targetHoldDays != null ? `- Target hold: ${timeframe.targetHoldDays} days` : null,
-    timeframe.maxHoldDays != null ? `- Max hold: ${timeframe.maxHoldDays} days` : null,
-    timeframe.timeframeNotes.trim() ? `- Notes: ${timeframe.timeframeNotes.trim()}` : null,
-    profile.customInstructions.trim() ? "" : null,
-    profile.customInstructions.trim() ? "## Special Instructions" : null,
-    profile.customInstructions.trim() ? profile.customInstructions.trim() : null,
+    "## Edge Posture",
+    `- Style preset: ${labelizeToken(style.stylePresetId)}`,
+    `- Discovery mode: ${labelizeToken(style.discoveryMode)}`,
+    `- Evidence mode: ${labelizeToken(style.evidenceMode)}`,
+    `- Catalyst posture: ${labelizeToken(style.catalystMode)}`,
+    `- Fundamental strictness: ${labelizeToken(style.fundamentalStrictness)}`,
+    style.styleNotes.trim() ? "" : null,
+    style.styleNotes.trim() ? "## Style Notes" : null,
+    style.styleNotes.trim() ? style.styleNotes.trim() : null,
   ].filter((line): line is string => line != null);
 
   const markdown = lines.join("\n").trim();
-  return markdown.length > STRATEGY_BRIEF_MARKDOWN_MAX_CHARS
-    ? `${markdown.slice(0, STRATEGY_BRIEF_MARKDOWN_MAX_CHARS).trimEnd()}...`
+  return markdown.length > TRADE_RULES_MARKDOWN_MAX_CHARS
+    ? `${markdown.slice(0, TRADE_RULES_MARKDOWN_MAX_CHARS).trimEnd()}...`
+    : markdown;
+}
+
+export function buildTradeRulesMarkdown(rules: SessionTradeRules): string {
+  const lines = [
+    "# Trade Rules",
+    "",
+    "## Setup Mechanics",
+    `- Rules preset: ${labelizeToken(rules.rulesPresetId)}`,
+    `- Setup type: ${labelizeToken(rules.setupType)}`,
+    `- Side bias: ${labelizeToken(rules.sideBias)}`,
+    `- Entry style: ${labelizeToken(rules.entryStyle)}`,
+    `- Exit style: ${labelizeToken(rules.exitStyle)}`,
+    `- Scaling mode: ${labelizeToken(rules.scalingMode)}`,
+    rules.ruleNotes.trim() ? "" : null,
+    rules.ruleNotes.trim() ? "## Rule Notes" : null,
+    rules.ruleNotes.trim() ? rules.ruleNotes.trim() : null,
+  ].filter((line): line is string => line != null);
+
+  const markdown = lines.join("\n").trim();
+  return markdown.length > TRADE_RULES_MARKDOWN_MAX_CHARS
+    ? `${markdown.slice(0, TRADE_RULES_MARKDOWN_MAX_CHARS).trimEnd()}...`
     : markdown;
 }
 
 export function buildStrategySnapshot(context: SessionStrategyContext): StrategySnapshot {
   return {
-    version: 1,
-    profile: {
-      strategyType: context.profile.strategyType,
-      sideBias: context.profile.sideBias,
-      entryStyle: context.profile.entryStyle,
-      exitStyle: context.profile.exitStyle,
-      scalingMode: context.profile.scalingMode,
-      strategyBriefMarkdown: context.profile.strategyBriefMarkdown,
-      customInstructions: context.profile.customInstructions,
+    version: 2,
+    style: {
+      stylePresetId: context.style.stylePresetId,
+      discoveryMode: context.style.discoveryMode,
+      evidenceMode: context.style.evidenceMode,
+      catalystMode: context.style.catalystMode,
+      fundamentalStrictness: context.style.fundamentalStrictness,
+      styleNotes: context.style.styleNotes,
+    },
+    rules: {
+      rulesPresetId: context.rules.rulesPresetId,
+      setupType: context.rules.setupType,
+      sideBias: context.rules.sideBias,
+      entryStyle: context.rules.entryStyle,
+      exitStyle: context.rules.exitStyle,
+      scalingMode: context.rules.scalingMode,
+      tradeRulesMarkdown: context.rules.tradeRulesMarkdown,
+      ruleNotes: context.rules.ruleNotes,
     },
     riskConfig: {
       maxPositionUsd: context.riskConfig.maxPositionUsd,
@@ -785,25 +1037,25 @@ export function validateSessionStrategyContext(
   if (context.riskConfig.takeProfitPct != null && context.riskConfig.takeProfitPct < 0) {
     throw new Error("Take profit percent must be zero or greater.");
   }
-  if (context.profile.strategyType === "event_driven" && !options.hasSearchProvider) {
-    throw new Error("Event-driven strategies require a configured search provider.");
+  if (tradingStyleNeedsSearchProvider(context.style) && !options.hasSearchProvider) {
+    throw new Error("Catalyst-driven and event-contract styles require a configured search provider.");
   }
-  if (context.profile.strategyType === "prediction_market") {
+  if (isPredictionEventStyle(context.style) || context.rules.setupType === "probability_edge") {
     if (context.riskConfig.kellyFraction <= 0) {
-      throw new Error("Prediction-market strategies require kelly fraction greater than zero.");
+      throw new Error("Probability-edge rules require kelly fraction greater than zero.");
     }
     if (context.riskConfig.maxExposureUsd == null || context.riskConfig.maxExposureUsd <= 0) {
-      throw new Error("Prediction-market strategies require max exposure USD.");
+      throw new Error("Probability-edge rules require max exposure USD.");
     }
   }
-  if (context.profile.strategyBriefMarkdown.length > STRATEGY_BRIEF_MARKDOWN_MAX_CHARS) {
-    throw new Error(`Strategy brief must stay under ${STRATEGY_BRIEF_MARKDOWN_MAX_CHARS} characters.`);
+  if (context.rules.tradeRulesMarkdown.length > TRADE_RULES_MARKDOWN_MAX_CHARS) {
+    throw new Error(`Trade rules markdown must stay under ${TRADE_RULES_MARKDOWN_MAX_CHARS} characters.`);
   }
 }
 
 export function toLegacySessionConfig(context: SessionStrategyContext): SessionConfig {
   return {
-    strategy: context.profile.strategyType,
+    strategy: context.rules.setupType,
     max_position_usd: context.riskConfig.maxPositionUsd,
     stop_loss_pct: context.riskConfig.stopLossPct ?? 0,
     take_profit_pct: context.riskConfig.takeProfitPct ?? 0,
@@ -822,6 +1074,14 @@ function labelizeToken(token: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function tradingStyleNeedsSearchProvider(style: SessionTradingStyle): boolean {
+  return style.catalystMode === "required" || style.discoveryMode === "catalyst_scan" || style.discoveryMode === "event_contract_scan";
+}
+
+function isPredictionEventStyle(style: SessionTradingStyle): boolean {
+  return style.discoveryMode === "event_contract_scan" || style.evidenceMode === "probability_edge";
 }
 
 export interface DashboardStats {

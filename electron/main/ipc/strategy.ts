@@ -2,9 +2,10 @@ import { ipcMain } from "electron";
 import {
   strategyAiRolesSaveSchema,
   strategyGetProviderModelsSchema,
-  strategyProfileSaveSchema,
   strategyResetPromptSchema,
   strategyRiskConfigSaveSchema,
+  strategyRulesSaveSchema,
+  strategyStyleSaveSchema,
   strategyTimeframeConfigSaveSchema,
 } from "@electron/shared/schemas";
 import { channels } from "@electron/shared/channels";
@@ -17,14 +18,25 @@ export function registerStrategyHandlers(services: AppServices): void {
     return services.strategyContext.getPageData(sessionId);
   });
 
-  handle(ipcMain, channels.strategy.getProfile, async (payload) => {
+  handle(ipcMain, channels.strategy.getStyle, async (payload) => {
     const sessionId = resolveSessionId(services, payload);
-    return services.strategyContext.getProfile(sessionId);
+    return services.strategyContext.getStyle(sessionId);
   });
 
-  handle(ipcMain, channels.strategy.saveProfile, async (payload) => {
-    const input = strategyProfileSaveSchema.parse(payload);
-    services.strategyContext.saveProfile(resolveSessionId(services, input), input.profile);
+  handle(ipcMain, channels.strategy.saveStyle, async (payload) => {
+    const input = strategyStyleSaveSchema.parse(payload);
+    services.strategyContext.saveStyle(resolveSessionId(services, input), input.style);
+    return { savedAt: new Date().toISOString() };
+  });
+
+  handle(ipcMain, channels.strategy.getRules, async (payload) => {
+    const sessionId = resolveSessionId(services, payload);
+    return services.strategyContext.getRules(sessionId);
+  });
+
+  handle(ipcMain, channels.strategy.saveRules, async (payload) => {
+    const input = strategyRulesSaveSchema.parse(payload);
+    services.strategyContext.saveRules(resolveSessionId(services, input), input.rules);
     return { savedAt: new Date().toISOString() };
   });
 

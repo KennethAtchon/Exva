@@ -1,7 +1,7 @@
 import type { DbClient } from "../client";
 import type { SessionConfig, SessionStrategy } from "@/lib/types";
 import { eq } from "drizzle-orm";
-import { sessionRiskConfig, sessionStrategies, sessionStrategyProfile, sessionTimeframeConfig } from "../schema";
+import { sessionRiskConfig, sessionStrategies, sessionTimeframeConfig, sessionTradeRules, sessionTradingStyle } from "../schema";
 import { AppError } from "@electron/shared/errors";
 import { toSessionConfig, toSessionStrategy } from "./mappers";
 
@@ -48,9 +48,14 @@ export class SessionStrategiesRepo {
         .where(eq(sessionStrategies.sessionId, sessionId))
         .run();
 
-      tx.update(sessionStrategyProfile)
+      tx.update(sessionTradingStyle)
         .set({ updatedAt })
-        .where(eq(sessionStrategyProfile.sessionId, sessionId))
+        .where(eq(sessionTradingStyle.sessionId, sessionId))
+        .run();
+
+      tx.update(sessionTradeRules)
+        .set({ updatedAt })
+        .where(eq(sessionTradeRules.sessionId, sessionId))
         .run();
 
       tx.update(sessionRiskConfig)

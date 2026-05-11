@@ -1,26 +1,26 @@
-import type { AgentRole, StrategyType } from "@/lib/types";
+import type { AgentRole, TradingStyleDiscoveryMode } from "@/lib/types";
 import type { PromptAssetLoader } from "../prompt-asset-loader";
 
 export function resolvePromptForRole(input: {
   role: AgentRole;
   promptSource: "default" | "session_override";
   promptMarkdown: string;
-  strategyType?: StrategyType;
+  discoveryMode?: TradingStyleDiscoveryMode;
   promptLoader: PromptAssetLoader;
 }): string {
-  const { role, promptSource, promptMarkdown, strategyType, promptLoader } = input;
+  const { role, promptSource, promptMarkdown, discoveryMode, promptLoader } = input;
   if (promptSource === "session_override" && promptMarkdown.trim()) {
     return promptMarkdown.trim();
   }
-  if (strategyType === "prediction_market") {
+  if (discoveryMode === "event_contract_scan") {
     if (role === "analyst_technical") return promptLoader.loadNamedAsset("analyst_statistical");
     if (role === "analyst_fundamental") return promptLoader.loadNamedAsset("analyst_contextual");
   }
   return promptLoader.load(role);
 }
 
-export function analysisLabelsForStrategy(strategyType: StrategyType): { first: string; second: string } {
-  return strategyType === "prediction_market"
+export function analysisLabelsForStrategy(discoveryMode?: TradingStyleDiscoveryMode): { first: string; second: string } {
+  return discoveryMode === "event_contract_scan"
     ? { first: "Statistical analysis", second: "Contextual analysis" }
     : { first: "Technical analysis", second: "Fundamental analysis" };
 }

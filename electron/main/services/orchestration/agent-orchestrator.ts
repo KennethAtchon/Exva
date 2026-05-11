@@ -484,7 +484,7 @@ export class AgentOrchestrator {
     cycleId?: string | null,
   ): { instruments: ResolvedInstrument[]; researchBriefsBySymbol: Record<string, string> } {
     const traces = this.parseToolTraces(toolCallsJson);
-    const strategy = this.deps.strategyContextService.get(session.id).profile;
+    const strategy = this.deps.strategyContextService.get(session.id).rules;
     const hadSearch = traces.some((step) => step.toolCalls.some((call) => call.tool === "search_web"));
     const valid: ResolvedInstrument[] = [];
     const researchBriefsBySymbol: Record<string, string> = {};

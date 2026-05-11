@@ -1,7 +1,7 @@
 # Strategy Style / Rules Split & Strategy Tab Rewrite — Plan
 
 > **Date:** 2026-05-10
-> **Status:** Draft
+> **Status:** Implemented (local DB-backed verification partially blocked by `better-sqlite3` ABI mismatch)
 > **Deciders:** Kenneth Atchon
 
 ## 1. Problem Statement
@@ -203,13 +203,13 @@ Done criteria:
 
 Deliverables:
 
-- [ ] Rename current Strategy page sections in the plan/spec language to: `Style`, `Rules`, `Risk`, `Timeframe`, `AI Roles`
-- [ ] Rename current card label `Strategy Intent` to `Trade Rules`
-- [ ] Rename current field labels:
+- [x] Rename current Strategy page sections in the plan/spec language to: `Style`, `Rules`, `Risk`, `Timeframe`, `AI Roles`
+- [x] Rename current card label `Strategy Intent` to `Trade Rules`
+- [x] Rename current field labels:
   - `Strategy type` -> `Setup type`
   - `Custom instructions` -> `Rule notes`
-- [ ] Keep `Side bias`, `Entry style`, `Exit style`, and `Scaling mode` as rule fields
-- [ ] Decide code naming target:
+- [x] Keep `Side bias`, `Entry style`, `Exit style`, and `Scaling mode` as rule fields
+- [x] Decide code naming target:
   - `SessionStrategyProfile` -> `SessionTradeRules`
   - `strategyType` -> `setupType`
   - `customInstructions` -> `ruleNotes`
@@ -273,13 +273,17 @@ Done criteria:
 
 Deliverables:
 
-- [ ] Add `session_trading_style` table in `electron/main/db/schema.ts` and migrations
-- [ ] Add `SessionTradingStyle` type and `TradingStylePresetId` enum in `electron/shared/domain.ts`
-- [ ] Add zod schemas in `electron/shared/schemas.ts`
-- [ ] Add style repo under `electron/main/db/repositories/`
-- [ ] Extend `StrategyPageData` and `StrategyGetResponse` to include `style`
-- [ ] Add IPC get/save channels for style alongside profile/risk/timeframe
-- [ ] Include style in session template payloads and duplicate flows
+- [x] Add `session_trading_style` table in `electron/main/db/schema.ts` and migrations
+- [x] Add `SessionTradingStyle` type and `TradingStylePresetId` enum in `electron/shared/domain.ts`
+- [x] Add zod schemas in `electron/shared/schemas.ts`
+- [x] Add style repo under `electron/main/db/repositories/`
+- [x] Extend `StrategyPageData` and `StrategyGetResponse` to include `style`
+- [x] Add IPC get/save channels for style alongside profile/risk/timeframe
+- [x] Include style in session template payloads and duplicate flows
+
+Implementation note:
+
+- The shipped style schema adds `mean_reversion_scan` as a `discoveryMode` so the `mean_reversion_dislocation` preset can stay first-class without overloading `custom`.
 
 Dependencies:
 
@@ -306,13 +310,13 @@ Done criteria:
 
 Deliverables:
 
-- [ ] Extend `src/store/strategyStore.ts` with `style` state and `updateStyle()`
-- [ ] Add `saveStyle()` path to `SessionStrategyContextService`
-- [ ] Rename the current `profile` concept to `rules` through the store/service/API surface
-- [ ] Replace monolithic brief-building with separate renderers:
+- [x] Extend `src/store/strategyStore.ts` with `style` state and `updateStyle()`
+- [x] Add `saveStyle()` path to `SessionStrategyContextService`
+- [x] Rename the current `profile` concept to `rules` through the store/service/API surface
+- [x] Replace monolithic brief-building with separate renderers:
   - `buildTradingStyleMarkdown(style)`
   - `buildTradeRulesMarkdown(rules)`
-- [ ] Update `AgentPromptPackBuilder` and `strategy-prompt-context.ts` to inject distinct blocks
+- [x] Update `AgentPromptPackBuilder` and `strategy-prompt-context.ts` to inject distinct blocks
 
 Recommended prompt shape:
 
@@ -399,11 +403,11 @@ Done criteria:
 
 Deliverables:
 
-- [ ] Remove `PresetRow` horizontal card strip from `src/pages/StrategyConfig.tsx`
-- [ ] Add `style` section tab and rename `strategy` tab to `rules`
-- [ ] Build compact preset selectors using existing shadcn primitives
-- [ ] Add summary cards instead of card-per-preset browsing
-- [ ] Keep mobile behavior stacked and single-column
+- [x] Remove `PresetRow` horizontal card strip from `src/pages/StrategyConfig.tsx`
+- [x] Add `style` section tab and rename `strategy` tab to `rules`
+- [x] Build compact preset selectors using existing shadcn primitives
+- [x] Add summary cards instead of card-per-preset browsing
+- [x] Keep mobile behavior stacked and single-column
 
 Dependencies:
 
@@ -437,9 +441,15 @@ Recommended precedence:
 
 Deliverables:
 
-- [ ] Define preset application scope in store logic
-- [ ] Add `presetSource` metadata to the page state if useful for badges/UI copy
+- [x] Define preset application scope in store logic
+- [x] Add `presetSource` metadata to the page state if useful for badges/UI copy (not needed for the current summary-card UI)
 - [ ] Add tests for partial preset application and dirty-state behavior
+
+Verification note:
+
+- `bun run typecheck` passes.
+- Focused prompt-context tests pass.
+- DB-backed repository/service tests remain blocked locally by the existing `better-sqlite3` native-module ABI mismatch in this environment.
 
 Dependencies:
 

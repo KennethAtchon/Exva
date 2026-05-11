@@ -69,17 +69,31 @@ export const sessionStrategies = sqliteTable("session_strategies", {
   timeframeNotes: text("timeframe_notes").notNull().default(""),
 });
 
-export const sessionStrategyProfile = sqliteTable("session_strategy_profile", {
+export const sessionTradingStyle = sqliteTable("session_trading_style", {
   sessionId: text("session_id")
     .primaryKey()
     .references(() => sessions.id, { onDelete: "cascade" }),
-  strategyType: text("strategy_type").notNull().default("custom"),
+  stylePresetId: text("style_preset_id").notNull().default("custom"),
+  discoveryMode: text("discovery_mode").notNull().default("custom"),
+  evidenceMode: text("evidence_mode").notNull().default("balanced"),
+  catalystMode: text("catalyst_mode").notNull().default("preferred"),
+  fundamentalStrictness: text("fundamental_strictness").notNull().default("balanced"),
+  styleNotes: text("style_notes").notNull().default(""),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const sessionTradeRules = sqliteTable("session_trade_rules", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  rulesPresetId: text("rules_preset_id").notNull().default("custom"),
+  setupType: text("setup_type").notNull().default("custom"),
   sideBias: text("side_bias").notNull().default("both"),
   entryStyle: text("entry_style").notNull().default("breakout"),
   exitStyle: text("exit_style").notNull().default("fixed_pct"),
   scalingMode: text("scaling_mode").notNull().default("single_entry"),
-  strategyBriefMarkdown: text("strategy_brief_markdown").notNull().default(""),
-  customInstructions: text("custom_instructions").notNull().default(""),
+  tradeRulesMarkdown: text("trade_rules_markdown").notNull().default(""),
+  ruleNotes: text("rule_notes").notNull().default(""),
   updatedAt: text("updated_at").notNull(),
 });
 

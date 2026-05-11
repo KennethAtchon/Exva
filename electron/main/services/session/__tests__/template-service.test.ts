@@ -8,9 +8,10 @@ import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-b
 import { SessionRepo } from "../../../db/repositories/session-repo";
 import { SessionRiskConfigRepo } from "../../../db/repositories/session-risk-config-repo";
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
-import { SessionStrategyProfileRepo } from "../../../db/repositories/session-strategy-profile-repo";
+import { SessionTradeRulesRepo } from "../../../db/repositories/session-trade-rules-repo";
 import { SessionTemplatesRepo } from "../../../db/repositories/session-templates-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
+import { SessionTradingStyleRepo } from "../../../db/repositories/session-trading-style-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
 import { SessionTemplateService } from "../template-service";
@@ -43,15 +44,26 @@ describe("SessionTemplateService", () => {
         },
         selectorSettings: { aiPickerEnabled: false },
         strategyContext: {
-          profile: {
+          style: {
             sessionId: "s1",
-            strategyType: "custom",
+            stylePresetId: "custom",
+            discoveryMode: "custom",
+            evidenceMode: "balanced",
+            catalystMode: "preferred",
+            fundamentalStrictness: "balanced",
+            styleNotes: "",
+            updatedAt: new Date().toISOString(),
+          },
+          rules: {
+            sessionId: "s1",
+            rulesPresetId: "custom",
+            setupType: "custom",
             sideBias: "both",
             entryStyle: "breakout",
             exitStyle: "fixed_pct",
             scalingMode: "single_entry",
-            strategyBriefMarkdown: "",
-            customInstructions: "",
+            tradeRulesMarkdown: "",
+            ruleNotes: "",
             updatedAt: new Date().toISOString(),
           },
           riskConfig: {
@@ -207,7 +219,8 @@ function createTemplateService(db: ReturnType<typeof createTestDb>): SessionTemp
     sessions,
     strategyContext: new SessionStrategyContextService({
       sessionRepo: sessions,
-      profileRepo: new SessionStrategyProfileRepo(db),
+      styleRepo: new SessionTradingStyleRepo(db),
+      rulesRepo: new SessionTradeRulesRepo(db),
       riskRepo: new SessionRiskConfigRepo(db),
       timeframeRepo: new SessionTimeframeConfigRepo(db),
       aiRolesRepo: new SessionAiRolesRepo(db),
