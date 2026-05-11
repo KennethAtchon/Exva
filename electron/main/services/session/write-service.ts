@@ -97,6 +97,12 @@ export class SessionWriteService {
       });
     }
 
+    if (!input.instrumentScope.trim()) {
+      throw new AppError("Instrument scope cannot be empty.", "VALIDATION_FAILED", {
+        field: "instrumentScope",
+      });
+    }
+
     const brokers = this.deps.brokerAccounts.list();
     const brokerById = new Map(brokers.map((broker) => [broker.id, broker]));
     const selectedBrokerIds = [...new Set(input.brokerAccountIds)];

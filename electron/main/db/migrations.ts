@@ -1,5 +1,4 @@
 import type Database from "better-sqlite3";
-import { createDefaultAiRoleProfileDocument } from "@electron/shared/ai-role-profile";
 
 export function runMigrations(sqlite: Database.Database, options?: { rebuildFromScratch?: boolean }): void {
   sqlite.pragma("foreign_keys = ON");

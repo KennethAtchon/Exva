@@ -83,10 +83,6 @@ export const sessionResearchPosture = sqliteTable("session_research_posture", {
   updatedAt: text("updated_at").notNull(),
 });
 
-/**
- * Per-session, per-role operating instructions stored as one validated JSON document.
- * This reuses the legacy `operating_spec_json` column so no migration-file change is required.
- */
 export const sessionAiRoleProfile = sqliteTable(
   "session_ai_role_profile",
   {
@@ -94,7 +90,7 @@ export const sessionAiRoleProfile = sqliteTable(
       .notNull()
       .references(() => sessions.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
-    profileJson: text("operating_spec_json").notNull().default('{"version":1}'),
+    profileJson: text("profile_json").notNull().default('{"version":1}'),
     updatedAt: text("updated_at").notNull(),
   },
   (table) => ({

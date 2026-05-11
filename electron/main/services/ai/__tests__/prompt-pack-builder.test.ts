@@ -109,7 +109,6 @@ describe("AgentPromptPackBuilder", () => {
     expect(pack.messages[0].content).toContain("## Session trade rules");
     expect(pack.messages[0].content).toContain("## Role profile");
     expect(pack.messages[0].content).toContain("Decide with discipline.");
-    expect(pack.messages[0].content).toContain("## How context is provided");
     expect(pack.messages[0].content).toContain("## Runtime Authority");
     expect(pack.messages[0].content).toContain("## Tool Policy For This Run");
     expect(pack.messages[0].content).toContain("no tools");

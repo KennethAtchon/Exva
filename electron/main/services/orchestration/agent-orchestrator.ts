@@ -438,9 +438,17 @@ export class AgentOrchestrator {
     const analystContext = this.buildAnalystContext(instrument);
     const technical = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "technical", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
+    if (!technical.output.trim()) {
+      this.deps.logger.warn({ sessionId: this.sessionId, instrumentSymbol: instrument.symbol }, "technical analyst returned empty output, skipping pipeline");
+      return null;
+    }
 
     const fundamental = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "fundamental", this.sessionId);
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
+    if (!fundamental.output.trim()) {
+      this.deps.logger.warn({ sessionId: this.sessionId, instrumentSymbol: instrument.symbol }, "fundamental analyst returned empty output, skipping pipeline");
+      return null;
+    }
 
     const review = await this.deps.ai.runReviewer(
       {
@@ -451,6 +459,10 @@ export class AgentOrchestrator {
       this.sessionId,
     );
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
+    if (!review.output.trim()) {
+      this.deps.logger.warn({ sessionId: this.sessionId, instrumentSymbol: instrument.symbol }, "reviewer returned empty output, skipping pipeline");
+      return null;
+    }
 
     const decision = await this.deps.ai.runDecisionMaker(
       {
@@ -490,6 +502,10 @@ export class AgentOrchestrator {
     const researchBriefsBySymbol: Record<string, string> = {};
 
     for (const instrument of instruments) {
+      if (!instrument.symbol?.trim()) {
+        this.emitEvent("DEBUG", null, `[selector-filter] (unknown): rejected - missing symbol`, "orchestrator", cycleId ?? null);
+        continue;
+      }
       if (!session.instrumentClasses.includes(instrument.instrumentClass)) {
         this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - class ${instrument.instrumentClass} not enabled for session`, "orchestrator", cycleId ?? null);
         continue;
