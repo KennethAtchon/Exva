@@ -10,8 +10,14 @@ export function parseInstrumentSelection(trace: RunTrace<undefined>): Instrument
     if (!step) continue;
     for (const tc of step.toolCalls) {
       if (tc.tool !== "submit_candidates") continue;
-      const parsed = instrumentSelectionSchema.safeParse(JSON.parse(tc.resultJson));
-      if (parsed.success) return parsed.data;
+      for (const json of [tc.resultJson, tc.argsJson]) {
+        try {
+          const parsed = instrumentSelectionSchema.safeParse(JSON.parse(json));
+          if (parsed.success) return parsed.data;
+        } catch {
+          /* ignore malformed terminal tool payload */
+        }
+      }
     }
   }
   try {

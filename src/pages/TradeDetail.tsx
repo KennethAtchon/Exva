@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Badge } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
@@ -150,31 +151,28 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
 };
 
 export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: () => void }) => {
-  const [trade, setTrade] = useState<Trade | null>(null);
-  const [runs, setRuns] = useState<AgentRun[]>([]);
-  const [messages, setMessages] = useState<AgentMessage[]>([]);
-  const [autopsies, setAutopsies] = useState<TradeAutopsy[]>([]);
+  const queryClient = useQueryClient();
   const [autopsyLoading, setAutopsyLoading] = useState(false);
   const [closing, setClosing] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    api.getTradeDetail(tradeId).then((d) => {
-      if (cancelled) return;
-      setTrade(d.trade);
-      setRuns(d.runs);
-      setMessages(d.messages ?? []);
-    }).catch(() => {});
-    api.listTradeAutopsies(tradeId).then((rows) => {
-      if (!cancelled) setAutopsies(rows);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [tradeId]);
+  const { data: detail } = useQuery({
+    queryKey: ["trade-detail", tradeId],
+    queryFn: () => api.getTradeDetail(tradeId),
+  });
+  const { data: autopsies = [], refetch: refetchAutopsies } = useQuery({
+    queryKey: ["trade-autopsies", tradeId],
+    queryFn: () => api.listTradeAutopsies(tradeId),
+  });
+
+  const trade = detail?.trade ?? null;
+  const runs = detail?.runs ?? [];
+  const messages = detail?.messages ?? [];
 
   const handleForceClose = async () => {
     setClosing(true);
     try {
       await api.forceCloseTrade(tradeId);
+      void queryClient.invalidateQueries({ queryKey: ["trade-detail", tradeId] });
       onClose();
     } finally {
       setClosing(false);
@@ -184,8 +182,8 @@ export const TradeDetail = ({ tradeId, onClose }: { tradeId: string; onClose: ()
   const handleGenerateAutopsy = async () => {
     setAutopsyLoading(true);
     try {
-      const row = await api.summarizeTradeAutopsy(tradeId);
-      setAutopsies((prev) => [row, ...prev]);
+      await api.summarizeTradeAutopsy(tradeId);
+      void refetchAutopsies();
     } finally {
       setAutopsyLoading(false);
     }

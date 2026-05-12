@@ -16,7 +16,16 @@ import {
   workspacePreferences,
 } from "../schema";
 import { AppError } from "@electron/shared/errors";
-import { canTransition, isSessionEditable } from "@electron/shared/domain";
+import {
+  buildTradeRulesMarkdown,
+  canTransition,
+  isSessionEditable,
+  RESEARCH_POSTURE_PRESETS,
+  RISK_PRESETS,
+  TIMEFRAME_PRESETS,
+  TRADE_RULE_PRESETS,
+} from "@electron/shared/domain";
+import { GLOBAL_STRATEGY_PRESETS } from "@electron/shared/presets";
 import { toSessionConfig, toWorkspaceSession } from "./mappers";
 
 export interface SessionFilters {
@@ -48,6 +57,23 @@ export interface TaskBoundaryInput {
 }
 
 const DEFAULT_ROLES = ["analyst_technical", "analyst_fundamental", "reviewer", "decision_maker", "instrument_selector"] as const;
+const DEFAULT_GLOBAL_PRESET = GLOBAL_STRATEGY_PRESETS[0];
+const DEFAULT_RESEARCH_POSTURE_PRESET = requirePreset(
+  RESEARCH_POSTURE_PRESETS.find((preset) => preset.id === DEFAULT_GLOBAL_PRESET.posturePresetId),
+  "research posture",
+);
+const DEFAULT_TRADE_RULES_PRESET = requirePreset(
+  TRADE_RULE_PRESETS.find((preset) => preset.id === DEFAULT_GLOBAL_PRESET.rulesPresetId),
+  "trade rules",
+);
+const DEFAULT_RISK_PRESET = requirePreset(
+  RISK_PRESETS.find((preset) => preset.id === DEFAULT_GLOBAL_PRESET.riskPresetId),
+  "risk",
+);
+const DEFAULT_TIMEFRAME_PRESET = requirePreset(
+  TIMEFRAME_PRESETS.find((preset) => preset.id === DEFAULT_GLOBAL_PRESET.timeframePresetId),
+  "timeframe",
+);
 
 export class SessionRepo {
   constructor(private readonly client: DbClient) {}
@@ -56,6 +82,13 @@ export class SessionRepo {
     const now = new Date().toISOString();
     const sessionId = crypto.randomUUID();
     const roleSeed = this.getDefaultAiRoleSeed();
+    const tradeRulesSeed = {
+      sessionId,
+      ...DEFAULT_TRADE_RULES_PRESET.rules,
+      tradeRulesMarkdown: "",
+      ruleNotes: "",
+      updatedAt: now,
+    };
 
     this.client.db.transaction((tx) => {
       tx.insert(sessions)
@@ -108,11 +141,7 @@ export class SessionRepo {
       tx.insert(sessionResearchPosture)
         .values({
           sessionId,
-          posturePresetId: "custom",
-          discoveryMode: "custom",
-          evidenceMode: "balanced",
-          catalystMode: "preferred",
-          fundamentalStrictness: "balanced",
+          ...DEFAULT_RESEARCH_POSTURE_PRESET.posture,
           postureNotes: "",
           updatedAt: now,
         })
@@ -131,37 +160,17 @@ export class SessionRepo {
 
       tx.insert(sessionTradeRules)
         .values({
-          sessionId,
-          rulesPresetId: "custom",
-          setupType: "custom",
-          sideBias: "both",
-          entryStyle: "breakout",
-          exitStyle: "fixed_pct",
-          scalingMode: "single_entry",
-          tradeRulesMarkdown: "",
-          ruleNotes: "",
-          updatedAt: now,
+          ...tradeRulesSeed,
+          tradeRulesMarkdown: buildTradeRulesMarkdown(tradeRulesSeed),
         })
         .run();
 
       tx.insert(sessionRiskConfig)
         .values({
           sessionId,
-          maxPositionUsd: 500,
-          stopLossPct: 2,
-          takeProfitPct: 4,
-          stopLossType: "fixed_pct",
-          atrStopMultiplier: null,
-          kellyFraction: 0.25,
-          predictionEdgeThreshold: 0.08,
-          maxExposureUsd: null,
-          waitForOpenThreshold: 0.8,
-          maxConcurrentTrades: 3,
-          dailyLossLimitUsd: 200,
-          profitTargetUsd: 1000,
-          maxAiSpendUsd: 5,
+          riskPresetId: DEFAULT_RISK_PRESET.id,
+          ...DEFAULT_RISK_PRESET.values,
           maxDataSpendUsd: 5,
-          humanApprovalRequired: false,
           updatedAt: now,
         })
         .run();
@@ -169,11 +178,8 @@ export class SessionRepo {
       tx.insert(sessionTimeframeConfig)
         .values({
           sessionId,
-          primaryTradingTimeframe: "1d",
-          holdingStyle: "multi_day_swing",
-          targetHoldDays: null,
-          maxHoldDays: null,
-          timeframeNotes: "",
+          timeframePresetId: DEFAULT_TIMEFRAME_PRESET.id,
+          ...DEFAULT_TIMEFRAME_PRESET.values,
           updatedAt: now,
         })
         .run();
@@ -545,4 +551,11 @@ export class SessionRepo {
         .run();
     });
   }
+}
+
+function requirePreset<T>(preset: T | undefined, kind: string): T {
+  if (!preset) {
+    throw new Error(`Default global preset references missing ${kind} preset.`);
+  }
+  return preset;
 }

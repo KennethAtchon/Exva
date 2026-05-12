@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { isBuiltInSearchProviderAccount, parseProviderMetadata } from "@electron/shared/search-providers";
 import { Badge, Card, Dot, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { ProviderModelPicker } from "@/components/strategy/ProviderModelPicker";
@@ -73,12 +74,8 @@ const ConnBadge = ({ ok }: { ok: boolean }) => (
 );
 
 export const AccountsPage = () => {
-  const [aiProviders, setAiProviders] = useState<ProviderAccount[]>([]);
-  const [searchProviders, setSearchProviders] = useState<ProviderAccount[]>([]);
   const [testing, setTesting] = useState(false);
   const [status, setStatus] = useState<{ broker: boolean; ai: boolean; search: boolean }>({ broker: false, ai: false, search: false });
-  const [brokers, setBrokers] = useState<BrokerAccount[]>([]);
-  const [prefs, setPrefs] = useState<WorkspacePreferences | null>(null);
   const [brokerModalOpen, setBrokerModalOpen] = useState(false);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
@@ -87,53 +84,65 @@ export const AccountsPage = () => {
   const [editBaseUrl, setEditBaseUrl] = useState("");
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [routingDraft, setRoutingDraft] = useState<Partial<Record<InstrumentClass, string>>>({});
+  const [prefsDraft, setPrefsDraft] = useState<WorkspacePreferences | null>(null);
   const [defaultModelProviderKey, setDefaultModelProviderKey] = useState("");
   const [defaultModelModelId, setDefaultModelModelId] = useState("");
   const [defaultModelModels, setDefaultModelModels] = useState<ProviderModelEntry[]>([]);
   const [defaultModelModelsLoading, setDefaultModelModelsLoading] = useState(false);
   const [savingDefaultModel, setSavingDefaultModel] = useState(false);
   const [savedDefaultModel, setSavedDefaultModel] = useState(false);
+
+  const { data: providersData, refetch: refetchProviders } = useQuery({
+    queryKey: ["accounts-providers"],
+    queryFn: () => api.listProviders(),
+  });
+  const { data: workspaceData, refetch: refetchWorkspace } = useQuery({
+    queryKey: ["accounts-workspace"],
+    queryFn: async () => {
+      const [b, r, view] = await Promise.all([
+        api.listBrokerAccounts(),
+        api.getBrokerRoutingDefaults(),
+        api.getWorkspaceView(),
+      ]);
+      return { brokers: b.brokers, routing: r.routing, prefs: view.preferences };
+    },
+  });
+
+  const aiProviders = providersData?.providers.filter((p) => p.category === "ai") ?? [];
+  const searchProviders = providersData?.providers.filter((p) => p.category === "search") ?? [];
+  const brokers = workspaceData?.brokers ?? [];
+  const prefs = workspaceData?.prefs ?? null;
   const hasTestedSearchProvider = searchProviders.some((provider) => provider.lastTestStatus !== "unknown");
 
-  const loadWorkspaceAccounts = async () => {
-    const [b, r, view] = await Promise.all([
-      api.listBrokerAccounts(),
-      api.getBrokerRoutingDefaults(),
-      api.getWorkspaceView(),
-    ]);
-    setBrokers(b.brokers);
-    setPrefs(view.preferences);
-    const provKey = view.preferences.defaultModelProviderKey ?? "";
-    const modId = view.preferences.defaultModelModelId ?? "";
+  // Sync connection status from latest provider data
+  useEffect(() => {
+    if (!providersData) return;
+    setStatus((prev) => ({
+      ...prev,
+      ai: aiProviders.length > 0 && aiProviders.some((p) => p.lastTestStatus === "ok"),
+      search: searchProviders.length > 0 && searchProviders.some((p) => p.lastTestStatus === "ok"),
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providersData]);
+
+  // Sync editable form state from workspace data
+  useEffect(() => {
+    if (!workspaceData) return;
+    const provKey = workspaceData.prefs.defaultModelProviderKey ?? "";
+    const modId = workspaceData.prefs.defaultModelModelId ?? "";
     setDefaultModelProviderKey(provKey);
     setDefaultModelModelId(modId);
     if (provKey) {
       api.getStrategyProviderModels(provKey).then((r) => setDefaultModelModels(r.models)).catch(() => {});
     }
     const draft: Partial<Record<InstrumentClass, string>> = {};
-    for (const row of r.routing) {
+    for (const row of workspaceData.routing) {
       draft[row.instrumentClass] = row.defaultBrokerAccountId;
     }
     setRoutingDraft(draft);
-  };
-
-  const loadProviders = async () => {
-    const list = await api.listProviders();
-    const nextAi = list.providers.filter((p) => p.category === "ai");
-    const nextSearch = list.providers.filter((p) => p.category === "search");
-    setAiProviders(nextAi);
-    setSearchProviders(nextSearch);
-    setStatus((prev) => ({
-      ...prev,
-      ai: nextAi.length > 0 && nextAi.some((p) => p.lastTestStatus === "ok"),
-      search: nextSearch.length > 0 && nextSearch.some((p) => p.lastTestStatus === "ok"),
-    }));
-  };
-
-  useEffect(() => {
-    void loadProviders();
-    void loadWorkspaceAccounts();
-  }, []);
+    setPrefsDraft(workspaceData.prefs);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceData]);
 
   const testAllConnections = async () => {
     setTesting(true);
@@ -151,7 +160,7 @@ export const AccountsPage = () => {
         const r = await api.testProvider(p.id).catch(() => ({ ok: false as const }));
         if (r.ok) anySearchOk = true;
       }
-      await loadProviders();
+      void refetchProviders();
 
       let anyBrokerOk = false;
       for (const b of brokerResp.brokers) {
@@ -197,8 +206,8 @@ export const AccountsPage = () => {
         metadata,
       });
       await api.testProvider(p.id).catch(() => ({ ok: false }));
-      await loadProviders();
-      await loadWorkspaceAccounts();
+      void refetchProviders();
+      void refetchWorkspace();
       cancelEditProviderKey();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Could not save provider key.");
@@ -214,8 +223,8 @@ export const AccountsPage = () => {
     try {
       await api.deleteProvider(p.id);
       if (editingProviderId === p.id) cancelEditProviderKey();
-      await loadProviders();
-      await loadWorkspaceAccounts();
+      void refetchProviders();
+      void refetchWorkspace();
     } catch (e) {
       alert(e instanceof Error ? e.message : "Could not delete provider.");
     } finally {
@@ -301,7 +310,7 @@ export const AccountsPage = () => {
                             onClick={async () => {
                               const r = await api.testProvider(p.id).catch(() => ({ ok: false as const }));
                               setStatus((s) => ({ ...s, ai: r.ok || s.ai }));
-                              await loadProviders();
+                              void refetchProviders();
                             }}
                             style={{
                               fontSize: 11,
@@ -455,7 +464,7 @@ export const AccountsPage = () => {
                       providerKey: defaultModelProviderKey,
                       modelId: defaultModelModelId,
                     });
-                    await loadWorkspaceAccounts();
+                    void refetchWorkspace();
                     setSavedDefaultModel(true);
                     setTimeout(() => setSavedDefaultModel(false), 2500);
                   } catch (e) {
@@ -529,7 +538,7 @@ export const AccountsPage = () => {
                       onClick={async () => {
                         if (!confirm(`Remove broker “${b.name}”? Routing rows that reference it will be deleted.`)) return;
                         await api.deleteBrokerAccount(b.id);
-                        await loadWorkspaceAccounts();
+                        void refetchWorkspace();
                       }}
                       style={{ fontSize: 11, padding: "6px 10px", borderRadius: 7, border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", background: "transparent", cursor: "pointer" }}
                     >
@@ -596,7 +605,7 @@ export const AccountsPage = () => {
                   return;
                 }
                 await api.saveBrokerRoutingDefaults(rows);
-                await loadWorkspaceAccounts();
+                void refetchWorkspace();
               }}
               style={{
                 marginTop: 8,
@@ -625,9 +634,9 @@ export const AccountsPage = () => {
                 <div style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>Mode</div>
                   <ShadcnSelect
-                    value={prefs.capitalAllocationMode}
+                    value={prefsDraft?.capitalAllocationMode ?? ""}
                     onValueChange={(value) =>
-                      setPrefs((current) =>
+                      setPrefsDraft((current) =>
                         current
                           ? {
                               ...current,
@@ -643,13 +652,13 @@ export const AccountsPage = () => {
                     ]}
                   />
                 </div>
-                {prefs.capitalAllocationMode === "shared_global_pool" && (
+                {prefsDraft?.capitalAllocationMode === "shared_global_pool" && (
                   <InputField
                     label="Global pool (USD)"
                     type="number"
-                    value={String(prefs.globalCapitalPoolUsd ?? "")}
+                    value={String(prefsDraft?.globalCapitalPoolUsd ?? "")}
                     onChange={(v) =>
-                      setPrefs((p) =>
+                      setPrefsDraft((p) =>
                         p ? { ...p, globalCapitalPoolUsd: v === "" ? null : Number(v) } : p,
                       )
                     }
@@ -659,13 +668,12 @@ export const AccountsPage = () => {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!prefs) return;
+                    if (!prefsDraft) return;
                     await api.patchWorkspacePreferences({
-                      capitalAllocationMode: prefs.capitalAllocationMode,
-                      globalCapitalPoolUsd: prefs.globalCapitalPoolUsd,
+                      capitalAllocationMode: prefsDraft.capitalAllocationMode,
+                      globalCapitalPoolUsd: prefsDraft.globalCapitalPoolUsd,
                     });
-                    const view = await api.getWorkspaceView();
-                    setPrefs(view.preferences);
+                    void refetchWorkspace();
                   }}
                   style={{
                     marginTop: 12,
@@ -761,7 +769,7 @@ export const AccountsPage = () => {
                             onClick={async () => {
                               const r = await api.testProvider(p.id).catch(() => ({ ok: false as const }));
                               setStatus((s) => ({ ...s, search: r.ok || s.search }));
-                              await loadProviders();
+                              void refetchProviders();
                             }}
                             style={{
                               fontSize: 11,
@@ -852,9 +860,9 @@ export const AccountsPage = () => {
               <div>
                 <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>Workspace default search provider</div>
                 <ShadcnSelect
-                  value={prefs?.defaultSearchProviderId ?? ""}
+                  value={prefsDraft?.defaultSearchProviderId ?? ""}
                   onValueChange={(value) =>
-                    setPrefs((current) =>
+                    setPrefsDraft((current) =>
                       current
                         ? { ...current, defaultSearchProviderId: value || null }
                         : current,
@@ -870,9 +878,9 @@ export const AccountsPage = () => {
               <button
                 type="button"
                 onClick={async () => {
-                  if (!prefs) return;
-                  await api.patchWorkspacePreferences({ defaultSearchProviderId: prefs.defaultSearchProviderId });
-                  await loadWorkspaceAccounts();
+                  if (!prefsDraft) return;
+                  await api.patchWorkspacePreferences({ defaultSearchProviderId: prefsDraft.defaultSearchProviderId });
+                  void refetchWorkspace();
                 }}
                 style={{
                   width: "100%",
@@ -955,19 +963,19 @@ export const AccountsPage = () => {
       <AddBrokerModal
         open={brokerModalOpen}
         onClose={() => setBrokerModalOpen(false)}
-        onSaved={loadWorkspaceAccounts}
+        onSaved={() => void refetchWorkspace()}
       />
       <AddAiProviderModal
         open={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
-        onSaved={loadProviders}
+        onSaved={() => void refetchProviders()}
       />
       <AddSearchProviderModal
         open={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
         onSaved={async () => {
-          await loadProviders();
-          await loadWorkspaceAccounts();
+          void refetchProviders();
+          void refetchWorkspace();
         }}
       />
     </PageShell>

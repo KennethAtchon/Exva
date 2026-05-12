@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getSearchProviderDisplayName } from "@electron/shared/search-providers";
 import { AgentLabel, Dot, PageShell } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
@@ -817,20 +818,11 @@ const ExternalCallsTab = ({
   cycleId: string | null | undefined;
   tradeId: string | null | undefined;
 }) => {
-  const [calls, setCalls] = useState<ApiCallLogEntry[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!sessionId) {
-      setCalls([]);
-      return;
-    }
-    setLoading(true);
-    api.getApiCallLog({ sessionId, cycleId: cycleId ?? null, tradeId: tradeId ?? null })
-      .then(setCalls)
-      .catch(() => setCalls([]))
-      .finally(() => setLoading(false));
-  }, [sessionId, cycleId, tradeId]);
+  const { data: calls = [], isLoading: loading } = useQuery({
+    queryKey: ["api-call-log", sessionId, cycleId, tradeId],
+    queryFn: () => api.getApiCallLog({ sessionId: sessionId!, cycleId: cycleId ?? null, tradeId: tradeId ?? null }),
+    enabled: !!sessionId,
+  });
 
   if (loading) {
     return (
@@ -984,36 +976,40 @@ export const DevPanel = () => {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selRuns, setSelRuns] = useState<ExtAgentRun[]>([]);
-  const [selMessages, setSelMessages] = useState<AgentMessage[]>([]);
-  const [runsLoading, setRunsLoading] = useState(false);
-  const [messagesLoading, setMessagesLoading] = useState(false);
   const [cycleState, setCycleState] = useState("idle");
-  const [focusedSession, setFocusedSession] = useState<SessionSummary | null>(null);
-  const [strategy, setStrategy] = useState<StrategyGetResponse | null>(null);
-  const [viewMode, setViewMode] = useState<string>("global");
+  // Seed events from fetched data; push events are appended via useExvaEvent below
   const [streamHealthy, setStreamHealthy] = useState(true);
   const [lastEventAt, setLastEventAt] = useState<string | null>(null);
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stats = useSessionStore((s) => s.stats);
 
-  // Load session + strategy overview
-  useEffect(() => {
-    api.listSessions().then(({ sessions, workspaceViewMode, focusedSessionId }) => {
-      setViewMode(workspaceViewMode);
-      const focused = sessions.find((s) => s.id === focusedSessionId) ?? null;
-      setFocusedSession(focused);
-      if (focused) {
-        api.getStrategy(focused.id).then(setStrategy).catch(() => {});
-      }
-    }).catch(() => {});
-  }, []);
+  const { data: sessionOverview } = useQuery({
+    queryKey: ["devpanel-session-overview"],
+    queryFn: () => api.listSessions(),
+  });
 
-  // Load events
+  const focusedSession = useMemo(() => {
+    if (!sessionOverview) return null;
+    return sessionOverview.sessions.find((s) => s.id === sessionOverview.focusedSessionId) ?? null;
+  }, [sessionOverview]);
+
+  const viewMode = sessionOverview?.workspaceViewMode ?? "global";
+
+  const { data: strategy = null } = useQuery({
+    queryKey: ["devpanel-strategy", focusedSession?.id],
+    queryFn: () => api.getStrategy(focusedSession!.id),
+    enabled: !!focusedSession?.id,
+  });
+
+  const { data: fetchedEvents = [] } = useQuery({
+    queryKey: ["devpanel-events", focusedSession?.id],
+    queryFn: () => api.getEvents({ limit: 500, sessionId: focusedSession?.id }) as Promise<ExtEventRow[]>,
+  });
+
   useEffect(() => {
-    api.getEvents({ limit: 500, sessionId: focusedSession?.id }).then((evs) => setEvents(evs as ExtEventRow[])).catch(() => {});
-  }, [focusedSession?.id]);
+    if (fetchedEvents.length > 0) setEvents(fetchedEvents);
+  }, [fetchedEvents]);
 
   // Stream health watchdog
   const resetStreamTimer = useCallback(() => {
@@ -1035,51 +1031,30 @@ export const DevPanel = () => {
   useExvaEvent("research_phase_complete", (ev) => { setCycleState(`complete: ${ev.phase} (${ev.instrumentCount})`); resetStreamTimer(); });
   useExvaEvent("research_phase_failed", (ev) => { setCycleState(`failed: ${ev.error}`); resetStreamTimer(); });
 
-  useExvaEvent("session_status_changed", ({ sessionId, status }) => {
-    if (focusedSession?.id === sessionId) {
-      setFocusedSession((prev) => prev ? { ...prev, status } : prev);
-    }
+  // Inspector selection
+  const sel = selectedId ? (events.find((e) => e.id === selectedId) as ExtEventRow | undefined) ?? null : null;
+  const inspectorTradeId = sel?.trade_id ?? null;
+  const inspectorCycleId = sel?.cycle_id ?? null;
+
+  const { data: selRuns = [], isLoading: runsLoading } = useQuery({
+    queryKey: ["inspector-runs", inspectorTradeId, inspectorCycleId],
+    queryFn: () => inspectorTradeId
+      ? (api.getAgentTraces(inspectorTradeId) as Promise<ExtAgentRun[]>)
+      : (api.getAgentTracesByCycle(inspectorCycleId!) as Promise<ExtAgentRun[]>),
+    enabled: !!(inspectorTradeId || inspectorCycleId),
   });
 
-  // Load inspector data when selection changes
-  const sel = selectedId ? (events.find((e) => e.id === selectedId) as ExtEventRow | undefined) ?? null : null;
-
-  useEffect(() => {
-    const tradeId = sel?.trade_id ?? null;
-    const cycleId = sel?.cycle_id ?? null;
-
-    if (!tradeId && !cycleId) {
-      setSelRuns([]);
-      setSelMessages([]);
-      setRunsLoading(false);
-      setMessagesLoading(false);
-      return;
-    }
-
-    setRunsLoading(true);
-    setMessagesLoading(true);
-
-    if (tradeId) {
-      api.getAgentTraces(tradeId)
-        .then((runs) => setSelRuns(runs as ExtAgentRun[]))
-        .catch(() => setSelRuns([]))
-        .finally(() => setRunsLoading(false));
-      api.getTradeDetail(tradeId)
-        .then((detail) => setSelMessages(detail.messages ?? []))
-        .catch(() => setSelMessages([]))
-        .finally(() => setMessagesLoading(false));
-      return;
-    }
-
-    api.getAgentTracesByCycle(cycleId as string)
-      .then((runs) => setSelRuns(runs as ExtAgentRun[]))
-      .catch(() => setSelRuns([]))
-      .finally(() => setRunsLoading(false));
-    api.getMessagesByCycle(cycleId as string)
-      .then((messages) => setSelMessages(messages))
-      .catch(() => setSelMessages([]))
-      .finally(() => setMessagesLoading(false));
-  }, [sel?.trade_id, sel?.cycle_id]);
+  const { data: selMessages = [], isLoading: messagesLoading } = useQuery({
+    queryKey: ["inspector-messages", inspectorTradeId, inspectorCycleId],
+    queryFn: async () => {
+      if (inspectorTradeId) {
+        const detail = await api.getTradeDetail(inspectorTradeId);
+        return detail.messages ?? [];
+      }
+      return api.getMessagesByCycle(inspectorCycleId!);
+    },
+    enabled: !!(inspectorTradeId || inspectorCycleId),
+  });
 
   const filtered = useMemo(() => events.filter((ev) => {
     if (LEVELS.indexOf(ev.level) < LEVELS.indexOf(minLevel)) return false;

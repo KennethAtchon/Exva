@@ -6,7 +6,11 @@ import { EventsRepo } from "../../../db/repositories/events-repo";
 import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
 import { SessionRepo } from "../../../db/repositories/session-repo";
+import { SessionResearchPostureRepo } from "../../../db/repositories/session-research-posture-repo";
+import { SessionRiskConfigRepo } from "../../../db/repositories/session-risk-config-repo";
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
+import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
+import { SessionTradeRulesRepo } from "../../../db/repositories/session-trade-rules-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { SessionWriteService } from "../write-service";
 
@@ -63,6 +67,10 @@ describe("SessionWriteService", () => {
     const routing = new BrokerRoutingRepo(db);
     const selectorSettings = new SessionSelectorSettingsRepo(db);
     const aiRoles = new SessionAiRolesRepo(db).listBySession(result.id);
+    const researchPosture = new SessionResearchPostureRepo(db).get(result.id);
+    const tradeRules = new SessionTradeRulesRepo(db).get(result.id);
+    const riskConfig = new SessionRiskConfigRepo(db).get(result.id);
+    const timeframe = new SessionTimeframeConfigRepo(db).get(result.id);
 
     expect(result.status).toBe("draft");
     expect(sessions.getFocusedSessionId()).toBe(result.id);
@@ -75,6 +83,10 @@ describe("SessionWriteService", () => {
     expect(aiRoles).toHaveLength(5);
     expect(aiRoles.every((role) => role.providerKey === "provider-openrouter")).toBe(true);
     expect(aiRoles.every((role) => role.modelId === "google/gemma-4-31b-it")).toBe(true);
+    expect(researchPosture.posturePresetId).toBe("trend_hunt");
+    expect(tradeRules.rulesPresetId).toBe("breakout_long");
+    expect(riskConfig.riskPresetId).toBe("moderate");
+    expect(timeframe.timeframePresetId).toBe("swing");
   });
 
   it("leaves new session AI roles blank when no workspace default model is configured", () => {

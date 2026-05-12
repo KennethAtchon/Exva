@@ -233,13 +233,15 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       for (const key of Object.keys(rulesPreset.rules)) dirtyFields.add(`rules.${key}`);
       set({ rules: { ...rules, ...rulesPreset.rules } });
     }
-    if (riskPreset && Object.keys(riskPreset.values).length > 0) {
+    if (riskPreset) {
+      dirtyFields.add("riskConfig.riskPresetId");
       for (const key of Object.keys(riskPreset.values)) dirtyFields.add(`riskConfig.${key}`);
-      set({ riskConfig: { ...riskConfig, ...riskPreset.values } });
+      set({ riskConfig: { ...riskConfig, riskPresetId: riskPreset.id, ...riskPreset.values } });
     }
-    if (timeframePreset && Object.keys(timeframePreset.values).length > 0) {
+    if (timeframePreset) {
+      dirtyFields.add("timeframe.timeframePresetId");
       for (const key of Object.keys(timeframePreset.values)) dirtyFields.add(`timeframe.${key}`);
-      set({ timeframe: { ...timeframe, ...timeframePreset.values } });
+      set({ timeframe: { ...timeframe, timeframePresetId: timeframePreset.id, ...timeframePreset.values } });
     }
 
     set({ dirtyFields, strategyErrors: [] });

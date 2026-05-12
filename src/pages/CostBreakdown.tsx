@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AgentLabel, Card, PageShell, SectionTitle } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
-import type { AgentRole, CostBreakdown } from "@/lib/types";
+import type { AgentRole } from "@/lib/types";
 import { useSessionStore } from "@/store/sessionStore";
 
 const Bar = ({ value, max, color = "var(--accent)", h = 6 }: { value: number; max: number; color?: string; h?: number }) => (
@@ -20,8 +20,7 @@ const Bar = ({ value, max, color = "var(--accent)", h = 6 }: { value: number; ma
 
 export const CostBreakdownPage = () => {
   const stats = useSessionStore((s) => s.stats);
-  const [d, setD] = useState<CostBreakdown | null>(null);
-  useEffect(() => { api.getCostBreakdown().then(setD).catch(() => {}); }, []);
+  const { data: d } = useQuery({ queryKey: ["cost-breakdown"], queryFn: () => api.getCostBreakdown() });
   if (!d || !stats) return <PageShell><div style={{ color: "var(--text3)" }}>Loading…</div></PageShell>;
 
   const budget = stats.api_budget;

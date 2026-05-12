@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
 import { Button, Checkbox } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
@@ -18,7 +19,6 @@ export const TradesPage = () => {
   const [brokerAccountId, setBrokerAccountId] = useState("");
   const [sessionFilterId, setSessionFilterId] = useState("");
 
-  const [sessionOptions, setSessionOptions] = useState<Array<{ id: string; name: string }>>([]);
 
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
@@ -46,11 +46,11 @@ export const TradesPage = () => {
     return f;
   }, [viewMode, sessionFilterId, brokerAccountId, symbolContains, instrumentType, executionMode]);
 
-  useEffect(() => {
-    void api.listSessions({ includeArchived: preferences?.globalIncludeArchived }).then((r) => {
-      setSessionOptions(r.sessions.map((s) => ({ id: s.id, name: s.name })));
-    });
-  }, [preferences?.globalIncludeArchived]);
+  const { data: sessionsData } = useQuery({
+    queryKey: ["trades-session-options", preferences?.globalIncludeArchived],
+    queryFn: () => api.listSessions({ includeArchived: preferences?.globalIncludeArchived }),
+  });
+  const sessionOptions = sessionsData?.sessions.map((s) => ({ id: s.id, name: s.name })) ?? [];
 
   useEffect(() => {
     void api

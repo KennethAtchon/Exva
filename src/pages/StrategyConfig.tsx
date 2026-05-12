@@ -37,6 +37,7 @@ import {
 } from "../../electron/shared/domain";
 import { GLOBAL_STRATEGY_PRESETS } from "../../electron/shared/presets";
 import type { GlobalStrategyPreset } from "../../electron/shared/presets";
+import type { UserGlobalPresetRow } from "@/lib/exva";
 
 const ROLE_ORDER = [
   "analyst_technical",
@@ -164,6 +165,14 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const rulesPreview = buildTradeRulesMarkdown(rules);
   const selectedStylePreset = RESEARCH_POSTURE_PRESETS.find((preset) => preset.id === researchPosture.posturePresetId) ?? RESEARCH_POSTURE_PRESETS[RESEARCH_POSTURE_PRESETS.length - 1];
   const selectedRulesPreset = TRADE_RULE_PRESETS.find((preset) => preset.id === rules.rulesPresetId) ?? TRADE_RULE_PRESETS[TRADE_RULE_PRESETS.length - 1];
+  const activeGlobalPreset = resolveActiveGlobalPreset({
+    builtInPresets: GLOBAL_STRATEGY_PRESETS as GlobalStrategyPreset[],
+    userPresets: globalPresets,
+    posturePresetId: researchPosture.posturePresetId,
+    rulesPresetId: rules.rulesPresetId,
+    riskPresetId: riskConfig.riskPresetId ?? "custom",
+    timeframePresetId: timeframe.timeframePresetId ?? "custom",
+  });
   const roleProviderSummary = Object.values(aiRoles).map((role) => {
     const connectedProvider = providers.find((provider) => provider.id === role.providerKey);
     const hasModel = role.modelId.trim().length > 0;
@@ -254,6 +263,8 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
           </button>
         </div>
       </div>
+
+      <ActiveGlobalPresetIndicator preset={activeGlobalPreset} />
 
       {activeView === "presets" && (
         <GlobalPresetGrid
@@ -519,6 +530,68 @@ const PresetSummaryCard = ({
   </div>
 );
 
+const ActiveGlobalPresetIndicator = ({
+  preset,
+}: {
+  preset: { preset: GlobalStrategyPreset; source: "built_in" | "user" } | null;
+}) => (
+  <div style={activeGlobalPresetStyle}>
+    <div style={{ display: "grid", gap: 4 }}>
+      <div style={activeGlobalPresetEyebrowStyle}>Active Global Preset</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div style={activeGlobalPresetLabelStyle}>{preset?.preset.label ?? "Custom"}</div>
+        <div style={activeGlobalPresetSourceStyle(preset?.source)}>
+          {preset ? (preset.source === "built_in" ? "Built-in" : "Saved preset") : "No exact preset match"}
+        </div>
+      </div>
+      <div style={activeGlobalPresetDescriptionStyle}>
+        {preset?.preset.description ?? "Current style, rules, risk, and timeframe selections do not match a saved global preset."}
+      </div>
+    </div>
+  </div>
+);
+
+function resolveActiveGlobalPreset({
+  builtInPresets,
+  userPresets,
+  posturePresetId,
+  rulesPresetId,
+  riskPresetId,
+  timeframePresetId,
+}: {
+  builtInPresets: GlobalStrategyPreset[];
+  userPresets: UserGlobalPresetRow[];
+  posturePresetId: string;
+  rulesPresetId: string;
+  riskPresetId: string;
+  timeframePresetId: string;
+}): { preset: GlobalStrategyPreset; source: "built_in" | "user" } | null {
+  const matches = (preset: GlobalStrategyPreset) => (
+    preset.posturePresetId === posturePresetId
+    && preset.rulesPresetId === rulesPresetId
+    && preset.riskPresetId === riskPresetId
+    && preset.timeframePresetId === timeframePresetId
+  );
+
+  const builtInMatch = builtInPresets.find(matches);
+  if (builtInMatch) {
+    return { preset: builtInMatch, source: "built_in" };
+  }
+
+  for (const row of userPresets) {
+    try {
+      const parsed = { id: row.id, label: row.name, ...(JSON.parse(row.presetJson) as Omit<GlobalStrategyPreset, "id" | "label">) };
+      if (matches(parsed)) {
+        return { preset: parsed, source: "user" };
+      }
+    } catch {
+      // Ignore malformed user presets and keep resolving the next match.
+    }
+  }
+
+  return null;
+}
+
 function labelize(value: string): string {
   return value
     .split("_")
@@ -567,6 +640,11 @@ const formGridStyle = { display: "grid", gap: 14, marginTop: 16 } as const;
 const inputStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)" } as const;
 const warningStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(251,191,36,0.24)", background: "rgba(251,191,36,0.08)", color: "#fbbf24", fontSize: 12 } as const;
 const warningButtonStyle = { padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(251,191,36,0.28)", background: "rgba(251,191,36,0.14)", color: "#fbbf24", cursor: "pointer" } as const;
+const activeGlobalPresetStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", borderRadius: 12, border: "1px solid rgba(96,165,250,0.22)", background: "linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.82))" } as const;
+const activeGlobalPresetEyebrowStyle = { color: "rgba(147,197,253,0.85)", fontSize: 11, fontWeight: 700, letterSpacing: 0.35, textTransform: "uppercase" as const };
+const activeGlobalPresetLabelStyle = { color: "var(--text1)", fontSize: 16, fontWeight: 700 } as const;
+const activeGlobalPresetDescriptionStyle = { color: "var(--text3)", fontSize: 12, lineHeight: 1.55 } as const;
+const activeGlobalPresetSourceStyle = (source: "built_in" | "user" | undefined) => ({ display: "inline-flex", width: "fit-content", padding: "4px 10px", borderRadius: 999, border: source === "user" ? "1px solid rgba(34,197,94,0.28)" : "1px solid rgba(96,165,250,0.28)", background: source === "user" ? "rgba(34,197,94,0.12)" : "rgba(96,165,250,0.12)", color: source === "user" ? "rgba(187,247,208,0.96)" : "rgba(191,219,254,0.96)", fontSize: 11, fontWeight: 700, letterSpacing: 0.2 } as const);
 const presetSummaryStyle = { display: "grid", gap: 12, marginTop: 14, padding: 14, borderRadius: 12, border: "1px solid rgba(96,165,250,0.22)", background: "linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.82))" } as const;
 const presetBadgeStyle = { display: "inline-flex", width: "fit-content", padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(96,165,250,0.28)", background: "rgba(96,165,250,0.12)", color: "rgba(191,219,254,0.96)", fontSize: 11, fontWeight: 700, letterSpacing: 0.2 } as const;
 const presetThesisStyle = { color: "var(--text1)", fontSize: 13, lineHeight: 1.55, fontWeight: 600 } as const;
