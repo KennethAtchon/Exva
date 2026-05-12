@@ -3,9 +3,11 @@ import { createTestDb } from "../../../db/test-helpers";
 import { BrokerAccountsRepo } from "../../../db/repositories/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../../db/repositories/broker-routing-repo";
 import { EventsRepo } from "../../../db/repositories/events-repo";
+import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
 import { SessionRepo } from "../../../db/repositories/session-repo";
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
+import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { SessionWriteService } from "../write-service";
 
 describe("SessionWriteService", () => {
@@ -21,6 +23,10 @@ describe("SessionWriteService", () => {
 
   it("creates a focused session with broker assignments and routing overrides", () => {
     const service = createService(db);
+    new WorkspacePreferencesRepo(db).update({
+      defaultModelProviderKey: "provider-openrouter",
+      defaultModelModelId: "google/gemma-4-31b-it",
+    });
     insertBroker(db, {
       id: "broker-stock",
       name: "Stock Mock",
@@ -56,6 +62,7 @@ describe("SessionWriteService", () => {
     const assignments = new SessionBrokerAssignmentsRepo(db);
     const routing = new BrokerRoutingRepo(db);
     const selectorSettings = new SessionSelectorSettingsRepo(db);
+    const aiRoles = new SessionAiRolesRepo(db).listBySession(result.id);
 
     expect(result.status).toBe("draft");
     expect(sessions.getFocusedSessionId()).toBe(result.id);
@@ -65,6 +72,37 @@ describe("SessionWriteService", () => {
       { sessionId: result.id, instrumentClass: "stock", brokerAccountId: "broker-stock" },
     ]);
     expect(selectorSettings.get(result.id).aiPickerEnabled).toBe(false);
+    expect(aiRoles).toHaveLength(5);
+    expect(aiRoles.every((role) => role.providerKey === "provider-openrouter")).toBe(true);
+    expect(aiRoles.every((role) => role.modelId === "google/gemma-4-31b-it")).toBe(true);
+  });
+
+  it("leaves new session AI roles blank when no workspace default model is configured", () => {
+    const service = createService(db);
+    insertBroker(db, {
+      id: "broker-stock",
+      name: "Stock Mock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+
+    const result = service.create({
+      name: "Blank Role Session",
+      objective: "Trade stocks later",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "SPY",
+      selectorSettings: { aiPickerEnabled: false },
+      capitalLimitUsd: 1000,
+      executionMode: "paper_only",
+      brokerAccountIds: ["broker-stock"],
+    });
+
+    const aiRoles = new SessionAiRolesRepo(db).listBySession(result.id);
+    expect(aiRoles).toHaveLength(5);
+    expect(aiRoles.every((role) => role.providerKey === "")).toBe(true);
+    expect(aiRoles.every((role) => role.modelId === "")).toBe(true);
   });
 
   it("rejects broker assignments that do not support the session instrument classes", () => {

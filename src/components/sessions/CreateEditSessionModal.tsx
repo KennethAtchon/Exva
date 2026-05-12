@@ -305,6 +305,7 @@ export const CreateEditSessionModal = ({
                       <label key={instrumentClass} style={{ ...toggleChipStyle, borderColor: checked ? "var(--accent-dim)" : "var(--border)" }}>
                         <Checkbox
                           checked={checked}
+                          disabled={searchEverything}
                           onCheckedChange={(nextChecked) =>
                             setForm({
                               ...form,

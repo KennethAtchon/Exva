@@ -107,20 +107,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     const result = await api.getStrategy(sessionId);
     const aiRoles = EMPTY_AI_ROLES();
     for (const role of result.aiRoles) {
-      // Auto-fill empty roles from workspace default model
-      if (
-        (role.providerKey === "" || role.modelId === "") &&
-        result.workspaceDefaultModelProviderKey &&
-        result.workspaceDefaultModelModelId
-      ) {
-        aiRoles[role.role] = {
-          ...role,
-          providerKey: role.providerKey || result.workspaceDefaultModelProviderKey,
-          modelId: role.modelId || result.workspaceDefaultModelModelId,
-        };
-      } else {
-        aiRoles[role.role] = role;
-      }
+      aiRoles[role.role] = role;
     }
 
     const providerModels: Record<string, ProviderModelEntry[]> = {};

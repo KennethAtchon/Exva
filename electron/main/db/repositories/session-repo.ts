@@ -13,6 +13,7 @@ import {
   sessionStrategies,
   sessionTimeframeConfig,
   sessions,
+  workspacePreferences,
 } from "../schema";
 import { AppError } from "@electron/shared/errors";
 import { canTransition, isSessionEditable } from "@electron/shared/domain";
@@ -54,6 +55,7 @@ export class SessionRepo {
   create(input: CreateSessionInput): WorkspaceSession {
     const now = new Date().toISOString();
     const sessionId = crypto.randomUUID();
+    const roleSeed = this.getDefaultAiRoleSeed();
 
     this.client.db.transaction((tx) => {
       tx.insert(sessions)
@@ -182,8 +184,8 @@ export class SessionRepo {
             id: `${sessionId}:${role}`,
             sessionId,
             role,
-            providerKey: "provider-anthropic",
-            modelId: "claude-sonnet-4-6",
+            providerKey: roleSeed.providerKey,
+            modelId: roleSeed.modelId,
             temperature: 0.7,
             maxTokens: 8192,
             promptSource: "default",
@@ -195,6 +197,22 @@ export class SessionRepo {
     });
 
     return this.requireById(sessionId);
+  }
+
+  private getDefaultAiRoleSeed(): { providerKey: string; modelId: string } {
+    const row = this.client.db
+      .select({
+        providerKey: workspacePreferences.defaultModelProviderKey,
+        modelId: workspacePreferences.defaultModelModelId,
+      })
+      .from(workspacePreferences)
+      .where(eq(workspacePreferences.id, 1))
+      .get();
+
+    return {
+      providerKey: row?.providerKey ?? "",
+      modelId: row?.modelId ?? "",
+    };
   }
 
   list(filters: SessionFilters = {}): WorkspaceSession[] {

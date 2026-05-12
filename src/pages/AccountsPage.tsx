@@ -92,6 +92,7 @@ export const AccountsPage = () => {
   const [defaultModelModels, setDefaultModelModels] = useState<ProviderModelEntry[]>([]);
   const [defaultModelModelsLoading, setDefaultModelModelsLoading] = useState(false);
   const [savingDefaultModel, setSavingDefaultModel] = useState(false);
+  const [savedDefaultModel, setSavedDefaultModel] = useState(false);
   const hasTestedSearchProvider = searchProviders.some((provider) => provider.lastTestStatus !== "unknown");
 
   const loadWorkspaceAccounts = async () => {
@@ -446,7 +447,7 @@ export const AccountsPage = () => {
               />
               <button
                 type="button"
-                disabled={savingDefaultModel || (!defaultModelProviderKey && !prefs?.defaultModelProviderKey)}
+                disabled={savingDefaultModel || !defaultModelProviderKey || !defaultModelModelId}
                 onClick={async () => {
                   setSavingDefaultModel(true);
                   try {
@@ -455,6 +456,10 @@ export const AccountsPage = () => {
                       modelId: defaultModelModelId,
                     });
                     await loadWorkspaceAccounts();
+                    setSavedDefaultModel(true);
+                    setTimeout(() => setSavedDefaultModel(false), 2500);
+                  } catch (e) {
+                    alert(e instanceof Error ? e.message : "Could not save default model.");
                   } finally {
                     setSavingDefaultModel(false);
                   }
@@ -468,11 +473,11 @@ export const AccountsPage = () => {
                   color: "#fff",
                   fontWeight: 600,
                   fontSize: 13,
-                  cursor: savingDefaultModel ? "not-allowed" : "pointer",
-                  opacity: savingDefaultModel ? 0.7 : 1,
+                  cursor: savingDefaultModel || !defaultModelProviderKey || !defaultModelModelId ? "not-allowed" : "pointer",
+                  opacity: savingDefaultModel || !defaultModelProviderKey || !defaultModelModelId ? 0.7 : 1,
                 }}
               >
-                {savingDefaultModel ? "Saving..." : "Save default model"}
+                {savingDefaultModel ? "Saving..." : savedDefaultModel ? "Saved ✓" : "Save default model"}
               </button>
             </div>
           </Card>

@@ -10,6 +10,7 @@ import {
   strategyTimeframeConfigSaveSchema,
 } from "@electron/shared/schemas";
 import { channels } from "@electron/shared/channels";
+import { AppError } from "@electron/shared/errors";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
 
@@ -127,6 +128,34 @@ export function registerStrategyHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.strategy.saveWorkspaceDefaultModel, async (payload) => {
     const { providerKey, modelId } = payload as { providerKey: string; modelId: string };
+
+    if (!providerKey.trim()) {
+      throw new AppError("Select an AI provider for the workspace default model.", "VALIDATION_FAILED", {
+        field: "providerKey",
+      });
+    }
+
+    if (!modelId.trim()) {
+      throw new AppError("Select a model for the workspace default AI provider.", "VALIDATION_FAILED", {
+        field: "modelId",
+      });
+    }
+
+    const provider = services.repos.providerAccounts.find(providerKey);
+    if (!provider || provider.category !== "ai") {
+      throw new AppError("Workspace default AI model must use an existing AI provider account.", "PROVIDER_NOT_CONFIGURED", {
+        field: "providerKey",
+        providerKey,
+      });
+    }
+
+    if (!provider.isConfigured) {
+      throw new AppError("Connect this AI provider in Accounts before setting it as the workspace default.", "PROVIDER_NOT_CONFIGURED", {
+        field: "providerKey",
+        providerKey,
+      });
+    }
+
     services.repos.workspacePreferences.update({ defaultModelProviderKey: providerKey, defaultModelModelId: modelId });
     return { savedAt: new Date().toISOString() };
   });

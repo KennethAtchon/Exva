@@ -83,6 +83,44 @@ describe("session onboarding integration", () => {
     expect(harness.routing.resolveBrokerAccountId(sessionId, "stock")).toBe("paper-broker");
   });
 
+  it("starts a new session from the workspace default AI model without visiting Strategy", async () => {
+    const harness = createHarness(db);
+    harness.insertBroker({
+      id: "paper-broker",
+      name: "Paper Mock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+    harness.configureWorkspaceDefaultAiModel({
+      providerId: "provider-openrouter",
+      providerType: "openrouter",
+      providerName: "OpenRouter",
+      modelId: "google/gemma-4-31b-it",
+    });
+
+    const { id: sessionId } = harness.sessionWrites.create({
+      name: "Workspace Default Session",
+      objective: "Trade NVDA using workspace defaults",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "NVDA",
+      selectorSettings: { aiPickerEnabled: false },
+      capitalLimitUsd: 5000,
+      executionMode: "paper_only",
+      brokerAccountIds: ["paper-broker"],
+      brokerOverridesByInstrumentClass: { stock: "paper-broker" },
+    });
+
+    const roles = harness.sessionAiRoles.listBySession(sessionId);
+    expect(roles).toHaveLength(5);
+    expect(roles.every((role) => role.providerKey === "provider-openrouter")).toBe(true);
+    expect(roles.every((role) => role.modelId === "google/gemma-4-31b-it")).toBe(true);
+
+    await expect(harness.session.start(sessionId)).resolves.toBe("active");
+    expect(harness.startedSessions).toEqual([sessionId]);
+  });
+
   it("starts a live-allowed session with a live broker account", async () => {
     const harness = createHarness(db);
     harness.insertBroker({
@@ -220,6 +258,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     events,
     routing,
     runtimeManager,
+    sessionAiRoles,
     session: new SessionService({
       sessionRepo: sessions,
       eventsRepo: events,
@@ -246,6 +285,26 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
         secretRef: "provider:provider-anthropic",
         metadataJson: null,
         isConfigured: true,
+      });
+    },
+    configureWorkspaceDefaultAiModel(input: {
+      providerId: string;
+      providerName: string;
+      providerType: "anthropic" | "openai" | "openrouter";
+      modelId: string;
+    }) {
+      providerAccounts.upsert({
+        id: input.providerId,
+        name: input.providerName,
+        category: "ai",
+        providerType: input.providerType,
+        secretRef: `provider:${input.providerId}`,
+        metadataJson: null,
+        isConfigured: true,
+      });
+      workspacePreferences.update({
+        defaultModelProviderKey: input.providerId,
+        defaultModelModelId: input.modelId,
       });
     },
     insertBroker(input: {
