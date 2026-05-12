@@ -1,85 +1,9 @@
-import { useId, useState } from "react";
-import { ChevronsUpDown, Check } from "lucide-react";
-import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
-import {
-  Button, Toggle,
-  Popover, PopoverContent, PopoverTrigger,
-  Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
-} from "@/components/ui";
-import { cn } from "@/lib/utils";
+import { Card, SectionTitle } from "@/components/custom-ui";
+import { Button, Toggle } from "@/components/ui";
 import { PromptEditor } from "./PromptEditor";
+import { ProviderModelPicker } from "./ProviderModelPicker";
 import type { AgentRole, ProviderAccount, SessionAiRole, SelectionMode } from "@/lib/types";
 import type { ProviderModelEntry } from "@/lib/exva";
-
-const ModelCombobox = ({
-  value,
-  onChange,
-  options,
-  disabled,
-  loading,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: ProviderModelEntry[];
-  disabled?: boolean;
-  loading?: boolean;
-}) => {
-  const [open, setOpen] = useState(false);
-  const listId = useId();
-  const selected = options.find((o) => o.id === value);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          aria-controls={listId}
-          aria-haspopup="listbox"
-          disabled={disabled || loading}
-          className="h-10 w-full justify-between border-border bg-[var(--surface2)] px-3 text-[13px] font-normal text-[var(--text1)] hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
-        >
-          <span className={cn("truncate", !value && "text-[var(--text3)]")}>
-            {loading ? "Loading models…" : selected ? selected.label : value || "Select a model"}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-        <Command>
-          <CommandInput placeholder="Search models…" />
-          <CommandList id={listId}>
-            <CommandEmpty className="px-3 py-3 text-[12px] text-[var(--text3)]">
-              No models found.
-            </CommandEmpty>
-            <CommandGroup>
-              {options.map((o) => (
-                <CommandItem
-                  key={o.id}
-                  value={`${o.label} ${o.id}`}
-                  onSelect={() => {
-                    onChange(o.id);
-                    setOpen(false);
-                  }}
-                  className="gap-2"
-                >
-                  <Check className={cn("h-4 w-4 shrink-0", o.id === value ? "opacity-100" : "opacity-0")} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[12px]">{o.label}</div>
-                    {o.label !== o.id && (
-                      <div className="truncate font-mono text-[10px] text-[var(--text3)]">{o.id}</div>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-};
 
 const ROLE_LABELS: Record<AgentRole, string> = {
   analyst_technical: "Technical Analyst",
@@ -205,34 +129,17 @@ export const AiRoleConfigCard = ({
       )}
 
       <div style={{ display: "grid", gap: 14 }}>
-        <div style={rowStyle}>
-          <div style={labelStyle}>Provider</div>
-          <ShadcnSelect
-            value={role.providerKey}
-            onValueChange={(value) => void onRoleChange({ providerKey: value })}
+        <div>
+          <ProviderModelPicker
+            providers={providerOptions}
+            providerKey={role.providerKey}
+            modelId={role.modelId}
+            models={models}
+            modelsLoading={modelsLoading}
             disabled={disabled || selectorTabLocked}
-            options={[
-              { value: "", label: "Select provider" },
-              ...providerOptions.map((provider) => ({ value: provider.id, label: provider.name })),
-            ]}
+            onProviderChange={(value) => void onRoleChange({ providerKey: value })}
+            onModelChange={(value) => void onRoleChange({ modelId: value })}
           />
-        </div>
-
-        <div style={rowStyle}>
-          <div style={labelStyle}>Model</div>
-          {!selectedProvider ? (
-            <div style={{ ...inputStyle, color: "var(--text3)", fontStyle: "italic" }}>
-              Not set — connect a provider first
-            </div>
-          ) : (
-            <ModelCombobox
-              value={role.modelId}
-              onChange={(value) => void onRoleChange({ modelId: value })}
-              options={models}
-              disabled={disabled || selectorTabLocked || !role.providerKey}
-              loading={modelsLoading}
-            />
-          )}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
             <Button
               type="button"

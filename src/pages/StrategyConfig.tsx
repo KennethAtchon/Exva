@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Card, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
-import { Switch } from "@/components/ui";
+import { Switch, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiRoleConfigCard } from "@/components/strategy/AiRoleConfigCard";
 import { AiRoleProfileCard } from "@/components/strategy/AiRoleProfileCard";
@@ -28,6 +28,12 @@ import {
   RESEARCH_EVIDENCE_MODES,
   RESEARCH_FUNDAMENTAL_STRICTNESS,
   RESEARCH_POSTURE_PRESETS,
+  type SessionResearchPosture,
+  type SessionTradeRules,
+  type SessionRiskConfig,
+  type SessionTimeframeConfig,
+  type ResearchPosturePreset,
+  type TradeRulesPreset,
 } from "../../electron/shared/domain";
 import { GLOBAL_STRATEGY_PRESETS } from "../../electron/shared/presets";
 import type { GlobalStrategyPreset } from "../../electron/shared/presets";
@@ -39,6 +45,17 @@ const ROLE_ORDER = [
   "decision_maker",
   "instrument_selector",
 ] as const;
+
+const TABS = [
+  ["style", "Style"],
+  ["rules", "Rules"],
+  ["risk", "Risk"],
+  ["timeframe", "Timeframe"],
+  ["role_profiles", "Role profiles"],
+  ["ai_roles", "AI Roles"],
+];
+
+type SectionId = "style" | "rules" | "risk" | "timeframe" | "role_profiles" | "ai_roles";
 
 export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void }) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
@@ -82,7 +99,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const setActiveTab = useStrategyStore((state) => state.setActiveTab);
   const setActiveSection = useStrategyStore((state) => state.setActiveSection);
 
-  const [customizeExpanded, setCustomizeExpanded] = useState(false);
+  const [activeView, setActiveView] = useState<"presets" | "customize">("presets");
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingPreset, setEditingPreset] = useState<UserGlobalPresetInput & { id: string } | null>(null);
 
@@ -90,6 +107,24 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
     if (viewMode !== "session" || !focusedSessionId) return;
     void loadStrategy(focusedSessionId);
   }, [focusedSessionId, loadStrategy, viewMode]);
+
+  const isLocked = pageState === "locked";
+  const hasDirty = dirtyFields.size > 0;
+
+  // Auto-save: fires 1.5s after the last change
+  const saveAllRef = useRef(saveAll);
+  saveAllRef.current = saveAll;
+  const focusedSessionIdRef = useRef(focusedSessionId);
+  focusedSessionIdRef.current = focusedSessionId;
+  useEffect(() => {
+    if (!hasDirty || isSaving || isLocked || !focusedSessionId) return;
+    const t = setTimeout(() => {
+      if (focusedSessionIdRef.current) void saveAllRef.current(focusedSessionIdRef.current);
+    }, 1500);
+    return () => clearTimeout(t);
+  // dirtyFields ref changes every update → correct debounce reset
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirtyFields, isSaving, isLocked, focusedSessionId]);
 
   const currentRole = aiRoles[activeRoleTab];
 
@@ -125,8 +160,6 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
     return <PageShell><div style={{ color: "var(--text3)" }}>Loading strategy...</div></PageShell>;
   }
 
-  const isLocked = pageState === "locked";
-  const hasDirty = dirtyFields.size > 0;
   const stylePreview = buildResearchPostureMarkdown(researchPosture);
   const rulesPreview = buildTradeRulesMarkdown(rules);
   const selectedStylePreset = RESEARCH_POSTURE_PRESETS.find((preset) => preset.id === researchPosture.posturePresetId) ?? RESEARCH_POSTURE_PRESETS[RESEARCH_POSTURE_PRESETS.length - 1];
@@ -187,452 +220,210 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
             Separate research posture, trade rules, risk limits, timeframe, per-role operating briefs, and AI role models/prompts for the focused session.
           </p>
         </div>
-        <button
-          onClick={() => void saveAll(focusedSessionId)}
-          disabled={!hasDirty || isSaving || isLocked}
-          style={{
-            padding: "9px 18px",
-            borderRadius: 9,
-            border: "none",
-            background: !hasDirty || isLocked ? "var(--surface3)" : "var(--accent)",
-            color: !hasDirty || isLocked ? "var(--text3)" : "#fff",
-            cursor: !hasDirty || isLocked ? "not-allowed" : "pointer",
-            fontWeight: 700,
-          }}
-        >
-          {isSaving ? "Saving..." : "Save Changes"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={viewToggleContainerStyle}>
+            <button
+              type="button"
+              onClick={() => setActiveView("presets")}
+              style={activeView === "presets" ? viewToggleActiveStyle : viewToggleInactiveStyle}
+            >
+              Presets
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveView("customize")}
+              style={activeView === "customize" ? viewToggleActiveStyle : viewToggleInactiveStyle}
+            >
+              Customize
+            </button>
+          </div>
+          <button
+            onClick={() => void saveAll(focusedSessionId)}
+            disabled={!hasDirty || isSaving || isLocked}
+            style={{
+              padding: "9px 18px",
+              borderRadius: 9,
+              border: "none",
+              background: !hasDirty || isLocked ? "var(--surface3)" : "var(--accent)",
+              color: !hasDirty || isLocked ? "var(--text3)" : "#fff",
+              cursor: !hasDirty || isLocked ? "not-allowed" : "pointer",
+              fontWeight: 700,
+            }}
+          >
+            {isSaving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
       </div>
 
-      <GlobalPresetGrid
-        builtInPresets={GLOBAL_STRATEGY_PRESETS as GlobalStrategyPreset[]}
-        userPresets={globalPresets}
-        currentPosturePresetId={researchPosture.posturePresetId}
-        currentRulesPresetId={rules.rulesPresetId}
-        currentRiskPresetId={riskConfig.riskPresetId ?? "custom"}
-        currentTimeframePresetId={timeframe.timeframePresetId ?? "custom"}
-        disabled={isLocked}
-        expanded={customizeExpanded}
-        onToggleExpand={() => setCustomizeExpanded((v) => !v)}
-        onApply={(preset) => applyGlobalPreset(preset)}
-        onCreatePreset={() => setCreateModalOpen(true)}
-        onEditPreset={(p) => {
-          const j = JSON.parse(p.presetJson) as Partial<UserGlobalPresetInput>;
-          setEditingPreset({
-            id: p.id,
-            name: p.name,
-            posturePresetId: j.posturePresetId ?? "custom",
-            rulesPresetId: j.rulesPresetId ?? "custom",
-            riskPresetId: j.riskPresetId ?? "custom",
-            timeframePresetId: j.timeframePresetId ?? "custom",
-          });
-        }}
-        onDeletePreset={async (id) => {
-          if (!window.confirm("Delete this preset?")) return;
-          await api.deleteGlobalPreset({ id });
-          await loadGlobalPresets();
-        }}
-      />
-
-      {customizeExpanded && (
-        <div style={tabRowStyle}>
-          {[
-            ["style", "Style"],
-            ["rules", "Rules"],
-            ["risk", "Risk"],
-            ["timeframe", "Timeframe"],
-            ["role_profiles", "Role profiles"],
-            ["ai_roles", "AI Roles"],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() =>
-                setActiveSection(value as "style" | "rules" | "risk" | "timeframe" | "role_profiles" | "ai_roles")
-              }
-              style={activeSection === value ? activeTabStyle : inactiveTabStyle}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      {activeView === "presets" && (
+        <GlobalPresetGrid
+          builtInPresets={GLOBAL_STRATEGY_PRESETS as GlobalStrategyPreset[]}
+          userPresets={globalPresets}
+          currentPosturePresetId={researchPosture.posturePresetId}
+          currentRulesPresetId={rules.rulesPresetId}
+          currentRiskPresetId={riskConfig.riskPresetId ?? "custom"}
+          currentTimeframePresetId={timeframe.timeframePresetId ?? "custom"}
+          disabled={isLocked}
+          onApply={(preset) => applyGlobalPreset(preset)}
+          onCreatePreset={() => setCreateModalOpen(true)}
+          onEditPreset={(p) => {
+            const j = JSON.parse(p.presetJson) as Partial<UserGlobalPresetInput>;
+            setEditingPreset({
+              id: p.id,
+              name: p.name,
+              posturePresetId: j.posturePresetId ?? "custom",
+              rulesPresetId: j.rulesPresetId ?? "custom",
+              riskPresetId: j.riskPresetId ?? "custom",
+              timeframePresetId: j.timeframePresetId ?? "custom",
+            });
+          }}
+          onDeletePreset={async (id) => {
+            if (!window.confirm("Delete this preset?")) return;
+            await api.deleteGlobalPreset({ id });
+            await loadGlobalPresets();
+          }}
+        />
       )}
 
-      <div style={{ display: customizeExpanded ? "grid" : "none", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {activeSection === "style" && (
-            <>
-              <Card>
-                <SectionTitle>Research posture</SectionTitle>
-                <div style={formGridStyle}>
-                  <Field label="Posture preset">
-                    <ShadcnSelect
-                      value={researchPosture.posturePresetId}
-                      onValueChange={(value) => {
-                        const preset = RESEARCH_POSTURE_PRESETS.find((entry) => entry.id === value);
-                        if (!preset) return;
-                        updateResearchPosture(preset.posture);
-                      }}
-                      disabled={isLocked}
-                      options={RESEARCH_POSTURE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
-                    />
-                  </Field>
-                  <Field label="Discovery mode">
-                    <ShadcnSelect
-                      value={researchPosture.discoveryMode}
-                      onValueChange={(value) => updateResearchPosture({ discoveryMode: value as typeof researchPosture.discoveryMode })}
-                      disabled={isLocked}
-                      options={RESEARCH_DISCOVERY_MODES.map((value) => ({ value, label: labelize(value) }))}
-                    />
-                  </Field>
-                  <Field label="Evidence mode">
-                    <ShadcnSelect
-                      value={researchPosture.evidenceMode}
-                      onValueChange={(value) => updateResearchPosture({ evidenceMode: value as typeof researchPosture.evidenceMode })}
-                      disabled={isLocked}
-                      options={RESEARCH_EVIDENCE_MODES.map((value) => ({ value, label: labelize(value) }))}
-                    />
-                  </Field>
-                  <Field label="Catalyst posture">
-                    <ShadcnSelect
-                      value={researchPosture.catalystMode}
-                      onValueChange={(value) => updateResearchPosture({ catalystMode: value as typeof researchPosture.catalystMode })}
-                      disabled={isLocked}
-                      options={RESEARCH_CATALYST_MODES.map((value) => ({ value, label: labelize(value) }))}
-                    />
-                  </Field>
-                  <Field label="Fundamental strictness">
-                    <ShadcnSelect
-                      value={researchPosture.fundamentalStrictness}
-                      onValueChange={(value) =>
-                        updateResearchPosture({ fundamentalStrictness: value as typeof researchPosture.fundamentalStrictness })
-                      }
-                      disabled={isLocked}
-                      options={RESEARCH_FUNDAMENTAL_STRICTNESS.map((value) => ({ value, label: labelize(value) }))}
-                    />
-                  </Field>
-                  <Field label="Posture notes">
-                    <textarea
-                      value={researchPosture.postureNotes}
-                      onChange={(event) => updateResearchPosture({ postureNotes: event.target.value })}
-                      disabled={isLocked}
-                      rows={6}
-                      placeholder="Describe the edge, posture, and evidence stack this session should favor."
-                      style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
-                    />
-                  </Field>
-                </div>
-              </Card>
+      {activeView === "customize" && (
+        <Tabs value={activeSection} onValueChange={(v) => setActiveSection(v as SectionId)}>
+          <TabsList>
+            {TABS.map(([value, label]) => (
+              <TabsTrigger key={value} value={value}>
+                {label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginTop: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {TABS.map(([value]) => (
+                <TabsContent key={value} value={value}>
+                  {value === "style" && (
+                    <StyleSection
+                      researchPosture={researchPosture}
+                      isLocked={isLocked}
+                      updateResearchPosture={updateResearchPosture}
+                      selectedStylePreset={selectedStylePreset}
+                      stylePreview={stylePreview}
+                    />
+                  )}
+                  {value === "rules" && (
+                    <RulesSection
+                      rules={rules}
+                      isLocked={isLocked}
+                      updateRules={updateRules}
+                      selectedRulesPreset={selectedRulesPreset}
+                      rulesPreview={rulesPreview}
+                    />
+                  )}
+                  {value === "risk" && (
+                    <RiskSection
+                      riskConfig={riskConfig}
+                      isLocked={isLocked}
+                      updateRiskConfig={updateRiskConfig}
+                    />
+                  )}
+                  {value === "timeframe" && (
+                    <TimeframeSection
+                      timeframe={timeframe}
+                      isLocked={isLocked}
+                      updateTimeframe={updateTimeframe}
+                    />
+                  )}
+                  {value === "role_profiles" && (
+                    <AiRoleProfileCard
+                      activeRole={activeRoleTab}
+                      profiles={aiRoleProfiles}
+                      selectionMode={selectionMode}
+                      aiPickerEnabled={selectorSettings?.aiPickerEnabled ?? true}
+                      disabled={isLocked}
+                      onTabChange={setActiveTab}
+                      onPatch={(role, patch) => updateAiRoleProfile(role, patch)}
+                    />
+                  )}
+                  {value === "ai_roles" && (
+                    <AiRoleConfigCard
+                      activeRole={activeRoleTab}
+                      roles={aiRoles}
+                      role={currentRole}
+                      providers={providers}
+                      models={providerModels[currentRole.providerKey] ?? []}
+                      selectionMode={selectionMode}
+                      aiPickerEnabled={selectorSettings?.aiPickerEnabled ?? true}
+                      disabled={isLocked}
+                      errors={roleErrors[activeRoleTab]}
+                      roleErrors={roleErrors}
+                      onTabChange={setActiveTab}
+                      onRoleChange={async (patch) => {
+                        if (patch.promptSource === "default" && currentRole.promptSource === "session_override") {
+                          const confirmed = window.confirm("Discard your custom prompt for this role?");
+                          if (!confirmed) return;
+                          await resetRole(currentRole.role);
+                          return;
+                        }
+                        await updateRole(currentRole.role, patch);
+                      }}
+                      onApplyModelConfigToOtherRoles={async () => {
+                        const roleLabel = currentRole.role.replaceAll("_", " ");
+                        const confirmed = window.confirm(
+                          `Apply ${roleLabel} model settings to the other roles?\n\nThis copies provider, model, temperature, and max tokens.`,
+                        );
+                        if (!confirmed) return;
+
+                        const patch = {
+                          providerKey: currentRole.providerKey,
+                          modelId: currentRole.modelId,
+                          temperature: currentRole.temperature,
+                          maxTokens: currentRole.maxTokens,
+                        };
+
+                        for (const role of ROLE_ORDER) {
+                          if (role === currentRole.role) continue;
+                          if (
+                            role === "instrument_selector" &&
+                            (selectionMode === "manual_shortlist" ||
+                              (selectionMode === "ai_selected_universe" && selectorSettings?.aiPickerEnabled === false))
+                          ) {
+                            continue;
+                          }
+                          await updateRole(role, patch);
+                        }
+                      }}
+                      onResetPrompt={async () => {
+                        const confirmed = window.confirm("Discard your custom prompt for this role?");
+                        if (!confirmed) return;
+                        await resetRole(currentRole.role);
+                      }}
+                    />
+                  )}
+                </TabsContent>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <CostSummaryCard riskConfig={riskConfig} roleProviders={roleProviderSummary} />
               <Card>
-                <SectionTitle>Selected Style Summary</SectionTitle>
+                <SectionTitle>Prompt assets</SectionTitle>
                 <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
-                  Keep style high-level here: what edge you want the AI to pursue and what evidence posture it should adopt.
+                  Bundled Markdown for the active role tab. When <strong>prompt source</strong> is Default, the editor shows this file.
                 </p>
-                <PresetSummaryCard presetLabel={selectedStylePreset.label} thesis={selectedStylePreset.thesis} bullets={selectedStylePreset.summaryBullets} />
-              </Card>
-
-              <Card>
-                <SectionTitle>Live Style Guidance</SectionTitle>
-                <pre style={briefStyle}>{stylePreview}</pre>
-              </Card>
-            </>
-          )}
-
-          {activeSection === "rules" && (
-            <>
-              <Card>
-                <SectionTitle>Trade Rules</SectionTitle>
-                <div style={formGridStyle}>
-                  <Field label="Rules preset">
-                    <ShadcnSelect
-                      value={rules.rulesPresetId}
-                      onValueChange={(value) => {
-                        const preset = TRADE_RULE_PRESETS.find((entry) => entry.id === value);
-                        if (!preset) return;
-                        updateRules(preset.rules);
-                      }}
-                      disabled={isLocked}
-                      options={TRADE_RULE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
-                    />
-                  </Field>
-                  <Field label="Setup type">
-                    <ShadcnSelect
-                      value={rules.setupType}
-                      onValueChange={(value) => updateRules({ setupType: value as typeof rules.setupType })}
-                      disabled={isLocked}
-                      options={SETUP_TYPES.map((value) => ({ value, label: labelize(value) }))}
-                    />
-                  </Field>
-                  <Field label="Side bias">
-                    <ShadcnSelect
-                      value={rules.sideBias}
-                      onValueChange={(value) => updateRules({ sideBias: value as typeof rules.sideBias })}
-                      disabled={isLocked}
-                      options={STRATEGY_SIDE_BIASES.map((value) => ({ value, label: labelize(value) }))}
-                    />
-                  </Field>
-                  <Field label="Entry style">
-                    <ShadcnSelect
-                      value={rules.entryStyle}
-                      onValueChange={(value) => updateRules({ entryStyle: value as typeof rules.entryStyle })}
-                      disabled={isLocked}
-                      options={STRATEGY_ENTRY_STYLES.map((value) => ({ value, label: labelize(value) }))}
-                    />
-                  </Field>
-                  <Field label="Exit style">
-                    <ShadcnSelect
-                      value={rules.exitStyle}
-                      onValueChange={(value) => updateRules({ exitStyle: value as typeof rules.exitStyle })}
-                      disabled={isLocked}
-                      options={STRATEGY_EXIT_STYLES.map((value) => ({ value, label: labelize(value) }))}
-                    />
-                  </Field>
-                  <Field label="Scaling mode">
-                    <ShadcnSelect
-                      value={rules.scalingMode}
-                      onValueChange={(value) => updateRules({ scalingMode: value as typeof rules.scalingMode })}
-                      disabled={isLocked}
-                      options={STRATEGY_SCALING_MODES.map((value) => ({ value, label: labelize(value) }))}
-                    />
-                  </Field>
-                  <Field label="Rule notes">
-                    <textarea
-                      value={rules.ruleNotes}
-                      onChange={(event) => updateRules({ ruleNotes: event.target.value })}
-                      disabled={isLocked}
-                      rows={6}
-                      placeholder="Add setup-specific filters, invalidation rules, liquidity constraints, or execution reminders."
-                      style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
-                    />
-                  </Field>
-                </div>
-              </Card>
-
-              <Card>
-                <SectionTitle>Selected Rules Summary</SectionTitle>
-                <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
-                  Rules define how trades are structured after the style identifies the kind of edge to pursue.
-                </p>
-                <PresetSummaryCard presetLabel={selectedRulesPreset.label} thesis={selectedRulesPreset.thesis} bullets={selectedRulesPreset.summaryBullets} />
-              </Card>
-
-              <Card>
-                <SectionTitle>Live Rules Markdown</SectionTitle>
-                <pre style={briefStyle}>{rulesPreview}</pre>
-              </Card>
-            </>
-          )}
-
-          {activeSection === "risk" && (
-            <Card>
-              <SectionTitle>Risk Controls</SectionTitle>
-              <div style={formGridStyle}>
-                <Field label="Risk preset">
-                  <ShadcnSelect
-                    value={riskConfig.riskPresetId ?? "custom"}
-                    onValueChange={(value) => {
-                      const preset = RISK_PRESETS.find((p) => p.id === value);
-                      if (!preset) return;
-                      updateRiskConfig({ riskPresetId: preset.id, ...preset.values });
-                    }}
-                    disabled={isLocked}
-                    options={RISK_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
-                  />
-                </Field>
-                <Field label="Max position USD">
-                  <input type="number" value={riskConfig.maxPositionUsd} onChange={(event) => updateRiskConfig({ maxPositionUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Max concurrent trades">
-                  <input type="number" value={riskConfig.maxConcurrentTrades} onChange={(event) => updateRiskConfig({ maxConcurrentTrades: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Stop loss type">
-                  <ShadcnSelect
-                    value={riskConfig.stopLossType}
-                    onValueChange={(value) => updateRiskConfig({ stopLossType: value as typeof riskConfig.stopLossType })}
-                    disabled={isLocked}
-                    options={STOP_LOSS_TYPES.map((value) => ({ value, label: labelize(value) }))}
-                  />
-                </Field>
-                <Field label="Stop loss %">
-                  <input type="number" step="0.1" value={riskConfig.stopLossPct ?? ""} onChange={(event) => updateRiskConfig({ stopLossPct: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Take profit %">
-                  <input type="number" step="0.1" value={riskConfig.takeProfitPct ?? ""} onChange={(event) => updateRiskConfig({ takeProfitPct: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="ATR stop multiplier">
-                  <input type="number" step="0.1" value={riskConfig.atrStopMultiplier ?? ""} onChange={(event) => updateRiskConfig({ atrStopMultiplier: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Kelly fraction">
-                  <input type="number" step="0.05" value={riskConfig.kellyFraction} onChange={(event) => updateRiskConfig({ kellyFraction: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Prediction edge threshold">
-                  <input type="number" step="0.01" value={riskConfig.predictionEdgeThreshold} onChange={(event) => updateRiskConfig({ predictionEdgeThreshold: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Max exposure USD">
-                  <input type="number" value={riskConfig.maxExposureUsd ?? ""} onChange={(event) => updateRiskConfig({ maxExposureUsd: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Wait-for-open threshold">
-                  <input type="number" step="0.01" value={riskConfig.waitForOpenThreshold} onChange={(event) => updateRiskConfig({ waitForOpenThreshold: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Daily loss limit USD">
-                  <input type="number" value={riskConfig.dailyLossLimitUsd} onChange={(event) => updateRiskConfig({ dailyLossLimitUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Profit target USD">
-                  <input type="number" value={riskConfig.profitTargetUsd} onChange={(event) => updateRiskConfig({ profitTargetUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <Field label="Max AI spend USD / day">
-                  <input type="number" step="0.5" value={riskConfig.maxAiSpendUsd} onChange={(event) => updateRiskConfig({ maxAiSpendUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
-                </Field>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 13 }}>
-                  <Switch
-                    checked={riskConfig.humanApprovalRequired}
-                    onCheckedChange={(checked) => updateRiskConfig({ humanApprovalRequired: checked })}
-                    disabled={isLocked}
-                  />
-                  Human Approval Required
-                </label>
-              </div>
-            </Card>
-          )}
-
-          {activeSection === "timeframe" && (
-            <>
-              <Card>
-                <SectionTitle>Timeframe Preset</SectionTitle>
-                <div style={formGridStyle}>
-                  <Field label="Timeframe preset">
-                    <ShadcnSelect
-                      value={timeframe.timeframePresetId ?? "custom"}
-                      onValueChange={(value) => {
-                        const preset = TIMEFRAME_PRESETS.find((p) => p.id === value);
-                        if (!preset) return;
-                        updateTimeframe({ timeframePresetId: preset.id, ...preset.values });
-                      }}
-                      disabled={isLocked}
-                      options={TIMEFRAME_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
-                    />
-                  </Field>
-                </div>
-              </Card>
-              <TimeframeHorizonCard timeframe={timeframe} disabled={isLocked} onChange={updateTimeframe} />
-            </>
-          )}
-
-          {activeSection === "role_profiles" && (
-            <AiRoleProfileCard
-              activeRole={activeRoleTab}
-              profiles={aiRoleProfiles}
-              selectionMode={selectionMode}
-              aiPickerEnabled={selectorSettings?.aiPickerEnabled ?? true}
-              disabled={isLocked}
-              onTabChange={setActiveTab}
-              onPatch={(role, patch) => updateAiRoleProfile(role, patch)}
-            />
-          )}
-
-          {activeSection === "ai_roles" && workspaceDefaultModelProviderKey && workspaceDefaultModelModelId && (
-            <Card>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text1)" }}>Workspace default model</div>
-                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
-                    {workspaceDefaultModelProviderKey} / {workspaceDefaultModelModelId}
+                <div style={{ marginTop: 14, fontSize: 12, color: "var(--text2)" }}>
+                  <div style={{ color: "var(--text3)", fontSize: 11, marginBottom: 4 }}>Bundled file path</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, wordBreak: "break-all" }}>
+                    {currentRole.promptAssetPath ?? "-"}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  disabled={isLocked}
-                  onClick={() => applyWorkspaceDefaultToAllRoles()}
-                  style={{
-                    padding: "7px 13px", borderRadius: 8, border: "1px solid var(--border)",
-                    background: "var(--surface3)", color: "var(--text2)", fontSize: 12,
-                    cursor: isLocked ? "not-allowed" : "pointer", whiteSpace: "nowrap",
-                  }}
-                >
-                  Apply to all roles
-                </button>
-              </div>
-            </Card>
-          )}
-
-          {activeSection === "ai_roles" && (
-            <AiRoleConfigCard
-              activeRole={activeRoleTab}
-              roles={aiRoles}
-              role={currentRole}
-              providers={providers}
-              models={providerModels[currentRole.providerKey] ?? []}
-              selectionMode={selectionMode}
-              aiPickerEnabled={selectorSettings?.aiPickerEnabled ?? true}
-              disabled={isLocked}
-              errors={roleErrors[activeRoleTab]}
-              roleErrors={roleErrors}
-              onTabChange={setActiveTab}
-              onRoleChange={async (patch) => {
-                if (patch.promptSource === "default" && currentRole.promptSource === "session_override") {
-                  const confirmed = window.confirm("Discard your custom prompt for this role?");
-                  if (!confirmed) return;
-                  await resetRole(currentRole.role);
-                  return;
-                }
-                await updateRole(currentRole.role, patch);
-              }}
-              onApplyModelConfigToOtherRoles={async () => {
-                const roleLabel = currentRole.role.replaceAll("_", " ");
-                const confirmed = window.confirm(
-                  `Apply ${roleLabel} model settings to the other roles?\n\nThis copies provider, model, temperature, and max tokens.`,
-                );
-                if (!confirmed) return;
-
-                const patch = {
-                  providerKey: currentRole.providerKey,
-                  modelId: currentRole.modelId,
-                  temperature: currentRole.temperature,
-                  maxTokens: currentRole.maxTokens,
-                };
-
-                for (const role of ROLE_ORDER) {
-                  if (role === currentRole.role) continue;
-                  if (
-                    role === "instrument_selector" &&
-                    (selectionMode === "manual_shortlist" ||
-                      (selectionMode === "ai_selected_universe" && selectorSettings?.aiPickerEnabled === false))
-                  ) {
-                    continue;
-                  }
-                  await updateRole(role, patch);
-                }
-              }}
-              onResetPrompt={async () => {
-                const confirmed = window.confirm("Discard your custom prompt for this role?");
-                if (!confirmed) return;
-                await resetRole(currentRole.role);
-              }}
-            />
-          )}
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <CostSummaryCard riskConfig={riskConfig} roleProviders={roleProviderSummary} />
-
-          <Card>
-            <SectionTitle>Prompt assets</SectionTitle>
-            <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
-              Bundled Markdown for the active role tab. When <strong>prompt source</strong> is Default, the editor shows this file.
-            </p>
-            <div style={{ marginTop: 14, fontSize: 12, color: "var(--text2)" }}>
-              <div style={{ color: "var(--text3)", fontSize: 11, marginBottom: 4 }}>Bundled file path</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, wordBreak: "break-all" }}>
-                {currentRole.promptAssetPath ?? "-"}
-              </div>
+                <div style={{ marginTop: 12, fontSize: 12, color: "var(--text2)" }}>
+                  <div style={{ color: "var(--text3)", fontSize: 11, marginBottom: 4 }}>Header / version hint</div>
+                  <div>{promptHeaderSummary(currentRole.promptMarkdown)}</div>
+                </div>
+              </Card>
             </div>
-            <div style={{ marginTop: 12, fontSize: 12, color: "var(--text2)" }}>
-              <div style={{ color: "var(--text3)", fontSize: 11, marginBottom: 4 }}>Header / version hint</div>
-              <div>{promptHeaderSummary(currentRole.promptMarkdown)}</div>
-            </div>
-          </Card>
-        </div>
-      </div>
+          </div>
+        </Tabs>
+      )}
+
       <CreateEditGlobalPresetModal
         open={createModalOpen}
         onSave={async (input) => {
@@ -765,6 +556,9 @@ const goToSessionsButtonStyle = {
   color: "rgba(96,165,250,0.95)", fontSize: 13, fontWeight: 600, cursor: "pointer",
 } as const;
 
+const viewToggleContainerStyle = { display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden", background: "var(--surface2)" } as const;
+const viewToggleActiveStyle = { padding: "7px 16px", border: "none", background: "var(--surface3)", color: "var(--text1)", fontSize: 13, fontWeight: 600, cursor: "pointer" } as const;
+const viewToggleInactiveStyle = { padding: "7px 16px", border: "none", background: "transparent", color: "var(--text3)", fontSize: 13, fontWeight: 500, cursor: "pointer" } as const;
 const tabRowStyle = { display: "flex", gap: 10, flexWrap: "wrap" } as const;
 const activeTabStyle = { padding: "8px 12px", borderRadius: 999, border: "1px solid var(--accent)", background: "rgba(59,130,246,0.12)", color: "var(--text1)", cursor: "pointer" } as const;
 const inactiveTabStyle = { padding: "8px 12px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", cursor: "pointer" } as const;
@@ -777,3 +571,304 @@ const presetSummaryStyle = { display: "grid", gap: 12, marginTop: 14, padding: 1
 const presetBadgeStyle = { display: "inline-flex", width: "fit-content", padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(96,165,250,0.28)", background: "rgba(96,165,250,0.12)", color: "rgba(191,219,254,0.96)", fontSize: 11, fontWeight: 700, letterSpacing: 0.2 } as const;
 const presetThesisStyle = { color: "var(--text1)", fontSize: 13, lineHeight: 1.55, fontWeight: 600 } as const;
 const presetBulletStyle = { color: "var(--text3)", fontSize: 12, lineHeight: 1.5 } as const;
+
+// ─── Section components ───────────────────────────────────────────────────────
+
+const StyleSection = ({
+  researchPosture,
+  isLocked,
+  updateResearchPosture,
+  selectedStylePreset,
+  stylePreview,
+}: {
+  researchPosture: SessionResearchPosture;
+  isLocked: boolean;
+  updateResearchPosture: (patch: Partial<SessionResearchPosture>) => void;
+  selectedStylePreset: ResearchPosturePreset;
+  stylePreview: string;
+}) => (
+  <>
+    <Card>
+      <SectionTitle>Research posture</SectionTitle>
+      <div style={formGridStyle}>
+        <Field label="Posture preset">
+          <ShadcnSelect
+            value={researchPosture.posturePresetId}
+            onValueChange={(value) => {
+              const preset = RESEARCH_POSTURE_PRESETS.find((entry) => entry.id === value);
+              if (!preset) return;
+              updateResearchPosture(preset.posture);
+            }}
+            disabled={isLocked}
+            options={RESEARCH_POSTURE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
+          />
+        </Field>
+        <Field label="Discovery mode">
+          <ShadcnSelect
+            value={researchPosture.discoveryMode}
+            onValueChange={(value) => updateResearchPosture({ discoveryMode: value as typeof researchPosture.discoveryMode })}
+            disabled={isLocked}
+            options={RESEARCH_DISCOVERY_MODES.map((value) => ({ value, label: labelize(value) }))}
+          />
+        </Field>
+        <Field label="Evidence mode">
+          <ShadcnSelect
+            value={researchPosture.evidenceMode}
+            onValueChange={(value) => updateResearchPosture({ evidenceMode: value as typeof researchPosture.evidenceMode })}
+            disabled={isLocked}
+            options={RESEARCH_EVIDENCE_MODES.map((value) => ({ value, label: labelize(value) }))}
+          />
+        </Field>
+        <Field label="Catalyst posture">
+          <ShadcnSelect
+            value={researchPosture.catalystMode}
+            onValueChange={(value) => updateResearchPosture({ catalystMode: value as typeof researchPosture.catalystMode })}
+            disabled={isLocked}
+            options={RESEARCH_CATALYST_MODES.map((value) => ({ value, label: labelize(value) }))}
+          />
+        </Field>
+        <Field label="Fundamental strictness">
+          <ShadcnSelect
+            value={researchPosture.fundamentalStrictness}
+            onValueChange={(value) =>
+              updateResearchPosture({ fundamentalStrictness: value as typeof researchPosture.fundamentalStrictness })
+            }
+            disabled={isLocked}
+            options={RESEARCH_FUNDAMENTAL_STRICTNESS.map((value) => ({ value, label: labelize(value) }))}
+          />
+        </Field>
+        <Field label="Posture notes">
+          <textarea
+            value={researchPosture.postureNotes}
+            onChange={(event) => updateResearchPosture({ postureNotes: event.target.value })}
+            disabled={isLocked}
+            rows={6}
+            placeholder="Describe the edge, posture, and evidence stack this session should favor."
+            style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
+          />
+        </Field>
+      </div>
+    </Card>
+
+    <Card>
+      <SectionTitle>Selected Style Summary</SectionTitle>
+      <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
+        Keep style high-level here: what edge you want the AI to pursue and what evidence posture it should adopt.
+      </p>
+      <PresetSummaryCard presetLabel={selectedStylePreset.label} thesis={selectedStylePreset.thesis} bullets={selectedStylePreset.summaryBullets} />
+    </Card>
+
+    <Card>
+      <SectionTitle>Live Style Guidance</SectionTitle>
+      <pre style={briefStyle}>{stylePreview}</pre>
+    </Card>
+  </>
+);
+
+const RulesSection = ({
+  rules,
+  isLocked,
+  updateRules,
+  selectedRulesPreset,
+  rulesPreview,
+}: {
+  rules: SessionTradeRules;
+  isLocked: boolean;
+  updateRules: (patch: Partial<SessionTradeRules>) => void;
+  selectedRulesPreset: TradeRulesPreset;
+  rulesPreview: string;
+}) => (
+  <>
+    <Card>
+      <SectionTitle>Trade Rules</SectionTitle>
+      <div style={formGridStyle}>
+        <Field label="Rules preset">
+          <ShadcnSelect
+            value={rules.rulesPresetId}
+            onValueChange={(value) => {
+              const preset = TRADE_RULE_PRESETS.find((entry) => entry.id === value);
+              if (!preset) return;
+              updateRules(preset.rules);
+            }}
+            disabled={isLocked}
+            options={TRADE_RULE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
+          />
+        </Field>
+        <Field label="Setup type">
+          <ShadcnSelect
+            value={rules.setupType}
+            onValueChange={(value) => updateRules({ setupType: value as typeof rules.setupType })}
+            disabled={isLocked}
+            options={SETUP_TYPES.map((value) => ({ value, label: labelize(value) }))}
+          />
+        </Field>
+        <Field label="Side bias">
+          <ShadcnSelect
+            value={rules.sideBias}
+            onValueChange={(value) => updateRules({ sideBias: value as typeof rules.sideBias })}
+            disabled={isLocked}
+            options={STRATEGY_SIDE_BIASES.map((value) => ({ value, label: labelize(value) }))}
+          />
+        </Field>
+        <Field label="Entry style">
+          <ShadcnSelect
+            value={rules.entryStyle}
+            onValueChange={(value) => updateRules({ entryStyle: value as typeof rules.entryStyle })}
+            disabled={isLocked}
+            options={STRATEGY_ENTRY_STYLES.map((value) => ({ value, label: labelize(value) }))}
+          />
+        </Field>
+        <Field label="Exit style">
+          <ShadcnSelect
+            value={rules.exitStyle}
+            onValueChange={(value) => updateRules({ exitStyle: value as typeof rules.exitStyle })}
+            disabled={isLocked}
+            options={STRATEGY_EXIT_STYLES.map((value) => ({ value, label: labelize(value) }))}
+          />
+        </Field>
+        <Field label="Scaling mode">
+          <ShadcnSelect
+            value={rules.scalingMode}
+            onValueChange={(value) => updateRules({ scalingMode: value as typeof rules.scalingMode })}
+            disabled={isLocked}
+            options={STRATEGY_SCALING_MODES.map((value) => ({ value, label: labelize(value) }))}
+          />
+        </Field>
+        <Field label="Rule notes">
+          <textarea
+            value={rules.ruleNotes}
+            onChange={(event) => updateRules({ ruleNotes: event.target.value })}
+            disabled={isLocked}
+            rows={6}
+            placeholder="Add setup-specific filters, invalidation rules, liquidity constraints, or execution reminders."
+            style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
+          />
+        </Field>
+      </div>
+    </Card>
+
+    <Card>
+      <SectionTitle>Selected Rules Summary</SectionTitle>
+      <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
+        Rules define how trades are structured after the style identifies the kind of edge to pursue.
+      </p>
+      <PresetSummaryCard presetLabel={selectedRulesPreset.label} thesis={selectedRulesPreset.thesis} bullets={selectedRulesPreset.summaryBullets} />
+    </Card>
+
+    <Card>
+      <SectionTitle>Live Rules Markdown</SectionTitle>
+      <pre style={briefStyle}>{rulesPreview}</pre>
+    </Card>
+  </>
+);
+
+const RiskSection = ({
+  riskConfig,
+  isLocked,
+  updateRiskConfig,
+}: {
+  riskConfig: SessionRiskConfig;
+  isLocked: boolean;
+  updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
+}) => (
+  <Card>
+    <SectionTitle>Risk Controls</SectionTitle>
+    <div style={formGridStyle}>
+      <Field label="Risk preset">
+        <ShadcnSelect
+          value={riskConfig.riskPresetId ?? "custom"}
+          onValueChange={(value) => {
+            const preset = RISK_PRESETS.find((p) => p.id === value);
+            if (!preset) return;
+            updateRiskConfig({ riskPresetId: preset.id, ...preset.values });
+          }}
+          disabled={isLocked}
+          options={RISK_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+        />
+      </Field>
+      <Field label="Max position USD">
+        <input type="number" value={riskConfig.maxPositionUsd} onChange={(event) => updateRiskConfig({ maxPositionUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Max concurrent trades">
+        <input type="number" value={riskConfig.maxConcurrentTrades} onChange={(event) => updateRiskConfig({ maxConcurrentTrades: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Stop loss type">
+        <ShadcnSelect
+          value={riskConfig.stopLossType}
+          onValueChange={(value) => updateRiskConfig({ stopLossType: value as typeof riskConfig.stopLossType })}
+          disabled={isLocked}
+          options={STOP_LOSS_TYPES.map((value) => ({ value, label: labelize(value) }))}
+        />
+      </Field>
+      <Field label="Stop loss %">
+        <input type="number" step="0.1" value={riskConfig.stopLossPct ?? ""} onChange={(event) => updateRiskConfig({ stopLossPct: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Take profit %">
+        <input type="number" step="0.1" value={riskConfig.takeProfitPct ?? ""} onChange={(event) => updateRiskConfig({ takeProfitPct: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="ATR stop multiplier">
+        <input type="number" step="0.1" value={riskConfig.atrStopMultiplier ?? ""} onChange={(event) => updateRiskConfig({ atrStopMultiplier: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Kelly fraction">
+        <input type="number" step="0.05" value={riskConfig.kellyFraction} onChange={(event) => updateRiskConfig({ kellyFraction: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Prediction edge threshold">
+        <input type="number" step="0.01" value={riskConfig.predictionEdgeThreshold} onChange={(event) => updateRiskConfig({ predictionEdgeThreshold: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Max exposure USD">
+        <input type="number" value={riskConfig.maxExposureUsd ?? ""} onChange={(event) => updateRiskConfig({ maxExposureUsd: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Wait-for-open threshold">
+        <input type="number" step="0.01" value={riskConfig.waitForOpenThreshold} onChange={(event) => updateRiskConfig({ waitForOpenThreshold: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Daily loss limit USD">
+        <input type="number" value={riskConfig.dailyLossLimitUsd} onChange={(event) => updateRiskConfig({ dailyLossLimitUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Profit target USD">
+        <input type="number" value={riskConfig.profitTargetUsd} onChange={(event) => updateRiskConfig({ profitTargetUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <Field label="Max AI spend USD / day">
+        <input type="number" step="0.5" value={riskConfig.maxAiSpendUsd} onChange={(event) => updateRiskConfig({ maxAiSpendUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+      </Field>
+      <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 13 }}>
+        <Switch
+          checked={riskConfig.humanApprovalRequired}
+          onCheckedChange={(checked) => updateRiskConfig({ humanApprovalRequired: checked })}
+          disabled={isLocked}
+        />
+        Human Approval Required
+      </label>
+    </div>
+  </Card>
+);
+
+const TimeframeSection = ({
+  timeframe,
+  isLocked,
+  updateTimeframe,
+}: {
+  timeframe: SessionTimeframeConfig;
+  isLocked: boolean;
+  updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
+}) => (
+  <>
+    <Card>
+      <SectionTitle>Timeframe Preset</SectionTitle>
+      <div style={formGridStyle}>
+        <Field label="Timeframe preset">
+          <ShadcnSelect
+            value={timeframe.timeframePresetId ?? "custom"}
+            onValueChange={(value) => {
+              const preset = TIMEFRAME_PRESETS.find((p) => p.id === value);
+              if (!preset) return;
+              updateTimeframe({ timeframePresetId: preset.id, ...preset.values });
+            }}
+            disabled={isLocked}
+            options={TIMEFRAME_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+          />
+        </Field>
+      </div>
+    </Card>
+    <TimeframeHorizonCard timeframe={timeframe} disabled={isLocked} onChange={updateTimeframe} />
+  </>
+);

@@ -231,12 +231,10 @@ interface GlobalPresetGridProps {
   currentRiskPresetId: string;
   currentTimeframePresetId: string;
   disabled: boolean;
-  expanded: boolean;
   onApply: (preset: GlobalStrategyPreset) => void;
   onCreatePreset: () => void;
   onEditPreset: (preset: UserGlobalPresetRow) => void;
   onDeletePreset: (id: string) => void;
-  onToggleExpand: () => void;
 }
 
 export function GlobalPresetGrid({
@@ -247,12 +245,10 @@ export function GlobalPresetGrid({
   currentRiskPresetId,
   currentTimeframePresetId,
   disabled,
-  expanded,
   onApply,
   onCreatePreset,
   onEditPreset,
   onDeletePreset,
-  onToggleExpand,
 }: GlobalPresetGridProps) {
   const isApplied = (p: GlobalStrategyPreset) =>
     p.posturePresetId === currentPosturePresetId &&
@@ -315,36 +311,6 @@ export function GlobalPresetGrid({
         })}
       </div>
 
-      <button
-        type="button"
-        onClick={onToggleExpand}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          background: "none",
-          border: "none",
-          padding: "6px 2px",
-          cursor: "pointer",
-          color: "var(--text2)",
-          fontSize: 12,
-          fontWeight: 500,
-          width: "fit-content",
-        }}
-      >
-        <span
-          style={{
-            display: "inline-block",
-            transition: "transform 0.2s",
-            transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
-            fontSize: 10,
-            color: "var(--text3)",
-          }}
-        >
-          ▶
-        </span>
-        Customize individual sections
-      </button>
     </div>
   );
 }

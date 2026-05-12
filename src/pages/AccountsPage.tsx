@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { isBuiltInSearchProviderAccount, parseProviderMetadata } from "@electron/shared/search-providers";
 import { Badge, Card, Dot, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
+import { ProviderModelPicker } from "@/components/strategy/ProviderModelPicker";
 import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
 import { AddSearchProviderModal } from "@/components/accounts/AddSearchProviderModal";
 import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
-import { api } from "@/lib/exva";
+import { api, type ProviderModelEntry } from "@/lib/exva";
 import type { BrokerAccount, BrokerRoutingDefault, InstrumentClass, ProviderAccount, WorkspacePreferences } from "@/lib/types";
 
 function providerTypeLabel(providerType: string): string {
@@ -86,6 +87,11 @@ export const AccountsPage = () => {
   const [editBaseUrl, setEditBaseUrl] = useState("");
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
   const [routingDraft, setRoutingDraft] = useState<Partial<Record<InstrumentClass, string>>>({});
+  const [defaultModelProviderKey, setDefaultModelProviderKey] = useState("");
+  const [defaultModelModelId, setDefaultModelModelId] = useState("");
+  const [defaultModelModels, setDefaultModelModels] = useState<ProviderModelEntry[]>([]);
+  const [defaultModelModelsLoading, setDefaultModelModelsLoading] = useState(false);
+  const [savingDefaultModel, setSavingDefaultModel] = useState(false);
   const hasTestedSearchProvider = searchProviders.some((provider) => provider.lastTestStatus !== "unknown");
 
   const loadWorkspaceAccounts = async () => {
@@ -96,6 +102,13 @@ export const AccountsPage = () => {
     ]);
     setBrokers(b.brokers);
     setPrefs(view.preferences);
+    const provKey = view.preferences.defaultModelProviderKey ?? "";
+    const modId = view.preferences.defaultModelModelId ?? "";
+    setDefaultModelProviderKey(provKey);
+    setDefaultModelModelId(modId);
+    if (provKey) {
+      api.getStrategyProviderModels(provKey).then((r) => setDefaultModelModels(r.models)).catch(() => {});
+    }
     const draft: Partial<Record<InstrumentClass, string>> = {};
     for (const row of r.routing) {
       draft[row.instrumentClass] = row.defaultBrokerAccountId;
@@ -399,6 +412,69 @@ export const AccountsPage = () => {
             >
               + Add AI provider
             </button>
+          </Card>
+
+          <Card>
+          <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)" }}>Workspace default AI model</div>
+              <div style={{ fontSize: 11, color: "var(--text3)" }}>
+                Auto-fills all AI roles on new sessions. Set once here, never configure per-session.
+              </div>
+              <ProviderModelPicker
+                providers={aiProviders}
+                providerKey={defaultModelProviderKey}
+                modelId={defaultModelModelId}
+                models={defaultModelModels}
+                modelsLoading={defaultModelModelsLoading}
+                disabled={savingDefaultModel}
+                onProviderChange={async (v) => {
+                  setDefaultModelProviderKey(v);
+                  setDefaultModelModelId("");
+                  if (v) {
+                    setDefaultModelModelsLoading(true);
+                    try {
+                      const result = await api.getStrategyProviderModels(v);
+                      setDefaultModelModels(result.models);
+                    } finally {
+                      setDefaultModelModelsLoading(false);
+                    }
+                  } else {
+                    setDefaultModelModels([]);
+                  }
+                }}
+                onModelChange={(v) => setDefaultModelModelId(v)}
+              />
+              <button
+                type="button"
+                disabled={savingDefaultModel || (!defaultModelProviderKey && !prefs?.defaultModelProviderKey)}
+                onClick={async () => {
+                  setSavingDefaultModel(true);
+                  try {
+                    await api.saveWorkspaceDefaultModel({
+                      providerKey: defaultModelProviderKey,
+                      modelId: defaultModelModelId,
+                    });
+                    await loadWorkspaceAccounts();
+                  } finally {
+                    setSavingDefaultModel(false);
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 9,
+                  border: "none",
+                  background: "var(--accent)",
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: savingDefaultModel ? "not-allowed" : "pointer",
+                  opacity: savingDefaultModel ? 0.7 : 1,
+                }}
+              >
+                {savingDefaultModel ? "Saving..." : "Save default model"}
+              </button>
+            </div>
           </Card>
 
           <Card>
