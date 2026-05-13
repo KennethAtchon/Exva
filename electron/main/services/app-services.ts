@@ -46,8 +46,10 @@ import { SessionTemplateService } from "./session/template-service";
 import { SessionWriteService } from "./session/write-service";
 import { TradeMonitor } from "./orchestration/trade-monitor";
 import { TradeAutopsyService } from "./orchestration/trade-autopsy-service";
+import { CycleReplayService } from "./orchestration/cycle-replay-service";
 import { InstrumentCacheService } from "./instrument";
 import { CapitalReservationService, RiskEngine } from "./risk";
+import { PaperScorecardService } from "./analytics/paper-scorecard-service";
 
 export interface AppServices {
   /** Shared deps shape for IPC helpers (e.g. instrument cache fingerprint). */
@@ -101,6 +103,8 @@ export interface AppServices {
   sessionTemplates: SessionTemplateService;
   sessionWrites: SessionWriteService;
   tradeAutopsy: TradeAutopsyService;
+  cycleReplay: CycleReplayService;
+  paperScorecard: PaperScorecardService;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -292,6 +296,21 @@ export async function createAppServices(app: App): Promise<AppServices> {
     providerRegistry,
   );
 
+  const cycleReplay = new CycleReplayService({
+    agentMessages: repos.agentMessages,
+    trades: repos.trades,
+    instrumentCache: repos.instrumentCache,
+    sessionExecutionSteps: repos.sessionExecutionSteps,
+    userDataPath: app.getPath("userData"),
+  });
+
+  const paperScorecard = new PaperScorecardService({
+    trades: repos.trades,
+    apiCallLog: repos.apiCallLog,
+    session: repos.session,
+    sessionExecutionSteps: repos.sessionExecutionSteps,
+  });
+
   return {
     db,
     orchestratorDeps,
@@ -315,5 +334,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionTemplates,
     sessionWrites,
     tradeAutopsy,
+    cycleReplay,
+    paperScorecard,
   };
 }

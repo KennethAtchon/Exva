@@ -30,6 +30,9 @@ export const channels = {
     duplicate: "session:duplicate",
     instrumentCacheGet: "session:instrument-cache:get",
     instrumentCacheClear: "session:instrument-cache:clear",
+    buildCycleFixture: "session:buildCycleFixture",
+    saveCycleFixture: "session:saveCycleFixture",
+    getPaperScorecard: "session:getPaperScorecard",
   },
   workspace: {
     viewGet: "workspace:view:get",

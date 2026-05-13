@@ -1,7 +1,7 @@
 import type { DbClient } from "../client";
 import type { ExecutionMode, InstrumentClass, Trade, TradeStatus } from "@/lib/types";
-import { and, desc, eq, inArray, like, ne, sql } from "drizzle-orm";
-import { sessions, trades } from "../schema";
+import { and, asc, desc, eq, inArray, like, ne, sql } from "drizzle-orm";
+import { agentMessages, sessions, trades } from "../schema";
 import { AppError } from "@electron/shared/errors";
 import { toTrade } from "./mappers";
 
@@ -162,6 +162,32 @@ export class TradesRepo {
       .set(next)
       .where(and(eq(trades.id, id), eq(trades.status, "pending")))
       .run();
+  }
+
+  listClosed(sessionId: string): Trade[] {
+    const rows = this.client.db
+      .select()
+      .from(trades)
+      .where(and(eq(trades.sessionId, sessionId), eq(trades.status, "closed")))
+      .orderBy(asc(trades.closedAt))
+      .all();
+    return rows.map(toTrade);
+  }
+
+  listByCycle(cycleId: string): Trade[] {
+    const tradeIds = this.client.db
+      .selectDistinct({ tradeId: agentMessages.tradeId })
+      .from(agentMessages)
+      .where(and(eq(agentMessages.cycleId, cycleId), sql`${agentMessages.tradeId} IS NOT NULL`))
+      .all()
+      .map((r) => r.tradeId as string);
+    if (tradeIds.length === 0) return [];
+    const rows = this.client.db
+      .select()
+      .from(trades)
+      .where(inArray(trades.id, tradeIds))
+      .all();
+    return rows.map(toTrade);
   }
 
   patchAiCost(id: string, costUsd: number): void {
