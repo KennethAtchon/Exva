@@ -1,7 +1,9 @@
 import { Badge } from "@/components/custom-ui";
 import { Button } from "@/components/ui";
 import type { SessionSummary } from "@/lib/exva";
+import type { ExecutionStage } from "@/lib/types";
 import { getSearchProviderDisplayName } from "@electron/shared/search-providers";
+import { SessionExecutionProgress, type SessionProgressState } from "./SessionExecutionProgress";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";
 
@@ -9,6 +11,7 @@ export const SessionTable = ({
   sessions,
   busySessionId,
   focusedSessionAiReady,
+  progressBySessionId,
   onFocus,
   onEdit,
   onOpen,
@@ -16,10 +19,14 @@ export const SessionTable = ({
   onArchive,
   onSaveTemplate,
   onLifecycle,
+  onRetryStep,
+  onViewTrace,
+  onPauseAfterStep,
 }: {
   sessions: SessionSummary[];
   busySessionId?: string | null;
   focusedSessionAiReady?: boolean | null;
+  progressBySessionId?: Record<string, SessionProgressState>;
   onFocus: (id: string) => void;
   onEdit: (session: SessionSummary) => void;
   onOpen: (session: SessionSummary) => void;
@@ -27,6 +34,9 @@ export const SessionTable = ({
   onArchive: (id: string) => void;
   onSaveTemplate: (session: SessionSummary) => void;
   onLifecycle: (session: SessionSummary, action: LifecycleAction) => void;
+  onRetryStep?: (sessionId: string, cycleId: string, stage: ExecutionStage) => void;
+  onViewTrace?: (sessionId: string, cycleId: string, stage: ExecutionStage) => void;
+  onPauseAfterStep?: (sessionId: string) => void;
 }) => {
   return (
     <div style={{ display: "grid", gap: 10 }}>
@@ -84,6 +94,15 @@ export const SessionTable = ({
                 </div>
               </div>
             </div>
+
+            {/* Execution progress strip */}
+            <SessionExecutionProgress
+              sessionId={session.id}
+              progress={progressBySessionId?.[session.id] ?? null}
+              onRetry={onRetryStep ?? (() => undefined)}
+              onViewTrace={onViewTrace ?? (() => undefined)}
+              onPauseAfterStep={onPauseAfterStep ?? (() => undefined)}
+            />
 
             {/* Meta strip */}
             <div style={metaGridStyle}>

@@ -5,6 +5,10 @@ export interface MarketSnapshot {
   instrumentDisplayName?: string | null;
   predictionOutcome?: PredictionOutcome | null;
   price: number;
+  bid?: number;
+  ask?: number;
+  spreadPct?: number;
+  volume?: number;
   timestamp: string;
 }
 
@@ -18,6 +22,7 @@ export interface BrokerOrder {
   sizeUsd: number;
   stopLossPrice?: number;
   takeProfitPrice?: number;
+  clientOrderId: string;
 }
 
 export interface BrokerOrderResult {

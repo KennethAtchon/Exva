@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
 import { Button, Checkbox } from "@/components/ui";
-import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
-import type { InstrumentClass, SessionStatus } from "@/lib/types";
+import { api, listenEvent, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
+import type { ExecutionStage, InstrumentClass, SessionStatus } from "@/lib/types";
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
 import { SessionDetailDrawer } from "@/components/sessions/SessionDetailDrawer";
 import { SessionTable } from "@/components/sessions/SessionTable";
 import { SessionTemplatesModal } from "@/components/sessions/SessionTemplatesModal";
+import { deriveProgress, type SessionProgressState } from "@/components/sessions/SessionExecutionProgress";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";
@@ -31,8 +32,43 @@ export const SessionsPage = ({ onGoToStrategy, onGoToAccounts }: { onGoToStrateg
   const [loading, setLoading] = useState(false);
   const [actionSessionId, setActionSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progressBySessionId, setProgressBySessionId] = useState<Record<string, SessionProgressState>>({});
   const aiReady = useWorkspaceStore((state) => state.focusedSessionAiReady);
   const checkAiReady = useWorkspaceStore((state) => state.checkAiReady);
+
+  const refreshProgress = async (sessionId: string) => {
+    try {
+      const result = await api.getSessionExecutionProgress(sessionId);
+      if (!result.cycleId) return;
+      const state = deriveProgress(result.steps, result.cycleId);
+      if (!state) return;
+      setProgressBySessionId((prev) => ({ ...prev, [sessionId]: state }));
+    } catch {
+      // silently ignore
+    }
+  };
+
+  const unsubsRef = useRef<Array<() => void>>([]);
+
+  useEffect(() => {
+    const stepEvents = ["step:started", "step:succeeded", "step:failed", "step:retrying"] as const;
+    const cleanup: Array<() => void> = [];
+
+    (async () => {
+      for (const eventName of stepEvents) {
+        const unsub = await listenEvent(eventName, (payload) => {
+          void refreshProgress((payload as { sessionId: string }).sessionId);
+        });
+        cleanup.push(unsub);
+      }
+      unsubsRef.current = cleanup;
+    })();
+
+    return () => {
+      for (const unsub of unsubsRef.current) unsub();
+      unsubsRef.current = [];
+    };
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -46,6 +82,12 @@ export const SessionsPage = ({ onGoToStrategy, onGoToAccounts }: { onGoToStrateg
       });
       setSessions(result.sessions);
       await loadWorkspaceView();
+      // Seed progress for sessions that may have active execution
+      for (const session of result.sessions) {
+        if (session.status === "active" || session.status === "paused") {
+          void refreshProgress(session.id);
+        }
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load sessions.");
     } finally {
@@ -260,6 +302,30 @@ export const SessionsPage = ({ onGoToStrategy, onGoToAccounts }: { onGoToStrateg
             sessions={sessions}
             busySessionId={actionSessionId}
             focusedSessionAiReady={aiReady}
+            progressBySessionId={progressBySessionId}
+            onRetryStep={async (sessionId, cycleId, stage) => {
+              try {
+                await api.retrySessionStep({ sessionId, cycleId, stage });
+                void refreshProgress(sessionId);
+              } catch (retryError) {
+                setError(retryError instanceof Error ? retryError.message : "Retry failed.");
+              }
+            }}
+            onViewTrace={(sessionId, cycleId, stage) => {
+              // Opens session detail — full trace viewer is in DevPanel
+              const match = sessions.find((s) => s.id === sessionId);
+              if (match) setDetail(match);
+            }}
+            onPauseAfterStep={async (sessionId) => {
+              try {
+                if (!sessions.find((s) => s.id === sessionId)?.isFocused) {
+                  await api.focusSession(sessionId);
+                }
+                await api.pauseSessionAfterCurrentStep(sessionId);
+              } catch (pauseError) {
+                setError(pauseError instanceof Error ? pauseError.message : "Pause after step failed.");
+              }
+            }}
             onFocus={async (id) => {
               setError(null);
               try {

@@ -1,5 +1,6 @@
 import type { DashboardStats, SessionConfig } from "@/lib/types";
 import type { OrderRequest } from "../broker/adapters/broker-adapter";
+import type { StrategySideBias } from "@electron/shared/domain";
 import { createLogger } from "../infra/log";
 
 const logger = createLogger("risk-engine");
@@ -28,6 +29,30 @@ export interface DecisionRiskInput {
     maxExposureUsd: number | null;
   };
   maxExposureUsd?: number | null;
+
+  // Required for policy gate checks
+  quoteSnapshot?: {
+    price: number;
+    bid?: number;
+    ask?: number;
+    spreadPct?: number;
+    volume?: number;
+    timestamp: string;
+  };
+  side?: "BUY" | "SELL";
+  exitPolicy?: {
+    stopLossPct?: number | null;
+    atrStopMultiplier?: number | null;
+    takeProfitPct?: number | null;
+    maxHoldDays?: number | null;
+  };
+  totalBrokerExposureUsd?: number;
+  strategyRules?: {
+    sideBias: StrategySideBias;
+  };
+  sessionMode?: "paper" | "live";
+  brokerSupportsClass?: boolean;
+  marketIsOpen?: boolean;
 }
 
 export class RiskEngine {

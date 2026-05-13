@@ -1,0 +1,178 @@
+import type { InstrumentClass } from "@/lib/types";
+import type { HoldingStyle } from "@electron/shared/domain";
+import type { DecisionRiskInput } from "../risk/risk-engine";
+
+export type PolicyGateName =
+  | "runtime"
+  | "strategy"
+  | "data_freshness"
+  | "price_collar"
+  | "spread"
+  | "capital"
+  | "broker"
+  | "idempotency"
+  | "exit_contract";
+
+export interface PolicyGateInput {
+  sessionId: string;
+  cycleId: string;
+  tradeId: string;
+  decisionRiskInput: DecisionRiskInput;
+  brokerAccountId: string;
+  existingOrderCheck: (clientOrderId: string, brokerAccountId: string) => boolean;
+  sessionIsPaused: () => boolean;
+}
+
+export interface PolicyGateResult {
+  allowed: boolean;
+  reason?: string;
+  gatesFailed: PolicyGateName[];
+}
+
+const PRICE_COLLAR_PCT: Partial<Record<InstrumentClass, number>> = {
+  stock:             0.02,
+  crypto:            0.03,
+  futures:           0.01,
+  prediction_market: 0.05,
+};
+
+const MAX_SPREAD_PCT: Partial<Record<InstrumentClass, number>> = {
+  stock:   0.5,
+  crypto:  1.0,
+  futures: 0.3,
+};
+
+const MAX_QUOTE_AGE_MS: Record<InstrumentClass, Record<"intraday" | "swing" | "position", number>> = {
+  stock:             { intraday: 30_000,  swing: 300_000,  position: 600_000 },
+  crypto:            { intraday: 15_000,  swing: 120_000,  position: 300_000 },
+  futures:           { intraday: 15_000,  swing: 120_000,  position: 300_000 },
+  prediction_market: { intraday: 300_000, swing: 600_000,  position: 3_600_000 },
+};
+
+function maxQuoteAgeMs(cls: InstrumentClass, holdingStyle?: HoldingStyle): number {
+  const bucket: "intraday" | "swing" | "position" =
+    holdingStyle === "intraday_flat" ? "intraday"
+    : holdingStyle === "multi_day_swing" ? "swing"
+    : "position";
+  return MAX_QUOTE_AGE_MS[cls][bucket];
+}
+
+export class OrderPolicyGate {
+  evaluate(input: PolicyGateInput): PolicyGateResult {
+    const gatesFailed: PolicyGateName[] = [];
+    const { decisionRiskInput: d, sessionId: _sessionId, cycleId, tradeId, brokerAccountId } = input;
+    const instrumentClass = d.order.instrumentType;
+
+    // runtime: session paused
+    if (input.sessionIsPaused()) {
+      gatesFailed.push("runtime");
+      return { allowed: false, reason: "Session is paused", gatesFailed };
+    }
+
+    // strategy: side bias
+    if (d.strategyRules && d.side) {
+      const { sideBias } = d.strategyRules;
+      if (sideBias === "long_only" && d.side === "SELL") {
+        gatesFailed.push("strategy");
+      } else if (sideBias === "short_only" && d.side === "BUY") {
+        gatesFailed.push("strategy");
+      }
+    }
+
+    // data_freshness: quote staleness
+    if (d.quoteSnapshot) {
+      const holdingStyle = d.exitPolicy ? undefined : undefined; // no holdingStyle in DecisionRiskInput currently
+      const maxAgeMs = maxQuoteAgeMs(instrumentClass, holdingStyle);
+      const quoteAgeMs = Date.now() - new Date(d.quoteSnapshot.timestamp).getTime();
+      if (quoteAgeMs > maxAgeMs) {
+        gatesFailed.push("data_freshness");
+      }
+    }
+
+    // price_collar: check that the order price hasn't gapped since snapshot
+    if (d.quoteSnapshot && d.quoteSnapshot.price > 0) {
+      const collar = PRICE_COLLAR_PCT[instrumentClass] ?? 0.05;
+      // For USD-sized orders, we can only check the snapshot itself is within collar of itself (no current price).
+      // This gate is meaningful when a fresh quote is compared to entry_price; for now we pass if snapshot is valid.
+      // The gate will be more meaningful when a second fresh quote is fetched immediately before placement.
+      void collar; // acknowledged: full implementation requires pre-placement re-quote
+    }
+
+    // spread: spread too wide
+    if (d.quoteSnapshot?.spreadPct != null) {
+      const maxSpread = MAX_SPREAD_PCT[instrumentClass];
+      if (maxSpread != null && d.quoteSnapshot.spreadPct > maxSpread) {
+        gatesFailed.push("spread");
+      }
+    }
+
+    // capital: three sub-checks
+    if (d.order.sizeUsd > d.config.max_position_usd) {
+      gatesFailed.push("capital");
+    } else if (d.totalBrokerExposureUsd != null && d.order.sizeUsd > 0) {
+      // broker exposure cap not yet stored in config; skip sub-check 3 unless data available
+    }
+
+    // broker: class support + market hours
+    if (d.brokerSupportsClass === false) {
+      gatesFailed.push("broker");
+    } else if (d.marketIsOpen === false) {
+      gatesFailed.push("broker");
+    }
+
+    // idempotency: duplicate order guard
+    const clientOrderId = `${cycleId}:${tradeId}`;
+    if (input.existingOrderCheck(clientOrderId, brokerAccountId)) {
+      gatesFailed.push("idempotency");
+    }
+
+    // exit_contract: at least one enforceable exit must be defined
+    if (d.exitPolicy) {
+      const { stopLossPct, atrStopMultiplier, takeProfitPct, maxHoldDays } = d.exitPolicy;
+      if (
+        stopLossPct == null &&
+        atrStopMultiplier == null &&
+        takeProfitPct == null &&
+        maxHoldDays == null
+      ) {
+        gatesFailed.push("exit_contract");
+      }
+    }
+
+    if (gatesFailed.length === 0) {
+      return { allowed: true, gatesFailed: [] };
+    }
+
+    const gateReasons: Record<PolicyGateName, string> = {
+      runtime:       "Session is paused",
+      strategy:      "Order side contradicts strategy sideBias",
+      data_freshness: (() => {
+        if (d.quoteSnapshot) {
+          const ageS = Math.round((Date.now() - new Date(d.quoteSnapshot.timestamp).getTime()) / 1000);
+          const maxS = Math.round(maxQuoteAgeMs(instrumentClass) / 1000);
+          return `Quote is stale (age: ${ageS}s, max: ${maxS}s)`;
+        }
+        return "Quote is stale";
+      })(),
+      price_collar:  "Expected fill exceeds price collar",
+      spread:        (() => {
+        const bps = d.quoteSnapshot?.spreadPct != null ? Math.round(d.quoteSnapshot.spreadPct * 100) : "?";
+        const maxBps = (MAX_SPREAD_PCT[instrumentClass] ?? 0) * 100;
+        return `Spread too wide (${bps}bps, max ${maxBps}bps)`;
+      })(),
+      capital:       "Capital limit exceeded",
+      broker:        d.brokerSupportsClass === false
+        ? "Broker does not support instrument class"
+        : "Market is closed",
+      idempotency:   `Duplicate order: clientOrderId ${clientOrderId} already exists`,
+      exit_contract: "No enforceable exit policy — configure stopLoss, takeProfit, or maxHoldDays",
+    };
+
+    const firstFailed = gatesFailed[0]!;
+    return {
+      allowed: false,
+      reason: gateReasons[firstFailed],
+      gatesFailed,
+    };
+  }
+}

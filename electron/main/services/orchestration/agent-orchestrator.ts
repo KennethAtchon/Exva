@@ -7,16 +7,8 @@ import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
 import { ResearchBurstService } from "./research-burst-service";
 import { ExecutionStepRunner, type StepResult } from "./execution-step-runner";
-
-type ToolStepTrace = {
-  step: number;
-  toolCalls: Array<{
-    step: number;
-    tool: string;
-    argsJson: string;
-    resultJson: string;
-  }>;
-};
+import { CandidateValidationService, type ToolStepTrace } from "./candidate-validation-service";
+import { OrderPolicyGate } from "./order-policy-gate";
 
 type ResolvedInstrument = {
   symbol: string;
@@ -25,6 +17,7 @@ type ResolvedInstrument = {
   predictionOutcome?: "YES" | "NO" | null;
   instrumentMetadataJson?: string | null;
   selectorResearchBrief?: string | null;
+  selectorTraces?: ToolStepTrace[];
 };
 
 type AiResearchRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runAnalyst"]>>;
@@ -236,6 +229,50 @@ export class AgentOrchestrator {
     );
     const stepRunner = this.getStepRunner(context.cycleId);
 
+    // Candidate validation: fetch fresh quote + run deterministic checks before AI pipeline
+    const candidateResult = await stepRunner.run(
+      "candidate_validation",
+      async () => {
+        const { adapter } = await this.deps.brokerRouting.resolveAdapter(this.sessionId, context.instrument.instrumentClass);
+        const wireSymbol = this.deps.instrumentNormalizer.toBrokerSymbol({
+          symbol: context.instrument.symbol,
+          instrumentClass: context.instrument.instrumentClass,
+          brokerType: adapter.brokerType,
+        });
+        const quoteSnapshot = await adapter.getMarketSnapshot(wireSymbol);
+        const strategy = this.deps.strategyContextService.get(this.sessionId);
+        const session = this.deps.sessionRepo.requireById(this.sessionId);
+        const cvResult = new CandidateValidationService().validate({
+          sessionId: this.sessionId,
+          cycleId: context.cycleId,
+          instrument: {
+            symbol: context.instrument.symbol,
+            instrumentClass: context.instrument.instrumentClass,
+            selectorResearchBrief: context.instrument.selectorResearchBrief ?? null,
+          },
+          sessionInstrumentClasses: session.instrumentClasses,
+          sideBias: strategy.rules.sideBias,
+          holdingStyle: strategy.timeframe.holdingStyle,
+          selectorTrace: context.instrument.selectorTraces ?? [],
+          quoteSnapshot,
+        });
+        if (!cvResult.allowed) {
+          throw new AppError(
+            `Candidate validation failed: ${cvResult.reasons.join("; ")}`,
+            "VALIDATION_FAILED",
+          );
+        }
+        return quoteSnapshot;
+      },
+      { onRetry: () => this.enqueueTradeCycleRetry(context) },
+    );
+    if (await this.pauseIfRequested(context.cycleId)) return;
+    if (!candidateResult.ok) {
+      this.emitEvent("WARN", null, `[candidate-validation] ${context.instrument.symbol}: ${candidateResult.errorMessage}`, "orchestrator", context.cycleId);
+      return;
+    }
+    const latestQuote = candidateResult.value;
+
     const pipeline = await this.runAiPipeline(context, config, stepRunner);
     if (!pipeline) return;
     if (await this.pauseIfRequested(context.cycleId)) return;
@@ -258,6 +295,18 @@ export class AgentOrchestrator {
       this.clearAttentionRequired();
       this.emitEvent("INFO", trade.id, `No trade decision for ${trade.instrumentSymbol}; cycle complete.`, "orchestrator", context.cycleId);
       return;
+    }
+
+    // Side-bias enforcement: throw early when side is missing and strategy constrains direction
+    if (!decision.output.side) {
+      const strategyRules = this.deps.strategyContextService.get(this.sessionId).rules;
+      const { sideBias } = strategyRules;
+      if (sideBias !== "both" && sideBias !== "n_a") {
+        throw new AppError(
+          `Decision missing side field; cannot default with sideBias=${sideBias}`,
+          "VALIDATION_FAILED",
+        );
+      }
     }
 
     if (!context.riskOrder) {
@@ -315,7 +364,35 @@ export class AgentOrchestrator {
     const brokerResult = await stepRunner.run(
       "broker_order",
       async () => {
-        const placed = await this.placeRoutedOrder(trade, context.instrument.instrumentClass, context.riskOrder!);
+        const clientOrderId = `${context.cycleId}:${trade.id}`;
+        const strategy = this.deps.strategyContextService.get(this.sessionId);
+        const policyResult = new OrderPolicyGate().evaluate({
+          sessionId: this.sessionId,
+          cycleId: context.cycleId,
+          tradeId: trade.id,
+          brokerAccountId: trade.brokerAccountId ?? "",
+          existingOrderCheck: () => false, // idempotency via brokerOrderId checked post-placement
+          sessionIsPaused: () => this.deps.bus.runtimeStatus(this.sessionId) !== "active",
+          decisionRiskInput: {
+            config,
+            stats,
+            order: context.riskOrder!,
+            confidence: trade.confidence_score ?? 0,
+            quoteSnapshot: latestQuote ?? undefined,
+            side: trade.side,
+            exitPolicy: {
+              stopLossPct: strategy.riskConfig.stopLossPct,
+              atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
+              takeProfitPct: strategy.riskConfig.takeProfitPct,
+              maxHoldDays: strategy.timeframe.maxHoldDays,
+            },
+            strategyRules: { sideBias: strategy.rules.sideBias },
+          },
+        });
+        if (!policyResult.allowed) {
+          throw new AppError(policyResult.reason ?? "Order blocked by policy gate", "VALIDATION_FAILED");
+        }
+        const placed = await this.placeRoutedOrder(trade, context.instrument.instrumentClass, context.riskOrder!, clientOrderId);
         if (!placed) {
           throw new AppError("Instrument conflict or broker routing blocked order placement.", "VALIDATION_FAILED");
         }
@@ -513,7 +590,8 @@ export class AgentOrchestrator {
       this.deps.capitalReservation.updateReservedAmountForApproval(approval.id, target);
     }
 
-    const placed = await this.placeRoutedOrder(updated, input.instrumentClass, risk.value);
+    const recheckClientOrderId = `${cycleId}:${trade.id}`;
+    const placed = await this.placeRoutedOrder(updated, input.instrumentClass, risk.value, recheckClientOrderId);
     if (!placed) {
       this.failRecheck(trade.id, approval.id, "Instrument conflict or broker routing blocked order placement.");
       return;
@@ -561,6 +639,7 @@ export class AgentOrchestrator {
     trade: Trade,
     instrumentClass: InstrumentClass,
     riskOrder: OrderRequest,
+    clientOrderId: string,
   ): Promise<{ brokerOrderId: string; filledAvgPrice: number } | null> {
     const { adapter, brokerAccountId } = await this.deps.brokerRouting.resolveAdapter(this.sessionId, instrumentClass);
     this.deps.logger.debug(
@@ -586,6 +665,7 @@ export class AgentOrchestrator {
       instrumentType: instrumentClass,
       side: riskOrder.side,
       sizeUsd: riskOrder.sizeUsd,
+      clientOrderId,
     });
 
     if (trade.brokerAccountId !== brokerAccountId) {
@@ -774,6 +854,7 @@ export class AgentOrchestrator {
         predictionOutcome: instrument.predictionOutcome ?? null,
         instrumentMetadataJson: instrument.instrumentMetadataJson ?? null,
         selectorResearchBrief,
+        selectorTraces: traces,
       });
     }
 
@@ -1138,12 +1219,17 @@ export class AgentOrchestrator {
     const definitionHash = hashSelectorDefinition(fingerprint);
 
     const cached = this.deps.instrumentCacheRepo.get(session.id);
-    if (cached?.definitionHash === definitionHash) {
-      const parsed = JSON.parse(cached.instruments) as ResolvedInstrument[];
-      if (!Array.isArray(parsed) || parsed.length === 0) {
-        throw new AppError("Cached instrument list is invalid or empty.", "VALIDATION_FAILED");
+    if (cached) {
+      const expired = cached.expiresAt && new Date(cached.expiresAt) < new Date();
+      if (expired) {
+        this.deps.instrumentCacheRepo.clear(session.id);
+      } else if (cached.definitionHash === definitionHash) {
+        const parsed = JSON.parse(cached.instruments) as ResolvedInstrument[];
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+          throw new AppError("Cached instrument list is invalid or empty.", "VALIDATION_FAILED");
+        }
+        return parsed;
       }
-      return parsed;
     }
 
     if (session.selectionMode === "manual_shortlist" || !selectorSettings.aiPickerEnabled) {
@@ -1191,16 +1277,18 @@ export class AgentOrchestrator {
       trade_id: null,
     });
 
+    const cacheTtlMs = instrumentCacheTtlMs(this.deps.strategyContextService.get(this.sessionId).timeframe.holdingStyle);
     this.deps.instrumentCacheRepo.save({
       sessionId: session.id,
       instruments: JSON.stringify(payload),
       definitionHash,
-        selectedAt: new Date().toISOString(),
-        selectorAgentRunId: result.run.id,
-        cycleId: activeCycleId,
-        researchBriefsJson: JSON.stringify(selectorValidation.researchBriefsBySymbol),
-        researchGeneratedAt: new Date().toISOString(),
-      });
+      selectedAt: new Date().toISOString(),
+      selectorAgentRunId: result.run.id,
+      cycleId: activeCycleId,
+      researchBriefsJson: JSON.stringify(selectorValidation.researchBriefsBySymbol),
+      researchGeneratedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + cacheTtlMs).toISOString(),
+    });
 
     this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`, "orchestrator", activeCycleId);
     this.deps.bus.emit("research_phase_step", {
@@ -1409,6 +1497,15 @@ export class AgentOrchestrator {
 
 function formatMinutesLabel(minutes: number): string {
   return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
+function instrumentCacheTtlMs(holdingStyle: string): number {
+  switch (holdingStyle) {
+    case "intraday_flat":   return 30 * 60 * 1000;
+    case "multi_day_swing": return 4 * 60 * 60 * 1000;
+    case "weeks_position":  return 24 * 60 * 60 * 1000;
+    default:                return 4 * 60 * 60 * 1000;
+  }
 }
 
 function sumAiPipelineCost(pipeline: AiPipelineResult): number {

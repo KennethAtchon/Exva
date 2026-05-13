@@ -339,6 +339,7 @@ export const sessionInstrumentCache = sqliteTable("session_instrument_cache", {
   cycleId: text("cycle_id").notNull().default(""),
   researchBriefsJson: text("research_briefs_json"),
   researchGeneratedAt: text("research_generated_at"),
+  expiresAt: text("expires_at"),
 });
 
 export const apiCallLog = sqliteTable("api_call_log", {

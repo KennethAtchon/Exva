@@ -1,3 +1,18 @@
+/**
+ * AI AGENT NOTICE — READ BEFORE MODIFYING THIS FILE:
+ *
+ * This project is in active development / testing. All tables are dropped and
+ * recreated on each dev cycle (see rebuildFromScratch). There is NO live
+ * production database to protect. Do NOT write backwards-compatible migrations
+ * (no ALTER TABLE, no column guards, no IF NOT EXISTS workarounds for columns).
+ *
+ * The correct pattern for schema changes:
+ *   1. Update the column in the CREATE TABLE statement below.
+ *   2. Update electron/main/db/schema.ts to match.
+ *   3. Done. No ALTER TABLE. No migration step.
+ *
+ * Backwards-compat scaffolding adds noise and will be rejected in review.
+ */
 import type Database from "better-sqlite3";
 
 export function runMigrations(sqlite: Database.Database, options?: { rebuildFromScratch?: boolean }): void {
@@ -391,7 +406,8 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       selector_agent_run_id TEXT REFERENCES agent_runs(id) ON DELETE SET NULL,
       cycle_id TEXT NOT NULL DEFAULT '',
       research_briefs_json TEXT,
-      research_generated_at TEXT
+      research_generated_at TEXT,
+      expires_at TEXT
     );
 
     CREATE TRIGGER IF NOT EXISTS trg_focus_singleton_insert
@@ -555,4 +571,5 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       preset_json TEXT NOT NULL
     );
   `);
+
 }
