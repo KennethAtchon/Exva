@@ -6,6 +6,8 @@ import {
   sessionArchiveSchema,
   sessionCreateInputSchema,
   sessionDuplicateInputSchema,
+  sessionExecutionProgressSchema,
+  sessionExecutionStepActionSchema,
   sessionFocusSchema,
   sessionIdParamSchema,
   sessionListFiltersSchema,
@@ -20,6 +22,54 @@ export function registerSessionHandlers(services: AppServices): void {
   handle(ipcMain, channels.session.resume, async () => services.session.resume());
   handle(ipcMain, channels.session.stop, async () => services.session.stop());
   handle(ipcMain, channels.session.getStatus, async () => services.session.getStatus());
+  handle(ipcMain, channels.session.getExecutionProgress, async (payload) => {
+    const { sessionId } = sessionExecutionProgressSchema.parse(payload);
+    const steps = services.repos.sessionExecutionSteps.getLatestBySession(sessionId);
+    const cycleId = steps
+      .slice()
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0]?.cycleId ?? null;
+    return {
+      steps: steps.map((step) => ({
+        stage: step.stage,
+        status: step.status,
+        attempt: step.attempt,
+        nextRetryAt: step.nextRetryAt,
+        lastErrorCode: step.lastErrorCode,
+        lastErrorMessage: step.lastErrorMessage,
+        retryable: step.retryable,
+      })),
+      cycleId,
+    };
+  });
+  handle(ipcMain, channels.session.retryStep, async (payload) => {
+    const { sessionId, cycleId, stage } = sessionExecutionStepActionSchema.parse(payload);
+    const session = services.repos.session.requireById(sessionId);
+    if (session.status !== "active" && session.status !== "attention_required") {
+      return { ok: false as const, reason: "Session must be active or attention_required." };
+    }
+    const step = services.repos.sessionExecutionSteps.get(sessionId, cycleId, stage);
+    if (!step || (step.status !== "failed" && step.status !== "retrying")) {
+      return { ok: false as const, reason: "Step is not retryable in its current state." };
+    }
+    if ((stage === "risk_gate" || stage === "broker_order") && step.status !== "failed") {
+      return { ok: false as const, reason: `${stage} cannot be retried while mid-flight.` };
+    }
+    return services.runtimeManager.retryStep(sessionId, cycleId, stage);
+  });
+  handle(ipcMain, channels.session.pauseAfterCurrentStep, async (payload) => {
+    const { sessionId } = sessionIdParamSchema.parse(payload);
+    services.runtimeManager.pauseAfterCurrentStep(sessionId);
+    return { ok: true as const };
+  });
+  handle(ipcMain, channels.session.clearFailedStep, async (payload) => {
+    const { sessionId, cycleId, stage } = sessionExecutionStepActionSchema.parse(payload);
+    const step = services.repos.sessionExecutionSteps.get(sessionId, cycleId, stage);
+    if (!step || (step.status !== "failed" && step.status !== "retrying")) {
+      return { ok: false as const, reason: "No failed step exists for that stage." };
+    }
+    services.repos.sessionExecutionSteps.clearFailed(sessionId, cycleId, stage);
+    return { ok: true as const };
+  });
 
   handle(ipcMain, channels.session.list, async (payload) => {
     const filters = sessionListFiltersSchema.parse(payload) ?? {};

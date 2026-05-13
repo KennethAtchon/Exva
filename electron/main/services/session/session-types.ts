@@ -12,12 +12,14 @@ import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session
 import type { SessionRepo } from "../../db/repositories/session-repo";
 import type { SessionStrategiesRepo } from "../../db/repositories/session-strategies-repo";
 import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";
+import type { SessionExecutionStepsRepo } from "../../db/repositories/session-execution-steps-repo";
 import type { StatsRepo } from "../../db/repositories/stats-repo";
 import type { TradeApprovalsRepo } from "../../db/repositories/trade-approvals-repo";
 import type { TradesRepo } from "../../db/repositories/trades-repo";
 import type { InstrumentCacheRepo } from "../../db/repositories/instrument-cache-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
 import type { AiRuntime } from "../ai/ai-runtime/index";
+import type { ExecutionStage } from "@/lib/types";
 import type { BrokerRegistry } from "../broker/broker-registry";
 import type { InstrumentNormalizer } from "../broker/instrument-normalizer";
 import type { BrokerRoutingService } from "../broker/broker-routing-service";
@@ -32,6 +34,8 @@ export interface SessionOrchestrator {
   pause(): Promise<void>;
   resume(): Promise<void>;
   stop(): Promise<void>;
+  pauseAfterCurrentStep(): void;
+  retryStep(cycleId: string, stage: ExecutionStage): Promise<{ ok: true } | { ok: false; reason: string }>;
   runApprovalRecheck(input: ApprovalRecheckInput): Promise<void>;
   /** Returns true when a live wait callback was invoked. */
   resolveApproval(tradeId: string, approved: boolean): boolean;
@@ -55,6 +59,7 @@ export interface OrchestratorDeps {
   statsRepo: StatsRepo;
   sessionAiRolesRepo: SessionAiRolesRepo;
   sessionSelectorSettingsRepo: SessionSelectorSettingsRepo;
+  sessionExecutionStepsRepo: SessionExecutionStepsRepo;
   providerAccountsRepo: ProviderAccountsRepo;
   workspacePreferencesRepo: WorkspacePreferencesRepo;
   capitalReservationsRepo: CapitalReservationsRepo;

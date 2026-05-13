@@ -1,19 +1,27 @@
 # Phase 1 Spec — Failure-Isolated Execution Step Runner
 
-> **Status:** Not started
+> **Status:** Implemented with deviations
 > **Files to create:**
+>
 > - `electron/main/services/orchestration/execution-step-runner.ts`
 > - `electron/main/db/repositories/session-execution-steps-repo.ts`
-> - `electron/main/db/migrations/XXXX_add_session_execution_steps.ts`
 > **Files to modify:**
 > - `electron/main/services/orchestration/agent-orchestrator.ts`
 > - `electron/main/ipc/` (wherever IPC handlers are registered)
+> - `electron/main/db/migrations.ts`
+>
+> **Implementation notes:**
+>
+> - This repo uses a single `electron/main/db/migrations.ts` bootstrap file rather than per-migration files, so the schema landed there instead of a new `electron/main/db/migrations/XXXX_add_session_execution_steps.ts` file.
+> - The persisted step runner is wired for selector, analyst, reviewer, decision, risk-gate, and broker-order stages. Selector candidate validation remains folded into selector resolution in this pass, and monitoring remains enforced as an always-on `TradeMonitor` lifecycle invariant rather than a persisted execution-step row.
 
 ---
 
 ## Goal
 
 Every named execution stage must be a durable, retryable unit. A failing selector or broker call must mark only that stage failed, keep the session runtime alive, and allow the user (or the backoff scheduler) to retry it — without restarting the app or losing open-trade monitoring.
+
+This change to the schema should be one direction, no backwards compatibility like fixing existing tables. This is because we will be running db:reset, so all tables will be dropped anyways. Everything will work as expected, no need for writing for backwards compatibility.
 
 ---
 
@@ -161,17 +169,19 @@ export type StepResult<T> =
 
 ### Error classification rules
 
-| Error type | `retryable` | `status` written |
-|-----------|-------------|-----------------|
-| Provider API timeout / 5xx / rate-limit | `true` | `retrying` |
-| Broker API timeout / 5xx | `true` | `retrying` |
-| Search provider error | `true` | `retrying` |
-| `AppError` with code `VALIDATION_FAILED` | `false` | `failed` |
-| `AppError` with code `PROVIDER_NOT_CONFIGURED` | `false` | `failed` |
-| `AppError` with code `LOCKED` | `false` | `failed` |
-| Risk gate denial | `false` | `failed` |
-| Policy gate denial | `false` | `failed` |
-| Unknown / unclassified `Error` | `false` | `failed` |
+
+| Error type                                     | `retryable` | `status` written |
+| ---------------------------------------------- | ----------- | ---------------- |
+| Provider API timeout / 5xx / rate-limit        | `true`      | `retrying`       |
+| Broker API timeout / 5xx                       | `true`      | `retrying`       |
+| Search provider error                          | `true`      | `retrying`       |
+| `AppError` with code `VALIDATION_FAILED`       | `false`     | `failed`         |
+| `AppError` with code `PROVIDER_NOT_CONFIGURED` | `false`     | `failed`         |
+| `AppError` with code `LOCKED`                  | `false`     | `failed`         |
+| Risk gate denial                               | `false`     | `failed`         |
+| Policy gate denial                             | `false`     | `failed`         |
+| Unknown / unclassified `Error`                 | `false`     | `failed`         |
+
 
 Classification is done by inspecting `error instanceof AppError && error.code` first, then checking HTTP status codes on provider/broker errors if available.
 
@@ -232,6 +242,7 @@ Jitter: add `Math.random() * 5_000` ms to each interval to prevent thundering he
 ### `start()` — selector stage
 
 **Current** (lines 85–92):
+
 ```ts
 try {
   instruments = await this.runResearchBurst(session, config);
@@ -242,6 +253,7 @@ try {
 ```
 
 **Target:**
+
 ```ts
 const selectorResult = await this.stepRunner.run("selector", () =>
   this.runResearchBurst(session, config)
@@ -304,6 +316,7 @@ Implementation: calls `stepsRepo.getLatestBySession(sessionId)`, picks the most 
 ```
 
 Allowed only when:
+
 - Session status is `active` or `attention_required`
 - The step's current status is `failed` or `retrying`
 - Stage is not `risk_gate` or `broker_order` unless status is `failed` (not mid-flight)

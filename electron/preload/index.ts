@@ -57,6 +57,11 @@ const exva: ExvaApi = {
     resume: () => invoke(channels.session.resume),
     stop: () => invoke(channels.session.stop),
     getStatus: () => invoke(channels.session.getStatus),
+    getExecutionProgress: (sessionId) => invoke(channels.session.getExecutionProgress, sessionIdParamSchema.parse({ sessionId })),
+    retryStep: (input) => invoke(channels.session.retryStep, input),
+    pauseAfterCurrentStep: (sessionId) =>
+      invoke(channels.session.pauseAfterCurrentStep, sessionIdParamSchema.parse({ sessionId })),
+    clearFailedStep: (input) => invoke(channels.session.clearFailedStep, input),
     list: (filters) => invoke(channels.session.list, filters),
     create: (input) => invoke(channels.session.create, input),
     update: (id, input) => invoke(channels.session.update, { id, input }),

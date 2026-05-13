@@ -5,7 +5,7 @@ import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type Timefram
 export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 export const selectionModeSchema = z.enum(["manual_shortlist", "ai_selected_universe"]);
 export const executionModeSchema = z.enum(["paper_only", "live_allowed"]);
-export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
+export const sessionStatusSchema = z.enum(["draft", "idle", "active", "attention_required", "paused", "stopped", "archived"]);
 export const researchDepthSchema = z.enum(["light", "balanced", "deep"]);
 export const strategyProfileSchema = z.enum(["passive_income", "growth", "conservative", "custom"]);
 export const researchPosturePresetIdSchema = z.enum([
@@ -74,6 +74,17 @@ export const agentRoleSchema = z.enum([
   "reviewer",
   "decision_maker",
   "instrument_selector",
+]);
+export const executionStageSchema = z.enum([
+  "selector",
+  "candidate_validation",
+  "analyst_technical",
+  "analyst_fundamental",
+  "reviewer",
+  "decision_maker",
+  "risk_gate",
+  "broker_order",
+  "monitoring",
 ]);
 export const promptSourceSchema = z.enum(["default", "session_override"]);
 
@@ -291,6 +302,12 @@ export const sessionDuplicateInputSchema = z.object({
 });
 
 export const sessionIdParamSchema = z.object({ sessionId: z.string().min(1) });
+export const sessionExecutionProgressSchema = z.object({ sessionId: z.string().min(1) });
+export const sessionExecutionStepActionSchema = z.object({
+  sessionId: z.string().min(1),
+  cycleId: z.string().min(1),
+  stage: executionStageSchema,
+});
 
 export const sessionFocusSchema = z.object({ id: z.string().min(1) });
 export const sessionArchiveSchema = z.object({ id: z.string().min(1) });

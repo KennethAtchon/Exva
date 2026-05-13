@@ -1,11 +1,12 @@
 import PQueue from "p-queue";
-import { toLegacySessionConfig, type EventSourceType, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
+import { toLegacySessionConfig, type EventSourceType, type ExecutionStage, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
 import { resolveSelectorNoInstrumentRetryMinutes } from "@electron/shared/ai-role-profile";
 import { AppError } from "@electron/shared/errors";
 import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
 import { ResearchBurstService } from "./research-burst-service";
+import { ExecutionStepRunner, type StepResult } from "./execution-step-runner";
 
 type ToolStepTrace = {
   step: number;
@@ -50,14 +51,37 @@ type DecisionOutput = {
 
 type PredictionToken = { outcome?: unknown; token_id?: unknown };
 
+type SelectorCycleContext = {
+  kind: "selector";
+  cycleId: string;
+  label: string;
+};
+
+type TradeCycleContext = {
+  kind: "trade";
+  cycleId: string;
+  instrument: ResolvedInstrument;
+  technical?: AiResearchRun;
+  fundamental?: AiResearchRun;
+  review?: AiReviewRun;
+  decision?: AiDecisionRun;
+  trade?: Trade;
+  riskOrder?: OrderRequest;
+};
+
+type CycleContext = SelectorCycleContext | TradeCycleContext;
+
 export class AgentOrchestrator {
   private readonly queue = new PQueue({ concurrency: 1 });
   private readonly approvalCallbacks = new Map<string, (approved: boolean) => void>();
   /** Trade id → approval id while waiting for human decision. */
   private readonly pendingApprovalIds = new Map<string, string>();
+  private readonly cycleContexts = new Map<string, CycleContext>();
+  private readonly stepRunners = new Map<string, ExecutionStepRunner>();
   private unsubscribeTradeClosed: (() => void) | null = null;
   private cycleRestartInFlight = false;
   private started = false;
+  private pauseAfterStep = false;
   private noInstrumentRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -72,33 +96,13 @@ export class AgentOrchestrator {
       return;
     }
 
-    const session = this.deps.sessionRepo.requireById(this.sessionId);
     const config = this.getSessionConfig();
     this.queue.concurrency = config.max_concurrent_trades;
     this.deps.logger.info({ sessionId: this.sessionId, concurrency: this.queue.concurrency }, "orchestrator starting");
     this.attachTradeClosedListener();
     this.started = true;
-
-    let instruments: ResolvedInstrument[];
-    const cycleId = crypto.randomUUID();
-    this.deps.bus.emit("research_phase_started", { sessionId: this.sessionId, phase: "selector", cycleId });
-    try {
-      instruments = await this.runResearchBurst(session, config);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.emitEvent("ERROR", null, `Instrument resolution failed: ${message}`);
-      this.deps.bus.emit("research_phase_failed", { sessionId: this.sessionId, phase: "selector", cycleId, error: message });
-      throw error instanceof AppError ? error : new AppError(message, "VALIDATION_FAILED");
-    }
-    this.deps.bus.emit("research_phase_complete", {
-      sessionId: this.sessionId,
-      phase: "selector",
-      cycleId,
-      instrumentCount: instruments.length,
-    });
-
-    this.handleResolvedInstruments(instruments, "Initial research cycle complete");
-    this.deps.logger.info({ sessionId: this.sessionId, instrumentCount: instruments.length }, "orchestrator started");
+    await this.executeSelectorCycle({ kind: "selector", cycleId: crypto.randomUUID(), label: "Initial research cycle complete" });
+    this.deps.logger.info({ sessionId: this.sessionId }, "orchestrator started");
   }
 
   async pause(): Promise<void> {
@@ -107,6 +111,7 @@ export class AgentOrchestrator {
   }
 
   async resume(): Promise<void> {
+    this.pauseAfterStep = false;
     if (!this.started) {
       await this.start();
       return;
@@ -123,6 +128,10 @@ export class AgentOrchestrator {
     this.detachTradeClosedListener();
     this.clearNoInstrumentRetry();
     this.cycleRestartInFlight = false;
+    this.pauseAfterStep = false;
+    for (const runner of this.stepRunners.values()) runner.dispose();
+    this.stepRunners.clear();
+    this.cycleContexts.clear();
     for (const approvalId of this.pendingApprovalIds.values()) {
       this.deps.capitalReservation.releaseByApproval(approvalId);
     }
@@ -130,6 +139,279 @@ export class AgentOrchestrator {
     for (const resolve of this.approvalCallbacks.values()) resolve(false);
     this.approvalCallbacks.clear();
     this.deps.logger.info({ sessionId: this.sessionId }, "orchestrator stopped");
+  }
+
+  pauseAfterCurrentStep(): void {
+    this.pauseAfterStep = true;
+  }
+
+  async retryStep(cycleId: string, stage: ExecutionStage): Promise<{ ok: true } | { ok: false; reason: string }> {
+    const context = this.cycleContexts.get(cycleId);
+    if (!context) {
+      return { ok: false, reason: `No live cycle context exists for ${cycleId}.` };
+    }
+
+    this.deps.sessionExecutionStepsRepo.clearFailed(this.sessionId, cycleId, stage);
+    const runner = this.stepRunners.get(cycleId);
+    if (runner?.get(stage)?.status === "retrying") {
+      runner.dispose();
+      this.stepRunners.delete(cycleId);
+    }
+
+    const enqueue = context.kind === "selector"
+      ? () => this.executeSelectorCycle(context)
+      : () => this.executeTradeCycle(context);
+
+    this.queue.add(enqueue).catch((error) => {
+      this.emitEvent("ERROR", null, `Step retry failed: ${error instanceof Error ? error.message : String(error)}`, "orchestrator", cycleId);
+    });
+    return { ok: true };
+  }
+
+  private async executeSelectorCycle(context: SelectorCycleContext): Promise<void> {
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
+    this.cycleContexts.set(context.cycleId, context);
+
+    const session = this.deps.sessionRepo.requireById(this.sessionId);
+    const config = this.getSessionConfig();
+    this.queue.concurrency = config.max_concurrent_trades;
+    this.deps.bus.emit("research_phase_started", { sessionId: this.sessionId, phase: "selector", cycleId: context.cycleId });
+
+    const result = await this.getStepRunner(context.cycleId).run(
+      "selector",
+      () => this.runResearchBurst(session, config, context.cycleId),
+      {
+        onRetry: () => {
+          if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
+          this.queue.add(() => this.executeSelectorCycle(context)).catch((error) => {
+            this.emitEvent(
+              "ERROR",
+              null,
+              `Scheduled selector retry failed: ${error instanceof Error ? error.message : String(error)}`,
+              "orchestrator",
+              context.cycleId,
+            );
+          });
+        },
+      },
+    );
+
+    if (await this.pauseIfRequested(context.cycleId)) return;
+    if (!result.ok) {
+      this.handleStepFailure("selector", context.cycleId, result);
+      this.deps.bus.emit("research_phase_failed", {
+        sessionId: this.sessionId,
+        phase: "selector",
+        cycleId: context.cycleId,
+        error: result.errorMessage,
+      });
+      return;
+    }
+
+    this.clearAttentionRequired();
+    this.deps.bus.emit("research_phase_complete", {
+      sessionId: this.sessionId,
+      phase: "selector",
+      cycleId: context.cycleId,
+      instrumentCount: result.value.length,
+    });
+    this.handleResolvedInstruments(result.value, context.label);
+  }
+
+  private async executeTradeCycle(context: TradeCycleContext): Promise<void> {
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
+    this.cycleContexts.set(context.cycleId, context);
+    this.deps.logger.debug(
+      { sessionId: this.sessionId, instrumentSymbol: context.instrument.symbol, instrumentClass: context.instrument.instrumentClass },
+      "trade cycle start",
+    );
+
+    const config = this.getSessionConfig();
+    const stats = this.deps.statsRepo.dashboardStats(
+      this.sessionId,
+      this.deps.sessionRepo.getStatus(this.sessionId),
+      100000,
+      this.deps.sessionRepo.uptimeMin(this.sessionId),
+      config.max_api_spend_usd,
+    );
+    const stepRunner = this.getStepRunner(context.cycleId);
+
+    const pipeline = await this.runAiPipeline(context, config, stepRunner);
+    if (!pipeline) return;
+    if (await this.pauseIfRequested(context.cycleId)) return;
+
+    const { technical, fundamental, review, decision } = pipeline;
+    const totalAiCostUsd = sumAiPipelineCost(pipeline);
+
+    if (!context.trade) {
+      const trade = this.createTradeFromDecision(context.instrument, config, decision.output, totalAiCostUsd);
+      this.deps.tradesRepo.insert(trade);
+      for (const result of [technical, fundamental, review, decision]) {
+        this.deps.agentRunsRepo.insert({ ...result.run, session_id: this.sessionId, trade_id: trade.id });
+        this.deps.agentMessagesRepo.insert({ ...result.message, session_id: this.sessionId, trade_id: trade.id });
+      }
+      context.trade = trade;
+    }
+
+    const trade = context.trade;
+    if (decision.output.action !== "trade") {
+      this.clearAttentionRequired();
+      this.emitEvent("INFO", trade.id, `No trade decision for ${trade.instrumentSymbol}; cycle complete.`, "orchestrator", context.cycleId);
+      return;
+    }
+
+    if (!context.riskOrder) {
+      const riskConfig = this.deps.strategyContextService.get(this.sessionId).riskConfig;
+      const riskResult = await stepRunner.run(
+        "risk_gate",
+        async () => {
+          const risk = this.deps.riskEngine.validateDecision({
+            config,
+            stats,
+            order: {
+              instrumentSymbol: trade.instrumentSymbol,
+              instrumentDisplayName: trade.instrumentDisplayName ?? null,
+              predictionOutcome: trade.predictionOutcome ?? null,
+              instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
+              instrumentType: context.instrument.instrumentClass,
+              side: trade.side,
+              sizeUsd: trade.position_size_usd,
+            },
+            confidence: trade.confidence_score ?? 0,
+            riskPolicy: {
+              waitForOpenThreshold: riskConfig.waitForOpenThreshold,
+              maxExposureUsd: context.instrument.instrumentClass === "prediction_market" ? riskConfig.maxExposureUsd : null,
+            },
+          });
+          if (!risk.allowed || !risk.value) {
+            throw new AppError(risk.reason ?? "Trade rejected by risk engine", "VALIDATION_FAILED");
+          }
+          return risk.value;
+        },
+        { onRetry: () => this.enqueueTradeCycleRetry(context) },
+      );
+      if (await this.pauseIfRequested(context.cycleId)) return;
+      if (!riskResult.ok) {
+        this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+        this.handleStepFailure("risk_gate", context.cycleId, riskResult, trade.id);
+        return;
+      }
+      context.riskOrder = riskResult.value;
+    }
+
+    let approvalIdForCapital: string | null = null;
+    if (config.human_approval_required) {
+      const { approved, approvalId } = await this.waitForApproval(trade, context.instrument.instrumentClass, decision.output, undefined);
+      approvalIdForCapital = approvalId;
+      if (!approved) {
+        this.deps.capitalReservation.releaseByApproval(approvalId);
+        const rejected = this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+        this.emitEvent("WARN", trade.id, "Trade rejected by user", null, context.cycleId);
+        this.deps.bus.emit("trade_closed", rejected);
+        return;
+      }
+    }
+
+    const brokerResult = await stepRunner.run(
+      "broker_order",
+      async () => {
+        const placed = await this.placeRoutedOrder(trade, context.instrument.instrumentClass, context.riskOrder!);
+        if (!placed) {
+          throw new AppError("Instrument conflict or broker routing blocked order placement.", "VALIDATION_FAILED");
+        }
+        return placed;
+      },
+      { onRetry: () => this.enqueueTradeCycleRetry(context) },
+    );
+    if (await this.pauseIfRequested(context.cycleId)) return;
+    if (!brokerResult.ok) {
+      this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+      this.handleStepFailure("broker_order", context.cycleId, brokerResult, trade.id);
+      this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
+      return;
+    }
+
+    const opened = this.deps.tradesRepo.markOpen(trade.id, brokerResult.value.brokerOrderId, brokerResult.value.filledAvgPrice);
+    if (approvalIdForCapital) {
+      this.deps.capitalReservation.convertApprovalToOpenOrder(approvalIdForCapital, trade.id);
+    }
+    const workspace = this.deps.workspacePreferencesRepo.get();
+    if (workspace.capitalAllocationMode === "shared_global_pool" && approvalIdForCapital) {
+      this.deps.capitalReservation.convertOrderToPosition(trade.id);
+    }
+    this.clearAttentionRequired();
+    this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`, "broker", context.cycleId);
+    this.deps.bus.emit("trade_opened", opened);
+    this.emitEvent(
+      "INFO",
+      trade.id,
+      `Trade opened ${trade.side} ${trade.instrumentSymbol}; session waiting for position to close before next cycle.`,
+      "orchestrator",
+      context.cycleId,
+    );
+  }
+
+  private enqueueTradeCycleRetry(context: TradeCycleContext): void {
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
+    this.queue.add(() => this.executeTradeCycle(context)).catch((error) => {
+      this.emitEvent(
+        "ERROR",
+        null,
+        `Scheduled trade-step retry failed: ${error instanceof Error ? error.message : String(error)}`,
+        "orchestrator",
+        context.cycleId,
+      );
+    });
+  }
+
+  private getStepRunner(cycleId: string): ExecutionStepRunner {
+    const existing = this.stepRunners.get(cycleId);
+    if (existing) return existing;
+    const runner = new ExecutionStepRunner(this.sessionId, cycleId, {
+      stepsRepo: this.deps.sessionExecutionStepsRepo,
+      bus: this.deps.bus,
+      logger: this.deps.logger,
+    });
+    this.stepRunners.set(cycleId, runner);
+    return runner;
+  }
+
+  private handleStepFailure(
+    stage: ExecutionStage,
+    cycleId: string,
+    result: Extract<StepResult<unknown>, { ok: false }>,
+    tradeId: string | null = null,
+  ): void {
+    this.emitEvent("ERROR", tradeId, `${stage} failed: ${result.errorMessage}`, "orchestrator", cycleId);
+    if (!result.retryable && stage !== "risk_gate" && stage !== "broker_order") {
+      this.setSessionStatus("attention_required");
+    }
+  }
+
+  private clearAttentionRequired(): void {
+    if (this.deps.sessionRepo.getStatus(this.sessionId) === "attention_required") {
+      this.setSessionStatus("active");
+    }
+  }
+
+  private setSessionStatus(status: WorkspaceSession["status"]): void {
+    const current = this.deps.sessionRepo.getStatus(this.sessionId);
+    if (current === status) return;
+    this.deps.sessionRepo.setStatus(status, this.sessionId);
+    this.deps.bus.emit("session_status_changed", { sessionId: this.sessionId, status });
+  }
+
+  private async pauseIfRequested(cycleId: string): Promise<boolean> {
+    if (!this.pauseAfterStep) return false;
+    this.pauseAfterStep = false;
+    this.queue.pause();
+    this.clearNoInstrumentRetry();
+    if (this.deps.bus.runtimeStatus(this.sessionId) === "active") {
+      this.deps.bus.setRuntimeStatus(this.sessionId, "paused");
+      this.setSessionStatus("paused");
+    }
+    this.emitEvent("INFO", null, "Paused after current step.", "orchestrator", cycleId);
+    return true;
   }
 
   async runApprovalRecheck(input: ApprovalRecheckInput): Promise<void> {
@@ -148,16 +430,20 @@ export class AgentOrchestrator {
       config.max_api_spend_usd,
     );
 
-    const pipeline = await this.runAiPipeline(
-      {
+    const cycleId = crypto.randomUUID();
+    const context: TradeCycleContext = {
+      kind: "trade",
+      cycleId,
+      instrument: {
         symbol: trade.instrumentSymbol,
         instrumentClass: trade.instrumentType,
         instrumentDisplayName: trade.instrumentDisplayName ?? undefined,
         predictionOutcome: trade.predictionOutcome ?? null,
         instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
       },
-      config,
-    );
+    };
+    this.cycleContexts.set(cycleId, context);
+    const pipeline = await this.runAiPipeline(context, config, this.getStepRunner(cycleId));
     if (!pipeline) return;
 
     const { technical, fundamental, review, decision } = pipeline;
@@ -268,117 +554,7 @@ export class AgentOrchestrator {
   }
 
   private async runTradeCycle(instrument: ResolvedInstrument): Promise<void> {
-    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
-    this.deps.logger.debug(
-      { sessionId: this.sessionId, instrumentSymbol: instrument.symbol, instrumentClass: instrument.instrumentClass },
-      "trade cycle start",
-    );
-
-    const config = this.getSessionConfig();
-    const stats = this.deps.statsRepo.dashboardStats(
-      this.sessionId,
-      this.deps.sessionRepo.getStatus(this.sessionId),
-      100000,
-      this.deps.sessionRepo.uptimeMin(this.sessionId),
-      config.max_api_spend_usd,
-    );
-
-    const pipeline = await this.runAiPipeline(instrument, config);
-    if (!pipeline) return;
-
-    const { technical, fundamental, review, decision } = pipeline;
-    const totalAiCostUsd = sumAiPipelineCost(pipeline);
-
-    const trade = this.createTradeFromDecision(instrument, config, decision.output, totalAiCostUsd);
-    this.deps.tradesRepo.insert(trade);
-    for (const result of [technical, fundamental, review, decision]) {
-      this.deps.agentRunsRepo.insert({ ...result.run, session_id: this.sessionId, trade_id: trade.id });
-      this.deps.agentMessagesRepo.insert({ ...result.message, session_id: this.sessionId, trade_id: trade.id });
-    }
-
-    if (decision.output.action !== "trade") {
-      this.emitEvent(
-        "INFO",
-        trade.id,
-        `No trade decision for ${trade.instrumentSymbol}; cycle complete.`,
-        "orchestrator",
-      );
-      return;
-    }
-
-    const riskConfig = this.deps.strategyContextService.get(this.sessionId).riskConfig;
-    const risk = this.deps.riskEngine.validateDecision({
-      config,
-      stats,
-      order: {
-        instrumentSymbol: trade.instrumentSymbol,
-        instrumentDisplayName: trade.instrumentDisplayName ?? null,
-        predictionOutcome: trade.predictionOutcome ?? null,
-        instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
-        instrumentType: instrument.instrumentClass,
-        side: trade.side,
-        sizeUsd: trade.position_size_usd,
-      },
-      confidence: trade.confidence_score ?? 0,
-      riskPolicy: {
-        waitForOpenThreshold: riskConfig.waitForOpenThreshold,
-        maxExposureUsd: instrument.instrumentClass === "prediction_market" ? riskConfig.maxExposureUsd : null,
-      },
-    });
-    if (!risk.allowed || !risk.value) {
-      this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-      this.emitEvent("WARN", trade.id, risk.reason ?? "Trade rejected by risk engine");
-      return;
-    }
-
-    let approvalIdForCapital: string | null = null;
-    if (config.human_approval_required) {
-      const { approved, approvalId } = await this.waitForApproval(trade, instrument.instrumentClass, decision.output, risk.reason);
-      approvalIdForCapital = approvalId;
-      if (!approved) {
-        this.deps.capitalReservation.releaseByApproval(approvalId);
-        const rejected = this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-        this.emitEvent("WARN", trade.id, "Trade rejected by user");
-        this.deps.bus.emit("trade_closed", rejected);
-        return;
-      }
-    }
-
-    const placed = await this.placeRoutedOrder(trade, instrument.instrumentClass, risk.value);
-    if (!placed) {
-      this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-      this.emitEvent("WARN", trade.id, "Instrument conflict or broker routing blocked order placement.");
-      this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
-      return;
-    }
-
-    const opened = this.deps.tradesRepo.markOpen(trade.id, placed.brokerOrderId, placed.filledAvgPrice);
-    if (approvalIdForCapital) {
-      this.deps.capitalReservation.convertApprovalToOpenOrder(approvalIdForCapital, trade.id);
-    }
-    const workspace = this.deps.workspacePreferencesRepo.get();
-    if (workspace.capitalAllocationMode === "shared_global_pool" && approvalIdForCapital) {
-      this.deps.capitalReservation.convertOrderToPosition(trade.id);
-    }
-    this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`, "broker");
-    this.deps.bus.emit("trade_opened", opened);
-    this.emitEvent(
-      "INFO",
-      trade.id,
-      `Trade opened ${trade.side} ${trade.instrumentSymbol}; session waiting for position to close before next cycle.`,
-      "orchestrator",
-    );
-    this.deps.logger.info(
-      {
-        sessionId: this.sessionId,
-        tradeId: trade.id,
-        instrumentSymbol: trade.instrumentSymbol,
-        instrumentClass: instrument.instrumentClass,
-        side: trade.side,
-        sizeUsd: trade.position_size_usd,
-      },
-      "trade opened",
-    );
+    await this.executeTradeCycle({ kind: "trade", cycleId: crypto.randomUUID(), instrument });
   }
 
   private async placeRoutedOrder(
@@ -430,63 +606,125 @@ export class AgentOrchestrator {
     return { brokerOrderId: result.brokerOrderId, filledAvgPrice: result.filledAvgPrice };
   }
 
-  private async runAiPipeline(instrument: ResolvedInstrument, config: SessionConfig): Promise<AiPipelineResult | null> {
+  private async runAiPipeline(
+    context: TradeCycleContext,
+    config: SessionConfig,
+    stepRunner: ExecutionStepRunner,
+  ): Promise<AiPipelineResult | null> {
+    const instrument = context.instrument;
     this.deps.logger.debug(
       { sessionId: this.sessionId, instrumentSymbol: instrument.symbol, instrumentClass: instrument.instrumentClass },
       "ai pipeline start",
     );
     const analystContext = this.buildAnalystContext(instrument);
-    const technical = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "technical", this.sessionId);
-    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
-    if (!technical.output.trim()) {
-      this.deps.logger.warn({ sessionId: this.sessionId, instrumentSymbol: instrument.symbol }, "technical analyst returned empty output, skipping pipeline");
-      return null;
-    }
 
-    const fundamental = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "fundamental", this.sessionId);
-    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
-    if (!fundamental.output.trim()) {
-      this.deps.logger.warn({ sessionId: this.sessionId, instrumentSymbol: instrument.symbol }, "fundamental analyst returned empty output, skipping pipeline");
-      return null;
+    if (!context.technical) {
+      const technical = await stepRunner.run(
+        "analyst_technical",
+        async () => {
+          const result = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "technical", this.sessionId);
+          if (!result.output.trim()) {
+            throw new AppError("Technical analyst returned empty output.", "VALIDATION_FAILED");
+          }
+          return result;
+        },
+        { onRetry: () => this.enqueueTradeCycleRetry(context) },
+      );
+      if (!technical.ok) {
+        this.handleStepFailure("analyst_technical", context.cycleId, technical);
+        return null;
+      }
+      context.technical = technical.value;
     }
-
-    const review = await this.deps.ai.runReviewer(
-      {
-        instrumentSymbol: instrument.symbol,
-        technicalAnalysis: technical.output,
-        fundamentalAnalysis: fundamental.output,
-      },
-      this.sessionId,
-    );
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
-    if (!review.output.trim()) {
-      this.deps.logger.warn({ sessionId: this.sessionId, instrumentSymbol: instrument.symbol }, "reviewer returned empty output, skipping pipeline");
-      return null;
-    }
 
-    const decision = await this.deps.ai.runDecisionMaker(
-      {
-        instrumentSymbol: instrument.symbol,
-        technicalAnalysis: technical.output,
-        fundamentalAnalysis: fundamental.output,
-        review: review.output,
-        maxPositionUsd: config.max_position_usd,
-      },
-      this.sessionId,
-    );
+    if (!context.fundamental) {
+      const fundamental = await stepRunner.run(
+        "analyst_fundamental",
+        async () => {
+          const result = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "fundamental", this.sessionId);
+          if (!result.output.trim()) {
+            throw new AppError("Fundamental analyst returned empty output.", "VALIDATION_FAILED");
+          }
+          return result;
+        },
+        { onRetry: () => this.enqueueTradeCycleRetry(context) },
+      );
+      if (!fundamental.ok) {
+        this.handleStepFailure("analyst_fundamental", context.cycleId, fundamental);
+        return null;
+      }
+      context.fundamental = fundamental.value;
+    }
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
+
+    if (!context.review) {
+      const review = await stepRunner.run(
+        "reviewer",
+        async () => {
+          const result = await this.deps.ai.runReviewer(
+            {
+              instrumentSymbol: instrument.symbol,
+              technicalAnalysis: context.technical!.output,
+              fundamentalAnalysis: context.fundamental!.output,
+            },
+            this.sessionId,
+          );
+          if (!result.output.trim()) {
+            throw new AppError("Reviewer returned empty output.", "VALIDATION_FAILED");
+          }
+          return result;
+        },
+        { onRetry: () => this.enqueueTradeCycleRetry(context) },
+      );
+      if (!review.ok) {
+        this.handleStepFailure("reviewer", context.cycleId, review);
+        return null;
+      }
+      context.review = review.value;
+    }
+    if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
+
+    if (!context.decision) {
+      const decision = await stepRunner.run(
+        "decision_maker",
+        () =>
+          this.deps.ai.runDecisionMaker(
+            {
+              instrumentSymbol: instrument.symbol,
+              technicalAnalysis: context.technical!.output,
+              fundamentalAnalysis: context.fundamental!.output,
+              review: context.review!.output,
+              maxPositionUsd: config.max_position_usd,
+            },
+            this.sessionId,
+          ),
+        { onRetry: () => this.enqueueTradeCycleRetry(context) },
+      );
+      if (!decision.ok) {
+        this.handleStepFailure("decision_maker", context.cycleId, decision);
+        return null;
+      }
+      context.decision = decision.value;
+    }
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
     this.deps.logger.debug(
       {
         sessionId: this.sessionId,
         instrumentSymbol: instrument.symbol,
-        decisionAction: decision.output.action,
-        confidence: decision.output.confidence,
+        decisionAction: context.decision.output.action,
+        confidence: context.decision.output.confidence,
       },
       "ai pipeline complete",
     );
 
-    return { technical, fundamental, review, decision };
+    return {
+      technical: context.technical,
+      fundamental: context.fundamental,
+      review: context.review,
+      decision: context.decision,
+    };
   }
 
   private validateSelectorOutput(
@@ -786,13 +1024,7 @@ export class AgentOrchestrator {
       this.cycleRestartInFlight = true;
       this.emitEvent("INFO", trade.id, "Trade closed; session restarting research cycle.", "orchestrator");
       this.queue
-        .add(async () => {
-          const session = this.deps.sessionRepo.requireById(this.sessionId);
-          const config = this.getSessionConfig();
-          this.queue.concurrency = config.max_concurrent_trades;
-          const instruments = await this.runResearchBurst(session, config);
-          this.handleResolvedInstruments(instruments, "Trade-closed research cycle complete");
-        })
+        .add(() => this.executeSelectorCycle({ kind: "selector", cycleId: crypto.randomUUID(), label: "Trade-closed research cycle complete" }))
         .catch((error) => {
           this.emitEvent(
             "ERROR",
@@ -849,13 +1081,7 @@ export class AgentOrchestrator {
       this.noInstrumentRetryTimer = null;
       if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return;
       this.queue
-        .add(async () => {
-          const session = this.deps.sessionRepo.requireById(this.sessionId);
-          const config = this.getSessionConfig();
-          this.queue.concurrency = config.max_concurrent_trades;
-          const instruments = await this.runResearchBurst(session, config);
-          this.handleResolvedInstruments(instruments, "Scheduled selector retry complete");
-        })
+        .add(() => this.executeSelectorCycle({ kind: "selector", cycleId: crypto.randomUUID(), label: "Scheduled selector retry complete" }))
         .catch((error) => {
           this.emitEvent(
             "ERROR",
@@ -874,13 +1100,13 @@ export class AgentOrchestrator {
   }
 
   // Exposed for ResearchBurstService integration.
-  async resolveInstrumentsForBurst(session: WorkspaceSession, config: SessionConfig): Promise<ResolvedInstrument[]> {
-    return this.resolveInstruments(session, config);
+  async resolveInstrumentsForBurst(session: WorkspaceSession, config: SessionConfig, cycleId?: string): Promise<ResolvedInstrument[]> {
+    return this.resolveInstruments(session, config, cycleId);
   }
 
-  private async runResearchBurst(session: WorkspaceSession, config: SessionConfig): Promise<ResolvedInstrument[]> {
+  private async runResearchBurst(session: WorkspaceSession, config: SessionConfig, cycleId?: string): Promise<ResolvedInstrument[]> {
     const burst = new ResearchBurstService(this);
-    return burst.resolve(session, config);
+    return burst.resolve(session, config, cycleId);
   }
 
   private emitEvent(
@@ -904,7 +1130,9 @@ export class AgentOrchestrator {
   private async resolveInstruments(
     session: WorkspaceSession,
     config: SessionConfig,
+    cycleId?: string,
   ): Promise<ResolvedInstrument[]> {
+    const activeCycleId = cycleId ?? crypto.randomUUID();
     const selectorSettings = this.deps.sessionSelectorSettingsRepo.get(session.id);
     const fingerprint = buildSelectorDefinitionFingerprint(session, this.deps);
     const definitionHash = hashSelectorDefinition(fingerprint);
@@ -922,21 +1150,20 @@ export class AgentOrchestrator {
       return this.parseManualShortlist(session, config);
     }
 
-    const cycleId = crypto.randomUUID();
-    this.emitEvent("INFO", null, "Running instrument selector agent...", "orchestrator", cycleId);
+    this.emitEvent("INFO", null, "Running instrument selector agent...", "orchestrator", activeCycleId);
     this.deps.bus.emit("research_phase_step", {
       sessionId: this.sessionId,
       phase: "selector",
-      cycleId,
+      cycleId: activeCycleId,
       message: "Running instrument selector",
     });
     const result = await this.deps.ai.runInstrumentSelector(
       session.id,
       await this.buildSelectionInstructions(session),
-      cycleId,
+      activeCycleId,
     );
 
-    const selectorValidation = this.validateSelectorOutput(session, result.message.tool_calls_json, result.output.instruments, cycleId);
+    const selectorValidation = this.validateSelectorOutput(session, result.message.tool_calls_json, result.output.instruments, activeCycleId);
 
     const filtered = selectorValidation.instruments.filter((row: ResolvedInstrument) =>
       session.instrumentClasses.includes(row.instrumentClass),
@@ -968,18 +1195,18 @@ export class AgentOrchestrator {
       sessionId: session.id,
       instruments: JSON.stringify(payload),
       definitionHash,
-      selectedAt: new Date().toISOString(),
-      selectorAgentRunId: result.run.id,
-      cycleId,
-      researchBriefsJson: JSON.stringify(selectorValidation.researchBriefsBySymbol),
-      researchGeneratedAt: new Date().toISOString(),
-    });
+        selectedAt: new Date().toISOString(),
+        selectorAgentRunId: result.run.id,
+        cycleId: activeCycleId,
+        researchBriefsJson: JSON.stringify(selectorValidation.researchBriefsBySymbol),
+        researchGeneratedAt: new Date().toISOString(),
+      });
 
-    this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`, "orchestrator", cycleId);
+    this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`, "orchestrator", activeCycleId);
     this.deps.bus.emit("research_phase_step", {
       sessionId: this.sessionId,
       phase: "selector",
-      cycleId,
+      cycleId: activeCycleId,
       message: `Selector chose ${payload.length} instruments`,
     });
     return payload;

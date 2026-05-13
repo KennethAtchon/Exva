@@ -1,4 +1,4 @@
-import { integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const providerAccounts = sqliteTable("provider_accounts", {
   id: text("id").primaryKey(),
@@ -39,6 +39,33 @@ export const sessions = sqliteTable("sessions", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+export const sessionExecutionSteps = sqliteTable(
+  "session_execution_steps",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    cycleId: text("cycle_id").notNull(),
+    stage: text("stage").notNull(),
+    status: text("status").notNull(),
+    attempt: integer("attempt").notNull().default(0),
+    startedAt: text("started_at"),
+    completedAt: text("completed_at"),
+    nextRetryAt: text("next_retry_at"),
+    lastErrorCode: text("last_error_code"),
+    lastErrorMessage: text("last_error_message"),
+    retryable: integer("retryable", { mode: "boolean" }).notNull().default(false),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    sessionCycleIdx: index("idx_ses_steps_session_cycle").on(table.sessionId, table.cycleId),
+    sessionStatusIdx: index("idx_ses_steps_session_status").on(table.sessionId, table.status),
+    sessionCycleStageKey: uniqueIndex("ux_ses_steps_session_cycle_stage").on(table.sessionId, table.cycleId, table.stage),
+  }),
+);
 
 export const sessionSelectorSettings = sqliteTable("session_selector_settings", {
   sessionId: text("session_id")

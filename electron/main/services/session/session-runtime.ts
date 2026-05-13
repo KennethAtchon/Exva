@@ -26,8 +26,8 @@ export class SessionRuntime {
         await this.orchestrator.pause();
         this.tradeMonitor.stop();
       } else {
-        await this.orchestrator.start();
         this.tradeMonitor.start();
+        await this.orchestrator.start();
       }
     });
   }
@@ -45,8 +45,8 @@ export class SessionRuntime {
     await this.lifecycle.add(async () => {
       if (this.status === "active" || this.status === "stopping") return;
       this.status = "active";
-      await this.orchestrator.resume();
       this.tradeMonitor.start();
+      await this.orchestrator.resume();
     });
   }
 

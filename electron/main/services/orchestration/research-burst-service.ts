@@ -8,8 +8,8 @@ export class ResearchBurstService {
     private readonly marketHours = new MarketHoursService(),
   ) {}
 
-  async resolve(session: WorkspaceSession, config: SessionConfig): Promise<BurstInstrument[]> {
-    const resolvedInstruments = await this.orchestrator.resolveInstrumentsForBurst(session, config);
+  async resolve(session: WorkspaceSession, config: SessionConfig, cycleId?: string): Promise<BurstInstrument[]> {
+    const resolvedInstruments = await this.orchestrator.resolveInstrumentsForBurst(session, config, cycleId);
     return this.marketHours.filterTradable(resolvedInstruments);
   }
 }

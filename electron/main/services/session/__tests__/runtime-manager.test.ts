@@ -17,6 +17,7 @@ import { CapitalReservationsRepo } from "../../../db/repositories/capital-reserv
 import { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts-repo";
 import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
+import { SqliteSessionExecutionStepsRepo } from "../../../db/repositories/session-execution-steps-repo";
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
 import { SessionStrategiesRepo } from "../../../db/repositories/session-strategies-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
@@ -116,6 +117,7 @@ function createManager(
   const eventBus = new EventBus();
   const sessionAiRolesRepo = new SessionAiRolesRepo(db);
   const sessionSelectorSettingsRepo = new SessionSelectorSettingsRepo(db);
+  const sessionExecutionStepsRepo = new SqliteSessionExecutionStepsRepo(db);
   const providerAccountsRepo = new ProviderAccountsRepo(db);
   const workspacePreferencesRepo = new WorkspacePreferencesRepo(db);
   const strategyContextService = new SessionStrategyContextService({
@@ -144,6 +146,7 @@ function createManager(
     statsRepo,
     sessionAiRolesRepo,
     sessionSelectorSettingsRepo,
+    sessionExecutionStepsRepo,
     providerAccountsRepo,
     workspacePreferencesRepo,
     capitalReservationsRepo: new CapitalReservationsRepo(db),
@@ -180,6 +183,8 @@ function createManager(
       pause: async () => undefined,
       resume: async () => undefined,
       stop: async () => hooks.onStop?.(sessionId),
+      pauseAfterCurrentStep: () => undefined,
+      retryStep: async () => ({ ok: true as const }),
       runApprovalRecheck: async () => undefined,
       resolveApproval: () => false,
       hasApprovalCallback: () => false,

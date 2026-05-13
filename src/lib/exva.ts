@@ -10,6 +10,8 @@ import type {
   ConnectionTestResult,
   CostBreakdown,
   DashboardStats,
+  ExecutionStage,
+  ExecutionStepStatus,
   ExecutionMode,
   EventRow,
   InstrumentClass,
@@ -103,6 +105,19 @@ export interface ProviderModelEntry {
   maxContextTokens: number;
 }
 
+export interface SessionExecutionProgressResponse {
+  steps: Array<{
+    stage: ExecutionStage;
+    status: ExecutionStepStatus;
+    attempt: number;
+    nextRetryAt: string | null;
+    lastErrorCode: string | null;
+    lastErrorMessage: string | null;
+    retryable: boolean;
+  }>;
+  cycleId: string | null;
+}
+
 const hasExva =
   typeof window !== "undefined" &&
   typeof window.exva === "object" &&
@@ -155,6 +170,12 @@ export const api = {
   pauseSession: (): Promise<SessionStatus> => bridge().session.pause(),
   resumeSession: (): Promise<SessionStatus> => bridge().session.resume(),
   stopSession: (): Promise<SessionStatus> => bridge().session.stop(),
+  getSessionExecutionProgress: (sessionId: string): Promise<SessionExecutionProgressResponse> =>
+    bridge().session.getExecutionProgress(sessionId),
+  retrySessionStep: (input: { sessionId: string; cycleId: string; stage: ExecutionStage }) => bridge().session.retryStep(input),
+  pauseSessionAfterCurrentStep: (sessionId: string): Promise<{ ok: true }> => bridge().session.pauseAfterCurrentStep(sessionId),
+  clearFailedSessionStep: (input: { sessionId: string; cycleId: string; stage: ExecutionStage }) =>
+    bridge().session.clearFailedStep(input),
   listSessions: (filters?: {
     status?: SessionStatus;
     instrumentClass?: InstrumentClass;
@@ -293,6 +314,10 @@ export type ExvaEventName =
   | "research_phase_step"
   | "research_phase_complete"
   | "research_phase_failed"
+  | "step:started"
+  | "step:succeeded"
+  | "step:failed"
+  | "step:retrying"
   | "stats_update"
   | "notification";
 
@@ -311,6 +336,18 @@ export interface ExvaEventMap {
   research_phase_step: { sessionId: string; phase: string; message: string; cycleId: string };
   research_phase_complete: { sessionId: string; phase: string; cycleId: string; instrumentCount: number };
   research_phase_failed: { sessionId: string; phase: string; cycleId: string; error: string };
+  "step:started": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number };
+  "step:succeeded": { sessionId: string; cycleId: string; stage: ExecutionStage };
+  "step:failed": {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+    retryable: boolean;
+    errorCode: string;
+    errorMessage: string;
+    nextRetryAt: string | null;
+  };
+  "step:retrying": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number; nextRetryAt: string };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 }

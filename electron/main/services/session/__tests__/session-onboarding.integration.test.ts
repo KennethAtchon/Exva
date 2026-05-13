@@ -11,6 +11,7 @@ import { InstrumentCacheRepo } from "../../../db/repositories/instrument-cache-r
 import { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts-repo";
 import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
+import { SqliteSessionExecutionStepsRepo } from "../../../db/repositories/session-execution-steps-repo";
 import { SessionRepo } from "../../../db/repositories/session-repo";
 import { SessionRiskConfigRepo } from "../../../db/repositories/session-risk-config-repo";
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
@@ -217,6 +218,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     statsRepo: new StatsRepo(db),
     sessionAiRolesRepo: sessionAiRoles,
     sessionSelectorSettingsRepo: sessionSelectorSettings,
+    sessionExecutionStepsRepo: new SqliteSessionExecutionStepsRepo(db),
     providerAccountsRepo: providerAccounts,
     workspacePreferencesRepo: workspacePreferences,
     capitalReservationsRepo: new CapitalReservationsRepo(db),
@@ -243,6 +245,8 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
       pause: async () => undefined,
       resume: async () => undefined,
       stop: async () => undefined,
+      pauseAfterCurrentStep: () => undefined,
+      retryStep: async () => ({ ok: true as const }),
       runApprovalRecheck: async () => undefined,
       resolveApproval: () => false,
       hasApprovalCallback: () => false,

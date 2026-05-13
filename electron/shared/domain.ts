@@ -4,8 +4,38 @@ export type { AiRoleProfileDocument, AiRoleToolMode, AiRoleToolPolicyEntry } fro
 
 export type InstrumentClass = "stock" | "crypto" | "futures" | "prediction_market";
 
-export type SessionStatus = "draft" | "idle" | "active" | "paused" | "stopped" | "archived";
+export type SessionStatus = "draft" | "idle" | "active" | "attention_required" | "paused" | "stopped" | "archived";
 export type SessionRuntimeStatus = "starting" | "active" | "paused" | "stopping";
+
+export type ExecutionStage =
+  | "selector"
+  | "candidate_validation"
+  | "analyst_technical"
+  | "analyst_fundamental"
+  | "reviewer"
+  | "decision_maker"
+  | "risk_gate"
+  | "broker_order"
+  | "monitoring";
+
+export type ExecutionStepStatus = "pending" | "running" | "succeeded" | "failed" | "retrying" | "skipped";
+
+export interface ExecutionStepState {
+  id: string;
+  sessionId: string;
+  cycleId: string;
+  stage: ExecutionStage;
+  status: ExecutionStepStatus;
+  attempt: number;
+  startedAt: string | null;
+  completedAt: string | null;
+  nextRetryAt: string | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+  retryable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export type SelectionMode = "manual_shortlist" | "ai_selected_universe";
 export type ExecutionMode = "paper_only" | "live_allowed";
@@ -749,7 +779,8 @@ export type PredictionOutcome = "YES" | "NO";
 const LEGAL_TRANSITIONS: Partial<Record<SessionStatus, SessionStatus[]>> = {
   draft: ["idle", "active", "archived"],
   idle: ["active", "archived"],
-  active: ["paused", "stopped"],
+  active: ["attention_required", "paused", "stopped"],
+  attention_required: ["active", "paused", "stopped"],
   paused: ["active", "stopped"],
   stopped: ["idle", "archived"],
 };

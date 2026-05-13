@@ -6,6 +6,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
 
   if (options?.rebuildFromScratch) {
     sqlite.exec(`
+      DROP TABLE IF EXISTS session_execution_steps;
       DROP TABLE IF EXISTS capital_reservations;
       DROP TABLE IF EXISTS trade_approvals;
       DROP TABLE IF EXISTS trade_autopsies;
@@ -66,7 +67,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       objective TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','idle','active','paused','stopped','archived')),
+      status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','idle','active','attention_required','paused','stopped','archived')),
       is_focused INTEGER NOT NULL DEFAULT 0 CHECK (NOT (is_focused = 1 AND status = 'archived')),
       selection_mode TEXT NOT NULL DEFAULT 'manual_shortlist' CHECK (selection_mode IN ('manual_shortlist','ai_selected_universe')),
       instrument_classes TEXT NOT NULL,
@@ -77,6 +78,30 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS session_execution_steps (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+      cycle_id TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      status TEXT NOT NULL,
+      attempt INTEGER NOT NULL DEFAULT 0,
+      started_at TEXT,
+      completed_at TEXT,
+      next_retry_at TEXT,
+      last_error_code TEXT,
+      last_error_message TEXT,
+      retryable INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      UNIQUE(session_id, cycle_id, stage)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ses_steps_session_cycle
+      ON session_execution_steps(session_id, cycle_id);
+
+    CREATE INDEX IF NOT EXISTS idx_ses_steps_session_status
+      ON session_execution_steps(session_id, status);
 
     CREATE TABLE IF NOT EXISTS session_selector_settings (
       session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,

@@ -6,6 +6,7 @@ import type {
   EventRow,
   ProviderAccount,
   SessionAiRole,
+  ExecutionStepState,
   SessionRiskConfig,
   SessionBrokerRoutingOverride,
   SessionConfig,
@@ -85,6 +86,26 @@ export function toEventRow(row: Row): EventRow {
     agent_type: row.agent_type ? (row.agent_type as EventRow["agent_type"]) : null,
     message: String(row.message),
     created_at: String(row.created_at),
+  };
+}
+
+export function toExecutionStepState(row: Row): ExecutionStepState {
+  row = normalizeRow(row);
+  return {
+    id: String(row.id),
+    sessionId: String(row.session_id),
+    cycleId: String(row.cycle_id),
+    stage: row.stage as ExecutionStepState["stage"],
+    status: row.status as ExecutionStepState["status"],
+    attempt: Number(row.attempt),
+    startedAt: nullableString(row.started_at),
+    completedAt: nullableString(row.completed_at),
+    nextRetryAt: nullableString(row.next_retry_at),
+    lastErrorCode: nullableString(row.last_error_code),
+    lastErrorMessage: nullableString(row.last_error_message),
+    retryable: Boolean(row.retryable),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
   };
 }
 

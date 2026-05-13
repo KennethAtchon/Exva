@@ -19,6 +19,7 @@ import { SessionTemplatesRepo } from "../db/repositories/session-templates-repo"
 import { SessionTimeframeConfigRepo } from "../db/repositories/session-timeframe-config-repo";
 import { SessionAiRoleProfileRepo } from "../db/repositories/session-ai-role-profile-repo";
 import { SessionResearchPostureRepo } from "../db/repositories/session-research-posture-repo";
+import { SqliteSessionExecutionStepsRepo } from "../db/repositories/session-execution-steps-repo";
 import { SessionRepo } from "../db/repositories/session-repo";
 import { InstrumentCacheRepo } from "../db/repositories/instrument-cache-repo";
 import { GlobalPresetsRepo } from "../db/repositories/global-presets-repo";
@@ -66,6 +67,7 @@ export interface AppServices {
     sessionBrokerAssignments: SessionBrokerAssignmentsRepo;
     sessionRiskConfig: SessionRiskConfigRepo;
     sessionSelectorSettings: SessionSelectorSettingsRepo;
+    sessionExecutionSteps: SqliteSessionExecutionStepsRepo;
     session: SessionRepo;
     sessionTradeRules: SessionTradeRulesRepo;
     sessionStrategies: SessionStrategiesRepo;
@@ -117,6 +119,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionBrokerAssignments: new SessionBrokerAssignmentsRepo(db),
     sessionRiskConfig: new SessionRiskConfigRepo(db),
     sessionSelectorSettings: new SessionSelectorSettingsRepo(db),
+    sessionExecutionSteps: new SqliteSessionExecutionStepsRepo(db),
     session: new SessionRepo(db),
     sessionTradeRules: new SessionTradeRulesRepo(db),
     sessionStrategies: new SessionStrategiesRepo(db),
@@ -205,6 +208,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     statsRepo: repos.stats,
     sessionAiRolesRepo: repos.sessionAiRoles,
     sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
+    sessionExecutionStepsRepo: repos.sessionExecutionSteps,
     providerAccountsRepo: repos.providerAccounts,
     workspacePreferencesRepo: repos.workspacePreferences,
     capitalReservationsRepo: repos.capitalReservations,

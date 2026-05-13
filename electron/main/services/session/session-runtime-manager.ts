@@ -1,3 +1,4 @@
+import type { ExecutionStage } from "@/lib/types";
 import { AppError } from "@electron/shared/errors";
 import { SessionRuntime } from "./session-runtime";
 import type { ApprovalRecheckInput, OrchestratorDeps, SessionRuntimeManagerDeps } from "./session-types";
@@ -29,6 +30,7 @@ export class SessionRuntimeManager {
       statsRepo: this.deps.statsRepo,
       sessionAiRolesRepo: this.deps.sessionAiRolesRepo,
       sessionSelectorSettingsRepo: this.deps.sessionSelectorSettingsRepo,
+      sessionExecutionStepsRepo: this.deps.sessionExecutionStepsRepo,
       providerAccountsRepo: this.deps.providerAccountsRepo,
       workspacePreferencesRepo: this.deps.workspacePreferencesRepo,
       capitalReservationsRepo: this.deps.capitalReservationsRepo,
@@ -125,6 +127,20 @@ export class SessionRuntimeManager {
     this.deps.logger.debug({ sessionId: input.sessionId, approvalId: input.approvalId }, "enqueue approval recheck");
     const runtime = this.requireRuntime(input.sessionId);
     await runtime.orchestrator.runApprovalRecheck(input);
+  }
+
+  pauseAfterCurrentStep(sessionId: string): void {
+    const runtime = this.requireRuntime(sessionId);
+    runtime.orchestrator.pauseAfterCurrentStep();
+  }
+
+  async retryStep(
+    sessionId: string,
+    cycleId: string,
+    stage: ExecutionStage,
+  ): Promise<{ ok: true } | { ok: false; reason: string }> {
+    const runtime = this.requireRuntime(sessionId);
+    return runtime.orchestrator.retryStep(cycleId, stage);
   }
 
   private requireRuntime(sessionId: string): SessionRuntime {

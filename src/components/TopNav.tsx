@@ -29,6 +29,7 @@ const NAV_ITEMS: { id: PageKey; label: string }[] = [
 const SESSION_STATUS: Record<SessionStatus, { label: string; dot: string; pulse: boolean }> = {
   draft: { label: "Draft", dot: "#94a3b8", pulse: false },
   active: { label: "Active", dot: "#34d399", pulse: true },
+  attention_required: { label: "Needs Attention", dot: "#fb7185", pulse: true },
   paused: { label: "Paused", dot: "#fbbf24", pulse: false },
   stopped: { label: "Stopped", dot: "#f87171", pulse: false },
   idle: { label: "Idle", dot: "#556068", pulse: false },

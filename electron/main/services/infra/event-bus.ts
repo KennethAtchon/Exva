@@ -1,6 +1,6 @@
 import type { BrowserWindow } from "electron";
 import type { SessionRuntimeStatus } from "@/lib/types";
-import type { DashboardStats, EventRow, SessionStatus, Trade, TradeDecisionPayload } from "@/lib/types";
+import type { DashboardStats, EventRow, ExecutionStage, SessionStatus, Trade, TradeDecisionPayload } from "@/lib/types";
 import type { ExvaEventName } from "@electron/shared/channels";
 
 export interface ExvaEventMap {
@@ -22,6 +22,18 @@ export interface ExvaEventMap {
   research_phase_step: { sessionId: string; phase: string; message: string; cycleId: string };
   research_phase_complete: { sessionId: string; phase: string; cycleId: string; instrumentCount: number };
   research_phase_failed: { sessionId: string; phase: string; cycleId: string; error: string };
+  "step:started": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number };
+  "step:succeeded": { sessionId: string; cycleId: string; stage: ExecutionStage };
+  "step:failed": {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+    retryable: boolean;
+    errorCode: string;
+    errorMessage: string;
+    nextRetryAt: string | null;
+  };
+  "step:retrying": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number; nextRetryAt: string };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 }

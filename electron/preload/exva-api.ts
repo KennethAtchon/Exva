@@ -10,6 +10,8 @@ import type {
   ConnectionTestResult,
   CostBreakdown,
   DashboardStats,
+  ExecutionStage,
+  ExecutionStepStatus,
   ExecutionMode,
   EventRow,
   InstrumentClass,
@@ -48,6 +50,10 @@ export type ExvaEventName =
   | "research_phase_step"
   | "research_phase_complete"
   | "research_phase_failed"
+  | "step:started"
+  | "step:succeeded"
+  | "step:failed"
+  | "step:retrying"
   | "stats_update"
   | "notification";
 
@@ -121,6 +127,19 @@ export interface ProviderModelEntry {
   maxContextTokens: number;
 }
 
+export interface SessionExecutionProgressResponse {
+  steps: Array<{
+    stage: ExecutionStage;
+    status: ExecutionStepStatus;
+    attempt: number;
+    nextRetryAt: string | null;
+    lastErrorCode: string | null;
+    lastErrorMessage: string | null;
+    retryable: boolean;
+  }>;
+  cycleId: string | null;
+}
+
 export interface ExvaEventMap {
   trade_opened: Trade;
   trade_closed: Trade;
@@ -136,6 +155,18 @@ export interface ExvaEventMap {
   research_phase_step: { sessionId: string; phase: string; message: string; cycleId: string };
   research_phase_complete: { sessionId: string; phase: string; cycleId: string; instrumentCount: number };
   research_phase_failed: { sessionId: string; phase: string; cycleId: string; error: string };
+  "step:started": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number };
+  "step:succeeded": { sessionId: string; cycleId: string; stage: ExecutionStage };
+  "step:failed": {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+    retryable: boolean;
+    errorCode: string;
+    errorMessage: string;
+    nextRetryAt: string | null;
+  };
+  "step:retrying": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number; nextRetryAt: string };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 }
@@ -176,6 +207,10 @@ export interface ExvaApi {
     resume(): Promise<SessionStatus>;
     stop(): Promise<SessionStatus>;
     getStatus(): Promise<SessionStatus>;
+    getExecutionProgress(sessionId: string): Promise<SessionExecutionProgressResponse>;
+    retryStep(input: { sessionId: string; cycleId: string; stage: ExecutionStage }): Promise<{ ok: true } | { ok: false; reason: string }>;
+    pauseAfterCurrentStep(sessionId: string): Promise<{ ok: true }>;
+    clearFailedStep(input: { sessionId: string; cycleId: string; stage: ExecutionStage }): Promise<{ ok: true } | { ok: false; reason: string }>;
     list(filters?: {
       status?: SessionStatus;
       instrumentClass?: InstrumentClass;
