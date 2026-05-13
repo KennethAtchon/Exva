@@ -4,6 +4,9 @@ import { Card, SectionTitle } from "@/components/custom-ui";
 import type { AgentRole, SessionAiRoleProfile, SelectionMode } from "@/lib/types";
 import {
   AI_ROLE_PROFILE_VERSION,
+  DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES,
+  SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX,
+  SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN,
   aiRoleProfileDocumentSchema,
   type AiRoleProfileDocument,
   type AiRoleToolMode,
@@ -103,6 +106,7 @@ export const AiRoleProfileCard = ({
 
   const profileJson = profile.profileJson;
   const toolFields = ROLE_TOOL_FIELDS[activeRole];
+  const selectorRetryMinutes = profileJson.selectorSettings?.noInstrumentRetryMinutes ?? DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES;
 
   const applyProfileJson = (next: AiRoleProfileDocument) => {
     const normalized = normalizeProfileJson(next);
@@ -263,6 +267,34 @@ export const AiRoleProfileCard = ({
             </div>
           )}
         </Section>
+        {activeRole === "instrument_selector" ? (
+          <Section label="Selector Runtime">
+            <Field label="No-result retry (minutes)">
+              <input
+                type="number"
+                min={SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN}
+                max={SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX}
+                step={1}
+                value={selectorRetryMinutes}
+                onChange={(event) =>
+                  applyProfileJson({
+                    ...profileJson,
+                    selectorSettings: {
+                      ...profileJson.selectorSettings,
+                      noInstrumentRetryMinutes: normalizeSelectorRetryMinutesInput(event.target.value),
+                    },
+                  })
+                }
+                disabled={disabled}
+                style={inputStyle}
+              />
+              <div style={helperStyle}>
+                When the selector returns no tradable instruments, the orchestrator retries after this interval. Allowed
+                range: {SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN}-{SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX} minutes.
+              </div>
+            </Field>
+          </Section>
+        ) : null}
         <StringListField
           label="Method Checklist"
           value={profileJson.method.checklist}
@@ -542,4 +574,13 @@ function normalizeNullableInt(value: number | null | undefined): number | null |
   if (value === undefined) return undefined;
   if (value === null || Number.isNaN(value)) return null;
   return Math.max(0, Math.trunc(value));
+}
+
+function normalizeSelectorRetryMinutesInput(value: string): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES;
+  return Math.min(
+    SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX,
+    Math.max(SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN, Math.trunc(parsed)),
+  );
 }

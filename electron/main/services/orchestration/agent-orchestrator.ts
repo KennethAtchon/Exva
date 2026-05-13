@@ -1,5 +1,6 @@
 import PQueue from "p-queue";
 import { toLegacySessionConfig, type EventSourceType, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
+import { resolveSelectorNoInstrumentRetryMinutes } from "@electron/shared/ai-role-profile";
 import { AppError } from "@electron/shared/errors";
 import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
@@ -48,7 +49,6 @@ type DecisionOutput = {
 };
 
 type PredictionToken = { outcome?: unknown; token_id?: unknown };
-const NO_INSTRUMENT_RETRY_MS = 3 * 60 * 1000; // 3 minutes
 
 export class AgentOrchestrator {
   private readonly queue = new PQueue({ concurrency: 1 });
@@ -827,13 +827,15 @@ export class AgentOrchestrator {
 
   private handleResolvedInstruments(instruments: ResolvedInstrument[], context: string): void {
     if (instruments.length === 0) {
+      const retryMinutes = this.getNoInstrumentRetryMinutes();
+      const retryMs = retryMinutes * 60 * 1000;
       this.emitEvent(
         "INFO",
         null,
-        `${context}; no tradable instruments were selected. Re-evaluating in 30 minutes.`,
+        `${context}; no tradable instruments were selected. Re-evaluating in ${formatMinutesLabel(retryMinutes)}.`,
         "orchestrator",
       );
-      this.scheduleNoInstrumentRetry();
+      this.scheduleNoInstrumentRetry(retryMs);
       return;
     }
     this.clearNoInstrumentRetry();
@@ -841,7 +843,7 @@ export class AgentOrchestrator {
     this.enqueueTradeCycles(instruments);
   }
 
-  private scheduleNoInstrumentRetry(): void {
+  private scheduleNoInstrumentRetry(retryMs: number): void {
     if (this.noInstrumentRetryTimer) return;
     this.noInstrumentRetryTimer = setTimeout(() => {
       this.noInstrumentRetryTimer = null;
@@ -862,7 +864,7 @@ export class AgentOrchestrator {
             "orchestrator",
           );
         });
-    }, NO_INSTRUMENT_RETRY_MS);
+    }, retryMs);
   }
 
   private clearNoInstrumentRetry(): void {
@@ -1034,6 +1036,13 @@ export class AgentOrchestrator {
     return toLegacySessionConfig(this.deps.strategyContextService.get(this.sessionId));
   }
 
+  private getNoInstrumentRetryMinutes(): number {
+    const selectorProfile = this.deps.strategyContextService
+      .get(this.sessionId)
+      .aiRoleProfiles.find((profile) => profile.role === "instrument_selector");
+    return resolveSelectorNoInstrumentRetryMinutes(selectorProfile?.profileJson);
+  }
+
   private resolvePredictionTradeFields(
     instrument: ResolvedInstrument,
     decision: DecisionOutput,
@@ -1169,6 +1178,10 @@ export class AgentOrchestrator {
         instrumentMetadataJson,
       }));
   }
+}
+
+function formatMinutesLabel(minutes: number): string {
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
 function sumAiPipelineCost(pipeline: AiPipelineResult): number {

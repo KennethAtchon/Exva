@@ -1,5 +1,10 @@
 import type { AgentRole } from "./domain";
-import { AI_ROLE_PROFILE_VERSION, aiRoleProfileDocumentSchema, type AiRoleProfileDocument } from "./ai-role-profile";
+import {
+  AI_ROLE_PROFILE_VERSION,
+  DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES,
+  aiRoleProfileDocumentSchema,
+  type AiRoleProfileDocument,
+} from "./ai-role-profile";
 
 const BASE_MEMO_OUTPUT = {
   format: "memo",
@@ -138,6 +143,9 @@ const DEFAULT_AI_ROLE_PROFILES: Record<AgentRole, AiRoleProfileDocument> = {
       format: "candidate_list",
       requiredSections: ["candidate rationale"],
       terminalAction: "submit_candidates",
+    },
+    selectorSettings: {
+      noInstrumentRetryMinutes: DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES,
     },
   },
 };

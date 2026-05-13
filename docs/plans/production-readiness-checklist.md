@@ -15,14 +15,14 @@
 - [x] Regression test: `assistantText` fallback fires when no `submit_candidates` call exists in trace
 
 ### M9 · No-Instrument Retry Timer/Message Mismatch
-- [ ] Replace `NO_INSTRUMENT_RETRY_MS = 3 * 60 * 1000` (line 51 `agent-orchestrator.ts`) with a resolved user-configurable value
-- [ ] Default the interval to `5 * 60 * 1000` (5 min)
-- [ ] Persist the configured value in session/runtime config
-- [ ] Fix line 833: message reads `"Re-evaluating in 30 minutes"` — replace with the resolved interval value (e.g. `"Re-evaluating in 5 minutes"`)
-- [ ] Both the `setTimeout` at line 865 and the emitted message use the same single resolved variable
-- [ ] Test: custom value is read from config, used by timer, and reflected in the message string
-- [ ] Test: missing/invalid config falls back to 5-minute default
-- [ ] Decide and document allowed range for the setting (suggested: 1–60 min) (Q5)
+- [x] Replace `NO_INSTRUMENT_RETRY_MS = 3 * 60 * 1000` (line 51 `agent-orchestrator.ts`) with a resolved user-configurable value
+- [x] Default the interval to `5 * 60 * 1000` (5 min)
+- [x] Persist the configured value in session/runtime config via `instrument_selector` role profile JSON (`selectorSettings.noInstrumentRetryMinutes`)
+- [x] Fix line 833: message reads `"Re-evaluating in 30 minutes"` — replace with the resolved interval value (e.g. `"Re-evaluating in 5 minutes"`)
+- [x] Both the `setTimeout` at line 865 and the emitted message use the same single resolved variable
+- [x] Test: custom value is read from config, used by timer, and reflected in the message string
+- [x] Test: missing/invalid config falls back to 5-minute default
+- [x] Decide and document allowed range for the setting: `1–60 min` (Q5)
 
 ---
 

@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 export const AI_ROLE_PROFILE_VERSION = 1 as const;
+export const SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN = 1 as const;
+export const SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX = 60 as const;
+export const DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES = 5 as const;
 
 export const aiRoleToolModeSchema = z.enum(["disabled", "optional", "preferred", "required"]);
 
@@ -31,6 +34,18 @@ export const aiRoleProfileOutputSchema = z
   .catchall(z.unknown())
   .default({});
 
+export const selectorRoleSettingsSchema = z
+  .object({
+    noInstrumentRetryMinutes: z
+      .number()
+      .int()
+      .min(SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN)
+      .max(SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX)
+      .optional(),
+  })
+  .catchall(z.unknown())
+  .optional();
+
 export const aiRoleProfileDocumentSchema = z
   .object({
     version: z.literal(AI_ROLE_PROFILE_VERSION),
@@ -39,6 +54,7 @@ export const aiRoleProfileDocumentSchema = z
     toolPolicy: z.record(z.string(), aiRoleToolPolicyEntrySchema).default({}),
     method: aiRoleProfileMethodSchema,
     output: aiRoleProfileOutputSchema,
+    selectorSettings: selectorRoleSettingsSchema,
   })
   .catchall(z.unknown());
 
@@ -53,6 +69,16 @@ export function normalizeAiRoleProfileDocument(
   const parsed = aiRoleProfileDocumentSchema.safeParse(input);
   if (parsed.success) return parsed.data;
   return fallback ? cloneAiRoleProfileDocument(fallback) : aiRoleProfileDocumentSchema.parse({ version: AI_ROLE_PROFILE_VERSION });
+}
+
+export function resolveSelectorNoInstrumentRetryMinutes(document: AiRoleProfileDocument | null | undefined): number {
+  const value = document?.selectorSettings?.noInstrumentRetryMinutes;
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN &&
+    value <= SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX
+    ? value
+    : DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES;
 }
 
 export function renderAiRoleProfileMarkdown(
