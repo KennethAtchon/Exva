@@ -82,10 +82,11 @@ export async function buildHarnessToolSet(input: {
   brokerRegistry?: BrokerRegistry;
   maxDataSpendUsd?: number | null;
   instrumentClasses?: InstrumentClass[];
-  getMockOhlcv?: (symbol: string) => MockOhlcvBar[];
+  getMockOhlcv?: (symbol: string, timeframe?: string) => MockOhlcvBar[];
   mockNewsData?: MockNewsItem[];
   mockRedditData?: typeof MOCK_REDDIT_POSTS;
   mockTrendingData?: typeof MOCK_TRENDING_SYMBOLS;
+  isMockSession?: boolean;
 }): Promise<ToolSet | undefined> {
   const { availability } = input;
   const tools: ToolSet = {};
@@ -123,6 +124,7 @@ export async function buildHarnessToolSet(input: {
       cycleId: input.cycleId,
       instrumentClasses: input.instrumentClasses,
       mockPosts: input.mockRedditData,
+      isMockSession: input.isMockSession,
     });
   }
 

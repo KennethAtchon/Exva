@@ -129,7 +129,7 @@ export function createMarketTools(deps: {
   searchRegistry?: SearchRegistry;
   searchProviderId?: string | null;
   include: MarketToolsInclude;
-  getMockOhlcv?: (symbol: string) => SyntheticBar[];
+  getMockOhlcv?: (symbol: string, timeframe?: string) => SyntheticBar[];
   mockNewsData?: MockNewsItem[];
 }) {
   const out: Partial<ToolSet> = {};
@@ -153,11 +153,23 @@ export function createMarketTools(deps: {
 
   if (deps.include.ohlcv) {
     out.get_ohlcv = tool({
-      description: "Get OHLCV bars for a symbol. Returns up to 200 daily bars.",
-      inputSchema: z.object({ symbol: z.string(), instrumentClass: instrumentClassSchema }),
-      execute: async ({ symbol, instrumentClass }: { symbol: string; instrumentClass: InstrumentClass }) => {
+      description: "Get OHLCV bars for a symbol. Supports timeframes: 1h, 4h, 1d (default). Returns up to 200 bars.",
+      inputSchema: z.object({
+        symbol: z.string(),
+        instrumentClass: instrumentClassSchema,
+        timeframe: z.enum(["1h", "4h", "1d"]).default("1d").optional(),
+      }),
+      execute: async ({
+        symbol,
+        instrumentClass,
+        timeframe = "1d",
+      }: {
+        symbol: string;
+        instrumentClass: InstrumentClass;
+        timeframe?: string;
+      }) => {
         if (deps.getMockOhlcv) {
-          return { symbol, timeframe: "1d", bars: deps.getMockOhlcv(symbol) };
+          return { symbol, timeframe, bars: deps.getMockOhlcv(symbol, timeframe) };
         }
         const brokerAccountId = deps.brokerAccountIdByClass(instrumentClass);
         if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
@@ -166,7 +178,7 @@ export function createMarketTools(deps: {
           const snap = await adapter.getMarketSnapshot(symbol);
           return {
             symbol,
-            timeframe: "1d",
+            timeframe,
             bars: buildSyntheticBars(snap.price),
             note: "Synthetic OHLCV generated from latest market snapshot.",
           };
@@ -214,7 +226,8 @@ function buildSyntheticBars(spot: number): SyntheticBar[] {
   const now = Date.now();
   for (let i = 29; i >= 0; i--) {
     const ts = new Date(now - i * DAY_MS).toISOString();
-    const drift = (29 - i) * 0.0015;
+    // i counts down from oldest (29) to newest (0); drift shrinks as bars approach spot
+    const drift = i * 0.0015;
     const close = round2(Math.max(0.01, spot * (1 - drift)));
     const open = round2(close * 1.002);
     const high = round2(Math.max(open, close) * 1.004);

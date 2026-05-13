@@ -131,6 +131,11 @@ export class AgentOrchestrator {
     this.pendingApprovalIds.clear();
     for (const resolve of this.approvalCallbacks.values()) resolve(false);
     this.approvalCallbacks.clear();
+    for (const r of this.deps.capitalReservation.listActiveBySession(this.sessionId)) {
+      if (r.approvalId == null) {
+        this.deps.capitalReservation.releaseOnFailure(r.tradeId!);
+      }
+    }
     this.deps.logger.info({ sessionId: this.sessionId }, "orchestrator stopped");
   }
 
@@ -348,8 +353,26 @@ export class AgentOrchestrator {
       context.riskOrder = riskResult.value;
     }
 
+    const workspace = this.deps.workspacePreferencesRepo.get();
+    const useSharedPool = workspace.capitalAllocationMode === "shared_global_pool";
+
     let approvalIdForCapital: string | null = null;
     if (config.human_approval_required) {
+      if (useSharedPool) {
+        const fit = this.deps.capitalReservation.checkOrderFits(trade.position_size_usd);
+        if (!fit.ok) {
+          this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+          this.emitEvent(
+            "WARN",
+            trade.id,
+            `Global capital pool exhausted (reserved $${fit.reserved}, ceiling $${fit.ceiling}); approval skipped.`,
+            "orchestrator",
+            context.cycleId,
+          );
+          this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
+          return;
+        }
+      }
       const { approved, approvalId } = await this.waitForApproval(trade, context.instrument.instrumentClass, decision.output, undefined);
       approvalIdForCapital = approvalId;
       if (!approved) {
@@ -359,6 +382,28 @@ export class AgentOrchestrator {
         this.deps.bus.emit("trade_closed", rejected);
         return;
       }
+    }
+
+    // No-approval path: reserve capital before touching the broker
+    if (!config.human_approval_required && useSharedPool) {
+      const fit = this.deps.capitalReservation.checkOrderFits(trade.position_size_usd);
+      if (!fit.ok) {
+        this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+        this.emitEvent(
+          "WARN",
+          trade.id,
+          `Global capital pool exhausted (reserved $${fit.reserved}, ceiling $${fit.ceiling}); trade rejected.`,
+          "orchestrator",
+          context.cycleId,
+        );
+        this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
+        return;
+      }
+      this.deps.capitalReservation.reserveForOrder({
+        sessionId: this.sessionId,
+        tradeId: trade.id,
+        amountUsd: trade.position_size_usd,
+      });
     }
 
     const brokerResult = await stepRunner.run(
@@ -371,7 +416,7 @@ export class AgentOrchestrator {
           cycleId: context.cycleId,
           tradeId: trade.id,
           brokerAccountId: trade.brokerAccountId ?? "",
-          existingOrderCheck: () => false, // idempotency via brokerOrderId checked post-placement
+          existingOrderCheck: () => false,
           sessionIsPaused: () => this.deps.bus.runtimeStatus(this.sessionId) !== "active",
           decisionRiskInput: {
             config,
@@ -402,6 +447,11 @@ export class AgentOrchestrator {
     );
     if (await this.pauseIfRequested(context.cycleId)) return;
     if (!brokerResult.ok) {
+      if (!config.human_approval_required && useSharedPool) {
+        this.deps.capitalReservation.releaseOnFailure(trade.id);
+      } else if (approvalIdForCapital) {
+        this.deps.capitalReservation.releaseByApproval(approvalIdForCapital);
+      }
       this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
       this.handleStepFailure("broker_order", context.cycleId, brokerResult, trade.id);
       this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
@@ -412,8 +462,7 @@ export class AgentOrchestrator {
     if (approvalIdForCapital) {
       this.deps.capitalReservation.convertApprovalToOpenOrder(approvalIdForCapital, trade.id);
     }
-    const workspace = this.deps.workspacePreferencesRepo.get();
-    if (workspace.capitalAllocationMode === "shared_global_pool" && approvalIdForCapital) {
+    if (useSharedPool) {
       this.deps.capitalReservation.convertOrderToPosition(trade.id);
     }
     this.clearAttentionRequired();

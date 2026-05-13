@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { createMarketTools, scenarioMockNews } from "../tools/market-tools";
+import { MockBrokerAdapter } from "../../broker/adapters/mock-adapter";
 
 type StockToolExecutor = { execute: (input: { symbol: string; instrumentClass: "stock" }) => Promise<unknown> };
 type OhlcvToolExecutor = {
-  execute: (input: { symbol: string; instrumentClass: "stock" }) => Promise<{ bars?: unknown[] }>;
+  execute: (input: { symbol: string; instrumentClass: "stock"; timeframe?: string }) => Promise<{ bars?: unknown[]; timeframe?: string }>;
 };
 type NewsToolExecutor = {
   execute: (input: { symbol: string }) => Promise<{ results?: unknown[] }>;
@@ -78,5 +79,48 @@ describe("market-tools", () => {
     for (const bias of ["bullish", "bearish", "sideways", "volatile"] as const) {
       expect(scenarioMockNews(bias)).toHaveLength(3);
     }
+  });
+
+  it("buildSyntheticBars drifts upward toward spot price", async () => {
+    const brokerRegistry = {
+      get: vi.fn().mockResolvedValue({
+        getMarketSnapshot: vi.fn().mockResolvedValue({ price: 200 }),
+      }),
+    };
+    const tools = createMarketTools({
+      sessionId: "s1",
+      brokerRegistry: brokerRegistry as never,
+      brokerAccountIdByClass: () => "b1",
+      include: { quote: false, ohlcv: true, news: false },
+    });
+
+    const getOhlcv = tools.get_ohlcv as unknown as OhlcvToolExecutor;
+    const out = await getOhlcv.execute({ symbol: "AAPL", instrumentClass: "stock" });
+
+    const bars = out.bars as Array<{ close: number }>;
+    expect(bars.at(0)!.close).toBeLessThan(bars.at(-1)!.close);
+  });
+
+  it("get_ohlcv with timeframe 4h passes timeframe through mock callback", async () => {
+    const adapter = new MockBrokerAdapter();
+    const capturedCalls: Array<{ symbol: string; timeframe?: string }> = [];
+    const tools = createMarketTools({
+      sessionId: "s1",
+      brokerRegistry: { get: vi.fn() } as never,
+      brokerAccountIdByClass: () => null,
+      include: { quote: false, ohlcv: true, news: false },
+      getMockOhlcv: (symbol, timeframe) => {
+        capturedCalls.push({ symbol, timeframe });
+        return adapter.getMockOhlcv(symbol, timeframe);
+      },
+    });
+
+    const getOhlcv = tools.get_ohlcv as unknown as OhlcvToolExecutor;
+    const out = await getOhlcv.execute({ symbol: "AAPL", instrumentClass: "stock", timeframe: "4h" });
+
+    expect(capturedCalls).toHaveLength(1);
+    expect(capturedCalls[0]?.timeframe).toBe("4h");
+    expect(out.timeframe).toBe("4h");
+    expect(Array.isArray(out.bars)).toBe(true);
   });
 });

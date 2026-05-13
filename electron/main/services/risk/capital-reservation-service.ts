@@ -28,6 +28,20 @@ export class CapitalReservationService {
     return { ok: true };
   }
 
+  checkOrderFits(amountUsd: number): { ok: true } | { ok: false; reserved: number; ceiling: number } {
+    const workspace = this.workspacePreferencesRepo.get();
+    if (workspace.capitalAllocationMode !== "shared_global_pool") return { ok: true };
+    const ceiling = workspace.globalCapitalPoolUsd;
+    if (ceiling == null || ceiling <= 0) return { ok: false, reserved: this.repo.sumActiveReservedUsd(), ceiling: 0 };
+    const reserved = this.repo.sumActiveReservedUsd();
+    if (reserved + amountUsd > ceiling) return { ok: false, reserved, ceiling };
+    return { ok: true };
+  }
+
+  reserveForOrder(input: { sessionId: string; tradeId: string; amountUsd: number }) {
+    return this.repo.reserveForOrder(input);
+  }
+
   reserveForApproval(input: { sessionId: string; approvalId: string; amountUsd: number }) {
     return this.repo.reserveForApproval(input);
   }

@@ -7,6 +7,28 @@ import { toCapitalReservation } from "./mappers";
 export class CapitalReservationsRepo {
   constructor(private readonly client: DbClient) {}
 
+  reserveForOrder(input: { sessionId: string; tradeId: string; amountUsd: number }): CapitalReservation {
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+
+    this.client.db
+      .insert(capitalReservations)
+      .values({
+        id,
+        sessionId: input.sessionId,
+        approvalId: null,
+        tradeId: input.tradeId,
+        amountUsd: input.amountUsd,
+        reason: "open_order",
+        status: "consumed",
+        createdAt,
+        releasedAt: null,
+      })
+      .run();
+
+    return this.require(id);
+  }
+
   reserveForApproval(input: { sessionId: string; approvalId: string; amountUsd: number }): CapitalReservation {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();

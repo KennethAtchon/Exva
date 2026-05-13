@@ -33,6 +33,7 @@ import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
 import { scenarioMockNews, type MockNewsItem } from "../tools/market-tools";
 import { MOCK_REDDIT_POSTS } from "../tools/search-reddit-tool";
 import { MOCK_TRENDING_SYMBOLS } from "../tools/trending-symbols-tool";
+import { MockMarketSimulator } from "../../broker/mock/mock-market-simulator";
 
 const logger = createLogger("ai-runtime");
 
@@ -220,6 +221,7 @@ ${input.review}`;
       mockNewsData: mockCtx.mockNewsData,
       mockRedditData: mockCtx.mockRedditData,
       mockTrendingData: mockCtx.mockTrendingData,
+      isMockSession: mockCtx.isMock,
     });
 
     const caps = ROLE_HARNESS_CAPS[role];
@@ -320,6 +322,7 @@ ${input.review}`;
       mockNewsData: mockCtx.mockNewsData,
       mockRedditData: mockCtx.mockRedditData,
       mockTrendingData: mockCtx.mockTrendingData,
+      isMockSession: mockCtx.isMock,
     });
     const caps = ROLE_HARNESS_CAPS[role];
 
@@ -509,7 +512,7 @@ ${input.review}`;
 
   private async getMockContext(sessionId: string): Promise<{
     isMock: boolean;
-    getMockOhlcv: ((symbol: string) => MockOhlcvBar[]) | undefined;
+    getMockOhlcv: ((symbol: string, timeframe?: string) => MockOhlcvBar[]) | undefined;
     mockNewsData: MockNewsItem[] | undefined;
     mockRedditData: typeof MOCK_REDDIT_POSTS | undefined;
     mockTrendingData: typeof MOCK_TRENDING_SYMBOLS | undefined;
@@ -524,12 +527,14 @@ ${input.review}`;
         mockTrendingData: undefined,
       };
     }
+    const kind = mockAdapter.getScenarioKind();
+    const fixtures = kind ? MockMarketSimulator.fixturesFor(kind) : null;
     return {
       isMock: true,
-      getMockOhlcv: (symbol: string) => mockAdapter.getMockOhlcv(symbol),
-      mockNewsData: scenarioMockNews(mockAdapter.getScenarioBias()),
-      mockRedditData: MOCK_REDDIT_POSTS,
-      mockTrendingData: MOCK_TRENDING_SYMBOLS,
+      getMockOhlcv: (symbol: string, timeframe?: string) => mockAdapter.getMockOhlcv(symbol, timeframe),
+      mockNewsData: fixtures?.news ?? scenarioMockNews(mockAdapter.getScenarioBias()),
+      mockRedditData: (fixtures?.redditPosts ?? MOCK_REDDIT_POSTS) as typeof MOCK_REDDIT_POSTS,
+      mockTrendingData: (fixtures?.trendingSymbols ?? MOCK_TRENDING_SYMBOLS) as typeof MOCK_TRENDING_SYMBOLS,
     };
   }
 

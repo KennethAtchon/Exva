@@ -28,6 +28,7 @@ export interface BrokerOrder {
 export interface BrokerOrderResult {
   brokerOrderId: string;
   filledAvgPrice: number;
+  filledSizeUsd?: number;
 }
 
 export interface BrokerPosition {

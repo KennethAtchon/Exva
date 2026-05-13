@@ -98,6 +98,7 @@ export function createSearchRedditTool(deps: {
   cycleId?: string | null;
   instrumentClasses?: InstrumentClass[];
   mockPosts?: typeof MOCK_REDDIT_POSTS;
+  isMockSession?: boolean;
 }) {
   const defaultSubs = defaultSubredditsForInstrumentClasses(deps.instrumentClasses);
 
@@ -128,6 +129,10 @@ export function createSearchRedditTool(deps: {
       const startedAt = Date.now();
       const createdAt = new Date().toISOString();
       const subsToUse = subreddits?.length ? subreddits : defaultSubs;
+
+      if (!deps.mockPosts && !deps.isMockSession) {
+        return { error: "Reddit search requires OAuth authentication in live mode.", posts: [] };
+      }
 
       try {
         const posts = deps.mockPosts

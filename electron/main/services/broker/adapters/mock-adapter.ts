@@ -9,6 +9,7 @@ import type {
   MarketSnapshot,
   OrderStatus,
 } from "./broker-adapter";
+import type { MockScenarioKind } from "../mock/mock-scenario-fixtures";
 
 export type MockScenarioBias = "bullish" | "bearish" | "sideways" | "volatile";
 
@@ -16,6 +17,9 @@ export interface MockScenario {
   bias?: MockScenarioBias;
   volatilityPct?: number;
   trendPctPerDay?: number;
+  kind?: MockScenarioKind;
+  marketClosed?: boolean;
+  brokerTimeoutMs?: number;
 }
 
 export interface MockOhlcvBar {
@@ -28,6 +32,13 @@ export interface MockOhlcvBar {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+
+const BAR_MS: Record<string, number> = {
+  "1d": DAY_MS,
+  "4h": 4 * HOUR_MS,
+  "1h": HOUR_MS,
+};
 
 const SCENARIO_DRIFT: Record<MockScenarioBias, number> = {
   bullish: 0.005,
@@ -36,7 +47,7 @@ const SCENARIO_DRIFT: Record<MockScenarioBias, number> = {
   volatile: 0.001,
 };
 
-export const DEFAULT_MOCK_SCENARIO: Required<MockScenario> = {
+export const DEFAULT_MOCK_SCENARIO: Required<Pick<MockScenario, "bias" | "volatilityPct" | "trendPctPerDay">> = {
   bias: "bullish",
   volatilityPct: 0.018,
   trendPctPerDay: 0.006,
@@ -73,17 +84,72 @@ export class MockBrokerAdapter implements BrokerAdapter {
   }
 
   async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
+    if (this.scenario.marketClosed) {
+      throw new Error("Market is closed");
+    }
+
+    const price = this.basePriceFor(instrumentSymbol);
+    const kind = this.scenario.kind;
+
+    if (kind === "stale_quote") {
+      const halfSpread = price * 0.0005;
+      return {
+        instrumentSymbol,
+        price,
+        bid: round2(price - halfSpread),
+        ask: round2(price + halfSpread),
+        spreadPct: 0.1,
+        volume: Math.round(price * 600),
+        timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+      };
+    }
+
+    const isWideSpread = kind === "wide_spread";
+    const spreadPct = isWideSpread ? 2.5 : 0.1;
+    const halfSpread = price * (spreadPct / 200);
+    const volume = Math.round(price * (isWideSpread ? 120 : 800));
+
     return {
       instrumentSymbol,
-      price: this.priceFor(instrumentSymbol),
+      price,
+      bid: round2(price - halfSpread),
+      ask: round2(price + halfSpread),
+      spreadPct,
+      volume,
       timestamp: new Date().toISOString(),
     };
   }
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
+    if (this.scenario.marketClosed) {
+      throw new Error("Market is closed; order rejected");
+    }
+
+    const kind = this.scenario.kind;
+
+    if (kind === "broker_reject") {
+      throw new Error("Order rejected by broker: RISK_LIMIT_EXCEEDED");
+    }
+
+    if (kind === "rate_limit") {
+      throw new Error("429 Too Many Requests: broker rate limit exceeded");
+    }
+
+    if (this.scenario.brokerTimeoutMs) {
+      await new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Broker request timed out")), this.scenario.brokerTimeoutMs),
+      );
+    }
+
     const brokerOrderId = `mock_${crypto.randomUUID()}`;
-    const filledAvgPrice = this.priceFor(order.instrumentSymbol);
+    const filledAvgPrice = this.basePriceFor(order.instrumentSymbol);
     this.orders.set(brokerOrderId, { order, price: filledAvgPrice });
+
+    if (kind === "partial_fill") {
+      const fillRatio = 0.4 + Math.random() * 0.4;
+      return { brokerOrderId, filledAvgPrice, filledSizeUsd: round2(order.sizeUsd * fillRatio) };
+    }
+
     return { brokerOrderId, filledAvgPrice };
   }
 
@@ -107,8 +173,20 @@ export class MockBrokerAdapter implements BrokerAdapter {
   async closeOrder(orderId: string): Promise<CloseResult> {
     const existing = this.orders.get(orderId);
     this.orders.delete(orderId);
-    const realizedPnlUsd = existing ? Number((existing.price * 0.002).toFixed(2)) : 0;
-    return { brokerOrderId: orderId, realizedPnlUsd };
+    if (!existing) {
+      return { brokerOrderId: orderId, realizedPnlUsd: 0 };
+    }
+
+    const entryPrice = existing.price;
+    const closePrice = this.computeClosePrice(existing.order.instrumentSymbol, entryPrice);
+    const sizeUsd = existing.order.sizeUsd;
+    const isSell = existing.order.side === "SELL";
+
+    const realizedPnlUsd = isSell
+      ? ((entryPrice - closePrice) / entryPrice) * sizeUsd
+      : ((closePrice - entryPrice) / entryPrice) * sizeUsd;
+
+    return { brokerOrderId: orderId, realizedPnlUsd: round2(realizedPnlUsd) };
   }
 
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
@@ -116,33 +194,36 @@ export class MockBrokerAdapter implements BrokerAdapter {
     return {
       brokerOrderId: orderId,
       status: existing ? "open" : "closed",
-      latestPrice: existing ? this.priceFor(existing.order.instrumentSymbol) : null,
+      latestPrice: existing ? this.basePriceFor(existing.order.instrumentSymbol) : null,
       realizedPnlUsd: null,
     };
   }
 
-  getMockOhlcv(symbol: string, barCount = 30): MockOhlcvBar[] {
+  getMockOhlcv(symbol: string, timeframe = "1d", barCount = 200): MockOhlcvBar[] {
+    const barMs = BAR_MS[timeframe] ?? DAY_MS;
     const seed = symbolSeed(symbol);
-    const base = this.priceFor(symbol);
+    const base = this.basePriceFor(symbol);
     const bias = this.scenario.bias ?? "sideways";
     const dailyDrift = this.scenario.trendPctPerDay ?? SCENARIO_DRIFT[bias];
+    const periodDrift = dailyDrift * (barMs / DAY_MS);
     const dailyVol = this.scenario.volatilityPct ?? 0.015;
+    const periodVol = dailyVol * Math.sqrt(barMs / DAY_MS);
     const noiseScale = bias === "volatile" ? 1.15 : bias === "sideways" ? 0.75 : 0.35;
 
     const bars: MockOhlcvBar[] = [];
-    const trendStart = base * Math.exp(-dailyDrift * Math.max(0, barCount - 1));
+    const trendStart = base * Math.exp(-periodDrift * Math.max(0, barCount - 1));
 
     for (let i = 0; i < barCount; i++) {
-      const trendPrice = trendStart * Math.exp(dailyDrift * i);
-      const openNoise = seededNormal(seed + i) * dailyVol * noiseScale;
-      const closeNoise = seededNormal(seed + i + 500) * dailyVol * noiseScale;
+      const trendPrice = trendStart * Math.exp(periodDrift * i);
+      const openNoise = seededNormal(seed + i) * periodVol * noiseScale;
+      const closeNoise = seededNormal(seed + i + 500) * periodVol * noiseScale;
       const open = round2(Math.max(0.01, trendPrice * (1 + openNoise)));
       const close = round2(Math.max(0.01, trendPrice * (1 + closeNoise)));
       const high = round2(Math.max(open, close) * (1 + Math.abs(seededNormal(seed + i + 1000)) * 0.005));
       const low = round2(Math.min(open, close) * (1 - Math.abs(seededNormal(seed + i + 2000)) * 0.005));
       const volume = Math.round(base * (500 + (seed + i) % 1000));
       bars.push({
-        ts: new Date(Date.now() - (barCount - 1 - i) * DAY_MS).toISOString(),
+        ts: new Date(Date.now() - (barCount - 1 - i) * barMs).toISOString(),
         open,
         high,
         low,
@@ -157,8 +238,27 @@ export class MockBrokerAdapter implements BrokerAdapter {
     return this.scenario.bias ?? DEFAULT_MOCK_SCENARIO.bias;
   }
 
-  private priceFor(instrumentSymbol: string): number {
+  getScenarioKind(): MockScenarioKind | undefined {
+    return this.scenario.kind;
+  }
+
+  private basePriceFor(instrumentSymbol: string): number {
     const seed = symbolSeed(instrumentSymbol);
     return Number((50 + (seed % 350)).toFixed(2));
+  }
+
+  private computeClosePrice(symbol: string, entryPrice: number): number {
+    switch (this.scenario.kind) {
+      case "gap_down_after_entry":
+        return round2(entryPrice * 0.91);
+      case "failed_breakout":
+        return round2(entryPrice * 0.97);
+      case "news_reversal":
+        return round2(entryPrice * 0.94);
+      case "clean_breakout":
+        return round2(entryPrice * 1.05);
+      default:
+        return this.basePriceFor(symbol);
+    }
   }
 }
