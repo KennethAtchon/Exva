@@ -1099,6 +1099,8 @@ export class AgentOrchestrator {
       ai_cost_usd: aiCostUsd,
       confidence_score: decision.confidence,
       broker_order_id: null,
+      high_water_mark_price: null,
+      exit_reason: null,
       created_at: new Date().toISOString(),
     };
   }
@@ -1136,6 +1138,8 @@ export class AgentOrchestrator {
       ai_cost_usd: aiCostUsd,
       confidence_score: decision.confidence,
       broker_order_id: null,
+      high_water_mark_price: null,
+      exit_reason: null,
       created_at: new Date().toISOString(),
     };
   }

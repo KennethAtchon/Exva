@@ -51,6 +51,8 @@ export function toTrade(row: Row): Trade {
     ai_cost_usd: Number(row.ai_cost_usd ?? 0),
     confidence_score: nullableNumber(row.confidence_score),
     broker_order_id: nullableString(row.broker_order_id),
+    high_water_mark_price: nullableNumber(row.high_water_mark_price),
+    exit_reason: nullableString(row.exit_reason),
     created_at: String(row.created_at),
   };
 }

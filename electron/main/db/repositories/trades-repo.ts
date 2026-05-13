@@ -117,7 +117,7 @@ export class TradesRepo {
       .run();
   }
 
-  updateStatus(id: string, status: TradeStatus, finalPnlUsd: number | null = null): Trade {
+  updateStatus(id: string, status: TradeStatus, finalPnlUsd: number | null = null, exitReason?: string): Trade {
     const current = this.require(id);
     const now = new Date().toISOString();
     this.client.db
@@ -126,10 +126,24 @@ export class TradesRepo {
         status,
         closedAt: status === "closed" || status === "rejected" ? now : current.closed_at,
         finalPnlUsd: finalPnlUsd ?? current.final_pnl_usd,
+        ...(exitReason != null ? { exitReason } : {}),
       })
       .where(eq(trades.id, id))
       .run();
     return this.require(id);
+  }
+
+  updateHighWaterMark(tradeId: string, price: number): void {
+    this.client.db
+      .update(trades)
+      .set({ highWaterMarkPrice: price })
+      .where(
+        and(
+          eq(trades.id, tradeId),
+          sql`(${trades.highWaterMarkPrice} IS NULL OR ${trades.highWaterMarkPrice} < ${price})`,
+        ),
+      )
+      .run();
   }
 
   patchPendingExecution(

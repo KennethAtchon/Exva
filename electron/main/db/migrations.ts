@@ -291,6 +291,8 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       ai_cost_usd REAL NOT NULL DEFAULT 0,
       confidence_score REAL,
       broker_order_id TEXT,
+      high_water_mark_price REAL,
+      exit_reason TEXT,
       created_at TEXT NOT NULL
     );
 

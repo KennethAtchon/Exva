@@ -98,6 +98,8 @@ function createApprovalFixture(db: ReturnType<typeof createTestDb>, name: string
     ai_cost_usd: 0,
     confidence_score: 0.8,
     broker_order_id: null,
+    high_water_mark_price: null,
+    exit_reason: null,
     created_at: new Date().toISOString(),
   });
 

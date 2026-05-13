@@ -283,6 +283,8 @@ export const trades = sqliteTable("trades", {
   aiCostUsd: real("ai_cost_usd").notNull().default(0),
   confidenceScore: real("confidence_score"),
   brokerOrderId: text("broker_order_id"),
+  highWaterMarkPrice: real("high_water_mark_price"),
+  exitReason: text("exit_reason"),
   createdAt: text("created_at").notNull(),
 });
 

@@ -1091,6 +1091,8 @@ export interface Trade {
   ai_cost_usd: number;
   confidence_score: number | null;
   broker_order_id: string | null;
+  high_water_mark_price: number | null;
+  exit_reason: string | null;
   created_at: string;
   current_price?: number | null;
   unrealized_pnl?: number | null;

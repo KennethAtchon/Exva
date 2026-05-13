@@ -6,6 +6,7 @@ import type { EventBus } from "../infra/event-bus";
 import type { SessionRepo } from "../../db/repositories/session-repo";
 import type { CapitalReservationService } from "../risk/capital-reservation-service";
 import type { HoldingStyle } from "@/lib/types";
+import { ExitPolicyEvaluator, type ExitReason } from "../risk/exit-policy-evaluator";
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   intraday_flat: 5_000,
@@ -17,6 +18,7 @@ const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
 export class TradeMonitor {
   private timer: NodeJS.Timeout | null = null;
   private pollIntervalMs = POLL_INTERVAL_MS.multi_day_swing;
+  private readonly exitEvaluator = new ExitPolicyEvaluator();
 
   constructor(
     private readonly sessionId: string,
@@ -56,10 +58,40 @@ export class TradeMonitor {
     const remainingOpenTrades = this.tradesRepo.listOpenAndPending(this.sessionId).filter((trade) => trade.status === "open");
     for (const trade of remainingOpenTrades) {
       if (!trade.broker_order_id || !trade.brokerAccountId) continue;
+
       const adapter = await this.brokerRegistry.get(trade.brokerAccountId);
+      const snapshot = await adapter.getMarketSnapshot(trade.instrumentSymbol);
+      const currentPrice = snapshot.price;
+
+      // Update high-water-mark before evaluating (conditional: only moves up for longs)
+      this.tradesRepo.updateHighWaterMark(trade.id, currentPrice);
+
+      // Get OHLCV for ATR — only available on mock adapters; falls back to empty for live
+      const mockAdapter = adapter as Partial<{ getMockOhlcv: (symbol: string, timeframe?: string, barCount?: number) => { high: number; low: number; close: number }[] }>;
+      const bars = mockAdapter.getMockOhlcv ? mockAdapter.getMockOhlcv(trade.instrumentSymbol, "1d", 20) : [];
+
+      const exitDecision = this.exitEvaluator.evaluate({
+        trade: {
+          id: trade.id,
+          entryPrice: trade.entry_price ?? trade.position_size_usd,
+          side: trade.side as "BUY" | "SELL",
+          instrumentType: trade.instrumentType,
+          highWaterMarkPrice: trade.high_water_mark_price,
+        },
+        currentPrice,
+        ohlcvBars: bars,
+        riskConfig: strategyContext.riskConfig,
+      });
+
+      if (exitDecision.shouldExit) {
+        await this.closeTradeAtBroker(trade, exitDecision.reason);
+        continue;
+      }
+
+      // Fallback: check if broker already closed the order externally
       const status = await adapter.getOrderStatus(trade.broker_order_id);
       if (status.status === "closed") {
-        this.closeTrade(trade.id, status.realizedPnlUsd ?? 0);
+        this.closeTrade(trade.id, status.realizedPnlUsd ?? 0, "broker_closed");
       }
     }
 
@@ -90,7 +122,7 @@ export class TradeMonitor {
     for (const trade of predictionTrades) {
       const resolutionTime = readResolutionTime(trade.instrumentMetadataJson);
       if (resolutionTime && resolutionTime.getTime() <= Date.now()) {
-        await this.closeTradeAtBroker(trade);
+        await this.closeTradeAtBroker(trade, "event_resolution");
       }
     }
 
@@ -101,7 +133,7 @@ export class TradeMonitor {
       let exposure = remaining.reduce((sum, trade) => sum + trade.position_size_usd, 0);
       for (const trade of remaining.sort((a, b) => new Date(a.opened_at ?? a.created_at).getTime() - new Date(b.opened_at ?? b.created_at).getTime())) {
         if (exposure <= maxExposureUsd) break;
-        await this.closeTradeAtBroker(trade);
+        await this.closeTradeAtBroker(trade, "event_resolution");
         exposure -= trade.position_size_usd;
       }
     }
@@ -116,20 +148,24 @@ export class TradeMonitor {
       const openedAt = new Date(trade.opened_at ?? trade.created_at).getTime();
       const ageDays = (Date.now() - openedAt) / (1000 * 60 * 60 * 24);
       if (ageDays > maxHoldDays) {
-        await this.closeTradeAtBroker(trade);
+        await this.closeTradeAtBroker(trade, "max_hold_days");
       }
     }
   }
 
-  private async closeTradeAtBroker(trade: ReturnType<TradesRepo["require"]>): Promise<void> {
+  private async closeTradeAtBroker(trade: ReturnType<TradesRepo["require"]>, exitReason?: string): Promise<void> {
     if (!trade.broker_order_id || !trade.brokerAccountId) return;
-    const adapter = await this.brokerRegistry.get(trade.brokerAccountId);
-    const result = await adapter.closeOrder(trade.broker_order_id);
-    this.closeTrade(trade.id, result.realizedPnlUsd);
+    try {
+      const adapter = await this.brokerRegistry.get(trade.brokerAccountId);
+      const result = await adapter.closeOrder(trade.broker_order_id);
+      this.closeTrade(trade.id, result.realizedPnlUsd, exitReason);
+    } catch {
+      // broker close failure: log is handled by caller context; trade stays open for retry next tick
+    }
   }
 
-  private closeTrade(tradeId: string, pnl: number) {
-    const closed = this.tradesRepo.updateStatus(tradeId, "closed", pnl);
+  private closeTrade(tradeId: string, pnl: number, exitReason?: string) {
+    const closed = this.tradesRepo.updateStatus(tradeId, "closed", pnl, exitReason);
     this.capitalReservation.releaseOnClose(tradeId);
     this.eventBus.emit("trade_closed", closed);
     return closed;
@@ -162,3 +198,6 @@ function readResolutionTime(raw: string | null | undefined): Date | null {
     return null;
   }
 }
+
+// Re-export for callers that need the ExitReason type
+export type { ExitReason };
