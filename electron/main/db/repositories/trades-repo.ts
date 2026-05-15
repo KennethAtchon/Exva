@@ -112,9 +112,25 @@ export class TradesRepo {
         aiCostUsd: trade.ai_cost_usd,
         confidenceScore: trade.confidence_score,
         brokerOrderId: trade.broker_order_id,
+        clientOrderId: trade.client_order_id ?? null,
         createdAt: trade.created_at,
       })
       .run();
+  }
+
+  checkDuplicateClientOrder(brokerAccountId: string, clientOrderId: string): boolean {
+    const row = this.client.db
+      .select({ count: sql<number>`count(*)` })
+      .from(trades)
+      .where(
+        and(
+          eq(trades.brokerAccountId, brokerAccountId),
+          eq(trades.clientOrderId, clientOrderId),
+          inArray(trades.status, ["open", "pending"]),
+        ),
+      )
+      .get();
+    return Number(row?.count ?? 0) > 0;
   }
 
   updateStatus(id: string, status: TradeStatus, finalPnlUsd: number | null = null, exitReason?: string): Trade {
@@ -148,13 +164,14 @@ export class TradesRepo {
 
   patchPendingExecution(
     id: string,
-    patch: Partial<Pick<Trade, "side" | "position_size_usd" | "confidence_score" | "brokerAccountId">>,
+    patch: Partial<Pick<Trade, "side" | "position_size_usd" | "confidence_score" | "brokerAccountId" | "client_order_id">>,
   ): void {
     const next: Record<string, unknown> = {};
     if (patch.side != null) next.side = patch.side;
     if (patch.position_size_usd != null) next.positionSizeUsd = patch.position_size_usd;
     if (patch.confidence_score != null) next.confidenceScore = patch.confidence_score;
     if (patch.brokerAccountId !== undefined) next.brokerAccountId = patch.brokerAccountId;
+    if (patch.client_order_id !== undefined) next.clientOrderId = patch.client_order_id;
     if (Object.keys(next).length === 0) return;
 
     this.client.db
@@ -194,7 +211,7 @@ export class TradesRepo {
     this.client.db.update(trades).set({ aiCostUsd: costUsd }).where(eq(trades.id, id)).run();
   }
 
-  markOpen(id: string, brokerOrderId: string, entryPrice: number): Trade {
+  markOpen(id: string, brokerOrderId: string, entryPrice: number, clientOrderId?: string): Trade {
     this.client.db
       .update(trades)
       .set({
@@ -202,9 +219,18 @@ export class TradesRepo {
         brokerOrderId,
         entryPrice,
         openedAt: new Date().toISOString(),
+        ...(clientOrderId != null ? { clientOrderId } : {}),
       })
       .where(eq(trades.id, id))
       .run();
     return this.require(id);
+  }
+
+  updateCloseSnapshot(id: string, closeMarketSnapshotJson: string): void {
+    this.client.db
+      .update(trades)
+      .set({ closeMarketSnapshotJson })
+      .where(eq(trades.id, id))
+      .run();
   }
 }

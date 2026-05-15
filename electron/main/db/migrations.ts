@@ -90,6 +90,7 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       default_search_provider_id TEXT REFERENCES provider_accounts(id) ON DELETE SET NULL,
       capital_limit_usd REAL NOT NULL,
       execution_mode TEXT NOT NULL DEFAULT 'paper_only' CHECK (execution_mode IN ('paper_only','live_allowed')),
+      live_readiness_acknowledged_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -293,6 +294,8 @@ export function runMigrations(sqlite: Database.Database, options?: { rebuildFrom
       broker_order_id TEXT,
       high_water_mark_price REAL,
       exit_reason TEXT,
+      client_order_id TEXT,
+      close_market_snapshot_json TEXT,
       created_at TEXT NOT NULL
     );
 

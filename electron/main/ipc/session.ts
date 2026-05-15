@@ -24,10 +24,7 @@ export function registerSessionHandlers(services: AppServices): void {
   handle(ipcMain, channels.session.getStatus, async () => services.session.getStatus());
   handle(ipcMain, channels.session.getExecutionProgress, async (payload) => {
     const { sessionId } = sessionExecutionProgressSchema.parse(payload);
-    const steps = services.repos.sessionExecutionSteps.getLatestBySession(sessionId);
-    const cycleId = steps
-      .slice()
-      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0]?.cycleId ?? null;
+    const { cycleId, steps } = services.repos.sessionExecutionSteps.getLatestCycleState(sessionId);
     return {
       steps: steps.map((step) => ({
         stage: step.stage,
@@ -37,6 +34,7 @@ export function registerSessionHandlers(services: AppServices): void {
         lastErrorCode: step.lastErrorCode,
         lastErrorMessage: step.lastErrorMessage,
         retryable: step.retryable,
+        updatedAt: step.updatedAt,
       })),
       cycleId,
     };
@@ -134,5 +132,40 @@ export function registerSessionHandlers(services: AppServices): void {
     }
     services.instrumentCacheService.clear(sessionId);
     return { cleared: true as const };
+  });
+
+  handle(ipcMain, channels.session.getLiveReadiness, async (payload) => {
+    const { sessionId } = sessionIdParamSchema.parse(payload);
+    return services.liveReadiness.check(sessionId);
+  });
+
+  handle(ipcMain, channels.session.acknowledgeLiveReadiness, async (payload) => {
+    const { sessionId } = sessionIdParamSchema.parse(payload);
+    const report = await services.liveReadiness.check(sessionId);
+    const nonAckChecks = report.checks.filter((c) => !c.requiresAck && !c.passed);
+    if (nonAckChecks.length > 0) {
+      throw new AppError(
+        `Cannot acknowledge: ${nonAckChecks.map((c) => c.name).join(", ")} checks still failing`,
+        "VALIDATION_FAILED",
+        { failedChecks: nonAckChecks.map((c) => c.name) },
+      );
+    }
+    services.liveReadiness.acknowledge(sessionId);
+    return { acknowledged: true as const };
+  });
+
+  handle(ipcMain, channels.session.testLiveBrokerConnection, async (payload) => {
+    const { sessionId } = sessionIdParamSchema.parse(payload);
+    const assignedIds = services.repos.sessionBrokerAssignments.listBrokerAccountIds(sessionId);
+    if (assignedIds.length === 0) {
+      return { ok: false as const, message: "No broker account assigned" };
+    }
+    try {
+      const adapter = await services.brokerRegistry.get(assignedIds[0]!);
+      const result = await adapter.testConnection();
+      return result;
+    } catch (err) {
+      return { ok: false as const, message: err instanceof Error ? err.message : String(err) };
+    }
   });
 }

@@ -39,6 +39,10 @@ export interface DecisionRiskInput {
     volume?: number;
     timestamp: string;
   };
+  placementQuoteSnapshot?: {
+    price: number;
+    timestamp: string;
+  };
   side?: "BUY" | "SELL";
   exitPolicy?: {
     stopLossPct?: number | null;

@@ -199,6 +199,10 @@ export class MockBrokerAdapter implements BrokerAdapter {
     };
   }
 
+  async getOhlcv(instrumentSymbol: string, timeframe: "1h" | "4h" | "1d", barCount: number): Promise<Array<{ high: number; low: number; close: number }>> {
+    return this.getMockOhlcv(instrumentSymbol, timeframe, barCount);
+  }
+
   getMockOhlcv(symbol: string, timeframe = "1d", barCount = 200): MockOhlcvBar[] {
     const barMs = BAR_MS[timeframe] ?? DAY_MS;
     const seed = symbolSeed(symbol);

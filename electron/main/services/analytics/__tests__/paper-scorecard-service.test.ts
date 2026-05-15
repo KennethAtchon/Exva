@@ -218,3 +218,70 @@ describe("meetsPromotionCriteria", () => {
     expect(result.failedCriteria).toEqual([]);
   });
 });
+
+describe("PaperScorecardService - scenarioCoverage", () => {
+  it("counts classified trades by mock scenario kind", () => {
+    const trades = [
+      makeTrade({
+        id: "t1",
+        instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "clean_breakout" }),
+        final_pnl_usd: 20,
+      }),
+      makeTrade({
+        id: "t2",
+        instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "clean_breakout" }),
+        final_pnl_usd: -10,
+      }),
+      makeTrade({
+        id: "t3",
+        instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "failed_breakout" }),
+        final_pnl_usd: -15,
+      }),
+    ];
+    const scorecard = makeService(trades).generate("s1");
+
+    expect(scorecard.scenarioCoverage.clean_breakout).toBe(2);
+    expect(scorecard.scenarioCoverage.failed_breakout).toBe(1);
+  });
+
+  it("ignores trades with no instrumentMetadataJson", () => {
+    const trades = [
+      makeTrade({ id: "t1", instrumentMetadataJson: null, final_pnl_usd: 10 }),
+      makeTrade({ id: "t2", instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "news_reversal" }), final_pnl_usd: 10 }),
+    ];
+    const scorecard = makeService(trades).generate("s1");
+
+    expect(scorecard.scenarioCoverage.news_reversal).toBe(1);
+    expect(Object.keys(scorecard.scenarioCoverage)).toHaveLength(1);
+  });
+
+  it("ignores invalid/unknown scenario kind values", () => {
+    const trades = [
+      makeTrade({ id: "t1", instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "not_a_real_scenario" }), final_pnl_usd: 10 }),
+    ];
+    const scorecard = makeService(trades).generate("s1");
+
+    expect(Object.keys(scorecard.scenarioCoverage)).toHaveLength(0);
+  });
+
+  it("meetsPromotionCriteria fails when required scenario has 0 coverage", () => {
+    const scorecard = makeService([
+      makeTrade({ id: "t1", instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "clean_breakout" }), final_pnl_usd: 10 }),
+    ]).generate("s1");
+
+    const result = meetsPromotionCriteria(
+      { ...scorecard, tradeCount: 100, winRate: 0.5, expectancy: 5, maxDrawdownPct: 0.1 },
+      {
+        minTradeCount: 1,
+        minWinRate: 0.4,
+        minExpectancy: 0,
+        maxDrawdownPct: 0.2,
+        requiredScenarioCoverage: ["clean_breakout", "news_reversal"],
+      },
+    );
+
+    expect(result.meets).toBe(false);
+    expect(result.failedCriteria).toContain("news_reversal");
+    expect(result.failedCriteria).not.toContain("clean_breakout");
+  });
+});

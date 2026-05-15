@@ -9,6 +9,7 @@ export interface SessionExecutionStepsRepo {
   get(sessionId: string, cycleId: string, stage: ExecutionStage): ExecutionStepState | null;
   getLatestByCycle(sessionId: string, cycleId: string): ExecutionStepState[];
   getLatestBySession(sessionId: string): ExecutionStepState[];
+  getLatestCycleState(sessionId: string): { cycleId: string | null; steps: ExecutionStepState[] };
   clearFailed(sessionId: string, cycleId: string, stage: ExecutionStage): void;
 }
 
@@ -99,6 +100,20 @@ export class SqliteSessionExecutionStepsRepo implements SessionExecutionStepsRep
       if (!latestByStage.has(row.stage)) latestByStage.set(row.stage, row);
     }
     return [...latestByStage.values()];
+  }
+
+  getLatestCycleState(sessionId: string): { cycleId: string | null; steps: ExecutionStepState[] } {
+    const rows = this.client.db
+      .select()
+      .from(sessionExecutionSteps)
+      .where(eq(sessionExecutionSteps.sessionId, sessionId))
+      .orderBy(desc(sessionExecutionSteps.updatedAt))
+      .all()
+      .map(toExecutionStepState);
+
+    const cycleId = rows[0]?.cycleId ?? null;
+    if (!cycleId) return { cycleId: null, steps: [] };
+    return { cycleId, steps: rows.filter((r) => r.cycleId === cycleId) };
   }
 
   clearFailed(sessionId: string, cycleId: string, stage: ExecutionStage): void {

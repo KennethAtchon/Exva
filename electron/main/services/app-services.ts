@@ -50,6 +50,7 @@ import { CycleReplayService } from "./orchestration/cycle-replay-service";
 import { InstrumentCacheService } from "./instrument";
 import { CapitalReservationService, RiskEngine } from "./risk";
 import { PaperScorecardService } from "./analytics/paper-scorecard-service";
+import { LiveReadinessService } from "./risk/live-readiness-service";
 
 export interface AppServices {
   /** Shared deps shape for IPC helpers (e.g. instrument cache fingerprint). */
@@ -105,6 +106,7 @@ export interface AppServices {
   tradeAutopsy: TradeAutopsyService;
   cycleReplay: CycleReplayService;
   paperScorecard: PaperScorecardService;
+  liveReadiness: LiveReadinessService;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -253,12 +255,21 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const orchestratorDeps = orchestratorDepsBase;
   const instrumentCacheService = new InstrumentCacheService(repos.instrumentCache, () => orchestratorDeps);
 
+  const liveReadiness = new LiveReadinessService(
+    db,
+    repos.session,
+    repos.brokerAccounts,
+    repos.sessionBrokerAssignments,
+    brokerRegistry,
+  );
+
   const session = new SessionService({
     sessionRepo: repos.session,
     eventsRepo: repos.events,
     runtimeManager,
     preflight: runPreflight,
     orchestratorDeps,
+    liveReadiness,
   });
 
   const sessionListing = new SessionListingService({
@@ -336,5 +347,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     tradeAutopsy,
     cycleReplay,
     paperScorecard,
+    liveReadiness,
   };
 }

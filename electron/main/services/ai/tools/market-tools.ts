@@ -226,10 +226,10 @@ function buildSyntheticBars(spot: number): SyntheticBar[] {
   const now = Date.now();
   for (let i = 29; i >= 0; i--) {
     const ts = new Date(now - i * DAY_MS).toISOString();
-    // i counts down from oldest (29) to newest (0); drift shrinks as bars approach spot
-    const drift = i * 0.0015;
-    const close = round2(Math.max(0.01, spot * (1 - drift)));
-    const open = round2(close * 1.002);
+    // progress goes from 0 (oldest bar, i=29) to 1 (newest bar, i=0)
+    const progress = (29 - i) / 29;
+    const close = round2(Math.max(0.01, spot * (0.955 + progress * 0.045)));
+    const open = round2(close * (1 - 0.002 + Math.random() * 0.004));
     const high = round2(Math.max(open, close) * 1.004);
     const low = round2(Math.min(open, close) * 0.996);
     bars.push({

@@ -19,6 +19,16 @@ export class SessionService {
     }
     this.assertTransition(session.status, "active");
 
+    if (session.executionMode === "live_allowed") {
+      const readiness = await this.deps.liveReadiness.check(sessionId);
+      if (!readiness.readyToStart) {
+        const blockedBy = readiness.checks.filter((c) => !c.passed).map((c) => c.name);
+        const message = `Live readiness gate failed: ${blockedBy.join(", ")}`;
+        this.emitSessionEvent(sessionId, "ERROR", message, "preflight");
+        throw new AppError(message, "VALIDATION_FAILED", { blockedBy, checks: readiness.checks });
+      }
+    }
+
     const preflight = await this.deps.preflight(session, this.deps.orchestratorDeps);
     if (!preflight.ok) {
       const fullMessage = `Preflight ${preflight.check} failed: ${preflight.message}`;

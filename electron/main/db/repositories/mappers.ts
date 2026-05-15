@@ -53,6 +53,8 @@ export function toTrade(row: Row): Trade {
     broker_order_id: nullableString(row.broker_order_id),
     high_water_mark_price: nullableNumber(row.high_water_mark_price),
     exit_reason: nullableString(row.exit_reason),
+    client_order_id: nullableString(row.client_order_id),
+    close_market_snapshot_json: nullableString(row.close_market_snapshot_json),
     created_at: String(row.created_at),
   };
 }

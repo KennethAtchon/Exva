@@ -66,9 +66,16 @@ export class TradeMonitor {
       // Update high-water-mark before evaluating (conditional: only moves up for longs)
       this.tradesRepo.updateHighWaterMark(trade.id, currentPrice);
 
-      // Get OHLCV for ATR — only available on mock adapters; falls back to empty for live
-      const mockAdapter = adapter as Partial<{ getMockOhlcv: (symbol: string, timeframe?: string, barCount?: number) => { high: number; low: number; close: number }[] }>;
-      const bars = mockAdapter.getMockOhlcv ? mockAdapter.getMockOhlcv(trade.instrumentSymbol, "1d", 20) : [];
+      // Get OHLCV for ATR — uses getOhlcv if available; falls back to empty for adapters that don't implement it
+      const ohlcvTimeframe = this.resolveOhlcvTimeframe(strategyContext.timeframe.holdingStyle);
+      let bars: { high: number; low: number; close: number }[] = [];
+      if (adapter.getOhlcv) {
+        try {
+          bars = await adapter.getOhlcv(trade.instrumentSymbol, ohlcvTimeframe, 20);
+        } catch {
+          // ATR exits skipped this tick; fixed stops/TP/max-hold still run
+        }
+      }
 
       const exitDecision = this.exitEvaluator.evaluate({
         trade: {
@@ -84,7 +91,7 @@ export class TradeMonitor {
       });
 
       if (exitDecision.shouldExit) {
-        await this.closeTradeAtBroker(trade, exitDecision.reason);
+        await this.closeTradeAtBroker(trade, exitDecision.reason, { price: currentPrice, timestamp: snapshot.timestamp });
         continue;
       }
 
@@ -153,15 +160,28 @@ export class TradeMonitor {
     }
   }
 
-  private async closeTradeAtBroker(trade: ReturnType<TradesRepo["require"]>, exitReason?: string): Promise<void> {
+  private async closeTradeAtBroker(
+    trade: ReturnType<TradesRepo["require"]>,
+    exitReason?: string,
+    closeSnapshot?: { price: number; timestamp: string },
+  ): Promise<void> {
     if (!trade.broker_order_id || !trade.brokerAccountId) return;
     try {
       const adapter = await this.brokerRegistry.get(trade.brokerAccountId);
       const result = await adapter.closeOrder(trade.broker_order_id);
+      if (closeSnapshot) {
+        this.tradesRepo.updateCloseSnapshot(trade.id, JSON.stringify(closeSnapshot));
+      }
       this.closeTrade(trade.id, result.realizedPnlUsd, exitReason);
     } catch {
       // broker close failure: log is handled by caller context; trade stays open for retry next tick
     }
+  }
+
+  private resolveOhlcvTimeframe(holdingStyle: string): "1h" | "4h" | "1d" {
+    if (holdingStyle === "intraday_flat") return "1h";
+    if (holdingStyle === "multi_day_swing") return "4h";
+    return "1d";
   }
 
   private closeTrade(tradeId: string, pnl: number, exitReason?: string) {

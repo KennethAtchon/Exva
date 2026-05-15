@@ -89,13 +89,15 @@ export class OrderPolicyGate {
       }
     }
 
-    // price_collar: check that the order price hasn't gapped since snapshot
-    if (d.quoteSnapshot && d.quoteSnapshot.price > 0) {
+    // price_collar: reject if price drifted beyond threshold between candidate snapshot and placement
+    if (d.quoteSnapshot && d.placementQuoteSnapshot) {
       const collar = PRICE_COLLAR_PCT[instrumentClass] ?? 0.05;
-      // For USD-sized orders, we can only check the snapshot itself is within collar of itself (no current price).
-      // This gate is meaningful when a fresh quote is compared to entry_price; for now we pass if snapshot is valid.
-      // The gate will be more meaningful when a second fresh quote is fetched immediately before placement.
-      void collar; // acknowledged: full implementation requires pre-placement re-quote
+      const ref = d.quoteSnapshot.price;
+      const now = d.placementQuoteSnapshot.price;
+      if (ref > 0) {
+        const driftPct = Math.abs(now - ref) / ref;
+        if (driftPct > collar) gatesFailed.push("price_collar");
+      }
     }
 
     // spread: spread too wide

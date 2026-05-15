@@ -411,12 +411,36 @@ export class AgentOrchestrator {
       async () => {
         const clientOrderId = `${context.cycleId}:${trade.id}`;
         const strategy = this.deps.strategyContextService.get(this.sessionId);
+        const { adapter, brokerAccountId: resolvedBrokerAccountId } = await this.deps.brokerRouting.resolveAdapter(
+          this.sessionId,
+          context.instrument.instrumentClass,
+        );
+
+        // Fetch a fresh placement quote; fail closed if unavailable
+        const wireSymbol = this.deps.instrumentNormalizer.toBrokerSymbol({
+          symbol: context.instrument.symbol,
+          instrumentClass: context.instrument.instrumentClass,
+          brokerType: adapter.brokerType,
+        });
+        let placementQuote: { price: number; timestamp: string };
+        try {
+          const snap = await adapter.getMarketSnapshot(wireSymbol);
+          placementQuote = { price: snap.price, timestamp: snap.timestamp };
+        } catch (err) {
+          throw new AppError(
+            `Pre-placement quote fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+            "VALIDATION_FAILED",
+          );
+        }
+
+        const brokerSupportsClass = adapter.supportedInstrumentClasses.includes(context.instrument.instrumentClass);
         const policyResult = new OrderPolicyGate().evaluate({
           sessionId: this.sessionId,
           cycleId: context.cycleId,
           tradeId: trade.id,
-          brokerAccountId: trade.brokerAccountId ?? "",
-          existingOrderCheck: () => false,
+          brokerAccountId: resolvedBrokerAccountId,
+          existingOrderCheck: (orderId, accountId) =>
+            this.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
           sessionIsPaused: () => this.deps.bus.runtimeStatus(this.sessionId) !== "active",
           decisionRiskInput: {
             config,
@@ -424,6 +448,7 @@ export class AgentOrchestrator {
             order: context.riskOrder!,
             confidence: trade.confidence_score ?? 0,
             quoteSnapshot: latestQuote ?? undefined,
+            placementQuoteSnapshot: placementQuote,
             side: trade.side,
             exitPolicy: {
               stopLossPct: strategy.riskConfig.stopLossPct,
@@ -432,11 +457,16 @@ export class AgentOrchestrator {
               maxHoldDays: strategy.timeframe.maxHoldDays,
             },
             strategyRules: { sideBias: strategy.rules.sideBias },
+            brokerSupportsClass,
           },
         });
         if (!policyResult.allowed) {
           throw new AppError(policyResult.reason ?? "Order blocked by policy gate", "VALIDATION_FAILED");
         }
+
+        // Persist clientOrderId on trade before placement for idempotency tracking
+        this.deps.tradesRepo.patchPendingExecution(trade.id, { client_order_id: clientOrderId });
+
         const placed = await this.placeRoutedOrder(trade, context.instrument.instrumentClass, context.riskOrder!, clientOrderId);
         if (!placed) {
           throw new AppError("Instrument conflict or broker routing blocked order placement.", "VALIDATION_FAILED");
@@ -468,6 +498,19 @@ export class AgentOrchestrator {
     this.clearAttentionRequired();
     this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`, "broker", context.cycleId);
     this.deps.bus.emit("trade_opened", opened);
+    this.deps.sessionExecutionStepsRepo.upsert({
+      sessionId: this.sessionId,
+      cycleId: context.cycleId,
+      stage: "monitoring",
+      status: "succeeded",
+      attempt: 1,
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      nextRetryAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null,
+      retryable: false,
+    });
     this.emitEvent(
       "INFO",
       trade.id,

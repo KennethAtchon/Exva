@@ -269,6 +269,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
       runtimeManager,
       preflight: runPreflight,
       orchestratorDeps,
+      liveReadiness: { check: async () => ({ readyToStart: true, checks: [] }) },
     }),
     sessions,
     sessionWrites: new SessionWriteService({

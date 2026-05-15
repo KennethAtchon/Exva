@@ -164,6 +164,12 @@ export class PaperScorecardService {
       }
     }
 
+    const scenarioCoverage: Partial<Record<MockScenarioKind, number>> = {};
+    for (const t of closedTrades) {
+      const kind = readMockScenarioKind(t);
+      if (kind) scenarioCoverage[kind] = (scenarioCoverage[kind] ?? 0) + 1;
+    }
+
     return {
       sessionId,
       strategyPresetLabel,
@@ -186,8 +192,24 @@ export class PaperScorecardService {
       avgHoldHours,
       exitReasonBreakdown,
       rejectionReasonBreakdown,
-      scenarioCoverage: {},
+      scenarioCoverage,
     };
+  }
+}
+
+function readMockScenarioKind(trade: Trade): MockScenarioKind | null {
+  if (!trade.instrumentMetadataJson) return null;
+  try {
+    const parsed = JSON.parse(trade.instrumentMetadataJson) as { mockScenarioKind?: string };
+    const kind = parsed.mockScenarioKind;
+    if (!kind) return null;
+    const validKinds: MockScenarioKind[] = [
+      "clean_breakout", "failed_breakout", "sideways_chop", "gap_down_after_entry",
+      "news_reversal", "stale_quote", "wide_spread", "partial_fill", "broker_reject", "rate_limit",
+    ];
+    return validKinds.includes(kind as MockScenarioKind) ? (kind as MockScenarioKind) : null;
+  } catch {
+    return null;
   }
 }
 

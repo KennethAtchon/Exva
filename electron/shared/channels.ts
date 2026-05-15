@@ -33,6 +33,9 @@ export const channels = {
     buildCycleFixture: "session:buildCycleFixture",
     saveCycleFixture: "session:saveCycleFixture",
     getPaperScorecard: "session:getPaperScorecard",
+    getLiveReadiness: "session:getLiveReadiness",
+    acknowledgeLiveReadiness: "session:acknowledgeLiveReadiness",
+    testLiveBrokerConnection: "session:testLiveBrokerConnection",
   },
   workspace: {
     viewGet: "workspace:view:get",

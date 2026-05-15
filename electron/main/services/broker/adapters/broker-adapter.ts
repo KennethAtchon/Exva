@@ -78,6 +78,9 @@ export interface BrokerAdapter {
   getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot>;
   getOrderStatus(orderId: string): Promise<OrderStatus>;
   closeOrder(orderId: string): Promise<CloseResult>;
+
+  /** Optional: return OHLCV bars for exit-policy ATR computation. */
+  getOhlcv?(instrumentSymbol: string, timeframe: "1h" | "4h" | "1d", barCount: number): Promise<Array<{ high: number; low: number; close: number }>>;
 }
 
 /** Raw row shape returned by Polymarket Gamma REST API. */

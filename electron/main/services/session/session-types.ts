@@ -125,4 +125,7 @@ export interface SessionLifecycleDeps {
   };
   preflight: (session: WorkspaceSession, deps: OrchestratorDeps) => Promise<PreflightResult>;
   orchestratorDeps: OrchestratorDeps;
+  liveReadiness: {
+    check(sessionId: string): Promise<{ readyToStart: boolean; checks: { name: string; passed: boolean }[] }>;
+  };
 }

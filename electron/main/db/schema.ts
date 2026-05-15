@@ -36,6 +36,7 @@ export const sessions = sqliteTable("sessions", {
   }),
   capitalLimitUsd: real("capital_limit_usd").notNull(),
   executionMode: text("execution_mode").notNull().default("paper_only"),
+  liveReadinessAcknowledgedAt: text("live_readiness_acknowledged_at"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -285,6 +286,8 @@ export const trades = sqliteTable("trades", {
   brokerOrderId: text("broker_order_id"),
   highWaterMarkPrice: real("high_water_mark_price"),
   exitReason: text("exit_reason"),
+  clientOrderId: text("client_order_id"),
+  closeMarketSnapshotJson: text("close_market_snapshot_json"),
   createdAt: text("created_at").notNull(),
 });
 

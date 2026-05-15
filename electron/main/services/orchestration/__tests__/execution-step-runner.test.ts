@@ -137,6 +137,13 @@ function createMemoryRepo() {
     getLatestBySession(sessionId: string) {
       return [...rows.values()].filter((row) => row.sessionId === sessionId) as never;
     },
+    getLatestCycleState(sessionId: string) {
+      const all = [...rows.values()].filter((row) => row.sessionId === sessionId);
+      const sorted = all.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      const cycleId = (sorted[0]?.cycleId as string) ?? null;
+      if (!cycleId) return { cycleId: null, steps: [] };
+      return { cycleId, steps: sorted.filter((r) => r.cycleId === cycleId) as never };
+    },
     clearFailed(sessionId: string, cycleId: string, stage: string) {
       rows.delete(`${sessionId}:${cycleId}:${stage}`);
     },
