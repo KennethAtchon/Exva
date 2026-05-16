@@ -40,9 +40,20 @@ export class SessionService {
       throw new AppError(fullMessage, preflight.code, preflight.details);
     }
 
-    await this.deps.runtimeManager.startSession(sessionId);
-    this.emitSessionEvent(sessionId, "INFO", "Session started.", "session");
-    return this.getStatus(sessionId);
+    this.emitSessionEvent(sessionId, "INFO", "Session starting...", "session");
+    try {
+      await this.deps.runtimeManager.startSession(sessionId);
+      this.emitSessionEvent(sessionId, "INFO", "Session runtime ready.", "session");
+      return this.getStatus(sessionId);
+    } catch (error) {
+      this.emitSessionEvent(
+        sessionId,
+        "ERROR",
+        `Session failed to start: ${error instanceof Error ? error.message : String(error)}`,
+        "session",
+      );
+      throw error;
+    }
   }
 
   async pause(sessionId = this.deps.sessionRepo.getFocusedSessionId()): Promise<SessionStatus> {

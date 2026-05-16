@@ -17,6 +17,13 @@ export interface SessionProgressState {
   cycleIdShort: string;
 }
 
+type StatusChipTone = {
+  label: string;
+  color: string;
+  border: string;
+  background: string;
+};
+
 const STAGE_ORDER: ExecutionStage[] = [
   "selector",
   "candidate_validation",
@@ -120,15 +127,8 @@ export const SessionExecutionProgress = ({
   const isRunning = activeStatus === "running";
   const isMonitoring = activeStatus === "succeeded" && activeStage === "monitoring";
 
-  const stageLabelColor = isFailed && !retryable
-    ? "rgba(251,146,60,0.9)"
-    : isFailed
-    ? "rgba(248,113,113,0.9)"
-    : "var(--text3)";
-
-  const displayLabel = isRetrying
-    ? `Retrying in ${countdown}s`
-    : stageLabel;
+  const statusChip = resolveStatusChip({ isRetrying, isFailed, retryable, countdown });
+  const detailMessageColor = isRetrying ? "rgba(147,197,253,0.9)" : "rgba(251,146,60,0.8)";
 
   return (
     <div style={wrapperStyle}>
@@ -149,21 +149,34 @@ export const SessionExecutionProgress = ({
           <span
             style={{
               fontSize: 11,
-              color: stageLabelColor,
+              color: "var(--text3)",
               textTransform: "uppercase",
               letterSpacing: "0.08em",
               fontWeight: 500,
             }}
           >
-            {displayLabel}
+            {stageLabel}
           </span>
+
+          {statusChip ? (
+            <span
+              style={{
+                ...statusChipStyle,
+                color: statusChip.color,
+                border: `1px solid ${statusChip.border}`,
+                background: statusChip.background,
+              }}
+            >
+              {statusChip.label}
+            </span>
+          ) : null}
 
           {activeRoleLabel && isRunning ? (
             <span style={roleChipStyle}>{activeRoleLabel}</span>
           ) : null}
 
-          {lastErrorMessage && isFailed ? (
-            <span style={errorMessageStyle} title={lastErrorMessage}>
+          {lastErrorMessage && (isFailed || isRetrying) ? (
+            <span style={{ ...errorMessageStyle, color: detailMessageColor }} title={lastErrorMessage}>
               {lastErrorMessage.length > 60 ? `${lastErrorMessage.slice(0, 60)}…` : lastErrorMessage}
             </span>
           ) : null}
@@ -248,6 +261,14 @@ const roleChipStyle = {
   flexShrink: 0,
 } as const;
 
+const statusChipStyle = {
+  fontSize: 10,
+  borderRadius: 999,
+  padding: "2px 7px",
+  fontFamily: "monospace",
+  flexShrink: 0,
+} as const;
+
 const errorMessageStyle = {
   fontSize: 10,
   color: "rgba(251,146,60,0.8)",
@@ -305,3 +326,44 @@ const cycleIdStyle = {
   fontFamily: "monospace",
   opacity: 0.6,
 } as const;
+
+function resolveStatusChip({
+  isRetrying,
+  isFailed,
+  retryable,
+  countdown,
+}: {
+  isRetrying: boolean;
+  isFailed: boolean;
+  retryable: boolean;
+  countdown: number;
+}): StatusChipTone | null {
+  if (isRetrying) {
+    return {
+      label: `Retrying in ${countdown}s`,
+      color: "#93c5fd",
+      border: "rgba(147,197,253,0.35)",
+      background: "rgba(59,130,246,0.14)",
+    };
+  }
+
+  if (isFailed && retryable) {
+    return {
+      label: "Retry available",
+      color: "#fca5a5",
+      border: "rgba(248,113,113,0.35)",
+      background: "rgba(239,68,68,0.14)",
+    };
+  }
+
+  if (isFailed) {
+    return {
+      label: "Needs attention",
+      color: "#fdba74",
+      border: "rgba(251,146,60,0.35)",
+      background: "rgba(249,115,22,0.14)",
+    };
+  }
+
+  return null;
+}

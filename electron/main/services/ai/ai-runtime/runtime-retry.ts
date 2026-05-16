@@ -5,15 +5,17 @@ const logger = createLogger("ai-runtime");
 
 type RetryConfig = {
   timeoutMs: number;
-  backoffMs: number;
-  maxAttempts: number;
+  backoffMs: readonly number[];
+  maxRetries: number;
 };
 
 const RETRY_CONFIG: RetryConfig = {
   timeoutMs: 60_000,
-  backoffMs: 1_000,
-  maxAttempts: 2,
+  backoffMs: [1_000, 2_000, 4_000, 8_000],
+  maxRetries: 4,
 };
+
+const MAX_PROVIDER_ATTEMPTS = RETRY_CONFIG.maxRetries + 1;
 
 export interface ProviderRetryContext {
   providerType?: string | null;
@@ -24,20 +26,21 @@ export interface ProviderRetryContext {
 }
 
 export async function withProviderRetry<T>(
-  action: () => Promise<T>,
+  action: (abortSignal: AbortSignal) => Promise<T>,
   ctx: ProviderRetryContext = {},
 ): Promise<T> {
   const startedAt = Date.now();
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt += 1) {
+  for (let attempt = 1; attempt <= MAX_PROVIDER_ATTEMPTS; attempt += 1) {
     const attemptStartedAt = Date.now();
     try {
       logger.info(
         {
           ...ctx,
           attempt,
-          maxAttempts: RETRY_CONFIG.maxAttempts,
+          maxAttempts: MAX_PROVIDER_ATTEMPTS,
+          maxRetries: RETRY_CONFIG.maxRetries,
           timeoutMs: RETRY_CONFIG.timeoutMs,
         },
         "provider request attempt",
@@ -58,9 +61,10 @@ export async function withProviderRetry<T>(
         {
           ...ctx,
           attempt,
-          maxAttempts: RETRY_CONFIG.maxAttempts,
+          maxAttempts: MAX_PROVIDER_ATTEMPTS,
+          maxRetries: RETRY_CONFIG.maxRetries,
           retryable,
-          willRetry: retryable && attempt < RETRY_CONFIG.maxAttempts,
+          willRetry: retryable && attempt < MAX_PROVIDER_ATTEMPTS,
           attemptMs: Date.now() - attemptStartedAt,
           providerErrorName: details.name,
           providerErrorMessage: details.message,
@@ -72,27 +76,35 @@ export async function withProviderRetry<T>(
         },
         "provider request attempt failed",
       );
-      if (!retryable || attempt >= RETRY_CONFIG.maxAttempts) {
+      if (!retryable || attempt >= MAX_PROVIDER_ATTEMPTS) {
         throw wrapProviderError(error, retryable, ctx, attempt);
       }
-      await new Promise((resolve) => setTimeout(resolve, RETRY_CONFIG.backoffMs * attempt));
+      await new Promise((resolve) => setTimeout(resolve, providerBackoffMsForAttempt(attempt)));
     }
   }
 
   // Unreachable but TS-safe
-  throw wrapProviderError(lastError, false, ctx, RETRY_CONFIG.maxAttempts);
+  throw wrapProviderError(lastError, false, ctx, MAX_PROVIDER_ATTEMPTS);
 }
 
-async function withTimeout<T>(action: () => Promise<T>): Promise<T> {
+async function withTimeout<T>(action: (abortSignal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<T>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error("AI request timed out")), RETRY_CONFIG.timeoutMs);
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error("AI request timed out"));
+    }, RETRY_CONFIG.timeoutMs);
   });
   try {
-    return await Promise.race([action(), timeoutPromise]);
+    return await Promise.race([action(controller.signal), timeoutPromise]);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
+}
+
+function providerBackoffMsForAttempt(attempt: number): number {
+  return RETRY_CONFIG.backoffMs[Math.max(0, attempt - 1)] ?? RETRY_CONFIG.backoffMs[RETRY_CONFIG.backoffMs.length - 1];
 }
 
 function shouldRetry(error: unknown): boolean {
@@ -117,6 +129,7 @@ function shouldRetry(error: unknown): boolean {
   if (/\b5\d{2}\b/.test(raw)) return true;
   if (
     lower.includes("timeout") ||
+    lower.includes("timed out") ||
     lower.includes("econnreset") ||
     lower.includes("econnrefused") ||
     lower.includes("etimedout") ||

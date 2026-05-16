@@ -170,6 +170,9 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   } as const;
 
   const onStepFinish = (step: StepResult<ToolSet>, stepIndex: number) => {
+    if (params.abortSignal?.aborted) {
+      return;
+    }
     if (step.toolCalls.length > 0) {
       const resultsById = new Map<string, unknown>();
       for (const tr of step.toolResults) {
@@ -212,6 +215,10 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
         experimental_output: Output.object({ schema: params.schema }),
       })
     : await generateText(wrappedBaseArgs);
+
+  if (params.abortSignal?.aborted) {
+    throw new Error("AI request aborted");
+  }
 
   const durationMs = Date.now() - started;
   const steps = buildStepTraces(result.steps, durationMs);

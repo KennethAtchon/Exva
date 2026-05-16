@@ -229,7 +229,7 @@ ${input.review}`;
     const messages: RuntimeAgentMessage[] = promptPack.messages;
 
     const trace = await withProviderRetry(
-      () =>
+      (abortSignal) =>
         adapter.runAgent({
           model: config.modelId,
           role,
@@ -239,6 +239,7 @@ ${input.review}`;
           spendLimitUsd: caps.spendUsd,
           temperature: resolveTemperature(config.modelId, config.temperature),
           maxTokens: config.maxTokens,
+          abortSignal,
           terminalToolNames: ["submit_candidates"],
           prepareStep: harnessAvail.searchWeb
             ? ({ stepNumber }: { stepNumber: number }) => {
@@ -331,7 +332,7 @@ ${input.review}`;
     const messages: RuntimeAgentMessage[] = promptPack.messages;
 
     const trace = await withProviderRetry(
-      () =>
+      (abortSignal) =>
         adapter.runAgent({
           model: config.modelId,
           role,
@@ -341,6 +342,7 @@ ${input.review}`;
           spendLimitUsd: caps.spendUsd,
           temperature: resolveTemperature(config.modelId, config.temperature),
           maxTokens: config.maxTokens,
+          abortSignal,
         }),
       { providerType: adapter.providerType, modelId: config.modelId, role, sessionId, cycleId: opts?.cycleId ?? null },
     );
@@ -398,7 +400,7 @@ ${input.review}`;
     const messages: RuntimeAgentMessage[] = promptPack.messages;
 
     const trace = await withProviderRetry(
-      () =>
+      (abortSignal) =>
         adapter.runAgent({
           model: config.modelId,
           role,
@@ -407,6 +409,7 @@ ${input.review}`;
           spendLimitUsd: caps.spendUsd,
           temperature: resolveTemperature(config.modelId, config.temperature),
           maxTokens: config.maxTokens,
+          abortSignal,
           schema: tradeDecisionSchema,
         }),
       { providerType: adapter.providerType, modelId: config.modelId, role, sessionId, cycleId: cycleId ?? null },

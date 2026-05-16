@@ -27,7 +27,9 @@ export interface StepRunOptions {
   onRetry?: (retry: ScheduledRetry) => void;
 }
 
-const RETRY_BACKOFF_MS = [30_000, 90_000, 270_000] as const;
+const STEP_RETRY_BACKOFF_MS = [30_000, 60_000, 120_000, 240_000] as const;
+const MAX_STEP_RETRIES = STEP_RETRY_BACKOFF_MS.length;
+const MAX_STEP_ATTEMPTS = MAX_STEP_RETRIES + 1;
 
 export class ExecutionStepRunner {
   private readonly retryTimers = new Map<ExecutionStage, ReturnType<typeof setTimeout>>();
@@ -91,7 +93,7 @@ export class ExecutionStepRunner {
       return { ok: true, value };
     } catch (error) {
       const classified = classifyStepError(error);
-      const retryAllowed = classified.retryable && attempt < 3;
+      const retryAllowed = classified.retryable && attempt < MAX_STEP_ATTEMPTS;
       const nextRetryAt = retryAllowed ? computeNextRetryAt(attempt) : null;
       const status = retryAllowed ? "retrying" : "failed";
 
@@ -206,7 +208,7 @@ function inferUnknownCode(error: unknown): AppErrorCode | "UNKNOWN_ERROR" {
 }
 
 function computeNextRetryAt(attempt: number): string {
-  const backoffMs = RETRY_BACKOFF_MS[Math.max(0, attempt - 1)] ?? RETRY_BACKOFF_MS[RETRY_BACKOFF_MS.length - 1];
+  const backoffMs = STEP_RETRY_BACKOFF_MS[Math.max(0, attempt - 1)] ?? STEP_RETRY_BACKOFF_MS[STEP_RETRY_BACKOFF_MS.length - 1];
   const jitterMs = Math.random() * 5_000;
   return new Date(Date.now() + backoffMs + jitterMs).toISOString();
 }

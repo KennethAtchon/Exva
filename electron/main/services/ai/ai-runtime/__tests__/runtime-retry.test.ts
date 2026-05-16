@@ -109,4 +109,49 @@ describe("withProviderRetry", () => {
       "provider request attempt failed",
     );
   });
+
+  it("treats timed out responses as retryable provider errors", async () => {
+    warnSpy.mockReset();
+    infoSpy.mockReset();
+    const { withProviderRetry } = await import("../runtime-retry");
+
+    let calls = 0;
+    const result = await withProviderRetry(async () => {
+      calls += 1;
+      if (calls === 1) {
+        throw new Error("AI request timed out");
+      }
+      return "ok";
+    });
+
+    expect(result).toBe("ok");
+    expect(calls).toBe(2);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ attempt: 1, retryable: true, willRetry: true }),
+      "provider request attempt failed",
+    );
+  });
+
+  it("aborts each timed-out provider attempt before moving to the next retry", async () => {
+    vi.useFakeTimers();
+    warnSpy.mockReset();
+    infoSpy.mockReset();
+    const { withProviderRetry } = await import("../runtime-retry");
+
+    const signals: AbortSignal[] = [];
+    const promise = withProviderRetry((abortSignal) => {
+      signals.push(abortSignal);
+      return new Promise<string>(() => undefined);
+    }, { providerType: "openrouter" });
+    const assertion = expect(promise).rejects.toMatchObject({
+      code: "PROVIDER_UNREACHABLE",
+      details: { retryable: true, attempts: 5 },
+    });
+
+    await vi.advanceTimersByTimeAsync(60_000 + 1_000 + 60_000 + 2_000 + 60_000 + 4_000 + 60_000 + 8_000 + 60_000);
+
+    await assertion;
+    expect(signals).toHaveLength(5);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
 });

@@ -75,7 +75,7 @@ describe("ExecutionStepRunner", () => {
     expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({ status: "retrying", attempt: 1, retryable: true });
   });
 
-  it("caps retryable failures at three attempts", async () => {
+  it("caps retryable failures after four backoff retries", async () => {
     vi.useFakeTimers();
     vi.spyOn(Math, "random").mockReturnValue(0);
     const { runner, repo, sessionId } = createHarness();
@@ -87,10 +87,37 @@ describe("ExecutionStepRunner", () => {
 
     await runner.run("broker_order", failingFn);
     await runner.run("broker_order", failingFn);
+    await runner.run("broker_order", failingFn);
+    await runner.run("broker_order", failingFn);
     const result = await runner.run("broker_order", failingFn);
 
     expect(result).toEqual({ ok: false, retryable: false, errorCode: "HTTP_503", errorMessage: "timeout" });
-    expect(repo.get(sessionId, "cycle-1", "broker_order")).toMatchObject({ status: "failed", retryable: false, attempt: 3 });
+    expect(repo.get(sessionId, "cycle-1", "broker_order")).toMatchObject({ status: "failed", retryable: false, attempt: 5 });
+  });
+
+  it("uses exponential step backoff across four retries", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-16T00:00:00.000Z"));
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const { runner, repo, sessionId } = createHarness();
+
+    const failingFn = async () => {
+      const error = new Error("provider unavailable") as Error & { statusCode: number };
+      error.statusCode = 503;
+      throw error;
+    };
+
+    await runner.run("selector", failingFn);
+    expect(Date.parse(repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "") - Date.now()).toBe(30_000);
+
+    await runner.run("selector", failingFn);
+    expect(Date.parse(repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "") - Date.now()).toBe(60_000);
+
+    await runner.run("selector", failingFn);
+    expect(Date.parse(repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "") - Date.now()).toBe(120_000);
+
+    await runner.run("selector", failingFn);
+    expect(Date.parse(repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "") - Date.now()).toBe(240_000);
   });
 
   it("skips fn when the step already succeeded and skipIfPreviouslySucceeded is enabled", async () => {
