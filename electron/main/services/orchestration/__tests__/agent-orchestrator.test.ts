@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
+import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/session-instrument-classes";
 import { AgentOrchestrator } from "../agent-orchestrator";
 
 describe("AgentOrchestrator", () => {
@@ -90,16 +91,16 @@ describe("AgentOrchestrator", () => {
     await orchestrator.stop();
   });
 
-  it("builds explicit full-universe selector instructions with broker coverage", async () => {
+  it("builds full-universe selector instructions from assigned broker coverage instead of stored class picks", async () => {
     const deps = createDeps({
       noInstrumentRetryMinutes: 5,
       session: {
         selectionMode: "ai_selected_universe",
-        instrumentScope: "Search the entire tradable universe for the selected instrument classes.",
-        instrumentClasses: ["stock", "crypto"],
+        instrumentScope: SEARCH_EVERYTHING_SCOPE,
+        instrumentClasses: ["stock"],
       },
       assignedBrokers: [
-        { id: "broker-stock", name: "Stock Broker", supportedInstrumentClasses: ["stock"] },
+        { id: "broker-crypto", name: "Crypto Broker", supportedInstrumentClasses: ["crypto"] },
       ],
     });
     const orchestrator = new AgentOrchestrator("session-1", deps as never);
@@ -109,10 +110,11 @@ describe("AgentOrchestrator", () => {
     }).buildSelectionInstructions(deps.sessionRepo.requireById());
 
     expect(instructions).toContain("Selector mode: full-universe discovery.");
+    expect(instructions).toContain("broker-backed classes: crypto");
     expect(instructions).toContain("enumerate all serious candidate instruments");
     expect(instructions).toContain("research each candidate online");
-    expect(instructions).toContain("stock: tradable via Stock Broker (broker-stock)");
-    expect(instructions).toContain("crypto: NO broker coverage. Do not return candidates for this class.");
+    expect(instructions).toContain("crypto: tradable via Crypto Broker (broker-crypto)");
+    expect(instructions).not.toContain("stock: tradable via");
   });
 });
 
@@ -166,6 +168,9 @@ function createDeps({
         riskConfig: { maxExposureUsd: null, waitForOpenThreshold: 0.8 },
         timeframe: {},
       }),
+    },
+    sessionSelectorSettingsRepo: {
+      get: () => ({ aiPickerEnabled: session?.selectionMode === "ai_selected_universe" }),
     },
     sessionRepo: {
       requireById: () => ({ ...resolvedSession, status: sessionStatus.current }),

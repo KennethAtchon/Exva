@@ -1,4 +1,5 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
+import { resolveEffectiveInstrumentClasses } from "@electron/shared/session-instrument-classes";
 import { AppError } from "@electron/shared/errors";
 import type { EventsRepo } from "../../db/repositories/events-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
@@ -37,20 +38,20 @@ export class SessionWriteService {
   ) {}
 
   create(input: SessionWriteInput): { id: string; status: "draft" } {
-    this.validate(input, { excludeSessionId: null });
+    const normalized = this.validate(input, { excludeSessionId: null });
 
     const session = this.deps.sessions.create({
-      name: input.name.trim(),
-      objective: input.objective.trim(),
-      selectionMode: input.selectionMode,
-      instrumentClasses: input.instrumentClasses,
-      instrumentScope: input.instrumentScope.trim(),
-      defaultSearchProviderId: input.defaultSearchProviderId ?? null,
-      capitalLimitUsd: input.capitalLimitUsd,
-      executionMode: input.executionMode,
+      name: normalized.name.trim(),
+      objective: normalized.objective.trim(),
+      selectionMode: normalized.selectionMode,
+      instrumentClasses: normalized.instrumentClasses,
+      instrumentScope: normalized.instrumentScope.trim(),
+      defaultSearchProviderId: normalized.defaultSearchProviderId ?? null,
+      capitalLimitUsd: normalized.capitalLimitUsd,
+      executionMode: normalized.executionMode,
     });
     this.deps.sessions.setFocus(session.id);
-    this.applySideTables(session.id, input);
+    this.applySideTables(session.id, normalized);
     this.deps.events.insert({
       session_id: session.id,
       trade_id: null,
@@ -62,19 +63,19 @@ export class SessionWriteService {
   }
 
   update(id: string, input: SessionWriteInput): { savedAt: string } {
-    this.validate(input, { excludeSessionId: id });
+    const normalized = this.validate(input, { excludeSessionId: id });
 
     this.deps.sessions.updateTaskBoundary(id, {
-      name: input.name.trim(),
-      objective: input.objective.trim(),
-      selectionMode: input.selectionMode,
-      instrumentClasses: input.instrumentClasses,
-      instrumentScope: input.instrumentScope.trim(),
-      defaultSearchProviderId: input.defaultSearchProviderId ?? null,
-      capitalLimitUsd: input.capitalLimitUsd,
-      executionMode: input.executionMode,
+      name: normalized.name.trim(),
+      objective: normalized.objective.trim(),
+      selectionMode: normalized.selectionMode,
+      instrumentClasses: normalized.instrumentClasses,
+      instrumentScope: normalized.instrumentScope.trim(),
+      defaultSearchProviderId: normalized.defaultSearchProviderId ?? null,
+      capitalLimitUsd: normalized.capitalLimitUsd,
+      executionMode: normalized.executionMode,
     });
-    this.applySideTables(id, input);
+    this.applySideTables(id, normalized);
     return { savedAt: new Date().toISOString() };
   }
 
@@ -93,7 +94,7 @@ export class SessionWriteService {
     this.deps.liveReadiness?.clearAcknowledgement(sessionId);
   }
 
-  private validate(input: SessionWriteInput, ctx: { excludeSessionId: string | null }): void {
+  private validate(input: SessionWriteInput, ctx: { excludeSessionId: string | null }): SessionWriteInput {
     const trimmedName = input.name.trim();
     if (this.deps.sessions
       .list({ includeArchived: true })
@@ -135,18 +136,26 @@ export class SessionWriteService {
       return broker;
     });
 
+    const instrumentClasses = resolveEffectiveInstrumentClasses(input, selectedBrokers);
+
+    if (instrumentClasses.length === 0) {
+      throw new AppError("At least one instrument class is required.", "VALIDATION_FAILED", {
+        field: "instrumentClasses",
+      });
+    }
+
     for (const broker of selectedBrokers) {
-      const overlap = broker.supportedInstrumentClasses.some((cls) => input.instrumentClasses.includes(cls));
+      const overlap = broker.supportedInstrumentClasses.some((cls) => instrumentClasses.includes(cls));
       if (!overlap) {
         throw new AppError(
           `Broker "${broker.name}" does not support any of the selected instrument classes.`,
           "VALIDATION_FAILED",
-          { brokerAccountId: broker.id, supports: broker.supportedInstrumentClasses, requested: input.instrumentClasses },
+          { brokerAccountId: broker.id, supports: broker.supportedInstrumentClasses, requested: instrumentClasses },
         );
       }
     }
 
-    for (const instrumentClass of input.instrumentClasses) {
+    for (const instrumentClass of instrumentClasses) {
       const covered = selectedBrokers.some((broker) => broker.supportedInstrumentClasses.includes(instrumentClass));
       if (!covered) {
         throw new AppError(
@@ -171,5 +180,11 @@ export class SessionWriteService {
         );
       }
     }
+
+    return {
+      ...input,
+      brokerAccountIds: selectedBrokerIds,
+      instrumentClasses,
+    };
   }
 }

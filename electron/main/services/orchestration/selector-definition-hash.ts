@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { InstrumentClass, PromptSource, SelectionMode, WorkspaceSession } from "@/lib/types";
 import type { OrchestratorDeps } from "../session/session-types";
+import { resolveSessionInstrumentClasses } from "../session/effective-instrument-classes";
 
 export type SelectorDefinitionFingerprint = {
   selectionMode: SelectionMode;
@@ -54,19 +55,20 @@ export function buildSelectorDefinitionFingerprint(
   session: WorkspaceSession,
   deps: Pick<
     OrchestratorDeps,
-    "sessionSelectorSettingsRepo" | "sessionAiRolesRepo" | "workspacePreferencesRepo" | "brokerRouting"
+    "sessionSelectorSettingsRepo" | "sessionAiRolesRepo" | "workspacePreferencesRepo" | "brokerRouting" | "sessionBrokerAssignmentsRepo" | "brokerAccountsRepo"
   >,
 ): SelectorDefinitionFingerprint {
   const selectorSettings = deps.sessionSelectorSettingsRepo.get(session.id);
   const role = deps.sessionAiRolesRepo.getByRole(session.id, "instrument_selector");
   const prefs = deps.workspacePreferencesRepo.get();
   const searchProviderId = session.defaultSearchProviderId ?? prefs.defaultSearchProviderId ?? null;
+  const instrumentClasses = resolveSessionInstrumentClasses(session, deps);
 
   return {
     selectionMode: session.selectionMode,
     aiPickerEnabled: selectorSettings.aiPickerEnabled,
     instrumentScope: session.instrumentScope,
-    instrumentClasses: [...session.instrumentClasses].sort((a, b) => a.localeCompare(b)),
+    instrumentClasses,
     searchProviderId,
     selectorRole: role
       ? {
@@ -81,7 +83,7 @@ export function buildSelectorDefinitionFingerprint(
           promptSource: "default" as PromptSource,
           promptMarkdown: "",
         },
-    routingSnapshot: routingSnapshot(session.id, session.instrumentClasses, deps.brokerRouting),
+    routingSnapshot: routingSnapshot(session.id, instrumentClasses, deps.brokerRouting),
   };
 }
 

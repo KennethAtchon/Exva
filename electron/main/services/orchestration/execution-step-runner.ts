@@ -143,6 +143,7 @@ export class ExecutionStepRunner {
           attempt,
           retryable: retryAllowed,
           errorCode: classified.errorCode,
+          errorMessage: classified.errorMessage,
         },
         "execution step failed",
       );
@@ -168,6 +169,9 @@ function classifyStepError(error: unknown): { retryable: boolean; errorCode: str
   if (error instanceof AppError) {
     if (["VALIDATION_FAILED", "PROVIDER_NOT_CONFIGURED", "LOCKED"].includes(error.code)) {
       return { retryable: false, errorCode: error.code, errorMessage: error.message };
+    }
+    if (error.details?.retryable === true) {
+      return { retryable: true, errorCode: error.code, errorMessage: error.message };
     }
     return { retryable: false, errorCode: error.code, errorMessage: error.message };
   }

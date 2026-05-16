@@ -11,7 +11,7 @@ type StepResult = { ok: true } | PreflightStepFailure;
 
 export async function runPreflight(session: WorkspaceSession, deps: OrchestratorDeps): Promise<PreflightResult> {
   const steps: Array<{ check: string; run: () => Promise<StepResult> }> = [
-    { check: "task-boundary", run: () => taskBoundaryCheck(session) },
+    { check: "task-boundary", run: () => taskBoundaryCheck(session, deps) },
     { check: "provider-credentials", run: () => providerCredentialsCheck(session, deps) },
     { check: "broker-reachability", run: () => brokerReachabilityCheck(session, deps) },
     { check: "capital-pool", run: () => capitalPoolCheck(session, deps) },

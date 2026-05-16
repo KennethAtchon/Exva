@@ -19,6 +19,7 @@ export const agentTypeSchema = z.enum([
   "capital",
 ]);
 export const logLevelSchema = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]);
+export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 
 export const sessionConfigSchema = z.object({
   strategy: z.string().min(1),
@@ -56,23 +57,27 @@ export const listTradesFiltersSchema = z.object({
   sessionId: z.string().optional(),
   brokerAccountId: z.string().optional(),
   symbolContains: z.string().optional(),
-  instrumentType: z.enum(["stock", "crypto", "futures", "prediction_market"]).optional(),
+  instrumentType: instrumentClassSchema.optional(),
   executionMode: z.enum(["paper_only", "live_allowed"]).optional(),
+});
+
+const instrumentSelectionCandidateInputSchema = z.object({
+  symbol: z.string().min(1).max(160),
+  instrumentClass: instrumentClassSchema,
+  instrumentDisplayName: z.string().optional(),
+  predictionOutcome: z.enum(["YES", "NO"]).nullable().optional(),
+  instrumentMetadataJson: z.string().optional(),
+  rationale: z.string().optional(),
 });
 
 export const instrumentSelectionSchema = z.object({
   instruments: z
     .array(
-      z.object({
+      instrumentSelectionCandidateInputSchema.extend({
         symbol: z.string().min(1).max(160).transform((s) => {
           const trimmed = s.trim();
           return trimmed.startsWith("pm:") ? trimmed : trimmed.toUpperCase();
         }),
-        instrumentClass: z.enum(["stock", "crypto", "futures", "prediction_market"]),
-        instrumentDisplayName: z.string().optional(),
-        predictionOutcome: z.enum(["YES", "NO"]).nullable().optional(),
-        instrumentMetadataJson: z.string().optional(),
-        rationale: z.string().optional(),
       }),
     )
     .max(50),
@@ -85,18 +90,7 @@ export type InstrumentSelection = z.infer<typeof instrumentSelectionSchema>;
  * Runtime normalization is applied after tool execution.
  */
 export const instrumentSelectionToolInputSchema = z.object({
-  instruments: z
-    .array(
-      z.object({
-        symbol: z.string().min(1).max(160),
-        instrumentClass: z.enum(["stock", "crypto", "futures", "prediction_market"]),
-        instrumentDisplayName: z.string().optional(),
-        predictionOutcome: z.enum(["YES", "NO"]).nullable().optional(),
-        instrumentMetadataJson: z.string().optional(),
-        rationale: z.string().optional(),
-      }),
-    )
-    .max(50),
+  instruments: z.array(instrumentSelectionCandidateInputSchema).max(50),
 });
 
 export const tradeDecisionSchema = z.object({
@@ -165,8 +159,6 @@ export const providerAccountTestSchema = z.object({
 export const providerAccountDeleteSchema = z.object({
   id: z.string().min(1),
 });
-
-export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 
 export const brokerTypeSchema = z.enum(["alpaca", "coinbase_advanced_trade", "tradovate", "polymarket", "mock"]);
 

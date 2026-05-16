@@ -84,11 +84,18 @@ export class SessionRuntimeManager {
 
   async resumeSession(sessionId: string): Promise<void> {
     this.deps.logger.info({ sessionId }, "resuming runtime");
+    const priorStatus = this.deps.sessionRepo.getStatus(sessionId);
     const runtime = this.runtimes.get(sessionId) ?? (await this.startSession(sessionId));
     this.deps.bus.setRuntimeStatus(sessionId, "active");
     this.deps.sessionRepo.setStatus("active", sessionId);
     await runtime.resume();
-    this.deps.logger.info({ sessionId }, "runtime resumed");
+    if (priorStatus === "attention_required") {
+      // A failed selector cycle does not auto-reschedule, so an idempotent
+      // resume() leaves the loop dead. Force a fresh selector cycle.
+      this.deps.logger.info({ sessionId }, "restarting orchestrator after attention_required");
+      await runtime.orchestrator.restartFromAttention();
+    }
+    this.deps.logger.info({ sessionId, priorStatus }, "runtime resumed");
   }
 
   async stopSession(sessionId: string): Promise<void> {

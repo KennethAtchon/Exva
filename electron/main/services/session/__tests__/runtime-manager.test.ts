@@ -182,6 +182,7 @@ function createManager(
       start: async () => hooks.onStart?.(sessionId),
       pause: async () => undefined,
       resume: async () => undefined,
+      restartFromAttention: async () => undefined,
       stop: async () => hooks.onStop?.(sessionId),
       pauseAfterCurrentStep: () => undefined,
       retryStep: async () => ({ ok: true as const }),

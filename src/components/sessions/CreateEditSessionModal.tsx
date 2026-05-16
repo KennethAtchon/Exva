@@ -3,6 +3,12 @@ import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import type { BrokerAccount, InstrumentClass, ProviderAccount, SessionTemplatePayload } from "@/lib/types";
 import { ShadcnSelect } from "@/components/custom-ui";
 import { Button, Checkbox, Dialog, DialogContent, Switch } from "@/components/ui";
+import {
+  isSearchEverythingEnabled,
+  resolveBrokerInstrumentClasses,
+  resolveEffectiveInstrumentClasses,
+  SEARCH_EVERYTHING_SCOPE,
+} from "@electron/shared/session-instrument-classes";
 
 interface Props {
   open: boolean;
@@ -26,6 +32,7 @@ export const CreateEditSessionModal = ({
   const [form, setForm] = useState<SessionCreateInput>(defaultInput());
   const [searchEverything, setSearchEverything] = useState(false);
   const [searchEverythingSnapshot, setSearchEverythingSnapshot] = useState<{
+    instrumentClasses: InstrumentClass[];
     instrumentScope: string;
     aiPickerEnabled: boolean;
   } | null>(null);
@@ -133,12 +140,20 @@ export const CreateEditSessionModal = ({
     () => visibleBrokers.filter((broker) => assignedBrokerIdSet.has(broker.id)),
     [visibleBrokers, assignedBrokerIdSet],
   );
-  const uncoveredInstrumentClasses = useMemo(
-    () => form.instrumentClasses.filter((instrumentClass) => !assignedActiveModeBrokers.some((broker) => broker.supportedInstrumentClasses.includes(instrumentClass))),
-    [form.instrumentClasses, assignedActiveModeBrokers],
+  const brokerDrivenInstrumentClasses = useMemo(
+    () => resolveBrokerInstrumentClasses(assignedActiveModeBrokers),
+    [assignedActiveModeBrokers],
   );
-  const isValid = form.name.trim().length > 0 && form.objective.trim().length > 0 && form.instrumentClasses.length > 0;
-  const hasBrokerCoverage = uncoveredInstrumentClasses.length === 0 && form.brokerAccountIds.length > 0;
+  const effectiveInstrumentClasses = useMemo(
+    () => resolveEffectiveInstrumentClasses(form, assignedActiveModeBrokers),
+    [form, assignedActiveModeBrokers],
+  );
+  const uncoveredInstrumentClasses = useMemo(
+    () => effectiveInstrumentClasses.filter((instrumentClass) => !assignedActiveModeBrokers.some((broker) => broker.supportedInstrumentClasses.includes(instrumentClass))),
+    [effectiveInstrumentClasses, assignedActiveModeBrokers],
+  );
+  const isValid = form.name.trim().length > 0 && form.objective.trim().length > 0 && effectiveInstrumentClasses.length > 0;
+  const hasBrokerCoverage = uncoveredInstrumentClasses.length === 0 && form.brokerAccountIds.length > 0 && effectiveInstrumentClasses.length > 0;
   const requiresSearchProviderSetup =
     form.selectionMode === "ai_selected_universe" &&
     form.selectorSettings.aiPickerEnabled &&
@@ -153,6 +168,12 @@ export const CreateEditSessionModal = ({
     if (nextBrokerIds.length === form.brokerAccountIds.length) return;
     setForm((current) => ({ ...current, brokerAccountIds: nextBrokerIds }));
   }, [brokerAccounts, brokerById, form.brokerAccountIds, visibleBrokers]);
+
+  useEffect(() => {
+    if (!searchEverything) return;
+    if (sameInstrumentClasses(form.instrumentClasses, brokerDrivenInstrumentClasses)) return;
+    setForm((current) => ({ ...current, instrumentClasses: brokerDrivenInstrumentClasses }));
+  }, [brokerDrivenInstrumentClasses, form.instrumentClasses, searchEverything]);
 
   if (!open) return null;
 
@@ -268,11 +289,13 @@ export const CreateEditSessionModal = ({
                     onCheckedChange={(checked) => {
                       if (checked) {
                         setSearchEverythingSnapshot({
+                          instrumentClasses: form.instrumentClasses,
                           instrumentScope: form.instrumentScope,
                           aiPickerEnabled: form.selectorSettings.aiPickerEnabled,
                         });
                         setForm({
                           ...form,
+                          instrumentClasses: brokerDrivenInstrumentClasses,
                           instrumentScope: SEARCH_EVERYTHING_SCOPE,
                           selectorSettings: { aiPickerEnabled: true },
                         });
@@ -281,6 +304,7 @@ export const CreateEditSessionModal = ({
 
                       setForm({
                         ...form,
+                        instrumentClasses: searchEverythingSnapshot?.instrumentClasses ?? form.instrumentClasses,
                         instrumentScope: searchEverythingSnapshot?.instrumentScope ?? "SPY,QQQ",
                         selectorSettings: {
                           aiPickerEnabled: searchEverythingSnapshot?.aiPickerEnabled ?? true,
@@ -289,18 +313,18 @@ export const CreateEditSessionModal = ({
                       setSearchEverythingSnapshot(null);
                     }}
                   />
-                  <span>
-                    <span style={{ display: "block", color: "var(--text1)", fontWeight: 600 }}>Search everything</span>
-                    <span style={{ display: "block", marginTop: 2, color: "var(--text3)", fontSize: 12 }}>
-                      Ignore shortlist constraints and let the selector search the full universe.
+                    <span>
+                      <span style={{ display: "block", color: "var(--text1)", fontWeight: 600 }}>Search everything</span>
+                      <span style={{ display: "block", marginTop: 2, color: "var(--text3)", fontSize: 12 }}>
+                      Ignore manual class picks and let the selected broker accounts define the full tradable universe.
+                      </span>
                     </span>
-                  </span>
-                </label>
+                  </label>
               ) : null}
               <Field label="Instrument classes">
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   {(["stock", "crypto", "futures", "prediction_market"] as const).map((instrumentClass) => {
-                    const checked = form.instrumentClasses.includes(instrumentClass);
+                    const checked = effectiveInstrumentClasses.includes(instrumentClass);
                     return (
                       <label key={instrumentClass} style={{ ...toggleChipStyle, borderColor: checked ? "var(--accent-dim)" : "var(--border)" }}>
                         <Checkbox
@@ -318,6 +342,11 @@ export const CreateEditSessionModal = ({
                     );
                   })}
                 </div>
+                {searchEverything ? (
+                  <div style={inlineHintStyle}>
+                    Broker-derived classes: {effectiveInstrumentClasses.length > 0 ? effectiveInstrumentClasses.map(formatInstrumentClass).join(", ") : "Select at least one broker account to derive tradable classes."}
+                  </div>
+                ) : null}
               </Field>
               <Field label="Instrument scope">
                 <textarea
@@ -552,11 +581,12 @@ function formatInstrumentClass(value: InstrumentClass): string {
 }
 
 function isSearchEverythingInput(input: SessionCreateInput): boolean {
-  return input.instrumentScope.trim() === SEARCH_EVERYTHING_SCOPE &&
-    input.selectorSettings.aiPickerEnabled;
+  return isSearchEverythingEnabled(input);
 }
 
-const SEARCH_EVERYTHING_SCOPE = "Search the entire tradable universe for the selected instrument classes.";
+function sameInstrumentClasses(left: InstrumentClass[], right: InstrumentClass[]): boolean {
+  return left.length === right.length && left.every((instrumentClass, index) => instrumentClass === right[index]);
+}
 
 const panelStyle = { width: 900, maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", background: "linear-gradient(180deg, rgba(13,18,25,0.99) 0%, rgba(9,13,18,0.99) 100%)", border: "1px solid var(--border)", borderRadius: 20, padding: 22, boxShadow: "0 26px 60px rgba(2,6,23,0.48)" } as const;
 const sectionStyle = { border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", background: "rgba(18,26,36,0.6)" } as const;

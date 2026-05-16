@@ -254,6 +254,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
       },
       pause: async () => undefined,
       resume: async () => undefined,
+      restartFromAttention: async () => undefined,
       stop: async () => undefined,
       pauseAfterCurrentStep: () => undefined,
       retryStep: async () => ({ ok: true as const }),

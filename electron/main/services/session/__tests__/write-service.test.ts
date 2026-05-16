@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/session-instrument-classes";
 import { createTestDb } from "../../../db/test-helpers";
 import { BrokerAccountsRepo } from "../../../db/repositories/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../../db/repositories/broker-routing-repo";
@@ -140,6 +141,39 @@ describe("SessionWriteService", () => {
         brokerAccountIds: ["broker-stock"],
       }),
     ).toThrowError(/does not support any of the selected instrument classes/i);
+  });
+
+  it("derives instrument classes from selected brokers in full-universe mode", () => {
+    const service = createService(db);
+    insertBroker(db, {
+      id: "broker-stock",
+      name: "Stock Only",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+    insertBroker(db, {
+      id: "broker-crypto",
+      name: "Crypto Only",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["crypto"],
+      mode: "paper",
+    });
+
+    const result = service.create({
+      name: "Broker Driven Universe",
+      objective: "Let brokers define the searchable classes",
+      selectionMode: "ai_selected_universe",
+      instrumentClasses: ["futures"],
+      instrumentScope: SEARCH_EVERYTHING_SCOPE,
+      selectorSettings: { aiPickerEnabled: true },
+      capitalLimitUsd: 2500,
+      executionMode: "paper_only",
+      brokerAccountIds: ["broker-stock", "broker-crypto"],
+    });
+
+    const session = new SessionRepo(db).requireById(result.id);
+    expect(session.instrumentClasses).toEqual(["stock", "crypto"]);
   });
 });
 

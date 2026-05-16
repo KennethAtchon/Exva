@@ -1,9 +1,11 @@
 import PQueue from "p-queue";
 import { toLegacySessionConfig, type EventSourceType, type ExecutionStage, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
+import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/session-instrument-classes";
 import { resolveSelectorNoInstrumentRetryMinutes } from "@electron/shared/ai-role-profile";
 import { AppError } from "@electron/shared/errors";
 import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
+import { resolveSessionInstrumentClasses } from "../session/effective-instrument-classes";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
 import { ResearchBurstService } from "./research-burst-service";
 import { ExecutionStepRunner, type StepResult } from "./execution-step-runner";
@@ -43,7 +45,6 @@ type DecisionOutput = {
 };
 
 type PredictionToken = { outcome?: unknown; token_id?: unknown };
-const SEARCH_EVERYTHING_SCOPE = "Search the entire tradable universe for the selected instrument classes.";
 
 type SelectorCycleContext = {
   kind: "selector";
@@ -111,6 +112,35 @@ export class AgentOrchestrator {
       return;
     }
     this.queue.start();
+  }
+
+  /**
+   * Re-kick the selector loop after a non-retryable failure put the session
+   * into attention_required. A failed selector cycle does NOT auto-reschedule
+   * (handleStepFailure just returns), so a plain resume() would leave the
+   * orchestrator idle. This enqueues a fresh selector cycle.
+   */
+  async restartFromAttention(): Promise<void> {
+    this.pauseAfterStep = false;
+    this.clearNoInstrumentRetry();
+    this.queue.start();
+    if (!this.started) {
+      await this.start();
+      return;
+    }
+    const cycleId = crypto.randomUUID();
+    this.deps.logger.info({ sessionId: this.sessionId, cycleId }, "orchestrator restart from attention_required");
+    this.queue
+      .add(() => this.executeSelectorCycle({ kind: "selector", cycleId, label: "Selector cycle restarted after attention" }))
+      .catch((error) => {
+        this.emitEvent(
+          "ERROR",
+          null,
+          `Restart selector cycle failed: ${error instanceof Error ? error.message : String(error)}`,
+          "orchestrator",
+          cycleId,
+        );
+      });
   }
 
   async stop(): Promise<void> {
@@ -248,6 +278,7 @@ export class AgentOrchestrator {
         const quoteSnapshot = await adapter.getMarketSnapshot(wireSymbol);
         const strategy = this.deps.strategyContextService.get(this.sessionId);
         const session = this.deps.sessionRepo.requireById(this.sessionId);
+        const sessionInstrumentClasses = this.getEffectiveInstrumentClasses(session);
         const cvResult = new CandidateValidationService().validate({
           sessionId: this.sessionId,
           cycleId: context.cycleId,
@@ -256,7 +287,7 @@ export class AgentOrchestrator {
             instrumentClass: context.instrument.instrumentClass,
             selectorResearchBrief: context.instrument.selectorResearchBrief ?? null,
           },
-          sessionInstrumentClasses: session.instrumentClasses,
+          sessionInstrumentClasses,
           sideBias: strategy.rules.sideBias,
           holdingStyle: strategy.timeframe.holdingStyle,
           selectorTrace: context.instrument.selectorTraces ?? [],
@@ -958,6 +989,7 @@ export class AgentOrchestrator {
     const traces = this.parseToolTraces(toolCallsJson);
     const strategy = this.deps.strategyContextService.get(session.id).rules;
     const hadSearch = traces.some((step) => step.toolCalls.some((call) => call.tool === "search_web"));
+    const sessionInstrumentClasses = this.getEffectiveInstrumentClasses(session);
     const valid: ResolvedInstrument[] = [];
     const researchBriefsBySymbol: Record<string, string> = {};
 
@@ -966,7 +998,7 @@ export class AgentOrchestrator {
         this.emitEvent("DEBUG", null, `[selector-filter] (unknown): rejected - missing symbol`, "orchestrator", cycleId ?? null);
         continue;
       }
-      if (!session.instrumentClasses.includes(instrument.instrumentClass)) {
+      if (!sessionInstrumentClasses.includes(instrument.instrumentClass)) {
         this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - class ${instrument.instrumentClass} not enabled for session`, "orchestrator", cycleId ?? null);
         continue;
       }
@@ -1396,9 +1428,10 @@ export class AgentOrchestrator {
     );
 
     const selectorValidation = this.validateSelectorOutput(session, result.message.tool_calls_json, result.output.instruments, activeCycleId);
+    const sessionInstrumentClasses = this.getEffectiveInstrumentClasses(session);
 
     const filtered = selectorValidation.instruments.filter((row: ResolvedInstrument) =>
-      session.instrumentClasses.includes(row.instrumentClass),
+      sessionInstrumentClasses.includes(row.instrumentClass),
     );
     if (filtered.length === 0) return [];
 
@@ -1550,13 +1583,14 @@ export class AgentOrchestrator {
   }
 
   private async buildSelectionInstructions(session: WorkspaceSession): Promise<string> {
-    const brokerCoverage = this.renderBrokerCoverageInstructions(session);
+    const instrumentClasses = this.getEffectiveInstrumentClasses(session);
+    const brokerCoverage = this.renderBrokerCoverageInstructions(session, instrumentClasses);
 
     if (this.isSearchEverythingScope(session)) {
       const sections = [
         [
           "Selector mode: full-universe discovery.",
-          `Search across the full tradable universe for these enabled classes: ${session.instrumentClasses.join(", ")}.`,
+          `Search across the full tradable universe for these broker-backed classes: ${instrumentClasses.join(", ")}.`,
           "Start broad, enumerate all serious candidate instruments you discover, and then research each candidate online before you rank it.",
           "Use live discovery/search evidence for every candidate you keep. Do not rely on memory-only ticker recall.",
           "Verify tradability with the market tools before submitting a candidate. Exclude anything that has no broker coverage or cannot be verified.",
@@ -1565,14 +1599,14 @@ export class AgentOrchestrator {
         brokerCoverage,
       ];
 
-      const predictionCandidates = await this.renderPredictionMarketCandidatesInstructions(session);
+      const predictionCandidates = await this.renderPredictionMarketCandidatesInstructions(session, instrumentClasses);
       if (predictionCandidates) sections.push(predictionCandidates);
 
       return sections.filter(Boolean).join("\n\n");
     }
 
     const sections = [session.instrumentScope, brokerCoverage];
-    const predictionCandidates = await this.renderPredictionMarketCandidatesInstructions(session);
+    const predictionCandidates = await this.renderPredictionMarketCandidatesInstructions(session, instrumentClasses);
     if (predictionCandidates) sections.push(predictionCandidates);
     return sections.filter(Boolean).join("\n\n");
   }
@@ -1581,7 +1615,7 @@ export class AgentOrchestrator {
     return session.instrumentScope.trim() === SEARCH_EVERYTHING_SCOPE;
   }
 
-  private renderBrokerCoverageInstructions(session: WorkspaceSession): string {
+  private renderBrokerCoverageInstructions(session: WorkspaceSession, instrumentClasses: InstrumentClass[]): string {
     const assignedBrokerIds = this.deps.sessionBrokerAssignmentsRepo.listBrokerAccountIds(session.id);
     const assignedBrokers = assignedBrokerIds
       .map((brokerAccountId) => this.deps.brokerAccountsRepo.find(brokerAccountId))
@@ -1600,7 +1634,7 @@ export class AgentOrchestrator {
     }
 
     lines.push("- Enabled class coverage:");
-    for (const instrumentClass of session.instrumentClasses) {
+    for (const instrumentClass of instrumentClasses) {
       const coveringBrokers = assignedBrokers.filter((broker) => broker.supportedInstrumentClasses.includes(instrumentClass));
       if (coveringBrokers.length === 0) {
         lines.push(`  - ${instrumentClass}: NO broker coverage. Do not return candidates for this class.`);
@@ -1613,8 +1647,11 @@ export class AgentOrchestrator {
     return lines.join("\n");
   }
 
-  private async renderPredictionMarketCandidatesInstructions(session: WorkspaceSession): Promise<string | null> {
-    if (!session.instrumentClasses.includes("prediction_market")) {
+  private async renderPredictionMarketCandidatesInstructions(
+    session: WorkspaceSession,
+    instrumentClasses: InstrumentClass[],
+  ): Promise<string | null> {
+    if (!instrumentClasses.includes("prediction_market")) {
       return null;
     }
 
@@ -1702,6 +1739,10 @@ export class AgentOrchestrator {
         predictionOutcome,
         instrumentMetadataJson,
       }));
+  }
+
+  private getEffectiveInstrumentClasses(session: WorkspaceSession): InstrumentClass[] {
+    return resolveSessionInstrumentClasses(session, this.deps);
   }
 }
 

@@ -1,16 +1,18 @@
 import type { WorkspaceSession } from "@/lib/types";
+import { resolveSessionInstrumentClasses } from "../effective-instrument-classes";
+import type { OrchestratorDeps } from "../session-types";
 import type { PreflightStepFailure } from "../session-types";
 
 type StepResult = { ok: true } | PreflightStepFailure;
 
-export async function taskBoundaryCheck(session: WorkspaceSession): Promise<StepResult> {
+export async function taskBoundaryCheck(session: WorkspaceSession, deps: OrchestratorDeps): Promise<StepResult> {
   if (!session.name.trim()) {
     return { ok: false, code: "VALIDATION_FAILED", message: "Session name is required." };
   }
   if (!session.objective.trim()) {
     return { ok: false, code: "VALIDATION_FAILED", message: "Session objective is required." };
   }
-  if (session.instrumentClasses.length === 0) {
+  if (resolveSessionInstrumentClasses(session, deps).length === 0) {
     return { ok: false, code: "VALIDATION_FAILED", message: "At least one instrument class is required." };
   }
   if (!session.instrumentScope.trim()) {

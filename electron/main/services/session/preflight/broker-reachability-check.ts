@@ -1,10 +1,12 @@
 import type { WorkspaceSession } from "@/lib/types";
 import type { OrchestratorDeps, PreflightStepFailure } from "../session-types";
+import { resolveSessionInstrumentClasses } from "../effective-instrument-classes";
 
 type StepResult = { ok: true } | PreflightStepFailure;
 
 export async function brokerReachabilityCheck(session: WorkspaceSession, deps: OrchestratorDeps): Promise<StepResult> {
   const assignedIds = deps.sessionBrokerAssignmentsRepo.listBrokerAccountIds(session.id);
+  const instrumentClasses = resolveSessionInstrumentClasses(session, deps);
   if (assignedIds.length === 0) {
     return {
       ok: false,
@@ -24,18 +26,18 @@ export async function brokerReachabilityCheck(session: WorkspaceSession, deps: O
         details: { brokerAccountId },
       };
     }
-    const overlap = row.supportedInstrumentClasses.some((cls) => session.instrumentClasses.includes(cls));
+    const overlap = row.supportedInstrumentClasses.some((cls) => instrumentClasses.includes(cls));
     if (!overlap) {
       return {
         ok: false,
         code: "UNSUPPORTED_INSTRUMENT",
         message: `Broker "${row.name}" does not support any of this session's instrument classes.`,
-        details: { brokerAccountId, supports: row.supportedInstrumentClasses, requested: session.instrumentClasses },
+        details: { brokerAccountId, supports: row.supportedInstrumentClasses, requested: instrumentClasses },
       };
     }
   }
 
-  for (const ic of session.instrumentClasses) {
+  for (const ic of instrumentClasses) {
     try {
       deps.brokerRouting.resolveBrokerAccountId(session.id, ic);
     } catch (error) {

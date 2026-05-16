@@ -53,6 +53,28 @@ describe("ExecutionStepRunner", () => {
     expect(repo.get(sessionId, "cycle-1", "decision_maker")).toMatchObject({ status: "failed", retryable: false, attempt: 1 });
   });
 
+  it("retries provider errors that were wrapped as retryable AppErrors", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const { runner, repo, sessionId } = createHarness();
+
+    const result = await runner.run("selector", async () => {
+      throw new AppError(
+        "Provider unreachable: Failed after 3 attempts. Last error: Provider returned error",
+        "PROVIDER_UNREACHABLE",
+        { retryable: true, status: 503, rawMessage: "Failed after 3 attempts. Last error: Provider returned error" },
+      );
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      retryable: true,
+      errorCode: "PROVIDER_UNREACHABLE",
+      errorMessage: "Provider unreachable: Failed after 3 attempts. Last error: Provider returned error",
+    });
+    expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({ status: "retrying", attempt: 1, retryable: true });
+  });
+
   it("caps retryable failures at three attempts", async () => {
     vi.useFakeTimers();
     vi.spyOn(Math, "random").mockReturnValue(0);

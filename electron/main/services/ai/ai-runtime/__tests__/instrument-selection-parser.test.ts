@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AppError } from "@electron/shared/errors";
 import { instrumentSelectionSchema, instrumentSelectionToolInputSchema } from "@/lib/schemas";
 import { parseInstrumentSelection } from "../instrument-selection-parser";
 
@@ -90,5 +91,50 @@ describe("instrument selection empty-state contract", () => {
         },
       ],
     });
+  });
+
+  it("surfaces the exact invalid field when submit_candidates payload is malformed", () => {
+    expect(() =>
+      parseInstrumentSelection({
+        assistantText: "",
+        auditMessagesJson: "[]",
+        steps: [
+          {
+            step: 1,
+            toolCalls: [
+              {
+                step: 1,
+                tool: "submit_candidates",
+                argsJson: JSON.stringify({
+                  instruments: [
+                    {
+                      symbol: "nvda",
+                      instrumentClass: "stock",
+                      instrumentDisplayName: "NVIDIA Corp",
+                      predictionOutcome: "Bullish",
+                      rationale: "Breakout above resistance with catalyst support.",
+                    },
+                  ],
+                }),
+                resultJson: "null",
+                latencyMs: 1,
+              },
+            ],
+            inputTokens: 0,
+            outputTokens: 0,
+            latencyMs: 1,
+          },
+        ],
+        messages: [],
+        finishReason: "stop",
+        parseFallback: false,
+        inputTokens: 0,
+        outputTokens: 0,
+        durationMs: 1,
+      }),
+    ).toThrowError(new AppError(
+      "Instrument selector payload validation failed: submit_candidates args invalid: instruments.0.predictionOutcome: Invalid enum value. Expected 'YES' | 'NO', received 'Bullish'",
+      "VALIDATION_FAILED",
+    ));
   });
 });

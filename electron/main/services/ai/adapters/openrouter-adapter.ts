@@ -44,6 +44,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
     return executeRunAgent({
       model: client.chat(opts.model),
       modelId: opts.model,
+      providerType: this.providerType,
       role: opts.role,
       messages: opts.messages,
       tools: opts.tools,
@@ -69,6 +70,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       temperature: opts.temperature,
       maxOutputTokens: opts.maxTokens,
       tools: opts.tools,
+      maxRetries: 0,
     });
     const usage = readUsage(result.usage);
     return {
@@ -91,6 +93,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       temperature: opts.temperature,
       maxOutputTokens: opts.maxTokens,
       tools: opts.tools,
+      maxRetries: 0,
     });
     const usage = readUsage(result.usage);
     return {

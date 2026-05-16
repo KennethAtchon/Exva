@@ -18,7 +18,7 @@ export class SessionService {
 
   async start(sessionId = this.deps.sessionRepo.getFocusedSessionId()): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
-    if (session.status === "paused") {
+    if (session.status === "paused" || session.status === "attention_required") {
       return this.resume(sessionId);
     }
     this.assertTransition(session.status, "active");

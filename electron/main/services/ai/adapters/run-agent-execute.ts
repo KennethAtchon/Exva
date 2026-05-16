@@ -11,6 +11,7 @@ const logger = createLogger("run-agent-execute");
 export interface RunAgentExecuteParams<T> {
   model: LanguageModel;
   modelId: string;
+  providerType?: string;
   role?: AgentRole;
   messages: RuntimeAgentMessage[];
   tools?: ToolSet;
@@ -116,6 +117,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
 
   logger.info(
     {
+      providerType: params.providerType ?? null,
       role: params.role ?? null,
       modelId: params.modelId,
       temperature: params.temperature ?? null,
@@ -162,6 +164,9 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     abortSignal: params.abortSignal,
     stopWhen,
     prepareStep: params.prepareStep,
+    // Disable SDK-level retry so withProviderRetry owns the retry policy and
+    // we don't lose the underlying provider error behind "Failed after N attempts".
+    maxRetries: 0,
   } as const;
 
   const onStepFinish = (step: StepResult<ToolSet>, stepIndex: number) => {

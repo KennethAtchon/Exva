@@ -178,6 +178,23 @@ function renderUserMessage(input: {
     parts.push("", renderToolAvailabilityBlock(input.harnessToolAvailability, input.toolPolicy));
   }
 
+  if (input.toolPolicy.allowSubmitCandidates) {
+    parts.push(
+      "",
+      "<selector_output_contract>",
+      "When you call `submit_candidates`, the payload must match the tool schema exactly.",
+      '{"instruments":[{"symbol":"NVDA","instrumentClass":"stock","instrumentDisplayName":"NVIDIA Corp","instrumentMetadataJson":"{\\"catalyst\\":\\"...\\"}","rationale":"..."}]}',
+      "Rules:",
+      "- `symbol`: required string.",
+      "- `instrumentClass`: required; one of `stock`, `crypto`, `futures`, `prediction_market`.",
+      "- `predictionOutcome`: only allowed for `prediction_market`, and then only `YES` or `NO`.",
+      "- For `stock`, `crypto`, and `futures`, do not include `predictionOutcome`.",
+      "- `instrumentMetadataJson`, if present, must be a JSON-encoded string, not an object.",
+      "- Do not invent extra enum values like `Bullish`, `Bearish`, `Long`, or `Short` in schema fields.",
+      "</selector_output_contract>",
+    );
+  }
+
   parts.push("", "<task>", input.task.bodyMarkdown.trim(), "</task>");
   return parts.join("\n");
 }
@@ -203,6 +220,9 @@ function renderToolPolicyStructural(role: AgentRole, policy: RoleToolPolicy): st
     }
     if (policy.allowMarketNewsTool) lines.push("- `get_news`: recent market/news evidence for a candidate.");
     lines.push("- `submit_candidates`: terminal tool — call once when the final shortlist is ready.");
+    lines.push("- `submit_candidates` payload must match the tool schema exactly.");
+    lines.push("- Only set `predictionOutcome` for `prediction_market` instruments, and only as `YES` or `NO`.");
+    lines.push("- For `stock`, `crypto`, and `futures`, omit `predictionOutcome` entirely.");
   } else {
     if (policy.allowMarketNewsTool) lines.push("- `get_news`: recent market/news evidence for the instrument under review.");
     lines.push("- `get_quote` and `get_ohlcv` are not available for this role.");

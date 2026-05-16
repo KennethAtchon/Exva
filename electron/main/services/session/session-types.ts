@@ -33,6 +33,7 @@ export interface SessionOrchestrator {
   start(): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
+  restartFromAttention(): Promise<void>;
   stop(): Promise<void>;
   pauseAfterCurrentStep(): void;
   retryStep(cycleId: string, stage: ExecutionStage): Promise<{ ok: true } | { ok: false; reason: string }>;

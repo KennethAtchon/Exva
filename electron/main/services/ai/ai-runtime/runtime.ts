@@ -228,27 +228,29 @@ ${input.review}`;
 
     const messages: RuntimeAgentMessage[] = promptPack.messages;
 
-    const trace = await withProviderRetry(() =>
-      adapter.runAgent({
-        model: config.modelId,
-        role,
-        messages,
-        tools,
-        maxSteps: caps.maxSteps,
-        spendLimitUsd: caps.spendUsd,
-        temperature: resolveTemperature(config.modelId, config.temperature),
-        maxTokens: config.maxTokens,
-        terminalToolNames: ["submit_candidates"],
-        prepareStep: harnessAvail.searchWeb
-          ? ({ stepNumber }: { stepNumber: number }) => {
-              if (stepNumber !== 0) return {};
-              return {
-                activeTools: ["search_web"],
-                toolChoice: { type: "tool" as const, toolName: "search_web" as const },
-              };
-            }
-          : undefined,
-      }),
+    const trace = await withProviderRetry(
+      () =>
+        adapter.runAgent({
+          model: config.modelId,
+          role,
+          messages,
+          tools,
+          maxSteps: caps.maxSteps,
+          spendLimitUsd: caps.spendUsd,
+          temperature: resolveTemperature(config.modelId, config.temperature),
+          maxTokens: config.maxTokens,
+          terminalToolNames: ["submit_candidates"],
+          prepareStep: harnessAvail.searchWeb
+            ? ({ stepNumber }: { stepNumber: number }) => {
+                if (stepNumber !== 0) return {};
+                return {
+                  activeTools: ["search_web"],
+                  toolChoice: { type: "tool" as const, toolName: "search_web" as const },
+                };
+              }
+            : undefined,
+        }),
+      { providerType: adapter.providerType, modelId: config.modelId, role, sessionId, cycleId: cycleId ?? null },
     );
 
     const selection = parseInstrumentSelection(trace);
@@ -328,17 +330,19 @@ ${input.review}`;
 
     const messages: RuntimeAgentMessage[] = promptPack.messages;
 
-    const trace = await withProviderRetry(() =>
-      adapter.runAgent({
-        model: config.modelId,
-        role,
-        messages,
-        tools,
-        maxSteps: caps.maxSteps,
-        spendLimitUsd: caps.spendUsd,
-        temperature: resolveTemperature(config.modelId, config.temperature),
-        maxTokens: config.maxTokens,
-      }),
+    const trace = await withProviderRetry(
+      () =>
+        adapter.runAgent({
+          model: config.modelId,
+          role,
+          messages,
+          tools,
+          maxSteps: caps.maxSteps,
+          spendLimitUsd: caps.spendUsd,
+          temperature: resolveTemperature(config.modelId, config.temperature),
+          maxTokens: config.maxTokens,
+        }),
+      { providerType: adapter.providerType, modelId: config.modelId, role, sessionId, cycleId: opts?.cycleId ?? null },
     );
 
     const run = toRunFromTrace(role, config.modelId, config.providerKey, trace);
@@ -393,17 +397,19 @@ ${input.review}`;
 
     const messages: RuntimeAgentMessage[] = promptPack.messages;
 
-    const trace = await withProviderRetry(() =>
-      adapter.runAgent({
-        model: config.modelId,
-        role,
-        messages,
-        maxSteps: caps.maxSteps,
-        spendLimitUsd: caps.spendUsd,
-        temperature: resolveTemperature(config.modelId, config.temperature),
-        maxTokens: config.maxTokens,
-        schema: tradeDecisionSchema,
-      }),
+    const trace = await withProviderRetry(
+      () =>
+        adapter.runAgent({
+          model: config.modelId,
+          role,
+          messages,
+          maxSteps: caps.maxSteps,
+          spendLimitUsd: caps.spendUsd,
+          temperature: resolveTemperature(config.modelId, config.temperature),
+          maxTokens: config.maxTokens,
+          schema: tradeDecisionSchema,
+        }),
+      { providerType: adapter.providerType, modelId: config.modelId, role, sessionId, cycleId: cycleId ?? null },
     );
 
     let obj = trace.structuredOutput;
