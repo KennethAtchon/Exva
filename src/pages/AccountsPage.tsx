@@ -7,7 +7,7 @@ import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
 import { AddSearchProviderModal } from "@/components/accounts/AddSearchProviderModal";
 import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
 import { api, type ProviderModelEntry } from "@/lib/exva";
-import type { BrokerAccount, BrokerRoutingDefault, InstrumentClass, ProviderAccount, WorkspacePreferences } from "@/lib/types";
+import type { BrokerRoutingDefault, InstrumentClass, ProviderAccount, WorkspacePreferences } from "@/lib/types";
 
 function providerTypeLabel(providerType: string): string {
   switch (providerType) {
@@ -141,7 +141,6 @@ export const AccountsPage = () => {
     }
     setRoutingDraft(draft);
     setPrefsDraft(workspaceData.prefs);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceData]);
 
   const testAllConnections = async () => {

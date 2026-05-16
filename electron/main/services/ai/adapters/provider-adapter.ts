@@ -1,5 +1,5 @@
 import type { AgentRole, ProviderType } from "@/lib/types";
-import type { ToolSet } from "ai";
+import type { PrepareStepFunction, ToolSet } from "ai";
 import type { z } from "zod";
 import type { RuntimeAgentMessage, RunTrace } from "../ai-runtime/ai-runtime-types";
 
@@ -39,7 +39,7 @@ export interface AgentRunOptions<T = undefined> {
   abortSignal?: AbortSignal;
   schema?: z.ZodType<T>;
   terminalToolNames?: string[];
-  prepareStep?: any;
+  prepareStep?: PrepareStepFunction<ToolSet>;
 }
 
 export interface ModelEntry {

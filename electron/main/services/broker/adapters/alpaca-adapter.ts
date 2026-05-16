@@ -14,6 +14,7 @@ import type {
 export class AlpacaAdapter implements BrokerAdapter {
   readonly brokerType = "alpaca";
   readonly supportedInstrumentClasses = ["stock"] as const satisfies readonly InstrumentClass[];
+  readonly launchCapable = true;
 
   private readonly baseUrl: string;
 
@@ -109,8 +110,43 @@ export class AlpacaAdapter implements BrokerAdapter {
   }
 
   async closeOrder(orderId: string): Promise<CloseResult> {
-    await this.cancelOrder(orderId);
-    return { brokerOrderId: orderId, realizedPnlUsd: 0 };
+    // Real close: look up the order's symbol, then ask Alpaca to flatten that
+    // symbol's position. If the order never filled, just cancel it.
+    let symbol: string | null = null;
+    let status: string = "";
+    try {
+      const order = await this.request<{ symbol?: string; status?: string }>(
+        `/v2/orders/${encodeURIComponent(orderId)}`,
+      );
+      symbol = order.symbol ?? null;
+      status = (order.status ?? "").toLowerCase();
+    } catch {
+      // fall through to cancel-only
+    }
+
+    if (!symbol || status !== "filled") {
+      await this.cancelOrder(orderId).catch(() => undefined);
+      return { brokerOrderId: orderId, realizedPnlUsd: 0 };
+    }
+
+    // Capture pre-close unrealized pnl as a best-effort realized estimate.
+    let realizedPnlUsd = 0;
+    try {
+      const pos = await this.request<{ unrealized_pl?: string }>(
+        `/v2/positions/${encodeURIComponent(symbol)}`,
+      );
+      realizedPnlUsd = Number(pos.unrealized_pl ?? 0);
+    } catch {
+      // position may already be flat
+    }
+
+    try {
+      await this.request(`/v2/positions/${encodeURIComponent(symbol)}`, { method: "DELETE" });
+    } catch {
+      // position may already be flat or just-canceled
+    }
+
+    return { brokerOrderId: orderId, realizedPnlUsd };
   }
 
   async getOrderStatus(orderId: string): Promise<OrderStatus> {

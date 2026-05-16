@@ -110,12 +110,29 @@ export class SessionRuntimeManager {
     return [...this.runtimes.values()];
   }
 
+  /**
+   * Startup rehydration policy (intentional, conservative):
+   *
+   *   - Previously `active` sessions are NOT auto-resumed. They are demoted to `paused`
+   *     and started in paused mode: orchestrator does not open new cycles, but the
+   *     trade monitor IS started so open positions remain managed (stops/take-profit
+   *     can still fire). Operator must explicitly Resume to re-enable new intake.
+   *   - Previously `paused` sessions are rehydrated in paused mode unchanged.
+   *
+   * Rationale: between process death and restart, market state and broker state may
+   * have changed in ways the strategy did not see. Auto-resuming new entries from
+   * stale context is unsafe; abandoning open positions is also unsafe. Paused-with-
+   * live-monitor is the safe intersection.
+   */
   async rehydrateFromDb(): Promise<void> {
     const sessions = this.deps.sessionRepo.listByStatuses(["active", "paused"]);
     this.deps.logger.info({ sessionCount: sessions.length }, "rehydrating runtimes from db");
     for (const session of sessions) {
       if (session.status === "active") {
-        this.deps.logger.warn({ sessionId: session.id }, "startup resume gate pausing previously active session");
+        this.deps.logger.warn(
+          { sessionId: session.id },
+          "startup rehydration: demoting previously-active session to paused (monitor stays live for open positions)",
+        );
         this.deps.sessionRepo.setStatus("paused", session.id);
       }
       await this.startSession(session.id);

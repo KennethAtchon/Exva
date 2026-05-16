@@ -98,7 +98,10 @@ describe("market-tools", () => {
     const out = await getOhlcv.execute({ symbol: "AAPL", instrumentClass: "stock" });
 
     const bars = out.bars as Array<{ close: number }>;
-    expect(bars.at(0)!.close).toBeLessThan(bars.at(-1)!.close);
+    const first = bars.at(0);
+    const last = bars.at(-1);
+    if (!first || !last) throw new Error("expected non-empty bars");
+    expect(first.close).toBeLessThan(last.close);
   });
 
   it("get_ohlcv with timeframe 4h passes timeframe through mock callback", async () => {

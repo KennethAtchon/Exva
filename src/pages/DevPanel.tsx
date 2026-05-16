@@ -6,8 +6,8 @@ import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { useSessionStore } from "@/store/sessionStore";
-import type { AgentMessage, AgentRun, ApiCallLogEntry, EventRow, LogLevel, SessionAiRole } from "@/lib/types";
-import type { SessionSummary, StrategyGetResponse } from "@/lib/exva";
+import type { AgentMessage, AgentRun, EventRow, LogLevel, SessionAiRole } from "@/lib/types";
+import type { SessionSummary } from "@/lib/exva";
 
 export interface DevPanelFocus {
   sessionId: string;
@@ -34,8 +34,7 @@ interface ExtAgentRun extends AgentRun {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const LEVELS: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];
-const ROLE_FILTERS = ["all", "selector", "analyst_technical", "analyst_fundamental", "reviewer", "decision_maker", "system", "orchestrator"] as const;
-type RoleFilter = typeof ROLE_FILTERS[number];
+type RoleFilter = "all" | "selector" | "analyst_technical" | "analyst_fundamental" | "reviewer" | "decision_maker" | "system" | "orchestrator";
 
 const LEVEL_COLOR: Record<LogLevel, string> = {
   DEBUG: "#3d4f60",
@@ -69,8 +68,7 @@ const ROLE_LABELS: Record<string, string> = {
   orchestrator: "orch",
 };
 
-const INSPECTOR_TABS = ["event", "runs", "trace", "calls", "raw"] as const;
-type InspectorTab = typeof INSPECTOR_TABS[number];
+type InspectorTab = "event" | "runs" | "trace" | "calls" | "raw";
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
@@ -520,7 +518,7 @@ const EventTimeline = ({
                   fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--text3)",
                   background: "var(--surface3)", borderRadius: 4, padding: "1px 5px",
                 }}>
-                  {(ev as ExtEventRow).trade_id!.slice(0, 8)}…
+                  {String((ev as ExtEventRow).trade_id).slice(0, 8)}…
                 </span>
               )}
               {(ev as ExtEventRow).cycle_id && (
@@ -528,7 +526,7 @@ const EventTimeline = ({
                   fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--text3)",
                   background: "var(--surface3)", borderRadius: 4, padding: "1px 5px",
                 }}>
-                  cyc·{(ev as ExtEventRow).cycle_id!.slice(0, 6)}
+                  cyc·{String((ev as ExtEventRow).cycle_id).slice(0, 6)}
                 </span>
               )}
             </div>
@@ -826,7 +824,7 @@ const ExternalCallsTab = ({
 }) => {
   const { data: calls = [], isLoading: loading } = useQuery({
     queryKey: ["api-call-log", sessionId, cycleId, tradeId],
-    queryFn: () => api.getApiCallLog({ sessionId: sessionId!, cycleId: cycleId ?? null, tradeId: tradeId ?? null }),
+    queryFn: () => api.getApiCallLog({ sessionId: sessionId ?? "", cycleId: cycleId ?? null, tradeId: tradeId ?? null }),
     enabled: !!sessionId,
   });
 
@@ -1011,7 +1009,7 @@ export const DevPanel = ({
 
   const { data: strategy = null } = useQuery({
     queryKey: ["devpanel-strategy", focusedSession?.id],
-    queryFn: () => api.getStrategy(focusedSession!.id),
+    queryFn: () => api.getStrategy(focusedSession?.id ?? ""),
     enabled: !!focusedSession?.id,
   });
 
@@ -1062,7 +1060,7 @@ export const DevPanel = ({
     queryKey: ["inspector-runs", inspectorTradeId, inspectorCycleId],
     queryFn: () => inspectorTradeId
       ? (api.getAgentTraces(inspectorTradeId) as Promise<ExtAgentRun[]>)
-      : (api.getAgentTracesByCycle(inspectorCycleId!) as Promise<ExtAgentRun[]>),
+      : (api.getAgentTracesByCycle(inspectorCycleId ?? "") as Promise<ExtAgentRun[]>),
     enabled: !!(inspectorTradeId || inspectorCycleId),
   });
 
@@ -1073,7 +1071,7 @@ export const DevPanel = ({
         const detail = await api.getTradeDetail(inspectorTradeId);
         return detail.messages ?? [];
       }
-      return api.getMessagesByCycle(inspectorCycleId!);
+      return api.getMessagesByCycle(inspectorCycleId ?? "");
     },
     enabled: !!(inspectorTradeId || inspectorCycleId),
   });

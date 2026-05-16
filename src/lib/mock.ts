@@ -112,6 +112,8 @@ const stats: DashboardStats = {
   daily_api_spend: 2.14,
   api_budget: 5.00,
   portfolio_value: 12840.50,
+  portfolio_value_source: "session_capital_limit",
+  portfolio_broker_count: 0,
   unrealized_pnl: 47.10,
   session_uptime_min: 371,
 };

@@ -34,6 +34,12 @@ type PredictionInstrumentMetadata = {
 export class PolymarketAdapter implements BrokerAdapter, MarketDiscoveryAdapter {
   readonly brokerType = "polymarket";
   readonly supportedInstrumentClasses = ["prediction_market"] as const satisfies readonly InstrumentClass[];
+  /**
+   * Launch-capable: closeOrder issues a real opposite-side order via the CLOB client.
+   * getPositions returns [] (Polymarket does not expose an aggregate positions endpoint)
+   * but exits are driven by individual order tracking in this app.
+   */
+  readonly launchCapable = true;
 
   private authClientPromise: Promise<ClobClient> | null = null;
 

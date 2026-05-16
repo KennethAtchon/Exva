@@ -132,8 +132,8 @@ export class AgentOrchestrator {
     for (const resolve of this.approvalCallbacks.values()) resolve(false);
     this.approvalCallbacks.clear();
     for (const r of this.deps.capitalReservation.listActiveBySession(this.sessionId)) {
-      if (r.approvalId == null) {
-        this.deps.capitalReservation.releaseOnFailure(r.tradeId!);
+      if (r.approvalId == null && r.tradeId) {
+        this.deps.capitalReservation.releaseOnFailure(r.tradeId);
       }
     }
     this.deps.logger.info({ sessionId: this.sessionId }, "orchestrator stopped");
@@ -228,7 +228,7 @@ export class AgentOrchestrator {
     const stats = this.deps.statsRepo.dashboardStats(
       this.sessionId,
       this.deps.sessionRepo.getStatus(this.sessionId),
-      100000,
+      this.deps.sessionRepo.requireById(this.sessionId).capitalLimitUsd,
       this.deps.sessionRepo.uptimeMin(this.sessionId),
       config.max_api_spend_usd,
     );
@@ -434,6 +434,10 @@ export class AgentOrchestrator {
         }
 
         const brokerSupportsClass = adapter.supportedInstrumentClasses.includes(context.instrument.instrumentClass);
+        const riskOrder = context.riskOrder;
+        if (!riskOrder) {
+          throw new AppError("Internal error: riskOrder missing at policy gate", "VALIDATION_FAILED");
+        }
         const policyResult = new OrderPolicyGate().evaluate({
           sessionId: this.sessionId,
           cycleId: context.cycleId,
@@ -445,7 +449,7 @@ export class AgentOrchestrator {
           decisionRiskInput: {
             config,
             stats,
-            order: context.riskOrder!,
+            order: riskOrder,
             confidence: trade.confidence_score ?? 0,
             quoteSnapshot: latestQuote ?? undefined,
             placementQuoteSnapshot: placementQuote,
@@ -467,7 +471,7 @@ export class AgentOrchestrator {
         // Persist clientOrderId on trade before placement for idempotency tracking
         this.deps.tradesRepo.patchPendingExecution(trade.id, { client_order_id: clientOrderId });
 
-        const placed = await this.placeRoutedOrder(trade, context.instrument.instrumentClass, context.riskOrder!, clientOrderId);
+        const placed = await this.placeRoutedOrder(trade, context.instrument.instrumentClass, riskOrder, clientOrderId);
         if (!placed) {
           throw new AppError("Instrument conflict or broker routing blocked order placement.", "VALIDATION_FAILED");
         }
@@ -594,7 +598,7 @@ export class AgentOrchestrator {
     const stats = this.deps.statsRepo.dashboardStats(
       this.sessionId,
       this.deps.sessionRepo.getStatus(this.sessionId),
-      100000,
+      this.deps.sessionRepo.requireById(this.sessionId).capitalLimitUsd,
       this.deps.sessionRepo.uptimeMin(this.sessionId),
       config.max_api_spend_usd,
     );
@@ -682,7 +686,41 @@ export class AgentOrchestrator {
       this.deps.capitalReservation.updateReservedAmountForApproval(approval.id, target);
     }
 
+    // CRITICAL: re-run the same final policy gate that intake uses, so a stale
+    // approval cannot bypass duplicate-order / capital / broker-class checks.
+    // Bind to the approval's recorded routing context (brokerAccountId).
     const recheckClientOrderId = `${cycleId}:${trade.id}`;
+    const recheckBrokerAccountId = updated.brokerAccountId ?? "";
+    const strategy = this.deps.strategyContextService.get(this.sessionId);
+    const recheckPolicy = new OrderPolicyGate().evaluate({
+      sessionId: this.sessionId,
+      cycleId,
+      tradeId: trade.id,
+      brokerAccountId: recheckBrokerAccountId,
+      existingOrderCheck: (orderId, accountId) =>
+        this.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
+      sessionIsPaused: () => this.deps.bus.runtimeStatus(this.sessionId) !== "active",
+      decisionRiskInput: {
+        config,
+        stats,
+        order: risk.value,
+        confidence: updated.confidence_score ?? 0,
+        side: updated.side,
+        exitPolicy: {
+          stopLossPct: strategy.riskConfig.stopLossPct,
+          atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
+          takeProfitPct: strategy.riskConfig.takeProfitPct,
+          maxHoldDays: strategy.timeframe.maxHoldDays,
+        },
+        strategyRules: { sideBias: strategy.rules.sideBias },
+        brokerSupportsClass: true,
+      },
+    });
+    if (!recheckPolicy.allowed) {
+      this.failRecheck(trade.id, approval.id, recheckPolicy.reason ?? "Approval recheck blocked by policy gate.");
+      return;
+    }
+
     const placed = await this.placeRoutedOrder(updated, input.instrumentClass, risk.value, recheckClientOrderId);
     if (!placed) {
       this.failRecheck(trade.id, approval.id, "Instrument conflict or broker routing blocked order placement.");
@@ -831,14 +869,19 @@ export class AgentOrchestrator {
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
     if (!context.review) {
+      const technical = context.technical;
+      const fundamental = context.fundamental;
+      if (!technical || !fundamental) {
+        throw new AppError("Internal error: analyses missing at reviewer step", "VALIDATION_FAILED");
+      }
       const review = await stepRunner.run(
         "reviewer",
         async () => {
           const result = await this.deps.ai.runReviewer(
             {
               instrumentSymbol: instrument.symbol,
-              technicalAnalysis: context.technical!.output,
-              fundamentalAnalysis: context.fundamental!.output,
+              technicalAnalysis: technical.output,
+              fundamentalAnalysis: fundamental.output,
             },
             this.sessionId,
           );
@@ -858,15 +901,21 @@ export class AgentOrchestrator {
     if (this.deps.bus.runtimeStatus(this.sessionId) !== "active") return this.emitAbort(), null;
 
     if (!context.decision) {
+      const technical = context.technical;
+      const fundamental = context.fundamental;
+      const review = context.review;
+      if (!technical || !fundamental || !review) {
+        throw new AppError("Internal error: analyses missing at decision step", "VALIDATION_FAILED");
+      }
       const decision = await stepRunner.run(
         "decision_maker",
         () =>
           this.deps.ai.runDecisionMaker(
             {
               instrumentSymbol: instrument.symbol,
-              technicalAnalysis: context.technical!.output,
-              fundamentalAnalysis: context.fundamental!.output,
-              review: context.review!.output,
+              technicalAnalysis: technical.output,
+              fundamentalAnalysis: fundamental.output,
+              review: review.output,
               maxPositionUsd: config.max_position_usd,
             },
             this.sessionId,

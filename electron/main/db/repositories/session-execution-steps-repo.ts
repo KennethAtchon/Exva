@@ -58,7 +58,11 @@ export class SqliteSessionExecutionStepsRepo implements SessionExecutionStepsRep
       })
       .run();
 
-    return this.get(step.sessionId, step.cycleId, step.stage)!;
+    const row = this.get(step.sessionId, step.cycleId, step.stage);
+    if (!row) {
+      throw new Error(`Failed to read back upserted execution step ${step.sessionId}/${step.cycleId}/${step.stage}`);
+    }
+    return row;
   }
 
   get(sessionId: string, cycleId: string, stage: ExecutionStage): ExecutionStepState | null {

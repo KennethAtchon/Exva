@@ -28,7 +28,10 @@ describe("MockBrokerAdapter", () => {
     const bars = adapter.getMockOhlcv("AAPL", "4h", 10);
 
     expect(bars).toHaveLength(10);
-    const spanMs = new Date(bars.at(-1)!.ts).getTime() - new Date(bars.at(0)!.ts).getTime();
+    const lastBar = bars.at(-1);
+    const firstBar = bars.at(0);
+    if (!lastBar || !firstBar) throw new Error("expected bars");
+    const spanMs = new Date(lastBar.ts).getTime() - new Date(firstBar.ts).getTime();
     expect(spanMs).toBeLessThan(24 * 60 * 60 * 1000 * 10);
     const barMs = 4 * 60 * 60 * 1000;
     expect(spanMs).toBeCloseTo(barMs * 9, -4);
@@ -41,7 +44,7 @@ describe("MockBrokerAdapter", () => {
     expect(snap.bid).toBeDefined();
     expect(snap.ask).toBeDefined();
     expect(snap.spreadPct).toBeDefined();
-    expect(snap.ask!).toBeGreaterThan(snap.bid!);
+    expect(snap.ask ?? 0).toBeGreaterThan(snap.bid ?? 0);
     expect(snap.volume).toBeDefined();
   });
 
@@ -113,8 +116,8 @@ describe("MockBrokerAdapter", () => {
     });
 
     expect(result.filledSizeUsd).toBeDefined();
-    expect(result.filledSizeUsd!).toBeLessThan(1000);
-    expect(result.filledSizeUsd!).toBeGreaterThan(0);
+    expect(result.filledSizeUsd ?? 0).toBeLessThan(1000);
+    expect(result.filledSizeUsd ?? 0).toBeGreaterThan(0);
   });
 
   it("broker_reject throws on placeOrder", async () => {

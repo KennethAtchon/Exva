@@ -1,14 +1,18 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
+import reactHooks from "eslint-plugin-react-hooks";
 
 export default tseslint.config(
   {
-    ignores: ["dist", ".vite", ".vite-build", "node_modules"],
+    ignores: ["dist", ".vite", ".vite-build", "node_modules", "e2e", "playwright.config.ts"],
   },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
     files: ["**/*.ts", "**/*.tsx"],
+    plugins: {
+      "react-hooks": reactHooks,
+    },
     languageOptions: {
       parserOptions: {
         project: "./tsconfig.json",
@@ -16,6 +20,8 @@ export default tseslint.config(
     },
     rules: {
       "no-console": "error",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
       "no-restricted-syntax": [
         "error",
         {

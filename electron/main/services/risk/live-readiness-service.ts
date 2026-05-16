@@ -10,7 +10,7 @@ export interface LiveReadinessCheck {
   name: string;
   passed: boolean;
   requiresAck: boolean;
-  detail?: string;
+  message?: string;
 }
 
 export interface LiveReadinessReport {
@@ -39,7 +39,7 @@ export class LiveReadinessService {
       name: "execution_mode",
       passed: session.executionMode === "live_allowed",
       requiresAck: false,
-      detail: session.executionMode !== "live_allowed" ? `Execution mode is '${session.executionMode}'` : undefined,
+      message: session.executionMode !== "live_allowed" ? `Execution mode is '${session.executionMode}'` : undefined,
     });
 
     // Check 2: at least one broker assignment exists for the session
@@ -49,7 +49,7 @@ export class LiveReadinessService {
       name: "broker_assigned",
       passed: hasBrokerAssignment,
       requiresAck: false,
-      detail: !hasBrokerAssignment ? "No broker account assigned to this session" : undefined,
+      message: !hasBrokerAssignment ? "No broker account assigned to this session" : undefined,
     });
 
     // Check 3: assigned broker accounts are in live (non-paper) mode
@@ -64,25 +64,65 @@ export class LiveReadinessService {
       name: "broker_live_mode",
       passed: brokerIsLive,
       requiresAck: false,
-      detail: !brokerIsLive ? "Assigned broker account(s) are still in paper mode" : undefined,
+      message: !brokerIsLive ? "Assigned broker account(s) are still in paper mode" : undefined,
     });
 
-    // Check 4: broker connection test passes
+    // Check 4: ALL assigned brokers pass connection test (not just the first)
     let brokerConnected = false;
+    let connectionFailures: string[] = [];
     if (hasBrokerAssignment) {
-      try {
-        const adapter = await this.brokerRegistry.get(assignedIds[0]!);
-        const result = await adapter.testConnection();
-        brokerConnected = result.ok;
-      } catch {
-        brokerConnected = false;
-      }
+      const results = await Promise.all(
+        assignedIds.map(async (id) => {
+          try {
+            const adapter = await this.brokerRegistry.get(id);
+            const result = await adapter.testConnection();
+            return { id, ok: result.ok };
+          } catch {
+            return { id, ok: false };
+          }
+        }),
+      );
+      connectionFailures = results.filter((r) => !r.ok).map((r) => r.id);
+      brokerConnected = results.length > 0 && connectionFailures.length === 0;
     }
     checks.push({
       name: "broker_connected",
       passed: brokerConnected,
       requiresAck: false,
-      detail: !brokerConnected ? "Broker connection test failed" : undefined,
+      message: !brokerConnected
+        ? connectionFailures.length > 0
+          ? `Broker connection test failed for: ${connectionFailures.join(", ")}`
+          : "Broker connection test failed"
+        : undefined,
+    });
+
+    // Check 4b: ALL assigned brokers must be launch-capable adapters
+    // (close/flatten and positions implemented against the real API).
+    let brokerLaunchCapable = false;
+    let nonLaunchAdapters: string[] = [];
+    if (hasBrokerAssignment) {
+      const results = await Promise.all(
+        assignedIds.map(async (id) => {
+          try {
+            const adapter = await this.brokerRegistry.get(id);
+            return { id, capable: adapter.launchCapable };
+          } catch {
+            return { id, capable: false };
+          }
+        }),
+      );
+      nonLaunchAdapters = results.filter((r) => !r.capable).map((r) => r.id);
+      brokerLaunchCapable = results.length > 0 && nonLaunchAdapters.length === 0;
+    }
+    checks.push({
+      name: "broker_launch_capable",
+      passed: brokerLaunchCapable,
+      requiresAck: false,
+      message: !brokerLaunchCapable
+        ? nonLaunchAdapters.length > 0
+          ? `Broker adapter(s) not launch-capable: ${nonLaunchAdapters.join(", ")}`
+          : "Broker adapter is not launch-capable"
+        : undefined,
     });
 
     // Check 5: explicit user acknowledgement (requires all others to pass)
@@ -91,7 +131,7 @@ export class LiveReadinessService {
       name: "user_acknowledged",
       passed: acknowledgedAt !== null,
       requiresAck: true,
-      detail: acknowledgedAt === null ? "User must acknowledge readiness before starting a live session" : undefined,
+      message: acknowledgedAt === null ? "User must acknowledge readiness before starting a live session" : undefined,
     });
 
     const allChecksPassed = checks.every((c) => c.passed);

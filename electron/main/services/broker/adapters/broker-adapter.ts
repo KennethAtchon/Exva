@@ -68,6 +68,13 @@ export interface OrderRequest {
 export interface BrokerAdapter {
   readonly brokerType: string;
   readonly supportedInstrumentClasses: readonly InstrumentClass[];
+  /**
+   * Whether this adapter has truthful close/flatten/positions semantics
+   * suitable for a live launch. Adapters that stub close or positions
+   * should set this to `false`; the live-readiness gate uses it to block
+   * starting a `live_allowed` session on a non-launch-capable adapter.
+   */
+  readonly launchCapable: boolean;
 
   testConnection(): Promise<ConnectionTestResult>;
   placeOrder(order: BrokerOrder): Promise<BrokerOrderResult>;

@@ -26,6 +26,12 @@ export type TradovateCredentials = {
 export class TradovateAdapter implements BrokerAdapter {
   readonly brokerType = "tradovate";
   readonly supportedInstrumentClasses = ["futures"] as const satisfies readonly InstrumentClass[];
+  /**
+   * Not launch-capable: placeOrder/cancelOrder/closeOrder are stubbed and
+   * getPositions returns []. Live-readiness gate must block live sessions
+   * using this adapter until real Tradovate integration is built.
+   */
+  readonly launchCapable = false;
 
   constructor(
     private readonly credentials: TradovateCredentials,

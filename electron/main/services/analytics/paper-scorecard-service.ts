@@ -228,20 +228,25 @@ function computeMaxDrawdown(trades: Trade[]): { maxDrawdownUsd: number; maxDrawd
 }
 
 function computeTimeStats(trades: Trade[]): { tradeFrequency: number; avgHoldHours: number } {
-  const withTimestamps = trades.filter((t) => t.opened_at && t.closed_at);
+  const withTimestamps = trades.filter(
+    (t): t is Trade & { opened_at: string; closed_at: string } => Boolean(t.opened_at && t.closed_at),
+  );
   if (withTimestamps.length === 0) return { tradeFrequency: 0, avgHoldHours: 0 };
 
   const sorted = [...withTimestamps].sort(
-    (a, b) => new Date(a.opened_at!).getTime() - new Date(b.opened_at!).getTime(),
+    (a, b) => new Date(a.opened_at).getTime() - new Date(b.opened_at).getTime(),
   );
 
-  const first = new Date(sorted[0]!.opened_at!).getTime();
-  const last = new Date(sorted[sorted.length - 1]!.closed_at!).getTime();
+  const firstTrade = sorted[0];
+  const lastTrade = sorted[sorted.length - 1];
+  if (!firstTrade || !lastTrade) return { tradeFrequency: 0, avgHoldHours: 0 };
+  const first = new Date(firstTrade.opened_at).getTime();
+  const last = new Date(lastTrade.closed_at).getTime();
   const spanDays = (last - first) / (1000 * 60 * 60 * 24);
   const tradeFrequency = spanDays > 0 ? withTimestamps.length / spanDays : 0;
 
   const totalHoldMs = withTimestamps.reduce((sum, t) => {
-    return sum + (new Date(t.closed_at!).getTime() - new Date(t.opened_at!).getTime());
+    return sum + (new Date(t.closed_at).getTime() - new Date(t.opened_at).getTime());
   }, 0);
   const avgHoldHours = totalHoldMs / withTimestamps.length / (1000 * 60 * 60);
 

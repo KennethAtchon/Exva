@@ -34,13 +34,15 @@ export function registerDashboardHandlers(services: AppServices): void {
 
     const sessionStatus = focused?.status ?? "idle";
 
-    return services.repos.stats.dashboardStats(
+    const portfolio = await services.session.getPortfolioValue(sessionId ?? undefined);
+    const stats = services.repos.stats.dashboardStats(
       sessionId,
       sessionStatus,
-      services.session.getPortfolioValue(),
+      portfolio.value,
       uptimeMin,
       apiBudget,
     );
+    return { ...stats, portfolio_value_source: portfolio.source, portfolio_broker_count: portfolio.brokerCount };
   });
 
   handle(ipcMain, channels.dashboard.getCostBreakdown, async () => {

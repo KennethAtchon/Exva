@@ -60,4 +60,29 @@ describe("fetch-url-tool", () => {
 
     expect(result.content?.length).toBeLessThanOrEqual(8000);
   });
+
+  it("blocks redirects that target internal addresses", async () => {
+    // First fetch returns a redirect to a private host.
+    fetchMock.mockImplementationOnce(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "http://127.0.0.1:8080/admin" },
+        }),
+    );
+
+    const tool = createFetchUrlTool({ sessionId: "s1", apiCallLogRepo: apiCallLogRepo as never }) as unknown as FetchUrlExecutor;
+    const result = await tool.execute({ url: "https://example.com/bouncer" });
+
+    expect(result.error).toContain("Redirect blocked");
+    expect(fetchMock).toHaveBeenCalledTimes(1); // never followed the redirect
+  });
+
+  it("blocks IPv6 loopback hostnames", async () => {
+    const tool = createFetchUrlTool({ sessionId: "s1", apiCallLogRepo: apiCallLogRepo as never }) as unknown as FetchUrlExecutor;
+    const result = await tool.execute({ url: "http://[::1]:9000/internal" });
+
+    expect(result.error).toContain("blocked");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

@@ -151,17 +151,19 @@ export function registerSessionHandlers(services: AppServices): void {
       );
     }
     services.liveReadiness.acknowledge(sessionId);
-    return { acknowledged: true as const };
+    const updated = await services.liveReadiness.check(sessionId);
+    return { acknowledgedAt: updated.acknowledgedAt ?? new Date().toISOString() };
   });
 
   handle(ipcMain, channels.session.testLiveBrokerConnection, async (payload) => {
     const { sessionId } = sessionIdParamSchema.parse(payload);
     const assignedIds = services.repos.sessionBrokerAssignments.listBrokerAccountIds(sessionId);
-    if (assignedIds.length === 0) {
+    const firstId = assignedIds[0];
+    if (!firstId) {
       return { ok: false as const, message: "No broker account assigned" };
     }
     try {
-      const adapter = await services.brokerRegistry.get(assignedIds[0]!);
+      const adapter = await services.brokerRegistry.get(firstId);
       const result = await adapter.testConnection();
       return result;
     } catch (err) {

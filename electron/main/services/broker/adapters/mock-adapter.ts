@@ -70,6 +70,11 @@ function round2(n: number): number {
 export class MockBrokerAdapter implements BrokerAdapter {
   readonly brokerType = "mock";
   readonly supportedInstrumentClasses: readonly InstrumentClass[] = ["stock", "crypto", "futures", "prediction_market"];
+  /**
+   * Not launch-capable: this adapter is a deterministic simulator used for
+   * paper/dev workflows only. It never touches a real broker.
+   */
+  readonly launchCapable = false;
 
   private readonly orders = new Map<string, { order: BrokerOrder; price: number }>();
 

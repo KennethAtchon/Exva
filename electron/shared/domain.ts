@@ -5,6 +5,14 @@ export type { AiRoleProfileDocument, AiRoleToolMode, AiRoleToolPolicyEntry } fro
 export type InstrumentClass = "stock" | "crypto" | "futures" | "prediction_market";
 
 export type SessionStatus = "draft" | "idle" | "active" | "attention_required" | "paused" | "stopped" | "archived";
+/**
+ * Runtime lifecycle modes.
+ * - `starting`: bootstrapping; not yet accepting work.
+ * - `active`: orchestrator opens new trade cycles AND monitor watches open positions.
+ * - `paused`: orchestrator paused (no NEW cycles) BUT monitor stays alive watching open positions.
+ *   Use this for "stop new entries" while still managing in-flight trades safely.
+ * - `stopping`: terminal; monitor stops only once no open positions remain or operator forces it.
+ */
 export type SessionRuntimeStatus = "starting" | "active" | "paused" | "stopping";
 
 export type ExecutionStage =
@@ -1366,6 +1374,9 @@ export interface DashboardStats {
   daily_api_spend: number;
   api_budget: number;
   portfolio_value: number;
+  /** Whether `portfolio_value` came from a live broker balance call or fell back to the session capital limit. */
+  portfolio_value_source: "broker" | "session_capital_limit";
+  portfolio_broker_count: number;
   unrealized_pnl: number;
   session_uptime_min: number;
 }

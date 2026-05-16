@@ -30,6 +30,9 @@ export class SessionWriteService {
       assignments: SessionBrokerAssignmentsRepo;
       brokerRouting: BrokerRoutingRepo;
       brokerAccounts: BrokerAccountsRepo;
+      /** Optional: live-readiness acknowledgement is invalidated on every mutation
+       *  that changes broker, routing, or execution-mode context. */
+      liveReadiness?: { clearAcknowledgement(sessionId: string): void };
     },
   ) {}
 
@@ -85,6 +88,9 @@ export class SessionWriteService {
         brokerAccountId: typeof brokerAccountId === "string" ? brokerAccountId : null,
       })),
     );
+    // Any change to brokers / routing / execution mode invalidates a prior
+    // live-readiness acknowledgement — operator must re-confirm.
+    this.deps.liveReadiness?.clearAcknowledgement(sessionId);
   }
 
   private validate(input: SessionWriteInput, ctx: { excludeSessionId: string | null }): void {

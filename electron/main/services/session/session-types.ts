@@ -116,6 +116,8 @@ export interface SessionRuntimeManagerDeps extends OrchestratorDeps {
 export interface SessionLifecycleDeps {
   sessionRepo: SessionRepo;
   eventsRepo: EventsRepo;
+  sessionBrokerAssignmentsRepo?: SessionBrokerAssignmentsRepo;
+  brokerRegistry?: BrokerRegistry;
   runtimeManager: {
     startSession(sessionId: string): Promise<SessionRuntime>;
     pauseSession(sessionId: string): Promise<void>;

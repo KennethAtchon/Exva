@@ -35,11 +35,11 @@ describe("strategy schema migration compatibility", () => {
     expect(profiles).toHaveLength(5);
     expect(profiles.every((row) => String(row.profileJson).includes('"version":1'))).toBe(true);
 
-    expect(posture?.posturePresetId).toBe("custom");
-    expect(rules?.setupType).toBe("custom");
+    expect(posture?.posturePresetId).toBe("trend_hunt");
+    expect(rules?.setupType).toBe("breakout");
     expect(risk?.maxPositionUsd).toBe(500);
-    expect(risk?.stopLossType).toBe("fixed_pct");
-    expect(timeframe?.primaryTradingTimeframe).toBe("1d");
+    expect(risk?.stopLossType).toBe("trailing_atr");
+    expect(timeframe?.primaryTradingTimeframe).toBe("4h");
     expect(roles.map((row) => row.role)).toEqual([
       "analyst_fundamental",
       "analyst_technical",

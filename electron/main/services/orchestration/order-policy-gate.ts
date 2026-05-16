@@ -60,7 +60,7 @@ function maxQuoteAgeMs(cls: InstrumentClass, holdingStyle?: HoldingStyle): numbe
 export class OrderPolicyGate {
   evaluate(input: PolicyGateInput): PolicyGateResult {
     const gatesFailed: PolicyGateName[] = [];
-    const { decisionRiskInput: d, sessionId: _sessionId, cycleId, tradeId, brokerAccountId } = input;
+    const { decisionRiskInput: d, cycleId, tradeId, brokerAccountId } = input;
     const instrumentClass = d.order.instrumentType;
 
     // runtime: session paused
@@ -170,10 +170,10 @@ export class OrderPolicyGate {
       exit_contract: "No enforceable exit policy — configure stopLoss, takeProfit, or maxHoldDays",
     };
 
-    const firstFailed = gatesFailed[0]!;
+    const firstFailed = gatesFailed[0];
     return {
       allowed: false,
-      reason: gateReasons[firstFailed],
+      reason: firstFailed ? gateReasons[firstFailed] : "Order blocked by policy gate",
       gatesFailed,
     };
   }

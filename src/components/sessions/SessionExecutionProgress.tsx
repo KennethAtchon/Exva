@@ -48,17 +48,18 @@ export function deriveProgress(
 ): SessionProgressState | null {
   if (steps.length === 0) return null;
 
+  type StepEntry = SessionExecutionProgressResponse["steps"][number];
   const activeStep = STAGE_ORDER.map((stage) => steps.find((s) => s.stage === stage))
-    .filter(Boolean)
-    .find((s) => s!.status !== "succeeded" && s!.status !== "skipped" && s!.status !== "pending");
+    .filter((s): s is StepEntry => Boolean(s))
+    .find((s) => s.status !== "succeeded" && s.status !== "skipped" && s.status !== "pending");
 
   const allSucceeded = steps.every((s) => s.status === "succeeded" || s.status === "skipped");
   const hasMonitoring = allSucceeded && steps.some((s) => s.stage === "monitoring");
 
   if (!activeStep && !hasMonitoring) return null;
 
-  const stage = hasMonitoring ? "monitoring" : activeStep!.stage;
-  const status = hasMonitoring ? "succeeded" : activeStep!.status;
+  const stage = hasMonitoring || !activeStep ? "monitoring" : activeStep.stage;
+  const status = hasMonitoring || !activeStep ? "succeeded" : activeStep.status;
   const meta = STAGE_META[stage];
 
   return {
@@ -98,7 +99,9 @@ export const SessionExecutionProgress = ({
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (progress?.activeStatus === "retrying" && progress.nextRetryAt) {
       const tick = () => {
-        const secs = Math.max(0, Math.ceil((new Date(progress.nextRetryAt!).getTime() - Date.now()) / 1000));
+        const nextRetryAt = progress.nextRetryAt;
+        if (!nextRetryAt) return;
+        const secs = Math.max(0, Math.ceil((new Date(nextRetryAt).getTime() - Date.now()) / 1000));
         setCountdown(secs);
       };
       tick();

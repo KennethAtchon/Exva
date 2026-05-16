@@ -22,11 +22,12 @@ export class SessionRuntime {
   async initialize(initialStatus: Extract<SessionRuntimeStatus, "active" | "paused">): Promise<void> {
     await this.lifecycle.add(async () => {
       this.status = initialStatus === "active" ? "active" : "paused";
+      // Trade monitor runs in BOTH active and paused modes — it watches open
+      // positions for exits regardless of whether new intake is allowed.
+      this.tradeMonitor.start();
       if (initialStatus === "paused") {
         await this.orchestrator.pause();
-        this.tradeMonitor.stop();
       } else {
-        this.tradeMonitor.start();
         await this.orchestrator.start();
       }
     });
@@ -36,8 +37,9 @@ export class SessionRuntime {
     await this.lifecycle.add(async () => {
       if (this.status === "paused" || this.status === "stopping") return;
       this.status = "paused";
+      // intake-paused: orchestrator stops opening new cycles, but the
+      // trade monitor keeps watching open positions for stop/take-profit/exit.
       await this.orchestrator.pause();
-      this.tradeMonitor.stop();
     });
   }
 
@@ -45,6 +47,7 @@ export class SessionRuntime {
     await this.lifecycle.add(async () => {
       if (this.status === "active" || this.status === "stopping") return;
       this.status = "active";
+      // monitor may already be running from paused state; start() is idempotent in adapters
       this.tradeMonitor.start();
       await this.orchestrator.resume();
     });
@@ -54,8 +57,10 @@ export class SessionRuntime {
     await this.lifecycle.add(async () => {
       if (this.status === "stopping") return;
       this.status = "stopping";
-      this.tradeMonitor.stop();
+      // Orchestrator first: stop opening new cycles and release inflight reservations.
+      // Monitor stops AFTER orchestrator so any in-flight exit signals still fire.
       await this.orchestrator.stop();
+      this.tradeMonitor.stop();
     });
   }
 }

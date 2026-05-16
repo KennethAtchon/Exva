@@ -266,6 +266,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const session = new SessionService({
     sessionRepo: repos.session,
     eventsRepo: repos.events,
+    sessionBrokerAssignmentsRepo: repos.sessionBrokerAssignments,
+    brokerRegistry,
     runtimeManager,
     preflight: runPreflight,
     orchestratorDeps,
@@ -298,6 +300,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     assignments: repos.sessionBrokerAssignments,
     brokerRouting: repos.brokerRouting,
     brokerAccounts: repos.brokerAccounts,
+    liveReadiness,
   });
 
   const tradeAutopsy = new TradeAutopsyService(

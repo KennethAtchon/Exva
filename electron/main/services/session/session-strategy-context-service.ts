@@ -170,7 +170,6 @@ export class SessionStrategyContextService {
     this.assertEditable(sessionId);
 
     const session = this.deps.sessionRepo.requireById(sessionId);
-    const workspacePrefs = this.deps.workspacePrefsRepo.get();
     const selectorSettings = this.deps.selectorSettingsRepo.get(sessionId);
 
     for (const role of aiRoles) {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
 import { Button, Checkbox } from "@/components/ui";
 import { api, listenEvent, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
-import type { ExecutionStage, InstrumentClass, SessionStatus } from "@/lib/types";
+import type { InstrumentClass, SessionStatus } from "@/lib/types";
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
 import { LiveReadinessModal } from "@/components/sessions/LiveReadinessModal";
 import { SessionDetailDrawer } from "@/components/sessions/SessionDetailDrawer";

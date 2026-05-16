@@ -248,10 +248,6 @@ function renderToolAvailabilityBlock(avail: HarnessToolAvailability, policy: Rol
   return lines.join("\n");
 }
 
-function renderTaskUserPrompt(task: AgentTaskPrompt): string {
-  return ["<task>", task.bodyMarkdown.trim(), "</task>"].join("\n");
-}
-
 function buildMarketContextPlaceholder(role: AgentRole): MarketContextPack {
   const analystRoles: AgentRole[] = ["analyst_technical", "analyst_fundamental"];
   if (!analystRoles.includes(role)) {

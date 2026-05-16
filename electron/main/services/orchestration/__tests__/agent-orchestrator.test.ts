@@ -162,6 +162,11 @@ function createDeps({ noInstrumentRetryMinutes }: { noInstrumentRetryMinutes?: n
     eventsRepo: {
       insert: vi.fn((event) => event),
     },
+    capitalReservation: {
+      listActiveBySession: vi.fn(() => []),
+      releaseOnFailure: vi.fn(),
+      checkOrderFits: vi.fn(() => ({ ok: true })),
+    },
     bus: {
       on: vi.fn(() => () => undefined),
       emit: vi.fn(),

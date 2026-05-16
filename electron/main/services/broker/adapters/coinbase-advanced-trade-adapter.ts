@@ -49,6 +49,12 @@ function quoteBalanceUsd(bal: Balances): number {
 export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
   readonly brokerType = "coinbase_advanced_trade";
   readonly supportedInstrumentClasses = ["crypto"] as const satisfies readonly InstrumentClass[];
+  /**
+   * Not launch-capable: closeOrder only cancels (does not flatten), getPositions
+   * returns []. Live-readiness gate must block live sessions using this adapter
+   * until close/flatten and positions are implemented against the Coinbase API.
+   */
+  readonly launchCapable = false;
 
   private exchange: InstanceType<typeof ccxt.coinbaseadvanced> | null = null;
 

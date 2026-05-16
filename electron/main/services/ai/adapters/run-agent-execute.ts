@@ -1,4 +1,4 @@
-import { generateText, hasToolCall, Output, stepCountIs, type FinishReason, type LanguageModel, type StepResult, type StopCondition, type ToolSet } from "ai";
+import { generateText, hasToolCall, Output, stepCountIs, type FinishReason, type LanguageModel, type PrepareStepFunction, type StepResult, type StopCondition, type ToolSet } from "ai";
 import type { z } from "zod";
 import type { AgentRole } from "@/lib/types";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
@@ -21,7 +21,7 @@ export interface RunAgentExecuteParams<T> {
   abortSignal?: AbortSignal;
   schema?: z.ZodType<T>;
   terminalToolNames?: string[];
-  prepareStep?: any;
+  prepareStep?: PrepareStepFunction<ToolSet>;
 }
 
 function splitSystem(messages: RuntimeAgentMessage[]): { system: string | undefined; rest: RuntimeAgentMessage[] } {

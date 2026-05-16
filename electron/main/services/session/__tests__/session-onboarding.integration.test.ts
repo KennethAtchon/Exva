@@ -291,6 +291,17 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
         metadataJson: null,
         isConfigured: true,
       });
+      workspacePreferences.update({
+        defaultModelProviderKey: "provider-anthropic",
+        defaultModelModelId: "claude-sonnet-4-6",
+      });
+      for (const session of sessions.list()) {
+        const roles = sessionAiRoles.listBySession(session.id);
+        sessionAiRoles.replaceAll(
+          session.id,
+          roles.map((role) => ({ ...role, providerKey: "provider-anthropic", modelId: "claude-sonnet-4-6" })),
+        );
+      }
     },
     configureWorkspaceDefaultAiModel(input: {
       providerId: string;

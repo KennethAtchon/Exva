@@ -91,7 +91,8 @@ export class CycleReplayService {
     const messages = this.deps.agentMessages.listByCycle(cycleId);
     if (messages.length === 0) return null;
 
-    const firstMsg = messages[0]!;
+    const firstMsg = messages[0];
+    if (!firstMsg) return null;
     const sessionId = firstMsg.session_id;
 
     let strategySnapshot: StrategySnapshot | null = null;
@@ -379,6 +380,8 @@ export class CycleReplayRunner {
             daily_api_spend: 0,
             api_budget: strategySnapshot.riskConfig.maxAiSpendUsd,
             portfolio_value: 0,
+            portfolio_value_source: "session_capital_limit",
+            portfolio_broker_count: 0,
             unrealized_pnl: 0,
             session_uptime_min: 0,
           },
@@ -411,8 +414,8 @@ export class CycleReplayRunner {
     let replayExitDecision: ExitDecision | null = null;
     if (trade && decision.symbol) {
       const md = marketData.find((d) => d.symbol === decision.symbol);
-      if (md && md.ohlcvBars.length > 0) {
-        const lastBar = md.ohlcvBars[md.ohlcvBars.length - 1]!;
+      const lastBar = md && md.ohlcvBars.length > 0 ? md.ohlcvBars[md.ohlcvBars.length - 1] : null;
+      if (md && lastBar) {
         replayExitDecision = this.exitEvaluator.evaluate({
           trade: {
             id: trade.id,

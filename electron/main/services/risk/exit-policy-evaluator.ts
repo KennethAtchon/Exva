@@ -93,8 +93,9 @@ function computeATR(bars: OhlcvBar[], period = 14): number | null {
   const recent = bars.slice(-(period + 1));
 
   const trueRanges = recent.slice(1).map((bar, i) => {
-    const prevClose = recent[i]!.close;
-    return Math.max(bar.high - bar.low, Math.abs(bar.high - prevClose), Math.abs(bar.low - prevClose));
+    const prev = recent[i];
+    if (!prev) return bar.high - bar.low;
+    return Math.max(bar.high - bar.low, Math.abs(bar.high - prev.close), Math.abs(bar.low - prev.close));
   });
 
   let atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;

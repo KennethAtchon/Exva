@@ -134,10 +134,10 @@ describe("CycleReplayService.buildFixture", () => {
 
     const fixture = svc.buildFixture("c1");
 
-    expect(fixture).not.toBeNull();
-    expect(fixture!.sessionId).toBe("s1");
-    expect(fixture!.cycleId).toBe("c1");
-    expect(fixture!.strategySnapshot.version).toBe(5);
+    if (!fixture) throw new Error("fixture missing");
+    expect(fixture.sessionId).toBe("s1");
+    expect(fixture.cycleId).toBe("c1");
+    expect(fixture.strategySnapshot.version).toBe(5);
   });
 
   it("incomplete cycle (no trade) → fixture.trade = null, fixture still valid", () => {
@@ -173,9 +173,9 @@ describe("CycleReplayService.buildFixture", () => {
 
     const fixture = svc.buildFixture("c1");
 
-    expect(fixture).not.toBeNull();
-    expect(fixture!.trade).toBeNull();
-    expect(fixture!.decision.action).toBe("no_trade");
+    if (!fixture) throw new Error("fixture missing");
+    expect(fixture.trade).toBeNull();
+    expect(fixture.decision.action).toBe("no_trade");
   });
 
   it("fixture JSON round-trips without data loss", () => {

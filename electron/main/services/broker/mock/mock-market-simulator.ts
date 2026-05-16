@@ -28,16 +28,15 @@ export const SCENARIO_EXPECTED_OUTCOME: Record<MockScenarioKind, "allowed" | "re
   rate_limit: "rejected",
 };
 
-export class MockMarketSimulator {
-  static createAdapter(kind: MockScenarioKind): MockBrokerAdapter {
+export const MockMarketSimulator = {
+  createAdapter(kind: MockScenarioKind): MockBrokerAdapter {
     return new MockBrokerAdapter(SCENARIO_CONFIG[kind]);
-  }
-
-  static fixturesFor(kind: MockScenarioKind) {
+  },
+  fixturesFor(kind: MockScenarioKind) {
     return {
       news: SCENARIO_NEWS[kind],
       redditPosts: SCENARIO_REDDIT[kind],
       trendingSymbols: SCENARIO_TRENDING[kind],
     };
-  }
-}
+  },
+};

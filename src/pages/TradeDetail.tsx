@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Badge } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
-import type { AgentMessage, AgentRun, Trade, TradeAutopsy } from "@/lib/types";
+import type { AgentMessage, AgentRun } from "@/lib/types";
 import { Dialog, DialogContent } from "@/components/ui";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {

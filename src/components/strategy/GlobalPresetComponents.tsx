@@ -296,14 +296,16 @@ export function GlobalPresetGrid({
           } catch {
             return null;
           }
+          if (!parsed) return null;
+          const presetForCallbacks = parsed;
           return (
             <GlobalPresetCard
               key={up.id}
-              preset={parsed}
-              isApplied={isApplied(parsed)}
+              preset={presetForCallbacks}
+              isApplied={isApplied(presetForCallbacks)}
               isBuiltIn={false}
               disabled={disabled}
-              onApply={() => onApply(parsed!)}
+              onApply={() => onApply(presetForCallbacks)}
               onEdit={() => onEditPreset(up)}
               onDelete={() => onDeletePreset(up.id)}
             />

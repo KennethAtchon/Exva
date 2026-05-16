@@ -1,25 +1,69 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { promises as dns } from "node:dns";
 import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_CONTENT_CHARS = 8000;
+const MAX_REDIRECT_HOPS = 5;
 
 const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
 const BLOCKED_PRIVATE_IPV4_REGEX = /^(10|127|169\.254|172\.(1[6-9]|2\d|3[01])|192\.168)\./;
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
 const HTML_BLOCK_TAGS = /(p|div|section|article|main|aside|header|footer|br|li|ul|ol|tr|td|th|blockquote|h[1-6])/i;
 
-function isBlockedUrl(raw: string): boolean {
+function isBlockedIpv6(addr: string): boolean {
+  const a = addr.toLowerCase();
+  if (a === "::" || a === "::1") return true;
+  // IPv4-mapped IPv6, e.g. ::ffff:10.0.0.1
+  if (a.startsWith("::ffff:")) {
+    const v4 = a.slice("::ffff:".length);
+    return BLOCKED_HOSTS.has(v4) || BLOCKED_PRIVATE_IPV4_REGEX.test(v4);
+  }
+  // Unique local addresses fc00::/7
+  if (a.startsWith("fc") || a.startsWith("fd")) return true;
+  // Link-local fe80::/10
+  if (a.startsWith("fe8") || a.startsWith("fe9") || a.startsWith("fea") || a.startsWith("feb")) return true;
+  return false;
+}
+
+function isBlockedHostname(hostname: string): boolean {
+  if (BLOCKED_HOSTS.has(hostname)) return true;
+  if (BLOCKED_PRIVATE_IPV4_REGEX.test(hostname)) return true;
+  // Bare IPv6 hostname like "[::1]" arrives here as "::1" after URL parsing.
+  if (hostname.includes(":") && isBlockedIpv6(hostname)) return true;
+  return false;
+}
+
+async function resolvesToPrivate(hostname: string): Promise<boolean> {
   try {
-    const url = new URL(raw);
-    if (!ALLOWED_PROTOCOLS.has(url.protocol)) return true;
-    if (BLOCKED_HOSTS.has(url.hostname)) return true;
-    if (BLOCKED_PRIVATE_IPV4_REGEX.test(url.hostname)) return true;
+    const records = await dns.lookup(hostname, { all: true });
+    for (const r of records) {
+      if (r.family === 4 && (BLOCKED_HOSTS.has(r.address) || BLOCKED_PRIVATE_IPV4_REGEX.test(r.address))) {
+        return true;
+      }
+      if (r.family === 6 && isBlockedIpv6(r.address)) return true;
+    }
     return false;
   } catch {
+    // If we can't resolve, treat as blocked rather than allow.
     return true;
   }
+}
+
+async function isBlockedUrl(raw: string): Promise<{ blocked: boolean; reason?: string }> {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return { blocked: true, reason: "Malformed URL" };
+  }
+  if (!ALLOWED_PROTOCOLS.has(url.protocol)) return { blocked: true, reason: "Non-HTTP protocol" };
+  if (isBlockedHostname(url.hostname)) return { blocked: true, reason: "Hostname in private/loopback range" };
+  if (await resolvesToPrivate(url.hostname)) {
+    return { blocked: true, reason: "Hostname resolves to a private/loopback address" };
+  }
+  return { blocked: false };
 }
 
 function decodeHtmlEntities(text: string): string {
@@ -92,8 +136,9 @@ export function createFetchUrlTool(deps: {
       const startedAt = Date.now();
       const createdAt = new Date().toISOString();
 
-      if (isBlockedUrl(url)) {
-        return { error: "URL is blocked by fetch policy (internal, private, or non-HTTP)." };
+      const initialCheck = await isBlockedUrl(url);
+      if (initialCheck.blocked) {
+        return { error: `URL is blocked by fetch policy: ${initialCheck.reason ?? "internal/private/non-HTTP"}.` };
       }
 
       if (deps.maxDataSpendUsd != null && deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >= deps.maxDataSpendUsd) {
@@ -105,13 +150,36 @@ export function createFetchUrlTool(deps: {
         const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
         try {
-          const response = await fetch(url, {
-            headers: {
-              "User-Agent": "Exva/1.0 research-agent",
-              Accept: "text/html,application/xhtml+xml,text/plain,application/json",
-            },
-            signal: controller.signal,
-          });
+          // Manual redirect handling: each Location header is re-validated against
+          // the SSRF policy before we follow it. This blocks the classic
+          // redirect-to-internal attack.
+          let currentUrl = url;
+          let response: Response | null = null;
+          for (let hop = 0; hop < MAX_REDIRECT_HOPS; hop += 1) {
+            response = await fetch(currentUrl, {
+              headers: {
+                "User-Agent": "Exva/1.0 research-agent",
+                Accept: "text/html,application/xhtml+xml,text/plain,application/json",
+              },
+              signal: controller.signal,
+              redirect: "manual",
+            });
+            if (response.status >= 300 && response.status < 400) {
+              const next = response.headers.get("location");
+              if (!next) break;
+              const resolved = new URL(next, currentUrl).toString();
+              const check = await isBlockedUrl(resolved);
+              if (check.blocked) {
+                return { error: `Redirect blocked by fetch policy: ${check.reason ?? "private/internal target"}.` };
+              }
+              currentUrl = resolved;
+              continue;
+            }
+            break;
+          }
+          if (!response) {
+            return { error: "Fetch failed: no response after redirect chain." };
+          }
 
           if (!response.ok) {
             return { error: `Fetch failed: HTTP ${response.status}` };

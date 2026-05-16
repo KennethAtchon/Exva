@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "@electron/shared/errors";
+import type { SessionExecutionStepsRepo } from "../../../db/repositories/session-execution-steps-repo";
 import { EventBus } from "../../infra/event-bus";
 import { ExecutionStepRunner } from "../execution-step-runner";
 
@@ -113,10 +114,11 @@ function createHarness() {
   return { runner, repo, bus, sessionId };
 }
 
-function createMemoryRepo() {
-  const rows = new Map<string, Record<string, unknown>>();
+function createMemoryRepo(): SessionExecutionStepsRepo {
+  type Row = ReturnType<SessionExecutionStepsRepo["get"]> & object;
+  const rows = new Map<string, Row>();
   return {
-    upsert(step: Omit<Record<string, unknown>, "id" | "createdAt" | "updatedAt">) {
+    upsert(step) {
       const key = `${step.sessionId}:${step.cycleId}:${step.stage}`;
       const existing = rows.get(key);
       const next = {
@@ -124,27 +126,27 @@ function createMemoryRepo() {
         createdAt: existing?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         ...step,
-      };
+      } as Row;
       rows.set(key, next);
-      return next as never;
+      return next;
     },
-    get(sessionId: string, cycleId: string, stage: string) {
-      return (rows.get(`${sessionId}:${cycleId}:${stage}`) ?? null) as never;
+    get(sessionId, cycleId, stage) {
+      return rows.get(`${sessionId}:${cycleId}:${stage}`) ?? null;
     },
-    getLatestByCycle(sessionId: string, cycleId: string) {
-      return [...rows.values()].filter((row) => row.sessionId === sessionId && row.cycleId === cycleId) as never;
+    getLatestByCycle(sessionId, cycleId) {
+      return [...rows.values()].filter((row) => row.sessionId === sessionId && row.cycleId === cycleId);
     },
-    getLatestBySession(sessionId: string) {
-      return [...rows.values()].filter((row) => row.sessionId === sessionId) as never;
+    getLatestBySession(sessionId) {
+      return [...rows.values()].filter((row) => row.sessionId === sessionId);
     },
-    getLatestCycleState(sessionId: string) {
+    getLatestCycleState(sessionId) {
       const all = [...rows.values()].filter((row) => row.sessionId === sessionId);
       const sorted = all.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
-      const cycleId = (sorted[0]?.cycleId as string) ?? null;
+      const cycleId = sorted[0]?.cycleId ?? null;
       if (!cycleId) return { cycleId: null, steps: [] };
-      return { cycleId, steps: sorted.filter((r) => r.cycleId === cycleId) as never };
+      return { cycleId, steps: sorted.filter((r) => r.cycleId === cycleId) };
     },
-    clearFailed(sessionId: string, cycleId: string, stage: string) {
+    clearFailed(sessionId, cycleId, stage) {
       rows.delete(`${sessionId}:${cycleId}:${stage}`);
     },
   };

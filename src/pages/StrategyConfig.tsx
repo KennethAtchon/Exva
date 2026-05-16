@@ -83,8 +83,6 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const roleErrors = useStrategyStore((state) => state.roleErrors);
   const strategyErrors = useStrategyStore((state) => state.strategyErrors);
   const globalPresets = useStrategyStore((state) => state.globalPresets);
-  const workspaceDefaultModelProviderKey = useStrategyStore((state) => state.workspaceDefaultModelProviderKey);
-  const workspaceDefaultModelModelId = useStrategyStore((state) => state.workspaceDefaultModelModelId);
   const loadStrategy = useStrategyStore((state) => state.loadStrategy);
   const loadGlobalPresets = useStrategyStore((state) => state.loadGlobalPresets);
   const updateResearchPosture = useStrategyStore((state) => state.updateResearchPosture);
@@ -94,7 +92,6 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const updateAiRoleProfile = useStrategyStore((state) => state.updateAiRoleProfile);
   const updateRole = useStrategyStore((state) => state.updateRole);
   const applyGlobalPreset = useStrategyStore((state) => state.applyGlobalPreset);
-  const applyWorkspaceDefaultToAllRoles = useStrategyStore((state) => state.applyWorkspaceDefaultToAllRoles);
   const saveAll = useStrategyStore((state) => state.saveAll);
   const resetRole = useStrategyStore((state) => state.resetRole);
   const setActiveTab = useStrategyStore((state) => state.setActiveTab);
@@ -632,9 +629,6 @@ const goToSessionsButtonStyle = {
 const viewToggleContainerStyle = { display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden", background: "var(--surface2)" } as const;
 const viewToggleActiveStyle = { padding: "7px 16px", border: "none", background: "var(--surface3)", color: "var(--text1)", fontSize: 13, fontWeight: 600, cursor: "pointer" } as const;
 const viewToggleInactiveStyle = { padding: "7px 16px", border: "none", background: "transparent", color: "var(--text3)", fontSize: 13, fontWeight: 500, cursor: "pointer" } as const;
-const tabRowStyle = { display: "flex", gap: 10, flexWrap: "wrap" } as const;
-const activeTabStyle = { padding: "8px 12px", borderRadius: 999, border: "1px solid var(--accent)", background: "rgba(59,130,246,0.12)", color: "var(--text1)", cursor: "pointer" } as const;
-const inactiveTabStyle = { padding: "8px 12px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", cursor: "pointer" } as const;
 const briefStyle = { marginTop: 14, padding: 14, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", fontSize: 12, lineHeight: 1.6, whiteSpace: "pre-wrap" } as const;
 const formGridStyle = { display: "grid", gap: 14, marginTop: 16 } as const;
 const inputStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)" } as const;
