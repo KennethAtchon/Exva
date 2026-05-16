@@ -285,6 +285,17 @@ export const api = {
   saveBrokerRoutingDefaults: (routing: BrokerRoutingDefault[]) =>
     bridge().accounts.routingUpdate({ routing }),
 
+  getLiveReadiness: (sessionId: string): Promise<{
+    readyToStart: boolean;
+    allChecksPassed: boolean;
+    checks: Array<{ name: string; passed: boolean; requiresAck?: boolean; message?: string }>;
+    acknowledgedAt: string | null;
+  }> => bridge().session.getLiveReadiness(sessionId),
+  acknowledgeLiveReadiness: (sessionId: string): Promise<{ acknowledgedAt: string }> =>
+    bridge().session.acknowledgeLiveReadiness(sessionId),
+  testLiveBrokerConnection: (sessionId: string): Promise<{ ok: boolean; message: string }> =>
+    bridge().session.testLiveBrokerConnection(sessionId),
+
   getEvents: (filters?: {
     minLevel?: string;
     agentType?: AgentRole;

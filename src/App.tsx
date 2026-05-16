@@ -6,7 +6,7 @@ import { TradesPage } from "./pages/TradesPage";
 import { TradeDetail } from "./pages/TradeDetail";
 import { StrategyConfig } from "./pages/StrategyConfig";
 import { CostBreakdownPage } from "./pages/CostBreakdown";
-import { DevPanel } from "./pages/DevPanel";
+import { DevPanel, type DevPanelFocus } from "./pages/DevPanel";
 import { AccountsPage } from "./pages/AccountsPage";
 import { useSessionStore } from "./store/sessionStore";
 import { useTradeStore } from "./store/tradeStore";
@@ -17,6 +17,7 @@ import { usePolling } from "./hooks/usePolling";
 
 export default function App() {
   const [page, setPage] = useState<PageKey>("dashboard");
+  const [devPanelFocus, setDevPanelFocus] = useState<DevPanelFocus | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const status = useSessionStore((s) => s.status);
   const setStatus = useSessionStore((s) => s.setStatus);
@@ -96,11 +97,20 @@ export default function App() {
   const pageEl = () => {
     switch (page) {
       case "dashboard": return <Dashboard />;
-      case "sessions":  return <SessionsPage onGoToStrategy={() => setPage("strategy")} onGoToAccounts={() => setPage("accounts")} />;
+      case "sessions":  return (
+        <SessionsPage
+          onGoToStrategy={() => setPage("strategy")}
+          onGoToAccounts={() => setPage("accounts")}
+          onViewTrace={(sessionId, cycleId, stage) => {
+            setDevPanelFocus({ sessionId, cycleId, stage });
+            setPage("devpanel");
+          }}
+        />
+      );
       case "trades":    return <TradesPage />;
       case "strategy":  return <StrategyConfig onGoToSessions={() => setPage("sessions")} />;
       case "costs":     return <CostBreakdownPage />;
-      case "devpanel":  return <DevPanel />;
+      case "devpanel":  return <DevPanel focus={devPanelFocus} onFocusConsumed={() => setDevPanelFocus(null)} />;
       case "accounts":  return <AccountsPage />;
     }
   };

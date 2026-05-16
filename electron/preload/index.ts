@@ -73,6 +73,12 @@ const exva: ExvaApi = {
       invoke(channels.session.instrumentCacheGet, sessionIdParamSchema.parse({ sessionId })),
     instrumentCacheClear: (sessionId) =>
       invoke(channels.session.instrumentCacheClear, sessionIdParamSchema.parse({ sessionId })),
+    getLiveReadiness: (sessionId) =>
+      invoke(channels.session.getLiveReadiness, sessionIdParamSchema.parse({ sessionId })),
+    acknowledgeLiveReadiness: (sessionId) =>
+      invoke(channels.session.acknowledgeLiveReadiness, sessionIdParamSchema.parse({ sessionId })),
+    testLiveBrokerConnection: (sessionId) =>
+      invoke(channels.session.testLiveBrokerConnection, sessionIdParamSchema.parse({ sessionId })),
   },
   strategy: {
     get: (sessionId) => invoke(channels.strategy.get, { sessionId }),

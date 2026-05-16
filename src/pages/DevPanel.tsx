@@ -9,6 +9,12 @@ import { useSessionStore } from "@/store/sessionStore";
 import type { AgentMessage, AgentRun, ApiCallLogEntry, EventRow, LogLevel, SessionAiRole } from "@/lib/types";
 import type { SessionSummary, StrategyGetResponse } from "@/lib/exva";
 
+export interface DevPanelFocus {
+  sessionId: string;
+  cycleId: string;
+  stage: string;
+}
+
 // ─── Extended types for spec fields not yet in schema ───────────────────────
 
 interface ExtEventRow extends EventRow {
@@ -970,13 +976,20 @@ const InspectorPanel = ({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export const DevPanel = () => {
+export const DevPanel = ({
+  focus,
+  onFocusConsumed,
+}: {
+  focus?: DevPanelFocus | null;
+  onFocusConsumed?: () => void;
+}) => {
   const [events, setEvents] = useState<ExtEventRow[]>([]);
   const [minLevel, setMinLevel] = useState<LogLevel>("DEBUG");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [cycleState, setCycleState] = useState("idle");
+  const focusAppliedRef = useRef(false);
   // Seed events from fetched data; push events are appended via useExvaEvent below
   const [streamHealthy, setStreamHealthy] = useState(true);
   const [lastEventAt, setLastEventAt] = useState<string | null>(null);
@@ -1010,6 +1023,15 @@ export const DevPanel = () => {
   useEffect(() => {
     if (fetchedEvents.length > 0) setEvents(fetchedEvents);
   }, [fetchedEvents]);
+
+  useEffect(() => {
+    if (!focus || focusAppliedRef.current || events.length === 0) return;
+    focusAppliedRef.current = true;
+    setSearch(focus.cycleId);
+    const match = events.find((e) => (e as ExtEventRow).cycle_id === focus.cycleId);
+    if (match) setSelectedId(match.id);
+    onFocusConsumed?.();
+  }, [focus, events, onFocusConsumed]);
 
   // Stream health watchdog
   const resetStreamTimer = useCallback(() => {

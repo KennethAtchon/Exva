@@ -229,6 +229,14 @@ export interface ExvaApi {
       definitionHashMatches: boolean;
     }>;
     instrumentCacheClear(sessionId: string): Promise<{ cleared: true }>;
+    getLiveReadiness(sessionId: string): Promise<{
+      readyToStart: boolean;
+      allChecksPassed: boolean;
+      checks: Array<{ name: string; passed: boolean; requiresAck?: boolean; message?: string }>;
+      acknowledgedAt: string | null;
+    }>;
+    acknowledgeLiveReadiness(sessionId: string): Promise<{ acknowledgedAt: string }>;
+    testLiveBrokerConnection(sessionId: string): Promise<{ ok: boolean; message: string }>;
   };
   workspace: {
     getView(): Promise<WorkspaceViewResponse>;

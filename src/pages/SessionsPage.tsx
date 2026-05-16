@@ -4,6 +4,7 @@ import { Button, Checkbox } from "@/components/ui";
 import { api, listenEvent, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import type { ExecutionStage, InstrumentClass, SessionStatus } from "@/lib/types";
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
+import { LiveReadinessModal } from "@/components/sessions/LiveReadinessModal";
 import { SessionDetailDrawer } from "@/components/sessions/SessionDetailDrawer";
 import { SessionTable } from "@/components/sessions/SessionTable";
 import { SessionTemplatesModal } from "@/components/sessions/SessionTemplatesModal";
@@ -12,7 +13,30 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";
 
-export const SessionsPage = ({ onGoToStrategy, onGoToAccounts }: { onGoToStrategy?: () => void; onGoToAccounts?: () => void }) => {
+const STAGE_TO_ROLE: Partial<Record<import("@/lib/types").ExecutionStage, string>> = {
+  selector: "instrument_selector",
+  analyst_technical: "analyst_technical",
+  analyst_fundamental: "analyst_fundamental",
+  reviewer: "reviewer",
+  decision_maker: "decision_maker",
+};
+
+interface LiveReadinessReport {
+  readyToStart: boolean;
+  allChecksPassed: boolean;
+  checks: Array<{ name: string; passed: boolean; requiresAck?: boolean; message?: string }>;
+  acknowledgedAt: string | null;
+}
+
+export const SessionsPage = ({
+  onGoToStrategy,
+  onGoToAccounts,
+  onViewTrace,
+}: {
+  onGoToStrategy?: () => void;
+  onGoToAccounts?: () => void;
+  onViewTrace?: (sessionId: string, cycleId: string, stage: string) => void;
+}) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const preferences = useWorkspaceStore((state) => state.preferences);
@@ -35,12 +59,30 @@ export const SessionsPage = ({ onGoToStrategy, onGoToAccounts }: { onGoToStrateg
   const [progressBySessionId, setProgressBySessionId] = useState<Record<string, SessionProgressState>>({});
   const aiReady = useWorkspaceStore((state) => state.focusedSessionAiReady);
   const checkAiReady = useWorkspaceStore((state) => state.checkAiReady);
+  const [liveReadinessSession, setLiveReadinessSession] = useState<SessionSummary | null>(null);
+  const [liveReadinessReport, setLiveReadinessReport] = useState<LiveReadinessReport | null>(null);
+  const strategyCache = useRef<Record<string, import("@/lib/exva").StrategyGetResponse>>({});
 
   const refreshProgress = async (sessionId: string) => {
     try {
       const result = await api.getSessionExecutionProgress(sessionId);
       if (!result.cycleId) return;
-      const state = deriveProgress(result.steps, result.cycleId);
+      const activeStep = result.steps.find((s) => s.status === "running");
+      let activeRoleLabel: string | null = null;
+      if (activeStep) {
+        const roleName = STAGE_TO_ROLE[activeStep.stage];
+        if (roleName) {
+          if (!strategyCache.current[sessionId]) {
+            try { strategyCache.current[sessionId] = await api.getStrategy(sessionId); } catch { /* ignore */ }
+          }
+          const strat = strategyCache.current[sessionId];
+          const role = strat?.aiRoles.find((r) => r.role === roleName);
+          if (role) {
+            activeRoleLabel = `${roleName.replace("_", " ")} · ${role.providerKey}/${role.modelId}`;
+          }
+        }
+      }
+      const state = deriveProgress(result.steps, result.cycleId, activeRoleLabel);
       if (!state) return;
       setProgressBySessionId((prev) => ({ ...prev, [sessionId]: state }));
     } catch {
@@ -114,6 +156,15 @@ export const SessionsPage = ({ onGoToStrategy, onGoToAccounts }: { onGoToStrateg
     try {
       if (!session.isFocused) {
         await api.focusSession(session.id);
+      }
+      if (action === "start" && session.executionMode === "live_allowed") {
+        const readiness = await api.getLiveReadiness(session.id);
+        if (!readiness.readyToStart || !readiness.acknowledgedAt) {
+          setLiveReadinessReport(readiness);
+          setLiveReadinessSession(session);
+          setActionSessionId(null);
+          return;
+        }
       }
       if (action === "start") await api.startSession();
       if (action === "pause") await api.pauseSession();
@@ -312,9 +363,12 @@ export const SessionsPage = ({ onGoToStrategy, onGoToAccounts }: { onGoToStrateg
               }
             }}
             onViewTrace={(sessionId, cycleId, stage) => {
-              // Opens session detail — full trace viewer is in DevPanel
-              const match = sessions.find((s) => s.id === sessionId);
-              if (match) setDetail(match);
+              if (onViewTrace) {
+                onViewTrace(sessionId, cycleId, stage);
+              } else {
+                const match = sessions.find((s) => s.id === sessionId);
+                if (match) setDetail(match);
+              }
             }}
             onPauseAfterStep={async (sessionId) => {
               try {
@@ -404,6 +458,21 @@ export const SessionsPage = ({ onGoToStrategy, onGoToAccounts }: { onGoToStrateg
           setModalOpen(true);
         }}
       />
+      {liveReadinessSession && liveReadinessReport ? (
+        <LiveReadinessModal
+          sessionId={liveReadinessSession.id}
+          report={liveReadinessReport}
+          onAcknowledged={async () => {
+            setLiveReadinessReport(null);
+            setLiveReadinessSession(null);
+            await runLifecycleAction(liveReadinessSession, "start");
+          }}
+          onCancel={() => {
+            setLiveReadinessReport(null);
+            setLiveReadinessSession(null);
+          }}
+        />
+      ) : null}
       <SessionDetailDrawer session={detail} onClose={() => setDetail(null)} />
     </PageShell>
   );
