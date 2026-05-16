@@ -21,11 +21,17 @@ const AGENT_PALETTE: Partial<Record<EventSourceType, { color: string; label: str
 const LEVEL_COLOR: Record<string, string> = { DEBUG: "#374151", INFO: "#60a5fa", WARN: "#fbbf24", ERROR: "#f87171" };
 
 const StatStrip = ({ stats }: { stats: DashboardStats }) => {
+  const hasLivePortfolioValue = stats.portfolio_value_source === "broker";
   const items: Array<{
     label: string; value: string | number; sub: string;
     subColor?: string; valColor?: string; meter?: number;
   }> = [
-    { label: "Portfolio Value", value: fmt.usd(stats.portfolio_value), sub: `${fmt.pnl(stats.unrealized_pnl)} unrealized`, subColor: stats.unrealized_pnl >= 0 ? "#34d399" : "#f87171" },
+    {
+      label: hasLivePortfolioValue ? "Portfolio Value" : "Portfolio Value",
+      value: hasLivePortfolioValue ? fmt.usd(stats.portfolio_value) : "—",
+      sub: hasLivePortfolioValue ? `${fmt.pnl(stats.unrealized_pnl)} unrealized` : "No live broker balance yet",
+      subColor: hasLivePortfolioValue ? (stats.unrealized_pnl >= 0 ? "#34d399" : "#f87171") : undefined,
+    },
     { label: "Daily P&L", value: fmt.pnl(stats.daily_pnl_usd), sub: fmt.pct(stats.daily_pnl_pct), subColor: stats.daily_pnl_usd >= 0 ? "#34d399" : "#f87171", valColor: stats.daily_pnl_usd >= 0 ? "#34d399" : "#f87171" },
     { label: "Win Rate", value: `${Math.round(stats.win_rate_today * 100)}%`, sub: `${stats.closed_trades_today} closed today` },
     { label: "Open Positions", value: stats.open_trades, sub: `${stats.total_trades_today} total today` },

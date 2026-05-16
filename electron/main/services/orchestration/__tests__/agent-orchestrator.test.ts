@@ -89,11 +89,64 @@ describe("AgentOrchestrator", () => {
     expect(deps.sessionExecutionStepsRepo.get("session-1", failedStep.cycleId, "selector")).toMatchObject({ status: "succeeded" });
     await orchestrator.stop();
   });
+
+  it("builds explicit full-universe selector instructions with broker coverage", async () => {
+    const deps = createDeps({
+      noInstrumentRetryMinutes: 5,
+      session: {
+        selectionMode: "ai_selected_universe",
+        instrumentScope: "Search the entire tradable universe for the selected instrument classes.",
+        instrumentClasses: ["stock", "crypto"],
+      },
+      assignedBrokers: [
+        { id: "broker-stock", name: "Stock Broker", supportedInstrumentClasses: ["stock"] },
+      ],
+    });
+    const orchestrator = new AgentOrchestrator("session-1", deps as never);
+
+    const instructions = await (orchestrator as never as {
+      buildSelectionInstructions: (session: WorkspaceSession) => Promise<string>;
+    }).buildSelectionInstructions(deps.sessionRepo.requireById());
+
+    expect(instructions).toContain("Selector mode: full-universe discovery.");
+    expect(instructions).toContain("enumerate all serious candidate instruments");
+    expect(instructions).toContain("research each candidate online");
+    expect(instructions).toContain("stock: tradable via Stock Broker (broker-stock)");
+    expect(instructions).toContain("crypto: NO broker coverage. Do not return candidates for this class.");
+  });
 });
 
-function createDeps({ noInstrumentRetryMinutes }: { noInstrumentRetryMinutes?: number }) {
+function createDeps({
+  noInstrumentRetryMinutes,
+  session,
+  assignedBrokers,
+}: {
+  noInstrumentRetryMinutes?: number;
+  session?: Partial<WorkspaceSession>;
+  assignedBrokers?: Array<{
+    id: string;
+    name: string;
+    supportedInstrumentClasses: Array<"stock" | "crypto" | "futures" | "prediction_market">;
+  }>;
+}) {
   const steps = new Map<string, StepRecord>();
   const sessionStatus = { current: "active" as WorkspaceSession["status"] };
+  const resolvedSession: WorkspaceSession = {
+    id: "session-1",
+    name: "Test Session",
+    objective: "Verify orchestrator step retries",
+    status: session?.status ?? sessionStatus.current,
+    isFocused: true,
+    selectionMode: session?.selectionMode ?? "manual_shortlist",
+    instrumentClasses: session?.instrumentClasses ?? ["stock"],
+    instrumentScope: session?.instrumentScope ?? "AAPL",
+    defaultSearchProviderId: null,
+    capitalLimitUsd: 1000,
+    executionMode: "paper_only",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  const brokerRows = assignedBrokers ?? [];
 
   return {
     sessionStatus,
@@ -115,21 +168,7 @@ function createDeps({ noInstrumentRetryMinutes }: { noInstrumentRetryMinutes?: n
       }),
     },
     sessionRepo: {
-      requireById: () => ({
-        id: "session-1",
-        name: "Test Session",
-        objective: "Verify orchestrator step retries",
-        status: sessionStatus.current,
-        isFocused: true,
-        selectionMode: "manual_shortlist",
-        instrumentClasses: ["stock"],
-        instrumentScope: "AAPL",
-        defaultSearchProviderId: null,
-        capitalLimitUsd: 1000,
-        executionMode: "paper_only",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }),
+      requireById: () => ({ ...resolvedSession, status: sessionStatus.current }),
       getStatus: () => sessionStatus.current,
       setStatus: (status: WorkspaceSession["status"]) => {
         sessionStatus.current = status;
@@ -178,6 +217,12 @@ function createDeps({ noInstrumentRetryMinutes }: { noInstrumentRetryMinutes?: n
       info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
+    },
+    sessionBrokerAssignmentsRepo: {
+      listBrokerAccountIds: () => brokerRows.map((broker) => broker.id),
+    },
+    brokerAccountsRepo: {
+      find: (brokerAccountId: string) => brokerRows.find((broker) => broker.id === brokerAccountId) ?? null,
     },
   };
 }

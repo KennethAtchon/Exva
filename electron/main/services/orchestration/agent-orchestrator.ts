@@ -43,6 +43,7 @@ type DecisionOutput = {
 };
 
 type PredictionToken = { outcome?: unknown; token_id?: unknown };
+const SEARCH_EVERYTHING_SCOPE = "Search the entire tradable universe for the selected instrument classes.";
 
 type SelectorCycleContext = {
   kind: "selector";
@@ -1549,16 +1550,80 @@ export class AgentOrchestrator {
   }
 
   private async buildSelectionInstructions(session: WorkspaceSession): Promise<string> {
+    const brokerCoverage = this.renderBrokerCoverageInstructions(session);
+
+    if (this.isSearchEverythingScope(session)) {
+      const sections = [
+        [
+          "Selector mode: full-universe discovery.",
+          `Search across the full tradable universe for these enabled classes: ${session.instrumentClasses.join(", ")}.`,
+          "Start broad, enumerate all serious candidate instruments you discover, and then research each candidate online before you rank it.",
+          "Use live discovery/search evidence for every candidate you keep. Do not rely on memory-only ticker recall.",
+          "Verify tradability with the market tools before submitting a candidate. Exclude anything that has no broker coverage or cannot be verified.",
+          "When you call submit_candidates, include every qualified candidate you researched in ranked order, strongest to weakest, up to the tool limit.",
+        ].join("\n"),
+        brokerCoverage,
+      ];
+
+      const predictionCandidates = await this.renderPredictionMarketCandidatesInstructions(session);
+      if (predictionCandidates) sections.push(predictionCandidates);
+
+      return sections.filter(Boolean).join("\n\n");
+    }
+
+    const sections = [session.instrumentScope, brokerCoverage];
+    const predictionCandidates = await this.renderPredictionMarketCandidatesInstructions(session);
+    if (predictionCandidates) sections.push(predictionCandidates);
+    return sections.filter(Boolean).join("\n\n");
+  }
+
+  private isSearchEverythingScope(session: WorkspaceSession): boolean {
+    return session.instrumentScope.trim() === SEARCH_EVERYTHING_SCOPE;
+  }
+
+  private renderBrokerCoverageInstructions(session: WorkspaceSession): string {
+    const assignedBrokerIds = this.deps.sessionBrokerAssignmentsRepo.listBrokerAccountIds(session.id);
+    const assignedBrokers = assignedBrokerIds
+      .map((brokerAccountId) => this.deps.brokerAccountsRepo.find(brokerAccountId))
+      .filter((broker): broker is NonNullable<typeof broker> => Boolean(broker));
+
+    const lines = ["Broker coverage constraints:"];
+
+    if (assignedBrokers.length === 0) {
+      lines.push("- No broker accounts are assigned to this session. Do not assume any instrument is tradable.");
+      return lines.join("\n");
+    }
+
+    lines.push("- Assigned brokers:");
+    for (const broker of assignedBrokers) {
+      lines.push(`  - ${broker.name} (${broker.id}) supports: ${broker.supportedInstrumentClasses.join(", ")}`);
+    }
+
+    lines.push("- Enabled class coverage:");
+    for (const instrumentClass of session.instrumentClasses) {
+      const coveringBrokers = assignedBrokers.filter((broker) => broker.supportedInstrumentClasses.includes(instrumentClass));
+      if (coveringBrokers.length === 0) {
+        lines.push(`  - ${instrumentClass}: NO broker coverage. Do not return candidates for this class.`);
+        continue;
+      }
+      lines.push(`  - ${instrumentClass}: tradable via ${coveringBrokers.map((broker) => `${broker.name} (${broker.id})`).join(", ")}`);
+    }
+
+    lines.push("- If get_quote/get_news/get_ohlcv cannot verify an instrument, treat it as not tradable enough for this session and exclude it.");
+    return lines.join("\n");
+  }
+
+  private async renderPredictionMarketCandidatesInstructions(session: WorkspaceSession): Promise<string | null> {
     if (!session.instrumentClasses.includes("prediction_market")) {
-      return session.instrumentScope;
+      return null;
     }
 
     const candidates = await this.fetchPredictionMarketCandidates();
     if (candidates.length === 0) {
-      return session.instrumentScope;
+      return null;
     }
 
-    return `${session.instrumentScope}\n\nPrediction-market candidates (return only these canonical rows for prediction_market):\n${candidates
+    return `Prediction-market candidates (return only these canonical rows for prediction_market):\n${candidates
       .map((candidate) => `- ${JSON.stringify(candidate)}`)
       .join("\n")}`;
   }

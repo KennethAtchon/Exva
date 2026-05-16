@@ -157,6 +157,7 @@ export function registerStrategyHandlers(services: AppServices): void {
     }
 
     services.repos.workspacePreferences.update({ defaultModelProviderKey: providerKey, defaultModelModelId: modelId });
+    services.repos.sessionAiRoles.backfillMissingProviderModel({ providerKey, modelId });
     return { savedAt: new Date().toISOString() };
   });
 }

@@ -53,4 +53,32 @@ export class SessionAiRolesRepo {
       }
     });
   }
+
+  backfillMissingProviderModel(defaults: { providerKey: string; modelId: string }): number {
+    if (!defaults.providerKey.trim() || !defaults.modelId.trim()) {
+      return 0;
+    }
+
+    const rows = this.client.db.select().from(sessionAiRoles).all();
+    let updated = 0;
+
+    this.client.db.transaction((tx) => {
+      for (const row of rows) {
+        const providerKey = row.providerKey?.trim() ?? "";
+        const modelId = row.modelId?.trim() ?? "";
+        if (providerKey && modelId) continue;
+
+        tx.update(sessionAiRoles)
+          .set({
+            providerKey: defaults.providerKey,
+            modelId: defaults.modelId,
+          })
+          .where(and(eq(sessionAiRoles.sessionId, row.sessionId), eq(sessionAiRoles.role, row.role)))
+          .run();
+        updated += 1;
+      }
+    });
+
+    return updated;
+  }
 }

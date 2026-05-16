@@ -70,12 +70,12 @@ export class SessionService {
   }
 
   async getPortfolioValue(sessionId?: string): Promise<PortfolioValueResult> {
-    const focusedId = sessionId ?? this.deps.sessionRepo.getFocusedSessionId();
-    if (!focusedId) {
+    const resolvedSessionId = sessionId ?? this.deps.sessionRepo.getFocused()?.id ?? null;
+    if (!resolvedSessionId) {
       return { value: 0, source: "session_capital_limit", brokerCount: 0 };
     }
-    const session = this.deps.sessionRepo.requireById(focusedId);
-    const assignedIds = this.deps.sessionBrokerAssignmentsRepo?.listBrokerAccountIds(focusedId) ?? [];
+    const session = this.deps.sessionRepo.requireById(resolvedSessionId);
+    const assignedIds = this.deps.sessionBrokerAssignmentsRepo?.listBrokerAccountIds(resolvedSessionId) ?? [];
 
     if (this.deps.brokerRegistry && assignedIds.length > 0) {
       let total = 0;
@@ -83,6 +83,9 @@ export class SessionService {
       for (const id of assignedIds) {
         try {
           const adapter = await this.deps.brokerRegistry.get(id);
+          if (!adapter.launchCapable || adapter.brokerType === "mock") {
+            continue;
+          }
           total += await adapter.getAccountBalance();
           counted += 1;
         } catch {

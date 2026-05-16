@@ -154,6 +154,16 @@ describe("session onboarding integration", () => {
     expect(harness.startedSessions).toEqual([sessionId]);
     expect(harness.routing.resolveBrokerAccountId(sessionId, "stock")).toBe("live-broker");
   });
+
+  it("returns an empty portfolio value when no session exists yet", async () => {
+    const harness = createHarness(db);
+
+    await expect(harness.session.getPortfolioValue()).resolves.toEqual({
+      value: 0,
+      source: "session_capital_limit",
+      brokerCount: 0,
+    });
+  });
 });
 
 function createHarness(db: ReturnType<typeof createTestDb>) {
