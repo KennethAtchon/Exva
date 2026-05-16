@@ -15,15 +15,20 @@ export class StatsRepo {
   ): DashboardStats {
     const today = new Date().toISOString().slice(0, 10);
     const todayCondition = sql`substr(${trades.createdAt}, 1, 10) = ${today}`;
+    const runTodayCondition = sql`substr(${agentRuns.createdAt}, 1, 10) = ${today}`;
     const tradeRows = this.client.db
       .select({
         status: trades.status,
         final_pnl_usd: trades.finalPnlUsd,
-        ai_cost_usd: trades.aiCostUsd,
       })
       .from(trades)
       .where(sessionId ? and(eq(trades.sessionId, sessionId), todayCondition) : todayCondition)
       .all();
+    const spendRow = this.client.db
+      .select({ spend: sql<number>`sum(${agentRuns.costUsd})` })
+      .from(agentRuns)
+      .where(sessionId ? and(eq(agentRuns.sessionId, sessionId), runTodayCondition) : runTodayCondition)
+      .get();
     const openTrades = this.client.db
       .select({ count: sql<number>`count(*)` })
       .from(trades)
@@ -33,7 +38,7 @@ export class StatsRepo {
     const closed = tradeRows.filter((row) => row.status === "closed");
     const dailyPnl = closed.reduce((sum, row) => sum + Number(row.final_pnl_usd ?? 0), 0);
     const wins = closed.filter((row) => Number(row.final_pnl_usd ?? 0) > 0).length;
-    const spend = tradeRows.reduce((sum, row) => sum + Number(row.ai_cost_usd ?? 0), 0);
+    const spend = Number(spendRow?.spend ?? 0);
 
     return {
       session_status: status,
@@ -53,25 +58,46 @@ export class StatsRepo {
     };
   }
 
-  costBreakdown(): CostBreakdown {
-    const byAgent = this.client.db
+  costBreakdown(input?: { sessionId?: string | null; dateRange?: "today" | "all" }): CostBreakdown {
+    const sessionId = input?.sessionId ?? null;
+    const dateRange = input?.dateRange ?? "today";
+    const today = new Date().toISOString().slice(0, 10);
+    const sevenDayStart = new Date();
+    sevenDayStart.setUTCDate(sevenDayStart.getUTCDate() - 6);
+    const historyStart = sevenDayStart.toISOString().slice(0, 10);
+
+    const scopedRunCondition =
+      sessionId && dateRange === "today"
+        ? and(eq(agentRuns.sessionId, sessionId), sql`substr(${agentRuns.createdAt}, 1, 10) = ${today}`)
+        : sessionId
+          ? eq(agentRuns.sessionId, sessionId)
+          : dateRange === "today"
+            ? sql`substr(${agentRuns.createdAt}, 1, 10) = ${today}`
+            : undefined;
+    const historyCondition = sessionId
+      ? and(eq(agentRuns.sessionId, sessionId), sql`substr(${agentRuns.createdAt}, 1, 10) >= ${historyStart}`)
+      : sql`substr(${agentRuns.createdAt}, 1, 10) >= ${historyStart}`;
+
+    const byAgentQuery = this.client.db
       .select({
         name: agentRuns.agentType,
         tokens: sql<number>`sum(${agentRuns.inputTokens} + ${agentRuns.outputTokens})`,
         cost: sql<number>`sum(${agentRuns.costUsd})`,
       })
-      .from(agentRuns)
+      .from(agentRuns);
+    const byAgent = (scopedRunCondition ? byAgentQuery.where(scopedRunCondition) : byAgentQuery)
       .groupBy(agentRuns.agentType)
       .orderBy(desc(sql`sum(${agentRuns.costUsd})`))
       .all() as CostBreakdown["by_agent"];
 
-    const byTrade = this.client.db
+    const byTradeQuery = this.client.db
       .select({
         instrumentSymbol: trades.instrumentSymbol,
         cost: sql<number>`sum(${agentRuns.costUsd})`,
       })
       .from(agentRuns)
-      .innerJoin(trades, eq(trades.id, agentRuns.tradeId))
+      .innerJoin(trades, eq(trades.id, agentRuns.tradeId));
+    const byTrade = (scopedRunCondition ? byTradeQuery.where(scopedRunCondition) : byTradeQuery)
       .groupBy(trades.id)
       .orderBy(desc(sql`sum(${agentRuns.costUsd})`))
       .limit(20)
@@ -83,6 +109,7 @@ export class StatsRepo {
         cost: sql<number>`sum(${agentRuns.costUsd})`,
       })
       .from(agentRuns)
+      .where(historyCondition)
       .groupBy(sql`substr(${agentRuns.createdAt}, 1, 10)`)
       .orderBy(desc(sql`substr(${agentRuns.createdAt}, 1, 10)`))
       .limit(7)

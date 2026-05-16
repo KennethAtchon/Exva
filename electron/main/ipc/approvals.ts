@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
-import { AppError } from "@electron/shared/errors";
-import { channels } from "@electron/shared/channels";
+import { AppError } from "@electron/shared/infra/errors";
+import { channels } from "@electron/shared/ipc/channels";
 import { approvalDecideSchema, approvalListFiltersSchema } from "@/lib/schemas";
 import type { ApprovalSummary } from "@/lib/types";
 import type { AppServices } from "../services/app-services";

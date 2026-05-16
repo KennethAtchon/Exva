@@ -1,7 +1,7 @@
 import type { DbClient } from "../client";
 import type { SessionTradeRules } from "@/lib/types";
 import { eq } from "drizzle-orm";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { sessionTradeRules } from "../schema";
 import { toSessionTradeRules } from "./mappers";
 

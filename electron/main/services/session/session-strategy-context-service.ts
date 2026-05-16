@@ -13,7 +13,7 @@ import type {
   SelectionMode,
 } from "@/lib/types";
 import { isSessionEditable, validateSessionStrategyContext } from "@electron/shared/domain";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderAccountsRepo } from "../../db/repositories/provider-accounts-repo";
 import type { SessionAiRoleProfileRepo } from "../../db/repositories/session-ai-role-profile-repo";
 import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";

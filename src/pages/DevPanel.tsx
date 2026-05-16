@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getSearchProviderDisplayName } from "@electron/shared/search-providers";
+import { getSearchProviderDisplayName } from "@electron/shared/catalog/search-providers";
 import { AgentLabel, Dot, PageShell } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";

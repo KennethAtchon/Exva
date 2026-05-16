@@ -1,7 +1,13 @@
 import { ipcMain } from "electron";
-import { channels } from "@electron/shared/channels";
+import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
+
+function resolveCostBreakdownDateRange(payload: unknown): "today" | "all" {
+  if (!payload || typeof payload !== "object") return "today";
+  const dateRange = "dateRange" in payload ? (payload as { dateRange?: unknown }).dateRange : undefined;
+  return dateRange === "all" ? "all" : "today";
+}
 
 function aggregateApiBudgetUsd(services: AppServices): number {
   const sessions = services.repos.session.list({ includeArchived: false });
@@ -45,7 +51,11 @@ export function registerDashboardHandlers(services: AppServices): void {
     return { ...stats, portfolio_value_source: portfolio.source, portfolio_broker_count: portfolio.brokerCount };
   });
 
-  handle(ipcMain, channels.dashboard.getCostBreakdown, async () => {
-    return services.repos.stats.costBreakdown();
+  handle(ipcMain, channels.dashboard.getCostBreakdown, async (payload) => {
+    const focused = services.repos.session.getFocused();
+    return services.repos.stats.costBreakdown({
+      sessionId: focused?.id ?? null,
+      dateRange: resolveCostBreakdownDateRange(payload),
+    });
   });
 }

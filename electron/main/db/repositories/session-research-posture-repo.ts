@@ -1,7 +1,7 @@
 import type { DbClient } from "../client";
 import type { SessionResearchPosture } from "@/lib/types";
 import { eq } from "drizzle-orm";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { sessionResearchPosture } from "../schema";
 import { toSessionResearchPosture } from "./mappers";
 

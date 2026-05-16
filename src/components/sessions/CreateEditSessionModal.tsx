@@ -8,7 +8,7 @@ import {
   resolveBrokerInstrumentClasses,
   resolveEffectiveInstrumentClasses,
   SEARCH_EVERYTHING_SCOPE,
-} from "@electron/shared/session-instrument-classes";
+} from "@electron/shared/catalog/session-instrument-classes";
 
 interface Props {
   open: boolean;

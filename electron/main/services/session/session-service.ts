@@ -1,5 +1,5 @@
 import type { SessionStatus } from "@/lib/types";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { canTransition } from "@electron/shared/domain";
 import type { SessionLifecycleDeps } from "./session-types";
 

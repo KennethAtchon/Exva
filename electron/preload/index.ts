@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { channels, mainToRendererEvents, type ExvaEventName } from "@electron/shared/channels";
-import { sessionIdParamSchema } from "../shared/schemas";
+import { channels, mainToRendererEvents, type ExvaEventName } from "@electron/shared/ipc/channels";
+import { sessionIdParamSchema } from "../shared/validation/schemas";
 import {
   apiKeySchema,
   approvalDecideSchema,

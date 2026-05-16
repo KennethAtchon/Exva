@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
-import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/session-instrument-classes";
+import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
 import { AgentOrchestrator } from "../agent-orchestrator";
 
 describe("AgentOrchestrator", () => {

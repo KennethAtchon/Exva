@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AgentRole } from "@/lib/types";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import type { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
 import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
 import type { SessionRepo } from "../../../db/repositories/session-repo";

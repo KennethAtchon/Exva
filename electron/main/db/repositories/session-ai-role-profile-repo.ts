@@ -1,9 +1,9 @@
 import type { DbClient } from "../client";
 import type { AgentRole, SessionAiRoleProfile } from "@/lib/types";
 import { and, eq } from "drizzle-orm";
-import { normalizeAiRoleProfileDocument } from "@electron/shared/ai-role-profile";
-import { createDefaultAiRoleProfileDocument } from "@electron/shared/default-ai-role-profiles";
-import { AppError } from "@electron/shared/errors";
+import { normalizeAiRoleProfileDocument } from "@electron/shared/ai/ai-role-profile";
+import { createDefaultAiRoleProfileDocument } from "@electron/shared/ai/default-ai-role-profiles";
+import { AppError } from "@electron/shared/infra/errors";
 import { sessionAiRoleProfile } from "../schema";
 import { toSessionAiRoleProfile } from "./mappers";
 

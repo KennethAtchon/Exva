@@ -1,4 +1,4 @@
-import type { ProviderAccount } from "./domain";
+import type { ProviderAccount } from "../domain";
 
 export interface ProviderMetadata {
   baseUrl?: string;

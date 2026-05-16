@@ -1,7 +1,7 @@
 import { ipcMain } from "electron";
 import { isSessionEditable } from "@electron/shared/domain";
-import { AppError } from "@electron/shared/errors";
-import { channels } from "@electron/shared/channels";
+import { AppError } from "@electron/shared/infra/errors";
+import { channels } from "@electron/shared/ipc/channels";
 import {
   sessionArchiveSchema,
   sessionCreateInputSchema,
@@ -12,7 +12,7 @@ import {
   sessionIdParamSchema,
   sessionListFiltersSchema,
   sessionUpdateInputSchema,
-} from "@electron/shared/schemas";
+} from "@electron/shared/validation/schemas";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
 

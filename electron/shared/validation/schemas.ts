@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { aiRoleProfileDocumentSchema } from "./ai-role-profile";
-import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type TimeframePresetId } from "./domain";
+import { aiRoleProfileDocumentSchema } from "../ai/ai-role-profile";
+import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type TimeframePresetId } from "../domain";
 
 export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 export const selectionModeSchema = z.enum(["manual_shortlist", "ai_selected_universe"]);

@@ -1,7 +1,7 @@
 import type { DbClient } from "../client";
 import type { SessionSelectorSettings } from "@/lib/types";
 import { eq } from "drizzle-orm";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { sessionSelectorSettings } from "../schema";
 import { toSessionSelectorSettings } from "./mappers";
 

@@ -1,4 +1,4 @@
-import type { AgentRole } from "./domain";
+import type { AgentRole } from "../domain";
 import {
   AI_ROLE_PROFILE_VERSION,
   DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES,

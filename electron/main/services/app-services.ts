@@ -1,5 +1,5 @@
 import type { App } from "electron";
-import { buildBuiltInDuckDuckGoProviderAccount, BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/search-providers";
+import { buildBuiltInDuckDuckGoProviderAccount, BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/catalog/search-providers";
 import { createDbClient } from "@main/db/client";
 import { AgentRunsRepo } from "../db/repositories/agent-runs-repo";
 import { AgentMessagesRepo } from "../db/repositories/agent-messages-repo";

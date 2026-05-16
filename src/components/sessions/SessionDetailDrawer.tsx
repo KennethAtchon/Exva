@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getSearchProviderDisplayName } from "@electron/shared/search-providers";
+import { getSearchProviderDisplayName } from "@electron/shared/catalog/search-providers";
 import { Badge } from "@/components/custom-ui";
 import { api, type SessionSummary } from "@/lib/exva";
 import type { EventRow, InstrumentClass, ProviderAccount, SessionTemplatePayload } from "@/lib/types";

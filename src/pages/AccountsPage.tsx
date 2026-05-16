@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { isBuiltInSearchProviderAccount, parseProviderMetadata } from "@electron/shared/search-providers";
+import { isBuiltInSearchProviderAccount, parseProviderMetadata } from "@electron/shared/catalog/search-providers";
 import { Badge, Card, Dot, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { ProviderModelPicker } from "@/components/strategy/ProviderModelPicker";
 import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";

@@ -1,5 +1,5 @@
 import type { ConnectionTestResult, InstrumentClass } from "@/lib/types";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { AssetType, ClobClient, OrderType, Side } from "@polymarket/clob-client";
 import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";

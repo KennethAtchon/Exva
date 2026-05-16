@@ -1,5 +1,5 @@
 import type { WorkspaceSession } from "@/lib/types";
-import { resolveEffectiveInstrumentClasses } from "@electron/shared/session-instrument-classes";
+import { resolveEffectiveInstrumentClasses } from "@electron/shared/catalog/session-instrument-classes";
 import type { OrchestratorDeps } from "./session-types";
 
 export function resolveSessionInstrumentClasses(

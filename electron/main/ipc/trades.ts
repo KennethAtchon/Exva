@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import { approveTradeSchema, listTradesFiltersSchema, tradeIdSchema } from "@/lib/schemas";
-import { channels } from "@electron/shared/channels";
+import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../services/app-services";
 import { decideApproval } from "./approvals";
 import { handle } from "./handle";

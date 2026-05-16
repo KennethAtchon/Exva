@@ -1,7 +1,7 @@
 import type { DbClient } from "../client";
 import type { AgentRole, SessionAiRole } from "@/lib/types";
 import { and, asc, eq } from "drizzle-orm";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { sessionAiRoles } from "../schema";
 import { toSessionAiRole } from "./mappers";
 

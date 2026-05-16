@@ -1,6 +1,6 @@
 import type { ConnectionTestResult } from "@/lib/types";
 import type { InstrumentClass } from "@/lib/types";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import type {
   BrokerAdapter,
   BrokerOrder,

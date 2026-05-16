@@ -1,7 +1,7 @@
 import type { DbClient } from "../client";
 import type { BrokerAccount, BrokerMode, InstrumentClass } from "@/lib/types";
 import { asc, eq } from "drizzle-orm";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { brokerAccounts } from "../schema";
 import { toBrokerAccount } from "./mappers";
 

@@ -4,6 +4,7 @@ import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import type { AgentRole } from "@/lib/types";
 import { useSessionStore } from "@/store/sessionStore";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 const Bar = ({ value, max, color = "var(--accent)", h = 6 }: { value: number; max: number; color?: string; h?: number }) => (
   <div style={{ height: h, background: "var(--surface3)", borderRadius: h, overflow: "hidden" }}>
@@ -20,19 +21,28 @@ const Bar = ({ value, max, color = "var(--accent)", h = 6 }: { value: number; ma
 
 export const CostBreakdownPage = () => {
   const stats = useSessionStore((s) => s.stats);
-  const { data: d } = useQuery({ queryKey: ["cost-breakdown"], queryFn: () => api.getCostBreakdown() });
+  const viewMode = useWorkspaceStore((s) => s.viewMode);
+  const focusedSessionId = useWorkspaceStore((s) => s.focusedSessionId);
+  const { data: d } = useQuery({
+    queryKey: ["cost-breakdown", viewMode, focusedSessionId],
+    queryFn: () => api.getCostBreakdown(),
+    refetchInterval: 5000,
+  });
   if (!d || !stats) return <PageShell><div style={{ color: "var(--text3)" }}>Loading…</div></PageShell>;
 
   const budget = stats.api_budget;
-  const pct = (d.total / budget) * 100;
+  const pct = budget > 0 ? (d.total / budget) * 100 : 0;
   const barColor = pct > 80 ? "#f87171" : pct > 60 ? "#fbbf24" : "var(--accent)";
   const agentColors: Record<AgentRole, string> = {
     analyst_technical: "#34d399", analyst_fundamental: "#f87171",
     reviewer: "#60a5fa", decision_maker: "#a78bfa",
     instrument_selector: "#fbbf24",
   };
-  const agentMax = Math.max(...d.by_agent.map((a) => a.cost));
-  const histMax = Math.max(...d.daily_history.map((h) => h.cost));
+  const agentMax = Math.max(0.01, ...d.by_agent.map((a) => a.cost));
+  const tradeMax = Math.max(0.01, ...d.by_trade.map((t) => t.cost));
+  const histMax = Math.max(0.01, ...d.daily_history.map((h) => h.cost));
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const avgCostPerTrade = stats.total_trades_today > 0 && d.total > 0 ? d.total / stats.total_trades_today : 0;
 
   return (
     <PageShell>
@@ -82,7 +92,7 @@ export const CostBreakdownPage = () => {
           <Card>
             <SectionTitle>Cost by Agent</SectionTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 18 }}>
-              {d.by_agent.map((a) => (
+              {d.by_agent.length > 0 ? d.by_agent.map((a) => (
                 <div key={a.name}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
                     <AgentLabel type={a.name} />
@@ -97,24 +107,24 @@ export const CostBreakdownPage = () => {
                   </div>
                   <Bar value={a.cost} max={agentMax} color={agentColors[a.name]} h={5} />
                 </div>
-              ))}
+              )) : <EmptyState text="No AI spend recorded for this scope yet." />}
             </div>
           </Card>
 
           <Card>
             <SectionTitle>Cost per Trade</SectionTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
-              {d.by_trade.map((t) => (
-                <div key={t.instrumentSymbol} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {d.by_trade.length > 0 ? d.by_trade.map((t) => (
+                <div key={`${t.instrumentSymbol}:${t.cost}`} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: "var(--text1)", width: 48, flexShrink: 0 }}>
                     {t.instrumentSymbol}
                   </span>
-                  <Bar value={t.cost} max={0.4} h={4} />
+                  <Bar value={t.cost} max={tradeMax} h={4} />
                   <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)", width: 38, textAlign: "right", flexShrink: 0 }}>
                     {fmt.usd(t.cost)}
                   </span>
                 </div>
-              ))}
+              )) : <EmptyState text="Trade-level cost appears once runs are tied to a trade." />}
             </div>
           </Card>
         </div>
@@ -123,9 +133,10 @@ export const CostBreakdownPage = () => {
           <Card>
             <SectionTitle>7-Day History</SectionTitle>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", height: 130, marginTop: 20 }}>
-              {d.daily_history.map((h) => {
+              {d.daily_history.length > 0 ? d.daily_history.map((h) => {
                 const barH = histMax > 0 ? (h.cost / histMax) * 100 : 0;
-                const today = h.date === "21";
+                const today = h.date === todayIso;
+                const label = formatHistoryDate(h.date);
                 return (
                   <div key={h.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                     <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: today ? "var(--accent)" : "var(--text3)", height: 14 }}>
@@ -143,12 +154,10 @@ export const CostBreakdownPage = () => {
                         }}
                       />
                     </div>
-                    <span style={{ fontSize: 10, color: today ? "var(--accent)" : "var(--text3)", fontFamily: "var(--font-mono)" }}>
-                      Apr {h.date}
-                    </span>
+                    <span style={{ fontSize: 10, color: today ? "var(--accent)" : "var(--text3)", fontFamily: "var(--font-mono)" }}>{label}</span>
                   </div>
                 );
-              })}
+              }) : <EmptyState text="No AI spend recorded in the last 7 days." />}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--border)" }}>
               <span style={{ fontSize: 12, color: "var(--text3)" }}>7-day total</span>
@@ -162,13 +171,12 @@ export const CostBreakdownPage = () => {
             <SectionTitle>Projections</SectionTitle>
             <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 14 }}>
               {(() => {
-                const trades = stats.total_trades_today || 1;
                 const rows: [string, string][] = [
-                  ["Cost per trade (avg)", fmt.usd(d.total / trades, 3)],
-                  ["Projected daily · 8 trades", fmt.usd((d.total / trades) * 8)],
-                  ["Projected monthly", fmt.usd((d.total / trades) * 8 * 22)],
+                  ["Cost per trade (avg)", avgCostPerTrade > 0 ? fmt.usd(avgCostPerTrade, 3) : "—"],
+                  ["Projected daily · 8 trades", avgCostPerTrade > 0 ? fmt.usd(avgCostPerTrade * 8) : "—"],
+                  ["Projected monthly", avgCostPerTrade > 0 ? fmt.usd(avgCostPerTrade * 8 * 22) : "—"],
                   ["Budget remaining today", fmt.usd(budget - d.total)],
-                  ["Est. trades remaining", `${Math.max(0, Math.floor((budget - d.total) / (d.total / trades)))}`],
+                  ["Est. trades remaining", avgCostPerTrade > 0 ? `${Math.max(0, Math.floor((budget - d.total) / avgCostPerTrade))}` : "—"],
                 ];
                 return rows.map(([k, v], i) => (
                   <div
@@ -191,3 +199,13 @@ export const CostBreakdownPage = () => {
     </PageShell>
   );
 };
+
+const EmptyState = ({ text }: { text: string }) => (
+  <div style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.5 }}>{text}</div>
+);
+
+function formatHistoryDate(value: string): string {
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}

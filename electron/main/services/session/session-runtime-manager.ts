@@ -1,5 +1,5 @@
 import type { ExecutionStage } from "@/lib/types";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { SessionRuntime } from "./session-runtime";
 import type { ApprovalRecheckInput, OrchestratorDeps, SessionRuntimeManagerDeps } from "./session-types";
 

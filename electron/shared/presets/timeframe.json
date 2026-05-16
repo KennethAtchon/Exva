@@ -1,0 +1,77 @@
+[
+  {
+    "id": "intraday",
+    "label": "Intraday",
+    "description": "1h bars, flat by end of session. No overnight exposure.",
+    "summaryBullets": [
+      "Primary timeframe: 1h bars.",
+      "Holding style: intraday flat.",
+      "Target hold: same-day close."
+    ],
+    "values": {
+      "primaryTradingTimeframe": "1h",
+      "holdingStyle": "intraday_flat",
+      "targetHoldDays": null,
+      "maxHoldDays": 1,
+      "timeframeNotes": ""
+    }
+  },
+  {
+    "id": "swing",
+    "label": "Swing",
+    "description": "4h bars, multi-day hold. Closes within 2 weeks.",
+    "summaryBullets": [
+      "Primary timeframe: 4h bars.",
+      "Holding style: multi-day swing.",
+      "Target hold: 3–5 days, max 14 days."
+    ],
+    "values": {
+      "primaryTradingTimeframe": "4h",
+      "holdingStyle": "multi_day_swing",
+      "targetHoldDays": 3,
+      "maxHoldDays": 14,
+      "timeframeNotes": ""
+    }
+  },
+  {
+    "id": "position",
+    "label": "Position",
+    "description": "Daily bars, weeks-long hold. Fundamentals carry weight.",
+    "summaryBullets": [
+      "Primary timeframe: 1d bars.",
+      "Holding style: weeks position.",
+      "Target hold: 2–4 weeks."
+    ],
+    "values": {
+      "primaryTradingTimeframe": "1d",
+      "holdingStyle": "weeks_position",
+      "targetHoldDays": 14,
+      "maxHoldDays": 60,
+      "timeframeNotes": ""
+    }
+  },
+  {
+    "id": "prediction",
+    "label": "Prediction",
+    "description": "Daily bars, hold to event resolution. No fixed time target.",
+    "summaryBullets": [
+      "Primary timeframe: 1d bars.",
+      "Holding style: custom (contract-driven).",
+      "Exit at resolution or thesis invalidation."
+    ],
+    "values": {
+      "primaryTradingTimeframe": "1d",
+      "holdingStyle": "custom",
+      "targetHoldDays": null,
+      "maxHoldDays": null,
+      "timeframeNotes": "Hold to event resolution unless thesis is invalidated early."
+    }
+  },
+  {
+    "id": "custom",
+    "label": "Custom Timeframe",
+    "description": "No preset assumptions — set timeframe fields manually.",
+    "summaryBullets": ["All timeframe fields configured independently."],
+    "values": {}
+  }
+]

@@ -1,10 +1,10 @@
 import { ipcMain } from "electron";
-import { AppError } from "@electron/shared/errors";
-import { channels } from "@electron/shared/channels";
+import { AppError } from "@electron/shared/infra/errors";
+import { channels } from "@electron/shared/ipc/channels";
 import {
   templateCreateInputSchema,
   templateListFiltersSchema,
-} from "@electron/shared/schemas";
+} from "@electron/shared/validation/schemas";
 import { z } from "zod";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";

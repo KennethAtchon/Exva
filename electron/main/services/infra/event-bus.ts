@@ -1,7 +1,7 @@
 import type { BrowserWindow } from "electron";
 import type { SessionRuntimeStatus } from "@/lib/types";
 import type { DashboardStats, EventRow, ExecutionStage, SessionStatus, Trade, TradeDecisionPayload } from "@/lib/types";
-import type { ExvaEventName } from "@electron/shared/channels";
+import type { ExvaEventName } from "@electron/shared/ipc/channels";
 
 export interface ExvaEventMap {
   trade_opened: Trade;

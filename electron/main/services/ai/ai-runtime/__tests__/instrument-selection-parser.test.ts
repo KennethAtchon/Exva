@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { instrumentSelectionSchema, instrumentSelectionToolInputSchema } from "@/lib/schemas";
 import { parseInstrumentSelection } from "../instrument-selection-parser";
 

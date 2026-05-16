@@ -8,9 +8,9 @@ import {
   strategyRulesSaveSchema,
   strategyResearchPostureSaveSchema,
   strategyTimeframeConfigSaveSchema,
-} from "@electron/shared/schemas";
-import { channels } from "@electron/shared/channels";
-import { AppError } from "@electron/shared/errors";
+} from "@electron/shared/validation/schemas";
+import { channels } from "@electron/shared/ipc/channels";
+import { AppError } from "@electron/shared/infra/errors";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
 

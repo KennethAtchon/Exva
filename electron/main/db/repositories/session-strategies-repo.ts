@@ -2,7 +2,7 @@ import type { DbClient } from "../client";
 import type { SessionConfig, SessionStrategy } from "@/lib/types";
 import { eq } from "drizzle-orm";
 import { sessionResearchPosture, sessionRiskConfig, sessionStrategies, sessionTimeframeConfig, sessionTradeRules } from "../schema";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { toSessionConfig, toSessionStrategy } from "./mappers";
 
 export class SessionStrategiesRepo {

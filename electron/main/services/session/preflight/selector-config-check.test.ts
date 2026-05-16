@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/search-providers";
+import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/catalog/search-providers";
 import { selectorConfigCheck } from "./selector-config-check";
 
 describe("selectorConfigCheck", () => {

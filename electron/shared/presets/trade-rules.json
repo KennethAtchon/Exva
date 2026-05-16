@@ -1,0 +1,109 @@
+[
+  {
+    "id": "breakout_long",
+    "label": "Breakout Long",
+    "thesis": "Enter strength only after price clears a meaningful level with follow-through.",
+    "summaryBullets": [
+      "Long-biased breakout structure.",
+      "Trailing exits let winners expand.",
+      "Best when momentum and liquidity are clean."
+    ],
+    "rules": {
+      "rulesPresetId": "breakout_long",
+      "setupType": "breakout",
+      "sideBias": "long_only",
+      "entryStyle": "breakout",
+      "exitStyle": "trailing_atr",
+      "scalingMode": "single_entry"
+    }
+  },
+  {
+    "id": "pullback_trend",
+    "label": "Pullback Trend",
+    "thesis": "Wait for established trends to retrace, then rejoin once continuation confirms.",
+    "summaryBullets": [
+      "Bi-directional if the broader trend supports it.",
+      "Pullback entries reduce chasing.",
+      "Scaling allows layered participation."
+    ],
+    "rules": {
+      "rulesPresetId": "pullback_trend",
+      "setupType": "pullback_trend",
+      "sideBias": "both",
+      "entryStyle": "pullback",
+      "exitStyle": "trailing_atr",
+      "scalingMode": "scale_in_2"
+    }
+  },
+  {
+    "id": "event_entry",
+    "label": "Event Entry",
+    "thesis": "Trade defined event reactions with time-sensitive entries and thesis-based exits.",
+    "summaryBullets": [
+      "Event-driven trigger logic.",
+      "Single-shot execution keeps exposure tight.",
+      "Best when catalysts and timing are explicit."
+    ],
+    "rules": {
+      "rulesPresetId": "event_entry",
+      "setupType": "event_entry",
+      "sideBias": "both",
+      "entryStyle": "event",
+      "exitStyle": "time_based",
+      "scalingMode": "single_entry"
+    }
+  },
+  {
+    "id": "reversal_fade",
+    "label": "Reversal Fade",
+    "thesis": "Fade exhaustion once price shows a credible reversal signal back toward fair value.",
+    "summaryBullets": [
+      "Mean-reversion posture.",
+      "Reversal entries demand confirmation.",
+      "Scaling helps stage into volatile fades."
+    ],
+    "rules": {
+      "rulesPresetId": "reversal_fade",
+      "setupType": "reversal_fade",
+      "sideBias": "both",
+      "entryStyle": "reversal",
+      "exitStyle": "fixed_pct",
+      "scalingMode": "scale_in_2"
+    }
+  },
+  {
+    "id": "probability_edge",
+    "label": "Probability Edge",
+    "thesis": "Only take trades where market odds appear materially mispriced versus evidence.",
+    "summaryBullets": [
+      "Probability-first framing.",
+      "Entry waits for quantified edge.",
+      "Exits often resolve on thesis or contract outcome."
+    ],
+    "rules": {
+      "rulesPresetId": "probability_edge",
+      "setupType": "probability_edge",
+      "sideBias": "both",
+      "entryStyle": "probability_edge",
+      "exitStyle": "market_resolution",
+      "scalingMode": "single_entry"
+    }
+  },
+  {
+    "id": "custom",
+    "label": "Custom Rules",
+    "thesis": "Define your own mechanics for entries, exits, and scaling.",
+    "summaryBullets": [
+      "No preset assumptions beyond the current field values.",
+      "Use rule notes for setup-specific filters and invalidation."
+    ],
+    "rules": {
+      "rulesPresetId": "custom",
+      "setupType": "custom",
+      "sideBias": "both",
+      "entryStyle": "breakout",
+      "exitStyle": "fixed_pct",
+      "scalingMode": "single_entry"
+    }
+  }
+]

@@ -35,7 +35,7 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
     { label: "Daily P&L", value: fmt.pnl(stats.daily_pnl_usd), sub: fmt.pct(stats.daily_pnl_pct), subColor: stats.daily_pnl_usd >= 0 ? "#34d399" : "#f87171", valColor: stats.daily_pnl_usd >= 0 ? "#34d399" : "#f87171" },
     { label: "Win Rate", value: `${Math.round(stats.win_rate_today * 100)}%`, sub: `${stats.closed_trades_today} closed today` },
     { label: "Open Positions", value: stats.open_trades, sub: `${stats.total_trades_today} total today` },
-    { label: "API Spend", value: fmt.usd(stats.daily_api_spend), sub: `of ${fmt.usd(stats.api_budget)} budget`, meter: stats.daily_api_spend / stats.api_budget },
+    { label: "AI Cost", value: fmt.usd(stats.daily_api_spend), sub: `of ${fmt.usd(stats.api_budget)} budget`, meter: stats.api_budget > 0 ? stats.daily_api_spend / stats.api_budget : 0 },
   ];
   return (
     <div style={ds.strip}>

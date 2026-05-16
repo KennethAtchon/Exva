@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import { apiCallLogFiltersSchema, cycleIdSchema, eventFiltersSchema, tradeIdSchema } from "@/lib/schemas";
-import { channels } from "@electron/shared/channels";
+import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
 

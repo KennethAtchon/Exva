@@ -1,5 +1,5 @@
 import type { ExecutionStage, ExecutionStepState } from "@/lib/types";
-import { AppError, type AppErrorCode } from "@electron/shared/errors";
+import { AppError, type AppErrorCode } from "@electron/shared/infra/errors";
 import type { SessionExecutionStepsRepo } from "../../db/repositories/session-execution-steps-repo";
 import type { EventBus } from "../infra/event-bus";
 import type { Logger } from "../infra/log";

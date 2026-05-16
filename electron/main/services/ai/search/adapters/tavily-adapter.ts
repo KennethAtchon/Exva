@@ -1,4 +1,4 @@
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import type { SearchAdapter, SearchToolResult } from "../search-types";
 
 function clampSnippet(text: string, max = 2000): string {

@@ -1,4 +1,4 @@
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { instrumentSelectionSchema, type InstrumentSelection } from "@/lib/schemas";
 import type { ZodIssue } from "zod";
 import type { RunTrace } from "./ai-runtime-types";

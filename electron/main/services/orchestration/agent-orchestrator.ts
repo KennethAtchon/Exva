@@ -1,8 +1,8 @@
 import PQueue from "p-queue";
 import { toLegacySessionConfig, type EventSourceType, type ExecutionStage, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
-import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/session-instrument-classes";
-import { resolveSelectorNoInstrumentRetryMinutes } from "@electron/shared/ai-role-profile";
-import { AppError } from "@electron/shared/errors";
+import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
+import { resolveSelectorNoInstrumentRetryMinutes } from "@electron/shared/ai/ai-role-profile";
+import { AppError } from "@electron/shared/infra/errors";
 import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
 import { resolveSessionInstrumentClasses } from "../session/effective-instrument-classes";

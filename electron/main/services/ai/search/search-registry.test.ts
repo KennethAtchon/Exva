@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBuiltInDuckDuckGoProviderAccount } from "@electron/shared/search-providers";
+import { buildBuiltInDuckDuckGoProviderAccount } from "@electron/shared/catalog/search-providers";
 import { SearchRegistry } from "./search-registry";
 
 describe("SearchRegistry", () => {

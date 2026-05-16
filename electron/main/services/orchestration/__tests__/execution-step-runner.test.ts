@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import type { SessionExecutionStepsRepo } from "../../../db/repositories/session-execution-steps-repo";
 import { EventBus } from "../../infra/event-bus";
 import { ExecutionStepRunner } from "../execution-step-runner";

@@ -1,6 +1,6 @@
 import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
-import { sessionTemplatePayloadSchema, templateCreateInputSchema } from "@electron/shared/schemas";
-import { AppError } from "@electron/shared/errors";
+import { sessionTemplatePayloadSchema, templateCreateInputSchema } from "@electron/shared/validation/schemas";
+import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
 import type { ProviderAccountsRepo } from "../../db/repositories/provider-accounts-repo";
 import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";

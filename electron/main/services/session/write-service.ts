@@ -1,6 +1,6 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
-import { resolveEffectiveInstrumentClasses } from "@electron/shared/session-instrument-classes";
-import { AppError } from "@electron/shared/errors";
+import { resolveEffectiveInstrumentClasses } from "@electron/shared/catalog/session-instrument-classes";
+import { AppError } from "@electron/shared/infra/errors";
 import type { EventsRepo } from "../../db/repositories/events-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
 import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";

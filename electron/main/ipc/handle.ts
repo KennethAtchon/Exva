@@ -1,6 +1,6 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { BrowserWindow } from "electron";
-import { toIpcError } from "@shared/errors";
+import { toIpcError } from "@shared/infra/errors";
 import { createLogger } from "../services/infra/log";
 import { payloadMeta } from "../services/infra/log-safety";
 

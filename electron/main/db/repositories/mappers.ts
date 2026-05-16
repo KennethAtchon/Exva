@@ -22,7 +22,7 @@ import type {
   WorkspacePreferences,
   WorkspaceSession,
 } from "@/lib/types";
-import { createDefaultAiRoleProfileDocument, materializeAiRoleProfileDocument } from "@electron/shared/default-ai-role-profiles";
+import { createDefaultAiRoleProfileDocument, materializeAiRoleProfileDocument } from "@electron/shared/ai/default-ai-role-profiles";
 import { isHoldingStyle, isTradingTimeframe } from "@electron/shared/domain";
 
 type Row = Record<string, unknown>;

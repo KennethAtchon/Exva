@@ -5,7 +5,7 @@ import {
   type SessionStrategyContext,
   type StrategySnapshot,
 } from "@electron/shared/domain";
-import { renderAiRoleProfileMarkdown } from "@electron/shared/ai-role-profile";
+import { renderAiRoleProfileMarkdown } from "@electron/shared/ai/ai-role-profile";
 
 const MAX_NOTES_CHARS = 500;
 const MAX_BRIEF_PROMPT_CHARS = 600;

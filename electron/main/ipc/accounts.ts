@@ -10,9 +10,9 @@ import {
   providerAccountDeleteSchema,
   providerAccountTestSchema,
 } from "@/lib/schemas";
-import { channels } from "@electron/shared/channels";
-import { AppError } from "@electron/shared/errors";
-import { isBuiltInSearchProviderAccount } from "@electron/shared/search-providers";
+import { channels } from "@electron/shared/ipc/channels";
+import { AppError } from "@electron/shared/infra/errors";
+import { isBuiltInSearchProviderAccount } from "@electron/shared/catalog/search-providers";
 import type { AppServices } from "../services/app-services";
 import { serializeBrokerCredentials, tempBrokerAccount } from "./broker-account-helpers";
 import { secretKeys } from "../services/infra/secrets-service";

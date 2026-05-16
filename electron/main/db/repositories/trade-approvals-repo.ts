@@ -2,7 +2,7 @@ import type { DbClient } from "../client";
 import type { InstrumentClass, TradeApproval, TradeSide } from "@/lib/types";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { sessions, tradeApprovals } from "../schema";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { toTradeApproval } from "./mappers";
 
 export interface ApprovalListFilters {

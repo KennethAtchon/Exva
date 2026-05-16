@@ -2,7 +2,7 @@ import { Badge } from "@/components/custom-ui";
 import { Button } from "@/components/ui";
 import type { SessionSummary } from "@/lib/exva";
 import type { ExecutionStage } from "@/lib/types";
-import { getSearchProviderDisplayName } from "@electron/shared/search-providers";
+import { getSearchProviderDisplayName } from "@electron/shared/catalog/search-providers";
 import { SessionExecutionProgress, type SessionProgressState } from "./SessionExecutionProgress";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";

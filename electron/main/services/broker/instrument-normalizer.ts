@@ -1,5 +1,5 @@
 import type { InstrumentClass } from "@/lib/types";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 
 export type CanonicalInstrument = {
   symbol: string;

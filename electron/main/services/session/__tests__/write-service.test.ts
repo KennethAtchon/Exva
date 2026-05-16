@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/session-instrument-classes";
+import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
 import { createTestDb } from "../../../db/test-helpers";
 import { BrokerAccountsRepo } from "../../../db/repositories/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../../db/repositories/broker-routing-repo";

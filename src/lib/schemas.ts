@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { aiRoleProfileDocumentSchema } from "../../electron/shared/ai-role-profile";
+import { aiRoleProfileDocumentSchema } from "../../electron/shared/ai/ai-role-profile";
 import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type TimeframePresetId } from "../../electron/shared/domain";
 
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);

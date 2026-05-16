@@ -10,7 +10,7 @@ import {
   aiRoleProfileDocumentSchema,
   type AiRoleProfileDocument,
   type AiRoleToolMode,
-} from "../../../electron/shared/ai-role-profile";
+} from "../../../electron/shared/ai/ai-role-profile";
 
 const ROLE_LABELS: Record<AgentRole, string> = {
   analyst_technical: "Technical Analyst",

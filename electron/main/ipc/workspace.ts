@@ -1,7 +1,7 @@
 import { ipcMain } from "electron";
-import { AppError } from "@electron/shared/errors";
-import { channels } from "@electron/shared/channels";
-import { workspacePrefsPatchSchema } from "@electron/shared/schemas";
+import { AppError } from "@electron/shared/infra/errors";
+import { channels } from "@electron/shared/ipc/channels";
+import { workspacePrefsPatchSchema } from "@electron/shared/validation/schemas";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
 

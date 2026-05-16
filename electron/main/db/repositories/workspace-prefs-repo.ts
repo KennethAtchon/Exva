@@ -1,7 +1,7 @@
 import type { DbClient } from "../client";
 import type { WorkspacePreferences } from "@/lib/types";
 import { eq } from "drizzle-orm";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { workspacePreferences } from "../schema";
 
 export class WorkspacePreferencesRepo {

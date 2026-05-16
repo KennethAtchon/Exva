@@ -1,5 +1,5 @@
 import type { BrokerAccount } from "@/lib/types";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
 import type { SecretsService } from "../infra/secrets-service";
 import { AlpacaAdapter } from "./adapters/alpaca-adapter";

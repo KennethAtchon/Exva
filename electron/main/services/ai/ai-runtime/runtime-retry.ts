@@ -1,4 +1,4 @@
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { createLogger } from "../../infra/log";
 
 const logger = createLogger("ai-runtime");

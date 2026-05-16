@@ -1,4 +1,4 @@
-import type { AppErrorCode } from "@electron/shared/errors";
+import type { AppErrorCode } from "@electron/shared/infra/errors";
 import type { InstrumentClass, SessionRuntimeStatus, WorkspaceSession } from "@/lib/types";
 import type { AgentRunsRepo } from "../../db/repositories/agent-runs-repo";
 import type { AgentMessagesRepo } from "../../db/repositories/agent-messages-repo";

@@ -1,5 +1,5 @@
 import pino from "pino";
-import { env } from "../main/config/env";
+import { env } from "../../main/config/env";
 
 const redact = [
   "api_key",

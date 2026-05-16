@@ -1,0 +1,108 @@
+[
+  {
+    "id": "trend_hunt",
+    "label": "Trend Hunt",
+    "thesis": "Find persistent trends early and lean on price action to stay in motion.",
+    "summaryBullets": [
+      "Discovery favors trend scans and relative-strength leaders.",
+      "Evidence leans price-action first with confirmation.",
+      "Catalysts help but are not mandatory.",
+      "Fundamentals only need a sanity check."
+    ],
+    "posture": {
+      "posturePresetId": "trend_hunt",
+      "discoveryMode": "trend_scan",
+      "evidenceMode": "price_action_first",
+      "catalystMode": "preferred",
+      "fundamentalStrictness": "sanity_check"
+    }
+  },
+  {
+    "id": "catalyst_momentum",
+    "label": "Catalyst Momentum",
+    "thesis": "Chase clean momentum only when fresh catalysts can keep attention and volume alive.",
+    "summaryBullets": [
+      "Discovery starts from catalyst and news scans.",
+      "Evidence balances narrative with tape confirmation.",
+      "Catalysts are required, not optional.",
+      "Fundamentals only need a quick sanity check."
+    ],
+    "posture": {
+      "posturePresetId": "catalyst_momentum",
+      "discoveryMode": "catalyst_scan",
+      "evidenceMode": "balanced",
+      "catalystMode": "required",
+      "fundamentalStrictness": "sanity_check"
+    }
+  },
+  {
+    "id": "institutional_quality",
+    "label": "Institutional Quality",
+    "thesis": "Wait for durable, high-quality names and demand stronger confirmation before committing.",
+    "summaryBullets": [
+      "Discovery starts from curated quality watchlists.",
+      "Evidence favors confirmation before action.",
+      "Catalysts are optional unless they strengthen the case.",
+      "Fundamental review is deep, not cursory."
+    ],
+    "posture": {
+      "posturePresetId": "institutional_quality",
+      "discoveryMode": "quality_watchlist",
+      "evidenceMode": "confirmation_first",
+      "catalystMode": "preferred",
+      "fundamentalStrictness": "deep_confirmation"
+    }
+  },
+  {
+    "id": "mean_reversion_dislocation",
+    "label": "Mean Reversion Dislocation",
+    "thesis": "Hunt overstretched moves where odds favor a snap-back once panic or euphoria cools.",
+    "summaryBullets": [
+      "Discovery looks for dislocations and exhaustion.",
+      "Evidence waits for reversal confirmation.",
+      "Catalysts are usually not required.",
+      "Fundamentals are a light sanity filter."
+    ],
+    "posture": {
+      "posturePresetId": "mean_reversion_dislocation",
+      "discoveryMode": "mean_reversion_scan",
+      "evidenceMode": "confirmation_first",
+      "catalystMode": "not_required",
+      "fundamentalStrictness": "sanity_check"
+    }
+  },
+  {
+    "id": "prediction_event_edge",
+    "label": "Prediction Event Edge",
+    "thesis": "Trade event contracts where evidence can shift implied probabilities before resolution.",
+    "summaryBullets": [
+      "Discovery focuses on event contracts and resolution timelines.",
+      "Evidence is probability-edge first.",
+      "Catalysts are required because event flow drives repricing.",
+      "Fundamentals are usually not applicable."
+    ],
+    "posture": {
+      "posturePresetId": "prediction_event_edge",
+      "discoveryMode": "event_contract_scan",
+      "evidenceMode": "probability_edge",
+      "catalystMode": "required",
+      "fundamentalStrictness": "not_applicable"
+    }
+  },
+  {
+    "id": "custom",
+    "label": "Custom Style",
+    "thesis": "Blend your own discovery and evidence posture.",
+    "summaryBullets": [
+      "No preset assumptions beyond what you set below.",
+      "Use style notes to define the edge clearly."
+    ],
+    "posture": {
+      "posturePresetId": "custom",
+      "discoveryMode": "custom",
+      "evidenceMode": "balanced",
+      "catalystMode": "preferred",
+      "fundamentalStrictness": "balanced"
+    }
+  }
+]

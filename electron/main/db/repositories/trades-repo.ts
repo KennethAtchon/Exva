@@ -2,7 +2,7 @@ import type { DbClient } from "../client";
 import type { ExecutionMode, InstrumentClass, Trade, TradeStatus } from "@/lib/types";
 import { and, asc, desc, eq, inArray, like, ne, sql } from "drizzle-orm";
 import { agentMessages, sessions, trades } from "../schema";
-import { AppError } from "@electron/shared/errors";
+import { AppError } from "@electron/shared/infra/errors";
 import { toTrade } from "./mappers";
 
 export class TradesRepo {
