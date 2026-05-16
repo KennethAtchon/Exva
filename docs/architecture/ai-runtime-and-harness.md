@@ -48,6 +48,8 @@ graph TB
     Trace --> DB
 ```
 
+
+
 External actors:
 
 - **AgentOrchestrator** — only caller. Picks role, constructs task body, persists results.
@@ -59,19 +61,21 @@ External actors:
 
 ## 3. Core Concepts and Glossary
 
-| Term | Meaning |
-|------|---------|
-| `AgentRole` | One of `instrument_selector`, `analyst_technical`, `analyst_fundamental`, `reviewer`, `decision_maker`. Drives prompt asset, tool policy, output schema. |
-| `RoleToolPolicy` | Static boolean per (role, tool). Source of truth for *what a role is ever allowed to call.* |
-| `HarnessToolAvailability` | Per-run booleans = `RoleToolPolicy` ∩ live infra (search provider configured, broker wired, mock data present). Drives both prompt block and registered tools. |
-| `PromptPack` | Output of `AgentPromptPackBuilder`. Carries the two `RuntimeAgentMessage`s plus `strategySnapshot`, `marketSnapshotJson`, `toolPolicy`, `riskPolicy`. |
-| `RunTrace<T>` | Full execution trace from one provider call: assistant text, optional structured output, audit messages JSON, per-step tool calls, tokens, duration, finish reason. |
-| `AgentRun` | DB row: per-call cost + token + timing summary keyed to `(session, trade)`. |
-| `AgentMessage` | DB row: full reconstructable trace (audit messages, tool calls, thinking, output, strategy snapshot). |
-| `ROLE_HARNESS_CAPS` | Per-role `{maxSteps, spendUsd}`. Currently `{50, 1.0}` for every role. |
-| `terminalToolNames` | Stop conditions matched by name — currently only `submit_candidates` for the selector. |
-| `parseFallback` | True when the structured output schema was not populated and a JSON-from-text recovery was used. |
-| Sandbox mode | Active when the resolved broker adapter is the mock; swaps tool data for fixtures and adds a `## Sandbox Mode` block to the system prompt. |
+
+| Term                      | Meaning                                                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AgentRole`               | One of `instrument_selector`, `analyst_technical`, `analyst_fundamental`, `reviewer`, `decision_maker`. Drives prompt asset, tool policy, output schema.            |
+| `RoleToolPolicy`          | Static boolean per (role, tool). Source of truth for *what a role is ever allowed to call.*                                                                         |
+| `HarnessToolAvailability` | Per-run booleans = `RoleToolPolicy` ∩ live infra (search provider configured, broker wired, mock data present). Drives both prompt block and registered tools.      |
+| `PromptPack`              | Output of `AgentPromptPackBuilder`. Carries the two `RuntimeAgentMessage`s plus `strategySnapshot`, `marketSnapshotJson`, `toolPolicy`, `riskPolicy`.               |
+| `RunTrace<T>`             | Full execution trace from one provider call: assistant text, optional structured output, audit messages JSON, per-step tool calls, tokens, duration, finish reason. |
+| `AgentRun`                | DB row: per-call cost + token + timing summary keyed to `(session, trade)`.                                                                                         |
+| `AgentMessage`            | DB row: full reconstructable trace (audit messages, tool calls, thinking, output, strategy snapshot).                                                               |
+| `ROLE_HARNESS_CAPS`       | Per-role `{maxSteps, spendUsd}`. Currently `{50, 1.0}` for every role.                                                                                              |
+| `terminalToolNames`       | Stop conditions matched by name — currently only `submit_candidates` for the selector.                                                                              |
+| `parseFallback`           | True when the structured output schema was not populated and a JSON-from-text recovery was used.                                                                    |
+| Sandbox mode              | Active when the resolved broker adapter is the mock; swaps tool data for fixtures and adds a `## Sandbox Mode` block to the system prompt.                          |
+
 
 ## 4. High-Level Architecture
 
@@ -118,6 +122,8 @@ graph LR
     Entry --> TraceLayer
     TraceLayer --> DB
 ```
+
+
 
 ### Layer Explanations
 
@@ -188,7 +194,7 @@ graph LR
 - Risk policy is duplicated inside `<trusted_session_context>` so a tampered strategy line cannot silently change the cap the agent sees.
 - Asset loader strips the leading `<!-- version: x.y.z -->` comment; `event_contract_scan` discovery mode swaps `analyst_technical`→`analyst_statistical`, `analyst_fundamental`→`analyst_contextual`.
 
-### 5.3 Tool harness (`harness-tools.ts` + `tools/*`)
+### 5.3 Tool harness (`harness-tools.ts` + `tools/`*)
 
 **Responsibility:** Translate `(RoleToolPolicy, infra state)` into both the `<tool_availability>` prompt block and the actual `ToolSet` passed to the SDK.
 
@@ -304,13 +310,17 @@ erDiagram
     AGENT_MESSAGE }o--|| API_CALL_LOG : "tool calls audited"
 ```
 
-| Entity | Important fields |
-|---|---|
-| `AgentRun` | `id`, `trade_id` (nullable for selector), `agent_type`, `model`, `provider_key`, `finish_reason`, `input_tokens`, `output_tokens`, `cost_usd`, `output_text`, `duration_ms`. |
-| `AgentMessage` | `agent_run_id`, `messages_json` (full SDK reconstruction), `tool_calls_json` (typed step trace), `output_json`, `output_schema_name`, `thinking_json`, `parse_fallback`, `strategy_snapshot_json`, `market_snapshot_json`. |
-| `SessionAiRole` | Per (session, role): `providerKey`, `modelId`, `temperature`, `maxTokens`, `promptSource` (default | session_override), `promptMarkdown`. |
-| `SessionAiRoleProfile` | Per (session, role): `profileJson` — the operating manual rendered into `## Role profile`. |
-| `ApiCallLog` | Per tool execution: provider, cost, latency, sessionId, cycleId, tradeId. Source of `daily_data_spend` and the per-tool spend cap. |
+
+
+
+| Entity                 | Important fields                                                                                                                                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AgentRun`             | `id`, `trade_id` (nullable for selector), `agent_type`, `model`, `provider_key`, `finish_reason`, `input_tokens`, `output_tokens`, `cost_usd`, `output_text`, `duration_ms`.                                               |
+| `AgentMessage`         | `agent_run_id`, `messages_json` (full SDK reconstruction), `tool_calls_json` (typed step trace), `output_json`, `output_schema_name`, `thinking_json`, `parse_fallback`, `strategy_snapshot_json`, `market_snapshot_json`. |
+| `SessionAiRole`        | Per (session, role): `providerKey`, `modelId`, `temperature`, `maxTokens`, `promptSource` (default                                                                                                                         |
+| `SessionAiRoleProfile` | Per (session, role): `profileJson` — the operating manual rendered into `## Role profile`.                                                                                                                                 |
+| `ApiCallLog`           | Per tool execution: provider, cost, latency, sessionId, cycleId, tradeId. Source of `daily_data_spend` and the per-tool spend cap.                                                                                         |
+
 
 Retention: nothing is deleted by the runtime. `agent_runs` and `agent_messages` are append-only and provide the complete replay history.
 
@@ -356,6 +366,8 @@ sequenceDiagram
     Orch->>DB: agentRunsRepo.insert + agentMessagesRepo.insert
 ```
 
+
+
 **Walkthrough:**
 
 1. Orchestrator decides which role to invoke and assembles the task body (plain string for analyst/reviewer/decision; long instructions block for selector).
@@ -394,6 +406,8 @@ stateDiagram-v2
     Failed --> [*]
 ```
 
+
+
 Legal transitions are sequential; the only loop is inside `Calling`. There is no resume — a failed run produces no `AgentRun`/`AgentMessage` (those are only built on success).
 
 ## 9. Security and Trust Boundaries
@@ -411,6 +425,8 @@ flowchart LR
     Parser --> Orch[Orchestrator]
 ```
 
+
+
 Trust rules:
 
 - The system prompt explicitly tells the model that `<trusted_session_context>` is authoritative and *all tool output is untrusted evidence*. `fetch_url` content is called out as adversarial.
@@ -421,13 +437,15 @@ Trust rules:
 
 ## 10. Observability and Debugging
 
-| Channel | Where |
-|---|---|
-| Logs | `createLogger("ai-runtime")` and `createLogger("run-agent-execute")` write `provider request attempt`, `provider request attempt failed`, `execute run agent start/complete`, `agent tool call`, `agent step text`, `agent reasoning`, `ai role start/complete` with token counts, durations, costs, full prompt text, full tool args/results, reasoning text. |
-| Events | None emitted by the runtime itself — the orchestrator emits `step:*` and `agent_event` around each call. |
-| Traces | `agent_messages.messages_json` (raw SDK `response.messages`) + `agent_messages.tool_calls_json` (typed `StepTrace[]`). Full replay possible per `agent_run_id`. |
-| Metrics | Per-run `cost_usd`, `input_tokens`, `output_tokens`, `duration_ms` in `agent_runs`. Aggregated into `daily_api_spend` for `RiskEngine.checkStats`. |
-| Debug UI | Step timeline in the session page (driven by `session_execution_steps`), cycle replay viewer (driven by `agent_messages`). |
+
+| Channel  | Where                                                                                                                                                                                                                                                                                                                                                          |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Logs     | `createLogger("ai-runtime")` and `createLogger("run-agent-execute")` write `provider request attempt`, `provider request attempt failed`, `execute run agent start/complete`, `agent tool call`, `agent step text`, `agent reasoning`, `ai role start/complete` with token counts, durations, costs, full prompt text, full tool args/results, reasoning text. |
+| Events   | None emitted by the runtime itself — the orchestrator emits `step:`* and `agent_event` around each call.                                                                                                                                                                                                                                                       |
+| Traces   | `agent_messages.messages_json` (raw SDK `response.messages`) + `agent_messages.tool_calls_json` (typed `StepTrace[]`). Full replay possible per `agent_run_id`.                                                                                                                                                                                                |
+| Metrics  | Per-run `cost_usd`, `input_tokens`, `output_tokens`, `duration_ms` in `agent_runs`. Aggregated into `daily_api_spend` for `RiskEngine.checkStats`.                                                                                                                                                                                                             |
+| Debug UI | Step timeline in the session page (driven by `session_execution_steps`), cycle replay viewer (driven by `agent_messages`).                                                                                                                                                                                                                                     |
+
 
 ```mermaid
 graph TD
@@ -440,6 +458,8 @@ graph TD
     Runs --> Stats[Dashboard cost stats]
 ```
 
+
+
 ## 11. Deployment and Runtime Environment
 
 - Runtime: Electron main process, Node 20+. AI SDK runs in-process; no separate worker.
@@ -449,17 +469,19 @@ graph TD
 
 ## 12. Design Decisions and Trade-offs
 
-| Decision | Chosen Approach | Alternative | Why |
-|---|---|---|---|
-| Tool authorization | Static per-role policy (`ROLE_TOOL_POLICY`) intersected with infra at run time | Dynamic per-prompt policy | Static policy is auditable, can't be smuggled around by a clever prompt, and lets the prompt advertise tool availability accurately. |
-| Decision maker schema enforcement | `enforceNoTools: true` + Zod schema + text-JSON fallback | Tool-using decision agent | Decision must produce a structured row downstream code can trust. No tools = no untrusted input vector at decision time. |
-| Two retry layers | Provider-call retry (5 attempts, seconds) + step retry (5 attempts, minutes) | Single retry policy | Separates "transient HTTP error" (handle in seconds) from "service-down" (handle in minutes). Lets the orchestrator persist intermediate state between step retries. |
-| SDK `maxRetries: 0` | Disable SDK retry, own it ourselves | Use SDK retry | SDK swallows the underlying error chain and reports "Failed after N attempts" — we need provider status, body, code for diagnostics. |
-| `submit_candidates` as terminal tool | Stop the loop the instant the selector calls it | Let the agent keep iterating | Predictable termination; first valid call wins; matches the cycle-rebuild model where each selector run yields exactly one shortlist. |
-| Tool errors as `{error}` JSON | Never throw out of a tool | Throw on tool failure | Lets the model recover (try a different symbol, abandon). Throwing would force the whole run to be retried. |
-| Selector forced first step | `prepareStep` pins step 0 to `search_web` | Trust the role prompt | Memory-only ticker recall was the dominant failure mode; the structural lock fixes it without a prompt-rewrite arms race. |
-| Strategy snapshot duplicated in prompt | Numeric risk limits appear *both* in `<trusted_session_context>` and as a separate risk-control block | Single rendering | Cheap defense against prompt-injection rewrites of the strategy block. |
-| Sandbox mode disclosure | System prompt tells the model it's a sandbox but instructs it not to disclose | Hide sandbox status | Lets the model evaluate fixtures seriously (no "this is fake, refuse to trade" reflex) while keeping responses indistinguishable from live for downstream code paths. |
+
+| Decision                               | Chosen Approach                                                                                       | Alternative                  | Why                                                                                                                                                                   |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tool authorization                     | Static per-role policy (`ROLE_TOOL_POLICY`) intersected with infra at run time                        | Dynamic per-prompt policy    | Static policy is auditable, can't be smuggled around by a clever prompt, and lets the prompt advertise tool availability accurately.                                  |
+| Decision maker schema enforcement      | `enforceNoTools: true` + Zod schema + text-JSON fallback                                              | Tool-using decision agent    | Decision must produce a structured row downstream code can trust. No tools = no untrusted input vector at decision time.                                              |
+| Two retry layers                       | Provider-call retry (5 attempts, seconds) + step retry (5 attempts, minutes)                          | Single retry policy          | Separates "transient HTTP error" (handle in seconds) from "service-down" (handle in minutes). Lets the orchestrator persist intermediate state between step retries.  |
+| SDK `maxRetries: 0`                    | Disable SDK retry, own it ourselves                                                                   | Use SDK retry                | SDK swallows the underlying error chain and reports "Failed after N attempts" — we need provider status, body, code for diagnostics.                                  |
+| `submit_candidates` as terminal tool   | Stop the loop the instant the selector calls it                                                       | Let the agent keep iterating | Predictable termination; first valid call wins; matches the cycle-rebuild model where each selector run yields exactly one shortlist.                                 |
+| Tool errors as `{error}` JSON          | Never throw out of a tool                                                                             | Throw on tool failure        | Lets the model recover (try a different symbol, abandon). Throwing would force the whole run to be retried.                                                           |
+| Selector forced first step             | `prepareStep` pins step 0 to `search_web`                                                             | Trust the role prompt        | Memory-only ticker recall was the dominant failure mode; the structural lock fixes it without a prompt-rewrite arms race.                                             |
+| Strategy snapshot duplicated in prompt | Numeric risk limits appear *both* in `<trusted_session_context>` and as a separate risk-control block | Single rendering             | Cheap defense against prompt-injection rewrites of the strategy block.                                                                                                |
+| Sandbox mode disclosure                | System prompt tells the model it's a sandbox but instructs it not to disclose                         | Hide sandbox status          | Lets the model evaluate fixtures seriously (no "this is fake, refuse to trade" reflex) while keeping responses indistinguishable from live for downstream code paths. |
+
 
 ## 13. Known Limitations
 
@@ -483,26 +505,29 @@ graph TD
 
 ## 15. File Reference Map
 
-| Area | Key files |
-|---|---|
-| Entry points | `electron/main/services/ai/ai-runtime/runtime.ts` |
-| Prompt assembly | `electron/main/services/ai/prompt-pack-builder.ts`, `electron/main/services/ai/strategy-prompt-context.ts`, `electron/main/services/ai/ai-runtime/runtime-prompt.ts`, `electron/main/services/ai/prompt-asset-loader.ts` |
-| Prompt assets | `electron/prompts/instrument_selector.md`, `analyst_technical.md`, `analyst_fundamental.md`, `analyst_statistical.md`, `analyst_contextual.md`, `reviewer.md`, `decision_maker.md` |
-| Tool harness | `electron/main/services/ai/ai-runtime/harness-tools.ts`, `electron/main/services/ai/tools/{search-tool,market-tools,fetch-url-tool,search-reddit-tool,trending-symbols-tool}.ts` |
-| Provider adapters | `electron/main/services/ai/adapters/{anthropic-adapter,openai-adapter,openrouter-adapter,provider-adapter,run-agent-execute}.ts`, `electron/main/services/ai/provider-registry.ts` |
-| Retry & timeout | `electron/main/services/ai/ai-runtime/runtime-retry.ts` |
-| Output parsers | `electron/main/services/ai/ai-runtime/instrument-selection-parser.ts`, `electron/main/services/ai/ai-runtime/decision-parse.ts` |
-| Trace persistence | `electron/main/services/ai/ai-runtime/runtime-trace.ts`, `electron/main/services/ai/model-pricing.ts` |
-| Type contracts | `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`, `src/lib/schemas.ts` |
-| Search providers | `electron/main/services/ai/search/*`, `electron/main/services/ai/search/adapters/*` |
-| Orchestrator (caller) | `electron/main/services/orchestration/agent-orchestrator.ts` |
+
+| Area                  | Key files                                                                                                                                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Entry points          | `electron/main/services/ai/ai-runtime/runtime.ts`                                                                                                                                                                        |
+| Prompt assembly       | `electron/main/services/ai/prompt-pack-builder.ts`, `electron/main/services/ai/strategy-prompt-context.ts`, `electron/main/services/ai/ai-runtime/runtime-prompt.ts`, `electron/main/services/ai/prompt-asset-loader.ts` |
+| Prompt assets         | `electron/prompts/instrument_selector.md`, `analyst_technical.md`, `analyst_fundamental.md`, `analyst_statistical.md`, `analyst_contextual.md`, `reviewer.md`, `decision_maker.md`                                       |
+| Tool harness          | `electron/main/services/ai/ai-runtime/harness-tools.ts`, `electron/main/services/ai/tools/{search-tool,market-tools,fetch-url-tool,search-reddit-tool,trending-symbols-tool}.ts`                                         |
+| Provider adapters     | `electron/main/services/ai/adapters/{anthropic-adapter,openai-adapter,openrouter-adapter,provider-adapter,run-agent-execute}.ts`, `electron/main/services/ai/provider-registry.ts`                                       |
+| Retry & timeout       | `electron/main/services/ai/ai-runtime/runtime-retry.ts`                                                                                                                                                                  |
+| Output parsers        | `electron/main/services/ai/ai-runtime/instrument-selection-parser.ts`, `electron/main/services/ai/ai-runtime/decision-parse.ts`                                                                                          |
+| Trace persistence     | `electron/main/services/ai/ai-runtime/runtime-trace.ts`, `electron/main/services/ai/model-pricing.ts`                                                                                                                    |
+| Type contracts        | `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`, `src/lib/schemas.ts`                                                                                                                                         |
+| Search providers      | `electron/main/services/ai/search/`*, `electron/main/services/ai/search/adapters/`*                                                                                                                                      |
+| Orchestrator (caller) | `electron/main/services/orchestration/agent-orchestrator.ts`                                                                                                                                                             |
+
 
 ## 16. Documentation Checklist
 
-- [x] System context is explained.
-- [x] High-level architecture diagram is present.
-- [x] Core concepts are defined.
-- [x] Key flows have diagrams and prose.
-- [x] Trust boundaries are explicit.
-- [x] Important entities and relationships are listed.
-- [x] File references point engineers to the code.
+- System context is explained.
+- High-level architecture diagram is present.
+- Core concepts are defined.
+- Key flows have diagrams and prose.
+- Trust boundaries are explicit.
+- Important entities and relationships are listed.
+- File references point engineers to the code.
+
