@@ -1,8 +1,7 @@
-Running into two issues:
+What I want architecture design docs on
 
-The "universe search" is an important aspect of the system and we need to refine it.
-We need to ensure:
-- Once this is selected, we tell the AI to search on ALL the instruments and list out all of them, and search for them online.
-- If the broker we are using doesn't have access to some instruments, we need to let the AI know this. 
+- The entirely of AI runtime harass flow and prompt injection. It needs to fully cover: How we inject prompts, the retry flow, how we pass it on from agents to agents, how the AI marks down what happens in the system, how the AI knows about tools, etc. I want literally EVERYTHING involving the core part of my product (how the AI does its job and what tools and stuff the system provides)
+- The background configuration stuff, how globals are maintained, how capital accumulation differs, etc, all the macro stuff that checks the AI and make sure it doesnt fuck up
 
-Workspace default AI model doesnt work on existing sessions. When we active a default AI mode, then all sessions, when they dont have it, should have it filled automatically.
+I think thats the two big markdowns that I need. You need to provide ALL the information about them in the architecture design. Don't exclude details.
+

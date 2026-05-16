@@ -22,6 +22,7 @@ db/schema.ts + shared/domain.ts   (types, schema)
 ```
 
 Rules:
+
 - `ipc/` never imports another `ipc/` file. Cross-cutting concerns live in services.
 - `services/` never imports `ipc/`. If a service needs to fire an event to the renderer, it goes through `EventBus`, not a direct IPC call.
 - `db/repositories/` never imports `services/` or `ipc/`. Repos are pure persistence.
@@ -34,6 +35,7 @@ Domain subfolders inside `services/` (Phase 10) follow the same rule: `ai/`, `br
 ### 1.1 Service Folder Pattern (when a service is "big")
 
 A service is "big" — and gets its own folder — when **any** of the following is true:
+
 - It owns more than ~150 lines across implementation + helpers.
 - It has a public interface plus one or more concrete implementations or adapters.
 - It owns its own value-object types, error subtypes, schemas, or registries.
@@ -59,6 +61,7 @@ Otherwise, a service stays as a single file (`event-bus.ts`, `notification-servi
 ```
 
 **Rules:**
+
 - `index.ts` is the only file external code imports from. Internal files import each other directly. This makes the public surface explicit and refactor-safe.
 - `<name>-types.ts` holds types that are local to the domain. Cross-domain types stay in `electron/shared/domain.ts`.
 - The adapter interface (`<name>-adapter.ts`) lives next to the concrete adapters; both live under `adapters/` so the domain root stays readable.
@@ -100,6 +103,7 @@ electron/main/services/ai/
 ```
 
 External code only ever writes:
+
 ```typescript
 import { AiRuntime, ProviderRegistry } from "@main/services/ai";
 ```
@@ -159,6 +163,7 @@ The `preflight/` subfolder is itself a small domain. Each check is a pure functi
 ### 1.3 What stays at `services/` root
 
 Only the composition root stays directly under `electron/main/services/`:
+
 - `app-services.ts` — wires repositories, domain services, and IPC-facing singletons.
 
 Everything else lives in a domain or support subfolder (e.g. `ai/`, `broker/`, `session/`, `risk/`, `instrument/`, `infra/` for cross-cutting platform helpers, `orchestration/` for `agent-orchestrator`, `trade-monitor`, and selector-definition hashing). If a single file grows past the "big service" thresholds in §1.1, promote it to a folder following the same pattern.
@@ -172,6 +177,19 @@ Everything else lives in a domain or support subfolder (e.g. `ai/`, `broker/`, `
 - DB column names: `snake_case`. Domain field names: `camelCase`. `mappers.ts` is the only place that bridges the two — never sprinkle conversions across services.
 - Repo files end in `-repo.ts`. Service files end in `-service.ts` (or describe purpose like `agent-orchestrator.ts`). Adapter files end in `-adapter.ts`.
 - One exported class per file unless the classes are tightly coupled (e.g. an interface and its default impl).
+- Barrel files are allowed only at stable boundaries (`services/<domain>/index.ts`, `components/ui/index.ts`). Do not add barrels for internal folders where they hide ownership and create circular-import risk.
+- New shared renderer utilities go in `src/lib/`; new shared main-process utilities go in `electron/main/<domain>/` or `electron/main/infra/` depending on who owns them. Do not create a generic `utils/` dump folder.
+- Prefer colocating code with its owning feature. If a helper is used by exactly one page, modal, or service, keep it next to that feature instead of promoting it to a shared module.
+
+---
+
+## 2.1 Import Discipline
+
+- Import order: external packages first, then aliased internal imports (`@/`, `@main/`, `@shared/`), then relative imports. Keep one blank line between groups.
+- Prefer path aliases over deep relative paths. `../../../` is a smell outside of truly local sibling wiring.
+- Import types with `import type` when the value is not used at runtime.
+- Do not create circular dependencies to "save time." If two modules need each other, move the shared contract downward into a third module.
+- Do not reach across feature boundaries for convenience. If `SessionsPage` needs shared behavior from Strategy code, extract a shared helper or move the logic into the store/service that owns it.
 
 ---
 
@@ -219,6 +237,7 @@ export type AppErrorCode =
 ```
 
 Rules:
+
 - Services throw `AppError` only. Repo-level SQLite errors get wrapped at the service boundary.
 - IPC handlers catch `AppError` and serialize to `{ error: { message, code, details } }`. Any non-`AppError` becomes `{ error: { message: "Internal error", code: "UNKNOWN" } }` with the original logged at `error` level.
 - Renderer code distinguishes by `code`, never by string-matching messages.
@@ -277,7 +296,7 @@ Rules:
 ## 9. IPC Contract Rules
 
 - Every channel is registered as a constant in `electron/shared/channels.ts` and exposed via `electron/preload/exva-api.ts`.
-- The preload file exports a typed `ExvaAPI` object. Renderer code uses `window.exva.*` — never `ipcRenderer` directly.
+- The preload file exports a typed `ExvaAPI` object. Renderer code uses `window.exva.`* — never `ipcRenderer` directly.
 - Every IPC handler:
   1. Validates input via Zod.
   2. Looks up the session/resource if the operation is scoped.
@@ -296,6 +315,51 @@ Rules:
 - Loading and error state lives in the store, not the component.
 - Server state that changes via push events (`approval_resolved`, etc.) is invalidated and refetched in the store's event handler — components do not subscribe to events directly.
 - Pages are thin: layout + selectors + action calls. Components do not own data fetching outside of mount-time `useEffect(() => store.load(), [])`.
+- Stores are the source of truth for async workflows. Components may keep local UI state (`open`, `tab`, `draftText`) but not duplicated server-derived objects that can drift from the store.
+- Avoid mirrored state. If a value can be derived from store state or props during render, derive it instead of copying it into `useState`.
+- Store actions must either succeed and commit one coherent state update, or fail and surface a typed error/loading state. Do not partially mutate store state across multi-step async flows without a clear recovery path.
+- Expensive store bootstrapping (for example fetching provider-model catalogs for every provider) belongs in store actions, not scattered across pages.
+
+### 10.1 React Component Rules
+
+- Prefer function components with hooks. No class components.
+- A component should do one job: present UI, orchestrate a small interaction, or compose a page section. If a component is simultaneously fetching, validating, formatting, and rendering a large tree, split it.
+- Keep pages route-focused and feature components reusable within that route. If a block exceeds roughly 200-250 lines because it owns multiple distinct panels or flows, split it by UI responsibility.
+- Components receive the smallest prop surface that keeps ownership clear. Prefer explicit props over passing a large bag object when only 2-3 fields are used.
+- Derived render values belong in render. Use `useMemo` only for measurable recalculation savings, referential stability required by a child API, or expensive derived collections. Do not wrap every array/map/filter by default.
+- Use `useCallback` only when a stable function identity is required by a memoized child or subscription API. Do not add it pre-emptively.
+- Effects synchronize with external systems (IPC calls, timers, subscriptions, DOM APIs). If an effect only derives state from props/store, it probably should not exist.
+- Every effect must have a cleanup when it registers a timer, listener, subscription, or inflight async process that can outlive the component.
+- Async event handlers and effects must handle the unhappy path. At minimum: clear loading state, surface the failure, and avoid setting state after unmount or after a newer request superseded the old one.
+- Do not hide important business rules in JSX conditionals. If a conditional encodes domain meaning, compute a named boolean or view-model value above the return.
+
+### 10.2 Forms and User Interactions
+
+- Use controlled inputs for forms that persist session, strategy, account, or workspace state. The saved payload must be explicit in React state.
+- Keep raw form state close to the form. Validation, normalization, and payload-shaping helpers can be extracted, but the reader should still be able to trace what is submitted.
+- Disable destructive or duplicate-submit actions while a request is in flight.
+- Validation messaging should be specific and field-local when possible. "Invalid input" is too vague when the real issue is "broker selection must cover every selected instrument class."
+- Preserve drafts while a modal is open; reset form state intentionally on close/open boundaries, not opportunistically inside unrelated effects.
+- When toggles change the meaning of other fields, either clear the now-invalid fields immediately or visibly disable them. Hidden stale state is forbidden.
+
+### 10.3 Styling and UI System Rules
+
+- The renderer is moving toward shadcn primitives plus Tailwind utility classes. New UI work should start from `src/components/ui/*` and compose upward rather than introducing new bespoke base controls.
+- Prefer `className` with tokens/utilities over large inline `style={{ ... }}` objects. Inline style is allowed only for truly dynamic values that cannot be expressed cleanly with existing classes or CSS variables.
+- Reuse existing semantic tokens (`--surface*`, `--text*`, `--accent`, etc.). Do not hardcode one-off colors when a token already communicates the intent.
+- Keep visual variants inside the owning primitive (`Button`, `Badge`, `Tabs`, etc.) when the pattern is broadly reusable. Do not duplicate the same visual recipe across pages.
+- Dialogs, menus, tooltips, tabs, and form controls should use the existing Radix/shadcn accessibility primitives unless there is a documented reason not to.
+- Do not introduce a second styling system. No CSS-in-JS, no ad hoc component library, no parallel token vocabulary.
+- During migration, touching a legacy inline-styled surface does not require a full rewrite, but new code in that file should move toward the shared primitive + token pattern rather than extending the old bespoke pattern.
+
+### 10.4 React Performance and Data Flow
+
+- Optimize only after identifying the hot path. Default to clear code first.
+- Memoize filtered/sorted lists when the calculation is non-trivial or the list is large enough to matter; otherwise prefer direct derivation in render.
+- Keep render trees honest: if a child needs only `session.id` and `session.name`, pass those instead of the whole session object.
+- Do not fire parallel duplicate loads from sibling components for the same resource. The owning store/page loads once and shares the result.
+- Debounce only user-driven noisy actions (search boxes, autosave). Do not debounce normal button-click mutations.
+- Any polling, interval, or streaming UI must document its stop condition and cleanup path in code.
 
 ---
 
@@ -320,6 +384,7 @@ Rules:
 ## 13. Testing
 
 Per phase:
+
 - Each repo has a unit test for happy path + at least one transactional invariant (e.g. `setFocus` atomicity).
 - Each service has a unit test for the primary state transition and the rejection path.
 - Each IPC handler has an integration test that asserts validation rejection + service call + error serialization.
@@ -337,6 +402,11 @@ Per phase:
 - Comments answer "why," not "what." Self-documenting code is preferred. No multi-paragraph docstrings.
 - Dead code is deleted, not commented out. Git history is the archive.
 - No "temporary" exceptions. If a phase needs to skip a rule, it adds a deviation note to the phase doc and a follow-up task.
+- Boolean flags whose meaning is unclear (`isReady`, `data`, `item`, `temp`) should be renamed until the branch condition reads like English. Naming is part of correctness.
+- Prefer guard clauses over deep nesting. Early returns beat pyramid-shaped control flow.
+- Parse once at the boundary, then pass typed values inward. Repeated `typeof`, `?.`, and fallback chains throughout the call stack usually mean ownership is wrong.
+- Helpers must earn their existence. Do not extract a 4-line function used once unless it clarifies a domain concept or removes repeated logic.
+- If a file cannot be understood top-to-bottom without jumping constantly between unrelated concerns, the file is doing too much even if its line count seems acceptable.
 
 ---
 
@@ -398,28 +468,24 @@ export type Env = typeof env;
   }]
   ```
   The rule is disabled inside `env.ts` only.
-
 - **Fail-fast at boot.** Missing or malformed env values crash the main process at startup with a structured Zod error. Never silently fall back.
-
 - **Frozen object.** `env` is `Object.freeze`'d. No runtime mutation. Tests override by re-importing with a different `process.env`, not by mutating.
-
 - **Naming.** All app-specific vars are prefixed `EXVA_`. Standard names (`NODE_ENV`) keep their canonical form.
-
 - **No secrets in env.** Provider API keys, broker credentials, and any user secret live in the OS keychain. The env file holds only configuration: paths, log levels, dev toggles, feature flags. If you are tempted to add `EXVA_ANTHROPIC_API_KEY`, stop — it goes in the keychain via `SecretsService`.
-
-- **Renderer split.** Renderer never imports the main `env`. If the renderer needs a build-time constant, it goes through Vite's `import.meta.env.VITE_*` and is re-exported from `src/config/env.ts` with the same Zod-validated pattern.
-
+- **Renderer split.** Renderer never imports the main `env`. If the renderer needs a build-time constant, it goes through Vite's `import.meta.env.VITE_`* and is re-exported from `src/config/env.ts` with the same Zod-validated pattern.
 - **Test env.** `NODE_ENV=test` is set by `vitest`. Tests using a non-default value set `process.env.X` before importing `env.ts`, or call a `loadEnv()` factory that the module exposes for testability.
 
 ### 16.3 What the config module replaces
 
-| Before (forbidden) | After |
-|---|---|
-| `process.env.ANTHROPIC_API_KEY` (anywhere) | adapter receives secret via constructor; secret loaded from keychain |
-| `process.env.NODE_ENV === "development"` | `env.isDev` |
-| `process.env.LOG_LEVEL ?? "info"` | `env.logLevel` |
-| `process.env.DB_PATH ?? defaultDbPath()` | `env.dbPath ?? defaultDbPath()` (read once in client setup) |
-| Conditional `if (process.env.DEBUG_X)` flags scattered | a typed `env.devToggles.*` field |
+
+| Before (forbidden)                                     | After                                                                |
+| ------------------------------------------------------ | -------------------------------------------------------------------- |
+| `process.env.ANTHROPIC_API_KEY` (anywhere)             | adapter receives secret via constructor; secret loaded from keychain |
+| `process.env.NODE_ENV === "development"`               | `env.isDev`                                                          |
+| `process.env.LOG_LEVEL ?? "info"`                      | `env.logLevel`                                                       |
+| `process.env.DB_PATH ?? defaultDbPath()`               | `env.dbPath ?? defaultDbPath()` (read once in client setup)          |
+| Conditional `if (process.env.DEBUG_X)` flags scattered | a typed `env.devToggles.`* field                                     |
+
 
 ### 16.4 Phase ownership
 
@@ -439,6 +505,7 @@ Add `electron/main/config/env.ts` to **Phase 0 "Files Created"**. Every later ph
 ## 18. Phase-by-Phase Discipline
 
 Each phase document must contain:
+
 1. **Goal** — one paragraph.
 2. **Hard Problems** — atomicity, races, lifecycle pitfalls. Empty list is allowed but must be explicit.
 3. **Files Created / Modified** — exact paths.

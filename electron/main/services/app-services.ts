@@ -1,5 +1,4 @@
 import type { App } from "electron";
-import { buildBuiltInDuckDuckGoProviderAccount, BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/catalog/search-providers";
 import { createDbClient } from "@main/db/client";
 import { AgentRunsRepo } from "../db/repositories/agent-runs-repo";
 import { AgentMessagesRepo } from "../db/repositories/agent-messages-repo";
@@ -141,19 +140,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     instrumentCache: new InstrumentCacheRepo(db),
     globalPresets: new GlobalPresetsRepo(db),
   };
-  const builtInSearchProvider = buildBuiltInDuckDuckGoProviderAccount();
-  repos.providerAccounts.upsert({
-    id: builtInSearchProvider.id,
-    name: builtInSearchProvider.name,
-    category: builtInSearchProvider.category,
-    providerType: builtInSearchProvider.providerType,
-    secretRef: builtInSearchProvider.secretRef,
-    metadataJson: builtInSearchProvider.metadataJson,
-    isConfigured: builtInSearchProvider.isConfigured,
-  });
-  if (!repos.workspacePreferences.get().defaultSearchProviderId) {
-    repos.workspacePreferences.update({ defaultSearchProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID });
-  }
   const secrets = new SecretsService();
   const brokerRegistry = new BrokerRegistry(repos.brokerAccounts, secrets);
   const instrumentNormalizer = new InstrumentNormalizer();
