@@ -35,27 +35,31 @@ This change eliminates the global capital pool concept, introduces a Broker tab 
 
 ## 3. Goals
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Capital truth | Dashboard numbers always reflect real broker account balances, not user-entered estimates |
-| 2 | Broker account as authority | All capital checks, risk calculations, and conflict enforcement happen at the broker account level |
-| 3 | Multi-account clarity | A session with 3 connected accounts shows per-account breakdown; total is the sum |
-| 4 | Shared account detection | The system detects when two sessions share a broker account and surfaces this to the user |
-| 5 | Real-time conflict prevention | Two sessions cannot trade the same symbol on the same broker account simultaneously |
-| 6 | Broker tab | Users can navigate directly to broker accounts to see health, sessions, and allocations |
-| 7 | Clean elimination of old model | `capitalAllocationMode`, `globalCapitalPoolUsd`, and session-level `capitalLimitUsd` are removed |
+
+| #   | Goal                           | Success Looks Like                                                                                 |
+| --- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
+| 1   | Capital truth                  | Dashboard numbers always reflect real broker account balances, not user-entered estimates          |
+| 2   | Broker account as authority    | All capital checks, risk calculations, and conflict enforcement happen at the broker account level |
+| 3   | Multi-account clarity          | A session with 3 connected accounts shows per-account breakdown; total is the sum                  |
+| 4   | Shared account detection       | The system detects when two sessions share a broker account and surfaces this to the user          |
+| 5   | Real-time conflict prevention  | Two sessions cannot trade the same symbol on the same broker account simultaneously                |
+| 6   | Broker tab                     | Users can navigate directly to broker accounts to see health, sessions, and allocations            |
+| 7   | Clean elimination of old model | `capitalAllocationMode`, `globalCapitalPoolUsd`, and session-level `capitalLimitUsd` are removed   |
+
 
 ---
 
 ## 4. Non-Goals
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Multi-user / team broker sharing | This is a personal trading app; shared accounts are within a single user's sessions only |
-| 2 | Automatic capital rebalancing across sessions | Allocations are manually set by the user; the system does not auto-rebalance |
-| 3 | Cross-broker arbitrage or netting | Each broker account is treated as independent; no cross-broker position netting |
-| 4 | Fractional share / lot-size normalization | Instrument normalizer handles this; out of scope for capital model |
-| 5 | Historical capital curve or NAV tracking | Metrics are point-in-time; historical charting is a future feature |
+
+| #   | Non-Goal                                      | Reason                                                                                   |
+| --- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 1   | Multi-user / team broker sharing              | This is a personal trading app; shared accounts are within a single user's sessions only |
+| 2   | Automatic capital rebalancing across sessions | Allocations are manually set by the user; the system does not auto-rebalance             |
+| 3   | Cross-broker arbitrage or netting             | Each broker account is treated as independent; no cross-broker position netting          |
+| 4   | Fractional share / lot-size normalization     | Instrument normalizer handles this; out of scope for capital model                       |
+| 5   | Historical capital curve or NAV tracking      | Metrics are point-in-time; historical charting is a future feature                       |
+
 
 ---
 
@@ -134,6 +138,8 @@ flowchart TD
     UI -->|jump to| SA2
 ```
 
+
+
 The broker account sits at the center of all capital and conflict logic. Sessions connect to broker accounts and receive allocations from them. Both risk layers must pass before an order reaches the broker. The Brokers tab provides a broker-first view complementing the session-first view on the Sessions tab.
 
 ---
@@ -193,26 +199,30 @@ Broker Settings — [Broker Name]
 
 **Key UI elements:**
 
-| Element | Type | Label / Content | Behavior |
-|---------|------|-----------------|----------|
-| Balance | Display + badge | "$12,450.00 · 4m ago" | Clicking refresh icon triggers balance fetch |
-| Session list | Link rows | "Session A · $5,000 allocated" | Click jumps to that session's detail page |
-| Shared warning | Badge | "Shared — 2 sessions" | Appears when 2+ active sessions use this broker |
-| Allocation bar | Progress bar | Percentage of balance allocated | Visual only |
-| Session cap | Indicator | "3 / 10 sessions" | Red if at cap; clicking opens broker settings |
-| Settings gear | Icon button | ⚙ | Expands inline broker settings panel |
-| Add Broker Account | Button | "Add Broker Account" | Opens existing broker add flow |
+
+| Element            | Type            | Label / Content                 | Behavior                                        |
+| ------------------ | --------------- | ------------------------------- | ----------------------------------------------- |
+| Balance            | Display + badge | "$12,450.00 · 4m ago"           | Clicking refresh icon triggers balance fetch    |
+| Session list       | Link rows       | "Session A · $5,000 allocated"  | Click jumps to that session's detail page       |
+| Shared warning     | Badge           | "Shared — 2 sessions"           | Appears when 2+ active sessions use this broker |
+| Allocation bar     | Progress bar    | Percentage of balance allocated | Visual only                                     |
+| Session cap        | Indicator       | "3 / 10 sessions"               | Red if at cap; clicking opens broker settings   |
+| Settings gear      | Icon button     | ⚙                               | Expands inline broker settings panel            |
+| Add Broker Account | Button          | "Add Broker Account"            | Opens existing broker add flow                  |
+
 
 **States:**
 
-| State | Trigger | What the user sees |
-|-------|---------|--------------------|
-| Loading | Initial page load | Skeleton cards |
-| Empty | No broker accounts | "No broker accounts configured. Add one to get started." |
-| Balance stale | Last fetch > configured refresh interval | Yellow badge on balance: "stale" |
-| Disconnected | `testConnection()` failed | Red "Disconnected" badge, balance shows last known value with stale indicator |
-| At session cap | Sessions = maxSessions | Red "At capacity" badge, new session assignment blocked |
-| Over-allocated | Sum of allocations > balance | Red warning: "Over-allocated — reduce allocations" |
+
+| State          | Trigger                                  | What the user sees                                                            |
+| -------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
+| Loading        | Initial page load                        | Skeleton cards                                                                |
+| Empty          | No broker accounts                       | "No broker accounts configured. Add one to get started."                      |
+| Balance stale  | Last fetch > configured refresh interval | Yellow badge on balance: "stale"                                              |
+| Disconnected   | `testConnection()` failed                | Red "Disconnected" badge, balance shows last known value with stale indicator |
+| At session cap | Sessions = maxSessions                   | Red "At capacity" badge, new session assignment blocked                       |
+| Over-allocated | Sum of allocations > balance             | Red warning: "Over-allocated — reduce allocations"                            |
+
 
 ---
 
@@ -242,13 +252,15 @@ Session Broker Panel
 
 **Key UI elements:**
 
-| Element | Type | Label / Content | Behavior |
-|---------|------|-----------------|----------|
-| Allocation input | Number input | "$5,000" | Validates against broker free capital |
-| Broker balance | Read-only | "$12,450 available" | From balance cache |
-| Free on broker | Read-only | "$7,450 free" | Balance minus all active allocations on this broker |
-| Total capital | Computed display | "$15,000 total" | Sum of all broker allocations for this session |
-| Over-allocation warning | Alert | "Allocation exceeds broker free capital" | Shown if allocated > free |
+
+| Element                 | Type             | Label / Content                          | Behavior                                            |
+| ----------------------- | ---------------- | ---------------------------------------- | --------------------------------------------------- |
+| Allocation input        | Number input     | "$5,000"                                 | Validates against broker free capital               |
+| Broker balance          | Read-only        | "$12,450 available"                      | From balance cache                                  |
+| Free on broker          | Read-only        | "$7,450 free"                            | Balance minus all active allocations on this broker |
+| Total capital           | Computed display | "$15,000 total"                          | Sum of all broker allocations for this session      |
+| Over-allocation warning | Alert            | "Allocation exceeds broker free capital" | Shown if allocated > free                           |
+
 
 ---
 
@@ -308,6 +320,8 @@ sequenceDiagram
     UI-->>User: Shows updated broker panel with new row
 ```
 
+
+
 **Step-by-step:**
 
 1. User opens a session and navigates to the Broker section.
@@ -339,6 +353,8 @@ sequenceDiagram
     UI-->>User: Start or show error
 ```
 
+
+
 **Alternate / Error Paths:**
 
 - **If broker disconnected:** "Broker [Name] is unreachable. Check credentials or network."
@@ -364,6 +380,8 @@ sequenceDiagram
     AI->>Adapter: placeOrder() [only if both layers pass]
 ```
 
+
+
 **Failure paths:**
 
 - **If instrument conflict detected at order time:** Order is blocked. Session emits an event. AI runtime marks the candidate as conflicted and moves to next candidate.
@@ -373,17 +391,19 @@ sequenceDiagram
 
 ## 10. Data Visible to the User
 
-| User-facing item | Meaning | Editable? | Source of truth |
-|------------------|---------|-----------|-----------------|
-| Broker balance | Real cash/buying power in the broker account | No | Broker adapter (cached) |
-| Allocation | How much of a broker account this session may use | Yes | `session_broker_assignments.allocated_usd` |
-| Free capital | Broker balance minus all active session allocations on that broker | No | Computed |
-| Session cap | Max concurrent sessions allowed on this broker | Yes — per broker, 1–50, default 10 | `broker_accounts.max_sessions` |
-| Allocation enforcement | Whether over-allocation blocks orders or only warns | Yes — per broker (default Hard block), overrideable at workspace level | `broker_accounts.allocation_enforcement` / `workspace_preferences.allocation_enforcement_override` |
-| Balance refresh interval | How often the broker balance auto-refreshes | Yes — per broker, 1–60 min, default 5 min | `broker_accounts.balance_refresh_interval_min` |
-| Shared indicator | Whether 2+ active sessions use the same broker account | No | Computed |
-| Total session capital | Sum of all allocations across all broker accounts for a session | No | Computed |
-| Conflict status | Whether a symbol held by another session blocks this session | No | Computed at preflight and order time |
+
+| User-facing item         | Meaning                                                            | Editable?                                                              | Source of truth                                                                                    |
+| ------------------------ | ------------------------------------------------------------------ | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Broker balance           | Real cash/buying power in the broker account                       | No                                                                     | Broker adapter (cached)                                                                            |
+| Allocation               | How much of a broker account this session may use                  | Yes                                                                    | `session_broker_assignments.allocated_usd`                                                         |
+| Free capital             | Broker balance minus all active session allocations on that broker | No                                                                     | Computed                                                                                           |
+| Session cap              | Max concurrent sessions allowed on this broker                     | Yes — per broker, 1–50, default 10                                     | `broker_accounts.max_sessions`                                                                     |
+| Allocation enforcement   | Whether over-allocation blocks orders or only warns                | Yes — per broker (default Hard block), overrideable at workspace level | `broker_accounts.allocation_enforcement` / `workspace_preferences.allocation_enforcement_override` |
+| Balance refresh interval | How often the broker balance auto-refreshes                        | Yes — per broker, 1–60 min, default 5 min                              | `broker_accounts.balance_refresh_interval_min`                                                     |
+| Shared indicator         | Whether 2+ active sessions use the same broker account             | No                                                                     | Computed                                                                                           |
+| Total session capital    | Sum of all allocations across all broker accounts for a session    | No                                                                     | Computed                                                                                           |
+| Conflict status          | Whether a symbol held by another session blocks this session       | No                                                                     | Computed at preflight and order time                                                               |
+
 
 ---
 
@@ -413,36 +433,40 @@ No role differentiation. All users see all broker accounts and sessions. This is
 
 ## 13. Copy and Labels
 
-| Location | Final copy | Notes |
-|----------|------------|-------|
-| Brokers tab nav item | "Brokers" | Short, matches Sessions |
-| Balance freshness badge | "Updated 4m ago" | Shows time since last fetch |
-| Stale balance badge | "Stale · tap to refresh" | When >15 min old |
-| Over-allocated warning | "Over-allocated — free capital is $X,XXX but $Y,YYY allocated" | In broker card and session broker panel |
-| Shared broker badge | "Shared — N sessions" | Shown when 2+ active sessions |
-| At-cap badge | "At capacity (N/N)" | Red badge on broker card; N is the configured cap |
-| Warn-only mode badge | "Warn only · over-allocation allowed" | Shown in broker settings when enforcement = warn only |
-| Enforcement setting: hard | "Hard block — orders stop when allocation is used up" | In broker settings panel |
-| Enforcement setting: warn | "Warn only — orders continue but you'll be notified" | In broker settings panel |
-| Conflict block message | "SYMBOL is held by [Session Name] on this broker. Resolve before trading." | In preflight and order rejection event |
-| Free capital label | "Free: $X,XXX" | Below allocation input in session broker panel |
-| Allocation input placeholder | "$0" | In session broker panel |
-| Total capital display | "Total: $XX,XXX across N brokers" | Bottom of session broker panel |
-| Preflight error: over-allocated | "[Broker Name] has $X,XXX free but this session requests $Y,YYY." | Preflight failure modal |
-| Preflight error: at cap | "[Broker Name] is at its session limit (N active sessions). Increase the cap in Broker Settings or stop another session." | Preflight failure modal |
-| Preflight error: instrument conflict | "[Session Name] already holds [SYMBOL] on [Broker Name]. Stop that session or remove the symbol." | Preflight failure modal |
-| Empty broker tab | "No broker accounts yet. Add one to connect Exva to your trading account." | Empty state |
+
+| Location                             | Final copy                                                                                                                | Notes                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Brokers tab nav item                 | "Brokers"                                                                                                                 | Short, matches Sessions                               |
+| Balance freshness badge              | "Updated 4m ago"                                                                                                          | Shows time since last fetch                           |
+| Stale balance badge                  | "Stale · tap to refresh"                                                                                                  | When >15 min old                                      |
+| Over-allocated warning               | "Over-allocated — free capital is $X,XXX but $Y,YYY allocated"                                                            | In broker card and session broker panel               |
+| Shared broker badge                  | "Shared — N sessions"                                                                                                     | Shown when 2+ active sessions                         |
+| At-cap badge                         | "At capacity (N/N)"                                                                                                       | Red badge on broker card; N is the configured cap     |
+| Warn-only mode badge                 | "Warn only · over-allocation allowed"                                                                                     | Shown in broker settings when enforcement = warn only |
+| Enforcement setting: hard            | "Hard block — orders stop when allocation is used up"                                                                     | In broker settings panel                              |
+| Enforcement setting: warn            | "Warn only — orders continue but you'll be notified"                                                                      | In broker settings panel                              |
+| Conflict block message               | "SYMBOL is held by [Session Name] on this broker. Resolve before trading."                                                | In preflight and order rejection event                |
+| Free capital label                   | "Free: $X,XXX"                                                                                                            | Below allocation input in session broker panel        |
+| Allocation input placeholder         | "$0"                                                                                                                      | In session broker panel                               |
+| Total capital display                | "Total: $XX,XXX across N brokers"                                                                                         | Bottom of session broker panel                        |
+| Preflight error: over-allocated      | "[Broker Name] has $X,XXX free but this session requests $Y,YYY."                                                         | Preflight failure modal                               |
+| Preflight error: at cap              | "[Broker Name] is at its session limit (N active sessions). Increase the cap in Broker Settings or stop another session." | Preflight failure modal                               |
+| Preflight error: instrument conflict | "[Session Name] already holds [SYMBOL] on [Broker Name]. Stop that session or remove the symbol."                         | Preflight failure modal                               |
+| Empty broker tab                     | "No broker accounts yet. Add one to connect Exva to your trading account."                                                | Empty state                                           |
+
 
 ---
 
 ## 14. Metrics and Success Criteria
 
-| Goal | Metric | Baseline | Target | How measured |
-|------|--------|----------|--------|--------------|
-| Capital truth | % of sessions where allocated ≤ real broker balance at session start | Unknown | 100% | Preflight pass rate |
-| Conflict prevention | Instrument conflicts caught at order time (not just preflight) | 0 (not measured) | 100% of real-time conflicts caught | Order rejection events |
-| Broker tab adoption | % of users who visit Brokers tab within 7 days | 0% (new) | >60% | Navigation events |
-| Over-allocation rate | Sessions where sum-allocations > broker balance | Unknown | <5% | Balance vs allocation check |
+
+| Goal                 | Metric                                                               | Baseline         | Target                             | How measured                |
+| -------------------- | -------------------------------------------------------------------- | ---------------- | ---------------------------------- | --------------------------- |
+| Capital truth        | % of sessions where allocated ≤ real broker balance at session start | Unknown          | 100%                               | Preflight pass rate         |
+| Conflict prevention  | Instrument conflicts caught at order time (not just preflight)       | 0 (not measured) | 100% of real-time conflicts caught | Order rejection events      |
+| Broker tab adoption  | % of users who visit Brokers tab within 7 days                       | 0% (new)         | >60%                               | Navigation events           |
+| Over-allocation rate | Sessions where sum-allocations > broker balance                      | Unknown          | <5%                                | Balance vs allocation check |
+
 
 ---
 
@@ -488,6 +512,7 @@ No. Draft sessions do not consume broker capacity or allocation. Only active and
 No open questions. All resolved.
 
 **Resolved decisions:**
+
 - Paper vs live caps: same defaults (10). Paper sessions should mirror production constraints to prevent false confidence.
 - Workspace-level `allocationEnforcement` override: **yes, added** — a single workspace setting that overrides all broker-level enforcement. Useful for switching the whole app to warn-only during testing or development without touching every broker.
 - Allocation enforcement: configurable per broker (Hard block default, Warn only opt-in), overrideable at workspace level.
@@ -500,10 +525,11 @@ No open questions. All resolved.
 
 ## 17. Acceptance Checklist
 
-- [ ] The feature solves the stated user problem (capital truth, broker-centric).
-- [ ] All primary and secondary user flows are documented.
-- [ ] In-scope and out-of-scope boundaries are explicit.
-- [ ] The user-visible states are fully listed.
-- [ ] The copy section contains real strings.
-- [ ] Edge cases cover mid-session state changes, concurrent sessions, and zero-balance scenarios.
-- [ ] Open questions are called out clearly.
+- The feature solves the stated user problem (capital truth, broker-centric).
+- All primary and secondary user flows are documented.
+- In-scope and out-of-scope boundaries are explicit.
+- The user-visible states are fully listed.
+- The copy section contains real strings.
+- Edge cases cover mid-session state changes, concurrent sessions, and zero-balance scenarios.
+- Open questions are called out clearly.
+

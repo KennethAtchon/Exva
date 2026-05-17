@@ -36,26 +36,30 @@ No backwards compatibility is required. All old fields are deleted, not deprecat
 
 ## 3. Goals
 
-| # | Goal | Done Means |
-|---|------|------------|
-| 1 | Schema models broker-centric capital | `sessions.capitalLimitUsd` removed; `session_broker_assignments.allocated_usd` exists; `broker_accounts.max_sessions`, `balance_cache_usd`, `balance_cached_at` exist; `workspace_preferences.capital_allocation_mode` and `global_capital_pool_usd` removed |
-| 2 | Balance is fetched from adapters and cached | `BrokerBalanceCacheService` fetches on session start and periodically; stale threshold = 5 min |
-| 3 | Allocation check gates session start | `broker-allocation-check.ts` preflight step replaces `capital-pool-check.ts` and runs for every session regardless of mode |
-| 4 | Allocation gate at order time | `BrokerAllocationGate.checkOrderFits()` is called in orchestration after layer-1 risk approval, before `adapter.placeOrder()` |
-| 5 | Instrument conflicts enforced at order time | `BrokerAllocationGate.checkInstrumentConflict()` called in same path as goal 4 |
-| 6 | Brokers IPC surface | New IPC channels expose broker account list with live balances, allocations, and session membership |
-| 7 | Old capital model code deleted | No remaining references to `capitalAllocationMode`, `globalCapitalPool`, `capitalLimitUsd` (session field) |
+
+| #   | Goal                                        | Done Means                                                                                                                                                                                                                                                   |
+| --- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Schema models broker-centric capital        | `sessions.capitalLimitUsd` removed; `session_broker_assignments.allocated_usd` exists; `broker_accounts.max_sessions`, `balance_cache_usd`, `balance_cached_at` exist; `workspace_preferences.capital_allocation_mode` and `global_capital_pool_usd` removed |
+| 2   | Balance is fetched from adapters and cached | `BrokerBalanceCacheService` fetches on session start and periodically; stale threshold = 5 min                                                                                                                                                               |
+| 3   | Allocation check gates session start        | `broker-allocation-check.ts` preflight step replaces `capital-pool-check.ts` and runs for every session regardless of mode                                                                                                                                   |
+| 4   | Allocation gate at order time               | `BrokerAllocationGate.checkOrderFits()` is called in orchestration after layer-1 risk approval, before `adapter.placeOrder()`                                                                                                                                |
+| 5   | Instrument conflicts enforced at order time | `BrokerAllocationGate.checkInstrumentConflict()` called in same path as goal 4                                                                                                                                                                               |
+| 6   | Brokers IPC surface                         | New IPC channels expose broker account list with live balances, allocations, and session membership                                                                                                                                                          |
+| 7   | Old capital model code deleted              | No remaining references to `capitalAllocationMode`, `globalCapitalPool`, `capitalLimitUsd` (session field)                                                                                                                                                   |
+
 
 ---
 
 ## 4. Non-Goals
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Streaming balance updates | Balance is polled; real-time streaming requires broker WebSocket support that not all adapters have |
-| 2 | Cross-broker netting or portfolio analytics | Each broker account is independent; portfolio span is future work |
-| 3 | Migrating existing `capitalLimitUsd` values to allocations | No backwards compat — fresh allocation on first edit post-migration |
-| 4 | Changing `RiskEngine` (layer 1) logic | Layer 1 is session-config based and stays; layer 2 is the new broker-account check |
+
+| #   | Non-Goal                                                   | Reason                                                                                              |
+| --- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 1   | Streaming balance updates                                  | Balance is polled; real-time streaming requires broker WebSocket support that not all adapters have |
+| 2   | Cross-broker netting or portfolio analytics                | Each broker account is independent; portfolio span is future work                                   |
+| 3   | Migrating existing `capitalLimitUsd` values to allocations | No backwards compat — fresh allocation on first edit post-migration                                 |
+| 4   | Changing `RiskEngine` (layer 1) logic                      | Layer 1 is session-config based and stays; layer 2 is the new broker-account check                  |
+
 
 ---
 
@@ -77,6 +81,8 @@ graph TD
     RiskEngine -->|no layer 2| BrokerAdapter
     DashboardIPC --> StatsRepo[stats-repo\n uses capitalLimitUsd as fallback]
 ```
+
+
 
 Current: capital enforcement is either absent (default mode) or a manual global ceiling. No layer between risk approval and order placement checks broker account capacity.
 
@@ -108,9 +114,12 @@ graph TD
     BrokerCapitalSvc --> AssignmentsRepo[SessionBrokerAssignmentsRepo enhanced]
 ```
 
+
+
 ### 6.1 Renderer
 
 **New: Brokers tab (`src/pages/brokers/` or `src/components/brokers/`)**
+
 - Route: `/brokers`
 - Fetches broker account list via new `exva.brokerAccounts.list()` preload method
 - Polls every 30 seconds for balance freshness
@@ -119,16 +128,19 @@ graph TD
 - Jump-to-session: navigate to `/sessions/{sessionId}`
 
 **Modified: Session detail broker panel**
+
 - Replace single `capitalLimitUsd` input with a list of broker assignments, each with `allocatedUsd` input
 - Add broker balance and free capital as read-only labels per assignment
 - Show total session capital (sum of allocations) at bottom
 - Call `exva.brokerAccounts.getBalance(brokerAccountId)` to show current balance when user opens edit mode
 
 **Modified: Dashboard store (`src/store/sessionStore.ts`)**
+
 - Remove references to `capitalLimitUsd` in portfolio value display
 - `portfolio_value_source: "session_capital_limit"` is no longer a valid state; render only `"broker"` sourced values
 
 **New loading/error states:**
+
 - Balance stale (>5 min): yellow indicator with "Stale — tap to refresh"
 - Broker disconnected: red badge, last known balance displayed greyed out
 - Over-allocated: orange warning on broker card and session broker panel
@@ -151,10 +163,12 @@ brokerAccounts: {
 ```
 
 **Modified preload:**
+
 - `session.brokerAssignments.replace(sessionId, assignments: BrokerAssignment[])` — `BrokerAssignment` now includes `allocatedUsd`
 - Remove `workspace.updatePreferences` support for `capitalAllocationMode` and `globalCapitalPoolUsd`
 
 **New IPC file:** `electron/main/ipc/broker-accounts.ts`
+
 - Registers `brokerAccounts.*` handlers
 - Delegates to `BrokerCapitalService`
 
@@ -163,6 +177,7 @@ brokerAccounts: {
 **New: `BrokerCapitalService` (`electron/main/services/broker/broker-capital-service.ts`)**
 
 Owns the broker-account-level capital model:
+
 - `listWithState(): BrokerAccountWithState[]` — returns accounts with cached balance, active allocations by session, free capital
 - `getDetail(brokerAccountId: string): BrokerAccountDetail` — full detail including sessions using this broker
 - `getAllocationsForBroker(brokerAccountId: string): SessionAllocation[]` — active sessions + their allocatedUsd
@@ -174,6 +189,7 @@ Owns the broker-account-level capital model:
 **New: `BrokerBalanceCacheService` (`electron/main/services/broker/broker-balance-cache-service.ts`)**
 
 Manages the balance cache in `broker_accounts.balance_cache_usd` / `balance_cached_at`:
+
 - `getBalance(brokerAccountId: string): Promise<number>` — returns cached if fresh (within `balanceRefreshIntervalMin`), otherwise fetches and updates
 - `refreshBalance(brokerAccountId: string): Promise<number>` — always fetches, updates cache; on adapter error, retains stale value and propagates error to caller
 - `refreshAll(brokerAccountIds: string[]): Promise<void>` — called on session start for all assigned brokers; failures surface as preflight errors
@@ -183,6 +199,7 @@ Manages the balance cache in `broker_accounts.balance_cache_usd` / `balance_cach
 **New: `BrokerAllocationGate` (`electron/main/services/risk/broker-allocation-gate.ts`)**
 
 Layer 2 check between `RiskEngine.validateDecision()` and `BrokerAdapter.placeOrder()`:
+
 - `checkOrderFits(brokerAccountId: string, sessionId: string, sizeUsd: number): AllocationGateResult`
   - Computes: free allocation = `allocatedUsd` (for this session) - open position size on this broker from this session
   - Resolves effective enforcement: workspace `allocation_enforcement_override` takes precedence; falls back to `broker_accounts.allocation_enforcement`
@@ -195,6 +212,7 @@ Layer 2 check between `RiskEngine.validateDecision()` and `BrokerAdapter.placeOr
 **Modified: `CapitalReservationService`**
 
 Dramatically simplified. The global pool logic is removed entirely:
+
 - Keep: `reserveForOrder`, `releaseOnClose`, `releaseOnCancel`, `releaseOnFailure`, `convertApprovalToOpenOrder`, `convertOrderToPosition` — these track in-flight capital within the `capital_reservations` table (still useful for concurrent order management within a session)
 - Remove: `checkSessionStartFits`, `checkOrderFits` — replaced by `BrokerCapitalService` and `BrokerAllocationGate`
 - Remove: dependency on `WorkspacePreferencesRepo` for capital mode
@@ -202,6 +220,7 @@ Dramatically simplified. The global pool logic is removed entirely:
 **Modified: `BrokerRoutingService`**
 
 No routing logic changes. Gains one new method:
+
 - `getAssignedAccountIds(sessionId: string): string[]` — wraps `sessionBrokerAssignmentsRepo.listBrokerAccountIds()`
 
 Used by `BrokerCapitalService` to enumerate which brokers a session uses.
@@ -209,6 +228,7 @@ Used by `BrokerCapitalService` to enumerate which brokers a session uses.
 **Modified: `AgentOrchestrator` / `ExecutionStepRunner`**
 
 In the order placement flow, after `RiskEngine.validateDecision()` passes, call:
+
 ```ts
 const gateResult = brokerAllocationGate.checkOrderFits(brokerAccountId, sessionId, order.sizeUsd);
 if (!gateResult.ok) { /* reject, emit event, skip candidate */ }
@@ -221,11 +241,13 @@ Then proceed to `adapter.placeOrder()`.
 ### 6.4 Persistence and Repositories
 
 **Modified: `SessionBrokerAssignmentsRepo`**
+
 - Add `allocatedUsd: number` field to `replaceAssignments` and `listBrokerAccountIds` queries
 - New method: `listAssignments(sessionId: string): { brokerAccountId: string; allocatedUsd: number }[]`
 - New method: `sumAllocatedUsdForBroker(brokerAccountId: string, activeSessionIds: string[]): number`
 
 **Modified: `BrokerAccountsRepo`**
+
 - New method: `updateBalanceCache(id: string, balanceUsd: number, cachedAt: string): void`
 - New method: `getBalanceCache(id: string): { balanceCacheUsd: number | null; balanceCachedAt: string | null }`
 - New method: `updateSettings(id: string, patch: { maxSessions?: number; allocationEnforcement?: "hard" | "warn"; balanceRefreshIntervalMin?: number }): void`
@@ -237,50 +259,62 @@ Then proceed to `adapter.placeOrder()`.
 
 ### 7.1 Entities / Tables
 
-| Table / Entity | Change | Notes |
-|----------------|--------|-------|
-| `broker_accounts` | Add `max_sessions`, `balance_cache_usd`, `balance_cached_at` | Broker owns its session cap and balance cache |
-| `session_broker_assignments` | Add `allocated_usd` | Per-assignment allocation replaces session-level capital |
-| `sessions` | Remove `capital_limit_usd` | No longer session-level; now sum of broker allocations |
-| `workspace_preferences` | Remove `capital_allocation_mode`, `global_capital_pool_usd` | Concept eliminated |
-| `capital_reservations` | No structural change | Still used for in-flight reservation tracking within a session |
+
+| Table / Entity               | Change                                                       | Notes                                                          |
+| ---------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------- |
+| `broker_accounts`            | Add `max_sessions`, `balance_cache_usd`, `balance_cached_at` | Broker owns its session cap and balance cache                  |
+| `session_broker_assignments` | Add `allocated_usd`                                          | Per-assignment allocation replaces session-level capital       |
+| `sessions`                   | Remove `capital_limit_usd`                                   | No longer session-level; now sum of broker allocations         |
+| `workspace_preferences`      | Remove `capital_allocation_mode`, `global_capital_pool_usd`  | Concept eliminated                                             |
+| `capital_reservations`       | No structural change                                         | Still used for in-flight reservation tracking within a session |
+
 
 ### 7.2 Fields
 
-**`broker_accounts` — new fields:**
+`**broker_accounts` — new fields:**
 
-| Field | Type | Nullable | Default | Meaning |
-|-------|------|----------|---------|---------|
-| `max_sessions` | integer | No | 10 | Max concurrent active sessions allowed on this broker (1–50) |
-| `allocation_enforcement` | text | No | `"hard"` | `"hard"` blocks orders when allocation exhausted; `"warn"` allows with warning |
-| `balance_refresh_interval_min` | integer | No | 5 | Auto-refresh interval in minutes (1–60) |
-| `balance_cache_usd` | real | Yes | null | Last known balance from `getAccountBalance()` |
-| `balance_cached_at` | text (ISO) | Yes | null | When the cache was last refreshed |
 
-**`session_broker_assignments` — new fields:**
+| Field                          | Type       | Nullable | Default  | Meaning                                                                        |
+| ------------------------------ | ---------- | -------- | -------- | ------------------------------------------------------------------------------ |
+| `max_sessions`                 | integer    | No       | 10       | Max concurrent active sessions allowed on this broker (1–50)                   |
+| `allocation_enforcement`       | text       | No       | `"hard"` | `"hard"` blocks orders when allocation exhausted; `"warn"` allows with warning |
+| `balance_refresh_interval_min` | integer    | No       | 5        | Auto-refresh interval in minutes (1–60)                                        |
+| `balance_cache_usd`            | real       | Yes      | null     | Last known balance from `getAccountBalance()`                                  |
+| `balance_cached_at`            | text (ISO) | Yes      | null     | When the cache was last refreshed                                              |
 
-| Field | Type | Nullable | Default | Meaning |
-|-------|------|----------|---------|---------|
-| `allocated_usd` | real | No | 0 | How much of this broker's capital this session may use |
+
+`**session_broker_assignments` — new fields:**
+
+
+| Field           | Type | Nullable | Default | Meaning                                                |
+| --------------- | ---- | -------- | ------- | ------------------------------------------------------ |
+| `allocated_usd` | real | No       | 0       | How much of this broker's capital this session may use |
+
 
 **Removed from `sessions`:**
 
-| Field | Reason |
-|-------|--------|
+
+| Field               | Reason                                                        |
+| ------------------- | ------------------------------------------------------------- |
 | `capital_limit_usd` | Replaced by sum of `session_broker_assignments.allocated_usd` |
+
 
 **Removed from `workspace_preferences`:**
 
-| Field | Reason |
-|-------|--------|
+
+| Field                     | Reason             |
+| ------------------------- | ------------------ |
 | `capital_allocation_mode` | Concept eliminated |
 | `global_capital_pool_usd` | Concept eliminated |
 
+
 **Added to `workspace_preferences`:**
 
-| Field | Type | Nullable | Default | Meaning |
-|-------|------|----------|---------|---------|
-| `allocation_enforcement_override` | text | Yes | null | When set (`"hard"` or `"warn"`), overrides all broker-level `allocation_enforcement` settings. When null, each broker uses its own setting. |
+
+| Field                             | Type | Nullable | Default | Meaning                                                                                                                                     |
+| --------------------------------- | ---- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `allocation_enforcement_override` | text | Yes      | null    | When set (`"hard"` or `"warn"`), overrides all broker-level `allocation_enforcement` settings. When null, each broker uses its own setting. |
+
 
 ### 7.3 Relationships
 
@@ -320,7 +354,10 @@ erDiagram
     BROKER_ACCOUNTS ||--o{ TRADES : "executed on"
 ```
 
+
+
 **Rules:**
+
 - One session can have 0–N broker assignments (must have ≥1 to start)
 - One broker account can serve 0–`maxSessions` active sessions simultaneously
 - `allocated_usd` must be ≤ `balance_cache_usd` at time of session start (preflight); mid-session drift is warned but not blocked
@@ -363,6 +400,7 @@ type BrokerAccountWithState = {
 ```
 
 **Failure cases:**
+
 - No failure — returns empty array if no brokers configured
 
 ---
@@ -374,16 +412,19 @@ type BrokerAccountWithState = {
 **Caller:** Brokers tab "refresh" button, session start preflight
 
 **Input:**
+
 ```ts
 type Input = { brokerAccountId: string };
 ```
 
 **Output:**
+
 ```ts
 type Output = { balanceUsd: number; cachedAt: string };
 ```
 
 **Failure cases:**
+
 - Broker unreachable: `AppError("BROKER_UNREACHABLE")` — UI shows error toast, stale balance retained
 
 ---
@@ -395,6 +436,7 @@ type Output = { balanceUsd: number; cachedAt: string };
 **Caller:** Brokers tab inline settings panel
 
 **Input:**
+
 ```ts
 type Input = {
   brokerAccountId: string;
@@ -405,12 +447,14 @@ type Input = {
 ```
 
 **Validation rules:**
+
 - `maxSessions`: integer, 1–50
 - `allocationEnforcement`: must be `"hard"` or `"warn"`
 - `balanceRefreshIntervalMin`: integer, 1–60
 - `maxSessions` cannot be reduced below current active session count on this broker
 
 **Failure cases:**
+
 - Any field out of range: `AppError("VALIDATION_FAILED")` with field name in details
 - `maxSessions` below active count: `AppError("VALIDATION_FAILED", "Cannot reduce cap below N active sessions")`
 
@@ -421,6 +465,7 @@ type Input = {
 **Purpose:** Replace broker assignments for a session, now including `allocatedUsd` per assignment.
 
 **Input:**
+
 ```ts
 type BrokerAssignment = {
   brokerAccountId: string;
@@ -434,11 +479,13 @@ type Input = {
 ```
 
 **Validation rules:**
+
 - `allocatedUsd` ≥ 0 for each assignment
 - Total `allocatedUsd` across all assignments is informational — not validated against broker balance here (that happens at session start preflight)
 - Cannot update assignments on an active session that has open trades on a removed broker
 
 **Failure cases:**
+
 - Broker not found: `AppError("NOT_FOUND")`
 - Open trades on removed broker: `AppError("VALIDATION_FAILED", "Cannot remove broker with open positions")`
 
@@ -474,15 +521,17 @@ sequenceDiagram
     SessionSvc-->>UI: Start or error
 ```
 
+
+
 **Walkthrough:**
 
 1. User starts a session. `runPreflight` runs the standard check sequence.
 2. `broker-allocation-check.ts` (new) calls `BrokerBalanceCacheService.refreshAll()` for all broker accounts assigned to this session.
 3. Each broker adapter's `getAccountBalance()` is called. Results stored in `broker_accounts.balance_cache_usd`.
 4. `BrokerCapitalService.checkSessionStartFits(sessionId)` checks for each broker:
-   - `freeCapital = balance - sumAllocatedUsdForBroker(brokerAccountId, otherActiveSessionIds)`
-   - If `session.allocatedUsd > freeCapital` → fail
-   - If `activeSessionCount >= maxSessions` → fail
+  - `freeCapital = balance - sumAllocatedUsdForBroker(brokerAccountId, otherActiveSessionIds)`
+  - If `session.allocatedUsd > freeCapital` → fail
+  - If `activeSessionCount >= maxSessions` → fail
 5. Instrument conflict check runs (enhanced, same as before but now checks all assigned brokers).
 6. If all pass → session starts.
 
@@ -511,7 +560,10 @@ sequenceDiagram
     Orchestrator->>Adapter: placeOrder()
 ```
 
+
+
 **Failure paths:**
+
 - **Layer 1 deny:** Same as today — order skipped, candidate marked as risk-blocked.
 - **Over-allocated (Layer 2):** Order blocked. Session event emitted: `BROKER_ALLOCATION_EXHAUSTED`. AI runtime skips candidate.
 - **Instrument conflict (Layer 2):** Order blocked. Session event emitted: `INSTRUMENT_CONFLICT`. Event includes conflicting session name so user can identify who holds it.
@@ -537,6 +589,8 @@ sequenceDiagram
     IPC-->>UI: Updated balance
     UI-->>UI: Re-render broker card
 ```
+
+
 
 ---
 
@@ -564,12 +618,16 @@ stateDiagram-v2
     Paused --> Draining: session stopped while paused
 ```
 
+
+
 Transitions that are **blocked by state:**
+
 - `Unallocated → Active`: blocked — must allocate first
 - `Active → Released`: blocked if open positions exist (must drain first)
 - Adding a new session assignment to a broker at `maxSessions` capacity: blocked
 
 Side effects during transitions:
+
 - `Unallocated → Allocated`: `session_broker_assignments` row inserted
 - `Allocated → Active`: `BrokerBalanceCacheService.refreshBalance()` triggered
 - `Active → Draining`: session stop recorded; allocation count remains in active sum until drain complete
@@ -579,38 +637,40 @@ Side effects during transitions:
 
 ## 11. File-Level Change Plan
 
-| File / Area | Change |
-|-------------|--------|
-| `electron/main/db/schema.ts` | Add `maxSessions`, `balanceCacheUsd`, `balanceCachedAt` to `brokerAccounts`; add `allocatedUsd` to `sessionBrokerAssignments`; remove `capitalLimitUsd` from `sessions`; remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `workspacePreferences` |
-| `electron/main/db/migrations/` | New migration file for all schema changes |
-| `electron/main/db/repositories/broker-accounts-repo.ts` | Add `updateBalanceCache`, `getBalanceCache`, `updateMaxSessions` |
-| `electron/main/db/repositories/session-broker-assignments-repo.ts` | Add `allocatedUsd` to insert/list; add `sumAllocatedUsdForBroker`, `listAssignments` |
-| `electron/main/db/repositories/workspace-prefs-repo.ts` | Remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `get()` and `update()` |
-| `electron/main/services/broker/broker-capital-service.ts` | **NEW** — owns broker-level capital state |
-| `electron/main/services/broker/broker-balance-cache-service.ts` | **NEW** — fetches + caches balances via adapter |
-| `electron/main/services/risk/broker-allocation-gate.ts` | **NEW** — Layer 2 order gate |
-| `electron/main/services/risk/capital-reservation-service.ts` | Remove `checkSessionStartFits`, `checkOrderFits`, `WorkspacePreferencesRepo` dependency |
-| `electron/main/services/session/preflight/broker-allocation-check.ts` | **NEW** — replaces `capital-pool-check.ts` |
-| `electron/main/services/session/preflight/capital-pool-check.ts` | **DELETE** |
-| `electron/main/services/session/preflight/index.ts` | Replace `capital-pool` step with `broker-allocation` step |
-| `electron/main/services/session/preflight/instrument-conflict-check.ts` | Keep unchanged (preflight use); `BrokerAllocationGate` handles order-time |
-| `electron/main/services/orchestration/execution-step-runner.ts` | Insert `BrokerAllocationGate` calls after `RiskEngine.validateDecision()` |
-| `electron/main/services/app-services.ts` | Wire `BrokerCapitalService`, `BrokerBalanceCacheService`, `BrokerAllocationGate` |
-| `electron/main/ipc/broker-accounts.ts` | **NEW** — registers `brokerAccounts:list`, `refreshBalance`, `updateSettings` handlers |
-| `electron/main/ipc/register.ts` | Register `broker-accounts.ts` handlers |
-| `electron/main/ipc/session.ts` | Update `brokerAssignments:replace` to pass `allocatedUsd` |
-| `electron/main/ipc/dashboard.ts` | Remove `"session_capital_limit"` source logic; total balance = sum of broker caches |
-| `electron/main/ipc/workspace.ts` | Remove `capitalAllocationMode`, `globalCapitalPoolUsd`; add `allocationEnforcementOverride` to update payload |
-| `electron/shared/ipc/channels.ts` | Add `brokerAccounts.*` channels |
-| `electron/preload/exva-api.ts` | Add `brokerAccounts.*` preload methods; update `session.brokerAssignments.replace` type |
-| `electron/shared/domain/workspace.ts` | Remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `WorkspacePreferences` type |
-| `src/lib/types.ts` | Remove `capitalLimitUsd` from session type; update `WorkspacePreferences`; add `BrokerAccountWithState` |
-| `src/store/sessionStore.ts` | Remove `capitalLimitUsd` usage; update broker assignment store calls |
-| `src/store/workspaceStore.ts` | Remove capital allocation mode fields |
-| `src/pages/brokers/` | **NEW** — Brokers tab page + broker card components |
-| `src/components/session/BrokerPanel.tsx` | Replace single capital input with per-broker allocation rows |
-| `src/components/dashboard/` | Update portfolio value display; remove global pool references |
-| `src/lib/exva.ts` | Add `brokerAccounts` API surface to client wrapper |
+
+| File / Area                                                             | Change                                                                                                                                                                                                                                                      |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `electron/main/db/schema.ts`                                            | Add `maxSessions`, `balanceCacheUsd`, `balanceCachedAt` to `brokerAccounts`; add `allocatedUsd` to `sessionBrokerAssignments`; remove `capitalLimitUsd` from `sessions`; remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `workspacePreferences` |
+| `electron/main/db/migrations/`                                          | New migration file for all schema changes                                                                                                                                                                                                                   |
+| `electron/main/db/repositories/broker-accounts-repo.ts`                 | Add `updateBalanceCache`, `getBalanceCache`, `updateMaxSessions`                                                                                                                                                                                            |
+| `electron/main/db/repositories/session-broker-assignments-repo.ts`      | Add `allocatedUsd` to insert/list; add `sumAllocatedUsdForBroker`, `listAssignments`                                                                                                                                                                        |
+| `electron/main/db/repositories/workspace-prefs-repo.ts`                 | Remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `get()` and `update()`                                                                                                                                                                          |
+| `electron/main/services/broker/broker-capital-service.ts`               | **NEW** — owns broker-level capital state                                                                                                                                                                                                                   |
+| `electron/main/services/broker/broker-balance-cache-service.ts`         | **NEW** — fetches + caches balances via adapter                                                                                                                                                                                                             |
+| `electron/main/services/risk/broker-allocation-gate.ts`                 | **NEW** — Layer 2 order gate                                                                                                                                                                                                                                |
+| `electron/main/services/risk/capital-reservation-service.ts`            | Remove `checkSessionStartFits`, `checkOrderFits`, `WorkspacePreferencesRepo` dependency                                                                                                                                                                     |
+| `electron/main/services/session/preflight/broker-allocation-check.ts`   | **NEW** — replaces `capital-pool-check.ts`                                                                                                                                                                                                                  |
+| `electron/main/services/session/preflight/capital-pool-check.ts`        | **DELETE**                                                                                                                                                                                                                                                  |
+| `electron/main/services/session/preflight/index.ts`                     | Replace `capital-pool` step with `broker-allocation` step                                                                                                                                                                                                   |
+| `electron/main/services/session/preflight/instrument-conflict-check.ts` | Keep unchanged (preflight use); `BrokerAllocationGate` handles order-time                                                                                                                                                                                   |
+| `electron/main/services/orchestration/execution-step-runner.ts`         | Insert `BrokerAllocationGate` calls after `RiskEngine.validateDecision()`                                                                                                                                                                                   |
+| `electron/main/services/app-services.ts`                                | Wire `BrokerCapitalService`, `BrokerBalanceCacheService`, `BrokerAllocationGate`                                                                                                                                                                            |
+| `electron/main/ipc/broker-accounts.ts`                                  | **NEW** — registers `brokerAccounts:list`, `refreshBalance`, `updateSettings` handlers                                                                                                                                                                      |
+| `electron/main/ipc/register.ts`                                         | Register `broker-accounts.ts` handlers                                                                                                                                                                                                                      |
+| `electron/main/ipc/session.ts`                                          | Update `brokerAssignments:replace` to pass `allocatedUsd`                                                                                                                                                                                                   |
+| `electron/main/ipc/dashboard.ts`                                        | Remove `"session_capital_limit"` source logic; total balance = sum of broker caches                                                                                                                                                                         |
+| `electron/main/ipc/workspace.ts`                                        | Remove `capitalAllocationMode`, `globalCapitalPoolUsd`; add `allocationEnforcementOverride` to update payload                                                                                                                                               |
+| `electron/shared/ipc/channels.ts`                                       | Add `brokerAccounts.`* channels                                                                                                                                                                                                                             |
+| `electron/preload/exva-api.ts`                                          | Add `brokerAccounts.*` preload methods; update `session.brokerAssignments.replace` type                                                                                                                                                                     |
+| `electron/shared/domain/workspace.ts`                                   | Remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `WorkspacePreferences` type                                                                                                                                                                     |
+| `src/lib/types.ts`                                                      | Remove `capitalLimitUsd` from session type; update `WorkspacePreferences`; add `BrokerAccountWithState`                                                                                                                                                     |
+| `src/store/sessionStore.ts`                                             | Remove `capitalLimitUsd` usage; update broker assignment store calls                                                                                                                                                                                        |
+| `src/store/workspaceStore.ts`                                           | Remove capital allocation mode fields                                                                                                                                                                                                                       |
+| `src/pages/brokers/`                                                    | **NEW** — Brokers tab page + broker card components                                                                                                                                                                                                         |
+| `src/components/session/BrokerPanel.tsx`                                | Replace single capital input with per-broker allocation rows                                                                                                                                                                                                |
+| `src/components/dashboard/`                                             | Update portfolio value display; remove global pool references                                                                                                                                                                                               |
+| `src/lib/exva.ts`                                                       | Add `brokerAccounts` API surface to client wrapper                                                                                                                                                                                                          |
+
 
 ---
 
@@ -651,7 +711,7 @@ Side effects during transitions:
 ### Phase 3 — IPC + Preload
 
 - Create `broker-accounts.ts` IPC handlers (`list`, `refreshBalance`, `setMaxSessions`)
-- Add `brokerAccounts.*` channels to `channels.ts`
+- Add `brokerAccounts.`* channels to `channels.ts`
 - Expose `brokerAccounts.*` in `exva-api.ts`
 - Update session broker assignment IPC to carry `allocatedUsd`
 - Remove capital pool IPC from workspace handlers
@@ -728,13 +788,15 @@ Side effects during transitions:
 
 ## 15. Risks and Trade-offs
 
-| Risk / Trade-off | Impact | Mitigation |
-|------------------|--------|------------|
-| Migration `allocatedUsd` default | Existing sessions get `allocatedUsd = 0.5 * broker.balance_cache_usd` (50% of broker balance at migration time). If broker balance is not yet cached, defaults to 0 and shows migration prompt. | Run `getAccountBalance()` for each broker during migration; use 50% of result as starting allocation. Log a warning and default to 0 if fetch fails. **TODO:** make this dynamic — compute proportional allocation based on how much existing sessions are actively consuming, rather than a flat 50% split. |
-| Balance cache can be stale mid-session; real broker balance may have dropped | Risk engine may allow an order that broker will reject | Layer 2 uses `allocatedUsd` not live balance during a session — broker adapter will reject at `placeOrder()` and existing error handling catches it |
-| Removing `capitalLimitUsd` breaks any code path that reads it for risk math | RiskEngine uses `config.max_position_usd` not `capitalLimitUsd`; session stats don't use it | Audit all reads of `capitalLimitUsd` before deleting column — grep confirms only dashboard fallback uses it |
-| Two sessions issuing concurrent orders for the same symbol on same broker — race condition | Both pass layer-2 conflict check, both reach `placeOrder()` | Accept this race; the broker will reject the duplicate (or fill both). Log both. True serialization would require a distributed lock, which is over-engineered for a desktop app. Document the known race window. |
-| Deleting `shared_global_pool` mode removes a feature users may have configured | Any workspace with `capitalAllocationMode = "shared_global_pool"` loses that config silently | Migration sets `allocatedUsd` heuristically from `capitalLimitUsd` (e.g., `allocatedUsd = session.capitalLimitUsd`) for active sessions; log a warning |
+
+| Risk / Trade-off                                                                           | Impact                                                                                                                                                                                          | Mitigation                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Migration `allocatedUsd` default                                                           | Existing sessions get `allocatedUsd = 0.5 * broker.balance_cache_usd` (50% of broker balance at migration time). If broker balance is not yet cached, defaults to 0 and shows migration prompt. | Run `getAccountBalance()` for each broker during migration; use 50% of result as starting allocation. Log a warning and default to 0 if fetch fails. **TODO:** make this dynamic — compute proportional allocation based on how much existing sessions are actively consuming, rather than a flat 50% split. |
+| Balance cache can be stale mid-session; real broker balance may have dropped               | Risk engine may allow an order that broker will reject                                                                                                                                          | Layer 2 uses `allocatedUsd` not live balance during a session — broker adapter will reject at `placeOrder()` and existing error handling catches it                                                                                                                                                          |
+| Removing `capitalLimitUsd` breaks any code path that reads it for risk math                | RiskEngine uses `config.max_position_usd` not `capitalLimitUsd`; session stats don't use it                                                                                                     | Audit all reads of `capitalLimitUsd` before deleting column — grep confirms only dashboard fallback uses it                                                                                                                                                                                                  |
+| Two sessions issuing concurrent orders for the same symbol on same broker — race condition | Both pass layer-2 conflict check, both reach `placeOrder()`                                                                                                                                     | Accept this race; the broker will reject the duplicate (or fill both). Log both. True serialization would require a distributed lock, which is over-engineered for a desktop app. Document the known race window.                                                                                            |
+| Deleting `shared_global_pool` mode removes a feature users may have configured             | Any workspace with `capitalAllocationMode = "shared_global_pool"` loses that config silently                                                                                                    | Migration sets `allocatedUsd` heuristically from `capitalLimitUsd` (e.g., `allocatedUsd = session.capitalLimitUsd`) for active sessions; log a warning                                                                                                                                                       |
+
 
 ---
 
@@ -743,6 +805,7 @@ Side effects during transitions:
 No open questions. All resolved.
 
 **Resolved decisions:**
+
 - Paper vs live caps: same defaults (10). Match paper to prod constraints.
 - Workspace-level enforcement override: **added** — `workspace_preferences.allocation_enforcement_override` (nullable). When set, overrides all per-broker `allocation_enforcement` values. `BrokerAllocationGate` checks workspace override first.
 - Migration `allocatedUsd`: **50% of broker balance at migration time**. Fetch balance during migration; `floor(balance * 0.5)`. Fall back to 0 if fetch fails. **TODO:** make dynamic (proportional to actual session consumption) in a future iteration.
@@ -755,11 +818,12 @@ No open questions. All resolved.
 
 ## 17. Done Checklist
 
-- [ ] Proposed architecture is fully described.
-- [ ] Data model changes are explicit (adds and removes both listed).
-- [ ] IPC/API contracts are explicit.
-- [ ] Critical flows have diagrams and prose.
-- [ ] Invariants and legal state transitions are listed.
-- [ ] File-level implementation areas are named.
-- [ ] Test plan covers happy path and failure path.
-- [ ] Risks include the known concurrency race and migration impact.
+- Proposed architecture is fully described.
+- Data model changes are explicit (adds and removes both listed).
+- IPC/API contracts are explicit.
+- Critical flows have diagrams and prose.
+- Invariants and legal state transitions are listed.
+- File-level implementation areas are named.
+- Test plan covers happy path and failure path.
+- Risks include the known concurrency race and migration impact.
+

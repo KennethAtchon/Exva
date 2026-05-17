@@ -29,6 +29,8 @@ flowchart TD
   H --> K
 ```
 
+
+
 In plain English:
 
 1. Base role prompts come from `electron/prompts/*.md`.
@@ -318,23 +320,25 @@ If you are tuning the selector and `search_web` seems missing, inspect this laye
 
 ## Source Of Truth By Concern
 
-| Concern | Main files | Notes |
-|---|---|---|
-| Base role wording | `electron/prompts/*.md` | Per-role role/objective text |
-| Shared runtime wording | `electron/main/services/ai/prompt-instructions.json` | Safety/tool-policy/output-contract text |
-| Prompt assembly shape | `electron/main/services/ai/prompt-pack-builder.ts` | Controls final message layout |
-| Strategy context in prompts | `electron/main/services/ai/strategy-prompt-context.ts` | Controls what session context the model sees |
-| Default role behavior | `electron/shared/ai/default-ai-role-profiles.ts` | Tool modes, evidence rules, selector defaults |
-| Role profile schema | `electron/shared/ai/ai-role-profile.ts` | Valid fields for role profile JSON |
-| Session model/provider config | `electron/main/db/schema.ts`, `electron/main/db/repositories/session-ai-roles-repo.ts` | DB-backed active role settings |
-| Workspace default model | `electron/main/db/repositories/workspace-prefs-repo.ts`, `electron/main/ipc/strategy.ts` | Seeds new sessions and backfills blanks |
-| Provider connection/model lists | `electron/main/services/ai/provider-registry.ts`, `electron/main/services/ai/adapters/*.ts` | What providers exist and how models are listed |
-| Runtime budgets and loop controls | `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`, `electron/main/services/ai/adapters/run-agent-execute.ts` | Step budget, spend budget, loop guard |
-| Cost model | `electron/main/services/ai/model-pricing.ts` | Estimated token-cost table |
-| Strategy presets (source) | `electron/shared/presets/*.json` | Edit here, then reset DB to apply |
-| Strategy presets (runtime) | `global_presets`, `risk_presets`, `timeframe_presets`, `research_posture_presets`, `trade_rule_presets` DB tables | Seeded from JSON; queried at session creation and via IPC |
-| Prompt override behavior | `electron/main/services/ai/ai-runtime/runtime-prompt.ts`, `electron/main/services/session/session-strategy-context-service.ts` | Default prompt vs session override |
-| Prompt path override | `electron/main/config/env.ts` | `EXVA_PROMPTS_DIR_OVERRIDE` |
+
+| Concern                           | Main files                                                                                                                     | Notes                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| Base role wording                 | `electron/prompts/*.md`                                                                                                        | Per-role role/objective text                              |
+| Shared runtime wording            | `electron/main/services/ai/prompt-instructions.json`                                                                           | Safety/tool-policy/output-contract text                   |
+| Prompt assembly shape             | `electron/main/services/ai/prompt-pack-builder.ts`                                                                             | Controls final message layout                             |
+| Strategy context in prompts       | `electron/main/services/ai/strategy-prompt-context.ts`                                                                         | Controls what session context the model sees              |
+| Default role behavior             | `electron/shared/ai/default-ai-role-profiles.ts`                                                                               | Tool modes, evidence rules, selector defaults             |
+| Role profile schema               | `electron/shared/ai/ai-role-profile.ts`                                                                                        | Valid fields for role profile JSON                        |
+| Session model/provider config     | `electron/main/db/schema.ts`, `electron/main/db/repositories/session-ai-roles-repo.ts`                                         | DB-backed active role settings                            |
+| Workspace default model           | `electron/main/db/repositories/workspace-prefs-repo.ts`, `electron/main/ipc/strategy.ts`                                       | Seeds new sessions and backfills blanks                   |
+| Provider connection/model lists   | `electron/main/services/ai/provider-registry.ts`, `electron/main/services/ai/adapters/*.ts`                                    | What providers exist and how models are listed            |
+| Runtime budgets and loop controls | `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`, `electron/main/services/ai/adapters/run-agent-execute.ts`          | Step budget, spend budget, loop guard                     |
+| Cost model                        | `electron/main/services/ai/model-pricing.ts`                                                                                   | Estimated token-cost table                                |
+| Strategy presets (source)         | `electron/shared/presets/*.json`                                                                                               | Edit here, then reset DB to apply                         |
+| Strategy presets (runtime)        | `global_presets`, `risk_presets`, `timeframe_presets`, `research_posture_presets`, `trade_rule_presets` DB tables              | Seeded from JSON; queried at session creation and via IPC |
+| Prompt override behavior          | `electron/main/services/ai/ai-runtime/runtime-prompt.ts`, `electron/main/services/session/session-strategy-context-service.ts` | Default prompt vs session override                        |
+| Prompt path override              | `electron/main/config/env.ts`                                                                                                  | `EXVA_PROMPTS_DIR_OVERRIDE`                               |
+
 
 ## How To Tweak Common Things
 
@@ -592,21 +596,21 @@ If `search_web` is unavailable, model behavior can look “broken” even when m
 ## Suggested Editing Workflow
 
 1. Decide which layer you want to change:
-   - prompt wording
-   - role behavior
-   - runtime caps
-   - provider/model selection
-   - strategy presets
+  - prompt wording
+  - role behavior
+  - runtime caps
+  - provider/model selection
+  - strategy presets
 2. Edit only the source-of-truth file for that layer.
 3. Check whether the change also requires:
-   - a DB seed/default update
-   - a prompt reset path update
-   - tests for prompt-pack/runtime behavior
+  - a DB seed/default update
+  - a prompt reset path update
+  - tests for prompt-pack/runtime behavior
 4. Validate by checking the final rendered prompt path:
-   - base prompt asset
-   - role profile markdown
-   - strategy prompt context
-   - prompt pack assembly
+  - base prompt asset
+  - role profile markdown
+  - strategy prompt context
+  - prompt pack assembly
 
 If you are unsure where a behavior comes from, start with:
 
