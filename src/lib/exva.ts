@@ -95,6 +95,7 @@ export interface StrategyGetResponse {
 export interface UserGlobalPresetRow {
   id: string;
   name: string;
+  isBuiltIn: boolean;
   createdAt: number;
   presetJson: string;
 }

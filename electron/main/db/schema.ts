@@ -254,7 +254,36 @@ export const workspacePreferences = sqliteTable("workspace_preferences", {
 export const globalPresets = sqliteTable("global_presets", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  isBuiltIn: integer("is_built_in", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at").notNull(),
+  presetJson: text("preset_json").notNull(),
+});
+
+export const riskPresets = sqliteTable("risk_presets", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  isBuiltIn: integer("is_built_in", { mode: "boolean" }).notNull().default(false),
+  presetJson: text("preset_json").notNull(),
+});
+
+export const timeframePresets = sqliteTable("timeframe_presets", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  isBuiltIn: integer("is_built_in", { mode: "boolean" }).notNull().default(false),
+  presetJson: text("preset_json").notNull(),
+});
+
+export const researchPosturePresets = sqliteTable("research_posture_presets", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  isBuiltIn: integer("is_built_in", { mode: "boolean" }).notNull().default(false),
+  presetJson: text("preset_json").notNull(),
+});
+
+export const tradeRulePresets = sqliteTable("trade_rule_presets", {
+  id: text("id").primaryKey(),
+  label: text("label").notNull(),
+  isBuiltIn: integer("is_built_in", { mode: "boolean" }).notNull().default(false),
   presetJson: text("preset_json").notNull(),
 });
 

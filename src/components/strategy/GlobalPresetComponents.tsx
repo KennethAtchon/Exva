@@ -10,7 +10,7 @@ import {
   RISK_PRESETS,
   TIMEFRAME_PRESETS,
   TRADE_RULE_PRESETS,
-} from "../../../electron/shared/domain";
+} from "../../../electron/shared/presets";
 import type { GlobalStrategyPreset } from "../../../electron/shared/presets";
 import type { UserGlobalPresetRow } from "@/lib/exva";
 import { ShadcnSelect } from "@/components/custom-ui";

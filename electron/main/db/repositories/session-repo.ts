@@ -2,6 +2,9 @@ import type { DbClient } from "../client";
 import type { SessionConfig, SessionStatus, WorkspaceSession } from "@/lib/types";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import {
+  globalPresets,
+  researchPosturePresets,
+  riskPresets,
   sessionAiRoleProfile,
   sessionAiRoles,
   sessionBrokerAssignments,
@@ -13,6 +16,8 @@ import {
   sessionStrategies,
   sessionTimeframeConfig,
   sessions,
+  timeframePresets,
+  tradeRulePresets,
   workspacePreferences,
 } from "../schema";
 import { AppError } from "@electron/shared/infra/errors";
@@ -20,12 +25,9 @@ import {
   buildTradeRulesMarkdown,
   canTransition,
   isSessionEditable,
-  RESEARCH_POSTURE_PRESETS,
-  RISK_PRESETS,
-  TIMEFRAME_PRESETS,
-  TRADE_RULE_PRESETS,
 } from "@electron/shared/domain";
-import { GLOBAL_STRATEGY_PRESETS } from "@electron/shared/presets";
+import type { ResearchPosturePreset, RiskPreset, TimeframePreset, TradeRulesPreset } from "@electron/shared/domain";
+import type { GlobalStrategyPreset } from "@electron/shared/presets";
 import { toSessionConfig, toWorkspaceSession } from "./mappers";
 
 export interface SessionFilters {
@@ -57,34 +59,56 @@ export interface TaskBoundaryInput {
 }
 
 const DEFAULT_ROLES = ["analyst_technical", "analyst_fundamental", "reviewer", "decision_maker", "instrument_selector"] as const;
-const DEFAULT_GLOBAL_PRESET = GLOBAL_STRATEGY_PRESETS[0];
-const DEFAULT_RESEARCH_POSTURE_PRESET = requirePreset(
-  RESEARCH_POSTURE_PRESETS.find((preset) => preset.id === DEFAULT_GLOBAL_PRESET.posturePresetId),
-  "research posture",
-);
-const DEFAULT_TRADE_RULES_PRESET = requirePreset(
-  TRADE_RULE_PRESETS.find((preset) => preset.id === DEFAULT_GLOBAL_PRESET.rulesPresetId),
-  "trade rules",
-);
-const DEFAULT_RISK_PRESET = requirePreset(
-  RISK_PRESETS.find((preset) => preset.id === DEFAULT_GLOBAL_PRESET.riskPresetId),
-  "risk",
-);
-const DEFAULT_TIMEFRAME_PRESET = requirePreset(
-  TIMEFRAME_PRESETS.find((preset) => preset.id === DEFAULT_GLOBAL_PRESET.timeframePresetId),
-  "timeframe",
-);
 
 export class SessionRepo {
   constructor(private readonly client: DbClient) {}
+
+  private loadSessionDefaults(): {
+    posturePreset: ResearchPosturePreset;
+    rulesPreset: TradeRulesPreset;
+    riskPreset: RiskPreset;
+    timeframePreset: TimeframePreset;
+  } {
+    const globalRow = this.client.db
+      .select()
+      .from(globalPresets)
+      .where(eq(globalPresets.isBuiltIn, true))
+      .orderBy(globalPresets.createdAt)
+      .limit(1)
+      .get();
+    if (!globalRow) {
+      throw new AppError("No built-in global strategy preset found — run migrations and seed", "INTERNAL_ERROR");
+    }
+    const globalPreset = JSON.parse(globalRow.presetJson) as GlobalStrategyPreset;
+
+    const postureRow = this.client.db.select().from(researchPosturePresets).where(eq(researchPosturePresets.id, globalPreset.posturePresetId)).get();
+    if (!postureRow) throw new AppError(`Research posture preset '${globalPreset.posturePresetId}' not found`, "INTERNAL_ERROR");
+
+    const rulesRow = this.client.db.select().from(tradeRulePresets).where(eq(tradeRulePresets.id, globalPreset.rulesPresetId)).get();
+    if (!rulesRow) throw new AppError(`Trade rule preset '${globalPreset.rulesPresetId}' not found`, "INTERNAL_ERROR");
+
+    const riskRow = this.client.db.select().from(riskPresets).where(eq(riskPresets.id, globalPreset.riskPresetId)).get();
+    if (!riskRow) throw new AppError(`Risk preset '${globalPreset.riskPresetId}' not found`, "INTERNAL_ERROR");
+
+    const timeframeRow = this.client.db.select().from(timeframePresets).where(eq(timeframePresets.id, globalPreset.timeframePresetId)).get();
+    if (!timeframeRow) throw new AppError(`Timeframe preset '${globalPreset.timeframePresetId}' not found`, "INTERNAL_ERROR");
+
+    return {
+      posturePreset: JSON.parse(postureRow.presetJson) as ResearchPosturePreset,
+      rulesPreset: JSON.parse(rulesRow.presetJson) as TradeRulesPreset,
+      riskPreset: JSON.parse(riskRow.presetJson) as RiskPreset,
+      timeframePreset: JSON.parse(timeframeRow.presetJson) as TimeframePreset,
+    };
+  }
 
   create(input: CreateSessionInput): WorkspaceSession {
     const now = new Date().toISOString();
     const sessionId = crypto.randomUUID();
     const roleSeed = this.getDefaultAiRoleSeed();
+    const defaults = this.loadSessionDefaults();
     const tradeRulesSeed = {
       sessionId,
-      ...DEFAULT_TRADE_RULES_PRESET.rules,
+      ...defaults.rulesPreset.rules,
       tradeRulesMarkdown: "",
       ruleNotes: "",
       updatedAt: now,
@@ -141,7 +165,7 @@ export class SessionRepo {
       tx.insert(sessionResearchPosture)
         .values({
           sessionId,
-          ...DEFAULT_RESEARCH_POSTURE_PRESET.posture,
+          ...defaults.posturePreset.posture,
           postureNotes: "",
           updatedAt: now,
         })
@@ -168,8 +192,8 @@ export class SessionRepo {
       tx.insert(sessionRiskConfig)
         .values({
           sessionId,
-          riskPresetId: DEFAULT_RISK_PRESET.id,
-          ...DEFAULT_RISK_PRESET.values,
+          riskPresetId: defaults.riskPreset.id,
+          ...defaults.riskPreset.values,
           maxDataSpendUsd: 5,
           updatedAt: now,
         })
@@ -178,8 +202,8 @@ export class SessionRepo {
       tx.insert(sessionTimeframeConfig)
         .values({
           sessionId,
-          timeframePresetId: DEFAULT_TIMEFRAME_PRESET.id,
-          ...DEFAULT_TIMEFRAME_PRESET.values,
+          timeframePresetId: defaults.timeframePreset.id,
+          ...defaults.timeframePreset.values,
           updatedAt: now,
         })
         .run();
@@ -553,9 +577,3 @@ export class SessionRepo {
   }
 }
 
-function requirePreset<T>(preset: T | undefined, kind: string): T {
-  if (!preset) {
-    throw new Error(`Default global preset references missing ${kind} preset.`);
-  }
-  return preset;
-}

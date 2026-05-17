@@ -155,6 +155,20 @@ Preset JSON files live here:
 - `electron/shared/presets/timeframe.json`
 - `electron/shared/presets/index.ts`
 
+These JSON files are the **authoritative source** for built-in preset content. They are not used directly at runtime — they are seeded into the database on startup via `electron/main/db/seed.ts`.
+
+**DB tables (seeded from JSON on startup):**
+
+- `global_presets` — global strategy presets (built-in + user-created); `is_built_in = 1` for JSON-sourced rows
+- `risk_presets` — risk config presets
+- `timeframe_presets` — timeframe presets
+- `research_posture_presets` — research posture presets
+- `trade_rule_presets` — trade rule presets
+
+All built-in preset rows have `is_built_in = 1` and cannot be deleted. User-created presets have `is_built_in = 0`.
+
+**To add or change a built-in preset:** edit the relevant JSON file and reset the DB (`bun run dev:rebuild-db`). The seed runs `onConflictDoNothing`, so stale rows require a DB reset to update.
+
 These do not directly define provider/model settings, but they strongly influence what the model sees in the authoritative session context.
 
 For example:
@@ -317,7 +331,8 @@ If you are tuning the selector and `search_web` seems missing, inspect this laye
 | Provider connection/model lists | `electron/main/services/ai/provider-registry.ts`, `electron/main/services/ai/adapters/*.ts` | What providers exist and how models are listed |
 | Runtime budgets and loop controls | `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`, `electron/main/services/ai/adapters/run-agent-execute.ts` | Step budget, spend budget, loop guard |
 | Cost model | `electron/main/services/ai/model-pricing.ts` | Estimated token-cost table |
-| Strategy presets | `electron/shared/presets/*.json` | Indirectly changes model input context |
+| Strategy presets (source) | `electron/shared/presets/*.json` | Edit here, then reset DB to apply |
+| Strategy presets (runtime) | `global_presets`, `risk_presets`, `timeframe_presets`, `research_posture_presets`, `trade_rule_presets` DB tables | Seeded from JSON; queried at session creation and via IPC |
 | Prompt override behavior | `electron/main/services/ai/ai-runtime/runtime-prompt.ts`, `electron/main/services/session/session-strategy-context-service.ts` | Default prompt vs session override |
 | Prompt path override | `electron/main/config/env.ts` | `EXVA_PROMPTS_DIR_OVERRIDE` |
 
@@ -488,7 +503,7 @@ Important current behavior:
 
 ### Change strategy presets that indirectly alter model behavior
 
-Edit:
+Edit the relevant JSON file:
 
 - `electron/shared/presets/research-posture.json`
 - `electron/shared/presets/trade-rules.json`
@@ -496,10 +511,18 @@ Edit:
 - `electron/shared/presets/timeframe.json`
 - `electron/shared/presets/global-strategy.json`
 
+Then reset the DB so the seed re-runs:
+
+```
+bun run dev:rebuild-db
+```
+
 Use this for:
 
 - changing the default posture/risk/timeframe/rules context the model receives
 - updating built-in preset options shown in the Strategy page
+
+Note: `seed.ts` uses `onConflictDoNothing` — editing a JSON file without resetting the DB will **not** update existing rows. DB reset is required in development.
 
 ## Files To Check First For Common Tasks
 

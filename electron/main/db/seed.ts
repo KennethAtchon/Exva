@@ -4,6 +4,13 @@ import {
   BUILT_IN_DUCKDUCKGO_PROVIDER_ID,
   buildBuiltInDuckDuckGoProviderAccount,
 } from "@electron/shared/catalog/search-providers";
+import {
+  builtInGlobalStrategyPresets,
+  builtInRiskPresets,
+  builtInTimeframePresets,
+  builtInResearchPosturePresets,
+  builtInTradeRulePresets,
+} from "@electron/shared/presets";
 import * as schema from "./schema";
 
 /** Idempotent defaults applied after Drizzle SQL migrations (workspace row, built-in search provider). */
@@ -47,4 +54,40 @@ export function runSeed(db: BetterSQLite3Database<typeof schema>): void {
       .run();
   }
 
+  const now = Date.now();
+
+  for (const preset of builtInGlobalStrategyPresets()) {
+    db.insert(schema.globalPresets)
+      .values({ id: preset.id, name: preset.label, isBuiltIn: true, createdAt: now, presetJson: JSON.stringify(preset) })
+      .onConflictDoNothing()
+      .run();
+  }
+
+  for (const preset of builtInRiskPresets()) {
+    db.insert(schema.riskPresets)
+      .values({ id: preset.id, label: preset.label, isBuiltIn: true, presetJson: JSON.stringify(preset) })
+      .onConflictDoNothing()
+      .run();
+  }
+
+  for (const preset of builtInTimeframePresets()) {
+    db.insert(schema.timeframePresets)
+      .values({ id: preset.id, label: preset.label, isBuiltIn: true, presetJson: JSON.stringify(preset) })
+      .onConflictDoNothing()
+      .run();
+  }
+
+  for (const preset of builtInResearchPosturePresets()) {
+    db.insert(schema.researchPosturePresets)
+      .values({ id: preset.id, label: preset.label, isBuiltIn: true, presetJson: JSON.stringify(preset) })
+      .onConflictDoNothing()
+      .run();
+  }
+
+  for (const preset of builtInTradeRulePresets()) {
+    db.insert(schema.tradeRulePresets)
+      .values({ id: preset.id, label: preset.label, isBuiltIn: true, presetJson: JSON.stringify(preset) })
+      .onConflictDoNothing()
+      .run();
+  }
 }

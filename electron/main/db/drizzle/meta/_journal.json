@@ -5,8 +5,15 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1778968471962,
+      "when": 1778978513684,
       "tag": "0000_initial",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1778980348035,
+      "tag": "0001_small_gunslinger",
       "breakpoints": true
     }
   ]

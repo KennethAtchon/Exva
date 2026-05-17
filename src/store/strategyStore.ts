@@ -2,11 +2,13 @@ import { create } from "zustand";
 import {
   buildTradeRulesMarkdown,
   validateSessionStrategyContext,
+} from "../../electron/shared/domain";
+import {
   RISK_PRESETS,
   TIMEFRAME_PRESETS,
   RESEARCH_POSTURE_PRESETS,
   TRADE_RULE_PRESETS,
-} from "../../electron/shared/domain";
+} from "../../electron/shared/presets";
 import type { GlobalStrategyPreset } from "../../electron/shared/presets";
 
 const RESEARCH_POSTURE_PRESETS_MAP = Object.fromEntries(RESEARCH_POSTURE_PRESETS.map((p) => [p.id, p]));

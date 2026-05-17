@@ -18,6 +18,8 @@ export type AppErrorCode =
   | "INSTRUMENT_CONFLICT"
   | "CAPITAL_POOL_EXCEEDED"
   | "PREFLIGHT_FAILED"
+  | "FORBIDDEN"
+  | "INTERNAL_ERROR"
   | "UNKNOWN";
 
 export class AppError extends Error {

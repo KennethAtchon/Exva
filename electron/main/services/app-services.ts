@@ -22,6 +22,10 @@ import { SqliteSessionExecutionStepsRepo } from "../db/repositories/session-exec
 import { SessionRepo } from "../db/repositories/session-repo";
 import { InstrumentCacheRepo } from "../db/repositories/instrument-cache-repo";
 import { GlobalPresetsRepo } from "../db/repositories/global-presets-repo";
+import { RiskPresetsRepo } from "../db/repositories/risk-presets-repo";
+import { TimeframePresetsRepo } from "../db/repositories/timeframe-presets-repo";
+import { ResearchPosturePresetsRepo } from "../db/repositories/research-posture-presets-repo";
+import { TradeRulePresetsRepo } from "../db/repositories/trade-rule-presets-repo";
 import { StatsRepo } from "../db/repositories/stats-repo";
 import { TradeAutopsiesRepo } from "../db/repositories/trade-autopsies-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trade-approvals-repo";
@@ -84,6 +88,10 @@ export interface AppServices {
     workspacePreferences: WorkspacePreferencesRepo;
     instrumentCache: InstrumentCacheRepo;
     globalPresets: GlobalPresetsRepo;
+    riskPresets: RiskPresetsRepo;
+    timeframePresets: TimeframePresetsRepo;
+    researchPosturePresets: ResearchPosturePresetsRepo;
+    tradeRulePresets: TradeRulePresetsRepo;
   };
   ai: AiRuntime;
   providerRegistry: ProviderRegistry;
@@ -139,6 +147,10 @@ export async function createAppServices(app: App): Promise<AppServices> {
     workspacePreferences: new WorkspacePreferencesRepo(db),
     instrumentCache: new InstrumentCacheRepo(db),
     globalPresets: new GlobalPresetsRepo(db),
+    riskPresets: new RiskPresetsRepo(db),
+    timeframePresets: new TimeframePresetsRepo(db),
+    researchPosturePresets: new ResearchPosturePresetsRepo(db),
+    tradeRulePresets: new TradeRulePresetsRepo(db),
   };
   const secrets = new SecretsService();
   const brokerRegistry = new BrokerRegistry(repos.brokerAccounts, secrets);

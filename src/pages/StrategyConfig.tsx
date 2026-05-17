@@ -16,9 +16,6 @@ import {
   buildResearchPostureMarkdown,
   STOP_LOSS_TYPES,
   SETUP_TYPES,
-  TRADE_RULE_PRESETS,
-  RISK_PRESETS,
-  TIMEFRAME_PRESETS,
   STRATEGY_ENTRY_STYLES,
   STRATEGY_EXIT_STYLES,
   STRATEGY_SCALING_MODES,
@@ -27,7 +24,6 @@ import {
   RESEARCH_DISCOVERY_MODES,
   RESEARCH_EVIDENCE_MODES,
   RESEARCH_FUNDAMENTAL_STRICTNESS,
-  RESEARCH_POSTURE_PRESETS,
   type SessionResearchPosture,
   type SessionTradeRules,
   type SessionRiskConfig,
@@ -35,7 +31,12 @@ import {
   type ResearchPosturePreset,
   type TradeRulesPreset,
 } from "../../electron/shared/domain";
-import { GLOBAL_STRATEGY_PRESETS } from "../../electron/shared/presets";
+import {
+  TRADE_RULE_PRESETS,
+  RISK_PRESETS,
+  TIMEFRAME_PRESETS,
+  RESEARCH_POSTURE_PRESETS,
+} from "../../electron/shared/presets";
 import type { GlobalStrategyPreset } from "../../electron/shared/presets";
 import type { UserGlobalPresetRow } from "@/lib/exva";
 
@@ -106,6 +107,10 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
     void loadStrategy(focusedSessionId);
   }, [focusedSessionId, loadStrategy, viewMode]);
 
+  const builtInGlobalPresets = globalPresets
+    .filter((p) => p.isBuiltIn)
+    .map((p) => JSON.parse(p.presetJson) as GlobalStrategyPreset);
+
   const isLocked = pageState === "locked";
   const hasDirty = dirtyFields.size > 0;
 
@@ -163,7 +168,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const selectedStylePreset = RESEARCH_POSTURE_PRESETS.find((preset) => preset.id === researchPosture.posturePresetId) ?? RESEARCH_POSTURE_PRESETS[RESEARCH_POSTURE_PRESETS.length - 1];
   const selectedRulesPreset = TRADE_RULE_PRESETS.find((preset) => preset.id === rules.rulesPresetId) ?? TRADE_RULE_PRESETS[TRADE_RULE_PRESETS.length - 1];
   const activeGlobalPreset = resolveActiveGlobalPreset({
-    builtInPresets: GLOBAL_STRATEGY_PRESETS as GlobalStrategyPreset[],
+    builtInPresets: builtInGlobalPresets,
     userPresets: globalPresets,
     posturePresetId: researchPosture.posturePresetId,
     rulesPresetId: rules.rulesPresetId,
@@ -265,7 +270,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
 
       {activeView === "presets" && (
         <GlobalPresetGrid
-          builtInPresets={GLOBAL_STRATEGY_PRESETS as GlobalStrategyPreset[]}
+          builtInPresets={builtInGlobalPresets}
           userPresets={globalPresets}
           currentPosturePresetId={researchPosture.posturePresetId}
           currentRulesPresetId={rules.rulesPresetId}

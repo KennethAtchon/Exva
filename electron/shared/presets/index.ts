@@ -28,14 +28,37 @@ export interface GlobalStrategyPreset {
   timeframePresetId: TimeframePresetId;
 }
 
-export const GLOBAL_STRATEGY_PRESETS: readonly GlobalStrategyPreset[] =
-  globalStrategyJson as readonly GlobalStrategyPreset[];
+// Internal arrays — not exported. Use seed helpers below or query the DB.
+const _globalStrategyPresets: readonly GlobalStrategyPreset[] = globalStrategyJson as readonly GlobalStrategyPreset[];
+const _riskPresets: readonly RiskPreset[] = riskJson as readonly RiskPreset[];
+const _timeframePresets: readonly TimeframePreset[] = timeframeJson as readonly TimeframePreset[];
+const _researchPosturePresets: readonly ResearchPosturePreset[] = researchPostureJson as readonly ResearchPosturePreset[];
+const _tradeRulePresets: readonly TradeRulesPreset[] = tradeRulesJson as readonly TradeRulesPreset[];
 
-export const RISK_PRESETS: readonly RiskPreset[] = riskJson as readonly RiskPreset[];
+/** For use in seed.ts only — returns the full built-in array. */
+export function builtInGlobalStrategyPresets(): readonly GlobalStrategyPreset[] {
+  return _globalStrategyPresets;
+}
 
-export const TIMEFRAME_PRESETS: readonly TimeframePreset[] = timeframeJson as readonly TimeframePreset[];
+export function builtInRiskPresets(): readonly RiskPreset[] {
+  return _riskPresets;
+}
 
-export const RESEARCH_POSTURE_PRESETS: readonly ResearchPosturePreset[] =
-  researchPostureJson as readonly ResearchPosturePreset[];
+export function builtInTimeframePresets(): readonly TimeframePreset[] {
+  return _timeframePresets;
+}
 
-export const TRADE_RULE_PRESETS: readonly TradeRulesPreset[] = tradeRulesJson as readonly TradeRulesPreset[];
+export function builtInResearchPosturePresets(): readonly ResearchPosturePreset[] {
+  return _researchPosturePresets;
+}
+
+export function builtInTradeRulePresets(): readonly TradeRulesPreset[] {
+  return _tradeRulePresets;
+}
+
+// Read-only reference arrays for UI display (dropdown options, label lookups).
+// Import from here — not from shared/domain.
+export const RISK_PRESETS: readonly RiskPreset[] = _riskPresets;
+export const TIMEFRAME_PRESETS: readonly TimeframePreset[] = _timeframePresets;
+export const RESEARCH_POSTURE_PRESETS: readonly ResearchPosturePreset[] = _researchPosturePresets;
+export const TRADE_RULE_PRESETS: readonly TradeRulesPreset[] = _tradeRulePresets;
