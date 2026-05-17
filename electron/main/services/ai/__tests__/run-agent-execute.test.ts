@@ -93,6 +93,7 @@ describe("executeRunAgent logging", () => {
 
     const startEntry = infoSpy.mock.calls.find(([, message]) => message === "execute run agent start")?.[0];
     const toolEntry = infoSpy.mock.calls.find(([, message]) => message === "agent tool call")?.[0];
+    const selectorSummaryEntry = infoSpy.mock.calls.find(([, message]) => message === "selector attempt summary")?.[0];
     const completeEntry = infoSpy.mock.calls.find(([, message]) => message === "execute run agent complete")?.[0];
 
     expect(startEntry).toMatchObject({
@@ -114,6 +115,12 @@ describe("executeRunAgent logging", () => {
     expect(toolEntry).not.toHaveProperty("argsPreview");
     expect(toolEntry).not.toHaveProperty("resultPreview");
     expect(toolEntry.toolResult.detail).toHaveLength(600);
+
+    expect(selectorSummaryEntry).toMatchObject({
+      role: "instrument_selector",
+      queryCount: 0,
+      sawSubmitCandidates: false,
+    });
 
     expect(completeEntry).toMatchObject({
       role: "instrument_selector",

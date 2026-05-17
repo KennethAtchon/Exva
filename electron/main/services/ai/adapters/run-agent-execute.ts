@@ -5,6 +5,7 @@ import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
 import type { RuntimeAgentMessage, RunTrace, StepTrace, ToolCallRecord } from "../ai-runtime/ai-runtime-types";
 import { createLogger } from "../../infra/log";
+import { analyzeSelectorSteps, buildSelectorStepSignature, canonicalizeToolInput } from "../ai-runtime/selector-runtime-control";
 
 const logger = createLogger("run-agent-execute");
 
@@ -41,10 +42,31 @@ function userPromptFrom(messages: RuntimeAgentMessage[]): string {
 
 function loopFingerprintGuard<T extends ToolSet>(): StopCondition<T> {
   return ({ steps }) => {
-    const recent = steps.slice(-3).map((s) =>
-      s.toolCalls.map((tc) => `${String(tc.toolName)}:${JSON.stringify(tc.input)}`).join("|"),
-    );
-    return recent.length === 3 && new Set(recent).size === 1;
+    const recent = steps.slice(-4).map((s) => buildSelectorStepSignature(s as never));
+    if (recent.length >= 4 && new Set(recent).size === 1) {
+      return true;
+    }
+
+    const recentCalls = steps
+      .flatMap((step) => step.toolCalls.map((call) => ({
+        toolName: String(call.toolName),
+        signature: canonicalizeToolInput(String(call.toolName), call.input),
+      })))
+      .slice(-6);
+
+    if (recentCalls.length < 4) return false;
+
+    const searchCalls = recentCalls.filter((call) => call.toolName === "search_web" || call.toolName === "search_reddit");
+    if (searchCalls.length >= 4 && new Set(searchCalls.map((call) => `${call.toolName}:${call.signature}`)).size <= 2) {
+      return true;
+    }
+
+    const verifyCalls = recentCalls.filter((call) => call.toolName === "get_quote" || call.toolName === "get_news" || call.toolName === "get_ohlcv");
+    if (verifyCalls.length >= 4 && new Set(verifyCalls.map((call) => call.signature)).size === 1) {
+      return true;
+    }
+
+    return false;
   };
 }
 
@@ -246,6 +268,28 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     logger.info(
       { role: params.role ?? null, modelId: params.modelId, thinkingChars: result.reasoningText.length, thinking: result.reasoningText },
       "agent reasoning",
+    );
+  }
+
+  if (params.role === "instrument_selector") {
+    const selectorSummary = analyzeSelectorSteps(result.steps);
+    logger.info(
+      {
+        role: params.role,
+        modelId: params.modelId,
+        queryCount: selectorSummary.queryCount,
+        duplicateQueryCount: selectorSummary.duplicateQueryCount,
+        invalidQueryCount: selectorSummary.invalidQueryCount,
+        uniqueSymbolCount: selectorSummary.uniqueSymbols.length,
+        uniqueSymbols: selectorSummary.uniqueSymbols,
+        uniqueDomainCount: selectorSummary.uniqueDomains.length,
+        uniqueDomains: selectorSummary.uniqueDomains,
+        repeatedSymbolChecks: selectorSummary.repeatedSymbolChecks,
+        maxRepeatedSymbolChecks: selectorSummary.maxRepeatedSymbolChecks,
+        noNewInfoStreak: selectorSummary.noNewInfoStreak,
+        sawSubmitCandidates: selectorSummary.sawSubmitCandidates,
+      },
+      "selector attempt summary",
     );
   }
 

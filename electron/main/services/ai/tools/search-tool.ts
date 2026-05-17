@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { SearchRegistry } from "../search";
-import { sanitizeSearchQuery } from "../search/sanitize-search-query";
+import { validateDiscoveryQuery } from "../search/sanitize-search-query";
 import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
 
 export async function createSearchTool(deps: {
@@ -29,8 +29,12 @@ export async function createSearchTool(deps: {
       if (deps.maxDataSpendUsd != null && deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >= deps.maxDataSpendUsd) {
         return { error: "Session max data spend reached; search blocked by runtime policy." };
       }
+      const validation = validateDiscoveryQuery(input.query);
+      if (!validation.ok) {
+        return { error: `Search blocked by query guard: ${validation.reason}` };
+      }
       try {
-        const out = await adapter.search(sanitizeSearchQuery(input.query));
+        const out = await adapter.search(validation.sanitized);
         deps.apiCallLogRepo.insert({
           id: crypto.randomUUID(),
           session_id: deps.sessionId,

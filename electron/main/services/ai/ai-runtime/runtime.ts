@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AgentRole } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
+import { resolveSelectorRoleSettings } from "@electron/shared/ai/ai-role-profile";
 import type { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
 import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
 import type { SessionRepo } from "../../../db/repositories/session-repo";
@@ -34,6 +35,7 @@ import { scenarioMockNews, type MockNewsItem } from "../tools/market-tools";
 import { MOCK_REDDIT_POSTS } from "../tools/search-reddit-tool";
 import { MOCK_TRENDING_SYMBOLS } from "../tools/trending-symbols-tool";
 import { MockMarketSimulator } from "../../broker/mock/mock-market-simulator";
+import { buildSelectorPrepareStep } from "./selector-runtime-control";
 
 const logger = createLogger("ai-runtime");
 
@@ -173,6 +175,8 @@ ${input.review}`;
   ): Promise<AgentResult<InstrumentSelection>> {
     const role = "instrument_selector" as const;
     const config = this.aiRolesRepo.requireByRole(sessionId, role);
+    const selectorProfile = this.requireStrategyContextService().get(sessionId).aiRoleProfiles.find((profile) => profile.role === role);
+    const selectorSettings = resolveSelectorRoleSettings(selectorProfile?.profileJson);
     const instrumentClasses = this.sessionRepo.requireById(sessionId).instrumentClasses;
     const adapter = await this.registry.get(config.providerKey);
     const searchProviderId = this.resolveSearchProviderId(sessionId);
@@ -241,15 +245,7 @@ ${input.review}`;
           maxTokens: config.maxTokens,
           abortSignal,
           terminalToolNames: ["submit_candidates"],
-          prepareStep: harnessAvail.searchWeb
-            ? ({ stepNumber }: { stepNumber: number }) => {
-                if (stepNumber !== 0) return {};
-                return {
-                  activeTools: ["search_web"],
-                  toolChoice: { type: "tool" as const, toolName: "search_web" as const },
-                };
-              }
-            : undefined,
+          prepareStep: buildSelectorPrepareStep(harnessAvail, selectorSettings),
         }),
       { providerType: adapter.providerType, modelId: config.modelId, role, sessionId, cycleId: cycleId ?? null },
     );

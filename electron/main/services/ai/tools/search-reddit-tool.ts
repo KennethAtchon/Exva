@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { InstrumentClass } from "@/lib/types";
 import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
+import { validateDiscoveryQuery } from "../search/sanitize-search-query";
 
 const REDDIT_TIMEOUT_MS = 6000;
 const MAX_POSTS = 8;
@@ -125,22 +126,27 @@ export function createSearchRedditTool(deps: {
       sort: RedditSort;
       timeFilter: RedditTimeFilter;
       subreddits?: string[];
-    }) => {
-      const startedAt = Date.now();
-      const createdAt = new Date().toISOString();
-      const subsToUse = subreddits?.length ? subreddits : defaultSubs;
+      }) => {
+        const startedAt = Date.now();
+        const createdAt = new Date().toISOString();
+        const subsToUse = subreddits?.length ? subreddits : defaultSubs;
+        const validation = validateDiscoveryQuery(query);
 
-      if (!deps.mockPosts && !deps.isMockSession) {
-        return { error: "Reddit search requires OAuth authentication in live mode.", posts: [] };
-      }
+        if (!validation.ok) {
+          return { error: `Reddit search blocked by query guard: ${validation.reason}`, posts: [] };
+        }
 
-      try {
-        const posts = deps.mockPosts
-          ? deps.mockPosts
-          : (await searchReddit(query, subsToUse, sort, timeFilter)).map((post) => ({
-              subreddit: post.subreddit,
-              title: post.title,
-              body: post.selftext,
+        if (!deps.mockPosts && !deps.isMockSession) {
+          return { error: "Reddit search requires OAuth authentication in live mode.", posts: [] };
+        }
+
+        try {
+          const posts = deps.mockPosts
+            ? deps.mockPosts
+            : (await searchReddit(validation.sanitized, subsToUse, sort, timeFilter)).map((post) => ({
+                subreddit: post.subreddit,
+                title: post.title,
+                body: post.selftext,
               score: post.score,
               comments: post.num_comments,
               url: toRedditThreadUrl(post),
@@ -164,7 +170,7 @@ export function createSearchRedditTool(deps: {
         });
 
         return {
-          query,
+          query: validation.sanitized,
           subreddits: subsToUse,
           posts: posts.map((post) => ({
             subreddit: post.subreddit,

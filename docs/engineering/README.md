@@ -6,6 +6,7 @@ This folder is for cross-cutting engineering standards and operational guides, i
 - coding guidelines
 - logging guides
 - debugging guides
+- AI/model configuration guides
 - release/runbook checklists
 - architecture guardrails
 

@@ -1,6 +1,12 @@
 import type { AgentRole } from "../domain";
 import {
   AI_ROLE_PROFILE_VERSION,
+  DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP,
+  DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS,
+  DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS,
+  DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS,
+  DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS,
+  DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION,
   DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES,
   aiRoleProfileDocumentSchema,
   type AiRoleProfileDocument,
@@ -119,25 +125,33 @@ const DEFAULT_AI_ROLE_PROFILES: Record<AgentRole, AiRoleProfileDocument> = {
     constraints: [
       "Prefer a smaller high-quality shortlist over filling the maximum count.",
       "Discover first, then verify; do not sample obvious symbols from memory.",
+      "A discovery step is justified only when it adds new symbols, a new source class, or a new evidence dimension.",
+      "Trending names are a seed list, not the final shortlist.",
     ],
     toolPolicy: {
-      search_web: { mode: "required", notes: "Start with search-driven discovery before quote or OHLCV checks." },
-      search_reddit: { mode: "preferred", notes: "Use for current discussion, DD, and real-trader sentiment." },
-      get_trending_symbols: { mode: "preferred", notes: "Use early to see what retail attention is clustering around." },
-      fetch_url: { mode: "preferred", notes: "Read promising pages instead of relying on snippets alone." },
-      get_news: { mode: "preferred", notes: "Validate candidate-specific catalysts after discovery." },
-      get_quote: { mode: "optional", notes: "Verify current price context and tradability after discovery." },
-      get_ohlcv: { mode: "optional", notes: "Verify recent structure when price action matters." },
+      search_web: { mode: "required", notes: "Start with search-driven discovery before quote or OHLCV checks. Do not spend another discovery step unless it adds new information." },
+      search_reddit: { mode: "preferred", notes: "Use for current discussion, DD, and real-trader sentiment when that adds a new evidence dimension." },
+      get_trending_symbols: { mode: "preferred", notes: "Use early to see what retail attention is clustering around, but do not mistake trending names for an already-qualified shortlist." },
+      fetch_url: { mode: "preferred", notes: "Read promising pages instead of relying on snippets alone, especially when they can close a specific evidence gap." },
+      get_news: { mode: "preferred", notes: "Validate candidate-specific catalysts after discovery. Prefer freshness and contradiction checks over generic headline collection." },
+      get_quote: { mode: "optional", notes: "Verify current price context, tradability, and liquidity after discovery. Re-check the same symbol only when an unresolved gap remains." },
+      get_ohlcv: { mode: "optional", notes: "Verify recent structure when price action materially affects ranking or eligibility." },
       submit_candidates: { mode: "required", notes: "Call exactly once when research is complete." },
     },
     method: {
       checklist: [
         "Start from the session strategy, side bias, risk limits, and trading horizon.",
-        "Fan out across multiple discovery angles before narrowing.",
+        "Fan out across multiple discovery angles only until you have enough distinct candidates or evidence dimensions to narrow.",
+        "Move from discovery into verification once you have enough viable candidates, repeated discovery stops adding new information, or the discovery budget is nearly exhausted.",
         "Verify surviving candidates with market/news tools before submitting.",
+        "Important verification evidence is catalyst quality/freshness, tradability/liquidity/coverage, price-structure fit for the session horizon, and disqualifying contradictory evidence.",
       ],
       requiredEvidence: ["timely_catalyst", "strategy_fit", "tradability"],
-      avoid: ["Do not force low-quality candidates just to fill the maximum count."],
+      avoid: [
+        "Do not force low-quality candidates just to fill the maximum count.",
+        "Do not repeat the same symbol check unless it closes a specific unresolved gap.",
+        "Do not keep broadening discovery after novelty has collapsed.",
+      ],
     },
     output: {
       format: "candidate_list",
@@ -146,6 +160,12 @@ const DEFAULT_AI_ROLE_PROFILES: Record<AgentRole, AiRoleProfileDocument> = {
     },
     selectorSettings: {
       noInstrumentRetryMinutes: DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES,
+      maxDiscoverySteps: DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS,
+      maxVerificationSteps: DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS,
+      maxNoNewInfoSteps: DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS,
+      maxRepeatedSymbolChecks: DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS,
+      minCandidatesBeforeVerification: DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION,
+      forceSubmitAfterStep: DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP,
     },
   },
 };

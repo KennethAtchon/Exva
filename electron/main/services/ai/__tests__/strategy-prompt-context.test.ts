@@ -121,4 +121,43 @@ describe("strategy-prompt-context", () => {
     expect(built.prompt).toContain("## Constraints");
     expect(built.prompt).toContain("## Additional profile JSON");
   });
+
+  it("renders selector role-profile settings and discovery guidance for the instrument selector", () => {
+    const context = baseContext();
+    context.aiRoleProfiles = [
+      {
+        sessionId: "s1",
+        role: "instrument_selector",
+        profileJson: {
+          version: 1,
+          objective: "Discover and verify a high-quality shortlist.",
+          constraints: ["Trending names are a seed list, not the shortlist."],
+          toolPolicy: {},
+          method: {
+            checklist: ["Move from discovery to verification once novelty collapses."],
+            requiredEvidence: ["timely_catalyst", "tradability"],
+            avoid: ["Do not repeat the same symbol check unless it closes a specific unresolved gap."],
+          },
+          output: {
+            format: "candidate_list",
+            requiredSections: ["candidate rationale"],
+            terminalAction: "submit_candidates",
+          },
+          selectorSettings: {
+            maxDiscoverySteps: 8,
+            forceSubmitAfterStep: 14,
+          },
+        },
+        updatedAt: "2026-05-05T00:00:00.000Z",
+      },
+    ];
+
+    const built = buildStrategyPromptContext(context, { role: "instrument_selector" });
+
+    expect(built.prompt).toContain("## Role profile");
+    expect(built.prompt).toContain("Trending names are a seed list, not the shortlist.");
+    expect(built.prompt).toContain("candidate rationale");
+    expect(built.prompt).toContain('"maxDiscoverySteps": 8');
+    expect(built.prompt).toContain('"forceSubmitAfterStep": 14');
+  });
 });
