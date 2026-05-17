@@ -87,6 +87,10 @@ export const executionStageSchema = z.enum([
   "monitoring",
 ]);
 export const promptSourceSchema = z.enum(["default", "session_override"]);
+export const brokerAssignmentSchema = z.object({
+  brokerAccountId: z.string().min(1),
+  allocatedUsd: z.number().nonnegative(),
+});
 
 export const sessionCreateInputSchema = z.object({
   name: z.string().min(1).max(80),
@@ -96,9 +100,8 @@ export const sessionCreateInputSchema = z.object({
   instrumentScope: z.string().min(1),
   defaultSearchProviderId: z.string().nullish(),
   selectorSettings: z.object({ aiPickerEnabled: z.boolean() }),
-  capitalLimitUsd: z.number().nonnegative(),
   executionMode: executionModeSchema,
-  brokerAccountIds: z.array(z.string().min(1)),
+  brokerAssignments: z.array(brokerAssignmentSchema).min(1),
   brokerOverridesByInstrumentClass: z
     .record(instrumentClassSchema, z.string().nullable())
     .optional(),
@@ -229,7 +232,6 @@ export const sessionTemplatePayloadSchema = z.object({
     instrumentClasses: z.array(instrumentClassSchema).min(1),
     instrumentScope: z.string().min(1),
     executionMode: executionModeSchema,
-    capitalLimitUsd: z.number().nonnegative(),
     defaultSearchProviderId: z.string().nullable(),
   }),
   selectorSettings: z.object({ aiPickerEnabled: z.boolean() }),
@@ -264,7 +266,7 @@ export const sessionTemplatePayloadSchema = z.object({
     .optional(),
   strategy: sessionStrategyPayloadSchema,
   aiRoles: z.array(sessionAiRolePayloadSchema),
-  brokerAssignments: z.array(z.object({ brokerAccountId: z.string() })),
+  brokerAssignments: z.array(brokerAssignmentSchema),
   brokerOverridesByInstrumentClass: z.record(instrumentClassSchema, z.string()).default({}),
 });
 
@@ -316,8 +318,7 @@ export const workspacePrefsPatchSchema = z
   .object({
     globalIncludeArchived: z.boolean().optional(),
     defaultSearchProviderId: z.string().nullable().optional(),
-    capitalAllocationMode: z.enum(["per_session_only", "shared_global_pool"]).optional(),
-    globalCapitalPoolUsd: z.number().nullable().optional(),
+    allocationEnforcementOverride: z.enum(["hard", "warn"]).nullable().optional(),
   })
   .strict();
 

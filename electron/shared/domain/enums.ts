@@ -108,7 +108,7 @@ export type TradingTimeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" 
 export type HoldingStyle = "intraday_flat" | "multi_day_swing" | "weeks_position" | "custom";
 
 export type WorkspaceViewMode = "session" | "global";
-export type CapitalAllocationMode = "per_session_only" | "shared_global_pool";
+export type AllocationEnforcement = "hard" | "warn";
 
 export type AgentRole =
   | "analyst_technical"

@@ -35,7 +35,7 @@ export function runSeed(db: BetterSQLite3Database<typeof schema>): void {
     .values({
       id: 1,
       globalIncludeArchived: false,
-      capitalAllocationMode: "per_session_only",
+      allocationEnforcementOverride: null,
       defaultModelProviderKey: "",
       defaultModelModelId: "",
       updatedAt: new Date().toISOString(),

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
-import type { BrokerAccount, InstrumentClass, ProviderAccount, SessionTemplatePayload } from "@/lib/types";
+import type { BrokerAccountWithState, InstrumentClass, ProviderAccount, SessionTemplatePayload } from "@/lib/types";
 import { ShadcnSelect } from "@/components/custom-ui";
 import { Button, Checkbox, Dialog, DialogContent, Switch } from "@/components/ui";
 import {
@@ -39,7 +39,7 @@ export const CreateEditSessionModal = ({
   const [saving, setSaving] = useState(false);
   const [loadingSeed, setLoadingSeed] = useState(false);
   const [loadingBrokers, setLoadingBrokers] = useState(false);
-  const [brokerAccounts, setBrokerAccounts] = useState<BrokerAccount[]>([]);
+  const [brokerAccounts, setBrokerAccounts] = useState<BrokerAccountWithState[]>([]);
   const [searchProviders, setSearchProviders] = useState<ProviderAccount[]>([]);
   const [workspaceDefaultSearchProviderId, setWorkspaceDefaultSearchProviderId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,10 +86,10 @@ export const CreateEditSessionModal = ({
     let cancelled = false;
     setLoadingBrokers(true);
     void api
-      .listBrokerAccounts()
+      .listBrokerAccountState()
       .then((response) => {
         if (cancelled) return;
-        setBrokerAccounts(response.brokers);
+        setBrokerAccounts(response);
       })
       .catch(() => {
         if (cancelled) return;
@@ -129,7 +129,11 @@ export const CreateEditSessionModal = ({
     setSearchEverything(isSearchEverythingInput(form));
   }, [open, form]);
 
-  const assignedBrokerIdSet = useMemo(() => new Set(form.brokerAccountIds), [form.brokerAccountIds]);
+  const assignedBrokerIds = useMemo(
+    () => form.brokerAssignments.map((assignment) => assignment.brokerAccountId),
+    [form.brokerAssignments],
+  );
+  const assignedBrokerIdSet = useMemo(() => new Set(assignedBrokerIds), [assignedBrokerIds]);
   const brokerById = useMemo(() => new Map(brokerAccounts.map((broker) => [broker.id, broker])), [brokerAccounts]);
   const brokerMode = form.executionMode === "live_allowed" ? "live" : "paper";
   const visibleBrokers = useMemo(
@@ -153,21 +157,25 @@ export const CreateEditSessionModal = ({
     [effectiveInstrumentClasses, assignedActiveModeBrokers],
   );
   const isValid = form.name.trim().length > 0 && form.objective.trim().length > 0 && effectiveInstrumentClasses.length > 0;
-  const hasBrokerCoverage = uncoveredInstrumentClasses.length === 0 && form.brokerAccountIds.length > 0 && effectiveInstrumentClasses.length > 0;
+  const hasBrokerCoverage = uncoveredInstrumentClasses.length === 0 && form.brokerAssignments.length > 0 && effectiveInstrumentClasses.length > 0;
   const requiresSearchProviderSetup =
     form.selectionMode === "ai_selected_universe" &&
     form.selectorSettings.aiPickerEnabled &&
     !form.defaultSearchProviderId &&
     !workspaceDefaultSearchProviderId;
   const workspaceDefaultSearchProviderName = searchProviders.find((provider) => provider.id === workspaceDefaultSearchProviderId)?.name ?? null;
+  const totalAllocatedUsd = useMemo(
+    () => form.brokerAssignments.reduce((sum, assignment) => sum + assignment.allocatedUsd, 0),
+    [form.brokerAssignments],
+  );
 
   useEffect(() => {
     if (brokerAccounts.length === 0) return;
     const brokerIdsByMode = new Set(visibleBrokers.map((broker) => broker.id));
-    const nextBrokerIds = form.brokerAccountIds.filter((brokerId) => brokerIdsByMode.has(brokerId));
-    if (nextBrokerIds.length === form.brokerAccountIds.length) return;
-    setForm((current) => ({ ...current, brokerAccountIds: nextBrokerIds }));
-  }, [brokerAccounts, brokerById, form.brokerAccountIds, visibleBrokers]);
+    const nextAssignments = form.brokerAssignments.filter((assignment) => brokerIdsByMode.has(assignment.brokerAccountId));
+    if (nextAssignments.length === form.brokerAssignments.length) return;
+    setForm((current) => ({ ...current, brokerAssignments: nextAssignments }));
+  }, [brokerAccounts, brokerById, form.brokerAssignments, visibleBrokers]);
 
   useEffect(() => {
     if (!searchEverything) return;
@@ -205,14 +213,10 @@ export const CreateEditSessionModal = ({
                 <Field label="Session name">
                   <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Income Engine" style={inputStyle} />
                 </Field>
-                <Field label="Capital limit (USD)">
-                  <input
-                    value={String(form.capitalLimitUsd)}
-                    onChange={(event) => setForm({ ...form, capitalLimitUsd: Number(event.target.value) || 0 })}
-                    type="number"
-                    min={0}
-                    style={inputStyle}
-                  />
+                <Field label="Total allocated capital">
+                  <div style={{ ...inputStyle, display: "flex", alignItems: "center", minHeight: 38 }}>
+                    ${totalAllocatedUsd.toLocaleString()}
+                  </div>
                 </Field>
               </div>
               <Field label="Objective">
@@ -418,7 +422,7 @@ export const CreateEditSessionModal = ({
                             onCheckedChange={(nextChecked) =>
                               setForm({
                                 ...form,
-                                brokerAccountIds: toggleBrokerAssignment(form.brokerAccountIds, broker.id, nextChecked === true),
+                                brokerAssignments: toggleBrokerAssignment(form.brokerAssignments, broker.id, nextChecked === true),
                               })
                             }
                           />
@@ -436,10 +440,54 @@ export const CreateEditSessionModal = ({
                     <button
                       type="button"
                       style={selectAllButtonStyle}
-                      onClick={() => setForm({ ...form, brokerAccountIds: mergeUniqueBrokerIds(form.brokerAccountIds, visibleBrokers.map((broker) => broker.id)) })}
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          brokerAssignments: mergeUniqueBrokerAssignments(
+                            form.brokerAssignments,
+                            visibleBrokers.map((broker) => broker.id),
+                          ),
+                        })
+                      }
                     >
                       Select all {brokerMode} brokers
                     </button>
+                  ) : null}
+                  {assignedActiveModeBrokers.length > 0 ? (
+                    <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+                      {assignedActiveModeBrokers.map((broker) => {
+                        const assignment = form.brokerAssignments.find((entry) => entry.brokerAccountId === broker.id);
+                        if (!assignment) return null;
+                        return (
+                          <div key={broker.id} style={allocationRowStyle}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ color: "var(--text1)", fontSize: 12, fontWeight: 600 }}>{broker.name}</div>
+                              <div style={{ color: "var(--text3)", fontSize: 11, marginTop: 2 }}>
+                                Balance: {broker.balanceCacheUsd != null ? `$${broker.balanceCacheUsd.toLocaleString()}` : "—"}
+                                {" · "}
+                                Free: {broker.freeCapitalUsd != null ? `$${broker.freeCapitalUsd.toLocaleString()}` : "—"}
+                              </div>
+                            </div>
+                            <input
+                              type="number"
+                              min={0}
+                              value={String(assignment.allocatedUsd)}
+                              onChange={(event) =>
+                                setForm({
+                                  ...form,
+                                  brokerAssignments: updateBrokerAllocation(
+                                    form.brokerAssignments,
+                                    broker.id,
+                                    Number(event.target.value) || 0,
+                                  ),
+                                })
+                              }
+                              style={{ ...inputStyle, width: 140 }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : null}
                   {uncoveredInstrumentClasses.length > 0 ? (
                     <div style={warningTextStyle}>
@@ -467,7 +515,7 @@ export const CreateEditSessionModal = ({
                 try {
                   await onSubmit({
                     ...form,
-                    brokerAccountIds: form.brokerAccountIds.filter((brokerId) => brokerById.has(brokerId)),
+                    brokerAssignments: form.brokerAssignments.filter((assignment) => brokerById.has(assignment.brokerAccountId)),
                     brokerOverridesByInstrumentClass: {},
                   }, initialSession?.id);
                   onClose();
@@ -513,9 +561,8 @@ function defaultInput(): SessionCreateInput {
     instrumentScope: "SPY,QQQ",
     defaultSearchProviderId: null,
     selectorSettings: { aiPickerEnabled: true },
-    capitalLimitUsd: 10000,
     executionMode: "paper_only",
-    brokerAccountIds: [],
+    brokerAssignments: [],
     brokerOverridesByInstrumentClass: {},
   };
 }
@@ -529,9 +576,8 @@ function payloadToInput(payload: SessionTemplatePayload, name = ""): SessionCrea
     instrumentScope: payload.identity.instrumentScope,
     defaultSearchProviderId: payload.identity.defaultSearchProviderId,
     selectorSettings: payload.selectorSettings,
-    capitalLimitUsd: payload.identity.capitalLimitUsd,
     executionMode: payload.identity.executionMode,
-    brokerAccountIds: payload.brokerAssignments.map((assignment) => assignment.brokerAccountId).filter(Boolean),
+    brokerAssignments: payload.brokerAssignments.filter((assignment) => assignment.brokerAccountId),
     brokerOverridesByInstrumentClass: payload.brokerOverridesByInstrumentClass,
   };
 }
@@ -545,9 +591,8 @@ function summaryToInput(session: SessionSummary): SessionCreateInput {
     instrumentScope: session.instrumentScope,
     defaultSearchProviderId: session.defaultSearchProviderId,
     selectorSettings: { aiPickerEnabled: true },
-    capitalLimitUsd: session.capitalLimitUsd,
     executionMode: session.executionMode,
-    brokerAccountIds: [],
+    brokerAssignments: [],
     brokerOverridesByInstrumentClass: {},
   };
 }
@@ -559,15 +604,40 @@ function toggleInstrumentClass(current: InstrumentClass[], value: InstrumentClas
   return current.filter((entry) => entry !== value);
 }
 
-function toggleBrokerAssignment(current: string[], brokerId: string, checked: boolean): string[] {
+function toggleBrokerAssignment(
+  current: Array<{ brokerAccountId: string; allocatedUsd: number }>,
+  brokerId: string,
+  checked: boolean,
+): Array<{ brokerAccountId: string; allocatedUsd: number }> {
   if (checked) {
-    return current.includes(brokerId) ? current : [...current, brokerId];
+    return current.some((entry) => entry.brokerAccountId === brokerId)
+      ? current
+      : [...current, { brokerAccountId: brokerId, allocatedUsd: 0 }];
   }
-  return current.filter((entry) => entry !== brokerId);
+  return current.filter((entry) => entry.brokerAccountId !== brokerId);
 }
 
-function mergeUniqueBrokerIds(current: string[], next: string[]): string[] {
-  return [...new Set([...current, ...next])];
+function updateBrokerAllocation(
+  current: Array<{ brokerAccountId: string; allocatedUsd: number }>,
+  brokerId: string,
+  allocatedUsd: number,
+): Array<{ brokerAccountId: string; allocatedUsd: number }> {
+  return current.map((entry) =>
+    entry.brokerAccountId === brokerId ? { ...entry, allocatedUsd: Math.max(0, allocatedUsd) } : entry,
+  );
+}
+
+function mergeUniqueBrokerAssignments(
+  current: Array<{ brokerAccountId: string; allocatedUsd: number }>,
+  nextBrokerIds: string[],
+): Array<{ brokerAccountId: string; allocatedUsd: number }> {
+  const existing = new Set(current.map((entry) => entry.brokerAccountId));
+  return [
+    ...current,
+    ...nextBrokerIds
+      .filter((brokerId) => !existing.has(brokerId))
+      .map((brokerAccountId) => ({ brokerAccountId, allocatedUsd: 0 })),
+  ];
 }
 
 function formatInstrumentClass(value: InstrumentClass): string {
@@ -598,6 +668,7 @@ const switchRowStyle = { display: "flex", alignItems: "flex-start", gap: 12, pad
 const twoColumnGridStyle = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 } as const;
 const brokerPickerStyle = { display: "grid", gap: 8, border: "1px solid var(--border)", borderRadius: 12, padding: 10, background: "var(--surface2)" } as const;
 const brokerRowStyle = { display: "flex", alignItems: "flex-start", gap: 8, border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", background: "var(--surface)" } as const;
+const allocationRowStyle = { display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", background: "rgba(7,10,15,0.34)" } as const;
 const inlineHintStyle = { color: "var(--text3)", fontSize: 12 } as const;
 const modeToggleStyle = { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, padding: 6, borderRadius: 12, border: "1px solid var(--border)", background: "rgba(7,10,15,0.34)" } as const;
 const modeToggleButtonStyle = { border: "1px solid var(--border)", background: "transparent", color: "var(--text2)", borderRadius: 8, padding: "8px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" } as const;

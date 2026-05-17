@@ -5,6 +5,7 @@ import type {
   AgentRun,
   ApprovalSummary,
   BrokerAccount,
+  BrokerAccountWithState,
   BrokerCredentials,
   BrokerRoutingDefault,
   ConnectionTestResult,
@@ -45,7 +46,7 @@ export interface SessionSummary {
   instrumentClasses: InstrumentClass[];
   instrumentScope: string;
   defaultSearchProviderId: string | null;
-  capitalLimitUsd: number;
+  totalAllocatedUsd: number;
   executionMode: ExecutionMode;
   brokerCount: number;
   openTradeCount: number;
@@ -69,9 +70,8 @@ export interface SessionCreateInput {
   selectorSettings: {
     aiPickerEnabled: boolean;
   };
-  capitalLimitUsd: number;
   executionMode: ExecutionMode;
-  brokerAccountIds: string[];
+  brokerAssignments: Array<{ brokerAccountId: string; allocatedUsd: number }>;
   brokerOverridesByInstrumentClass?: Partial<Record<InstrumentClass, string | null>>;
 }
 
@@ -196,6 +196,16 @@ export const api = {
   getWorkspaceView: (): Promise<WorkspaceViewResponse> => bridge().workspace.getView(),
   patchWorkspacePreferences: (patch: Partial<Omit<WorkspacePreferences, "id">>) =>
     bridge().workspace.patchPreferences(patch),
+
+  listBrokerAccountState: (): Promise<BrokerAccountWithState[]> => bridge().brokerAccounts.list(),
+  refreshBrokerBalance: (brokerAccountId: string): Promise<{ balanceUsd: number; cachedAt: string }> =>
+    bridge().brokerAccounts.refreshBalance(brokerAccountId),
+  updateBrokerAccountSettings: (input: {
+    brokerAccountId: string;
+    maxSessions?: number;
+    allocationEnforcement?: "hard" | "warn";
+    balanceRefreshIntervalMin?: number;
+  }) => bridge().brokerAccounts.updateSettings(input),
 
   listTemplates: (filters?: { search?: string; instrumentClass?: InstrumentClass }) =>
     bridge().templates.list(filters),
@@ -330,6 +340,7 @@ export type ExvaEventName =
   | "step:succeeded"
   | "step:failed"
   | "step:retrying"
+  | "broker_balance_updated"
   | "stats_update"
   | "notification";
 
@@ -360,6 +371,7 @@ export interface ExvaEventMap {
     nextRetryAt: string | null;
   };
   "step:retrying": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number; nextRetryAt: string };
+  broker_balance_updated: { brokerAccountId: string; balanceUsd: number; cachedAt: string };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 }

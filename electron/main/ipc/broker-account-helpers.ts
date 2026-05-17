@@ -69,6 +69,11 @@ export function tempBrokerAccount(
     brokerType: input.brokerType,
     supportedInstrumentClasses: supportedInstrumentClassesFor(input.brokerType),
     mode: input.mode,
+    maxSessions: 10,
+    allocationEnforcement: "hard",
+    balanceRefreshIntervalMin: 5,
+    balanceCacheUsd: null,
+    balanceCachedAt: null,
     secretRef: `broker:${id}`,
     updatedAt: new Date().toISOString(),
   };

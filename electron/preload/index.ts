@@ -110,6 +110,11 @@ const exva: ExvaApi = {
     getView: () => invoke(channels.workspace.viewGet),
     patchPreferences: (patch) => invoke(channels.workspace.prefsPatch, patch),
   },
+  brokerAccounts: {
+    list: () => invoke(channels.brokerAccounts.list),
+    refreshBalance: (brokerAccountId) => invoke(channels.brokerAccounts.refreshBalance, { brokerAccountId }),
+    updateSettings: (input) => invoke(channels.brokerAccounts.updateSettings, input),
+  },
   templates: {
     list: (filters) => invoke(channels.templates.list, filters),
     create: (input) => invoke(channels.templates.create, input),

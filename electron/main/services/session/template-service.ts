@@ -124,7 +124,7 @@ export class SessionTemplateService {
     payload.brokerAssignments = payload.brokerAssignments.map((assignment, index) => {
       if (!brokerIds.has(assignment.brokerAccountId)) {
         clearedFields.push(`brokerAssignments[${index}]`);
-        return { brokerAccountId: "" };
+        return { brokerAccountId: "", allocatedUsd: 0 };
       }
       return assignment;
     });
@@ -148,7 +148,6 @@ export class SessionTemplateService {
     const strategyContext = this.deps.strategyContext.get(sessionId);
     const aiRoles = this.deps.aiRoles.listBySession(sessionId);
     const selector = this.deps.selectorSettings.get(sessionId);
-    const brokerIds = this.deps.brokerAssignments.listBrokerAccountIds(sessionId);
     const overrides = this.deps.brokerRouting.listSessionOverrides(sessionId);
 
     return {
@@ -159,7 +158,6 @@ export class SessionTemplateService {
         instrumentClasses: session.instrumentClasses,
         instrumentScope: session.instrumentScope,
         executionMode: session.executionMode,
-        capitalLimitUsd: session.capitalLimitUsd,
         defaultSearchProviderId: session.defaultSearchProviderId,
       },
       selectorSettings: { aiPickerEnabled: selector.aiPickerEnabled },
@@ -191,7 +189,7 @@ export class SessionTemplateService {
           promptMarkdown: role.promptMarkdown,
           promptAssetPath: role.promptAssetPath,
         })),
-      brokerAssignments: brokerIds.map((brokerAccountId) => ({ brokerAccountId })),
+      brokerAssignments: this.deps.brokerAssignments.listAssignments(sessionId),
       brokerOverridesByInstrumentClass: Object.fromEntries(
         overrides.map((override) => [override.instrumentClass, override.brokerAccountId]),
       ) as Partial<Record<InstrumentClass, string>>,

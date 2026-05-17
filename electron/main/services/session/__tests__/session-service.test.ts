@@ -6,7 +6,7 @@ describe("SessionService.getPortfolioValue", () => {
     const service = new SessionService({
       sessionRepo: {
         getFocused: () => ({ id: "session-1" }),
-        requireById: () => ({ capitalLimitUsd: 5000 }),
+        requireById: () => ({ id: "session-1" }),
       },
       sessionBrokerAssignmentsRepo: {
         listBrokerAccountIds: () => ["mock-broker"],
@@ -32,8 +32,8 @@ describe("SessionService.getPortfolioValue", () => {
     } as never);
 
     await expect(service.getPortfolioValue()).resolves.toEqual({
-      value: 5000,
-      source: "session_capital_limit",
+      value: 0,
+      source: "broker",
       brokerCount: 0,
     });
   });

@@ -102,7 +102,6 @@ function createSession(db: ReturnType<typeof createTestDb>, name: string) {
     selectionMode: "manual_shortlist",
     instrumentClasses: ["stock"],
     instrumentScope: "Large-cap equities",
-    capitalLimitUsd: 10_000,
     executionMode: "paper_only",
   });
 }

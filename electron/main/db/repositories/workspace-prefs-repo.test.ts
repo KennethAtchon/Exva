@@ -21,23 +21,20 @@ describe("WorkspacePreferencesRepo", () => {
       id: 1,
       globalIncludeArchived: false,
       defaultSearchProviderId: null,
-      capitalAllocationMode: "per_session_only",
-      globalCapitalPoolUsd: null,
+      allocationEnforcementOverride: null,
     });
 
     const updated = repo.update({
       globalIncludeArchived: true,
       defaultSearchProviderId: "provider-123",
-      capitalAllocationMode: "shared_global_pool",
-      globalCapitalPoolUsd: 5000,
+      allocationEnforcementOverride: "warn",
     });
 
     expect(updated).toMatchObject({
       id: 1,
       globalIncludeArchived: true,
       defaultSearchProviderId: "provider-123",
-      capitalAllocationMode: "shared_global_pool",
-      globalCapitalPoolUsd: 5000,
+      allocationEnforcementOverride: "warn",
     });
     expect(repo.get()).toMatchObject(updated);
 

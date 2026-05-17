@@ -10,7 +10,7 @@ describe("runMigrations", () => {
 
     const prefs = db.select().from(workspacePreferences).where(eq(workspacePreferences.id, 1)).get();
     expect(prefs).toBeDefined();
-    expect(prefs?.capitalAllocationMode).toBe("per_session_only");
+    expect(prefs?.allocationEnforcementOverride).toBeNull();
     expect(prefs?.defaultSearchProviderId).toBe(BUILT_IN_DUCKDUCKGO_PROVIDER_ID);
 
     const builtIn = db

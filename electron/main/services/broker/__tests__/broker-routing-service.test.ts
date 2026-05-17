@@ -35,7 +35,10 @@ describe("BrokerRoutingService", () => {
       mode: "live",
       secretRef: "broker:stock-override",
     });
-    assignments.replaceAssignments(sessionId, ["stock-default", "stock-override"]);
+    assignments.replaceAssignments(sessionId, [
+      { brokerAccountId: "stock-default", allocatedUsd: 1000 },
+      { brokerAccountId: "stock-override", allocatedUsd: 1000 },
+    ]);
     routingRepo.upsertGlobalDefaults([{ instrumentClass: "stock", defaultBrokerAccountId: "stock-default" }]);
     routingRepo.upsertSessionOverrides(sessionId, [{ instrumentClass: "stock", brokerAccountId: "stock-override" }]);
 
@@ -53,7 +56,7 @@ describe("BrokerRoutingService", () => {
       mode: "paper",
       secretRef: "broker:crypto-only",
     });
-    assignments.replaceAssignments(sessionId, ["crypto-only"]);
+    assignments.replaceAssignments(sessionId, [{ brokerAccountId: "crypto-only", allocatedUsd: 1000 }]);
 
     const service = createService(db);
     expect(service.resolveBrokerAccountId(sessionId, "crypto")).toBe("crypto-only");
@@ -77,7 +80,10 @@ describe("BrokerRoutingService", () => {
       mode: "paper",
       secretRef: "broker:stock-b",
     });
-    assignments.replaceAssignments(sessionId, ["stock-a", "stock-b"]);
+    assignments.replaceAssignments(sessionId, [
+      { brokerAccountId: "stock-a", allocatedUsd: 1000 },
+      { brokerAccountId: "stock-b", allocatedUsd: 1000 },
+    ]);
 
     const service = createService(db);
     expect(() => service.resolveBrokerAccountId(sessionId, "stock")).toThrow(/multiple brokers are compatible/i);
@@ -101,7 +107,7 @@ describe("BrokerRoutingService", () => {
       mode: "live",
       secretRef: "broker:unassigned-stock",
     });
-    assignments.replaceAssignments(sessionId, ["assigned-stock"]);
+    assignments.replaceAssignments(sessionId, [{ brokerAccountId: "assigned-stock", allocatedUsd: 1000 }]);
     routingRepo.upsertGlobalDefaults([{ instrumentClass: "stock", defaultBrokerAccountId: "unassigned-stock" }]);
 
     const service = createService(db);
@@ -118,7 +124,7 @@ describe("BrokerRoutingService", () => {
       mode: "paper",
       secretRef: "broker:failing-stock",
     });
-    assignments.replaceAssignments(sessionId, ["failing-stock"]);
+    assignments.replaceAssignments(sessionId, [{ brokerAccountId: "failing-stock", allocatedUsd: 1000 }]);
 
     const service = createService(db, {
       async get(id: string) {
@@ -148,7 +154,6 @@ function createRoutingContext(
     selectionMode: "manual_shortlist",
     instrumentClasses,
     instrumentScope: "AAPL",
-    capitalLimitUsd: 5000,
     executionMode: "paper_only",
   }).id;
 

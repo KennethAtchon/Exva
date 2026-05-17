@@ -16,8 +16,8 @@ export class WorkspacePreferencesRepo {
       id: 1,
       globalIncludeArchived: row.globalIncludeArchived,
       defaultSearchProviderId: row.defaultSearchProviderId,
-      capitalAllocationMode: row.capitalAllocationMode as WorkspacePreferences["capitalAllocationMode"],
-      globalCapitalPoolUsd: row.globalCapitalPoolUsd,
+      allocationEnforcementOverride:
+        (row.allocationEnforcementOverride as WorkspacePreferences["allocationEnforcementOverride"]) ?? null,
       defaultModelProviderKey: row.defaultModelProviderKey ?? "",
       defaultModelModelId: row.defaultModelModelId ?? "",
       updatedAt: row.updatedAt,
@@ -33,8 +33,7 @@ export class WorkspacePreferencesRepo {
       .set({
         globalIncludeArchived: next.globalIncludeArchived,
         defaultSearchProviderId: next.defaultSearchProviderId,
-        capitalAllocationMode: next.capitalAllocationMode,
-        globalCapitalPoolUsd: next.globalCapitalPoolUsd,
+        allocationEnforcementOverride: next.allocationEnforcementOverride,
         defaultModelProviderKey: next.defaultModelProviderKey,
         defaultModelModelId: next.defaultModelModelId,
         updatedAt: next.updatedAt,

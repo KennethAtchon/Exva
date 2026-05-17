@@ -32,7 +32,15 @@ import { TradeApprovalsRepo } from "../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace-prefs-repo";
 import { AiRuntime } from "./ai/ai-runtime/index";
-import { BrokerRegistry, BrokerRoutingService, BrokerService, InstrumentNormalizer } from "./broker";
+import {
+  BrokerBalanceCacheService,
+  BrokerBalanceTicker,
+  BrokerCapitalService,
+  BrokerRegistry,
+  BrokerRoutingService,
+  BrokerService,
+  InstrumentNormalizer,
+} from "./broker";
 import { EventBus } from "./infra/event-bus";
 import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
@@ -51,7 +59,7 @@ import { TradeMonitor } from "./orchestration/trade-monitor";
 import { TradeAutopsyService } from "./orchestration/trade-autopsy-service";
 import { CycleReplayService } from "./orchestration/cycle-replay-service";
 import { InstrumentCacheService } from "./instrument";
-import { CapitalReservationService, RiskEngine } from "./risk";
+import { BrokerAllocationGate, CapitalReservationService, RiskEngine } from "./risk";
 import { PaperScorecardService } from "./analytics/paper-scorecard-service";
 import { LiveReadinessService } from "./risk/live-readiness-service";
 
@@ -98,6 +106,10 @@ export interface AppServices {
   searchRegistry: SearchRegistry;
   brokerRegistry: BrokerRegistry;
   broker: BrokerService;
+  brokerCapital: BrokerCapitalService;
+  brokerBalanceCache: BrokerBalanceCacheService;
+  brokerAllocationGate: BrokerAllocationGate;
+  balanceTicker: BrokerBalanceTicker;
   capitalReservation: CapitalReservationService;
   eventBus: EventBus;
   notifications: NotificationService;
@@ -155,16 +167,26 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const secrets = new SecretsService();
   const brokerRegistry = new BrokerRegistry(repos.brokerAccounts, secrets);
   const instrumentNormalizer = new InstrumentNormalizer();
+  const logger = createLogger("app-services");
   const brokerRouting = new BrokerRoutingService(
     repos.brokerAccounts,
     repos.sessionBrokerAssignments,
     repos.brokerRouting,
     brokerRegistry,
   );
-  const capitalReservation = new CapitalReservationService(repos.capitalReservations, repos.workspacePreferences);
+  const brokerBalanceCache = new BrokerBalanceCacheService(repos.brokerAccounts, brokerRegistry);
+  const brokerCapital = new BrokerCapitalService(repos.brokerAccounts, repos.sessionBrokerAssignments, repos.session);
+  const brokerAllocationGate = new BrokerAllocationGate(
+    repos.sessionBrokerAssignments,
+    repos.trades,
+    repos.workspacePreferences,
+    repos.brokerAccounts,
+  );
+  const capitalReservation = new CapitalReservationService(repos.capitalReservations);
   const broker = new BrokerService(brokerRegistry);
 
   const eventBus = new EventBus();
+  const balanceTicker = new BrokerBalanceTicker(repos.brokerAccounts, brokerBalanceCache, eventBus, logger);
   const risk = new RiskEngine();
   const providerRegistry = new ProviderRegistry(repos.providerAccounts, secrets);
   const searchRegistry = new SearchRegistry(repos.providerAccounts, secrets);
@@ -195,7 +217,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerRegistry,
     strategyContext,
   );
-  const logger = createLogger("app-services");
+  balanceTicker.start();
 
   // reason: forward reference — createTradeMonitor closure reads runtimeManager before it's assigned below
   // eslint-disable-next-line prefer-const
@@ -222,6 +244,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerAccountsRepo: repos.brokerAccounts,
     brokerRegistry,
     brokerRouting,
+    brokerBalanceCache,
+    brokerCapital,
+    brokerAllocationGate,
     instrumentNormalizer,
     ai,
     riskEngine: risk,
@@ -266,6 +291,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     eventsRepo: repos.events,
     sessionBrokerAssignmentsRepo: repos.sessionBrokerAssignments,
     brokerRegistry,
+    brokerBalanceCache,
     runtimeManager,
     preflight: runPreflight,
     orchestratorDeps,
@@ -333,6 +359,10 @@ export async function createAppServices(app: App): Promise<AppServices> {
     searchRegistry,
     brokerRegistry,
     broker,
+    brokerCapital,
+    brokerBalanceCache,
+    brokerAllocationGate,
+    balanceTicker,
     capitalReservation,
     eventBus,
     notifications,

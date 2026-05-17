@@ -1,6 +1,6 @@
 import type { WorkspaceSession } from "@/lib/types";
+import { brokerAllocationCheck } from "./broker-allocation-check";
 import { brokerReachabilityCheck } from "./broker-reachability-check";
-import { capitalPoolCheck } from "./capital-pool-check";
 import { instrumentConflictCheck } from "./instrument-conflict-check";
 import { providerCredentialsCheck } from "./provider-credentials-check";
 import { selectorConfigCheck } from "./selector-config-check";
@@ -14,7 +14,7 @@ export async function runPreflight(session: WorkspaceSession, deps: Orchestrator
     { check: "task-boundary", run: () => taskBoundaryCheck(session, deps) },
     { check: "provider-credentials", run: () => providerCredentialsCheck(session, deps) },
     { check: "broker-reachability", run: () => brokerReachabilityCheck(session, deps) },
-    { check: "capital-pool", run: () => capitalPoolCheck(session, deps) },
+    { check: "broker-allocation", run: () => brokerAllocationCheck(session, deps) },
     { check: "selector-config", run: () => selectorConfigCheck(session, deps) },
     { check: "instrument-conflict", run: () => instrumentConflictCheck(session, deps) },
   ];

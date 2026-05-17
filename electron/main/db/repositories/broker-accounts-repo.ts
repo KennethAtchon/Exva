@@ -1,5 +1,5 @@
 import type { DbClient } from "../client";
-import type { BrokerAccount, BrokerMode, InstrumentClass } from "@/lib/types";
+import type { AllocationEnforcement, BrokerAccount, BrokerMode, InstrumentClass } from "@/lib/types";
 import { asc, eq } from "drizzle-orm";
 import { AppError } from "@electron/shared/infra/errors";
 import { brokerAccounts } from "../schema";
@@ -50,5 +50,43 @@ export class BrokerAccountsRepo {
 
   delete(id: string): void {
     this.client.db.delete(brokerAccounts).where(eq(brokerAccounts.id, id)).run();
+  }
+
+  updateBalanceCache(id: string, balanceCacheUsd: number, balanceCachedAt: string): void {
+    this.client.db
+      .update(brokerAccounts)
+      .set({ balanceCacheUsd, balanceCachedAt, updatedAt: new Date().toISOString() })
+      .where(eq(brokerAccounts.id, id))
+      .run();
+  }
+
+  getBalanceCache(id: string): { balanceCacheUsd: number | null; balanceCachedAt: string | null } {
+    const row = this.client.db
+      .select({
+        balanceCacheUsd: brokerAccounts.balanceCacheUsd,
+        balanceCachedAt: brokerAccounts.balanceCachedAt,
+      })
+      .from(brokerAccounts)
+      .where(eq(brokerAccounts.id, id))
+      .get();
+    return {
+      balanceCacheUsd: row?.balanceCacheUsd ?? null,
+      balanceCachedAt: row?.balanceCachedAt ?? null,
+    };
+  }
+
+  updateSettings(
+    id: string,
+    patch: {
+      maxSessions?: number;
+      allocationEnforcement?: AllocationEnforcement;
+      balanceRefreshIntervalMin?: number;
+    },
+  ): void {
+    this.client.db
+      .update(brokerAccounts)
+      .set({ ...patch, updatedAt: new Date().toISOString() })
+      .where(eq(brokerAccounts.id, id))
+      .run();
   }
 }

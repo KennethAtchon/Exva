@@ -76,6 +76,38 @@ export class TradesRepo {
     return Number(row?.count ?? 0) > 0;
   }
 
+  findOpenTradeOnBroker(brokerAccountId: string, instrumentSymbol: string, excludeSessionId: string): Trade | null {
+    const row = this.client.db
+      .select()
+      .from(trades)
+      .where(
+        and(
+          eq(trades.brokerAccountId, brokerAccountId),
+          eq(trades.instrumentSymbol, instrumentSymbol),
+          ne(trades.sessionId, excludeSessionId),
+          eq(trades.status, "open"),
+        ),
+      )
+      .orderBy(desc(trades.createdAt))
+      .get();
+    return row ? toTrade(row) : null;
+  }
+
+  sumOpenPositionSizeUsd(sessionId: string, brokerAccountId: string): number {
+    const row = this.client.db
+      .select({ total: sql<number>`coalesce(sum(${trades.positionSizeUsd}), 0)` })
+      .from(trades)
+      .where(
+        and(
+          eq(trades.sessionId, sessionId),
+          eq(trades.brokerAccountId, brokerAccountId),
+          eq(trades.status, "open"),
+        ),
+      )
+      .get();
+    return Number(row?.total ?? 0);
+  }
+
   find(id: string): Trade | null {
     const row = this.client.db.select().from(trades).where(eq(trades.id, id)).get();
     return row ? toTrade(row) : null;

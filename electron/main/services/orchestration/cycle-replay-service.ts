@@ -380,7 +380,7 @@ export class CycleReplayRunner {
             daily_api_spend: 0,
             api_budget: strategySnapshot.riskConfig.maxAiSpendUsd,
             portfolio_value: 0,
-            portfolio_value_source: "session_capital_limit",
+            portfolio_value_source: "broker",
             portfolio_broker_count: 0,
             unrealized_pnl: 0,
             session_uptime_min: 0,

@@ -143,7 +143,6 @@ function createDeps({
     instrumentClasses: session?.instrumentClasses ?? ["stock"],
     instrumentScope: session?.instrumentScope ?? "AAPL",
     defaultSearchProviderId: null,
-    capitalLimitUsd: 1000,
     executionMode: "paper_only",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

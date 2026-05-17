@@ -5,7 +5,7 @@ import type { SessionLifecycleDeps } from "./session-types";
 
 export interface PortfolioValueResult {
   value: number;
-  source: "broker" | "session_capital_limit";
+  source: "broker";
   brokerCount: number;
 }
 
@@ -83,12 +83,11 @@ export class SessionService {
   async getPortfolioValue(sessionId?: string): Promise<PortfolioValueResult> {
     const resolvedSessionId = sessionId ?? this.deps.sessionRepo.getFocused()?.id ?? null;
     if (!resolvedSessionId) {
-      return { value: 0, source: "session_capital_limit", brokerCount: 0 };
+      return { value: 0, source: "broker", brokerCount: 0 };
     }
-    const session = this.deps.sessionRepo.requireById(resolvedSessionId);
     const assignedIds = this.deps.sessionBrokerAssignmentsRepo?.listBrokerAccountIds(resolvedSessionId) ?? [];
 
-    if (this.deps.brokerRegistry && assignedIds.length > 0) {
+    if (this.deps.brokerRegistry && this.deps.brokerBalanceCache && assignedIds.length > 0) {
       let total = 0;
       let counted = 0;
       for (const id of assignedIds) {
@@ -97,17 +96,15 @@ export class SessionService {
           if (!adapter.launchCapable || adapter.brokerType === "mock") {
             continue;
           }
-          total += await adapter.getAccountBalance();
+          total += await this.deps.brokerBalanceCache.getBalance(id);
           counted += 1;
         } catch {
           // adapter unavailable; fall through
         }
       }
-      if (counted > 0) {
-        return { value: total, source: "broker", brokerCount: counted };
-      }
+      return { value: total, source: "broker", brokerCount: counted };
     }
-    return { value: session.capitalLimitUsd, source: "session_capital_limit", brokerCount: 0 };
+    return { value: 0, source: "broker", brokerCount: 0 };
   }
 
   uptimeMin(sessionId = this.deps.sessionRepo.getFocusedSessionId()): number {

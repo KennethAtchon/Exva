@@ -18,6 +18,11 @@ export const brokerAccounts = sqliteTable("broker_accounts", {
   brokerType: text("broker_type").notNull(),
   supportedInstrumentClasses: text("supported_instrument_classes").notNull(),
   mode: text("mode").notNull().default("paper"),
+  maxSessions: integer("max_sessions").notNull().default(10),
+  allocationEnforcement: text("allocation_enforcement").notNull().default("hard"),
+  balanceRefreshIntervalMin: integer("balance_refresh_interval_min").notNull().default(5),
+  balanceCacheUsd: real("balance_cache_usd"),
+  balanceCachedAt: text("balance_cached_at"),
   secretRef: text("secret_ref").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -36,7 +41,6 @@ export const sessions = sqliteTable(
     defaultSearchProviderId: text("default_search_provider_id").references(() => providerAccounts.id, {
       onDelete: "set null",
     }),
-    capitalLimitUsd: real("capital_limit_usd").notNull(),
     executionMode: text("execution_mode").notNull().default("paper_only"),
     liveReadinessAcknowledgedAt: text("live_readiness_acknowledged_at"),
     createdAt: text("created_at").notNull(),
@@ -232,6 +236,7 @@ export const sessionBrokerAssignments = sqliteTable(
     brokerAccountId: text("broker_account_id")
       .notNull()
       .references(() => brokerAccounts.id, { onDelete: "cascade" }),
+    allocatedUsd: real("allocated_usd").notNull().default(0),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.sessionId, table.brokerAccountId] }),
@@ -244,8 +249,7 @@ export const workspacePreferences = sqliteTable("workspace_preferences", {
   defaultSearchProviderId: text("default_search_provider_id").references(() => providerAccounts.id, {
     onDelete: "set null",
   }),
-  capitalAllocationMode: text("capital_allocation_mode").notNull().default("per_session_only"),
-  globalCapitalPoolUsd: real("global_capital_pool_usd"),
+  allocationEnforcementOverride: text("allocation_enforcement_override"),
   defaultModelProviderKey: text("default_model_provider_key").notNull().default(""),
   defaultModelModelId: text("default_model_model_id").notNull().default(""),
   updatedAt: text("updated_at").notNull(),

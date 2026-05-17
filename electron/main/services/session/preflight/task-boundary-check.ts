@@ -18,9 +18,6 @@ export async function taskBoundaryCheck(session: WorkspaceSession, deps: Orchest
   if (!session.instrumentScope.trim()) {
     return { ok: false, code: "VALIDATION_FAILED", message: "Instrument scope is required." };
   }
-  if (session.capitalLimitUsd <= 0) {
-    return { ok: false, code: "VALIDATION_FAILED", message: "Capital limit must be greater than zero." };
-  }
   if (!session.executionMode) {
     return { ok: false, code: "VALIDATION_FAILED", message: "Execution mode is required." };
   }

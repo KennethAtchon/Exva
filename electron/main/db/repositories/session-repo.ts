@@ -42,7 +42,6 @@ export interface CreateSessionInput {
   instrumentClasses: WorkspaceSession["instrumentClasses"];
   instrumentScope: string;
   defaultSearchProviderId?: string | null;
-  capitalLimitUsd: number;
   executionMode: WorkspaceSession["executionMode"];
   isFocused?: boolean;
 }
@@ -54,7 +53,6 @@ export interface TaskBoundaryInput {
   instrumentClasses: WorkspaceSession["instrumentClasses"];
   instrumentScope: string;
   defaultSearchProviderId: string | null;
-  capitalLimitUsd: number;
   executionMode: WorkspaceSession["executionMode"];
 }
 
@@ -126,7 +124,6 @@ export class SessionRepo {
           instrumentClasses: JSON.stringify(input.instrumentClasses),
           instrumentScope: input.instrumentScope,
           defaultSearchProviderId: input.defaultSearchProviderId ?? null,
-          capitalLimitUsd: input.capitalLimitUsd,
           executionMode: input.executionMode,
           createdAt: now,
           updatedAt: now,
@@ -349,7 +346,6 @@ export class SessionRepo {
         instrumentClasses: JSON.stringify(input.instrumentClasses),
         instrumentScope: input.instrumentScope,
         defaultSearchProviderId: input.defaultSearchProviderId,
-        capitalLimitUsd: input.capitalLimitUsd,
         executionMode: input.executionMode,
         updatedAt: new Date().toISOString(),
       })
@@ -374,7 +370,6 @@ export class SessionRepo {
           instrumentClasses: JSON.stringify(source.instrumentClasses),
           instrumentScope: source.instrumentScope,
           defaultSearchProviderId: source.defaultSearchProviderId,
-          capitalLimitUsd: source.capitalLimitUsd,
           executionMode: source.executionMode,
           createdAt: now,
           updatedAt: now,
@@ -490,6 +485,7 @@ export class SessionRepo {
           .values({
             sessionId: newId,
             brokerAccountId: row.brokerAccountId,
+            allocatedUsd: row.allocatedUsd,
           })
           .run();
       }
@@ -576,4 +572,3 @@ export class SessionRepo {
     });
   }
 }
-

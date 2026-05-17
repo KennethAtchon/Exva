@@ -107,7 +107,7 @@ export const SessionTable = ({
             {/* Meta strip */}
             <div style={metaGridStyle}>
               <MetaBlock label="Scope" value={session.instrumentScope} />
-              <MetaBlock label="Capital" value={`$${session.capitalLimitUsd.toLocaleString()}`} />
+              <MetaBlock label="Allocated" value={`$${session.totalAllocatedUsd.toLocaleString()}`} />
               <MetaBlock label="Search" value={getSearchProviderDisplayName(session.defaultSearchProviderId)} />
               <MetaBlock label="Updated" value={formatTimestamp(session.updatedAt)} />
             </div>

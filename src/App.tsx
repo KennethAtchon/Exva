@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { TopNav, type PageKey } from "./components/TopNav";
 import { Dashboard } from "./pages/Dashboard";
+import { BrokersPage } from "./pages/BrokersPage";
 import { SessionsPage } from "./pages/SessionsPage";
 import { TradesPage } from "./pages/TradesPage";
 import { TradeDetail } from "./pages/TradeDetail";
@@ -104,6 +105,15 @@ export default function App() {
           onViewTrace={(sessionId, cycleId, stage) => {
             setDevPanelFocus({ sessionId, cycleId, stage });
             setPage("devpanel");
+          }}
+        />
+      );
+      case "brokers":   return (
+        <BrokersPage
+          onJumpToSession={async (sessionId) => {
+            await api.focusSession(sessionId);
+            await loadWorkspaceView();
+            setPage("sessions");
           }}
         />
       );

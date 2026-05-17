@@ -147,14 +147,21 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
 
             <Section title="Execution Setup">
               <Row label="Execution mode" value={session.executionMode === "live_allowed" ? "Live allowed" : "Paper only"} />
-              <Row label="Assigned brokers" value={payload?.brokerAssignments.map((e) => e.brokerAccountId).join(", ") || "None assigned"} />
+              <Row
+                label="Assigned brokers"
+                value={
+                  payload?.brokerAssignments.length
+                    ? payload.brokerAssignments.map((entry) => `${entry.brokerAccountId} ($${entry.allocatedUsd.toLocaleString()})`).join(", ")
+                    : "None assigned"
+                }
+              />
               <Row label="Routing overrides" value={formatOverrides(payload?.brokerOverridesByInstrumentClass)} />
               <Row label="Instrument classes" value={session.instrumentClasses.map(formatInstrumentClass).join(", ")} />
             </Section>
 
             <Section title="Risk Limits">
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <StatBlock label="Capital limit" value={`$${session.capitalLimitUsd.toLocaleString()}`} />
+                <StatBlock label="Total allocated" value={`$${session.totalAllocatedUsd.toLocaleString()}`} />
                 <StatBlock label="Max position" value={payload ? `$${payload.strategy.maxPositionUsd.toLocaleString()}` : loading ? "…" : "—"} />
                 <StatBlock label="Stop / target" value={payload ? `${payload.strategy.stopLossPct}% / ${payload.strategy.takeProfitPct}%` : loading ? "…" : "—"} />
                 <StatBlock label="Daily loss / profit" value={payload ? `$${payload.strategy.dailyLossLimitUsd.toLocaleString()} / $${payload.strategy.profitTargetUsd.toLocaleString()}` : loading ? "…" : "—"} />

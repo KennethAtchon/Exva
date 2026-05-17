@@ -1,7 +1,7 @@
 import type {
+  AllocationEnforcement,
   AgentRole,
   BrokerMode,
-  CapitalAllocationMode,
   ExecutionMode,
   InstrumentClass,
   ProviderType,
@@ -21,11 +21,15 @@ export interface WorkspaceSession {
   instrumentClasses: InstrumentClass[];
   instrumentScope: string;
   defaultSearchProviderId: string | null;
-  capitalLimitUsd: number;
   executionMode: ExecutionMode;
   startedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BrokerAssignment {
+  brokerAccountId: string;
+  allocatedUsd: number;
 }
 
 export interface ProviderAccount {
@@ -46,8 +50,28 @@ export interface BrokerAccount {
   brokerType: string;
   supportedInstrumentClasses: InstrumentClass[];
   mode: BrokerMode;
+  maxSessions: number;
+  allocationEnforcement: AllocationEnforcement;
+  balanceRefreshIntervalMin: number;
+  balanceCacheUsd: number | null;
+  balanceCachedAt: string | null;
   secretRef: string;
   updatedAt: string;
+}
+
+export interface BrokerAccountWithState extends BrokerAccount {
+  isStale: boolean;
+  sessions: Array<{
+    sessionId: string;
+    sessionName: string;
+    status: SessionStatus;
+    allocatedUsd: number;
+  }>;
+  activeSessionCount: number;
+  totalAllocatedUsd: number;
+  freeCapitalUsd: number | null;
+  isOverAllocated: boolean;
+  atSessionCap: boolean;
 }
 
 export interface BrokerRoutingDefault {
@@ -65,8 +89,7 @@ export interface WorkspacePreferences {
   id: 1;
   globalIncludeArchived: boolean;
   defaultSearchProviderId: string | null;
-  capitalAllocationMode: CapitalAllocationMode;
-  globalCapitalPoolUsd: number | null;
+  allocationEnforcementOverride: AllocationEnforcement | null;
   defaultModelProviderKey: string;
   defaultModelModelId: string;
   updatedAt: string;
@@ -90,7 +113,6 @@ export interface SessionTemplatePayload {
     instrumentClasses: InstrumentClass[];
     instrumentScope: string;
     executionMode: ExecutionMode;
-    capitalLimitUsd: number;
     defaultSearchProviderId: string | null;
   };
   selectorSettings: {
@@ -99,7 +121,7 @@ export interface SessionTemplatePayload {
   strategyContext?: SessionStrategyContext;
   strategy: Omit<SessionStrategy, "sessionId">;
   aiRoles: Array<Omit<SessionAiRole, "sessionId">>;
-  brokerAssignments: Array<{ brokerAccountId: string }>;
+  brokerAssignments: BrokerAssignment[];
   brokerOverridesByInstrumentClass: Partial<Record<InstrumentClass, string>>;
 }
 
@@ -114,8 +136,7 @@ export interface DashboardStats {
   daily_api_spend: number;
   api_budget: number;
   portfolio_value: number;
-  /** Whether `portfolio_value` came from a live broker balance call or fell back to the session capital limit. */
-  portfolio_value_source: "broker" | "session_capital_limit";
+  portfolio_value_source: "broker";
   portfolio_broker_count: number;
   unrealized_pnl: number;
   session_uptime_min: number;

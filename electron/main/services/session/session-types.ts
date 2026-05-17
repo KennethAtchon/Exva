@@ -23,7 +23,10 @@ import type { ExecutionStage } from "@/lib/types";
 import type { BrokerRegistry } from "../broker/broker-registry";
 import type { InstrumentNormalizer } from "../broker/instrument-normalizer";
 import type { BrokerRoutingService } from "../broker/broker-routing-service";
+import type { BrokerBalanceCacheService } from "../broker/broker-balance-cache-service";
+import type { BrokerCapitalService } from "../broker/broker-capital-service";
 import type { EventBus } from "../infra/event-bus";
+import type { BrokerAllocationGate } from "../risk/broker-allocation-gate";
 import type { CapitalReservationService } from "../risk/capital-reservation-service";
 import type { Logger } from "../infra/log";
 import type { RiskEngine } from "../risk/risk-engine";
@@ -71,6 +74,9 @@ export interface OrchestratorDeps {
   brokerAccountsRepo: BrokerAccountsRepo;
   brokerRegistry: BrokerRegistry;
   brokerRouting: BrokerRoutingService;
+  brokerBalanceCache: BrokerBalanceCacheService;
+  brokerCapital: BrokerCapitalService;
+  brokerAllocationGate: BrokerAllocationGate;
   instrumentNormalizer: InstrumentNormalizer;
   ai: AiRuntime;
   riskEngine: RiskEngine;
@@ -119,6 +125,9 @@ export interface SessionLifecycleDeps {
   eventsRepo: EventsRepo;
   sessionBrokerAssignmentsRepo?: SessionBrokerAssignmentsRepo;
   brokerRegistry?: BrokerRegistry;
+  brokerBalanceCache?: {
+    getBalance(brokerAccountId: string): Promise<number>;
+  };
   runtimeManager: {
     startSession(sessionId: string): Promise<SessionRuntime>;
     pauseSession(sessionId: string): Promise<void>;

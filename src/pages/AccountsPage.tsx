@@ -624,53 +624,41 @@ export const AccountsPage = () => {
           </Card>
 
           <Card>
-            <SectionTitle>Capital allocation</SectionTitle>
+            <SectionTitle>Broker allocation override</SectionTitle>
             <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 6, marginBottom: 12 }}>
-              Shared pool mode reserves capital across sessions (see Phase 8 spec).
+              Optionally force all brokers to use the same over-allocation behavior.
             </p>
             {prefs && (
               <>
                 <div style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>Mode</div>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 }}>Override</div>
                   <ShadcnSelect
-                    value={prefsDraft?.capitalAllocationMode ?? ""}
+                    value={prefsDraft?.allocationEnforcementOverride ?? ""}
                     onValueChange={(value) =>
                       setPrefsDraft((current) =>
                         current
                           ? {
                               ...current,
-                              capitalAllocationMode: value as WorkspacePreferences["capitalAllocationMode"],
+                              allocationEnforcementOverride:
+                                value === "" ? null : (value as WorkspacePreferences["allocationEnforcementOverride"]),
                             }
                           : current,
                       )
                     }
                     className="w-full"
                     options={[
-                      { value: "per_session_only", label: "Per-session only" },
-                      { value: "shared_global_pool", label: "Shared global pool" },
+                      { value: "", label: "Use each broker setting" },
+                      { value: "hard", label: "Hard block" },
+                      { value: "warn", label: "Warn only" },
                     ]}
                   />
                 </div>
-                {prefsDraft?.capitalAllocationMode === "shared_global_pool" && (
-                  <InputField
-                    label="Global pool (USD)"
-                    type="number"
-                    value={String(prefsDraft?.globalCapitalPoolUsd ?? "")}
-                    onChange={(v) =>
-                      setPrefsDraft((p) =>
-                        p ? { ...p, globalCapitalPoolUsd: v === "" ? null : Number(v) } : p,
-                      )
-                    }
-                    placeholder="100000"
-                  />
-                )}
                 <button
                   type="button"
                   onClick={async () => {
                     if (!prefsDraft) return;
                     await api.patchWorkspacePreferences({
-                      capitalAllocationMode: prefsDraft.capitalAllocationMode,
-                      globalCapitalPoolUsd: prefsDraft.globalCapitalPoolUsd,
+                      allocationEnforcementOverride: prefsDraft.allocationEnforcementOverride,
                     });
                     void refetchWorkspace();
                   }}
@@ -687,7 +675,7 @@ export const AccountsPage = () => {
                     cursor: "pointer",
                   }}
                 >
-                  Save capital settings
+                  Save override
                 </button>
               </>
             )}

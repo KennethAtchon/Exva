@@ -46,7 +46,6 @@ describe("SessionRuntimeManager", () => {
       selectionMode: "manual_shortlist",
       instrumentClasses: ["stock"],
       instrumentScope: "NVDA",
-      capitalLimitUsd: 5000,
       executionMode: "paper_only",
     }).id;
     sessionBetaId = sessions.create({
@@ -55,7 +54,6 @@ describe("SessionRuntimeManager", () => {
       selectionMode: "manual_shortlist",
       instrumentClasses: ["stock"],
       instrumentScope: "AAPL",
-      capitalLimitUsd: 5000,
       executionMode: "paper_only",
     }).id;
     db.db
@@ -171,6 +169,12 @@ function createManager(
       resolveBrokerAccountId: () => "default-broker",
       resolveAdapter: async () => ({}) as never,
       preflightSession: async () => undefined,
+    } as never,
+    brokerBalanceCache: { getBalance: async () => 0 } as never,
+    brokerCapital: { checkSessionStartFits: () => ({ ok: true as const }) } as never,
+    brokerAllocationGate: {
+      checkOrderFits: () => ({ ok: true as const }),
+      checkInstrumentConflict: () => ({ ok: true as const }),
     } as never,
     instrumentNormalizer: { toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol } as never,
     instrumentCacheRepo: new InstrumentCacheRepo(db),

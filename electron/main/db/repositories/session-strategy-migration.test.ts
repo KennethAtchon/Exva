@@ -16,7 +16,6 @@ describe("strategy schema migration compatibility", () => {
       selectionMode: "manual_shortlist",
       instrumentClasses: ["stock"],
       instrumentScope: "AAPL",
-      capitalLimitUsd: 1000,
       executionMode: "paper_only",
     });
 
@@ -62,7 +61,6 @@ describe("strategy schema migration compatibility", () => {
       selectionMode: "manual_shortlist",
       instrumentClasses: ["stock"],
       instrumentScope: "MSFT",
-      capitalLimitUsd: 1000,
       executionMode: "paper_only",
     });
 

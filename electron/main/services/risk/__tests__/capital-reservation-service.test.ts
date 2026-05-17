@@ -4,7 +4,6 @@ import { CapitalReservationsRepo } from "../../../db/repositories/capital-reserv
 import { SessionRepo } from "../../../db/repositories/session-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trade-approvals-repo";
 import { TradesRepo } from "../../../db/repositories/trades-repo";
-import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { CapitalReservationService } from "../capital-reservation-service";
 
 describe("CapitalReservationService", () => {
@@ -18,33 +17,8 @@ describe("CapitalReservationService", () => {
     db.sqlite.close();
   });
 
-  it("enforces the shared global capital pool ceiling", () => {
-    const prefs = new WorkspacePreferencesRepo(db);
-    prefs.update({
-      capitalAllocationMode: "shared_global_pool",
-      globalCapitalPoolUsd: 1000,
-    });
-
-    const service = new CapitalReservationService(
-      new CapitalReservationsRepo(db),
-      prefs,
-    );
-    const { sessionId, approvalId } = createApprovalFixture(db, "Alpha");
-    service.reserveForApproval({ sessionId, approvalId, amountUsd: 400 });
-
-    expect(service.checkSessionStartFits("s2", 500)).toEqual({ ok: true });
-    expect(service.checkSessionStartFits("s2", 700)).toEqual({
-      ok: false,
-      reserved: 400,
-      ceiling: 1000,
-    });
-  });
-
   it("tracks reservation lifecycle from approval to close", () => {
-    const service = new CapitalReservationService(
-      new CapitalReservationsRepo(db),
-      new WorkspacePreferencesRepo(db),
-    );
+    const service = new CapitalReservationService(new CapitalReservationsRepo(db));
     const { sessionId, approvalId, tradeId } = createApprovalFixture(db, "Lifecycle");
 
     service.reserveForApproval({ sessionId, approvalId, amountUsd: 300 });
@@ -61,6 +35,17 @@ describe("CapitalReservationService", () => {
     expect(service.sumActiveReservedUsd()).toBe(0);
     expect(service.listActiveBySession(sessionId)).toEqual([]);
   });
+
+  it("releases direct order reservations on failure", () => {
+    const service = new CapitalReservationService(new CapitalReservationsRepo(db));
+    const { sessionId, tradeId } = createApprovalFixture(db, "Failure");
+
+    service.reserveForOrder({ sessionId, tradeId, amountUsd: 125 });
+    expect(service.sumActiveReservedUsd()).toBe(125);
+
+    service.releaseOnFailure(tradeId);
+    expect(service.sumActiveReservedUsd()).toBe(0);
+  });
 });
 
 function createApprovalFixture(db: ReturnType<typeof createTestDb>, name: string) {
@@ -71,7 +56,6 @@ function createApprovalFixture(db: ReturnType<typeof createTestDb>, name: string
     selectionMode: "manual_shortlist",
     instrumentClasses: ["stock"],
     instrumentScope: "AAPL",
-    capitalLimitUsd: 1000,
     executionMode: "paper_only",
   }).id;
 

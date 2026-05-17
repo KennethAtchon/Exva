@@ -27,7 +27,7 @@ describe("RiskEngine", () => {
     daily_api_spend: 2,
     api_budget: 10,
     portfolio_value: 100000,
-    portfolio_value_source: "session_capital_limit",
+    portfolio_value_source: "broker",
     portfolio_broker_count: 0,
     unrealized_pnl: 0,
     session_uptime_min: 30,

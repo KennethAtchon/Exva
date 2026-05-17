@@ -92,6 +92,11 @@ export const channels = {
     routingGet: "accounts:routing:get",
     routingUpdate: "accounts:routing:update",
   },
+  brokerAccounts: {
+    list: "broker-accounts:list",
+    refreshBalance: "broker-accounts:refresh-balance",
+    updateSettings: "broker-accounts:update-settings",
+  },
   events: {
     list: "events:list",
     getAgentTraces: "events:get-agent-traces",
@@ -124,6 +129,7 @@ export const mainToRendererEvents = [
   "step:succeeded",
   "step:failed",
   "step:retrying",
+  "broker_balance_updated",
   "stats_update",
   "notification",
 ] as const;

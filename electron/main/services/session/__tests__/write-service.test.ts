@@ -54,9 +54,11 @@ describe("SessionWriteService", () => {
       instrumentClasses: ["stock", "crypto"],
       instrumentScope: "NVDA, BTC-USD",
       selectorSettings: { aiPickerEnabled: false },
-      capitalLimitUsd: 5000,
       executionMode: "live_allowed",
-      brokerAccountIds: ["broker-stock", "broker-crypto"],
+      brokerAssignments: [
+        { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
+        { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
+      ],
       brokerOverridesByInstrumentClass: {
         stock: "broker-stock",
         crypto: "broker-crypto",
@@ -76,6 +78,10 @@ describe("SessionWriteService", () => {
     expect(result.status).toBe("draft");
     expect(sessions.getFocusedSessionId()).toBe(result.id);
     expect(assignments.listBrokerAccountIds(result.id)).toEqual(["broker-crypto", "broker-stock"]);
+    expect(assignments.listAssignments(result.id)).toEqual([
+      { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
+      { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
+    ]);
     expect(routing.listSessionOverrides(result.id)).toEqual([
       { sessionId: result.id, instrumentClass: "crypto", brokerAccountId: "broker-crypto" },
       { sessionId: result.id, instrumentClass: "stock", brokerAccountId: "broker-stock" },
@@ -107,9 +113,8 @@ describe("SessionWriteService", () => {
       instrumentClasses: ["stock"],
       instrumentScope: "SPY",
       selectorSettings: { aiPickerEnabled: false },
-      capitalLimitUsd: 1000,
       executionMode: "paper_only",
-      brokerAccountIds: ["broker-stock"],
+      brokerAssignments: [{ brokerAccountId: "broker-stock", allocatedUsd: 1000 }],
     });
 
     const aiRoles = new SessionAiRolesRepo(db).listBySession(result.id);
@@ -136,9 +141,8 @@ describe("SessionWriteService", () => {
         instrumentClasses: ["crypto"],
         instrumentScope: "BTC-USD",
         selectorSettings: { aiPickerEnabled: false },
-        capitalLimitUsd: 2500,
         executionMode: "paper_only",
-        brokerAccountIds: ["broker-stock"],
+        brokerAssignments: [{ brokerAccountId: "broker-stock", allocatedUsd: 2500 }],
       }),
     ).toThrowError(/does not support any of the selected instrument classes/i);
   });
@@ -167,9 +171,11 @@ describe("SessionWriteService", () => {
       instrumentClasses: ["futures"],
       instrumentScope: SEARCH_EVERYTHING_SCOPE,
       selectorSettings: { aiPickerEnabled: true },
-      capitalLimitUsd: 2500,
       executionMode: "paper_only",
-      brokerAccountIds: ["broker-stock", "broker-crypto"],
+      brokerAssignments: [
+        { brokerAccountId: "broker-stock", allocatedUsd: 1250 },
+        { brokerAccountId: "broker-crypto", allocatedUsd: 1250 },
+      ],
     });
 
     const session = new SessionRepo(db).requireById(result.id);

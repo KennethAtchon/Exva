@@ -16,9 +16,8 @@ export interface SessionWriteInput {
   instrumentScope: string;
   defaultSearchProviderId?: string | null;
   selectorSettings: { aiPickerEnabled: boolean };
-  capitalLimitUsd: number;
   executionMode: WorkspaceSession["executionMode"];
-  brokerAccountIds: string[];
+  brokerAssignments: Array<{ brokerAccountId: string; allocatedUsd: number }>;
   brokerOverridesByInstrumentClass?: Partial<Record<InstrumentClass, string | null>>;
 }
 
@@ -47,7 +46,6 @@ export class SessionWriteService {
       instrumentClasses: normalized.instrumentClasses,
       instrumentScope: normalized.instrumentScope.trim(),
       defaultSearchProviderId: normalized.defaultSearchProviderId ?? null,
-      capitalLimitUsd: normalized.capitalLimitUsd,
       executionMode: normalized.executionMode,
     });
     this.deps.sessions.setFocus(session.id);
@@ -72,7 +70,6 @@ export class SessionWriteService {
       instrumentClasses: normalized.instrumentClasses,
       instrumentScope: normalized.instrumentScope.trim(),
       defaultSearchProviderId: normalized.defaultSearchProviderId ?? null,
-      capitalLimitUsd: normalized.capitalLimitUsd,
       executionMode: normalized.executionMode,
     });
     this.applySideTables(id, normalized);
@@ -81,7 +78,7 @@ export class SessionWriteService {
 
   private applySideTables(sessionId: string, input: SessionWriteInput): void {
     this.deps.selectorSettings.update(sessionId, input.selectorSettings);
-    this.deps.assignments.replaceAssignments(sessionId, input.brokerAccountIds);
+    this.deps.assignments.replaceAssignments(sessionId, input.brokerAssignments);
     this.deps.brokerRouting.upsertSessionOverrides(
       sessionId,
       Object.entries(input.brokerOverridesByInstrumentClass ?? {}).map(([instrumentClass, brokerAccountId]) => ({
@@ -112,14 +109,22 @@ export class SessionWriteService {
 
     const brokers = this.deps.brokerAccounts.list();
     const brokerById = new Map(brokers.map((broker) => [broker.id, broker]));
-    const selectedBrokerIds = [...new Set(input.brokerAccountIds)];
+    const selectedBrokerIds = [...new Set(input.brokerAssignments.map((assignment) => assignment.brokerAccountId))];
     const requiredMode = input.executionMode === "live_allowed" ? "live" : "paper";
 
     if (selectedBrokerIds.length === 0) {
-      throw new AppError("Select at least one broker account.", "VALIDATION_FAILED", {
-        field: "brokerAccountIds",
-      });
+        throw new AppError("Select at least one broker account.", "VALIDATION_FAILED", {
+          field: "brokerAssignments",
+        });
     }
+
+    const brokerAssignments = selectedBrokerIds.map((brokerAccountId) => {
+      const match = input.brokerAssignments.find((assignment) => assignment.brokerAccountId === brokerAccountId);
+      return {
+        brokerAccountId,
+        allocatedUsd: match ? Math.max(0, Number(match.allocatedUsd) || 0) : 0,
+      };
+    });
 
     const selectedBrokers = selectedBrokerIds.map((id) => {
       const broker = brokerById.get(id);
@@ -161,7 +166,7 @@ export class SessionWriteService {
         throw new AppError(
           `No selected broker can trade ${instrumentClass}.`,
           "VALIDATION_FAILED",
-          { instrumentClass, field: "brokerAccountIds" },
+          { instrumentClass, field: "brokerAssignments" },
         );
       }
     }
@@ -183,7 +188,7 @@ export class SessionWriteService {
 
     return {
       ...input,
-      brokerAccountIds: selectedBrokerIds,
+      brokerAssignments,
       instrumentClasses,
     };
   }

@@ -5,6 +5,7 @@ import type {
   AgentRun,
   ApprovalSummary,
   BrokerAccount,
+  BrokerAccountWithState,
   BrokerCredentials,
   BrokerRoutingDefault,
   ConnectionTestResult,
@@ -54,6 +55,7 @@ export type ExvaEventName =
   | "step:succeeded"
   | "step:failed"
   | "step:retrying"
+  | "broker_balance_updated"
   | "stats_update"
   | "notification";
 
@@ -67,7 +69,7 @@ export interface SessionSummary {
   instrumentClasses: InstrumentClass[];
   instrumentScope: string;
   defaultSearchProviderId: string | null;
-  capitalLimitUsd: number;
+  totalAllocatedUsd: number;
   executionMode: ExecutionMode;
   brokerCount: number;
   openTradeCount: number;
@@ -91,9 +93,8 @@ export interface SessionCreateInput {
   selectorSettings: {
     aiPickerEnabled: boolean;
   };
-  capitalLimitUsd: number;
   executionMode: ExecutionMode;
-  brokerAccountIds: string[];
+  brokerAssignments: Array<{ brokerAccountId: string; allocatedUsd: number }>;
   brokerOverridesByInstrumentClass?: Partial<Record<InstrumentClass, string | null>>;
 }
 
@@ -168,6 +169,7 @@ export interface ExvaEventMap {
     nextRetryAt: string | null;
   };
   "step:retrying": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number; nextRetryAt: string };
+  broker_balance_updated: { brokerAccountId: string; balanceUsd: number; cachedAt: string };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 }
@@ -242,6 +244,16 @@ export interface ExvaApi {
   workspace: {
     getView(): Promise<WorkspaceViewResponse>;
     patchPreferences(patch: Partial<Omit<WorkspacePreferences, "id">>): Promise<WorkspacePreferences>;
+  };
+  brokerAccounts: {
+    list(): Promise<BrokerAccountWithState[]>;
+    refreshBalance(brokerAccountId: string): Promise<{ balanceUsd: number; cachedAt: string }>;
+    updateSettings(input: {
+      brokerAccountId: string;
+      maxSessions?: number;
+      allocationEnforcement?: "hard" | "warn";
+      balanceRefreshIntervalMin?: number;
+    }): Promise<{ ok: true }>;
   };
   templates: {
     list(filters?: { search?: string; instrumentClass?: InstrumentClass }): Promise<{

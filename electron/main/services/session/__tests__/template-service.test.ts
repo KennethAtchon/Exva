@@ -40,7 +40,6 @@ describe("SessionTemplateService", () => {
           instrumentClasses: ["stock"],
           instrumentScope: "NVDA",
           executionMode: "paper_only",
-          capitalLimitUsd: 5000,
           defaultSearchProviderId: null,
         },
         selectorSettings: { aiPickerEnabled: false },
@@ -128,7 +127,7 @@ describe("SessionTemplateService", () => {
             promptAssetPath: null,
           },
         ],
-        brokerAssignments: [{ brokerAccountId: "missing-broker" }],
+        brokerAssignments: [{ brokerAccountId: "missing-broker", allocatedUsd: 5000 }],
         brokerOverridesByInstrumentClass: { stock: "missing-broker" },
       },
     });
@@ -163,7 +162,6 @@ describe("SessionTemplateService", () => {
       selectionMode: "manual_shortlist",
       instrumentClasses: ["stock", "crypto"],
       instrumentScope: "NVDA,BTC-USD",
-      capitalLimitUsd: 8000,
       executionMode: "live_allowed",
       defaultSearchProviderId: "search-1",
     }).id;
@@ -193,7 +191,10 @@ describe("SessionTemplateService", () => {
       mode: "live",
       secretRef: "broker:broker-crypto",
     });
-    new SessionBrokerAssignmentsRepo(db).replaceAssignments(sessionId, ["broker-stock", "broker-crypto"]);
+    new SessionBrokerAssignmentsRepo(db).replaceAssignments(sessionId, [
+      { brokerAccountId: "broker-stock", allocatedUsd: 3000 },
+      { brokerAccountId: "broker-crypto", allocatedUsd: 5000 },
+    ]);
     new BrokerRoutingRepo(db).upsertSessionOverrides(sessionId, [
       { instrumentClass: "stock", brokerAccountId: "broker-stock" },
       { instrumentClass: "crypto", brokerAccountId: "broker-crypto" },
@@ -205,8 +206,8 @@ describe("SessionTemplateService", () => {
     expect(payload.identity.executionMode).toBe("live_allowed");
     expect(payload.identity.instrumentClasses).toEqual(["stock", "crypto"]);
     expect(payload.brokerAssignments).toEqual([
-      { brokerAccountId: "broker-crypto" },
-      { brokerAccountId: "broker-stock" },
+      { brokerAccountId: "broker-crypto", allocatedUsd: 5000 },
+      { brokerAccountId: "broker-stock", allocatedUsd: 3000 },
     ]);
     expect(payload.brokerOverridesByInstrumentClass).toEqual({
       crypto: "broker-crypto",

@@ -259,7 +259,7 @@ export class AgentOrchestrator {
     const stats = this.deps.statsRepo.dashboardStats(
       this.sessionId,
       this.deps.sessionRepo.getStatus(this.sessionId),
-      this.deps.sessionRepo.requireById(this.sessionId).capitalLimitUsd,
+      this.totalAllocatedUsd(),
       this.deps.sessionRepo.uptimeMin(this.sessionId),
       config.max_api_spend_usd,
     );
@@ -385,26 +385,46 @@ export class AgentOrchestrator {
       context.riskOrder = riskResult.value;
     }
 
-    const workspace = this.deps.workspacePreferencesRepo.get();
-    const useSharedPool = workspace.capitalAllocationMode === "shared_global_pool";
+    const brokerAccountId = this.resolveBrokerAccountId(context.instrument.instrumentClass);
+    if (trade.brokerAccountId !== brokerAccountId) {
+      this.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId });
+    }
+
+    const allocationResult = this.deps.brokerAllocationGate.checkOrderFits(
+      brokerAccountId,
+      this.sessionId,
+      context.riskOrder.sizeUsd,
+    );
+    if (!allocationResult.ok) {
+      this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+      this.emitEvent("WARN", trade.id, allocationResult.reason, "orchestrator", context.cycleId);
+      this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
+      return;
+    }
+    if (allocationResult.warning === "over_allocated") {
+      this.emitEvent(
+        "WARN",
+        trade.id,
+        "Order exceeds allocation (warn-only mode); proceeding.",
+        "orchestrator",
+        context.cycleId,
+      );
+    }
+
+    const conflictResult = this.deps.brokerAllocationGate.checkInstrumentConflict(
+      brokerAccountId,
+      context.instrument.symbol,
+      this.sessionId,
+    );
+    if (!conflictResult.ok) {
+      this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
+      this.emitEvent("WARN", trade.id, conflictResult.reason, "orchestrator", context.cycleId);
+      this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
+      return;
+    }
 
     let approvalIdForCapital: string | null = null;
     if (config.human_approval_required) {
-      if (useSharedPool) {
-        const fit = this.deps.capitalReservation.checkOrderFits(trade.position_size_usd);
-        if (!fit.ok) {
-          this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-          this.emitEvent(
-            "WARN",
-            trade.id,
-            `Global capital pool exhausted (reserved $${fit.reserved}, ceiling $${fit.ceiling}); approval skipped.`,
-            "orchestrator",
-            context.cycleId,
-          );
-          this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
-          return;
-        }
-      }
       const { approved, approvalId } = await this.waitForApproval(trade, context.instrument.instrumentClass, decision.output, undefined);
       approvalIdForCapital = approvalId;
       if (!approved) {
@@ -417,20 +437,7 @@ export class AgentOrchestrator {
     }
 
     // No-approval path: reserve capital before touching the broker
-    if (!config.human_approval_required && useSharedPool) {
-      const fit = this.deps.capitalReservation.checkOrderFits(trade.position_size_usd);
-      if (!fit.ok) {
-        this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-        this.emitEvent(
-          "WARN",
-          trade.id,
-          `Global capital pool exhausted (reserved $${fit.reserved}, ceiling $${fit.ceiling}); trade rejected.`,
-          "orchestrator",
-          context.cycleId,
-        );
-        this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
-        return;
-      }
+    if (!config.human_approval_required) {
       this.deps.capitalReservation.reserveForOrder({
         sessionId: this.sessionId,
         tradeId: trade.id,
@@ -513,7 +520,7 @@ export class AgentOrchestrator {
     );
     if (await this.pauseIfRequested(context.cycleId)) return;
     if (!brokerResult.ok) {
-      if (!config.human_approval_required && useSharedPool) {
+      if (!config.human_approval_required) {
         this.deps.capitalReservation.releaseOnFailure(trade.id);
       } else if (approvalIdForCapital) {
         this.deps.capitalReservation.releaseByApproval(approvalIdForCapital);
@@ -528,9 +535,7 @@ export class AgentOrchestrator {
     if (approvalIdForCapital) {
       this.deps.capitalReservation.convertApprovalToOpenOrder(approvalIdForCapital, trade.id);
     }
-    if (useSharedPool) {
-      this.deps.capitalReservation.convertOrderToPosition(trade.id);
-    }
+    this.deps.capitalReservation.convertOrderToPosition(trade.id);
     this.clearAttentionRequired();
     this.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`, "broker", context.cycleId);
     this.deps.bus.emit("trade_opened", opened);
@@ -630,7 +635,7 @@ export class AgentOrchestrator {
     const stats = this.deps.statsRepo.dashboardStats(
       this.sessionId,
       this.deps.sessionRepo.getStatus(this.sessionId),
-      this.deps.sessionRepo.requireById(this.sessionId).capitalLimitUsd,
+      this.totalAllocatedUsd(),
       this.deps.sessionRepo.uptimeMin(this.sessionId),
       config.max_api_spend_usd,
     );
@@ -712,17 +717,38 @@ export class AgentOrchestrator {
       return;
     }
 
-    const workspace = this.deps.workspacePreferencesRepo.get();
-    if (workspace.capitalAllocationMode === "shared_global_pool") {
-      const target = risk.value.sizeUsd;
-      this.deps.capitalReservation.updateReservedAmountForApproval(approval.id, target);
+    this.deps.capitalReservation.updateReservedAmountForApproval(approval.id, risk.value.sizeUsd);
+
+    const recheckBrokerAccountId = updated.brokerAccountId ?? this.resolveBrokerAccountId(input.instrumentClass);
+    if (updated.brokerAccountId !== recheckBrokerAccountId) {
+      this.deps.tradesRepo.patchPendingExecution(updated.id, { brokerAccountId: recheckBrokerAccountId });
+    }
+    const recheckAllocation = this.deps.brokerAllocationGate.checkOrderFits(
+      recheckBrokerAccountId,
+      this.sessionId,
+      risk.value.sizeUsd,
+    );
+    if (!recheckAllocation.ok) {
+      this.failRecheck(trade.id, approval.id, recheckAllocation.reason);
+      return;
+    }
+    if (recheckAllocation.warning === "over_allocated") {
+      this.emitEvent("WARN", trade.id, "Order exceeds allocation (warn-only mode); proceeding.", "orchestrator", cycleId);
+    }
+    const recheckConflict = this.deps.brokerAllocationGate.checkInstrumentConflict(
+      recheckBrokerAccountId,
+      updated.instrumentSymbol,
+      this.sessionId,
+    );
+    if (!recheckConflict.ok) {
+      this.failRecheck(trade.id, approval.id, recheckConflict.reason);
+      return;
     }
 
     // CRITICAL: re-run the same final policy gate that intake uses, so a stale
     // approval cannot bypass duplicate-order / capital / broker-class checks.
     // Bind to the approval's recorded routing context (brokerAccountId).
     const recheckClientOrderId = `${cycleId}:${trade.id}`;
-    const recheckBrokerAccountId = updated.brokerAccountId ?? "";
     const strategy = this.deps.strategyContextService.get(this.sessionId);
     const recheckPolicy = new OrderPolicyGate().evaluate({
       sessionId: this.sessionId,
@@ -760,9 +786,7 @@ export class AgentOrchestrator {
     }
     const opened = this.deps.tradesRepo.markOpen(trade.id, placed.brokerOrderId, placed.filledAvgPrice);
     this.deps.capitalReservation.convertApprovalToOpenOrder(approval.id, trade.id);
-    if (workspace.capitalAllocationMode === "shared_global_pool") {
-      this.deps.capitalReservation.convertOrderToPosition(trade.id);
-    }
+    this.deps.capitalReservation.convertOrderToPosition(trade.id);
     this.emitEvent("INFO", trade.id, `Placed ${updated.side} ${updated.instrumentSymbol} $${updated.position_size_usd} via broker (post-approval recheck).`, "broker");
     this.deps.bus.emit("trade_opened", opened);
     this.emitEvent(
@@ -1153,14 +1177,11 @@ export class AgentOrchestrator {
       }),
     });
 
-    const workspace = this.deps.workspacePreferencesRepo.get();
-    if (workspace.capitalAllocationMode === "shared_global_pool") {
-      this.deps.capitalReservation.reserveForApproval({
-        sessionId: this.sessionId,
-        approvalId: approval.id,
-        amountUsd: trade.position_size_usd,
-      });
-    }
+    this.deps.capitalReservation.reserveForApproval({
+      sessionId: this.sessionId,
+      approvalId: approval.id,
+      amountUsd: trade.position_size_usd,
+    });
 
     this.deps.bus.emit("approval_required", {
       trade_id: trade.id,
@@ -1562,7 +1583,7 @@ export class AgentOrchestrator {
 
     const strategy = this.deps.strategyContextService.get(this.sessionId);
     const capitalBase = Math.min(
-      this.deps.sessionRepo.requireById(this.sessionId).capitalLimitUsd,
+      this.totalAllocatedUsd(),
       strategy.riskConfig.maxExposureUsd ?? Number.POSITIVE_INFINITY,
     );
     const explicit = decision.sizeUsd ?? null;
@@ -1580,6 +1601,12 @@ export class AgentOrchestrator {
     const fullKelly = Math.max(0, (estimatedProb - impliedProb) / Math.max(1 - impliedProb, 0.01));
     const sized = capitalBase * strategy.riskConfig.kellyFraction * fullKelly;
     return Math.min(Math.max(sized, 0), config.max_position_usd, strategy.riskConfig.maxExposureUsd ?? Number.POSITIVE_INFINITY);
+  }
+
+  private totalAllocatedUsd(): number {
+    return this.deps.sessionBrokerAssignmentsRepo
+      .listAssignments(this.sessionId)
+      .reduce((sum, assignment) => sum + assignment.allocatedUsd, 0);
   }
 
   private async buildSelectionInstructions(session: WorkspaceSession): Promise<string> {

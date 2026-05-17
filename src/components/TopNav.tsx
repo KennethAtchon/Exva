@@ -10,6 +10,7 @@ import type { SessionSummary } from "@/lib/exva";
 export type PageKey =
   | "dashboard"
   | "sessions"
+  | "brokers"
   | "trades"
   | "strategy"
   | "costs"
@@ -19,6 +20,7 @@ export type PageKey =
 const NAV_ITEMS: { id: PageKey; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
   { id: "sessions", label: "Sessions" },
+  { id: "brokers", label: "Brokers" },
   { id: "trades", label: "Trades" },
   { id: "strategy", label: "Strategy" },
   { id: "costs", label: "API Usage" },

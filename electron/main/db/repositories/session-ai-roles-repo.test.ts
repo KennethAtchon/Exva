@@ -15,7 +15,6 @@ describe("SessionAiRolesRepo", () => {
       selectionMode: "manual_shortlist",
       instrumentClasses: ["stock"],
       instrumentScope: "AAPL",
-      capitalLimitUsd: 1000,
       executionMode: "paper_only",
     });
 

@@ -21,7 +21,7 @@ export interface SessionSummaryView {
   instrumentClasses: InstrumentClass[];
   instrumentScope: string;
   defaultSearchProviderId: string | null;
-  capitalLimitUsd: number;
+  totalAllocatedUsd: number;
   executionMode: ReturnType<SessionRepo["list"]>[number]["executionMode"];
   brokerCount: number;
   openTradeCount: number;
@@ -65,6 +65,7 @@ export class SessionListingService {
         const openTradeCount = this.deps.trades
           .listOpenAndPending(session.id)
           .filter((trade) => trade.status === "open").length;
+        const assignments = this.deps.assignments.listAssignments(session.id);
         return {
           id: session.id,
           name: session.name,
@@ -75,9 +76,9 @@ export class SessionListingService {
           instrumentClasses: session.instrumentClasses,
           instrumentScope: session.instrumentScope,
           defaultSearchProviderId: session.defaultSearchProviderId,
-          capitalLimitUsd: session.capitalLimitUsd,
+          totalAllocatedUsd: assignments.reduce((sum, assignment) => sum + assignment.allocatedUsd, 0),
           executionMode: session.executionMode,
-          brokerCount: this.deps.assignments.countBySession(session.id),
+          brokerCount: assignments.length,
           openTradeCount,
           uptimeMin: this.computeUptimeMin(session.id),
           updatedAt: session.updatedAt,

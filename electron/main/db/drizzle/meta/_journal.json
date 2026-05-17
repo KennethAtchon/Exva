@@ -15,6 +15,20 @@
       "when": 1778980348035,
       "tag": "0001_small_gunslinger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1778995062520,
+      "tag": "0002_broker_capital_additive",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1778995066533,
+      "tag": "0003_broker_capital_cleanup",
+      "breakpoints": true
     }
   ]
 }

@@ -51,7 +51,7 @@ export class StatsRepo {
       daily_api_spend: spend,
       api_budget: apiBudget,
       portfolio_value: portfolioValue,
-      portfolio_value_source: "session_capital_limit",
+      portfolio_value_source: "broker",
       portfolio_broker_count: 0,
       unrealized_pnl: 0,
       session_uptime_min: uptimeMin,

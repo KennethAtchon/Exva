@@ -34,6 +34,7 @@ export interface ExvaEventMap {
     nextRetryAt: string | null;
   };
   "step:retrying": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number; nextRetryAt: string };
+  broker_balance_updated: { brokerAccountId: string; balanceUsd: number; cachedAt: string };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 }

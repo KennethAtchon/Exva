@@ -1,42 +1,8 @@
 import type { CapitalReservationsRepo } from "../../db/repositories/capital-reservations-repo";
-import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
 import type { CapitalReservation } from "@/lib/types";
 
 export class CapitalReservationService {
-  constructor(
-    private readonly repo: CapitalReservationsRepo,
-    private readonly workspacePreferencesRepo: WorkspacePreferencesRepo,
-  ) {}
-
-  checkSessionStartFits(
-    sessionId: string,
-    capitalLimitUsd: number,
-  ): { ok: true } | { ok: false; reserved: number; ceiling: number } {
-    void sessionId;
-    const workspace = this.workspacePreferencesRepo.get();
-    if (workspace.capitalAllocationMode !== "shared_global_pool") {
-      return { ok: true };
-    }
-    const ceiling = workspace.globalCapitalPoolUsd;
-    if (ceiling == null || ceiling <= 0) {
-      return { ok: false, reserved: this.repo.sumActiveReservedUsd(), ceiling: 0 };
-    }
-    const reserved = this.repo.sumActiveReservedUsd();
-    if (reserved + capitalLimitUsd > ceiling) {
-      return { ok: false, reserved, ceiling };
-    }
-    return { ok: true };
-  }
-
-  checkOrderFits(amountUsd: number): { ok: true } | { ok: false; reserved: number; ceiling: number } {
-    const workspace = this.workspacePreferencesRepo.get();
-    if (workspace.capitalAllocationMode !== "shared_global_pool") return { ok: true };
-    const ceiling = workspace.globalCapitalPoolUsd;
-    if (ceiling == null || ceiling <= 0) return { ok: false, reserved: this.repo.sumActiveReservedUsd(), ceiling: 0 };
-    const reserved = this.repo.sumActiveReservedUsd();
-    if (reserved + amountUsd > ceiling) return { ok: false, reserved, ceiling };
-    return { ok: true };
-  }
+  constructor(private readonly repo: CapitalReservationsRepo) {}
 
   reserveForOrder(input: { sessionId: string; tradeId: string; amountUsd: number }) {
     return this.repo.reserveForOrder(input);

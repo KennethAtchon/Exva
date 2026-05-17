@@ -205,9 +205,8 @@ function payloadToInput(payload: SessionTemplatePayload): SessionCreateInput {
     instrumentScope: payload.identity.instrumentScope,
     defaultSearchProviderId: payload.identity.defaultSearchProviderId,
     selectorSettings: payload.selectorSettings,
-    capitalLimitUsd: payload.identity.capitalLimitUsd,
     executionMode: payload.identity.executionMode,
-    brokerAccountIds: payload.brokerAssignments.map((assignment) => assignment.brokerAccountId).filter(Boolean),
+    brokerAssignments: payload.brokerAssignments.filter((assignment) => assignment.brokerAccountId),
     brokerOverridesByInstrumentClass: payload.brokerOverridesByInstrumentClass,
   };
 }

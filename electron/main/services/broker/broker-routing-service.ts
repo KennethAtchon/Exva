@@ -84,6 +84,10 @@ export class BrokerRoutingService {
     }
   }
 
+  getAssignedAccountIds(sessionId: string): string[] {
+    return this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
+  }
+
   private compatibleAssignmentIds(sessionId: string, instrumentClass: InstrumentClass): string[] {
     const assignments = this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
     return assignments.filter((id) => {

@@ -63,9 +63,8 @@ describe("session onboarding integration", () => {
       instrumentClasses: ["stock"],
       instrumentScope: "NVDA",
       selectorSettings: { aiPickerEnabled: false },
-      capitalLimitUsd: 5000,
       executionMode: "paper_only",
-      brokerAccountIds: ["paper-broker"],
+      brokerAssignments: [{ brokerAccountId: "paper-broker", allocatedUsd: 5000 }],
       brokerOverridesByInstrumentClass: { stock: "paper-broker" },
     });
 
@@ -107,9 +106,8 @@ describe("session onboarding integration", () => {
       instrumentClasses: ["stock"],
       instrumentScope: "NVDA",
       selectorSettings: { aiPickerEnabled: false },
-      capitalLimitUsd: 5000,
       executionMode: "paper_only",
-      brokerAccountIds: ["paper-broker"],
+      brokerAssignments: [{ brokerAccountId: "paper-broker", allocatedUsd: 5000 }],
       brokerOverridesByInstrumentClass: { stock: "paper-broker" },
     });
 
@@ -140,9 +138,8 @@ describe("session onboarding integration", () => {
       instrumentClasses: ["stock"],
       instrumentScope: "AAPL",
       selectorSettings: { aiPickerEnabled: false },
-      capitalLimitUsd: 5000,
       executionMode: "live_allowed",
-      brokerAccountIds: ["live-broker"],
+      brokerAssignments: [{ brokerAccountId: "live-broker", allocatedUsd: 5000 }],
       brokerOverridesByInstrumentClass: { stock: "live-broker" },
     });
 
@@ -160,7 +157,7 @@ describe("session onboarding integration", () => {
 
     await expect(harness.session.getPortfolioValue()).resolves.toEqual({
       value: 0,
-      source: "session_capital_limit",
+      source: "broker",
       brokerCount: 0,
     });
   });
@@ -238,6 +235,12 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     brokerAccountsRepo: brokers,
     brokerRegistry: brokerRegistry as never,
     brokerRouting: routing,
+    brokerBalanceCache: { getBalance: async () => 0, refreshAll: async () => [] } as never,
+    brokerCapital: { checkSessionStartFits: () => ({ ok: true as const }) } as never,
+    brokerAllocationGate: {
+      checkOrderFits: () => ({ ok: true as const }),
+      checkInstrumentConflict: () => ({ ok: true as const }),
+    } as never,
     instrumentNormalizer: { toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol } as never,
     ai: {} as never,
     riskEngine: {} as never,
@@ -277,6 +280,9 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     session: new SessionService({
       sessionRepo: sessions,
       eventsRepo: events,
+      sessionBrokerAssignmentsRepo: sessionBrokerAssignments,
+      brokerRegistry: brokerRegistry as never,
+      brokerBalanceCache: { getBalance: async () => 0 } as never,
       runtimeManager,
       preflight: runPreflight,
       orchestratorDeps,
