@@ -110,6 +110,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const builtInGlobalPresets = globalPresets
     .filter((p) => p.isBuiltIn)
     .map((p) => JSON.parse(p.presetJson) as GlobalStrategyPreset);
+  const userGlobalPresets = globalPresets.filter((p) => !p.isBuiltIn);
 
   const isLocked = pageState === "locked";
   const hasDirty = dirtyFields.size > 0;
@@ -169,7 +170,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const selectedRulesPreset = TRADE_RULE_PRESETS.find((preset) => preset.id === rules.rulesPresetId) ?? TRADE_RULE_PRESETS[TRADE_RULE_PRESETS.length - 1];
   const activeGlobalPreset = resolveActiveGlobalPreset({
     builtInPresets: builtInGlobalPresets,
-    userPresets: globalPresets,
+    userPresets: userGlobalPresets,
     posturePresetId: researchPosture.posturePresetId,
     rulesPresetId: rules.rulesPresetId,
     riskPresetId: riskConfig.riskPresetId ?? "custom",
@@ -271,7 +272,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
       {activeView === "presets" && (
         <GlobalPresetGrid
           builtInPresets={builtInGlobalPresets}
-          userPresets={globalPresets}
+          userPresets={userGlobalPresets}
           currentPosturePresetId={researchPosture.posturePresetId}
           currentRulesPresetId={rules.rulesPresetId}
           currentRiskPresetId={riskConfig.riskPresetId ?? "custom"}

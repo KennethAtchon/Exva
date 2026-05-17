@@ -213,11 +213,6 @@ export const CreateEditSessionModal = ({
                 <Field label="Session name">
                   <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Income Engine" style={inputStyle} />
                 </Field>
-                <Field label="Total allocated capital">
-                  <div style={{ ...inputStyle, display: "flex", alignItems: "center", minHeight: 38 }}>
-                    ${totalAllocatedUsd.toLocaleString()}
-                  </div>
-                </Field>
               </div>
               <Field label="Objective">
                 <textarea value={form.objective} onChange={(event) => setForm({ ...form, objective: event.target.value })} rows={4} style={textareaStyle} />

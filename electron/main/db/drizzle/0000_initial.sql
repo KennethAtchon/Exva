@@ -68,6 +68,11 @@ CREATE TABLE `broker_accounts` (
 	`broker_type` text NOT NULL,
 	`supported_instrument_classes` text NOT NULL,
 	`mode` text DEFAULT 'paper' NOT NULL,
+	`max_sessions` integer DEFAULT 10 NOT NULL,
+	`allocation_enforcement` text DEFAULT 'hard' NOT NULL,
+	`balance_refresh_interval_min` integer DEFAULT 5 NOT NULL,
+	`balance_cache_usd` real,
+	`balance_cached_at` text,
 	`secret_ref` text NOT NULL,
 	`updated_at` text NOT NULL
 );
@@ -113,6 +118,7 @@ CREATE INDEX `idx_events_cycle_id` ON `events` (`cycle_id`);--> statement-breakp
 CREATE TABLE `global_presets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
+	`is_built_in` integer DEFAULT false NOT NULL,
 	`created_at` integer NOT NULL,
 	`preset_json` text NOT NULL
 );
@@ -127,6 +133,20 @@ CREATE TABLE `provider_accounts` (
 	`is_configured` integer DEFAULT false NOT NULL,
 	`last_test_status` text DEFAULT 'unknown' NOT NULL,
 	`updated_at` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `research_posture_presets` (
+	`id` text PRIMARY KEY NOT NULL,
+	`label` text NOT NULL,
+	`is_built_in` integer DEFAULT false NOT NULL,
+	`preset_json` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `risk_presets` (
+	`id` text PRIMARY KEY NOT NULL,
+	`label` text NOT NULL,
+	`is_built_in` integer DEFAULT false NOT NULL,
+	`preset_json` text NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `session_ai_role_profile` (
@@ -155,6 +175,7 @@ CREATE TABLE `session_ai_roles` (
 CREATE TABLE `session_broker_assignments` (
 	`session_id` text NOT NULL,
 	`broker_account_id` text NOT NULL,
+	`allocated_usd` real DEFAULT 0 NOT NULL,
 	PRIMARY KEY(`session_id`, `broker_account_id`),
 	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`broker_account_id`) REFERENCES `broker_accounts`(`id`) ON UPDATE no action ON DELETE cascade
@@ -313,7 +334,6 @@ CREATE TABLE `sessions` (
 	`instrument_classes` text NOT NULL,
 	`instrument_scope` text NOT NULL,
 	`default_search_provider_id` text,
-	`capital_limit_usd` real NOT NULL,
 	`execution_mode` text DEFAULT 'paper_only' NOT NULL,
 	`live_readiness_acknowledged_at` text,
 	`created_at` text NOT NULL,
@@ -323,6 +343,13 @@ CREATE TABLE `sessions` (
 --> statement-breakpoint
 CREATE INDEX `idx_sessions_status` ON `sessions` (`status`);--> statement-breakpoint
 CREATE INDEX `idx_sessions_is_focused` ON `sessions` (`is_focused`);--> statement-breakpoint
+CREATE TABLE `timeframe_presets` (
+	`id` text PRIMARY KEY NOT NULL,
+	`label` text NOT NULL,
+	`is_built_in` integer DEFAULT false NOT NULL,
+	`preset_json` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `trade_approvals` (
 	`id` text PRIMARY KEY NOT NULL,
 	`session_id` text NOT NULL,
@@ -358,6 +385,13 @@ CREATE TABLE `trade_autopsies` (
 );
 --> statement-breakpoint
 CREATE INDEX `idx_trade_autopsies_trade` ON `trade_autopsies` (`trade_id`);--> statement-breakpoint
+CREATE TABLE `trade_rule_presets` (
+	`id` text PRIMARY KEY NOT NULL,
+	`label` text NOT NULL,
+	`is_built_in` integer DEFAULT false NOT NULL,
+	`preset_json` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `trades` (
 	`id` text PRIMARY KEY NOT NULL,
 	`session_id` text NOT NULL,
@@ -396,8 +430,7 @@ CREATE TABLE `workspace_preferences` (
 	`id` integer PRIMARY KEY DEFAULT 1 NOT NULL,
 	`global_include_archived` integer DEFAULT false NOT NULL,
 	`default_search_provider_id` text,
-	`capital_allocation_mode` text DEFAULT 'per_session_only' NOT NULL,
-	`global_capital_pool_usd` real,
+	`allocation_enforcement_override` text,
 	`default_model_provider_key` text DEFAULT '' NOT NULL,
 	`default_model_model_id` text DEFAULT '' NOT NULL,
 	`updated_at` text NOT NULL,
