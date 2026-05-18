@@ -5,7 +5,6 @@ import type {
   CapitalReservation,
   EventRow,
   ProviderAccount,
-  SessionAiRole,
   ExecutionStepState,
   SessionRiskConfig,
   SessionBrokerRoutingOverride,
@@ -14,7 +13,6 @@ import type {
   SessionStrategy,
   SessionTradeRules,
   SessionResearchPosture,
-  SessionAiRoleProfile,
   SessionTimeframeConfig,
   SessionTemplate,
   Trade,
@@ -22,7 +20,6 @@ import type {
   WorkspacePreferences,
   WorkspaceSession,
 } from "@/lib/types";
-import { createDefaultAiRoleProfileDocument, materializeAiRoleProfileDocument } from "@electron/shared/ai/default-ai-role-profiles";
 import { isHoldingStyle, isTradingTimeframe } from "@electron/shared/domain";
 
 type Row = Record<string, unknown>;
@@ -152,6 +149,7 @@ export function toSessionSelectorSettings(row: Row): SessionSelectorSettings {
   return {
     sessionId: String(row.session_id),
     aiPickerEnabled: Boolean(row.ai_picker_enabled),
+    noInstrumentRetryMinutes: row.no_instrument_retry_minutes != null ? Number(row.no_instrument_retry_minutes) : null,
     updatedAt: String(row.updated_at),
   };
 }
@@ -180,21 +178,6 @@ export function toSessionStrategy(row: Row): SessionStrategy {
   };
 }
 
-export function toSessionAiRole(row: Row): SessionAiRole {
-  row = normalizeRow(row);
-  return {
-    sessionId: String(row.session_id),
-    role: row.role as SessionAiRole["role"],
-    providerKey: String(row.provider_key),
-    modelId: String(row.model_id),
-    temperature: Number(row.temperature),
-    maxTokens: Number(row.max_tokens),
-    promptSource: row.prompt_source as SessionAiRole["promptSource"],
-    promptMarkdown: String(row.prompt_markdown),
-    promptAssetPath: nullableString(row.prompt_asset_path),
-  };
-}
-
 export function toSessionResearchPosture(row: Row): SessionResearchPosture {
   row = normalizeRow(row);
   return {
@@ -205,24 +188,6 @@ export function toSessionResearchPosture(row: Row): SessionResearchPosture {
     catalystMode: row.catalyst_mode as SessionResearchPosture["catalystMode"],
     fundamentalStrictness: row.fundamental_strictness as SessionResearchPosture["fundamentalStrictness"],
     postureNotes: row.posture_notes != null ? String(row.posture_notes) : "",
-    updatedAt: String(row.updated_at),
-  };
-}
-
-export function toSessionAiRoleProfile(row: Row): SessionAiRoleProfile {
-  row = normalizeRow(row);
-  const role = row.role as SessionAiRoleProfile["role"];
-  let profileJson = createDefaultAiRoleProfileDocument(role);
-  try {
-    const raw = row.profile_json != null ? String(row.profile_json) : '{"version":1}';
-    profileJson = materializeAiRoleProfileDocument(role, JSON.parse(raw));
-  } catch {
-    profileJson = createDefaultAiRoleProfileDocument(role);
-  }
-  return {
-    sessionId: String(row.session_id),
-    role,
-    profileJson,
     updatedAt: String(row.updated_at),
   };
 }

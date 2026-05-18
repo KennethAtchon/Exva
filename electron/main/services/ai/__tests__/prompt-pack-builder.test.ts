@@ -23,7 +23,6 @@ function baseContext(): SessionStrategyContext {
       postureNotes: "Prefer persistent leaders with clean relative strength.",
       updatedAt: ts,
     },
-    aiRoleProfiles: [],
     rules: {
       sessionId: "s1",
       rulesPresetId: "breakout_long",
@@ -75,28 +74,7 @@ function builderFor(context: SessionStrategyContext): AgentPromptPackBuilder {
 
 describe("AgentPromptPackBuilder", () => {
   it("puts session and market context in system and task-only user message with strategy snapshot", () => {
-    const ctx = baseContext();
-    ctx.aiRoleProfiles = [
-      {
-        sessionId: "s1",
-        role: "decision_maker",
-        profileJson: {
-          version: 1,
-          objective: "Return the runtime decision schema.",
-          constraints: ["Decide with discipline."],
-          toolPolicy: {},
-          method: {
-            checklist: ["Check policy fit before action."],
-            requiredEvidence: [],
-            avoid: [],
-          },
-          output: { format: "structured_json", requiredSections: [] },
-          custom_key: { pace: "deliberate" },
-        },
-        updatedAt: "2026-05-05T00:00:00.000Z",
-      },
-    ];
-    const pack = builderFor(ctx).build({
+    const pack = builderFor(baseContext()).build({
       sessionId: "s1",
       role: "decision_maker",
       basePromptMarkdown: "# Decision Maker\n\n## Role\nYou decide.",
@@ -113,13 +91,10 @@ describe("AgentPromptPackBuilder", () => {
     expect(pack.messages[1].content).toContain("## Runtime interpretation");
     expect(pack.messages[1].content).toContain("## Session research posture");
     expect(pack.messages[1].content).toContain("## Session trade rules");
-    expect(pack.messages[1].content).toContain("## Role profile");
-    expect(pack.messages[1].content).toContain("Decide with discipline.");
     expect(pack.messages[1].content).toContain("<task>\nInstrument: AAPL\n</task>");
     expect(pack.strategySnapshot.riskConfig.waitForOpenThreshold).toBe(0.8);
     expect(pack.strategySnapshot.rules.setupType).toBe("breakout");
     expect(pack.strategySnapshot.version).toBe(5);
-    expect(pack.strategySnapshot.aiRoleProfiles).toHaveLength(1);
     expect(pack.riskPolicy.maxDataSpendUsd).toBe(3);
   });
 

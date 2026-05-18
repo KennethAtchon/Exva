@@ -3,7 +3,6 @@ import { createTestDb } from "../../../db/test-helpers";
 import { BrokerAccountsRepo } from "../../../db/repositories/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../../db/repositories/broker-routing-repo";
 import { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts-repo";
-import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
 import { SessionRepo } from "../../../db/repositories/session-repo";
 import { SessionRiskConfigRepo } from "../../../db/repositories/session-risk-config-repo";
@@ -11,7 +10,6 @@ import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-se
 import { SessionTradeRulesRepo } from "../../../db/repositories/session-trade-rules-repo";
 import { SessionTemplatesRepo } from "../../../db/repositories/session-templates-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
-import { SessionAiRoleProfileRepo } from "../../../db/repositories/session-ai-role-profile-repo";
 import { SessionResearchPostureRepo } from "../../../db/repositories/session-research-posture-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
@@ -54,7 +52,6 @@ describe("SessionTemplateService", () => {
             postureNotes: "",
             updatedAt: new Date().toISOString(),
           },
-          aiRoleProfiles: [],
           rules: {
             sessionId: "s1",
             rulesPresetId: "custom",
@@ -115,18 +112,6 @@ describe("SessionTemplateService", () => {
           maxHoldDays: null,
           timeframeNotes: "",
         },
-        aiRoles: [
-          {
-            role: "analyst_technical",
-            providerKey: "missing-provider",
-            modelId: "claude-sonnet-4-6",
-            temperature: 0.7,
-            maxTokens: 8192,
-            promptSource: "default",
-            promptMarkdown: "",
-            promptAssetPath: null,
-          },
-        ],
         brokerAssignments: [{ brokerAccountId: "missing-broker", allocatedUsd: 5000 }],
         brokerOverridesByInstrumentClass: { stock: "missing-broker" },
       },
@@ -135,11 +120,9 @@ describe("SessionTemplateService", () => {
     const service = createTemplateService(db);
     const result = service.apply(id);
 
-    expect(result.payload.aiRoles[0]?.providerKey).toBe("");
     expect(result.payload.brokerAssignments[0]?.brokerAccountId).toBe("");
     expect(result.payload.brokerOverridesByInstrumentClass).toEqual({});
     expect(result.clearedFields).toEqual([
-      "aiRoles[0].providerKey",
       "brokerAssignments[0]",
       "brokerOverridesByInstrumentClass.stock",
     ]);
@@ -213,7 +196,6 @@ describe("SessionTemplateService", () => {
       crypto: "broker-crypto",
       stock: "broker-stock",
     });
-    expect(payload.aiRoles.length).toBeGreaterThan(0);
   });
 });
 
@@ -225,20 +207,13 @@ function createTemplateService(db: ReturnType<typeof createTestDb>): SessionTemp
     strategyContext: new SessionStrategyContextService({
       sessionRepo: sessions,
       researchPostureRepo: new SessionResearchPostureRepo(db),
-      aiRoleProfileRepo: new SessionAiRoleProfileRepo(db),
       rulesRepo: new SessionTradeRulesRepo(db),
       riskRepo: new SessionRiskConfigRepo(db),
       timeframeRepo: new SessionTimeframeConfigRepo(db),
-      aiRolesRepo: new SessionAiRolesRepo(db),
       selectorSettingsRepo: new SessionSelectorSettingsRepo(db),
       providerAccountsRepo: new ProviderAccountsRepo(db),
       workspacePrefsRepo: new WorkspacePreferencesRepo(db),
-      promptAssetLoader: {
-        load: () => "prompt",
-        assetPath: () => "/prompt.md",
-      } as never,
     }),
-    aiRoles: new SessionAiRolesRepo(db),
     selectorSettings: new SessionSelectorSettingsRepo(db),
     brokerAssignments: new SessionBrokerAssignmentsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),

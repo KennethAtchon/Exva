@@ -2,8 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Card, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { Switch, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
-import { AiRoleConfigCard } from "@/components/strategy/AiRoleConfigCard";
-import { AiRoleProfileCard } from "@/components/strategy/AiRoleProfileCard";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";
 import { TimeframeHorizonCard } from "@/components/strategy/TimeframeHorizonCard";
 import { GlobalPresetGrid, CreateEditGlobalPresetModal, type UserGlobalPresetInput } from "@/components/strategy/GlobalPresetComponents";
@@ -40,24 +38,14 @@ import {
 import type { GlobalStrategyPreset } from "../../electron/shared/presets";
 import type { UserGlobalPresetRow } from "@/lib/exva";
 
-const ROLE_ORDER = [
-  "analyst_technical",
-  "analyst_fundamental",
-  "reviewer",
-  "decision_maker",
-  "instrument_selector",
-] as const;
-
 const TABS = [
   ["style", "Style"],
   ["rules", "Rules"],
   ["risk", "Risk"],
   ["timeframe", "Timeframe"],
-  ["role_profiles", "Role profiles"],
-  ["ai_roles", "AI Roles"],
 ];
 
-type SectionId = "style" | "rules" | "risk" | "timeframe" | "role_profiles" | "ai_roles";
+type SectionId = "style" | "rules" | "risk" | "timeframe";
 
 export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void }) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
@@ -70,18 +58,10 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const rules = useStrategyStore((state) => state.rules);
   const riskConfig = useStrategyStore((state) => state.riskConfig);
   const timeframe = useStrategyStore((state) => state.timeframe);
-  const aiRoleProfiles = useStrategyStore((state) => state.aiRoleProfiles);
-  const aiRoles = useStrategyStore((state) => state.aiRoles);
-  const providers = useStrategyStore((state) => state.providers);
-  const selectionMode = useStrategyStore((state) => state.selectionMode);
-  const selectorSettings = useStrategyStore((state) => state.selectorSettings);
   const dirtyFields = useStrategyStore((state) => state.dirtyFields);
-  const activeRoleTab = useStrategyStore((state) => state.activeRoleTab);
   const activeSection = useStrategyStore((state) => state.activeSection);
-  const providerModels = useStrategyStore((state) => state.providerModels);
   const isSaving = useStrategyStore((state) => state.isSaving);
   const pageState = useStrategyStore((state) => state.state);
-  const roleErrors = useStrategyStore((state) => state.roleErrors);
   const strategyErrors = useStrategyStore((state) => state.strategyErrors);
   const globalPresets = useStrategyStore((state) => state.globalPresets);
   const loadStrategy = useStrategyStore((state) => state.loadStrategy);
@@ -90,12 +70,8 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const updateRules = useStrategyStore((state) => state.updateRules);
   const updateRiskConfig = useStrategyStore((state) => state.updateRiskConfig);
   const updateTimeframe = useStrategyStore((state) => state.updateTimeframe);
-  const updateAiRoleProfile = useStrategyStore((state) => state.updateAiRoleProfile);
-  const updateRole = useStrategyStore((state) => state.updateRole);
   const applyGlobalPreset = useStrategyStore((state) => state.applyGlobalPreset);
   const saveAll = useStrategyStore((state) => state.saveAll);
-  const resetRole = useStrategyStore((state) => state.resetRole);
-  const setActiveTab = useStrategyStore((state) => state.setActiveTab);
   const setActiveSection = useStrategyStore((state) => state.setActiveSection);
 
   const [activeView, setActiveView] = useState<"presets" | "customize">("presets");
@@ -130,8 +106,6 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirtyFields, isSaving, isLocked, focusedSessionId]);
 
-  const currentRole = aiRoles[activeRoleTab];
-
   if (viewMode === "global" || !focusedSessionId) {
     return (
       <PageShell>
@@ -160,7 +134,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
     );
   }
 
-  if (!researchPosture || !rules || !riskConfig || !timeframe || aiRoleProfiles.length < 1) {
+  if (!researchPosture || !rules || !riskConfig || !timeframe) {
     return <PageShell><div style={{ color: "var(--text3)" }}>Loading strategy...</div></PageShell>;
   }
 
@@ -176,30 +150,9 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
     riskPresetId: riskConfig.riskPresetId ?? "custom",
     timeframePresetId: timeframe.timeframePresetId ?? "custom",
   });
-  const roleProviderSummary = Object.values(aiRoles).map((role) => {
-    const connectedProvider = providers.find((provider) => provider.id === role.providerKey);
-    const hasModel = role.modelId.trim().length > 0;
-    return {
-      role: role.role,
-      providerLabel: connectedProvider?.name ?? (role.providerKey.trim().length > 0 ? role.providerKey : "No provider"),
-      modelId: hasModel ? role.modelId : "Model not set",
-      connected: !!connectedProvider && hasModel,
-    };
-  });
-  const unconfiguredRoles = roleProviderSummary.filter((entry) => !entry.connected);
-
   return (
     <PageShell>
       <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
-
-      {unconfiguredRoles.length > 0 && (
-        <div style={{ ...warningStyle, marginBottom: 12, borderColor: "rgba(248,113,113,0.28)", color: "#fca5a5", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
-          <strong>AI providers not connected — session cannot start</strong>
-          <div style={{ color: "#fca5a5", opacity: 0.85 }}>
-            {unconfiguredRoles.map((r) => r.role.replaceAll("_", " ")).join(", ")} — go to the AI Roles tab and select a provider account for each role.
-          </div>
-        </div>
-      )}
 
       {strategyErrors.length > 0 && (
         <div style={{ ...warningStyle, marginBottom: 12, borderColor: "rgba(248,113,113,0.28)", color: "#fca5a5" }}>
@@ -345,94 +298,12 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
                       updateTimeframe={updateTimeframe}
                     />
                   )}
-                  {value === "role_profiles" && (
-                    <AiRoleProfileCard
-                      activeRole={activeRoleTab}
-                      profiles={aiRoleProfiles}
-                      selectionMode={selectionMode}
-                      aiPickerEnabled={selectorSettings?.aiPickerEnabled ?? true}
-                      disabled={isLocked}
-                      onTabChange={setActiveTab}
-                      onPatch={(role, patch) => updateAiRoleProfile(role, patch)}
-                    />
-                  )}
-                  {value === "ai_roles" && (
-                    <AiRoleConfigCard
-                      activeRole={activeRoleTab}
-                      roles={aiRoles}
-                      role={currentRole}
-                      providers={providers}
-                      models={providerModels[currentRole.providerKey] ?? []}
-                      selectionMode={selectionMode}
-                      aiPickerEnabled={selectorSettings?.aiPickerEnabled ?? true}
-                      disabled={isLocked}
-                      errors={roleErrors[activeRoleTab]}
-                      roleErrors={roleErrors}
-                      onTabChange={setActiveTab}
-                      onRoleChange={async (patch) => {
-                        if (patch.promptSource === "default" && currentRole.promptSource === "session_override") {
-                          const confirmed = window.confirm("Discard your custom prompt for this role?");
-                          if (!confirmed) return;
-                          await resetRole(currentRole.role);
-                          return;
-                        }
-                        await updateRole(currentRole.role, patch);
-                      }}
-                      onApplyModelConfigToOtherRoles={async () => {
-                        const roleLabel = currentRole.role.replaceAll("_", " ");
-                        const confirmed = window.confirm(
-                          `Apply ${roleLabel} model settings to the other roles?\n\nThis copies provider, model, temperature, and max tokens.`,
-                        );
-                        if (!confirmed) return;
-
-                        const patch = {
-                          providerKey: currentRole.providerKey,
-                          modelId: currentRole.modelId,
-                          temperature: currentRole.temperature,
-                          maxTokens: currentRole.maxTokens,
-                        };
-
-                        for (const role of ROLE_ORDER) {
-                          if (role === currentRole.role) continue;
-                          if (
-                            role === "instrument_selector" &&
-                            (selectionMode === "manual_shortlist" ||
-                              (selectionMode === "ai_selected_universe" && selectorSettings?.aiPickerEnabled === false))
-                          ) {
-                            continue;
-                          }
-                          await updateRole(role, patch);
-                        }
-                      }}
-                      onResetPrompt={async () => {
-                        const confirmed = window.confirm("Discard your custom prompt for this role?");
-                        if (!confirmed) return;
-                        await resetRole(currentRole.role);
-                      }}
-                    />
-                  )}
                 </TabsContent>
               ))}
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <CostSummaryCard riskConfig={riskConfig} roleProviders={roleProviderSummary} />
-              <Card>
-                <SectionTitle>Prompt assets</SectionTitle>
-                <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
-                  Bundled Markdown for the active role tab. When <strong>prompt source</strong> is Default, the editor shows this file.
-                </p>
-                <div style={{ marginTop: 14, fontSize: 12, color: "var(--text2)" }}>
-                  <div style={{ color: "var(--text3)", fontSize: 11, marginBottom: 4 }}>Bundled file path</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, wordBreak: "break-all" }}>
-                    {currentRole.promptAssetPath ?? "-"}
-                  </div>
-                </div>
-                <div style={{ marginTop: 12, fontSize: 12, color: "var(--text2)" }}>
-                  <div style={{ color: "var(--text3)", fontSize: 11, marginBottom: 4 }}>Header / version hint</div>
-                  <div>{promptHeaderSummary(currentRole.promptMarkdown)}</div>
-                </div>
-              </Card>
+              <CostSummaryCard riskConfig={riskConfig} />
             </div>
           </div>
         </Tabs>
@@ -601,12 +472,6 @@ function labelize(value: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function promptHeaderSummary(markdown: string): string {
-  const first = markdown.split("\n")[0]?.trim() ?? "";
-  if (first.startsWith("#")) return first.replace(/^#+\s*/, "");
-  return "No markdown heading on first line";
 }
 
 const Step = ({ n, text }: { n: number; text: string }) => (

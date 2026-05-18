@@ -15,13 +15,12 @@ import { BrokerAccountsRepo } from "../../../db/repositories/broker-accounts-rep
 import { BrokerRoutingRepo } from "../../../db/repositories/broker-routing-repo";
 import { CapitalReservationsRepo } from "../../../db/repositories/capital-reservations-repo";
 import { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts-repo";
-import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
+import { SessionAiPhasesRepo } from "../../../db/repositories/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
 import { SqliteSessionExecutionStepsRepo } from "../../../db/repositories/session-execution-steps-repo";
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-selector-settings-repo";
 import { SessionStrategiesRepo } from "../../../db/repositories/session-strategies-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
-import { SessionAiRoleProfileRepo } from "../../../db/repositories/session-ai-role-profile-repo";
 import { SessionResearchPostureRepo } from "../../../db/repositories/session-research-posture-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace-prefs-repo";
 import { InstrumentCacheRepo } from "../../../db/repositories/instrument-cache-repo";
@@ -113,7 +112,7 @@ function createManager(
   const eventsRepo = new EventsRepo(db);
   const statsRepo = new StatsRepo(db);
   const eventBus = new EventBus();
-  const sessionAiRolesRepo = new SessionAiRolesRepo(db);
+  const sessionAiPhasesRepo = new SessionAiPhasesRepo(db);
   const sessionSelectorSettingsRepo = new SessionSelectorSettingsRepo(db);
   const sessionExecutionStepsRepo = new SqliteSessionExecutionStepsRepo(db);
   const providerAccountsRepo = new ProviderAccountsRepo(db);
@@ -121,15 +120,12 @@ function createManager(
   const strategyContextService = new SessionStrategyContextService({
     sessionRepo,
     researchPostureRepo: new SessionResearchPostureRepo(db),
-    aiRoleProfileRepo: new SessionAiRoleProfileRepo(db),
     rulesRepo: new SessionTradeRulesRepo(db),
     riskRepo: new SessionRiskConfigRepo(db),
     timeframeRepo: new SessionTimeframeConfigRepo(db),
-    aiRolesRepo: sessionAiRolesRepo,
     selectorSettingsRepo: sessionSelectorSettingsRepo,
     providerAccountsRepo,
     workspacePrefsRepo: workspacePreferencesRepo,
-    promptAssetLoader: new PromptAssetLoader(),
   });
 
   return new SessionRuntimeManager({
@@ -142,7 +138,7 @@ function createManager(
     agentRunsRepo,
     eventsRepo,
     statsRepo,
-    sessionAiRolesRepo,
+    sessionAiPhasesRepo,
     sessionSelectorSettingsRepo,
     sessionExecutionStepsRepo,
     providerAccountsRepo,

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { aiRoleProfileDocumentSchema } from "../../electron/shared/ai/ai-role-profile";
 import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type TimeframePresetId } from "../../electron/shared/domain";
 
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
@@ -242,25 +241,6 @@ const strategyScalingModeSchema = z.enum(["single_entry", "scale_in_2", "scale_i
 const stopLossTypeSchema = z.enum(["fixed_pct", "trailing_atr", "broker_native_trailing", "none"]);
 const tradingTimeframeSchema = z.enum(["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]);
 const holdingStyleSchema = z.enum(["intraday_flat", "multi_day_swing", "weeks_position", "custom"]);
-const promptSourceSchema = z.enum(["default", "session_override"]);
-const aiRoleSchema = z.enum([
-  "analyst_technical",
-  "analyst_fundamental",
-  "reviewer",
-  "decision_maker",
-  "instrument_selector",
-]);
-
-const sessionAiRolePayloadSchema = z.object({
-  role: aiRoleSchema,
-  providerKey: z.string(),
-  modelId: z.string(),
-  temperature: z.number().min(0).max(2),
-  maxTokens: z.number().int().positive(),
-  promptSource: promptSourceSchema,
-  promptMarkdown: z.string(),
-  promptAssetPath: z.string().nullable(),
-});
 
 export const strategyResearchPostureSaveSchema = z.object({
   sessionId: z.string().min(1),
@@ -321,17 +301,3 @@ export const strategyTimeframeConfigSaveSchema = z.object({
   }),
 });
 
-export const strategyAiRolesSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  aiRoles: z.array(sessionAiRolePayloadSchema),
-});
-
-export const strategyAiRoleProfilesSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  aiRoleProfiles: z.array(
-    z.object({
-      role: aiRoleSchema,
-      profileJson: aiRoleProfileDocumentSchema.optional(),
-    }),
-  ),
-});

@@ -2,10 +2,8 @@
 // Kept close to the original jsx mocks so the UI renders identically.
 
 import type {
-  AgentRole,
   InstrumentClass,
   ProviderAccount,
-  SessionAiRole,
   SessionStrategy,
   Trade,
   AgentRun,
@@ -173,22 +171,4 @@ const providers: ProviderAccount[] = [
   },
 ];
 
-const aiRoles: SessionAiRole[] = ([
-  "analyst_technical",
-  "analyst_fundamental",
-  "reviewer",
-  "decision_maker",
-  "instrument_selector",
-] as AgentRole[]).map((role) => ({
-  sessionId: "default-session",
-  role,
-  providerKey: "provider-anthropic",
-  modelId: "claude-sonnet-4-6",
-  temperature: 0.7,
-  maxTokens: 8192,
-  promptSource: "default",
-  promptMarkdown: `<!-- version: 0.1.0 -->\n\nMock prompt for ${role}.`,
-  promptAssetPath: `/mock/prompts/${role}.md`,
-}));
-
-export const MOCK = { trades, runs, events, stats, costs, strategy, providers, aiRoles };
+export const MOCK = { trades, runs, events, stats, costs, strategy, providers };

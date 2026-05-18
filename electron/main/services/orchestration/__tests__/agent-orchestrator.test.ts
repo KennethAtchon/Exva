@@ -153,15 +153,6 @@ function createDeps({
     sessionStatus,
     strategyContextService: {
       get: () => ({
-        aiRoleProfiles: [
-          {
-            role: "instrument_selector",
-            profileJson:
-              noInstrumentRetryMinutes == null
-                ? { version: 1 }
-                : { version: 1, selectorSettings: { noInstrumentRetryMinutes } },
-          },
-        ],
         researchPosture: {},
         rules: {},
         riskConfig: { maxExposureUsd: null, waitForOpenThreshold: 0.8 },
@@ -169,7 +160,10 @@ function createDeps({
       }),
     },
     sessionSelectorSettingsRepo: {
-      get: () => ({ aiPickerEnabled: session?.selectionMode === "ai_selected_universe" }),
+      get: () => ({
+        aiPickerEnabled: session?.selectionMode === "ai_selected_universe",
+        noInstrumentRetryMinutes: noInstrumentRetryMinutes ?? null,
+      }),
     },
     sessionRepo: {
       requireById: () => ({ ...resolvedSession, status: sessionStatus.current }),

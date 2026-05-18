@@ -55,11 +55,11 @@ export function buildSelectorDefinitionFingerprint(
   session: WorkspaceSession,
   deps: Pick<
     OrchestratorDeps,
-    "sessionSelectorSettingsRepo" | "sessionAiRolesRepo" | "workspacePreferencesRepo" | "brokerRouting" | "sessionBrokerAssignmentsRepo" | "brokerAccountsRepo"
+    "sessionSelectorSettingsRepo" | "sessionAiPhasesRepo" | "workspacePreferencesRepo" | "brokerRouting" | "sessionBrokerAssignmentsRepo" | "brokerAccountsRepo"
   >,
 ): SelectorDefinitionFingerprint {
   const selectorSettings = deps.sessionSelectorSettingsRepo.get(session.id);
-  const role = deps.sessionAiRolesRepo.getByRole(session.id, "instrument_selector");
+  const selectorPhase = deps.sessionAiPhasesRepo.getByPhase(session.id, "selector");
   const prefs = deps.workspacePreferencesRepo.get();
   const searchProviderId = session.defaultSearchProviderId ?? prefs.defaultSearchProviderId ?? null;
   const instrumentClasses = resolveSessionInstrumentClasses(session, deps);
@@ -70,12 +70,12 @@ export function buildSelectorDefinitionFingerprint(
     instrumentScope: session.instrumentScope,
     instrumentClasses,
     searchProviderId,
-    selectorRole: role
+    selectorRole: selectorPhase
       ? {
-          providerKey: role.providerKey,
-          modelId: role.modelId,
-          promptSource: role.promptSource,
-          promptMarkdown: role.promptMarkdown,
+          providerKey: selectorPhase.providerKey,
+          modelId: selectorPhase.modelId,
+          promptSource: selectorPhase.promptSource as PromptSource,
+          promptMarkdown: selectorPhase.promptMarkdown,
         }
       : {
           providerKey: "",

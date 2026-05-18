@@ -14,7 +14,7 @@ describe("selectorConfigCheck", () => {
       sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
       workspacePreferencesRepo: { get: () => ({ defaultSearchProviderId: null }) },
       providerAccountsRepo: { find: () => null },
-      sessionAiRolesRepo: { getByRole: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
+      sessionAiPhasesRepo: { getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
     } as never);
 
     expect(result.ok).toBe(false);
@@ -24,7 +24,7 @@ describe("selectorConfigCheck", () => {
     expect(result.message).toContain("OpenRouter");
   });
 
-  it("accepts configured search provider and selector role", async () => {
+  it("accepts configured search provider and selector phase", async () => {
     const result = await selectorConfigCheck({ ...baseSession, defaultSearchProviderId: "search-1" } as never, {
       sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
       workspacePreferencesRepo: { get: () => ({ defaultSearchProviderId: null }) },
@@ -36,7 +36,7 @@ describe("selectorConfigCheck", () => {
               ? { id, category: "ai", isConfigured: true }
             : null,
       },
-      sessionAiRolesRepo: { getByRole: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
+      sessionAiPhasesRepo: { getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
     } as never);
 
     expect(result).toEqual({ ok: true });
@@ -54,7 +54,7 @@ describe("selectorConfigCheck", () => {
               ? { id, category: "ai", isConfigured: true }
               : null,
       },
-      sessionAiRolesRepo: { getByRole: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
+      sessionAiPhasesRepo: { getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
     } as never);
 
     expect(result).toEqual({ ok: true });

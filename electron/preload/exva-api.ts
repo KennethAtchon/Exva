@@ -18,7 +18,6 @@ import type {
   InstrumentClass,
   ProviderAccount,
   SelectionMode,
-  SessionAiRole,
   SessionRiskConfig,
   SessionStatus,
   SessionStrategy,
@@ -26,7 +25,6 @@ import type {
   SessionSelectorSettings,
   SessionTemplatePayload,
   SessionTimeframeConfig,
-  SessionAiRoleProfile,
   SessionResearchPosture,
   Trade,
   TradeAutopsy,
@@ -100,11 +98,9 @@ export interface SessionCreateInput {
 
 export interface StrategyGetResponse {
   researchPosture: SessionResearchPosture;
-  aiRoleProfiles: SessionAiRoleProfile[];
   rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
-  aiRoles: SessionAiRole[];
   selectorSettings: SessionSelectorSettings;
   providers: ProviderAccount[];
   sessionStatus: SessionStatus;
@@ -287,16 +283,7 @@ export interface ExvaApi {
     saveRiskConfig(input: { sessionId: string; riskConfig: Partial<SessionRiskConfig> }): Promise<{ savedAt: string }>;
     getTimeframeConfig(sessionId: string): Promise<SessionTimeframeConfig>;
     saveTimeframeConfig(input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }): Promise<{ savedAt: string }>;
-    saveAiRoles(input: { sessionId: string; aiRoles: SessionAiRole[] }): Promise<{ savedAt: string }>;
-    saveAiRoleProfiles(input: {
-      sessionId: string;
-      aiRoleProfiles: Array<{
-        role: AgentRole;
-        profileJson?: SessionAiRoleProfile["profileJson"];
-      }>;
-    }): Promise<{ savedAt: string }>;
     getProviderModels(providerKey: string): Promise<{ models: ProviderModelEntry[] }>;
-    resetPrompt(role: AgentRole): Promise<{ promptMarkdown: string; promptAssetPath: string }>;
     globalPresets: {
       list(): Promise<{ presets: UserGlobalPresetRow[] }>;
       create(input: { name: string; preset: Record<string, unknown> }): Promise<UserGlobalPresetRow>;

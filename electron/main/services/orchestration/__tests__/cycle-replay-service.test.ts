@@ -48,7 +48,6 @@ function makeStrategySnapshot(): StrategySnapshot {
       maxHoldDays: 1,
       timeframeNotes: "",
     },
-    aiRoleProfiles: [],
   };
 }
 

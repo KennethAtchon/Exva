@@ -7,7 +7,7 @@ import type { BrokerRoutingRepo } from "../../db/repositories/broker-routing-rep
 import type { CapitalReservationsRepo } from "../../db/repositories/capital-reservations-repo";
 import type { EventsRepo } from "../../db/repositories/events-repo";
 import type { ProviderAccountsRepo } from "../../db/repositories/provider-accounts-repo";
-import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";
+import type { SessionAiPhasesRepo } from "../../db/repositories/session-ai-phases-repo";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
 import type { SessionStrategiesRepo } from "../../db/repositories/session-strategies-repo";
@@ -61,7 +61,7 @@ export interface OrchestratorDeps {
   agentMessagesRepo: AgentMessagesRepo;
   eventsRepo: EventsRepo;
   statsRepo: StatsRepo;
-  sessionAiRolesRepo: SessionAiRolesRepo;
+  sessionAiPhasesRepo: SessionAiPhasesRepo;
   sessionSelectorSettingsRepo: SessionSelectorSettingsRepo;
   sessionExecutionStepsRepo: SessionExecutionStepsRepo;
   providerAccountsRepo: ProviderAccountsRepo;

@@ -32,10 +32,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     if (view.focusedSessionId) {
       try {
         const strategy = await api.getStrategy(view.focusedSessionId);
-        const allConnected = strategy.aiRoles.every((role) =>
-          strategy.providers.some((p) => p.id === role.providerKey)
-        );
-        set({ focusedSessionAiReady: allConnected });
+        set({ focusedSessionAiReady: strategy.providers.some((p) => p.isConfigured) });
       } catch {
         set({ focusedSessionAiReady: false });
       }
@@ -47,10 +44,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     set({ focusedSessionAiReady: null });
     try {
       const strategy = await api.getStrategy(sessionId);
-      const allConnected = strategy.aiRoles.every((role) =>
-        strategy.providers.some((p) => p.id === role.providerKey)
-      );
-      set({ focusedSessionAiReady: allConnected });
+      set({ focusedSessionAiReady: strategy.providers.some((p) => p.isConfigured) });
     } catch {
       set({ focusedSessionAiReady: false });
     }

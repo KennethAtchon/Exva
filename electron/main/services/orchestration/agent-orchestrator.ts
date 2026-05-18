@@ -1,6 +1,7 @@
 import PQueue from "p-queue";
 import { toLegacySessionConfig, type EventSourceType, type ExecutionStage, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
 import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
+import type { AiRoleProfileDocument } from "@electron/shared/ai/ai-role-profile";
 import { resolveSelectorNoInstrumentRetryMinutes } from "@electron/shared/ai/ai-role-profile";
 import { AppError } from "@electron/shared/infra/errors";
 import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
@@ -22,10 +23,12 @@ type ResolvedInstrument = {
   selectorTraces?: ToolStepTrace[];
 };
 
-type AiResearchRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runAnalyst"]>>;
-type AiReviewRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runReviewer"]>>;
-type AiDecisionRun = Awaited<ReturnType<OrchestratorDeps["ai"]["runDecisionMaker"]>>;
-type AiPipelineResult = { technical: AiResearchRun; fundamental: AiResearchRun; review: AiReviewRun; decision: AiDecisionRun };
+import type { AgentResult } from "../ai/ai-runtime/ai-runtime-types";
+import type { TradeDecision } from "../ai/ai-runtime/runtime";
+
+type AiTextRun = AgentResult<{ text: string }>;
+type AiDecisionRun = AgentResult<TradeDecision>;
+type AiPipelineResult = { technical: AiTextRun; fundamental: AiTextRun; review: AiTextRun; decision: AiDecisionRun };
 
 type DecisionOutput = {
   action: "trade" | "no_trade";
@@ -56,9 +59,9 @@ type TradeCycleContext = {
   kind: "trade";
   cycleId: string;
   instrument: ResolvedInstrument;
-  technical?: AiResearchRun;
-  fundamental?: AiResearchRun;
-  review?: AiReviewRun;
+  technical?: AiTextRun;
+  fundamental?: AiTextRun;
+  review?: AiTextRun;
   decision?: AiDecisionRun;
   trade?: Trade;
   riskOrder?: OrderRequest;
@@ -888,8 +891,13 @@ export class AgentOrchestrator {
       const technical = await stepRunner.run(
         "analyst_technical",
         async () => {
-          const result = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "technical", this.sessionId);
-          if (!result.output.trim()) {
+          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, { text: string }>(
+            "technical",
+            this.sessionId,
+            { instrumentSymbol: instrument.symbol, context: analystContext },
+            context.cycleId,
+          );
+          if (!result.output.text.trim()) {
             throw new AppError("Technical analyst returned empty output.", "VALIDATION_FAILED");
           }
           return result;
@@ -908,8 +916,13 @@ export class AgentOrchestrator {
       const fundamental = await stepRunner.run(
         "analyst_fundamental",
         async () => {
-          const result = await this.deps.ai.runAnalyst({ instrumentSymbol: instrument.symbol, context: analystContext }, "fundamental", this.sessionId);
-          if (!result.output.trim()) {
+          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, { text: string }>(
+            "fundamental",
+            this.sessionId,
+            { instrumentSymbol: instrument.symbol, context: analystContext },
+            context.cycleId,
+          );
+          if (!result.output.text.trim()) {
             throw new AppError("Fundamental analyst returned empty output.", "VALIDATION_FAILED");
           }
           return result;
@@ -933,15 +946,20 @@ export class AgentOrchestrator {
       const review = await stepRunner.run(
         "reviewer",
         async () => {
-          const result = await this.deps.ai.runReviewer(
+          const result = await this.deps.ai.runPhase<
+            { instrumentSymbol: string; technicalAnalysis: string; fundamentalAnalysis: string },
+            { text: string }
+          >(
+            "review",
+            this.sessionId,
             {
               instrumentSymbol: instrument.symbol,
-              technicalAnalysis: technical.output,
-              fundamentalAnalysis: fundamental.output,
+              technicalAnalysis: technical.output.text,
+              fundamentalAnalysis: fundamental.output.text,
             },
-            this.sessionId,
+            context.cycleId,
           );
-          if (!result.output.trim()) {
+          if (!result.output.text.trim()) {
             throw new AppError("Reviewer returned empty output.", "VALIDATION_FAILED");
           }
           return result;
@@ -966,15 +984,20 @@ export class AgentOrchestrator {
       const decision = await stepRunner.run(
         "decision_maker",
         () =>
-          this.deps.ai.runDecisionMaker(
+          this.deps.ai.runPhase<
+            { instrumentSymbol: string; technicalAnalysis: string; fundamentalAnalysis: string; review: string; maxPositionUsd: number },
+            TradeDecision
+          >(
+            "decision",
+            this.sessionId,
             {
               instrumentSymbol: instrument.symbol,
-              technicalAnalysis: technical.output,
-              fundamentalAnalysis: fundamental.output,
-              review: review.output,
+              technicalAnalysis: technical.output.text,
+              fundamentalAnalysis: fundamental.output.text,
+              review: review.output.text,
               maxPositionUsd: config.max_position_usd,
             },
-            this.sessionId,
+            context.cycleId,
           ),
         { onRetry: () => this.enqueueTradeCycleRetry(context) },
       );
@@ -1442,9 +1465,11 @@ export class AgentOrchestrator {
       cycleId: activeCycleId,
       message: "Running instrument selector",
     });
-    const result = await this.deps.ai.runInstrumentSelector(
+    const selectionInstructions = await this.buildSelectionInstructions(session);
+    const result = await this.deps.ai.runPhase<{ selectionInstructions: string }, import("@/lib/schemas").InstrumentSelection>(
+      "selector",
       session.id,
-      await this.buildSelectionInstructions(session),
+      { selectionInstructions },
       activeCycleId,
     );
 
@@ -1552,10 +1577,13 @@ export class AgentOrchestrator {
   }
 
   private getNoInstrumentRetryMinutes(): number {
-    const selectorProfile = this.deps.strategyContextService
-      .get(this.sessionId)
-      .aiRoleProfiles.find((profile) => profile.role === "instrument_selector");
-    return resolveSelectorNoInstrumentRetryMinutes(selectorProfile?.profileJson);
+    const settings = this.deps.sessionSelectorSettingsRepo.get(this.sessionId);
+    const configured = settings.noInstrumentRetryMinutes;
+    return resolveSelectorNoInstrumentRetryMinutes(
+      configured != null
+        ? ({ selectorSettings: { noInstrumentRetryMinutes: configured } } as AiRoleProfileDocument)
+        : null,
+    );
   }
 
   private resolvePredictionTradeFields(

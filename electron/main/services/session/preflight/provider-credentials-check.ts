@@ -4,23 +4,23 @@ import type { OrchestratorDeps, PreflightStepFailure } from "../session-types";
 type StepResult = { ok: true } | PreflightStepFailure;
 
 export async function providerCredentialsCheck(session: WorkspaceSession, deps: OrchestratorDeps): Promise<StepResult> {
-  const roles = deps.sessionAiRolesRepo.listBySession(session.id);
-  for (const role of roles) {
-    if (!role.providerKey.trim()) {
+  const phases = deps.sessionAiPhasesRepo.listBySession(session.id);
+  for (const phase of phases) {
+    if (!phase.providerKey.trim()) {
       return {
         ok: false,
         code: "PROVIDER_NOT_CONFIGURED",
-        message: `AI role "${role.role}" has no provider selected. Connect a provider in Accounts or pick one in Strategy.`,
-        details: { role: role.role },
+        message: `AI phase "${phase.phase}" has no provider selected. Connect a provider in Accounts or pick one in Strategy.`,
+        details: { phase: phase.phase },
       };
     }
-    const account = deps.providerAccountsRepo.find(role.providerKey);
+    const account = deps.providerAccountsRepo.find(phase.providerKey);
     if (!account) {
       return {
         ok: false,
         code: "PROVIDER_NOT_CONFIGURED",
-        message: `Provider account "${role.providerKey}" for role "${role.role}" was not found.`,
-        details: { role: role.role, providerKey: role.providerKey },
+        message: `Provider account "${phase.providerKey}" for phase "${phase.phase}" was not found.`,
+        details: { phase: phase.phase, providerKey: phase.providerKey },
       };
     }
     if (account.category !== "ai") {
@@ -28,23 +28,23 @@ export async function providerCredentialsCheck(session: WorkspaceSession, deps: 
         ok: false,
         code: "PROVIDER_NOT_CONFIGURED",
         message: `Provider "${account.name}" is not an AI provider.`,
-        details: { role: role.role, providerKey: role.providerKey },
+        details: { phase: phase.phase, providerKey: phase.providerKey },
       };
     }
     if (!account.isConfigured) {
       return {
         ok: false,
         code: "PROVIDER_NOT_CONFIGURED",
-        message: `Connect this provider in Accounts before assigning it to ${role.role.replace(/_/g, " ")}.`,
-        details: { role: role.role, providerKey: role.providerKey },
+        message: `Connect this provider in Accounts before assigning it to phase ${phase.phase}.`,
+        details: { phase: phase.phase, providerKey: phase.providerKey },
       };
     }
-    if (!role.modelId.trim()) {
+    if (!phase.modelId.trim()) {
       return {
         ok: false,
         code: "VALIDATION_FAILED",
-        message: `Select a model for the ${role.role.replace(/_/g, " ")} role.`,
-        details: { role: role.role },
+        message: `Select a model for the ${phase.phase} phase.`,
+        details: { phase: phase.phase },
       };
     }
   }

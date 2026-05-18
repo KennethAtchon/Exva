@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AgentLabel, Card, PageShell, SectionTitle } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
-import type { AgentRole } from "@/lib/types";
+import type { EventSourceType } from "@/lib/types";
 import { useSessionStore } from "@/store/sessionStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
@@ -33,7 +33,7 @@ export const CostBreakdownPage = () => {
   const budget = stats.api_budget;
   const pct = budget > 0 ? (d.total / budget) * 100 : 0;
   const barColor = pct > 80 ? "#f87171" : pct > 60 ? "#fbbf24" : "var(--accent)";
-  const agentColors: Record<AgentRole, string> = {
+  const agentColors: Record<string, string> = {
     analyst_technical: "#34d399", analyst_fundamental: "#f87171",
     reviewer: "#60a5fa", decision_maker: "#a78bfa",
     instrument_selector: "#fbbf24",
@@ -95,7 +95,7 @@ export const CostBreakdownPage = () => {
               {d.by_agent.length > 0 ? d.by_agent.map((a) => (
                 <div key={a.name}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-                    <AgentLabel type={a.name} />
+                    <AgentLabel type={a.name as EventSourceType} />
                     <div style={{ display: "flex", gap: 14 }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text3)" }}>
                         {fmt.tokens(a.tokens)} tok

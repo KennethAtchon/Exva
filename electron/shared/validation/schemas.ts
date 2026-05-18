@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { aiRoleProfileDocumentSchema } from "../ai/ai-role-profile";
 import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type TimeframePresetId } from "../domain";
 
 export const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
@@ -68,13 +67,6 @@ export const strategyScalingModeSchema = z.enum(["single_entry", "scale_in_2", "
 export const stopLossTypeSchema = z.enum(["fixed_pct", "trailing_atr", "broker_native_trailing", "none"]);
 export const tradingTimeframeSchema = z.enum(["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]);
 export const holdingStyleSchema = z.enum(["intraday_flat", "multi_day_swing", "weeks_position", "custom"]);
-export const agentRoleSchema = z.enum([
-  "analyst_technical",
-  "analyst_fundamental",
-  "reviewer",
-  "decision_maker",
-  "instrument_selector",
-]);
 export const executionStageSchema = z.enum([
   "selector",
   "candidate_validation",
@@ -86,7 +78,6 @@ export const executionStageSchema = z.enum([
   "broker_order",
   "monitoring",
 ]);
-export const promptSourceSchema = z.enum(["default", "session_override"]);
 export const brokerAssignmentSchema = z.object({
   brokerAccountId: z.string().min(1),
   allocatedUsd: z.number().nonnegative(),
@@ -125,17 +116,6 @@ export const sessionStrategyPayloadSchema = z.object({
   timeframeNotes: z.string().optional().default(""),
 });
 
-export const sessionAiRolePayloadSchema = z.object({
-  role: agentRoleSchema,
-  providerKey: z.string(),
-  modelId: z.string(),
-  temperature: z.number().min(0).max(2),
-  maxTokens: z.number().int().positive(),
-  promptSource: promptSourceSchema,
-  promptMarkdown: z.string(),
-  promptAssetPath: z.string().nullable(),
-});
-
 export const sessionResearchPosturePayloadSchema = z.object({
   posturePresetId: researchPosturePresetIdSchema,
   discoveryMode: researchDiscoveryModeSchema,
@@ -143,10 +123,6 @@ export const sessionResearchPosturePayloadSchema = z.object({
   catalystMode: researchCatalystModeSchema,
   fundamentalStrictness: researchFundamentalStrictnessSchema,
   postureNotes: z.string(),
-});
-
-export const sessionAiRoleProfilePayloadSchema = z.object({
-  profileJson: aiRoleProfileDocumentSchema,
 });
 
 export const sessionTradeRulesPayloadSchema = z.object({
@@ -208,22 +184,6 @@ export const strategyTimeframeConfigSaveSchema = z.object({
   timeframe: sessionTimeframeConfigPayloadSchema.partial(),
 });
 
-export const strategyAiRolesSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  aiRoles: z.array(sessionAiRolePayloadSchema),
-});
-
-/** Partial upserts per role — merged with existing row server-side. */
-export const strategyAiRoleProfilesSaveSchema = z.object({
-  sessionId: z.string().min(1),
-  aiRoleProfiles: z.array(
-    z.object({
-      role: agentRoleSchema,
-      profileJson: aiRoleProfileDocumentSchema.optional(),
-    }),
-  ),
-});
-
 export const sessionTemplatePayloadSchema = z.object({
   version: z.literal(1),
   identity: z.object({
@@ -253,19 +213,9 @@ export const sessionTemplatePayloadSchema = z.object({
         sessionId: z.string().min(1),
         updatedAt: z.string().min(1),
       }),
-      aiRoleProfiles: z
-        .array(
-          sessionAiRoleProfilePayloadSchema.extend({
-            sessionId: z.string().min(1),
-            role: agentRoleSchema,
-            updatedAt: z.string().min(1),
-          }),
-        )
-        .default([]),
     })
     .optional(),
   strategy: sessionStrategyPayloadSchema,
-  aiRoles: z.array(sessionAiRolePayloadSchema),
   brokerAssignments: z.array(brokerAssignmentSchema),
   brokerOverridesByInstrumentClass: z.record(instrumentClassSchema, z.string()).default({}),
 });
@@ -323,4 +273,3 @@ export const workspacePrefsPatchSchema = z
   .strict();
 
 export const strategyGetProviderModelsSchema = z.object({ providerKey: z.string().min(1) });
-export const strategyResetPromptSchema = z.object({ role: agentRoleSchema });

@@ -26,5 +26,27 @@ The future of AI is having 100s of them do 1 thing very well, and they pass thos
 -------
 
 
+The system will automatically calculate the order size, stop loss, risk, the AI will decide on entry point, and optionally:
+- should I let AI adjust take profit and stop loss to maximize gain or leave it alone
+
+We need a strategy system for order management, it will have different ways of doing orders on futures, prediction market, etc
+
+I think the goal is to use the AI to find good stocks, system will trade them
+
+Like things are built in, for example the new plan should have another strategy system - code base that does this:
+
+Risk + Trade type
+
+like for arbitage trade, the AI just tells it "bro do the arbitage trade here it has high likihood" and the system does it, 
+
+same with trend momentum, etc, The AI is just the brain, while the system executes it correctly everytime. This reduces the amount of information the ai needs to send. It just needs entry. The stop loss and take profit all of that, automatic.
+
+This is my vision. 
 
 
+———
+
+
+ are we not deleting these: /Users/ken/Documents/workspace/Exva/electron/prompts, now we need work based prompts...not the old ai role prompt...I also said to remove prompt-pack-builder and everything like tat.
+  also runtime still has code like: [Pasted text #1 +24 lines] which is obviously better if we delegate this to the actual selector timeline...like bro. runtime still has alot of things we can delegate, the
+  search plugin can be delegated to pipelines to work the same way as engines (plug and play). lets also move engine folder into ai folder.  

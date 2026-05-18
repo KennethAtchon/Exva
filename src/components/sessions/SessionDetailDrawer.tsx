@@ -168,40 +168,6 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
               </div>
             </Section>
 
-            <Section title="AI Roles">
-              {loading ? <div style={mutedStyle}>Loading…</div> : null}
-              {!loading && payload?.aiRoles.length ? (() => {
-                const unconnected = payload.aiRoles.filter(
-                  (role) => !providers.some((p) => p.id === role.providerKey)
-                );
-                return (
-                  <div style={{ display: "grid", gap: 6 }}>
-                    {unconnected.length > 0 && (
-                      <div style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(248,113,113,0.28)", background: "rgba(248,113,113,0.07)", color: "#fca5a5", fontSize: 11, marginBottom: 4 }}>
-                        {unconnected.length} role{unconnected.length > 1 ? "s" : ""} not connected — session cannot start. Configure in Strategy tab.
-                      </div>
-                    )}
-                    {payload.aiRoles.map((role) => {
-                      const connected = providers.some((p) => p.id === role.providerKey);
-                      const providerName = providers.find((p) => p.id === role.providerKey)?.name;
-                      return (
-                        <div key={role.role} style={{ ...roleRowStyle, borderColor: connected ? "var(--border)" : "rgba(248,113,113,0.25)" }}>
-                          <div style={{ color: "var(--text1)", fontSize: 12, fontWeight: 600, textTransform: "capitalize" }}>
-                            {formatRole(role.role)}
-                          </div>
-                          <div style={{ color: connected ? "var(--text3)" : "#f87171", fontSize: 11, marginTop: 2 }}>
-                            {connected
-                              ? `${providerName} · ${role.modelId} · ${role.promptSource === "default" ? "Default prompt" : "Session override"}`
-                              : "Not connected — go to Strategy → AI Roles"}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })() : null}
-              {!loading && !payload?.aiRoles.length ? <div style={mutedStyle}>No per-role AI configuration saved yet.</div> : null}
-            </Section>
 
             <Section title="Session Summary">
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -276,9 +242,6 @@ function formatOverrides(overrides?: Partial<Record<InstrumentClass, string>>): 
   return entries.map(([ic, brokerId]) => `${formatInstrumentClass(ic as InstrumentClass)} → ${brokerId}`).join(" · ");
 }
 
-function formatRole(role: string): string {
-  return role.replaceAll("_", " ");
-}
 
 function formatTimestamp(value: string): string {
   return new Date(value).toLocaleString();
@@ -316,12 +279,6 @@ const rowLabelStyle = {
   paddingTop: 1,
 } as const;
 
-const roleRowStyle = {
-  padding: "9px 10px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.3)",
-} as const;
 
 const cacheChipStyle = {
   padding: "3px 8px",

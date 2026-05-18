@@ -28,7 +28,7 @@ export class SessionRuntimeManager {
       agentMessagesRepo: this.deps.agentMessagesRepo,
       eventsRepo: this.deps.eventsRepo,
       statsRepo: this.deps.statsRepo,
-      sessionAiRolesRepo: this.deps.sessionAiRolesRepo,
+      sessionAiPhasesRepo: this.deps.sessionAiPhasesRepo,
       sessionSelectorSettingsRepo: this.deps.sessionSelectorSettingsRepo,
       sessionExecutionStepsRepo: this.deps.sessionExecutionStepsRepo,
       providerAccountsRepo: this.deps.providerAccountsRepo,

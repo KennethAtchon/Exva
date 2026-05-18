@@ -15,7 +15,6 @@ function baseContext(): SessionStrategyContext {
       postureNotes: "Favor strong leaders with clean trend persistence.",
       updatedAt: ts,
     },
-    aiRoleProfiles: [],
     rules: {
       sessionId: "s1",
       rulesPresetId: "breakout_long",
@@ -84,80 +83,4 @@ describe("strategy-prompt-context", () => {
     expect(out.snapshot.rules.setupType).toBe("breakout");
   });
 
-  it("includes authoritative role operating brief when a target role is set", () => {
-    const context = baseContext();
-    context.aiRoleProfiles = [
-      {
-        sessionId: "s1",
-        role: "decision_maker",
-        profileJson: {
-          version: 1,
-          objective: "Return a concise decision.",
-          constraints: ["Prefer no_trade when evidence is weak."],
-          toolPolicy: {},
-          method: {
-            checklist: ["Check confidence threshold before trading."],
-            requiredEvidence: [],
-            avoid: [],
-          },
-          output: {
-            format: "structured_json",
-            requiredSections: [],
-            terminalAction: "Return only the runtime decision schema.",
-          },
-          custom_key: { pace: "deliberate" },
-        },
-        updatedAt: "2026-05-05T00:00:00.000Z",
-      },
-    ];
-
-    const built = buildStrategyPromptContext(context, { role: "decision_maker" });
-
-    expect(built.snapshot.version).toBe(5);
-    expect(built.snapshot.aiRoleProfiles[0]?.profileJson.objective).toBe("Return a concise decision.");
-    expect(built.prompt).toContain("## Role profile");
-    expect(built.prompt).toContain("## Objective");
-    expect(built.prompt).toContain("Return a concise decision.");
-    expect(built.prompt).toContain("## Constraints");
-    expect(built.prompt).toContain("## Additional profile JSON");
-  });
-
-  it("renders selector role-profile settings and discovery guidance for the instrument selector", () => {
-    const context = baseContext();
-    context.aiRoleProfiles = [
-      {
-        sessionId: "s1",
-        role: "instrument_selector",
-        profileJson: {
-          version: 1,
-          objective: "Discover and verify a high-quality shortlist.",
-          constraints: ["Trending names are a seed list, not the shortlist."],
-          toolPolicy: {},
-          method: {
-            checklist: ["Move from discovery to verification once novelty collapses."],
-            requiredEvidence: ["timely_catalyst", "tradability"],
-            avoid: ["Do not repeat the same symbol check unless it closes a specific unresolved gap."],
-          },
-          output: {
-            format: "candidate_list",
-            requiredSections: ["candidate rationale"],
-            terminalAction: "submit_candidates",
-          },
-          selectorSettings: {
-            maxDiscoverySteps: 8,
-            forceSubmitAfterStep: 14,
-          },
-        },
-        updatedAt: "2026-05-05T00:00:00.000Z",
-      },
-    ];
-
-    const built = buildStrategyPromptContext(context, { role: "instrument_selector" });
-
-    expect(built.prompt).toContain("## Role profile");
-    expect(built.prompt).toContain("Trending names are a seed list, not the shortlist.");
-    expect(built.prompt).toContain("candidate rationale");
-    expect(built.prompt).toContain('"maxDiscoverySteps": 8');
-    expect(built.prompt).toContain('"forceSubmitAfterStep": 14');
-  });
 });

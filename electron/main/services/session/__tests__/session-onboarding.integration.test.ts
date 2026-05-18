@@ -9,7 +9,7 @@ import { CapitalReservationsRepo } from "../../../db/repositories/capital-reserv
 import { EventsRepo } from "../../../db/repositories/events-repo";
 import { InstrumentCacheRepo } from "../../../db/repositories/instrument-cache-repo";
 import { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts-repo";
-import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
+import { SessionAiPhasesRepo } from "../../../db/repositories/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
 import { SqliteSessionExecutionStepsRepo } from "../../../db/repositories/session-execution-steps-repo";
 import { SessionRepo } from "../../../db/repositories/session-repo";
@@ -18,7 +18,6 @@ import { SessionSelectorSettingsRepo } from "../../../db/repositories/session-se
 import { SessionStrategiesRepo } from "../../../db/repositories/session-strategies-repo";
 import { SessionTradeRulesRepo } from "../../../db/repositories/session-trade-rules-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/session-timeframe-config-repo";
-import { SessionAiRoleProfileRepo } from "../../../db/repositories/session-ai-role-profile-repo";
 import { SessionResearchPostureRepo } from "../../../db/repositories/session-research-posture-repo";
 import { StatsRepo } from "../../../db/repositories/stats-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trade-approvals-repo";
@@ -28,7 +27,6 @@ import { BrokerRoutingService } from "../../broker/broker-routing-service";
 import { MockBrokerAdapter } from "../../broker/adapters/mock-adapter";
 import { EventBus } from "../../infra/event-bus";
 import { createLogger } from "../../infra/log";
-import { PromptAssetLoader } from "../../ai/prompt-asset-loader";
 import { runPreflight } from "../preflight";
 import { SessionRuntimeManager } from "../session-runtime-manager";
 import { SessionService } from "../session-service";
@@ -111,10 +109,10 @@ describe("session onboarding integration", () => {
       brokerOverridesByInstrumentClass: { stock: "paper-broker" },
     });
 
-    const roles = harness.sessionAiRoles.listBySession(sessionId);
-    expect(roles).toHaveLength(5);
-    expect(roles.every((role) => role.providerKey === "provider-openrouter")).toBe(true);
-    expect(roles.every((role) => role.modelId === "google/gemma-4-31b-it")).toBe(true);
+    const phases = harness.sessionAiPhasesRepo.listBySession(sessionId);
+    expect(phases).toHaveLength(5);
+    expect(phases.every((p) => p.providerKey === "provider-openrouter")).toBe(true);
+    expect(phases.every((p) => p.modelId === "google/gemma-4-31b-it")).toBe(true);
 
     await expect(harness.session.start(sessionId)).resolves.toBe("active");
     expect(harness.startedSessions).toEqual([sessionId]);
@@ -170,24 +168,20 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
   const sessionBrokerAssignments = new SessionBrokerAssignmentsRepo(db);
   const brokerRoutingRepo = new BrokerRoutingRepo(db);
   const providerAccounts = new ProviderAccountsRepo(db);
-  const sessionAiRoles = new SessionAiRolesRepo(db);
+  const sessionAiPhasesRepo = new SessionAiPhasesRepo(db);
   const sessionSelectorSettings = new SessionSelectorSettingsRepo(db);
   const workspacePreferences = new WorkspacePreferencesRepo(db);
   const startedSessions: string[] = [];
   const eventBus = new EventBus();
-  const promptAssetLoader = new PromptAssetLoader();
   const strategyContextService = new SessionStrategyContextService({
     sessionRepo: sessions,
     researchPostureRepo: new SessionResearchPostureRepo(db),
-    aiRoleProfileRepo: new SessionAiRoleProfileRepo(db),
     rulesRepo: new SessionTradeRulesRepo(db),
     riskRepo: new SessionRiskConfigRepo(db),
     timeframeRepo: new SessionTimeframeConfigRepo(db),
-    aiRolesRepo: sessionAiRoles,
     selectorSettingsRepo: sessionSelectorSettings,
     providerAccountsRepo: providerAccounts,
     workspacePrefsRepo: workspacePreferences,
-    promptAssetLoader,
   });
 
   const brokerRegistry = {
@@ -223,7 +217,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     agentMessagesRepo: new AgentMessagesRepo(db),
     eventsRepo: events,
     statsRepo: new StatsRepo(db),
-    sessionAiRolesRepo: sessionAiRoles,
+    sessionAiPhasesRepo,
     sessionSelectorSettingsRepo: sessionSelectorSettings,
     sessionExecutionStepsRepo: new SqliteSessionExecutionStepsRepo(db),
     providerAccountsRepo: providerAccounts,
@@ -276,7 +270,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     events,
     routing,
     runtimeManager,
-    sessionAiRoles,
+    sessionAiPhasesRepo,
     session: new SessionService({
       sessionRepo: sessions,
       eventsRepo: events,
@@ -313,11 +307,13 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
         defaultModelModelId: "claude-sonnet-4-6",
       });
       for (const session of sessions.list()) {
-        const roles = sessionAiRoles.listBySession(session.id);
-        sessionAiRoles.replaceAll(
-          session.id,
-          roles.map((role) => ({ ...role, providerKey: "provider-anthropic", modelId: "claude-sonnet-4-6" })),
-        );
+        for (const phase of sessionAiPhasesRepo.listBySession(session.id)) {
+          sessionAiPhasesRepo.upsertPhase(session.id, {
+            ...phase,
+            providerKey: "provider-anthropic",
+            modelId: "claude-sonnet-4-6",
+          });
+        }
       }
     },
     configureWorkspaceDefaultAiModel(input: {

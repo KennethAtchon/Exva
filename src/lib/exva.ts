@@ -18,7 +18,6 @@ import type {
   InstrumentClass,
   ProviderAccount,
   SelectionMode,
-  SessionAiRole,
   SessionRiskConfig,
   SessionSelectorSettings,
   SessionTradeRules,
@@ -26,7 +25,6 @@ import type {
   SessionStatus,
   SessionTemplatePayload,
   SessionTimeframeConfig,
-  SessionAiRoleProfile,
   SessionResearchPosture,
   Trade,
   TradeAutopsy,
@@ -77,11 +75,9 @@ export interface SessionCreateInput {
 
 export interface StrategyGetResponse {
   researchPosture: SessionResearchPosture;
-  aiRoleProfiles: SessionAiRoleProfile[];
   rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
-  aiRoles: SessionAiRole[];
   selectorSettings: SessionSelectorSettings;
   providers: ProviderAccount[];
   sessionStatus: SessionStatus;
@@ -231,17 +227,8 @@ export const api = {
     bridge().strategy.getTimeframeConfig(sessionId),
   saveStrategyTimeframeConfig: (input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }) =>
     bridge().strategy.saveTimeframeConfig(input),
-  saveStrategyAiRoles: (input: { sessionId: string; aiRoles: SessionAiRole[] }) => bridge().strategy.saveAiRoles(input),
-  saveStrategyAiRoleProfiles: (input: {
-    sessionId: string;
-    aiRoleProfiles: Array<{
-      role: AgentRole;
-      profileJson?: SessionAiRoleProfile["profileJson"];
-    }>;
-  }) => bridge().strategy.saveAiRoleProfiles(input),
   getStrategyProviderModels: (providerKey: string): Promise<{ models: ProviderModelEntry[] }> =>
     bridge().strategy.getProviderModels(providerKey),
-  resetStrategyPrompt: (role: AgentRole) => bridge().strategy.resetPrompt(role),
 
   listGlobalPresets: (): Promise<{ presets: UserGlobalPresetRow[] }> => bridge().strategy.globalPresets.list(),
   createGlobalPreset: (input: { name: string; preset: Record<string, unknown> }): Promise<UserGlobalPresetRow> =>

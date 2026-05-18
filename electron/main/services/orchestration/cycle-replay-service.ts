@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { AgentRole, InstrumentClass, StrategySnapshot } from "@/lib/types";
+import type { InstrumentClass, StrategySnapshot } from "@/lib/types";
 import type { AgentMessagesRepo } from "../../db/repositories/agent-messages-repo";
 import type { InstrumentCacheRepo } from "../../db/repositories/instrument-cache-repo";
 import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/session-execution-steps-repo";
@@ -33,7 +33,7 @@ export interface CycleFixture {
     redditPosts: Array<{ body: string; score: number }>;
   }>;
   agentRuns: Array<{
-    role: AgentRole;
+    role: string;
     modelId: string;
     promptSummary: string;
     outputSummary: string;

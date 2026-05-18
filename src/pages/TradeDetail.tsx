@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Badge } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
-import type { AgentMessage, AgentRun } from "@/lib/types";
+import type { AgentMessage, AgentRun, EventSourceType } from "@/lib/types";
 import { Dialog, DialogContent } from "@/components/ui";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {
@@ -38,7 +38,7 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
           cursor: "pointer", background: p.bg, borderLeft: `3px solid ${p.bar}`,
         }}
       >
-        <AgentLabel type={run.agent_type} />
+        <AgentLabel type={run.agent_type as EventSourceType} />
         <span style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
           {run.provider_key.replace(/^provider-/, "")} · {run.finish_reason} · {fmt.tokens(run.input_tokens + run.output_tokens)} tok ·{" "}
           {fmt.usd(run.cost_usd, 4)} · {fmt.duration(run.duration_ms)}
@@ -96,7 +96,7 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
           borderLeft: `3px solid ${p.bar}`,
         }}
       >
-        <AgentLabel type={msg.role} />
+        <AgentLabel type={msg.role as EventSourceType} />
         <span style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>
           {msg.provider_key.replace(/^provider-/, "")} · {msg.model_id}
           {msg.cycle_id ? ` · cycle ${msg.cycle_id.slice(0, 8)}…` : ""}

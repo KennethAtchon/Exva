@@ -3,7 +3,6 @@ import { sessionTemplatePayloadSchema, templateCreateInputSchema } from "@electr
 import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
 import type { ProviderAccountsRepo } from "../../db/repositories/provider-accounts-repo";
-import type { SessionAiRolesRepo } from "../../db/repositories/session-ai-roles-repo";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
 import type { BrokerRoutingRepo } from "../../db/repositories/broker-routing-repo";
 import type { SessionRepo } from "../../db/repositories/session-repo";
@@ -32,7 +31,6 @@ export class SessionTemplateService {
       templates: SessionTemplatesRepo;
       sessions: SessionRepo;
       strategyContext: SessionStrategyContextService;
-      aiRoles: SessionAiRolesRepo;
       selectorSettings: SessionSelectorSettingsRepo;
       brokerAssignments: SessionBrokerAssignmentsRepo;
       brokerRouting: BrokerRoutingRepo;
@@ -113,14 +111,6 @@ export class SessionTemplateService {
     const providerIds = new Set(this.deps.providerAccounts.list().map((provider) => provider.id));
     const brokerIds = new Set(this.deps.brokerAccounts.list().map((broker) => broker.id));
 
-    payload.aiRoles = payload.aiRoles.map((role, index) => {
-      if (role.providerKey && !providerIds.has(role.providerKey)) {
-        clearedFields.push(`aiRoles[${index}].providerKey`);
-        return { ...role, providerKey: "" };
-      }
-      return role;
-    });
-
     payload.brokerAssignments = payload.brokerAssignments.map((assignment, index) => {
       if (!brokerIds.has(assignment.brokerAccountId)) {
         clearedFields.push(`brokerAssignments[${index}]`);
@@ -146,7 +136,6 @@ export class SessionTemplateService {
   buildPayloadFromSession(sessionId: string): SessionTemplatePayload {
     const session = this.deps.sessions.requireById(sessionId);
     const strategyContext = this.deps.strategyContext.get(sessionId);
-    const aiRoles = this.deps.aiRoles.listBySession(sessionId);
     const selector = this.deps.selectorSettings.get(sessionId);
     const overrides = this.deps.brokerRouting.listSessionOverrides(sessionId);
 
@@ -179,16 +168,6 @@ export class SessionTemplateService {
         maxHoldDays: strategyContext.timeframe.maxHoldDays,
         timeframeNotes: strategyContext.timeframe.timeframeNotes,
       },
-        aiRoles: aiRoles.map((role) => ({
-          role: role.role,
-          providerKey: role.providerKey,
-          modelId: role.modelId,
-          temperature: role.temperature,
-          maxTokens: role.maxTokens,
-          promptSource: role.promptSource,
-          promptMarkdown: role.promptMarkdown,
-          promptAssetPath: role.promptAssetPath,
-        })),
       brokerAssignments: this.deps.brokerAssignments.listAssignments(sessionId),
       brokerOverridesByInstrumentClass: Object.fromEntries(
         overrides.map((override) => [override.instrumentClass, override.brokerAccountId]),

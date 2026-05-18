@@ -1,9 +1,6 @@
 import { ipcMain } from "electron";
 import {
-  strategyAiRoleProfilesSaveSchema,
-  strategyAiRolesSaveSchema,
   strategyGetProviderModelsSchema,
-  strategyResetPromptSchema,
   strategyRiskConfigSaveSchema,
   strategyRulesSaveSchema,
   strategyResearchPostureSaveSchema,
@@ -64,23 +61,6 @@ export function registerStrategyHandlers(services: AppServices): void {
     return { savedAt: new Date().toISOString() };
   });
 
-  handle(ipcMain, channels.strategy.saveAiRoles, async (payload) => {
-    const input = strategyAiRolesSaveSchema.parse(payload);
-    const sessionId = resolveSessionId(services, input);
-    services.strategyContext.saveAiRoles(
-      sessionId,
-      input.aiRoles.map((role) => ({ ...role, sessionId })),
-    );
-    return { savedAt: new Date().toISOString() };
-  });
-
-  handle(ipcMain, channels.strategy.saveAiRoleProfiles, async (payload) => {
-    const input = strategyAiRoleProfilesSaveSchema.parse(payload);
-    const sessionId = resolveSessionId(services, input);
-    services.strategyContext.saveAiRoleProfiles(sessionId, input.aiRoleProfiles);
-    return { savedAt: new Date().toISOString() };
-  });
-
   handle(ipcMain, channels.strategy.getProviderModels, async (payload) => {
     const { providerKey } = strategyGetProviderModelsSchema.parse(payload);
     const provider = services.repos.providerAccounts.find(providerKey);
@@ -93,11 +73,6 @@ export function registerStrategyHandlers(services: AppServices): void {
     } catch {
       return { models: [] };
     }
-  });
-
-  handle(ipcMain, channels.strategy.resetPrompt, async (payload) => {
-    const { role } = strategyResetPromptSchema.parse(payload);
-    return services.strategyContext.resetPrompt(role);
   });
 
   handle(ipcMain, channels.strategy.globalPresets.list, async () => {
@@ -157,7 +132,7 @@ export function registerStrategyHandlers(services: AppServices): void {
     }
 
     services.repos.workspacePreferences.update({ defaultModelProviderKey: providerKey, defaultModelModelId: modelId });
-    services.repos.sessionAiRoles.backfillMissingProviderModel({ providerKey, modelId });
+    services.repos.sessionAiPhases.backfillMissingProviderModel({ providerKey, modelId });
     return { savedAt: new Date().toISOString() };
   });
 }

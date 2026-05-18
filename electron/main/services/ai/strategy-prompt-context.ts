@@ -1,15 +1,12 @@
 import {
   buildTradeRulesMarkdown,
   buildStrategySnapshot,
-  type AgentRole,
   type SessionStrategyContext,
   type StrategySnapshot,
 } from "@electron/shared/domain";
-import { renderAiRoleProfileMarkdown } from "@electron/shared/ai/ai-role-profile";
 
 const MAX_NOTES_CHARS = 500;
 const MAX_BRIEF_PROMPT_CHARS = 600;
-const MAX_ROLE_PROFILE_JSON_CHARS = 700;
 
 export interface StrategyPromptContext {
   prompt: string;
@@ -18,7 +15,6 @@ export interface StrategyPromptContext {
 
 export function buildStrategyPromptContext(
   context: SessionStrategyContext,
-  options?: { role?: AgentRole },
 ): StrategyPromptContext {
   const snapshot = buildStrategySnapshot({
     ...context,
@@ -36,8 +32,6 @@ export function buildStrategyPromptContext(
       timeframeNotes: truncate(context.timeframe.timeframeNotes, MAX_NOTES_CHARS),
     },
   });
-
-  const roleLines = options?.role != null ? compactRoleProfile(snapshot, options.role) : [];
 
   const lines = [
     "## Session research posture (authoritative)",
@@ -89,7 +83,6 @@ export function buildStrategyPromptContext(
     snapshot.timeframe.targetHoldDays != null ? `- Target hold: ~${snapshot.timeframe.targetHoldDays} calendar days` : null,
     snapshot.timeframe.maxHoldDays != null ? `- Max hold: ${snapshot.timeframe.maxHoldDays} calendar days` : null,
     snapshot.timeframe.timeframeNotes.trim() ? `- Notes: ${snapshot.timeframe.timeframeNotes.trim()}` : null,
-    ...roleLines,
   ].filter((line): line is string => line != null);
 
   return {
@@ -104,15 +97,6 @@ export function prependStrategyContextToUserPrompt(context: SessionStrategyConte
     snapshot: built.snapshot,
     prompt: `${built.prompt}\n\n${userPrompt}`,
   };
-}
-
-/** Only added when `buildStrategyPromptContext(..., { role })` — i.e. prompt pack runs. */
-function compactRoleProfile(snapshot: StrategySnapshot, role: AgentRole): string[] {
-  const p = snapshot.aiRoleProfiles.find((x) => x.role === role);
-  if (!p) {
-    return ["", "## Role profile", `- ${role}: (no row)`];
-  }
-  return ["", "## Role profile", ...renderAiRoleProfileMarkdown(p.profileJson, { maxAdditionalJsonChars: MAX_ROLE_PROFILE_JSON_CHARS })];
 }
 
 function truncate(value: string, maxChars: number): string {

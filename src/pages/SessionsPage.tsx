@@ -13,13 +13,6 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop";
 
-const STAGE_TO_ROLE: Partial<Record<import("@/lib/types").ExecutionStage, string>> = {
-  selector: "instrument_selector",
-  analyst_technical: "analyst_technical",
-  analyst_fundamental: "analyst_fundamental",
-  reviewer: "reviewer",
-  decision_maker: "decision_maker",
-};
 
 interface LiveReadinessReport {
   readyToStart: boolean;
@@ -61,28 +54,11 @@ export const SessionsPage = ({
   const checkAiReady = useWorkspaceStore((state) => state.checkAiReady);
   const [liveReadinessSession, setLiveReadinessSession] = useState<SessionSummary | null>(null);
   const [liveReadinessReport, setLiveReadinessReport] = useState<LiveReadinessReport | null>(null);
-  const strategyCache = useRef<Record<string, import("@/lib/exva").StrategyGetResponse>>({});
-
   const refreshProgress = async (sessionId: string) => {
     try {
       const result = await api.getSessionExecutionProgress(sessionId);
       if (!result.cycleId) return;
-      const activeStep = result.steps.find((s) => s.status === "running");
-      let activeRoleLabel: string | null = null;
-      if (activeStep) {
-        const roleName = STAGE_TO_ROLE[activeStep.stage];
-        if (roleName) {
-          if (!strategyCache.current[sessionId]) {
-            try { strategyCache.current[sessionId] = await api.getStrategy(sessionId); } catch { /* ignore */ }
-          }
-          const strat = strategyCache.current[sessionId];
-          const role = strat?.aiRoles.find((r) => r.role === roleName);
-          if (role) {
-            activeRoleLabel = `${roleName.replace("_", " ")} · ${role.providerKey}/${role.modelId}`;
-          }
-        }
-      }
-      const state = deriveProgress(result.steps, result.cycleId, activeRoleLabel);
+      const state = deriveProgress(result.steps, result.cycleId, null);
       if (!state) return;
       setProgressBySessionId((prev) => ({ ...prev, [sessionId]: state }));
     } catch {

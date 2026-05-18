@@ -79,7 +79,7 @@ export interface AgentRun {
   /** Null for runs not tied to a trade (e.g. instrument selector). */
   trade_id: string | null;
   cycle_id?: string | null;
-  agent_type: AgentRole;
+  agent_type: string;
   model: string;
   provider_key: string;
   finish_reason: AgentRunFinishReason;
@@ -125,7 +125,7 @@ export interface AgentMessage {
   trade_id: string | null;
   /** Research burst correlation id; null when not part of a burst. */
   cycle_id: string | null;
-  role: AgentRole;
+  role: string;
   provider_key: string;
   model_id: string;
   messages_json: string;

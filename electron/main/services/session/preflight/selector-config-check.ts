@@ -28,30 +28,30 @@ export async function selectorConfigCheck(session: WorkspaceSession, deps: Orche
     };
   }
 
-  const role = deps.sessionAiRolesRepo.getByRole(session.id, "instrument_selector");
-  if (!role) {
+  const selectorPhase = deps.sessionAiPhasesRepo.getByPhase(session.id, "selector");
+  if (!selectorPhase) {
     return {
       ok: false,
       code: "SELECTOR_NOT_CONFIGURED",
-      message: "Instrument selector AI role is missing from this session.",
+      message: "Selector phase AI config is missing from this session.",
       details: { sessionId: session.id },
     };
   }
-  if (!role.providerKey.trim() || !role.modelId.trim()) {
+  if (!selectorPhase.providerKey.trim() || !selectorPhase.modelId.trim()) {
     return {
       ok: false,
       code: "SELECTOR_NOT_CONFIGURED",
-      message: "When AI-selected universe is enabled, configure provider and model for the instrument selector role in Strategy.",
-      details: { role: "instrument_selector" },
+      message: "When AI-selected universe is enabled, configure provider and model for the selector phase in Strategy.",
+      details: { phase: "selector" },
     };
   }
-  const account = deps.providerAccountsRepo.find(role.providerKey);
+  const account = deps.providerAccountsRepo.find(selectorPhase.providerKey);
   if (!account?.isConfigured || account.category !== "ai") {
     return {
       ok: false,
       code: "SELECTOR_NOT_CONFIGURED",
-      message: "Connect a valid AI provider for the instrument selector role before starting.",
-      details: { providerKey: role.providerKey },
+      message: "Connect a valid AI provider for the selector phase before starting.",
+      details: { providerKey: selectorPhase.providerKey },
     };
   }
 

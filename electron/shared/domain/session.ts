@@ -1,9 +1,6 @@
-import type { AiRoleProfileDocument } from "../ai/ai-role-profile";
 import { isHoldingStyle, isTradingTimeframe } from "./enums";
 import type {
-  AgentRole,
   HoldingStyle,
-  PromptSource,
   ResearchCatalystMode,
   ResearchDepth,
   ResearchDiscoveryMode,
@@ -24,13 +21,6 @@ import type {
 } from "./enums";
 
 const TRADE_RULES_MARKDOWN_MAX_CHARS = 1_200;
-
-export interface SessionAiRoleProfile {
-  sessionId: string;
-  role: AgentRole;
-  profileJson: AiRoleProfileDocument;
-  updatedAt: string;
-}
 
 export interface SessionStrategy {
   sessionId: string;
@@ -112,7 +102,6 @@ export interface SessionStrategyContext {
   rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
-  aiRoleProfiles: SessionAiRoleProfile[];
 }
 
 export interface StrategySnapshot {
@@ -159,27 +148,12 @@ export interface StrategySnapshot {
     maxHoldDays: number | null;
     timeframeNotes: string;
   };
-  aiRoleProfiles: Array<{
-    role: AgentRole;
-    profileJson: AiRoleProfileDocument;
-  }>;
-}
-
-export interface SessionAiRole {
-  sessionId: string;
-  role: AgentRole;
-  providerKey: string;
-  modelId: string;
-  temperature: number;
-  maxTokens: number;
-  promptSource: PromptSource;
-  promptMarkdown: string;
-  promptAssetPath: string | null;
 }
 
 export interface SessionSelectorSettings {
   sessionId: string;
   aiPickerEnabled: boolean;
+  noInstrumentRetryMinutes: number | null;
   updatedAt: string;
 }
 
@@ -401,10 +375,6 @@ export function buildStrategySnapshot(context: SessionStrategyContext): Strategy
       maxHoldDays: context.timeframe.maxHoldDays,
       timeframeNotes: context.timeframe.timeframeNotes,
     },
-    aiRoleProfiles: context.aiRoleProfiles.map((p) => ({
-      role: p.role,
-      profileJson: p.profileJson,
-    })),
   };
 }
 

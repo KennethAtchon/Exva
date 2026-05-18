@@ -5,8 +5,7 @@ import {
   globalPresets,
   researchPosturePresets,
   riskPresets,
-  sessionAiRoleProfile,
-  sessionAiRoles,
+  sessionAiPhases,
   sessionBrokerAssignments,
   sessionBrokerRoutingOverrides,
   sessionResearchPosture,
@@ -28,6 +27,7 @@ import {
 } from "@electron/shared/domain";
 import type { ResearchPosturePreset, RiskPreset, TimeframePreset, TradeRulesPreset } from "@electron/shared/domain";
 import type { GlobalStrategyPreset } from "@electron/shared/presets";
+import { PIPELINE_PHASES } from "@electron/shared/ai/pipeline-phase";
 import { toSessionConfig, toWorkspaceSession } from "./mappers";
 
 export interface SessionFilters {
@@ -55,8 +55,6 @@ export interface TaskBoundaryInput {
   defaultSearchProviderId: string | null;
   executionMode: WorkspaceSession["executionMode"];
 }
-
-const DEFAULT_ROLES = ["analyst_technical", "analyst_fundamental", "reviewer", "decision_maker", "instrument_selector"] as const;
 
 export class SessionRepo {
   constructor(private readonly client: DbClient) {}
@@ -168,17 +166,6 @@ export class SessionRepo {
         })
         .run();
 
-      for (const role of DEFAULT_ROLES) {
-        tx.insert(sessionAiRoleProfile)
-          .values({
-            sessionId,
-            role,
-            profileJson: JSON.stringify({ version: 1 }),
-            updatedAt: now,
-          })
-          .run();
-      }
-
       tx.insert(sessionTradeRules)
         .values({
           ...tradeRulesSeed,
@@ -205,19 +192,18 @@ export class SessionRepo {
         })
         .run();
 
-      for (const role of DEFAULT_ROLES) {
-        tx.insert(sessionAiRoles)
+      for (const phase of PIPELINE_PHASES) {
+        tx.insert(sessionAiPhases)
           .values({
-            id: `${sessionId}:${role}`,
             sessionId,
-            role,
+            phase,
             providerKey: roleSeed.providerKey,
             modelId: roleSeed.modelId,
             temperature: 0.7,
             maxTokens: 8192,
             promptSource: "default",
             promptMarkdown: "",
-            promptAssetPath: null,
+            updatedAt: now,
           })
           .run();
       }
@@ -416,17 +402,6 @@ export class SessionRepo {
           .run();
       }
 
-      const aiProfiles = tx.select().from(sessionAiRoleProfile).where(eq(sessionAiRoleProfile.sessionId, sourceId)).all();
-      for (const row of aiProfiles) {
-        tx.insert(sessionAiRoleProfile)
-          .values({
-            ...row,
-            sessionId: newId,
-            updatedAt: now,
-          })
-          .run();
-      }
-
       const tradeRulesRow = tx
         .select()
         .from(sessionTradeRules)
@@ -464,13 +439,13 @@ export class SessionRepo {
           .run();
       }
 
-      const sourceRoles = tx.select().from(sessionAiRoles).where(eq(sessionAiRoles.sessionId, sourceId)).all();
-      for (const row of sourceRoles) {
-        tx.insert(sessionAiRoles)
+      const sourcePhases = tx.select().from(sessionAiPhases).where(eq(sessionAiPhases.sessionId, sourceId)).all();
+      for (const row of sourcePhases) {
+        tx.insert(sessionAiPhases)
           .values({
             ...row,
-            id: `${newId}:${row.role}`,
             sessionId: newId,
+            updatedAt: now,
           })
           .run();
       }

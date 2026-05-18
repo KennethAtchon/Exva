@@ -1,6 +1,5 @@
 import type {
   AllocationEnforcement,
-  AgentRole,
   BrokerMode,
   ExecutionMode,
   InstrumentClass,
@@ -9,7 +8,7 @@ import type {
   SelectionMode,
   SessionStatus,
 } from "./enums";
-import type { SessionAiRole, SessionStrategy, SessionStrategyContext } from "./session";
+import type { SessionStrategy, SessionStrategyContext } from "./session";
 
 export interface WorkspaceSession {
   id: string;
@@ -120,7 +119,6 @@ export interface SessionTemplatePayload {
   };
   strategyContext?: SessionStrategyContext;
   strategy: Omit<SessionStrategy, "sessionId">;
-  aiRoles: Array<Omit<SessionAiRole, "sessionId">>;
   brokerAssignments: BrokerAssignment[];
   brokerOverridesByInstrumentClass: Partial<Record<InstrumentClass, string>>;
 }
@@ -144,7 +142,7 @@ export interface DashboardStats {
 
 export interface CostBreakdown {
   total: number;
-  by_agent: Array<{ name: AgentRole; tokens: number; cost: number }>;
+  by_agent: Array<{ name: string; tokens: number; cost: number }>;
   by_trade: Array<{ instrumentSymbol: string; cost: number }>;
   cache_savings_usd: number;
   daily_history: Array<{ date: string; cost: number }>;

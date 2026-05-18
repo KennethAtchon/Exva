@@ -84,6 +84,7 @@ export const sessionSelectorSettings = sqliteTable("session_selector_settings", 
     .primaryKey()
     .references(() => sessions.id, { onDelete: "cascade" }),
   aiPickerEnabled: integer("ai_picker_enabled", { mode: "boolean" }).notNull().default(true),
+  noInstrumentRetryMinutes: integer("no_instrument_retry_minutes"),
   updatedAt: text("updated_at").notNull(),
 });
 
@@ -122,18 +123,44 @@ export const sessionResearchPosture = sqliteTable("session_research_posture", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const sessionAiRoleProfile = sqliteTable(
-  "session_ai_role_profile",
+export const sessionAiPhases = sqliteTable(
+  "session_ai_phases",
   {
     sessionId: text("session_id")
       .notNull()
       .references(() => sessions.id, { onDelete: "cascade" }),
-    role: text("role").notNull(),
-    profileJson: text("profile_json").notNull().default('{"version":1}'),
+    phase: text("phase").notNull(),
+    providerKey: text("provider_key").notNull().default(""),
+    modelId: text("model_id").notNull().default(""),
+    temperature: real("temperature").notNull().default(0.7),
+    maxTokens: integer("max_tokens").notNull().default(8192),
+    promptSource: text("prompt_source").notNull().default("default"),
+    promptMarkdown: text("prompt_markdown").notNull().default(""),
     updatedAt: text("updated_at").notNull(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.sessionId, table.role] }),
+    pk: primaryKey({ columns: [table.sessionId, table.phase] }),
+    sessionIdx: index("idx_session_ai_phases_session").on(table.sessionId),
+  }),
+);
+
+export const sessionAiPhaseWorkers = sqliteTable(
+  "session_ai_phase_workers",
+  {
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    phase: text("phase").notNull(),
+    workerId: text("worker_id").notNull(),
+    providerKey: text("provider_key"),
+    modelId: text("model_id"),
+    maxSteps: integer("max_steps"),
+    spendLimitUsd: real("spend_limit_usd"),
+    promptMarkdown: text("prompt_markdown"),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.sessionId, table.phase, table.workerId] }),
   }),
 );
 
@@ -188,20 +215,6 @@ export const sessionTimeframeConfig = sqliteTable("session_timeframe_config", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const sessionAiRoles = sqliteTable("session_ai_roles", {
-  id: text("id").primaryKey(),
-  sessionId: text("session_id")
-    .notNull()
-    .references(() => sessions.id, { onDelete: "cascade" }),
-  role: text("role").notNull(),
-  providerKey: text("provider_key").notNull(),
-  modelId: text("model_id").notNull(),
-  temperature: real("temperature").notNull().default(0.7),
-  maxTokens: integer("max_tokens").notNull().default(8192),
-  promptSource: text("prompt_source").notNull().default("default"),
-  promptMarkdown: text("prompt_markdown").notNull().default(""),
-  promptAssetPath: text("prompt_asset_path"),
-});
 
 export const brokerRoutingDefaults = sqliteTable("broker_routing", {
   instrumentClass: text("instrument_class").primaryKey(),

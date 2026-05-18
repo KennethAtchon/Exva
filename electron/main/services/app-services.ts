@@ -8,7 +8,7 @@ import { BrokerRoutingRepo } from "../db/repositories/broker-routing-repo";
 import { CapitalReservationsRepo } from "../db/repositories/capital-reservations-repo";
 import { EventsRepo } from "../db/repositories/events-repo";
 import { ProviderAccountsRepo } from "../db/repositories/provider-accounts-repo";
-import { SessionAiRolesRepo } from "../db/repositories/session-ai-roles-repo";
+import { SessionAiPhasesRepo } from "../db/repositories/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../db/repositories/session-broker-assignments-repo";
 import { SessionRiskConfigRepo } from "../db/repositories/session-risk-config-repo";
 import { SessionSelectorSettingsRepo } from "../db/repositories/session-selector-settings-repo";
@@ -16,7 +16,6 @@ import { SessionTradeRulesRepo } from "../db/repositories/session-trade-rules-re
 import { SessionStrategiesRepo } from "../db/repositories/session-strategies-repo";
 import { SessionTemplatesRepo } from "../db/repositories/session-templates-repo";
 import { SessionTimeframeConfigRepo } from "../db/repositories/session-timeframe-config-repo";
-import { SessionAiRoleProfileRepo } from "../db/repositories/session-ai-role-profile-repo";
 import { SessionResearchPostureRepo } from "../db/repositories/session-research-posture-repo";
 import { SqliteSessionExecutionStepsRepo } from "../db/repositories/session-execution-steps-repo";
 import { SessionRepo } from "../db/repositories/session-repo";
@@ -77,7 +76,7 @@ export interface AppServices {
     capitalReservations: CapitalReservationsRepo;
     events: EventsRepo;
     providerAccounts: ProviderAccountsRepo;
-    sessionAiRoles: SessionAiRolesRepo;
+    sessionAiPhases: SessionAiPhasesRepo;
     sessionBrokerAssignments: SessionBrokerAssignmentsRepo;
     sessionRiskConfig: SessionRiskConfigRepo;
     sessionSelectorSettings: SessionSelectorSettingsRepo;
@@ -88,7 +87,6 @@ export interface AppServices {
     sessionTemplates: SessionTemplatesRepo;
     sessionTimeframeConfig: SessionTimeframeConfigRepo;
     sessionResearchPosture: SessionResearchPostureRepo;
-    sessionAiRoleProfile: SessionAiRoleProfileRepo;
     stats: StatsRepo;
     tradeAutopsies: TradeAutopsiesRepo;
     tradeApprovals: TradeApprovalsRepo;
@@ -140,7 +138,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     capitalReservations: new CapitalReservationsRepo(db),
     events: new EventsRepo(db),
     providerAccounts: new ProviderAccountsRepo(db),
-    sessionAiRoles: new SessionAiRolesRepo(db),
+    sessionAiPhases: new SessionAiPhasesRepo(db),
     sessionBrokerAssignments: new SessionBrokerAssignmentsRepo(db),
     sessionRiskConfig: new SessionRiskConfigRepo(db),
     sessionSelectorSettings: new SessionSelectorSettingsRepo(db),
@@ -151,7 +149,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionTemplates: new SessionTemplatesRepo(db),
     sessionTimeframeConfig: new SessionTimeframeConfigRepo(db),
     sessionResearchPosture: new SessionResearchPostureRepo(db),
-    sessionAiRoleProfile: new SessionAiRoleProfileRepo(db),
     stats: new StatsRepo(db),
     tradeAutopsies: new TradeAutopsiesRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
@@ -195,21 +192,18 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const strategyContext = new SessionStrategyContextService({
     sessionRepo: repos.session,
     researchPostureRepo: repos.sessionResearchPosture,
-    aiRoleProfileRepo: repos.sessionAiRoleProfile,
     rulesRepo: repos.sessionTradeRules,
     riskRepo: repos.sessionRiskConfig,
     timeframeRepo: repos.sessionTimeframeConfig,
-    aiRolesRepo: repos.sessionAiRoles,
     selectorSettingsRepo: repos.sessionSelectorSettings,
     providerAccountsRepo: repos.providerAccounts,
     workspacePrefsRepo: repos.workspacePreferences,
-    promptAssetLoader,
   });
   const ai = new AiRuntime(
     providerRegistry,
     searchRegistry,
     promptAssetLoader,
-    repos.sessionAiRoles,
+    repos.sessionAiPhases,
     repos.session,
     repos.workspacePreferences,
     repos.apiCallLog,
@@ -232,7 +226,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     agentMessagesRepo: repos.agentMessages,
     eventsRepo: repos.events,
     statsRepo: repos.stats,
-    sessionAiRolesRepo: repos.sessionAiRoles,
+    sessionAiPhasesRepo: repos.sessionAiPhases,
     sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
     sessionExecutionStepsRepo: repos.sessionExecutionSteps,
     providerAccountsRepo: repos.providerAccounts,
@@ -309,7 +303,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     templates: repos.sessionTemplates,
     sessions: repos.session,
     strategyContext,
-    aiRoles: repos.sessionAiRoles,
     selectorSettings: repos.sessionSelectorSettings,
     brokerAssignments: repos.sessionBrokerAssignments,
     brokerRouting: repos.brokerRouting,

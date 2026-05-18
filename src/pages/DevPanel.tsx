@@ -6,7 +6,7 @@ import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { useSessionStore } from "@/store/sessionStore";
-import type { AgentMessage, AgentRun, EventRow, LogLevel, SessionAiRole } from "@/lib/types";
+import type { AgentMessage, AgentRun, EventRow, EventSourceType, LogLevel } from "@/lib/types";
 import type { SessionSummary } from "@/lib/exva";
 
 export interface DevPanelFocus {
@@ -276,47 +276,6 @@ const RuntimeIdentityCard = ({
   </div>
 );
 
-const AiRoleMatrixCard = ({ roles, loading }: { roles: SessionAiRole[]; loading: boolean }) => {
-  const allRoles: Array<{ role: string; label: string }> = [
-    { role: "instrument_selector", label: "selector" },
-    { role: "analyst_technical", label: "tech" },
-    { role: "analyst_fundamental", label: "fund" },
-    { role: "reviewer", label: "review" },
-    { role: "decision_maker", label: "decide" },
-  ];
-  return (
-    <div style={S.card}>
-      <div style={S.cardTitle}>AI Role Matrix</div>
-      {loading ? (
-        <div style={{ color: "var(--text3)", fontSize: 11, fontFamily: "var(--font-mono)" }}>loading…</div>
-      ) : roles.length === 0 ? (
-        <div style={{ color: "var(--text3)", fontSize: 11, fontFamily: "var(--font-mono)" }}>No session focused</div>
-      ) : (
-        allRoles.map(({ role, label }) => {
-          const r = roles.find((x) => x.role === role);
-          const accent = ROLE_COLOR[role] ?? "var(--text3)";
-          return (
-            <div key={role} style={{ display: "flex", alignItems: "flex-start", gap: 8, paddingBottom: 7, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-              <span style={{ ...S.monoLabel, color: accent, width: 54, flexShrink: 0, fontSize: 9 }}>{label}</span>
-              {r ? (
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text2)" }}>
-                    {r.providerKey} · {r.modelId}
-                  </div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", marginTop: 1 }}>
-                    {r.promptSource === "session_override" ? "custom prompt" : "default prompt"}
-                  </div>
-                </div>
-              ) : (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>not configured</span>
-              )}
-            </div>
-          );
-        })
-      )}
-    </div>
-  );
-};
 
 const ExecutionCard = ({ session, stats }: { session: SessionSummary | null; stats: import("@/lib/types").DashboardStats | null }) => (
   <div style={S.card}>
@@ -691,7 +650,7 @@ const RunCard = ({ run, accent, copyPayload }: { run: ExtAgentRun; accent: strin
           display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
         }}
       >
-        <AgentLabel type={run.agent_type} />
+        <AgentLabel type={run.agent_type as EventSourceType} />
         <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>
           {run.provider_key} · {run.model}
         </span>
@@ -781,7 +740,7 @@ const MessageTraceTab = ({ messages, loading }: { messages: AgentMessage[]; load
         return (
           <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", borderLeft: `2px solid ${ROLE_COLOR[m.role] ?? "var(--text3)"}` }}>
             <div style={{ padding: "8px 12px", background: "var(--surface2)", display: "flex", alignItems: "center", gap: 8 }}>
-              <AgentLabel type={m.role} />
+              <AgentLabel type={m.role as EventSourceType} />
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>
                 {m.provider_key} · {m.model_id}
               </span>
@@ -1105,18 +1064,12 @@ export const DevPanel = ({
         dailySpend: stats.daily_api_spend,
         uptimeMin: stats.session_uptime_min,
       } : null,
-      aiRoles: strategy?.aiRoles ?? [],
       cycleState,
       streamHealthy,
       eventCount: events.length,
     };
     copyText(JSON.stringify(snapshot, null, 2));
   };
-
-  const aiRoles = strategy?.aiRoles.map((r) => ({
-    ...r,
-    sessionId: focusedSession?.id ?? "",
-  })) ?? [];
 
   return (
     <PageShell>
@@ -1165,9 +1118,8 @@ export const DevPanel = ({
       </div>
 
       {/* Diagnostics Grid 2×2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, flexShrink: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, flexShrink: 0 }}>
         <RuntimeIdentityCard session={focusedSession} stats={stats} cycleState={cycleState} viewMode={viewMode} />
-        <AiRoleMatrixCard roles={aiRoles} loading={!strategy && !!focusedSession} />
         <ExecutionCard session={focusedSession} stats={stats} />
         <StreamCard
           events={events}

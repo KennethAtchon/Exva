@@ -4,7 +4,7 @@ import { createTestDb } from "../../../db/test-helpers";
 import { BrokerAccountsRepo } from "../../../db/repositories/broker-accounts-repo";
 import { BrokerRoutingRepo } from "../../../db/repositories/broker-routing-repo";
 import { EventsRepo } from "../../../db/repositories/events-repo";
-import { SessionAiRolesRepo } from "../../../db/repositories/session-ai-roles-repo";
+import { SessionAiPhasesRepo } from "../../../db/repositories/session-ai-phases-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
 import { SessionRepo } from "../../../db/repositories/session-repo";
 import { SessionResearchPostureRepo } from "../../../db/repositories/session-research-posture-repo";
@@ -69,7 +69,7 @@ describe("SessionWriteService", () => {
     const assignments = new SessionBrokerAssignmentsRepo(db);
     const routing = new BrokerRoutingRepo(db);
     const selectorSettings = new SessionSelectorSettingsRepo(db);
-    const aiRoles = new SessionAiRolesRepo(db).listBySession(result.id);
+    const aiPhases = new SessionAiPhasesRepo(db).listBySession(result.id);
     const researchPosture = new SessionResearchPostureRepo(db).get(result.id);
     const tradeRules = new SessionTradeRulesRepo(db).get(result.id);
     const riskConfig = new SessionRiskConfigRepo(db).get(result.id);
@@ -87,9 +87,9 @@ describe("SessionWriteService", () => {
       { sessionId: result.id, instrumentClass: "stock", brokerAccountId: "broker-stock" },
     ]);
     expect(selectorSettings.get(result.id).aiPickerEnabled).toBe(false);
-    expect(aiRoles).toHaveLength(5);
-    expect(aiRoles.every((role) => role.providerKey === "provider-openrouter")).toBe(true);
-    expect(aiRoles.every((role) => role.modelId === "google/gemma-4-31b-it")).toBe(true);
+    expect(aiPhases).toHaveLength(5);
+    expect(aiPhases.every((p) => p.providerKey === "provider-openrouter")).toBe(true);
+    expect(aiPhases.every((p) => p.modelId === "google/gemma-4-31b-it")).toBe(true);
     expect(researchPosture.posturePresetId).toBe("trend_hunt");
     expect(tradeRules.rulesPresetId).toBe("breakout_long");
     expect(riskConfig.riskPresetId).toBe("moderate");
@@ -117,10 +117,10 @@ describe("SessionWriteService", () => {
       brokerAssignments: [{ brokerAccountId: "broker-stock", allocatedUsd: 1000 }],
     });
 
-    const aiRoles = new SessionAiRolesRepo(db).listBySession(result.id);
-    expect(aiRoles).toHaveLength(5);
-    expect(aiRoles.every((role) => role.providerKey === "")).toBe(true);
-    expect(aiRoles.every((role) => role.modelId === "")).toBe(true);
+    const aiPhases = new SessionAiPhasesRepo(db).listBySession(result.id);
+    expect(aiPhases).toHaveLength(5);
+    expect(aiPhases.every((p) => p.providerKey === "")).toBe(true);
+    expect(aiPhases.every((p) => p.modelId === "")).toBe(true);
   });
 
   it("rejects broker assignments that do not support the session instrument classes", () => {
