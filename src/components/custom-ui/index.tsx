@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { AgentRole, EventSourceType, LogLevel } from "@/lib/types";
+import type { EventSourceType, LogLevel } from "@/lib/types";
 import { Badge as UIBadge, Card as UICard, Separator } from "@/components/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -72,7 +72,12 @@ export const Divider = ({
     <Separator style={styleOverride} />
   );
 
-const AGENT_LABEL: Record<AgentRole, { label: string; variant: BadgeVariant }> = {
+const AGENT_LABEL: Record<string, { label: string; variant: BadgeVariant }> = {
+  technical: { label: "tech", variant: "success" },
+  fundamental: { label: "fund", variant: "danger" },
+  review: { label: "review", variant: "blue" },
+  decision: { label: "decide", variant: "purple" },
+  selector: { label: "select", variant: "default" },
   analyst_technical: { label: "tech", variant: "success" },
   analyst_fundamental: { label: "fund", variant: "danger" },
   reviewer: { label: "review", variant: "blue" },
@@ -81,7 +86,7 @@ const AGENT_LABEL: Record<AgentRole, { label: string; variant: BadgeVariant }> =
 };
 
 export const AgentLabel = ({ type }: { type: EventSourceType }) => {
-  const meta = AGENT_LABEL[type as AgentRole] ?? { label: type, variant: "default" as const };
+  const meta = AGENT_LABEL[type] ?? { label: type, variant: "default" as const };
   return (
     <Badge variant={meta.variant} size="sm">
       {meta.label}

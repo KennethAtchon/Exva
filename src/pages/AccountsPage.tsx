@@ -427,7 +427,7 @@ export const AccountsPage = () => {
           <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
               <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)" }}>Workspace default AI model</div>
               <div style={{ fontSize: 11, color: "var(--text3)" }}>
-                Auto-fills all AI roles on new sessions. Set once here, never configure per-session.
+                Auto-fills all AI phases on new sessions. Set once here, never configure per-session.
               </div>
               <ProviderModelPicker
                 providers={aiProviders}

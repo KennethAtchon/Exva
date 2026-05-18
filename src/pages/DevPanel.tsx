@@ -34,7 +34,7 @@ interface ExtAgentRun extends AgentRun {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const LEVELS: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];
-type RoleFilter = "all" | "selector" | "analyst_technical" | "analyst_fundamental" | "reviewer" | "decision_maker" | "system" | "orchestrator";
+type RoleFilter = "all" | "selector" | "technical" | "fundamental" | "review" | "decision" | "system" | "orchestrator";
 
 const LEVEL_COLOR: Record<LogLevel, string> = {
   DEBUG: "#3d4f60",
@@ -51,19 +51,19 @@ const LEVEL_BG: Record<LogLevel, string> = {
 };
 
 const ROLE_COLOR: Record<string, string> = {
-  analyst_technical: "#00e5a0",
-  analyst_fundamental: "#ff7b8a",
-  reviewer: "#4da6ff",
-  decision_maker: "#c084fc",
-  instrument_selector: "#fbbf24",
+  technical: "#00e5a0",
+  fundamental: "#ff7b8a",
+  review: "#4da6ff",
+  decision: "#c084fc",
+  selector: "#fbbf24",
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  analyst_technical: "tech",
-  analyst_fundamental: "fund",
-  reviewer: "review",
-  decision_maker: "decide",
-  instrument_selector: "selector",
+  technical: "tech",
+  fundamental: "fund",
+  review: "review",
+  decision: "decide",
+  selector: "selector",
   system: "system",
   orchestrator: "orch",
 };
@@ -124,8 +124,26 @@ function formatJsonPretty(s: string | null | undefined): string {
   return JSON.stringify(parsed, null, 2);
 }
 
+function normalizeRole(role: string): string {
+  switch (role) {
+    case "analyst_technical":
+      return "technical";
+    case "analyst_fundamental":
+      return "fundamental";
+    case "reviewer":
+      return "review";
+    case "decision_maker":
+      return "decision";
+    case "instrument_selector":
+      return "selector";
+    default:
+      return role;
+  }
+}
+
 function roleLabelShort(role: string): string {
-  return ROLE_LABELS[role] ?? role.replace("analyst_", "an/");
+  const normalized = normalizeRole(role);
+  return ROLE_LABELS[normalized] ?? normalized;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -401,7 +419,7 @@ const EventTimeline = ({
       </div>
       {/* Role filters */}
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-        {(["all", "selector", "analyst_technical", "analyst_fundamental", "reviewer", "decision_maker"] as RoleFilter[]).map((r) => (
+        {(["all", "selector", "technical", "fundamental", "review", "decision"] as RoleFilter[]).map((r) => (
           <button
             key={r}
             onClick={() => setRoleFilter(r)}
@@ -629,7 +647,7 @@ const AgentRunsTab = ({ runs, loading }: { runs: ExtAgentRun[]; loading: boolean
       </div>
 
       {runs.map((r) => {
-        const accent = ROLE_COLOR[r.agent_type] ?? "var(--text3)";
+        const accent = ROLE_COLOR[normalizeRole(r.agent_type)] ?? "var(--text3)";
         const copyPayload = JSON.stringify(r, null, 2);
         return (
           <RunCard key={r.id} run={r} accent={accent} copyPayload={copyPayload} />
@@ -738,7 +756,7 @@ const MessageTraceTab = ({ messages, loading }: { messages: AgentMessage[]; load
       {messages.map((m) => {
         const fullPayload = JSON.stringify(m, null, 2);
         return (
-          <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", borderLeft: `2px solid ${ROLE_COLOR[m.role] ?? "var(--text3)"}` }}>
+          <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", borderLeft: `2px solid ${ROLE_COLOR[normalizeRole(m.role)] ?? "var(--text3)"}` }}>
             <div style={{ padding: "8px 12px", background: "var(--surface2)", display: "flex", alignItems: "center", gap: 8 }}>
               <AgentLabel type={m.role as EventSourceType} />
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>
@@ -1039,8 +1057,7 @@ export const DevPanel = ({
     if (LEVELS.indexOf(ev.level) < LEVELS.indexOf(minLevel)) return false;
     if (roleFilter !== "all") {
       const agentType = ev.agent_type ?? "";
-      if (roleFilter === "selector" && agentType !== "instrument_selector") return false;
-      if (roleFilter !== "selector" && agentType !== roleFilter) return false;
+      if (normalizeRole(agentType) !== roleFilter) return false;
     }
     if (search && !ev.message.toLowerCase().includes(search.toLowerCase()) &&
       !(ev.trade_id ?? "").includes(search) &&

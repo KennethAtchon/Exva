@@ -149,29 +149,35 @@ CREATE TABLE `risk_presets` (
 	`preset_json` text NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `session_ai_role_profile` (
+CREATE TABLE `session_ai_phase_workers` (
 	`session_id` text NOT NULL,
-	`role` text NOT NULL,
-	`profile_json` text DEFAULT '{"version":1}' NOT NULL,
+	`phase` text NOT NULL,
+	`worker_id` text NOT NULL,
+	`provider_key` text,
+	`model_id` text,
+	`max_steps` integer,
+	`spend_limit_usd` real,
+	`prompt_markdown` text,
 	`updated_at` text NOT NULL,
-	PRIMARY KEY(`session_id`, `role`),
+	PRIMARY KEY(`session_id`, `phase`, `worker_id`),
 	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `session_ai_roles` (
-	`id` text PRIMARY KEY NOT NULL,
+CREATE TABLE `session_ai_phases` (
 	`session_id` text NOT NULL,
-	`role` text NOT NULL,
-	`provider_key` text NOT NULL,
-	`model_id` text NOT NULL,
+	`phase` text NOT NULL,
+	`provider_key` text DEFAULT '' NOT NULL,
+	`model_id` text DEFAULT '' NOT NULL,
 	`temperature` real DEFAULT 0.7 NOT NULL,
 	`max_tokens` integer DEFAULT 8192 NOT NULL,
 	`prompt_source` text DEFAULT 'default' NOT NULL,
 	`prompt_markdown` text DEFAULT '' NOT NULL,
-	`prompt_asset_path` text,
+	`updated_at` text NOT NULL,
+	PRIMARY KEY(`session_id`, `phase`),
 	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `idx_session_ai_phases_session` ON `session_ai_phases` (`session_id`);--> statement-breakpoint
 CREATE TABLE `session_broker_assignments` (
 	`session_id` text NOT NULL,
 	`broker_account_id` text NOT NULL,
@@ -263,6 +269,7 @@ CREATE TABLE `session_risk_config` (
 CREATE TABLE `session_selector_settings` (
 	`session_id` text PRIMARY KEY NOT NULL,
 	`ai_picker_enabled` integer DEFAULT true NOT NULL,
+	`no_instrument_retry_minutes` integer,
 	`updated_at` text NOT NULL,
 	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade
 );

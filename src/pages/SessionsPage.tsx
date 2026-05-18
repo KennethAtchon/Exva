@@ -264,7 +264,7 @@ export const SessionsPage = ({
             {focusedSession && (focusedSession.status === "draft" || focusedSession.status === "idle" || focusedSession.status === "stopped") && onGoToStrategy ? (
               <div style={strategyNudgeBannerStyle}>
                 <span style={{ color: "var(--text2)", fontSize: 12 }}>
-                  Configure AI roles, risk limits, and strategy before starting.
+                  Configure AI phases, risk limits, and strategy before starting.
                 </span>
                 <button type="button" onClick={onGoToStrategy} style={strategyNudgeButtonStyle}>
                   Open Strategy →

@@ -1,4 +1,5 @@
 import type { ExecutionStage, ExecutionStepState } from "@/lib/types";
+import { RUNTIME_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
 import { AppError, type AppErrorCode } from "@electron/shared/infra/errors";
 import type { SessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
 import type { EventBus } from "../infra/event-bus";
@@ -27,7 +28,7 @@ export interface StepRunOptions {
   onRetry?: (retry: ScheduledRetry) => void;
 }
 
-const STEP_RETRY_BACKOFF_MS = [30_000, 60_000, 120_000, 240_000] as const;
+const STEP_RETRY_BACKOFF_MS = RUNTIME_DEFAULTS.retry.stepBackoffMs;
 const MAX_STEP_RETRIES = STEP_RETRY_BACKOFF_MS.length;
 const MAX_STEP_ATTEMPTS = MAX_STEP_RETRIES + 1;
 

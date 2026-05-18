@@ -5,6 +5,11 @@ export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", 
 export const tradeSideSchema = z.enum(["BUY", "SELL"]);
 export const tradeStatusSchema = z.enum(["pending", "open", "closed", "cancelled", "failed", "rejected"]);
 export const agentTypeSchema = z.enum([
+  "technical",
+  "fundamental",
+  "review",
+  "decision",
+  "selector",
   "analyst_technical",
   "analyst_fundamental",
   "reviewer",

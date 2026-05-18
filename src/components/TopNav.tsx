@@ -105,7 +105,7 @@ export const TopNav = ({
                 ...(isStrategy && needsStrategyConfig ? s.navItemHint : {}),
               }}
               title={isStrategy && !isGlobal
-                ? `Configure AI roles, risk limits, and strategy for "${sessionName}"`
+                ? `Configure AI phases, risk limits, and strategy for "${sessionName}"`
                 : undefined}
             >
               {item.label}
@@ -167,7 +167,7 @@ export const TopNav = ({
             type="button"
             style={s.strategyNudge}
             onClick={() => onNavigate("strategy")}
-            title={`Configure strategy and AI roles for "${sessionName}" before starting`}
+            title={`Configure strategy and AI phases for "${sessionName}" before starting`}
           >
             Configure →
           </button>

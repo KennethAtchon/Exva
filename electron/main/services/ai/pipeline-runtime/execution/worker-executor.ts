@@ -4,6 +4,7 @@ import type { PipelinePhase, WorkerDefinition } from "@electron/shared/ai/pipeli
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { ProviderRegistry } from "../../provider-registry";
 import { withProviderRetry } from "../../ai-runtime/runtime-retry";
+import { parseInstrumentSelection } from "../../ai-runtime/instrument-selection-parser";
 import { assembleTrace } from "./trace-assembler";
 import { buildToolSet, type ToolBuildContext } from "../context/tool-factory-registry";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
@@ -47,22 +48,22 @@ export async function executeWorker<TOutput>(
 ): Promise<AgentResult<TOutput>> {
   const { phase, worker, sessionId, cycleId, tradeId, task } = opts;
 
-  const phaseExecConfig = deps.phaseConfigResolver.resolvePhaseConfig(sessionId, phase);
-  const resolvedConfig = deps.phaseConfigResolver.resolveWorkerRuntimeConfig(phase, worker);
+  const workerExecConfig = deps.phaseConfigResolver.resolveWorkerExecConfig(sessionId, phase, worker.id);
+  const resolvedConfig = deps.phaseConfigResolver.resolveWorkerRuntimeConfig(phase, worker, workerExecConfig.workerOverride);
 
-  if (!phaseExecConfig.providerKey || !phaseExecConfig.modelId) {
+  if (!workerExecConfig.providerKey || !workerExecConfig.modelId) {
     throw new AppError(
       `Phase ${phase} has no provider/model configured for session ${sessionId}`,
       "PROVIDER_NOT_CONFIGURED",
     );
   }
 
-  const adapter = await deps.providerRegistry.get(phaseExecConfig.providerKey);
+  const adapter = await deps.providerRegistry.get(workerExecConfig.providerKey);
 
   // Resolve prompt
   let promptMarkdown: string;
-  if (phaseExecConfig.promptSource === "session_override" && phaseExecConfig.promptMarkdown.trim()) {
-    promptMarkdown = phaseExecConfig.promptMarkdown.trim();
+  if (workerExecConfig.promptSource === "session_override" && workerExecConfig.promptMarkdown.trim()) {
+    promptMarkdown = workerExecConfig.promptMarkdown.trim();
   } else {
     promptMarkdown = deps.promptLoader.load(worker.promptAssetPath);
   }
@@ -85,7 +86,7 @@ export async function executeWorker<TOutput>(
       phase,
       workerId: worker.id,
       cycleId: cycleId ?? null,
-      model: phaseExecConfig.modelId,
+      model: workerExecConfig.modelId,
       maxSteps: resolvedConfig.caps.maxSteps,
       toolCount: tools ? Object.keys(tools).length : 0,
     },
@@ -95,13 +96,13 @@ export async function executeWorker<TOutput>(
   const trace = await withProviderRetry(
     (abortSignal) =>
       adapter.runAgent({
-        model: phaseExecConfig.modelId,
+        model: workerExecConfig.modelId,
         messages,
         tools,
         maxSteps: resolvedConfig.caps.maxSteps,
         spendLimitUsd: resolvedConfig.caps.spendLimitUsd,
-        temperature: resolveTemperature(phaseExecConfig.modelId, phaseExecConfig.temperature),
-        maxTokens: resolvedConfig.caps.maxTokens ?? phaseExecConfig.maxTokens,
+        temperature: resolveTemperature(workerExecConfig.modelId, workerExecConfig.temperature),
+        maxTokens: resolvedConfig.caps.maxTokens ?? workerExecConfig.maxTokens,
         abortSignal,
         schema: worker.outputMode === "object" && worker.outputSchema ? worker.outputSchema : undefined,
         terminalToolNames: opts.terminalToolNames as string[] | undefined,
@@ -109,7 +110,7 @@ export async function executeWorker<TOutput>(
       }),
     {
       providerType: adapter.providerType,
-      modelId: phaseExecConfig.modelId,
+      modelId: workerExecConfig.modelId,
       role: phase,
       sessionId,
       cycleId: cycleId ?? null,
@@ -128,7 +129,7 @@ export async function executeWorker<TOutput>(
     }
     output = trace.structuredOutput as TOutput;
   } else if (worker.outputMode === "tool_terminal") {
-    const terminalResult = resolveTerminalToolResult(trace);
+    const terminalResult = resolveTerminalResult(phase, trace);
     if (!terminalResult) {
       throw new AppError(
         `Worker ${worker.id} (phase ${phase}) reached no terminal tool result.`,
@@ -146,8 +147,8 @@ export async function executeWorker<TOutput>(
     sessionId,
     tradeId: tradeId ?? null,
     cycleId: cycleId ?? null,
-    providerKey: phaseExecConfig.providerKey,
-    modelId: phaseExecConfig.modelId,
+    providerKey: workerExecConfig.providerKey,
+    modelId: workerExecConfig.modelId,
     trace,
     outputJson: JSON.stringify(output),
     outputSchemaName: worker.outputMode === "object" ? worker.id : null,
@@ -172,7 +173,19 @@ export async function executeWorker<TOutput>(
   return { run, message, output };
 }
 
-function resolveTerminalToolResult(trace: { steps: Array<{ toolCalls: Array<{ tool?: string; resultJson?: string }> }> }): unknown {
+function resolveTerminalResult(
+  phase: PipelinePhase,
+  trace: {
+    assistantText: string;
+    steps: Array<{
+      toolCalls: Array<{ tool?: string; argsJson?: string; resultJson?: string }>;
+    }>;
+  },
+): unknown {
+  if (phase === "selector") {
+    return parseInstrumentSelection(trace as Parameters<typeof parseInstrumentSelection>[0]);
+  }
+
   for (const step of trace.steps) {
     for (const call of step.toolCalls) {
       if (call.resultJson) {

@@ -1,4 +1,4 @@
-import type { PipelinePhase, WorkerDefinition, SessionAiPhase, SessionAiPhaseWorker, RuntimeDefaultsConfig, RUNTIME_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
+import type { PipelinePhase, WorkerDefinition, SessionAiPhaseWorker } from "@electron/shared/ai/pipeline-phase";
 import { RUNTIME_DEFAULTS as DEFAULTS, PHASE_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
 import type { ResolvedWorkerRuntimeConfig } from "./core/types";
 import type { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
@@ -10,6 +10,10 @@ export interface ResolvedPhaseExecConfig {
   maxTokens: number;
   promptSource: "default" | "session_override";
   promptMarkdown: string;
+}
+
+export interface ResolvedWorkerExecConfig extends ResolvedPhaseExecConfig {
+  workerOverride: SessionAiPhaseWorker | null;
 }
 
 export class PhaseConfigResolver {
@@ -24,6 +28,24 @@ export class PhaseConfigResolver {
       maxTokens: row?.maxTokens ?? 8_192,
       promptSource: row?.promptSource ?? "default",
       promptMarkdown: row?.promptMarkdown ?? "",
+    };
+  }
+
+  resolveWorkerExecConfig(
+    sessionId: string,
+    phase: PipelinePhase,
+    workerId: string,
+  ): ResolvedWorkerExecConfig {
+    const phaseConfig = this.resolvePhaseConfig(sessionId, phase);
+    const workerOverride = this.aiPhasesRepo.getWorker(sessionId, phase, workerId);
+    const promptMarkdown = workerOverride?.promptMarkdown?.trim() ? workerOverride.promptMarkdown : phaseConfig.promptMarkdown;
+
+    return {
+      ...phaseConfig,
+      providerKey: workerOverride?.providerKey?.trim() || phaseConfig.providerKey,
+      modelId: workerOverride?.modelId?.trim() || phaseConfig.modelId,
+      promptMarkdown,
+      workerOverride,
     };
   }
 

@@ -1,5 +1,4 @@
 import type { PrepareStepFunction, StepResult, ToolSet } from "ai";
-import type { ResolvedSelectorRoleSettings } from "@electron/shared/ai/ai-role-profile";
 import { normalizeQueryFamily, validateDiscoveryQuery } from "../search/sanitize-search-query";
 import type { HarnessToolAvailability } from "../pipeline-runtime/context/tool-factory-registry";
 
@@ -46,6 +45,33 @@ const COMMON_SYMBOL_TOKENS = new Set([
   "WEB",
 ]);
 
+const DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS = 8;
+const DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS = 6;
+const DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS = 2;
+const DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS = 2;
+const DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION = 3;
+const DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP = 14;
+
+export interface SelectorRuntimeSettings {
+  maxDiscoverySteps: number;
+  maxVerificationSteps: number;
+  maxNoNewInfoSteps: number;
+  maxRepeatedSymbolChecks: number;
+  minCandidatesBeforeVerification: number;
+  forceSubmitAfterStep: number;
+}
+
+export function defaultSelectorRuntimeSettings(): SelectorRuntimeSettings {
+  return {
+    maxDiscoverySteps: DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS,
+    maxVerificationSteps: DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS,
+    maxNoNewInfoSteps: DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS,
+    maxRepeatedSymbolChecks: DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS,
+    minCandidatesBeforeVerification: DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION,
+    forceSubmitAfterStep: DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP,
+  };
+}
+
 export interface SelectorStepAnalysis {
   queryCount: number;
   duplicateQueryCount: number;
@@ -60,7 +86,7 @@ export interface SelectorStepAnalysis {
 
 export function buildSelectorPrepareStep(
   availability: HarnessToolAvailability,
-  settings: ResolvedSelectorRoleSettings,
+  settings: SelectorRuntimeSettings,
 ): PrepareStepFunction<ToolSet> {
   return ({ stepNumber, steps }) => {
     if (stepNumber === 0 && availability.searchWeb) {
@@ -175,7 +201,7 @@ export function analyzeSelectorSteps(steps: StepLike[]): SelectorStepAnalysis {
 function determineSelectorPhase(
   steps: StepLike[],
   stepNumber: number,
-  settings: ResolvedSelectorRoleSettings,
+  settings: SelectorRuntimeSettings,
 ): SelectorPhase {
   const analysis = analyzeSelectorSteps(steps);
   const discoveryBudgetHit = stepNumber >= settings.maxDiscoverySteps;

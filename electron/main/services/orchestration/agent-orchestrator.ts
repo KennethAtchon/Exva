@@ -1,8 +1,6 @@
 import PQueue from "p-queue";
 import { toLegacySessionConfig, type EventSourceType, type ExecutionStage, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
 import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
-import type { AiRoleProfileDocument } from "@electron/shared/ai/ai-role-profile";
-import { resolveSelectorNoInstrumentRetryMinutes } from "@electron/shared/ai/ai-role-profile";
 import { AppError } from "@electron/shared/infra/errors";
 import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
@@ -68,6 +66,9 @@ type TradeCycleContext = {
 };
 
 type CycleContext = SelectorCycleContext | TradeCycleContext;
+const DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES = 5;
+const SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN = 1;
+const SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX = 60;
 
 export class AgentOrchestrator {
   private readonly queue = new PQueue({ concurrency: 1 });
@@ -889,7 +890,7 @@ export class AgentOrchestrator {
 
     if (!context.technical) {
       const technical = await stepRunner.run(
-        "analyst_technical",
+        "technical",
         async () => {
           const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, { text: string }>(
             "technical",
@@ -905,7 +906,7 @@ export class AgentOrchestrator {
         { onRetry: () => this.enqueueTradeCycleRetry(context) },
       );
       if (!technical.ok) {
-        this.handleStepFailure("analyst_technical", context.cycleId, technical);
+        this.handleStepFailure("technical", context.cycleId, technical);
         return null;
       }
       context.technical = technical.value;
@@ -914,7 +915,7 @@ export class AgentOrchestrator {
 
     if (!context.fundamental) {
       const fundamental = await stepRunner.run(
-        "analyst_fundamental",
+        "fundamental",
         async () => {
           const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, { text: string }>(
             "fundamental",
@@ -930,7 +931,7 @@ export class AgentOrchestrator {
         { onRetry: () => this.enqueueTradeCycleRetry(context) },
       );
       if (!fundamental.ok) {
-        this.handleStepFailure("analyst_fundamental", context.cycleId, fundamental);
+        this.handleStepFailure("fundamental", context.cycleId, fundamental);
         return null;
       }
       context.fundamental = fundamental.value;
@@ -941,10 +942,10 @@ export class AgentOrchestrator {
       const technical = context.technical;
       const fundamental = context.fundamental;
       if (!technical || !fundamental) {
-        throw new AppError("Internal error: analyses missing at reviewer step", "VALIDATION_FAILED");
+        throw new AppError("Internal error: analyses missing at review step", "VALIDATION_FAILED");
       }
       const review = await stepRunner.run(
-        "reviewer",
+        "review",
         async () => {
           const result = await this.deps.ai.runPhase<
             { instrumentSymbol: string; technicalAnalysis: string; fundamentalAnalysis: string },
@@ -967,7 +968,7 @@ export class AgentOrchestrator {
         { onRetry: () => this.enqueueTradeCycleRetry(context) },
       );
       if (!review.ok) {
-        this.handleStepFailure("reviewer", context.cycleId, review);
+        this.handleStepFailure("review", context.cycleId, review);
         return null;
       }
       context.review = review.value;
@@ -982,7 +983,7 @@ export class AgentOrchestrator {
         throw new AppError("Internal error: analyses missing at decision step", "VALIDATION_FAILED");
       }
       const decision = await stepRunner.run(
-        "decision_maker",
+        "decision",
         () =>
           this.deps.ai.runPhase<
             { instrumentSymbol: string; technicalAnalysis: string; fundamentalAnalysis: string; review: string; maxPositionUsd: number },
@@ -1002,7 +1003,7 @@ export class AgentOrchestrator {
         { onRetry: () => this.enqueueTradeCycleRetry(context) },
       );
       if (!decision.ok) {
-        this.handleStepFailure("decision_maker", context.cycleId, decision);
+        this.handleStepFailure("decision", context.cycleId, decision);
         return null;
       }
       context.decision = decision.value;
@@ -1579,11 +1580,12 @@ export class AgentOrchestrator {
   private getNoInstrumentRetryMinutes(): number {
     const settings = this.deps.sessionSelectorSettingsRepo.get(this.sessionId);
     const configured = settings.noInstrumentRetryMinutes;
-    return resolveSelectorNoInstrumentRetryMinutes(
-      configured != null
-        ? ({ selectorSettings: { noInstrumentRetryMinutes: configured } } as AiRoleProfileDocument)
-        : null,
-    );
+    return typeof configured === "number" &&
+      Number.isInteger(configured) &&
+      configured >= SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN &&
+      configured <= SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX
+      ? configured
+      : DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES;
   }
 
   private resolvePredictionTradeFields(

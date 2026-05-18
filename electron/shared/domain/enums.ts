@@ -14,10 +14,10 @@ export type SessionRuntimeStatus = "starting" | "active" | "paused" | "stopping"
 export type ExecutionStage =
   | "selector"
   | "candidate_validation"
-  | "analyst_technical"
-  | "analyst_fundamental"
-  | "reviewer"
-  | "decision_maker"
+  | "technical"
+  | "fundamental"
+  | "review"
+  | "decision"
   | "risk_gate"
   | "broker_order"
   | "monitoring";
@@ -124,6 +124,11 @@ export type BrokerMode = "paper" | "live";
 
 export type EventSourceType =
   | AgentRole
+  | "selector"
+  | "technical"
+  | "fundamental"
+  | "review"
+  | "decision"
   | "session"
   | "preflight"
   | "approval"

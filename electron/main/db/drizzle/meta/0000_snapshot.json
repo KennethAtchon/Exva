@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "aa7d8fd9-29ea-4d81-aff1-54f255097556",
+  "id": "e6bbc639-49c6-42df-9dff-a39bf32594b4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_messages": {
@@ -1044,8 +1044,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "session_ai_role_profile": {
-      "name": "session_ai_role_profile",
+    "session_ai_phase_workers": {
+      "name": "session_ai_phase_workers",
       "columns": {
         "session_id": {
           "name": "session_id",
@@ -1054,20 +1054,54 @@
           "notNull": true,
           "autoincrement": false
         },
-        "role": {
-          "name": "role",
+        "phase": {
+          "name": "phase",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "profile_json": {
-          "name": "profile_json",
+        "worker_id": {
+          "name": "worker_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false,
-          "default": "'{\"version\":1}'"
+          "autoincrement": false
+        },
+        "provider_key": {
+          "name": "provider_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "model_id": {
+          "name": "model_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "max_steps": {
+          "name": "max_steps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "spend_limit_usd": {
+          "name": "spend_limit_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prompt_markdown": {
+          "name": "prompt_markdown",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -1079,9 +1113,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "session_ai_role_profile_session_id_sessions_id_fk": {
-          "name": "session_ai_role_profile_session_id_sessions_id_fk",
-          "tableFrom": "session_ai_role_profile",
+        "session_ai_phase_workers_session_id_sessions_id_fk": {
+          "name": "session_ai_phase_workers_session_id_sessions_id_fk",
+          "tableFrom": "session_ai_phase_workers",
           "tableTo": "sessions",
           "columnsFrom": [
             "session_id"
@@ -1094,27 +1128,21 @@
         }
       },
       "compositePrimaryKeys": {
-        "session_ai_role_profile_session_id_role_pk": {
+        "session_ai_phase_workers_session_id_phase_worker_id_pk": {
           "columns": [
             "session_id",
-            "role"
+            "phase",
+            "worker_id"
           ],
-          "name": "session_ai_role_profile_session_id_role_pk"
+          "name": "session_ai_phase_workers_session_id_phase_worker_id_pk"
         }
       },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "session_ai_roles": {
-      "name": "session_ai_roles",
+    "session_ai_phases": {
+      "name": "session_ai_phases",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
         "session_id": {
           "name": "session_id",
           "type": "text",
@@ -1122,8 +1150,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "role": {
-          "name": "role",
+        "phase": {
+          "name": "phase",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1134,14 +1162,16 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "''"
         },
         "model_id": {
           "name": "model_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
+          "autoincrement": false,
+          "default": "''"
         },
         "temperature": {
           "name": "temperature",
@@ -1175,19 +1205,27 @@
           "autoincrement": false,
           "default": "''"
         },
-        "prompt_asset_path": {
-          "name": "prompt_asset_path",
+        "updated_at": {
+          "name": "updated_at",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_session_ai_phases_session": {
+          "name": "idx_session_ai_phases_session",
+          "columns": [
+            "session_id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
-        "session_ai_roles_session_id_sessions_id_fk": {
-          "name": "session_ai_roles_session_id_sessions_id_fk",
-          "tableFrom": "session_ai_roles",
+        "session_ai_phases_session_id_sessions_id_fk": {
+          "name": "session_ai_phases_session_id_sessions_id_fk",
+          "tableFrom": "session_ai_phases",
           "tableTo": "sessions",
           "columnsFrom": [
             "session_id"
@@ -1199,7 +1237,15 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "session_ai_phases_session_id_phase_pk": {
+          "columns": [
+            "session_id",
+            "phase"
+          ],
+          "name": "session_ai_phases_session_id_phase_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -1861,6 +1907,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": true
+        },
+        "no_instrument_retry_minutes": {
+          "name": "no_instrument_retry_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "updated_at": {
           "name": "updated_at",

@@ -132,23 +132,42 @@ export class CycleReplayService {
       const toolCalls: CycleFixture["agentRuns"][number]["toolCalls"] = [];
       if (msg.tool_calls_json) {
         try {
-          const rawCalls = JSON.parse(msg.tool_calls_json) as Array<{
-            tool?: string;
-            name?: string;
-            args?: unknown;
-            result?: unknown;
-          }>;
+          const parsed = JSON.parse(msg.tool_calls_json) as
+            | Array<{
+                tool?: string;
+                name?: string;
+                args?: unknown;
+                result?: unknown;
+                argsJson?: string;
+                resultJson?: string;
+              }>
+            | Array<{
+                toolCalls?: Array<{
+                  tool?: string;
+                  name?: string;
+                  args?: unknown;
+                  result?: unknown;
+                  argsJson?: string;
+                  resultJson?: string;
+                }>;
+              }>;
+          const rawCalls = normalizeToolCalls(parsed);
+
           for (const call of rawCalls) {
             const tool = call.tool ?? call.name ?? "unknown";
+            const argsJson = call.argsJson ?? JSON.stringify(call.args ?? {});
+            const resultJson = call.resultJson ?? JSON.stringify(call.result ?? {});
             toolCalls.push({
               tool,
-              argsJson: JSON.stringify(call.args ?? {}),
-              resultJson: JSON.stringify(call.result ?? {}),
+              argsJson,
+              resultJson,
             });
 
+            const callResult = call.resultJson ? safeParseJson(call.resultJson) : call.result;
+
             // Extract quote from get_quote tool call results
-            if ((tool === "get_quote" || tool === "get_market_snapshot") && call.result) {
-              const quote = call.result as MarketSnapshot & { symbol?: string };
+            if ((tool === "get_quote" || tool === "get_market_snapshot") && callResult) {
+              const quote = callResult as MarketSnapshot & { symbol?: string };
               const sym = quote.instrumentSymbol ?? quote.symbol;
               if (sym && !marketDataMap.has(sym)) {
                 marketDataMap.set(sym, {
@@ -162,8 +181,8 @@ export class CycleReplayService {
             }
 
             // Extract ohlcv from get_ohlcv calls
-            if (tool === "get_ohlcv" && call.result) {
-              const result = call.result as { symbol?: string; bars?: MockOhlcvBar[] };
+            if (tool === "get_ohlcv" && callResult) {
+              const result = callResult as { symbol?: string; bars?: MockOhlcvBar[] };
               if (result.symbol && result.bars) {
                 const entry = marketDataMap.get(result.symbol);
                 if (entry) {
@@ -232,8 +251,8 @@ export class CycleReplayService {
       });
     }
 
-    // Decision from decision_maker output
-    const decisionMsg = [...messages].reverse().find((m) => m.role === "decision_maker");
+    // Decision from current phase id (`decision`) or legacy role id (`decision_maker`).
+    const decisionMsg = [...messages].reverse().find((m) => m.role === "decision" || m.role === "decision_maker");
     let decision: CycleFixture["decision"] = { action: "no_trade", confidence: 0, reasoning: "" };
     if (decisionMsg?.output_json) {
       try {
@@ -314,6 +333,66 @@ export class CycleReplayService {
 
   loadFixture(filePath: string): CycleFixture {
     return JSON.parse(fs.readFileSync(filePath, "utf-8")) as CycleFixture;
+  }
+}
+
+function normalizeToolCalls(
+  parsed:
+    | Array<{
+        tool?: string;
+        name?: string;
+        args?: unknown;
+        result?: unknown;
+        argsJson?: string;
+        resultJson?: string;
+      }>
+    | Array<{
+        toolCalls?: Array<{
+          tool?: string;
+          name?: string;
+          args?: unknown;
+          result?: unknown;
+          argsJson?: string;
+          resultJson?: string;
+        }>;
+      }>,
+): Array<{
+  tool?: string;
+  name?: string;
+  args?: unknown;
+  result?: unknown;
+  argsJson?: string;
+  resultJson?: string;
+}> {
+  if (parsed.length === 0) return [];
+  if ("toolCalls" in parsed[0]!) {
+    const steps = parsed as Array<{
+      toolCalls?: Array<{
+        tool?: string;
+        name?: string;
+        args?: unknown;
+        result?: unknown;
+        argsJson?: string;
+        resultJson?: string;
+      }>;
+    }>;
+    return steps.flatMap((step) => step.toolCalls ?? []);
+  }
+  return parsed as Array<{
+    tool?: string;
+    name?: string;
+    args?: unknown;
+    result?: unknown;
+    argsJson?: string;
+    resultJson?: string;
+  }>;
+}
+
+function safeParseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
   }
 }
 

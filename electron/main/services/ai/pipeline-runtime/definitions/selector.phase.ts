@@ -1,7 +1,6 @@
 import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
-import { resolveSelectorRoleSettings } from "@electron/shared/ai/ai-role-profile";
 import type { InstrumentSelection } from "@/lib/schemas";
-import { buildSelectorPrepareStep } from "../../ai-runtime/selector-runtime-control";
+import { buildSelectorPrepareStep, defaultSelectorRuntimeSettings } from "../../ai-runtime/selector-runtime-control";
 import type { ToolBuildContext } from "../context/tool-factory-registry";
 
 export type SelectorPhaseInput = {
@@ -25,7 +24,7 @@ export const SELECTOR_PHASE: PipelineDefinition<SelectorPhaseInput, InstrumentSe
       getOhlcv: hasBrokerWiring,
       submitCandidates: true,
     };
-    return buildSelectorPrepareStep(availability, resolveSelectorRoleSettings(null));
+    return buildSelectorPrepareStep(availability, defaultSelectorRuntimeSettings());
   },
   workers: [
     {

@@ -1,9 +1,23 @@
 # AI Runtime, Prompt Injection, and Tool Harness — Architecture
 
-> **Last updated:** 2026-05-16
-> **Scope:** Everything between "an agent role is invoked" and "a persisted `AgentMessage` lands in the DB." Covers prompt assembly, role-to-role handoff, the tool-use harness, retry layers, tracing, and the data each layer reads or writes.
-> **Audience:** Engineers onboarding the AI/agent stack, reviewers of prompt/tool changes, maintainers debugging agent runs.
-> **Related docs:** `docs/architecture/background-config-and-guards.md` (the deterministic macro layer that wraps this runtime), `electron/prompts/*.md` (role assets).
+> **Status (Phase 1):** Legacy historical write-up. Do not use as implementation guidance.
+> **Canonical runtime docs:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` and `docs/plans/cognitive-runtime-phase-1-redesign-plan.md`.
+> **Current architecture summary:** phase-first pipeline runtime (`AiRuntime.runPhase` -> `PipelineRuntime.run`) with registry-defined phases/workers, prompt envelopes, config-driven tool wiring, and `session_ai_phases` / `session_ai_phase_workers` storage.
+> **Prompt path:** `electron/main/services/ai/pipeline-runtime/prompts/*.md` (not `electron/prompts/*`).
+> **Removed from main path:** role-specific runtime entrypoints, `prompt-pack-builder`, `runtime-prompt`, `harness-tools`, and role-keyed AI config tables.
+
+## Phase 1 Snapshot (Current)
+
+- Runtime entrypoint: `electron/main/services/ai/ai-runtime/runtime.ts` (`runPhase`).
+- Generic executor: `electron/main/services/ai/pipeline-runtime/core/pipeline-runtime.ts`.
+- Phase definitions: `electron/main/services/ai/pipeline-runtime/definitions/*.phase.ts`.
+- Prompt assembly: `electron/main/services/ai/pipeline-runtime/prompting/prompt-envelope-builder.ts`.
+- Tool resolution: `electron/main/services/ai/pipeline-runtime/context/tool-factory-registry.ts`.
+- Persistence/config: `session_ai_phases` and `session_ai_phase_workers`.
+
+## Legacy Content
+
+The remainder of this document predates the Phase 1 redesign and is retained only for historical context.
 
 ## 1. Executive Summary
 

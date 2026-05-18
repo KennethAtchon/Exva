@@ -107,25 +107,27 @@ Today, orchestration is serialized in `AgentOrchestrator`, but execution semanti
 | `electron/main/db/repositories/session-ai-role-profile-repo.ts` | Reads profile JSON by role                             | Old pattern to delete                                           |
 | `electron/shared/ai/default-ai-role-profiles.ts`                | Role-profile defaults encoded as prose                 | Must stop driving orchestration logic directly                  |
 
+
 ### Additional consolidation targets found in the final scan
 
 The runtime refactor is not complete if these adjacent role-keyed or prompt-bloated surfaces are left behind.
 
-| Surface | Current file(s) | Required action |
-| --- | --- | --- |
-| Orchestrator type aliases and direct AI calls | `electron/main/services/orchestration/agent-orchestrator.ts` | Delete `runAnalyst` / `runReviewer` / `runDecisionMaker` / `runInstrumentSelector` call sites and related type aliases |
-| Old parser split by role | `electron/main/services/ai/ai-runtime/instrument-selection-parser.ts`, `decision-parse.ts` | Fold into pipeline output/finalizer model or replace with phase-specific output handlers |
-| Old prompt resolution helpers | `electron/main/services/ai/ai-runtime/runtime-prompt.ts`, `prompt-asset-loader.ts` | Replace role-specific prompt lookup with worker prompt lookup |
-| Old trace shape builders | `electron/main/services/ai/ai-runtime/runtime-trace.ts` | Rework around phase/worker trace assembly rather than role runs |
-| Session AI role/profile shared types | `electron/shared/domain/session.ts`, `electron/shared/domain/workspace.ts` | Replace `SessionAiRole` / `SessionAiRoleProfile` with phase/pipeline config types |
-| Validation schemas for AI role payloads | `electron/shared/validation/schemas.ts`, `src/lib/schemas.ts` | Replace role-keyed request/response schemas with phase/pipeline config schemas |
-| Preload/API surface | `electron/preload/exva-api.ts`, `src/lib/exva.ts` | Replace `aiRoles` / `aiRoleProfiles` APIs with phase config APIs |
-| Renderer strategy state | `src/store/strategyStore.ts` | Replace role-keyed state shape, update methods, and dirty tracking with phase/pipeline config state |
-| Renderer strategy page and cards | `src/pages/StrategyConfig.tsx`, `src/components/strategy/*` | Replace `AI Roles` / `Role profiles` UI model with phase/pipeline config surfaces |
-| Session template/write flows | `electron/main/services/session/template-service.ts`, `write-service.ts` | Replace serialized role config payloads with phase/pipeline config payloads |
-| Session strategy context service | `electron/main/services/session/session-strategy-context-service.ts` | Stop loading/saving role-keyed AI config; expose phase/pipeline config instead |
-| App services / dependency wiring | `electron/main/services/app-services.ts`, `session/session-types.ts` | Replace old repos/services with phase config and engine registry wiring |
-| Engineering docs that explain old model | `docs/engineering/ai-model-configuration-guide.md`, `docs/architecture/ai-runtime-and-harness.md` | Rewrite to match the new runtime; do not leave stale role-based docs around |
+
+| Surface                                       | Current file(s)                                                                                   | Required action                                                                                                        |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Orchestrator type aliases and direct AI calls | `electron/main/services/orchestration/agent-orchestrator.ts`                                      | Delete `runAnalyst` / `runReviewer` / `runDecisionMaker` / `runInstrumentSelector` call sites and related type aliases |
+| Old parser split by role                      | `electron/main/services/ai/ai-runtime/instrument-selection-parser.ts`, `decision-parse.ts`        | Fold into pipeline output/finalizer model or replace with phase-specific output handlers                               |
+| Old prompt resolution helpers                 | `electron/main/services/ai/ai-runtime/runtime-prompt.ts`, `prompt-asset-loader.ts`                | Replace role-specific prompt lookup with worker prompt lookup                                                          |
+| Old trace shape builders                      | `electron/main/services/ai/ai-runtime/runtime-trace.ts`                                           | Rework around phase/worker trace assembly rather than role runs                                                        |
+| Session AI role/profile shared types          | `electron/shared/domain/session.ts`, `electron/shared/domain/workspace.ts`                        | Replace `SessionAiRole` / `SessionAiRoleProfile` with phase/pipeline config types                                      |
+| Validation schemas for AI role payloads       | `electron/shared/validation/schemas.ts`, `src/lib/schemas.ts`                                     | Replace role-keyed request/response schemas with phase/pipeline config schemas                                         |
+| Preload/API surface                           | `electron/preload/exva-api.ts`, `src/lib/exva.ts`                                                 | Replace `aiRoles` / `aiRoleProfiles` APIs with phase config APIs                                                       |
+| Renderer strategy state                       | `src/store/strategyStore.ts`                                                                      | Replace role-keyed state shape, update methods, and dirty tracking with phase/pipeline config state                    |
+| Renderer strategy page and cards              | `src/pages/StrategyConfig.tsx`, `src/components/strategy/*`                                       | Replace `AI Roles` / `Role profiles` UI model with phase/pipeline config surfaces                                      |
+| Session template/write flows                  | `electron/main/services/session/template-service.ts`, `write-service.ts`                          | Replace serialized role config payloads with phase/pipeline config payloads                                            |
+| Session strategy context service              | `electron/main/services/session/session-strategy-context-service.ts`                              | Stop loading/saving role-keyed AI config; expose phase/pipeline config instead                                         |
+| App services / dependency wiring              | `electron/main/services/app-services.ts`, `session/session-types.ts`                              | Replace old repos/services with phase config and engine registry wiring                                                |
+| Engineering docs that explain old model       | `docs/engineering/ai-model-configuration-guide.md`, `docs/architecture/ai-runtime-and-harness.md` | Rewrite to match the new runtime; do not leave stale role-based docs around                                            |
 
 
 ### Scattered control points found in the current build
@@ -1010,16 +1012,16 @@ Rollback plan: revert the branch if hidden role-keyed dependencies are too broad
 ## 9. Success Criteria
 
 
-| Goal                                  | Metric                                                                                          | Baseline                                                                       | Target                                          | How Measured                            |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------- | --------------------------------------- |
-| Remove role-specific runtime methods  | Count of canonical public runtime methods per phase                                             | 4 role-specific methods plus `runRole` helpers                                 | 1 generic phase runner                          | Grep and code review                    |
-| Config-driven worker addition         | Files touched to add a worker using existing tools, engines, and existing phase output contract | Runtime + tool policy + orchestrator + prompt + tests                          | 1 config entry + optional 1 prompt file         | Trial change in a dev branch            |
-| Generic orchestration                 | Count of phase-specific branches in orchestrator runtime calls                                  | 5 hardcoded calls                                                              | 0 hardcoded runtime-method calls                | `agent-orchestrator.ts` review          |
-| Tool and engine hookup centralization | Number of role-based tool/engine policy maps used by runtime                                    | `ROLE_TOOL_POLICY` plus availability branching and implicit role-owned engines | 0 canonical role maps in runtime execution path | Grep                                    |
-| Hard DB cutover                       | Old role-keyed AI config tables still required by the app                                       | `session_ai_roles` + `session_ai_role_profile`                                | 0; app boots from `session_ai_phases` shape only | Schema review + `db:reset` smoke test   |
-| Legacy surface deletion               | Count of deletion-inventory files/surfaces still required by the main path                      | Many                                                                            | 0 legacy runtime/config surfaces in main path   | Grep and runtime smoke test             |
-| Parity of persistence                 | Existing logs still render after migration                                                      | Current behavior                                                               | No regression                                   | Manual UI smoke test + integration test |
-| Runtime substrate readiness           | Ability to port later multi-worker phases without API changes                                   | Not possible today                                                             | Later phases only change config/finalizers      | Design review against Phase 2+ spec     |
+| Goal                                  | Metric                                                                                          | Baseline                                                                       | Target                                           | How Measured                            |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------ | --------------------------------------- |
+| Remove role-specific runtime methods  | Count of canonical public runtime methods per phase                                             | 4 role-specific methods plus `runRole` helpers                                 | 1 generic phase runner                           | Grep and code review                    |
+| Config-driven worker addition         | Files touched to add a worker using existing tools, engines, and existing phase output contract | Runtime + tool policy + orchestrator + prompt + tests                          | 1 config entry + optional 1 prompt file          | Trial change in a dev branch            |
+| Generic orchestration                 | Count of phase-specific branches in orchestrator runtime calls                                  | 5 hardcoded calls                                                              | 0 hardcoded runtime-method calls                 | `agent-orchestrator.ts` review          |
+| Tool and engine hookup centralization | Number of role-based tool/engine policy maps used by runtime                                    | `ROLE_TOOL_POLICY` plus availability branching and implicit role-owned engines | 0 canonical role maps in runtime execution path  | Grep                                    |
+| Hard DB cutover                       | Old role-keyed AI config tables still required by the app                                       | `session_ai_roles` + `session_ai_role_profile`                                 | 0; app boots from `session_ai_phases` shape only | Schema review + `db:reset` smoke test   |
+| Legacy surface deletion               | Count of deletion-inventory files/surfaces still required by the main path                      | Many                                                                           | 0 legacy runtime/config surfaces in main path    | Grep and runtime smoke test             |
+| Parity of persistence                 | Existing logs still render after migration                                                      | Current behavior                                                               | No regression                                    | Manual UI smoke test + integration test |
+| Runtime substrate readiness           | Ability to port later multi-worker phases without API changes                                   | Not possible today                                                             | Later phases only change config/finalizers       | Design review against Phase 2+ spec     |
 
 
 Leading indicators:
@@ -1040,14 +1042,15 @@ Lagging indicators:
 ## 10. Open Questions
 
 
-| #   | Question                                                                                                                                                    | Owner | Needed By       | Status |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | --------------- | ------ |
-| 1   | Structured output migration approach for Phase 1?                                                                                                            | Ken   | Before Phase 1C | Resolved: all phases move to the new structured format immediately |
-| 2   | Runtime ownership model?                                                                                                                                     | Ken   | Before Phase 1B | Resolved: `AiRuntime` remains the top-level orchestrator of all pipelines; pipeline config attaches tools/engines automatically |
-| 3   | Fate of `AgentPromptPackBuilder`?                                                                                                                            | Ken   | Before Phase 1B | Resolved: delete it entirely; replace with `PromptEnvelopeBuilder` |
-| 4   | Worker override persistence in Phase 1?                                                                                                                      | Ken   | Before Phase 1A | Resolved: ship `session_ai_phase_workers` in Phase 1 |
-| 5   | What qualifies as an engine?                                                                                                                                  | Ken   | Before Phase 1B | Resolved: anything that does deterministic work/calculation the AI does not need to know about should be an engine |
-| 6   | Which finalizers should be generic merge strategies and which should be explicit code hooks?                                                                | Ken   | Before Phase 1B | Open |
+| #   | Question                                                                                     | Owner | Needed By       | Status                                                                                                                          |
+| --- | -------------------------------------------------------------------------------------------- | ----- | --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Structured output migration approach for Phase 1?                                            | Ken   | Before Phase 1C | Resolved: all phases move to the new structured format immediately                                                              |
+| 2   | Runtime ownership model?                                                                     | Ken   | Before Phase 1B | Resolved: `AiRuntime` remains the top-level orchestrator of all pipelines; pipeline config attaches tools/engines automatically |
+| 3   | Fate of `AgentPromptPackBuilder`?                                                            | Ken   | Before Phase 1B | Resolved: delete it entirely; replace with `PromptEnvelopeBuilder`                                                              |
+| 4   | Worker override persistence in Phase 1?                                                      | Ken   | Before Phase 1A | Resolved: ship `session_ai_phase_workers` in Phase 1                                                                            |
+| 5   | What qualifies as an engine?                                                                 | Ken   | Before Phase 1B | Resolved: anything that does deterministic work/calculation the AI does not need to know about should be an engine              |
+| 6   | Which finalizers should be generic merge strategies and which should be explicit code hooks? | Ken   | Before Phase 1B | Open                                                                                                                            |
+
 
 ### Resolved Decisions
 
@@ -1060,7 +1063,6 @@ These are now fixed requirements for implementation:
 - `session_ai_phase_workers` ships in Phase 1.
 - The engine boundary is broad by intent: if logic is deterministic work or calculation that the AI does not need to reason about directly, it belongs in an engine.
 
-
 ---
 
 ## 11. Alternatives Rejected
@@ -1072,3 +1074,5 @@ These are now fixed requirements for implementation:
 | Single `runPhase()` with large internal switch statements               | It hides duplication behind one method name but does not make the runtime meaningfully configurable                                     |
 | Big-bang rewrite straight to final multi-worker behavior for all phases | Too much blast radius for Phase 1; it mixes substrate work with behavior change                                                         |
 | Adopting a framework such as LangGraph as the core runtime              | Exva already has a working AI SDK/provider stack; a framework adds abstraction cost without solving the local coupling problem directly |
+
+

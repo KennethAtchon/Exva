@@ -34,6 +34,11 @@ export const CostBreakdownPage = () => {
   const pct = budget > 0 ? (d.total / budget) * 100 : 0;
   const barColor = pct > 80 ? "#f87171" : pct > 60 ? "#fbbf24" : "var(--accent)";
   const agentColors: Record<string, string> = {
+    technical: "#34d399",
+    fundamental: "#f87171",
+    review: "#60a5fa",
+    decision: "#a78bfa",
+    selector: "#fbbf24",
     analyst_technical: "#34d399", analyst_fundamental: "#f87171",
     reviewer: "#60a5fa", decision_maker: "#a78bfa",
     instrument_selector: "#fbbf24",

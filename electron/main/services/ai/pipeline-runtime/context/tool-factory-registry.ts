@@ -18,6 +18,17 @@ import type { MOCK_REDDIT_POSTS } from "../../tools/search-reddit-tool";
 import type { MOCK_TRENDING_SYMBOLS } from "../../tools/trending-symbols-tool";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 
+export const SUPPORTED_TOOL_IDS = [
+  "submit_candidates",
+  "search_web",
+  "fetch_url",
+  "search_reddit",
+  "get_trending_symbols",
+  "get_quote",
+  "get_ohlcv",
+  "get_news",
+] as const;
+
 export interface ToolBuildContext {
   sessionId: string;
   cycleId: string | null;

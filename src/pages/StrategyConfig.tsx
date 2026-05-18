@@ -116,7 +116,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
             No session focused
           </div>
           <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.65, maxWidth: 380, margin: "0 auto 20px" }}>
-            Strategy configuration is session-scoped. You need to focus a session first, then come back here to configure its AI roles, risk limits, and strategy behavior.
+            Strategy configuration is session-scoped. You need to focus a session first, then come back here to configure AI phases, risk limits, and strategy behavior.
           </p>
           <div style={stepListStyle}>
             <Step n={1} text='Go to Sessions' />
@@ -182,7 +182,7 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
         <div>
           <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>Strategy</h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
-            Separate research posture, trade rules, risk limits, timeframe, per-role operating briefs, and AI role models/prompts for the focused session.
+            Separate research posture, trade rules, risk limits, timeframe, phase operating briefs, and AI phase model/prompt settings for the focused session.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

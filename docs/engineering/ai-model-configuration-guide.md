@@ -1,17 +1,21 @@
 # AI Model Configuration Guide
 
-## Purpose
+> **Status (Phase 1):** Legacy historical guide. Do not use as the source of truth for current runtime wiring.
+> **Canonical docs:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` and `docs/plans/cognitive-runtime-phase-1-redesign-plan.md`.
 
-This guide maps the current Exva AI/model configuration system and shows where to tweak it.
+## Current Source of Truth (Phase 1)
 
-There is **no single model config file** in this repo. The behavior is layered across:
+Model/runtime configuration is now phase-first:
 
-- file-based prompt assets and prompt instructions
-- file-based role-profile defaults and strategy presets
-- DB-backed per-session role config and workspace defaults
-- runtime caps, pricing, and provider adapters
+- DB defaults per session phase: `session_ai_phases` (`providerKey`, `modelId`, `temperature`, `maxTokens`, prompt source).
+- Optional per-worker overrides: `session_ai_phase_workers` (`providerKey`, `modelId`, caps, prompt markdown).
+- Runtime resolution path: `PhaseConfigResolver` -> `PipelineRuntime` -> `WorkerExecutor`.
+- Prompt assets: `electron/main/services/ai/pipeline-runtime/prompts/*.md`.
+- Structured runtime contracts live in phase definitions under `electron/main/services/ai/pipeline-runtime/definitions/`.
 
-If you want to change model behavior, you usually need to identify which layer you are changing first.
+## Legacy Content
+
+The remainder of this file describes pre-Phase-1 role-based configuration and is preserved only as historical context.
 
 ## Current System
 

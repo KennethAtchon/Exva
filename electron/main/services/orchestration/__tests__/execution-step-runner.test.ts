@@ -45,12 +45,12 @@ describe("ExecutionStepRunner", () => {
   it("marks VALIDATION_FAILED as failed without retry", async () => {
     const { runner, repo, sessionId } = createHarness();
 
-    const result = await runner.run("decision_maker", async () => {
+    const result = await runner.run("decision", async () => {
       throw new AppError("bad decision", "VALIDATION_FAILED");
     });
 
     expect(result).toEqual({ ok: false, retryable: false, errorCode: "VALIDATION_FAILED", errorMessage: "bad decision" });
-    expect(repo.get(sessionId, "cycle-1", "decision_maker")).toMatchObject({ status: "failed", retryable: false, attempt: 1 });
+    expect(repo.get(sessionId, "cycle-1", "decision")).toMatchObject({ status: "failed", retryable: false, attempt: 1 });
   });
 
   it("retries provider errors that were wrapped as retryable AppErrors", async () => {
@@ -125,7 +125,7 @@ describe("ExecutionStepRunner", () => {
     repo.upsert({
       sessionId,
       cycleId: "cycle-1",
-      stage: "reviewer",
+      stage: "review",
       status: "succeeded",
       attempt: 1,
       startedAt: new Date().toISOString(),
@@ -137,11 +137,11 @@ describe("ExecutionStepRunner", () => {
     });
     const fn = vi.fn(async () => "should not run");
 
-    const result = await runner.run("reviewer", fn, { skipIfPreviouslySucceeded: true });
+    const result = await runner.run("review", fn, { skipIfPreviouslySucceeded: true });
 
     expect(result.ok).toBe(true);
     expect(fn).not.toHaveBeenCalled();
-    expect(repo.get(sessionId, "cycle-1", "reviewer")).toMatchObject({ status: "succeeded", attempt: 1 });
+    expect(repo.get(sessionId, "cycle-1", "review")).toMatchObject({ status: "succeeded", attempt: 1 });
   });
 });
 
