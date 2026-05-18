@@ -1,12 +1,12 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
 import { resolveEffectiveInstrumentClasses } from "@electron/shared/catalog/session-instrument-classes";
 import { AppError } from "@electron/shared/infra/errors";
-import type { EventsRepo } from "../../db/repositories/events-repo";
-import type { SessionRepo } from "../../db/repositories/session-repo";
-import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";
-import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
-import type { BrokerRoutingRepo } from "../../db/repositories/broker-routing-repo";
-import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
+import type { EventsRepo } from "../../db/repositories/system/events-repo";
+import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
+import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
+import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
+import type { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-routing-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 
 export interface SessionWriteInput {
   name: string;

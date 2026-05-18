@@ -1,9 +1,9 @@
-import type { StatsRepo } from "../../db/repositories/stats-repo";
-import type { TradesRepo } from "../../db/repositories/trades-repo";
+import type { StatsRepo } from "../../db/repositories/system/stats-repo";
+import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { SessionStrategyContextService } from "../session/session-strategy-context-service";
 import type { BrokerRegistry } from "../broker/broker-registry";
 import type { EventBus } from "../infra/event-bus";
-import type { SessionRepo } from "../../db/repositories/session-repo";
+import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { CapitalReservationService } from "../risk/capital-reservation-service";
 import type { HoldingStyle } from "@/lib/types";
 import { ExitPolicyEvaluator, type ExitReason } from "../risk/exit-policy-evaluator";

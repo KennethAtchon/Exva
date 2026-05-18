@@ -1,6 +1,6 @@
 import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderAccount } from "@/lib/types";
-import type { ProviderAccountsRepo } from "../../db/repositories/provider-accounts-repo";
+import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
 import type { SecretsService } from "../infra/secrets-service";
 import { AnthropicAdapter } from "./adapters/anthropic-adapter";
 import { OpenAiAdapter } from "./adapters/openai-adapter";

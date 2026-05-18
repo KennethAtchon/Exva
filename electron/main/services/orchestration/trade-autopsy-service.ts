@@ -1,7 +1,7 @@
 import type { AgentMessage, TradeAutopsy } from "@/lib/types";
-import type { AgentMessagesRepo } from "../../db/repositories/agent-messages-repo";
-import type { TradeAutopsiesRepo } from "../../db/repositories/trade-autopsies-repo";
-import type { TradesRepo } from "../../db/repositories/trades-repo";
+import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
+import type { TradeAutopsiesRepo } from "../../db/repositories/trades/trade-autopsies-repo";
+import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { ProviderRegistry } from "../ai/provider-registry";
 
 const AUTOPSY_MODEL_ID = "claude-haiku-4-5-20251001";

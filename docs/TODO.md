@@ -44,9 +44,14 @@ same with trend momentum, etc, The AI is just the brain, while the system execut
 This is my vision. 
 
 
-———
+———----
 
 
  are we not deleting these: /Users/ken/Documents/workspace/Exva/electron/prompts, now we need work based prompts...not the old ai role prompt...I also said to remove prompt-pack-builder and everything like tat.
   also runtime still has code like: [Pasted text #1 +24 lines] which is obviously better if we delegate this to the actual selector timeline...like bro. runtime still has alot of things we can delegate, the
   search plugin can be delegated to pipelines to work the same way as engines (plug and play). lets also move engine folder into ai folder.  
+
+
+------
+
+

@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { InstrumentClass, StrategySnapshot } from "@/lib/types";
-import type { AgentMessagesRepo } from "../../db/repositories/agent-messages-repo";
-import type { InstrumentCacheRepo } from "../../db/repositories/instrument-cache-repo";
-import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/session-execution-steps-repo";
-import type { TradesRepo } from "../../db/repositories/trades-repo";
+import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
+import type { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
+import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
+import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { MarketSnapshot } from "../broker/adapters/broker-adapter";
 import type { MockOhlcvBar } from "../broker/adapters/mock-adapter";
 import { CandidateValidationService } from "./candidate-validation-service";

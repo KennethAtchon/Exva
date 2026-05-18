@@ -1,7 +1,7 @@
 import type { InstrumentClass, SessionStatus, WorkspaceViewMode } from "@/lib/types";
-import type { SessionRepo, SessionFilters } from "../../db/repositories/session-repo";
-import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
-import type { TradesRepo } from "../../db/repositories/trades-repo";
+import type { SessionRepo, SessionFilters } from "../../db/repositories/sessions/session-repo";
+import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
+import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { SessionRuntimeManager } from "./session-runtime-manager";
 
 export interface SessionListFilters {

@@ -1,4 +1,4 @@
-import type { CapitalReservationsRepo } from "../../db/repositories/capital-reservations-repo";
+import type { CapitalReservationsRepo } from "../../db/repositories/trades/capital-reservations-repo";
 import type { CapitalReservation } from "@/lib/types";
 
 export class CapitalReservationService {

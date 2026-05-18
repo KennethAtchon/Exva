@@ -1,4 +1,4 @@
-import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRegistry } from "./broker-registry";
 
 export class BrokerBalanceCacheService {

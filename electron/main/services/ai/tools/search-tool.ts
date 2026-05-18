@@ -2,7 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import type { SearchRegistry } from "../search";
 import { validateDiscoveryQuery } from "../search/sanitize-search-query";
-import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
+import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
 
 export async function createSearchTool(deps: {
   sessionId: string;

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb } from "../../../db/test-helpers";
-import { CapitalReservationsRepo } from "../../../db/repositories/capital-reservations-repo";
-import { SessionRepo } from "../../../db/repositories/session-repo";
-import { TradeApprovalsRepo } from "../../../db/repositories/trade-approvals-repo";
-import { TradesRepo } from "../../../db/repositories/trades-repo";
+import { CapitalReservationsRepo } from "../../../db/repositories/trades/capital-reservations-repo";
+import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
+import { TradeApprovalsRepo } from "../../../db/repositories/trades/trade-approvals-repo";
+import { TradesRepo } from "../../../db/repositories/trades/trades-repo";
 import { CapitalReservationService } from "../capital-reservation-service";
 
 describe("CapitalReservationService", () => {

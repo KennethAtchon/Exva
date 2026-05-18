@@ -1,7 +1,7 @@
-import type { SessionRepo } from "../../db/repositories/session-repo";
-import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
+import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRegistry } from "../broker/broker-registry";
-import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
+import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
 import { sessions } from "../../db/schema";

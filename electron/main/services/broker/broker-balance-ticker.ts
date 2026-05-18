@@ -1,4 +1,4 @@
-import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { EventBus } from "../infra/event-bus";
 import type { Logger } from "../infra/log";
 import type { BrokerBalanceCacheService } from "./broker-balance-cache-service";

@@ -1,5 +1,8 @@
 import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
+import { resolveSelectorRoleSettings } from "@electron/shared/ai/ai-role-profile";
 import type { InstrumentSelection } from "@/lib/schemas";
+import { buildSelectorPrepareStep } from "../../ai-runtime/selector-runtime-control";
+import type { ToolBuildContext } from "../context/tool-factory-registry";
 
 export type SelectorPhaseInput = {
   selectionInstructions: string;
@@ -9,10 +12,25 @@ export const SELECTOR_PHASE: PipelineDefinition<SelectorPhaseInput, InstrumentSe
   phase: "selector",
   outputMode: "tool_terminal",
   terminalToolNames: ["submit_candidates"],
+  buildPrepareStep: (ctx: unknown) => {
+    const toolCtx = ctx as ToolBuildContext;
+    const hasBrokerWiring = Boolean(toolCtx.brokerRouting && toolCtx.brokerRegistry);
+    const availability = {
+      searchWeb: Boolean(toolCtx.searchProviderId),
+      fetchUrl: true,
+      searchReddit: true,
+      trendingSymbols: true,
+      getNews: hasBrokerWiring && (Boolean(toolCtx.searchProviderId) || Boolean(toolCtx.mockNewsData)),
+      getQuote: hasBrokerWiring,
+      getOhlcv: hasBrokerWiring,
+      submitCandidates: true,
+    };
+    return buildSelectorPrepareStep(availability, resolveSelectorRoleSettings(null));
+  },
   workers: [
     {
       id: "instrument-selector",
-      promptAssetPath: "electron/prompts/instrument_selector.md",
+      promptAssetPath: "selector",
       tools: [
         "search_web",
         "fetch_url",

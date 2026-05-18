@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createTestDb } from "../../../db/test-helpers";
-import { BrokerAccountsRepo } from "../../../db/repositories/broker-accounts-repo";
-import { BrokerRoutingRepo } from "../../../db/repositories/broker-routing-repo";
-import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/session-broker-assignments-repo";
-import { SessionRepo } from "../../../db/repositories/session-repo";
+import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-accounts-repo";
+import { BrokerRoutingRepo } from "../../../db/repositories/brokers/broker-routing-repo";
+import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/sessions/session-broker-assignments-repo";
+import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
 import { BrokerRoutingService } from "../broker-routing-service";
 
 describe("BrokerRoutingService", () => {

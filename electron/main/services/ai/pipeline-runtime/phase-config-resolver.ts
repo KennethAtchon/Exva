@@ -1,7 +1,7 @@
 import type { PipelinePhase, WorkerDefinition, SessionAiPhase, SessionAiPhaseWorker, RuntimeDefaultsConfig, RUNTIME_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
 import { RUNTIME_DEFAULTS as DEFAULTS, PHASE_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
-import type { ResolvedWorkerRuntimeConfig } from "./types";
-import type { SessionAiPhasesRepo } from "../../../db/repositories/session-ai-phases-repo";
+import type { ResolvedWorkerRuntimeConfig } from "./core/types";
+import type { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
 
 export interface ResolvedPhaseExecConfig {
   providerKey: string;

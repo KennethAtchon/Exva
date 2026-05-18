@@ -1,7 +1,7 @@
-import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
-import type { TradesRepo } from "../../db/repositories/trades-repo";
-import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
-import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
+import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
+import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
+import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 
 export type AllocationGateResult =
   | { ok: true; warning?: "over_allocated" }

@@ -1,7 +1,7 @@
 import { AppError } from "@electron/shared/infra/errors";
 import { isBuiltInSearchProviderAccount } from "@electron/shared/catalog/search-providers";
 import type { ProviderAccount } from "@/lib/types";
-import type { ProviderAccountsRepo } from "../../../db/repositories/provider-accounts-repo";
+import type { ProviderAccountsRepo } from "../../../db/repositories/workspace/provider-accounts-repo";
 import type { SecretsService } from "../../infra/secrets-service";
 import { BraveAdapter } from "./adapters/brave-adapter";
 import { DuckDuckGoAdapter } from "./adapters/duckduckgo-adapter";

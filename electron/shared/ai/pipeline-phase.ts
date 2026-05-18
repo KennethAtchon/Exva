@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PrepareStepFunction, ToolSet } from "ai";
 
 export type PipelinePhase = "selector" | "technical" | "fundamental" | "review" | "decision";
 
@@ -52,6 +53,8 @@ export interface PipelineDefinition<TInput = unknown, TOutput = unknown> {
     outputSchemaName: string | null;
     traceMode: "single_phase_run" | "aggregate_workers";
   };
+  /** Optional runtime step planner (for tool_terminal phases such as selector). */
+  buildPrepareStep?: (ctx: unknown) => PrepareStepFunction<ToolSet> | undefined;
   /** Tool names that terminate the agent loop (for tool_terminal phases). */
   terminalToolNames?: readonly string[];
 }

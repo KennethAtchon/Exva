@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
+import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
 
 const STOCKTWITS_URL = "https://api.stocktwits.com/api/2/trending/symbols.json";
 const STOCKTWITS_TIMEOUT_MS = 5000;

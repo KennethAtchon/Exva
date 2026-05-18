@@ -16,7 +16,7 @@ export const REVIEW_PHASE: PipelineDefinition<ReviewPhaseInput, ReviewPhaseOutpu
   workers: [
     {
       id: "reviewer",
-      promptAssetPath: "electron/prompts/reviewer.md",
+      promptAssetPath: "review",
       tools: ["search_web"],
       outputMode: "text",
     },

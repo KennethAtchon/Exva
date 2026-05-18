@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { promises as dns } from "node:dns";
-import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
+import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_CONTENT_CHARS = 8000;

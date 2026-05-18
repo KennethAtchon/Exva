@@ -1,7 +1,7 @@
 import type { PrepareStepFunction, StepResult, ToolSet } from "ai";
 import type { ResolvedSelectorRoleSettings } from "@electron/shared/ai/ai-role-profile";
 import { normalizeQueryFamily, validateDiscoveryQuery } from "../search/sanitize-search-query";
-import type { HarnessToolAvailability } from "./harness-tools";
+import type { HarnessToolAvailability } from "../pipeline-runtime/context/tool-factory-registry";
 
 type StepLike = {
   toolCalls: Array<{

@@ -11,14 +11,14 @@ import type {
 } from "@/lib/types";
 import { isSessionEditable, validateSessionStrategyContext } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/infra/errors";
-import type { ProviderAccountsRepo } from "../../db/repositories/provider-accounts-repo";
-import type { SessionRepo } from "../../db/repositories/session-repo";
-import type { SessionResearchPostureRepo } from "../../db/repositories/session-research-posture-repo";
-import type { SessionRiskConfigRepo } from "../../db/repositories/session-risk-config-repo";
-import type { SessionSelectorSettingsRepo } from "../../db/repositories/session-selector-settings-repo";
-import type { SessionTradeRulesRepo } from "../../db/repositories/session-trade-rules-repo";
-import type { SessionTimeframeConfigRepo } from "../../db/repositories/session-timeframe-config-repo";
-import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace-prefs-repo";
+import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
+import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
+import type { SessionResearchPostureRepo } from "../../db/repositories/sessions/session-research-posture-repo";
+import type { SessionRiskConfigRepo } from "../../db/repositories/sessions/session-risk-config-repo";
+import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
+import type { SessionTradeRulesRepo } from "../../db/repositories/sessions/session-trade-rules-repo";
+import type { SessionTimeframeConfigRepo } from "../../db/repositories/sessions/session-timeframe-config-repo";
+import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 
 export interface StrategyPageData {
   researchPosture: SessionResearchPosture;

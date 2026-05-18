@@ -1,8 +1,8 @@
 import type { InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
-import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
-import type { BrokerRoutingRepo } from "../../db/repositories/broker-routing-repo";
-import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
+import type { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-routing-repo";
+import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import type { BrokerRegistry } from "./broker-registry";
 import type { BrokerAdapter } from "./adapters/broker-adapter";
 

@@ -17,7 +17,7 @@ export const DECISION_PHASE: PipelineDefinition<DecisionPhaseInput, TradeDecisio
   workers: [
     {
       id: "decision-maker",
-      promptAssetPath: "electron/prompts/decision_maker.md",
+      promptAssetPath: "decision",
       tools: [],
       outputMode: "object",
       outputSchema: tradeDecisionSchema,

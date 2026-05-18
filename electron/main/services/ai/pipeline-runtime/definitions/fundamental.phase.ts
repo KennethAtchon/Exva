@@ -15,7 +15,7 @@ export const FUNDAMENTAL_PHASE: PipelineDefinition<FundamentalPhaseInput, Fundam
   workers: [
     {
       id: "analyst-fundamental",
-      promptAssetPath: "electron/prompts/analyst_fundamental.md",
+      promptAssetPath: "fundamental",
       tools: ["search_web", "get_news"],
       outputMode: "text",
     },

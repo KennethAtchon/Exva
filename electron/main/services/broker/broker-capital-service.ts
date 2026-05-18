@@ -1,8 +1,8 @@
 import type { AllocationEnforcement, BrokerAccountWithState } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
-import type { BrokerAccountsRepo } from "../../db/repositories/broker-accounts-repo";
-import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/session-broker-assignments-repo";
-import type { SessionRepo } from "../../db/repositories/session-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
+import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
+import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 
 export interface AllocationCheckFailure {
   brokerAccountId: string;

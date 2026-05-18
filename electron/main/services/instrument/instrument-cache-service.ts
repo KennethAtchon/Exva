@@ -1,5 +1,5 @@
 import type { WorkspaceSession } from "@/lib/types";
-import type { InstrumentCacheRepo } from "../../db/repositories/instrument-cache-repo";
+import type { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "../orchestration/selector-definition-hash";
 import type { OrchestratorDeps } from "../session/session-types";
 

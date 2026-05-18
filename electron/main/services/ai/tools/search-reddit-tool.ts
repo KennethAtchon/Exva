@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import type { InstrumentClass } from "@/lib/types";
-import type { ApiCallLogRepo } from "../../../db/repositories/api-call-log-repo";
+import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
 import { validateDiscoveryQuery } from "../search/sanitize-search-query";
 
 const REDDIT_TIMEOUT_MS = 6000;

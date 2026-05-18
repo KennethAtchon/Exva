@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ResolvedSelectorRoleSettings } from "@electron/shared/ai/ai-role-profile";
-import type { HarnessToolAvailability } from "../harness-tools";
+import type { HarnessToolAvailability } from "../../pipeline-runtime/context/tool-factory-registry";
 import { analyzeSelectorSteps, buildSelectorPrepareStep } from "../selector-runtime-control";
 
 const availability: HarnessToolAvailability = {

@@ -1,9 +1,9 @@
 import type { Trade } from "@/lib/types";
 import type { MockScenarioKind } from "../broker/mock/mock-scenario-fixtures";
-import type { ApiCallLogRepo } from "../../db/repositories/api-call-log-repo";
-import type { TradesRepo } from "../../db/repositories/trades-repo";
-import type { SessionRepo } from "../../db/repositories/session-repo";
-import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/session-execution-steps-repo";
+import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
+import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
+import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
+import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
 
 export interface TradeScorecard {
   sessionId: string;

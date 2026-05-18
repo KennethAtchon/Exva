@@ -15,7 +15,7 @@ export const TECHNICAL_PHASE: PipelineDefinition<TechnicalPhaseInput, TechnicalP
   workers: [
     {
       id: "analyst-technical",
-      promptAssetPath: "electron/prompts/analyst_technical.md",
+      promptAssetPath: "technical",
       tools: ["search_web", "fetch_url", "get_news"],
       outputMode: "text",
     },
