@@ -29,13 +29,15 @@ If nothing is done, Exva will keep shipping new AI behavior as one-off runtime f
 | 1   | Remove role-specific runtime entrypoints                  | No `AiRuntime.runAnalyst`, `runReviewer`, `runDecisionMaker`, or `runInstrumentSelector` remain as canonical execution paths                                                        |
 | 2   | Introduce one generic phase runner                        | `AgentOrchestrator` invokes one runtime entrypoint such as `runPhase()` or `pipelineRuntime.run()` for all five phases                                                              |
 | 3   | Make worker orchestration config-driven                   | Adding a worker that uses existing tools and fits an existing phase output contract requires config plus prompt/schema files, not new runtime functions                             |
-| 4   | Aggressively consolidate worker-definition surfaces       | The normal path for adding a worker is one config entry and one prompt file, with no orchestrator/runtime edits                                                                     |
-| 5   | Make tool hookup config-driven                            | Worker definitions reference tool IDs; runtime resolves tool implementations through a registry instead of role-specific switch logic                                               |
-| 6   | Make engine hookup config-driven                          | Workers can opt into reusable engines such as risk, position sizing, ranking, or validation through config bindings instead of bespoke role code                                    |
-| 7   | Keep prompts minimal and layered                          | Tool docs, orchestration rules, and engine internals are not duplicated into prompts; system prompts stay static and dynamic runtime context flows through structured user messages |
-| 8   | Standardize all phases on structured output contracts     | Every phase emits structured typed output in Phase 1; no prose-only phase contracts remain in the target design                                                                     |
-| 9   | Preserve current provider and audit infrastructure        | `ProviderAdapter.runAgent`, `executeRunAgent`, `withProviderRetry`, `agent_runs`, and `agent_messages` remain the execution and audit substrate                                     |
-| 10  | Replace role-keyed runtime config with phase-keyed config | The new runtime reads a phase/pipeline config model directly. No role-compatibility bridge remains in the final Phase 1 codepath.                                                   |
+| 4   | Support dependency-aware worker scheduling                | Worker config can express DAG-style dependencies so independent workers run in parallel while dependent workers wait for required upstream outputs                                   |
+| 5   | Aggressively consolidate worker-definition surfaces       | The normal path for adding a worker is one config entry and one prompt file, with no orchestrator/runtime edits                                                                     |
+| 6   | Make tool hookup config-driven                            | Worker definitions reference tool IDs; runtime resolves tool implementations through a registry instead of role-specific switch logic                                               |
+| 7   | Make engine hookup config-driven                          | Workers can opt into reusable engines such as risk, position sizing, ranking, or validation through config bindings instead of bespoke role code                                    |
+| 8   | Keep prompts minimal and layered                          | Tool docs, orchestration rules, and engine internals are not duplicated into prompts; system prompts stay static and dynamic runtime context flows through structured user messages |
+| 9   | Standardize all phases on structured output contracts     | Every phase emits structured typed output in Phase 1; no prose-only phase contracts remain in the target design                                                                     |
+| 10  | Preserve current provider and audit infrastructure        | `ProviderAdapter.runAgent`, `executeRunAgent`, `withProviderRetry`, `agent_runs`, and `agent_messages` remain the execution and audit substrate                                     |
+| 11  | Replace role-keyed runtime config with phase-keyed config | The new runtime reads a phase/pipeline config model directly. No role-compatibility bridge remains in the final Phase 1 codepath.                                                   |
+| 12  | Build the full engine substrate, not just engine types    | Existing deterministic services are wrapped or re-homed behind `EngineRegistry` with DB-backed config resolution and app-service wiring spelled out                                  |
 
 
 **Non-Goals**
@@ -170,6 +172,29 @@ Replacement table direction:
 - `session_ai_phase_workers`
   - one row per `(session_id, phase, worker_id)` when worker overrides are persisted
   - optional if Phase 1 chooses code-first worker definitions, but this is the target DB shape
+
+### Current DB-backed configuration sources the engine system must use
+
+The engine layer is only real if it is wired to the actual persisted configuration Exva already owns. Phase 1 should not invent a parallel engine-config universe for business logic that already lives in session/workspace tables.
+
+| Config source | Current table/repo | Current consumers | Engine relevance |
+| --- | --- | --- | --- |
+| Phase runtime provider/model/prompt config | `session_ai_phases`, `session_ai_phase_workers`, `SessionAiPhasesRepo` | `PhaseConfigResolver`, `AiRuntime`, `PipelineRuntime` | Canonical runtime execution config per phase/worker |
+| Research posture | `session_research_posture`, `SessionResearchPostureRepo` | `SessionStrategyContextService`, prompt shaping | Context-engine input for discovery/fundamental workers |
+| Trade rules | `session_trade_rules`, `SessionTradeRulesRepo` | `SessionStrategyContextService`, orchestrator side-bias checks | Context + policy-engine input |
+| Risk config | `session_risk_config`, `SessionRiskConfigRepo` | `SessionStrategyContextService`, `RiskEngine`, `TradeMonitor`, orchestrator sizing | Core policy/execution/lifecycle engine input |
+| Timeframe config | `session_timeframe_config`, `SessionTimeframeConfigRepo` | `SessionStrategyContextService`, monitors, prompt context | Context + lifecycle-engine input |
+| Selector settings | `session_selector_settings`, `SessionSelectorSettingsRepo` | selector runtime/orchestrator retry behavior | Transitional selector config, shrinking after Phase 3 |
+| Workspace defaults | `workspace_preferences`, `WorkspacePreferencesRepo` | default model/search provider resolution, allocation override | Runtime defaults + engine policy context |
+| Broker assignment/routing state | `session_broker_assignments`, `broker_routing`, related repos | orchestrator, broker allocation, broker routing | Policy/execution-engine input |
+| Built-in/user presets | `risk_presets`, `timeframe_presets`, `research_posture_presets`, `trade_rule_presets` | strategy UI and session config authoring | Source of DB-backed preset materialization into canonical session config |
+
+The required rule is:
+
+- phase/worker execution settings come from `session_ai_phases` and `session_ai_phase_workers`
+- business/risk/research/timeframe settings come from `SessionStrategyContextService`
+- workspace-level defaults and overrides come from `WorkspacePreferencesRepo`
+- engines never scrape prompts to recover configuration that already exists in typed DB-backed state
 
 ### Deletion requirement
 
@@ -588,6 +613,44 @@ Phase 1 should therefore model engines as **registry entry + engine-local strate
 
 That preserves plug-and-play at the runtime layer while still allowing deep internal engine logic.
 
+### Initial engine inventory Phase 1 must explicitly cover
+
+Phase 1 should not stop at abstract engine categories. It should name the concrete deterministic services that are being absorbed into the engine system.
+
+| Engine ID | Kind | Backing code today | Primary config source |
+| --- | --- | --- | --- |
+| `risk-summary` | `context` | `SessionStrategyContextService`, `session_risk_config`, `session_trade_rules`, `session_timeframe_config` | session strategy context + workspace prefs |
+| `candidate-validator` | `validator` | `CandidateValidationService` | session strategy context + selector evidence + broker/tool snapshots |
+| `broker-allocation` | `policy` | `BrokerAllocationGate` | broker assignments + workspace allocation override |
+| `order-policy` | `policy` | `OrderPolicyGate` | session risk/timeframe/rules + quote snapshots + broker metadata |
+| `risk-gate` | `policy` | `RiskEngine.validateDecision()` | `session_risk_config` + legacy session config bridge during migration |
+| `technical-aggregator` | `transformer` | new | typed worker outputs |
+| `fundamental-aggregator` | `transformer` | new | typed worker outputs |
+| `review-aggregator` | `transformer` | new | typed worker outputs |
+| `decision-validator` | `validator` | new | typed decision worker outputs + review recommendation |
+| `execution-profile` | `execution` | new, later replacing `resolvePositionSizeUsd()` | `session_risk_config` + broker/instrument state |
+| `exit-policy` | `lifecycle` | `ExitPolicyEvaluator` | `session_risk_config` + `session_timeframe_config` |
+| `position-manager` | `lifecycle` | `TradeMonitor`, `PositionManagerService` helpers | `session_risk_config` + trade state |
+
+The migration does not require every engine to be used by workers in Phase 1, but it does require the registry, run context, and service wiring to make these engines first-class citizens instead of ad hoc helper calls.
+
+### Engine system wiring boundaries
+
+The engine system should have three explicit boundaries:
+
+1. `EngineRegistry` resolves engine definitions by stable `EngineId`.
+2. `EngineRunContext` carries trusted typed session/workspace/broker state plus service handles, not prompt-derived state.
+3. `AppServices` owns bootstrapping and registration so runtime/orchestrator code consumes engines through one path.
+
+That means `app-services.ts` becomes part of the Phase 1 engine work, not an afterthought. The plan should explicitly wire:
+
+- `RiskEngine`
+- `CandidateValidationService`
+- `OrderPolicyGate`
+- `BrokerAllocationGate`
+- `ExitPolicyEvaluator`
+- any new aggregators/finalizers introduced by pipeline phases
+
 ### Concrete engine registry example
 
 ```ts
@@ -672,6 +735,155 @@ export interface WorkerContextEnvelope {
 ```
 
 The important rule is that one worker's result becomes the next worker's structured input. That is the pipeline contract.
+
+### Worker scheduling model
+
+Phase 1 should not hardcode the runtime to a flat `workers -> Promise.all -> aggregate` model. Some phases are simple fan-out/fan-in, but the runtime should support a dependency graph so later workers can wait on earlier worker outputs without serializing the whole phase.
+
+Recommended model:
+
+- workers form a directed acyclic graph (DAG)
+- a worker may declare `dependsOn: string[]`
+- the runtime executes every currently unblocked frontier in parallel, bounded by phase concurrency
+- when one frontier finishes, the runtime unlocks workers whose prerequisites are now satisfied
+- finalization runs after all required workers finish, or after a policy-defined degraded-completion rule if optional workers fail
+
+This is effectively breadth-first execution over topological layers:
+
+- layer 0: all workers with no dependencies run together
+- layer 1: workers whose prerequisites are complete run together
+- layer N: continue until the graph is exhausted
+
+This gives Exva both properties it wants:
+
+- parallelism when workers are independent
+- explicit ordering when a worker truly depends on upstream worker output
+
+Suggested config extension:
+
+```ts
+export interface GraphAwareWorkerDefinition<TInput = unknown, TPhaseOutput = unknown>
+  extends WorkerDefinition<TInput, TPhaseOutput> {
+  dependsOn?: readonly string[];
+  requiredForPhase?: boolean;
+  onDependencyFailure?: "skip" | "run_with_partial_inputs" | "fail_phase";
+}
+```
+
+The runtime should reject invalid graphs at startup:
+
+- unknown dependency IDs
+- self-dependencies
+- cycles
+- duplicate worker IDs
+
+This matters directly because the selector review docs show the current failure pattern: one broad worker is allowed to do too much open-ended work in one loop. A graph model lets the runtime encode discovery, merge, verification, and finalize as executable topology instead of prompt prose.
+
+### Observability and trace contract
+
+The minimal implementation should reuse existing persistence surfaces instead of introducing a new worker-run table in v1.
+
+Recommended persistence contract:
+
+- `agent_runs`
+  - one aggregate run row per phase execution
+  - source of total cost, duration, token counts, finish reason, and aggregate human-readable output text
+- `agent_messages.output_json`
+  - canonical phase output payload (`InstrumentSelection`, `TechnicalSignal`, `FundamentalSignal`, `ReviewSignal`, `TradeSignal`)
+- `agent_messages.output_schema_name`
+  - canonical phase output schema name (`instrumentSelection`, `technicalSignal`, `fundamentalSignal`, `reviewSignal`, `tradeSignal`)
+- `agent_messages.tool_calls_json`
+  - structured `PhaseTraceV1` payload for the full phase execution, including worker/frontier state and nested worker tool summaries
+- `events`
+  - concise lifecycle timeline for humans and live event streaming
+- `api_call_log`
+  - external-call detail used by worker trace summaries and the DevPanel External Calls tab
+
+```ts
+export interface PhaseTraceV1 {
+  version: 1;
+  sessionId: string;
+  cycleId: string | null;
+  tradeId: string | null;
+  phase: PipelinePhase;
+  schedulingMode: "flat_parallel" | "dependency_graph";
+  maxConcurrency: number;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  totalCostUsd: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  aggregateStatus: "succeeded" | "failed" | "degraded";
+  aggregateOutputSchemaName: string | null;
+  aggregateOutputSummary: Record<string, unknown> | null;
+  frontiers: PhaseTraceFrontierV1[];
+  workers: PhaseTraceWorkerV1[];
+}
+
+export interface PhaseTraceFrontierV1 {
+  frontier: number;
+  workerIds: string[];
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  costUsd: number;
+  status: "succeeded" | "failed" | "degraded";
+}
+
+export interface PhaseTraceWorkerV1 {
+  workerId: string;
+  frontier: number;
+  dependsOn: string[];
+  requiredForPhase: boolean;
+  status: "pending" | "blocked" | "running" | "succeeded" | "failed" | "skipped" | "degraded";
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  costUsd: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  providerKey: string;
+  modelId: string;
+  outputSchemaName: string | null;
+  outputSummary: Record<string, unknown> | null;
+  toolCallCount: number;
+  externalCallCount: number;
+  blockedBy: string[];
+  dependencyFailureReason: string | null;
+  error: { code: string; message: string } | null;
+  toolTrace: Array<{
+    tool: string;
+    status: "ok" | "error";
+    latencyMs?: number;
+    costUsd?: number | null;
+    summary?: string | null;
+  }>;
+}
+```
+
+Rules:
+
+- `outputSummary` is a trimmed inspection-friendly subset, not the full worker output payload
+- full phase output remains in `agent_messages.output_json`
+- `aggregateOutputSummary` is what the DevPanel Phase Graph tab shows without opening raw JSON
+
+Event taxonomy should stay small:
+
+- `[stage:{phase}] starting`
+- `[stage:{phase}] completed status={status}`
+- `[stage:{phase}/frontier:{k}] workers={ids}`
+- `[stage:{phase}/frontier:{k}] completed status={status}`
+- `[worker:{id}] scheduled|started|blocked by {deps}|failed: {reason}|skipped: dependency failure {reason}|completed cost={x} duration={y}`
+
+The DevPanel data flow should be explicit:
+
+1. `strategy.get(sessionId)` returns session strategy state plus phase runtime config summary.
+2. `events.list({ sessionId, ... })` returns the timeline.
+3. `events.getAgentTracesByCycle(cycleId)` returns aggregate phase runs for the selected cycle.
+4. `events.getMessagesByCycle(cycleId)` returns aggregated phase messages.
+5. Renderer parses `agent_messages.tool_calls_json` as `PhaseTraceV1` when present.
+6. `events.getApiCallLog({ sessionId, cycleId, tradeId })` fills the External Calls tab.
 
 ### Phase input compaction
 
@@ -846,12 +1058,14 @@ electron/shared/ai/
   pipeline-phase.ts
   pipeline-config.ts
   pipeline-mapping.ts
+  pipeline-observability.ts              # PhaseTraceV1, frontier/worker trace types
 
 electron/main/services/ai/pipeline-runtime/
   pipeline-runtime.ts
   pipeline-registry.ts
     phase-config-resolver.ts
     worker-executor.ts
+    worker-graph-scheduler.ts
     prompt-envelope-builder.ts
     tool-factory-registry.ts
     trace-assembler.ts
@@ -912,9 +1126,13 @@ Deliverables:
 - Define stable `EngineId` identifiers for current reusable code paths that workers may bind to.
 - Define prompt-boundary rules and a prompt-envelope contract for static system prompt plus structured user payload.
 - Define `RuntimeDefaultsConfig -> PhaseDefaultsConfig -> WorkerOverridesConfig` inheritance for caps, retries, tools, engines, and output enforcement.
+- Define graph-aware worker scheduling in the contract: `dependsOn`, degraded dependency behavior, startup DAG validation, and phase-level concurrency semantics.
 - Catalog every current hidden control point that must move into config: `ROLE_HARNESS_CAPS`, step backoff constants, selector budgets, and prompt-layer runtime instructions.
 - Define replacement phase/pipeline config storage and schema. Do not build a compatibility adapter over `session_ai_roles` / `session_ai_role_profile`.
 - Replace old role-keyed tables with `session_ai_phases` and decide whether `session_ai_phase_workers` ships in Phase 1 or remains code-first initially.
+- Formalize the split between runtime config and business config: `SessionAiPhasesRepo` owns provider/model/prompt/caps, while `SessionStrategyContextService` remains the canonical reader for research/rules/risk/timeframe config.
+- Define the Phase 1 engine inventory explicitly, including which existing deterministic services are wrapped first and which remain direct consumers until later phases.
+- Define the `EngineRunContext` shape so engines receive trusted config from `session_risk_config`, `session_trade_rules`, `session_timeframe_config`, `workspace_preferences`, and broker-assignment/routing state instead of prompt text.
 - Define the deletion inventory for old AI-role runtime surfaces, old shared types, old repos, old preload/API contracts, and old renderer strategy state.
 
 Dependencies: none.
@@ -933,10 +1151,16 @@ Deliverables:
 
 - Implement `PipelineRuntime.run({ sessionId, phase, input, cycleId })`.
 - Implement `WorkerExecutor` on top of `ProviderAdapter.runAgent` and `withProviderRetry`.
+- Implement a graph-aware scheduler that executes dependency-free workers in parallel and unlocks dependent workers frontier by frontier.
 - Delete `AgentPromptPackBuilder` entirely and replace it with `PromptEnvelopeBuilder` so tool docs and orchestration rules stop being rendered into prompts.
 - Break `buildHarnessToolSet` into a `ToolFactoryRegistry` plus config-driven tool resolution.
 - Introduce `EngineRegistry` so workers and finalizers can bind reusable code components by `EngineId`.
 - Introduce engine kinds (`context`, `policy`, `validator`, `transformer`, `execution`, `lifecycle`) and require each binding to declare one.
+- Register adapter-backed engines for the deterministic services that already exist: `RiskEngine`, `CandidateValidationService`, `OrderPolicyGate`, `BrokerAllocationGate`, and `ExitPolicyEvaluator`.
+- Refactor `AppServices` bootstrapping so the engine registry is assembled once and injected into pipeline runtime/orchestrator consumers rather than recreated ad hoc.
+- Thread `SessionStrategyContextService`, workspace preferences, broker-assignment data, and broker-routing data into `EngineRunContext` through typed runtime services instead of prompt-only context.
+- Define and persist `PhaseTraceV1` in `agent_messages.tool_calls_json` while keeping canonical phase output in `agent_messages.output_json`.
+- Extend `strategy.get(sessionId)` to return phase runtime config summary from `session_ai_phases` and grouped worker overrides from `session_ai_phase_workers`.
 - Implement `TraceAssembler` to emit persisted aggregate runs/messages.
 - Support strict structured output modes across all phases: schema-bound object output and terminal-tool output.
 
@@ -958,6 +1182,8 @@ Deliverables:
 - Convert technical, fundamental, and review to structured typed outputs immediately.
 - Convert decision to a single-worker `object` definition using `tradeDecisionSchema`.
 - Bind current deterministic logic through engine IDs where applicable instead of implicit role ownership.
+- Move current prompt-context reads away from broad prose injection and toward explicit `phaseInputs` / `engineResults` fields while preserving `SessionStrategyContextService` as the trusted DB-backed source.
+- Ensure orchestrator/runtime call sites stop reaching directly into risk/rules/timeframe state except through defined runtime or engine boundaries.
 - Move existing hidden limits into config resolution: role caps, selector step budgets, and step retry policy.
 - Update `AgentOrchestrator.runAiPipeline` to call `pipelineRuntime.run()` for every phase.
 - Delete `runAnalyst`, `runReviewer`, `runDecisionMaker`, and `runInstrumentSelector`.
@@ -979,7 +1205,10 @@ Deliverables:
 
 - Replay current selector fixtures, including `docs/hello.json`, through the new runtime.
 - Add runtime tests for config validation, tool resolution, engine binding, and output finalization.
+- Add scheduler tests for DAG validation, cycle rejection, dependency frontier execution, and degraded dependency behavior.
 - Remove or shrink `ROLE_TOOL_POLICY` and `ROLE_HARNESS_CAPS` into config-backed runtime defaults.
+- Add tests proving engines read the correct DB-backed config sources: `session_ai_phases` for runtime execution config and `SessionStrategyContextService`/`workspace_preferences` for business config.
+- Add app-service/bootstrap tests confirming engine registration includes the existing deterministic services and that runtime consumers resolve them through one registry path.
 - Add prompt lint tests that reject tool catalogs, availability blocks, retry instructions, and orchestration prose in worker system prompts.
 - Add config-location tests so execution limits are resolvable from worker/phase/global config and not duplicated in service constants.
 - Update engineering docs to describe the new core runtime entrypoint and config model.
@@ -1016,8 +1245,11 @@ Rollback plan: revert the branch if hidden role-keyed dependencies are too broad
 | ------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------ | --------------------------------------- |
 | Remove role-specific runtime methods  | Count of canonical public runtime methods per phase                                             | 4 role-specific methods plus `runRole` helpers                                 | 1 generic phase runner                           | Grep and code review                    |
 | Config-driven worker addition         | Files touched to add a worker using existing tools, engines, and existing phase output contract | Runtime + tool policy + orchestrator + prompt + tests                          | 1 config entry + optional 1 prompt file          | Trial change in a dev branch            |
+| Dependency-aware scheduling           | Ability to express worker ordering without code edits                                           | Ad hoc sequencing in code or prompt prose                                      | `dependsOn` config + runtime DAG validation      | Runtime tests + example phase config    |
 | Generic orchestration                 | Count of phase-specific branches in orchestrator runtime calls                                  | 5 hardcoded calls                                                              | 0 hardcoded runtime-method calls                 | `agent-orchestrator.ts` review          |
 | Tool and engine hookup centralization | Number of role-based tool/engine policy maps used by runtime                                    | `ROLE_TOOL_POLICY` plus availability branching and implicit role-owned engines | 0 canonical role maps in runtime execution path  | Grep                                    |
+| Worker/phase observability            | Ability to inspect worker graph execution in DevPanel and persisted traces                      | Aggregate-only or prose-only debugging                                         | Structured phase trace + worker/frontier events  | DevPanel contract test + manual review  |
+| Engine substrate completeness         | Existing deterministic services registered behind stable `EngineId`s                             | Ad hoc direct service calls and only a stub `engine-registry.ts`               | Canonical registry path for current engine set   | App-service bootstrap test + grep       |
 | Hard DB cutover                       | Old role-keyed AI config tables still required by the app                                       | `session_ai_roles` + `session_ai_role_profile`                                 | 0; app boots from `session_ai_phases` shape only | Schema review + `db:reset` smoke test   |
 | Legacy surface deletion               | Count of deletion-inventory files/surfaces still required by the main path                      | Many                                                                           | 0 legacy runtime/config surfaces in main path    | Grep and runtime smoke test             |
 | Parity of persistence                 | Existing logs still render after migration                                                      | Current behavior                                                               | No regression                                    | Manual UI smoke test + integration test |
@@ -1074,5 +1306,3 @@ These are now fixed requirements for implementation:
 | Single `runPhase()` with large internal switch statements               | It hides duplication behind one method name but does not make the runtime meaningfully configurable                                     |
 | Big-bang rewrite straight to final multi-worker behavior for all phases | Too much blast radius for Phase 1; it mixes substrate work with behavior change                                                         |
 | Adopting a framework such as LangGraph as the core runtime              | Exva already has a working AI SDK/provider stack; a framework adds abstraction cost without solving the local coupling problem directly |
-
-

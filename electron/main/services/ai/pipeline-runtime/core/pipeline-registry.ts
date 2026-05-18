@@ -59,6 +59,41 @@ function validatePipelineDefinition(phase: PipelinePhase, definition: PipelineDe
       }
     }
   }
+
+  const adjacency = new Map<string, readonly string[]>();
+  for (const worker of definition.workers) {
+    const deps = worker.dependsOn ?? [];
+    for (const dep of deps) {
+      if (!workerIds.has(dep)) {
+        throw new AppError(
+          `Worker '${worker.id}' in phase '${phase}' depends on unknown worker '${dep}'.`,
+          "VALIDATION_FAILED",
+        );
+      }
+      if (dep === worker.id) {
+        throw new AppError(
+          `Worker '${worker.id}' in phase '${phase}' cannot depend on itself.`,
+          "VALIDATION_FAILED",
+        );
+      }
+    }
+    adjacency.set(worker.id, deps);
+  }
+
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const dfs = (node: string): void => {
+    if (visited.has(node)) return;
+    if (visiting.has(node)) {
+      throw new AppError(`Pipeline definition '${phase}' contains a dependency cycle at worker '${node}'.`, "VALIDATION_FAILED");
+    }
+    visiting.add(node);
+    for (const dep of adjacency.get(node) ?? []) dfs(dep);
+    visiting.delete(node);
+    visited.add(node);
+  };
+
+  for (const workerId of workerIds) dfs(workerId);
 }
 
 for (const phase of Object.keys(REGISTRY) as PipelinePhase[]) {

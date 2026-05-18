@@ -1474,23 +1474,20 @@ export class AgentOrchestrator {
       activeCycleId,
     );
 
-    const selectorValidation = this.validateSelectorOutput(session, result.message.tool_calls_json, result.output.instruments, activeCycleId);
     const sessionInstrumentClasses = this.getEffectiveInstrumentClasses(session);
-
-    const filtered = selectorValidation.instruments.filter((row: ResolvedInstrument) =>
-      sessionInstrumentClasses.includes(row.instrumentClass),
-    );
-    if (filtered.length === 0) return [];
+    const filtered = result.output.instruments
+      .filter((row) => sessionInstrumentClasses.includes(row.instrumentClass))
+      .map((row) => ({
+        symbol: row.symbol,
+        instrumentClass: row.instrumentClass,
+        instrumentDisplayName: row.instrumentDisplayName,
+        predictionOutcome: row.predictionOutcome ?? null,
+        instrumentMetadataJson: row.instrumentMetadataJson ?? null,
+        selectorResearchBrief: row.rationale?.trim() ? row.rationale : null,
+      } satisfies ResolvedInstrument));
 
     const limited = filtered.slice(0, config.max_concurrent_trades);
-    const payload: ResolvedInstrument[] = limited.map((row: ResolvedInstrument) => ({
-      symbol: row.symbol,
-      instrumentClass: row.instrumentClass,
-      instrumentDisplayName: row.instrumentDisplayName,
-      predictionOutcome: row.predictionOutcome ?? null,
-      instrumentMetadataJson: row.instrumentMetadataJson ?? null,
-      selectorResearchBrief: row.selectorResearchBrief ?? null,
-    }));
+    const payload: ResolvedInstrument[] = limited.map((row: ResolvedInstrument) => ({ ...row }));
 
     this.deps.agentRunsRepo.insert({
       ...result.run,
@@ -1503,6 +1500,10 @@ export class AgentOrchestrator {
       trade_id: null,
     });
 
+    if (payload.length === 0) {
+      return [];
+    }
+
     const cacheTtlMs = instrumentCacheTtlMs(this.deps.strategyContextService.get(this.sessionId).timeframe.holdingStyle);
     this.deps.instrumentCacheRepo.save({
       sessionId: session.id,
@@ -1511,7 +1512,7 @@ export class AgentOrchestrator {
       selectedAt: new Date().toISOString(),
       selectorAgentRunId: result.run.id,
       cycleId: activeCycleId,
-      researchBriefsJson: JSON.stringify(selectorValidation.researchBriefsBySymbol),
+      researchBriefsJson: JSON.stringify(Object.fromEntries(payload.map((row) => [row.symbol, row.selectorResearchBrief ?? ""]))),
       researchGeneratedAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + cacheTtlMs).toISOString(),
     });

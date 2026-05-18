@@ -7,7 +7,7 @@
 
 ## 1. Summary
 
-The current `Developer` page is a useful shell, but it is not trustworthy enough for real debugging. It hardcodes values that should be live, such as the top-level model and session ID, only shows per-agent model information after a trade-linked event is clicked, and does not explain the actual action sequence that the runtime is taking. This feature turns the developer menu into a first-class observability console for the focused session, with live runtime identity, per-role model/provider resolution, richer event/action detail, copyable traces, API/search call visibility, and explicit correlations between session, cycle, trade, event, run, and message records.
+The current `Developer` page is a useful shell, but it is not trustworthy enough for real debugging. It hardcodes values that should be live, such as the top-level model and session ID, only shows per-agent model information after a trade-linked event is clicked, and does not explain the actual action sequence that the runtime is taking. This feature turns the developer menu into a first-class observability console for the focused session, with live runtime identity, per-phase and per-worker model/provider resolution, richer event/action detail, copyable traces, API/search call visibility, explicit correlations between session, cycle, trade, event, run, and message records, and direct inspection of worker-level pipeline execution.
 
 The goal is that when a trade cycle fails, stalls, or behaves unexpectedly, the user can answer four questions from one screen without opening SQLite manually: what session is running, what the runtime is doing now, which agent/model/provider combination was used, and what exact inputs/outputs/errors occurred at each step.
 
@@ -37,15 +37,16 @@ Secondary user stories:
 
 - Replace hardcoded system diagnostics in `DevPanel` with live focused-session diagnostics.
 - Show the focused session identity, status, uptime, execution mode, broker routing summary, and runtime health.
-- Show the configured provider and model for every AI role in the focused session, including `instrument_selector`.
+- Show the configured provider and model for every phase in the focused session, plus any worker-level overrides in that phase.
 - Show the actual provider/model recorded on every agent run and message trace.
 - Add an action-oriented event detail view that explains what the runtime was doing, not only the raw event message string.
 - Add cycle correlation so events, agent runs, agent messages, selector output, and API/search calls can be grouped into one execution chain.
+- Show worker-level execution inside a phase: worker IDs, dependency edges, frontier order, blocked/skipped states, and per-worker outcomes.
 - Add copy actions for event detail, run summary, message trace JSON, tool calls JSON, output JSON, and API call rows.
 - Add visibility into external call activity from `api_call_log`, including provider, endpoint, latency, cost, cache hit, and status.
 - Add dedicated empty, loading, and error states for every developer panel subsection.
 - Preserve local-only behavior; all observability data remains in SQLite/Electron.
-- Support debugging both trade-linked runs and session-level runs that are not tied to a trade, especially `instrument_selector`.
+- Support debugging both trade-linked runs and session-level runs that are not tied to a trade, especially the selector phase.
 
 **Out of scope:**
 
@@ -82,12 +83,12 @@ Developer Page
 │   │   ├── Workspace mode
 │   │   ├── Uptime
 │   │   └── Current cycle state
-│   ├── AI Role Matrix Card
-│   │   ├── instrument_selector -> provider + model + prompt source
-│   │   ├── analyst_technical -> provider + model + prompt source
-│   │   ├── analyst_fundamental -> provider + model + prompt source
-│   │   ├── reviewer -> provider + model + prompt source
-│   │   └── decision_maker -> provider + model + prompt source
+│   ├── Phase Runtime Matrix Card
+│   │   ├── selector -> provider + model + prompt source + worker count
+│   │   ├── technical -> provider + model + prompt source + worker count
+│   │   ├── fundamental -> provider + model + prompt source + worker count
+│   │   ├── review -> provider + model + prompt source + worker count
+│   │   └── decision -> provider + model + prompt source + worker count
 │   ├── Execution Card
 │   │   ├── Execution mode
 │   │   ├── Default broker routing
@@ -111,6 +112,7 @@ Developer Page
 │   └── Right: Inspector Panel
 │       ├── Event Detail tab
 │       ├── Agent Runs tab
+│       ├── Phase Graph tab
 │       ├── Message Trace tab
 │       ├── External Calls tab
 │       └── Raw JSON tab
@@ -133,7 +135,7 @@ Layout rules:
 |---------|------|-----------------|-------|-------------------|
 | Search input | Text input | Placeholder: "Search events, errors, trade IDs, cycle IDs…" | Empty by default | Filters event timeline client-side after current dataset load |
 | Level filter | Segmented control | `DEBUG`, `INFO`, `WARN`, `ERROR` | `DEBUG` default | Filters event timeline |
-| Role filter | Chip group | `all`, `selector`, `an/technical`, `an/fundamental`, `reviewer`, `decision`, `system`, `orchestrator` | `all` default | Filters event timeline |
+| Role filter | Chip group | `all`, `selector`, `technical`, `fundamental`, `review`, `decision`, `system`, `orchestrator` | `all` default | Filters event timeline |
 | Scope filter | Dropdown | `All activity`, `Focused session`, `Current cycle`, `Selected trade`, `Selector only` | `Focused session` default when a session is focused | Changes query scope |
 | Event row | Selectable row | Time, level, role, action label, trade/cycle badges, message preview | Highlighted when selected | Opens inspector for that row |
 | Copy snapshot | Button | "Copy diagnostics snapshot" | Enabled when diagnostics loaded | Copies top-card summary as JSON + readable text |
@@ -198,9 +200,9 @@ Event Detail
 
 Layout rules:
 
-- If the event includes structured detail JSON, render formatted key/value rows before raw JSON.
-- If the event has no structured detail payload, the `What happened` text is derived from known `action_type` semantics.
-- Error events always surface the error category, failing role or component, and fallback/retry outcome if known.
+- If the selected cycle has linked `PhaseTraceV1` payloads, surface formatted key/value rows from the linked phase trace before raw JSON.
+- If there is no structured phase trace for the selected event, the `What happened` text is derived from `events.message`, linked runs, and linked messages.
+- Error events always surface the error category, failing phase or component, and fallback/retry outcome if known.
 
 ### 4.3 Agent Runs Tab
 
@@ -230,8 +232,43 @@ Agent Runs
 Layout rules:
 
 - Runs are ordered by `created_at` ascending.
-- Session-level selector runs with `trade_id = null` must still appear when correlated by `cycle_id` or `selectorAgentRunId`.
+- Session-level selector runs with `trade_id = null` must still appear when correlated by `cycle_id`.
 - The model shown on each card comes from `agent_runs.model`; it must not be inferred from top-card role config.
+
+### 4.3B Phase Graph Tab
+
+**When it appears:** A selected event, cycle, or run has structured phase trace data.
+
+**Layout:**
+
+```text
+Phase Graph
+├── Summary bar
+│   ├── Phase name
+│   ├── Scheduling mode
+│   ├── Frontier count
+│   ├── Worker count
+│   └── Aggregate status
+├── Frontier list
+│   ├── Frontier 0 -> worker chips
+│   ├── Frontier 1 -> worker chips
+│   └── Frontier N -> worker chips
+└── Worker cards
+    ├── Worker ID
+    ├── Depends on
+    ├── Outcome: succeeded | failed | skipped | blocked | degraded
+    ├── Provider/model if overridden
+    ├── Tool count / external call count
+    ├── Duration / cost
+    └── Copy worker trace button
+```
+
+Layout rules:
+
+- The tab reads from structured phase trace payloads persisted by the pipeline runtime; it does not reconstruct the graph heuristically from free text.
+- Workers that were blocked on dependencies must show the dependency IDs and the reason they did not run yet or were skipped.
+- If the phase used flat scheduling, the tab still renders one frontier with all workers.
+- The tab must degrade gracefully when older traces lack graph metadata; show an explicit "graph metadata unavailable" state instead of guessing.
 
 ### 4.4 Message Trace Tab
 
@@ -301,9 +338,9 @@ Layout rules:
 ```mermaid
 flowchart TD
     A[Open Developer] --> B[Load focused session diagnostics]
-    B --> C[Load AI role matrix]
+    B --> C[Load phase runtime matrix]
     C --> D{Values loaded?}
-    D -- Yes --> E[User compares role provider/model values]
+    D -- Yes --> E[User compares phase provider/model values]
     D -- No --> F[Show diagnostics error state]
     E --> G[User copies diagnostics snapshot or continues debugging]
 ```
@@ -312,7 +349,7 @@ Happy path:
 
 1. User opens `Developer`.
 2. The page resolves the focused session and loads live diagnostics.
-3. The AI Role Matrix lists each role with provider, model, and prompt source.
+3. The Phase Runtime Matrix lists each phase with provider, model, prompt source, and worker count.
 4. The user verifies the runtime configuration before inspecting a failure.
 
 If no focused session: show `No session focused. Developer view is showing global activity only.`
@@ -344,7 +381,7 @@ If the event has no linked run: inspector says `No agent run was recorded for th
 
 ### 5.3 Inspect Selector Activity
 
-**Entry point:** User wants to debug `instrument_selector` behavior.
+**Entry point:** User wants to debug selector-phase behavior.
 
 **Exit point:** User sees selector inputs, selected instruments, and any failure reason.
 
@@ -352,8 +389,8 @@ If the event has no linked run: inspector says `No agent run was recorded for th
 flowchart TD
     A[User chooses Selector scope] --> B[Timeline filters to selector-related events]
     B --> C[User selects selector event]
-    C --> D[Inspector loads selector run by cycle or selectorAgentRunId]
-    D --> E[User reviews model, output JSON, and selected instruments]
+    C --> D[Inspector loads selector run and messages by cycle]
+    D --> E[User reviews Phase Graph frontier state, output JSON, and selected instruments]
 ```
 
 ## 6. Data & Field Mapping
@@ -369,10 +406,11 @@ flowchart TD
 | Uptime | `dashboardStats.session_uptime_min` | `number` | Yes when stats loaded | `>= 0` | Existing source |
 | Open trades | `dashboardStats.open_trades` | `number` | Yes | `>= 0` | Existing source |
 | Daily AI/data spend | `dashboardStats.daily_api_spend` | `number` | Yes | `>= 0` | Existing source |
-| Search provider | `strategy.defaultSearchProviderId` or workspace default | `string | null` | No | — | Show `Workspace default` when inherited |
-| Role provider | `session_ai_roles.providerKey` | `string` | Yes per role | Non-empty | Existing Strategy source |
-| Role model | `session_ai_roles.modelId` | `string` | Yes per role | Non-empty when role configured | Replaces current hardcoded top-level model |
-| Prompt source | `session_ai_roles.promptSource` | `enum` | Yes per role | `default|override` | Existing Strategy source |
+| Search provider | `defaultSearchProviderId` or `workspaceDefaultSearchProviderId` from `strategy.get` | `string | null` | No | — | Show `Workspace default` when inherited |
+| Phase provider | `strategy.get.aiPhases[].providerKey` | `string` | Yes per phase | Non-empty when configured | Phase-runtime matrix source |
+| Phase model | `strategy.get.aiPhases[].modelId` | `string` | Yes per phase | Non-empty when configured | Phase-runtime matrix source |
+| Prompt source | `strategy.get.aiPhases[].promptSource` | `enum` | Yes per phase | `default|session_override` | Phase-runtime matrix source |
+| Worker overrides | `strategy.get.aiPhases[].workerOverrides[]` | `array` | No | Worker IDs unique per phase | Used for worker detail |
 
 ### 6.2 Event Timeline Row Mapping
 
@@ -380,12 +418,12 @@ flowchart TD
 |-------------------|---------------------|------|----------|-----------------|-------|
 | Time | `events.created_at` | `timestamp` | Yes | ISO timestamp | Existing |
 | Level | `events.level` | `enum` | Yes | `DEBUG|INFO|WARN|ERROR` | Existing |
-| Source | `events.agent_type` or `events.source_component` | `string` | No | — | `source_component` is new |
-| Action | `events.action_type` | `string` | Yes | Non-empty | New normalized event category |
+| Source | `events.agent_type` | `string` | No | — | Existing field |
+| Action | derived from `events.message` prefix and current stage context | `string` | Yes | Non-empty display label | No new DB column required in v1 |
 | Session badge | `events.session_id` | `string | null` | No | — | Existing |
 | Trade badge | `events.trade_id` | `string | null` | No | — | Existing |
 | Cycle badge | `events.cycle_id` | `string | null` | No | — | New |
-| Instrument badge | `events.instrument_symbol` | `string | null` | No | — | New |
+| Instrument badge | derived from selected trace or event message when available | `string | null` | No | — | Optional in v1 |
 | Message preview | `events.message` | `string` | Yes | Non-empty | Existing |
 
 ### 6.3 Agent Run Card Mapping
@@ -400,151 +438,103 @@ flowchart TD
 | Output tokens | `agent_runs.output_tokens` | `number` | Yes | `>= 0` | Existing |
 | Cost | `agent_runs.cost_usd` | `number` | Yes | `>= 0` | Existing |
 | Duration | `agent_runs.duration_ms` | `number` | Yes | `>= 0` | Existing |
-| Cycle ID | `agent_runs.cycle_id` | `string | null` | No | — | New |
+| Cycle ID | joined from `agent_messages.cycle_id` via `AgentRunsRepo.listByCycle()` | `string | null` | No | — | Existing cycle-based load path |
 | Parse fallback | derived from linked `agent_messages.parse_fallback` | `boolean` | No | — | Display-level derived field |
+
+### 6.4 Phase Graph Mapping
+
+| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
+|-------------------|---------------------|------|----------|-----------------|-------|
+| Phase name | `PhaseTraceV1.phase` | `enum` | Yes | Valid `PipelinePhase` | Parsed from `agent_messages.tool_calls_json` |
+| Scheduling mode | `PhaseTraceV1.schedulingMode` | `enum` | Yes | `flat_parallel|dependency_graph` | Parsed from trace |
+| Frontier count | `PhaseTraceV1.frontiers.length` | `number` | Yes | `>= 1` | Parsed from trace |
+| Worker count | `PhaseTraceV1.workers.length` | `number` | Yes | `>= 1` | Parsed from trace |
+| Worker depends on | `PhaseTraceV1.workers[].dependsOn` | `string[]` | Yes | Worker IDs must exist in same trace | Parsed from trace |
+| Worker outcome | `PhaseTraceV1.workers[].status` | `enum` | Yes | Allowed lifecycle states only | Parsed from trace |
+| Worker cost/duration | `PhaseTraceV1.workers[].costUsd`, `durationMs` | `number | null` | No | `>= 0` when present | Parsed from trace |
+| Frontier worker chips | `PhaseTraceV1.frontiers[].workerIds` | `string[]` | Yes | Worker IDs must exist in same trace | Parsed from trace |
 
 **Schema changes required:**
 
 | Table | Change | Column Name | Type | Default | Nullable |
 |-------|--------|------------|------|---------|----------|
-| `events` | Add column | `cycle_id` | `text` | `null` | Yes |
-| `events` | Add column | `action_type` | `text` | `''` during backfill, non-empty for new writes | No after migration |
-| `events` | Add column | `source_component` | `text` | `null` | Yes |
-| `events` | Add column | `details_json` | `text` | `null` | Yes |
-| `events` | Add column | `related_run_id` | `text` | `null` | Yes |
-| `events` | Add column | `instrument_symbol` | `text` | `null` | Yes |
-| `events` | Add column | `instrument_class` | `text` | `null` | Yes |
-| `agent_runs` | Add column | `cycle_id` | `text` | `null` | Yes |
+| `agent_messages` | Reuse existing column with new contract | `tool_calls_json` | `text` | existing | Yes |
+| `agent_messages` | Reuse existing column with canonical phase output | `output_json` | `text` | existing | Yes |
+| `agent_messages` | Reuse existing column with phase output schema name | `output_schema_name` | `text` | existing | Yes |
+| `session_ai_phases` | Existing table becomes DevPanel-visible through `strategy.get` | n/a | n/a | n/a | n/a |
+| `session_ai_phase_workers` | Existing table becomes DevPanel-visible through `strategy.get` | n/a | n/a | n/a | n/a |
 
 ## 7. API Contract
 
-### GET `developer:get-overview`
+### IPC / bridge contract
 
-**Purpose:** Load live diagnostics for the current Developer page header and cards.
+The minimal implementation should extend existing IPC surfaces instead of creating a parallel `developer:*` namespace.
 
-**When called:** On initial `Developer` page load, on focused session change, and when user clicks retry.
+Required calls:
 
-**Request:**
+| Existing / Extended API | Purpose | Notes |
+|---|---|---|
+| `session.list()` | Resolve focused session + workspace view mode | Already used by `DevPanel` |
+| `strategy.get(sessionId)` | Top diagnostics + phase runtime matrix | Extend response to include `aiPhases` with grouped worker overrides |
+| `events.list({ sessionId, minLevel, agentType, search, limit })` | Event timeline | Existing |
+| `events.getAgentTracesByCycle(cycleId)` | Aggregate phase runs for selected cycle | Existing |
+| `events.getMessagesByCycle(cycleId)` | Aggregate phase messages and `PhaseTraceV1` payloads | Existing |
+| `events.getApiCallLog({ sessionId, cycleId, tradeId })` | External Calls tab | Existing |
 
-```typescript
-{
-  sessionId?: string;
+### `strategy.get(sessionId)` extension
+
+`StrategyGetResponse` should be extended with phase runtime configuration so DevPanel can render the phase matrix without a new endpoint:
+
+```ts
+interface StrategyGetResponse {
+  researchPosture: SessionResearchPosture;
+  rules: SessionTradeRules;
+  riskConfig: SessionRiskConfig;
+  timeframe: SessionTimeframeConfig;
+  selectorSettings: SessionSelectorSettings;
+  providers: ProviderAccount[];
+  sessionStatus: SessionStatus;
+  selectionMode: SelectionMode;
+  defaultSearchProviderId: string | null;
+  workspaceDefaultSearchProviderId: string | null;
+  workspaceDefaultModelProviderKey: string;
+  workspaceDefaultModelModelId: string;
+  aiPhases: PhaseRuntimeSummary[];
 }
-```
 
-**Response:**
-
-```typescript
-{
-  workspaceViewMode: "session" | "global";
-  focusedSession: {
-    id: string;
-    name: string;
-    status: string;
-    executionMode: "paper_only" | "live_allowed";
-    searchProviderId: string | null;
-  } | null;
-  stats: {
-    session_status: string;
-    open_trades: number;
-    daily_api_spend: number;
-    session_uptime_min: number;
-  } | null;
-  aiRoles: Array<{
-    role: string;
-    providerKey: string;
-    modelId: string;
-    promptSource: "default" | "override";
+interface PhaseRuntimeSummary {
+  phase: "selector" | "technical" | "fundamental" | "review" | "decision";
+  providerKey: string;
+  modelId: string;
+  temperature: number;
+  maxTokens: number;
+  promptSource: "default" | "session_override";
+  workerOverrides: Array<{
+    workerId: string;
+    providerKey: string | null;
+    modelId: string | null;
+    maxSteps: number | null;
+    spendLimitUsd: number | null;
+    promptMarkdown: string | null;
   }>;
-  brokerRouting: Array<{
-    instrumentClass: string;
-    brokerAccountId: string;
-  }>;
-  streamHealth: {
-    subscribed: boolean;
-    lastEventAt: string | null;
-    fallbackPollingActive: boolean;
-  };
-  logging: {
-    logFilePath: string | null;
-  };
 }
 ```
 
-### GET `developer:list-events`
+### `events.getMessagesByCycle(cycleId)` contract
 
-**Purpose:** Return timeline events with developer-specific filtering and correlation fields.
+`AgentMessage` stays structurally the same, but for pipeline phases the payload contract becomes:
 
-**When called:** Initial timeline load, filter changes, focused session change.
-
-**Request:**
-
-```typescript
-{
-  sessionId?: string;
-  minLevel?: "DEBUG" | "INFO" | "WARN" | "ERROR";
-  agentType?: string;
-  actionType?: string;
-  cycleId?: string;
-  tradeId?: string;
-  search?: string;
-  limit?: number;
+```ts
+interface AgentMessage {
+  output_json: string | null;        // canonical phase output payload
+  output_schema_name: string | null; // e.g. technicalSignal, reviewSignal
+  tool_calls_json: string | null;    // PhaseTraceV1 JSON when produced by pipeline runtime
 }
 ```
 
-### GET `developer:get-event-detail`
+The DevPanel Phase Graph tab should parse `tool_calls_json` as `PhaseTraceV1` when available.
 
-**Purpose:** Fetch inspector data for one selected event.
-
-**When called:** User selects an event row.
-
-**Response:**
-
-```typescript
-{
-  event: {
-    id: string;
-    sessionId: string | null;
-    tradeId: string | null;
-    cycleId: string | null;
-    level: string;
-    sourceComponent: string | null;
-    agentType: string | null;
-    actionType: string;
-    instrumentSymbol: string | null;
-    instrumentClass: string | null;
-    relatedRunId: string | null;
-    message: string;
-    detailsJson: string | null;
-    createdAt: string;
-  };
-  linkedCounts: {
-    runs: number;
-    messages: number;
-    externalCalls: number;
-  };
-}
-```
-
-### GET `developer:list-runs`
-
-**Purpose:** Fetch agent runs correlated by event, session, trade, or cycle.
-
-**When called:** Inspector `Agent Runs` tab opens.
-
-### GET `developer:list-messages`
-
-**Purpose:** Fetch `agent_messages` correlated by event, run, trade, or cycle.
-
-**When called:** Inspector `Message Trace` tab opens.
-
-### GET `developer:list-external-calls`
-
-**Purpose:** Fetch `api_call_log` rows correlated by event, trade, or cycle.
-
-**When called:** Inspector `External Calls` tab opens.
-
-**Side effects:** None. All developer endpoints are read-only.
+**Side effects:** None. All developer-facing endpoints remain read-only.
 
 ## 8. Permissions & Access Control
 
@@ -558,13 +548,13 @@ If a linked record no longer exists, show the data section with an inline messag
 
 | Scenario | Trigger | What the User Sees | What the System Does |
 |----------|---------|-------------------|---------------------|
-| Hardcoded model mismatch eliminated | Developer page opens | Top cards show live role matrix, not a single hardcoded model string | Fetches strategy context instead of static strings |
-| Selected event has no trade | `trade_id = null` | Inspector still shows session/cycle detail | Uses `cycle_id` and `related_run_id` correlation paths |
-| Selector run exists with no trade | `instrument_selector` run saved with `trade_id = null` | Selector runs appear in `Agent Runs` tab | Queries by `cycle_id` or `selectorAgentRunId` |
+| Hardcoded model mismatch eliminated | Developer page opens | Top cards show live phase matrix, not a single hardcoded model string | Fetches strategy context instead of static strings |
+| Selected event has no trade | `trade_id = null` | Inspector still shows session/cycle detail | Uses `cycle_id` correlation paths |
+| Selector-phase run exists with no trade | Selector phase run saved with `trade_id = null` | Selector runs appear in `Agent Runs` and `Phase Graph` tabs | Queries by `cycle_id` and linked `agent_messages` |
 | Event detail fetch fails | IPC error | Error banner: `Failed to load event detail.` | Keeps selected row and offers retry |
 | Stream subscription stalls | No event seen for 15s while active session is running | Amber stream chip and note about polling fallback | Keeps polling-based data refresh active |
 | External call rows missing | No `api_call_log` rows for selection | `No external calls recorded for this selection.` | No error state |
-| Old rows missing new columns | Pre-migration records | Missing badges render as `—` and structured detail blocks are hidden | Backfill optional; UI must be null-safe |
+| Old rows missing new trace/config payloads | Pre-migration records | Missing badges render as `—` and structured detail blocks are hidden | Backfill optional; UI must be null-safe |
 | Trace payload is very large | JSON field > 2,000 visible chars | Preview with `Show full payload` control | Copy action still uses full raw payload |
 | Focused session changes while Developer page open | User focuses another session elsewhere | Cards and timeline refresh and selection clears | Prevents stale cross-session inspector data |
 
@@ -592,7 +582,7 @@ If a linked record no longer exists, show the data section with an inline messag
 
 | # | Question | Impact if Unresolved | Owner |
 |---|----------|---------------------|-------|
-| 1 | Should `details_json` be authored for every new event write, or only for high-value action categories first? | Affects migration scope and event-writing effort across orchestrator/runtime services | Ken |
-| 2 | Should external call visibility include only `api_call_log`, or should we also surface local log-file excerpts for the same correlation keys? | Changes data model and UI complexity for the `External Calls` tab | Ken |
-| 3 | Do we want a dedicated `developer:*` IPC surface, or should the page compose existing `events`, `strategy`, `session`, and `trades` endpoints plus a small number of new observability endpoints? | Affects implementation shape and how much aggregation happens in main vs renderer | Ken |
+| 1 | Should `PhaseTraceV1.toolTrace.summary` include short prompt/input summaries for each worker, or should it stay tool/output-only in v1? | Affects trace size and DevPanel usefulness | Ken |
+| 2 | Should external call visibility include only `api_call_log`, or should we also surface local log-file excerpts for the same correlation keys? | Changes UI complexity for the `External Calls` tab | Ken |
+| 3 | Do we need a dedicated `events.getPhaseTraceByCycle(cycleId)` convenience endpoint later, or is parsing `agent_messages.tool_calls_json` in the renderer sufficient for v1? | Affects where parsing lives and how much main-process aggregation we add | Ken |
 | 4 | Should copy actions place human-readable text, raw JSON, or both on the clipboard by default? | Affects UX and issue-reporting workflow | Ken |

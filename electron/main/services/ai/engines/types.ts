@@ -1,12 +1,24 @@
 import { z } from "zod";
 import type { PipelinePhase, EngineId, EngineKind } from "@electron/shared/ai/pipeline-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import type { RiskEngine } from "../../risk/risk-engine";
+import type { CandidateValidationService } from "../../orchestration/candidate-validation-service";
+import type { OrderPolicyGate } from "../../orchestration/order-policy-gate";
+import type { BrokerAllocationGate } from "../../risk/broker-allocation-gate";
+import type { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 
 export interface EngineRunContext {
   sessionId: string;
   phase: PipelinePhase;
   cycleId: string | null;
   strategyContext: SessionStrategyContext;
+  services?: {
+    riskEngine?: RiskEngine;
+    candidateValidation?: CandidateValidationService;
+    orderPolicyGate?: OrderPolicyGate;
+    brokerAllocationGate?: BrokerAllocationGate;
+    exitPolicyEvaluator?: ExitPolicyEvaluator;
+  };
 }
 
 export interface EngineDefinition<TInput = unknown, TOutput = unknown> {

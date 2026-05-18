@@ -7,7 +7,7 @@ import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { useSessionStore } from "@/store/sessionStore";
 import type { AgentMessage, AgentRun, EventRow, EventSourceType, LogLevel } from "@/lib/types";
-import type { SessionSummary } from "@/lib/exva";
+import type { PhaseRuntimeSummary, PhaseTraceV1, SessionSummary } from "@/lib/exva";
 
 export interface DevPanelFocus {
   sessionId: string;
@@ -19,12 +19,6 @@ export interface DevPanelFocus {
 
 interface ExtEventRow extends EventRow {
   cycle_id?: string | null;
-  action_type?: string;
-  source_component?: string | null;
-  details_json?: string | null;
-  related_run_id?: string | null;
-  instrument_symbol?: string | null;
-  instrument_class?: string | null;
 }
 
 interface ExtAgentRun extends AgentRun {
@@ -68,7 +62,7 @@ const ROLE_LABELS: Record<string, string> = {
   orchestrator: "orch",
 };
 
-type InspectorTab = "event" | "runs" | "trace" | "calls" | "raw";
+type InspectorTab = "event" | "runs" | "graph" | "trace" | "calls" | "raw";
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
@@ -144,6 +138,23 @@ function normalizeRole(role: string): string {
 function roleLabelShort(role: string): string {
   const normalized = normalizeRole(role);
   return ROLE_LABELS[normalized] ?? normalized;
+}
+
+function summarizeEventAction(ev: ExtEventRow): string {
+  const msg = ev.message.trim();
+  if (msg.startsWith("[stage:")) return "stage";
+  if (msg.startsWith("[worker:")) return "worker";
+  if (msg.startsWith("[execution]")) return "execution";
+  if (msg.toLowerCase().includes("selector")) return "selector";
+  if (msg.toLowerCase().includes("trade cycle")) return "cycle";
+  return normalizeRole(ev.agent_type ?? "system");
+}
+
+function parsePhaseTrace(message: AgentMessage | null | undefined): PhaseTraceV1 | null {
+  const parsed = parseJsonSafe(message?.tool_calls_json) as PhaseTraceV1 | null;
+  if (!parsed || typeof parsed !== "object") return null;
+  if (parsed.version !== 1 || !parsed.phase || !Array.isArray(parsed.workers) || !Array.isArray(parsed.frontiers)) return null;
+  return parsed;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -291,6 +302,27 @@ const RuntimeIdentityCard = ({
         {cycleState}
       </span>
     } />
+  </div>
+);
+
+const PhaseRuntimeMatrixCard = ({ strategy }: { strategy: { aiPhases?: PhaseRuntimeSummary[] } | null }) => (
+  <div style={S.card}>
+    <div style={S.cardTitle}>Phase Runtime Matrix</div>
+    {(strategy?.aiPhases?.length ?? 0) === 0 ? (
+      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>No phase runtime config loaded</div>
+    ) : (
+      (strategy?.aiPhases ?? []).map((phase) => (
+        <div key={phase.phase} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+            <span style={{ ...S.monoLabel, color: ROLE_COLOR[phase.phase] ?? "var(--text2)" }}>{phase.phase}</span>
+            <span style={{ ...S.monoValue, fontSize: 9 }}>{phase.workerOverrides.length} overrides</span>
+          </div>
+          <DataRow label="provider" value={phase.providerKey || "—"} />
+          <DataRow label="model" value={phase.modelId || "—"} />
+          <DataRow label="prompt" value={phase.promptSource} />
+        </div>
+      ))
+    )}
   </div>
 );
 
@@ -480,16 +512,6 @@ const EventTimeline = ({
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 5, paddingRight: 10 }}>
               {ev.agent_type && <AgentLabel type={ev.agent_type} />}
-              {/* new extended fields */}
-              {(ev as ExtEventRow).instrument_symbol && (
-                <span style={{
-                  fontSize: 9, fontFamily: "var(--font-mono)", color: "#fbbf24",
-                  background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)",
-                  borderRadius: 4, padding: "1px 5px",
-                }}>
-                  {(ev as ExtEventRow).instrument_symbol}
-                </span>
-              )}
               {(ev as ExtEventRow).trade_id && (
                 <span style={{
                   fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--text3)",
@@ -508,11 +530,9 @@ const EventTimeline = ({
               )}
             </div>
             <span style={{ fontSize: 11, color: isSelected ? "var(--text1)" : "var(--text2)", lineHeight: 1.45, minWidth: 0 }}>
-              {(ev as ExtEventRow).action_type && (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4da6ff", marginRight: 6, fontWeight: 700 }}>
-                  [{(ev as ExtEventRow).action_type}]
-                </span>
-              )}
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4da6ff", marginRight: 6, fontWeight: 700 }}>
+                [{summarizeEventAction(ev)}]
+              </span>
               {ev.message}
             </span>
           </div>
@@ -545,11 +565,9 @@ const EventDetailTab = ({ ev }: { ev: ExtEventRow }) => {
           {ev.level}
         </span>
         {ev.agent_type && <AgentLabel type={ev.agent_type} />}
-        {ev.action_type && (
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4da6ff", background: "rgba(77,166,255,0.1)", padding: "3px 7px", borderRadius: 4, fontWeight: 700 }}>
-            {ev.action_type}
-          </span>
-        )}
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4da6ff", background: "rgba(77,166,255,0.1)", padding: "3px 7px", borderRadius: 4, fontWeight: 700 }}>
+          {summarizeEventAction(ev)}
+        </span>
         <div style={{ marginLeft: "auto" }}>
           <CopyButton text={copyPayload} label="copy event" />
         </div>
@@ -565,10 +583,7 @@ const EventDetailTab = ({ ev }: { ev: ExtEventRow }) => {
         {ev.session_id && <DataRow label="session" value={ev.session_id} />}
         {ev.trade_id && <DataRow label="trade" value={ev.trade_id} />}
         {ev.cycle_id && <DataRow label="cycle" value={ev.cycle_id} />}
-        {ev.related_run_id && <DataRow label="run" value={ev.related_run_id} />}
-        {ev.instrument_symbol && <DataRow label="symbol" value={ev.instrument_symbol} />}
-        {ev.instrument_class && <DataRow label="class" value={ev.instrument_class} />}
-        {ev.source_component && <DataRow label="source" value={ev.source_component} />}
+        {ev.agent_type && <DataRow label="source" value={ev.agent_type} />}
       </div>
 
       {/* Message */}
@@ -589,16 +604,8 @@ const EventDetailTab = ({ ev }: { ev: ExtEventRow }) => {
               has cycle
             </span>
           )}
-          {ev.related_run_id && (
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", background: "var(--surface3)", borderRadius: 4, padding: "3px 7px" }}>
-              has run
-            </span>
-          )}
         </div>
       )}
-
-      {/* Structured detail */}
-      {ev.details_json && <JsonBlock data={ev.details_json} label="detail payload" />}
     </div>
   );
 };
@@ -790,6 +797,65 @@ const MessageTraceTab = ({ messages, loading }: { messages: AgentMessage[]; load
   );
 };
 
+const PhaseGraphTab = ({ messages, loading }: { messages: AgentMessage[]; loading: boolean }) => {
+  const traces = messages
+    .map((message) => ({ message, trace: parsePhaseTrace(message) }))
+    .filter((entry): entry is { message: AgentMessage; trace: PhaseTraceV1 } => entry.trace != null);
+
+  if (loading) return (
+    <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
+      loading phase graph…
+    </div>
+  );
+
+  if (traces.length === 0) return (
+    <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
+      graph metadata unavailable
+    </div>
+  );
+
+  return (
+    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+      {traces.map(({ message, trace }) => (
+        <div key={message.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ padding: "8px 12px", background: "var(--surface2)", display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ ...S.monoLabel, color: ROLE_COLOR[trace.phase] ?? "var(--text2)" }}>{trace.phase}</span>
+              <span style={{ ...S.monoValue, fontSize: 9 }}>{trace.schedulingMode}</span>
+              <span style={{ ...S.monoValue, fontSize: 9 }}>{trace.frontiers.length} frontiers</span>
+              <span style={{ ...S.monoValue, fontSize: 9 }}>{trace.workers.length} workers</span>
+            </div>
+            <CopyButton text={JSON.stringify(trace, null, 2)} label="copy graph" />
+          </div>
+          <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {trace.frontiers.map((frontier) => (
+                <div key={frontier.frontier} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px", minWidth: 120 }}>
+                  <div style={{ ...S.monoLabel, fontSize: 8 }}>frontier {frontier.frontier}</div>
+                  <div style={{ ...S.monoValue, fontSize: 9 }}>{frontier.workerIds.join(", ")}</div>
+                </div>
+              ))}
+            </div>
+            {trace.workers.map((worker) => (
+              <div key={worker.workerId} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                  <span style={{ ...S.monoLabel, color: ROLE_COLOR[trace.phase] ?? "var(--text2)" }}>{worker.workerId}</span>
+                  <span style={{ ...S.monoValue, fontSize: 9 }}>{worker.status}</span>
+                </div>
+                <DataRow label="depends on" value={worker.dependsOn.length ? worker.dependsOn.join(", ") : "—"} />
+                <DataRow label="model" value={`${worker.providerKey} · ${worker.modelId}`} />
+                <DataRow label="cost/dur" value={`${fmt.usd(worker.costUsd ?? 0, 4)} · ${fmt.duration(worker.durationMs ?? 0)}`} />
+                <DataRow label="tools" value={`${worker.toolCallCount} calls`} />
+                {worker.dependencyFailureReason && <DataRow label="dep fail" value={worker.dependencyFailureReason} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const ExternalCallsTab = ({
   sessionId,
   cycleId,
@@ -892,6 +958,7 @@ const InspectorPanel = ({
   const TAB_CONFIG: Array<{ id: InspectorTab; label: string }> = [
     { id: "event", label: "Event" },
     { id: "runs", label: `Runs${selRuns.length ? ` (${selRuns.length})` : ""}` },
+    { id: "graph", label: "Phase Graph" },
     { id: "trace", label: `Trace${selMessages.length ? ` (${selMessages.length})` : ""}` },
     { id: "calls", label: "External" },
     { id: "raw", label: "Raw" },
@@ -941,6 +1008,7 @@ const InspectorPanel = ({
       <div style={{ flex: 1, overflowY: "auto" }}>
         {tab === "event" && <EventDetailTab ev={sel} />}
         {tab === "runs" && <AgentRunsTab runs={selRuns} loading={runsLoading} />}
+        {tab === "graph" && <PhaseGraphTab messages={selMessages} loading={messagesLoading} />}
         {tab === "trace" && <MessageTraceTab messages={selMessages} loading={messagesLoading} />}
         {tab === "calls" && <ExternalCallsTab sessionId={sel.session_id} cycleId={sel.cycle_id} tradeId={sel.trade_id} />}
         {tab === "raw" && <RawJsonTab ev={sel} />}
@@ -1135,8 +1203,9 @@ export const DevPanel = ({
       </div>
 
       {/* Diagnostics Grid 2×2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, flexShrink: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, flexShrink: 0 }}>
         <RuntimeIdentityCard session={focusedSession} stats={stats} cycleState={cycleState} viewMode={viewMode} />
+        <PhaseRuntimeMatrixCard strategy={strategy} />
         <ExecutionCard session={focusedSession} stats={stats} />
         <StreamCard
           events={events}

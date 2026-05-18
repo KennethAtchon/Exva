@@ -33,6 +33,7 @@ import type {
   WorkspacePreferences,
   WorkspaceViewMode,
 } from "@/lib/types";
+import type { PhaseRuntimeSummary } from "@electron/shared/ai/pipeline-phase";
 
 export type ExvaEventName =
   | "trade_opened"
@@ -109,6 +110,7 @@ export interface StrategyGetResponse {
   workspaceDefaultSearchProviderId: string | null;
   workspaceDefaultModelProviderKey: string;
   workspaceDefaultModelModelId: string;
+  aiPhases: PhaseRuntimeSummary[];
 }
 
 export interface UserGlobalPresetRow {

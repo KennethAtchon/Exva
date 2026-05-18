@@ -45,12 +45,16 @@ import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { AgentOrchestrator } from "./orchestration/agent-orchestrator";
 import { PromptAssetLoader } from "./ai/prompt-asset-loader";
+import { registerDefaultEngines } from "./ai/engines/register-default-engines";
 import { ProviderRegistry } from "./ai/provider-registry";
 import { SearchRegistry } from "./ai/search/search-registry";
 import { SecretsService } from "./infra/secrets-service";
 import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
 import type { OrchestratorDeps, SessionRuntimeManagerDeps } from "./session";
 import { SessionStrategyContextService } from "./session/session-strategy-context-service";
+import { CandidateValidationService } from "./orchestration/candidate-validation-service";
+import { OrderPolicyGate } from "./orchestration/order-policy-gate";
+import { ExitPolicyEvaluator } from "./risk/exit-policy-evaluator";
 import { SessionListingService } from "./session/listing-service";
 import { SessionTemplateService } from "./session/template-service";
 import { SessionWriteService } from "./session/write-service";
@@ -189,6 +193,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const searchRegistry = new SearchRegistry(repos.providerAccounts, secrets);
   const notifications = new NotificationService(eventBus);
   const promptAssetLoader = new PromptAssetLoader();
+  const candidateValidation = new CandidateValidationService();
+  const orderPolicyGate = new OrderPolicyGate();
+  const exitPolicyEvaluator = new ExitPolicyEvaluator();
   const strategyContext = new SessionStrategyContextService({
     sessionRepo: repos.session,
     researchPostureRepo: repos.sessionResearchPosture,
@@ -198,6 +205,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     selectorSettingsRepo: repos.sessionSelectorSettings,
     providerAccountsRepo: repos.providerAccounts,
     workspacePrefsRepo: repos.workspacePreferences,
+    sessionAiPhasesRepo: repos.sessionAiPhases,
   });
   const ai = new AiRuntime(
     providerRegistry,
@@ -211,6 +219,13 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerRegistry,
     strategyContext,
   );
+  registerDefaultEngines({
+    riskEngine: risk,
+    candidateValidation,
+    orderPolicyGate,
+    brokerAllocationGate,
+    exitPolicyEvaluator,
+  });
   balanceTicker.start();
 
   // reason: forward reference — createTradeMonitor closure reads runtimeManager before it's assigned below

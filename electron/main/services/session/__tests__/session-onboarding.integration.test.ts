@@ -182,6 +182,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     selectorSettingsRepo: sessionSelectorSettings,
     providerAccountsRepo: providerAccounts,
     workspacePrefsRepo: workspacePreferences,
+    sessionAiPhasesRepo,
   });
 
   const brokerRegistry = {

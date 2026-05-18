@@ -34,6 +34,9 @@ export interface WorkerDefinition<TInput = unknown, TPhaseOutput = unknown> {
   outputMode: "text" | "object" | "tool_terminal";
   outputSchema?: z.ZodType<Partial<TPhaseOutput>>;
   inputBuilder?: WorkerInputBuilderId;
+  dependsOn?: readonly string[];
+  requiredForPhase?: boolean;
+  onDependencyFailure?: "skip" | "run_with_partial_inputs" | "fail_phase";
   caps?: {
     maxSteps?: number;
     spendLimitUsd?: number;
@@ -47,6 +50,10 @@ export interface PipelineDefinition<TInput = unknown, TOutput = unknown> {
   outputMode: "text" | "object" | "tool_terminal";
   outputSchema?: z.ZodType<TOutput>;
   workers: readonly WorkerDefinition<TInput, TOutput>[];
+  scheduling?: {
+    mode: "flat_parallel" | "dependency_graph";
+    maxConcurrency: number;
+  };
   engines?: readonly EngineBinding[];
   aggregate?: AggregateStrategy<TOutput> | PipelineFinalizerId;
   persistence: {
@@ -148,4 +155,14 @@ export interface SessionAiPhaseWorker {
   spendLimitUsd?: number | null;
   promptMarkdown?: string | null;
   updatedAt: string;
+}
+
+export interface PhaseRuntimeSummary {
+  phase: PipelinePhase;
+  providerKey: string;
+  modelId: string;
+  temperature: number;
+  maxTokens: number;
+  promptSource: "default" | "session_override";
+  workerOverrides: SessionAiPhaseWorker[];
 }

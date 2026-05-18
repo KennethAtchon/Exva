@@ -55,3 +55,5 @@ This is my vision.
 ------
 
 
+We need to connect our global preset/strategy presets to the actual AI models so we can influence their behavior per preset while keeping all the logic stuff to code. 
+What I mean by this is for like web-scout or other models, we need to instrument them on WHAT to look for and also HOW to look for it (we already have configs for this im just making sure we hook it up)

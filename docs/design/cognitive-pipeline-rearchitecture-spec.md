@@ -65,12 +65,13 @@ Continued prompt patching. Each patch reduces hallucination frequency marginally
 | 3   | Terminal submission structurally enforced | `SelectorPipeline.run` always returns `InstrumentSelection`. Code path verified by unit test. The 2026-05-17 failure mode is impossible.                                                                          |
 | 4   | AI never computes execution math          | `sizeUsd`, `stopLossPct`, `takeProfitPct` are removed from `TradeDecision`'s AI-authored fields. `ExecutionProfileEngine.compute()` produces them deterministically from `TradeSignal + riskConfig + marketData`. |
 | 5   | Config-driven workers inside each phase   | Adding a worker to any phase = appending one `WorkerConfig` entry. No new runtime function or new top-level UI information architecture.                                                                          |
-| 6   | Parallel execution within each phase      | Workers within a phase run via `Promise.all` bounded by `maxConcurrency`.                                                                                                                                         |
+| 6   | Dependency-aware parallel execution       | Independent workers within a phase run in parallel; dependent workers are scheduled by a DAG/topological frontier model bounded by `maxConcurrency`.                                                               |
 | 7   | Deterministic scoring                     | Same typed inputs + same weights → identical output across runs. Unit-tested.                                                                                                                                     |
 | 8   | Pluggable MCP search                      | Web Scout configurable to Exa/Parallel MCP endpoint. Local DuckDuckGo remains the free default.                                                                                                                   |
 | 9   | Sandbox compatibility                     | All pipelines run against mock fixtures without per-worker conditional logic.                                                                                                                                     |
 | 10  | Backwards-compatible orchestrator surface | `AgentOrchestrator.resolveInstruments`, `runAiPipeline`, `resolvePositionSizeUsd` keep returning the same shapes. Only implementations behind them change.                                                        |
 | 11  | Phase-first runtime and UX model          | Frontend/editor surfaces describe `selector`, `technical`, `fundamental`, `review`, `decision` phases. Individual agent identities are implementation details within a phase.                                     |
+| 12  | Worker and pipeline observability         | Runtime persists structured phase traces with worker/frontier state, and the Developer UI can inspect both aggregate phase output and per-worker execution.                                                          |
 
 
 ---
@@ -161,7 +162,9 @@ Continued prompt patching. Each patch reduces hallucination frequency marginally
 **Shared infrastructure:**
 
 - `PipelineConfig`, `PhaseConfig`, `WorkerConfig`, `ScoringWeights`, `RiskRuleSet` types
+- Worker dependency-graph metadata in phase config (`dependsOn`, scheduling mode, concurrency)
 - Phase-first configuration/view model that treats named agents as implementation details inside a phase
+- Structured phase-trace schema for worker/frontier execution and aggregate output
 - Prompt asset directories per stage
 - Lint rules enforcing prompt constraints
 - Replay harness (Phase 0 prerequisite)
@@ -270,6 +273,7 @@ Existing session detail / logs continue to work because:
 - `agent_messages` rows still get inserted with structured trace per phase.
 - `session_execution_steps` phases (`selector`, `technical`, `fundamental`, `review`, `decision`) still progress through `running → succeeded / failed`.
 - `events` log gets `INFO` lines per phase boundary: `[stage:selector/discovery] starting N workers`, `[stage:technical] 3 workers`, `[decision] executionStrategy=trend_momentum confidence=0.82`.
+- Developer surfaces, especially `DevPanel`, can inspect both phase-level summaries and worker/frontier-level execution state for the selected cycle.
 
 ---
 
@@ -350,11 +354,13 @@ No new user-visible fields required. Existing log views benefit from structured 
 | Rule                                                                                        | Enforcement                                                                                                                             |
 | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Phases execute in order: Selector → Technical → Fundamental → Review → Decision → Execution | `AgentOrchestrator.runAiPipeline` is a serial `await` chain.                                                                            |
-| Workers within a phase run in parallel (bounded by `maxConcurrency`)                        | `p-queue` with configurable concurrency per phase.                                                                                      |
+| Workers within a phase run in parallel when independent (bounded by `maxConcurrency`)       | Frontier scheduler + `p-queue` concurrency caps.                                                                                        |
+| Worker dependencies are encoded in config, not prompt prose                                 | `WorkerConfig.dependsOn` + startup DAG validation + dependency-aware scheduler.                                                        |
 | Phase output is Zod-validated before passing to the next phase                              | Each pipeline's `SignalAggregator` parses with `schema.parse()`. Invalid worker output is zeroed, not propagated as prose.              |
 | AI never produces `sizeUsd`, `stopLossPct`, or `takeProfitPct`                              | `TradeSignal` Zod schema has no such fields. `ExecutionProfileEngine` is the only source of those values.                               |
 | Each phase can degrade gracefully                                                           | Workers can fail; phase returns a typed signal with null/zero for failed dimensions. Downstream phases receive typed nulls, not errors. |
 | Submission always fires                                                                     | `SubmissionBuilder.build()` and `ExecutionProfileEngine.compute()` cannot throw. Both always produce valid output.                      |
+| Observability is emitted at both phase and worker level                                     | Runtime writes structured phase traces to `agent_messages` and concise lifecycle events to `events`; DevPanel consumes both.            |
 
 
 ### Worker rules
@@ -398,12 +404,15 @@ Internal log labels (via `AgentOrchestrator.emitEvent` → `events` table):
 | --------------------------------------------------------------------- | ---------------------------------------- |
 | `[stage:selector/discovery] starting {N} workers`                     | Before discovery `WorkerGroupRunner.run` |
 | `[stage:selector/verification] {N} candidates × {M} workers`          | Before verification group                |
+| `[stage:{phase}/frontier:{k}] workers={ids}`                          | Before a dependency-graph frontier runs  |
 | `[stage:technical] starting {N} workers for {symbol}`                 | Before TechnicalPipeline workers         |
 | `[stage:fundamental] starting {N} workers for {symbol}`               | Before FundamentalPipeline workers       |
 | `[stage:review] conflict={score} recommendation={rec}`                | After ReviewAggregator                   |
 | `[stage:decision] action={action} strategy={strategy} confidence={c}` | After TradeSignalAggregator              |
 | `[execution] sizeUsd={x} stopLoss={y} takeProfit={z} orderType={t}`   | After ExecutionProfileEngine             |
 | `[worker:{id}] failed: {reason}`                                      | Per-worker catch block                   |
+| `[worker:{id}] blocked by {deps}`                                     | Dependency frontier not yet satisfied    |
+| `[worker:{id}] skipped: dependency failure {reason}`                  | `onDependencyFailure` policy triggered   |
 | `[pipeline] aborting further workers: spend ${X} exceeded cap ${Y}`   | Cost cap exceeded                        |
 
 
@@ -1054,6 +1063,76 @@ Parallel design worst case: 5 instruments × 3 workers × 4 stages = 60 worker c
 
 Each config is a TypeScript constant in its respective `*-defaults.ts` file. The pipeline selects config via `SessionContext.discoveryMode` switch in each pipeline constructor — mirroring what `resolvePromptForRole` (runtime-prompt.ts:15-18) does today.
 
+### 16.18 Structured phase trace contract
+
+The minimal implementation reuses existing persistence surfaces instead of adding a worker-run table in v1.
+
+- `agent_runs`
+  - one aggregate run row per phase execution
+  - source of total cost, duration, token counts, finish reason, and aggregate human-readable output text
+- `agent_messages.output_json`
+  - canonical phase output payload (`InstrumentSelection`, `TechnicalSignal`, `FundamentalSignal`, `ReviewSignal`, `TradeSignal`)
+- `agent_messages.output_schema_name`
+  - schema name for the canonical phase output payload
+- `agent_messages.tool_calls_json`
+  - structured `PhaseTraceV1` payload for the full phase execution
+
+```ts
+export interface PhaseTraceV1 {
+  version: 1;
+  sessionId: string;
+  cycleId: string | null;
+  tradeId: string | null;
+  phase: PipelinePhase;
+  schedulingMode: "flat_parallel" | "dependency_graph";
+  maxConcurrency: number;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  totalCostUsd: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  aggregateStatus: "succeeded" | "failed" | "degraded";
+  aggregateOutputSchemaName: string | null;
+  aggregateOutputSummary: Record<string, unknown> | null;
+  frontiers: PhaseTraceFrontierV1[];
+  workers: PhaseTraceWorkerV1[];
+}
+```
+
+`PhaseTraceV1` is the source of truth for developer inspection of worker/frontier execution. The canonical phase output remains `output_json`, not a field inside the trace wrapper.
+
+### 16.19 DevPanel / IPC contract
+
+Prefer extending existing IPC surfaces instead of creating a parallel `developer:*` API family.
+
+Required contract:
+
+- extend `strategy.get(sessionId)` to include phase runtime configuration summary from `session_ai_phases` and `session_ai_phase_workers`
+- keep `events.list`, `events.getAgentTracesByCycle`, `events.getMessagesByCycle`, and `events.getApiCallLog` as the primary DevPanel data sources
+- DevPanel Phase Graph tab parses `PhaseTraceV1` from `agent_messages.tool_calls_json`
+
+Minimal phase-runtime config response shape:
+
+```ts
+interface PhaseRuntimeSummary {
+  phase: PipelinePhase;
+  providerKey: string;
+  modelId: string;
+  temperature: number;
+  maxTokens: number;
+  promptSource: "default" | "session_override";
+  workerOverrides: Array<{
+    workerId: string;
+    providerKey: string | null;
+    modelId: string | null;
+    maxSteps: number | null;
+    spendLimitUsd: number | null;
+    promptMarkdown: string | null;
+  }>;
+}
+```
+
 ---
 
 ## 17. Migration Plan
@@ -1071,7 +1150,10 @@ Before deleting any existing code:
 
 ### Phase 1 — Build infrastructure side-by-side (no behavior change)
 
+Companion plan: `docs/plans/cognitive-runtime-phase-1-redesign-plan.md`
+
 - Implement all shared types: `PipelineConfig`, `Candidate`, `TechnicalSignal`, `FundamentalSignal`, `ReviewSignal`, `TradeSignal`.
+- Build the complete engine substrate: `EngineRegistry`, `EngineRunContext`, engine kinds/bindings, app-service registration, and DB-backed config resolution from `session_ai_phases`, `session_ai_phase_workers`, `session_risk_config`, `session_trade_rules`, `session_timeframe_config`, and `workspace_preferences`.
 - Implement `WorkerGroupRunner`, `ScoringEngine`, `RiskFilter`, `SubmissionBuilder` with unit tests.
 - Implement `ExecutionProfileEngine` with unit tests (pure function — deterministic, easy to test).
 - Implement `McpSearchAdapter`.
@@ -1080,12 +1162,17 @@ Before deleting any existing code:
 
 ### Phase 2 — Replace selector runtime
 
+Companion plan: `docs/plans/cognitive-runtime-phase-2-selector-cutover-plan.md`
+
 - Gut `runInstrumentSelector` (runtime.ts:171-284). Delegate to `SelectorPipeline.run` when flag is true.
+- Move selector validation/ranking/filtering into engine-backed pipeline services wired to session strategy/risk/timeframe config and broker/workspace state.
 - Add remaining workers, run replay against all 5 fixtures.
 - Flip flag in dev. Observe for 1 week.
 - Flip flag to default. Legacy path kept for one release.
 
 ### Phase 3 — Selector cleanup
+
+Companion plan: `docs/plans/cognitive-runtime-phase-3-selector-cleanup-plan.md`
 
 - Delete `selector-runtime-control.ts` (385 lines).
 - Delete selector-specific keys from `prompt-instructions.json`.
@@ -1095,27 +1182,39 @@ Before deleting any existing code:
 
 ### Phase 4 — Technical analysis pipeline
 
+Companion plan: `docs/plans/cognitive-runtime-phase-4-technical-pipeline-plan.md`
+
 - Implement `TechnicalPipeline`, `SignalAggregator`, 3 workers.
+- Wire technical context engines so timeframe/rules/risk inputs come from `SessionStrategyContextService`, not broad prompt prose.
 - Wire into `AgentOrchestrator`: replace `ai.runAnalyst(input, "technical")` with `technicalPipeline.run(symbol, sessionCtx)`.
 - `runAnalyst` in `AiRuntime` delegates to `TechnicalPipeline` when `technicalPipelineEnabled`.
 - Flip flag in dev after replay passes.
 
 ### Phase 5 — Fundamental analysis pipeline
 
+Companion plan: `docs/plans/cognitive-runtime-phase-5-fundamental-pipeline-plan.md`
+
 - Implement `FundamentalPipeline`, `SignalAggregator`, 3 workers.
+- Wire research-posture and search-default context from `session_research_posture` and workspace/session provider config into the fundamental workers through typed runtime context.
 - Wire: replace `ai.runAnalyst(input, "fundamental")` with `fundamentalPipeline.run(symbol, sessionCtx)`.
 - Update `ReviewerInput` to accept `TechnicalSignal` + `FundamentalSignal` instead of strings (or keep string adapter during migration — pipe typed signals through `rawSummary` as the string for backward compatibility, remove adapter in Phase 6 cleanup).
 
 ### Phase 6 — Review pipeline
 
+Companion plan: `docs/plans/cognitive-runtime-phase-6-review-pipeline-plan.md`
+
 - Implement `ReviewPipeline`, `ReviewAggregator`, 2 workers.
+- Bind review workers to typed upstream signals plus DB-backed risk/timeframe/rules context through explicit context/transformer engines.
 - Wire: replace `ai.runReviewer(input)` with `reviewPipeline.run(symbol, technical, fundamental, sessionCtx)`.
 - Remove string-adapter if it was added in Phase 5.
 
 ### Phase 7 — Decision pipeline + ExecutionProfileEngine
 
+Companion plan: `docs/plans/cognitive-runtime-phase-7-decision-execution-plan.md`
+
 - Implement `DecisionPipeline`, `TradeSignalAggregator`, 2 workers.
 - Implement `ExecutionProfileEngine` with all strategy profiles.
+- Promote the full deterministic control layer into engines: `risk-gate`, `order-policy`, `broker-allocation`, `execution-profile`, and lifecycle `exit-policy`, all fed by DB-backed session/workspace/broker config.
 - Wire: replace `ai.runDecisionMaker(input)` with `decisionPipeline.run(...)` → `ExecutionProfileEngine.compute(signal, ...)`.
 - Move `resolvePositionSizeUsd` logic from `agent-orchestrator.ts:1575-1603` into `ExecutionProfileEngine`. Delete `resolvePositionSizeUsd`.
 - Remove `sizeUsd`, `stopLossPct`, `takeProfitPct` from `tradeDecisionSchema` (or mark as `@deprecated` with null values — backwards-compatible in DB since they were nullable).
@@ -1123,10 +1222,13 @@ Before deleting any existing code:
 
 ### Phase 8 — Full cleanup
 
+Companion plan: `docs/plans/cognitive-runtime-phase-8-legacy-cleanup-plan.md`
+
 - Delete `AiRuntime.runAnalyst`, `runReviewer`, `runDecisionMaker` (all replaced by pipelines).
 - Delete `selector-runtime-control.ts` (if not done in Phase 3).
 - Remove all legacy string-based inter-stage inputs from `default-ai-role-profiles.ts` for analyst/reviewer/decision roles.
 - Remove `prompt-instructions.json` keys for all replaced roles.
+- Audit and remove remaining direct deterministic-helper ownership that bypasses the final engine system or pulls business config from prose instead of typed DB-backed state.
 - Update `ai-model-configuration-guide.md` to document the pipeline system.
 
 ---
@@ -1210,4 +1312,3 @@ Before deleting any existing code:
 5. **Frontend model clarified as phase-first, not agent-first.** The configuration surface is now explicitly `Phase Profiles`, where `Technical Analysis Phase` and `Review Phase` are stable product concepts and individual workers can be added inside those phases over time.
 6. **Preserved all accurate selector code detail.** `SubmissionBuilder`, `ScoringEngine`, `RiskFilter`, `WorkerGroupRunner`, `McpSearchAdapter` designs are unchanged from the prior spec — they were correct.
 7. **Preserved all prior corrections.** The false claim that `runtime.ts` must be deleted wholesale is still corrected. `submit_candidates` model-call design is still removed. `catalystScore` derivation (`strength × freshness × (1 − contradictionRisk)`) is still code. Cost budgeting at three levels is still enforced.
-

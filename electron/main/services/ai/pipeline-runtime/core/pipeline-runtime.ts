@@ -3,7 +3,10 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import { getPipelineDefinition } from "./pipeline-registry";
+import { buildWorkerSchedule, executeByFrontier } from "./worker-graph-scheduler";
 import { executeWorker, type WorkerExecutorDeps } from "../execution/worker-executor";
+import { assembleAggregateTrace } from "../execution/trace-assembler";
+import { SelectorPipeline } from "../../selector-pipeline/selector-pipeline";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
 import type { ProviderRegistry } from "../../provider-registry";
 import type { PromptAssetLoader } from "../../prompt-asset-loader";
@@ -76,26 +79,65 @@ export class PipelineRuntime {
       strategyContext,
     };
 
-    // Phase 1: single-worker phases — execute first worker
-    const worker = workers[0]!;
+    if (opts.phase === "selector") {
+      const selectorPipeline = new SelectorPipeline({
+        providerRegistry: this.deps.providerRegistry,
+        phaseConfigResolver: this.deps.phaseConfigResolver,
+        promptLoader: this.deps.promptLoader,
+      });
+      return selectorPipeline.run({
+        sessionId: opts.sessionId,
+        cycleId: opts.cycleId ?? null,
+        tradeId: opts.tradeId ?? null,
+        selectionInstructions: String((opts.input as Record<string, unknown>).selectionInstructions ?? ""),
+        toolContext,
+        strategyContext,
+      }) as Promise<AgentResult<TOutput>>;
+    }
 
     const task = opts.input as Record<string, unknown>;
-
     const terminalToolNames = opts.terminalToolNames ?? definition.terminalToolNames;
     const prepareStep = opts.prepareStep ?? definition.buildPrepareStep?.(toolContext);
 
-    const result = await executeWorker<TOutput>(executorDeps, {
+    const schedule = buildWorkerSchedule(workers as never, definition.scheduling);
+    const executed = await executeByFrontier(schedule.ordered, schedule.maxConcurrency, async ({ worker }) =>
+      executeWorker<unknown>(executorDeps, {
+        phase: opts.phase,
+        worker,
+        sessionId: opts.sessionId,
+        cycleId: opts.cycleId ?? null,
+        tradeId: opts.tradeId ?? null,
+        task,
+        terminalToolNames,
+        prepareStep,
+      }),
+    );
+
+    const output = aggregatePhaseOutput(definition, executed.map((entry) => entry.result.output)) as TOutput;
+    const phaseExecConfig = this.deps.phaseConfigResolver.resolvePhaseConfig(opts.sessionId, opts.phase);
+    const aggregate = assembleAggregateTrace({
       phase: opts.phase,
-      worker,
       sessionId: opts.sessionId,
-      cycleId: opts.cycleId ?? null,
       tradeId: opts.tradeId ?? null,
-      task,
-      terminalToolNames,
-      prepareStep,
+      cycleId: opts.cycleId ?? null,
+      providerKey: phaseExecConfig.providerKey || executed[0]?.result.run.provider_key || "unknown",
+      modelId: phaseExecConfig.modelId || executed[0]?.result.run.model || "unknown",
+      strategyContext,
+      schedulingMode: schedule.schedulingMode,
+      maxConcurrency: schedule.maxConcurrency,
+      output,
+      outputSchemaName: definition.persistence.outputSchemaName,
+      workers: executed.map(({ node, result }) => ({
+        workerId: node.worker.id,
+        frontier: node.frontier,
+        dependsOn: [...(node.worker.dependsOn ?? [])],
+        requiredForPhase: node.worker.requiredForPhase ?? true,
+        run: result.run,
+        message: result.message,
+      })),
     });
 
-    return result;
+    return { run: aggregate.run, message: aggregate.message, output };
   }
 
   private requireStrategyContextService(): SessionStrategyContextService {
@@ -104,4 +146,16 @@ export class PipelineRuntime {
     }
     return this.deps.strategyContextService;
   }
+}
+
+function aggregatePhaseOutput(definition: { aggregate?: unknown; outputMode: string }, outputs: unknown[]): unknown {
+  if (typeof definition.aggregate === "function") {
+    return definition.aggregate(outputs as never);
+  }
+  if (outputs.length === 1) return outputs[0] ?? null;
+  if (definition.outputMode === "text") return outputs.join("\n\n");
+  return outputs.reduce<Record<string, unknown>>((acc, output) => {
+    if (output && typeof output === "object") Object.assign(acc, output);
+    return acc;
+  }, {});
 }

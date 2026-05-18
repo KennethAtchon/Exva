@@ -9,6 +9,7 @@ import type {
   SessionTimeframeConfig,
   SelectionMode,
 } from "@/lib/types";
+import type { PhaseRuntimeSummary } from "@electron/shared/ai/pipeline-phase";
 import { isSessionEditable, validateSessionStrategyContext } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
@@ -33,6 +34,7 @@ export interface StrategyPageData {
   workspaceDefaultSearchProviderId: string | null;
   workspaceDefaultModelProviderKey: string;
   workspaceDefaultModelModelId: string;
+  aiPhases: PhaseRuntimeSummary[];
 }
 
 export class SessionStrategyContextService {
@@ -46,6 +48,7 @@ export class SessionStrategyContextService {
       selectorSettingsRepo: SessionSelectorSettingsRepo;
       providerAccountsRepo: ProviderAccountsRepo;
       workspacePrefsRepo: WorkspacePreferencesRepo;
+      sessionAiPhasesRepo: import("../../db/repositories/sessions/session-ai-phases-repo").SessionAiPhasesRepo;
     },
   ) {}
 
@@ -88,6 +91,12 @@ export class SessionStrategyContextService {
       workspaceDefaultSearchProviderId: this.deps.workspacePrefsRepo.get().defaultSearchProviderId,
       workspaceDefaultModelProviderKey: this.deps.workspacePrefsRepo.get().defaultModelProviderKey,
       workspaceDefaultModelModelId: this.deps.workspacePrefsRepo.get().defaultModelModelId,
+      aiPhases: this.deps.sessionAiPhasesRepo.listBySession(sessionId).map((phase) => ({
+        ...phase,
+        workerOverrides: this.deps.sessionAiPhasesRepo
+          .listWorkersBySession(sessionId)
+          .filter((worker) => worker.phase === phase.phase),
+      })),
     };
   }
 

@@ -33,6 +33,8 @@ import type {
   WorkspacePreferences,
   WorkspaceViewMode,
 } from "./types";
+import type { PhaseTraceV1 } from "@electron/shared/ai/pipeline-observability";
+import type { PhaseRuntimeSummary } from "@electron/shared/ai/pipeline-phase";
 
 export interface SessionSummary {
   id: string;
@@ -86,6 +88,7 @@ export interface StrategyGetResponse {
   workspaceDefaultSearchProviderId: string | null;
   workspaceDefaultModelProviderKey: string;
   workspaceDefaultModelModelId: string;
+  aiPhases: PhaseRuntimeSummary[];
 }
 
 export interface UserGlobalPresetRow {
@@ -372,3 +375,4 @@ export async function listenEvent<K extends ExvaEventName>(
 
 export { hasExva };
 export const showMock = false;
+export type { PhaseTraceV1, PhaseRuntimeSummary };

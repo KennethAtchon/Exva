@@ -4,6 +4,7 @@ import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-acco
 import { BrokerRoutingRepo } from "../../../db/repositories/brokers/broker-routing-repo";
 import { ProviderAccountsRepo } from "../../../db/repositories/workspace/provider-accounts-repo";
 import { SessionBrokerAssignmentsRepo } from "../../../db/repositories/sessions/session-broker-assignments-repo";
+import { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
 import { SessionRepo } from "../../../db/repositories/sessions/session-repo";
 import { SessionRiskConfigRepo } from "../../../db/repositories/sessions/session-risk-config-repo";
 import { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/session-selector-settings-repo";
@@ -213,6 +214,7 @@ function createTemplateService(db: ReturnType<typeof createTestDb>): SessionTemp
       selectorSettingsRepo: new SessionSelectorSettingsRepo(db),
       providerAccountsRepo: new ProviderAccountsRepo(db),
       workspacePrefsRepo: new WorkspacePreferencesRepo(db),
+      sessionAiPhasesRepo: new SessionAiPhasesRepo(db),
     }),
     selectorSettings: new SessionSelectorSettingsRepo(db),
     brokerAssignments: new SessionBrokerAssignmentsRepo(db),

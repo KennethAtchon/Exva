@@ -126,6 +126,7 @@ function createManager(
     selectorSettingsRepo: sessionSelectorSettingsRepo,
     providerAccountsRepo,
     workspacePrefsRepo: workspacePreferencesRepo,
+    sessionAiPhasesRepo,
   });
 
   return new SessionRuntimeManager({
