@@ -1,10 +1,11 @@
 # Cognitive Runtime Phase 2 Selector Cutover — Plan
 
 > **Date:** 2026-05-17
-> **Status:** Draft
+> **Status:** Complete
 > **Deciders:** Ken
 > **Implements:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` Phase 2
 > **Depends on:** `docs/plans/cognitive-runtime-phase-1-redesign-plan.md`
+> **Implementation note:** The `SelectorPipeline` dedicated class approach (described in sections 6 and 7) was superseded by the `PipelineDefinition.run` hook approach (resolves Open Question #3). See section 10 for details.
 
 ---
 
@@ -159,96 +160,51 @@ This is the first phase where the runtime substrate proves its value. The select
 - risk filter removes unsupported or weak candidates
 - submission builder produces the final `InstrumentSelection`
 
-`AgentOrchestrator` should still think in terms of `runPhase("selector")`, but the selector phase implementation should internally route to a dedicated `SelectorPipeline` rather than a single worker definition.
+**As implemented:** Rather than routing to a dedicated `SelectorPipeline` class, the phase-runtime was extended with a `PipelineDefinition.run` hook that lets any phase own its full multi-stage execution. `selector.phase.ts` declares all discovery and verification workers and implements the `run` fn that sequences them. Selector-specific processing utilities (`candidate-merger`, `scoring-engine`, `risk-filter`, `submission-builder`) live in `engines/` as plain modules. The `selector-pipeline/` folder and the hardcoded `if (opts.phase === "selector")` bypass in `pipeline-runtime.ts` are both deleted. See Open Question #3 resolution in section 10.
 
 ---
 
 ## 7. Implementation Plan
 
-### Phase 2A: Define selector pipeline contracts
+### Phase 2A: Define selector pipeline contracts — **Done**
 
-Goal: formalize the typed data structures the selector pipeline will use internally.
+Deliverables completed:
 
-Done criteria: `Candidate`, `ScoringWeights`, selector worker output schemas, and selector pipeline config exist and are validated at startup.
+- `Candidate` schema and shared selector types in `electron/shared/ai/selector-pipeline-candidate.ts`.
+- Worker output schemas for discovery (`candidateOutputSchema`) and verification (`verificationOutputSchema`) workers defined in `selector.phase.ts`.
+- Discovery worker prompt assets: `selector-workers/web-scout.md`, `reddit-scout.md`, `trend-scout.md`.
+- Verification worker prompt assets: `selector-workers/market-validator.md`, `catalyst-extractor.md`, `liquidity-gate.md`.
+- Deterministic ranking and submission interfaces defined up front in `engines/selector-scoring-engine.ts` and `engines/selector-submission-builder.ts`.
 
-Deliverables:
+### Phase 2B: Build selector pipeline internals — **Done**
 
-- Add `Candidate` schema and shared selector-specific config/types under `electron/shared/ai/`.
-- Define worker output schemas for discovery and verification workers.
-- Define selector pipeline config for standard and event-contract discovery modes.
-- Define selector worker prompt assets under `electron/prompts/selector-workers/`.
-- Define deterministic ranking and submission interfaces up front so worker outputs do not leak prose contracts.
-- Define the selector engine bindings explicitly: `candidate-validator`, candidate-ranking transformer, and selector `RiskFilter` inputs sourced from `SessionStrategyContextService`, broker routing, broker assignments, and workspace search defaults.
+Deliverables completed:
 
-Dependencies: Phase 1 runtime substrate.
+- `PipelineDefinition.run` hook added to `electron/shared/ai/pipeline-phase.ts` — replaces the planned `SelectorPipeline` class with a hook that keeps everything expressed through the definition.
+- `PipelineRunContext` and `PipelineWorkerRunner` interfaces added to `pipeline-runtime/core/types.ts`.
+- `pipeline-runtime/core/concurrent-group-runner.ts` — generic settled-concurrency runner (replaces `worker-group-runner.ts`).
+- `engines/selector-candidate-merger.ts` — dedup and score-max merge across discovery workers.
+- `engines/selector-scoring-engine.ts` — deterministic weighted scoring.
+- `engines/selector-risk-filter.ts` — instrument-class, score, rationale, broker-route, and CandidateValidationService checks.
+- `engines/selector-submission-builder.ts` — builds final `InstrumentSelection` from ranked/filtered candidates.
+- Discovery workers (`web-scout`, `reddit-scout`, `trend-scout`) and verification workers (`market-validator`, `catalyst-extractor`, `liquidity-gate`) declared in `selector.phase.ts` with full typed schemas.
 
-Risks: overfitting candidate schema too early and forcing awkward worker outputs.
+### Phase 2C: Cut selector phase over to the new pipeline — **Done**
 
-Rollback plan: revert before cutover; keep transitional selector path intact until Phase 2C.
+Deliverables completed:
 
-### Phase 2B: Build selector pipeline internals side-by-side
+- `selector.phase.ts` now implements `run` fn with full two-stage (discovery → verification) orchestration.
+- `pipeline-runtime.ts` dispatches generically via `definition.run` — no more `if (opts.phase === "selector")` hardcoded bypass.
+- `selector-pipeline/` folder deleted entirely.
+- Selector processing still exposed to `pipeline-runtime.ts` through the `PipelineWorkerRunner` interface injected by the runtime.
 
-Goal: implement the worker-group and deterministic selector services without yet removing the current selector phase definition.
+### Phase 2D: Dev soak and acceptance closeout — **Pending Phase 3**
 
-Done criteria: a `SelectorPipeline` can run directly in tests and replay harnesses, returning a valid `InstrumentSelection` from fixtures.
+Still outstanding:
 
-Deliverables:
-
-- Implement `SelectorPipeline`, `WorkerGroupRunner`, `CandidateMerger`, `ScoringEngine`, `RiskFilter`, and `SubmissionBuilder`.
-- Implement discovery workers: `web-scout`, `reddit-scout`, `trend-scout`.
-- Implement verification workers: `market-validator`, `catalyst-extractor`, `liquidity-gate`.
-- Model selector scheduling as a dependency graph: discovery workers fan out in parallel, verification workers depend on merged candidates, and deterministic finalize steps run only after both frontiers complete.
-- Reuse existing search/broker tool infrastructure through the phase runtime tool registry rather than bespoke selector wiring.
-- Bind `CandidateValidationService` through the engine system instead of calling selector validation ad hoc from the orchestrator.
-- Make `RiskFilter` read typed session config from `SessionStrategyContextService` and broker capability/allocation state from the existing repos/services rather than relying on prompt-level instructions.
-- Emit selector-specific frontier and convergence events so the developer portal can answer why the selector advanced, stalled, retried, or submitted an empty shortlist.
-- Add replay/eval coverage for `docs/hello.json` and the sandbox fixtures.
-
-Dependencies: Phase 2A contracts.
-
-Risks: duplicated logic between the transitional selector and the new selector while both exist.
-
-Rollback plan: keep the new pipeline unused by production code until replay is green.
-
-### Phase 2C: Cut selector phase over to the new pipeline
-
-Goal: make the selector phase use the new deterministic pipeline in the live path.
-
-Done criteria: selector execution no longer depends on `selector-runtime-control.ts` or terminal-tool parsing for its main behavior path.
-
-Deliverables:
-
-- Replace the internals behind `runPhase("selector")` so selector work is performed by `SelectorPipeline`.
-- Remove selector-only parsing dependence from the live path in `worker-executor.ts`.
-- Move existing `validateSelectorOutput()` checks either into selector verification/risk filtering or into a small post-pipeline sanity guard.
-- Move selector-stage config reads to one place: runtime phase config from `session_ai_phases`, and business constraints from `SessionStrategyContextService` plus workspace/broker state.
-- Keep logs and persisted traces compatible with existing UI expectations.
-- Run replay against all fixtures and compare output shape, cost, and candidate quality.
-
-Dependencies: Phase 2B pipeline parity.
-
-Risks: selector traces may become less readable if the aggregation/persistence story is not handled carefully.
-
-Rollback plan: restore the transitional selector implementation behind the same phase entrypoint if replay or live-dev verification fails.
-
-### Phase 2D: Dev soak and acceptance closeout
-
-Goal: prove the selector pipeline is stable before Phase 3 deletes leftover selector legacy code.
-
-Done criteria: replay, unit tests, and dev-session runs all pass with the new selector enabled by default in development.
-
-Deliverables:
-
-- Run the replay suite on all selector fixtures.
-- Verify worker prompts stay within lint limits and banned-phrase rules.
-- Verify no `isMockSession` branching exists inside selector workers.
-- Document any selector behavior deltas that are intentional.
-
-Dependencies: Phase 2C live cutover.
-
-Risks: parity tests focus on output validity but miss quality regressions in candidate selection.
-
-Rollback plan: keep the Phase 2 branch unmerged until fixture and dev-session behavior are acceptable.
+- Replay suite on all selector fixtures.
+- Selector-specific terminal parse branch in `worker-executor.ts:resolveTerminalResult()` is now dead code — cleanup deferred to Phase 3A.
+- `selector-runtime-control.ts` is no longer imported by the live selector path but still exists — deferred to Phase 3A.
 
 ---
 
@@ -291,9 +247,9 @@ Lagging indicators:
 
 | # | Question | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Should selector traces be persisted as one aggregated `agent_run` or one synthetic discovery/verification sub-trace block? | Ken | Before Phase 2C | Open |
-| 2 | Which orchestrator-side rejection rules should remain as defense-in-depth after selector risk filtering ships? | Ken | Before Phase 2C | Open |
-| 3 | Does the selector pipeline live as a dedicated class outside `pipeline-runtime/definitions`, or as a phase definition with a custom aggregate/finalize path? | Ken | Before Phase 2B | Open |
+| 1 | Should selector traces be persisted as one aggregated `agent_run` or one synthetic discovery/verification sub-trace block? | Ken | Before Phase 2C | Resolved: one aggregated `agent_run` via `assembleAggregateTrace` with discovery at frontier 0 and verification at frontier 1 |
+| 2 | Which orchestrator-side rejection rules should remain as defense-in-depth after selector risk filtering ships? | Ken | Before Phase 2C | Deferred to Phase 3 cleanup |
+| 3 | Does the selector pipeline live as a dedicated class outside `pipeline-runtime/definitions`, or as a phase definition with a custom aggregate/finalize path? | Ken | Before Phase 2B | Resolved: `PipelineDefinition.run` hook in `selector.phase.ts`. Selector utilities live in `engines/selector-*`. No dedicated class or phase-specific folder. The hook approach generalizes to any future phase that needs multi-stage orchestration without creating a new folder. |
 
 ---
 

@@ -1,6 +1,6 @@
 import PQueue from "p-queue";
 
-export async function runWorkerGroup<T>(
+export async function runConcurrentGroup<T>(
   tasks: Array<() => Promise<T>>,
   maxConcurrency: number,
 ): Promise<Array<PromiseSettledResult<T>>> {

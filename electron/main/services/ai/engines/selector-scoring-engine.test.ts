@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scoreCandidate, scoreCandidates } from "./scoring-engine";
+import { scoreCandidate, scoreCandidates } from "./selector-scoring-engine";
 import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
 
 function baseCandidate(symbol: string, overrides: Partial<Candidate> = {}): Candidate {

@@ -64,6 +64,13 @@ export interface PipelineDefinition<TInput = unknown, TOutput = unknown> {
   buildPrepareStep?: (ctx: unknown) => PrepareStepFunction<ToolSet> | undefined;
   /** Tool names that terminate the agent loop (for tool_terminal phases). */
   terminalToolNames?: readonly string[];
+  /**
+   * Custom multi-stage execution handler. When defined, replaces the standard
+   * worker-graph executor. The runtime passes typed ctx and runner as `unknown`
+   * to avoid circular dependencies with main-package types; cast inside the
+   * implementing definition file.
+   */
+  run?: (ctx: unknown, runner: unknown) => Promise<unknown>;
 }
 
 export interface RuntimeDefaultsConfig {

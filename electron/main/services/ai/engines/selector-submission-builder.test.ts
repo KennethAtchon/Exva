@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInstrumentSelection } from "./submission-builder";
+import { buildInstrumentSelection } from "./selector-submission-builder";
 import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
 
 function candidate(symbol: string): Candidate {

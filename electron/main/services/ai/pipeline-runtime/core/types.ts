@@ -1,5 +1,8 @@
-import type { ToolId, EngineBinding, RuntimeDefaultsConfig } from "@electron/shared/ai/pipeline-phase";
+import type { ToolId, EngineBinding, RuntimeDefaultsConfig, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { z } from "zod";
+import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
+import type { ToolBuildContext } from "../context/tool-factory-registry";
+import type { SessionStrategyContext } from "@electron/shared/domain";
 
 export interface WorkerOutputContract<TOutput> {
   schema: z.ZodType<TOutput>;
@@ -32,4 +35,20 @@ export interface PhaseRunResult<TOutput> {
   outputTokens: number;
   costUsd: number;
   durationMs: number;
+}
+
+/** Context passed into a phase's custom `run` handler. */
+export interface PipelineRunContext<TInput = Record<string, unknown>> {
+  input: TInput;
+  sessionId: string;
+  cycleId: string | null;
+  tradeId: string | null;
+  toolContext: ToolBuildContext;
+  strategyContext: SessionStrategyContext;
+}
+
+/** Execution capabilities injected by the pipeline-runtime into a phase's `run` handler. */
+export interface PipelineWorkerRunner {
+  execute<T>(worker: WorkerDefinition, task: Record<string, unknown>): Promise<AgentResult<T>>;
+  executeGroup<T>(tasks: Array<() => Promise<T>>, concurrency: number): Promise<Array<PromiseSettledResult<T>>>;
 }

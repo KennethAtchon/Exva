@@ -1,12 +1,13 @@
 import type { PrepareStepFunction, ToolSet } from "ai";
 import { AppError } from "@electron/shared/infra/errors";
-import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import type { PipelinePhase, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import { getPipelineDefinition } from "./pipeline-registry";
 import { buildWorkerSchedule, executeByFrontier } from "./worker-graph-scheduler";
 import { executeWorker, type WorkerExecutorDeps } from "../execution/worker-executor";
 import { assembleAggregateTrace } from "../execution/trace-assembler";
-import { SelectorPipeline } from "../../selector-pipeline/selector-pipeline";
+import { runConcurrentGroup } from "./concurrent-group-runner";
+import type { PipelineRunContext, PipelineWorkerRunner } from "./types";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
 import type { ProviderRegistry } from "../../provider-registry";
 import type { PromptAssetLoader } from "../../prompt-asset-loader";
@@ -79,20 +80,28 @@ export class PipelineRuntime {
       strategyContext,
     };
 
-    if (opts.phase === "selector") {
-      const selectorPipeline = new SelectorPipeline({
-        providerRegistry: this.deps.providerRegistry,
-        phaseConfigResolver: this.deps.phaseConfigResolver,
-        promptLoader: this.deps.promptLoader,
-      });
-      return selectorPipeline.run({
+    if (definition.run) {
+      const runner: PipelineWorkerRunner = {
+        execute: <T>(worker: WorkerDefinition, task: Record<string, unknown>) =>
+          executeWorker<T>(executorDeps, {
+            phase: opts.phase,
+            worker,
+            sessionId: opts.sessionId,
+            cycleId: opts.cycleId ?? null,
+            tradeId: opts.tradeId ?? null,
+            task,
+          }),
+        executeGroup: runConcurrentGroup,
+      };
+      const ctx: PipelineRunContext = {
+        input: opts.input as Record<string, unknown>,
         sessionId: opts.sessionId,
         cycleId: opts.cycleId ?? null,
         tradeId: opts.tradeId ?? null,
-        selectionInstructions: String((opts.input as Record<string, unknown>).selectionInstructions ?? ""),
         toolContext,
         strategyContext,
-      }) as Promise<AgentResult<TOutput>>;
+      };
+      return definition.run(ctx, runner) as Promise<AgentResult<TOutput>>;
     }
 
     const task = opts.input as Record<string, unknown>;

@@ -4,7 +4,7 @@ import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate"
 import type { InstrumentClass } from "@/lib/types";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
-import type { WorkingCandidate } from "./candidate-merger";
+import type { WorkingCandidate } from "./selector-candidate-merger";
 
 export interface RiskFilterDeps {
   sessionId: string;

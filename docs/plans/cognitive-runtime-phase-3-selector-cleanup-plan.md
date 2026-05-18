@@ -1,7 +1,7 @@
 # Cognitive Runtime Phase 3 Selector Cleanup — Plan
 
 > **Date:** 2026-05-17
-> **Status:** Draft
+> **Status:** In Progress — Phase 3A partially done as part of Phase 2 cutover
 > **Deciders:** Ken
 > **Implements:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` Phase 3
 > **Depends on:** `docs/plans/cognitive-runtime-phase-2-selector-cutover-plan.md`
@@ -40,16 +40,18 @@ That is dangerous for two reasons. First, dead or half-dead selector code invite
 
 ## 3. Background & Context
 
-### Legacy selector surfaces likely to remain after Phase 2
+### Legacy selector surfaces — current state after Phase 2 cutover
 
-| File | Legacy surface | Cleanup action |
-| --- | --- | --- |
-| `electron/main/services/ai/ai-runtime/selector-runtime-control.ts` | Discovery/verification/commit step heuristics | Delete |
-| `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts` | Selector-specific terminal parse branch | Remove or isolate behind non-selector generic finalizer mechanism |
-| `electron/shared/ai/default-ai-role-profiles.ts` | Selector-oriented profile defaults | Remove selector runtime behavior fields that no longer exist |
-| `electron/shared/ai/ai-role-profile.ts` | Selector settings schema helpers | Remove obsolete selector runtime settings |
-| `electron/shared/validation/schemas.ts`, `electron/shared/domain/workspace.ts`, `src/lib/exva.ts` | Persisted/public selector settings shape | Drop fields that only existed for the old loop |
-| `src/store/strategyStore.ts`, `electron/preload/exva-api.ts` | Renderer/preload selector settings exposure | Remove dead state and API exposure |
+| File | Legacy surface | Cleanup action | Status |
+| --- | --- | --- | --- |
+| `selector-pipeline/` folder | Phase-specific orchestration class (`SelectorPipeline`) and all supporting files | Delete | **Done** — entire folder deleted; utilities moved to `engines/selector-*` |
+| `pipeline-runtime/core/pipeline-runtime.ts` | Hardcoded `if (opts.phase === "selector")` bypass | Remove; dispatch generically via `definition.run` | **Done** — replaced with generic `definition.run` dispatch |
+| `electron/main/services/ai/ai-runtime/selector-runtime-control.ts` | Discovery/verification/commit step heuristics, `buildSelectorPrepareStep`, `defaultSelectorRuntimeSettings` | Delete or remove the selector-phase-specific parts | **Remaining** — file still exists; no longer imported by the live selector path but has tests in `ai-runtime/__tests__/selector-runtime-control.test.ts` |
+| `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts` | `resolveTerminalResult()`: `if (phase === "selector")` branch calling `parseInstrumentSelection()` | Remove — dead code since selector workers now use `outputMode: "object"` | **Remaining** — dead branch still present; safe to delete |
+| `electron/shared/ai/default-ai-role-profiles.ts` | Selector-oriented profile defaults | Remove selector runtime behavior fields that no longer exist | **Remaining** |
+| `electron/shared/ai/ai-role-profile.ts` | Selector settings schema helpers | Remove obsolete selector runtime settings | **Remaining** |
+| `electron/shared/validation/schemas.ts`, `electron/shared/domain/workspace.ts`, `src/lib/exva.ts` | Persisted/public selector settings shape | Drop fields that only existed for the old loop | **Remaining** |
+| `src/store/strategyStore.ts`, `electron/preload/exva-api.ts` | Renderer/preload selector settings exposure | Remove dead state and API exposure | **Remaining** |
 
 ### Cleanup principle
 
@@ -113,15 +115,22 @@ Goal: remove the procedural selector step-control layer from the codebase.
 
 Done criteria: no production selector path imports or references `selector-runtime-control.ts`.
 
-Deliverables:
+**Partially done as part of Phase 2 cutover:**
 
-- Delete `selector-runtime-control.ts`.
-- Remove any selector prepare-step wiring that only served the old single-worker loop.
-- Remove selector-specific terminal parsing assumptions from generic worker execution.
+- `selector-pipeline/` folder deleted.
+- `pipeline-runtime.ts` hardcoded selector bypass removed.
+- `selector.phase.ts` no longer imports `buildSelectorPrepareStep` or `defaultSelectorRuntimeSettings`.
+
+**Remaining deliverables:**
+
+- Remove `if (phase === "selector")` branch from `resolveTerminalResult()` in `worker-executor.ts` (dead code — selector discovery/verification workers use `outputMode: "object"`; no terminal-tool parse needed).
+- Remove the `parseInstrumentSelection` import from `worker-executor.ts` if no other path uses it.
+- Decide fate of `selector-runtime-control.ts`: the step-analysis utilities (`analyzeSelectorSteps`, `buildSelectorStepSignature`, `canonicalizeToolInput`) may have standalone value for analytics/monitoring; `buildSelectorPrepareStep` and `defaultSelectorRuntimeSettings` are dead. Either delete the file or extract only what is still useful.
+- Update or delete `ai-runtime/__tests__/selector-runtime-control.test.ts` to match what survives.
 
 Dependencies: Phase 2 selector cutover live and verified.
 
-Risks: tests may still rely on legacy trace shapes.
+Risks: tests still rely on legacy trace shapes.
 
 Rollback plan: restore the deleted files only if Phase 2 cutover is reverted.
 
@@ -190,7 +199,7 @@ Rollback plan: none beyond restoring deleted docs from version control if needed
 | # | Question | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- |
 | 1 | Is `aiPickerEnabled` still the right top-level mode flag name after selector cleanup? | Ken | Before Phase 3B | Open |
-| 2 | Should selector finalization be modeled as a generic pipeline finalizer abstraction before removing the selector-specific worker-executor branch? | Ken | Before Phase 3A | Open |
+| 2 | Should selector finalization be modeled as a generic pipeline finalizer abstraction before removing the selector-specific worker-executor branch? | Ken | Before Phase 3A | Resolved: the `PipelineDefinition.run` hook in Phase 2 is that generic abstraction. The selector-specific `resolveTerminalResult` branch in `worker-executor.ts` is now dead code and can be deleted without introducing a new abstraction. |
 
 ---
 
