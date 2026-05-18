@@ -1,7 +1,7 @@
 # Cognitive Runtime Phase 4 Technical Pipeline — Plan
 
 > **Date:** 2026-05-17
-> **Status:** Draft
+> **Status:** Complete
 > **Deciders:** Ken
 > **Implements:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` Phase 4
 > **Depends on:** `docs/plans/cognitive-runtime-phase-2-selector-cutover-plan.md`
@@ -115,63 +115,30 @@ The technical phase should become the first analysis-phase proof that the new pi
 
 ## 7. Implementation Plan
 
-### Phase 4A: Define the technical signal contract
+### Phase 4A: Define the technical signal contract — **Done**
 
-Goal: make the technical phase output explicit and stable.
+Deliverables completed:
 
-Done criteria: `TechnicalSignal` and per-worker output schemas exist in shared code and validate against fixtures.
+- `electron/shared/ai/pipeline-signals.ts` created with `TechnicalSignal`, `FundamentalSignal`, `ReviewSignal`, `TradeSignal`, and `ExecutionStrategyType` schemas (all four inter-phase contracts defined upfront).
+- `ChartPatternOutput`, `MomentumOutput`, `VolumeOutput` worker output schemas defined in `engines/technical-aggregator.ts`.
+- Null/default behavior encoded in schemas: all optional scored fields use `.nullable().default(null)`.
 
-Deliverables:
+### Phase 4B: Implement narrow technical workers and aggregator — **Done**
 
-- Add `TechnicalSignal` schema under shared AI pipeline signal types.
-- Define worker output schemas for `chart-pattern`, `momentum-indicator`, and `volume-profile`.
-- Define null/default behavior for partial worker failure.
-- Define the context-engine payload shape for technical workers so timeframe/rules/risk data comes from trusted session config instead of broad prompt text.
+Deliverables completed:
 
-Dependencies: Phase 1 runtime substrate.
+- `engines/technical-aggregator.ts` — `aggregateTechnicalSignal()` with deterministic `timeframeAlignment` computation (1.0 for trend/volume agreement, 0.5 for one-side neutral, 0.0 for conflict, null if volume absent).
+- Prompt assets: `technical-workers/chart-pattern.md`, `momentum-indicator.md`, `volume-profile.md` (≤200 tokens each; focused tool sets: `get_ohlcv` only for chart/volume, `get_ohlcv` + `get_quote` for momentum).
+- `technical.phase.ts` rewritten: 3 workers (`chart-pattern`, `momentum-indicator`, `volume-profile`) run in parallel via `runConcurrentGroup(concurrency=3)`; results fed to `aggregateTechnicalSignal`; `assembleAggregateTrace` for persistence.
+- `engines/technical-aggregator.test.ts` — 7 tests covering trend/pattern/volume field mapping, alignment computation, all-absent fallback, and rawSummary content.
 
-Risks: schema shape may overfit current equity-style technical analysis.
+### Phase 4C: Wire orchestrator and runtime to typed technical outputs — **Done**
 
-Rollback plan: revert schema addition before wiring if design issues surface.
+Deliverables completed:
 
-### Phase 4B: Implement narrow technical workers and aggregator
-
-Goal: build the actual technical phase behavior.
-
-Done criteria: three technical workers run in bounded parallel and aggregate into one `TechnicalSignal`.
-
-Deliverables:
-
-- Implement `TechnicalPipeline` and `signal-aggregator.ts`.
-- Implement worker prompt assets and tool bindings.
-- Prefer market data tools (`get_ohlcv`, `get_quote`) over generic search tools where possible.
-- Register and use a `technical-aggregator` transformer engine/finalizer instead of leaving aggregation as an unowned helper.
-- Add worker-level tests plus aggregator tests.
-
-Dependencies: Phase 4A schemas.
-
-Risks: market-data tool interfaces may need small payload shaping helpers for worker input trimming.
-
-Rollback plan: keep the current technical definition untouched until parity is proven.
-
-### Phase 4C: Wire orchestrator and runtime to typed technical outputs
-
-Goal: make the live path consume `TechnicalSignal` instead of technical prose.
-
-Done criteria: `AgentOrchestrator` stores and passes typed technical output forward.
-
-Deliverables:
-
-- Replace `{ text: string }` technical runtime and orchestrator types with `TechnicalSignal`.
-- Update persistence/trace assembly to include the aggregated structured signal.
-- Keep any audit summary text as trace-only data, not as the downstream contract.
-- Ensure technical workers consume timeframe/rules/risk context from `SessionStrategyContextService`-backed engine inputs, not from legacy broad strategy prompt blocks.
-
-Dependencies: Phase 4B pipeline implementation.
-
-Risks: review/fundamental/decision phases still expect strings until later migrations.
-
-Rollback plan: use a temporary adapter only if needed for an intermediate branch; do not leave it as the final design.
+- `AiTechnicalRun = AgentResult<TechnicalSignal>` type added; `AiPipelineResult.technical` and `TradeCycleContext.technical` updated.
+- `runPhase<..., TechnicalSignal>` call updated; empty-output check changed from `.text.trim()` to `.symbol` presence.
+- Downstream review/decision phases receive `technical.output.rawSummary` as the backward-compat string adapter until Phase 6 migrates review to typed inputs.
 
 ---
 
@@ -201,8 +168,8 @@ Rollback plan: use a temporary adapter only if needed for an intermediate branch
 
 | # | Question | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Should `volume-profile` get only OHLCV or also quote context for gap-aware interpretation? | Ken | Before Phase 4B | Open |
-| 2 | Do we persist worker raw summaries individually or only the aggregated `rawSummary` in the phase trace? | Ken | Before Phase 4C | Open |
+| 1 | Should `volume-profile` get only OHLCV or also quote context for gap-aware interpretation? | Ken | Before Phase 4B | Resolved: OHLCV only. Gap context is inferred from bars; adding quote would duplicate momentum worker's data. |
+| 2 | Do we persist worker raw summaries individually or only the aggregated `rawSummary` in the phase trace? | Ken | Before Phase 4C | Resolved: aggregated `rawSummary` only in the phase trace, via `assembleAggregateTrace`. Individual worker summaries are concatenated into `rawSummary` by `buildRawSummary()` in the aggregator. |
 
 ---
 

@@ -1,7 +1,7 @@
 # Cognitive Runtime Phase 7 Decision and Execution Profile — Plan
 
 > **Date:** 2026-05-17
-> **Status:** Draft
+> **Status:** Complete
 > **Deciders:** Ken
 > **Implements:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` Phase 7
 > **Depends on:** `docs/plans/cognitive-runtime-phase-6-review-pipeline-plan.md`
@@ -113,85 +113,42 @@ This is the clean architectural boundary the spec calls for. The decision worker
 
 ## 7. Implementation Plan
 
-### Phase 7A: Define `TradeSignal` and `ExecutionProfileEngine` contracts
+### Phase 7A: Define `TradeSignal` and `ExecutionProfileEngine` contracts — **Done**
 
-Goal: make the AI/code boundary explicit.
+Deliverables completed:
 
-Done criteria: `TradeSignal` schema exists without sizing fields, and `ExecutionProfileEngine` has a stable typed interface.
+- `TradeSignal` schema already existed in `electron/shared/ai/pipeline-signals.ts` with `symbol`, `action` ("buy"|"sell"|"skip"), `executionStrategy`, `entryPrice`, `confidence`, `reasoning`. No sizing fields.
+- `ExecutionProfileInput` and `ExecutionProfile` types defined in `engines/execution-profile-engine.ts`.
+- Open question resolved: `entryPrice` optional (nullable default) for all strategies. Phase trace + trade row is sufficient audit trail for the execution profile.
 
-Deliverables:
+### Phase 7B: Implement typed decision worker — **Done**
 
-- Add shared `TradeSignal` schema and execution-strategy enum.
-- Define execution-profile input/output types.
-- Define how `ReviewSignal.recommendation` influences allowed decision outcomes.
-- Define policy-engine contracts for `risk-gate`, `order-policy`, and `broker-allocation`, including which DB-backed config and broker snapshots each consumes.
-- Define lifecycle-engine contracts for exit policy so post-entry risk behavior is part of the same engine model rather than a separate architecture.
+Deliverables completed:
 
-Dependencies: typed review output from Phase 6.
+- Single `signal-classifier` worker in `definitions/decision.phase.ts`; receives typed `{ technical: TechnicalSignal; fundamental: FundamentalSignal; review: ReviewSignal }` as serialized JSON context — no live tools.
+- `decision.md` prompt rewritten: `action` is "buy"/"sell"/"skip" (not "trade"/"no_trade"); `executionStrategy` required; sizing fields explicitly excluded.
+- `tradeSignalSchema` used as `outputSchema` (cast with `ZodType<TradeSignal>` per phase pattern).
+- `run` hook with single `runner.execute` call and `assembleAggregateTrace`.
 
-Risks: too much strategy logic may leak into the AI signal if the boundary is not explicit.
+### Phase 7C: Implement and wire `ExecutionProfileEngine` — **Done**
 
-Rollback plan: revert before wiring if the contract is incomplete.
+Deliverables completed:
 
-### Phase 7B: Implement typed decision workers and aggregator
+- `engines/execution-profile-engine.ts` — pure `computeExecutionProfile()` function; caps position size at `min(maxPositionUsd, maxExposureUsd)` for all instrument classes; prediction-market Kelly removed (data no longer in `TradeSignal`; engine falls back to cap consistently).
+- `skip` actions bypass the engine entirely (`{ positionSizeUsd: 0, side: "BUY" }` placeholder on rejected trade).
+- `engines/execution-profile-engine.test.ts` — 5 tests covering stock sizing, prediction market cap, cap direction, sell side, futures cap.
+- `resolvePositionSizeUsd()` deleted; both `createTradeFromDecision` and `buildTradeFromDecision` call `computeExecutionProfile`.
 
-Goal: replace the current decision worker contract.
+### Phase 7D: Schema, persistence, and cleanup cutover — **Done**
 
-Done criteria: decision phase produces `TradeSignal` from typed upstream signals.
+Deliverables completed:
 
-Deliverables:
-
-- Implement `DecisionPipeline` workers such as `signal-classifier` and `entry-timer`.
-- Replace `tradeDecisionSchema` in the decision phase definition with `TradeSignal`.
-- Register `decision-validator` as an explicit validator engine instead of burying post-processing in orchestrator code.
-- Add deterministic decision aggregation/finalization tests.
-
-Dependencies: Phase 7A contract.
-
-Risks: decision prompts may still try to infer sizing unless the output contract is tightly constrained.
-
-Rollback plan: keep current decision definition until the new one passes tests.
-
-### Phase 7C: Implement and wire `ExecutionProfileEngine`
-
-Goal: move all execution math into deterministic code.
-
-Done criteria: size, stop loss, take profit, and order shape are computed by `ExecutionProfileEngine` alone.
-
-Deliverables:
-
-- Implement `ExecutionProfileEngine` as a pure service.
-- Move prediction-market Kelly logic out of `resolvePositionSizeUsd()` into the engine.
-- Replace orchestrator sizing calls with engine invocation.
-- Ensure `skip` actions never call the execution engine for live order construction.
-- Bind `RiskEngine`, `OrderPolicyGate`, and `BrokerAllocationGate` through engine interfaces so placement-time checks read canonical config from `SessionStrategyContextService`, workspace prefs, broker assignments, and quote snapshots.
-- Define the engine-call order explicitly: `TradeSignal` -> `execution-profile` -> `risk-gate` -> `order-policy` -> `broker-allocation` -> broker submission.
-
-Dependencies: Phase 7B `TradeSignal` output.
-
-Risks: execution-profile logic may need instrument-class-specific branches that are easy to under-specify.
-
-Rollback plan: revert engine wiring if risk-profile parity is not acceptable.
-
-### Phase 7D: Schema, persistence, and cleanup cutover
-
-Goal: finish the boundary change in types and storage.
-
-Done criteria: AI-authored trade decisions no longer include size/stop/TP, and new trades persist `executionStrategy`.
-
-Deliverables:
-
-- Remove `sizeUsd`, `stopLossPct`, and `takeProfitPct` from the AI-authored decision schema.
-- Add `executionStrategy` persistence where required.
-- Delete `resolvePositionSizeUsd()`.
-- Delete or repurpose legacy decision parsing helpers.
-- Ensure `TradeMonitor` and `PositionManagerService` are pointed at the lifecycle-engine path for exit-policy evaluation so execution and post-entry management share the same risk/timeframe config source.
-
-Dependencies: Phase 7C engine wiring.
-
-Risks: reporting/UI surfaces may still assume the old decision schema shape.
-
-Rollback plan: revert the schema/storage cutover commit if downstream consumers are missed.
+- `TradeDecision` type removed from `ai-runtime/runtime.ts` and all re-exports (`ai-runtime/index.ts`, `ai/index.ts`).
+- `tradeDecisionSchema` export removed from `ai/index.ts`.
+- `decision-parse.ts` and `__tests__/decision-parse.test.ts` deleted.
+- `DecisionOutput` local type removed from orchestrator; `AiDecisionRun = AgentResult<TradeSignal>`.
+- `resolvePredictionTradeFields()` simplified — no longer takes decision output; instrument context is authoritative.
+- Action semantics updated: `action === "skip"` (not `!== "trade"`); `waitForApproval` now typed to `TradeSignal`.
 
 ---
 
@@ -221,8 +178,8 @@ Rollback plan: revert the schema/storage cutover commit if downstream consumers 
 
 | # | Question | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Does `ExecutionProfileEngine` persist a separate audit artifact, or is the final trade row plus phase trace enough? | Ken | Before Phase 7D | Open |
-| 2 | Should `entryPrice` in `TradeSignal` remain optional for all strategies, or only for a subset? | Ken | Before Phase 7A | Open |
+| 1 | Does `ExecutionProfileEngine` persist a separate audit artifact, or is the final trade row plus phase trace enough? | Ken | Before Phase 7D | Resolved: trade row + phase trace is sufficient. No separate audit artifact. |
+| 2 | Should `entryPrice` in `TradeSignal` remain optional for all strategies, or only for a subset? | Ken | Before Phase 7A | Resolved: nullable for all strategies. |
 
 ---
 

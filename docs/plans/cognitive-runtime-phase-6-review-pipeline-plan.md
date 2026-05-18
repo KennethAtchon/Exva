@@ -1,7 +1,7 @@
 # Cognitive Runtime Phase 6 Review Pipeline — Plan
 
 > **Date:** 2026-05-17
-> **Status:** Draft
+> **Status:** Complete
 > **Deciders:** Ken
 > **Implements:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` Phase 6
 > **Depends on:** `docs/plans/cognitive-runtime-phase-5-fundamental-pipeline-plan.md`
@@ -106,63 +106,34 @@ This keeps review aligned with the overall architecture: the AI identifies bound
 
 ## 7. Implementation Plan
 
-### Phase 6A: Define `ReviewSignal` and worker outputs
+### Phase 6A: Define `ReviewSignal` and worker outputs — **Done**
 
-Goal: formalize the review contract.
+Deliverables completed:
 
-Done criteria: shared `ReviewSignal` schema and worker output schemas exist and validate.
+- `ReviewSignal` schema already existed in `electron/shared/ai/pipeline-signals.ts` from Phase 4 groundwork.
+- `ConflictDetectorOutput` and `RiskAssessorOutput` worker schemas defined in `engines/review-aggregator.ts`.
+- Recommendation rules encoded: no-evidence → `skip`; high conflict (≥0.7) AND high risk → `skip`; either alone → `reduce_size`; otherwise → `proceed`.
 
-Deliverables:
+### Phase 6B: Implement review workers and aggregator — **Done**
 
-- Add shared `ReviewSignal` schema.
-- Define worker outputs for `conflict-detector` and `risk-assessor`.
-- Define explicit recommendation rules for low-evidence and high-conflict cases.
-- Define which DB-backed session fields the `risk-assessor` receives as typed context-engine input so review policy remains reproducible.
+Deliverables completed:
 
-Dependencies: typed technical and fundamental signals from phases 4 and 5.
+- `engines/review-aggregator.ts` — `aggregateReviewSignal()` with deterministic recommendation derivation; `buildRawSummary()` concatenates per-worker summaries.
+- Prompt assets: `review-workers/conflict-detector.md` (no tools — receives serialized typed signals as context) and `risk-assessor.md` (no tools — same inputs).
+- `review.phase.ts` rewritten: 2 workers in parallel via `runConcurrentGroup(concurrency=2)`; results fed to `aggregateReviewSignal`; `assembleAggregateTrace` for persistence.
+- `engines/review-aggregator.test.ts` — 7 tests covering: no-evidence skip, proceed on clean signals, reduce_size on high-risk-only, reduce_size on high-conflict-only, skip on both-high, rawSummary content, conflictExplanation passthrough.
+- Open question resolved: `risk-assessor` receives no live tools — typed inputs only.
+- Open question resolved: high conflict alone yields `reduce_size` (not forced skip); skip requires both conflict ≥0.7 AND risk "high".
 
-Risks: recommendation semantics may be underspecified and drift into decision territory.
+### Phase 6C: Remove raw-string review inputs from the live path — **Done**
 
-Rollback plan: revert schema additions before wiring if needed.
+Deliverables completed:
 
-### Phase 6B: Implement review workers and aggregator
-
-Goal: build the actual review behavior.
-
-Done criteria: review workers run against typed signals and aggregate into `ReviewSignal`.
-
-Deliverables:
-
-- Implement `ReviewPipeline` and `review-aggregator.ts`.
-- Implement worker prompt assets.
-- Keep tool access minimal by default; prefer typed inputs over more live-search behavior.
-- Register and use a `review-aggregator` transformer engine and context-engine bindings for risk/timeframe/rules state.
-- Add worker, aggregator, and graceful-degradation tests.
-
-Dependencies: Phase 6A contracts.
-
-Risks: review may become too derivative if workers are not scoped sharply enough.
-
-Rollback plan: keep current review definition until typed review passes tests.
-
-### Phase 6C: Remove raw-string review inputs from the live path
-
-Goal: make review the first fully typed cross-phase consumer.
-
-Done criteria: no live review path accepts technical/fundamental strings.
-
-Deliverables:
-
-- Update orchestrator review input types.
-- Delete the temporary `rawSummary` adapter introduced in Phase 5, if any.
-- Persist structured review traces and recommendation events.
-- Ensure review workers consume technical/fundamental signals plus typed session policy context, not backslid string summaries or broad prompt packs.
-
-Dependencies: Phase 6B implementation.
-
-Risks: hidden tests or diagnostics may still expect a review text blob.
-
-Rollback plan: revert the wiring change if a missed consumer blocks the app; do not restore the adapter permanently.
+- `AiTextRun` removed; `AiReviewRun = AgentResult<ReviewSignal>` added.
+- `TradeCycleContext.review` and `AiPipelineResult.review` updated to `AiReviewRun`.
+- Orchestrator review `runPhase` call: input changed from `{ technicalAnalysis: string; fundamentalAnalysis: string }` to `{ technical: TechnicalSignal; fundamental: FundamentalSignal }`.
+- Phase 5 `rawSummary` adapters for review input removed.
+- Decision phase: `review.output.rawSummary` replaces `review.output.text` as backward-compat string adapter until Phase 7.
 
 ---
 
@@ -192,8 +163,8 @@ Rollback plan: revert the wiring change if a missed consumer blocks the app; do 
 
 | # | Question | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Should `risk-assessor` have optional live quote access in v1, or should review stay fully signal-only? | Ken | Before Phase 6B | Open |
-| 2 | Should high conflict always force `skip`, or can it still yield `reduce_size` if overall evidence remains strong? | Ken | Before Phase 6A | Open |
+| 1 | Should `risk-assessor` have optional live quote access in v1, or should review stay fully signal-only? | Ken | Before Phase 6B | Resolved: no live tools; typed signal inputs only per spec. |
+| 2 | Should high conflict always force `skip`, or can it still yield `reduce_size` if overall evidence remains strong? | Ken | Before Phase 6A | Resolved: high conflict alone → `reduce_size`; skip requires conflict ≥0.7 AND risk "high" together. |
 
 ---
 

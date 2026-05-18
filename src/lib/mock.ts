@@ -25,7 +25,7 @@ const runs: AgentRun[] = [
   {
     id: "ar-001",
     trade_id: "t-001",
-    agent_type: "analyst_technical",
+    agent_type: "technical",
     model: "claude-haiku-4-5",
     provider_key: "provider-anthropic",
     finish_reason: "stop",
@@ -40,7 +40,7 @@ const runs: AgentRun[] = [
   {
     id: "ar-002",
     trade_id: "t-001",
-    agent_type: "analyst_fundamental",
+    agent_type: "fundamental",
     model: "claude-haiku-4-5",
     provider_key: "provider-anthropic",
     finish_reason: "stop",
@@ -55,7 +55,7 @@ const runs: AgentRun[] = [
   {
     id: "ar-003",
     trade_id: "t-001",
-    agent_type: "reviewer",
+    agent_type: "review",
     model: "claude-haiku-4-5",
     provider_key: "provider-anthropic",
     finish_reason: "stop",
@@ -70,7 +70,7 @@ const runs: AgentRun[] = [
   {
     id: "ar-004",
     trade_id: "t-001",
-    agent_type: "decision_maker",
+    agent_type: "decision",
     model: "claude-haiku-4-5",
     provider_key: "provider-anthropic",
     finish_reason: "stop",
@@ -85,12 +85,12 @@ const runs: AgentRun[] = [
 ];
 
 const events: EventRow[] = [
-  { id: "e-001", trade_id: "t-003", level: "INFO",  agent_type: "decision_maker",  message: "Trade cycle complete — TSLA SELL opened at $245.80",                    created_at: "2026-04-21T11:33:05Z" },
-  { id: "e-002", trade_id: "t-003", level: "INFO",  agent_type: "analyst_fundamental", message: "Web search: TSLA Q1 delivery miss confirmed, analyst downgrades incoming", created_at: "2026-04-21T11:31:44Z" },
-  { id: "e-003", trade_id: "t-003", level: "INFO",  agent_type: "analyst_technical", message: "Cybertruck ramp improving, energy division outperforming expectations",    created_at: "2026-04-21T11:31:42Z" },
-  { id: "e-004", trade_id: "t-002", level: "INFO",  agent_type: "decision_maker",  message: "Trade cycle complete — AAPL BUY opened at $198.55",                       created_at: "2026-04-21T10:02:11Z" },
+  { id: "e-001", trade_id: "t-003", level: "INFO",  agent_type: "decision",  message: "Trade cycle complete — TSLA SELL opened at $245.80",                    created_at: "2026-04-21T11:33:05Z" },
+  { id: "e-002", trade_id: "t-003", level: "INFO",  agent_type: "fundamental", message: "Web search: TSLA Q1 delivery miss confirmed, analyst downgrades incoming", created_at: "2026-04-21T11:31:44Z" },
+  { id: "e-003", trade_id: "t-003", level: "INFO",  agent_type: "technical", message: "Cybertruck ramp improving, energy division outperforming expectations",    created_at: "2026-04-21T11:31:42Z" },
+  { id: "e-004", trade_id: "t-002", level: "INFO",  agent_type: "decision",  message: "Trade cycle complete — AAPL BUY opened at $198.55",                       created_at: "2026-04-21T10:02:11Z" },
   { id: "e-005", trade_id: null,    level: "WARN",  agent_type: null,              message: "Daily P&L approaching 35% of loss limit — monitoring closely",             created_at: "2026-04-21T09:58:00Z" },
-  { id: "e-006", trade_id: "t-001", level: "INFO",  agent_type: "decision_maker",  message: "Trade cycle complete — NVDA BUY opened at $891.20",                       created_at: "2026-04-21T09:14:22Z" },
+  { id: "e-006", trade_id: "t-001", level: "INFO",  agent_type: "decision",  message: "Trade cycle complete — NVDA BUY opened at $891.20",                       created_at: "2026-04-21T09:14:22Z" },
   { id: "e-007", trade_id: "t-004", level: "INFO",  agent_type: null,              message: "META closed at $594.10 — P&L: +$22.40 (+4.7%)",                           created_at: "2026-04-21T08:55:30Z" },
   { id: "e-008", trade_id: "t-001", level: "DEBUG", agent_type: "reviewer",        message: "Prompt cache hit — system block reused (saved ~4,200 tokens)",             created_at: "2026-04-21T09:13:48Z" },
   { id: "e-009", trade_id: "t-005", level: "INFO",  agent_type: null,              message: "MSFT closed at $411.04 — P&L: -$8.40 (stop-loss triggered)",              created_at: "2026-04-21T07:18:44Z" },
@@ -119,10 +119,10 @@ const stats: DashboardStats = {
 const costs: CostBreakdown = {
   total: 2.14,
   by_agent: [
-    { name: "analyst_technical", tokens: 18200, cost: 0.58 },
-    { name: "analyst_fundamental", tokens: 17800, cost: 0.56 },
-    { name: "reviewer",        tokens: 12400, cost: 0.48 },
-    { name: "decision_maker",  tokens: 8800,  cost: 0.32 },
+    { name: "technical",   tokens: 18200, cost: 0.58 },
+    { name: "fundamental", tokens: 17800, cost: 0.56 },
+    { name: "review",      tokens: 12400, cost: 0.48 },
+    { name: "decision",    tokens: 8800,  cost: 0.32 },
   ],
   by_trade: [
     { instrumentSymbol: "NVDA", cost: 0.31 }, { instrumentSymbol: "AAPL", cost: 0.28 },

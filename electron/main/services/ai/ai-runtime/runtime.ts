@@ -1,7 +1,5 @@
-import { z } from "zod";
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import { AppError } from "@electron/shared/infra/errors";
-import { tradeDecisionSchema } from "@/lib/schemas";
 import type { AgentResult } from "./ai-runtime-types";
 import type { ProviderRegistry } from "../provider-registry";
 import type { SearchRegistry } from "../search";
@@ -15,8 +13,6 @@ import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
 import { PipelineRuntime } from "../pipeline-runtime/core/pipeline-runtime";
 import { PhaseConfigResolver } from "../pipeline-runtime/phase-config-resolver";
-
-export type TradeDecision = z.infer<typeof tradeDecisionSchema>;
 
 export class AiRuntime {
   private readonly pipelineRuntime: PipelineRuntime;

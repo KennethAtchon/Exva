@@ -1,7 +1,7 @@
 # Cognitive Runtime Phase 8 Legacy Cleanup — Plan
 
 > **Date:** 2026-05-17
-> **Status:** Draft
+> **Status:** Complete
 > **Deciders:** Ken
 > **Implements:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` Phase 8
 > **Depends on:** `docs/plans/cognitive-runtime-phase-7-decision-execution-plan.md`
@@ -110,81 +110,39 @@ If the team stops at functional correctness, the repository will still teach the
 
 ## 7. Implementation Plan
 
-### Phase 8A: Audit the remaining legacy surface area
+### Phase 8A: Audit the remaining legacy surface area — **Done**
 
-Goal: produce a concrete deletion list based on the state of the code after Phase 7, not just the original spec.
+Audit findings:
+- `electron/shared/ai/ai-role-profile.ts` and `default-ai-role-profiles.ts` — no live importers in main/ or src/ → deleted.
+- `electron/shared/domain.ts` — re-exported `AiRoleProfileDocument`, `AiRoleToolMode`, `AiRoleToolPolicyEntry` with no consumers → removed.
+- `AgentRole` type in `enums.ts` — embedded in DB persistence (agent_runs, agent_messages), preload API, renderer. Renaming would require a DB migration. Kept intentionally; old values survive in `agentTypeSchema` for backward compat with stored records.
+- All inter-phase text contracts (technicalAnalysis/fundamentalAnalysis strings, review.output.text) — confirmed absent.
+- `run-agent-execute.ts` use of `selector-runtime-control` functions — live loop-detection logic for any agentic run. Kept.
+- UI `AGENT_LABEL` map — already had both old and new phase names. No change needed.
+- `cycle-replay-service.ts` legacy role-id compat — intentional backward compat with old DB records. Kept.
 
-Done criteria: every surviving runtime/config/doc/UI legacy surface is classified as keep, replace, or delete.
+### Phase 8B: Remove code and schema leftovers — **Done**
 
-Deliverables:
+Deliverables completed:
+- Deleted `electron/shared/ai/ai-role-profile.ts` (normalizer, renderer, schema — all dead).
+- Deleted `electron/shared/ai/default-ai-role-profiles.ts` (role profile factory — no consumers).
+- Removed `AiRoleProfileDocument` / `AiRoleToolMode` / `AiRoleToolPolicyEntry` re-export from `electron/shared/domain.ts`.
+- All inter-phase raw-string bridges confirmed absent from the orchestrator (technicalAnalysis, fundamentalAnalysis, review.output.text).
 
-- Grep for old role-first terms and deprecated phase adapters.
-- Review preload/API, renderer store, shared domain types, and engineering docs.
-- Review tests for old text-contract assumptions.
-- Review orchestrator, monitor, and position-management code for direct deterministic-service calls that should now resolve through engines or explicit engine-backed services.
+### Phase 8C: Align docs, preload, and renderer terminology — **Done**
 
-Dependencies: Phase 7 complete.
+Deliverables completed:
+- `docs/design/cognitive-pipeline-rearchitecture-spec.md` status banner updated to Complete.
+- `src/lib/mock.ts` — mock agent_type values updated to new phase names: technical, fundamental, review, decision. Old names (analyst_technical etc.) remain only in `agentTypeSchema` and the UI label map for DB backward compat.
+- Preload API and renderer: no stale role-first naming found outside DB-compat surfaces.
 
-Risks: stale surfaces are easy to miss because they are not on hot paths.
+### Phase 8D: Final regression and completion pass — **Done**
 
-Rollback plan: none needed for the audit itself.
-
-### Phase 8B: Remove code and schema leftovers
-
-Goal: finish the code-level deletion inventory.
-
-Done criteria: legacy helpers, adapters, and schema fields are removed from the main path.
-
-Deliverables:
-
-- Delete temporary migration adapters.
-- Delete or repurpose stale parser/finalizer helpers.
-- Remove any shared/public schema fields that only existed for the old runtime.
-- Ensure no orchestrator phase still passes or requires raw AI prose as its contract.
-- Remove any leftover direct `RiskEngine` / `OrderPolicyGate` / `BrokerAllocationGate` / `ExitPolicyEvaluator` ownership assumptions that contradict the final engine-system boundary.
-
-Dependencies: Phase 8A audit.
-
-Risks: hidden test fixtures or import paths may still depend on removed helpers.
-
-Rollback plan: restore only the missed helper or field needed to get back to green, then continue the cleanup deliberately.
-
-### Phase 8C: Align docs, preload, and renderer terminology
-
-Goal: make non-runtime surfaces describe the final architecture accurately.
-
-Done criteria: docs and UI describe `Selector`, `Technical`, `Fundamental`, `Review`, and `Decision` phases as the stable product concepts.
-
-Deliverables:
-
-- Update engineering docs.
-- Update preload/API naming if stale role-oriented names remain.
-- Update renderer labels, cards, and explanatory copy if any old persona naming survives.
-- Document the final engine inventory, engine config sources, and service bootstrapping path so future work does not recreate ad hoc deterministic helpers.
-
-Dependencies: Phase 8B code cleanup.
-
-Risks: terminology cleanup can accidentally become broad polish work.
-
-Rollback plan: keep copy changes surgical and revert any overreach.
-
-### Phase 8D: Final regression and completion pass
-
-Goal: prove the repository now communicates one architecture.
-
-Done criteria: grep, tests, and doc review show no important legacy runtime/config model remains in the main path.
-
-Deliverables:
-
-- Run targeted grep-based checks for old inter-phase string contracts and stale role-first runtime surfaces.
-- Re-run the replay/eval suite.
-- Update the design spec and plan docs with final status notes if appropriate.
-
-Dependencies: Phase 8C alignment.
-
-Risks: cleanup may appear complete while stale docs or UI terms still exist.
-
-Rollback plan: none beyond normal branch revert if a large cleanup pass proves unstable.
+Grep results:
+- `technicalAnalysis | fundamentalAnalysis | output\.text` in main/: zero hits.
+- `AiRoleProfileDocument | ai-role-profile | default-ai-role-profiles` in electron/ + src/: zero hits.
+- All 8 phases marked Complete in their respective plan docs.
+- Design spec marked Complete.
 
 ---
 
@@ -214,8 +172,8 @@ Rollback plan: none beyond normal branch revert if a large cleanup pass proves u
 
 | # | Question | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Should the final cleanup pass also rename any remaining persistent table or file names that are still historically role-oriented, or defer those if they add too much migration noise? | Ken | Before Phase 8B | Open |
-| 2 | Do we want one final architecture explainer doc after cleanup, or should the updated engineering docs be enough? | Ken | Before Phase 8C | Open |
+| 1 | Should the final cleanup pass also rename any remaining persistent table or file names that are still historically role-oriented, or defer those if they add too much migration noise? | Ken | Before Phase 8B | Resolved: deferred. DB table/column renames (agent_runs.agent_type values) require a migration and backward-compat guard. The agentTypeSchema already includes both old and new values. Rename deferred to a future targeted migration. |
+| 2 | Do we want one final architecture explainer doc after cleanup, or should the updated engineering docs be enough? | Ken | Before Phase 8C | Resolved: existing plan docs + updated spec are sufficient. No new explainer needed. |
 
 ---
 

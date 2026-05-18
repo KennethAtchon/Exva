@@ -22,28 +22,14 @@ type ResolvedInstrument = {
 };
 
 import type { AgentResult } from "../ai/ai-runtime/ai-runtime-types";
-import type { TradeDecision } from "../ai/ai-runtime/runtime";
+import type { TechnicalSignal, FundamentalSignal, ReviewSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
+import { computeExecutionProfile } from "../ai/engines/execution-profile-engine";
 
-type AiTextRun = AgentResult<{ text: string }>;
-type AiDecisionRun = AgentResult<TradeDecision>;
-type AiPipelineResult = { technical: AiTextRun; fundamental: AiTextRun; review: AiTextRun; decision: AiDecisionRun };
-
-type DecisionOutput = {
-  action: "trade" | "no_trade";
-  instrumentSymbol?: string;
-  instrumentDisplayName?: string;
-  side?: "BUY" | "SELL";
-  outcome?: "YES" | "NO";
-  estimatedProb?: number;
-  impliedProb?: number;
-  edgePctPts?: number;
-  instrumentMetadataJson?: string;
-  sizeUsd?: number;
-  confidence: number;
-  stopLossPct?: number;
-  takeProfitPct?: number;
-  reasoning: string;
-};
+type AiTechnicalRun = AgentResult<TechnicalSignal>;
+type AiFundamentalRun = AgentResult<FundamentalSignal>;
+type AiReviewRun = AgentResult<ReviewSignal>;
+type AiDecisionRun = AgentResult<TradeSignal>;
+type AiPipelineResult = { technical: AiTechnicalRun; fundamental: AiFundamentalRun; review: AiReviewRun; decision: AiDecisionRun };
 
 type PredictionToken = { outcome?: unknown; token_id?: unknown };
 
@@ -57,9 +43,9 @@ type TradeCycleContext = {
   kind: "trade";
   cycleId: string;
   instrument: ResolvedInstrument;
-  technical?: AiTextRun;
-  fundamental?: AiTextRun;
-  review?: AiTextRun;
+  technical?: AiTechnicalRun;
+  fundamental?: AiFundamentalRun;
+  review?: AiReviewRun;
   decision?: AiDecisionRun;
   trade?: Trade;
   riskOrder?: OrderRequest;
@@ -332,22 +318,10 @@ export class AgentOrchestrator {
     }
 
     const trade = context.trade;
-    if (decision.output.action !== "trade") {
+    if (decision.output.action === "skip") {
       this.clearAttentionRequired();
       this.emitEvent("INFO", trade.id, `No trade decision for ${trade.instrumentSymbol}; cycle complete.`, "orchestrator", context.cycleId);
       return;
-    }
-
-    // Side-bias enforcement: throw early when side is missing and strategy constrains direction
-    if (!decision.output.side) {
-      const strategyRules = this.deps.strategyContextService.get(this.sessionId).rules;
-      const { sideBias } = strategyRules;
-      if (sideBias !== "both" && sideBias !== "n_a") {
-        throw new AppError(
-          `Decision missing side field; cannot default with sideBias=${sideBias}`,
-          "VALIDATION_FAILED",
-        );
-      }
     }
 
     if (!context.riskOrder) {
@@ -670,8 +644,8 @@ export class AgentOrchestrator {
     this.deps.tradesRepo.patchAiCost(trade.id, totalAiCostUsd);
 
     const fresh = decision.output;
-    if (fresh.action !== "trade") {
-      this.failRecheck(trade.id, approval.id, "Fresh decision is no_trade; not placing order.");
+    if (fresh.action === "skip") {
+      this.failRecheck(trade.id, approval.id, "Fresh decision is skip; not placing order.");
       return;
     }
 
@@ -892,14 +866,14 @@ export class AgentOrchestrator {
       const technical = await stepRunner.run(
         "technical",
         async () => {
-          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, { text: string }>(
+          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, TechnicalSignal>(
             "technical",
             this.sessionId,
             { instrumentSymbol: instrument.symbol, context: analystContext },
             context.cycleId,
           );
-          if (!result.output.text.trim()) {
-            throw new AppError("Technical analyst returned empty output.", "VALIDATION_FAILED");
+          if (!result.output.symbol) {
+            throw new AppError("Technical phase returned no signal.", "VALIDATION_FAILED");
           }
           return result;
         },
@@ -917,14 +891,14 @@ export class AgentOrchestrator {
       const fundamental = await stepRunner.run(
         "fundamental",
         async () => {
-          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, { text: string }>(
+          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, FundamentalSignal>(
             "fundamental",
             this.sessionId,
             { instrumentSymbol: instrument.symbol, context: analystContext },
             context.cycleId,
           );
-          if (!result.output.text.trim()) {
-            throw new AppError("Fundamental analyst returned empty output.", "VALIDATION_FAILED");
+          if (!result.output.symbol) {
+            throw new AppError("Fundamental phase returned no signal.", "VALIDATION_FAILED");
           }
           return result;
         },
@@ -948,20 +922,20 @@ export class AgentOrchestrator {
         "review",
         async () => {
           const result = await this.deps.ai.runPhase<
-            { instrumentSymbol: string; technicalAnalysis: string; fundamentalAnalysis: string },
-            { text: string }
+            { instrumentSymbol: string; technical: TechnicalSignal; fundamental: FundamentalSignal },
+            ReviewSignal
           >(
             "review",
             this.sessionId,
             {
               instrumentSymbol: instrument.symbol,
-              technicalAnalysis: technical.output.text,
-              fundamentalAnalysis: fundamental.output.text,
+              technical: technical.output,
+              fundamental: fundamental.output,
             },
             context.cycleId,
           );
-          if (!result.output.text.trim()) {
-            throw new AppError("Reviewer returned empty output.", "VALIDATION_FAILED");
+          if (!result.output.symbol) {
+            throw new AppError("Review phase returned no signal.", "VALIDATION_FAILED");
           }
           return result;
         },
@@ -986,17 +960,16 @@ export class AgentOrchestrator {
         "decision",
         () =>
           this.deps.ai.runPhase<
-            { instrumentSymbol: string; technicalAnalysis: string; fundamentalAnalysis: string; review: string; maxPositionUsd: number },
-            TradeDecision
+            { instrumentSymbol: string; technical: TechnicalSignal; fundamental: FundamentalSignal; review: ReviewSignal },
+            TradeSignal
           >(
             "decision",
             this.sessionId,
             {
               instrumentSymbol: instrument.symbol,
-              technicalAnalysis: technical.output.text,
-              fundamentalAnalysis: fundamental.output.text,
-              review: review.output.text,
-              maxPositionUsd: config.max_position_usd,
+              technical: technical.output,
+              fundamental: fundamental.output,
+              review: review.output,
             },
             context.cycleId,
           ),
@@ -1167,7 +1140,7 @@ export class AgentOrchestrator {
   private waitForApproval(
     trade: Trade,
     instrumentClass: InstrumentClass,
-    decisionOut: DecisionOutput,
+    decisionOut: TradeSignal,
     riskNote: string | undefined,
   ): Promise<{ approved: boolean; approvalId: string }> {
     const resolvedBroker = trade.brokerAccountId ?? this.resolveBrokerAccountId(instrumentClass);
@@ -1241,22 +1214,28 @@ export class AgentOrchestrator {
     tradeId: string,
     instrument: ResolvedInstrument,
     config: SessionConfig,
-    decision: DecisionOutput,
+    signal: TradeSignal,
     aiCostUsd: number,
   ): Trade {
     const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
-    const prediction = this.resolvePredictionTradeFields(instrument, decision);
-    const positionSizeUsd = this.resolvePositionSizeUsd(instrument.instrumentClass, config, decision);
+    const prediction = this.resolvePredictionTradeFields(instrument);
+    const strategy = this.deps.strategyContextService.get(this.sessionId);
+    const { positionSizeUsd, side } = computeExecutionProfile({
+      instrumentClass: instrument.instrumentClass,
+      action: signal.action as "buy" | "sell",
+      maxPositionUsd: config.max_position_usd,
+      maxExposureUsd: strategy.riskConfig.maxExposureUsd ?? null,
+    });
     return {
       id: tradeId,
       sessionId: this.sessionId,
       brokerAccountId,
-      instrumentSymbol: decision.instrumentSymbol ?? instrument.symbol,
+      instrumentSymbol: signal.symbol,
       instrumentDisplayName: prediction.instrumentDisplayName,
       predictionOutcome: prediction.predictionOutcome,
       instrumentMetadataJson: prediction.instrumentMetadataJson,
       instrumentType: instrument.instrumentClass,
-      side: decision.side ?? "BUY",
+      side,
       entry_price: null,
       position_size_usd: positionSizeUsd,
       stop_loss_price: null,
@@ -1267,7 +1246,7 @@ export class AgentOrchestrator {
       closed_at: null,
       final_pnl_usd: null,
       ai_cost_usd: aiCostUsd,
-      confidence_score: decision.confidence,
+      confidence_score: signal.confidence,
       broker_order_id: null,
       high_water_mark_price: null,
       exit_reason: null,
@@ -1278,24 +1257,32 @@ export class AgentOrchestrator {
   private createTradeFromDecision(
     instrument: ResolvedInstrument,
     config: SessionConfig,
-    decision: DecisionOutput,
+    signal: TradeSignal,
     aiCostUsd: number,
   ): Trade {
     const id = crypto.randomUUID();
     const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
-    const isTrade = decision.action === "trade";
-    const prediction = this.resolvePredictionTradeFields(instrument, decision);
-    const positionSizeUsd = this.resolvePositionSizeUsd(instrument.instrumentClass, config, decision);
+    const isTrade = signal.action !== "skip";
+    const prediction = this.resolvePredictionTradeFields(instrument);
+    const strategy = this.deps.strategyContextService.get(this.sessionId);
+    const { positionSizeUsd, side } = isTrade
+      ? computeExecutionProfile({
+          instrumentClass: instrument.instrumentClass,
+          action: signal.action as "buy" | "sell",
+          maxPositionUsd: config.max_position_usd,
+          maxExposureUsd: strategy.riskConfig.maxExposureUsd ?? null,
+        })
+      : { positionSizeUsd: 0, side: "BUY" as const };
     return {
       id,
       sessionId: this.sessionId,
       brokerAccountId,
-      instrumentSymbol: decision.instrumentSymbol ?? instrument.symbol,
+      instrumentSymbol: signal.symbol,
       instrumentDisplayName: prediction.instrumentDisplayName,
       predictionOutcome: prediction.predictionOutcome,
       instrumentMetadataJson: prediction.instrumentMetadataJson,
       instrumentType: instrument.instrumentClass,
-      side: decision.side ?? "BUY",
+      side,
       entry_price: null,
       position_size_usd: positionSizeUsd,
       stop_loss_price: null,
@@ -1306,7 +1293,7 @@ export class AgentOrchestrator {
       closed_at: isTrade ? null : new Date().toISOString(),
       final_pnl_usd: isTrade ? null : 0,
       ai_cost_usd: aiCostUsd,
-      confidence_score: decision.confidence,
+      confidence_score: signal.confidence,
       broker_order_id: null,
       high_water_mark_price: null,
       exit_reason: null,
@@ -1591,47 +1578,15 @@ export class AgentOrchestrator {
 
   private resolvePredictionTradeFields(
     instrument: ResolvedInstrument,
-    decision: DecisionOutput,
   ): Pick<Trade, "instrumentDisplayName" | "predictionOutcome" | "instrumentMetadataJson"> {
-    const instrumentDisplayName = decision.instrumentDisplayName ?? instrument.instrumentDisplayName ?? null;
-    const predictionOutcome = decision.outcome ?? instrument.predictionOutcome ?? null;
+    const instrumentDisplayName = instrument.instrumentDisplayName ?? null;
+    const predictionOutcome = instrument.predictionOutcome ?? null;
     const instrumentMetadataJson =
       instrument.instrumentClass === "prediction_market"
-        ? remapPredictionMetadataForOutcome(decision.instrumentMetadataJson ?? instrument.instrumentMetadataJson ?? null, predictionOutcome)
-        : decision.instrumentMetadataJson ?? instrument.instrumentMetadataJson ?? null;
+        ? remapPredictionMetadataForOutcome(instrument.instrumentMetadataJson ?? null, predictionOutcome)
+        : instrument.instrumentMetadataJson ?? null;
 
     return { instrumentDisplayName, predictionOutcome, instrumentMetadataJson };
-  }
-
-  private resolvePositionSizeUsd(
-    instrumentClass: InstrumentClass,
-    config: SessionConfig,
-    decision: DecisionOutput,
-  ): number {
-    if (instrumentClass !== "prediction_market") {
-      return Math.min(decision.sizeUsd ?? config.max_position_usd, config.max_position_usd);
-    }
-
-    const strategy = this.deps.strategyContextService.get(this.sessionId);
-    const capitalBase = Math.min(
-      this.totalAllocatedUsd(),
-      strategy.riskConfig.maxExposureUsd ?? Number.POSITIVE_INFINITY,
-    );
-    const explicit = decision.sizeUsd ?? null;
-    const estimatedProb = decision.estimatedProb ?? null;
-    const impliedProb = decision.impliedProb ?? null;
-
-    if (explicit != null) {
-      return Math.min(explicit, config.max_position_usd, strategy.riskConfig.maxExposureUsd ?? Number.POSITIVE_INFINITY);
-    }
-
-    if (estimatedProb == null || impliedProb == null || capitalBase <= 0) {
-      return Math.min(config.max_position_usd, strategy.riskConfig.maxExposureUsd ?? config.max_position_usd);
-    }
-
-    const fullKelly = Math.max(0, (estimatedProb - impliedProb) / Math.max(1 - impliedProb, 0.01));
-    const sized = capitalBase * strategy.riskConfig.kellyFraction * fullKelly;
-    return Math.min(Math.max(sized, 0), config.max_position_usd, strategy.riskConfig.maxExposureUsd ?? Number.POSITIVE_INFINITY);
   }
 
   private totalAllocatedUsd(): number {

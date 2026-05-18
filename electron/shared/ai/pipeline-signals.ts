@@ -1,0 +1,63 @@
+import { z } from "zod";
+
+export const technicalSignalSchema = z.object({
+  symbol: z.string(),
+  trendDirection: z.enum(["bullish", "bearish", "neutral"]),
+  trendStrength: z.number().min(0).max(1),
+  momentumScore: z.number().min(0).max(1).nullable().default(null),
+  volumeScore: z.number().min(0).max(1).nullable().default(null),
+  volumeSignal: z.enum(["accumulation", "distribution", "neutral"]).nullable().default(null),
+  patternName: z.string().nullable().default(null),
+  patternStrength: z.number().min(0).max(1).nullable().default(null),
+  nearestSupport: z.number().nullable().default(null),
+  nearestResistance: z.number().nullable().default(null),
+  timeframeAlignment: z.number().min(0).max(1).nullable().default(null),
+  rawSummary: z.string().default(""),
+});
+export type TechnicalSignal = z.infer<typeof technicalSignalSchema>;
+
+export const fundamentalSignalSchema = z.object({
+  symbol: z.string(),
+  catalystType: z.enum(["earnings", "partnership", "fda", "contract", "macro", "social_hype", "unknown"]).nullable().default(null),
+  catalystStrength: z.number().min(0).max(1).nullable().default(null),
+  catalystFreshness: z.number().min(0).max(1).nullable().default(null),
+  catalystScore: z.number().min(0).max(1).nullable().default(null),
+  catalystSummary: z.string().nullable().default(null),
+  earningsScore: z.number().min(0).max(1).nullable().default(null),
+  sentimentScore: z.number().min(0).max(1).nullable().default(null),
+  contradictionRisk: z.number().min(0).max(1).default(0),
+  rawSummary: z.string().default(""),
+});
+export type FundamentalSignal = z.infer<typeof fundamentalSignalSchema>;
+
+export const reviewSignalSchema = z.object({
+  symbol: z.string(),
+  technicalFundamentalConflict: z.number().min(0).max(1).nullable().default(null),
+  conflictExplanation: z.string().nullable().default(null),
+  tailRisks: z.array(z.string()).default([]),
+  overallRisk: z.enum(["low", "medium", "high"]).nullable().default(null),
+  recommendation: z.enum(["proceed", "reduce_size", "skip"]),
+  rawSummary: z.string().default(""),
+});
+export type ReviewSignal = z.infer<typeof reviewSignalSchema>;
+
+export const executionStrategySchema = z.enum([
+  "trend_momentum",
+  "breakout",
+  "mean_reversion",
+  "event_driven",
+  "arbitrage",
+  "prediction_market",
+  "futures_trend",
+]);
+export type ExecutionStrategyType = z.infer<typeof executionStrategySchema>;
+
+export const tradeSignalSchema = z.object({
+  symbol: z.string(),
+  action: z.enum(["buy", "sell", "skip"]),
+  executionStrategy: executionStrategySchema,
+  entryPrice: z.number().positive().nullable().default(null),
+  confidence: z.number().min(0).max(1),
+  reasoning: z.string().min(1),
+});
+export type TradeSignal = z.infer<typeof tradeSignalSchema>;

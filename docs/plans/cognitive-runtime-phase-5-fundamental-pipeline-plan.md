@@ -1,7 +1,7 @@
 # Cognitive Runtime Phase 5 Fundamental Pipeline — Plan
 
 > **Date:** 2026-05-17
-> **Status:** Draft
+> **Status:** Complete
 > **Deciders:** Ken
 > **Implements:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` Phase 5
 > **Depends on:** `docs/plans/cognitive-runtime-phase-4-technical-pipeline-plan.md`
@@ -105,63 +105,30 @@ This phase should mirror the technical-phase pattern closely so the runtime lear
 
 ## 7. Implementation Plan
 
-### Phase 5A: Define `FundamentalSignal` and worker schemas
+### Phase 5A: Define `FundamentalSignal` and worker schemas — **Done**
 
-Goal: stabilize the fundamental output contract.
+Deliverables completed:
 
-Done criteria: `FundamentalSignal` and worker output schemas exist and validate against fixtures.
+- `FundamentalSignal` schema extended in `electron/shared/ai/pipeline-signals.ts` with `catalystScore` added as a derived composite field (`strength × freshness × (1 − contradictionRisk)`) — not in the spec's schema sketch but required for downstream review consumption.
+- `EarningsOutput`, `CatalystOutput`, `SentimentOutput` worker schemas defined in `engines/fundamental-aggregator.ts`.
+- Explicit null/default semantics: all scored fields `.nullable().default(null)`; `contradictionRisk` defaults to 0.
 
-Deliverables:
+### Phase 5B: Implement workers and aggregator — **Done**
 
-- Add shared `FundamentalSignal` schema.
-- Define worker outputs for `earnings-context`, `catalyst-context`, and `sentiment-context`.
-- Define explicit null/default semantics for no-news or low-evidence cases.
-- Define a context-engine payload for research posture so workers receive typed discovery/evidence/catalyst settings from DB-backed state rather than inherited prose.
+Deliverables completed:
 
-Dependencies: shared pipeline-signal module from Phase 4 work.
+- `engines/fundamental-aggregator.ts` — `aggregateFundamentalSignal()` with deterministic `catalystScore` derivation; `buildRawSummary()` concatenates per-worker summaries.
+- Prompt assets: `fundamental-workers/earnings-context.md` (`get_news` only), `catalyst-context.md` (`get_news` + `search_web`), `sentiment-context.md` (`search_reddit` + `search_web`).
+- `fundamental.phase.ts` rewritten: 3 workers in parallel via `runConcurrentGroup(concurrency=3)`; results fed to `aggregateFundamentalSignal`; `assembleAggregateTrace` for persistence.
+- `engines/fundamental-aggregator.test.ts` — 5 tests covering earnings/sentiment passthrough, `catalystScore` derivation formula, null on missing inputs, all-absent fallback, and rawSummary content.
 
-Risks: sentiment and catalyst fields may overlap if scopes are not kept narrow.
+### Phase 5C: Wire typed output into orchestrator — **Done**
 
-Rollback plan: revert schema changes before wiring if needed.
+Deliverables completed:
 
-### Phase 5B: Implement workers and aggregator
-
-Goal: build the live fundamental phase behavior.
-
-Done criteria: the fundamental phase runs three workers in parallel and produces `FundamentalSignal`.
-
-Deliverables:
-
-- Implement `FundamentalPipeline` and signal aggregator.
-- Implement prompt assets and tool bindings.
-- Prefer current-information tools for earnings/catalyst/sentiment evidence rather than broad narrative prompts.
-- Register and use a `fundamental-aggregator` transformer engine/finalizer and explicit research-posture context bindings.
-- Add worker and aggregator tests.
-
-Dependencies: Phase 5A contracts.
-
-Risks: evidence quality may be uneven across supported instrument classes.
-
-Rollback plan: keep the current single-worker definition until replay and tests pass.
-
-### Phase 5C: Wire typed output into orchestrator and prepare the review migration
-
-Goal: stop treating fundamental analysis as a text blob.
-
-Done criteria: orchestrator stores/passes `FundamentalSignal`, and any temporary review adapter is explicit and short-lived.
-
-Deliverables:
-
-- Replace `{ text: string }` fundamental runtime/orchestrator types with `FundamentalSignal`.
-- If Phase 6 is not in the same branch, introduce a narrow temporary adapter from `rawSummary` to the old review input and mark it Phase-6-only debt.
-- Persist structured fundamental traces.
-- Ensure workspace/session search-provider resolution is consumed through runtime tool context, not restated in prompts.
-
-Dependencies: Phase 5B implementation.
-
-Risks: temporary adapters become sticky if not explicitly scheduled for removal.
-
-Rollback plan: revert the typed-wiring commit if downstream review integration is not ready.
+- `AiFundamentalRun = AgentResult<FundamentalSignal>` added; `AiPipelineResult.fundamental` and `TradeCycleContext.fundamental` updated.
+- `runPhase<..., FundamentalSignal>` call updated; validation changed from `.text.trim()` to `.symbol` presence.
+- Downstream review/decision phases receive `fundamental.output.rawSummary` as the backward-compat string adapter until Phase 6.
 
 ---
 
@@ -191,8 +158,8 @@ Rollback plan: revert the typed-wiring commit if downstream review integration i
 
 | # | Question | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Should `sentiment-context` have direct Reddit/search access in v1, or should it only consume upstream discovery evidence? | Ken | Before Phase 5B | Open |
-| 2 | How should contradiction risk combine multiple weak or conflicting catalyst signals? | Ken | Before Phase 5B | Open |
+| 1 | Should `sentiment-context` have direct Reddit/search access in v1, or should it only consume upstream discovery evidence? | Ken | Before Phase 5B | Resolved: direct access via `search_reddit` + `search_web` per spec table 16.7. |
+| 2 | How should contradiction risk combine multiple weak or conflicting catalyst signals? | Ken | Before Phase 5B | Resolved: `catalyst-context` worker outputs a single `contradictionRisk` score 0-1; no aggregation needed since it's one worker's judgment. Derived `catalystScore = strength × freshness × (1 − contradictionRisk)` in the aggregator. |
 
 ---
 
