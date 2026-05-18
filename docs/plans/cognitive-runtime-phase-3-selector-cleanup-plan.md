@@ -1,7 +1,7 @@
 # Cognitive Runtime Phase 3 Selector Cleanup — Plan
 
 > **Date:** 2026-05-17
-> **Status:** In Progress — Phase 3A partially done as part of Phase 2 cutover
+> **Status:** Complete
 > **Deciders:** Ken
 > **Implements:** `docs/design/cognitive-pipeline-rearchitecture-spec.md` Phase 3
 > **Depends on:** `docs/plans/cognitive-runtime-phase-2-selector-cutover-plan.md`
@@ -46,12 +46,12 @@ That is dangerous for two reasons. First, dead or half-dead selector code invite
 | --- | --- | --- | --- |
 | `selector-pipeline/` folder | Phase-specific orchestration class (`SelectorPipeline`) and all supporting files | Delete | **Done** — entire folder deleted; utilities moved to `engines/selector-*` |
 | `pipeline-runtime/core/pipeline-runtime.ts` | Hardcoded `if (opts.phase === "selector")` bypass | Remove; dispatch generically via `definition.run` | **Done** — replaced with generic `definition.run` dispatch |
-| `electron/main/services/ai/ai-runtime/selector-runtime-control.ts` | Discovery/verification/commit step heuristics, `buildSelectorPrepareStep`, `defaultSelectorRuntimeSettings` | Delete or remove the selector-phase-specific parts | **Remaining** — file still exists; no longer imported by the live selector path but has tests in `ai-runtime/__tests__/selector-runtime-control.test.ts` |
-| `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts` | `resolveTerminalResult()`: `if (phase === "selector")` branch calling `parseInstrumentSelection()` | Remove — dead code since selector workers now use `outputMode: "object"` | **Remaining** — dead branch still present; safe to delete |
-| `electron/shared/ai/default-ai-role-profiles.ts` | Selector-oriented profile defaults | Remove selector runtime behavior fields that no longer exist | **Remaining** |
-| `electron/shared/ai/ai-role-profile.ts` | Selector settings schema helpers | Remove obsolete selector runtime settings | **Remaining** |
-| `electron/shared/validation/schemas.ts`, `electron/shared/domain/workspace.ts`, `src/lib/exva.ts` | Persisted/public selector settings shape | Drop fields that only existed for the old loop | **Remaining** |
-| `src/store/strategyStore.ts`, `electron/preload/exva-api.ts` | Renderer/preload selector settings exposure | Remove dead state and API exposure | **Remaining** |
+| `electron/main/services/ai/ai-runtime/selector-runtime-control.ts` | Discovery/verification/commit step heuristics, `buildSelectorPrepareStep`, `defaultSelectorRuntimeSettings` | Delete or remove the selector-phase-specific parts | **Done** — dead exports removed; `analyzeSelectorSteps`, `buildSelectorStepSignature`, `canonicalizeToolInput` kept (used by `run-agent-execute.ts`) |
+| `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts` | `resolveTerminalResult()`: `if (phase === "selector")` branch calling `parseInstrumentSelection()` | Remove — dead code since selector workers now use `outputMode: "object"` | **Done** — dead branch and `parseInstrumentSelection` import removed |
+| `electron/shared/ai/default-ai-role-profiles.ts` | Selector-oriented profile defaults | Remove selector runtime behavior fields that no longer exist | **Done** — `selectorSettings` block and all step-loop constant imports removed |
+| `electron/shared/ai/ai-role-profile.ts` | Selector settings schema helpers | Remove obsolete selector runtime settings | **Done** — `selectorRoleSettingsSchema`, all step-loop constants, `resolveSelectorRoleSettings`, `resolveSelectorNoInstrumentRetryMinutes`, `SelectorRoleSettings`, `ResolvedSelectorRoleSettings` removed |
+| `electron/shared/validation/schemas.ts`, `electron/shared/domain/workspace.ts`, `src/lib/exva.ts` | Persisted/public selector settings shape | Drop fields that only existed for the old loop | **Not applicable** — these `selectorSettings` fields contain only `aiPickerEnabled` which is still live |
+| `src/store/strategyStore.ts`, `electron/preload/exva-api.ts` | Renderer/preload selector settings exposure | Remove dead state and API exposure | **Not applicable** — these expose `aiPickerEnabled` only, which is still live |
 
 ### Cleanup principle
 
@@ -109,67 +109,49 @@ The rule for this phase is simple: if a file, field, helper, or test exists only
 
 ## 7. Implementation Plan
 
-### Phase 3A: Delete selector runtime-control code
+### Phase 3A: Delete selector runtime-control code — **Done**
 
 Goal: remove the procedural selector step-control layer from the codebase.
 
 Done criteria: no production selector path imports or references `selector-runtime-control.ts`.
 
-**Partially done as part of Phase 2 cutover:**
+Completed deliverables:
 
-- `selector-pipeline/` folder deleted.
-- `pipeline-runtime.ts` hardcoded selector bypass removed.
-- `selector.phase.ts` no longer imports `buildSelectorPrepareStep` or `defaultSelectorRuntimeSettings`.
+- `selector-pipeline/` folder deleted (Phase 2 cutover).
+- `pipeline-runtime.ts` hardcoded selector bypass removed (Phase 2 cutover).
+- `selector.phase.ts` no longer imports `buildSelectorPrepareStep` or `defaultSelectorRuntimeSettings` (Phase 2 cutover).
+- `if (phase === "selector")` branch removed from `resolveTerminalResult()` in `worker-executor.ts`; `parseInstrumentSelection` import removed.
+- `selector-runtime-control.ts` dead exports removed (`buildSelectorPrepareStep`, `defaultSelectorRuntimeSettings`, `SelectorRuntimeSettings`, 6 `DEFAULT_SELECTOR_*` step constants); live exports kept (`analyzeSelectorSteps`, `buildSelectorStepSignature`, `canonicalizeToolInput` — still used by `run-agent-execute.ts`).
+- `ai-runtime/__tests__/selector-runtime-control.test.ts` trimmed to cover only the live `analyzeSelectorSteps` export.
 
-**Remaining deliverables:**
-
-- Remove `if (phase === "selector")` branch from `resolveTerminalResult()` in `worker-executor.ts` (dead code — selector discovery/verification workers use `outputMode: "object"`; no terminal-tool parse needed).
-- Remove the `parseInstrumentSelection` import from `worker-executor.ts` if no other path uses it.
-- Decide fate of `selector-runtime-control.ts`: the step-analysis utilities (`analyzeSelectorSteps`, `buildSelectorStepSignature`, `canonicalizeToolInput`) may have standalone value for analytics/monitoring; `buildSelectorPrepareStep` and `defaultSelectorRuntimeSettings` are dead. Either delete the file or extract only what is still useful.
-- Update or delete `ai-runtime/__tests__/selector-runtime-control.test.ts` to match what survives.
-
-Dependencies: Phase 2 selector cutover live and verified.
-
-Risks: tests still rely on legacy trace shapes.
-
-Rollback plan: restore the deleted files only if Phase 2 cutover is reverted.
-
-### Phase 3B: Remove dead selector config and schema surfaces
+### Phase 3B: Remove dead selector config and schema surfaces — **Done**
 
 Goal: stop exposing obsolete selector runtime settings to persistence, API, and UI layers.
 
 Done criteria: no shared/public schema advertises selector loop-control settings that the new selector does not use.
 
-Deliverables:
+Completed deliverables:
 
-- Remove old selector runtime fields from shared AI profile/config types.
-- Remove matching preload/API payload fields.
-- Remove renderer state that only supported the old selector controls.
-- Decide whether `aiPickerEnabled` remains as a high-level mode toggle; remove the rest if they are loop-specific.
+- `selectorRoleSettingsSchema`, `SelectorRoleSettings`, `ResolvedSelectorRoleSettings`, `resolveSelectorRoleSettings`, `resolveSelectorNoInstrumentRetryMinutes`, all step-loop constants (`SELECTOR_STEP_SETTING_*`, `DEFAULT_SELECTOR_MAX_*`, `DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES`) removed from `ai-role-profile.ts`.
+- `selectorSettings` block (step-loop defaults) removed from `default-ai-role-profiles.ts`; all step-loop constant imports dropped.
+- `electron/shared/__tests__/ai-role-profile.test.ts` deleted (entire file tested dead exports).
+- `aiPickerEnabled` confirmed still live in `agent-orchestrator.ts`, `schemas.ts`, `workspace.ts`, `preload/exva-api.ts`, `src/lib/exva.ts`, `strategyStore.ts` — all unchanged.
 
-Dependencies: Phase 3A runtime cleanup.
+Note: `selectorSettings` in `schemas.ts`, `workspace.ts`, `preload`, and the renderer store was found to contain only `aiPickerEnabled` (not step-loop knobs), so those surfaces are live and untouched.
 
-Risks: hidden session/template flows may still deserialize old selector fields.
-
-Rollback plan: restore only the schema fields needed to reopen the app if a missed consumer appears.
-
-### Phase 3C: Rewrite tests and docs to the new selector model
+### Phase 3C: Rewrite tests and docs to the new selector model — **Done**
 
 Goal: make the test suite and engineering docs encode the new selector architecture.
 
 Done criteria: selector tests verify candidate typing, ranking, filtering, and submission; no test is asserting the old phase-switch heuristics.
 
-Deliverables:
+Completed deliverables:
 
-- Replace step-heuristic tests with pipeline/service tests.
-- Update engineering docs that still describe selector as a broad loop agent.
-- Remove obsolete references from plan/spec docs if they are now misleading implementation details.
-
-Dependencies: Phase 3B cleanup.
-
-Risks: stale comments and docs survive because they are not exercised by tests.
-
-Rollback plan: none beyond restoring deleted docs from version control if needed.
+- `selector-candidate-merger.test.ts` added — covers dedup by `instrumentClass:symbol`, score max-merge, display-name/rationale first-non-null, risk-flag union, and empty input.
+- `instrument-selection-parser.ts` and `instrument-selection-parser.test.ts` deleted — parser existed only to turn `submit_candidates` terminal traces into `InstrumentSelection`; no longer imported after Phase 3A removed the `worker-executor.ts` dead branch.
+- `docs/design/cognitive-pipeline-rearchitecture-spec.md` status banner updated to reflect Phases 1 and 2 complete, Phase 3 in progress, Phases 4-7 pending; implementation note added re: `.run` hook superseding the `SelectorPipeline` class approach.
+- `docs/architecture/ai-runtime-and-harness.md` was already marked "Legacy historical write-up" — no further update needed.
+- Remaining archive docs (`docs/plans/archieve/`) retain their historical descriptions accurately.
 
 ---
 

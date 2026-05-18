@@ -1,6 +1,5 @@
-import type { PrepareStepFunction, StepResult, ToolSet } from "ai";
+import type { StepResult, ToolSet } from "ai";
 import { normalizeQueryFamily, validateDiscoveryQuery } from "../search/sanitize-search-query";
-import type { HarnessToolAvailability } from "../pipeline-runtime/context/tool-factory-registry";
 
 type StepLike = {
   toolCalls: Array<{
@@ -20,11 +19,6 @@ type SelectorToolEvent = {
   output: unknown;
 };
 
-type SelectorPhase = "discovery" | "verification" | "commit" | "force_commit";
-
-const DISCOVERY_TOOLS = ["search_web", "search_reddit", "get_trending_symbols", "fetch_url"] as const;
-const VERIFICATION_TOOLS = ["get_quote", "get_news", "get_ohlcv", "fetch_url"] as const;
-const COMMIT_TOOLS = ["submit_candidates", "get_quote", "get_news", "get_ohlcv", "fetch_url"] as const;
 const SEARCH_TOOLS = new Set<string>(["search_web", "search_reddit"]);
 const VERIFICATION_SYMBOL_TOOLS = new Set<string>(["get_quote", "get_news", "get_ohlcv"]);
 const COMMON_SYMBOL_TOKENS = new Set([
@@ -45,33 +39,6 @@ const COMMON_SYMBOL_TOKENS = new Set([
   "WEB",
 ]);
 
-const DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS = 8;
-const DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS = 6;
-const DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS = 2;
-const DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS = 2;
-const DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION = 3;
-const DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP = 14;
-
-export interface SelectorRuntimeSettings {
-  maxDiscoverySteps: number;
-  maxVerificationSteps: number;
-  maxNoNewInfoSteps: number;
-  maxRepeatedSymbolChecks: number;
-  minCandidatesBeforeVerification: number;
-  forceSubmitAfterStep: number;
-}
-
-export function defaultSelectorRuntimeSettings(): SelectorRuntimeSettings {
-  return {
-    maxDiscoverySteps: DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS,
-    maxVerificationSteps: DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS,
-    maxNoNewInfoSteps: DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS,
-    maxRepeatedSymbolChecks: DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS,
-    minCandidatesBeforeVerification: DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION,
-    forceSubmitAfterStep: DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP,
-  };
-}
-
 export interface SelectorStepAnalysis {
   queryCount: number;
   duplicateQueryCount: number;
@@ -82,33 +49,6 @@ export interface SelectorStepAnalysis {
   maxRepeatedSymbolChecks: number;
   noNewInfoStreak: number;
   sawSubmitCandidates: boolean;
-}
-
-export function buildSelectorPrepareStep(
-  availability: HarnessToolAvailability,
-  settings: SelectorRuntimeSettings,
-): PrepareStepFunction<ToolSet> {
-  return ({ stepNumber, steps }) => {
-    if (stepNumber === 0 && availability.searchWeb) {
-      return {
-        activeTools: ["search_web"],
-        toolChoice: { type: "tool", toolName: "search_web" },
-      };
-    }
-
-    const phase = determineSelectorPhase(steps, stepNumber, settings);
-    const activeTools = activeToolsForPhase(phase, availability);
-    if (activeTools.length === 0) return {};
-
-    if (phase === "force_commit" && activeTools.includes("submit_candidates")) {
-      return {
-        activeTools,
-        toolChoice: { type: "tool", toolName: "submit_candidates" },
-      };
-    }
-
-    return { activeTools };
-  };
 }
 
 export function analyzeSelectorSteps(steps: StepLike[]): SelectorStepAnalysis {
@@ -196,65 +136,6 @@ export function analyzeSelectorSteps(steps: StepLike[]): SelectorStepAnalysis {
     noNewInfoStreak,
     sawSubmitCandidates,
   };
-}
-
-function determineSelectorPhase(
-  steps: StepLike[],
-  stepNumber: number,
-  settings: SelectorRuntimeSettings,
-): SelectorPhase {
-  const analysis = analyzeSelectorSteps(steps);
-  const discoveryBudgetHit = stepNumber >= settings.maxDiscoverySteps;
-  const verificationBudgetHit = stepNumber >= settings.maxDiscoverySteps + settings.maxVerificationSteps;
-  const enoughCandidates = analysis.uniqueSymbols.length >= settings.minCandidatesBeforeVerification;
-  const noNewInfo = analysis.noNewInfoStreak >= settings.maxNoNewInfoSteps;
-  const repeatedChecks = analysis.maxRepeatedSymbolChecks >= settings.maxRepeatedSymbolChecks;
-
-  if (stepNumber >= settings.forceSubmitAfterStep) {
-    return "force_commit";
-  }
-
-  if (verificationBudgetHit) {
-    return "commit";
-  }
-
-  if (discoveryBudgetHit || enoughCandidates || noNewInfo || repeatedChecks) {
-    return "verification";
-  }
-
-  return "discovery";
-}
-
-function activeToolsForPhase(phase: SelectorPhase, availability: HarnessToolAvailability): Array<keyof ToolSet> {
-  const source = phase === "discovery"
-    ? DISCOVERY_TOOLS
-    : phase === "verification"
-      ? VERIFICATION_TOOLS
-      : COMMIT_TOOLS;
-  return source.filter((toolName) => isToolAvailable(toolName, availability)) as Array<keyof ToolSet>;
-}
-
-function isToolAvailable(toolName: string, availability: HarnessToolAvailability): boolean {
-  switch (toolName) {
-    case "search_web":
-      return availability.searchWeb;
-    case "search_reddit":
-      return availability.searchReddit;
-    case "get_trending_symbols":
-      return availability.trendingSymbols;
-    case "fetch_url":
-      return availability.fetchUrl;
-    case "get_quote":
-      return availability.getQuote;
-    case "get_news":
-      return availability.getNews;
-    case "get_ohlcv":
-      return availability.getOhlcv;
-    case "submit_candidates":
-      return availability.submitCandidates;
-    default:
-      return false;
-  }
 }
 
 function selectorEventsFromStep(step: StepLike): SelectorToolEvent[] {

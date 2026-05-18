@@ -1,17 +1,6 @@
 import { z } from "zod";
 
 export const AI_ROLE_PROFILE_VERSION = 1 as const;
-export const SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN = 1 as const;
-export const SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX = 60 as const;
-export const DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES = 5 as const;
-export const SELECTOR_STEP_SETTING_MIN = 1 as const;
-export const SELECTOR_STEP_SETTING_MAX = 50 as const;
-export const DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS = 8 as const;
-export const DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS = 6 as const;
-export const DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS = 2 as const;
-export const DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS = 2 as const;
-export const DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION = 3 as const;
-export const DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP = 14 as const;
 
 export const aiRoleToolModeSchema = z.enum(["disabled", "optional", "preferred", "required"]);
 
@@ -42,54 +31,6 @@ export const aiRoleProfileOutputSchema = z
   .catchall(z.unknown())
   .default({});
 
-export const selectorRoleSettingsSchema = z
-  .object({
-    noInstrumentRetryMinutes: z
-      .number()
-      .int()
-      .min(SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN)
-      .max(SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX)
-      .optional(),
-    maxDiscoverySteps: z
-      .number()
-      .int()
-      .min(SELECTOR_STEP_SETTING_MIN)
-      .max(SELECTOR_STEP_SETTING_MAX)
-      .optional(),
-    maxVerificationSteps: z
-      .number()
-      .int()
-      .min(SELECTOR_STEP_SETTING_MIN)
-      .max(SELECTOR_STEP_SETTING_MAX)
-      .optional(),
-    maxNoNewInfoSteps: z
-      .number()
-      .int()
-      .min(SELECTOR_STEP_SETTING_MIN)
-      .max(SELECTOR_STEP_SETTING_MAX)
-      .optional(),
-    maxRepeatedSymbolChecks: z
-      .number()
-      .int()
-      .min(SELECTOR_STEP_SETTING_MIN)
-      .max(SELECTOR_STEP_SETTING_MAX)
-      .optional(),
-    minCandidatesBeforeVerification: z
-      .number()
-      .int()
-      .min(1)
-      .max(SELECTOR_STEP_SETTING_MAX)
-      .optional(),
-    forceSubmitAfterStep: z
-      .number()
-      .int()
-      .min(SELECTOR_STEP_SETTING_MIN)
-      .max(SELECTOR_STEP_SETTING_MAX)
-      .optional(),
-  })
-  .catchall(z.unknown())
-  .optional();
-
 export const aiRoleProfileDocumentSchema = z
   .object({
     version: z.literal(AI_ROLE_PROFILE_VERSION),
@@ -98,24 +39,12 @@ export const aiRoleProfileDocumentSchema = z
     toolPolicy: z.record(z.string(), aiRoleToolPolicyEntrySchema).default({}),
     method: aiRoleProfileMethodSchema,
     output: aiRoleProfileOutputSchema,
-    selectorSettings: selectorRoleSettingsSchema,
   })
   .catchall(z.unknown());
 
 export type AiRoleToolMode = z.infer<typeof aiRoleToolModeSchema>;
 export type AiRoleToolPolicyEntry = z.infer<typeof aiRoleToolPolicyEntrySchema>;
 export type AiRoleProfileDocument = z.infer<typeof aiRoleProfileDocumentSchema>;
-export type SelectorRoleSettings = NonNullable<z.infer<typeof selectorRoleSettingsSchema>>;
-
-export interface ResolvedSelectorRoleSettings {
-  noInstrumentRetryMinutes: number;
-  maxDiscoverySteps: number;
-  maxVerificationSteps: number;
-  maxNoNewInfoSteps: number;
-  maxRepeatedSymbolChecks: number;
-  minCandidatesBeforeVerification: number;
-  forceSubmitAfterStep: number;
-}
 
 export function normalizeAiRoleProfileDocument(
   input: unknown,
@@ -124,35 +53,6 @@ export function normalizeAiRoleProfileDocument(
   const parsed = aiRoleProfileDocumentSchema.safeParse(input);
   if (parsed.success) return parsed.data;
   return fallback ? cloneAiRoleProfileDocument(fallback) : aiRoleProfileDocumentSchema.parse({ version: AI_ROLE_PROFILE_VERSION });
-}
-
-export function resolveSelectorNoInstrumentRetryMinutes(document: AiRoleProfileDocument | null | undefined): number {
-  const value = document?.selectorSettings?.noInstrumentRetryMinutes;
-  return typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN &&
-    value <= SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX
-    ? value
-    : DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES;
-}
-
-export function resolveSelectorRoleSettings(document: AiRoleProfileDocument | null | undefined): ResolvedSelectorRoleSettings {
-  const settings = document?.selectorSettings;
-  return {
-    noInstrumentRetryMinutes: resolveSelectorNoInstrumentRetryMinutes(document),
-    maxDiscoverySteps: resolveSelectorStepSetting(settings?.maxDiscoverySteps, DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS),
-    maxVerificationSteps: resolveSelectorStepSetting(settings?.maxVerificationSteps, DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS),
-    maxNoNewInfoSteps: resolveSelectorStepSetting(settings?.maxNoNewInfoSteps, DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS),
-    maxRepeatedSymbolChecks: resolveSelectorStepSetting(
-      settings?.maxRepeatedSymbolChecks,
-      DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS,
-    ),
-    minCandidatesBeforeVerification: resolveSelectorMinCandidatesSetting(
-      settings?.minCandidatesBeforeVerification,
-      DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION,
-    ),
-    forceSubmitAfterStep: resolveSelectorStepSetting(settings?.forceSubmitAfterStep, DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP),
-  };
 }
 
 export function renderAiRoleProfileMarkdown(
@@ -283,17 +183,3 @@ function truncate(value: string, maxChars: number): string {
   return value.length > maxChars ? `${value.slice(0, maxChars)}...` : value;
 }
 
-function resolveSelectorStepSetting(value: number | undefined, fallback: number): number {
-  return typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= SELECTOR_STEP_SETTING_MIN &&
-    value <= SELECTOR_STEP_SETTING_MAX
-    ? value
-    : fallback;
-}
-
-function resolveSelectorMinCandidatesSetting(value: number | undefined, fallback: number): number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= SELECTOR_STEP_SETTING_MAX
-    ? value
-    : fallback;
-}

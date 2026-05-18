@@ -1,13 +1,6 @@
 import type { AgentRole } from "../domain";
 import {
   AI_ROLE_PROFILE_VERSION,
-  DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP,
-  DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS,
-  DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS,
-  DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS,
-  DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS,
-  DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION,
-  DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES,
   aiRoleProfileDocumentSchema,
   type AiRoleProfileDocument,
 } from "./ai-role-profile";
@@ -157,15 +150,6 @@ const DEFAULT_AI_ROLE_PROFILES: Record<AgentRole, AiRoleProfileDocument> = {
       format: "candidate_list",
       requiredSections: ["candidate rationale"],
       terminalAction: "submit_candidates",
-    },
-    selectorSettings: {
-      noInstrumentRetryMinutes: DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES,
-      maxDiscoverySteps: DEFAULT_SELECTOR_MAX_DISCOVERY_STEPS,
-      maxVerificationSteps: DEFAULT_SELECTOR_MAX_VERIFICATION_STEPS,
-      maxNoNewInfoSteps: DEFAULT_SELECTOR_MAX_NO_NEW_INFO_STEPS,
-      maxRepeatedSymbolChecks: DEFAULT_SELECTOR_MAX_REPEATED_SYMBOL_CHECKS,
-      minCandidatesBeforeVerification: DEFAULT_SELECTOR_MIN_CANDIDATES_BEFORE_VERIFICATION,
-      forceSubmitAfterStep: DEFAULT_SELECTOR_FORCE_SUBMIT_AFTER_STEP,
     },
   },
 };

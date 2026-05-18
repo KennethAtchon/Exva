@@ -1,7 +1,8 @@
 # Cognitive Pipeline Re-Architecture — Product Specification
 
 > **Date:** 2026-05-17 (revised 2026-05-17 — full pipeline scope)
-> **Status:** Draft
+> **Status:** In Progress — Phase 1 (substrate) and Phase 2 (selector cutover) complete; Phase 3 (cleanup) in progress; Phases 4-7 (technical/fundamental/review/decision) pending
+> **Implementation note:** The `SelectorPipeline` class approach described in sections 5 and 6 was superseded by the `PipelineDefinition.run` hook (see Phase 2 cutover plan). The end semantics are identical; the folder structure and class hierarchy are not used.
 > **Feature area:** AI Runtime, Phase Orchestration, Run Management, Full Trading Pipeline
 > **Audience:** Engineering
 > **Depends on:** `AgentOrchestrator` (electron/main/services/orchestration/agent-orchestrator.ts), `AiRuntime` (electron/main/services/ai/ai-runtime/runtime.ts), current `session_ai_roles` DB schema (abstracted as phase config in this design), broker routing, search registry, prompt asset loader

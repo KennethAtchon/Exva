@@ -4,7 +4,6 @@ import type { PipelinePhase, WorkerDefinition } from "@electron/shared/ai/pipeli
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { ProviderRegistry } from "../../provider-registry";
 import { withProviderRetry } from "../../ai-runtime/runtime-retry";
-import { parseInstrumentSelection } from "../../ai-runtime/instrument-selection-parser";
 import { assembleTrace } from "./trace-assembler";
 import { buildToolSet, type ToolBuildContext } from "../context/tool-factory-registry";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
@@ -129,7 +128,7 @@ export async function executeWorker<TOutput>(
     }
     output = trace.structuredOutput as TOutput;
   } else if (worker.outputMode === "tool_terminal") {
-    const terminalResult = resolveTerminalResult(phase, trace);
+    const terminalResult = resolveTerminalResult(trace);
     if (!terminalResult) {
       throw new AppError(
         `Worker ${worker.id} (phase ${phase}) reached no terminal tool result.`,
@@ -174,7 +173,6 @@ export async function executeWorker<TOutput>(
 }
 
 function resolveTerminalResult(
-  phase: PipelinePhase,
   trace: {
     assistantText: string;
     steps: Array<{
@@ -182,10 +180,6 @@ function resolveTerminalResult(
     }>;
   },
 ): unknown {
-  if (phase === "selector") {
-    return parseInstrumentSelection(trace as Parameters<typeof parseInstrumentSelection>[0]);
-  }
-
   for (const step of trace.steps) {
     for (const call of step.toolCalls) {
       if (call.resultJson) {
