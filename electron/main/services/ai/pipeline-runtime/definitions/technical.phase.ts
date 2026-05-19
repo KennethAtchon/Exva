@@ -1,4 +1,5 @@
 import type { PipelineDefinition, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
 import { technicalSignalSchema, type TechnicalSignal } from "@electron/shared/ai/pipeline-signals";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
@@ -113,6 +114,7 @@ export const TECHNICAL_PHASE: PipelineDefinition<TechnicalPhaseInput, TechnicalS
   outputMode: "object",
   outputSchema: technicalSignalSchema as import("zod").ZodType<TechnicalSignal>,
   workers: technicalWorkersForMode("trend_scan"),
+  engines: [ENGINE_BINDINGS.technicalAggregatorFinalize],
   persistence: {
     outputSchemaName: "technicalSignal",
     traceMode: "aggregate_workers",

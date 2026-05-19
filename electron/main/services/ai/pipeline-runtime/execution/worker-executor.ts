@@ -13,6 +13,8 @@ import type { PromptAssetLoader } from "../../prompt-asset-loader";
 import { envelopeToMessages, buildPromptEnvelope } from "../prompting/prompt-envelope-builder";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { createLogger } from "../../../infra/log";
+import type { PipelineSpendTracker } from "./pipeline-spend-tracker";
+import { runReadEngineContext } from "./engine-context-runner";
 
 const logger = createLogger("pipeline-runtime");
 
@@ -41,13 +43,23 @@ export interface WorkerRunOptions {
   task: Record<string, unknown>;
   terminalToolNames?: readonly string[];
   prepareStep?: PrepareStepFunction<ToolSet>;
+  spendTracker?: PipelineSpendTracker;
 }
 
 export async function executeWorker<TOutput>(
   deps: WorkerExecutorDeps,
   opts: WorkerRunOptions,
 ): Promise<AgentResult<TOutput>> {
-  const { phase, worker, sessionId, cycleId, tradeId, task } = opts;
+  const { phase, worker, sessionId, cycleId, tradeId, task, spendTracker } = opts;
+
+  if (spendTracker && !spendTracker.canContinue()) {
+    const abortMessage = spendTracker.abortLogMessage();
+    if (abortMessage) logger.warn({ sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null }, abortMessage);
+    throw new AppError(
+      abortMessage ?? "Pipeline spend cap exceeded; worker aborted.",
+      "SPEND_CAP_EXCEEDED",
+    );
+  }
 
   const workerExecConfig = deps.phaseConfigResolver.resolveWorkerExecConfig(sessionId, phase, worker.id);
   const resolvedConfig = deps.phaseConfigResolver.resolveWorkerRuntimeConfig(phase, worker, workerExecConfig.workerOverride);
@@ -69,17 +81,32 @@ export async function executeWorker<TOutput>(
     promptMarkdown = deps.promptLoader.load(worker.promptAssetPath);
   }
 
+  const engineResults = runReadEngineContext({
+    phase,
+    sessionId,
+    cycleId: cycleId ?? null,
+    strategyContext: deps.strategyContext,
+    bindings: resolvedConfig.engines,
+    task,
+  });
+
   const envelope = buildPromptEnvelope({
     phase,
     workerId: worker.id,
     basePromptMarkdown: promptMarkdown,
     task,
     strategyContext: deps.strategyContext,
+    engineResults,
   });
 
   const messages = envelopeToMessages(envelope, deps.strategyContext);
 
-  const tools = await buildToolSet(resolvedConfig.tools, deps.toolContext, opts.terminalToolNames as string[] | undefined);
+  const tools = await buildToolSet(
+    resolvedConfig.tools,
+    deps.toolContext,
+    opts.terminalToolNames as string[] | undefined,
+    worker.toolConfig,
+  );
 
   logger.info(
     {
@@ -189,6 +216,12 @@ export async function executeWorker<TOutput>(
     },
     "worker complete",
   );
+
+  spendTracker?.record(run.cost_usd);
+  if (spendTracker && !spendTracker.canContinue()) {
+    const abortMessage = spendTracker.abortLogMessage();
+    if (abortMessage) logger.warn({ sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null }, abortMessage);
+  }
 
   return { run, message, output };
 }

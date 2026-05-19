@@ -1,7 +1,7 @@
 # Cognitive Runtime Phase 1 Redesign — Plan
 
 > **Date:** 2026-05-17
-> **Status:** Draft
+> **Status:** Complete (2026-05-18) — substrate shipped; see [`cognitive-pipeline-implementation-gap-checklist.md`](cognitive-pipeline-implementation-gap-checklist.md) for cross-phase remaining gaps.
 > **Deciders:** Ken
 > **Implements:** `docs/design/cognitive-pipeline-rearchitecture-spec.md`
 

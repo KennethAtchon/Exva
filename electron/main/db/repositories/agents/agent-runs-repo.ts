@@ -1,6 +1,6 @@
 import type { DbClient } from "../../client";
 import type { AgentRun } from "@/lib/types";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, and, sql } from "drizzle-orm";
 import { agentMessages, agentRuns } from "../../schema";
 import { toAgentRun } from "../system/mappers";
 
@@ -70,5 +70,14 @@ export class AgentRunsRepo {
         createdAt: run.created_at,
       })
       .run();
+  }
+
+  dailyAiSpendUsd(sessionId: string, date = new Date().toISOString().slice(0, 10)): number {
+    const row = this.client.db
+      .select({ total: sql<number>`coalesce(sum(${agentRuns.costUsd}), 0)` })
+      .from(agentRuns)
+      .where(and(eq(agentRuns.sessionId, sessionId), sql`substr(${agentRuns.createdAt}, 1, 10) = ${date}`))
+      .get();
+    return Number(row?.total ?? 0);
   }
 }

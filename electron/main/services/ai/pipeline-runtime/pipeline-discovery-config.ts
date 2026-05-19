@@ -1,5 +1,7 @@
 import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
+import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/catalog/search-providers";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
 import { z } from "zod";
 import { candidateSchema } from "@electron/shared/ai/selector-pipeline-candidate";
 import {
@@ -31,11 +33,17 @@ const candidateOutputSchema = z.object({
   ).max(6),
 });
 
+const SEARCH_WEB_TOOL_CONFIG = {
+  search_web: { fallbackProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID },
+} as const;
+
 const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   {
     id: "web-scout",
     promptAssetPath: "selector-workers/web-scout",
     tools: ["search_web", "fetch_url"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: candidateOutputSchema,
   },
@@ -43,6 +51,7 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     id: "reddit-scout",
     promptAssetPath: "selector-workers/reddit-scout",
     tools: ["search_reddit"],
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: candidateOutputSchema,
   },
@@ -50,6 +59,8 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     id: "trend-scout",
     promptAssetPath: "selector-workers/trend-scout",
     tools: ["get_trending_symbols", "search_web"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: candidateOutputSchema,
   },
@@ -60,6 +71,8 @@ const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     id: "event-web-scout",
     promptAssetPath: "selector-workers/event-web-scout",
     tools: ["search_web", "fetch_url"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: candidateOutputSchema,
   },
@@ -67,6 +80,8 @@ const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     id: "event-prediction-scout",
     promptAssetPath: "selector-workers/event-prediction-scout",
     tools: ["search_web", "get_trending_symbols"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: candidateOutputSchema,
   },
@@ -77,6 +92,7 @@ const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
     id: "chart-pattern",
     promptAssetPath: "technical-workers/chart-pattern",
     tools: ["get_ohlcv"],
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: chartPatternOutputSchema,
   },
@@ -84,6 +100,7 @@ const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
     id: "momentum-indicator",
     promptAssetPath: "technical-workers/momentum-indicator",
     tools: ["get_ohlcv", "get_quote"],
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: momentumOutputSchema,
   },
@@ -91,6 +108,7 @@ const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
     id: "volume-profile",
     promptAssetPath: "technical-workers/volume-profile",
     tools: ["get_ohlcv"],
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: volumeOutputSchema,
   },
@@ -125,6 +143,7 @@ const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
     id: "earnings-context",
     promptAssetPath: "fundamental-workers/earnings-context",
     tools: ["get_news"],
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: earningsOutputSchema,
   },
@@ -132,6 +151,8 @@ const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
     id: "catalyst-context",
     promptAssetPath: "fundamental-workers/catalyst-context",
     tools: ["get_news", "search_web"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: catalystOutputSchema,
   },
@@ -139,6 +160,8 @@ const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
     id: "sentiment-context",
     promptAssetPath: "fundamental-workers/sentiment-context",
     tools: ["search_reddit", "search_web"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: sentimentOutputSchema,
   },

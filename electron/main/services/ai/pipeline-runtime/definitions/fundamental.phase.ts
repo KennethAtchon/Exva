@@ -1,4 +1,5 @@
 import type { PipelineDefinition, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
 import { fundamentalSignalSchema, type FundamentalSignal } from "@electron/shared/ai/pipeline-signals";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
@@ -113,6 +114,7 @@ export const FUNDAMENTAL_PHASE: PipelineDefinition<FundamentalPhaseInput, Fundam
   outputMode: "object",
   outputSchema: fundamentalSignalSchema as import("zod").ZodType<FundamentalSignal>,
   workers: fundamentalWorkersForMode("trend_scan"),
+  engines: [ENGINE_BINDINGS.fundamentalAggregatorFinalize],
   persistence: {
     outputSchemaName: "fundamentalSignal",
     traceMode: "aggregate_workers",

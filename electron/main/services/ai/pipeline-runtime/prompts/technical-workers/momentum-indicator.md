@@ -2,8 +2,6 @@
 
 Given OHLCV bars and a current quote for {instrumentSymbol}, assess directional momentum.
 
-Use `get_ohlcv` for recent price bars and `get_quote` for current price. No other tools.
-
 Return JSON:
 ```json
 {

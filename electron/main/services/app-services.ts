@@ -215,6 +215,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     repos.session,
     repos.workspacePreferences,
     repos.apiCallLog,
+    repos.agentRuns,
     brokerRouting,
     brokerRegistry,
     strategyContext,

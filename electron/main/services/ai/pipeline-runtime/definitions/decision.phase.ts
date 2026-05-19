@@ -1,4 +1,5 @@
 import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
 import { tradeSignalSchema, type TradeSignal, type TechnicalSignal, type FundamentalSignal, type ReviewSignal } from "@electron/shared/ai/pipeline-signals";
 import { signalForWorkerPrompt } from "@electron/shared/ai/signal-prompt-payload";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
@@ -23,6 +24,7 @@ const SIGNAL_CLASSIFIER_WORKER = {
   id: "signal-classifier",
   promptAssetPath: "decision-workers/signal-classifier",
   tools: [] as const,
+  engines: [ENGINE_BINDINGS.riskSummaryRead],
   outputMode: "object" as const,
   outputSchema: signalClassifierOutputSchema,
 };
@@ -31,6 +33,7 @@ const ENTRY_TIMER_WORKER = {
   id: "entry-timer",
   promptAssetPath: "decision-workers/entry-timer",
   tools: [] as const,
+  engines: [ENGINE_BINDINGS.riskSummaryRead],
   outputMode: "object" as const,
   outputSchema: entryTimerOutputSchema,
 };
@@ -113,6 +116,7 @@ export const DECISION_PHASE: PipelineDefinition<DecisionPhaseInput, TradeSignal>
   outputMode: "object",
   outputSchema: tradeSignalSchema as import("zod").ZodType<TradeSignal>,
   workers: DECISION_WORKERS,
+  engines: [ENGINE_BINDINGS.tradeSignalAggregatorFinalize],
   persistence: {
     outputSchemaName: "tradeSignal",
     traceMode: "aggregate_workers",

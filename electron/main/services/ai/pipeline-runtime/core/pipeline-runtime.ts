@@ -16,10 +16,16 @@ import type { SessionStrategyContextService } from "../../../session/session-str
 import type { SessionRepo } from "../../../../db/repositories/sessions/session-repo";
 import type { WorkspacePreferencesRepo } from "../../../../db/repositories/workspace/workspace-prefs-repo";
 import type { ApiCallLogRepo } from "../../../../db/repositories/system/api-call-log-repo";
+import type { AgentRunsRepo } from "../../../../db/repositories/agents/agent-runs-repo";
 import type { SearchRegistry } from "../../search";
 import type { BrokerRoutingService } from "../../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../../broker/broker-registry";
 import { buildToolContext } from "../context/tool-context-builder";
+import { DEFAULT_PIPELINE_CONFIG } from "@electron/shared/ai/pipeline-config";
+import { PipelineSpendTracker } from "../execution/pipeline-spend-tracker";
+import { createLogger } from "../../../infra/log";
+
+const logger = createLogger("pipeline-runtime");
 
 export interface PipelineRuntimeDeps {
   providerRegistry: ProviderRegistry;
@@ -29,6 +35,7 @@ export interface PipelineRuntimeDeps {
   sessionRepo: SessionRepo;
   workspacePrefsRepo: WorkspacePreferencesRepo;
   apiCallLogRepo: ApiCallLogRepo;
+  agentRunsRepo: AgentRunsRepo;
   searchRegistry: SearchRegistry;
   brokerRouting?: BrokerRoutingService;
   brokerRegistry?: BrokerRegistry;
@@ -46,6 +53,8 @@ export interface RunPhaseOptions<TInput = Record<string, unknown>> {
 }
 
 export class PipelineRuntime {
+  private readonly cycleSpendUsd = new Map<string, number>();
+
   constructor(private readonly deps: PipelineRuntimeDeps) {}
 
   setStrategyContextService(strategyContextService: SessionStrategyContextService): void {
@@ -65,6 +74,16 @@ export class PipelineRuntime {
     }
 
     const strategyContext = this.requireStrategyContextService().get(opts.sessionId);
+    const cycleKey = opts.cycleId ?? opts.sessionId;
+    const pipelineSpentBeforePhaseUsd = opts.cycleId ? (this.cycleSpendUsd.get(cycleKey) ?? 0) : 0;
+    const spendTracker = new PipelineSpendTracker({
+      phaseSpendCapUsd: this.deps.phaseConfigResolver.resolvePhaseSpendCapUsd(opts.phase),
+      pipelineSpendCapUsd: DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd,
+      sessionSpendCapUsd: strategyContext.riskConfig.maxAiSpendUsd,
+      sessionSpentBeforeRunUsd: this.deps.agentRunsRepo.dailyAiSpendUsd(opts.sessionId),
+      pipelineSpentBeforePhaseUsd,
+    });
+
     const toolContext = opts.toolContext ?? await buildToolContext(this.deps, {
       sessionId: opts.sessionId,
       cycleId: opts.cycleId,
@@ -80,18 +99,24 @@ export class PipelineRuntime {
       strategyContext,
     };
 
+    const workerRunBase = {
+      phase: opts.phase,
+      sessionId: opts.sessionId,
+      cycleId: opts.cycleId ?? null,
+      tradeId: opts.tradeId ?? null,
+      spendTracker,
+    };
+
     if (definition.run) {
       const runner: PipelineWorkerRunner = {
         execute: <T>(worker: WorkerDefinition, task: Record<string, unknown>) =>
           executeWorker<T>(executorDeps, {
-            phase: opts.phase,
+            ...workerRunBase,
             worker,
-            sessionId: opts.sessionId,
-            cycleId: opts.cycleId ?? null,
-            tradeId: opts.tradeId ?? null,
             task,
           }),
-        executeGroup: runConcurrentGroup,
+        executeGroup: (tasks, concurrency) => runConcurrentGroup(tasks, concurrency, () => spendTracker.canContinue()),
+        canContinueWorkers: () => spendTracker.canContinue(),
       };
       const ctx: PipelineRunContext = {
         input: opts.input as Record<string, unknown>,
@@ -100,8 +125,11 @@ export class PipelineRuntime {
         tradeId: opts.tradeId ?? null,
         toolContext,
         strategyContext,
+        spendTracker,
       };
-      return definition.run(ctx, runner) as Promise<AgentResult<TOutput>>;
+      const result = (await definition.run(ctx, runner)) as AgentResult<TOutput>;
+      this.recordCycleSpend(cycleKey, spendTracker.phaseSpent);
+      return result;
     }
 
     const task = opts.input as Record<string, unknown>;
@@ -109,18 +137,25 @@ export class PipelineRuntime {
     const prepareStep = opts.prepareStep ?? definition.buildPrepareStep?.(toolContext);
 
     const schedule = buildWorkerSchedule(workers as never, definition.scheduling);
-    const executed = await executeByFrontier(schedule.ordered, schedule.maxConcurrency, async ({ worker }) =>
-      executeWorker<unknown>(executorDeps, {
-        phase: opts.phase,
-        worker,
-        sessionId: opts.sessionId,
-        cycleId: opts.cycleId ?? null,
-        tradeId: opts.tradeId ?? null,
-        task,
-        terminalToolNames,
-        prepareStep,
-      }),
+    const shouldContinue = () => spendTracker.canContinue();
+    const executed = await executeByFrontier(
+      schedule.ordered,
+      schedule.maxConcurrency,
+      async ({ worker }) =>
+        executeWorker<unknown>(executorDeps, {
+          ...workerRunBase,
+          worker,
+          task,
+          terminalToolNames,
+          prepareStep,
+        }),
+      shouldContinue,
     );
+
+    if (!shouldContinue()) {
+      const abortMessage = spendTracker.abortLogMessage();
+      if (abortMessage) logger.warn({ sessionId: opts.sessionId, phase: opts.phase, cycleId: opts.cycleId ?? null }, abortMessage);
+    }
 
     const output = aggregatePhaseOutput(definition, executed.map((entry) => entry.result.output)) as TOutput;
     const phaseExecConfig = this.deps.phaseConfigResolver.resolvePhaseConfig(opts.sessionId, opts.phase);
@@ -146,7 +181,13 @@ export class PipelineRuntime {
       })),
     });
 
+    this.recordCycleSpend(cycleKey, spendTracker.phaseSpent);
     return { run: aggregate.run, message: aggregate.message, output };
+  }
+
+  private recordCycleSpend(cycleKey: string, phaseSpentUsd: number): void {
+    if (phaseSpentUsd <= 0) return;
+    this.cycleSpendUsd.set(cycleKey, (this.cycleSpendUsd.get(cycleKey) ?? 0) + phaseSpentUsd);
   }
 
   private requireStrategyContextService(): SessionStrategyContextService {

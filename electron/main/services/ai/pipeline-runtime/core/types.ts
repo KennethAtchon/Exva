@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { ToolBuildContext } from "../context/tool-factory-registry";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import type { PipelineSpendTracker } from "../execution/pipeline-spend-tracker";
 
 export interface WorkerOutputContract<TOutput> {
   schema: z.ZodType<TOutput>;
@@ -45,10 +46,12 @@ export interface PipelineRunContext<TInput = Record<string, unknown>> {
   tradeId: string | null;
   toolContext: ToolBuildContext;
   strategyContext: SessionStrategyContext;
+  spendTracker: PipelineSpendTracker;
 }
 
 /** Execution capabilities injected by the pipeline-runtime into a phase's `run` handler. */
 export interface PipelineWorkerRunner {
   execute<T>(worker: WorkerDefinition, task: Record<string, unknown>): Promise<AgentResult<T>>;
   executeGroup<T>(tasks: Array<() => Promise<T>>, concurrency: number): Promise<Array<PromiseSettledResult<T>>>;
+  canContinueWorkers(): boolean;
 }

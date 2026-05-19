@@ -133,35 +133,39 @@ Layout rules:
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|-------------------|
-| New Session | Button | "New Session" | Always enabled | Opens Create Session modal |
-| Templates | Button | "Templates" | Always enabled | Opens Session Templates modal |
-| Search input | Text input | Placeholder: "Search sessions" | Empty by default | Filters session table by name and objective |
-| Status filter | Dropdown | `All`, `Draft`, `Idle`, `Active`, `Paused`, `Stopped`, `Archived` | `All` default | Filters session table |
-| Instrument class filter | Dropdown | `All`, `Stocks`, `Crypto`, `Futures`, `Mixed` | `All` default | Filters session table |
-| Archive toggle | Toggle | "Show archived" | Off by default | Includes archived rows when enabled |
-| Go Global | Button | "Go Global" | Enabled when at least one non-archived session exists and app is not already in global mode | Switches workspace context to global and clears focused session |
-| Focus action | Button | "Focus" | Disabled on currently focused row | Sets the row session as the focused session in renderer and main process |
-| Edit action | Button | "Edit" | Enabled for `draft`, `idle`, and `stopped`; disabled for `active` and `paused` | Opens edit modal for the selected session |
-| Duplicate action | Button | "Duplicate" | Enabled for non-archived rows | Creates a new draft session copied from the selected row, including AI roles and prompts |
-| Save as Template | Button | "Save as Template" | Enabled for non-archived rows | Saves the selected session configuration as a reusable template |
-| Pause/Resume action | Button | "Pause" or "Resume" | Based on row status | Calls session lifecycle action for that row |
-| Stop action | Button | "Stop" | Enabled for `active` and `paused` rows | Stops the selected session |
-| Archive action | Button | "Archive" | Hidden for active session | Archives the selected session after confirmation |
-| Open Strategy | Button | "Open Strategy" | Enabled when a focused session exists | Navigates to `Strategy` page for the focused session |
+
+| Element                 | Type       | Label / Content                                                   | State                                                                                       | Action on Interact                                                                       |
+| ----------------------- | ---------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| New Session             | Button     | "New Session"                                                     | Always enabled                                                                              | Opens Create Session modal                                                               |
+| Templates               | Button     | "Templates"                                                       | Always enabled                                                                              | Opens Session Templates modal                                                            |
+| Search input            | Text input | Placeholder: "Search sessions"                                    | Empty by default                                                                            | Filters session table by name and objective                                              |
+| Status filter           | Dropdown   | `All`, `Draft`, `Idle`, `Active`, `Paused`, `Stopped`, `Archived` | `All` default                                                                               | Filters session table                                                                    |
+| Instrument class filter | Dropdown   | `All`, `Stocks`, `Crypto`, `Futures`, `Mixed`                     | `All` default                                                                               | Filters session table                                                                    |
+| Archive toggle          | Toggle     | "Show archived"                                                   | Off by default                                                                              | Includes archived rows when enabled                                                      |
+| Go Global               | Button     | "Go Global"                                                       | Enabled when at least one non-archived session exists and app is not already in global mode | Switches workspace context to global and clears focused session                          |
+| Focus action            | Button     | "Focus"                                                           | Disabled on currently focused row                                                           | Sets the row session as the focused session in renderer and main process                 |
+| Edit action             | Button     | "Edit"                                                            | Enabled for `draft`, `idle`, and `stopped`; disabled for `active` and `paused`              | Opens edit modal for the selected session                                                |
+| Duplicate action        | Button     | "Duplicate"                                                       | Enabled for non-archived rows                                                               | Creates a new draft session copied from the selected row, including AI roles and prompts |
+| Save as Template        | Button     | "Save as Template"                                                | Enabled for non-archived rows                                                               | Saves the selected session configuration as a reusable template                          |
+| Pause/Resume action     | Button     | "Pause" or "Resume"                                               | Based on row status                                                                         | Calls session lifecycle action for that row                                              |
+| Stop action             | Button     | "Stop"                                                            | Enabled for `active` and `paused` rows                                                      | Stops the selected session                                                               |
+| Archive action          | Button     | "Archive"                                                         | Hidden for active session                                                                   | Archives the selected session after confirmation                                         |
+| Open Strategy           | Button     | "Open Strategy"                                                   | Enabled when a focused session exists                                                       | Navigates to `Strategy` page for the focused session                                     |
+
 
 **States this screen can be in:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Loading | Sessions query in progress | Skeleton header card, skeleton table, disabled actions |
-| Empty | No sessions exist | Empty state panel with explanation and CTA |
-| Default | At least one session exists | Summary card, filters, session table |
-| Global | App workspace context is `global` | Summary card labeled `Global Workspace`, `Go Global` disabled, session rows still available for `Focus` |
-| Filtered empty | Filters remove all rows | Table area shows "No sessions match these filters." |
-| Error | Sessions query fails | Inline error banner: "Failed to load sessions." and button "Retry" |
-| Creating | Create modal submit in progress | Modal buttons disabled, primary button text changes to "Creating..." |
+
+| State          | Condition                         | What the User Sees                                                                                      |
+| -------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Loading        | Sessions query in progress        | Skeleton header card, skeleton table, disabled actions                                                  |
+| Empty          | No sessions exist                 | Empty state panel with explanation and CTA                                                              |
+| Default        | At least one session exists       | Summary card, filters, session table                                                                    |
+| Global         | App workspace context is `global` | Summary card labeled `Global Workspace`, `Go Global` disabled, session rows still available for `Focus` |
+| Filtered empty | Filters remove all rows           | Table area shows "No sessions match these filters."                                                     |
+| Error          | Sessions query fails              | Inline error banner: "Failed to load sessions." and button "Retry"                                      |
+| Creating       | Create modal submit in progress   | Modal buttons disabled, primary button text changes to "Creating..."                                    |
+
 
 ### 4.1A Session Templates Modal
 
@@ -202,24 +206,28 @@ Layout rules:
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|-------------------|
-| Search input | Text input | Placeholder: "Search templates" | Empty by default | Filters template list by name and description |
-| Instrument class filter | Dropdown | `All`, `Stocks`, `Crypto`, `Futures`, `Mixed` | `All` default | Filters template list |
-| Use Template | Button | "Use Template" | Enabled for all template rows | Opens Create Session modal with prefilled data |
-| Edit Metadata | Button | "Edit Metadata" | Enabled for all template rows | Opens inline metadata editor |
-| Delete | Button | "Delete" | Enabled for all template rows | Deletes selected template after confirmation |
-| Save Template | Button | "Save Template" | Enabled when launched from a session row | Persists selected session config as template |
+
+| Element                 | Type       | Label / Content                               | State                                    | Action on Interact                             |
+| ----------------------- | ---------- | --------------------------------------------- | ---------------------------------------- | ---------------------------------------------- |
+| Search input            | Text input | Placeholder: "Search templates"               | Empty by default                         | Filters template list by name and description  |
+| Instrument class filter | Dropdown   | `All`, `Stocks`, `Crypto`, `Futures`, `Mixed` | `All` default                            | Filters template list                          |
+| Use Template            | Button     | "Use Template"                                | Enabled for all template rows            | Opens Create Session modal with prefilled data |
+| Edit Metadata           | Button     | "Edit Metadata"                               | Enabled for all template rows            | Opens inline metadata editor                   |
+| Delete                  | Button     | "Delete"                                      | Enabled for all template rows            | Deletes selected template after confirmation   |
+| Save Template           | Button     | "Save Template"                               | Enabled when launched from a session row | Persists selected session config as template   |
+
 
 **States this screen can be in:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Loading | Template query in progress | Skeleton list rows |
-| Empty | No templates exist | Empty state with save-template CTA |
-| Default | Templates exist | Search, filters, and template list |
-| Saving | Template create/update in progress | Buttons disabled, spinner on primary action |
-| Error | Template query or save fails | Inline error banner with retry |
+
+| State   | Condition                          | What the User Sees                          |
+| ------- | ---------------------------------- | ------------------------------------------- |
+| Loading | Template query in progress         | Skeleton list rows                          |
+| Empty   | No templates exist                 | Empty state with save-template CTA          |
+| Default | Templates exist                    | Search, filters, and template list          |
+| Saving  | Template create/update in progress | Buttons disabled, spinner on primary action |
+| Error   | Template query or save fails       | Inline error banner with retry              |
+
 
 ### 4.2 Create / Edit Session Modal
 
@@ -264,31 +272,35 @@ Layout rules:
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|-------------------|
-| Session name | Text input | Placeholder: "e.g. Crypto Breakout Scanner" | Required | Updates local draft |
-| Objective | Textarea | Placeholder: "Describe what this session is trying to do." | Required | Updates local draft |
-| Selection mode | Segmented control | `Manual shortlist`, `AI-selected universe` | One required | Determines which downstream fields are required |
-| Instrument classes | Multiselect | `Stocks`, `Crypto`, `Futures` | At least one required | Limits broker and instrument validation |
-| Instrument scope | Textarea | Placeholder differs by mode | Required | Stores manual watchlist or AI selector instructions |
-| AI picker toggle | Toggle | "Allow instrument selector agent" | User-controlled; available when session definition supports selector flow | Enables `instrument_selector` role on save |
-| Allowed brokers | Multi-select list | Connected broker names | At least one required | Assigns broker access to the session |
-| Default broker mapping | Inline select rows | One select per selected instrument class | Required when multiple compatible brokers exist | Sets routing default |
-| Capital limit | Currency input | "Max capital allocated to this session" | Required | Used in risk validation |
-| Execution mode lock | Segmented control | `Paper only`, `Live allowed` | Required | Restricts eligible brokers on start |
-| Template source banner | Read-only banner | "Using template: [template name]" | Visible only for template-derived create flow | Indicates the draft was prefilled from a template |
-| Save Session | Button | "Create Session" or "Save Session" | Disabled when invalid or unchanged | Persists session |
+
+| Element                | Type               | Label / Content                                            | State                                                                     | Action on Interact                                  |
+| ---------------------- | ------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------- |
+| Session name           | Text input         | Placeholder: "e.g. Crypto Breakout Scanner"                | Required                                                                  | Updates local draft                                 |
+| Objective              | Textarea           | Placeholder: "Describe what this session is trying to do." | Required                                                                  | Updates local draft                                 |
+| Selection mode         | Segmented control  | `Manual shortlist`, `AI-selected universe`                 | One required                                                              | Determines which downstream fields are required     |
+| Instrument classes     | Multiselect        | `Stocks`, `Crypto`, `Futures`                              | At least one required                                                     | Limits broker and instrument validation             |
+| Instrument scope       | Textarea           | Placeholder differs by mode                                | Required                                                                  | Stores manual watchlist or AI selector instructions |
+| AI picker toggle       | Toggle             | "Allow instrument selector agent"                          | User-controlled; available when session definition supports selector flow | Enables `instrument_selector` role on save          |
+| Allowed brokers        | Multi-select list  | Connected broker names                                     | At least one required                                                     | Assigns broker access to the session                |
+| Default broker mapping | Inline select rows | One select per selected instrument class                   | Required when multiple compatible brokers exist                           | Sets routing default                                |
+| Capital limit          | Currency input     | "Max capital allocated to this session"                    | Required                                                                  | Used in risk validation                             |
+| Execution mode lock    | Segmented control  | `Paper only`, `Live allowed`                               | Required                                                                  | Restricts eligible brokers on start                 |
+| Template source banner | Read-only banner   | "Using template: [template name]"                          | Visible only for template-derived create flow                             | Indicates the draft was prefilled from a template   |
+| Save Session           | Button             | "Create Session" or "Save Session"                         | Disabled when invalid or unchanged                                        | Persists session                                    |
+
 
 **States this screen can be in:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Default | Opening a valid draft | Inputs editable, save enabled when complete |
-| Validation error | Required field missing or incompatible setup | Inline field errors and save disabled |
-| Compatibility error | No connected broker supports chosen instrument classes | Error panel: "No connected broker can execute this session." |
-| Saving | Save mutation in progress | Footer buttons disabled, spinner in primary action |
-| Locked | User attempts to edit an `active` or `paused` session | Banner: "Stop this session before editing its configuration." and no editable modal opens |
-| API error | Save fails | Inline banner with exact failure message |
+
+| State               | Condition                                              | What the User Sees                                                                        |
+| ------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| Default             | Opening a valid draft                                  | Inputs editable, save enabled when complete                                               |
+| Validation error    | Required field missing or incompatible setup           | Inline field errors and save disabled                                                     |
+| Compatibility error | No connected broker supports chosen instrument classes | Error panel: "No connected broker can execute this session."                              |
+| Saving              | Save mutation in progress                              | Footer buttons disabled, spinner in primary action                                        |
+| Locked              | User attempts to edit an `active` or `paused` session  | Banner: "Stop this session before editing its configuration." and no editable modal opens |
+| API error           | Save fails                                             | Inline banner with exact failure message                                                  |
+
 
 ### 4.3 Dashboard Page
 
@@ -311,25 +323,29 @@ Layout rules:
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|-------------------|
-| Context chip | Chip | Focused session name or `Global Workspace` | Always visible when sessions exist | Opens session switcher popover |
-| Include archived sessions | Toggle | "Include archived sessions" | Visible only in global mode, off by default | Refetches dashboard data including archived sessions when enabled |
-| Dashboard stats cards | Read-only cards | Portfolio value, P&L, AI spend, uptime, and related metrics | Values depend on workspace context | No direct action |
-| Event feed | Read-only list | Session events or aggregate events | Filtered in session mode, aggregated in global mode | Optional row click opens source record when supported |
-| Trades panel | Read-only list | Open trades summary | Filtered in session mode, aggregated in global mode | Navigates to `Trades` page when existing affordance is used |
-| Pending approvals panel | Queue list | Pending trade approvals | Filtered to focused session in session mode; aggregated across sessions in global mode | Opens approval detail and allows approve/reject |
+
+| Element                   | Type            | Label / Content                                             | State                                                                                  | Action on Interact                                                |
+| ------------------------- | --------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Context chip              | Chip            | Focused session name or `Global Workspace`                  | Always visible when sessions exist                                                     | Opens session switcher popover                                    |
+| Include archived sessions | Toggle          | "Include archived sessions"                                 | Visible only in global mode, off by default                                            | Refetches dashboard data including archived sessions when enabled |
+| Dashboard stats cards     | Read-only cards | Portfolio value, P&L, AI spend, uptime, and related metrics | Values depend on workspace context                                                     | No direct action                                                  |
+| Event feed                | Read-only list  | Session events or aggregate events                          | Filtered in session mode, aggregated in global mode                                    | Optional row click opens source record when supported             |
+| Trades panel              | Read-only list  | Open trades summary                                         | Filtered in session mode, aggregated in global mode                                    | Navigates to `Trades` page when existing affordance is used       |
+| Pending approvals panel   | Queue list      | Pending trade approvals                                     | Filtered to focused session in session mode; aggregated across sessions in global mode | Opens approval detail and allows approve/reject                   |
+
 
 **States this screen can be in:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Loading | Dashboard query in progress | Existing loading skeletons/placeholders |
-| Empty | No sessions exist | Empty state directing user to create a session |
-| Session | Workspace context is `session` | Dashboard data for one focused session |
-| Global | Workspace context is `global` | Aggregate dashboard across all non-archived sessions |
+
+| State                | Condition                                               | What the User Sees                                         |
+| -------------------- | ------------------------------------------------------- | ---------------------------------------------------------- |
+| Loading              | Dashboard query in progress                             | Existing loading skeletons/placeholders                    |
+| Empty                | No sessions exist                                       | Empty state directing user to create a session             |
+| Session              | Workspace context is `session`                          | Dashboard data for one focused session                     |
+| Global               | Workspace context is `global`                           | Aggregate dashboard across all non-archived sessions       |
 | Global with archived | Workspace context is `global` and archived toggle is on | Aggregate dashboard across all sessions including archived |
-| Error | Dashboard query fails | Existing inline error or fallback state |
+| Error                | Dashboard query fails                                   | Existing inline error or fallback state                    |
+
 
 ### 4.4 Trades Page
 
@@ -351,29 +367,33 @@ Layout rules:
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|-------------------|
-| Context chip | Chip | Focused session name or `Global Workspace` | Always visible when sessions exist | Opens session switcher popover |
-| Include archived sessions | Toggle | "Include archived sessions" | Visible only in global mode, off by default | Refetches trades data including archived sessions when enabled |
-| Session filter | Dropdown | Session names + `All Sessions` | Visible in global mode | Filters trades by owning session |
-| Broker filter | Dropdown | Connected broker names + `All Brokers` | Visible in session and global mode | Filters trades by broker account |
-| Instrument class filter | Dropdown | `All`, `Stocks`, `Crypto`, `Futures` | Visible in session and global mode | Filters trades by instrument class |
-| Execution mode filter | Dropdown | `All`, `Paper`, `Live` | Visible in session and global mode | Filters trades by broker execution mode |
-| Symbol search | Text input | Placeholder: "Search symbol" | Empty by default | Filters trades by instrument symbol |
-| Trade summary cards | Read-only cards | Total trades, open, closed, P&L, and similar metrics | Values depend on workspace context | No direct action |
-| Trades table | Data table | Trade rows | Filtered in session mode, aggregated in global mode | Opens trade detail on row click |
-| Session column | Table column | Session name | Hidden in session mode, visible in global mode | Allows user to understand trade ownership |
+
+| Element                   | Type            | Label / Content                                      | State                                               | Action on Interact                                             |
+| ------------------------- | --------------- | ---------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
+| Context chip              | Chip            | Focused session name or `Global Workspace`           | Always visible when sessions exist                  | Opens session switcher popover                                 |
+| Include archived sessions | Toggle          | "Include archived sessions"                          | Visible only in global mode, off by default         | Refetches trades data including archived sessions when enabled |
+| Session filter            | Dropdown        | Session names + `All Sessions`                       | Visible in global mode                              | Filters trades by owning session                               |
+| Broker filter             | Dropdown        | Connected broker names + `All Brokers`               | Visible in session and global mode                  | Filters trades by broker account                               |
+| Instrument class filter   | Dropdown        | `All`, `Stocks`, `Crypto`, `Futures`                 | Visible in session and global mode                  | Filters trades by instrument class                             |
+| Execution mode filter     | Dropdown        | `All`, `Paper`, `Live`                               | Visible in session and global mode                  | Filters trades by broker execution mode                        |
+| Symbol search             | Text input      | Placeholder: "Search symbol"                         | Empty by default                                    | Filters trades by instrument symbol                            |
+| Trade summary cards       | Read-only cards | Total trades, open, closed, P&L, and similar metrics | Values depend on workspace context                  | No direct action                                               |
+| Trades table              | Data table      | Trade rows                                           | Filtered in session mode, aggregated in global mode | Opens trade detail on row click                                |
+| Session column            | Table column    | Session name                                         | Hidden in session mode, visible in global mode      | Allows user to understand trade ownership                      |
+
 
 **States this screen can be in:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Loading | Trades query in progress | Existing loading placeholders |
-| Empty | No trades match current workspace context | Empty state message scoped to session or global mode |
-| Session | Workspace context is `session` | Trades for one focused session |
-| Global | Workspace context is `global` | Trades across all non-archived sessions with `Session` column visible |
+
+| State                | Condition                                               | What the User Sees                                                          |
+| -------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Loading              | Trades query in progress                                | Existing loading placeholders                                               |
+| Empty                | No trades match current workspace context               | Empty state message scoped to session or global mode                        |
+| Session              | Workspace context is `session`                          | Trades for one focused session                                              |
+| Global               | Workspace context is `global`                           | Trades across all non-archived sessions with `Session` column visible       |
 | Global with archived | Workspace context is `global` and archived toggle is on | Trades across all sessions including archived with `Session` column visible |
-| Error | Trades query fails | Existing inline error or fallback state |
+| Error                | Trades query fails                                      | Existing inline error or fallback state                                     |
+
 
 ### 4.5 Strategy Page
 
@@ -440,37 +460,41 @@ Layout rules:
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|-------------------|
-| Focused session chip | Chip | Current session name | Always visible when selected | Opens session switcher popover |
-| Save button | Button | "Save Changes" | Disabled when no dirty fields or session is `active`/`paused` | Saves strategy and AI settings for focused session |
-| Lock banner | Banner | "Stop this session before editing its strategy or AI configuration." | Visible when session is `active` or `paused` | No direct action |
-| Strategy profile | Segmented control | `Passive Income`, `Growth`, `Conservative`, `Custom` | One selected | Updates session strategy profile |
-| Research depth | Segmented control | `Light`, `Balanced`, `Deep` | One selected | Updates runtime depth preset |
-| Human approval | Toggle | "Human Approval Required" | Boolean | Enables approval gate |
-| Instrument policy summary | Read-only panel with edit action | Shows selection mode and scope | Depends on session draft | Opens session modal at task boundary section |
-| AI role tabs | Tabs | 5 role labels | Selector role tab disabled when session uses manual shortlist | Switches active role form |
-| Provider selector | Dropdown | Connected providers | Required | Filters available model options |
-| Model selector | Combobox | Provider-specific models | Required | Sets role runtime model |
-| Temperature | Number input | `0.0` to `1.0` | Required | Updates role generation params |
-| Max tokens | Number input | Integer | Required | Updates role output cap |
-| Web search | Toggle | "Allow Internet Search" | Enabled only for roles with tool support | Toggles search tool availability for the role |
-| Prompt source | Dropdown | `Default`, `Session override` | Required | Changes prompt editor mode |
-| System prompt editor | Markdown textarea | Full prompt body | Required | Saves role prompt override |
-| Reset prompt | Button | "Reset to Default Prompt" | Enabled for overridden roles | Restores default prompt asset |
+
+| Element                   | Type                             | Label / Content                                                      | State                                                         | Action on Interact                                 |
+| ------------------------- | -------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------- |
+| Focused session chip      | Chip                             | Current session name                                                 | Always visible when selected                                  | Opens session switcher popover                     |
+| Save button               | Button                           | "Save Changes"                                                       | Disabled when no dirty fields or session is `active`/`paused` | Saves strategy and AI settings for focused session |
+| Lock banner               | Banner                           | "Stop this session before editing its strategy or AI configuration." | Visible when session is `active` or `paused`                  | No direct action                                   |
+| Strategy profile          | Segmented control                | `Passive Income`, `Growth`, `Conservative`, `Custom`                 | One selected                                                  | Updates session strategy profile                   |
+| Research depth            | Segmented control                | `Light`, `Balanced`, `Deep`                                          | One selected                                                  | Updates runtime depth preset                       |
+| Human approval            | Toggle                           | "Human Approval Required"                                            | Boolean                                                       | Enables approval gate                              |
+| Instrument policy summary | Read-only panel with edit action | Shows selection mode and scope                                       | Depends on session draft                                      | Opens session modal at task boundary section       |
+| AI role tabs              | Tabs                             | 5 role labels                                                        | Selector role tab disabled when session uses manual shortlist | Switches active role form                          |
+| Provider selector         | Dropdown                         | Connected providers                                                  | Required                                                      | Filters available model options                    |
+| Model selector            | Combobox                         | Provider-specific models                                             | Required                                                      | Sets role runtime model                            |
+| Temperature               | Number input                     | `0.0` to `1.0`                                                       | Required                                                      | Updates role generation params                     |
+| Max tokens                | Number input                     | Integer                                                              | Required                                                      | Updates role output cap                            |
+| Web search                | Toggle                           | "Allow Internet Search"                                              | Enabled only for roles with tool support                      | Toggles search tool availability for the role      |
+| Prompt source             | Dropdown                         | `Default`, `Session override`                                        | Required                                                      | Changes prompt editor mode                         |
+| System prompt editor      | Markdown textarea                | Full prompt body                                                     | Required                                                      | Saves role prompt override                         |
+| Reset prompt              | Button                           | "Reset to Default Prompt"                                            | Enabled for overridden roles                                  | Restores default prompt asset                      |
+
 
 **States this screen can be in:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Loading | Focused session config query in progress | Skeleton cards and disabled header actions |
-| Empty | No sessions exist | Empty state with button "Go to Sessions" |
-| Global | Workspace context is `global` | Non-editable state with message `Global view does not have strategy settings. Select a session to configure strategy.` and button `Choose Session` |
-| Locked | Focused session is `active` or `paused` | Full config visible but inputs disabled and lock banner shown |
-| Default | Config loaded | Full editable cards |
-| Dirty | Local changes present | Save button enabled, unsaved dot on changed cards |
-| Saving | Save request in progress | Inputs disabled, save button text "Saving..." |
-| Validation error | Provider/model mismatch or invalid prompt | Inline card errors and save blocked |
+
+| State            | Condition                                 | What the User Sees                                                                                                                                 |
+| ---------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Loading          | Focused session config query in progress  | Skeleton cards and disabled header actions                                                                                                         |
+| Empty            | No sessions exist                         | Empty state with button "Go to Sessions"                                                                                                           |
+| Global           | Workspace context is `global`             | Non-editable state with message `Global view does not have strategy settings. Select a session to configure strategy.` and button `Choose Session` |
+| Locked           | Focused session is `active` or `paused`   | Full config visible but inputs disabled and lock banner shown                                                                                      |
+| Default          | Config loaded                             | Full editable cards                                                                                                                                |
+| Dirty            | Local changes present                     | Save button enabled, unsaved dot on changed cards                                                                                                  |
+| Saving           | Save request in progress                  | Inputs disabled, save button text "Saving..."                                                                                                      |
+| Validation error | Provider/model mismatch or invalid prompt | Inline card errors and save blocked                                                                                                                |
+
 
 ### 4.6 Accounts Page
 
@@ -525,30 +549,34 @@ Layout rules:
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|-------------------|
-| Add AI provider | Button | "Add Provider" | Always enabled | Opens Add Provider modal |
-| Provider type | Dropdown | `Anthropic`, `OpenAI`, `OpenCode-compatible` | Required | Determines credential fields |
-| Provider key input | Password input | Placeholder varies by provider | Required | Saves provider credential to keychain |
-| Test provider | Button | "Test" | Disabled while request runs | Calls provider connectivity test |
-| Add broker | Button | "Add Broker" | Always enabled | Opens Add Broker modal |
-| Broker provider | Dropdown | Broker adapter types | Required | Determines credential fields and supported instrument classes |
-| Instrument class badges | Display badges | `Stocks`, `Crypto`, `Futures` | Read only | Indicates broker support |
-| Routing overview edit | Button | "Edit Routing" | Enabled when >1 compatible broker exists | Opens routing rules modal |
-| Allocation mode | Segmented control | `Per-session only`, `Shared global pool` | Required | Changes capital guardrail behavior for session start preflight |
-| Shared pool amount | Currency input | "Total capital pool" | Required when allocation mode is `Shared global pool` | Sets the shared capital cap across all active sessions |
-| Save Changes | Button | "Save Changes" | Disabled when no dirty state | Persists accounts and routing updates |
+
+| Element                 | Type              | Label / Content                              | State                                                 | Action on Interact                                             |
+| ----------------------- | ----------------- | -------------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------- |
+| Add AI provider         | Button            | "Add Provider"                               | Always enabled                                        | Opens Add Provider modal                                       |
+| Provider type           | Dropdown          | `Anthropic`, `OpenAI`, `OpenCode-compatible` | Required                                              | Determines credential fields                                   |
+| Provider key input      | Password input    | Placeholder varies by provider               | Required                                              | Saves provider credential to keychain                          |
+| Test provider           | Button            | "Test"                                       | Disabled while request runs                           | Calls provider connectivity test                               |
+| Add broker              | Button            | "Add Broker"                                 | Always enabled                                        | Opens Add Broker modal                                         |
+| Broker provider         | Dropdown          | Broker adapter types                         | Required                                              | Determines credential fields and supported instrument classes  |
+| Instrument class badges | Display badges    | `Stocks`, `Crypto`, `Futures`                | Read only                                             | Indicates broker support                                       |
+| Routing overview edit   | Button            | "Edit Routing"                               | Enabled when >1 compatible broker exists              | Opens routing rules modal                                      |
+| Allocation mode         | Segmented control | `Per-session only`, `Shared global pool`     | Required                                              | Changes capital guardrail behavior for session start preflight |
+| Shared pool amount      | Currency input    | "Total capital pool"                         | Required when allocation mode is `Shared global pool` | Sets the shared capital cap across all active sessions         |
+| Save Changes            | Button            | "Save Changes"                               | Disabled when no dirty state                          | Persists accounts and routing updates                          |
+
 
 **States this screen can be in:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Default | Existing accounts loaded | Provider list, broker list, routing overview |
-| Empty providers | No AI providers configured | Empty provider card with CTA |
-| Empty brokers | No brokers configured | Empty broker card with CTA |
-| Validation error | Shared global pool selected without a valid pool amount | Inline field error and save blocked |
-| Testing | Connection test in progress | Row spinner, action disabled |
-| Error | Save or test fails | Inline row status badge `Error` and banner with details |
+
+| State            | Condition                                               | What the User Sees                                      |
+| ---------------- | ------------------------------------------------------- | ------------------------------------------------------- |
+| Default          | Existing accounts loaded                                | Provider list, broker list, routing overview            |
+| Empty providers  | No AI providers configured                              | Empty provider card with CTA                            |
+| Empty brokers    | No brokers configured                                   | Empty broker card with CTA                              |
+| Validation error | Shared global pool selected without a valid pool amount | Inline field error and save blocked                     |
+| Testing          | Connection test in progress                             | Row spinner, action disabled                            |
+| Error            | Save or test fails                                      | Inline row status badge `Error` and banner with details |
+
 
 ## 5. User Flows
 
@@ -569,6 +597,8 @@ flowchart TD
     F --> G[Set focused session]
     G --> H[Open Strategy page or remain on Sessions]
 ```
+
+
 
 1. User lands on `Sessions` and clicks `New Session`.
 2. They enter a session name and objective.
@@ -600,6 +630,8 @@ flowchart TD
     F --> G[Create focused draft session]
 ```
 
+
+
 1. User opens the `Session Templates` modal.
 2. They choose an existing template and click `Use Template`.
 3. The Create Session modal opens with all strategy, AI role, broker, and task-boundary fields prefilled from the template.
@@ -626,6 +658,8 @@ flowchart TD
     F -- Yes --> H[Save changes]
     H --> I[Persist role config]
 ```
+
+
 
 1. User opens `Strategy` for the focused session.
 2. They select an AI role tab such as `Reviewer`.
@@ -656,6 +690,8 @@ flowchart TD
     E --> F[Start orchestrator for session]
     F --> G[Emit session started event]
 ```
+
+
 
 1. User clicks `Start`.
 2. The app validates task boundary completeness, broker compatibility, provider credentials, search tool availability, capital limit, and risk controls, including shared-pool constraints when `shared global pool` mode is enabled.
@@ -688,6 +724,8 @@ flowchart TD
     G --> H
 ```
 
+
+
 1. A session with `Human Approval Required` enabled produces a trade candidate.
 2. The system creates a pending approval record instead of placing the order immediately.
 3. The Dashboard approval queue shows the pending item. In global mode, this queue aggregates all sessions.
@@ -712,6 +750,8 @@ flowchart TD
     F -- Yes --> G[Show global-mode non-editable state]
     F -- No --> H[Remain on current page]
 ```
+
+
 
 1. User is on `Sessions`, `Dashboard`, or `Trades` and clicks `Go Global`.
 2. The system clears the focused session flag.
@@ -738,6 +778,8 @@ flowchart TD
     F -- Toggle off --> G[Refetch non-archived aggregate data]
     F -- Focus session --> H[Hide toggle but retain saved preference]
 ```
+
+
 
 1. User enters `global` mode.
 2. They enable `Include archived sessions` from `Dashboard` or `Trades`.
@@ -769,6 +811,8 @@ flowchart TD
     H --> I[Update routing options]
 ```
 
+
+
 1. User opens `Accounts` and adds a broker.
 2. They select the broker provider and enter credentials.
 3. They test the connection.
@@ -781,47 +825,53 @@ flowchart TD
 
 ### 6.1 Session Identity and Task Boundary
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|-------------------|---------------------|------|----------|-----------------|-------|
-| Session name | `sessions.name` | `string` | Yes | 3-80 chars, trimmed, unique among non-archived sessions | Used in nav chips and tables |
-| Objective | `sessions.objective` | `string` | Yes | 10-500 chars | Plain language description of the session's goal |
-| Status | `sessions.status` | `enum: draft\|idle\|active\|paused\|stopped\|archived` | Yes | Must be valid enum | Replaces global `session_state` usage |
-| Focus flag | `sessions.is_focused` | `boolean` | Yes | Zero or one non-archived rows can be true | Zero focused rows means workspace context is `global` |
-| Selection mode | `sessions.selection_mode` | `enum: manual_shortlist\|ai_selected_universe` | Yes | Must be valid enum | Defines whether selector role is used |
-| Instrument classes | `sessions.instrument_classes` | `json array<instrument_class>` | Yes | At least one item | `stock`, `crypto`, `futures` |
-| Instrument scope | `sessions.instrument_scope` | `text` | Yes | Non-empty | Stores symbol list or selector instructions |
-| Capital limit | `sessions.capital_limit_usd` | `number` | Yes | Positive | Session-level capital cap |
-| Execution mode | `sessions.execution_mode` | `enum: paper_only\|live_allowed` | Yes | Must be valid enum | Used during start preflight |
-| Session edit lock | derived from `sessions.status` | `boolean` | Yes | `true` when status is `active` or `paused` | Blocks task-boundary, broker, strategy, and AI edits until stopped |
+
+| UI Label / Element | Field Name in DB/API           | Type                                              | Required | Validation Rules                                        | Notes                                                              |
+| ------------------ | ------------------------------ | ------------------------------------------------- | -------- | ------------------------------------------------------- | ------------------------------------------------------------------ |
+| Session name       | `sessions.name`                | `string`                                          | Yes      | 3-80 chars, trimmed, unique among non-archived sessions | Used in nav chips and tables                                       |
+| Objective          | `sessions.objective`           | `string`                                          | Yes      | 10-500 chars                                            | Plain language description of the session's goal                   |
+| Status             | `sessions.status`              | `enum: draft|idle|active|paused|stopped|archived` | Yes      | Must be valid enum                                      | Replaces global `session_state` usage                              |
+| Focus flag         | `sessions.is_focused`          | `boolean`                                         | Yes      | Zero or one non-archived rows can be true               | Zero focused rows means workspace context is `global`              |
+| Selection mode     | `sessions.selection_mode`      | `enum: manual_shortlist|ai_selected_universe`     | Yes      | Must be valid enum                                      | Defines whether selector role is used                              |
+| Instrument classes | `sessions.instrument_classes`  | `json array<instrument_class>`                    | Yes      | At least one item                                       | `stock`, `crypto`, `futures`                                       |
+| Instrument scope   | `sessions.instrument_scope`    | `text`                                            | Yes      | Non-empty                                               | Stores symbol list or selector instructions                        |
+| Capital limit      | `sessions.capital_limit_usd`   | `number`                                          | Yes      | Positive                                                | Session-level capital cap                                          |
+| Execution mode     | `sessions.execution_mode`      | `enum: paper_only|live_allowed`                   | Yes      | Must be valid enum                                      | Used during start preflight                                        |
+| Session edit lock  | derived from `sessions.status` | `boolean`                                         | Yes      | `true` when status is `active` or `paused`              | Blocks task-boundary, broker, strategy, and AI edits until stopped |
+
 
 ### 6.2 Strategy and Risk Configuration
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|-------------------|---------------------|------|----------|-----------------|-------|
-| Strategy profile | `session_strategies.strategy_profile` | `string` | Yes | Non-empty | Carries forward current `strategy` concept |
-| Max position size | `session_strategies.max_position_usd` | `number` | Yes | Positive | Session-specific |
-| Stop loss | `session_strategies.stop_loss_pct` | `number` | Yes | `> 0` and `< 100` | Session-specific |
-| Take profit | `session_strategies.take_profit_pct` | `number` | Yes | `> 0` and `< 100` | Session-specific |
-| Max concurrent trades | `session_strategies.max_concurrent_trades` | `integer` | Yes | 1-50 | Used to set orchestrator concurrency for that session |
-| Research depth | `session_strategies.research_depth` | `enum: light\|balanced\|deep` | Yes | Must be valid enum | Reuses current concept |
-| Daily loss limit | `session_strategies.daily_loss_limit_usd` | `number` | Yes | Positive | Per-session instead of global singleton |
-| Profit target | `session_strategies.profit_target_usd` | `number` | Yes | Positive | Per-session |
-| Max AI spend per day | `session_strategies.max_ai_spend_usd` | `number` | Yes | Positive | Per-session |
-| Human approval required | `session_strategies.human_approval_required` | `boolean` | Yes | Boolean only | Per-session; routes trade candidates into the shared approval queue |
+
+| UI Label / Element      | Field Name in DB/API                         | Type                        | Required | Validation Rules   | Notes                                                               |
+| ----------------------- | -------------------------------------------- | --------------------------- | -------- | ------------------ | ------------------------------------------------------------------- |
+| Strategy profile        | `session_strategies.strategy_profile`        | `string`                    | Yes      | Non-empty          | Carries forward current `strategy` concept                          |
+| Max position size       | `session_strategies.max_position_usd`        | `number`                    | Yes      | Positive           | Session-specific                                                    |
+| Stop loss               | `session_strategies.stop_loss_pct`           | `number`                    | Yes      | `> 0` and `< 100`  | Session-specific                                                    |
+| Take profit             | `session_strategies.take_profit_pct`         | `number`                    | Yes      | `> 0` and `< 100`  | Session-specific                                                    |
+| Max concurrent trades   | `session_strategies.max_concurrent_trades`   | `integer`                   | Yes      | 1-50               | Used to set orchestrator concurrency for that session               |
+| Research depth          | `session_strategies.research_depth`          | `enum: light|balanced|deep` | Yes      | Must be valid enum | Reuses current concept                                              |
+| Daily loss limit        | `session_strategies.daily_loss_limit_usd`    | `number`                    | Yes      | Positive           | Per-session instead of global singleton                             |
+| Profit target           | `session_strategies.profit_target_usd`       | `number`                    | Yes      | Positive           | Per-session                                                         |
+| Max AI spend per day    | `session_strategies.max_ai_spend_usd`        | `number`                    | Yes      | Positive           | Per-session                                                         |
+| Human approval required | `session_strategies.human_approval_required` | `boolean`                   | Yes      | Boolean only       | Per-session; routes trade candidates into the shared approval queue |
+
 
 ### 6.3 AI Role Configuration
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|-------------------|---------------------|------|----------|-----------------|-------|
-| Role name | `session_ai_roles.role` | `enum: researcher_bull\|researcher_bear\|reviewer\|decision_maker\|instrument_selector` | Yes | Must be valid enum | One row per role per session |
-| Provider | `session_ai_roles.provider_key` | `string` | Yes | Must reference configured provider account | Examples: `anthropic-main`, `openai-prod` |
-| Model | `session_ai_roles.model_id` | `string` | Yes | Non-empty | Provider-specific model identifier |
-| Temperature | `session_ai_roles.temperature` | `number` | Yes | `0.0` to `1.0` | Defaults defined by prompt preset |
-| Max tokens | `session_ai_roles.max_tokens` | `integer` | Yes | Positive | Per role |
-| Web search enabled | `session_ai_roles.web_search_enabled` | `boolean` | Yes | Boolean only | Allowed only for supported roles |
-| Prompt source | `session_ai_roles.prompt_source` | `enum: default\|session_override` | Yes | Must be valid enum | Determines prompt resolution |
-| Prompt markdown | `session_ai_roles.prompt_markdown` | `text` | Yes | Non-empty | Saved only for override mode |
-| Prompt asset path | `session_ai_roles.prompt_asset_path` | `string` | No | Must reference bundled Markdown file when present | Read-only for default mode |
+
+| UI Label / Element | Field Name in DB/API                  | Type                                                                                | Required | Validation Rules                                  | Notes                                     |
+| ------------------ | ------------------------------------- | ----------------------------------------------------------------------------------- | -------- | ------------------------------------------------- | ----------------------------------------- |
+| Role name          | `session_ai_roles.role`               | `enum: researcher_bull|researcher_bear|reviewer|decision_maker|instrument_selector` | Yes      | Must be valid enum                                | One row per role per session              |
+| Provider           | `session_ai_roles.provider_key`       | `string`                                                                            | Yes      | Must reference configured provider account        | Examples: `anthropic-main`, `openai-prod` |
+| Model              | `session_ai_roles.model_id`           | `string`                                                                            | Yes      | Non-empty                                         | Provider-specific model identifier        |
+| Temperature        | `session_ai_roles.temperature`        | `number`                                                                            | Yes      | `0.0` to `1.0`                                    | Defaults defined by prompt preset         |
+| Max tokens         | `session_ai_roles.max_tokens`         | `integer`                                                                           | Yes      | Positive                                          | Per role                                  |
+| Web search enabled | `session_ai_roles.web_search_enabled` | `boolean`                                                                           | Yes      | Boolean only                                      | Allowed only for supported roles          |
+| Prompt source      | `session_ai_roles.prompt_source`      | `enum: default|session_override`                                                    | Yes      | Must be valid enum                                | Determines prompt resolution              |
+| Prompt markdown    | `session_ai_roles.prompt_markdown`    | `text`                                                                              | Yes      | Non-empty                                         | Saved only for override mode              |
+| Prompt asset path  | `session_ai_roles.prompt_asset_path`  | `string`                                                                            | No       | Must reference bundled Markdown file when present | Read-only for default mode                |
+
 
 **AI context isolation rules:**
 
@@ -831,74 +881,84 @@ flowchart TD
 
 ### 6.4 Providers, Brokers, and Routing
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|-------------------|---------------------|------|----------|-----------------|-------|
-| AI provider name | `provider_accounts.name` | `string` | Yes | 2-60 chars | User-facing label |
-| AI provider type | `provider_accounts.provider_type` | `enum: anthropic\|openai\|opencode` | Yes | Must be valid enum | Determines auth strategy |
-| Provider keychain ref | `provider_accounts.secret_ref` | `string` | Yes | Non-empty | Secret value remains in OS keychain |
-| Search provider type | `provider_accounts.provider_type` | `enum: brave\|tavily` | Yes | Must be valid enum | Stored in same table with category |
-| Broker name | `broker_accounts.name` | `string` | Yes | 2-60 chars | User-facing label |
-| Broker provider | `broker_accounts.broker_type` | `string` | Yes | Registered adapter key | Example: `alpaca` |
-| Supported classes | `broker_accounts.supported_instrument_classes` | `json array<instrument_class>` | Yes | At least one item | Declared by adapter |
-| Broker mode | `broker_accounts.mode` | `enum: paper\|live` | Yes | Must be valid enum | Per broker account |
-| Routing rule | `broker_routing.default_broker_account_id` | `string` | Yes | Must reference connected compatible broker | One per instrument class |
+
+| UI Label / Element    | Field Name in DB/API                           | Type                              | Required | Validation Rules                           | Notes                               |
+| --------------------- | ---------------------------------------------- | --------------------------------- | -------- | ------------------------------------------ | ----------------------------------- |
+| AI provider name      | `provider_accounts.name`                       | `string`                          | Yes      | 2-60 chars                                 | User-facing label                   |
+| AI provider type      | `provider_accounts.provider_type`              | `enum: anthropic|openai|opencode` | Yes      | Must be valid enum                         | Determines auth strategy            |
+| Provider keychain ref | `provider_accounts.secret_ref`                 | `string`                          | Yes      | Non-empty                                  | Secret value remains in OS keychain |
+| Search provider type  | `provider_accounts.provider_type`              | `enum: brave|tavily`              | Yes      | Must be valid enum                         | Stored in same table with category  |
+| Broker name           | `broker_accounts.name`                         | `string`                          | Yes      | 2-60 chars                                 | User-facing label                   |
+| Broker provider       | `broker_accounts.broker_type`                  | `string`                          | Yes      | Registered adapter key                     | Example: `alpaca`                   |
+| Supported classes     | `broker_accounts.supported_instrument_classes` | `json array<instrument_class>`    | Yes      | At least one item                          | Declared by adapter                 |
+| Broker mode           | `broker_accounts.mode`                         | `enum: paper|live`                | Yes      | Must be valid enum                         | Per broker account                  |
+| Routing rule          | `broker_routing.default_broker_account_id`     | `string`                          | Yes      | Must reference connected compatible broker | One per instrument class            |
+
 
 ### 6.5 Workspace View Preferences
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|-------------------|---------------------|------|----------|-----------------|-------|
-| Workspace mode | derived from `sessions.is_focused` plus workspace APIs | `enum: session\|global` | Yes | Must resolve to exactly one mode | `global` when no non-archived session row is focused |
-| Include archived sessions | `workspace_preferences.global_include_archived` | `boolean` | Yes | Boolean only | Applies only in global `Dashboard` and `Trades` views; persists across app restarts |
-| Capital allocation mode | `workspace_preferences.capital_allocation_mode` | `enum: per_session_only\|shared_global_pool` | Yes | Must be valid enum | App-level risk setting used by session start preflight |
-| Shared global capital pool | `workspace_preferences.global_capital_pool_usd` | `number` | Required when allocation mode is `shared_global_pool` | Positive | Ignored when allocation mode is `per_session_only` |
-| Preference updated at | `workspace_preferences.updated_at` | `timestamp` | Yes | System-managed | Used for debugging and sync between renderer and main process |
+
+| UI Label / Element         | Field Name in DB/API                                   | Type                                        | Required                                              | Validation Rules                 | Notes                                                                               |
+| -------------------------- | ------------------------------------------------------ | ------------------------------------------- | ----------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------- |
+| Workspace mode             | derived from `sessions.is_focused` plus workspace APIs | `enum: session|global`                      | Yes                                                   | Must resolve to exactly one mode | `global` when no non-archived session row is focused                                |
+| Include archived sessions  | `workspace_preferences.global_include_archived`        | `boolean`                                   | Yes                                                   | Boolean only                     | Applies only in global `Dashboard` and `Trades` views; persists across app restarts |
+| Capital allocation mode    | `workspace_preferences.capital_allocation_mode`        | `enum: per_session_only|shared_global_pool` | Yes                                                   | Must be valid enum               | App-level risk setting used by session start preflight                              |
+| Shared global capital pool | `workspace_preferences.global_capital_pool_usd`        | `number`                                    | Required when allocation mode is `shared_global_pool` | Positive                         | Ignored when allocation mode is `per_session_only`                                  |
+| Preference updated at      | `workspace_preferences.updated_at`                     | `timestamp`                                 | Yes                                                   | System-managed                   | Used for debugging and sync between renderer and main process                       |
+
 
 ### 6.6 Session Templates
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|-------------------|---------------------|------|----------|-----------------|-------|
-| Template name | `session_templates.name` | `string` | Yes | 3-80 chars, unique | User-visible template label |
-| Template description | `session_templates.description` | `string` | No | Max 300 chars | Optional purpose note |
-| Source session | `session_templates.source_session_id` | `string` | No | Must reference existing session when created from session row | Used for provenance only |
-| Template payload | `session_templates.template_payload_json` | `json` | Yes | Must include full session strategy, AI role, broker, and task-boundary config | Runtime state, trades, and events are excluded; latest snapshot only in v1 |
-| Updated at | `session_templates.updated_at` | `timestamp` | Yes | System-managed | For sorting and auditing |
+
+| UI Label / Element   | Field Name in DB/API                      | Type        | Required | Validation Rules                                                              | Notes                                                                      |
+| -------------------- | ----------------------------------------- | ----------- | -------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Template name        | `session_templates.name`                  | `string`    | Yes      | 3-80 chars, unique                                                            | User-visible template label                                                |
+| Template description | `session_templates.description`           | `string`    | No       | Max 300 chars                                                                 | Optional purpose note                                                      |
+| Source session       | `session_templates.source_session_id`     | `string`    | No       | Must reference existing session when created from session row                 | Used for provenance only                                                   |
+| Template payload     | `session_templates.template_payload_json` | `json`      | Yes      | Must include full session strategy, AI role, broker, and task-boundary config | Runtime state, trades, and events are excluded; latest snapshot only in v1 |
+| Updated at           | `session_templates.updated_at`            | `timestamp` | Yes      | System-managed                                                                | For sorting and auditing                                                   |
+
 
 ### 6.7 Trade Approvals
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|-------------------|---------------------|------|----------|-----------------|-------|
-| Approval ID | `trade_approvals.id` | `string` | Yes | Unique | Primary key |
-| Session | `trade_approvals.session_id` | `string` | Yes | Must reference existing session | Used for queue scoping |
-| Trade candidate | `trade_approvals.trade_id` | `string` | Yes | Must reference pending trade row | One approval item per pending decision |
-| Broker account | `trade_approvals.broker_account_id` | `string` | Yes | Must reference existing broker | Used for collision checks |
-| Instrument symbol | `trade_approvals.instrument_symbol` | `string` | Yes | Non-empty | Used for display and collision checks |
-| Status | `trade_approvals.status` | `enum: pending\|approved\|rejected` | Yes | Must be valid enum | Drives queue behavior; pending items remain until user resolution |
-| Requested at | `trade_approvals.requested_at` | `timestamp` | Yes | System-managed | Queue ordering field |
-| Resolved at | `trade_approvals.resolved_at` | `timestamp` | No | Null until resolved | Set on approve/reject |
-| Decision note | `trade_approvals.decision_note` | `string` | No | Max 500 chars | Optional user note |
+
+| UI Label / Element | Field Name in DB/API                | Type                              | Required | Validation Rules                 | Notes                                                             |
+| ------------------ | ----------------------------------- | --------------------------------- | -------- | -------------------------------- | ----------------------------------------------------------------- |
+| Approval ID        | `trade_approvals.id`                | `string`                          | Yes      | Unique                           | Primary key                                                       |
+| Session            | `trade_approvals.session_id`        | `string`                          | Yes      | Must reference existing session  | Used for queue scoping                                            |
+| Trade candidate    | `trade_approvals.trade_id`          | `string`                          | Yes      | Must reference pending trade row | One approval item per pending decision                            |
+| Broker account     | `trade_approvals.broker_account_id` | `string`                          | Yes      | Must reference existing broker   | Used for collision checks                                         |
+| Instrument symbol  | `trade_approvals.instrument_symbol` | `string`                          | Yes      | Non-empty                        | Used for display and collision checks                             |
+| Status             | `trade_approvals.status`            | `enum: pending|approved|rejected` | Yes      | Must be valid enum               | Drives queue behavior; pending items remain until user resolution |
+| Requested at       | `trade_approvals.requested_at`      | `timestamp`                       | Yes      | System-managed                   | Queue ordering field                                              |
+| Resolved at        | `trade_approvals.resolved_at`       | `timestamp`                       | No       | Null until resolved              | Set on approve/reject                                             |
+| Decision note      | `trade_approvals.decision_note`     | `string`                          | No       | Max 500 chars                    | Optional user note                                                |
+
 
 **Schema changes required:**
 
-| Table | Change | Column Name | Type | Default | Nullable |
-|-------|--------|------------|------|---------|----------|
-| `session_config` | Replace with new table family | — | — | — | — |
-| `session_state` | Replace with new table family | — | — | — | — |
-| `trades` | Rename column | `asset` -> `instrument_symbol` | `text` | — | No |
-| `trades` | Add column | `instrument_type` | `text` | `'stock'` | No |
-| `trades` | Add column | `session_id` | `text` | — | No |
-| `trades` | Add column | `broker_account_id` | `text` | — | Yes |
-| `agent_runs` | Add column | `session_id` | `text` | — | No |
-| `events` | Add column | `session_id` | `text` | — | Yes |
-| `sessions` | Add table | all columns in 6.1 | mixed | see spec | see spec |
-| `session_strategies` | Add table | all columns in 6.2 | mixed | see spec | No |
-| `session_ai_roles` | Add table | all columns in 6.3 | mixed | see spec | No |
-| `provider_accounts` | Add table | provider metadata columns | mixed | — | No |
-| `broker_accounts` | Add table | broker metadata columns | mixed | — | No |
-| `broker_routing` | Add table | routing rule columns | mixed | — | No |
-| `session_broker_assignments` | Add table | `session_id`, `broker_account_id` | mixed | — | No |
-| `workspace_preferences` | Add table | `id`, `global_include_archived`, `capital_allocation_mode`, `global_capital_pool_usd`, `updated_at` | mixed | see spec | No |
-| `session_templates` | Add table | template metadata + `template_payload_json` | mixed | see spec | No |
-| `trade_approvals` | Add table | approval queue columns | mixed | see spec | No |
+
+| Table                        | Change                        | Column Name                                                                                         | Type   | Default   | Nullable |
+| ---------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- | ------ | --------- | -------- |
+| `session_config`             | Replace with new table family | —                                                                                                   | —      | —         | —        |
+| `session_state`              | Replace with new table family | —                                                                                                   | —      | —         | —        |
+| `trades`                     | Rename column                 | `asset` -> `instrument_symbol`                                                                      | `text` | —         | No       |
+| `trades`                     | Add column                    | `instrument_type`                                                                                   | `text` | `'stock'` | No       |
+| `trades`                     | Add column                    | `session_id`                                                                                        | `text` | —         | No       |
+| `trades`                     | Add column                    | `broker_account_id`                                                                                 | `text` | —         | Yes      |
+| `agent_runs`                 | Add column                    | `session_id`                                                                                        | `text` | —         | No       |
+| `events`                     | Add column                    | `session_id`                                                                                        | `text` | —         | Yes      |
+| `sessions`                   | Add table                     | all columns in 6.1                                                                                  | mixed  | see spec  | see spec |
+| `session_strategies`         | Add table                     | all columns in 6.2                                                                                  | mixed  | see spec  | No       |
+| `session_ai_roles`           | Add table                     | all columns in 6.3                                                                                  | mixed  | see spec  | No       |
+| `provider_accounts`          | Add table                     | provider metadata columns                                                                           | mixed  | —         | No       |
+| `broker_accounts`            | Add table                     | broker metadata columns                                                                             | mixed  | —         | No       |
+| `broker_routing`             | Add table                     | routing rule columns                                                                                | mixed  | —         | No       |
+| `session_broker_assignments` | Add table                     | `session_id`, `broker_account_id`                                                                   | mixed  | —         | No       |
+| `workspace_preferences`      | Add table                     | `id`, `global_include_archived`, `capital_allocation_mode`, `global_capital_pool_usd`, `updated_at` | mixed  | see spec  | No       |
+| `session_templates`          | Add table                     | template metadata + `template_payload_json`                                                         | mixed  | see spec  | No       |
+| `trade_approvals`            | Add table                     | approval queue columns                                                                              | mixed  | see spec  | No       |
+
 
 **Derived workspace context rules:**
 
@@ -1492,9 +1552,11 @@ If the target session is `active` or `paused`, the endpoint must return:
 
 Exva is currently a local single-user desktop application. Until multi-user support exists, all signed-in behavior is effectively `local_owner`.
 
-| User Type / Role | Can View | Can Create | Can Edit | Can Delete | Notes |
-|-----------------|----------|-----------|---------|-----------|-------|
-| `local_owner` | Yes | Yes | Yes | Archive only | Full local access to sessions, strategy, accounts, and prompts |
+
+| User Type / Role | Can View | Can Create | Can Edit | Can Delete   | Notes                                                          |
+| ---------------- | -------- | ---------- | -------- | ------------ | -------------------------------------------------------------- |
+| `local_owner`    | Yes      | Yes        | Yes      | Archive only | Full local access to sessions, strategy, accounts, and prompts |
+
 
 If a user lacks permission for an action:
 
@@ -1503,71 +1565,78 @@ If a user lacks permission for an action:
 
 ## 9. Error States & Edge Cases
 
-| Scenario | Trigger | What the User Sees | What the System Does |
-|----------|---------|-------------------|---------------------|
-| No sessions exist | User opens `Strategy` with zero sessions | Empty state: "Select or create a session to configure strategy." | No save actions available |
-| Name conflict | User creates a session with duplicate active name | Inline error: "A session with this name already exists." | No records created |
-| Missing provider secret | Session role references provider with no saved secret | Inline card error and save blocked | Does not persist invalid role assignment |
-| Incompatible broker routing | Session includes `futures` but no connected futures broker exists | Modal error: "No connected broker can execute this session." | Start and save blocked |
-| Session started without task boundary | Required task fields absent | Preflight error banner: "Complete the session task boundary before starting." | Session remains non-active |
-| Global mode opens Strategy | User enters `global` mode and opens `Strategy` | Non-editable state: "Global view does not have strategy settings. Select a session to configure strategy." | No save actions available |
-| Edit attempted during active run | User tries to edit an `active` or `paused` session | Banner: "Stop this session before editing its configuration." | Save/edit APIs return `409 Conflict` |
-| Global archived toggle enabled with no archived sessions | User turns on `Include archived sessions` but there are no archived sessions | No visible data change; toggle stays on | Query still succeeds with same aggregate result |
-| Focused session archived | User archives currently focused session | Toast: "Focused session archived. Switched to global view." | Clears focused flag and enters global mode if other sessions remain; otherwise shows empty state |
-| Prompt reset while unsaved edits exist | User clicks reset prompt on dirty role tab | Confirmation dialog: "Discard your custom prompt for this role?" | On confirm, restores default prompt markdown |
-| Provider test fails | Invalid credential or network error | Status badge `Error`, banner `Provider test failed.` | Secret is not marked healthy |
-| Two active sessions exceed capital allocation | Combined active session capital limits exceed the configured shared global capital pool | Blocking start error with exact overage | Prevents the next session from starting while shared-pool mode is enabled |
-| Same broker + same instrument collision | An active session attempts to place a trade where another active session already has the same instrument open or pending on the same broker | Event row and rejection message: "Another active session already has this broker trading the same instrument." | New trade is rejected, existing trade remains unchanged |
-| Persisted archived toggle conflicts with session mode | App restores `globalIncludeArchived = true` while a focused session is active | Toggle is hidden and no archived aggregation is applied | Saved preference is preserved until user re-enters global mode |
+
+| Scenario                                                 | Trigger                                                                                                                                     | What the User Sees                                                                                             | What the System Does                                                                             |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| No sessions exist                                        | User opens `Strategy` with zero sessions                                                                                                    | Empty state: "Select or create a session to configure strategy."                                               | No save actions available                                                                        |
+| Name conflict                                            | User creates a session with duplicate active name                                                                                           | Inline error: "A session with this name already exists."                                                       | No records created                                                                               |
+| Missing provider secret                                  | Session role references provider with no saved secret                                                                                       | Inline card error and save blocked                                                                             | Does not persist invalid role assignment                                                         |
+| Incompatible broker routing                              | Session includes `futures` but no connected futures broker exists                                                                           | Modal error: "No connected broker can execute this session."                                                   | Start and save blocked                                                                           |
+| Session started without task boundary                    | Required task fields absent                                                                                                                 | Preflight error banner: "Complete the session task boundary before starting."                                  | Session remains non-active                                                                       |
+| Global mode opens Strategy                               | User enters `global` mode and opens `Strategy`                                                                                              | Non-editable state: "Global view does not have strategy settings. Select a session to configure strategy."     | No save actions available                                                                        |
+| Edit attempted during active run                         | User tries to edit an `active` or `paused` session                                                                                          | Banner: "Stop this session before editing its configuration."                                                  | Save/edit APIs return `409 Conflict`                                                             |
+| Global archived toggle enabled with no archived sessions | User turns on `Include archived sessions` but there are no archived sessions                                                                | No visible data change; toggle stays on                                                                        | Query still succeeds with same aggregate result                                                  |
+| Focused session archived                                 | User archives currently focused session                                                                                                     | Toast: "Focused session archived. Switched to global view."                                                    | Clears focused flag and enters global mode if other sessions remain; otherwise shows empty state |
+| Prompt reset while unsaved edits exist                   | User clicks reset prompt on dirty role tab                                                                                                  | Confirmation dialog: "Discard your custom prompt for this role?"                                               | On confirm, restores default prompt markdown                                                     |
+| Provider test fails                                      | Invalid credential or network error                                                                                                         | Status badge `Error`, banner `Provider test failed.`                                                           | Secret is not marked healthy                                                                     |
+| Two active sessions exceed capital allocation            | Combined active session capital limits exceed the configured shared global capital pool                                                     | Blocking start error with exact overage                                                                        | Prevents the next session from starting while shared-pool mode is enabled                        |
+| Same broker + same instrument collision                  | An active session attempts to place a trade where another active session already has the same instrument open or pending on the same broker | Event row and rejection message: "Another active session already has this broker trading the same instrument." | New trade is rejected, existing trade remains unchanged                                          |
+| Persisted archived toggle conflicts with session mode    | App restores `globalIncludeArchived = true` while a focused session is active                                                               | Toggle is hidden and no archived aggregation is applied                                                        | Saved preference is preserved until user re-enters global mode                                   |
+
 
 ## 10. Copy & Labels
 
-| Location | String | Notes |
-|----------|--------|-------|
-| Sessions nav item | "Sessions" | New top-level tab |
-| Sessions page title | "Sessions" | — |
-| Sessions page subtitle | "Manage focused trading workspaces" | — |
-| New session button | "New Session" | — |
-| Templates button | "Templates" | Sessions page |
-| Go global button | "Go Global" | Sessions page and context switcher |
-| Empty state headline | "No sessions yet" | Sessions page |
-| Empty state subtext | "Create a focused trading workspace before you start the system." | Sessions page |
-| Empty state CTA | "Create Your First Session" | Sessions page |
-| Focus action | "Focus" | Session row |
-| Edit action | "Edit" | Session row |
-| Duplicate action | "Duplicate" | Session row |
-| Save as template action | "Save as Template" | Session row |
-| Archive action | "Archive" | Session row |
-| Strategy save button | "Save Changes" | Changes to `Saving...` while request runs |
-| Strategy success toast | "Strategy changes saved." | — |
-| Session create success toast | "Session created." | — |
-| Template create success toast | "Template saved." | — |
-| Global summary label | "Global Workspace" | Summary card and context chip |
-| Global archived toggle | "Include archived sessions" | Visible only in global mode on `Dashboard` and `Trades` |
-| Strategy global-state message | "Global view does not have strategy settings. Select a session to configure strategy." | Strategy page |
-| Strategy global-state CTA | "Choose Session" | Strategy page |
-| Strategy locked message | "Stop this session before editing its strategy or AI configuration." | Strategy page |
-| Session locked message | "Stop this session before editing its configuration." | Sessions page / modal |
-| Approval queue title | "Pending Approvals" | Dashboard |
-| Approval approve action | "Approve" | Approval queue item |
-| Approval reject action | "Reject" | Approval queue item |
-| Allocation mode label | "Capital Allocation" | Accounts page |
-| Allocation mode option | "Per-session only" | Accounts page |
-| Allocation mode option | "Shared global pool" | Accounts page |
-| Shared pool amount label | "Total capital pool" | Accounts page |
-| Session start preflight error | "Complete the session task boundary before starting." | Blocking banner |
-| Missing provider message | "Connect this provider in Accounts before assigning it to a role." | AI role card |
-| Search provider message | "Connect a web search provider to enable internet search for this role." | AI role card |
-| Broker compatibility error | "No connected broker can execute this session." | Session modal and start preflight |
+
+| Location                      | String                                                                                 | Notes                                                   |
+| ----------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Sessions nav item             | "Sessions"                                                                             | New top-level tab                                       |
+| Sessions page title           | "Sessions"                                                                             | —                                                       |
+| Sessions page subtitle        | "Manage focused trading workspaces"                                                    | —                                                       |
+| New session button            | "New Session"                                                                          | —                                                       |
+| Templates button              | "Templates"                                                                            | Sessions page                                           |
+| Go global button              | "Go Global"                                                                            | Sessions page and context switcher                      |
+| Empty state headline          | "No sessions yet"                                                                      | Sessions page                                           |
+| Empty state subtext           | "Create a focused trading workspace before you start the system."                      | Sessions page                                           |
+| Empty state CTA               | "Create Your First Session"                                                            | Sessions page                                           |
+| Focus action                  | "Focus"                                                                                | Session row                                             |
+| Edit action                   | "Edit"                                                                                 | Session row                                             |
+| Duplicate action              | "Duplicate"                                                                            | Session row                                             |
+| Save as template action       | "Save as Template"                                                                     | Session row                                             |
+| Archive action                | "Archive"                                                                              | Session row                                             |
+| Strategy save button          | "Save Changes"                                                                         | Changes to `Saving...` while request runs               |
+| Strategy success toast        | "Strategy changes saved."                                                              | —                                                       |
+| Session create success toast  | "Session created."                                                                     | —                                                       |
+| Template create success toast | "Template saved."                                                                      | —                                                       |
+| Global summary label          | "Global Workspace"                                                                     | Summary card and context chip                           |
+| Global archived toggle        | "Include archived sessions"                                                            | Visible only in global mode on `Dashboard` and `Trades` |
+| Strategy global-state message | "Global view does not have strategy settings. Select a session to configure strategy." | Strategy page                                           |
+| Strategy global-state CTA     | "Choose Session"                                                                       | Strategy page                                           |
+| Strategy locked message       | "Stop this session before editing its strategy or AI configuration."                   | Strategy page                                           |
+| Session locked message        | "Stop this session before editing its configuration."                                  | Sessions page / modal                                   |
+| Approval queue title          | "Pending Approvals"                                                                    | Dashboard                                               |
+| Approval approve action       | "Approve"                                                                              | Approval queue item                                     |
+| Approval reject action        | "Reject"                                                                               | Approval queue item                                     |
+| Allocation mode label         | "Capital Allocation"                                                                   | Accounts page                                           |
+| Allocation mode option        | "Per-session only"                                                                     | Accounts page                                           |
+| Allocation mode option        | "Shared global pool"                                                                   | Accounts page                                           |
+| Shared pool amount label      | "Total capital pool"                                                                   | Accounts page                                           |
+| Session start preflight error | "Complete the session task boundary before starting."                                  | Blocking banner                                         |
+| Missing provider message      | "Connect this provider in Accounts before assigning it to a role."                     | AI role card                                            |
+| Search provider message       | "Connect a web search provider to enable internet search for this role."               | AI role card                                            |
+| Broker compatibility error    | "No connected broker can execute this session."                                        | Session modal and start preflight                       |
+
 
 ## 11. Resolved Decisions
 
-| # | Decision | Notes |
-|---|----------|-------|
-| 1 | `OpenCode-compatible` means a user-configured OpenAI-compatible endpoint stored as provider metadata (`baseUrl`) and authenticated with the user's own key. | Treat it as a local or user-chosen compatible endpoint, not a managed Exva gateway. |
-| 2 | `shared global pool` is enforced against a user-entered fixed amount in v1. | Do not depend on broker-reported buying power/cash for the first implementation. Broker-aware capital sync can be a later enhancement. |
-| 3 | Prompt Markdown lives in the app bundle by default, with session-level DB overrides for custom prompts. | Do not add a user-data layered prompt file system in v1. |
-| 4 | v1 approval UX uses the dashboard panel plus existing app-level badge/event refresh only. | No sounds, OS notifications, or extra cross-page notification surfaces are required in v1. |
+
+| #   | Decision                                                                                                                                                    | Notes                                                                                                                                  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `OpenCode-compatible` means a user-configured OpenAI-compatible endpoint stored as provider metadata (`baseUrl`) and authenticated with the user's own key. | Treat it as a local or user-chosen compatible endpoint, not a managed Exva gateway.                                                    |
+| 2   | `shared global pool` is enforced against a user-entered fixed amount in v1.                                                                                 | Do not depend on broker-reported buying power/cash for the first implementation. Broker-aware capital sync can be a later enhancement. |
+| 3   | Prompt Markdown lives in the app bundle by default, with session-level DB overrides for custom prompts.                                                     | Do not add a user-data layered prompt file system in v1.                                                                               |
+| 4   | v1 approval UX uses the dashboard panel plus existing app-level badge/event refresh only.                                                                   | No sounds, OS notifications, or extra cross-page notification surfaces are required in v1.                                             |
+
+
 ## 12. Recommended Delivery Order
 
 1. Define task boundaries and session ownership model first. The app cannot support multiple sessions safely until `what a session is` is explicit.
@@ -1580,3 +1649,4 @@ If a user lacks permission for an action:
 8. Generalize broker accounts and routing so sessions can target compatible brokers per instrument class and enforce same-broker/same-instrument collision denial.
 9. Add the `instrument_selector` role and AI-selected universe mode after the session model, prompt assets, and provider abstraction are stable.
 10. Refactor the services layer into domain subfolders before adding much more orchestration complexity. Suggested split: `services/session/`, `services/ai/`, `services/broker/`, `services/instrument/`, `services/risk/`.
+

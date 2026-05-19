@@ -17,6 +17,7 @@ import { createTrendingSymbolsTool } from "../../tools/trending-symbols-tool";
 import type { MOCK_REDDIT_POSTS } from "../../tools/search-reddit-tool";
 import type { MOCK_TRENDING_SYMBOLS } from "../../tools/trending-symbols-tool";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import type { WorkerToolConfig } from "@electron/shared/ai/pipeline-config";
 
 export const SUPPORTED_TOOL_IDS = [
   "submit_candidates",
@@ -68,6 +69,7 @@ export async function buildToolSet(
   toolIds: readonly ToolId[],
   ctx: ToolBuildContext,
   terminalToolNames?: readonly string[],
+  toolConfig?: WorkerToolConfig,
 ): Promise<ToolSet | undefined> {
   if (toolIds.length === 0 && !terminalToolNames?.length) return undefined;
 
@@ -99,6 +101,7 @@ export async function buildToolSet(
     tools.search_web = await createSearchTool({
       sessionId: ctx.sessionId,
       searchProviderId: ctx.searchProviderId,
+      fallbackProviderId: toolConfig?.search_web?.fallbackProviderId ?? null,
       searchRegistry: ctx.searchRegistry,
       apiCallLogRepo: ctx.apiCallLogRepo,
       cycleId: ctx.cycleId,

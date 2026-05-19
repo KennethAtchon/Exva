@@ -7,6 +7,7 @@ import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-lo
 export async function createSearchTool(deps: {
   sessionId: string;
   searchProviderId: string;
+  fallbackProviderId?: string | null;
   searchRegistry: SearchRegistry;
   apiCallLogRepo: ApiCallLogRepo;
   cycleId?: string | null;
@@ -14,6 +15,10 @@ export async function createSearchTool(deps: {
   maxDataSpendUsd?: number | null;
 }) {
   const adapter = await deps.searchRegistry.get(deps.searchProviderId);
+  const fallbackAdapter =
+    deps.fallbackProviderId && deps.fallbackProviderId !== deps.searchProviderId
+      ? await deps.searchRegistry.get(deps.fallbackProviderId)
+      : null;
   return tool({
     description: [
       "Search the web for current financial news, market signals, catalysts, and trading ideas.",
@@ -52,6 +57,29 @@ export async function createSearchTool(deps: {
         });
         return out;
       } catch (error) {
+        if (fallbackAdapter) {
+          try {
+            const out = await fallbackAdapter.search(validation.sanitized);
+            deps.apiCallLogRepo.insert({
+              id: crypto.randomUUID(),
+              session_id: deps.sessionId,
+              trade_id: deps.tradeId ?? null,
+              cycle_id: deps.cycleId ?? null,
+              provider: out.provider,
+              endpoint: "/search",
+              call_type: "search",
+              credits_used: out.creditsUsed,
+              cost_usd: null,
+              latency_ms: Date.now() - startedAt,
+              status: "ok",
+              from_cache: out.cachedAt != null,
+              created_at: createdAt,
+            });
+            return out;
+          } catch (fallbackError) {
+            error = fallbackError;
+          }
+        }
         const message = error instanceof Error ? error.message : String(error);
         deps.apiCallLogRepo.insert({
           id: crypto.randomUUID(),

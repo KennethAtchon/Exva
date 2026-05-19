@@ -12,6 +12,10 @@ const BANNED = [
   /if .+ fails?,? try/i,
   /you are operating inside exva/i,
   /submit_candidates/i,
+  /use `get_/i,
+  /use `search_/i,
+  /use `fetch_/i,
+  /no other tools/i,
 ];
 
 function walkMarkdownFiles(dir: string): string[] {

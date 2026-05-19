@@ -19,6 +19,7 @@ export interface PromptEnvelopeInput {
   basePromptMarkdown: string;
   task: Record<string, unknown>;
   strategyContext: SessionStrategyContext;
+  engineResults?: Record<string, unknown>;
   sandboxMode?: boolean;
   riskPolicy?: {
     maxPositionUsd: number;
@@ -43,6 +44,7 @@ export function buildPromptEnvelope(input: PromptEnvelopeInput): PromptEnvelope 
       phase: input.phase,
       workerId: input.workerId,
       task: input.task,
+      engineResults: input.engineResults ?? {},
       sandboxMode: input.sandboxMode ?? false,
     },
   };
@@ -75,6 +77,9 @@ export function envelopeToMessages(
   const userContent = [
     `<trusted_session_context>\n${strategyPrompt}\n</trusted_session_context>`,
     presetGuidance.trim() ? `<preset_behavior>\n${presetGuidance}\n</preset_behavior>` : null,
+    Object.keys(envelope.userPayload.engineResults as Record<string, unknown>).length > 0
+      ? `<engine_results>\n${JSON.stringify(envelope.userPayload.engineResults, null, 2)}\n</engine_results>`
+      : null,
     `<task>\n${JSON.stringify(envelope.userPayload.task, null, 2)}\n</task>`,
   ]
     .filter((block): block is string => block != null)

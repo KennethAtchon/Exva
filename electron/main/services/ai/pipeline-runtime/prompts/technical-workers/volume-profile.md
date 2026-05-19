@@ -2,8 +2,6 @@
 
 Given OHLCV bars for {instrumentSymbol}, assess volume behavior relative to recent history.
 
-Use `get_ohlcv` for recent bars. No other tools.
-
 Return JSON:
 ```json
 {

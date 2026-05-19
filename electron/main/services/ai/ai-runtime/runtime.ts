@@ -8,6 +8,7 @@ import type { SessionAiPhasesRepo } from "../../../db/repositories/sessions/sess
 import type { SessionRepo } from "../../../db/repositories/sessions/session-repo";
 import type { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
+import type { AgentRunsRepo } from "../../../db/repositories/agents/agent-runs-repo";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
@@ -25,6 +26,7 @@ export class AiRuntime {
     sessionRepo: SessionRepo,
     workspacePrefsRepo: WorkspacePreferencesRepo,
     apiCallLogRepo: ApiCallLogRepo,
+    agentRunsRepo: AgentRunsRepo,
     brokerRouting?: BrokerRoutingService,
     brokerRegistry?: BrokerRegistry,
     strategyContextService?: SessionStrategyContextService,
@@ -37,6 +39,7 @@ export class AiRuntime {
       sessionRepo,
       workspacePrefsRepo,
       apiCallLogRepo,
+      agentRunsRepo,
       searchRegistry,
       brokerRouting,
       brokerRegistry,

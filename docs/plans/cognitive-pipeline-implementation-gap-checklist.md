@@ -57,7 +57,7 @@
 
 | Plan doc | Header status | Gaps still in code (this checklist) |
 |----------|---------------|-------------------------------------|
-| `cognitive-runtime-phase-1-redesign-plan.md` | **Draft** | `WorkerDefinition.engines` wiring, phase spend caps, replay, docs |
+| `cognitive-runtime-phase-1-redesign-plan.md` | **Complete** | Replay fixtures (Phase 0/2); optional `engines/` folder move |
 | `cognitive-runtime-phase-2-selector-cutover-plan.md` | Complete | **§2D replay suite**; synthetic `submit_candidates` trace; spec `[stage:…]` logs |
 | `cognitive-runtime-phase-3-selector-cleanup-plan.md` | Complete | `aiPickerEnabled` naming (OQ open); `selector-runtime-control` analytics-only retention |
 | `cognitive-runtime-phase-4..6` | Complete | Replay fixtures; engine-bound context beyond compact prompts |
@@ -91,17 +91,17 @@ Spec §17 / §19; **no `cognitive-runtime-phase-0` plan file**.
 **Modules used in-phase but not via `EngineRegistry` at runtime:** `selector-risk-filter` (instantiated in `selector.phase.ts`).
 
 - [x] Register pipeline aggregators / execution-profile in `EngineRegistry`  
-- [ ] Use `WorkerDefinition.engines` in phase definitions (field exists; **no worker sets `engines:`** in `definitions/`)  
-- [ ] Shared `electron/shared/ai/pipeline-config.ts` (`PipelineConfig`, `ScoringWeights`, `RiskRuleSet`) — types scattered today  
-- [ ] `phaseSpendCapUsd` / `totalSpendCapUsd` enforcement (only per-worker `spendLimitUsd` in `worker-executor.ts` → `runAgent`)  
-- [ ] Mid-phase abort when `maxAiSpendUsd` exceeded (session-level `maxDataSpendUsd` on search tools exists; not pipeline-runner aggregate cap)
+- [x] Use `WorkerDefinition.engines` in phase definitions (`pipeline-discovery-config.ts`, review/decision/technical/fundamental phases)  
+- [x] Shared `electron/shared/ai/pipeline-config.ts` (`PipelineConfig`, `ScoringWeights`, `RiskRuleSet`)  
+- [x] `phaseSpendCapUsd` / `totalSpendCapUsd` enforcement (`pipeline-spend-tracker.ts`, `PHASE_DEFAULTS`, `DEFAULT_PIPELINE_CONFIG`)  
+- [x] Mid-phase abort when `maxAiSpendUsd` exceeded (`AgentRunsRepo.dailyAiSpendUsd` + spend tracker abort log)
 
 ### MCP & search (`docs/TODO.md` + spec §16.12)
 
 - [x] `McpSearchAdapter` — `search/adapters/mcp-adapter.ts` (HTTP JSON-RPC `tools/call`; opt-in)  
-- [ ] MCP fallback in worker tool config  
-- [ ] Search “plug and play” like engines (unify `SearchRegistry` with engine bindings / phase tool factory)  
-- [ ] Do not duplicate tool usage instructions in prompts (`docs/TODO.md` — tools should come from schema descriptions only); audit worker markdown for tool-order prose  
+- [x] MCP fallback in worker tool config (`WorkerToolConfig.search_web.fallbackProviderId` → `search-tool.ts`)  
+- [~] Search “plug and play” like engines — worker `toolConfig` bindings wired; full `SearchRegistry` ↔ engine unification deferred  
+- [x] Do not duplicate tool usage instructions in prompts — worker markdown audited; denylist extended in `pipeline-worker-prompts.test.ts`  
 
 ### Prompt lint (spec goals #1, §19 Phase 2)
 
@@ -118,8 +118,8 @@ Spec §17 / §19; **no `cognitive-runtime-phase-0` plan file**.
 
 ### Docs
 
-- [ ] `cognitive-runtime-phase-1-redesign-plan.md`: Draft → accurate status  
-- [ ] `docs/engineering/ai-model-configuration-guide.md`: trim legacy body (`docs/TODO.md`)  
+- [x] `cognitive-runtime-phase-1-redesign-plan.md`: Draft → accurate status  
+- [x] `docs/engineering/ai-model-configuration-guide.md`: trim legacy body (`docs/TODO.md`)  
 
 ### Refactor (`docs/TODO.md`)
 
@@ -259,7 +259,7 @@ Spec §17 / §19; **no `cognitive-runtime-phase-0` plan file**.
 - [x] Zod fail → retry once → zero dimension (`worker-structured-output.ts`, `worker-executor.ts`)  
 - [x] Trim worker context (`buildWorkerStrategyPromptContext` + envelope budgets)  
 - [ ] `onDependencyFailure` on worker defs (type only; not enforced in scheduler)  
-- [ ] Pipeline spend abort log message (spec §13)  
+- [x] Pipeline spend abort log message (spec §13) — `[pipeline] aborting further workers: spend $X exceeded cap $Y` via `PipelineSpendTracker`  
 
 ---
 

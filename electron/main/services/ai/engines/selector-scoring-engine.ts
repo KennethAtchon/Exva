@@ -1,18 +1,11 @@
 import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
+import {
+  DEFAULT_SCORING_WEIGHTS,
+  type ScoringWeights,
+} from "@electron/shared/ai/pipeline-config";
 
-export interface ScoringWeights {
-  hype: number;
-  volume: number;
-  catalyst: number;
-  liquidity: number;
-}
-
-export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
-  hype: 0.2,
-  volume: 0.3,
-  catalyst: 0.35,
-  liquidity: 0.15,
-};
+export type { ScoringWeights } from "@electron/shared/ai/pipeline-config";
+export { DEFAULT_SCORING_WEIGHTS } from "@electron/shared/ai/pipeline-config";
 
 export function scoreCandidate(candidate: Candidate, weights: ScoringWeights): number {
   const totalWeight = weights.hype + weights.volume + weights.catalyst + weights.liquidity;

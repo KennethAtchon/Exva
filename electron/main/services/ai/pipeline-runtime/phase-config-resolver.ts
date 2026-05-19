@@ -1,5 +1,6 @@
 import type { PipelinePhase, WorkerDefinition, SessionAiPhaseWorker } from "@electron/shared/ai/pipeline-phase";
 import { RUNTIME_DEFAULTS as DEFAULTS, PHASE_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
+import { phaseSpendCapUsd as defaultPhaseSpendCapUsd } from "@electron/shared/ai/pipeline-config";
 import type { ResolvedWorkerRuntimeConfig } from "./core/types";
 import type { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
 
@@ -47,6 +48,10 @@ export class PhaseConfigResolver {
       promptMarkdown,
       workerOverride,
     };
+  }
+
+  resolvePhaseSpendCapUsd(phase: PipelinePhase): number {
+    return PHASE_DEFAULTS[phase].phaseSpendCapUsd ?? defaultPhaseSpendCapUsd(phase);
   }
 
   resolveWorkerRuntimeConfig(

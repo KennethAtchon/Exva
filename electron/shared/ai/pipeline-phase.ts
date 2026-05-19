@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { PrepareStepFunction, ToolSet } from "ai";
+import type { WorkerToolConfig } from "./pipeline-config";
 
 export type PipelinePhase = "selector" | "technical" | "fundamental" | "review" | "decision";
 
@@ -30,6 +31,7 @@ export interface WorkerDefinition<TInput = unknown, TPhaseOutput = unknown> {
   id: string;
   promptAssetPath: string;
   tools: readonly ToolId[];
+  toolConfig?: WorkerToolConfig;
   engines?: readonly EngineBinding[];
   outputMode: "text" | "object" | "tool_terminal";
   outputSchema?: z.ZodType<Partial<TPhaseOutput>>;
@@ -93,6 +95,7 @@ export interface RuntimeDefaultsConfig {
 
 export interface PhaseDefaultsConfig {
   phase: PipelinePhase;
+  phaseSpendCapUsd?: number;
   workerCaps?: Partial<RuntimeDefaultsConfig["workerCaps"]>;
   retry?: Partial<RuntimeDefaultsConfig["retry"]>;
   tools?: readonly ToolId[];
@@ -120,23 +123,28 @@ export const RUNTIME_DEFAULTS: RuntimeDefaultsConfig = {
 export const PHASE_DEFAULTS: Record<PipelinePhase, PhaseDefaultsConfig> = {
   selector: {
     phase: "selector",
-    workerCaps: { maxSteps: 50, spendLimitUsd: 1.0 },
+    phaseSpendCapUsd: 0.3,
+    workerCaps: { maxSteps: 50, spendLimitUsd: 0.3 },
   },
   technical: {
     phase: "technical",
-    workerCaps: { maxSteps: 50, spendLimitUsd: 1.0 },
+    phaseSpendCapUsd: 0.08,
+    workerCaps: { maxSteps: 50, spendLimitUsd: 0.08 },
   },
   fundamental: {
     phase: "fundamental",
-    workerCaps: { maxSteps: 50, spendLimitUsd: 1.0 },
+    phaseSpendCapUsd: 0.08,
+    workerCaps: { maxSteps: 50, spendLimitUsd: 0.08 },
   },
   review: {
     phase: "review",
-    workerCaps: { maxSteps: 50, spendLimitUsd: 1.0 },
+    phaseSpendCapUsd: 0.05,
+    workerCaps: { maxSteps: 50, spendLimitUsd: 0.05 },
   },
   decision: {
     phase: "decision",
-    workerCaps: { maxSteps: 50, spendLimitUsd: 1.0 },
+    phaseSpendCapUsd: 0.05,
+    workerCaps: { maxSteps: 50, spendLimitUsd: 0.05 },
   },
 };
 

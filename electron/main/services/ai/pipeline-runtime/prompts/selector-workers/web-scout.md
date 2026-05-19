@@ -1,6 +1,6 @@
 # Web scout
 
-Use web search and page fetches to find up to 3 concrete trade candidates that fit the session instructions.
+Find up to 3 concrete trade candidates that fit the session instructions.
 
 Return JSON:
 {

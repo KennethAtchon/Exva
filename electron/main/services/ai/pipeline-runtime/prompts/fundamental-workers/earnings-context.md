@@ -2,8 +2,6 @@
 
 Given recent news for {instrumentSymbol}, assess earnings quality and trajectory.
 
-Use `get_news` to retrieve recent company news. No other tools.
-
 Return JSON:
 ```json
 {

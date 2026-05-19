@@ -50,6 +50,7 @@ export async function executeByFrontier<T>(
   scheduled: readonly WorkerGraphNode[],
   maxConcurrency: number,
   runWorker: (node: WorkerGraphNode) => Promise<T>,
+  shouldContinue?: () => boolean,
 ): Promise<Array<{ node: WorkerGraphNode; result: T }>> {
   const frontierMap = new Map<number, WorkerGraphNode[]>();
   for (const node of scheduled) {
@@ -61,11 +62,14 @@ export async function executeByFrontier<T>(
   const out: Array<{ node: WorkerGraphNode; result: T }> = [];
 
   for (const frontier of [...frontierMap.keys()].sort((a, b) => a - b)) {
+    if (shouldContinue && !shouldContinue()) break;
     const nodes = frontierMap.get(frontier) ?? [];
     for (let index = 0; index < nodes.length; index += Math.max(1, maxConcurrency)) {
+      if (shouldContinue && !shouldContinue()) break;
       const batch = nodes.slice(index, index + Math.max(1, maxConcurrency));
       const results = await Promise.all(batch.map(async (node) => ({ node, result: await runWorker(node) })));
       out.push(...results);
+      if (shouldContinue && !shouldContinue()) break;
     }
   }
 

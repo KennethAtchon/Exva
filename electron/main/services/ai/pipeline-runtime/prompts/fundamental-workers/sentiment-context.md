@@ -2,8 +2,6 @@
 
 Given Reddit and web discussion for {instrumentSymbol}, assess current retail and institutional sentiment.
 
-Use `search_reddit` for community discussion and `search_web` for broader sentiment signals. No other tools.
-
 Return JSON:
 ```json
 {

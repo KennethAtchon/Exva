@@ -1,4 +1,5 @@
 import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
 import { reviewSignalSchema, type ReviewSignal, type TechnicalSignal, type FundamentalSignal } from "@electron/shared/ai/pipeline-signals";
 import { signalForWorkerPrompt } from "@electron/shared/ai/signal-prompt-payload";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
@@ -22,6 +23,7 @@ const CONFLICT_DETECTOR_WORKER = {
   id: "conflict-detector",
   promptAssetPath: "review-workers/conflict-detector",
   tools: [] as const,
+  engines: [ENGINE_BINDINGS.riskSummaryRead],
   outputMode: "object" as const,
   outputSchema: conflictDetectorOutputSchema,
 };
@@ -30,6 +32,7 @@ const RISK_ASSESSOR_WORKER = {
   id: "risk-assessor",
   promptAssetPath: "review-workers/risk-assessor",
   tools: [] as const,
+  engines: [ENGINE_BINDINGS.riskSummaryRead],
   outputMode: "object" as const,
   outputSchema: riskAssessorOutputSchema,
 };
@@ -108,6 +111,7 @@ export const REVIEW_PHASE: PipelineDefinition<ReviewPhaseInput, ReviewSignal> = 
   outputMode: "object",
   outputSchema: reviewSignalSchema as import("zod").ZodType<ReviewSignal>,
   workers: REVIEW_WORKERS,
+  engines: [ENGINE_BINDINGS.reviewAggregatorFinalize],
   persistence: {
     outputSchemaName: "reviewSignal",
     traceMode: "aggregate_workers",

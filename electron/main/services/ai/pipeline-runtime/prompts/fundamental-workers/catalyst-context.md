@@ -2,8 +2,6 @@
 
 Given recent news and web context for {instrumentSymbol}, identify the primary catalyst driving current price action.
 
-Use `get_news` for recent company/sector news. Use `search_web` only to fill a specific current-fact gap. No other tools.
-
 Return JSON:
 ```json
 {

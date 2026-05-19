@@ -4,6 +4,7 @@ import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate"
 import type { InstrumentClass } from "@/lib/types";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
+import { DEFAULT_RISK_RULE_SET, type RiskRuleSet } from "@electron/shared/ai/pipeline-config";
 import type { WorkingCandidate } from "./selector-candidate-merger";
 
 export interface RiskFilterDeps {
@@ -11,9 +12,8 @@ export interface RiskFilterDeps {
   instrumentClasses: InstrumentClass[];
   strategyContext: SessionStrategyContext;
   brokerRouting?: BrokerRoutingService;
+  riskRules?: RiskRuleSet;
 }
-
-const MIN_FINAL_SCORE = 0.15;
 
 export class RiskFilter {
   private readonly validator = new CandidateValidationService();
@@ -23,7 +23,8 @@ export class RiskFilter {
   filter(candidates: WorkingCandidate[]): WorkingCandidate[] {
     return candidates.filter((candidate) => {
       if (!this.deps.instrumentClasses.includes(candidate.instrumentClass)) return false;
-      if ((candidate.finalScore ?? 0) < MIN_FINAL_SCORE) return false;
+      const minFinalScore = this.deps.riskRules?.minFinalScore ?? DEFAULT_RISK_RULE_SET.minFinalScore;
+      if ((candidate.finalScore ?? 0) < minFinalScore) return false;
       if (!candidate.rationale?.trim()) return false;
       if (this.deps.brokerRouting) {
         try {
