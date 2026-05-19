@@ -76,11 +76,14 @@ export class CapitalReservationsRepo {
       .run();
   }
 
-  sumActiveReservedUsd(): number {
+  sumActiveReservedUsd(sessionId?: string): number {
+    const condition = sessionId
+      ? and(eq(capitalReservations.sessionId, sessionId), inArray(capitalReservations.status, ["reserved", "consumed"]))
+      : inArray(capitalReservations.status, ["reserved", "consumed"]);
     const row = this.client.db
       .select({ total: sql<number>`coalesce(sum(${capitalReservations.amountUsd}), 0)` })
       .from(capitalReservations)
-      .where(inArray(capitalReservations.status, ["reserved", "consumed"]))
+      .where(condition)
       .get();
     return Number(row?.total ?? 0);
   }

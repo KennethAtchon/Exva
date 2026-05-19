@@ -105,10 +105,16 @@ export class SessionRuntimeManager {
     this.deps.logger.info({ sessionId }, "stopping runtime");
     const runtime = this.requireRuntime(sessionId);
     this.deps.bus.setRuntimeStatus(sessionId, "stopping");
-    this.deps.sessionRepo.setStatus("stopped", sessionId);
-    await runtime.stop();
-    this.runtimes.delete(sessionId);
-    this.deps.bus.clearRuntimeStatus(sessionId);
+    try {
+      await runtime.stop();
+      this.deps.sessionRepo.setStatus("stopped", sessionId);
+    } catch (error) {
+      this.deps.sessionRepo.setStatus("attention_required", sessionId);
+      throw error;
+    } finally {
+      this.runtimes.delete(sessionId);
+      this.deps.bus.clearRuntimeStatus(sessionId);
+    }
     this.deps.logger.info({ sessionId }, "runtime stopped");
   }
 

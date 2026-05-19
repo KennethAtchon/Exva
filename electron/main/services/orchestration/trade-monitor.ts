@@ -5,7 +5,8 @@ import type { BrokerRegistry } from "../broker/broker-registry";
 import type { EventBus } from "../infra/event-bus";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { CapitalReservationService } from "../risk/capital-reservation-service";
-import type { HoldingStyle } from "@/lib/types";
+import type { HoldingStyle, InstrumentClass } from "@/lib/types";
+import type { InstrumentNormalizer } from "../broker/instrument-normalizer";
 import { ExitPolicyEvaluator, type ExitReason } from "../risk/exit-policy-evaluator";
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
@@ -32,6 +33,7 @@ export class TradeMonitor {
     private readonly eventBus: EventBus,
     private readonly getMaxAiSpendUsd: () => number,
     private readonly uptimeMin: () => number = () => 0,
+    private readonly instrumentNormalizer?: InstrumentNormalizer,
   ) {}
 
   start(): void {
@@ -60,7 +62,14 @@ export class TradeMonitor {
       if (!trade.broker_order_id || !trade.brokerAccountId) continue;
 
       const adapter = await this.brokerRegistry.get(trade.brokerAccountId);
-      const snapshot = await adapter.getMarketSnapshot(trade.instrumentSymbol);
+      const wireSymbol = this.instrumentNormalizer
+        ? this.instrumentNormalizer.toBrokerSymbol({
+            symbol: trade.instrumentSymbol,
+            instrumentClass: trade.instrumentType as InstrumentClass,
+            brokerType: adapter.brokerType,
+          })
+        : trade.instrumentSymbol;
+      const snapshot = await adapter.getMarketSnapshot(wireSymbol);
       const currentPrice = snapshot.price;
 
       // Update high-water-mark before evaluating (conditional: only moves up for longs)
@@ -71,7 +80,7 @@ export class TradeMonitor {
       let bars: { high: number; low: number; close: number }[] = [];
       if (adapter.getOhlcv) {
         try {
-          bars = await adapter.getOhlcv(trade.instrumentSymbol, ohlcvTimeframe, 20);
+          bars = await adapter.getOhlcv(wireSymbol, ohlcvTimeframe, 20);
         } catch {
           // ATR exits skipped this tick; fixed stops/TP/max-hold still run
         }

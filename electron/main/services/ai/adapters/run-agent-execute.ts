@@ -95,9 +95,11 @@ function mapFinishReason(
   return "stop";
 }
 
-function buildStepTraces<TOOLS extends ToolSet>(sdkSteps: StepResult<TOOLS>[], durationMs: number): StepTrace[] {
-  const per = sdkSteps.length ? Math.max(0, Math.round(durationMs / sdkSteps.length)) : 0;
+function buildStepTraces<TOOLS extends ToolSet>(sdkSteps: StepResult<TOOLS>[], stepFinishTimes: number[], startedAt: number): StepTrace[] {
   return sdkSteps.map((st, i) => {
+    const finishTime = stepFinishTimes[i];
+    const prevTime = i === 0 ? startedAt : (stepFinishTimes[i - 1] ?? startedAt);
+    const latencyMs = finishTime != null ? Math.max(0, finishTime - prevTime) : 0;
     const toolCalls: ToolCallRecord[] = [];
     const resultsById = new Map<string, unknown>();
     for (const tr of st.toolResults) {
@@ -111,7 +113,7 @@ function buildStepTraces<TOOLS extends ToolSet>(sdkSteps: StepResult<TOOLS>[], d
         tool: String(tc.toolName),
         argsJson,
         resultJson: typeof rawOut === "string" ? rawOut : JSON.stringify(rawOut ?? null),
-        latencyMs: per,
+        latencyMs,
       });
     }
     return {
@@ -119,7 +121,7 @@ function buildStepTraces<TOOLS extends ToolSet>(sdkSteps: StepResult<TOOLS>[], d
       toolCalls,
       inputTokens: st.usage?.inputTokens ?? 0,
       outputTokens: st.usage?.outputTokens ?? 0,
-      latencyMs: per,
+      latencyMs,
     };
   });
 }
@@ -137,6 +139,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   const { system, rest } = splitSystem(params.messages);
   const prompt = userPromptFrom(rest);
 
+  logger.debug({ role: params.role ?? null, modelId: params.modelId, systemPrompt: system ?? null, userPrompt: prompt }, "agent prompt");
   logger.info(
     {
       providerType: params.providerType ?? null,
@@ -150,8 +153,6 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
       promptChars: prompt.length,
       maxSteps: params.maxSteps,
       spendLimitUsd: params.spendLimitUsd ?? null,
-      systemPrompt: system ?? null,
-      userPrompt: prompt,
     },
     "execute run agent start",
   );
@@ -223,10 +224,12 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     }
   };
 
+  const stepFinishTimes: number[] = [];
   let stepIndex = 0;
   const wrappedBaseArgs = {
     ...baseArgs,
     onStepFinish: (step: StepResult<ToolSet>) => {
+      stepFinishTimes.push(Date.now());
       onStepFinish(step, stepIndex++);
     },
   };
@@ -243,7 +246,7 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   }
 
   const durationMs = Date.now() - started;
-  const steps = buildStepTraces(result.steps, durationMs);
+  const steps = buildStepTraces(result.steps, stepFinishTimes, started);
   const totalIn = result.totalUsage.inputTokens ?? 0;
   const totalOut = result.totalUsage.outputTokens ?? 0;
   const totalCost = estimateCostUsd(params.modelId, totalIn, totalOut);

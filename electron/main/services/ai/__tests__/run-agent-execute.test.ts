@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const infoSpy = vi.fn();
+const debugSpy = vi.fn();
 const generateTextMock = vi.fn();
 
 vi.mock("ai", () => ({
@@ -15,6 +16,7 @@ vi.mock("ai", () => ({
 vi.mock("../../infra/log", () => ({
   createLogger: () => ({
     info: infoSpy,
+    debug: debugSpy,
   }),
 }));
 
@@ -35,6 +37,7 @@ type MockStep = {
 describe("executeRunAgent logging", () => {
   beforeEach(() => {
     infoSpy.mockReset();
+    debugSpy.mockReset();
     generateTextMock.mockReset();
   });
 
@@ -92,10 +95,15 @@ describe("executeRunAgent logging", () => {
     });
 
     const startEntry = infoSpy.mock.calls.find(([, message]) => message === "execute run agent start")?.[0];
+    const promptEntry = debugSpy.mock.calls.find(([, message]) => message === "agent prompt")?.[0];
     const toolEntry = infoSpy.mock.calls.find(([, message]) => message === "agent tool call")?.[0];
     const completeEntry = infoSpy.mock.calls.find(([, message]) => message === "execute run agent complete")?.[0];
 
-    expect(startEntry).toMatchObject({
+    // prompts now at DEBUG, not INFO
+    expect(startEntry).not.toHaveProperty("systemPrompt");
+    expect(startEntry).not.toHaveProperty("userPrompt");
+    expect(startEntry).toMatchObject({ role: "selector", modelId: "google/gemma-4-31b-it" });
+    expect(promptEntry).toMatchObject({
       role: "selector",
       modelId: "google/gemma-4-31b-it",
       systemPrompt: "System instructions",

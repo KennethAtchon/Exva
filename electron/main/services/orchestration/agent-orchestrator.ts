@@ -247,13 +247,6 @@ export class AgentOrchestrator {
     );
 
     const config = this.getSessionConfig();
-    const stats = this.deps.statsRepo.dashboardStats(
-      this.sessionId,
-      this.deps.sessionRepo.getStatus(this.sessionId),
-      this.totalAllocatedUsd(),
-      this.deps.sessionRepo.uptimeMin(this.sessionId),
-      config.max_api_spend_usd,
-    );
     const stepRunner = this.getStepRunner(context.cycleId);
 
     // Candidate validation: fetch fresh quote + run deterministic checks before AI pipeline
@@ -332,13 +325,21 @@ export class AgentOrchestrator {
     }
 
     if (!context.riskOrder) {
-      const riskConfig = this.deps.strategyContextService.get(this.sessionId).riskConfig;
+      const { riskConfig, timeframe } = this.deps.strategyContextService.get(this.sessionId);
       const riskResult = await stepRunner.run(
         "risk_gate",
         async () => {
+          const stats = this.deps.statsRepo.dashboardStats(
+            this.sessionId,
+            this.deps.sessionRepo.getStatus(this.sessionId),
+            this.totalAllocatedUsd(),
+            this.deps.sessionRepo.uptimeMin(this.sessionId),
+            config.max_api_spend_usd,
+          );
           const risk = this.deps.riskEngine.validateDecision({
             config,
             stats,
+            holdingStyle: timeframe.holdingStyle,
             order: {
               instrumentSymbol: trade.instrumentSymbol,
               instrumentDisplayName: trade.instrumentDisplayName ?? null,
@@ -462,6 +463,13 @@ export class AgentOrchestrator {
         if (!riskOrder) {
           throw new AppError("Internal error: riskOrder missing at policy gate", "VALIDATION_FAILED");
         }
+        const freshStats = this.deps.statsRepo.dashboardStats(
+          this.sessionId,
+          this.deps.sessionRepo.getStatus(this.sessionId),
+          this.totalAllocatedUsd(),
+          this.deps.sessionRepo.uptimeMin(this.sessionId),
+          config.max_api_spend_usd,
+        );
         const policyResult = new OrderPolicyGate().evaluate({
           sessionId: this.sessionId,
           cycleId: context.cycleId,
@@ -472,12 +480,13 @@ export class AgentOrchestrator {
           sessionIsPaused: () => this.deps.bus.runtimeStatus(this.sessionId) !== "active",
           decisionRiskInput: {
             config,
-            stats,
+            stats: freshStats,
             order: riskOrder,
             confidence: trade.confidence_score ?? 0,
             quoteSnapshot: latestQuote ?? undefined,
             placementQuoteSnapshot: placementQuote,
             side: trade.side,
+            holdingStyle: strategy.timeframe.holdingStyle,
             exitPolicy: {
               stopLossPct: strategy.riskConfig.stopLossPct,
               atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
@@ -754,6 +763,7 @@ export class AgentOrchestrator {
         order: risk.value,
         confidence: updated.confidence_score ?? 0,
         side: updated.side,
+        holdingStyle: strategy.timeframe.holdingStyle,
         exitPolicy: {
           stopLossPct: strategy.riskConfig.stopLossPct,
           atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
@@ -1474,14 +1484,18 @@ export class AgentOrchestrator {
 
   private parseManualInstrumentLine(line: string, classes: InstrumentClass[]): ResolvedInstrument {
     if (line.startsWith("{")) {
-      const parsed = JSON.parse(line) as ResolvedInstrument;
-      return {
-        symbol: parsed.symbol,
-        instrumentClass: parsed.instrumentClass,
-        instrumentDisplayName: parsed.instrumentDisplayName,
-        predictionOutcome: parsed.predictionOutcome ?? null,
-        instrumentMetadataJson: parsed.instrumentMetadataJson ?? null,
-      };
+      try {
+        const parsed = JSON.parse(line) as ResolvedInstrument;
+        return {
+          symbol: parsed.symbol,
+          instrumentClass: parsed.instrumentClass,
+          instrumentDisplayName: parsed.instrumentDisplayName,
+          predictionOutcome: parsed.predictionOutcome ?? null,
+          instrumentMetadataJson: parsed.instrumentMetadataJson ?? null,
+        };
+      } catch {
+        // Malformed JSON — fall through and treat as a plain symbol
+      }
     }
     const symbol = line.startsWith("pm:") ? line : line.toUpperCase();
     return {

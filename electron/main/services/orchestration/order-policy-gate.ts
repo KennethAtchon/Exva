@@ -81,8 +81,7 @@ export class OrderPolicyGate {
 
     // data_freshness: quote staleness
     if (d.quoteSnapshot) {
-      const holdingStyle = d.exitPolicy ? undefined : undefined; // no holdingStyle in DecisionRiskInput currently
-      const maxAgeMs = maxQuoteAgeMs(instrumentClass, holdingStyle);
+      const maxAgeMs = maxQuoteAgeMs(instrumentClass, d.holdingStyle);
       const quoteAgeMs = Date.now() - new Date(d.quoteSnapshot.timestamp).getTime();
       if (quoteAgeMs > maxAgeMs) {
         gatesFailed.push("data_freshness");
@@ -151,7 +150,7 @@ export class OrderPolicyGate {
       data_freshness: (() => {
         if (d.quoteSnapshot) {
           const ageS = Math.round((Date.now() - new Date(d.quoteSnapshot.timestamp).getTime()) / 1000);
-          const maxS = Math.round(maxQuoteAgeMs(instrumentClass) / 1000);
+          const maxS = Math.round(maxQuoteAgeMs(instrumentClass, d.holdingStyle) / 1000);
           return `Quote is stale (age: ${ageS}s, max: ${maxS}s)`;
         }
         return "Quote is stale";

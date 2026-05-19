@@ -281,6 +281,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
         eventBus,
         () => strategyContext.get(sessionId).riskConfig.maxAiSpendUsd,
         () => runtimeManager.get(sessionId)?.uptimeMin() ?? 0,
+        instrumentNormalizer,
       ),
   };
   runtimeManager = new SessionRuntimeManager(runtimeManagerDeps);

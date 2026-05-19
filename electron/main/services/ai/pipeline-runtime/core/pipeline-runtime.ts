@@ -188,6 +188,10 @@ export class PipelineRuntime {
   private recordCycleSpend(cycleKey: string, phaseSpentUsd: number): void {
     if (phaseSpentUsd <= 0) return;
     this.cycleSpendUsd.set(cycleKey, (this.cycleSpendUsd.get(cycleKey) ?? 0) + phaseSpentUsd);
+    if (this.cycleSpendUsd.size > 500) {
+      const oldest = this.cycleSpendUsd.keys().next().value;
+      if (oldest !== undefined) this.cycleSpendUsd.delete(oldest);
+    }
   }
 
   private requireStrategyContextService(): SessionStrategyContextService {
@@ -205,7 +209,12 @@ function aggregatePhaseOutput(definition: { aggregate?: unknown; outputMode: str
   if (outputs.length === 1) return outputs[0] ?? null;
   if (definition.outputMode === "text") return outputs.join("\n\n");
   return outputs.reduce<Record<string, unknown>>((acc, output) => {
-    if (output && typeof output === "object") Object.assign(acc, output);
+    if (output && typeof output === "object") {
+      for (const key of Object.keys(output as object)) {
+        if (key in acc) logger.warn({ key }, "worker output key collision in phase aggregation");
+      }
+      Object.assign(acc, output);
+    }
     return acc;
   }, {});
 }

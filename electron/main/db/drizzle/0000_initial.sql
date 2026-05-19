@@ -414,6 +414,7 @@ CREATE TABLE `trades` (
 	`stop_loss_price` real,
 	`take_profit_price` real,
 	`strategy` text NOT NULL,
+	`execution_strategy` text,
 	`status` text NOT NULL,
 	`opened_at` text,
 	`closed_at` text,

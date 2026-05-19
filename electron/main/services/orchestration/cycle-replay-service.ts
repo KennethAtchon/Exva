@@ -426,7 +426,18 @@ export class CycleReplayService {
   }
 
   loadFixture(filePath: string): CycleFixture {
-    return JSON.parse(fs.readFileSync(filePath, "utf-8")) as CycleFixture;
+    const raw = JSON.parse(fs.readFileSync(filePath, "utf-8")) as unknown;
+    if (!raw || typeof raw !== "object") {
+      throw new Error(`Invalid fixture at ${filePath}: not an object`);
+    }
+    const fixture = raw as Record<string, unknown>;
+    if (fixture["version"] !== 1) {
+      throw new Error(`Invalid fixture at ${filePath}: expected version 1, got ${String(fixture["version"])}`);
+    }
+    if (!fixture["sessionId"] || !fixture["cycleId"] || !Array.isArray(fixture["phases"])) {
+      throw new Error(`Invalid fixture at ${filePath}: missing required fields (sessionId, cycleId, phases)`);
+    }
+    return fixture as unknown as CycleFixture;
   }
 }
 

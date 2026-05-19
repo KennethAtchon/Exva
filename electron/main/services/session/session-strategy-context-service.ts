@@ -80,6 +80,7 @@ export class SessionStrategyContextService {
   getPageData(sessionId: string): StrategyPageData {
     const session = this.deps.sessionRepo.requireById(sessionId);
     const ctx = this.get(sessionId);
+    const workspacePrefs = this.deps.workspacePrefsRepo.get();
 
     return {
       ...ctx,
@@ -88,9 +89,9 @@ export class SessionStrategyContextService {
       sessionStatus: session.status,
       selectionMode: session.selectionMode,
       defaultSearchProviderId: session.defaultSearchProviderId,
-      workspaceDefaultSearchProviderId: this.deps.workspacePrefsRepo.get().defaultSearchProviderId,
-      workspaceDefaultModelProviderKey: this.deps.workspacePrefsRepo.get().defaultModelProviderKey,
-      workspaceDefaultModelModelId: this.deps.workspacePrefsRepo.get().defaultModelModelId,
+      workspaceDefaultSearchProviderId: workspacePrefs.defaultSearchProviderId,
+      workspaceDefaultModelProviderKey: workspacePrefs.defaultModelProviderKey,
+      workspaceDefaultModelModelId: workspacePrefs.defaultModelModelId,
       aiPhases: this.deps.sessionAiPhasesRepo.listBySession(sessionId).map((phase) => ({
         ...phase,
         workerOverrides: this.deps.sessionAiPhasesRepo

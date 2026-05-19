@@ -1,6 +1,6 @@
 import type { DashboardStats, SessionConfig } from "@/lib/types";
 import type { OrderRequest } from "../broker/adapters/broker-adapter";
-import type { StrategySideBias } from "@electron/shared/domain";
+import type { HoldingStyle, StrategySideBias } from "@electron/shared/domain";
 import { createLogger } from "../infra/log";
 
 const logger = createLogger("risk-engine");
@@ -57,6 +57,7 @@ export interface DecisionRiskInput {
   sessionMode?: "paper" | "live";
   brokerSupportsClass?: boolean;
   marketIsOpen?: boolean;
+  holdingStyle?: HoldingStyle;
 }
 
 export class RiskEngine {
