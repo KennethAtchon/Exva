@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type TimeframePresetId } from "../../electron/shared/domain";
+import { selectorEvidenceSchema } from "../../electron/shared/ai/selector-pipeline-candidate";
 
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
 export const tradeSideSchema = z.enum(["BUY", "SELL"]);
@@ -72,6 +73,7 @@ const instrumentSelectionCandidateInputSchema = z.object({
   predictionOutcome: z.enum(["YES", "NO"]).nullable().optional(),
   instrumentMetadataJson: z.string().optional(),
   rationale: z.string().optional(),
+  selectorEvidence: selectorEvidenceSchema.optional(),
 });
 
 export const instrumentSelectionSchema = z.object({
@@ -107,10 +109,7 @@ export const tradeDecisionSchema = z.object({
   impliedProb: z.number().min(0).max(1).optional(),
   edgePctPts: z.number().optional(),
   instrumentMetadataJson: z.string().optional(),
-  sizeUsd: z.number().positive().optional(),
   confidence: z.number().min(0).max(1),
-  stopLossPct: z.number().positive().optional(),
-  takeProfitPct: z.number().positive().optional(),
   reasoning: z.string().min(1),
 });
 
@@ -329,4 +328,3 @@ export const strategyAiPhaseWorkerSaveSchema = z.object({
   spendLimitUsd: z.number().nonnegative().nullable().optional(),
   promptMarkdown: z.string().nullable().optional(),
 });
-

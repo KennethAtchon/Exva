@@ -43,7 +43,7 @@ export class RiskFilter {
         instrument: {
           symbol: candidate.symbol,
           instrumentClass: candidate.instrumentClass,
-          selectorResearchBrief: candidate.selectorResearchBrief ?? candidate.rationale,
+          selectorEvidence: candidate.selectorEvidence,
         },
         sessionInstrumentClasses: this.deps.instrumentClasses,
         brokerRouteAvailable: true,

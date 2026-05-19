@@ -25,17 +25,27 @@ export interface ExecutionProfile {
   limitPrice: number | null;
 }
 
+type StrategyProfile = {
+  sizeFactor: number;
+  stopLossFactor: number;
+  takeProfitFactor: number;
+};
+
 const VALID_STRATEGIES: Record<InstrumentClass, readonly ExecutionStrategyType[]> = {
   stock: ["trend_momentum", "breakout", "mean_reversion", "event_driven"],
-  crypto: ["trend_momentum", "breakout", "mean_reversion"],
+  crypto: ["trend_momentum", "breakout", "mean_reversion", "arbitrage"],
   futures: ["futures_trend", "trend_momentum", "event_driven"],
   prediction_market: ["prediction_market"],
 };
 
-const STRATEGY_SIZE_FACTOR: Partial<Record<ExecutionStrategyType, number>> = {
-  mean_reversion: 0.5,
-  event_driven: 0.5,
-  arbitrage: 0.5,
+const STRATEGY_PROFILES: Record<ExecutionStrategyType, StrategyProfile> = {
+  trend_momentum: { sizeFactor: 1, stopLossFactor: 1, takeProfitFactor: 1 },
+  breakout: { sizeFactor: 1, stopLossFactor: 1, takeProfitFactor: 1 },
+  mean_reversion: { sizeFactor: 0.5, stopLossFactor: 1, takeProfitFactor: 1 },
+  event_driven: { sizeFactor: 0.5, stopLossFactor: 1, takeProfitFactor: 1 },
+  arbitrage: { sizeFactor: 0.5, stopLossFactor: 1, takeProfitFactor: 1 },
+  prediction_market: { sizeFactor: 1, stopLossFactor: 1, takeProfitFactor: 1 },
+  futures_trend: { sizeFactor: 1, stopLossFactor: 1, takeProfitFactor: 1 },
 };
 
 export function computeExecutionProfile(input: ExecutionProfileInput): ExecutionProfile {
@@ -46,11 +56,12 @@ export function computeExecutionProfile(input: ExecutionProfileInput): Execution
   }
 
   const strategy = resolveExecutionStrategy(signal.executionStrategy, instrumentClass);
+  const profile = STRATEGY_PROFILES[strategy];
   const kelly = Math.max(0, Math.min(1, risk.kellyFraction));
   const confidence = Math.max(0, Math.min(1, signal.confidence));
 
   let positionSizeUsd = basePositionUsd({
-    strategy,
+    profile,
     instrumentClass,
     maxPositionUsd,
     maxExposureUsd,
@@ -68,8 +79,8 @@ export function computeExecutionProfile(input: ExecutionProfileInput): Execution
   return {
     positionSizeUsd: capped,
     side: signal.action === "sell" ? "SELL" : "BUY",
-    stopLossPct: risk.stopLossPct,
-    takeProfitPct: risk.takeProfitPct,
+    stopLossPct: scaleRiskPct(risk.stopLossPct, profile.stopLossFactor),
+    takeProfitPct: scaleRiskPct(risk.takeProfitPct, profile.takeProfitFactor),
     orderType,
     limitPrice: signal.entryPrice,
   };
@@ -108,26 +119,30 @@ function resolveExecutionStrategy(
 }
 
 function basePositionUsd(args: {
-  strategy: ExecutionStrategyType;
+  profile: StrategyProfile;
   instrumentClass: InstrumentClass;
   maxPositionUsd: number;
   maxExposureUsd: number | null;
   confidence: number;
   kelly: number;
 }): number {
-  const { strategy, instrumentClass, maxPositionUsd, maxExposureUsd, confidence, kelly } = args;
+  const { profile, instrumentClass, maxPositionUsd, maxExposureUsd, confidence, kelly } = args;
 
   if (instrumentClass === "prediction_market") {
     const cap = maxExposureUsd != null ? Math.min(maxPositionUsd, maxExposureUsd) : maxPositionUsd;
-    return cap * kelly * confidence;
+    return cap * kelly * confidence * profile.sizeFactor;
   }
 
-  const factor = STRATEGY_SIZE_FACTOR[strategy] ?? 1;
-  return maxPositionUsd * confidence * kelly * factor;
+  return maxPositionUsd * confidence * kelly * profile.sizeFactor;
 }
 
 function capPosition(sizeUsd: number, maxPositionUsd: number, maxExposureUsd: number | null): number {
   const capped = Math.min(sizeUsd, maxPositionUsd);
   if (maxExposureUsd != null) return Math.min(capped, maxExposureUsd);
   return capped;
+}
+
+function scaleRiskPct(value: number | null, factor: number): number | null {
+  if (value == null) return null;
+  return value * factor;
 }

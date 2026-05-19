@@ -16,6 +16,7 @@ function baseCandidate(symbol: string, overrides: Partial<Candidate> = {}): Cand
     riskFlags: [],
     finalScore: null,
     rationale: null,
+    selectorEvidence: null,
     ...overrides,
   };
 }

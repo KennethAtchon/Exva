@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "exportedAt": "2026-05-18T12:00:00.000Z",
+  "sessionId": "fixture-session",
+  "cycleId": "review-proceed",
+  "strategySnapshot": {
+    "version": 5,
+    "researchPosture": {
+      "posturePresetId": "custom",
+      "discoveryMode": "trend_scan",
+      "evidenceMode": "balanced",
+      "catalystMode": "preferred",
+      "fundamentalStrictness": "balanced",
+      "postureNotes": ""
+    },
+    "rules": {
+      "rulesPresetId": "breakout_long",
+      "setupType": "breakout",
+      "sideBias": "long_only",
+      "entryStyle": "breakout",
+      "exitStyle": "fixed_pct",
+      "scalingMode": "single_entry",
+      "tradeRulesMarkdown": "",
+      "ruleNotes": ""
+    },
+    "riskConfig": {
+      "maxPositionUsd": 1000,
+      "stopLossPct": 5,
+      "takeProfitPct": 10,
+      "stopLossType": "fixed_pct",
+      "atrStopMultiplier": null,
+      "kellyFraction": 0.25,
+      "predictionEdgeThreshold": 0.55,
+      "maxExposureUsd": null,
+      "waitForOpenThreshold": 0,
+      "maxConcurrentTrades": 3,
+      "dailyLossLimitUsd": 500,
+      "profitTargetUsd": 2000,
+      "maxAiSpendUsd": 10,
+      "maxDataSpendUsd": 5,
+      "humanApprovalRequired": false
+    },
+    "timeframe": {
+      "primaryTradingTimeframe": "1h",
+      "holdingStyle": "intraday_flat",
+      "targetHoldDays": null,
+      "maxHoldDays": 1,
+      "timeframeNotes": ""
+    }
+  },
+  "selectedInstruments": [
+    {
+      "symbol": "AAPL",
+      "instrumentClass": "stock",
+      "rationale": "multi-factor breakout with catalyst support"
+    }
+  ],
+  "marketData": [
+    {
+      "symbol": "AAPL",
+      "quote": {
+        "instrumentSymbol": "AAPL",
+        "price": 187.42,
+        "bid": 187.4,
+        "ask": 187.44,
+        "spreadPct": 0.02,
+        "volume": 1800000,
+        "timestamp": "2026-05-18T11:30:00.000Z"
+      },
+      "ohlcvBars": [
+        {
+          "ts": "2026-05-18T10:30:00.000Z",
+          "open": 184.8,
+          "high": 187.6,
+          "low": 184.5,
+          "close": 187.42,
+          "volume": 250000
+        }
+      ],
+      "newsHeadlines": [],
+      "redditPosts": []
+    }
+  ],
+  "agentRuns": [],
+  "phaseOutputs": {
+    "selector": {
+      "instruments": [
+        {
+          "symbol": "AAPL",
+          "instrumentClass": "stock",
+          "rationale": "multi-factor breakout with catalyst support"
+        }
+      ]
+    },
+    "technical": {
+      "symbol": "AAPL",
+      "trendDirection": "bullish",
+      "trendStrength": 0.91,
+      "momentumScore": 0.87,
+      "volumeScore": 0.74,
+      "volumeSignal": "accumulation",
+      "patternName": "breakout",
+      "patternStrength": 0.78,
+      "nearestSupport": 183.5,
+      "nearestResistance": 188.0,
+      "timeframeAlignment": 0.82,
+      "rawSummary": "bullish trend continuation"
+    },
+    "fundamental": {
+      "symbol": "AAPL",
+      "catalystType": "partnership",
+      "catalystStrength": 0.72,
+      "catalystFreshness": 0.81,
+      "catalystScore": 0.76,
+      "catalystSummary": "new channel checks point to accelerating demand",
+      "earningsScore": null,
+      "sentimentScore": 0.68,
+      "contradictionRisk": 0.12,
+      "rawSummary": "positive catalyst backdrop"
+    },
+    "review": {
+      "symbol": "AAPL",
+      "technicalFundamentalConflict": 0.12,
+      "conflictExplanation": "signals align",
+      "tailRisks": [],
+      "overallRisk": "low",
+      "recommendation": "proceed",
+      "rawSummary": "no material conflict"
+    },
+    "decision": null
+  },
+  "phaseTraces": {
+    "review": {
+      "version": 1,
+      "sessionId": "fixture-session",
+      "cycleId": "review-proceed",
+      "tradeId": null,
+      "phase": "review",
+      "schedulingMode": "flat_parallel",
+      "maxConcurrency": 2,
+      "startedAt": "2026-05-18T11:30:19.000Z",
+      "finishedAt": "2026-05-18T11:30:21.000Z",
+      "durationMs": 2000,
+      "totalCostUsd": 0.03,
+      "totalInputTokens": 280,
+      "totalOutputTokens": 60,
+      "aggregateStatus": "succeeded",
+      "aggregateOutputSchemaName": "reviewSignal",
+      "aggregateOutputSummary": { "symbol": "AAPL", "recommendation": "proceed", "overallRisk": "low" },
+      "frontiers": [],
+      "workers": []
+    }
+  },
+  "decision": {
+    "action": "no_trade",
+    "confidence": 0.5,
+    "reasoning": "review fixture only"
+  },
+  "riskOutcome": {
+    "allowed": true
+  },
+  "trade": null
+}

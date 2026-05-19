@@ -38,7 +38,6 @@ export interface WorkerDefinition<TInput = unknown, TPhaseOutput = unknown> {
   inputBuilder?: WorkerInputBuilderId;
   dependsOn?: readonly string[];
   requiredForPhase?: boolean;
-  onDependencyFailure?: "skip" | "run_with_partial_inputs" | "fail_phase";
   caps?: {
     maxSteps?: number;
     spendLimitUsd?: number;

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { PipelineDefinition, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { InstrumentSelection } from "@/lib/schemas";
-import { candidateSchema } from "@electron/shared/ai/selector-pipeline-candidate";
+import { candidateSchema, selectorEvidenceSchema, type SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
 import type { ToolBuildContext } from "../context/tool-factory-registry";
@@ -118,7 +118,7 @@ export const SELECTOR_PHASE: PipelineDefinition<SelectorPhaseInput, InstrumentSe
           ...candidate,
           finalScore: null,
           source: [...candidate.source, worker.id],
-          selectorResearchBrief: candidate.rationale ?? candidate.catalystSummary,
+          selectorEvidence: null,
           selectorTraces: parseWorkerToolTrace(result.message.tool_calls_json),
         })),
       ),
@@ -160,7 +160,13 @@ export const SELECTOR_PHASE: PipelineDefinition<SelectorPhaseInput, InstrumentSe
       brokerRouting: toolCtx.brokerRouting,
     }).filter(rescored);
 
-    const output = buildInstrumentSelection(filtered, stratCtx.riskConfig.maxConcurrentTrades);
+    const output = buildInstrumentSelection(
+      filtered.map((candidate) => ({
+        ...candidate,
+        selectorEvidence: buildSelectorEvidence(candidate),
+      })),
+      stratCtx.riskConfig.maxConcurrentTrades,
+    );
 
     const aggregate = assembleAggregateTrace({
       phase: "selector",
@@ -213,11 +219,6 @@ function applyVerificationResults(
     candidate.catalystScore = maxNullable(candidate.catalystScore, result.output.candidate.catalystScore ?? null);
     candidate.catalystSummary = candidate.catalystSummary ?? result.output.candidate.catalystSummary ?? null;
     candidate.rationale = candidate.rationale ?? result.output.candidate.rationale ?? null;
-    candidate.selectorResearchBrief =
-      candidate.selectorResearchBrief ??
-      result.output.candidate.rationale ??
-      result.output.candidate.catalystSummary ??
-      null;
     candidate.selectorTraces.push(...parseWorkerToolTrace(result.message.tool_calls_json));
     const baseWorkerId = worker.id.split(":")[0] ?? worker.id;
     if (!candidate.source.includes(baseWorkerId)) {
@@ -251,4 +252,30 @@ function scoreWorkingCandidates(candidates: WorkingCandidate[]): WorkingCandidat
   return candidates
     .map((c) => ({ ...c, finalScore: scoreCandidate(c, DEFAULT_SCORING_WEIGHTS) }))
     .sort((a, b) => (b.finalScore ?? 0) - (a.finalScore ?? 0));
+}
+
+function buildSelectorEvidence(candidate: WorkingCandidate): SelectorEvidence {
+  const summary = candidate.rationale ?? candidate.catalystSummary ?? null;
+  const toolNames = new Set(
+    candidate.selectorTraces.flatMap((step) => step.toolCalls.map((call) => call.tool)),
+  );
+  return selectorEvidenceSchema.parse({
+    summary,
+    thesisDirection: inferThesisDirection(summary),
+    sourceWorkers: candidate.source,
+    riskFlags: candidate.riskFlags,
+    hasQuoteEvidence: toolNames.has("get_quote"),
+    hasNewsEvidence: toolNames.has("get_news"),
+    hasSearchEvidence: toolNames.has("search_web") || toolNames.has("search_reddit"),
+    hasOhlcvEvidence: toolNames.has("get_ohlcv"),
+    hasFetchEvidence: toolNames.has("fetch_url"),
+  });
+}
+
+function inferThesisDirection(summary: string | null): SelectorEvidence["thesisDirection"] {
+  if (!summary) return "neutral";
+  const text = summary.toLowerCase();
+  if (/bearish|downtrend|selloff|breakdown|short setup/.test(text)) return "short";
+  if (/bullish|uptrend|breakout|long setup|momentum/.test(text)) return "long";
+  return "neutral";
 }

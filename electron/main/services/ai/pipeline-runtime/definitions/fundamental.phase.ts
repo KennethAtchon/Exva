@@ -1,5 +1,6 @@
 import type { PipelineDefinition, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
+import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
 import { fundamentalSignalSchema, type FundamentalSignal } from "@electron/shared/ai/pipeline-signals";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
@@ -17,7 +18,7 @@ import { fundamentalWorkersForMode } from "../pipeline-discovery-config";
 
 export type FundamentalPhaseInput = {
   instrumentSymbol: string;
-  context?: string;
+  selectorEvidence?: SelectorEvidence | null;
 };
 
 function collectFundamentalOutputs(
@@ -78,8 +79,8 @@ async function run(
 ): Promise<AgentResult<FundamentalSignal>> {
   const ctx = rawCtx as PipelineRunContext<FundamentalPhaseInput>;
   const runner = rawRunner as PipelineWorkerRunner;
-  const { instrumentSymbol, context } = ctx.input;
-  const task: Record<string, unknown> = { instrumentSymbol, context };
+  const { instrumentSymbol, selectorEvidence } = ctx.input;
+  const task: Record<string, unknown> = { instrumentSymbol, selectorEvidence };
   const workers = fundamentalWorkersForMode(ctx.strategyContext.researchPosture.discoveryMode);
 
   const results = await runner.executeGroup(

@@ -1,6 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { InstrumentClass, StrategySnapshot } from "@/lib/types";
+import { instrumentSelectionSchema, type InstrumentSelection } from "@/lib/schemas";
+import {
+  reviewSignalSchema,
+  technicalSignalSchema,
+  fundamentalSignalSchema,
+  tradeSignalSchema,
+  type ReviewSignal,
+  type TechnicalSignal,
+  type FundamentalSignal,
+  type TradeSignal,
+} from "@electron/shared/ai/pipeline-signals";
+import type { PhaseTraceV1 } from "@electron/shared/ai/pipeline-observability";
+import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
 import type { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
 import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
@@ -37,8 +50,18 @@ export interface CycleFixture {
     modelId: string;
     promptSummary: string;
     outputSummary: string;
+    outputJson: string | null;
+    outputSchemaName: string | null;
     toolCalls: Array<{ tool: string; argsJson: string; resultJson: string }>;
   }>;
+  phaseOutputs: {
+    selector: InstrumentSelection | null;
+    technical: TechnicalSignal | null;
+    fundamental: FundamentalSignal | null;
+    review: ReviewSignal | null;
+    decision: TradeSignal | null;
+  };
+  phaseTraces: Partial<Record<PipelinePhase, PhaseTraceV1>>;
   decision: {
     action: "trade" | "no_trade";
     side?: "BUY" | "SELL";
@@ -70,6 +93,12 @@ export interface ReplayResult {
   candidateValidation: CandidateValidationResult[];
   policyGate: PolicyGateResult | null;
   exitDecision: ExitDecision | null;
+  phaseOutputs: CycleFixture["phaseOutputs"];
+  scorecard: {
+    submissionFired: boolean;
+    totalCostUsd: number;
+    aiAuthoredSizingFieldCount: number;
+  };
   matchesOriginal: {
     riskOutcomeMatches: boolean;
     tradeOpenedMatches: boolean;
@@ -126,6 +155,8 @@ export class CycleReplayService {
 
     // Collect market snapshots and tool calls from all messages
     const marketDataMap = new Map<string, CycleFixture["marketData"][number]>();
+    const phaseOutputs = emptyPhaseOutputs();
+    const phaseTraces: CycleFixture["phaseTraces"] = {};
 
     const agentRuns: CycleFixture["agentRuns"] = [];
     for (const msg of messages) {
@@ -223,6 +254,32 @@ export class CycleReplayService {
         }
       }
 
+      const parsedOutput = parsePhaseOutput(msg.output_schema_name, msg.output_json);
+      if (parsedOutput) {
+        switch (parsedOutput.phase) {
+          case "selector":
+            phaseOutputs.selector = parsedOutput.output;
+            break;
+          case "technical":
+            phaseOutputs.technical = parsedOutput.output;
+            break;
+          case "fundamental":
+            phaseOutputs.fundamental = parsedOutput.output;
+            break;
+          case "review":
+            phaseOutputs.review = parsedOutput.output;
+            break;
+          case "decision":
+            phaseOutputs.decision = parsedOutput.output;
+            break;
+        }
+      }
+
+      const phaseTrace = parsePhaseTrace(msg.tool_calls_json);
+      if (phaseTrace) {
+        phaseTraces[phaseTrace.phase] = phaseTrace;
+      }
+
       // Build prompt/output summaries
       let promptSummary = "";
       let outputSummary = "";
@@ -247,14 +304,42 @@ export class CycleReplayService {
         modelId: msg.model_id,
         promptSummary,
         outputSummary,
+        outputJson: msg.output_json,
+        outputSchemaName: msg.output_schema_name,
         toolCalls,
       });
+    }
+
+    if (phaseOutputs.selector) {
+      selectedInstruments.splice(
+        0,
+        selectedInstruments.length,
+        ...phaseOutputs.selector.instruments.map((instrument) => ({
+          symbol: instrument.symbol,
+          instrumentClass: instrument.instrumentClass,
+          rationale: instrument.rationale ?? "",
+        })),
+      );
     }
 
     // Decision from current phase id (`decision`) or legacy role id (`decision_maker`).
     const decisionMsg = [...messages].reverse().find((m) => m.role === "decision" || m.role === "decision_maker");
     let decision: CycleFixture["decision"] = { action: "no_trade", confidence: 0, reasoning: "" };
-    if (decisionMsg?.output_json) {
+    if (phaseOutputs.decision) {
+      decision = {
+        action: phaseOutputs.decision.action === "skip" ? "no_trade" : "trade",
+        side:
+          phaseOutputs.decision.action === "buy"
+            ? "BUY"
+            : phaseOutputs.decision.action === "sell"
+              ? "SELL"
+              : undefined,
+        symbol: phaseOutputs.decision.symbol,
+        sizeUsd: undefined,
+        confidence: phaseOutputs.decision.confidence,
+        reasoning: phaseOutputs.decision.reasoning,
+      };
+    } else if (decisionMsg?.output_json) {
       try {
         const out = JSON.parse(decisionMsg.output_json) as {
           action?: string;
@@ -317,6 +402,8 @@ export class CycleReplayService {
       selectedInstruments,
       marketData: Array.from(marketDataMap.values()),
       agentRuns,
+      phaseOutputs,
+      phaseTraces,
       decision,
       riskOutcome,
       trade,
@@ -403,6 +490,7 @@ export class CycleReplayRunner {
 
   replay(fixture: CycleFixture): ReplayResult {
     const { cycleId, strategySnapshot, selectedInstruments, marketData, decision, riskOutcome, trade } = fixture;
+    const phaseOutputs = validatePhaseOutputs(fixture.phaseOutputs);
 
     // Re-run candidate validation for each selected instrument
     const candidateResults: CandidateValidationResult[] = [];
@@ -525,7 +613,95 @@ export class CycleReplayRunner {
       candidateValidation: candidateResults,
       policyGate: replayPolicyGate,
       exitDecision: replayExitDecision,
+      phaseOutputs,
+      scorecard: {
+        submissionFired: phaseOutputs.selector !== null,
+        totalCostUsd: totalFixtureCostUsd(fixture),
+        aiAuthoredSizingFieldCount: countLegacyDecisionSizingFields(fixture.agentRuns),
+      },
       matchesOriginal: { riskOutcomeMatches, tradeOpenedMatches },
     };
   }
+}
+
+function emptyPhaseOutputs(): CycleFixture["phaseOutputs"] {
+  return {
+    selector: null,
+    technical: null,
+    fundamental: null,
+    review: null,
+    decision: null,
+  };
+}
+
+function parsePhaseOutput(
+  schemaName: string | null,
+  outputJson: string | null,
+):
+  | { phase: "selector"; output: InstrumentSelection }
+  | { phase: "technical"; output: TechnicalSignal }
+  | { phase: "fundamental"; output: FundamentalSignal }
+  | { phase: "review"; output: ReviewSignal }
+  | { phase: "decision"; output: TradeSignal }
+  | null {
+  if (!schemaName || !outputJson) return null;
+  const parsed = safeParseJson(outputJson);
+  if (!parsed) return null;
+
+  switch (schemaName) {
+    case "instrumentSelection":
+      return { phase: "selector", output: instrumentSelectionSchema.parse(parsed) };
+    case "technicalSignal":
+      return { phase: "technical", output: technicalSignalSchema.parse(parsed) };
+    case "fundamentalSignal":
+      return { phase: "fundamental", output: fundamentalSignalSchema.parse(parsed) };
+    case "reviewSignal":
+      return { phase: "review", output: reviewSignalSchema.parse(parsed) };
+    case "tradeSignal":
+      return { phase: "decision", output: tradeSignalSchema.parse(parsed) };
+    default:
+      return null;
+  }
+}
+
+function parsePhaseTrace(raw: string | null): PhaseTraceV1 | null {
+  if (!raw) return null;
+  const parsed = safeParseJson(raw);
+  if (!parsed || typeof parsed !== "object") return null;
+  const trace = parsed as Partial<PhaseTraceV1>;
+  if (trace.version !== 1) return null;
+  if (typeof trace.phase !== "string") return null;
+  if (!Array.isArray(trace.frontiers) || !Array.isArray(trace.workers)) return null;
+  return trace as PhaseTraceV1;
+}
+
+function validatePhaseOutputs(outputs: CycleFixture["phaseOutputs"]): CycleFixture["phaseOutputs"] {
+  return {
+    selector: outputs.selector ? instrumentSelectionSchema.parse(outputs.selector) : null,
+    technical: outputs.technical ? technicalSignalSchema.parse(outputs.technical) : null,
+    fundamental: outputs.fundamental ? fundamentalSignalSchema.parse(outputs.fundamental) : null,
+    review: outputs.review ? reviewSignalSchema.parse(outputs.review) : null,
+    decision: outputs.decision ? tradeSignalSchema.parse(outputs.decision) : null,
+  };
+}
+
+function totalFixtureCostUsd(fixture: CycleFixture): number {
+  const traceCosts = Object.values(fixture.phaseTraces).reduce((sum, trace) => sum + (trace?.totalCostUsd ?? 0), 0);
+  if (traceCosts > 0) return traceCosts;
+  return 0;
+}
+
+function countLegacyDecisionSizingFields(agentRuns: CycleFixture["agentRuns"]): number {
+  let count = 0;
+  for (const run of agentRuns) {
+    if (run.outputSchemaName !== "tradeSignal" && run.role !== "decision" && run.role !== "decision_maker") continue;
+    if (!run.outputJson) continue;
+    const parsed = safeParseJson(run.outputJson);
+    if (!parsed || typeof parsed !== "object") continue;
+    const output = parsed as Record<string, unknown>;
+    if ("sizeUsd" in output || "size_usd" in output) count += 1;
+    if ("stopLossPct" in output || "stop_loss_pct" in output) count += 1;
+    if ("takeProfitPct" in output || "take_profit_pct" in output) count += 1;
+  }
+  return count;
 }

@@ -1,7 +1,6 @@
 import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
 
 export interface WorkingCandidate extends Candidate {
-  selectorResearchBrief?: string | null;
   selectorTraces: Array<{
     step: number;
     toolCalls: Array<{ step: number; tool: string; argsJson: string; resultJson: string }>;
@@ -32,7 +31,7 @@ export function mergeCandidates(groups: WorkingCandidate[][]): WorkingCandidate[
       current.liquidityScore = maxNullable(current.liquidityScore, candidate.liquidityScore);
       current.catalystSummary = current.catalystSummary ?? candidate.catalystSummary;
       current.rationale = current.rationale ?? candidate.rationale;
-      current.selectorResearchBrief = current.selectorResearchBrief ?? candidate.selectorResearchBrief;
+      current.selectorEvidence = current.selectorEvidence ?? candidate.selectorEvidence;
       current.source = [...new Set([...current.source, ...candidate.source])];
       current.riskFlags = [...new Set([...current.riskFlags, ...candidate.riskFlags])];
       current.selectorTraces.push(...candidate.selectorTraces);

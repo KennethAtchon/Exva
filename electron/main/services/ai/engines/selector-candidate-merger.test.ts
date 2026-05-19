@@ -15,6 +15,7 @@ function candidate(symbol: string, overrides: Partial<WorkingCandidate> = {}): W
     riskFlags: [],
     finalScore: null,
     rationale: null,
+    selectorEvidence: null,
     selectorTraces: [],
     ...overrides,
   };

@@ -12,6 +12,7 @@ export function buildInstrumentSelection(candidates: Candidate[], maxCount: numb
         ? JSON.stringify({ catalyst: candidate.catalystSummary })
         : undefined,
       rationale: candidate.rationale ?? candidate.catalystSummary ?? "",
+      ...(candidate.selectorEvidence ? { selectorEvidence: candidate.selectorEvidence } : {}),
     })),
   };
 }

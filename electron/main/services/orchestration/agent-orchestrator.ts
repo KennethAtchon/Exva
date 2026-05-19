@@ -1,6 +1,7 @@
 import PQueue from "p-queue";
 import { toLegacySessionConfig, type EventSourceType, type ExecutionStage, type InstrumentClass, type SessionConfig, type Trade, type WorkspaceSession } from "@/lib/types";
 import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
+import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
 import { AppError } from "@electron/shared/infra/errors";
 import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
@@ -17,7 +18,7 @@ type ResolvedInstrument = {
   instrumentDisplayName?: string;
   predictionOutcome?: "YES" | "NO" | null;
   instrumentMetadataJson?: string | null;
-  selectorResearchBrief?: string | null;
+  selectorEvidence?: SelectorEvidence | null;
   selectorTraces?: ToolStepTrace[];
 };
 
@@ -275,7 +276,7 @@ export class AgentOrchestrator {
           instrument: {
             symbol: context.instrument.symbol,
             instrumentClass: context.instrument.instrumentClass,
-            selectorResearchBrief: context.instrument.selectorResearchBrief ?? null,
+            selectorEvidence: context.instrument.selectorEvidence ?? null,
           },
           sessionInstrumentClasses,
           sideBias: strategy.rules.sideBias,
@@ -871,16 +872,14 @@ export class AgentOrchestrator {
       { sessionId: this.sessionId, instrumentSymbol: instrument.symbol, instrumentClass: instrument.instrumentClass },
       "ai pipeline start",
     );
-    const analystContext = this.buildAnalystContext(instrument);
-
     if (!context.technical) {
       const technical = await stepRunner.run(
         "technical",
         async () => {
-          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, TechnicalSignal>(
+          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; selectorEvidence?: SelectorEvidence | null }, TechnicalSignal>(
             "technical",
             this.sessionId,
-            { instrumentSymbol: instrument.symbol, context: analystContext },
+            { instrumentSymbol: instrument.symbol, selectorEvidence: instrument.selectorEvidence ?? null },
             context.cycleId,
           );
           if (!result.output.symbol) {
@@ -902,10 +901,10 @@ export class AgentOrchestrator {
       const fundamental = await stepRunner.run(
         "fundamental",
         async () => {
-          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; context?: string }, FundamentalSignal>(
+          const result = await this.deps.ai.runPhase<{ instrumentSymbol: string; selectorEvidence?: SelectorEvidence | null }, FundamentalSignal>(
             "fundamental",
             this.sessionId,
-            { instrumentSymbol: instrument.symbol, context: analystContext },
+            { instrumentSymbol: instrument.symbol, selectorEvidence: instrument.selectorEvidence ?? null },
             context.cycleId,
           );
           if (!result.output.symbol) {
@@ -1010,13 +1009,6 @@ export class AgentOrchestrator {
       review: context.review,
       decision: context.decision,
     };
-  }
-
-  private buildAnalystContext(instrument: ResolvedInstrument): string {
-    return [
-      instrument.instrumentDisplayName ? `Instrument display name: ${instrument.instrumentDisplayName}` : null,
-      instrument.selectorResearchBrief ?? null,
-    ].filter(Boolean).join("\n\n") || "No selector context available.";
   }
 
   private waitForApproval(
@@ -1401,7 +1393,7 @@ export class AgentOrchestrator {
         instrumentDisplayName: row.instrumentDisplayName,
         predictionOutcome: row.predictionOutcome ?? null,
         instrumentMetadataJson: row.instrumentMetadataJson ?? null,
-        selectorResearchBrief: row.rationale?.trim() ? row.rationale : null,
+        selectorEvidence: row.selectorEvidence ?? null,
       } satisfies ResolvedInstrument));
 
     const limited = filtered.slice(0, config.max_concurrent_trades);
@@ -1430,7 +1422,7 @@ export class AgentOrchestrator {
       selectedAt: new Date().toISOString(),
       selectorAgentRunId: result.run.id,
       cycleId: activeCycleId,
-      researchBriefsJson: JSON.stringify(Object.fromEntries(payload.map((row) => [row.symbol, row.selectorResearchBrief ?? ""]))),
+      researchBriefsJson: JSON.stringify(Object.fromEntries(payload.map((row) => [row.symbol, row.selectorEvidence?.summary ?? ""]))),
       researchGeneratedAt: new Date().toISOString(),
       expiresAt: new Date(Date.now() + cacheTtlMs).toISOString(),
     });

@@ -5,7 +5,7 @@ import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
 import type { RuntimeAgentMessage, RunTrace, StepTrace, ToolCallRecord } from "../ai-runtime/ai-runtime-types";
 import { createLogger } from "../../infra/log";
-import { analyzeSelectorSteps, buildSelectorStepSignature, canonicalizeToolInput } from "../ai-runtime/selector-runtime-control";
+import { buildToolStepSignature, canonicalizeToolInput } from "../ai-runtime/tool-loop-guard";
 
 const logger = createLogger("run-agent-execute");
 
@@ -42,7 +42,7 @@ function userPromptFrom(messages: RuntimeAgentMessage[]): string {
 
 function loopFingerprintGuard<T extends ToolSet>(): StopCondition<T> {
   return ({ steps }) => {
-    const recent = steps.slice(-4).map((s) => buildSelectorStepSignature(s as never));
+    const recent = steps.slice(-4).map((s) => buildToolStepSignature(s as never));
     if (recent.length >= 4 && new Set(recent).size === 1) {
       return true;
     }
@@ -268,28 +268,6 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     logger.info(
       { role: params.role ?? null, modelId: params.modelId, thinkingChars: result.reasoningText.length, thinking: result.reasoningText },
       "agent reasoning",
-    );
-  }
-
-  if (params.role === "instrument_selector") {
-    const selectorSummary = analyzeSelectorSteps(result.steps);
-    logger.info(
-      {
-        role: params.role,
-        modelId: params.modelId,
-        queryCount: selectorSummary.queryCount,
-        duplicateQueryCount: selectorSummary.duplicateQueryCount,
-        invalidQueryCount: selectorSummary.invalidQueryCount,
-        uniqueSymbolCount: selectorSummary.uniqueSymbols.length,
-        uniqueSymbols: selectorSummary.uniqueSymbols,
-        uniqueDomainCount: selectorSummary.uniqueDomains.length,
-        uniqueDomains: selectorSummary.uniqueDomains,
-        repeatedSymbolChecks: selectorSummary.repeatedSymbolChecks,
-        maxRepeatedSymbolChecks: selectorSummary.maxRepeatedSymbolChecks,
-        noNewInfoStreak: selectorSummary.noNewInfoStreak,
-        sawSubmitCandidates: selectorSummary.sawSubmitCandidates,
-      },
-      "selector attempt summary",
     );
   }
 

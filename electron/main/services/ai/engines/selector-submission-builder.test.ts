@@ -16,6 +16,7 @@ function candidate(symbol: string): Candidate {
     riskFlags: [],
     finalScore: null,
     rationale: `Why ${symbol}`,
+    selectorEvidence: null,
   };
 }
 

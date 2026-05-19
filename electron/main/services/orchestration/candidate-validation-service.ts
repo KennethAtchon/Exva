@@ -1,5 +1,6 @@
 import type { InstrumentClass } from "@/lib/types";
 import type { HoldingStyle, StrategySideBias } from "@electron/shared/domain";
+import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
 import type { MarketSnapshot } from "../broker/adapters/broker-adapter";
 
 export type ToolStepTrace = {
@@ -18,7 +19,7 @@ export interface CandidateValidationInput {
   instrument: {
     symbol: string;
     instrumentClass: InstrumentClass;
-    selectorResearchBrief?: string | null;
+    selectorEvidence?: SelectorEvidence | null;
   };
   sessionInstrumentClasses?: InstrumentClass[];
   brokerRouteAvailable?: boolean;
@@ -125,14 +126,20 @@ export class CandidateValidationService {
         return matched;
       }),
     );
-    // Fallback: check selectorResearchBrief for symbol mention when no traces available
-    const briefMention = !selectorTrace.length && instrument.selectorResearchBrief?.includes(instrument.symbol);
-    if (!hasNewsEvidence && !hasSearchEvidence && !briefMention) {
+    // Fallback: use typed selector evidence when traces are unavailable
+    const structuredEvidence = instrument.selectorEvidence;
+    const hasStructuredEvidence =
+      structuredEvidence?.hasNewsEvidence ||
+      structuredEvidence?.hasSearchEvidence ||
+      structuredEvidence?.hasQuoteEvidence ||
+      structuredEvidence?.hasOhlcvEvidence ||
+      structuredEvidence?.hasFetchEvidence;
+    if (!hasNewsEvidence && !hasSearchEvidence && !hasStructuredEvidence) {
       reasons.push(`No symbol-specific evidence found for ${instrument.symbol}`);
     }
 
     // CV-7: Rationale non-empty
-    if (!instrument.selectorResearchBrief?.trim()) {
+    if (!structuredEvidence?.summary?.trim()) {
       reasons.push("Selector rationale is empty");
     }
 
@@ -150,11 +157,11 @@ export class CandidateValidationService {
 
     // CV-10: Strategy compatibility
     if (input.sideBias) {
-      const text = (instrument.selectorResearchBrief ?? "").toLowerCase();
-      if (input.sideBias === "long_only" && /downtrend|bearish|selloff|breakdown|short setup/.test(text)) {
+      const thesisDirection = structuredEvidence?.thesisDirection ?? "neutral";
+      if (input.sideBias === "long_only" && thesisDirection === "short") {
         reasons.push("Rationale contradicts long_only bias");
       }
-      if (input.sideBias === "short_only" && /bullish|uptrend|breakout|long setup/.test(text)) {
+      if (input.sideBias === "short_only" && thesisDirection === "long") {
         reasons.push("Rationale contradicts short_only bias");
       }
     }
