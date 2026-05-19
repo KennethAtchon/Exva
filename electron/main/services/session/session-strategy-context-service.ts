@@ -9,7 +9,7 @@ import type {
   SessionTimeframeConfig,
   SelectionMode,
 } from "@/lib/types";
-import type { PhaseRuntimeSummary } from "@electron/shared/ai/pipeline-phase";
+import type { PhaseRuntimeSummary, PipelinePhase, SessionAiPhase, SessionAiPhaseWorker } from "@electron/shared/ai/pipeline-phase";
 import { isSessionEditable, validateSessionStrategyContext } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
@@ -133,6 +133,50 @@ export class SessionStrategyContextService {
     const next = { ...current, timeframe: { ...current.timeframe, ...patch, sessionId } };
     this.validate(next);
     return this.deps.timeframeRepo.upsert(sessionId, next.timeframe);
+  }
+
+  saveAiPhase(sessionId: string, patch: Partial<SessionAiPhase> & { phase: PipelinePhase }): SessionAiPhase {
+    this.assertEditable(sessionId);
+    const current = this.deps.sessionAiPhasesRepo.getByPhase(sessionId, patch.phase);
+    if (!current) {
+      throw new AppError(`AI phase ${patch.phase} is not configured for this session.`, "NOT_FOUND", { sessionId, phase: patch.phase });
+    }
+    if (patch.providerKey?.trim()) {
+      const provider = this.deps.providerAccountsRepo.find(patch.providerKey);
+      if (!provider || provider.category !== "ai" || !provider.isConfigured) {
+        throw new AppError("Select a configured AI provider for this phase.", "PROVIDER_NOT_CONFIGURED", {
+          field: "providerKey",
+          providerKey: patch.providerKey,
+        });
+      }
+    }
+    const next: SessionAiPhase = {
+      ...current,
+      ...patch,
+      sessionId,
+      phase: patch.phase,
+    };
+    this.deps.sessionAiPhasesRepo.upsertPhase(sessionId, next);
+    return next;
+  }
+
+  saveAiPhaseWorker(sessionId: string, patch: SessionAiPhaseWorker): SessionAiPhaseWorker {
+    this.assertEditable(sessionId);
+    if (!this.deps.sessionAiPhasesRepo.getByPhase(sessionId, patch.phase)) {
+      throw new AppError(`AI phase ${patch.phase} is not configured for this session.`, "NOT_FOUND", { sessionId, phase: patch.phase });
+    }
+    if (patch.providerKey?.trim()) {
+      const provider = this.deps.providerAccountsRepo.find(patch.providerKey);
+      if (!provider || provider.category !== "ai" || !provider.isConfigured) {
+        throw new AppError("Select a configured AI provider for this worker override.", "PROVIDER_NOT_CONFIGURED", {
+          field: "providerKey",
+          providerKey: patch.providerKey,
+        });
+      }
+    }
+    const next: SessionAiPhaseWorker = { ...patch, sessionId };
+    this.deps.sessionAiPhasesRepo.upsertWorker(sessionId, next);
+    return next;
   }
 
   private validate(context: SessionStrategyContext): void {

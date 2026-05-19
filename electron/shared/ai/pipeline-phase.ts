@@ -171,5 +171,6 @@ export interface PhaseRuntimeSummary {
   temperature: number;
   maxTokens: number;
   promptSource: "default" | "session_override";
+  promptMarkdown: string;
   workerOverrides: SessionAiPhaseWorker[];
 }

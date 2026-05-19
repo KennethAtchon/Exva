@@ -285,6 +285,26 @@ export interface ExvaApi {
     saveRiskConfig(input: { sessionId: string; riskConfig: Partial<SessionRiskConfig> }): Promise<{ savedAt: string }>;
     getTimeframeConfig(sessionId: string): Promise<SessionTimeframeConfig>;
     saveTimeframeConfig(input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }): Promise<{ savedAt: string }>;
+    saveAiPhase(input: {
+      sessionId: string;
+      phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
+      providerKey?: string;
+      modelId?: string;
+      temperature?: number;
+      maxTokens?: number;
+      promptSource?: "default" | "session_override";
+      promptMarkdown?: string;
+    }): Promise<{ savedAt: string }>;
+    saveAiPhaseWorker(input: {
+      sessionId: string;
+      phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
+      workerId: string;
+      providerKey?: string | null;
+      modelId?: string | null;
+      maxSteps?: number | null;
+      spendLimitUsd?: number | null;
+      promptMarkdown?: string | null;
+    }): Promise<{ savedAt: string }>;
     getProviderModels(providerKey: string): Promise<{ models: ProviderModelEntry[] }>;
     globalPresets: {
       list(): Promise<{ presets: UserGlobalPresetRow[] }>;

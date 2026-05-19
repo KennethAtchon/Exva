@@ -230,6 +230,26 @@ export const api = {
     bridge().strategy.getTimeframeConfig(sessionId),
   saveStrategyTimeframeConfig: (input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }) =>
     bridge().strategy.saveTimeframeConfig(input),
+  saveStrategyAiPhase: (input: {
+    sessionId: string;
+    phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
+    providerKey?: string;
+    modelId?: string;
+    temperature?: number;
+    maxTokens?: number;
+    promptSource?: "default" | "session_override";
+    promptMarkdown?: string;
+  }) => bridge().strategy.saveAiPhase(input),
+  saveStrategyAiPhaseWorker: (input: {
+    sessionId: string;
+    phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
+    workerId: string;
+    providerKey?: string | null;
+    modelId?: string | null;
+    maxSteps?: number | null;
+    spendLimitUsd?: number | null;
+    promptMarkdown?: string | null;
+  }) => bridge().strategy.saveAiPhaseWorker(input),
   getStrategyProviderModels: (providerKey: string): Promise<{ models: ProviderModelEntry[] }> =>
     bridge().strategy.getProviderModels(providerKey),
 

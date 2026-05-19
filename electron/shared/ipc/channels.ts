@@ -58,6 +58,8 @@ export const channels = {
     saveRiskConfig: "strategy:save-risk-config",
     getTimeframeConfig: "strategy:get-timeframe-config",
     saveTimeframeConfig: "strategy:save-timeframe-config",
+    saveAiPhase: "strategy:save-ai-phase",
+    saveAiPhaseWorker: "strategy:save-ai-phase-worker",
     getProviderModels: "strategy:get-provider-models",
     globalPresets: {
       list: "strategy:global-presets:list",

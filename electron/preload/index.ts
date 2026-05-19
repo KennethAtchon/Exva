@@ -23,6 +23,8 @@ import {
   strategyRulesSaveSchema,
   strategyResearchPostureSaveSchema,
   strategyTimeframeConfigSaveSchema,
+  strategyAiPhaseSaveSchema,
+  strategyAiPhaseWorkerSaveSchema,
   tradeIdSchema,
 } from "@/lib/schemas";
 import type { ExvaApi, ExvaEventMap } from "./exva-api";
@@ -90,6 +92,9 @@ const exva: ExvaApi = {
     getTimeframeConfig: (sessionId) => invoke(channels.strategy.getTimeframeConfig, { sessionId }),
     saveTimeframeConfig: (input) =>
       invoke(channels.strategy.saveTimeframeConfig, strategyTimeframeConfigSaveSchema.parse(input)),
+    saveAiPhase: (input) => invoke(channels.strategy.saveAiPhase, strategyAiPhaseSaveSchema.parse(input)),
+    saveAiPhaseWorker: (input) =>
+      invoke(channels.strategy.saveAiPhaseWorker, strategyAiPhaseWorkerSaveSchema.parse(input)),
     getProviderModels: (providerKey) => invoke(channels.strategy.getProviderModels, { providerKey }),
     globalPresets: {
       list: () => invoke(channels.strategy.globalPresets.list),

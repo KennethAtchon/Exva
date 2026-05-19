@@ -13,7 +13,8 @@ import type { GlobalStrategyPreset } from "../../electron/shared/presets";
 
 const RESEARCH_POSTURE_PRESETS_MAP = Object.fromEntries(RESEARCH_POSTURE_PRESETS.map((p) => [p.id, p]));
 const TRADE_RULE_PRESETS_MAP = Object.fromEntries(TRADE_RULE_PRESETS.map((p) => [p.id, p]));
-import { api, type StrategyGetResponse, type UserGlobalPresetRow } from "@/lib/exva";
+import { api, type PhaseRuntimeSummary, type StrategyGetResponse, type UserGlobalPresetRow } from "@/lib/exva";
+import type { PipelinePhase } from "../../electron/shared/ai/pipeline-phase";
 import type {
   SessionResearchPosture,
   SessionRiskConfig,
@@ -23,7 +24,7 @@ import type {
 } from "@/lib/types";
 
 type StrategyPageState = "no_session" | "editable" | "locked";
-type StrategySectionTab = "style" | "rules" | "risk" | "timeframe";
+type StrategySectionTab = "style" | "rules" | "risk" | "timeframe" | "ai";
 
 interface StrategyStoreState {
   researchPosture: SessionResearchPosture | null;
@@ -37,6 +38,7 @@ interface StrategyStoreState {
   workspaceDefaultSearchProviderId: string | null;
   workspaceDefaultModelProviderKey: string;
   workspaceDefaultModelModelId: string;
+  aiPhases: PhaseRuntimeSummary[];
   globalPresets: UserGlobalPresetRow[];
   dirtyFields: Set<string>;
   activeSection: StrategySectionTab;
@@ -50,6 +52,7 @@ interface StrategyStoreState {
   updateRules: (patch: Partial<SessionTradeRules>) => void;
   updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
   updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
+  updateAiPhase: (phase: PipelinePhase, patch: Partial<PhaseRuntimeSummary>) => void;
   applyGlobalPreset: (preset: GlobalStrategyPreset) => void;
   saveAll: (sessionId: string) => Promise<void>;
   setActiveSection: (section: StrategySectionTab) => void;
@@ -67,6 +70,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   workspaceDefaultSearchProviderId: null,
   workspaceDefaultModelProviderKey: "",
   workspaceDefaultModelModelId: "",
+  aiPhases: [],
   globalPresets: [],
   dirtyFields: new Set(),
   activeSection: "style",
@@ -90,6 +94,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       workspaceDefaultSearchProviderId: result.workspaceDefaultSearchProviderId,
       workspaceDefaultModelProviderKey: result.workspaceDefaultModelProviderKey,
       workspaceDefaultModelModelId: result.workspaceDefaultModelModelId,
+      aiPhases: result.aiPhases,
       globalPresets: globalPresetsResult.presets,
       dirtyFields: new Set(),
       activeSection: "style",
@@ -130,6 +135,16 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     const dirtyFields = new Set(get().dirtyFields);
     for (const key of Object.keys(patch)) dirtyFields.add(`timeframe.${key}`);
     set({ timeframe: { ...timeframe, ...patch }, dirtyFields, strategyErrors: [] });
+  },
+  updateAiPhase: (phase, patch) => {
+    const aiPhases = get().aiPhases;
+    const index = aiPhases.findIndex((p) => p.phase === phase);
+    if (index < 0) return;
+    const dirtyFields = new Set(get().dirtyFields);
+    for (const key of Object.keys(patch)) dirtyFields.add(`aiPhases.${phase}.${key}`);
+    const next = [...aiPhases];
+    next[index] = { ...aiPhases[index]!, ...patch, phase };
+    set({ aiPhases: next, dirtyFields, strategyErrors: [] });
   },
   applyGlobalPreset: (preset) => {
     const { researchPosture, rules, riskConfig, timeframe } = get();
@@ -189,6 +204,25 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       await api.saveTradeRules({ sessionId, rules: rulesWithMarkdown });
       await api.saveStrategyRiskConfig({ sessionId, riskConfig: context.riskConfig });
       await api.saveStrategyTimeframeConfig({ sessionId, timeframe: context.timeframe });
+      const dirtyAiPhases = [...get().dirtyFields]
+        .filter((field) => field.startsWith("aiPhases."))
+        .map((field) => field.split(".")[1] as PipelinePhase | undefined)
+        .filter((phase): phase is PipelinePhase => Boolean(phase));
+      const uniquePhases = [...new Set(dirtyAiPhases)];
+      for (const phase of uniquePhases) {
+        const config = get().aiPhases.find((p) => p.phase === phase);
+        if (!config) continue;
+        await api.saveStrategyAiPhase({
+          sessionId,
+          phase,
+          providerKey: config.providerKey,
+          modelId: config.modelId,
+          temperature: config.temperature,
+          maxTokens: config.maxTokens,
+          promptSource: config.promptSource,
+          promptMarkdown: config.promptMarkdown,
+        });
+      }
       set({
         rules: rulesWithMarkdown,
         dirtyFields: new Set(),

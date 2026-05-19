@@ -147,7 +147,7 @@ export const providerAccountSaveSchema = z.object({
   id: z.string().min(1).optional(),
   name: z.string().min(1),
   category: z.enum(["ai", "search"]),
-  providerType: z.enum(["anthropic", "openai", "openrouter", "brave", "tavily"]),
+  providerType: z.enum(["anthropic", "openai", "openrouter", "brave", "tavily", "duckduckgo", "mcp"]),
   apiKey: z.string().min(1),
   metadata: z
     .object({
@@ -304,5 +304,29 @@ export const strategyTimeframeConfigSaveSchema = z.object({
     maxHoldDays: z.union([z.number().nonnegative(), z.null()]).optional(),
     timeframeNotes: z.string().optional(),
   }),
+});
+
+export const pipelinePhaseSchema = z.enum(["selector", "technical", "fundamental", "review", "decision"]);
+
+export const strategyAiPhaseSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  phase: pipelinePhaseSchema,
+  providerKey: z.string().min(1).optional(),
+  modelId: z.string().min(1).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().int().positive().optional(),
+  promptSource: z.enum(["default", "session_override"]).optional(),
+  promptMarkdown: z.string().optional(),
+});
+
+export const strategyAiPhaseWorkerSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  phase: pipelinePhaseSchema,
+  workerId: z.string().min(1),
+  providerKey: z.string().min(1).nullable().optional(),
+  modelId: z.string().min(1).nullable().optional(),
+  maxSteps: z.number().int().positive().nullable().optional(),
+  spendLimitUsd: z.number().nonnegative().nullable().optional(),
+  promptMarkdown: z.string().nullable().optional(),
 });
 

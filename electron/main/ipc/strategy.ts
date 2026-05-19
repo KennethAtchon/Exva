@@ -1,5 +1,7 @@
 import { ipcMain } from "electron";
 import {
+  strategyAiPhaseSaveSchema,
+  strategyAiPhaseWorkerSaveSchema,
   strategyGetProviderModelsSchema,
   strategyRiskConfigSaveSchema,
   strategyRulesSaveSchema,
@@ -58,6 +60,31 @@ export function registerStrategyHandlers(services: AppServices): void {
   handle(ipcMain, channels.strategy.saveTimeframeConfig, async (payload) => {
     const input = strategyTimeframeConfigSaveSchema.parse(payload);
     services.strategyContext.saveTimeframeConfig(resolveSessionId(services, input), input.timeframe);
+    return { savedAt: new Date().toISOString() };
+  });
+
+  handle(ipcMain, channels.strategy.saveAiPhase, async (payload) => {
+    const input = strategyAiPhaseSaveSchema.parse(payload);
+    const sessionId = resolveSessionId(services, input);
+    const { sessionId: _ignored, phase, ...patch } = input;
+    services.strategyContext.saveAiPhase(sessionId, { phase, ...patch });
+    return { savedAt: new Date().toISOString() };
+  });
+
+  handle(ipcMain, channels.strategy.saveAiPhaseWorker, async (payload) => {
+    const input = strategyAiPhaseWorkerSaveSchema.parse(payload);
+    const sessionId = resolveSessionId(services, input);
+    services.strategyContext.saveAiPhaseWorker(sessionId, {
+      sessionId,
+      phase: input.phase,
+      workerId: input.workerId,
+      providerKey: input.providerKey ?? null,
+      modelId: input.modelId ?? null,
+      maxSteps: input.maxSteps ?? null,
+      spendLimitUsd: input.spendLimitUsd ?? null,
+      promptMarkdown: input.promptMarkdown ?? null,
+      updatedAt: new Date().toISOString(),
+    });
     return { savedAt: new Date().toISOString() };
   });
 

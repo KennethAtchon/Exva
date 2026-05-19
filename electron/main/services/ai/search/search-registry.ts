@@ -5,7 +5,9 @@ import type { ProviderAccountsRepo } from "../../../db/repositories/workspace/pr
 import type { SecretsService } from "../../infra/secrets-service";
 import { BraveAdapter } from "./adapters/brave-adapter";
 import { DuckDuckGoAdapter } from "./adapters/duckduckgo-adapter";
+import { McpSearchAdapter } from "./adapters/mcp-adapter";
 import { TavilyAdapter } from "./adapters/tavily-adapter";
+import { parseProviderMetadata } from "@electron/shared/catalog/search-providers";
 import type { SearchAdapter } from "./search-types";
 
 export class SearchRegistry {
@@ -47,6 +49,15 @@ export class SearchRegistry {
         return new BraveAdapter(secret ?? "");
       case "tavily":
         return new TavilyAdapter(secret ?? "");
+      case "mcp": {
+        const metadata = parseProviderMetadata(account.metadataJson);
+        if (!metadata.baseUrl?.trim()) {
+          throw new AppError("MCP search provider requires metadata.baseUrl", "VALIDATION_FAILED", {
+            providerKey: account.id,
+          });
+        }
+        return new McpSearchAdapter(account, secret ?? "");
+      }
       default:
         throw new AppError(`Unsupported search provider type: ${account.providerType}`, "SEARCH_PROVIDER_REQUIRED");
     }

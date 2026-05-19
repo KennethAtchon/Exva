@@ -5,6 +5,8 @@ import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { ProviderRegistry } from "../../provider-registry";
 import { withProviderRetry } from "../../ai-runtime/runtime-retry";
 import { assembleTrace } from "./trace-assembler";
+import type { WorkerOutputContract } from "../core/types";
+import { resolveStructuredWorkerOutput } from "./worker-structured-output";
 import { buildToolSet, type ToolBuildContext } from "../context/tool-factory-registry";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
 import type { PromptAssetLoader } from "../../prompt-asset-loader";
@@ -92,41 +94,60 @@ export async function executeWorker<TOutput>(
     "worker start",
   );
 
-  const trace = await withProviderRetry(
-    (abortSignal) =>
-      adapter.runAgent({
-        model: workerExecConfig.modelId,
-        messages,
-        tools,
-        maxSteps: resolvedConfig.caps.maxSteps,
-        spendLimitUsd: resolvedConfig.caps.spendLimitUsd,
-        temperature: resolveTemperature(workerExecConfig.modelId, workerExecConfig.temperature),
-        maxTokens: resolvedConfig.caps.maxTokens ?? workerExecConfig.maxTokens,
-        abortSignal,
-        schema: worker.outputMode === "object" && worker.outputSchema ? worker.outputSchema : undefined,
-        terminalToolNames: opts.terminalToolNames as string[] | undefined,
-        prepareStep: opts.prepareStep,
-      }),
-    {
-      providerType: adapter.providerType,
-      modelId: workerExecConfig.modelId,
-      role: phase,
-      sessionId,
-      cycleId: cycleId ?? null,
-    },
-  );
+  const runAgent = (abortSignal?: AbortSignal) =>
+    withProviderRetry(
+      (signal) =>
+        adapter.runAgent({
+          model: workerExecConfig.modelId,
+          messages,
+          tools,
+          maxSteps: resolvedConfig.caps.maxSteps,
+          spendLimitUsd: resolvedConfig.caps.spendLimitUsd,
+          temperature: resolveTemperature(workerExecConfig.modelId, workerExecConfig.temperature),
+          maxTokens: resolvedConfig.caps.maxTokens ?? workerExecConfig.maxTokens,
+          abortSignal: signal,
+          schema: worker.outputMode === "object" && worker.outputSchema ? worker.outputSchema : undefined,
+          terminalToolNames: opts.terminalToolNames as string[] | undefined,
+          prepareStep: opts.prepareStep,
+        }),
+      {
+        providerType: adapter.providerType,
+        modelId: workerExecConfig.modelId,
+        role: phase,
+        sessionId,
+        cycleId: cycleId ?? null,
+      },
+    );
 
+  let trace = await runAgent();
   let output: TOutput;
   let parseFallback = trace.parseFallback;
 
-  if (worker.outputMode === "object" && worker.outputSchema) {
-    if (!trace.structuredOutput) {
+  if (worker.outputMode === "object" && worker.outputSchema && resolvedConfig.output) {
+    const outputContract = resolvedConfig.output as WorkerOutputContract<TOutput>;
+    let resolution = resolveStructuredWorkerOutput<TOutput>(outputContract, trace.structuredOutput, false);
+    if ("needsRetry" in resolution) {
+      logger.warn(
+        { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null },
+        "worker structured output validation failed; retrying once",
+      );
+      trace = await runAgent();
+      resolution = resolveStructuredWorkerOutput<TOutput>(outputContract, trace.structuredOutput, true);
+    }
+    if ("needsRetry" in resolution) {
       throw new AppError(
-        `Worker ${worker.id} (phase ${phase}) returned no structured output. textPreview=${trace.assistantText.slice(0, 200)}`,
+        `Worker ${worker.id} (phase ${phase}) returned invalid structured output after retry.`,
         "VALIDATION_FAILED",
       );
     }
-    output = trace.structuredOutput as TOutput;
+    output = resolution.output;
+    parseFallback = resolution.parseFallback;
+    if (resolution.parseFallback) {
+      logger.warn(
+        { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null, retried: resolution.retried },
+        "worker structured output substituted empty dimension after validation failure",
+      );
+    }
   } else if (worker.outputMode === "tool_terminal") {
     const terminalResult = resolveTerminalResult(trace);
     if (!terminalResult) {

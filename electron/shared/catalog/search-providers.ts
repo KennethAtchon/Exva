@@ -2,6 +2,8 @@ import type { ProviderAccount } from "../domain";
 
 export interface ProviderMetadata {
   baseUrl?: string;
+  /** MCP tools/call target when providerType is `mcp` (default: search). */
+  mcpToolName?: string;
 }
 
 export const BUILT_IN_DUCKDUCKGO_PROVIDER_ID = "builtin-search-duckduckgo";
@@ -35,8 +37,11 @@ export function parseProviderMetadata(json: string | null): ProviderMetadata {
     const value = JSON.parse(json) as unknown;
     if (typeof value !== "object" || value === null) return {};
     const rawBaseUrl = (value as { baseUrl?: unknown }).baseUrl;
+    const rawToolName = (value as { mcpToolName?: unknown }).mcpToolName;
     return {
       baseUrl: typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0 ? rawBaseUrl.trim() : undefined,
+      mcpToolName:
+        typeof rawToolName === "string" && rawToolName.trim().length > 0 ? rawToolName.trim() : undefined,
     };
   } catch {
     return {};

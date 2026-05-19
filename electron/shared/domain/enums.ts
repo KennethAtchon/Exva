@@ -119,7 +119,7 @@ export type AgentRole =
 
 export type PromptSource = "default" | "session_override";
 export type ProviderType = "anthropic" | "openai" | "openrouter";
-export type SearchProviderType = "brave" | "tavily" | "duckduckgo";
+export type SearchProviderType = "brave" | "tavily" | "duckduckgo" | "mcp";
 export type BrokerMode = "paper" | "live";
 
 export type EventSourceType =

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Card, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { Switch, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
+import { AiPhasesSection } from "@/components/strategy/AiPhasesSection";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";
 import { TimeframeHorizonCard } from "@/components/strategy/TimeframeHorizonCard";
 import { GlobalPresetGrid, CreateEditGlobalPresetModal, type UserGlobalPresetInput } from "@/components/strategy/GlobalPresetComponents";
@@ -43,9 +44,10 @@ const TABS = [
   ["rules", "Rules"],
   ["risk", "Risk"],
   ["timeframe", "Timeframe"],
+  ["ai", "AI Phases"],
 ];
 
-type SectionId = "style" | "rules" | "risk" | "timeframe";
+type SectionId = "style" | "rules" | "risk" | "timeframe" | "ai";
 
 export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void }) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
@@ -64,12 +66,15 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const pageState = useStrategyStore((state) => state.state);
   const strategyErrors = useStrategyStore((state) => state.strategyErrors);
   const globalPresets = useStrategyStore((state) => state.globalPresets);
+  const providers = useStrategyStore((state) => state.providers);
+  const aiPhases = useStrategyStore((state) => state.aiPhases);
   const loadStrategy = useStrategyStore((state) => state.loadStrategy);
   const loadGlobalPresets = useStrategyStore((state) => state.loadGlobalPresets);
   const updateResearchPosture = useStrategyStore((state) => state.updateResearchPosture);
   const updateRules = useStrategyStore((state) => state.updateRules);
   const updateRiskConfig = useStrategyStore((state) => state.updateRiskConfig);
   const updateTimeframe = useStrategyStore((state) => state.updateTimeframe);
+  const updateAiPhase = useStrategyStore((state) => state.updateAiPhase);
   const applyGlobalPreset = useStrategyStore((state) => state.applyGlobalPreset);
   const saveAll = useStrategyStore((state) => state.saveAll);
   const setActiveSection = useStrategyStore((state) => state.setActiveSection);
@@ -296,6 +301,14 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
                       timeframe={timeframe}
                       isLocked={isLocked}
                       updateTimeframe={updateTimeframe}
+                    />
+                  )}
+                  {value === "ai" && (
+                    <AiPhasesSection
+                      aiPhases={aiPhases}
+                      providers={providers}
+                      isLocked={isLocked}
+                      onUpdatePhase={updateAiPhase}
                     />
                   )}
                 </TabsContent>
