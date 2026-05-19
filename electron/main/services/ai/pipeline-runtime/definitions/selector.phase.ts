@@ -43,29 +43,7 @@ const verificationOutputSchema = z.object({
 type DiscoveryOutput = z.infer<typeof candidateOutputSchema>;
 type VerificationOutput = z.infer<typeof verificationOutputSchema>;
 
-const DISCOVERY_WORKERS: WorkerDefinition[] = [
-  {
-    id: "web-scout",
-    promptAssetPath: "selector-workers/web-scout",
-    tools: ["search_web", "fetch_url"],
-    outputMode: "object",
-    outputSchema: candidateOutputSchema,
-  },
-  {
-    id: "reddit-scout",
-    promptAssetPath: "selector-workers/reddit-scout",
-    tools: ["search_reddit"],
-    outputMode: "object",
-    outputSchema: candidateOutputSchema,
-  },
-  {
-    id: "trend-scout",
-    promptAssetPath: "selector-workers/trend-scout",
-    tools: ["get_trending_symbols", "search_web"],
-    outputMode: "object",
-    outputSchema: candidateOutputSchema,
-  },
-];
+import { selectorDiscoveryWorkersForMode } from "../pipeline-discovery-config";
 
 function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
   return [
@@ -96,7 +74,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
 export const SELECTOR_PHASE: PipelineDefinition<SelectorPhaseInput, InstrumentSelection> = {
   phase: "selector",
   outputMode: "tool_terminal",
-  workers: DISCOVERY_WORKERS,
+  workers: selectorDiscoveryWorkersForMode("trend_scan"),
   persistence: {
     outputSchemaName: "instrumentSelection",
     traceMode: "aggregate_workers",
@@ -110,8 +88,9 @@ export const SELECTOR_PHASE: PipelineDefinition<SelectorPhaseInput, InstrumentSe
     const stratCtx = ctx.strategyContext as SessionStrategyContext;
 
     // Stage 1: Discovery — run all scouts concurrently, tolerate partial failure
+    const discoveryWorkers = selectorDiscoveryWorkersForMode(stratCtx.researchPosture.discoveryMode);
     const discoverySettled = await runner.executeGroup(
-      DISCOVERY_WORKERS.map((worker) => () =>
+      discoveryWorkers.map((worker) => () =>
         runner.execute<DiscoveryOutput>(worker, {
           selectionInstructions: input.selectionInstructions,
           instrumentClasses: toolCtx.instrumentClasses,
@@ -206,7 +185,7 @@ export const SELECTOR_PHASE: PipelineDefinition<SelectorPhaseInput, InstrumentSe
         ...verificationResults.map(({ worker, result }) => ({
           workerId: worker.id,
           frontier: 1,
-          dependsOn: DISCOVERY_WORKERS.map((w) => w.id),
+          dependsOn: discoveryWorkers.map((w) => w.id),
           requiredForPhase: false,
           run: result.run,
           message: result.message,

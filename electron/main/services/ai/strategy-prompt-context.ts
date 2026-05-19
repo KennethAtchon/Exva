@@ -1,3 +1,4 @@
+import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import {
   buildTradeRulesMarkdown,
   buildStrategySnapshot,
@@ -89,6 +90,62 @@ export function buildStrategyPromptContext(
     snapshot,
     prompt: lines.join("\n"),
   };
+}
+
+/**
+ * Phase-scoped strategy context for pipeline workers.
+ * Includes only structured session fields (presets, enums, numeric limits) — no free-text
+ * notes or tradeRulesMarkdown, so prompts stay predictable without runtime truncation.
+ */
+export function buildWorkerStrategyPromptContext(
+  context: SessionStrategyContext,
+  phase: PipelinePhase,
+): string {
+  const { researchPosture, rules, riskConfig, timeframe } = context;
+  const shared = [
+    `Posture preset: ${researchPosture.posturePresetId}`,
+    `Rules preset: ${rules.rulesPresetId}`,
+    `Risk preset: ${riskConfig.riskPresetId}`,
+    `Timeframe preset: ${timeframe.timeframePresetId}`,
+    `Discovery: ${researchPosture.discoveryMode}`,
+    `Evidence: ${researchPosture.evidenceMode}`,
+    `Side bias: ${rules.sideBias}`,
+    `Entry: ${rules.entryStyle}`,
+    `Exit: ${rules.exitStyle}`,
+    `Horizon: ${timeframe.primaryTradingTimeframe} (${timeframe.holdingStyle})`,
+  ];
+
+  const phaseLines: Record<PipelinePhase, string[]> = {
+    selector: [
+      `Catalyst: ${researchPosture.catalystMode}`,
+      `Fundamental strictness: ${researchPosture.fundamentalStrictness}`,
+      `Max concurrent: ${riskConfig.maxConcurrentTrades}`,
+    ],
+    technical: [
+      `Setup: ${rules.setupType}`,
+      `Stop type: ${riskConfig.stopLossType}`,
+      riskConfig.stopLossPct != null ? `Stop loss pct: ${riskConfig.stopLossPct}` : "Stop loss pct: (session default)",
+      riskConfig.takeProfitPct != null ? `Take profit pct: ${riskConfig.takeProfitPct}` : "Take profit pct: (session default)",
+    ],
+    fundamental: [
+      `Catalyst: ${researchPosture.catalystMode}`,
+      `Fundamental strictness: ${researchPosture.fundamentalStrictness}`,
+    ],
+    review: [
+      `Max position USD: ${riskConfig.maxPositionUsd}`,
+      `Max exposure USD: ${riskConfig.maxExposureUsd ?? "none"}`,
+      `Daily loss limit USD: ${riskConfig.dailyLossLimitUsd}`,
+      `Human approval: ${riskConfig.humanApprovalRequired ? "yes" : "no"}`,
+    ],
+    decision: [
+      `Max position USD: ${riskConfig.maxPositionUsd}`,
+      `Kelly fraction: ${riskConfig.kellyFraction}`,
+      `Prediction edge threshold: ${riskConfig.predictionEdgeThreshold}`,
+      `Stop loss type: ${riskConfig.stopLossType}`,
+    ],
+  };
+
+  return [...shared, ...phaseLines[phase]].join("\n");
 }
 
 export function prependStrategyContextToUserPrompt(context: SessionStrategyContext, userPrompt: string): StrategyPromptContext {

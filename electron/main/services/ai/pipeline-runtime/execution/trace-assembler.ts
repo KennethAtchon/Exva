@@ -3,7 +3,7 @@ import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import type { PhaseTraceV1, PhaseTraceWorkerV1, PhaseTraceFrontierV1 } from "@electron/shared/ai/pipeline-observability";
 import type { RunTrace } from "../../ai-runtime/ai-runtime-types";
 import { estimateCostUsd } from "../../model-pricing";
-import { buildStrategyPromptContext } from "../prompting/prompt-envelope-builder";
+import { buildStrategyPromptContext } from "../../strategy-prompt-context";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 
 export interface TraceAssemblyInput {

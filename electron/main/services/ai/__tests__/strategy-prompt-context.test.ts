@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import { buildStrategyPromptContext, prependStrategyContextToUserPrompt } from "../strategy-prompt-context";
-import { buildPromptEnvelope, envelopeToMessages } from "../pipeline-runtime/prompting/prompt-envelope-builder";
+import {
+  buildStrategyPromptContext,
+  buildWorkerStrategyPromptContext,
+  prependStrategyContextToUserPrompt,
+} from "../strategy-prompt-context";
+import {
+  buildPromptEnvelope,
+  envelopeToMessages,
+  measurePromptEnvelope,
+} from "../pipeline-runtime/prompting/prompt-envelope-builder";
 
 function baseContext(): SessionStrategyContext {
   const ts = "2026-05-05T00:00:00.000Z";
@@ -84,6 +92,41 @@ describe("strategy-prompt-context", () => {
     expect(out.snapshot.rules.setupType).toBe("breakout");
   });
 
+  it("builds a smaller worker-scoped strategy context than the full snapshot prompt", () => {
+    const context = baseContext();
+    const full = buildStrategyPromptContext(context).prompt;
+    const worker = buildWorkerStrategyPromptContext(context, "technical");
+    expect(worker.length).toBeLessThan(full.length);
+    expect(worker).toContain("Discovery: trend_scan");
+    expect(worker).toContain("Stop type:");
+    expect(worker).not.toContain("Posture notes:");
+    expect(worker).not.toContain("Trade rules markdown:");
+  });
+
+  it("does not truncate worker envelope content when notes are long", () => {
+    const context = baseContext();
+    context.researchPosture.postureNotes = "x".repeat(800);
+    context.rules.ruleNotes = "y".repeat(800);
+    context.rules.tradeRulesMarkdown = "z".repeat(800);
+
+    const envelope = buildPromptEnvelope({
+      phase: "technical",
+      workerId: "chart-pattern",
+      basePromptMarkdown: "# Chart pattern",
+      task: { instrumentSymbol: "AAPL", context: "brief from selector" },
+      strategyContext: context,
+    });
+
+    const messages = envelopeToMessages(envelope, context);
+    const userMessage = messages[1]?.content ?? "";
+
+    expect(userMessage).not.toContain("…");
+    expect(userMessage).not.toMatch(/\.\.\.$/m);
+    expect(userMessage).not.toContain(context.researchPosture.postureNotes);
+    expect(userMessage).toContain('"instrumentSymbol": "AAPL"');
+    expect(userMessage).toContain("brief from selector");
+  });
+
   it("adds preset-derived behavior guidance to worker messages", () => {
     const context = baseContext();
     context.riskConfig.riskPresetId = "moderate";
@@ -100,10 +143,10 @@ describe("strategy-prompt-context", () => {
     const messages = envelopeToMessages(envelope, context);
     const userMessage = messages[1]?.content ?? "";
 
+    expect(userMessage).toContain("<trusted_session_context>");
+    expect(userMessage).toContain("Discovery: trend_scan");
     expect(userMessage).toContain("<preset_behavior>");
-    expect(userMessage).toContain("### Global preset: Trend Momentum");
-    expect(userMessage).toContain("### Research posture: Trend Hunt");
-    expect(userMessage).toContain("Relative-strength leaders, clean continuation names");
+    expect(userMessage).not.toContain("## Session research posture");
     expect(userMessage).not.toContain("Worker focus:");
     expect(userMessage).not.toContain("Discovery guidance:");
   });

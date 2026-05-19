@@ -1,8 +1,12 @@
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import { RUNTIME_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import { buildStrategyPromptContext } from "../../strategy-prompt-context";
+import { buildWorkerStrategyPromptContext } from "../../strategy-prompt-context";
 import type { RuntimeAgentMessage } from "../../ai-runtime/ai-runtime-types";
+import { createLogger } from "../../../infra/log";
 import { buildPresetBehaviorGuidance } from "./preset-behavior-guidance";
+
+const logger = createLogger("prompt-envelope");
 
 export interface PromptEnvelope {
   systemPrompt: string;
@@ -23,6 +27,15 @@ export interface PromptEnvelopeInput {
   } | null;
 }
 
+export interface PromptEnvelopeSizeReport {
+  systemChars: number;
+  userChars: number;
+  maxSystemChars: number;
+  maxUserChars: number;
+  exceedsSystem: boolean;
+  exceedsUser: boolean;
+}
+
 export function buildPromptEnvelope(input: PromptEnvelopeInput): PromptEnvelope {
   return {
     systemPrompt: input.basePromptMarkdown.trim(),
@@ -35,23 +48,54 @@ export function buildPromptEnvelope(input: PromptEnvelopeInput): PromptEnvelope 
   };
 }
 
+/** Character counts vs RUNTIME_DEFAULTS — for tests and observability only; never mutates content. */
+export function measurePromptEnvelope(messages: RuntimeAgentMessage[]): PromptEnvelopeSizeReport {
+  const systemChars = messages.find((m) => m.role === "system")?.content.length ?? 0;
+  const userChars = messages.find((m) => m.role === "user")?.content.length ?? 0;
+  const maxSystemChars = RUNTIME_DEFAULTS.prompt.maxSystemChars;
+  const maxUserChars = RUNTIME_DEFAULTS.prompt.maxUserPayloadChars;
+  return {
+    systemChars,
+    userChars,
+    maxSystemChars,
+    maxUserChars,
+    exceedsSystem: systemChars > maxSystemChars,
+    exceedsUser: userChars > maxUserChars,
+  };
+}
+
 export function envelopeToMessages(
   envelope: PromptEnvelope,
   strategyContext: SessionStrategyContext,
 ): RuntimeAgentMessage[] {
-  const { prompt: strategyPrompt } = buildStrategyPromptContext(strategyContext);
-  const presetGuidance = buildPresetBehaviorGuidance(strategyContext, envelope.userPayload.phase as PipelinePhase);
+  const phase = envelope.userPayload.phase as PipelinePhase;
+  const strategyPrompt = buildWorkerStrategyPromptContext(strategyContext, phase);
+  const presetGuidance = buildPresetBehaviorGuidance(strategyContext, phase);
 
   const userContent = [
     `<trusted_session_context>\n${strategyPrompt}\n</trusted_session_context>`,
     presetGuidance.trim() ? `<preset_behavior>\n${presetGuidance}\n</preset_behavior>` : null,
     `<task>\n${JSON.stringify(envelope.userPayload.task, null, 2)}\n</task>`,
-  ].filter((block): block is string => block != null).join("\n\n");
+  ]
+    .filter((block): block is string => block != null)
+    .join("\n\n");
 
-  return [
+  const messages: RuntimeAgentMessage[] = [
     { role: "system", content: envelope.systemPrompt },
     { role: "user", content: userContent },
   ];
-}
 
-export { buildStrategyPromptContext };
+  const sizes = measurePromptEnvelope(messages);
+  if (sizes.exceedsSystem || sizes.exceedsUser) {
+    logger.warn(
+      {
+        phase,
+        workerId: envelope.userPayload.workerId,
+        ...sizes,
+      },
+      "worker prompt exceeds RUNTIME_DEFAULTS.prompt limits (content unchanged — shorten session config or worker task)",
+    );
+  }
+
+  return messages;
+}

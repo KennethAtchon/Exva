@@ -5,6 +5,7 @@ import type { RiskEngine } from "../../risk/risk-engine";
 import type { CandidateValidationService } from "../../orchestration/candidate-validation-service";
 import type { OrderPolicyGate } from "../../orchestration/order-policy-gate";
 import { registerEngine } from "./engine-registry";
+import { registerPipelineEngines } from "./register-pipeline-engines";
 
 export function registerDefaultEngines(services: {
   riskEngine: RiskEngine;
@@ -13,6 +14,8 @@ export function registerDefaultEngines(services: {
   brokerAllocationGate: BrokerAllocationGate;
   exitPolicyEvaluator: ExitPolicyEvaluator;
 }): void {
+  registerPipelineEngines();
+
   registerEngine({
     id: "risk-summary",
     kind: "context",
