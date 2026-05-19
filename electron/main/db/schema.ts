@@ -333,6 +333,7 @@ export const trades = sqliteTable(
     stopLossPrice: real("stop_loss_price"),
     takeProfitPrice: real("take_profit_price"),
     strategy: text("strategy").notNull(),
+    executionStrategy: text("execution_strategy"),
     status: text("status").notNull(),
     openedAt: text("opened_at"),
     closedAt: text("closed_at"),

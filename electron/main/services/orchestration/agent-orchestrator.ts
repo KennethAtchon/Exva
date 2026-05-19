@@ -23,7 +23,7 @@ type ResolvedInstrument = {
 
 import type { AgentResult } from "../ai/ai-runtime/ai-runtime-types";
 import type { TechnicalSignal, FundamentalSignal, ReviewSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
-import { computeExecutionProfile } from "../ai/engines/execution-profile-engine";
+import { computeExecutionProfile, priceLevelsFromProfile } from "../ai/engines/execution-profile-engine";
 
 type AiTechnicalRun = AgentResult<TechnicalSignal>;
 type AiFundamentalRun = AgentResult<FundamentalSignal>;
@@ -308,7 +308,13 @@ export class AgentOrchestrator {
     const totalAiCostUsd = sumAiPipelineCost(pipeline);
 
     if (!context.trade) {
-      const trade = this.createTradeFromDecision(context.instrument, config, decision.output, totalAiCostUsd);
+      const trade = this.createTradeFromDecision(
+        context.instrument,
+        config,
+        decision.output,
+        totalAiCostUsd,
+        review.output.recommendation,
+      );
       this.deps.tradesRepo.insert(trade);
       for (const result of [technical, fundamental, review, decision]) {
         this.deps.agentRunsRepo.insert({ ...result.run, session_id: this.sessionId, trade_id: trade.id });
@@ -661,10 +667,15 @@ export class AgentOrchestrator {
       config,
       fresh,
       totalAiCostUsd,
+      review.output.recommendation,
     );
     this.deps.tradesRepo.patchPendingExecution(trade.id, {
       side: nextTrade.side,
+      entry_price: nextTrade.entry_price,
       position_size_usd: nextTrade.position_size_usd,
+      stop_loss_price: nextTrade.stop_loss_price,
+      take_profit_price: nextTrade.take_profit_price,
+      execution_strategy: nextTrade.execution_strategy,
       confidence_score: nextTrade.confidence_score,
       brokerAccountId: nextTrade.brokerAccountId,
     });
@@ -1001,140 +1012,11 @@ export class AgentOrchestrator {
     };
   }
 
-  private validateSelectorOutput(
-    session: WorkspaceSession,
-    toolCallsJson: string | null,
-    instruments: Array<ResolvedInstrument & { rationale?: string }>,
-    cycleId?: string | null,
-  ): { instruments: ResolvedInstrument[]; researchBriefsBySymbol: Record<string, string> } {
-    const traces = this.parseToolTraces(toolCallsJson);
-    const strategy = this.deps.strategyContextService.get(session.id).rules;
-    const hadSearch = traces.some((step) => step.toolCalls.some((call) => call.tool === "search_web"));
-    const sessionInstrumentClasses = this.getEffectiveInstrumentClasses(session);
-    const valid: ResolvedInstrument[] = [];
-    const researchBriefsBySymbol: Record<string, string> = {};
-
-    for (const instrument of instruments) {
-      if (!instrument.symbol?.trim()) {
-        this.emitEvent("DEBUG", null, `[selector-filter] (unknown): rejected - missing symbol`, "orchestrator", cycleId ?? null);
-        continue;
-      }
-      if (!sessionInstrumentClasses.includes(instrument.instrumentClass)) {
-        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - class ${instrument.instrumentClass} not enabled for session`, "orchestrator", cycleId ?? null);
-        continue;
-      }
-      if (!instrument.rationale?.trim()) {
-        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - missing rationale`, "orchestrator", cycleId ?? null);
-        continue;
-      }
-      if (!this.hasSuccessfulQuote(traces, instrument)) {
-        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - missing successful quote call`, "orchestrator", cycleId ?? null);
-        continue;
-      }
-      if (!this.hasDiscoveryEvidence(traces, instrument, hadSearch)) {
-        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - no discovery evidence from news/search`, "orchestrator", cycleId ?? null);
-        continue;
-      }
-      if (this.contradictsStrategy(strategy.sideBias, instrument.rationale)) {
-        this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected - rationale contradicts ${strategy.sideBias}`, "orchestrator", cycleId ?? null);
-        continue;
-      }
-
-      const selectorResearchBrief = this.buildSelectorResearchBrief(instrument, traces);
-      researchBriefsBySymbol[instrument.symbol] = selectorResearchBrief;
-      valid.push({
-        symbol: instrument.symbol,
-        instrumentClass: instrument.instrumentClass,
-        instrumentDisplayName: instrument.instrumentDisplayName,
-        predictionOutcome: instrument.predictionOutcome ?? null,
-        instrumentMetadataJson: instrument.instrumentMetadataJson ?? null,
-        selectorResearchBrief,
-        selectorTraces: traces,
-      });
-    }
-
-    return { instruments: valid, researchBriefsBySymbol };
-  }
-
-  private parseToolTraces(toolCallsJson: string | null): ToolStepTrace[] {
-    if (!toolCallsJson) return [];
-    try {
-      const parsed = JSON.parse(toolCallsJson) as ToolStepTrace[];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private hasSuccessfulQuote(traces: ToolStepTrace[], instrument: ResolvedInstrument): boolean {
-    return traces.some((step) =>
-      step.toolCalls.some((call) => {
-        if (call.tool !== "get_quote") return false;
-        const args = this.safeParseJson(call.argsJson);
-        const result = this.safeParseJson(call.resultJson);
-        return args?.symbol === instrument.symbol &&
-          args?.instrumentClass === instrument.instrumentClass &&
-          result != null &&
-          !Object.hasOwn(result, "error");
-      }),
-    );
-  }
-
-  private hasDiscoveryEvidence(traces: ToolStepTrace[], instrument: ResolvedInstrument, hadSearch: boolean): boolean {
-    if (traces.some((step) =>
-      step.toolCalls.some((call) => {
-        if (call.tool !== "get_news") return false;
-        const args = this.safeParseJson(call.argsJson);
-        const result = this.safeParseJson(call.resultJson);
-        return args?.symbol === instrument.symbol && result != null && !Object.hasOwn(result, "error");
-      }),
-    )) {
-      return true;
-    }
-    return hadSearch;
-  }
-
-  private contradictsStrategy(sideBias: string, rationale: string): boolean {
-    const text = rationale.toLowerCase();
-    if (sideBias === "long_only") {
-      return /downtrend|bearish|selloff|breakdown|short setup/.test(text);
-    }
-    if (sideBias === "short_only") {
-      return /bullish|uptrend|breakout|long setup/.test(text);
-    }
-    return false;
-  }
-
-  private buildSelectorResearchBrief(instrument: ResolvedInstrument & { rationale?: string }, traces: ToolStepTrace[]): string {
-    const relevantCalls = traces.flatMap((step) => step.toolCalls).filter((call) => {
-      const args = this.safeParseJson(call.argsJson);
-      if (call.tool === "search_web") return true;
-      return args?.symbol === instrument.symbol;
-    });
-
-    return [
-      instrument.instrumentDisplayName ? `Display name: ${instrument.instrumentDisplayName}` : null,
-      `Selector rationale: ${instrument.rationale?.trim() ?? "No rationale recorded."}`,
-      `Relevant selector tools: ${relevantCalls.map((call) => call.tool).join(", ") || "none"}`,
-    ].filter(Boolean).join("\n");
-  }
-
   private buildAnalystContext(instrument: ResolvedInstrument): string {
     return [
       instrument.instrumentDisplayName ? `Instrument display name: ${instrument.instrumentDisplayName}` : null,
       instrument.selectorResearchBrief ?? null,
     ].filter(Boolean).join("\n\n") || "No selector context available.";
-  }
-
-  private safeParseJson(raw: string | null): Record<string, string> | null {
-    if (!raw) return null;
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (!parsed || typeof parsed !== "object") return null;
-      return parsed as Record<string, string>;
-    } catch {
-      return null;
-    }
   }
 
   private waitForApproval(
@@ -1209,6 +1091,60 @@ export class AgentOrchestrator {
     return this.deps.brokerRouting.resolveBrokerAccountId(this.sessionId, instrumentClass);
   }
 
+  private executionFieldsForSignal(
+    signal: TradeSignal,
+    instrumentClass: InstrumentClass,
+    config: SessionConfig,
+    reviewRecommendation?: ReviewSignal["recommendation"],
+  ): {
+    position_size_usd: number;
+    side: Trade["side"];
+    entry_price: number | null;
+    stop_loss_price: number | null;
+    take_profit_price: number | null;
+    execution_strategy: string | null;
+  } {
+    if (signal.action === "skip") {
+      return {
+        position_size_usd: 0,
+        side: "BUY",
+        entry_price: null,
+        stop_loss_price: null,
+        take_profit_price: null,
+        execution_strategy: signal.executionStrategy,
+      };
+    }
+
+    const strategyCtx = this.deps.strategyContextService.get(this.sessionId);
+    const profile = computeExecutionProfile({
+      signal,
+      instrumentClass,
+      maxPositionUsd: config.max_position_usd,
+      maxExposureUsd: strategyCtx.riskConfig.maxExposureUsd ?? null,
+      risk: {
+        stopLossPct: strategyCtx.riskConfig.stopLossPct,
+        takeProfitPct: strategyCtx.riskConfig.takeProfitPct,
+        kellyFraction: strategyCtx.riskConfig.kellyFraction,
+      },
+      reviewRecommendation,
+    });
+
+    const entry_price = profile.limitPrice;
+    const levels =
+      entry_price != null
+        ? priceLevelsFromProfile(profile.side, entry_price, profile)
+        : { stopLossPrice: null, takeProfitPrice: null };
+
+    return {
+      position_size_usd: profile.positionSizeUsd,
+      side: profile.side,
+      entry_price,
+      stop_loss_price: levels.stopLossPrice,
+      take_profit_price: levels.takeProfitPrice,
+      execution_strategy: signal.executionStrategy,
+    };
+  }
+
   /** Fresh sizing for an existing pending trade after a recheck decision. */
   private buildTradeFromDecision(
     tradeId: string,
@@ -1216,16 +1152,11 @@ export class AgentOrchestrator {
     config: SessionConfig,
     signal: TradeSignal,
     aiCostUsd: number,
+    reviewRecommendation?: ReviewSignal["recommendation"],
   ): Trade {
     const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
     const prediction = this.resolvePredictionTradeFields(instrument);
-    const strategy = this.deps.strategyContextService.get(this.sessionId);
-    const { positionSizeUsd, side } = computeExecutionProfile({
-      instrumentClass: instrument.instrumentClass,
-      action: signal.action as "buy" | "sell",
-      maxPositionUsd: config.max_position_usd,
-      maxExposureUsd: strategy.riskConfig.maxExposureUsd ?? null,
-    });
+    const execution = this.executionFieldsForSignal(signal, instrument.instrumentClass, config, reviewRecommendation);
     return {
       id: tradeId,
       sessionId: this.sessionId,
@@ -1235,12 +1166,13 @@ export class AgentOrchestrator {
       predictionOutcome: prediction.predictionOutcome,
       instrumentMetadataJson: prediction.instrumentMetadataJson,
       instrumentType: instrument.instrumentClass,
-      side,
-      entry_price: null,
-      position_size_usd: positionSizeUsd,
-      stop_loss_price: null,
-      take_profit_price: null,
+      side: execution.side,
+      entry_price: execution.entry_price,
+      position_size_usd: execution.position_size_usd,
+      stop_loss_price: execution.stop_loss_price,
+      take_profit_price: execution.take_profit_price,
       strategy: config.strategy,
+      execution_strategy: execution.execution_strategy,
       status: "pending",
       opened_at: null,
       closed_at: null,
@@ -1259,20 +1191,18 @@ export class AgentOrchestrator {
     config: SessionConfig,
     signal: TradeSignal,
     aiCostUsd: number,
+    reviewRecommendation?: ReviewSignal["recommendation"],
   ): Trade {
     const id = crypto.randomUUID();
     const brokerAccountId = this.resolveBrokerAccountId(instrument.instrumentClass);
     const isTrade = signal.action !== "skip";
     const prediction = this.resolvePredictionTradeFields(instrument);
-    const strategy = this.deps.strategyContextService.get(this.sessionId);
-    const { positionSizeUsd, side } = isTrade
-      ? computeExecutionProfile({
-          instrumentClass: instrument.instrumentClass,
-          action: signal.action as "buy" | "sell",
-          maxPositionUsd: config.max_position_usd,
-          maxExposureUsd: strategy.riskConfig.maxExposureUsd ?? null,
-        })
-      : { positionSizeUsd: 0, side: "BUY" as const };
+    const execution = this.executionFieldsForSignal(
+      signal,
+      instrument.instrumentClass,
+      config,
+      isTrade ? reviewRecommendation : undefined,
+    );
     return {
       id,
       sessionId: this.sessionId,
@@ -1282,12 +1212,13 @@ export class AgentOrchestrator {
       predictionOutcome: prediction.predictionOutcome,
       instrumentMetadataJson: prediction.instrumentMetadataJson,
       instrumentType: instrument.instrumentClass,
-      side,
-      entry_price: null,
-      position_size_usd: positionSizeUsd,
-      stop_loss_price: null,
-      take_profit_price: null,
+      side: execution.side,
+      entry_price: execution.entry_price,
+      position_size_usd: execution.position_size_usd,
+      stop_loss_price: execution.stop_loss_price,
+      take_profit_price: execution.take_profit_price,
       strategy: config.strategy,
+      execution_strategy: execution.execution_strategy,
       status: isTrade ? "pending" : "rejected",
       opened_at: null,
       closed_at: isTrade ? null : new Date().toISOString(),
@@ -1446,12 +1377,12 @@ export class AgentOrchestrator {
       return this.parseManualShortlist(session, config);
     }
 
-    this.emitEvent("INFO", null, "Running instrument selector agent...", "orchestrator", activeCycleId);
+    this.emitEvent("INFO", null, "[stage:selector] starting discovery and verification workers", "orchestrator", activeCycleId);
     this.deps.bus.emit("research_phase_step", {
       sessionId: this.sessionId,
       phase: "selector",
       cycleId: activeCycleId,
-      message: "Running instrument selector",
+      message: "[stage:selector] starting workers",
     });
     const selectionInstructions = await this.buildSelectionInstructions(session);
     const result = await this.deps.ai.runPhase<{ selectionInstructions: string }, import("@/lib/schemas").InstrumentSelection>(
@@ -1504,7 +1435,13 @@ export class AgentOrchestrator {
       expiresAt: new Date(Date.now() + cacheTtlMs).toISOString(),
     });
 
-    this.emitEvent("INFO", null, `Instrument selector chose ${payload.length} instruments.`, "orchestrator", activeCycleId);
+    this.emitEvent(
+      "INFO",
+      null,
+      `[stage:selector] submission count=${payload.length}`,
+      "orchestrator",
+      activeCycleId,
+    );
     this.deps.bus.emit("research_phase_step", {
       sessionId: this.sessionId,
       phase: "selector",
@@ -1607,7 +1544,7 @@ export class AgentOrchestrator {
           "Start broad, enumerate all serious candidate instruments you discover, and then research each candidate online before you rank it.",
           "Use live discovery/search evidence for every candidate you keep. Do not rely on memory-only ticker recall.",
           "Verify tradability with the market tools before submitting a candidate. Exclude anything that has no broker coverage or cannot be verified.",
-          "When you call submit_candidates, include every qualified candidate you researched in ranked order, strongest to weakest, up to the tool limit.",
+          "Return ranked candidates through the selector pipeline output. Strongest setups first, up to the configured maximum.",
         ].join("\n"),
         brokerCoverage,
       ];

@@ -41,6 +41,7 @@ export function toTrade(row: Row): Trade {
     stop_loss_price: nullableNumber(row.stop_loss_price),
     take_profit_price: nullableNumber(row.take_profit_price),
     strategy: String(row.strategy),
+    execution_strategy: nullableString(row.execution_strategy),
     status: row.status as Trade["status"],
     opened_at: nullableString(row.opened_at),
     closed_at: nullableString(row.closed_at),

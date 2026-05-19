@@ -137,6 +137,7 @@ export class TradesRepo {
         stopLossPrice: trade.stop_loss_price,
         takeProfitPrice: trade.take_profit_price,
         strategy: trade.strategy,
+        executionStrategy: trade.execution_strategy ?? null,
         status: trade.status,
         openedAt: trade.opened_at,
         closedAt: trade.closed_at,
@@ -196,12 +197,20 @@ export class TradesRepo {
 
   patchPendingExecution(
     id: string,
-    patch: Partial<Pick<Trade, "side" | "position_size_usd" | "confidence_score" | "brokerAccountId" | "client_order_id">>,
+    patch: Partial<Pick<
+      Trade,
+      "side" | "position_size_usd" | "confidence_score" | "brokerAccountId" | "client_order_id" |
+      "entry_price" | "stop_loss_price" | "take_profit_price" | "execution_strategy"
+    >>,
   ): void {
     const next: Record<string, unknown> = {};
     if (patch.side != null) next.side = patch.side;
     if (patch.position_size_usd != null) next.positionSizeUsd = patch.position_size_usd;
     if (patch.confidence_score != null) next.confidenceScore = patch.confidence_score;
+    if (patch.entry_price !== undefined) next.entryPrice = patch.entry_price;
+    if (patch.stop_loss_price !== undefined) next.stopLossPrice = patch.stop_loss_price;
+    if (patch.take_profit_price !== undefined) next.takeProfitPrice = patch.take_profit_price;
+    if (patch.execution_strategy !== undefined) next.executionStrategy = patch.execution_strategy;
     if (patch.brokerAccountId !== undefined) next.brokerAccountId = patch.brokerAccountId;
     if (patch.client_order_id !== undefined) next.clientOrderId = patch.client_order_id;
     if (Object.keys(next).length === 0) return;

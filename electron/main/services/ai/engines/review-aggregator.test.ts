@@ -22,23 +22,23 @@ describe("review aggregator", () => {
     expect(signal.tailRisks).toEqual(["macro"]);
   });
 
-  it("returns reduce_size when only risk is high", () => {
+  it("returns skip when only risk is high", () => {
     const signal = aggregateReviewSignal("TSLA", {
       conflictDetector: { technicalFundamentalConflict: 0.3, conflictExplanation: null, rawSummary: "" },
       riskAssessor: { tailRisks: ["earnings miss", "margin compression"], overallRisk: "high", rawSummary: "High tail exposure" },
     });
 
-    expect(signal.recommendation).toBe("reduce_size");
+    expect(signal.recommendation).toBe("skip");
     expect(signal.overallRisk).toBe("high");
   });
 
-  it("returns reduce_size when only conflict is high (conflict >= 0.7)", () => {
+  it("returns skip when conflict is above 0.7", () => {
     const signal = aggregateReviewSignal("AMD", {
       conflictDetector: { technicalFundamentalConflict: 0.75, conflictExplanation: "Trend bullish but fundamentals weak", rawSummary: "Cross-signal conflict" },
       riskAssessor: { tailRisks: [], overallRisk: "medium", rawSummary: "Moderate risk" },
     });
 
-    expect(signal.recommendation).toBe("reduce_size");
+    expect(signal.recommendation).toBe("skip");
     expect(signal.technicalFundamentalConflict).toBe(0.75);
   });
 

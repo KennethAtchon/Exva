@@ -47,11 +47,13 @@ function deriveRecommendation(
   const noEvidence = workers.conflictDetector == null && workers.riskAssessor == null;
   if (noEvidence) return "skip";
 
-  const highConflict = conflict != null && conflict >= 0.7;
+  const highConflict = conflict != null && conflict > 0.7;
+  const mediumConflict = conflict != null && conflict > 0.4;
   const highRisk = overallRisk === "high";
+  const mediumRisk = overallRisk === "medium";
 
-  if (highConflict && highRisk) return "skip";
-  if (highConflict || highRisk) return "reduce_size";
+  if (highConflict || highRisk) return "skip";
+  if (mediumConflict || mediumRisk) return "reduce_size";
   return "proceed";
 }
 

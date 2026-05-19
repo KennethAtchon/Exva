@@ -1,5 +1,6 @@
 import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
 import { reviewSignalSchema, type ReviewSignal, type TechnicalSignal, type FundamentalSignal } from "@electron/shared/ai/pipeline-signals";
+import { signalForWorkerPrompt } from "@electron/shared/ai/signal-prompt-payload";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
 import { assembleAggregateTrace } from "../execution/trace-assembler";
@@ -44,8 +45,8 @@ async function run(
   const { instrumentSymbol, technical, fundamental } = ctx.input;
   const task: Record<string, unknown> = {
     instrumentSymbol,
-    technicalSignal: JSON.stringify(technical),
-    fundamentalSignal: JSON.stringify(fundamental),
+    technicalSignal: JSON.stringify(signalForWorkerPrompt(technical)),
+    fundamentalSignal: JSON.stringify(signalForWorkerPrompt(fundamental)),
   };
 
   const results = await runner.executeGroup(
