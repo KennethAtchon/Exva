@@ -8,6 +8,19 @@
       "Human approval required for every trade.",
       "Confidence threshold set high — wait for strong signals."
     ],
+    "aiGuidance": {
+      "review": {
+        "howToEvaluate": [
+          "Be conservative about conflicts, weak evidence, and unresolved risks.",
+          "Prefer passing on marginal setups instead of stretching for activity."
+        ]
+      },
+      "decision": {
+        "avoid": [
+          "Do not treat medium-quality evidence as good enough just because a trade is available."
+        ]
+      }
+    },
     "values": {
       "maxPositionUsd": 200,
       "stopLossType": "fixed_pct",
@@ -29,6 +42,13 @@
       "Daily loss limit $200, profit target $1000.",
       "Up to 3 concurrent trades."
     ],
+    "aiGuidance": {
+      "review": {
+        "howToEvaluate": [
+          "Favor balanced evidence and usable trade quality instead of either ultra-conservative filtering or reckless chasing."
+        ]
+      }
+    },
     "values": {
       "maxPositionUsd": 500,
       "stopLossType": "trailing_atr",
@@ -51,6 +71,18 @@
       "Daily loss limit $500, higher profit targets.",
       "Up to 5 concurrent trades, no mandatory human approval."
     ],
+    "aiGuidance": {
+      "review": {
+        "howToEvaluate": [
+          "You can accept more volatility and uncertainty than conservative presets, but only when the edge is still coherent."
+        ]
+      },
+      "decision": {
+        "whatToLookFor": [
+          "Higher-upside opportunities where wider risk tolerance is actually being used for a reason, not just to excuse weak setups."
+        ]
+      }
+    },
     "values": {
       "maxPositionUsd": 1000,
       "stopLossType": "trailing_atr",
@@ -73,6 +105,13 @@
       "Prediction edge threshold 8% — only trade mispriced odds.",
       "Market resolution exits — no fixed stop loss."
     ],
+    "aiGuidance": {
+      "decision": {
+        "howToEvaluate": [
+          "Focus on probability edge, resolution mechanics, and whether the evidence justifies a contract-based position."
+        ]
+      }
+    },
     "values": {
       "maxPositionUsd": 200,
       "stopLossType": "none",
@@ -95,6 +134,13 @@
       "All risk fields set independently.",
       "Use when no built-in preset fits your session."
     ],
+    "aiGuidance": {
+      "shared": {
+        "howToEvaluate": [
+          "Use the live risk fields directly rather than assuming any built-in tolerance profile."
+        ]
+      }
+    },
     "values": {}
   }
 ]

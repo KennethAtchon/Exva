@@ -8,6 +8,18 @@
       "Holding style: intraday flat.",
       "Target hold: same-day close."
     ],
+    "aiGuidance": {
+      "technical": {
+        "howToEvaluate": [
+          "Favor setups that can prove themselves quickly inside the same session."
+        ]
+      },
+      "decision": {
+        "avoid": [
+          "Do not rely on slow multi-day thesis development for an intraday-flat session."
+        ]
+      }
+    },
     "values": {
       "primaryTradingTimeframe": "1h",
       "holdingStyle": "intraday_flat",
@@ -25,6 +37,13 @@
       "Holding style: multi-day swing.",
       "Target hold: 3–5 days, max 14 days."
     ],
+    "aiGuidance": {
+      "technical": {
+        "howToEvaluate": [
+          "Prefer structures that can persist across several days rather than only intraday noise."
+        ]
+      }
+    },
     "values": {
       "primaryTradingTimeframe": "4h",
       "holdingStyle": "multi_day_swing",
@@ -42,6 +61,18 @@
       "Holding style: weeks position.",
       "Target hold: 2–4 weeks."
     ],
+    "aiGuidance": {
+      "fundamental": {
+        "howToEvaluate": [
+          "Give more weight to durable business and catalyst context because the hold window is longer."
+        ]
+      },
+      "decision": {
+        "howToEvaluate": [
+          "Reject setups that only make sense as short-lived tactical trades."
+        ]
+      }
+    },
     "values": {
       "primaryTradingTimeframe": "1d",
       "holdingStyle": "weeks_position",
@@ -59,6 +90,13 @@
       "Holding style: custom (contract-driven).",
       "Exit at resolution or thesis invalidation."
     ],
+    "aiGuidance": {
+      "decision": {
+        "howToEvaluate": [
+          "Anchor the decision to event resolution and thesis validity rather than standard chart-based hold logic."
+        ]
+      }
+    },
     "values": {
       "primaryTradingTimeframe": "1d",
       "holdingStyle": "custom",
@@ -72,6 +110,13 @@
     "label": "Custom Timeframe",
     "description": "No preset assumptions — set timeframe fields manually.",
     "summaryBullets": ["All timeframe fields configured independently."],
+    "aiGuidance": {
+      "shared": {
+        "howToEvaluate": [
+          "Use the explicit timeframe fields and notes as the authority because there is no preset horizon assumption."
+        ]
+      }
+    },
     "values": {}
   }
 ]

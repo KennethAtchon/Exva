@@ -2,6 +2,7 @@ import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { buildStrategyPromptContext } from "../../strategy-prompt-context";
 import type { RuntimeAgentMessage } from "../../ai-runtime/ai-runtime-types";
+import { buildPresetBehaviorGuidance } from "./preset-behavior-guidance";
 
 export interface PromptEnvelope {
   systemPrompt: string;
@@ -38,12 +39,14 @@ export function envelopeToMessages(
   envelope: PromptEnvelope,
   strategyContext: SessionStrategyContext,
 ): RuntimeAgentMessage[] {
-  const { snapshot, prompt: strategyPrompt } = buildStrategyPromptContext(strategyContext);
+  const { prompt: strategyPrompt } = buildStrategyPromptContext(strategyContext);
+  const presetGuidance = buildPresetBehaviorGuidance(strategyContext, envelope.userPayload.phase as PipelinePhase);
 
   const userContent = [
     `<trusted_session_context>\n${strategyPrompt}\n</trusted_session_context>`,
+    presetGuidance.trim() ? `<preset_behavior>\n${presetGuidance}\n</preset_behavior>` : null,
     `<task>\n${JSON.stringify(envelope.userPayload.task, null, 2)}\n</task>`,
-  ].join("\n\n");
+  ].filter((block): block is string => block != null).join("\n\n");
 
   return [
     { role: "system", content: envelope.systemPrompt },

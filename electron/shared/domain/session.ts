@@ -157,6 +157,22 @@ export interface SessionSelectorSettings {
   updatedAt: string;
 }
 
+export interface PresetPhaseAiGuidance {
+  objective?: string;
+  whatToLookFor?: string[];
+  howToEvaluate?: string[];
+  avoid?: string[];
+}
+
+export interface PresetAiGuidance {
+  shared?: PresetPhaseAiGuidance;
+  selector?: PresetPhaseAiGuidance;
+  technical?: PresetPhaseAiGuidance;
+  fundamental?: PresetPhaseAiGuidance;
+  review?: PresetPhaseAiGuidance;
+  decision?: PresetPhaseAiGuidance;
+}
+
 /** Preset shape used by RISK_PRESETS in presets/. */
 export interface RiskPreset {
   id: RiskPresetId;
@@ -164,6 +180,7 @@ export interface RiskPreset {
   description: string;
   summaryBullets: string[];
   values: Partial<Omit<SessionRiskConfig, "sessionId" | "updatedAt">>;
+  aiGuidance?: PresetAiGuidance;
 }
 
 /** Preset shape used by TIMEFRAME_PRESETS in presets/. */
@@ -173,6 +190,7 @@ export interface TimeframePreset {
   description: string;
   summaryBullets: string[];
   values: Partial<Omit<SessionTimeframeConfig, "sessionId" | "updatedAt">>;
+  aiGuidance?: PresetAiGuidance;
 }
 
 /** Preset shape used by RESEARCH_POSTURE_PRESETS in presets/. */
@@ -185,9 +203,10 @@ export interface ResearchPosturePreset {
     posturePresetId: ResearchPosturePresetId;
     discoveryMode: ResearchDiscoveryMode;
     evidenceMode: ResearchEvidenceMode;
-    catalystMode: ResearchCatalystMode;
-    fundamentalStrictness: ResearchFundamentalStrictness;
+      catalystMode: ResearchCatalystMode;
+      fundamentalStrictness: ResearchFundamentalStrictness;
   };
+  aiGuidance?: PresetAiGuidance;
 }
 
 /** Preset shape used by TRADE_RULE_PRESETS in presets/. */
@@ -201,9 +220,10 @@ export interface TradeRulesPreset {
     setupType: SetupType;
     sideBias: StrategySideBias;
     entryStyle: StrategyEntryStyle;
-    exitStyle: StrategyExitStyle;
-    scalingMode: StrategyScalingMode;
+      exitStyle: StrategyExitStyle;
+      scalingMode: StrategyScalingMode;
   };
+  aiGuidance?: PresetAiGuidance;
 }
 
 export interface SessionConfig {

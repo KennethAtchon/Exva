@@ -1,4 +1,5 @@
 import type {
+  PresetAiGuidance,
   ResearchPosturePreset,
   RiskPreset,
   TimeframePreset,
@@ -26,6 +27,7 @@ export interface GlobalStrategyPreset {
   rulesPresetId: TradeRulesPresetId;
   riskPresetId: RiskPresetId;
   timeframePresetId: TimeframePresetId;
+  aiGuidance?: PresetAiGuidance;
 }
 
 // Internal arrays — not exported. Use seed helpers below or query the DB.
@@ -40,6 +42,21 @@ export function builtInGlobalStrategyPresets(): readonly GlobalStrategyPreset[] 
   return _globalStrategyPresets;
 }
 
+export function findBuiltInGlobalStrategyPresetByExactMatch(input: {
+  posturePresetId: GlobalStrategyPreset["posturePresetId"];
+  rulesPresetId: GlobalStrategyPreset["rulesPresetId"];
+  riskPresetId: GlobalStrategyPreset["riskPresetId"];
+  timeframePresetId: GlobalStrategyPreset["timeframePresetId"];
+}): GlobalStrategyPreset | undefined {
+  return _globalStrategyPresets.find(
+    (preset) =>
+      preset.posturePresetId === input.posturePresetId &&
+      preset.rulesPresetId === input.rulesPresetId &&
+      preset.riskPresetId === input.riskPresetId &&
+      preset.timeframePresetId === input.timeframePresetId,
+  );
+}
+
 export function builtInRiskPresets(): readonly RiskPreset[] {
   return _riskPresets;
 }
@@ -50,6 +67,22 @@ export function builtInTimeframePresets(): readonly TimeframePreset[] {
 
 export function builtInResearchPosturePresets(): readonly ResearchPosturePreset[] {
   return _researchPosturePresets;
+}
+
+export function findRiskPresetById(id: RiskPresetId): RiskPreset | undefined {
+  return _riskPresets.find((preset) => preset.id === id);
+}
+
+export function findTimeframePresetById(id: TimeframePresetId): TimeframePreset | undefined {
+  return _timeframePresets.find((preset) => preset.id === id);
+}
+
+export function findResearchPosturePresetById(id: ResearchPosturePresetId): ResearchPosturePreset | undefined {
+  return _researchPosturePresets.find((preset) => preset.id === id);
+}
+
+export function findTradeRulePresetById(id: TradeRulesPresetId): TradeRulesPreset | undefined {
+  return _tradeRulePresets.find((preset) => preset.id === id);
 }
 
 export function builtInTradeRulePresets(): readonly TradeRulesPreset[] {

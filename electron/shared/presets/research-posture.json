@@ -9,6 +9,23 @@
       "Catalysts help but are not mandatory.",
       "Fundamentals only need a sanity check."
     ],
+    "aiGuidance": {
+      "selector": {
+        "whatToLookFor": [
+          "Relative-strength leaders, clean continuation names, and instruments already showing trend persistence.",
+          "Catalysts that strengthen an existing move without requiring a full event-driven thesis."
+        ],
+        "howToEvaluate": [
+          "Lead with price action and structure first, then use narrative as confirmation.",
+          "Reject weak or lagging names even if the story sounds good."
+        ]
+      },
+      "fundamental": {
+        "howToEvaluate": [
+          "Use fundamentals mainly as a sanity check, not as the primary conviction source."
+        ]
+      }
+    },
     "posture": {
       "posturePresetId": "trend_hunt",
       "discoveryMode": "trend_scan",
@@ -27,6 +44,23 @@
       "Catalysts are required, not optional.",
       "Fundamentals only need a quick sanity check."
     ],
+    "aiGuidance": {
+      "selector": {
+        "whatToLookFor": [
+          "Fresh catalysts, breaking news, and event-driven attention with immediate reaction potential.",
+          "Names where the catalyst is concrete and current rather than speculative."
+        ],
+        "howToEvaluate": [
+          "Do not advance ideas without a real catalyst.",
+          "Balance narrative with tape confirmation so the setup is not just story-driven."
+        ]
+      },
+      "fundamental": {
+        "howToEvaluate": [
+          "Keep the fundamental pass light and time-sensitive unless it directly changes the catalyst read."
+        ]
+      }
+    },
     "posture": {
       "posturePresetId": "catalyst_momentum",
       "discoveryMode": "catalyst_scan",
@@ -45,6 +79,23 @@
       "Catalysts are optional unless they strengthen the case.",
       "Fundamental review is deep, not cursory."
     ],
+    "aiGuidance": {
+      "selector": {
+        "whatToLookFor": [
+          "Liquid, high-quality names with credible institutional characteristics and durable narratives.",
+          "Setups that remain sensible beyond short-lived hype."
+        ],
+        "howToEvaluate": [
+          "Require stronger confirmation than usual before elevating a candidate.",
+          "Do not promote low-quality speculation just because it is active."
+        ]
+      },
+      "fundamental": {
+        "howToEvaluate": [
+          "Use deeper business-quality and durability confirmation as part of the decision, not just a light screen."
+        ]
+      }
+    },
     "posture": {
       "posturePresetId": "institutional_quality",
       "discoveryMode": "quality_watchlist",
@@ -63,6 +114,18 @@
       "Catalysts are usually not required.",
       "Fundamentals are a light sanity filter."
     ],
+    "aiGuidance": {
+      "selector": {
+        "whatToLookFor": [
+          "Overextended moves, panic/euphoria, and credible dislocations likely to revert.",
+          "Names showing early signs that exhaustion is turning into stabilization or reversal."
+        ],
+        "howToEvaluate": [
+          "Require reversal confirmation before upgrading conviction.",
+          "Do not mistake strong continuation for a mean-reversion setup."
+        ]
+      }
+    },
     "posture": {
       "posturePresetId": "mean_reversion_dislocation",
       "discoveryMode": "mean_reversion_scan",
@@ -81,6 +144,23 @@
       "Catalysts are required because event flow drives repricing.",
       "Fundamentals are usually not applicable."
     ],
+    "aiGuidance": {
+      "selector": {
+        "whatToLookFor": [
+          "Event contracts, resolution criteria, and incoming evidence that can shift implied odds.",
+          "Current facts that create measurable probability-edge opportunities."
+        ],
+        "howToEvaluate": [
+          "Think in terms of mispriced odds instead of standard equity momentum.",
+          "Require explicit event relevance and catalyst flow before escalating a candidate."
+        ]
+      },
+      "fundamental": {
+        "howToEvaluate": [
+          "Treat traditional fundamentals as mostly irrelevant unless they directly affect resolution odds."
+        ]
+      }
+    },
     "posture": {
       "posturePresetId": "prediction_event_edge",
       "discoveryMode": "event_contract_scan",
@@ -97,6 +177,13 @@
       "No preset assumptions beyond what you set below.",
       "Use style notes to define the edge clearly."
     ],
+    "aiGuidance": {
+      "shared": {
+        "howToEvaluate": [
+          "Lean on the live session notes and explicit field values because no built-in style assumptions should dominate."
+        ]
+      }
+    },
     "posture": {
       "posturePresetId": "custom",
       "discoveryMode": "custom",

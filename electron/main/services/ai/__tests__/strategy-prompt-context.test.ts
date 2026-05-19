@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { buildStrategyPromptContext, prependStrategyContextToUserPrompt } from "../strategy-prompt-context";
+import { buildPromptEnvelope, envelopeToMessages } from "../pipeline-runtime/prompting/prompt-envelope-builder";
 
 function baseContext(): SessionStrategyContext {
   const ts = "2026-05-05T00:00:00.000Z";
@@ -81,6 +82,30 @@ describe("strategy-prompt-context", () => {
     expect(out.prompt).toContain("trend_hunt");
     expect(out.prompt.endsWith("Instrument: AAPL")).toBe(true);
     expect(out.snapshot.rules.setupType).toBe("breakout");
+  });
+
+  it("adds preset-derived behavior guidance to worker messages", () => {
+    const context = baseContext();
+    context.riskConfig.riskPresetId = "moderate";
+    context.timeframe.timeframePresetId = "swing";
+
+    const envelope = buildPromptEnvelope({
+      phase: "selector",
+      workerId: "web-scout",
+      basePromptMarkdown: "# Web scout",
+      task: { selectionInstructions: "Find candidates" },
+      strategyContext: context,
+    });
+
+    const messages = envelopeToMessages(envelope, context);
+    const userMessage = messages[1]?.content ?? "";
+
+    expect(userMessage).toContain("<preset_behavior>");
+    expect(userMessage).toContain("### Global preset: Trend Momentum");
+    expect(userMessage).toContain("### Research posture: Trend Hunt");
+    expect(userMessage).toContain("Relative-strength leaders, clean continuation names");
+    expect(userMessage).not.toContain("Worker focus:");
+    expect(userMessage).not.toContain("Discovery guidance:");
   });
 
 });

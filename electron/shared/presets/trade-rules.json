@@ -8,6 +8,22 @@
       "Trailing exits let winners expand.",
       "Best when momentum and liquidity are clean."
     ],
+    "aiGuidance": {
+      "technical": {
+        "whatToLookFor": [
+          "Clear breakout structure, usable resistance levels, and participation that can support follow-through."
+        ],
+        "howToEvaluate": [
+          "Favor names proving they can clear meaningful levels with momentum and liquidity.",
+          "De-emphasize setups that are already too extended before the breakout confirms."
+        ]
+      },
+      "decision": {
+        "howToEvaluate": [
+          "Prefer decisive continuation setups over ambiguous range-bound names."
+        ]
+      }
+    },
     "rules": {
       "rulesPresetId": "breakout_long",
       "setupType": "breakout",
@@ -26,6 +42,17 @@
       "Pullback entries reduce chasing.",
       "Scaling allows layered participation."
     ],
+    "aiGuidance": {
+      "technical": {
+        "whatToLookFor": [
+          "Established trends that have retraced into cleaner re-entry zones without breaking structure."
+        ],
+        "howToEvaluate": [
+          "Reward controlled pullbacks and continuation confirmation rather than breakout chasing.",
+          "Accept staged participation when the quality is high but the exact turn is uncertain."
+        ]
+      }
+    },
     "rules": {
       "rulesPresetId": "pullback_trend",
       "setupType": "pullback_trend",
@@ -44,6 +71,18 @@
       "Single-shot execution keeps exposure tight.",
       "Best when catalysts and timing are explicit."
     ],
+    "aiGuidance": {
+      "selector": {
+        "howToEvaluate": [
+          "Favor candidates where event timing and trigger windows are explicit, current, and near-term."
+        ]
+      },
+      "decision": {
+        "howToEvaluate": [
+          "Reject stale event ideas or setups that need too much patience for an event-entry expression."
+        ]
+      }
+    },
     "rules": {
       "rulesPresetId": "event_entry",
       "setupType": "event_entry",
@@ -62,6 +101,17 @@
       "Reversal entries demand confirmation.",
       "Scaling helps stage into volatile fades."
     ],
+    "aiGuidance": {
+      "technical": {
+        "whatToLookFor": [
+          "Credible exhaustion, reversal structure, and a path back toward fair value."
+        ],
+        "howToEvaluate": [
+          "Require stronger reversal confirmation than a normal pullback entry.",
+          "Allow staged entries when volatility is high but the reversal thesis is still valid."
+        ]
+      }
+    },
     "rules": {
       "rulesPresetId": "reversal_fade",
       "setupType": "reversal_fade",
@@ -80,6 +130,18 @@
       "Entry waits for quantified edge.",
       "Exits often resolve on thesis or contract outcome."
     ],
+    "aiGuidance": {
+      "selector": {
+        "howToEvaluate": [
+          "Only surface candidates where the evidence can support a real odds-mispricing argument."
+        ]
+      },
+      "decision": {
+        "howToEvaluate": [
+          "Express the final call as a probability-edge judgment, not as a generic technical trade."
+        ]
+      }
+    },
     "rules": {
       "rulesPresetId": "probability_edge",
       "setupType": "probability_edge",
@@ -97,6 +159,13 @@
       "No preset assumptions beyond the current field values.",
       "Use rule notes for setup-specific filters and invalidation."
     ],
+    "aiGuidance": {
+      "shared": {
+        "howToEvaluate": [
+          "Fall back to the explicit rule fields and notes instead of any built-in setup assumptions."
+        ]
+      }
+    },
     "rules": {
       "rulesPresetId": "custom",
       "setupType": "custom",
