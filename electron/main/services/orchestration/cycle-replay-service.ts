@@ -26,6 +26,7 @@ import { OrderPolicyGate } from "./order-policy-gate";
 import type { PolicyGateResult } from "./order-policy-gate";
 import { ExitPolicyEvaluator } from "../risk/exit-policy-evaluator";
 import type { ExitDecision } from "../risk/exit-policy-evaluator";
+import { computeExecutionProfile, priceLevelsFromProfile } from "../ai/engines/execution-profile-engine";
 
 export interface CycleFixture {
   version: 1;
@@ -99,6 +100,13 @@ export interface ReplayResult {
     totalCostUsd: number;
     aiAuthoredSizingFieldCount: number;
   };
+  executionProfile: {
+    positionSizeUsd: number;
+    orderType: "market" | "limit";
+    limitPrice: number | null;
+    stopLossPrice: number | null;
+    takeProfitPrice: number | null;
+  } | null;
   matchesOriginal: {
     riskOutcomeMatches: boolean;
     tradeOpenedMatches: boolean;
@@ -322,8 +330,7 @@ export class CycleReplayService {
       );
     }
 
-    // Decision from current phase id (`decision`) or legacy role id (`decision_maker`).
-    const decisionMsg = [...messages].reverse().find((m) => m.role === "decision" || m.role === "decision_maker");
+    const decisionMsg = [...messages].reverse().find((m) => m.role === "decision");
     let decision: CycleFixture["decision"] = { action: "no_trade", confidence: 0, reasoning: "" };
     if (phaseOutputs.decision) {
       decision = {
@@ -608,6 +615,37 @@ export class CycleReplayRunner {
     const riskOutcomeMatches = replayAllowed === riskOutcome.allowed;
     const tradeOpenedMatches = (trade !== null) === (decision.action === "trade" && riskOutcome.allowed);
 
+    let executionProfile: ReplayResult["executionProfile"] = null;
+    const tradeSignal = phaseOutputs.decision;
+    if (decision.action === "trade" && tradeSignal && tradeSignal.action !== "skip") {
+      const instrumentClass =
+        selectedInstruments.find((i) => i.symbol === tradeSignal.symbol)?.instrumentClass ?? "stock";
+      const profile = computeExecutionProfile({
+        signal: tradeSignal,
+        instrumentClass,
+        maxPositionUsd: strategySnapshot.riskConfig.maxPositionUsd,
+        maxExposureUsd: strategySnapshot.riskConfig.maxExposureUsd ?? null,
+        risk: {
+          stopLossPct: strategySnapshot.riskConfig.stopLossPct,
+          takeProfitPct: strategySnapshot.riskConfig.takeProfitPct,
+          kellyFraction: strategySnapshot.riskConfig.kellyFraction,
+        },
+        reviewRecommendation: phaseOutputs.review?.recommendation,
+      });
+      const levels =
+        profile.limitPrice != null
+          ? priceLevelsFromProfile(profile.side, profile.limitPrice, profile)
+          : { stopLossPrice: null, takeProfitPrice: null };
+
+      executionProfile = {
+        positionSizeUsd: profile.positionSizeUsd,
+        orderType: profile.orderType,
+        limitPrice: profile.limitPrice,
+        stopLossPrice: levels.stopLossPrice,
+        takeProfitPrice: levels.takeProfitPrice,
+      };
+    }
+
     return {
       cycleId,
       candidateValidation: candidateResults,
@@ -619,6 +657,7 @@ export class CycleReplayRunner {
         totalCostUsd: totalFixtureCostUsd(fixture),
         aiAuthoredSizingFieldCount: countLegacyDecisionSizingFields(fixture.agentRuns),
       },
+      executionProfile,
       matchesOriginal: { riskOutcomeMatches, tradeOpenedMatches },
     };
   }
@@ -694,7 +733,7 @@ function totalFixtureCostUsd(fixture: CycleFixture): number {
 function countLegacyDecisionSizingFields(agentRuns: CycleFixture["agentRuns"]): number {
   let count = 0;
   for (const run of agentRuns) {
-    if (run.outputSchemaName !== "tradeSignal" && run.role !== "decision" && run.role !== "decision_maker") continue;
+    if (run.outputSchemaName !== "tradeSignal" && run.role !== "decision") continue;
     if (!run.outputJson) continue;
     const parsed = safeParseJson(run.outputJson);
     if (!parsed || typeof parsed !== "object") continue;

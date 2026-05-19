@@ -17,11 +17,6 @@ const AGENT_PALETTE: Partial<Record<EventSourceType, { color: string; label: str
   review: { color: "#60a5fa", label: "Review", bg: "rgba(96,165,250,0.07)" },
   decision: { color: "#a78bfa", label: "Decision", bg: "rgba(167,139,250,0.07)" },
   selector: { color: "#fbbf24", label: "Universe", bg: "rgba(251,191,36,0.07)" },
-  analyst_technical: { color: "#34d399", label: "Technical", bg: "rgba(52,211,153,0.07)" },
-  analyst_fundamental: { color: "#f87171", label: "Fundamental", bg: "rgba(248,113,113,0.07)" },
-  reviewer:        { color: "#60a5fa", label: "Reviewer",      bg: "rgba(96,165,250,0.07)" },
-  decision_maker:  { color: "#a78bfa", label: "Decision",      bg: "rgba(167,139,250,0.07)" },
-  instrument_selector: { color: "#fbbf24", label: "Universe", bg: "rgba(251,191,36,0.07)" },
 };
 const LEVEL_COLOR: Record<string, string> = { DEBUG: "#374151", INFO: "#60a5fa", WARN: "#fbbf24", ERROR: "#f87171" };
 

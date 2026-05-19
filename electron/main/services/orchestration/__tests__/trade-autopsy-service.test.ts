@@ -6,7 +6,7 @@ describe("trade-autopsy-service", () => {
     const insert = vi.fn();
     const agentMessages = [
       {
-        role: "reviewer",
+        role: "review",
         provider_key: "provider-openai",
         model_id: "gpt-4o-mini",
         output_json: "{\"x\":1}",
@@ -33,7 +33,7 @@ describe("trade-autopsy-service", () => {
   it("falls back to local summary when provider fails", async () => {
     const agentMessages = [
       {
-        role: "analyst_technical",
+        role: "technical",
         provider_key: "provider-anthropic",
         model_id: "claude-sonnet-4-6",
         output_json: null,

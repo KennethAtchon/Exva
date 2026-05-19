@@ -1,14 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import type { ExecutionStrategyType } from "@electron/shared/ai/pipeline-signals";
 import type { StrategySnapshot } from "@/lib/types";
 import { CycleReplayRunner, CycleReplayService } from "../cycle-replay-service";
 import type { CycleFixture } from "../cycle-replay-service";
 import {
   assertCostBelowUsd,
+  assertExecutionProfile,
+  assertSelectorSubmissionRate,
   assertSubmissionFires,
   assertTechnicalSignalHasField,
   assertTradeSignalAction,
+  assertZeroAiAuthoredSizing,
+  expectedExecutionProfile,
 } from "./cycle-replay-acceptance";
 
 const FIXTURES_DIR = path.join(import.meta.dirname, "../__fixtures__/cycle-replay");
@@ -438,5 +443,119 @@ describe("CycleReplayRunner.replay", () => {
     assertTradeSignalAction(result, "buy");
     assertCostBelowUsd(result, 0.3);
     expect(result.scorecard.aiAuthoredSizingFieldCount).toBe(0);
+  });
+
+  it("replays selector retry recovery with exact InstrumentSelection", () => {
+    const fixture = loadFixture("selector-retry-recovery");
+    const result = runner.replay(fixture);
+
+    expect(result.phaseOutputs.selector).toEqual({
+      instruments: [
+        {
+          symbol: "NVDA",
+          instrumentClass: "stock",
+          rationale: "recovered after provider retry",
+        },
+      ],
+    });
+    assertSubmissionFires(result);
+    expect(fixture.phaseTraces.selector?.aggregateStatus).toBe("degraded");
+  });
+
+  it("replays selector malformed terminal output with exact InstrumentSelection", () => {
+    const result = runner.replay(loadFixture("selector-malformed-terminal"));
+
+    expect(result.phaseOutputs.selector).toEqual({
+      instruments: [
+        {
+          symbol: "MSFT",
+          instrumentClass: "stock",
+          rationale: "deterministic submission despite malformed worker output",
+        },
+      ],
+    });
+    assertSubmissionFires(result);
+  });
+
+  it("asserts deterministic execution profile for decision-buy fixture", () => {
+    const fixture = loadFixture("decision-buy");
+    const result = runner.replay(fixture);
+    const decision = fixture.phaseOutputs.decision;
+    if (!decision) throw new Error("decision missing");
+
+    assertExecutionProfile(
+      result,
+      expectedExecutionProfile({
+        strategy: decision.executionStrategy,
+        instrumentClass: "stock",
+        maxPositionUsd: fixture.strategySnapshot.riskConfig.maxPositionUsd,
+        maxExposureUsd: fixture.strategySnapshot.riskConfig.maxExposureUsd,
+        confidence: decision.confidence,
+        kellyFraction: fixture.strategySnapshot.riskConfig.kellyFraction,
+        entryPrice: decision.entryPrice,
+        stopLossPct: fixture.strategySnapshot.riskConfig.stopLossPct,
+        takeProfitPct: fixture.strategySnapshot.riskConfig.takeProfitPct,
+      }),
+    );
+  });
+
+  it("asserts deterministic execution outputs for every execution strategy", () => {
+    const fixture = loadFixture("decision-buy");
+    const baseDecision = fixture.phaseOutputs.decision;
+    if (!baseDecision) throw new Error("decision missing");
+
+    const cases: Array<{
+      strategy: ExecutionStrategyType;
+      instrumentClass: "stock" | "crypto" | "futures";
+    }> = [
+      { strategy: "trend_momentum", instrumentClass: "stock" },
+      { strategy: "breakout", instrumentClass: "stock" },
+      { strategy: "mean_reversion", instrumentClass: "stock" },
+      { strategy: "event_driven", instrumentClass: "stock" },
+      { strategy: "arbitrage", instrumentClass: "crypto" },
+      { strategy: "futures_trend", instrumentClass: "futures" },
+    ];
+
+    for (const { strategy, instrumentClass } of cases) {
+      const replayFixture = {
+        ...fixture,
+        selectedInstruments: [{ symbol: "TEST", instrumentClass, rationale: "execution profile check" }],
+        phaseOutputs: {
+          ...fixture.phaseOutputs,
+          decision: { ...baseDecision, executionStrategy: strategy, symbol: "TEST" },
+        },
+        decision: {
+          ...fixture.decision,
+          symbol: "TEST",
+        },
+      };
+      const result = runner.replay(replayFixture);
+      assertExecutionProfile(
+        result,
+        expectedExecutionProfile({
+          strategy,
+          instrumentClass,
+          maxPositionUsd: fixture.strategySnapshot.riskConfig.maxPositionUsd,
+          maxExposureUsd: fixture.strategySnapshot.riskConfig.maxExposureUsd,
+          confidence: baseDecision.confidence,
+          kellyFraction: fixture.strategySnapshot.riskConfig.kellyFraction,
+          entryPrice: baseDecision.entryPrice,
+          stopLossPct: fixture.strategySnapshot.riskConfig.stopLossPct,
+          takeProfitPct: fixture.strategySnapshot.riskConfig.takeProfitPct,
+        }),
+      );
+    }
+  });
+
+  it("acceptance suite enforces selector submission rate, zero AI sizing, and cost ceilings", () => {
+    const files = fs.readdirSync(FIXTURES_DIR).filter((name) => name.endsWith(".json"));
+    const results = files.map((file) => runner.replay(loadFixture(file.replace(/\.json$/, ""))));
+
+    assertSelectorSubmissionRate(results, 1);
+    assertZeroAiAuthoredSizing(results);
+
+    for (const result of results) {
+      assertCostBelowUsd(result, 0.35);
+    }
   });
 });

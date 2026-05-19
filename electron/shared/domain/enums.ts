@@ -111,11 +111,11 @@ export type WorkspaceViewMode = "session" | "global";
 export type AllocationEnforcement = "hard" | "warn";
 
 export type AgentRole =
-  | "analyst_technical"
-  | "analyst_fundamental"
-  | "reviewer"
-  | "decision_maker"
-  | "instrument_selector";
+  | "selector"
+  | "technical"
+  | "fundamental"
+  | "review"
+  | "decision";
 
 export type PromptSource = "default" | "session_override";
 export type ProviderType = "anthropic" | "openai" | "openrouter";
@@ -124,11 +124,6 @@ export type BrokerMode = "paper" | "live";
 
 export type EventSourceType =
   | AgentRole
-  | "selector"
-  | "technical"
-  | "fundamental"
-  | "review"
-  | "decision"
   | "session"
   | "preflight"
   | "approval"

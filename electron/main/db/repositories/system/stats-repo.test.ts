@@ -14,7 +14,7 @@ describe("StatsRepo", () => {
       id: "run-selector",
       sessionId: session.id,
       tradeId: null,
-      agentType: "instrument_selector",
+      agentType: "selector",
       model: "openai/gpt-4o-mini",
       providerKey: "provider-openrouter",
       finishReason: "stop",
@@ -49,7 +49,7 @@ describe("StatsRepo", () => {
       id: "run-a-selector",
       sessionId: sessionA.id,
       tradeId: null,
-      agentType: "instrument_selector",
+      agentType: "selector",
       costUsd: 0.5,
       createdAt: today,
     });
@@ -57,7 +57,7 @@ describe("StatsRepo", () => {
       id: "run-a-trade",
       sessionId: sessionA.id,
       tradeId: "trade-a",
-      agentType: "analyst_technical",
+      agentType: "technical",
       costUsd: 0.75,
       createdAt: today,
     });
@@ -65,7 +65,7 @@ describe("StatsRepo", () => {
       id: "run-a-history",
       sessionId: sessionA.id,
       tradeId: "trade-a",
-      agentType: "analyst_technical",
+      agentType: "technical",
       costUsd: 0.3,
       createdAt: yesterday,
     });
@@ -73,7 +73,7 @@ describe("StatsRepo", () => {
       id: "run-b-other-session",
       sessionId: sessionB.id,
       tradeId: "trade-b",
-      agentType: "analyst_technical",
+      agentType: "technical",
       costUsd: 2,
       createdAt: today,
     });
@@ -82,8 +82,8 @@ describe("StatsRepo", () => {
 
     expect(breakdown.total).toBeCloseTo(1.25, 6);
     expect(breakdown.by_agent).toMatchObject([
-      { name: "analyst_technical", cost: 0.75 },
-      { name: "instrument_selector", cost: 0.5 },
+      { name: "technical", cost: 0.75 },
+      { name: "selector", cost: 0.5 },
     ]);
     expect(breakdown.by_trade).toMatchObject([{ instrumentSymbol: "NVDA", cost: 0.75 }]);
     expect(breakdown.daily_history).toEqual([
@@ -146,7 +146,7 @@ function insertRun(
     id: string;
     sessionId: string;
     tradeId: string | null;
-    agentType: "analyst_technical" | "instrument_selector";
+    agentType: "technical" | "selector";
     costUsd: number;
     createdAt: string;
   },

@@ -31,7 +31,7 @@ describe("withProviderRetry", () => {
       async () => {
         throw error;
       },
-      { providerType: "openrouter", modelId: "google/gemma-4-31b-it", role: "instrument_selector" },
+      { providerType: "openrouter", modelId: "google/gemma-4-31b-it", role: "selector" },
     );
 
     await expect(promise).rejects.toMatchObject({

@@ -39,9 +39,6 @@ export const CostBreakdownPage = () => {
     review: "#60a5fa",
     decision: "#a78bfa",
     selector: "#fbbf24",
-    analyst_technical: "#34d399", analyst_fundamental: "#f87171",
-    reviewer: "#60a5fa", decision_maker: "#a78bfa",
-    instrument_selector: "#fbbf24",
   };
   const agentMax = Math.max(0.01, ...d.by_agent.map((a) => a.cost));
   const tradeMax = Math.max(0.01, ...d.by_trade.map((t) => t.cost));

@@ -82,7 +82,7 @@ describe("executeRunAgent logging", () => {
     await executeRunAgent({
       model: {} as never,
       modelId: "google/gemma-4-31b-it",
-      role: "instrument_selector",
+      role: "selector",
       messages: [
         { role: "system", content: "System instructions" },
         { role: "user", content: longPrompt },
@@ -96,7 +96,7 @@ describe("executeRunAgent logging", () => {
     const completeEntry = infoSpy.mock.calls.find(([, message]) => message === "execute run agent complete")?.[0];
 
     expect(startEntry).toMatchObject({
-      role: "instrument_selector",
+      role: "selector",
       modelId: "google/gemma-4-31b-it",
       systemPrompt: "System instructions",
       userPrompt: `user: ${longPrompt}`,
@@ -104,7 +104,7 @@ describe("executeRunAgent logging", () => {
     expect(startEntry).not.toHaveProperty("userPromptPreview");
 
     expect(toolEntry).toMatchObject({
-      role: "instrument_selector",
+      role: "selector",
       modelId: "google/gemma-4-31b-it",
       step: 1,
       tool: "get_quote",
@@ -116,7 +116,7 @@ describe("executeRunAgent logging", () => {
     expect(toolEntry.toolResult.detail).toHaveLength(600);
 
     expect(completeEntry).toMatchObject({
-      role: "instrument_selector",
+      role: "selector",
       modelId: "google/gemma-4-31b-it",
       responseText: longResponse,
     });
@@ -165,7 +165,7 @@ describe("executeRunAgent logging", () => {
     await expect(executeRunAgent({
       model: {} as never,
       modelId: "google/gemma-4-31b-it",
-      role: "instrument_selector",
+      role: "selector",
       messages: [
         { role: "system", content: "System instructions" },
         { role: "user", content: "Prompt" },

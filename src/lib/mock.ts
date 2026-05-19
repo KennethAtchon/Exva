@@ -92,7 +92,7 @@ const events: EventRow[] = [
   { id: "e-005", trade_id: null,    level: "WARN",  agent_type: null,              message: "Daily P&L approaching 35% of loss limit — monitoring closely",             created_at: "2026-04-21T09:58:00Z" },
   { id: "e-006", trade_id: "t-001", level: "INFO",  agent_type: "decision",  message: "Trade cycle complete — NVDA BUY opened at $891.20",                       created_at: "2026-04-21T09:14:22Z" },
   { id: "e-007", trade_id: "t-004", level: "INFO",  agent_type: null,              message: "META closed at $594.10 — P&L: +$22.40 (+4.7%)",                           created_at: "2026-04-21T08:55:30Z" },
-  { id: "e-008", trade_id: "t-001", level: "DEBUG", agent_type: "reviewer",        message: "Prompt cache hit — system block reused (saved ~4,200 tokens)",             created_at: "2026-04-21T09:13:48Z" },
+  { id: "e-008", trade_id: "t-001", level: "DEBUG", agent_type: "review",        message: "Prompt cache hit — system block reused (saved ~4,200 tokens)",             created_at: "2026-04-21T09:13:48Z" },
   { id: "e-009", trade_id: "t-005", level: "INFO",  agent_type: null,              message: "MSFT closed at $411.04 — P&L: -$8.40 (stop-loss triggered)",              created_at: "2026-04-21T07:18:44Z" },
   { id: "e-010", trade_id: "t-006", level: "INFO",  agent_type: null,              message: "AMZN closed at $206.38 — P&L: +$19.80 (+4.0%)",                           created_at: "2026-04-21T06:44:10Z" },
   { id: "e-011", trade_id: null,    level: "INFO",  agent_type: null,              message: "Session started — strategy: passive_income",                              created_at: "2026-04-21T05:50:00Z" },

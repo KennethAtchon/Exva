@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "exportedAt": "2026-05-18T12:00:00.000Z",
+  "sessionId": "fixture-session",
+  "cycleId": "selector-retry-recovery",
+  "strategySnapshot": {
+    "version": 5,
+    "researchPosture": {
+      "posturePresetId": "custom",
+      "discoveryMode": "trend_scan",
+      "evidenceMode": "balanced",
+      "catalystMode": "not_required",
+      "fundamentalStrictness": "balanced",
+      "postureNotes": ""
+    },
+    "rules": {
+      "rulesPresetId": "breakout_long",
+      "setupType": "breakout",
+      "sideBias": "long_only",
+      "entryStyle": "breakout",
+      "exitStyle": "fixed_pct",
+      "scalingMode": "single_entry",
+      "tradeRulesMarkdown": "",
+      "ruleNotes": ""
+    },
+    "riskConfig": {
+      "maxPositionUsd": 1000,
+      "stopLossPct": 5,
+      "takeProfitPct": 10,
+      "stopLossType": "fixed_pct",
+      "atrStopMultiplier": null,
+      "kellyFraction": 0.25,
+      "predictionEdgeThreshold": 0.55,
+      "maxExposureUsd": null,
+      "waitForOpenThreshold": 0,
+      "maxConcurrentTrades": 3,
+      "dailyLossLimitUsd": 500,
+      "profitTargetUsd": 2000,
+      "maxAiSpendUsd": 10,
+      "maxDataSpendUsd": 5,
+      "humanApprovalRequired": false
+    },
+    "timeframe": {
+      "primaryTradingTimeframe": "1h",
+      "holdingStyle": "intraday_flat",
+      "targetHoldDays": null,
+      "maxHoldDays": 1,
+      "timeframeNotes": ""
+    }
+  },
+  "selectedInstruments": [
+    {
+      "symbol": "NVDA",
+      "instrumentClass": "stock",
+      "rationale": "recovered after provider retry"
+    }
+  ],
+  "marketData": [
+    {
+      "symbol": "NVDA",
+      "quote": {
+        "instrumentSymbol": "NVDA",
+        "price": 920.15,
+        "bid": 920.0,
+        "ask": 920.3,
+        "spreadPct": 0.03,
+        "volume": 2400000,
+        "timestamp": "2026-05-18T11:30:00.000Z"
+      },
+      "ohlcvBars": [
+        {
+          "ts": "2026-05-18T10:30:00.000Z",
+          "open": 905.0,
+          "high": 922.0,
+          "low": 903.5,
+          "close": 920.15,
+          "volume": 320000
+        }
+      ],
+      "newsHeadlines": [],
+      "redditPosts": []
+    }
+  ],
+  "agentRuns": [],
+  "phaseOutputs": {
+    "selector": {
+      "instruments": [
+        {
+          "symbol": "NVDA",
+          "instrumentClass": "stock",
+          "rationale": "recovered after provider retry"
+        }
+      ]
+    },
+    "technical": null,
+    "fundamental": null,
+    "review": null,
+    "decision": null
+  },
+  "phaseTraces": {
+    "selector": {
+      "version": 1,
+      "sessionId": "fixture-session",
+      "cycleId": "selector-retry-recovery",
+      "tradeId": null,
+      "phase": "selector",
+      "schedulingMode": "dependency_graph",
+      "maxConcurrency": 4,
+      "startedAt": "2026-05-18T11:30:00.000Z",
+      "finishedAt": "2026-05-18T11:30:14.000Z",
+      "durationMs": 14000,
+      "totalCostUsd": 0.11,
+      "totalInputTokens": 1200,
+      "totalOutputTokens": 210,
+      "aggregateStatus": "degraded",
+      "aggregateOutputSchemaName": "instrumentSelection",
+      "aggregateOutputSummary": {
+        "instruments": {
+          "count": 1
+        }
+      },
+      "frontiers": [
+        {
+          "frontier": 0,
+          "workerIds": ["trend-scout", "volume-scout"],
+          "startedAt": "2026-05-18T11:30:00.000Z",
+          "finishedAt": "2026-05-18T11:30:10.000Z",
+          "durationMs": 10000,
+          "costUsd": 0.07,
+          "status": "degraded"
+        }
+      ],
+      "workers": [
+        {
+          "workerId": "trend-scout",
+          "frontier": 0,
+          "dependsOn": [],
+          "requiredForPhase": true,
+          "status": "failed",
+          "startedAt": "2026-05-18T11:30:00.000Z",
+          "finishedAt": "2026-05-18T11:30:04.000Z",
+          "durationMs": 4000,
+          "costUsd": 0.03,
+          "inputTokens": 400,
+          "outputTokens": 0,
+          "providerKey": "openrouter",
+          "modelId": "google/gemma-4-31b-it",
+          "outputSchemaName": "candidateOutput",
+          "outputSummary": null,
+          "toolCallCount": 2,
+          "externalCallCount": 2,
+          "blockedBy": [],
+          "dependencyFailureReason": null,
+          "error": {
+            "code": "PROVIDER_UNREACHABLE",
+            "message": "Provider returned 503 after 3 attempts"
+          },
+          "toolTrace": []
+        },
+        {
+          "workerId": "volume-scout",
+          "frontier": 0,
+          "dependsOn": [],
+          "requiredForPhase": true,
+          "status": "succeeded",
+          "startedAt": "2026-05-18T11:30:05.000Z",
+          "finishedAt": "2026-05-18T11:30:10.000Z",
+          "durationMs": 5000,
+          "costUsd": 0.04,
+          "inputTokens": 500,
+          "outputTokens": 120,
+          "providerKey": "openrouter",
+          "modelId": "google/gemma-4-31b-it",
+          "outputSchemaName": "candidateOutput",
+          "outputSummary": { "candidates": { "count": 1 } },
+          "toolCallCount": 3,
+          "externalCallCount": 3,
+          "blockedBy": [],
+          "dependencyFailureReason": null,
+          "error": null,
+          "toolTrace": []
+        }
+      ]
+    }
+  },
+  "decision": {
+    "action": "no_trade",
+    "confidence": 0.55,
+    "reasoning": "selector recovered after provider retry"
+  },
+  "riskOutcome": {
+    "allowed": true
+  },
+  "trade": null
+}

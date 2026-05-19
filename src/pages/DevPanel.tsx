@@ -118,26 +118,8 @@ function formatJsonPretty(s: string | null | undefined): string {
   return JSON.stringify(parsed, null, 2);
 }
 
-function normalizeRole(role: string): string {
-  switch (role) {
-    case "analyst_technical":
-      return "technical";
-    case "analyst_fundamental":
-      return "fundamental";
-    case "reviewer":
-      return "review";
-    case "decision_maker":
-      return "decision";
-    case "instrument_selector":
-      return "selector";
-    default:
-      return role;
-  }
-}
-
 function roleLabelShort(role: string): string {
-  const normalized = normalizeRole(role);
-  return ROLE_LABELS[normalized] ?? normalized;
+  return ROLE_LABELS[role] ?? role;
 }
 
 function summarizeEventAction(ev: ExtEventRow): string {
@@ -147,7 +129,7 @@ function summarizeEventAction(ev: ExtEventRow): string {
   if (msg.startsWith("[execution]")) return "execution";
   if (msg.toLowerCase().includes("selector")) return "selector";
   if (msg.toLowerCase().includes("trade cycle")) return "cycle";
-  return normalizeRole(ev.agent_type ?? "system");
+  return ev.agent_type ?? "system";
 }
 
 function parsePhaseTrace(message: AgentMessage | null | undefined): PhaseTraceV1 | null {
@@ -654,7 +636,7 @@ const AgentRunsTab = ({ runs, loading }: { runs: ExtAgentRun[]; loading: boolean
       </div>
 
       {runs.map((r) => {
-        const accent = ROLE_COLOR[normalizeRole(r.agent_type)] ?? "var(--text3)";
+        const accent = ROLE_COLOR[r.agent_type] ?? "var(--text3)";
         const copyPayload = JSON.stringify(r, null, 2);
         return (
           <RunCard key={r.id} run={r} accent={accent} copyPayload={copyPayload} />
@@ -763,7 +745,7 @@ const MessageTraceTab = ({ messages, loading }: { messages: AgentMessage[]; load
       {messages.map((m) => {
         const fullPayload = JSON.stringify(m, null, 2);
         return (
-          <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", borderLeft: `2px solid ${ROLE_COLOR[normalizeRole(m.role)] ?? "var(--text3)"}` }}>
+          <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", borderLeft: `2px solid ${ROLE_COLOR[m.role] ?? "var(--text3)"}` }}>
             <div style={{ padding: "8px 12px", background: "var(--surface2)", display: "flex", alignItems: "center", gap: 8 }}>
               <AgentLabel type={m.role as EventSourceType} />
               <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>
@@ -1125,7 +1107,7 @@ export const DevPanel = ({
     if (LEVELS.indexOf(ev.level) < LEVELS.indexOf(minLevel)) return false;
     if (roleFilter !== "all") {
       const agentType = ev.agent_type ?? "";
-      if (normalizeRole(agentType) !== roleFilter) return false;
+      if (agentType !== roleFilter) return false;
     }
     if (search && !ev.message.toLowerCase().includes(search.toLowerCase()) &&
       !(ev.trade_id ?? "").includes(search) &&

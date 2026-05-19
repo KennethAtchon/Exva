@@ -78,11 +78,6 @@ const AGENT_LABEL: Record<string, { label: string; variant: BadgeVariant }> = {
   review: { label: "review", variant: "blue" },
   decision: { label: "decide", variant: "purple" },
   selector: { label: "select", variant: "default" },
-  analyst_technical: { label: "tech", variant: "success" },
-  analyst_fundamental: { label: "fund", variant: "danger" },
-  reviewer: { label: "review", variant: "blue" },
-  decision_maker: { label: "decide", variant: "purple" },
-  instrument_selector: { label: "select", variant: "default" },
 };
 
 export const AgentLabel = ({ type }: { type: EventSourceType }) => {
