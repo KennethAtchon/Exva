@@ -1,0 +1,87 @@
+import { AppError } from "@electron/shared/infra/errors";
+import {
+  CyclePausedError,
+  CycleStageFailedError,
+  type CyclePlan,
+  type CyclePlanRunContext,
+  type CycleStepRunner,
+  type TradeCyclePlanState,
+  type TradePipelineResult,
+} from "./cycle-types";
+import type { CyclePlanServices } from "./cycle-plan-services";
+
+export interface CyclePlanInterpreterRunInput {
+  plan: CyclePlan<TradeCyclePlanState>;
+  sessionId: string;
+  cycleId: string;
+  tradeId: string | null;
+  instrument: CyclePlanRunContext["instrument"];
+  sessionConfig: CyclePlanRunContext["sessionConfig"];
+  instrumentClasses: CyclePlanRunContext["instrumentClasses"];
+  session: CyclePlanRunContext["session"];
+  strategyContext: CyclePlanRunContext["strategyContext"];
+  toolContext: CyclePlanRunContext["toolContext"];
+  services: CyclePlanServices;
+  runPhase: CyclePlanRunContext["runPhase"];
+  runStep?: CycleStepRunner;
+  seedState?: Partial<TradeCyclePlanState>;
+  lastStageId?: string;
+}
+
+export class CyclePlanInterpreter {
+  async run(input: CyclePlanInterpreterRunInput): Promise<TradePipelineResult> {
+    const ctx: CyclePlanRunContext = {
+      cyclePlanId: input.plan.id,
+      sessionId: input.sessionId,
+      cycleId: input.cycleId,
+      tradeId: input.tradeId,
+      session: input.session,
+      instrument: input.instrument,
+      sessionConfig: input.sessionConfig,
+      instrumentClasses: input.instrumentClasses,
+      strategyContext: input.strategyContext,
+      toolContext: input.toolContext,
+      services: input.services,
+      runPhase: input.runPhase,
+    };
+
+    let state = input.plan.initialState(ctx, input.seedState);
+
+    for (const stage of input.plan.stages) {
+      const execute = () => stage.execute(ctx, state);
+
+      try {
+        if (stage.executionStage && input.runStep) {
+          state = (await input.runStep(stage.executionStage, execute)) as TradeCyclePlanState;
+        } else {
+          state = await execute();
+        }
+      } catch (error) {
+        if (isCycleControlError(error)) throw error;
+        if (stage.required) {
+          throw error instanceof Error ? error : new AppError(String(error), "UNKNOWN");
+        }
+      }
+
+      if (input.lastStageId && stage.id === input.lastStageId) break;
+    }
+
+    return {
+      state,
+      totalAiCostUsd: sumAiCost(state),
+    };
+  }
+}
+
+function sumAiCost(state: TradeCyclePlanState): number {
+  const runs = [state.technical, state.fundamental, state.review, state.decision].filter(Boolean);
+  return Number(
+    runs.reduce((sum, result) => sum + (result?.run.cost_usd ?? 0), 0).toFixed(6),
+  );
+}
+
+function isCycleControlError(error: unknown): error is CyclePausedError | CycleStageFailedError {
+  return error instanceof Error && (error.name === "CyclePausedError" || error.name === "CycleStageFailedError");
+}
+
+export { CyclePausedError, CycleStageFailedError } from "./cycle-types";

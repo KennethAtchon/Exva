@@ -33,6 +33,12 @@ import {
 import { PhasePlanInterpreter } from "../plan/phase-plan-interpreter";
 import { requirePhasePlan } from "../plan/phase-plan-registry";
 import type { PhasePlanServices } from "../plan/phase-plan-services";
+import { CyclePlanInterpreter } from "../plan/cycle-plan-interpreter";
+import { requireCyclePlan } from "../plan/cycle-plan-registry";
+import type { CyclePlanServices } from "../plan/cycle-plan-services";
+import type { CycleStepRunner, TradeCycleInstrument, TradeCyclePlanState, TradePipelineResult } from "../plan/cycle-types";
+import type { SessionConfig } from "@/lib/types";
+import type { InstrumentClass } from "@/lib/types";
 
 const logger = createLogger("pipeline-runtime");
 
@@ -49,6 +55,7 @@ export interface PipelineRuntimeDeps {
   brokerRouting?: BrokerRoutingService;
   brokerRegistry?: BrokerRegistry;
   planServices?: PhasePlanServices | null;
+  cyclePlanServices?: CyclePlanServices | null;
 }
 
 export interface RunPhaseOptions<TInput = Record<string, unknown>> {
@@ -65,6 +72,7 @@ export interface RunPhaseOptions<TInput = Record<string, unknown>> {
 export class PipelineRuntime {
   private readonly cycleSpendUsd = new Map<string, number>();
   private readonly planInterpreter = new PhasePlanInterpreter();
+  private readonly cyclePlanInterpreter = new CyclePlanInterpreter();
 
   constructor(private readonly deps: PipelineRuntimeDeps) {}
 
@@ -73,10 +81,72 @@ export class PipelineRuntime {
     if (this.deps.planServices) {
       this.deps.planServices.strategyContextService = strategyContextService;
     }
+    if (this.deps.cyclePlanServices) {
+      this.deps.cyclePlanServices.strategyContextService = strategyContextService;
+    }
   }
 
   setPlanServices(planServices: PhasePlanServices): void {
     this.deps.planServices = planServices;
+  }
+
+  setCyclePlanServices(cyclePlanServices: CyclePlanServices): void {
+    this.deps.cyclePlanServices = cyclePlanServices;
+  }
+
+  async runCycle(
+    cyclePlanId: string,
+    opts: {
+      sessionId: string;
+      cycleId: string;
+      tradeId?: string | null;
+      instrument: TradeCycleInstrument;
+      sessionConfig: SessionConfig;
+      instrumentClasses: InstrumentClass[];
+      seedState?: Partial<TradeCyclePlanState>;
+      runStep?: CycleStepRunner;
+      lastStageId?: string;
+    },
+  ): Promise<TradePipelineResult> {
+    const plan = requireCyclePlan(cyclePlanId);
+    if (!this.deps.cyclePlanServices) {
+      throw new AppError(`Cycle plan services are not configured for '${cyclePlanId}'.`, "UNKNOWN");
+    }
+
+    const strategyContext = this.requireStrategyContextService().get(opts.sessionId);
+    const toolContext = await buildToolContext(this.deps, {
+      sessionId: opts.sessionId,
+      cycleId: opts.cycleId,
+      tradeId: opts.tradeId ?? null,
+      strategyContext,
+    });
+    const session = this.deps.sessionRepo.requireById(opts.sessionId);
+
+    return this.cyclePlanInterpreter.run({
+      plan: plan as import("../plan/cycle-types").CyclePlan<TradeCyclePlanState>,
+      sessionId: opts.sessionId,
+      cycleId: opts.cycleId,
+      tradeId: opts.tradeId ?? null,
+      instrument: opts.instrument,
+      sessionConfig: opts.sessionConfig,
+      instrumentClasses: opts.instrumentClasses,
+      session,
+      strategyContext,
+      toolContext,
+      services: this.deps.cyclePlanServices,
+      seedState: opts.seedState,
+      runStep: opts.runStep,
+      lastStageId: opts.lastStageId,
+      runPhase: (phase, input) =>
+        this.run({
+          phase,
+          sessionId: opts.sessionId,
+          input,
+          cycleId: opts.cycleId,
+          tradeId: opts.tradeId ?? null,
+          toolContext,
+        }),
+    });
   }
 
   resolveEffectiveConfig(sessionId: string, pipelineId = DEFAULT_PIPELINE_ID): EffectivePipelineConfig {

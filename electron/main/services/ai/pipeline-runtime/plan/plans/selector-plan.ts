@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { InstrumentSelection } from "@/lib/schemas";
-import { candidateSchema, selectorEvidenceSchema, type SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
+import { selectorEvidenceSchema, type SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
+import { candidateOutputSchema, verificationOutputSchema } from "./selector-schemas";
 import { DEFAULT_SCORING_WEIGHTS } from "@electron/shared/ai/pipeline-config";
 import { AppError } from "@electron/shared/infra/errors";
 import type { AgentResult } from "../../../ai-runtime/ai-runtime-types";
@@ -13,31 +14,6 @@ import { selectorDiscoveryWorkersForMode } from "../../pipeline-discovery-config
 import { assembleAggregateTrace } from "../../execution/trace-assembler";
 import type { PhasePlan, PhasePlanRunContext, PhasePlanWorkerTrace } from "../types";
 import { buildManualShortlistSelection, isManualSelectorMode } from "../input-builders/manual-shortlist";
-
-export const candidateOutputSchema = z.object({
-  candidates: z.array(
-    candidateSchema.pick({
-      symbol: true,
-      instrumentClass: true,
-      instrumentDisplayName: true,
-      source: true,
-      hypeScore: true,
-      volumeScore: true,
-      catalystScore: true,
-      liquidityScore: true,
-      catalystSummary: true,
-      riskFlags: true,
-      rationale: true,
-    }),
-  ).max(6),
-});
-
-export const verificationOutputSchema = z.object({
-  candidate: candidateSchema.partial().extend({
-    symbol: z.string().min(1),
-    instrumentClass: candidateSchema.shape.instrumentClass,
-  }),
-});
 
 type DiscoveryOutput = z.infer<typeof candidateOutputSchema>;
 type VerificationOutput = z.infer<typeof verificationOutputSchema>;

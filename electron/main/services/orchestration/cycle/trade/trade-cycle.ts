@@ -1,29 +1,16 @@
 import { AppError } from "@electron/shared/infra/errors";
-import { CandidateValidationService } from "../../policy/candidate-validation-service";
-import { OrderPolicyGate } from "../../policy/order-policy-gate";
+import { runEngineBinding } from "../../../ai/pipeline-runtime/execution/engine-context-runner";
 import type { OrchestratorContext } from "../orchestrator-context";
+import { enqueueCycleTask, runOrchestratorStep } from "../orchestrator-step";
 import type { ResolvedInstrument, TradeCycleContext } from "../types";
-import { sumAiPipelineCost } from "../utils";
-import { runAiPipeline } from "./ai-pipeline";
 import { waitForApproval } from "./approval-flow";
 import { placeRoutedOrder } from "./order-placer";
+import { applyTradePipelineToContext, runTradePipeline } from "./run-trade-pipeline";
 import { createTradeFromDecision } from "./trade-record-builder";
 
-export function enqueueTradeCycleRetry(
-  ctx: OrchestratorContext,
-  context: TradeCycleContext,
-  execute: () => Promise<void>,
-): void {
-  if (!ctx.runtimeIsActive()) return;
-  ctx.enqueueTask(execute, (error) => {
-    ctx.emitEvent(
-      "ERROR",
-      null,
-      `Scheduled trade-step retry failed: ${error instanceof Error ? error.message : String(error)}`,
-      "orchestrator",
-      context.cycleId,
-    );
-  });
+function tradeCycleRetry(ctx: OrchestratorContext, context: TradeCycleContext): () => void {
+  return () =>
+    enqueueCycleTask(ctx, context.cycleId, "Scheduled trade-step retry failed", () => executeTradeCycle(ctx, context));
 }
 
 export async function executeTradeCycle(ctx: OrchestratorContext, context: TradeCycleContext): Promise<void> {
@@ -35,65 +22,27 @@ export async function executeTradeCycle(ctx: OrchestratorContext, context: Trade
   );
 
   const config = ctx.getSessionConfig();
-  const stepRunner = ctx.getStepRunner(context.cycleId);
-  const retry = () => enqueueTradeCycleRetry(ctx, context, () => executeTradeCycle(ctx, context));
+  const retry = tradeCycleRetry(ctx, context);
 
-  const candidateResult = await stepRunner.run(
-    "candidate_validation",
-    async () => {
-      const { adapter } = await ctx.deps.brokerRouting.resolveAdapter(ctx.sessionId, context.instrument.instrumentClass);
-      const wireSymbol = ctx.deps.instrumentNormalizer.toBrokerSymbol({
-        symbol: context.instrument.symbol,
-        instrumentClass: context.instrument.instrumentClass,
-        brokerType: adapter.brokerType,
-      });
-      const quoteSnapshot = await adapter.getMarketSnapshot(wireSymbol);
-      const strategy = ctx.deps.strategyContextService.get(ctx.sessionId);
-      const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
-      const sessionInstrumentClasses = ctx.getEffectiveInstrumentClasses(session);
-      const cvResult = new CandidateValidationService().validate({
-        sessionId: ctx.sessionId,
-        cycleId: context.cycleId,
-        instrument: {
-          symbol: context.instrument.symbol,
-          instrumentClass: context.instrument.instrumentClass,
-          selectorEvidence: context.instrument.selectorEvidence ?? null,
-        },
-        sessionInstrumentClasses,
-        sideBias: strategy.rules.sideBias,
-        holdingStyle: strategy.timeframe.holdingStyle,
-        selectorTrace: context.instrument.selectorTraces ?? [],
-        quoteSnapshot,
-      });
-      if (!cvResult.allowed) {
-        throw new AppError(`Candidate validation failed: ${cvResult.reasons.join("; ")}`, "VALIDATION_FAILED");
-      }
-      return quoteSnapshot;
-    },
-    { onRetry: retry },
-  );
-  if (await ctx.pauseIfRequested(context.cycleId)) return;
-  if (!candidateResult.ok) {
-    ctx.emitEvent(
-      "WARN",
-      null,
-      `[candidate-validation] ${context.instrument.symbol}: ${candidateResult.errorMessage}`,
-      "orchestrator",
-      context.cycleId,
-    );
-    return;
-  }
-  const latestQuote = candidateResult.value;
-
-  const pipeline = await runAiPipeline(ctx, context, config, stepRunner, retry);
+  const pipeline = await runTradePipeline(ctx, context, retry);
   if (!pipeline) return;
-  if (await ctx.pauseIfRequested(context.cycleId)) return;
 
-  const { technical, fundamental, review, decision } = pipeline;
-  const totalAiCostUsd = sumAiPipelineCost(pipeline);
+  applyTradePipelineToContext(context, pipeline);
+  const latestQuote = pipeline.state.quoteSnapshot;
+  const { technical, fundamental, review, decision } = pipeline.state;
+  if (!technical || !fundamental || !review || !decision) {
+    throw new AppError("Internal error: trade pipeline returned incomplete AI results.", "VALIDATION_FAILED");
+  }
 
   if (!context.trade) {
-    const trade = createTradeFromDecision(ctx, context.instrument, config, decision.output, totalAiCostUsd, review.output.recommendation);
+    const trade = createTradeFromDecision(
+      ctx,
+      context.instrument,
+      config,
+      decision.output,
+      pipeline.totalAiCostUsd,
+      review.output.recommendation,
+    );
     ctx.deps.tradesRepo.insert(trade);
     for (const result of [technical, fundamental, review, decision]) {
       ctx.deps.agentRunsRepo.insert({ ...result.run, session_id: ctx.sessionId, trade_id: trade.id });
@@ -109,84 +58,20 @@ export async function executeTradeCycle(ctx: OrchestratorContext, context: Trade
     return;
   }
 
-  if (!context.riskOrder) {
-    const { riskConfig, timeframe } = ctx.deps.strategyContextService.get(ctx.sessionId);
-    const riskResult = await stepRunner.run(
-      "risk_gate",
-      async () => {
-        const stats = ctx.deps.statsRepo.dashboardStats(
-          ctx.sessionId,
-          ctx.deps.sessionRepo.getStatus(ctx.sessionId),
-          ctx.totalAllocatedUsd(),
-          ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
-          config.max_api_spend_usd,
-        );
-        const risk = ctx.deps.riskEngine.validateDecision({
-          config,
-          stats,
-          holdingStyle: timeframe.holdingStyle,
-          order: {
-            instrumentSymbol: trade.instrumentSymbol,
-            instrumentDisplayName: trade.instrumentDisplayName ?? null,
-            predictionOutcome: trade.predictionOutcome ?? null,
-            instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
-            instrumentType: context.instrument.instrumentClass,
-            side: trade.side,
-            sizeUsd: trade.position_size_usd,
-          },
-          confidence: trade.confidence_score ?? 0,
-          riskPolicy: {
-            waitForOpenThreshold: riskConfig.waitForOpenThreshold,
-            maxExposureUsd: context.instrument.instrumentClass === "prediction_market" ? riskConfig.maxExposureUsd : null,
-          },
-        });
-        if (!risk.allowed || !risk.value) {
-          throw new AppError(risk.reason ?? "Trade rejected by risk engine", "VALIDATION_FAILED");
-        }
-        return risk.value;
-      },
-      { onRetry: retry },
-    );
-    if (await ctx.pauseIfRequested(context.cycleId)) return;
-    if (!riskResult.ok) {
-      ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-      ctx.handleStepFailure("risk_gate", context.cycleId, riskResult, trade.id);
-      return;
-    }
-    context.riskOrder = riskResult.value;
-  }
-
-  const riskOrder = context.riskOrder;
+  const riskOrder = context.riskOrder ?? pipeline.state.riskOrder;
   if (!riskOrder) {
-    throw new AppError("Internal error: riskOrder missing after risk gate", "VALIDATION_FAILED");
+    throw new AppError("Internal error: riskOrder missing after trade pipeline", "VALIDATION_FAILED");
   }
+  context.riskOrder = riskOrder;
 
-  const brokerAccountId = ctx.resolveBrokerAccountId(context.instrument.instrumentClass);
+  const brokerAccountId = pipeline.state.brokerAccountId ?? ctx.resolveBrokerAccountId(context.instrument.instrumentClass);
   if (trade.brokerAccountId !== brokerAccountId) {
     ctx.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId });
   }
 
-  const allocationResult = ctx.deps.brokerAllocationGate.checkOrderFits(brokerAccountId, ctx.sessionId, riskOrder.sizeUsd);
-  if (!allocationResult.ok) {
-    ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-    ctx.emitEvent("WARN", trade.id, allocationResult.reason, "orchestrator", context.cycleId);
-    ctx.deps.bus.emit("trade_closed", ctx.deps.tradesRepo.require(trade.id));
-    return;
-  }
-  if (allocationResult.warning === "over_allocated") {
+  const allocation = pipeline.state.brokerAllocation?.allocation;
+  if (allocation?.warning === "over_allocated") {
     ctx.emitEvent("WARN", trade.id, "Order exceeds allocation (warn-only mode); proceeding.", "orchestrator", context.cycleId);
-  }
-
-  const conflictResult = ctx.deps.brokerAllocationGate.checkInstrumentConflict(
-    brokerAccountId,
-    context.instrument.symbol,
-    ctx.sessionId,
-  );
-  if (!conflictResult.ok) {
-    ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-    ctx.emitEvent("WARN", trade.id, conflictResult.reason, "orchestrator", context.cycleId);
-    ctx.deps.bus.emit("trade_closed", ctx.deps.tradesRepo.require(trade.id));
-    return;
   }
 
   let approvalIdForCapital: string | null = null;
@@ -210,9 +95,12 @@ export async function executeTradeCycle(ctx: OrchestratorContext, context: Trade
     });
   }
 
-  const brokerResult = await stepRunner.run(
-    "broker_order",
-    async () => {
+  const brokerStep = await runOrchestratorStep(ctx, {
+    cycleId: context.cycleId,
+    stage: "broker_order",
+    onRetry: retry,
+    tradeId: trade.id,
+    run: async () => {
       const clientOrderId = `${context.cycleId}:${trade.id}`;
       const strategy = ctx.deps.strategyContextService.get(ctx.sessionId);
       const { adapter, brokerAccountId: resolvedBrokerAccountId } = await ctx.deps.brokerRouting.resolveAdapter(
@@ -244,30 +132,38 @@ export async function executeTradeCycle(ctx: OrchestratorContext, context: Trade
         ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
         config.max_api_spend_usd,
       );
-      const policyResult = new OrderPolicyGate().evaluate({
+      const policyResult = runEngineBinding<{ allowed: boolean; reason?: string }>({
+        phase: "decision",
         sessionId: ctx.sessionId,
         cycleId: context.cycleId,
-        tradeId: trade.id,
-        brokerAccountId: resolvedBrokerAccountId,
-        existingOrderCheck: (orderId, accountId) => ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
-        sessionIsPaused: () => !ctx.runtimeIsActive(),
-        decisionRiskInput: {
-          config,
-          stats: freshStats,
-          order: riskOrder,
-          confidence: trade.confidence_score ?? 0,
-          quoteSnapshot: latestQuote ?? undefined,
-          placementQuoteSnapshot: placementQuote,
-          side: trade.side,
-          holdingStyle: strategy.timeframe.holdingStyle,
-          exitPolicy: {
-            stopLossPct: strategy.riskConfig.stopLossPct,
-            atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
-            takeProfitPct: strategy.riskConfig.takeProfitPct,
-            maxHoldDays: strategy.timeframe.maxHoldDays,
+        strategyContext: strategy,
+        bindings: [],
+        binding: { engine: "order-policy", kind: "policy", mode: "read" },
+        task: {
+          sessionId: ctx.sessionId,
+          cycleId: context.cycleId,
+          tradeId: trade.id,
+          brokerAccountId: resolvedBrokerAccountId,
+          existingOrderCheck: (orderId: string, accountId: string) => ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
+          sessionIsPaused: () => !ctx.runtimeIsActive(),
+          decisionRiskInput: {
+            config,
+            stats: freshStats,
+            order: riskOrder,
+            confidence: trade.confidence_score ?? 0,
+            quoteSnapshot: latestQuote ?? undefined,
+            placementQuoteSnapshot: placementQuote,
+            side: trade.side,
+            holdingStyle: strategy.timeframe.holdingStyle,
+            exitPolicy: {
+              stopLossPct: strategy.riskConfig.stopLossPct,
+              atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
+              takeProfitPct: strategy.riskConfig.takeProfitPct,
+              maxHoldDays: strategy.timeframe.maxHoldDays,
+            },
+            strategyRules: { sideBias: strategy.rules.sideBias },
+            brokerSupportsClass,
           },
-          strategyRules: { sideBias: strategy.rules.sideBias },
-          brokerSupportsClass,
         },
       });
       if (!policyResult.allowed) {
@@ -282,22 +178,20 @@ export async function executeTradeCycle(ctx: OrchestratorContext, context: Trade
       }
       return placed;
     },
-    { onRetry: retry },
-  );
-  if (await ctx.pauseIfRequested(context.cycleId)) return;
-  if (!brokerResult.ok) {
+  });
+  if (brokerStep.status === "paused") return;
+  if (brokerStep.status === "failed") {
     if (!config.human_approval_required) {
       ctx.deps.capitalReservation.releaseOnFailure(trade.id);
     } else if (approvalIdForCapital) {
       ctx.deps.capitalReservation.releaseByApproval(approvalIdForCapital);
     }
     ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-    ctx.handleStepFailure("broker_order", context.cycleId, brokerResult, trade.id);
     ctx.deps.bus.emit("trade_closed", ctx.deps.tradesRepo.require(trade.id));
     return;
   }
 
-  const opened = ctx.deps.tradesRepo.markOpen(trade.id, brokerResult.value.brokerOrderId, brokerResult.value.filledAvgPrice);
+  const opened = ctx.deps.tradesRepo.markOpen(trade.id, brokerStep.value.brokerOrderId, brokerStep.value.filledAvgPrice);
   if (approvalIdForCapital) {
     ctx.deps.capitalReservation.convertApprovalToOpenOrder(approvalIdForCapital, trade.id);
   }

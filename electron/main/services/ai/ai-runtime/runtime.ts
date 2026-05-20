@@ -21,6 +21,14 @@ import { PipelineRuntime } from "../pipeline-runtime/core/pipeline-runtime";
 import { PhaseConfigResolver } from "../pipeline-runtime/phase-config-resolver";
 import type { PhasePlanRunResult } from "../pipeline-runtime/plan/types";
 import type { PhasePlanServices } from "../pipeline-runtime/plan/phase-plan-services";
+import type { CyclePlanServices } from "../pipeline-runtime/plan/cycle-plan-services";
+import type {
+  CycleStepRunner,
+  TradeCycleInstrument,
+  TradeCyclePlanState,
+  TradePipelineResult,
+} from "../pipeline-runtime/plan/cycle-types";
+import type { SessionConfig, InstrumentClass } from "@/lib/types";
 import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
 
 export class AiRuntime {
@@ -39,6 +47,9 @@ export class AiRuntime {
     brokerRegistry?: BrokerRegistry,
     strategyContextService?: SessionStrategyContextService,
     planServices?: Omit<PhasePlanServices, "strategyContextService" | "brokerRouting"> & {
+      brokerRouting?: BrokerRoutingService;
+    } | null,
+    cyclePlanServices?: Omit<CyclePlanServices, "strategyContextService" | "brokerRouting"> & {
       brokerRouting?: BrokerRoutingService;
     } | null,
   ) {
@@ -60,6 +71,14 @@ export class AiRuntime {
       this.pipelineRuntime.setPlanServices({
         ...planServices,
         brokerRouting: planServices.brokerRouting,
+        strategyContextService,
+      });
+    }
+
+    if (brokerRouting && strategyContextService && cyclePlanServices?.brokerRouting) {
+      this.pipelineRuntime.setCyclePlanServices({
+        ...cyclePlanServices,
+        brokerRouting: cyclePlanServices.brokerRouting,
         strategyContextService,
       });
     }
@@ -85,6 +104,24 @@ export class AiRuntime {
   ): Promise<PhasePlanRunResult<TOutput>> {
     if (!sessionId) throw new AppError("Session id is required for phase plan execution", "VALIDATION_FAILED");
     return this.pipelineRuntime.runPhasePlan<TOutput>({ phase, sessionId, input, cycleId });
+  }
+
+  async runCycle(
+    cyclePlanId: string,
+    opts: {
+      sessionId: string;
+      cycleId: string;
+      tradeId?: string | null;
+      instrument: TradeCycleInstrument;
+      sessionConfig: SessionConfig;
+      instrumentClasses: InstrumentClass[];
+      seedState?: Partial<TradeCyclePlanState>;
+      runStep?: CycleStepRunner;
+      lastStageId?: string;
+    },
+  ): Promise<TradePipelineResult> {
+    if (!opts.sessionId) throw new AppError("Session id is required for cycle execution", "VALIDATION_FAILED");
+    return this.pipelineRuntime.runCycle(cyclePlanId, opts);
   }
 
   async runPhase<TInput, TOutput>(

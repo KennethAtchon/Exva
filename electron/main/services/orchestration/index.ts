@@ -1,8 +1,10 @@
 export { AgentOrchestrator, type ResolvedInstrument } from "./cycle/agent-orchestrator";
 export { ExecutionStepRunner, type StepResult } from "./cycle/execution-step-runner";
-export { ResearchBurstService } from "./cycle/research-burst-service";
 export { MarketHoursService, type BurstInstrument } from "./cycle/market-hours-service";
-export { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./cycle/selector-definition-hash";
+export {
+  buildSelectorDefinitionFingerprint,
+  hashSelectorDefinition,
+} from "../ai/pipeline-runtime/plan/cache/selector-instrument-cache";
 export { CandidateValidationService, type ToolStepTrace } from "./policy/candidate-validation-service";
 export { OrderPolicyGate } from "./policy/order-policy-gate";
 export { TradeMonitor } from "./lifecycle/trade-monitor";

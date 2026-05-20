@@ -101,14 +101,14 @@ The architecture review correctly warned against big-bang refactors. Phase 2’s
 
 | Concern | Old owner | New owner | Still duplicated? |
 |---------|-----------|-----------|-------------------|
-| Input instructions | orchestration | `input-builders/` | Yes — also built in `SelectorPhaseRunner` before `runPhase` |
-| Cache | orchestration | `selector/cache/` | Yes — fingerprint still in `orchestration/selector-definition-hash.ts` |
-| Manual shortlist | orchestration branch | `manual-shortlist-builder` | Yes — branch logic in `isManualSelectorMode()` + runner |
-| Worker pipeline | `SELECTOR_PHASE.run()` | unchanged | Yes — Phase 2 didn’t touch it |
-| Agent run persistence | orchestration | `SelectorPhaseRunner` | Moved, but only for selector |
-| Scheduling type mapping | orchestration | `instrument-resolver.ts` | Still orchestration-specific |
+| Input instructions | orchestration | `plan/input-builders/` | Consolidated in `PhasePlanInterpreter` |
+| Cache | orchestration | `plan/cache/selector-instrument-cache.ts` | Fingerprint colocated with cache policy |
+| Manual shortlist | orchestration branch | `plan/input-builders/manual-shortlist.ts` | Entry mode in phase plan |
+| Worker pipeline | `SELECTOR_PHASE.run()` | `plan/plans/selector-plan.ts` | Consolidated |
+| Agent run persistence | orchestration | `PhasePlanInterpreter` | Generic for plan-backed phases |
+| Scheduling type mapping | orchestration | `instrument-resolver.ts` | Still orchestration-specific (intentional) |
 
-Migration moved **lines of code** without collapsing **concepts**. Selector behavior is now spread across `pipeline-runtime/selector/`, `definitions/selector.phase.ts`, `pipeline-discovery-config.ts`, `orchestration/cycle/selector/`, and `AiRuntime` — five locations for one product phase.
+Migration moved **lines of code** without collapsing **concepts** (historical). Post-consolidation, selector behavior lives in `plan/`, `definitions/selector.phase.ts`, `pipeline-discovery-config.ts`, and `orchestration/cycle/selector/` (scheduling adapter only).
 
 ---
 
@@ -259,7 +259,7 @@ Before Phase 3, declare: **no new `*PhaseRunner` classes, no new `run*()` method
 ### Collapse duplicate config sources
 
 - Delete or wire `SELECTOR_PHASE_CONFIG.variants` — single source in worker catalog
-- Move `selector-definition-hash.ts` under `pipeline-runtime/cache/` (shared fingerprint builders)
+- Move fingerprint builders into `plan/cache/` (done — `selector-instrument-cache.ts`)
 - Route selector finalizers through engine bindings; delete direct imports from `selector.phase.ts`
 
 ### Make effective config honest
@@ -268,10 +268,10 @@ Either effective config is generated **from the plan interpreter** or it should 
 
 ---
 
-## Bottom Line
+## Bottom Line (historical → resolved)
 
-Selector has so many custom configurations because **we are migrating toward a configuration-based architecture using procedural, phase-specific implementations** — and each migration step adds a new procedural layer rather than extending the generic one.
+Selector had so many custom configurations because **we were migrating toward a configuration-based architecture using procedural, phase-specific implementations** — and each migration step added a new procedural layer rather than extending the generic one.
 
-The folder structure (`pipeline-runtime/selector/`) looks like progress. Functionally, it is **selector’s third custom orchestrator** (after orchestration’s old resolver and `SELECTOR_PHASE.run()`), with a fourth declarative config that mostly documents intent.
+The interim `pipeline-runtime/selector/` folder looked like progress but was **selector’s third custom orchestrator**. That folder is now removed; **`PhasePlanInterpreter`** is the generic orchestrator, with selector registered as `SELECTOR_PLAN`.
 
-Until `PipelineRuntime` owns input resolution, cache, entry modes, multi-frontier graphs, and finalizers **for any phase**, every phase that needs those capabilities will get its own folder, runner, and config constant. Selector is just the first one far enough down that path to make the pattern visible.
+Remaining debt: selector finalizers still call engines directly (Phase 4 incomplete for selector), and trade phases still use custom `run()` hooks instead of phase plans.

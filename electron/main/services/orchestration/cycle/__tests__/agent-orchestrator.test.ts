@@ -4,6 +4,7 @@ import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instru
 import { registerDefaultPhasePlans } from "../../../ai/pipeline-runtime/plan/register-default-plans";
 import { buildCompositeInput } from "../../../ai/pipeline-runtime/plan/input-builder-registry";
 import { AgentOrchestrator } from "../agent-orchestrator";
+import * as runSelectorModule from "../selector/run-selector";
 
 registerDefaultPhasePlans();
 
@@ -57,7 +58,7 @@ describe("AgentOrchestrator", () => {
     const deps = createDeps({ noInstrumentRetryMinutes: 5 });
     const orchestrator = new AgentOrchestrator("session-1", deps as never);
     vi.spyOn(orchestrator as never as { getSessionConfig: () => SessionConfig }, "getSessionConfig").mockReturnValue(baseConfig());
-    vi.spyOn(orchestrator as never as { runResearchBurst: () => Promise<unknown> }, "runResearchBurst").mockRejectedValue(
+    vi.spyOn(runSelectorModule, "runSelector").mockRejectedValue(
       Object.assign(new Error("selector provider unavailable"), { statusCode: 503 }),
     );
 
@@ -78,8 +79,8 @@ describe("AgentOrchestrator", () => {
       orchestrator as never as { handleResolvedInstruments: (rows: unknown[], context: string) => void },
       "handleResolvedInstruments",
     ).mockImplementation(() => undefined);
-    const runResearchBurst = vi
-      .spyOn(orchestrator as never as { runResearchBurst: () => Promise<unknown> }, "runResearchBurst")
+    const runSelector = vi
+      .spyOn(runSelectorModule, "runSelector")
       .mockRejectedValueOnce(Object.assign(new Error("selector provider unavailable"), { statusCode: 503 }))
       .mockResolvedValueOnce([{ symbol: "AAPL", instrumentClass: "stock" }]);
 
@@ -90,7 +91,7 @@ describe("AgentOrchestrator", () => {
     await Promise.resolve();
 
     expect(retryResult).toEqual({ ok: true });
-    expect(runResearchBurst).toHaveBeenCalledTimes(2);
+    expect(runSelector).toHaveBeenCalledTimes(2);
     expect(deps.sessionExecutionStepsRepo.get("session-1", failedStep.cycleId, "selector")).toMatchObject({ status: "succeeded" });
     await orchestrator.stop();
   });

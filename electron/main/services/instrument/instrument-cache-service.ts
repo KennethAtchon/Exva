@@ -1,6 +1,9 @@
 import type { WorkspaceSession } from "@/lib/types";
 import type { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
-import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "../orchestration/cycle/selector-definition-hash";
+import {
+  buildSelectorDefinitionFingerprint,
+  hashSelectorDefinition,
+} from "../ai/pipeline-runtime/plan/cache/selector-instrument-cache";
 import type { OrchestratorDeps } from "../session/session-types";
 
 export type InstrumentCacheView = {

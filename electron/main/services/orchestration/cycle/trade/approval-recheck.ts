@@ -1,11 +1,10 @@
 import type { ApprovalRecheckInput } from "../../../session";
 import type { InstrumentClass } from "@/lib/types";
-import { OrderPolicyGate } from "../../policy/order-policy-gate";
+import { runEngineBinding } from "../../../ai/pipeline-runtime/execution/engine-context-runner";
 import type { OrchestratorContext } from "../orchestrator-context";
 import type { TradeCycleContext } from "../types";
-import { sumAiPipelineCost } from "../utils";
-import { runAiPipeline } from "./ai-pipeline";
-import { enqueueTradeCycleRetry, executeTradeCycle } from "./trade-cycle";
+import { enqueueCycleTask } from "../orchestrator-step";
+import { executeTradeCycle } from "./trade-cycle";
 import { failRecheck } from "./approval-flow";
 import { placeRoutedOrder } from "./order-placer";
 import { buildTradeFromDecision } from "./trade-record-builder";
@@ -39,19 +38,28 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
     },
   };
   ctx.cycleContexts.set(cycleId, context);
-  const pipeline = await runAiPipeline(ctx, context, config, ctx.getStepRunner(cycleId), () =>
-    enqueueTradeCycleRetry(ctx, context, () => executeTradeCycle(ctx, context)),
-  );
-  if (!pipeline) return;
 
-  const { technical, fundamental, review, decision } = pipeline;
-  const totalAiCostUsd = sumAiPipelineCost(pipeline);
+  const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
+  const pipeline = await ctx.deps.ai.runCycle("default-trade-cycle", {
+    sessionId: ctx.sessionId,
+    cycleId,
+    tradeId: trade.id,
+    instrument: context.instrument,
+    sessionConfig: config,
+    instrumentClasses: ctx.getEffectiveInstrumentClasses(session),
+    lastStageId: "decision",
+  });
+  const { technical, fundamental, review, decision } = pipeline.state;
+  if (!technical || !fundamental || !review || !decision) {
+    failRecheck(ctx, trade.id, approval.id, "Fresh AI pipeline did not complete.");
+    return;
+  }
 
   for (const result of [technical, fundamental, review, decision]) {
     ctx.deps.agentRunsRepo.insert({ ...result.run, session_id: ctx.sessionId, trade_id: trade.id });
     ctx.deps.agentMessagesRepo.insert({ ...result.message, session_id: ctx.sessionId, trade_id: trade.id });
   }
-  ctx.deps.tradesRepo.patchAiCost(trade.id, totalAiCostUsd);
+  ctx.deps.tradesRepo.patchAiCost(trade.id, pipeline.totalAiCostUsd);
 
   const fresh = decision.output;
   if (fresh.action === "skip") {
@@ -71,7 +79,7 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
     },
     config,
     fresh,
-    totalAiCostUsd,
+    pipeline.totalAiCostUsd,
     review.output.recommendation,
   );
   ctx.deps.tradesRepo.patchPendingExecution(trade.id, {
@@ -137,28 +145,36 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
 
   const recheckClientOrderId = `${cycleId}:${trade.id}`;
   const strategy = ctx.deps.strategyContextService.get(ctx.sessionId);
-  const recheckPolicy = new OrderPolicyGate().evaluate({
+  const recheckPolicy = runEngineBinding<{ allowed: boolean; reason?: string }>({
+    phase: "decision",
     sessionId: ctx.sessionId,
     cycleId,
-    tradeId: trade.id,
-    brokerAccountId: recheckBrokerAccountId,
-    existingOrderCheck: (orderId, accountId) => ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
-    sessionIsPaused: () => !ctx.runtimeIsActive(),
-    decisionRiskInput: {
-      config,
-      stats,
-      order: risk.value,
-      confidence: updated.confidence_score ?? 0,
-      side: updated.side,
-      holdingStyle: strategy.timeframe.holdingStyle,
-      exitPolicy: {
-        stopLossPct: strategy.riskConfig.stopLossPct,
-        atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
-        takeProfitPct: strategy.riskConfig.takeProfitPct,
-        maxHoldDays: strategy.timeframe.maxHoldDays,
+    strategyContext: strategy,
+    bindings: [],
+    binding: { engine: "order-policy", kind: "policy", mode: "read" },
+    task: {
+      sessionId: ctx.sessionId,
+      cycleId,
+      tradeId: trade.id,
+      brokerAccountId: recheckBrokerAccountId,
+      existingOrderCheck: (orderId: string, accountId: string) => ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
+      sessionIsPaused: () => !ctx.runtimeIsActive(),
+      decisionRiskInput: {
+        config,
+        stats,
+        order: risk.value,
+        confidence: updated.confidence_score ?? 0,
+        side: updated.side,
+        holdingStyle: strategy.timeframe.holdingStyle,
+        exitPolicy: {
+          stopLossPct: strategy.riskConfig.stopLossPct,
+          atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
+          takeProfitPct: strategy.riskConfig.takeProfitPct,
+          maxHoldDays: strategy.timeframe.maxHoldDays,
+        },
+        strategyRules: { sideBias: strategy.rules.sideBias },
+        brokerSupportsClass: true,
       },
-      strategyRules: { sideBias: strategy.rules.sideBias },
-      brokerSupportsClass: true,
     },
   });
   if (!recheckPolicy.allowed) {

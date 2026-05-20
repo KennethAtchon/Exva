@@ -1,11 +1,10 @@
 import type { ExecutionStage, SessionConfig, WorkspaceSession } from "@/lib/types";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
 import { OrchestratorContext } from "./orchestrator-context";
-import { resolveInstruments } from "./selector/instrument-resolver";
-import { ResearchBurstService } from "./research-burst-service";
-import { executeSelectorCycle } from "./selector/selector-cycle";
+import { runPhaseCycle } from "./orchestrator-step";
 import { handleResolvedInstruments } from "./scheduling/instrument-queue";
 import { attachTradeClosedListener, detachTradeClosedListener } from "./scheduling/trade-closed-handler";
+import { runSelector } from "./selector/run-selector";
 import { hasApprovalCallback, resolveApproval } from "./trade/approval-flow";
 import { runApprovalRecheck } from "./trade/approval-recheck";
 import { executeTradeCycle, runTradeCycle } from "./trade/trade-cycle";
@@ -146,27 +145,28 @@ export class AgentOrchestrator {
     return resolveApproval(this.ctx, tradeId, approved);
   }
 
-  async resolveInstrumentsForBurst(
-    session: WorkspaceSession,
-    config: SessionConfig,
-    cycleId?: string,
-  ): Promise<ResolvedInstrument[]> {
-    return resolveInstruments(this.ctx, session, config, cycleId);
-  }
-
-  /** Used by {@link ResearchBurstService} and trade scheduling. */
+  /** Used by trade scheduling. */
   runTradeCycle(instrument: ResolvedInstrument): Promise<void> {
     return runTradeCycle(this.ctx, instrument);
   }
 
   private async executeSelectorCycle(context: SelectorCycleContext): Promise<void> {
-    return executeSelectorCycle(
-      this.ctx,
+    return runPhaseCycle(this.ctx, {
       context,
-      (instruments, label) => this.handleResolvedInstruments(instruments, label),
-      () => this.getSessionConfig(),
-      (session, config, cycleId) => this.runResearchBurst(session, config, cycleId),
-    );
+      stage: "selector",
+      prepare: () => {
+        this.ctx.queue.concurrency = this.getSessionConfig().max_concurrent_trades;
+      },
+      run: () => {
+        const session = this.ctx.deps.sessionRepo.requireById(this.sessionId);
+        return runSelector(this.ctx, session, this.getSessionConfig(), context.cycleId);
+      },
+      retryCycle: () => this.executeSelectorCycle(context),
+      retryErrorLabel: "Scheduled selector retry failed",
+      busEvents: { phase: "selector" },
+      completePayload: (instruments) => ({ instrumentCount: instruments.length }),
+      onSuccess: (instruments) => this.handleResolvedInstruments(instruments, context.label),
+    });
   }
 
   private scheduleSelectorCycle(label: string): Promise<void> {
@@ -182,11 +182,6 @@ export class AgentOrchestrator {
       scheduleSelectorCycle: () => this.scheduleSelectorCycle("Scheduled selector retry complete"),
       enqueueTradeCycle: (instrument) => runTradeCycle(this.ctx, instrument),
     });
-  }
-
-  /** @internal Visible to orchestrator unit tests. */
-  private async runResearchBurst(session: WorkspaceSession, config: SessionConfig, cycleId?: string): Promise<ResolvedInstrument[]> {
-    return new ResearchBurstService(this).resolve(session, config, cycleId);
   }
 
   /** @internal Visible to orchestrator unit tests. */

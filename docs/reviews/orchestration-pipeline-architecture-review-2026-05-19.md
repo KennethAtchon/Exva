@@ -5,7 +5,7 @@
 > **Audience:** Exva engineering
 > **Goal:** Identify ownership leaks and move the AI/trading mechanism toward a configuration-based architecture that makes new phases, workers, tools, engines, and execution policies easy to onboard.
 
-> **Implementation status:** Phase 1 foundation and Phase 2 selector plan migration implemented on 2026-05-19. Selector runs via generic `PhasePlanInterpreter` with shared input-builder, cache-policy, and phase-plan registries. Phase 3/5 remain separate follow-up work.
+> **Implementation status:** Phase 1 foundation, Phase 2 selector plan migration, and Phase 3 trade cycle plan implemented on 2026-05-19. Phase 5 remains separate follow-up work.
 
 ---
 
@@ -440,10 +440,17 @@ Implemented files:
 
 ### Phase 3: Replace `runAiPipeline()` With a Configured Trade Cycle
 
-- [ ] Add `AiRuntime.runCycle()` or `PipelineRuntime.runCycle()`.
-- [ ] Model technical/fundamental/review/decision as configured stages.
-- [ ] Add configured `candidate_validation`, `execution_profile`, `risk_gate`, and `order_policy` engine stages.
-- [ ] Return a typed `TradePipelineResult` that contains the decision and prevalidated execution profile.
+- [x] Add `AiRuntime.runCycle()` or `PipelineRuntime.runCycle()`.
+- [x] Model technical/fundamental/review/decision as configured stages.
+- [x] Add configured `candidate_validation`, `execution_profile`, `risk_gate`, and `order_policy` engine stages.
+- [x] Return a typed `TradePipelineResult` that contains the decision and prevalidated execution profile.
+
+Implemented files:
+
+- `electron/main/services/ai/pipeline-runtime/plan/cycle-plan-interpreter.ts`
+- `electron/main/services/ai/pipeline-runtime/plan/plans/default-trade-cycle.ts`
+- `electron/main/services/ai/ai-runtime/runtime.ts` (`runCycle`)
+- `electron/main/services/orchestration/cycle/trade/run-trade-pipeline.ts`
 
 ### Phase 4: Make Engines Authoritative
 
@@ -471,9 +478,9 @@ Implemented files:
 
 | Move | From | To |
 |------|------|----|
-| Selector instructions | `orchestration/cycle/selector/selection-instructions.ts` | `ai/pipeline-runtime/selector/input-builders/selector-scope-input.ts` |
-| Selector cache/fingerprint policy | `orchestration/cycle/selector/instrument-resolver.ts` | `ai/pipeline-runtime/selector/cache/selector-cache-policy.ts` |
-| Manual shortlist parsing | `orchestration/cycle/selector/manual-shortlist.ts` | `ai/pipeline-runtime/selector/input-builders/manual-shortlist-builder.ts` |
+| Selector instructions | `orchestration/cycle/selector/selection-instructions.ts` | `plan/input-builders/selector-scope.ts` |
+| Selector cache/fingerprint policy | `orchestration/cycle/selector/instrument-resolver.ts` | `plan/cache/selector-instrument-cache.ts` |
+| Manual shortlist parsing | `orchestration/cycle/selector/manual-shortlist.ts` | `plan/input-builders/manual-shortlist.ts` |
 | Prediction-market candidate prefeed | `orchestration/cycle/selector/prediction-market-candidates.ts` | `ai/engines/selector/prediction-market-candidate-engine.ts` |
 | AI phase order | `orchestration/cycle/trade/ai-pipeline.ts` | configured `default-trade-cycle` |
 | Candidate validation | `orchestration/policy/candidate-validation-service.ts` direct call | `candidate-validator` policy engine stage |
