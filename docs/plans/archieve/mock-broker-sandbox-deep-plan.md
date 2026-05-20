@@ -12,7 +12,7 @@
 
 Exva's mock broker currently provides a hollow facade: prices bounce randomly with `Date.now()`, OHLCV bars show a constant declining drift with no volume, news routes to the real search provider (or errors out), and the AI is never told it is operating in a simulated environment. The result is that running a session against the mock broker does not tell you whether the AI pipeline works correctly. It tells you that the code paths execute without crashing — nothing more.
 
-The goal of this plan is to make mock-broker runs *production-equivalent test runs*. After this work, a developer can start a mock session and observe: (a) the AI calling `get_quote` and receiving believable prices, (b) the AI calling `get_ohlcv` and receiving structured bar history with realistic volatility, (c) the AI calling `get_news` and receiving injected mock headlines, (d) the AI being explicitly told it is in a sandbox and should behave accordingly, and (e) all four AI roles — selector, analyst, reviewer, decision maker — producing outputs that reflect the mock data rather than ignoring it.
+The goal of this plan is to make mock-broker runs _production-equivalent test runs_. After this work, a developer can start a mock session and observe: (a) the AI calling `get_quote` and receiving believable prices, (b) the AI calling `get_ohlcv` and receiving structured bar history with realistic volatility, (c) the AI calling `get_news` and receiving injected mock headlines, (d) the AI being explicitly told it is in a sandbox and should behave accordingly, and (e) all four AI roles — selector, analyst, reviewer, decision maker — producing outputs that reflect the mock data rather than ignoring it.
 
 The core difficulty is that the mock data layer and the prompt construction layer are completely decoupled; neither knows the other exists. Adding sandbox awareness requires threading a single boolean (`isMock`) from the session/broker-registry level down into both the market-data path and the prompt-pack-builder path. The data realism work is self-contained inside the mock adapter and `market-tools.ts`. Together these are two distinct implementation tracks that can be done independently and merged.
 
@@ -25,7 +25,10 @@ The core difficulty is that the mock data layer and the prompt construction laye
 `MockBrokerAdapter.priceFor()` computes:
 
 ```ts
-const seed = [...instrumentSymbol].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+const seed = [...instrumentSymbol].reduce(
+  (sum, char) => sum + char.charCodeAt(0),
+  0,
+);
 return Number((75 + (seed % 250) + (Date.now() % 1000) / 1000).toFixed(2));
 ```
 
@@ -33,7 +36,7 @@ return Number((75 + (seed % 250) + (Date.now() % 1000) / 1000).toFixed(2));
 
 ### 2.2 OHLCV is a fabricated declining series
 
-`buildSyntheticBars()` in `market-tools.ts` generates 30 bars from spot price, applying a constant *backward* drift:
+`buildSyntheticBars()` in `market-tools.ts` generates 30 bars from spot price, applying a constant _backward_ drift:
 
 ```ts
 const drift = (29 - i) * 0.0015;
@@ -51,7 +54,7 @@ const adapter = await deps.searchRegistry.get(deps.searchProviderId);
 return adapter.search(sanitizeSearchQuery(`${symbol} latest market news`));
 ```
 
-When a session is configured with the mock broker but no real search provider, `searchProviderId` is `null` and `get_news` returns `{ error: "Search provider not configured for news tool." }`. When a real search provider *is* configured, `get_news` calls out to the live internet — which means mock runs spend real money and make real external requests, and also means the AI receives real news that may contradict the mock price scenario.
+When a session is configured with the mock broker but no real search provider, `searchProviderId` is `null` and `get_news` returns `{ error: "Search provider not configured for news tool." }`. When a real search provider _is_ configured, `get_news` calls out to the live internet — which means mock runs spend real money and make real external requests, and also means the AI receives real news that may contradict the mock price scenario.
 
 ### 2.4 AI is never told it is in a sandbox
 
@@ -67,33 +70,33 @@ There is no way to instruct the mock adapter to simulate a bull run, a flash cra
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Deterministic, coherent mock prices | `get_quote` returns the same price for the same symbol within a session; price is plausible (not sub-$1 or $300+ for most tickers) |
-| 2 | Realistic OHLCV bars | 30-day bar series has volatility, non-null volume, and reflects a configurable scenario (trending up, down, sideways, volatile) |
-| 3 | Injected mock news | `get_news` returns structured mock headlines relevant to the symbol without calling the live internet |
-| 4 | Sandbox-aware prompts | System prompt tells the AI it is in a sandbox with mock data, so it should still evaluate the data as if real |
-| 5 | No production code paths changed | Real broker sessions are unaffected; sandbox injection fires only when the broker is mock |
+| #   | Goal                                | Success Looks Like                                                                                                                 |
+| --- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Deterministic, coherent mock prices | `get_quote` returns the same price for the same symbol within a session; price is plausible (not sub-$1 or $300+ for most tickers) |
+| 2   | Realistic OHLCV bars                | 30-day bar series has volatility, non-null volume, and reflects a configurable scenario (trending up, down, sideways, volatile)    |
+| 3   | Injected mock news                  | `get_news` returns structured mock headlines relevant to the symbol without calling the live internet                              |
+| 4   | Sandbox-aware prompts               | System prompt tells the AI it is in a sandbox with mock data, so it should still evaluate the data as if real                      |
+| 5   | No production code paths changed    | Real broker sessions are unaffected; sandbox injection fires only when the broker is mock                                          |
 
 **Non-Goals**
 
-| # | Non-Goal | Why It Is Out Of Scope |
-|---|----------|------------------------|
-| 1 | Real market data replay / historical backtesting | Different problem; requires data ingestion infra and a replay clock |
-| 2 | Per-instrument custom price fixtures | A scenario-level config is enough; per-symbol overrides add complexity for little testing value |
-| 3 | Stateful price simulation (prices move between ticks) | Static seeded prices are sufficient for single-cycle test validation |
-| 4 | Mock search provider implementation | Mock news is injected at the tool level, not through a search adapter |
-| 5 | UI changes for scenario configuration | Config lives in the session record or an environment variable; no UI work in scope |
+| #   | Non-Goal                                              | Why It Is Out Of Scope                                                                          |
+| --- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| 1   | Real market data replay / historical backtesting      | Different problem; requires data ingestion infra and a replay clock                             |
+| 2   | Per-instrument custom price fixtures                  | A scenario-level config is enough; per-symbol overrides add complexity for little testing value |
+| 3   | Stateful price simulation (prices move between ticks) | Static seeded prices are sufficient for single-cycle test validation                            |
+| 4   | Mock search provider implementation                   | Mock news is injected at the tool level, not through a search adapter                           |
+| 5   | UI changes for scenario configuration                 | Config lives in the session record or an environment variable; no UI work in scope              |
 
 **Invariants**
 
-| # | Invariant | Why It Must Hold |
-|---|-----------|------------------|
-| 1 | `MockBrokerAdapter` remains stateless between sessions | It is constructed fresh per session; shared state would cause test interference |
-| 2 | Real broker adapters are not touched | Any change to `BrokerAdapter` interface must be backward compatible |
-| 3 | `market-tools.ts` does not import from mock-adapter directly | The mock data path must flow through the existing adapter interface, not bypass it |
-| 4 | Prompt construction remains role-agnostic | `AgentPromptPackBuilder` must not contain broker-type branching logic; sandbox injection is a parameter, not a hardcoded condition |
-| 5 | AI tool contracts (`get_quote`, `get_ohlcv`, `get_news`) return the same schema in mock and production | The AI prompt documents these schemas; the mock must honour them |
+| #   | Invariant                                                                                              | Why It Must Hold                                                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `MockBrokerAdapter` remains stateless between sessions                                                 | It is constructed fresh per session; shared state would cause test interference                                                    |
+| 2   | Real broker adapters are not touched                                                                   | Any change to `BrokerAdapter` interface must be backward compatible                                                                |
+| 3   | `market-tools.ts` does not import from mock-adapter directly                                           | The mock data path must flow through the existing adapter interface, not bypass it                                                 |
+| 4   | Prompt construction remains role-agnostic                                                              | `AgentPromptPackBuilder` must not contain broker-type branching logic; sandbox injection is a parameter, not a hardcoded condition |
+| 5   | AI tool contracts (`get_quote`, `get_ohlcv`, `get_news`) return the same schema in mock and production | The AI prompt documents these schemas; the mock must honour them                                                                   |
 
 ---
 
@@ -115,16 +118,16 @@ AgentOrchestrator
 
 Key files:
 
-| File | Purpose |
-|------|---------|
-| `electron/main/services/broker/adapters/mock-adapter.ts` | Mock broker: price, order, positions |
-| `electron/main/services/ai/tools/market-tools.ts` | Harness tool implementations; `buildSyntheticBars()` lives here |
-| `electron/main/services/ai/ai-runtime/harness-tools.ts` | Assembles `ToolSet` from availability flags; calls `createMarketTools` |
-| `electron/main/services/ai/prompt-pack-builder.ts` | Builds system + user prompts; `renderSystemPrompt()` has no sandbox awareness |
-| `electron/main/services/ai/ai-runtime/runtime.ts` | `AiRuntime` — calls `buildPromptPack`, then `adapter.runAgent()` |
-| `electron/main/services/ai/ai-runtime/runtime-prompt.ts` | Resolves prompt asset per role |
-| `electron/main/services/broker/broker-registry.ts` | Returns `BrokerAdapter` by account ID |
-| `electron/main/services/broker/broker-routing-service.ts` | Maps session + instrument class → broker account ID |
+| File                                                      | Purpose                                                                       |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `electron/main/services/broker/adapters/mock-adapter.ts`  | Mock broker: price, order, positions                                          |
+| `electron/main/services/ai/tools/market-tools.ts`         | Harness tool implementations; `buildSyntheticBars()` lives here               |
+| `electron/main/services/ai/ai-runtime/harness-tools.ts`   | Assembles `ToolSet` from availability flags; calls `createMarketTools`        |
+| `electron/main/services/ai/prompt-pack-builder.ts`        | Builds system + user prompts; `renderSystemPrompt()` has no sandbox awareness |
+| `electron/main/services/ai/ai-runtime/runtime.ts`         | `AiRuntime` — calls `buildPromptPack`, then `adapter.runAgent()`              |
+| `electron/main/services/ai/ai-runtime/runtime-prompt.ts`  | Resolves prompt asset per role                                                |
+| `electron/main/services/broker/broker-registry.ts`        | Returns `BrokerAdapter` by account ID                                         |
+| `electron/main/services/broker/broker-routing-service.ts` | Maps session + instrument class → broker account ID                           |
 
 ### 4.2 Data / State Model
 
@@ -177,14 +180,14 @@ AgentPromptPackBuilder.build()
 
 ### 4.4 Pain Points and Root Causes
 
-| Pain Point | Root Cause |
-|------------|-----------|
-| Price changes between tool calls | `Date.now() % 1000` injected into every `priceFor()` call |
-| OHLCV has no volatility | `buildSyntheticBars` uses a linear drift formula with no noise |
-| Volume always null | Volume never computed; not part of `getMarketSnapshot` return |
-| News calls live internet | No mock news path in `get_news`; falls through to real search adapter |
-| AI doesn't know it's in sandbox | No prompt injection point for broker-type context |
-| No scenario control | `MockBrokerAdapter` has no configuration surface |
+| Pain Point                       | Root Cause                                                            |
+| -------------------------------- | --------------------------------------------------------------------- |
+| Price changes between tool calls | `Date.now() % 1000` injected into every `priceFor()` call             |
+| OHLCV has no volatility          | `buildSyntheticBars` uses a linear drift formula with no noise        |
+| Volume always null               | Volume never computed; not part of `getMarketSnapshot` return         |
+| News calls live internet         | No mock news path in `get_news`; falls through to real search adapter |
+| AI doesn't know it's in sandbox  | No prompt injection point for broker-type context                     |
+| No scenario control              | `MockBrokerAdapter` has no configuration surface                      |
 
 ---
 
@@ -219,9 +222,9 @@ MockBrokerAdapter
 export type MockScenarioBias = "bullish" | "bearish" | "sideways" | "volatile";
 
 export interface MockScenario {
-  bias?: MockScenarioBias;      // default "sideways"
-  volatilityPct?: number;       // daily std dev as fraction of price, default 0.015
-  trendPctPerDay?: number;      // signed drift per day, default derived from bias
+  bias?: MockScenarioBias; // default "sideways"
+  volatilityPct?: number; // daily std dev as fraction of price, default 0.015
+  trendPctPerDay?: number; // signed drift per day, default derived from bias
 }
 ```
 
@@ -266,29 +269,29 @@ Do NOT mention that data is synthetic in your analysis — treat it as real mark
 
 ### 5.5 What Gets Deleted / Changed
 
-| Item | Change |
-|------|--------|
-| `priceFor()` in mock adapter | Remove `Date.now()` term; use pure char-code seed |
-| `buildSyntheticBars()` in `market-tools.ts` | Replace with `ScenarioBarGenerator` with realistic noise and scenario bias |
-| `get_news` fallback path | Add `mockNewsData` short-circuit before search call |
-| `renderSystemPrompt()` in `prompt-pack-builder.ts` | Accept `sandboxMode?: boolean`; inject sandbox block |
-| `buildHarnessToolSet()` in `harness-tools.ts` | Accept `mockNewsData` and forward to `createMarketTools` |
-| `AiRuntime` | Detect mock session; pass `sandboxMode` and `mockNewsData` to downstream callers |
+| Item                                               | Change                                                                           |
+| -------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `priceFor()` in mock adapter                       | Remove `Date.now()` term; use pure char-code seed                                |
+| `buildSyntheticBars()` in `market-tools.ts`        | Replace with `ScenarioBarGenerator` with realistic noise and scenario bias       |
+| `get_news` fallback path                           | Add `mockNewsData` short-circuit before search call                              |
+| `renderSystemPrompt()` in `prompt-pack-builder.ts` | Accept `sandboxMode?: boolean`; inject sandbox block                             |
+| `buildHarnessToolSet()` in `harness-tools.ts`      | Accept `mockNewsData` and forward to `createMarketTools`                         |
+| `AiRuntime`                                        | Detect mock session; pass `sandboxMode` and `mockNewsData` to downstream callers |
 
 ---
 
 ## 6. Gap Analysis
 
-| Area | Current State | Target State | Required Change |
-|------|---------------|--------------|-----------------|
-| Price determinism | `Date.now() % 1000` noise | Pure char-code seed | Remove `Date.now()` from `priceFor()` |
-| Price range | 75–325 USD range for everything | Symbol-class-aware base prices | Add class-aware base price lookup |
-| OHLCV quality | Linear decline, null volume | Scenario-biased bars with noise + volume | Replace `buildSyntheticBars` |
-| OHLCV source | Called from `market-tools.ts` generic path | Mock adapter can serve its own OHLCV | Add `getMockOhlcv()` to mock adapter; call conditionally from market tools |
-| News source | Live search or error | Injected mock headlines | Thread `mockNewsData` into `get_news` handler |
-| Prompt sandbox context | None | Sandbox block in system prompt | Add `sandboxMode` param to `renderSystemPrompt` |
-| Mock detection | No detection | `isMockSession()` in AiRuntime | Check broker type via registry |
-| Scenario config | None | `MockScenario` on adapter constructor | Add scenario param and wire from session config |
+| Area                   | Current State                              | Target State                             | Required Change                                                            |
+| ---------------------- | ------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------------------- |
+| Price determinism      | `Date.now() % 1000` noise                  | Pure char-code seed                      | Remove `Date.now()` from `priceFor()`                                      |
+| Price range            | 75–325 USD range for everything            | Symbol-class-aware base prices           | Add class-aware base price lookup                                          |
+| OHLCV quality          | Linear decline, null volume                | Scenario-biased bars with noise + volume | Replace `buildSyntheticBars`                                               |
+| OHLCV source           | Called from `market-tools.ts` generic path | Mock adapter can serve its own OHLCV     | Add `getMockOhlcv()` to mock adapter; call conditionally from market tools |
+| News source            | Live search or error                       | Injected mock headlines                  | Thread `mockNewsData` into `get_news` handler                              |
+| Prompt sandbox context | None                                       | Sandbox block in system prompt           | Add `sandboxMode` param to `renderSystemPrompt`                            |
+| Mock detection         | No detection                               | `isMockSession()` in AiRuntime           | Check broker type via registry                                             |
+| Scenario config        | None                                       | `MockScenario` on adapter constructor    | Add scenario param and wire from session config                            |
 
 **Hard gaps:**
 
@@ -306,15 +309,15 @@ Do NOT mention that data is synthetic in your analysis — treat it as real mark
 
 Fix only `priceFor()` (remove `Date.now()`), improve `buildSyntheticBars` slightly, and return a hardcoded news string for mock sessions. No sandbox prompt injection, no scenario config.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Build complexity | Low — 2 files |
-| Migration risk | None |
-| Runtime risk | None |
-| Reversibility | Trivial |
-| Team fit | Easy |
-| Testability | Improves price determinism; OHLCV still poor; news still wrong |
-| Maintainability | No new abstractions to maintain |
+| Dimension        | Assessment                                                     |
+| ---------------- | -------------------------------------------------------------- |
+| Build complexity | Low — 2 files                                                  |
+| Migration risk   | None                                                           |
+| Runtime risk     | None                                                           |
+| Reversibility    | Trivial                                                        |
+| Team fit         | Easy                                                           |
+| Testability      | Improves price determinism; OHLCV still poor; news still wrong |
+| Maintainability  | No new abstractions to maintain                                |
 
 **Verdict:** Solves the most acute bug (price non-determinism) but leaves OHLCV and news broken, and leaves AI prompt context wrong. Testing value remains limited.
 
@@ -322,29 +325,29 @@ Fix only `priceFor()` (remove `Date.now()`), improve `buildSyntheticBars` slight
 
 Fix all five defects: price seeding, OHLCV realism, mock news injection, sandbox prompt context, and optional scenario config. Thread `isMock` detection from `AiRuntime` outward to both the market tools and the prompt builder.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Build complexity | Medium — 6 files touched, one new type |
-| Migration risk | None — additive changes; real sessions unaffected |
-| Runtime risk | Low — conditional on `isMock` flag; all existing paths preserved |
-| Reversibility | Full — `isMock` flag can be removed cleanly |
-| Team fit | Moderate — requires understanding the prompt-pack builder architecture |
-| Testability | High — end-to-end mock runs produce meaningful AI decisions |
-| Maintainability | Low overhead — `MockScenario` is simple; no new service boundary |
+| Dimension        | Assessment                                                             |
+| ---------------- | ---------------------------------------------------------------------- |
+| Build complexity | Medium — 6 files touched, one new type                                 |
+| Migration risk   | None — additive changes; real sessions unaffected                      |
+| Runtime risk     | Low — conditional on `isMock` flag; all existing paths preserved       |
+| Reversibility    | Full — `isMock` flag can be removed cleanly                            |
+| Team fit         | Moderate — requires understanding the prompt-pack builder architecture |
+| Testability      | High — end-to-end mock runs produce meaningful AI decisions            |
+| Maintainability  | Low overhead — `MockScenario` is simple; no new service boundary       |
 
 ### Option C: Dedicated mock data service
 
 Introduce a `MockMarketDataService` as a new injectable singleton with its own scenario store, headline generator, and price-history tables. Wire it alongside `BrokerRegistry` in the DI graph.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Build complexity | High — new service, new repo, new DI wiring |
-| Migration risk | Low |
-| Runtime risk | Low |
-| Reversibility | Moderate — additional service to decommission |
-| Team fit | Complex — more moving parts, more to understand |
-| Testability | Highest ceiling, but overkill for current needs |
-| Maintainability | Higher long-term overhead |
+| Dimension        | Assessment                                      |
+| ---------------- | ----------------------------------------------- |
+| Build complexity | High — new service, new repo, new DI wiring     |
+| Migration risk   | Low                                             |
+| Runtime risk     | Low                                             |
+| Reversibility    | Moderate — additional service to decommission   |
+| Team fit         | Complex — more moving parts, more to understand |
+| Testability      | Highest ceiling, but overkill for current needs |
+| Maintainability  | Higher long-term overhead                       |
 
 **Verdict:** Unjustified for a mock testing environment. Option B achieves the same validation goals with far less ceremony.
 
@@ -450,7 +453,9 @@ function seededNormal(seed: number): number {
   // LCG → uniform → Box-Muller approximation (fast, good enough for mock data)
   const u1 = ((seed * 1664525 + 1013904223) >>> 0) / 0xffffffff;
   const u2 = (((seed + 1) * 1664525 + 1013904223) >>> 0) / 0xffffffff;
-  return Math.sqrt(-2 * Math.log(Math.max(u1, 1e-9))) * Math.cos(2 * Math.PI * u2);
+  return (
+    Math.sqrt(-2 * Math.log(Math.max(u1, 1e-9))) * Math.cos(2 * Math.PI * u2)
+  );
 }
 ```
 
@@ -465,9 +470,9 @@ Add an optional callback to `createMarketTools` deps:
 ```ts
 export function createMarketTools(deps: {
   // ...existing...
-  getMockOhlcv?: (symbol: string) => SyntheticBar[];  // NEW
-  mockNewsData?: MockNewsResult[];                     // NEW
-})
+  getMockOhlcv?: (symbol: string) => SyntheticBar[]; // NEW
+  mockNewsData?: MockNewsResult[]; // NEW
+});
 ```
 
 In `get_ohlcv` execute:
@@ -509,7 +514,8 @@ export interface MockNewsItem {
 const DEFAULT_MOCK_NEWS: MockNewsItem[] = [
   {
     title: "Markets steady as macro data comes in mixed",
-    snippet: "Equities remain range-bound with no clear directional catalyst after this week's data releases.",
+    snippet:
+      "Equities remain range-bound with no clear directional catalyst after this week's data releases.",
     url: "https://mock.local/news/1",
     publishedAt: new Date().toISOString(),
   },
@@ -592,7 +598,7 @@ function renderSystemPrompt(input: {
   toolPolicy: RoleToolPolicy;
   harnessToolAvailability: HarnessToolAvailability;
   riskPolicy: RuntimeRiskPolicy;
-  sandboxMode?: boolean;   // NEW
+  sandboxMode?: boolean; // NEW
 }): string {
   const sections = [
     input.basePromptMarkdown.trim(),
@@ -602,16 +608,22 @@ function renderSystemPrompt(input: {
       ? "You are operating inside Exva in PAPER TRADING / SANDBOX mode. Market data (prices, OHLCV, news) is synthetic."
       : "You are operating inside Exva, a local autonomous trading desktop app. Your output may influence broker execution after deterministic risk checks.",
     "",
-    ...(input.sandboxMode ? [
-      "## Sandbox Mode",
-      "All tool data is mock/synthetic. Evaluate it as if it were real market data.",
-      "Make a genuine trade/no-trade decision based on what the data shows.",
-      "Do not refuse to trade solely because you know data is simulated.",
-      "Do not disclose sandbox status in your analysis or reasoning text.",
-      "",
-    ] : []),
+    ...(input.sandboxMode
+      ? [
+          "## Sandbox Mode",
+          "All tool data is mock/synthetic. Evaluate it as if it were real market data.",
+          "Make a genuine trade/no-trade decision based on what the data shows.",
+          "Do not refuse to trade solely because you know data is simulated.",
+          "Do not disclose sandbox status in your analysis or reasoning text.",
+          "",
+        ]
+      : []),
     "## Tool Policy For This Run",
-    renderToolPolicy(input.role, input.toolPolicy, input.harnessToolAvailability),
+    renderToolPolicy(
+      input.role,
+      input.toolPolicy,
+      input.harnessToolAvailability,
+    ),
     // ...rest unchanged
   ];
   return sections.join("\n");
@@ -636,8 +648,10 @@ const tools = await buildHarnessToolSet({
   searchRegistry: this.searchRegistry,
   brokerRouting: this.brokerRouting,
   brokerRegistry: this.brokerRegistry,
-  getMockOhlcv: mockAdapter ? (symbol: string) => mockAdapter.getMockOhlcv(symbol) : undefined,  // NEW
-  mockNewsData: isMock ? DEFAULT_MOCK_NEWS : undefined,   // NEW
+  getMockOhlcv: mockAdapter
+    ? (symbol: string) => mockAdapter.getMockOhlcv(symbol)
+    : undefined, // NEW
+  mockNewsData: isMock ? DEFAULT_MOCK_NEWS : undefined, // NEW
 });
 ```
 
@@ -670,7 +684,7 @@ constructor(private readonly scenario: MockScenario = {}) {}
 The broker registry factory for mock accounts needs to pass through a scenario. Where mock accounts are registered (likely in the broker factory / DI setup), add:
 
 ```ts
-new MockBrokerAdapter({ bias: "bullish", volatilityPct: 0.02 })
+new MockBrokerAdapter({ bias: "bullish", volatilityPct: 0.02 });
 ```
 
 For now, the default scenario (sideways, 1.5% vol) is sufficient. Scenario configuration from session settings is a future enhancement.
@@ -719,9 +733,11 @@ electron/main/services/broker/broker-registry.ts
 **Objective:** Fix non-deterministic prices. The single most disruptive bug for AI coherence.
 
 **Code changes:**
+
 - `mock-adapter.ts`: Remove `(Date.now() % 1000) / 1000` from `priceFor()`. Extract `symbolSeed()` helper. The resulting price is stable for the duration of the session.
 
 **Validation:**
+
 - Start a mock session. Call `get_quote` twice for the same symbol (check logs). Prices must be identical.
 - Run `tsc --noEmit` — no type errors.
 
@@ -736,12 +752,14 @@ electron/main/services/broker/broker-registry.ts
 **Objective:** Replace the constant-drift synthetic bars with a seeded, scenario-biased series that looks like real price history.
 
 **Code changes:**
+
 - `mock-adapter.ts`: Add `MockScenario` type, `seededNormal()`, `getMockOhlcv()`.
 - `market-tools.ts`: Add `getMockOhlcv?` callback to deps; short-circuit in `get_ohlcv`. Keep existing `buildSyntheticBars` as unreachable fallback.
 - `harness-tools.ts`: Forward `getMockOhlcv` through `buildHarnessToolSet`.
 - `runtime.ts`: Add `resolveMockAdapter()`; pass `getMockOhlcv` callback to `buildHarnessToolSet`.
 
 **Validation:**
+
 - Start a mock session. Call `get_ohlcv` for a symbol. Inspect logs for bar data. Verify: 30 bars, non-null volume, non-monotone closes, high > close > low on every bar.
 - Call `get_ohlcv` twice for the same symbol — bars must be identical (deterministic).
 - Run a full AI cycle. Confirm technical analyst output references price levels or trend — not a generic "insufficient data" response.
@@ -757,12 +775,14 @@ electron/main/services/broker/broker-registry.ts
 **Objective:** `get_news` returns injected mock headlines; no live internet call during mock sessions.
 
 **Code changes:**
+
 - Define `MockNewsItem` interface and `DEFAULT_MOCK_NEWS` array in `market-tools.ts` (or a shared constants file).
 - Add `mockNewsData?` to `createMarketTools` deps; short-circuit in `get_news` execute.
 - Add `mockNewsData?` to `buildHarnessToolSet` input; forward to `createMarketTools`.
 - `runtime.ts`: Detect mock session; pass `DEFAULT_MOCK_NEWS` to `buildHarnessToolSet`.
 
 **Validation:**
+
 - Enable a search provider in the session. Start a mock session. Confirm in logs that `get_news` tool result contains mock headlines, not real search results.
 - Start a mock session with no search provider configured. Confirm `get_news` still returns mock headlines (not an error).
 - Confirm real sessions with a search provider still call live search.
@@ -778,11 +798,13 @@ electron/main/services/broker/broker-registry.ts
 **Objective:** System prompt tells the AI it is in a sandbox and should evaluate mock data as if real.
 
 **Code changes:**
+
 - `runtime.ts`: Add `isMockSession(sessionId): Promise<boolean>`. Make `buildPromptPack` async.
 - `prompt-pack-builder.ts`: Add `sandboxMode?: boolean` to `build()` input and `renderSystemPrompt()`. Inject sandbox block when true.
 - Update all call sites of `buildPromptPack` in `runtime.ts` to `await` it.
 
 **Validation:**
+
 - Start a mock session. Check the `execute run agent start` log. The `systemPrompt` field must contain "PAPER TRADING / SANDBOX".
 - Start a real session. Confirm system prompt does NOT contain "PAPER TRADING / SANDBOX".
 - Run a full mock AI cycle. Confirm the decision-maker produces a structured output (trade or no-trade with reasoning) — not a refusal.
@@ -798,10 +820,12 @@ electron/main/services/broker/broker-registry.ts
 **Objective:** Allow the broker factory to pass a `MockScenario` to `MockBrokerAdapter`.
 
 **Code changes:**
+
 - `mock-adapter.ts` constructor already accepts `MockScenario` from Phase 2.
 - Find where `MockBrokerAdapter` is constructed (likely `broker-factory.ts` or the DI container setup). Pass a scenario object — even if hardcoded at first.
 
 **Validation:**
+
 - Change scenario to `{ bias: "bullish" }`. Run a mock session. Verify OHLCV bars trend upward over 30 days.
 - Change to `{ bias: "bearish" }`. Verify bars trend downward.
 
@@ -814,6 +838,7 @@ electron/main/services/broker/broker-registry.ts
 ### Unit Tests
 
 **`mock-adapter.ts`**
+
 - `priceFor("BTCUSD")` returns the same value when called twice (no `Date.now()` dependency).
 - `getMockOhlcv("BTCUSD", 30)` returns 30 bars, all with non-null volume, `high >= max(open,close)`, `low <= min(open,close)`.
 - With `bias: "bullish"`, the last bar close is higher than the first bar close.
@@ -821,11 +846,13 @@ electron/main/services/broker/broker-registry.ts
 - Bars are identical across two calls for the same symbol (determinism).
 
 **`market-tools.ts`**
+
 - When `getMockOhlcv` callback is provided, `get_ohlcv` returns its output without calling the broker.
 - When `mockNewsData` is provided, `get_news` returns mock data without calling search registry.
 - When neither is provided, existing real paths execute.
 
 **`prompt-pack-builder.ts`**
+
 - `renderSystemPrompt({ sandboxMode: true, ... })` output contains "PAPER TRADING".
 - `renderSystemPrompt({ sandboxMode: false, ... })` output does not contain "PAPER TRADING".
 - `renderSystemPrompt({ sandboxMode: undefined, ... })` output does not contain "PAPER TRADING".
@@ -833,6 +860,7 @@ electron/main/services/broker/broker-registry.ts
 ### Integration / End-to-End
 
 **Mock session full cycle:**
+
 1. Start a session with mock broker configured.
 2. Run one full AI cycle (instrument selector → analyst → reviewer → decision maker).
 3. Assert:
@@ -844,20 +872,21 @@ electron/main/services/broker/broker-registry.ts
    - Decision maker `action` field is either `"trade"` or `"no_trade"` with a reasoning string.
 
 **Real session regression:**
+
 - Start a session with a real broker. Confirm `execute run agent start` system prompt does NOT contain "PAPER TRADING". Confirm `get_news` hits live search.
 
 ---
 
 ## 12. Risks and Failure Modes
 
-| # | Risk | Likelihood | Impact | Detection | Mitigation | Rollback |
-|---|------|------------|--------|-----------|------------|----------|
-| 1 | `isMockSession()` returns true for real sessions | Low | High — sandbox prompt injected into real run | Regression test on real session system prompt | Unit test `isMockSession` with real broker type | Revert detection logic |
-| 2 | `buildPromptPack` becomes async, breaks callers | Medium | Medium — compile error | `tsc --noEmit` | Update all call sites to `await` | Revert async change |
-| 3 | `getMockOhlcv` closure holds stale adapter reference | Low | Low — stale bars | Check adapter lifetime in registry | Resolve adapter fresh per call if needed | Remove callback pattern |
-| 4 | Mock news JSON schema differs from real search schema | Medium | Low — AI still processes it | Run mock session; check AI cites news in analysis | Align `MockNewsItem` shape to real adapter output | Adjust `MockNewsItem` fields |
-| 5 | Sandbox prompt changes AI behaviour in unexpected ways | Low | Low — decision quality may change | Compare decision outputs before/after | Keep sandbox block minimal; don't over-constrain AI | Remove sandbox block |
-| 6 | `seededNormal` produces degenerate values (NaN, Inf) | Low | Medium — bars have invalid prices | Assert valid ranges in unit test | Guard `Math.log(Math.max(u1, 1e-9))` | Add clamp to generated price |
+| #   | Risk                                                   | Likelihood | Impact                                       | Detection                                         | Mitigation                                          | Rollback                     |
+| --- | ------------------------------------------------------ | ---------- | -------------------------------------------- | ------------------------------------------------- | --------------------------------------------------- | ---------------------------- |
+| 1   | `isMockSession()` returns true for real sessions       | Low        | High — sandbox prompt injected into real run | Regression test on real session system prompt     | Unit test `isMockSession` with real broker type     | Revert detection logic       |
+| 2   | `buildPromptPack` becomes async, breaks callers        | Medium     | Medium — compile error                       | `tsc --noEmit`                                    | Update all call sites to `await`                    | Revert async change          |
+| 3   | `getMockOhlcv` closure holds stale adapter reference   | Low        | Low — stale bars                             | Check adapter lifetime in registry                | Resolve adapter fresh per call if needed            | Remove callback pattern      |
+| 4   | Mock news JSON schema differs from real search schema  | Medium     | Low — AI still processes it                  | Run mock session; check AI cites news in analysis | Align `MockNewsItem` shape to real adapter output   | Adjust `MockNewsItem` fields |
+| 5   | Sandbox prompt changes AI behaviour in unexpected ways | Low        | Low — decision quality may change            | Compare decision outputs before/after             | Keep sandbox block minimal; don't over-constrain AI | Remove sandbox block         |
+| 6   | `seededNormal` produces degenerate values (NaN, Inf)   | Low        | Medium — bars have invalid prices            | Assert valid ranges in unit test                  | Guard `Math.log(Math.max(u1, 1e-9))`                | Add clamp to generated price |
 
 **Top risk in detail — Risk 2 (async `buildPromptPack`):**
 
@@ -882,13 +911,13 @@ No feature flags needed — the `isMockSession` check is always active and natur
 
 ## 14. Open Questions
 
-| # | Question | Why It Matters | Owner | Resolution Needed By |
-|---|----------|----------------|-------|----------------------|
-| 1 | Does `BrokerRoutingService.resolveBrokerAccountId` throw for missing instrument classes in mock sessions? | `isMockSession` calls it; if it throws for `"stock"` in a crypto-only mock session, detection fails | Ken | Before Phase 4 |
-| 2 | Should `MockScenario` be configurable from the session creation UI? | Determines whether scenario config needs DB persistence or can stay in-memory at construction time | Ken | Phase 5 design |
-| 3 | What does the real search adapter response look like? | `MockNewsItem` must match its schema or the AI will notice the format change between runs | Ken | Before Phase 3 |
-| 4 | Is `getMockOhlcv` the right name, or should this be on a `MockMarketDataProvider` interface? | Naming choice affects future extensibility | Ken | Phase 2 design |
-| 5 | Should the sandbox block tell the AI to disclose sandbox status in its reasoning, or stay silent? | Affects what appears in `assistantText` and logs | Ken | Phase 4 implementation |
+| #   | Question                                                                                                  | Why It Matters                                                                                      | Owner | Resolution Needed By   |
+| --- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ----- | ---------------------- |
+| 1   | Does `BrokerRoutingService.resolveBrokerAccountId` throw for missing instrument classes in mock sessions? | `isMockSession` calls it; if it throws for `"stock"` in a crypto-only mock session, detection fails | Ken   | Before Phase 4         |
+| 2   | Should `MockScenario` be configurable from the session creation UI?                                       | Determines whether scenario config needs DB persistence or can stay in-memory at construction time  | Ken   | Phase 5 design         |
+| 3   | What does the real search adapter response look like?                                                     | `MockNewsItem` must match its schema or the AI will notice the format change between runs           | Ken   | Before Phase 3         |
+| 4   | Is `getMockOhlcv` the right name, or should this be on a `MockMarketDataProvider` interface?              | Naming choice affects future extensibility                                                          | Ken   | Phase 2 design         |
+| 5   | Should the sandbox block tell the AI to disclose sandbox status in its reasoning, or stay silent?         | Affects what appears in `assistantText` and logs                                                    | Ken   | Phase 4 implementation |
 
 ---
 
@@ -898,11 +927,11 @@ No feature flags needed — the `isMockSession` check is always active and natur
 
 ```ts
 // Called at t=0
-priceFor("AAPL") // → 75 + (65+65+76+76) % 250 + (1746578123456 % 1000) / 1000
-                 // → 75 + 32 + 0.456 = 107.456
+priceFor("AAPL"); // → 75 + (65+65+76+76) % 250 + (1746578123456 % 1000) / 1000
+// → 75 + 32 + 0.456 = 107.456
 
 // Called at t=500ms
-priceFor("AAPL") // → 75 + 32 + 0.956 = 107.956
+priceFor("AAPL"); // → 75 + 32 + 0.956 = 107.956
 // Δ = 0.5 USD in 500ms — incoherent for the AI
 ```
 

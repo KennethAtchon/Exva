@@ -9,7 +9,10 @@ import type { TradeCycleContext } from "../types";
 import { waitForApproval } from "./approval-flow";
 import { buildOrderPolicyTask } from "./order-policy-task";
 import { placeRoutedOrder } from "./order-placer";
-import { persistTradeAiRuns, requirePipelineAiResults } from "./run-trade-pipeline";
+import {
+  persistTradeAiRuns,
+  requirePipelineAiResults,
+} from "./run-trade-pipeline";
 import { createTradeFromDecision } from "./trade-record-builder";
 
 export function persistPendingTradeFromPipeline(
@@ -18,7 +21,8 @@ export function persistPendingTradeFromPipeline(
   pipeline: TradePipelineResult,
 ): Trade {
   const config = ctx.getSessionConfig();
-  const { technical, fundamental, review, decision } = requirePipelineAiResults(pipeline);
+  const { technical, fundamental, review, decision } =
+    requirePipelineAiResults(pipeline);
 
   if (!context.trade) {
     const trade = createTradeFromDecision(
@@ -30,7 +34,12 @@ export function persistPendingTradeFromPipeline(
       review.output.recommendation,
     );
     ctx.deps.tradesRepo.insert(trade);
-    persistTradeAiRuns(ctx, trade.id, [technical, fundamental, review, decision]);
+    persistTradeAiRuns(ctx, trade.id, [
+      technical,
+      fundamental,
+      review,
+      decision,
+    ]);
     context.trade = trade;
   }
 
@@ -64,7 +73,13 @@ export async function runApprovalAndCapital(
   if (!approved) {
     ctx.deps.capitalReservation.releaseByApproval(approvalId);
     const rejected = ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-    ctx.emitEvent("WARN", trade.id, "Trade rejected by user", null, context.cycleId);
+    ctx.emitEvent(
+      "WARN",
+      trade.id,
+      "Trade rejected by user",
+      null,
+      context.cycleId,
+    );
     ctx.deps.bus.emit("trade_closed", rejected);
   }
   return { approved, approvalId };
@@ -80,10 +95,11 @@ export async function placeBrokerOrder(
   const config = ctx.getSessionConfig();
   const clientOrderId = `${context.cycleId}:${trade.id}`;
   const strategy = ctx.deps.strategyContextService.get(ctx.sessionId);
-  const { adapter, brokerAccountId: resolvedBrokerAccountId } = await ctx.deps.brokerRouting.resolveAdapter(
-    ctx.sessionId,
-    context.instrument.instrumentClass,
-  );
+  const { adapter, brokerAccountId: resolvedBrokerAccountId } =
+    await ctx.deps.brokerRouting.resolveAdapter(
+      ctx.sessionId,
+      context.instrument.instrumentClass,
+    );
 
   const wireSymbol = ctx.deps.instrumentNormalizer.toBrokerSymbol({
     symbol: context.instrument.symbol,
@@ -101,7 +117,9 @@ export async function placeBrokerOrder(
     );
   }
 
-  const brokerSupportsClass = adapter.supportedInstrumentClasses.includes(context.instrument.instrumentClass);
+  const brokerSupportsClass = adapter.supportedInstrumentClasses.includes(
+    context.instrument.instrumentClass,
+  );
   const freshStats = ctx.deps.statsRepo.dashboardStats(
     ctx.sessionId,
     ctx.deps.sessionRepo.getStatus(ctx.sessionId),
@@ -121,7 +139,8 @@ export async function placeBrokerOrder(
       cycleId: context.cycleId,
       tradeId: trade.id,
       brokerAccountId: resolvedBrokerAccountId,
-      existingOrderCheck: (orderId: string, accountId: string) => ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
+      existingOrderCheck: (orderId: string, accountId: string) =>
+        ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
       sessionIsPaused: () => !ctx.runtimeIsActive(),
       config,
       stats: freshStats,
@@ -135,13 +154,27 @@ export async function placeBrokerOrder(
     }) as unknown as Record<string, unknown>,
   });
   if (!policyResult.allowed) {
-    throw new AppError(policyResult.reason ?? "Order blocked by policy gate", "VALIDATION_FAILED");
+    throw new AppError(
+      policyResult.reason ?? "Order blocked by policy gate",
+      "VALIDATION_FAILED",
+    );
   }
 
-  ctx.deps.tradesRepo.patchPendingExecution(trade.id, { client_order_id: clientOrderId });
-  const placed = await placeRoutedOrder(ctx, trade, context.instrument.instrumentClass, riskOrder, clientOrderId);
+  ctx.deps.tradesRepo.patchPendingExecution(trade.id, {
+    client_order_id: clientOrderId,
+  });
+  const placed = await placeRoutedOrder(
+    ctx,
+    trade,
+    context.instrument.instrumentClass,
+    riskOrder,
+    clientOrderId,
+  );
   if (!placed) {
-    throw new AppError("Instrument conflict or broker routing blocked order placement.", "VALIDATION_FAILED");
+    throw new AppError(
+      "Instrument conflict or broker routing blocked order placement.",
+      "VALIDATION_FAILED",
+    );
   }
   return placed;
 }
@@ -154,13 +187,26 @@ export function finalizeOpenedTrade(
   filledAvgPrice: number,
   approvalIdForCapital: string | null,
 ): void {
-  const opened = ctx.deps.tradesRepo.markOpen(trade.id, brokerOrderId, filledAvgPrice);
+  const opened = ctx.deps.tradesRepo.markOpen(
+    trade.id,
+    brokerOrderId,
+    filledAvgPrice,
+  );
   if (approvalIdForCapital) {
-    ctx.deps.capitalReservation.convertApprovalToOpenOrder(approvalIdForCapital, trade.id);
+    ctx.deps.capitalReservation.convertApprovalToOpenOrder(
+      approvalIdForCapital,
+      trade.id,
+    );
   }
   ctx.deps.capitalReservation.convertOrderToPosition(trade.id);
   ctx.clearAttentionRequired();
-  ctx.emitEvent("INFO", trade.id, `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`, "broker", context.cycleId);
+  ctx.emitEvent(
+    "INFO",
+    trade.id,
+    `Placed ${trade.side} ${trade.instrumentSymbol} $${trade.position_size_usd} via broker.`,
+    "broker",
+    context.cycleId,
+  );
   ctx.deps.bus.emit("trade_opened", opened);
   ctx.deps.sessionExecutionStepsRepo.upsert({
     sessionId: ctx.sessionId,

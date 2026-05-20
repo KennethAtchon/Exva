@@ -10,12 +10,19 @@ describe("selectorConfigCheck", () => {
   };
 
   it("requires a search provider for ai-selected universe", async () => {
-    const result = await selectorConfigCheck(baseSession as never, {
-      sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
-      workspacePreferencesRepo: { get: () => ({ defaultSearchProviderId: null }) },
-      providerAccountsRepo: { find: () => null },
-      sessionAiPhasesRepo: { getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
-    } as never);
+    const result = await selectorConfigCheck(
+      baseSession as never,
+      {
+        sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+        workspacePreferencesRepo: {
+          get: () => ({ defaultSearchProviderId: null }),
+        },
+        providerAccountsRepo: { find: () => null },
+        sessionAiPhasesRepo: {
+          getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }),
+        },
+      } as never,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -25,37 +32,53 @@ describe("selectorConfigCheck", () => {
   });
 
   it("accepts configured search provider and selector phase", async () => {
-    const result = await selectorConfigCheck({ ...baseSession, defaultSearchProviderId: "search-1" } as never, {
-      sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
-      workspacePreferencesRepo: { get: () => ({ defaultSearchProviderId: null }) },
-      providerAccountsRepo: {
-        find: (id: string) =>
-          id === "search-1"
-            ? { id, category: "search", isConfigured: true }
-            : id === "ai-1"
-              ? { id, category: "ai", isConfigured: true }
-            : null,
-      },
-      sessionAiPhasesRepo: { getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
-    } as never);
+    const result = await selectorConfigCheck(
+      { ...baseSession, defaultSearchProviderId: "search-1" } as never,
+      {
+        sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+        workspacePreferencesRepo: {
+          get: () => ({ defaultSearchProviderId: null }),
+        },
+        providerAccountsRepo: {
+          find: (id: string) =>
+            id === "search-1"
+              ? { id, category: "search", isConfigured: true }
+              : id === "ai-1"
+                ? { id, category: "ai", isConfigured: true }
+                : null,
+        },
+        sessionAiPhasesRepo: {
+          getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }),
+        },
+      } as never,
+    );
 
     expect(result).toEqual({ ok: true });
   });
 
   it("accepts the built-in workspace default search provider", async () => {
-    const result = await selectorConfigCheck(baseSession as never, {
-      sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
-      workspacePreferencesRepo: { get: () => ({ defaultSearchProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID }) },
-      providerAccountsRepo: {
-        find: (id: string) =>
-          id === BUILT_IN_DUCKDUCKGO_PROVIDER_ID
-            ? { id, category: "search", isConfigured: true }
-            : id === "ai-1"
-              ? { id, category: "ai", isConfigured: true }
-              : null,
-      },
-      sessionAiPhasesRepo: { getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }) },
-    } as never);
+    const result = await selectorConfigCheck(
+      baseSession as never,
+      {
+        sessionSelectorSettingsRepo: { get: () => ({ aiPickerEnabled: true }) },
+        workspacePreferencesRepo: {
+          get: () => ({
+            defaultSearchProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID,
+          }),
+        },
+        providerAccountsRepo: {
+          find: (id: string) =>
+            id === BUILT_IN_DUCKDUCKGO_PROVIDER_ID
+              ? { id, category: "search", isConfigured: true }
+              : id === "ai-1"
+                ? { id, category: "ai", isConfigured: true }
+                : null,
+        },
+        sessionAiPhasesRepo: {
+          getByPhase: () => ({ providerKey: "ai-1", modelId: "model-1" }),
+        },
+      } as never,
+    );
 
     expect(result).toEqual({ ok: true });
   });

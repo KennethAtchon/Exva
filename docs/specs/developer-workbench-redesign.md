@@ -129,38 +129,38 @@ Developer Workbench
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|--------------------|
-| Scope rail item | Button | `Global workspace` | Active when no specific session/cycle/trade scope is selected | Loads global events and workspace diagnostics |
-| Scope rail item | Button | Focused session name | Disabled when no focused session exists | Loads focused-session diagnostics |
-| Session picker | Search/select | `Jump to session...` | Enabled when sessions exist | Changes Developer scope without changing workspace focus unless user confirms |
-| Stream health badge | Badge | `Live`, `Delayed`, `Disconnected` | Derived from event stream watchdog | No action |
-| Capture button | Button | `Capture Debug Window` | Disabled while capture is active for selected scope | Opens debug capture modal |
-| Export button | Button | `Export Debug Bundle` | Disabled until scope is loaded | Creates local redacted bundle and shows file path |
-| Open logs button | Button | `Open Logs Folder` | Enabled if log directory exists | Opens `~/.exva/logs` or configured `EXVA_LOG_DIR` in Finder |
-| Log level selector | Select | `Log level` | Shows effective current level | Calls developer log-level API |
-| Time window selector | Select | `15m`, `1h`, `6h`, `24h`, `All` | Defaults to `1h` | Reloads timeline with server-side filter |
-| Source filters | Multi-select chips | `Session`, `Selector`, `Technical`, `Fundamental`, `Review`, `Decision`, `Broker`, `Capital`, `Preflight`, `Orchestrator` | Multi-select | Reloads timeline with server-side filter |
-| Search input | Text input | Placeholder `Search message, id, symbol, provider, error...` | Debounced 250ms | Reloads timeline with server-side search |
-| Retry step button | Button | `Retry Failed Step` | Enabled only when selected session/cycle has retryable failed step | Calls existing retry-step API and refreshes execution state |
-| Pause-after-step button | Button | `Pause After Current Step` | Enabled for active selected session | Calls existing pause-after-current-step API |
-| Clear failed button | Button | `Clear Failed Step` | Enabled when selected step is failed | Calls existing clear-failed-step API |
-| Session lifecycle button | Button group | `Start`, `Pause`, `Resume`, `Stop` | Based on selected session status | Calls existing session lifecycle APIs |
-| Inspector tabs | Tabs | `Overview`, `Execution`, `AI Trace`, `Tool Calls`, `External`, `Logs`, `Raw` | Enabled based on selected entity | Changes inspector view without reloading timeline |
+| Element                  | Type               | Label / Content                                                                                                           | State                                                              | Action on Interact                                                            |
+| ------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| Scope rail item          | Button             | `Global workspace`                                                                                                        | Active when no specific session/cycle/trade scope is selected      | Loads global events and workspace diagnostics                                 |
+| Scope rail item          | Button             | Focused session name                                                                                                      | Disabled when no focused session exists                            | Loads focused-session diagnostics                                             |
+| Session picker           | Search/select      | `Jump to session...`                                                                                                      | Enabled when sessions exist                                        | Changes Developer scope without changing workspace focus unless user confirms |
+| Stream health badge      | Badge              | `Live`, `Delayed`, `Disconnected`                                                                                         | Derived from event stream watchdog                                 | No action                                                                     |
+| Capture button           | Button             | `Capture Debug Window`                                                                                                    | Disabled while capture is active for selected scope                | Opens debug capture modal                                                     |
+| Export button            | Button             | `Export Debug Bundle`                                                                                                     | Disabled until scope is loaded                                     | Creates local redacted bundle and shows file path                             |
+| Open logs button         | Button             | `Open Logs Folder`                                                                                                        | Enabled if log directory exists                                    | Opens `~/.exva/logs` or configured `EXVA_LOG_DIR` in Finder                   |
+| Log level selector       | Select             | `Log level`                                                                                                               | Shows effective current level                                      | Calls developer log-level API                                                 |
+| Time window selector     | Select             | `15m`, `1h`, `6h`, `24h`, `All`                                                                                           | Defaults to `1h`                                                   | Reloads timeline with server-side filter                                      |
+| Source filters           | Multi-select chips | `Session`, `Selector`, `Technical`, `Fundamental`, `Review`, `Decision`, `Broker`, `Capital`, `Preflight`, `Orchestrator` | Multi-select                                                       | Reloads timeline with server-side filter                                      |
+| Search input             | Text input         | Placeholder `Search message, id, symbol, provider, error...`                                                              | Debounced 250ms                                                    | Reloads timeline with server-side search                                      |
+| Retry step button        | Button             | `Retry Failed Step`                                                                                                       | Enabled only when selected session/cycle has retryable failed step | Calls existing retry-step API and refreshes execution state                   |
+| Pause-after-step button  | Button             | `Pause After Current Step`                                                                                                | Enabled for active selected session                                | Calls existing pause-after-current-step API                                   |
+| Clear failed button      | Button             | `Clear Failed Step`                                                                                                       | Enabled when selected step is failed                               | Calls existing clear-failed-step API                                          |
+| Session lifecycle button | Button group       | `Start`, `Pause`, `Resume`, `Stop`                                                                                        | Based on selected session status                                   | Calls existing session lifecycle APIs                                         |
+| Inspector tabs           | Tabs               | `Overview`, `Execution`, `AI Trace`, `Tool Calls`, `External`, `Logs`, `Raw`                                              | Enabled based on selected entity                                   | Changes inspector view without reloading timeline                             |
 
 **States this screen can be in:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|--------------------|
-| Loading shell | Initial page load | Header and scope rail skeletons; timeline skeleton rows; inspector says `Select a scope to inspect` |
-| Global empty | No events exist | Message: `No developer events have been recorded yet.` plus `Start a session or run a diagnostic to create events.` |
-| No focused session | Workspace has no focused session | Global scope remains usable; focused-session item says `No focused session` |
-| Scope loading | User selects session/cycle/trade/provider | Scope header updates immediately; timeline shows lightweight skeleton; previous data remains dimmed until new data arrives |
-| Default | Data loaded | Timeline, action controls, and inspector are interactive |
-| Stale stream | No event push for 15 seconds while app is expected to stream | Badge: `Live stream delayed - polling fallback active`; polling continues |
-| Query error | Event or trace query fails | Inline error panel: `Developer data failed to load.` with `Retry` button |
-| Action running | User runs a retry/test/export action | Relevant button shows spinner and controls that would conflict are disabled |
-| Action failed | Runtime action returns error | Toast and inline card show exact safe error message; no local state is faked as successful |
+| State              | Condition                                                    | What the User Sees                                                                                                         |
+| ------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| Loading shell      | Initial page load                                            | Header and scope rail skeletons; timeline skeleton rows; inspector says `Select a scope to inspect`                        |
+| Global empty       | No events exist                                              | Message: `No developer events have been recorded yet.` plus `Start a session or run a diagnostic to create events.`        |
+| No focused session | Workspace has no focused session                             | Global scope remains usable; focused-session item says `No focused session`                                                |
+| Scope loading      | User selects session/cycle/trade/provider                    | Scope header updates immediately; timeline shows lightweight skeleton; previous data remains dimmed until new data arrives |
+| Default            | Data loaded                                                  | Timeline, action controls, and inspector are interactive                                                                   |
+| Stale stream       | No event push for 15 seconds while app is expected to stream | Badge: `Live stream delayed - polling fallback active`; polling continues                                                  |
+| Query error        | Event or trace query fails                                   | Inline error panel: `Developer data failed to load.` with `Retry` button                                                   |
+| Action running     | User runs a retry/test/export action                         | Relevant button shows spinner and controls that would conflict are disabled                                                |
+| Action failed      | Runtime action returns error                                 | Toast and inline card show exact safe error message; no local state is faked as successful                                 |
 
 ---
 
@@ -194,25 +194,25 @@ Debug Capture Modal
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|--------------------|
-| Duration selector | Radio group | `5 minutes`, `15 minutes`, `30 minutes`, `Until stopped` | Defaults to `15 minutes` | Sets capture expiry |
-| Main log level | Select | `trace`, `debug`, `info`, `warn`, `error` | Defaults to current effective level | Sets temporary Pino level during capture |
-| Event min level | Select | `DEBUG`, `INFO`, `WARN`, `ERROR` | Defaults to current timeline filter | Sets event capture/query visibility |
-| Include prompts toggle | Switch | `Include prompt messages` | Off by default | Includes redacted `messages_json` in export bundle |
-| Include tool payloads toggle | Switch | `Include tool payloads` | On by default | Includes redacted tool args/results |
-| Start button | Button | `Start Capture` | Disabled while submit is pending | Calls capture API |
-| Cancel button | Button | `Cancel` | Always enabled | Closes modal without changes |
+| Element                      | Type        | Label / Content                                          | State                               | Action on Interact                                 |
+| ---------------------------- | ----------- | -------------------------------------------------------- | ----------------------------------- | -------------------------------------------------- |
+| Duration selector            | Radio group | `5 minutes`, `15 minutes`, `30 minutes`, `Until stopped` | Defaults to `15 minutes`            | Sets capture expiry                                |
+| Main log level               | Select      | `trace`, `debug`, `info`, `warn`, `error`                | Defaults to current effective level | Sets temporary Pino level during capture           |
+| Event min level              | Select      | `DEBUG`, `INFO`, `WARN`, `ERROR`                         | Defaults to current timeline filter | Sets event capture/query visibility                |
+| Include prompts toggle       | Switch      | `Include prompt messages`                                | Off by default                      | Includes redacted `messages_json` in export bundle |
+| Include tool payloads toggle | Switch      | `Include tool payloads`                                  | On by default                       | Includes redacted tool args/results                |
+| Start button                 | Button      | `Start Capture`                                          | Disabled while submit is pending    | Calls capture API                                  |
+| Cancel button                | Button      | `Cancel`                                                 | Always enabled                      | Closes modal without changes                       |
 
 **States:**
 
-| State | Condition | What the user sees |
-|-------|-----------|--------------------|
-| Default | Modal opened | Current scope, controls, safety copy |
-| Validation error | Duration or log level invalid | Inline field error; submit blocked |
-| Starting | API call pending | `Start Capture` becomes `Starting...` |
-| Active | Capture created | Modal closes; header shows `Capture active - ends in Xm` |
-| Failure | API returns error | Error text: `Could not start capture. [safe error]` |
+| State            | Condition                     | What the user sees                                       |
+| ---------------- | ----------------------------- | -------------------------------------------------------- |
+| Default          | Modal opened                  | Current scope, controls, safety copy                     |
+| Validation error | Duration or log level invalid | Inline field error; submit blocked                       |
+| Starting         | API call pending              | `Start Capture` becomes `Starting...`                    |
+| Active           | Capture created               | Modal closes; header shows `Capture active - ends in Xm` |
+| Failure          | API returns error             | Error text: `Could not start capture. [safe error]`      |
 
 ---
 
@@ -236,11 +236,11 @@ Export Result
 
 **Element inventory:**
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|-----------------|-------|--------------------|
-| Reveal button | Button | `Reveal in Finder` | Enabled if file exists | Opens Finder at exported file |
-| Copy path button | Button | `Copy Path` | Enabled | Copies path to clipboard |
-| Included sections | List | `Events`, `Execution steps`, `Agent runs`, `Messages`, `External calls`, `Runtime settings`, `Log excerpts` | Read-only | No action |
+| Element           | Type   | Label / Content                                                                                             | State                  | Action on Interact            |
+| ----------------- | ------ | ----------------------------------------------------------------------------------------------------------- | ---------------------- | ----------------------------- |
+| Reveal button     | Button | `Reveal in Finder`                                                                                          | Enabled if file exists | Opens Finder at exported file |
+| Copy path button  | Button | `Copy Path`                                                                                                 | Enabled                | Copies path to clipboard      |
+| Included sections | List   | `Events`, `Execution steps`, `Agent runs`, `Messages`, `External calls`, `Runtime settings`, `Log excerpts` | Read-only              | No action                     |
 
 ---
 
@@ -361,76 +361,76 @@ Deviations:
 
 ### 6.1 Existing Data Used
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|--------------------|----------------------|------|----------|------------------|-------|
-| Session name | `sessions.name` via `api.listSessions()` | string | Yes | Read-only in Developer | Used in scope rail/header |
-| Session status | `sessions.status` | enum | Yes | Must match `SessionStatus` | Drives lifecycle buttons |
-| Execution mode | `sessions.executionMode` | enum | Yes | `paper` / `live` as currently defined | Read-only |
-| Event level | `events.level` | enum | Yes | `DEBUG`, `INFO`, `WARN`, `ERROR` | Server-filtered |
-| Event source | `events.agent_type` | enum nullable | No | Existing `agentTypeSchema` | Filter chip source |
-| Event message | `events.message` | string | Yes | Searchable text | Displayed in timeline |
-| Event session | `events.session_id` | string nullable | No | Must match session ID when scoped | Scope filter |
-| Event cycle | `events.cycle_id` | string nullable | No | Optional | Cycle scope and inspector |
-| Agent run model | `agent_runs.model` | string | Yes | Read-only | AI trace tab |
-| Agent run provider | `agent_runs.provider_key` | string | Yes | Read-only | AI trace tab |
-| Agent run output | `agent_runs.output_text` | string nullable | No | Redacted only if future redaction rules require | Collapsible text |
-| Agent message prompt | `agent_messages.messages_json` | string nullable | No | Redacted in bundles | Prompt trace |
-| API call endpoint | `api_call_log.endpoint` | string | Yes | Redacted where needed | External tab |
-| Execution step status | `session_execution_steps.status` via execution progress API | enum | Yes | Existing execution step status enum | Action strip |
+| UI Label / Element    | Field Name in DB/API                                        | Type            | Required | Validation Rules                                | Notes                     |
+| --------------------- | ----------------------------------------------------------- | --------------- | -------- | ----------------------------------------------- | ------------------------- |
+| Session name          | `sessions.name` via `api.listSessions()`                    | string          | Yes      | Read-only in Developer                          | Used in scope rail/header |
+| Session status        | `sessions.status`                                           | enum            | Yes      | Must match `SessionStatus`                      | Drives lifecycle buttons  |
+| Execution mode        | `sessions.executionMode`                                    | enum            | Yes      | `paper` / `live` as currently defined           | Read-only                 |
+| Event level           | `events.level`                                              | enum            | Yes      | `DEBUG`, `INFO`, `WARN`, `ERROR`                | Server-filtered           |
+| Event source          | `events.agent_type`                                         | enum nullable   | No       | Existing `agentTypeSchema`                      | Filter chip source        |
+| Event message         | `events.message`                                            | string          | Yes      | Searchable text                                 | Displayed in timeline     |
+| Event session         | `events.session_id`                                         | string nullable | No       | Must match session ID when scoped               | Scope filter              |
+| Event cycle           | `events.cycle_id`                                           | string nullable | No       | Optional                                        | Cycle scope and inspector |
+| Agent run model       | `agent_runs.model`                                          | string          | Yes      | Read-only                                       | AI trace tab              |
+| Agent run provider    | `agent_runs.provider_key`                                   | string          | Yes      | Read-only                                       | AI trace tab              |
+| Agent run output      | `agent_runs.output_text`                                    | string nullable | No       | Redacted only if future redaction rules require | Collapsible text          |
+| Agent message prompt  | `agent_messages.messages_json`                              | string nullable | No       | Redacted in bundles                             | Prompt trace              |
+| API call endpoint     | `api_call_log.endpoint`                                     | string          | Yes      | Redacted where needed                           | External tab              |
+| Execution step status | `session_execution_steps.status` via execution progress API | enum            | Yes      | Existing execution step status enum             | Action strip              |
 
 ### 6.2 New Data Entities
 
 #### Developer Settings
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|--------------------|----------------------|------|----------|------------------|-------|
-| Default Developer min event level | `developer_settings.defaultEventMinLevel` | enum | Yes | `DEBUG`, `INFO`, `WARN`, `ERROR` | Persisted local preference |
-| Default time window | `developer_settings.defaultTimeWindowMinutes` | number | Yes | One of `15`, `60`, `360`, `1440`, `0` | `0` means all |
-| Default source filters | `developer_settings.defaultSourceFiltersJson` | string | No | JSON array of event source IDs | Empty means all |
-| Include prompts in exports | `developer_settings.includePromptsInExports` | boolean | Yes | Defaults false | Safety default |
-| Include tool payloads in exports | `developer_settings.includeToolPayloadsInExports` | boolean | Yes | Defaults true | Redacted |
+| UI Label / Element                | Field Name in DB/API                              | Type    | Required | Validation Rules                      | Notes                      |
+| --------------------------------- | ------------------------------------------------- | ------- | -------- | ------------------------------------- | -------------------------- |
+| Default Developer min event level | `developer_settings.defaultEventMinLevel`         | enum    | Yes      | `DEBUG`, `INFO`, `WARN`, `ERROR`      | Persisted local preference |
+| Default time window               | `developer_settings.defaultTimeWindowMinutes`     | number  | Yes      | One of `15`, `60`, `360`, `1440`, `0` | `0` means all              |
+| Default source filters            | `developer_settings.defaultSourceFiltersJson`     | string  | No       | JSON array of event source IDs        | Empty means all            |
+| Include prompts in exports        | `developer_settings.includePromptsInExports`      | boolean | Yes      | Defaults false                        | Safety default             |
+| Include tool payloads in exports  | `developer_settings.includeToolPayloadsInExports` | boolean | Yes      | Defaults true                         | Redacted                   |
 
 #### Runtime Log Override
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|--------------------|----------------------|------|----------|------------------|-------|
-| Override ID | `runtime_log_overrides.id` | string | Yes | UUID | For active capture/session override tracking |
-| Scope type | `runtime_log_overrides.scopeType` | enum | Yes | `global`, `session`, `cycle`, `provider`, `broker` | Controls matching |
-| Scope ID | `runtime_log_overrides.scopeId` | string nullable | No | Required except global | Session/cycle/provider/broker ID |
-| Main log level | `runtime_log_overrides.mainLogLevel` | enum | Yes | `trace`, `debug`, `info`, `warn`, `error` | Maps to Pino level |
-| Event min level | `runtime_log_overrides.eventMinLevel` | enum | Yes | `DEBUG`, `INFO`, `WARN`, `ERROR` | For DB/event capture/query defaults |
-| Expires at | `runtime_log_overrides.expiresAt` | timestamp nullable | No | Future timestamp or null | Null only for `Until stopped` |
-| Created at | `runtime_log_overrides.createdAt` | timestamp | Yes | ISO timestamp | Audit display |
+| UI Label / Element | Field Name in DB/API                  | Type               | Required | Validation Rules                                   | Notes                                        |
+| ------------------ | ------------------------------------- | ------------------ | -------- | -------------------------------------------------- | -------------------------------------------- |
+| Override ID        | `runtime_log_overrides.id`            | string             | Yes      | UUID                                               | For active capture/session override tracking |
+| Scope type         | `runtime_log_overrides.scopeType`     | enum               | Yes      | `global`, `session`, `cycle`, `provider`, `broker` | Controls matching                            |
+| Scope ID           | `runtime_log_overrides.scopeId`       | string nullable    | No       | Required except global                             | Session/cycle/provider/broker ID             |
+| Main log level     | `runtime_log_overrides.mainLogLevel`  | enum               | Yes      | `trace`, `debug`, `info`, `warn`, `error`          | Maps to Pino level                           |
+| Event min level    | `runtime_log_overrides.eventMinLevel` | enum               | Yes      | `DEBUG`, `INFO`, `WARN`, `ERROR`                   | For DB/event capture/query defaults          |
+| Expires at         | `runtime_log_overrides.expiresAt`     | timestamp nullable | No       | Future timestamp or null                           | Null only for `Until stopped`                |
+| Created at         | `runtime_log_overrides.createdAt`     | timestamp          | Yes      | ISO timestamp                                      | Audit display                                |
 
 #### Debug Bundle Export
 
-| UI Label / Element | Field Name in DB/API | Type | Required | Validation Rules | Notes |
-|--------------------|----------------------|------|----------|------------------|-------|
-| Bundle path | `path` response field | string | Yes | Must be under `~/.exva/debug-bundles` unless overridden by app config | UI display only |
-| Included sections | `includedSections` | string[] | Yes | Known section IDs only | Result drawer |
-| Redaction count | `redactionCount` | number | Yes | Integer >= 0 | Safety confirmation |
-| Size bytes | `sizeBytes` | number | Yes | Integer > 0 | Warn above 25 MB |
+| UI Label / Element | Field Name in DB/API  | Type     | Required | Validation Rules                                                      | Notes               |
+| ------------------ | --------------------- | -------- | -------- | --------------------------------------------------------------------- | ------------------- |
+| Bundle path        | `path` response field | string   | Yes      | Must be under `~/.exva/debug-bundles` unless overridden by app config | UI display only     |
+| Included sections  | `includedSections`    | string[] | Yes      | Known section IDs only                                                | Result drawer       |
+| Redaction count    | `redactionCount`      | number   | Yes      | Integer >= 0                                                          | Safety confirmation |
+| Size bytes         | `sizeBytes`           | number   | Yes      | Integer > 0                                                           | Warn above 25 MB    |
 
 ### 6.3 Schema Changes Required
 
-| Table | Change | Column Name | Type | Default | Nullable |
-|-------|--------|-------------|------|---------|----------|
-| `developer_settings` | Add table | `id` | text | `singleton` | No |
-| `developer_settings` | Add column | `default_event_min_level` | text | `INFO` | No |
-| `developer_settings` | Add column | `default_time_window_minutes` | integer | `60` | No |
-| `developer_settings` | Add column | `default_source_filters_json` | text | `[]` | No |
-| `developer_settings` | Add column | `include_prompts_in_exports` | integer boolean | `0` | No |
-| `developer_settings` | Add column | `include_tool_payloads_in_exports` | integer boolean | `1` | No |
-| `runtime_log_overrides` | Add table | `id` | text | generated UUID | No |
-| `runtime_log_overrides` | Add column | `scope_type` | text | none | No |
-| `runtime_log_overrides` | Add column | `scope_id` | text | null | Yes |
-| `runtime_log_overrides` | Add column | `main_log_level` | text | none | No |
-| `runtime_log_overrides` | Add column | `event_min_level` | text | none | No |
-| `runtime_log_overrides` | Add column | `expires_at` | text | null | Yes |
-| `runtime_log_overrides` | Add column | `created_at` | text | current timestamp | No |
-| `events` | Add index | `idx_events_scope_created` | `(session_id, cycle_id, created_at)` | n/a | n/a |
-| `events` | Add index | `idx_events_level_created` | `(level, created_at)` | n/a | n/a |
-| `api_call_log` | Add index if absent | `idx_api_call_log_scope_created` | `(session_id, cycle_id, trade_id, created_at)` | n/a | n/a |
+| Table                   | Change              | Column Name                        | Type                                           | Default           | Nullable |
+| ----------------------- | ------------------- | ---------------------------------- | ---------------------------------------------- | ----------------- | -------- |
+| `developer_settings`    | Add table           | `id`                               | text                                           | `singleton`       | No       |
+| `developer_settings`    | Add column          | `default_event_min_level`          | text                                           | `INFO`            | No       |
+| `developer_settings`    | Add column          | `default_time_window_minutes`      | integer                                        | `60`              | No       |
+| `developer_settings`    | Add column          | `default_source_filters_json`      | text                                           | `[]`              | No       |
+| `developer_settings`    | Add column          | `include_prompts_in_exports`       | integer boolean                                | `0`               | No       |
+| `developer_settings`    | Add column          | `include_tool_payloads_in_exports` | integer boolean                                | `1`               | No       |
+| `runtime_log_overrides` | Add table           | `id`                               | text                                           | generated UUID    | No       |
+| `runtime_log_overrides` | Add column          | `scope_type`                       | text                                           | none              | No       |
+| `runtime_log_overrides` | Add column          | `scope_id`                         | text                                           | null              | Yes      |
+| `runtime_log_overrides` | Add column          | `main_log_level`                   | text                                           | none              | No       |
+| `runtime_log_overrides` | Add column          | `event_min_level`                  | text                                           | none              | No       |
+| `runtime_log_overrides` | Add column          | `expires_at`                       | text                                           | null              | Yes      |
+| `runtime_log_overrides` | Add column          | `created_at`                       | text                                           | current timestamp | No       |
+| `events`                | Add index           | `idx_events_scope_created`         | `(session_id, cycle_id, created_at)`           | n/a               | n/a      |
+| `events`                | Add index           | `idx_events_level_created`         | `(level, created_at)`                          | n/a               | n/a      |
+| `api_call_log`          | Add index if absent | `idx_api_call_log_scope_created`   | `(session_id, cycle_id, trade_id, created_at)` | n/a               | n/a      |
 
 ---
 
@@ -530,10 +530,14 @@ Deviations:
 
 ```typescript
 // 400 Bad Request - invalid scoped request
-{ error: "Scope ID is required for session, cycle, provider, and broker log overrides." }
+{
+  error: "Scope ID is required for session, cycle, provider, and broker log overrides.";
+}
 
 // 409 Conflict - trace needs confirmation
-{ error: "Trace logging requires confirmation." }
+{
+  error: "Trace logging requires confirmation.";
+}
 ```
 
 **Side effects:** Mutates in-memory Pino base logger level and persists temporary override metadata. Inserts an event: `Developer log level changed.`
@@ -549,7 +553,9 @@ Deviations:
 **Request:**
 
 ```typescript
-{ overrideId: string }
+{
+  overrideId: string;
+}
 ```
 
 **Response:**
@@ -704,13 +710,17 @@ Deviations:
 **Response:**
 
 ```typescript
-{ opened: true }
+{
+  opened: true;
+}
 ```
 
 **Errors:**
 
 ```typescript
-{ error: "Path is not allowed." }
+{
+  error: "Path is not allowed.";
+}
 ```
 
 **Side effects:** Opens Finder for an allowlisted local Exva path only.
@@ -721,9 +731,9 @@ Deviations:
 
 Exva is currently a local-only desktop app. There are no multi-user roles.
 
-| User Type / Role | Can View | Can Create | Can Edit | Can Delete | Notes |
-|------------------|----------|------------|----------|------------|-------|
-| Local operator | Yes | Yes, for captures and bundles | Yes, for developer settings and log overrides | Yes, for stopping overrides | Must never see unredacted secrets |
+| User Type / Role | Can View | Can Create                    | Can Edit                                      | Can Delete                  | Notes                             |
+| ---------------- | -------- | ----------------------------- | --------------------------------------------- | --------------------------- | --------------------------------- |
+| Local operator   | Yes      | Yes, for captures and bundles | Yes, for developer settings and log overrides | Yes, for stopping overrides | Must never see unredacted secrets |
 
 Access-control rules:
 
@@ -737,66 +747,66 @@ Access-control rules:
 
 ## 9. Error States & Edge Cases
 
-| Scenario | Trigger | What the User Sees | What the System Does |
-|----------|---------|--------------------|----------------------|
-| Session switch feels stale | User selects session while old query is pending | New scope header immediately, timeline skeleton, stale previous rows dimmed | Cancels or ignores old request result |
-| Events query fails | IPC handler throws | `Developer data failed to load.` with `Retry` | Keeps last good rows if available |
-| Event stream stalls | No push event for 15 seconds | Badge `Live stream delayed - polling fallback active` | Starts/continues polling |
-| No focused session | Workspace is global | `No focused session` in rail; global diagnostics still visible | Does not redirect user to Sessions |
-| Sparse focused session events | Selected session has few recent events | `No events found for this session and time window.` | Offers `Expand to 24h` and `Clear Filters` |
-| Log override expires | Capture duration ends | Toast `Debug capture ended. Log level restored.` | Restores previous effective level |
-| App restarts during capture | Electron process exits | No active capture badge after restart | Expired/non-persistent overrides are ignored at boot |
-| Export too large | Bundle estimated above 25 MB | Modal: `This bundle may be large. Export without prompt messages?` | Requires confirmation or narrower export |
-| Secret-like field found | Bundle redactor detects sensitive key | Redaction summary count increments | Replaces value with `[REDACTED]` |
-| Retry failed step cannot run | Runtime manager has no active runtime | Error toast `Cannot retry because the session runtime is not active.` | No local optimistic update |
-| Stop session during running step | User clicks stop | Existing session stop confirmation/state applies | Disables retry/pause controls until status refreshes |
-| Provider test unsupported | Selected provider has no safe test API | Button hidden | No fake test action |
-| Log folder missing | User opens logs before logger created directory | Error `Log folder is not available yet.` | Does not create unrelated directories from UI action |
+| Scenario                         | Trigger                                         | What the User Sees                                                          | What the System Does                                 |
+| -------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Session switch feels stale       | User selects session while old query is pending | New scope header immediately, timeline skeleton, stale previous rows dimmed | Cancels or ignores old request result                |
+| Events query fails               | IPC handler throws                              | `Developer data failed to load.` with `Retry`                               | Keeps last good rows if available                    |
+| Event stream stalls              | No push event for 15 seconds                    | Badge `Live stream delayed - polling fallback active`                       | Starts/continues polling                             |
+| No focused session               | Workspace is global                             | `No focused session` in rail; global diagnostics still visible              | Does not redirect user to Sessions                   |
+| Sparse focused session events    | Selected session has few recent events          | `No events found for this session and time window.`                         | Offers `Expand to 24h` and `Clear Filters`           |
+| Log override expires             | Capture duration ends                           | Toast `Debug capture ended. Log level restored.`                            | Restores previous effective level                    |
+| App restarts during capture      | Electron process exits                          | No active capture badge after restart                                       | Expired/non-persistent overrides are ignored at boot |
+| Export too large                 | Bundle estimated above 25 MB                    | Modal: `This bundle may be large. Export without prompt messages?`          | Requires confirmation or narrower export             |
+| Secret-like field found          | Bundle redactor detects sensitive key           | Redaction summary count increments                                          | Replaces value with `[REDACTED]`                     |
+| Retry failed step cannot run     | Runtime manager has no active runtime           | Error toast `Cannot retry because the session runtime is not active.`       | No local optimistic update                           |
+| Stop session during running step | User clicks stop                                | Existing session stop confirmation/state applies                            | Disables retry/pause controls until status refreshes |
+| Provider test unsupported        | Selected provider has no safe test API          | Button hidden                                                               | No fake test action                                  |
+| Log folder missing               | User opens logs before logger created directory | Error `Log folder is not available yet.`                                    | Does not create unrelated directories from UI action |
 
 ---
 
 ## 10. Copy & Labels
 
-| Location | String | Notes |
-|----------|--------|-------|
-| Page title | `Developer Workbench` | Replaces `Developer` |
-| Page subtitle | `Debug sessions, runtime steps, logs, traces, and external calls from one local control center.` | Header copy |
-| Global scope | `Global workspace` | Scope rail |
-| Focused session empty | `No focused session` | Scope rail |
-| Session picker placeholder | `Jump to session...` | Search/select |
-| Capture CTA | `Capture Debug Window` | Header button |
-| Capture active badge | `Capture active - ends in {time}` | Header badge |
-| Stop capture | `Stop Capture` | Header or modal action |
-| Export CTA | `Export Debug Bundle` | Header button |
-| Open logs | `Open Logs Folder` | Header button |
-| Retry failed step | `Retry Failed Step` | Action strip |
-| Clear failed step | `Clear Failed Step` | Action strip |
-| Pause after step | `Pause After Current Step` | Action strip |
-| Event search placeholder | `Search message, id, symbol, provider, error...` | Timeline search |
-| Empty global events | `No developer events have been recorded yet.` | Timeline empty |
-| Empty filtered events | `No events match these filters.` | Timeline empty |
-| Empty session events | `No events found for this session and time window.` | Timeline empty |
-| Expand time window | `Expand to 24h` | Empty action |
-| Clear filters | `Clear Filters` | Empty action |
-| Query error | `Developer data failed to load.` | Error panel |
-| Retry load | `Retry` | Error action |
-| Trace confirmation | `Trace logs can include large payload metadata and may slow the app.` | Confirmation copy |
-| Export success | `Debug bundle exported.` | Toast/result drawer |
-| Export failure | `Debug bundle export failed.` | Toast/error panel |
-| Log override restored | `Debug capture ended. Log level restored.` | Toast |
-| Secret redaction note | `Secrets are redacted before export. API keys and authorization headers are never shown.` | Capture/export modal |
+| Location                   | String                                                                                           | Notes                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------- |
+| Page title                 | `Developer Workbench`                                                                            | Replaces `Developer`   |
+| Page subtitle              | `Debug sessions, runtime steps, logs, traces, and external calls from one local control center.` | Header copy            |
+| Global scope               | `Global workspace`                                                                               | Scope rail             |
+| Focused session empty      | `No focused session`                                                                             | Scope rail             |
+| Session picker placeholder | `Jump to session...`                                                                             | Search/select          |
+| Capture CTA                | `Capture Debug Window`                                                                           | Header button          |
+| Capture active badge       | `Capture active - ends in {time}`                                                                | Header badge           |
+| Stop capture               | `Stop Capture`                                                                                   | Header or modal action |
+| Export CTA                 | `Export Debug Bundle`                                                                            | Header button          |
+| Open logs                  | `Open Logs Folder`                                                                               | Header button          |
+| Retry failed step          | `Retry Failed Step`                                                                              | Action strip           |
+| Clear failed step          | `Clear Failed Step`                                                                              | Action strip           |
+| Pause after step           | `Pause After Current Step`                                                                       | Action strip           |
+| Event search placeholder   | `Search message, id, symbol, provider, error...`                                                 | Timeline search        |
+| Empty global events        | `No developer events have been recorded yet.`                                                    | Timeline empty         |
+| Empty filtered events      | `No events match these filters.`                                                                 | Timeline empty         |
+| Empty session events       | `No events found for this session and time window.`                                              | Timeline empty         |
+| Expand time window         | `Expand to 24h`                                                                                  | Empty action           |
+| Clear filters              | `Clear Filters`                                                                                  | Empty action           |
+| Query error                | `Developer data failed to load.`                                                                 | Error panel            |
+| Retry load                 | `Retry`                                                                                          | Error action           |
+| Trace confirmation         | `Trace logs can include large payload metadata and may slow the app.`                            | Confirmation copy      |
+| Export success             | `Debug bundle exported.`                                                                         | Toast/result drawer    |
+| Export failure             | `Debug bundle export failed.`                                                                    | Toast/error panel      |
+| Log override restored      | `Debug capture ended. Log level restored.`                                                       | Toast                  |
+| Secret redaction note      | `Secrets are redacted before export. API keys and authorization headers are never shown.`        | Capture/export modal   |
 
 ---
 
 ## 11. Open Questions
 
-| # | Question | Impact if Unresolved | Owner |
-|---|----------|----------------------|-------|
-| 1 | Should runtime log overrides be persisted across app restart, or should they always be temporary/in-memory? | Determines whether `runtime_log_overrides` is durable operational state or only audit metadata | Product/Engineering |
-| 2 | Should Developer include direct lifecycle controls for live sessions, or only deep-link to Sessions for start/stop/pause/resume? | Affects risk posture and confirmation requirements for live trading sessions | Product |
-| 3 | Should exported debug bundles be JSON files, zip archives, or both? | Affects implementation, bundle size, and ease of sharing with another tool | Engineering |
-| 4 | Should prompt messages be excluded from exports by default even in local-only mode? | Affects debuggability vs privacy/safety defaults | Product/Engineering |
-| 5 | Should scope-specific log levels affect actual Pino emission, DB event capture, or only UI query visibility? | Determines complexity of logger/event plumbing and performance profile | Engineering |
+| #   | Question                                                                                                                         | Impact if Unresolved                                                                           | Owner               |
+| --- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------- |
+| 1   | Should runtime log overrides be persisted across app restart, or should they always be temporary/in-memory?                      | Determines whether `runtime_log_overrides` is durable operational state or only audit metadata | Product/Engineering |
+| 2   | Should Developer include direct lifecycle controls for live sessions, or only deep-link to Sessions for start/stop/pause/resume? | Affects risk posture and confirmation requirements for live trading sessions                   | Product             |
+| 3   | Should exported debug bundles be JSON files, zip archives, or both?                                                              | Affects implementation, bundle size, and ease of sharing with another tool                     | Engineering         |
+| 4   | Should prompt messages be excluded from exports by default even in local-only mode?                                              | Affects debuggability vs privacy/safety defaults                                               | Product/Engineering |
+| 5   | Should scope-specific log levels affect actual Pino emission, DB event capture, or only UI query visibility?                     | Determines complexity of logger/event plumbing and performance profile                         | Engineering         |
 
 ---
 

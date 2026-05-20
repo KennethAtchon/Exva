@@ -61,7 +61,11 @@ export type SessionStatus =
 export type SelectionMode = "manual_shortlist" | "ai_selected_universe";
 export type ExecutionMode = "paper_only" | "live_allowed";
 export type ResearchDepth = "light" | "balanced" | "deep";
-export type StrategyProfile = "passive_income" | "growth" | "conservative" | "custom";
+export type StrategyProfile =
+  | "passive_income"
+  | "growth"
+  | "conservative"
+  | "custom";
 
 /** Bar size the session uses for analysis, agent prompts, and (later) data pulls. */
 export type TradingTimeframe =
@@ -76,10 +80,10 @@ export type TradingTimeframe =
 
 /** How long positions are intended to be held — steers researcher/reviewer/decision prompts. */
 export type HoldingStyle =
-  | "intraday_flat"      // flat by session end / no overnight by default
-  | "multi_day_swing"    // days to a few weeks
-  | "weeks_position"     // weeks+ / slower thesis
-  | "custom";            // user explains in notes only
+  | "intraday_flat" // flat by session end / no overnight by default
+  | "multi_day_swing" // days to a few weeks
+  | "weeks_position" // weeks+ / slower thesis
+  | "custom"; // user explains in notes only
 export type WorkspaceViewMode = "session" | "global";
 export type CapitalAllocationMode = "per_session_only" | "shared_global_pool";
 
@@ -103,10 +107,10 @@ export function isSessionEditable(status: SessionStatus): boolean {
 
 // Legal lifecycle transitions
 const LEGAL_TRANSITIONS: Partial<Record<SessionStatus, SessionStatus[]>> = {
-  draft:   ["idle", "archived"],
-  idle:    ["active", "archived"],
-  active:  ["paused", "stopped"],
-  paused:  ["active", "stopped"],
+  draft: ["idle", "archived"],
+  idle: ["active", "archived"],
+  active: ["paused", "stopped"],
+  paused: ["active", "stopped"],
   stopped: ["idle", "archived"],
 };
 
@@ -169,7 +173,7 @@ export interface SessionStrategy {
 export interface SessionAiRole {
   sessionId: string;
   role: AgentRole;
-  providerKey: string;        // references provider_accounts.id
+  providerKey: string; // references provider_accounts.id
   modelId: string;
   temperature: number;
   maxTokens: number;
@@ -184,7 +188,7 @@ export interface ProviderAccount {
   name: string;
   category: "ai" | "search";
   providerType: ProviderType | SearchProviderType;
-  secretRef: string;          // keychain key, not the secret itself
+  secretRef: string; // keychain key, not the secret itself
   metadataJson: string | null;
   isConfigured: boolean;
   lastTestStatus: "unknown" | "ok" | "error";
@@ -194,7 +198,7 @@ export interface ProviderAccount {
 export interface BrokerAccount {
   id: string;
   name: string;
-  brokerType: string;         // adapter key, e.g. "alpaca"
+  brokerType: string; // adapter key, e.g. "alpaca"
   supportedInstrumentClasses: InstrumentClass[];
   mode: BrokerMode;
   secretRef: string;
@@ -213,7 +217,7 @@ export interface SessionBrokerRoutingOverride {
 }
 
 export interface WorkspacePreferences {
-  id: 1;                      // singleton row
+  id: 1; // singleton row
   globalIncludeArchived: boolean;
   defaultSearchProviderId: string | null;
   capitalAllocationMode: CapitalAllocationMode;
@@ -336,6 +340,7 @@ export function serializeError(err: unknown): SerializedAppError {
 ```
 
 Rules:
+
 - Services throw `AppError` only. Repos may throw raw SQLite errors; the calling service wraps them.
 - IPC handlers wrap their handler body in `try { ... } catch (err) { return { error: serializeError(err) } }`.
 - Renderer code distinguishes failures by `code`, never by string-matching `message`.
@@ -344,42 +349,42 @@ Rules:
 
 Every IPC channel that mutates session-scoped state checks `isSessionEditable(status)` server-side before writing. UI-side `disabled` state is UX only and not trusted.
 
-| Channel | Locked when status ∈ | Error code |
-|---------|----------------------|-----------|
-| `session:update` | `active`, `paused` | `LOCKED` |
-| `strategy:save` | `active`, `paused` | `LOCKED` |
-| `session:instrumentCache:clear` | `active`, `paused` | `LOCKED` |
-| `session:archive` | `active`, `paused` (must stop first) | `INVALID_TRANSITION` |
-| `accounts:routing:update` | service-side check: reject if any active session depends on the changed routing default without an override | `LOCKED` |
-| `accounts:brokers:remove` | service-side check: reject if any active session has the broker assigned | `LOCKED` |
-| `accounts:providers:save` | service-side check: reject when secret rotation would invalidate an in-flight runtime call (best-effort: allow but call `registry.invalidate()` after current cycle completes) | `LOCKED` |
-| `workspace:prefs:patch` | always allowed; `capitalAllocationMode` change reservoir-validates against currently-reserved capital and rejects with `CAPITAL_POOL_EXCEEDED` if a switch would over-commit | `CAPITAL_POOL_EXCEEDED` |
+| Channel                         | Locked when status ∈                                                                                                                                                           | Error code              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| `session:update`                | `active`, `paused`                                                                                                                                                             | `LOCKED`                |
+| `strategy:save`                 | `active`, `paused`                                                                                                                                                             | `LOCKED`                |
+| `session:instrumentCache:clear` | `active`, `paused`                                                                                                                                                             | `LOCKED`                |
+| `session:archive`               | `active`, `paused` (must stop first)                                                                                                                                           | `INVALID_TRANSITION`    |
+| `accounts:routing:update`       | service-side check: reject if any active session depends on the changed routing default without an override                                                                    | `LOCKED`                |
+| `accounts:brokers:remove`       | service-side check: reject if any active session has the broker assigned                                                                                                       | `LOCKED`                |
+| `accounts:providers:save`       | service-side check: reject when secret rotation would invalidate an in-flight runtime call (best-effort: allow but call `registry.invalidate()` after current cycle completes) | `LOCKED`                |
+| `workspace:prefs:patch`         | always allowed; `capitalAllocationMode` change reservoir-validates against currently-reserved capital and rejects with `CAPITAL_POOL_EXCEEDED` if a switch would over-commit   | `CAPITAL_POOL_EXCEEDED` |
 
 Every later phase that adds a session-mutating channel adds a row to this matrix in this file.
 
 ## Invariant Rules (documented — enforced in Phases 2+)
 
-| Rule | Where Enforced |
-|------|---------------|
-| At most one row has `is_focused = true` among non-archived sessions | DB transaction in `SessionRepo.setFocus()` |
-| `is_focused` cannot be `true` on an archived session | DB CHECK constraint + service guard |
-| Strategy and AI role edits blocked when `status IN ('active','paused')` | IPC handlers (`ipc/session.ts`, `ipc/config.ts`) return 409 |
-| Session start blocked if any required field is null | `SessionService.preflightStart()` |
-| New trade blocked if same `(broker_account_id, instrument_symbol)` is open/pending in another active session | `TradesRepo.checkInstrumentConflict()` |
-| Web search resolution uses session default first, then workspace default; save/start blocked if role enables search and neither exists | `SessionService` + `AiRuntime` |
-| `workspace_preferences` always has exactly one row (id=1) | DB `INSERT OR IGNORE` on migration |
-| Shared global pool reserves capital across approvals and live orders when enabled | `CapitalReservationService` |
-| If both hold-day fields are set, `maxHoldDays >= targetHoldDays`; both must be ≥ 0 when non-null | `strategy:save` validation (Phase 5) |
-| `intraday_flat` with `primaryTradingTimeframe` in `1d` / `1w` is allowed but UI may warn (mismatch) | Renderer warning only in Phase 5 |
+| Rule                                                                                                                                   | Where Enforced                                              |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| At most one row has `is_focused = true` among non-archived sessions                                                                    | DB transaction in `SessionRepo.setFocus()`                  |
+| `is_focused` cannot be `true` on an archived session                                                                                   | DB CHECK constraint + service guard                         |
+| Strategy and AI role edits blocked when `status IN ('active','paused')`                                                                | IPC handlers (`ipc/session.ts`, `ipc/config.ts`) return 409 |
+| Session start blocked if any required field is null                                                                                    | `SessionService.preflightStart()`                           |
+| New trade blocked if same `(broker_account_id, instrument_symbol)` is open/pending in another active session                           | `TradesRepo.checkInstrumentConflict()`                      |
+| Web search resolution uses session default first, then workspace default; save/start blocked if role enables search and neither exists | `SessionService` + `AiRuntime`                              |
+| `workspace_preferences` always has exactly one row (id=1)                                                                              | DB `INSERT OR IGNORE` on migration                          |
+| Shared global pool reserves capital across approvals and live orders when enabled                                                      | `CapitalReservationService`                                 |
+| If both hold-day fields are set, `maxHoldDays >= targetHoldDays`; both must be ≥ 0 when non-null                                       | `strategy:save` validation (Phase 5)                        |
+| `intraday_flat` with `primaryTradingTimeframe` in `1d` / `1w` is allowed but UI may warn (mismatch)                                    | Renderer warning only in Phase 5                            |
 
 ## Files Created / Modified in This Phase
 
-| Action | File |
-|--------|------|
-| Create | `electron/shared/domain.ts` |
+| Action | File                                                                              |
+| ------ | --------------------------------------------------------------------------------- |
+| Create | `electron/shared/domain.ts`                                                       |
 | Create | `electron/shared/errors.ts` — `AppError`, `AppErrorCode`, `serializeError` (P0.1) |
-| Modify | `electron/shared/channels.ts` — update `AgentType` reference to `AgentRole` |
-| Modify | `src/lib/types.ts` — re-export from `domain.ts` where possible |
+| Modify | `electron/shared/channels.ts` — update `AgentType` reference to `AgentRole`       |
+| Modify | `src/lib/types.ts` — re-export from `domain.ts` where possible                    |
 
 ## Acceptance Criteria
 

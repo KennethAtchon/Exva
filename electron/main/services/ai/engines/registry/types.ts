@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { PipelinePhase, EngineId, EngineKind } from "@electron/shared/ai/pipeline-phase";
+import type {
+  PipelinePhase,
+  EngineId,
+  EngineKind,
+} from "@electron/shared/ai/pipeline-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { RiskEngine } from "../../../risk/risk-engine";
 import type { CandidateValidationService } from "../../../orchestration/policy/candidate-validation-service";

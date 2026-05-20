@@ -5,7 +5,10 @@ import { collectCandidateToolNames } from "@electron/shared/ai/selector-diagnost
 import type { InstrumentClass } from "@/lib/types";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { BrokerRoutingService } from "../../../broker/broker-routing-service";
-import { DEFAULT_RISK_RULE_SET, type RiskRuleSet } from "@electron/shared/ai/pipeline-config";
+import {
+  DEFAULT_RISK_RULE_SET,
+  type RiskRuleSet,
+} from "@electron/shared/ai/pipeline-config";
 import type { WorkingCandidate } from "./selector-candidate-merger";
 
 export interface RiskFilterDeps {
@@ -58,12 +61,17 @@ export class RiskFilter {
     const reasons: string[] = [];
 
     if (!this.deps.instrumentClasses.includes(candidate.instrumentClass)) {
-      reasons.push(`Instrument class '${candidate.instrumentClass}' not enabled for session`);
+      reasons.push(
+        `Instrument class '${candidate.instrumentClass}' not enabled for session`,
+      );
     }
 
-    const minFinalScore = this.deps.riskRules?.minFinalScore ?? DEFAULT_RISK_RULE_SET.minFinalScore;
+    const minFinalScore =
+      this.deps.riskRules?.minFinalScore ?? DEFAULT_RISK_RULE_SET.minFinalScore;
     if ((candidate.finalScore ?? 0) < minFinalScore) {
-      reasons.push(`Final score ${candidate.finalScore ?? 0} below minimum ${minFinalScore}`);
+      reasons.push(
+        `Final score ${candidate.finalScore ?? 0} below minimum ${minFinalScore}`,
+      );
     }
 
     if (!candidate.rationale?.trim()) {
@@ -72,7 +80,10 @@ export class RiskFilter {
 
     if (this.deps.brokerRouting) {
       try {
-        this.deps.brokerRouting.resolveBrokerAccountId(this.deps.sessionId, candidate.instrumentClass);
+        this.deps.brokerRouting.resolveBrokerAccountId(
+          this.deps.sessionId,
+          candidate.instrumentClass,
+        );
       } catch {
         reasons.push("No broker account supports this instrument class");
       }
@@ -116,13 +127,21 @@ function extractQuoteSnapshot(
       if (call.tool !== "get_quote") continue;
       try {
         const parsed = JSON.parse(call.resultJson) as Record<string, unknown>;
-        if (typeof parsed.price !== "number" || typeof parsed.timestamp !== "string") continue;
+        if (
+          typeof parsed.price !== "number" ||
+          typeof parsed.timestamp !== "string"
+        )
+          continue;
         return {
-          instrumentSymbol: typeof parsed.instrumentSymbol === "string" ? parsed.instrumentSymbol : "",
+          instrumentSymbol:
+            typeof parsed.instrumentSymbol === "string"
+              ? parsed.instrumentSymbol
+              : "",
           price: parsed.price,
           bid: typeof parsed.bid === "number" ? parsed.bid : undefined,
           ask: typeof parsed.ask === "number" ? parsed.ask : undefined,
-          spreadPct: typeof parsed.spreadPct === "number" ? parsed.spreadPct : undefined,
+          spreadPct:
+            typeof parsed.spreadPct === "number" ? parsed.spreadPct : undefined,
           volume: typeof parsed.volume === "number" ? parsed.volume : undefined,
           timestamp: parsed.timestamp,
         };

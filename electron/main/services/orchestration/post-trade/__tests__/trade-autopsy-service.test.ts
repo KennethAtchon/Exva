@@ -9,12 +9,14 @@ describe("trade-autopsy-service", () => {
         role: "review",
         provider_key: "provider-openai",
         model_id: "gpt-4o-mini",
-        output_json: "{\"x\":1}",
+        output_json: '{"x":1}',
         messages_json: "[]",
       },
     ];
     const service = new TradeAutopsyService(
-      { require: () => ({ id: "t1", sessionId: "s1", final_pnl_usd: 12.34 }) } as never,
+      {
+        require: () => ({ id: "t1", sessionId: "s1", final_pnl_usd: 12.34 }),
+      } as never,
       { listByTrade: () => agentMessages } as never,
       { insert, listByTrade: () => [] } as never,
       {
@@ -37,11 +39,13 @@ describe("trade-autopsy-service", () => {
         provider_key: "provider-anthropic",
         model_id: "claude-sonnet-4-6",
         output_json: null,
-        messages_json: "[{\"role\":\"assistant\",\"content\":\"x\"}]",
+        messages_json: '[{"role":"assistant","content":"x"}]',
       },
     ];
     const service = new TradeAutopsyService(
-      { require: () => ({ id: "t1", sessionId: "s1", final_pnl_usd: -2.5 }) } as never,
+      {
+        require: () => ({ id: "t1", sessionId: "s1", final_pnl_usd: -2.5 }),
+      } as never,
       { listByTrade: () => agentMessages } as never,
       { insert: vi.fn(), listByTrade: () => [] } as never,
       {

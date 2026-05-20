@@ -1,13 +1,21 @@
 import type { StepResult, ToolSet } from "ai";
 import { normalizeQueryFamily } from "../search/sanitize-search-query";
 
-export function buildToolStepSignature(step: Pick<StepResult<ToolSet>, "toolCalls">): string {
+export function buildToolStepSignature(
+  step: Pick<StepResult<ToolSet>, "toolCalls">,
+): string {
   return step.toolCalls
-    .map((call) => `${String(call.toolName)}:${canonicalizeToolInput(String(call.toolName), call.input)}`)
+    .map(
+      (call) =>
+        `${String(call.toolName)}:${canonicalizeToolInput(String(call.toolName), call.input)}`,
+    )
     .join("|");
 }
 
-export function canonicalizeToolInput(toolName: string, input: unknown): string {
+export function canonicalizeToolInput(
+  toolName: string,
+  input: unknown,
+): string {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return JSON.stringify(input ?? null);
   }
@@ -22,8 +30,14 @@ export function canonicalizeToolInput(toolName: string, input: unknown): string 
     return extractDomain(url) ?? url;
   }
 
-  if (toolName === "get_quote" || toolName === "get_news" || toolName === "get_ohlcv") {
-    return normalizeSymbol(readStringField(input, "symbol")) ?? JSON.stringify(input);
+  if (
+    toolName === "get_quote" ||
+    toolName === "get_news" ||
+    toolName === "get_ohlcv"
+  ) {
+    return (
+      normalizeSymbol(readStringField(input, "symbol")) ?? JSON.stringify(input)
+    );
   }
 
   return JSON.stringify(input);
@@ -46,7 +60,8 @@ function normalizeSymbol(value: string | undefined): string | null {
 }
 
 function readStringField(value: unknown, key: string): string | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    return undefined;
   const candidate = (value as Record<string, unknown>)[key];
   return typeof candidate === "string" ? candidate : undefined;
 }

@@ -1,5 +1,11 @@
 import PQueue from "p-queue";
-import { toLegacySessionConfig, type EventSourceType, type ExecutionStage, type SessionConfig, type WorkspaceSession } from "@/lib/types";
+import {
+  toLegacySessionConfig,
+  type EventSourceType,
+  type ExecutionStage,
+  type SessionConfig,
+  type WorkspaceSession,
+} from "@/lib/types";
 import type { OrchestratorDeps } from "../../session";
 import { resolveSessionInstrumentClasses } from "../../session/effective-instrument-classes";
 import type { InstrumentClass } from "@/lib/types";
@@ -33,16 +39,23 @@ export class OrchestratorContext {
     return this.deps.bus.runtimeStatus(this.sessionId) === "active";
   }
 
-  enqueueTask(task: () => Promise<void>, onError: (error: unknown) => void): void {
+  enqueueTask(
+    task: () => Promise<void>,
+    onError: (error: unknown) => void,
+  ): void {
     this.queue.add(task).catch(onError);
   }
 
   getSessionConfig(): SessionConfig {
-    return toLegacySessionConfig(this.deps.strategyContextService.get(this.sessionId));
+    return toLegacySessionConfig(
+      this.deps.strategyContextService.get(this.sessionId),
+    );
   }
 
   getNoInstrumentRetryMinutes(): number {
-    const configured = this.deps.sessionSelectorSettingsRepo.get(this.sessionId).noInstrumentRetryMinutes;
+    const configured = this.deps.sessionSelectorSettingsRepo.get(
+      this.sessionId,
+    ).noInstrumentRetryMinutes;
     return typeof configured === "number" &&
       Number.isInteger(configured) &&
       configured >= SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN &&
@@ -69,14 +82,26 @@ export class OrchestratorContext {
     result: Extract<StepResult<unknown>, { ok: false }>,
     tradeId: string | null = null,
   ): void {
-    this.emitEvent("ERROR", tradeId, `${stage} failed: ${result.errorMessage}`, "orchestrator", cycleId);
-    if (!result.retryable && stage !== "risk_gate" && stage !== "broker_order") {
+    this.emitEvent(
+      "ERROR",
+      tradeId,
+      `${stage} failed: ${result.errorMessage}`,
+      "orchestrator",
+      cycleId,
+    );
+    if (
+      !result.retryable &&
+      stage !== "risk_gate" &&
+      stage !== "broker_order"
+    ) {
       this.setSessionStatus("attention_required");
     }
   }
 
   clearAttentionRequired(): void {
-    if (this.deps.sessionRepo.getStatus(this.sessionId) === "attention_required") {
+    if (
+      this.deps.sessionRepo.getStatus(this.sessionId) === "attention_required"
+    ) {
       this.setSessionStatus("active");
     }
   }
@@ -85,7 +110,10 @@ export class OrchestratorContext {
     const current = this.deps.sessionRepo.getStatus(this.sessionId);
     if (current === status) return;
     this.deps.sessionRepo.setStatus(status, this.sessionId);
-    this.deps.bus.emit("session_status_changed", { sessionId: this.sessionId, status });
+    this.deps.bus.emit("session_status_changed", {
+      sessionId: this.sessionId,
+      status,
+    });
   }
 
   async pauseIfRequested(cycleId: string): Promise<boolean> {
@@ -97,7 +125,13 @@ export class OrchestratorContext {
       this.deps.bus.setRuntimeStatus(this.sessionId, "paused");
       this.setSessionStatus("paused");
     }
-    this.emitEvent("INFO", null, "Paused after current step.", "orchestrator", cycleId);
+    this.emitEvent(
+      "INFO",
+      null,
+      "Paused after current step.",
+      "orchestrator",
+      cycleId,
+    );
     return true;
   }
 
@@ -120,7 +154,12 @@ export class OrchestratorContext {
   }
 
   emitAbort(): null {
-    this.emitEvent("INFO", null, "Cycle aborted: session paused mid-flight.", "orchestrator");
+    this.emitEvent(
+      "INFO",
+      null,
+      "Cycle aborted: session paused mid-flight.",
+      "orchestrator",
+    );
     return null;
   }
 
@@ -135,7 +174,10 @@ export class OrchestratorContext {
   }
 
   resolveBrokerAccountId(instrumentClass: InstrumentClass): string {
-    return this.deps.brokerRouting.resolveBrokerAccountId(this.sessionId, instrumentClass);
+    return this.deps.brokerRouting.resolveBrokerAccountId(
+      this.sessionId,
+      instrumentClass,
+    );
   }
 
   clearNoInstrumentRetry(): void {
@@ -156,7 +198,9 @@ export class OrchestratorContext {
     this.pendingApprovalIds.clear();
     for (const resolve of this.approvalCallbacks.values()) resolve(false);
     this.approvalCallbacks.clear();
-    for (const r of this.deps.capitalReservation.listActiveBySession(this.sessionId)) {
+    for (const r of this.deps.capitalReservation.listActiveBySession(
+      this.sessionId,
+    )) {
       if (r.approvalId == null && r.tradeId) {
         this.deps.capitalReservation.releaseOnFailure(r.tradeId);
       }

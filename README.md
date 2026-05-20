@@ -21,17 +21,17 @@ To produce a packaged app, run `bun run package`. To create platform installers,
 
 ## Implementation status
 
-| Area | Status |
-|---|---|
-| UI (all 7 pages) | complete, wired to Electron IPC via typed `api.*` |
-| Electron IPC surface | dashboard, trades, session, config, accounts, events |
-| SQLite schema + migrations | ported to Electron main with Drizzle schema definitions |
-| Session state machine | persisted locally with start/pause/stop |
-| Risk engine | local TypeScript preflight and decision checks |
-| Keychain | API keys and broker secrets via `keytar` |
-| Broker adapters | mock default plus isolated Alpaca REST adapter |
-| AI runtime | Vercel AI SDK wrapper with direct Anthropic provider |
-| Orchestrator / monitor loop | TypeScript service sequence wired with event emission |
+| Area                        | Status                                                  |
+| --------------------------- | ------------------------------------------------------- |
+| UI (all 7 pages)            | complete, wired to Electron IPC via typed `api.*`       |
+| Electron IPC surface        | dashboard, trades, session, config, accounts, events    |
+| SQLite schema + migrations  | ported to Electron main with Drizzle schema definitions |
+| Session state machine       | persisted locally with start/pause/stop                 |
+| Risk engine                 | local TypeScript preflight and decision checks          |
+| Keychain                    | API keys and broker secrets via `keytar`                |
+| Broker adapters             | mock default plus isolated Alpaca REST adapter          |
+| AI runtime                  | Vercel AI SDK wrapper with direct Anthropic provider    |
+| Orchestrator / monitor loop | TypeScript service sequence wired with event emission   |
 
 Search the repo for `TODO` to find every pending piece.
 

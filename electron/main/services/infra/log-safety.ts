@@ -1,4 +1,5 @@
-const SENSITIVE_KEY_PATTERN = /(key|secret|token|password|authorization|cookie|credential|api[_-]?key)/i;
+const SENSITIVE_KEY_PATTERN =
+  /(key|secret|token|password|authorization|cookie|credential|api[_-]?key)/i;
 
 export type PayloadLogMeta = {
   sizeBytes: number;
@@ -7,7 +8,11 @@ export type PayloadLogMeta = {
   sensitiveKeyCount: number;
 };
 
-function inspect(value: unknown, meta: { sensitiveKeyCount: number }, depth: number): void {
+function inspect(
+  value: unknown,
+  meta: { sensitiveKeyCount: number },
+  depth: number,
+): void {
   if (depth > 4 || value == null) return;
   if (Array.isArray(value)) {
     for (const item of value) inspect(item, meta, depth + 1);
@@ -42,7 +47,10 @@ export function payloadMeta(payload: unknown, maxBytes = 4000): PayloadLogMeta {
   };
 }
 
-export function textMeta(value: string | null | undefined, maxChars = 800): {
+export function textMeta(
+  value: string | null | undefined,
+  maxChars = 800,
+): {
   length: number;
   tooLong: boolean;
   looksSensitive: boolean;

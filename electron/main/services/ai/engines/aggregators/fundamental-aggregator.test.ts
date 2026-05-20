@@ -34,7 +34,14 @@ describe("fundamental aggregator", () => {
 
   it("returns null catalystScore when strength or freshness is absent", () => {
     const signal = aggregateFundamentalSignal("AMD", {
-      catalyst: { catalystType: null, catalystStrength: null, catalystFreshness: null, contradictionRisk: 0, catalystSummary: null, rawSummary: "" },
+      catalyst: {
+        catalystType: null,
+        catalystStrength: null,
+        catalystFreshness: null,
+        contradictionRisk: 0,
+        catalystSummary: null,
+        rawSummary: "",
+      },
     });
 
     expect(signal.catalystScore).toBeNull();
@@ -53,7 +60,14 @@ describe("fundamental aggregator", () => {
 
   it("includes worker summaries in rawSummary", () => {
     const signal = aggregateFundamentalSignal("TSLA", {
-      catalyst: { catalystType: "macro", catalystStrength: 0.5, catalystFreshness: 0.6, contradictionRisk: 0.1, catalystSummary: null, rawSummary: "Rate cut expectations" },
+      catalyst: {
+        catalystType: "macro",
+        catalystStrength: 0.5,
+        catalystFreshness: 0.6,
+        contradictionRisk: 0.1,
+        catalystSummary: null,
+        rawSummary: "Rate cut expectations",
+      },
       sentiment: { sentimentScore: 0.6, rawSummary: "Positive Reddit thread" },
     });
 

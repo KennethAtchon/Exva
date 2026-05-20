@@ -1,4 +1,8 @@
-import type { AgentMessage as PersistedAgentMessage, AgentRun, AgentRunFinishReason } from "@/lib/types";
+import type {
+  AgentMessage as PersistedAgentMessage,
+  AgentRun,
+  AgentRunFinishReason,
+} from "@/lib/types";
 
 /** Minimal message shape for provider `generateText` input (plan § Phase 0). */
 export type RuntimeAgentMessage = {

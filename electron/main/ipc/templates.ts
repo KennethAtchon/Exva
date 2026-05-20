@@ -33,9 +33,15 @@ export function registerTemplateHandlers(services: AppServices): void {
     return services.sessionTemplates.apply(id);
   });
 
-  handle(ipcMain, channels.templates.buildPayloadFromSession, async (payload) => {
-    const { sessionId } = z.object({ sessionId: z.string().min(1) }).parse(payload);
-    return services.sessionTemplates.buildPayloadFromSession(sessionId);
-  });
+  handle(
+    ipcMain,
+    channels.templates.buildPayloadFromSession,
+    async (payload) => {
+      const { sessionId } = z
+        .object({ sessionId: z.string().min(1) })
+        .parse(payload);
+      return services.sessionTemplates.buildPayloadFromSession(sessionId);
+    },
+  );
   void AppError;
 }

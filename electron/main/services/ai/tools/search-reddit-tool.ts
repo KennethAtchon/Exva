@@ -6,8 +6,19 @@ import { validateDiscoveryQuery } from "../search/sanitize-search-query";
 
 const REDDIT_TIMEOUT_MS = 6000;
 const MAX_POSTS = 8;
-const DEFAULT_SUBREDDITS = ["stocks", "investing", "wallstreetbets", "StockMarket", "SecurityAnalysis"];
-const CRYPTO_SUBREDDITS = ["CryptoMarkets", "SatoshiStreetBets", "ethfinance", "CryptoCurrency"];
+const DEFAULT_SUBREDDITS = [
+  "stocks",
+  "investing",
+  "wallstreetbets",
+  "StockMarket",
+  "SecurityAnalysis",
+];
+const CRYPTO_SUBREDDITS = [
+  "CryptoMarkets",
+  "SatoshiStreetBets",
+  "ethfinance",
+  "CryptoCurrency",
+];
 
 type RedditSort = "relevance" | "hot" | "top" | "new";
 type RedditTimeFilter = "hour" | "day" | "week";
@@ -27,8 +38,7 @@ export const MOCK_REDDIT_POSTS = [
   {
     subreddit: "stocks",
     title: "NVDA breaking out above $340 - momentum setup looks clean",
-    body:
-      "Volume has been above average for three sessions. RSI holding above 60. No major overhead resistance until $360. Earnings catalyst last week still being priced in. Long from $335 with stop at $328.",
+    body: "Volume has been above average for three sessions. RSI holding above 60. No major overhead resistance until $360. Earnings catalyst last week still being priced in. Long from $335 with stop at $328.",
     score: 312,
     comments: 87,
     url: "https://mock.local/reddit/stocks/nvda-breakout",
@@ -37,8 +47,7 @@ export const MOCK_REDDIT_POSTS = [
   {
     subreddit: "wallstreetbets",
     title: "PLTR calls printing - AI contract news plus insider buying",
-    body:
-      "New DoD contract announced. CEO bought shares last week. Options flow showing heavy call accumulation at the $90 strike. Breakout above 52-week high on 3x average volume.",
+    body: "New DoD contract announced. CEO bought shares last week. Options flow showing heavy call accumulation at the $90 strike. Breakout above 52-week high on 3x average volume.",
     score: 891,
     comments: 204,
     url: "https://mock.local/reddit/wsb/pltr-calls",
@@ -47,8 +56,7 @@ export const MOCK_REDDIT_POSTS = [
   {
     subreddit: "CryptoMarkets",
     title: "SOL showing relative strength vs BTC - breakout incoming?",
-    body:
-      "SOL/BTC pair is holding while other alts fade. DeFi volume on Solana is up sharply week over week. Momentum indicators are turning bullish with an entry zone around $170-$180 and upside toward $210.",
+    body: "SOL/BTC pair is holding while other alts fade. DeFi volume on Solana is up sharply week over week. Momentum indicators are turning bullish with an entry zone around $170-$180 and upside toward $210.",
     score: 156,
     comments: 43,
     url: "https://mock.local/reddit/crypto/sol-setup",
@@ -56,7 +64,9 @@ export const MOCK_REDDIT_POSTS = [
   },
 ];
 
-function defaultSubredditsForInstrumentClasses(instrumentClasses?: InstrumentClass[]): string[] {
+function defaultSubredditsForInstrumentClasses(
+  instrumentClasses?: InstrumentClass[],
+): string[] {
   if (!instrumentClasses?.includes("crypto")) return DEFAULT_SUBREDDITS;
   return [...DEFAULT_SUBREDDITS, ...CRYPTO_SUBREDDITS];
 }
@@ -66,8 +76,15 @@ function toRedditThreadUrl(post: RedditPost): string {
   return post.url ?? "";
 }
 
-async function searchReddit(query: string, subreddits: string[], sort: RedditSort, timeFilter: RedditTimeFilter): Promise<RedditPost[]> {
-  const url = new URL(`https://www.reddit.com/r/${subreddits.join("+")}/search.json`);
+async function searchReddit(
+  query: string,
+  subreddits: string[],
+  sort: RedditSort,
+  timeFilter: RedditTimeFilter,
+): Promise<RedditPost[]> {
+  const url = new URL(
+    `https://www.reddit.com/r/${subreddits.join("+")}/search.json`,
+  );
   url.searchParams.set("q", query);
   url.searchParams.set("sort", sort);
   url.searchParams.set("t", timeFilter);
@@ -86,7 +103,9 @@ async function searchReddit(query: string, subreddits: string[], sort: RedditSor
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`Reddit API ${response.status}`);
-    const body = (await response.json()) as { data?: { children?: Array<{ data: RedditPost }> } };
+    const body = (await response.json()) as {
+      data?: { children?: Array<{ data: RedditPost }> };
+    };
     return (body.data?.children ?? []).map((child) => child.data);
   } finally {
     clearTimeout(timeout);
@@ -101,7 +120,9 @@ export function createSearchRedditTool(deps: {
   mockPosts?: typeof MOCK_REDDIT_POSTS;
   isMockSession?: boolean;
 }) {
-  const defaultSubs = defaultSubredditsForInstrumentClasses(deps.instrumentClasses);
+  const defaultSubs = defaultSubredditsForInstrumentClasses(
+    deps.instrumentClasses,
+  );
 
   return tool({
     description: [
@@ -111,7 +132,10 @@ export function createSearchRedditTool(deps: {
       "Use it to identify specific symbols before validating them with quote, OHLCV, and news tools.",
     ].join(" "),
     inputSchema: z.object({
-      query: z.string().min(1).describe("Specific query using symbols, catalysts, setups, or themes"),
+      query: z
+        .string()
+        .min(1)
+        .describe("Specific query using symbols, catalysts, setups, or themes"),
       sort: z.enum(["relevance", "hot", "top", "new"]).default("top"),
       timeFilter: z.enum(["hour", "day", "week"]).default("day"),
       subreddits: z.array(z.string().min(1)).optional(),
@@ -126,27 +150,40 @@ export function createSearchRedditTool(deps: {
       sort: RedditSort;
       timeFilter: RedditTimeFilter;
       subreddits?: string[];
-      }) => {
-        const startedAt = Date.now();
-        const createdAt = new Date().toISOString();
-        const subsToUse = subreddits?.length ? subreddits : defaultSubs;
-        const validation = validateDiscoveryQuery(query);
+    }) => {
+      const startedAt = Date.now();
+      const createdAt = new Date().toISOString();
+      const subsToUse = subreddits?.length ? subreddits : defaultSubs;
+      const validation = validateDiscoveryQuery(query);
 
-        if (!validation.ok) {
-          return { error: `Reddit search blocked by query guard: ${validation.reason}`, posts: [] };
-        }
+      if (!validation.ok) {
+        return {
+          error: `Reddit search blocked by query guard: ${validation.reason}`,
+          posts: [],
+        };
+      }
 
-        if (!deps.mockPosts && !deps.isMockSession) {
-          return { error: "Reddit search requires OAuth authentication in live mode.", posts: [] };
-        }
+      if (!deps.mockPosts && !deps.isMockSession) {
+        return {
+          error: "Reddit search requires OAuth authentication in live mode.",
+          posts: [],
+        };
+      }
 
-        try {
-          const posts = deps.mockPosts
-            ? deps.mockPosts
-            : (await searchReddit(validation.sanitized, subsToUse, sort, timeFilter)).map((post) => ({
-                subreddit: post.subreddit,
-                title: post.title,
-                body: post.selftext,
+      try {
+        const posts = deps.mockPosts
+          ? deps.mockPosts
+          : (
+              await searchReddit(
+                validation.sanitized,
+                subsToUse,
+                sort,
+                timeFilter,
+              )
+            ).map((post) => ({
+              subreddit: post.subreddit,
+              title: post.title,
+              body: post.selftext,
               score: post.score,
               comments: post.num_comments,
               url: toRedditThreadUrl(post),

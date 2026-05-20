@@ -75,13 +75,15 @@ export function createTrendingSymbolsTool(deps: {
       const createdAt = new Date().toISOString();
 
       try {
-        const symbols = deps.mockSymbols ?? (await fetchTrendingSymbols()).map((item) => ({
-          symbol: item.symbol,
-          name: item.title,
-          messageVolume: item.messages?.count ?? null,
-          sentiment: item.sentiment?.basic ?? null,
-          watchlistCount: item.watchlist_count,
-        }));
+        const symbols =
+          deps.mockSymbols ??
+          (await fetchTrendingSymbols()).map((item) => ({
+            symbol: item.symbol,
+            name: item.title,
+            messageVolume: item.messages?.count ?? null,
+            sentiment: item.sentiment?.basic ?? null,
+            watchlistCount: item.watchlist_count,
+          }));
 
         deps.apiCallLogRepo.insert({
           id: crypto.randomUUID(),

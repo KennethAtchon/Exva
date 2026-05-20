@@ -14,23 +14,23 @@ Exva is a single-user desktop trading application that runs locally, connects to
 
 ## 2. Recommended Stack
 
-| Layer | Tool | Why |
-|---|---|---|
-| Desktop shell | Electron | Mature desktop runtime with first-class Node APIs for local databases, background workers, notifications, menus, and packaging. |
-| Packaging | Electron Forge + Vite plugin | Fastest path from the current Vite React app to a packaged Electron app with TypeScript defaults. |
-| Renderer | React + TypeScript + Vite | Keeps the existing UI implementation and build workflow. |
-| Server state in UI | TanStack Query | Handles fetch/mutate/cache/invalidate for IPC-backed data without hand-rolled polling state. |
-| UI state | Zustand | Good fit for lightweight session controls, selected trade, theme, filters, and local panel state. |
-| IPC contracts | `electron` IPC + `contextBridge` + Zod schemas | Secure, explicit method-per-operation bridge with runtime validation. |
-| AI runtime | Vercel AI SDK Core | `generateText`, `streamText`, tools, structured outputs, model/provider switching, usage metadata, and step callbacks in TypeScript. |
-| AI provider | `@ai-sdk/anthropic` by default; optional `@ai-sdk/gateway` | Direct Anthropic keys preserve local-only behavior. AI Gateway can be enabled later for model routing and central billing. |
-| Structured AI output | AI SDK `Output.object(...)` or Zod-backed schemas | Validates trade decisions before broker execution. |
-| Database | SQLite + Drizzle ORM + `better-sqlite3` | Local persistence with typed queries, migrations, and simple deployment. |
-| Secrets | `keytar` | OS-native Keychain, Credential Manager, or Secret Service access from Electron main. |
-| Background execution | `p-queue`, `Bottleneck`, or small local queue abstraction | Enforces max concurrent trade cycles, rate limits broker/model calls, and keeps task control explicit. |
-| Validation | Zod | Shared schemas for IPC payloads, broker responses, AI tool inputs, and decision objects. |
-| Logging | Pino | Structured logs that can be written locally and mirrored into the `events` table. |
-| Testing | Vitest + Playwright | Unit tests for services and schemas; end-to-end checks for the Electron app. |
+| Layer                | Tool                                                       | Why                                                                                                                                  |
+| -------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Desktop shell        | Electron                                                   | Mature desktop runtime with first-class Node APIs for local databases, background workers, notifications, menus, and packaging.      |
+| Packaging            | Electron Forge + Vite plugin                               | Fastest path from the current Vite React app to a packaged Electron app with TypeScript defaults.                                    |
+| Renderer             | React + TypeScript + Vite                                  | Keeps the existing UI implementation and build workflow.                                                                             |
+| Server state in UI   | TanStack Query                                             | Handles fetch/mutate/cache/invalidate for IPC-backed data without hand-rolled polling state.                                         |
+| UI state             | Zustand                                                    | Good fit for lightweight session controls, selected trade, theme, filters, and local panel state.                                    |
+| IPC contracts        | `electron` IPC + `contextBridge` + Zod schemas             | Secure, explicit method-per-operation bridge with runtime validation.                                                                |
+| AI runtime           | Vercel AI SDK Core                                         | `generateText`, `streamText`, tools, structured outputs, model/provider switching, usage metadata, and step callbacks in TypeScript. |
+| AI provider          | `@ai-sdk/anthropic` by default; optional `@ai-sdk/gateway` | Direct Anthropic keys preserve local-only behavior. AI Gateway can be enabled later for model routing and central billing.           |
+| Structured AI output | AI SDK `Output.object(...)` or Zod-backed schemas          | Validates trade decisions before broker execution.                                                                                   |
+| Database             | SQLite + Drizzle ORM + `better-sqlite3`                    | Local persistence with typed queries, migrations, and simple deployment.                                                             |
+| Secrets              | `keytar`                                                   | OS-native Keychain, Credential Manager, or Secret Service access from Electron main.                                                 |
+| Background execution | `p-queue`, `Bottleneck`, or small local queue abstraction  | Enforces max concurrent trade cycles, rate limits broker/model calls, and keeps task control explicit.                               |
+| Validation           | Zod                                                        | Shared schemas for IPC payloads, broker responses, AI tool inputs, and decision objects.                                             |
+| Logging              | Pino                                                       | Structured logs that can be written locally and mirrored into the `events` table.                                                    |
+| Testing              | Vitest + Playwright                                        | Unit tests for services and schemas; end-to-end checks for the Electron app.                                                         |
 
 ---
 
@@ -72,19 +72,19 @@ The user interacts only with the React renderer. The preload script exposes a na
 
 ## 4. Core Concepts & Glossary
 
-| Term | Definition |
-|---|---|
-| Renderer | The sandboxed React app shown in the Electron window. It owns presentation and local interaction state only. |
-| Preload API | A secure bridge created with `contextBridge.exposeInMainWorld`. It exposes one typed method per IPC operation. |
-| Main process | Electron's privileged Node process. It owns app lifecycle, IPC handlers, services, persistence, secrets, and background tasks. |
-| Agent run | One AI model invocation for a trade cycle, such as bull researcher, bear researcher, reviewer, or decision maker. |
-| Trade cycle | The full AI workflow for one candidate asset: research, review, decision, optional approval, execution, and monitoring. |
-| Session | A user-controlled trading period with a status of `idle`, `active`, `paused`, or `stopped`. |
-| Broker adapter | A TypeScript interface implemented by Alpaca, mock trading, and future brokers. |
-| Risk engine | Local service that enforces position size, daily loss, profit target, concurrent trade, and API spend limits. |
-| Human-in-the-loop | Optional approval gate before a pending trade is sent to the broker. |
-| Tool calling | Vercel AI SDK mechanism that allows a model to request typed functions such as web search or market lookup. |
-| Structured output | AI SDK output mode where the model response must match a schema before app code accepts it. |
+| Term              | Definition                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Renderer          | The sandboxed React app shown in the Electron window. It owns presentation and local interaction state only.                   |
+| Preload API       | A secure bridge created with `contextBridge.exposeInMainWorld`. It exposes one typed method per IPC operation.                 |
+| Main process      | Electron's privileged Node process. It owns app lifecycle, IPC handlers, services, persistence, secrets, and background tasks. |
+| Agent run         | One AI model invocation for a trade cycle, such as bull researcher, bear researcher, reviewer, or decision maker.              |
+| Trade cycle       | The full AI workflow for one candidate asset: research, review, decision, optional approval, execution, and monitoring.        |
+| Session           | A user-controlled trading period with a status of `idle`, `active`, `paused`, or `stopped`.                                    |
+| Broker adapter    | A TypeScript interface implemented by Alpaca, mock trading, and future brokers.                                                |
+| Risk engine       | Local service that enforces position size, daily loss, profit target, concurrent trade, and API spend limits.                  |
+| Human-in-the-loop | Optional approval gate before a pending trade is sent to the broker.                                                           |
+| Tool calling      | Vercel AI SDK mechanism that allows a model to request typed functions such as web search or market lookup.                    |
+| Structured output | AI SDK output mode where the model response must match a schema before app code accepts it.                                    |
 
 ---
 
@@ -564,65 +564,65 @@ Renderer code calls `window.exva`, not `ipcRenderer` directly.
 
 ### Dashboard
 
-| Method | IPC channel | Auth | Description |
-|---|---|---|---|
-| `dashboard.getStats()` | `dashboard:get-stats` | Local app | Returns `DashboardStats`. |
+| Method                                  | IPC channel                    | Auth      | Description                                   |
+| --------------------------------------- | ------------------------------ | --------- | --------------------------------------------- |
+| `dashboard.getStats()`                  | `dashboard:get-stats`          | Local app | Returns `DashboardStats`.                     |
 | `dashboard.getCostBreakdown(dateRange)` | `dashboard:get-cost-breakdown` | Local app | Returns cost totals by agent, trade, and day. |
 
 ### Trades
 
-| Method | IPC channel | Auth | Description |
-|---|---|---|---|
-| `trades.listActive()` | `trades:list-active` | Local app | Returns open and pending trades. |
-| `trades.getDetail(tradeId)` | `trades:get-detail` | Local app | Returns trade plus related agent runs. |
-| `trades.forceClose(tradeId)` | `trades:force-close` | Local app | Sends broker close request and updates the trade. |
-| `trades.approve(tradeId, approved)` | `trades:approve` | Local app | Resolves a pending approval gate. |
+| Method                              | IPC channel          | Auth      | Description                                       |
+| ----------------------------------- | -------------------- | --------- | ------------------------------------------------- |
+| `trades.listActive()`               | `trades:list-active` | Local app | Returns open and pending trades.                  |
+| `trades.getDetail(tradeId)`         | `trades:get-detail`  | Local app | Returns trade plus related agent runs.            |
+| `trades.forceClose(tradeId)`        | `trades:force-close` | Local app | Sends broker close request and updates the trade. |
+| `trades.approve(tradeId, approved)` | `trades:approve`     | Local app | Resolves a pending approval gate.                 |
 
 ### Session
 
-| Method | IPC channel | Auth | Description |
-|---|---|---|---|
-| `session.start()` | `session:start` | Local app | Starts agent scheduling after preflight checks. |
-| `session.pause()` | `session:pause` | Local app | Pauses new cycles; open trade monitors continue. |
-| `session.stop()` | `session:stop` | Local app | Stops new cycles and persists stopped state. |
-| `session.getStatus()` | `session:get-status` | Local app | Returns current session status. |
+| Method                | IPC channel          | Auth      | Description                                      |
+| --------------------- | -------------------- | --------- | ------------------------------------------------ |
+| `session.start()`     | `session:start`      | Local app | Starts agent scheduling after preflight checks.  |
+| `session.pause()`     | `session:pause`      | Local app | Pauses new cycles; open trade monitors continue. |
+| `session.stop()`      | `session:stop`       | Local app | Stops new cycles and persists stopped state.     |
+| `session.getStatus()` | `session:get-status` | Local app | Returns current session status.                  |
 
 ### Config
 
-| Method | IPC channel | Auth | Description |
-|---|---|---|---|
-| `config.getStrategy()` | `config:get-strategy` | Local app | Reads `session_config`. |
+| Method                        | IPC channel            | Auth      | Description                            |
+| ----------------------------- | ---------------------- | --------- | -------------------------------------- |
+| `config.getStrategy()`        | `config:get-strategy`  | Local app | Reads `session_config`.                |
 | `config.saveStrategy(config)` | `config:save-strategy` | Local app | Validates and saves strategy settings. |
 
 ### Accounts
 
-| Method | IPC channel | Auth | Description |
-|---|---|---|---|
-| `accounts.saveBroker(credentials)` | `accounts:save-broker` | Local app | Tests and stores broker credentials in keychain. |
-| `accounts.testBroker()` | `accounts:test-broker` | Local app | Tests stored broker credentials. |
-| `accounts.removeBroker()` | `accounts:remove-broker` | Local app | Deletes broker credentials from keychain. |
-| `accounts.saveApiKey(keyType, value)` | `accounts:save-api-key` | Local app | Stores AI or search keys in keychain. |
+| Method                                | IPC channel              | Auth      | Description                                      |
+| ------------------------------------- | ------------------------ | --------- | ------------------------------------------------ |
+| `accounts.saveBroker(credentials)`    | `accounts:save-broker`   | Local app | Tests and stores broker credentials in keychain. |
+| `accounts.testBroker()`               | `accounts:test-broker`   | Local app | Tests stored broker credentials.                 |
+| `accounts.removeBroker()`             | `accounts:remove-broker` | Local app | Deletes broker credentials from keychain.        |
+| `accounts.saveApiKey(keyType, value)` | `accounts:save-api-key`  | Local app | Stores AI or search keys in keychain.            |
 
 ### Events and Developer Tools
 
-| Method | IPC channel | Auth | Description |
-|---|---|---|---|
-| `events.list(filters)` | `events:list` | Local app | Returns filtered event rows for the developer panel. |
-| `events.getAgentTraces(tradeId)` | `events:get-agent-traces` | Local app | Returns all agent runs for a trade. |
-| `events.subscribe(name, handler)` | `events:subscribe` | Local app | Preload-managed event subscription. |
+| Method                            | IPC channel               | Auth      | Description                                          |
+| --------------------------------- | ------------------------- | --------- | ---------------------------------------------------- |
+| `events.list(filters)`            | `events:list`             | Local app | Returns filtered event rows for the developer panel. |
+| `events.getAgentTraces(tradeId)`  | `events:get-agent-traces` | Local app | Returns all agent runs for a trade.                  |
+| `events.subscribe(name, handler)` | `events:subscribe`        | Local app | Preload-managed event subscription.                  |
 
 ### Main-to-Renderer Events
 
-| Event | Payload | When |
-|---|---|---|
-| `trade_opened` | `Trade` | Broker order has opened. |
-| `trade_closed` | `Trade` | Broker reports closed or force close completes. |
-| `agent_event` | `EventRow` | Agent step starts, streams, finishes, or errors. |
-| `approval_required` | `TradeDecisionPayload` | HITL mode has a pending decision. |
-| `session_started` | `{}` | User starts a session successfully. |
-| `session_stopped` | `{ reason: string }` | User stop, risk halt, or fatal preflight failure. |
-| `stats_update` | `DashboardStats` | Monitor tick recomputes dashboard data. |
-| `notification` | `{ title, body, level }` | App-level alert should be shown. |
+| Event               | Payload                  | When                                              |
+| ------------------- | ------------------------ | ------------------------------------------------- |
+| `trade_opened`      | `Trade`                  | Broker order has opened.                          |
+| `trade_closed`      | `Trade`                  | Broker reports closed or force close completes.   |
+| `agent_event`       | `EventRow`               | Agent step starts, streams, finishes, or errors.  |
+| `approval_required` | `TradeDecisionPayload`   | HITL mode has a pending decision.                 |
+| `session_started`   | `{}`                     | User starts a session successfully.               |
+| `session_stopped`   | `{ reason: string }`     | User stop, risk halt, or fatal preflight failure. |
+| `stats_update`      | `DashboardStats`         | Monitor tick recomputes dashboard data.           |
+| `notification`      | `{ title, body, level }` | App-level alert should be shown.                  |
 
 ---
 
@@ -660,13 +660,13 @@ SQLite is the source of truth for trades, agent runs, events, adaptations, and s
 
 Live updates should use event-driven invalidation:
 
-| Event | Renderer behavior |
-|---|---|
-| `stats_update` | Update dashboard stats query data directly. |
+| Event                           | Renderer behavior                                                |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `stats_update`                  | Update dashboard stats query data directly.                      |
 | `trade_opened` / `trade_closed` | Invalidate active trades, trade detail, stats, and cost queries. |
-| `agent_event` | Append to activity feed and invalidate developer event queries. |
-| `approval_required` | Open approval UI and store pending decision ID in Zustand. |
-| `session_stopped` | Update session state and show notification/banner. |
+| `agent_event`                   | Append to activity feed and invalidate developer event queries.  |
+| `approval_required`             | Open approval UI and store pending decision ID in Zustand.       |
+| `session_stopped`               | Update session state and show notification/banner.               |
 
 ---
 
@@ -695,17 +695,17 @@ sequenceDiagram
 
 Security requirements:
 
-| Concern | Requirement |
-|---|---|
-| Renderer privileges | `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, and no raw Electron exposure. |
-| IPC exposure | One method per operation; never expose `ipcRenderer`, dynamic channel names, or arbitrary event listeners. |
-| Payload validation | Validate in preload where practical and always validate again in main with Zod. |
-| Navigation | Disable unexpected navigation and new windows; open external URLs only through a vetted allowlist. |
-| Content Security Policy | Use a strict CSP for bundled renderer assets. No remote script execution. |
-| Secrets | Store only in OS keychain; never write to SQLite, logs, renderer state, crash reports, or agent prompts. |
-| Prompt injection | Treat web search and broker/market data as untrusted tool output. Never put retrieved content in system prompts. |
-| Trade execution | AI output must pass schema validation and risk checks before broker calls. |
-| Error handling | Renderer receives normalized user-safe errors; main logs detailed internal errors without secrets. |
+| Concern                 | Requirement                                                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Renderer privileges     | `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`, and no raw Electron exposure.               |
+| IPC exposure            | One method per operation; never expose `ipcRenderer`, dynamic channel names, or arbitrary event listeners.       |
+| Payload validation      | Validate in preload where practical and always validate again in main with Zod.                                  |
+| Navigation              | Disable unexpected navigation and new windows; open external URLs only through a vetted allowlist.               |
+| Content Security Policy | Use a strict CSP for bundled renderer assets. No remote script execution.                                        |
+| Secrets                 | Store only in OS keychain; never write to SQLite, logs, renderer state, crash reports, or agent prompts.         |
+| Prompt injection        | Treat web search and broker/market data as untrusted tool output. Never put retrieved content in system prompts. |
+| Trade execution         | AI output must pass schema validation and risk checks before broker calls.                                       |
+| Error handling          | Renderer receives normalized user-safe errors; main logs detailed internal errors without secrets.               |
 
 ---
 
@@ -715,7 +715,10 @@ The AI SDK service should hide provider-specific details behind agent-focused me
 
 ```ts
 export interface AiSdkService {
-  runResearcher(input: ResearcherInput, stance: "bull" | "bear"): Promise<AgentResult<string>>;
+  runResearcher(
+    input: ResearcherInput,
+    stance: "bull" | "bear",
+  ): Promise<AgentResult<string>>;
   runReviewer(input: ReviewerInput): Promise<AgentResult<string>>;
   runDecisionMaker(input: DecisionInput): Promise<AgentResult<TradeDecision>>;
 }
@@ -723,35 +726,35 @@ export interface AiSdkService {
 
 Each call records:
 
-| Field | Source |
-|---|---|
-| `agent_type` | Calling method. |
-| `model` | AI SDK model ID. |
-| `input_tokens` | AI SDK usage metadata when provider returns it. |
-| `output_tokens` | AI SDK usage metadata when provider returns it. |
-| `cost_usd` | Local pricing table or AI Gateway metadata when available. |
-| `output_text` | Final text or JSON string for structured output. |
-| `duration_ms` | Local timer around call. |
+| Field           | Source                                                     |
+| --------------- | ---------------------------------------------------------- |
+| `agent_type`    | Calling method.                                            |
+| `model`         | AI SDK model ID.                                           |
+| `input_tokens`  | AI SDK usage metadata when provider returns it.            |
+| `output_tokens` | AI SDK usage metadata when provider returns it.            |
+| `cost_usd`      | Local pricing table or AI Gateway metadata when available. |
+| `output_text`   | Final text or JSON string for structured output.           |
+| `duration_ms`   | Local timer around call.                                   |
 
 Recommended call patterns:
 
-| Agent | AI SDK function | Tools | Output |
-|---|---|---|---|
-| Bull researcher | `streamText` or `generateText` | Web search, optional market snapshot | Markdown research note. |
-| Bear researcher | `streamText` or `generateText` | Web search, optional market snapshot | Markdown research note. |
-| Reviewer | `generateText` | None by default | Critique and ranked risks. |
-| Decision maker | `generateText` with `Output.object(...)` | None by default | Validated `TradeDecision`. |
+| Agent           | AI SDK function                          | Tools                                | Output                     |
+| --------------- | ---------------------------------------- | ------------------------------------ | -------------------------- |
+| Bull researcher | `streamText` or `generateText`           | Web search, optional market snapshot | Markdown research note.    |
+| Bear researcher | `streamText` or `generateText`           | Web search, optional market snapshot | Markdown research note.    |
+| Reviewer        | `generateText`                           | None by default                      | Critique and ranked risks. |
+| Decision maker  | `generateText` with `Output.object(...)` | None by default                      | Validated `TradeDecision`. |
 
 Multi-step tool calling should be bounded with `stopWhen: stepCountIs(n)` so a researcher cannot loop indefinitely. Every tool should have an input schema, timeout, rate limit, redacted logging, and a short result shape.
 
 Suggested tools:
 
-| Tool | Used by | Purpose |
-|---|---|---|
-| `webSearch` | Researchers | Fetch recent public context through Tavily, Brave, or another provider. |
-| `getMarketSnapshot` | Researchers and decision maker | Get latest broker or market-data quote for a candidate asset. |
-| `getPortfolioRisk` | Decision maker, optional | Provide current exposure summary without revealing secrets. |
-| `emitAgentEvent` | AI service wrapper, not model-callable | Stream progress into the event bus. |
+| Tool                | Used by                                | Purpose                                                                 |
+| ------------------- | -------------------------------------- | ----------------------------------------------------------------------- |
+| `webSearch`         | Researchers                            | Fetch recent public context through Tavily, Brave, or another provider. |
+| `getMarketSnapshot` | Researchers and decision maker         | Get latest broker or market-data quote for a candidate asset.           |
+| `getPortfolioRisk`  | Decision maker, optional               | Provide current exposure summary without revealing secrets.             |
+| `emitAgentEvent`    | AI service wrapper, not model-callable | Stream progress into the event bus.                                     |
 
 The model should never receive broker credentials, API keys, local file paths, or unrestricted database access.
 
@@ -821,17 +824,17 @@ No renderer code should know which broker adapter is active except through safe 
 
 ## 15. Packaging & Distribution
 
-| Concern | Electron approach |
-|---|---|
-| Dev app | Electron Forge with Vite for main, preload, and renderer builds. |
-| Production bundle | Electron Forge makers for macOS, Windows, and Linux. |
-| Database location | `app.getPath("userData")/exva.db`. |
-| Migrations | Drizzle migrations run in main before IPC handlers register. |
-| App updates | Add `update-electron-app` or Electron autoUpdater after signing/release flow is defined. |
-| Code signing | Required for a smooth macOS and Windows install experience; especially important when using native keychain modules. |
-| Native modules | Rebuild `better-sqlite3` and `keytar` for Electron during install/package. |
-| Logs | `app.getPath("logs")`, redacted, local-only by default. |
-| Crash reports | Disabled by default unless user opts in later. |
+| Concern           | Electron approach                                                                                                    |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Dev app           | Electron Forge with Vite for main, preload, and renderer builds.                                                     |
+| Production bundle | Electron Forge makers for macOS, Windows, and Linux.                                                                 |
+| Database location | `app.getPath("userData")/exva.db`.                                                                                   |
+| Migrations        | Drizzle migrations run in main before IPC handlers register.                                                         |
+| App updates       | Add `update-electron-app` or Electron autoUpdater after signing/release flow is defined.                             |
+| Code signing      | Required for a smooth macOS and Windows install experience; especially important when using native keychain modules. |
+| Native modules    | Rebuild `better-sqlite3` and `keytar` for Electron during install/package.                                           |
+| Logs              | `app.getPath("logs")`, redacted, local-only by default.                                                              |
+| Crash reports     | Disabled by default unless user opts in later.                                                                       |
 
 ---
 
@@ -852,15 +855,15 @@ No renderer code should know which broker adapter is active except through safe 
 
 ## 17. Open Questions
 
-| # | Question | Recommendation |
-|---|---|---|
-| 1 | Direct Anthropic provider or Vercel AI Gateway? | Start with direct `@ai-sdk/anthropic` to preserve local-only user-owned keys. Add Gateway as an advanced option. |
-| 2 | Which web search provider? | Use Tavily first for simple AI-oriented search results, with Brave as a later adapter if needed. |
-| 3 | Should trades auto-close on app quit? | No for v1. Persist open trades and resume monitoring on next launch after user confirmation. |
-| 4 | How are candidate assets selected? | Start with a static watchlist in config, then add broker/market scanner tools later. |
-| 5 | Should AI reasoning be streamed to UI? | Stream researcher progress and final summaries; persist final outputs in `agent_runs`. |
-| 6 | What model should each agent use? | Make model IDs config-driven. Default all agents to a Claude Sonnet-class model, then tune cost later. |
-| 7 | How much autonomy is acceptable for live trading? | Default to paper trading and human approval until broker integration and risk tests are proven. |
+| #   | Question                                          | Recommendation                                                                                                   |
+| --- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 1   | Direct Anthropic provider or Vercel AI Gateway?   | Start with direct `@ai-sdk/anthropic` to preserve local-only user-owned keys. Add Gateway as an advanced option. |
+| 2   | Which web search provider?                        | Use Tavily first for simple AI-oriented search results, with Brave as a later adapter if needed.                 |
+| 3   | Should trades auto-close on app quit?             | No for v1. Persist open trades and resume monitoring on next launch after user confirmation.                     |
+| 4   | How are candidate assets selected?                | Start with a static watchlist in config, then add broker/market scanner tools later.                             |
+| 5   | Should AI reasoning be streamed to UI?            | Stream researcher progress and final summaries; persist final outputs in `agent_runs`.                           |
+| 6   | What model should each agent use?                 | Make model IDs config-driven. Default all agents to a Claude Sonnet-class model, then tune cost later.           |
+| 7   | How much autonomy is acceptable for live trading? | Default to paper trading and human approval until broker integration and risk tests are proven.                  |
 
 ---
 

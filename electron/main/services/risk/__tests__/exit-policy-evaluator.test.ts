@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { ExitPolicyEvaluator, type ExitPolicyInput } from "../exit-policy-evaluator";
+import {
+  ExitPolicyEvaluator,
+  type ExitPolicyInput,
+} from "../exit-policy-evaluator";
 
 const evaluator = new ExitPolicyEvaluator();
 
-function makeBars(count: number, basePrice = 100): { high: number; low: number; close: number }[] {
+function makeBars(
+  count: number,
+  basePrice = 100,
+): { high: number; low: number; close: number }[] {
   return Array.from({ length: count }, (_, i) => ({
     open: basePrice + i * 0.1,
     high: basePrice + i * 0.1 + 2,
@@ -14,7 +20,9 @@ function makeBars(count: number, basePrice = 100): { high: number; low: number; 
   }));
 }
 
-function makeInput(overrides: Partial<ExitPolicyInput> & { currentPrice: number }): ExitPolicyInput {
+function makeInput(
+  overrides: Partial<ExitPolicyInput> & { currentPrice: number },
+): ExitPolicyInput {
   return {
     trade: {
       id: "t1",
@@ -59,7 +67,12 @@ describe("ExitPolicyEvaluator — fixed_pct", () => {
     const result = evaluator.evaluate(
       makeInput({
         currentPrice: 111,
-        riskConfig: { stopLossType: "fixed_pct", stopLossPct: 5, atrStopMultiplier: null, takeProfitPct: 10 },
+        riskConfig: {
+          stopLossType: "fixed_pct",
+          stopLossPct: 5,
+          atrStopMultiplier: null,
+          takeProfitPct: 10,
+        },
       }),
     );
 
@@ -74,8 +87,19 @@ describe("ExitPolicyEvaluator — fixed_pct", () => {
     const result = evaluator.evaluate(
       makeInput({
         currentPrice: 88, // below both TP (90) and — for a short — stop (105) is above, doesn't matter here
-        trade: { id: "t1", entryPrice: 100, side: "SELL", instrumentType: "stock", highWaterMarkPrice: null },
-        riskConfig: { stopLossType: "fixed_pct", stopLossPct: 5, atrStopMultiplier: null, takeProfitPct: 10 },
+        trade: {
+          id: "t1",
+          entryPrice: 100,
+          side: "SELL",
+          instrumentType: "stock",
+          highWaterMarkPrice: null,
+        },
+        riskConfig: {
+          stopLossType: "fixed_pct",
+          stopLossPct: 5,
+          atrStopMultiplier: null,
+          takeProfitPct: 10,
+        },
       }),
     );
 
@@ -88,7 +112,13 @@ describe("ExitPolicyEvaluator — fixed_pct", () => {
     const result = evaluator.evaluate(
       makeInput({
         currentPrice: 106,
-        trade: { id: "t1", entryPrice: 100, side: "SELL", instrumentType: "stock", highWaterMarkPrice: null },
+        trade: {
+          id: "t1",
+          entryPrice: 100,
+          side: "SELL",
+          instrumentType: "stock",
+          highWaterMarkPrice: null,
+        },
       }),
     );
 
@@ -100,7 +130,13 @@ describe("ExitPolicyEvaluator — fixed_pct", () => {
     const result = evaluator.evaluate(
       makeInput({
         currentPrice: 96,
-        trade: { id: "t1", entryPrice: 100, side: "SELL", instrumentType: "stock", highWaterMarkPrice: null },
+        trade: {
+          id: "t1",
+          entryPrice: 100,
+          side: "SELL",
+          instrumentType: "stock",
+          highWaterMarkPrice: null,
+        },
       }),
     );
 
@@ -114,7 +150,12 @@ describe("ExitPolicyEvaluator — trailing_atr", () => {
       makeInput({
         currentPrice: 70,
         ohlcvBars: makeBars(10),
-        riskConfig: { stopLossType: "trailing_atr", stopLossPct: null, atrStopMultiplier: 2, takeProfitPct: null },
+        riskConfig: {
+          stopLossType: "trailing_atr",
+          stopLossPct: null,
+          atrStopMultiplier: 2,
+          takeProfitPct: null,
+        },
       }),
     );
 
@@ -127,8 +168,19 @@ describe("ExitPolicyEvaluator — trailing_atr", () => {
       makeInput({
         currentPrice: 102,
         ohlcvBars: bars,
-        riskConfig: { stopLossType: "trailing_atr", stopLossPct: null, atrStopMultiplier: 2, takeProfitPct: null },
-        trade: { id: "t1", entryPrice: 100, side: "BUY", instrumentType: "stock", highWaterMarkPrice: 102 },
+        riskConfig: {
+          stopLossType: "trailing_atr",
+          stopLossPct: null,
+          atrStopMultiplier: 2,
+          takeProfitPct: null,
+        },
+        trade: {
+          id: "t1",
+          entryPrice: 100,
+          side: "BUY",
+          instrumentType: "stock",
+          highWaterMarkPrice: 102,
+        },
       }),
     );
 
@@ -152,8 +204,19 @@ describe("ExitPolicyEvaluator — trailing_atr", () => {
       makeInput({
         currentPrice: 100,
         ohlcvBars: bars,
-        riskConfig: { stopLossType: "trailing_atr", stopLossPct: null, atrStopMultiplier: 2, takeProfitPct: null },
-        trade: { id: "t1", entryPrice: 100, side: "BUY", instrumentType: "stock", highWaterMarkPrice: 110 },
+        riskConfig: {
+          stopLossType: "trailing_atr",
+          stopLossPct: null,
+          atrStopMultiplier: 2,
+          takeProfitPct: null,
+        },
+        trade: {
+          id: "t1",
+          entryPrice: 100,
+          side: "BUY",
+          instrumentType: "stock",
+          highWaterMarkPrice: 110,
+        },
       }),
     );
 
@@ -175,8 +238,19 @@ describe("ExitPolicyEvaluator — trailing_atr", () => {
       makeInput({
         currentPrice: 115,
         ohlcvBars: bars,
-        riskConfig: { stopLossType: "trailing_atr", stopLossPct: null, atrStopMultiplier: 2, takeProfitPct: null },
-        trade: { id: "t1", entryPrice: 100, side: "BUY", instrumentType: "stock", highWaterMarkPrice: 110 },
+        riskConfig: {
+          stopLossType: "trailing_atr",
+          stopLossPct: null,
+          atrStopMultiplier: 2,
+          takeProfitPct: null,
+        },
+        trade: {
+          id: "t1",
+          entryPrice: 100,
+          side: "BUY",
+          instrumentType: "stock",
+          highWaterMarkPrice: 110,
+        },
       }),
     );
 
@@ -188,8 +262,19 @@ describe("ExitPolicyEvaluator — trailing_atr", () => {
       makeInput({
         currentPrice: 0.01,
         ohlcvBars: makeBars(20),
-        riskConfig: { stopLossType: "trailing_atr", stopLossPct: null, atrStopMultiplier: 2, takeProfitPct: null },
-        trade: { id: "t1", entryPrice: 0.9, side: "BUY", instrumentType: "prediction_market", highWaterMarkPrice: null },
+        riskConfig: {
+          stopLossType: "trailing_atr",
+          stopLossPct: null,
+          atrStopMultiplier: 2,
+          takeProfitPct: null,
+        },
+        trade: {
+          id: "t1",
+          entryPrice: 0.9,
+          side: "BUY",
+          instrumentType: "prediction_market",
+          highWaterMarkPrice: null,
+        },
       }),
     );
 
@@ -202,7 +287,12 @@ describe("ExitPolicyEvaluator — stopLossType=none", () => {
     const result = evaluator.evaluate(
       makeInput({
         currentPrice: 50,
-        riskConfig: { stopLossType: "none", stopLossPct: 5, atrStopMultiplier: null, takeProfitPct: null },
+        riskConfig: {
+          stopLossType: "none",
+          stopLossPct: 5,
+          atrStopMultiplier: null,
+          takeProfitPct: null,
+        },
       }),
     );
 
@@ -213,7 +303,12 @@ describe("ExitPolicyEvaluator — stopLossType=none", () => {
     const result = evaluator.evaluate(
       makeInput({
         currentPrice: 115,
-        riskConfig: { stopLossType: "none", stopLossPct: null, atrStopMultiplier: null, takeProfitPct: 10 },
+        riskConfig: {
+          stopLossType: "none",
+          stopLossPct: null,
+          atrStopMultiplier: null,
+          takeProfitPct: 10,
+        },
       }),
     );
 

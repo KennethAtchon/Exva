@@ -16,10 +16,16 @@ export async function runDeclarativeStage(
       if (config.skipIf?.(state)) return state;
       return runEngineChainStage(config.engines, ctx, state);
     case "phase": {
-      const result = await ctx.runPhasePlan(config.phase, config.buildInput(ctx, state));
+      const result = await ctx.runPhasePlan(
+        config.phase,
+        config.buildInput(ctx, state),
+      );
       const agentResult = toAgentResult(result);
       if (config.phase !== "decision" && !hasSymbolOutput(agentResult.output)) {
-        throw new AppError(`${config.phase} phase returned no signal.`, "VALIDATION_FAILED");
+        throw new AppError(
+          `${config.phase} phase returned no signal.`,
+          "VALIDATION_FAILED",
+        );
       }
       return config.applyOutput(state, agentResult);
     }
@@ -34,15 +40,24 @@ function toAgentResult<T>(result: {
   message?: AgentResult<T>["message"];
 }): AgentResult<T> {
   if (!result.run || !result.message) {
-    throw new AppError("Phase plan did not return agent run metadata.", "VALIDATION_FAILED");
+    throw new AppError(
+      "Phase plan did not return agent run metadata.",
+      "VALIDATION_FAILED",
+    );
   }
   return { run: result.run, message: result.message, output: result.output };
 }
 
 function hasSymbolOutput(output: unknown): boolean {
-  return Boolean(output && typeof output === "object" && "symbol" in output && (output as { symbol?: string }).symbol);
+  return Boolean(
+    output &&
+    typeof output === "object" &&
+    "symbol" in output &&
+    (output as { symbol?: string }).symbol,
+  );
 }
 
 export function buildCycleStageExecute(config: DeclarativeCycleStageConfig) {
-  return (ctx: CyclePlanRunContext, state: TradeCyclePlanState) => runDeclarativeStage(config, ctx, state);
+  return (ctx: CyclePlanRunContext, state: TradeCyclePlanState) =>
+    runDeclarativeStage(config, ctx, state);
 }

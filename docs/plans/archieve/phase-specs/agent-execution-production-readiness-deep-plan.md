@@ -30,7 +30,6 @@ The current implementation also overweights AI reasoning relative to determinist
 
 ### Goals
 
-
 | #   | Goal                                                   | Success Looks Like                                                                                                                                                                                    |
 | --- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | G1  | Fix current selector crash                             | `docs/hello.json`-style terminal tool calls parse from `argsJson` when `resultJson` is `null`; regression test covers it. Done.                                                                       |
@@ -41,9 +40,7 @@ The current implementation also overweights AI reasoning relative to determinist
 | G6  | Make profitability testable, not assumed               | Backtest/paper-trade reports include win rate, expectancy, max drawdown, Sharpe-like risk-adjusted return, average slippage, AI/data costs, and decision rejection reasons.                           |
 | G7  | Make every cycle auditable                             | Each cycle has a single `cycleId`, full prompt/tool/decision trace, market-data snapshot, risk-decision record, broker order record, and replay fixture.                                              |
 
-
 ### Non-Goals
-
 
 | #   | Non-Goal                                                 | Why It Is Out Of Scope                                                                                                          |
 | --- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -53,9 +50,7 @@ The current implementation also overweights AI reasoning relative to determinist
 | N4  | Replacing all AI decisions with deterministic strategies | The app's product thesis is AI-assisted decisioning; deterministic code should guard, not eliminate, AI proposals.              |
 | N5  | Live trading before paper proof                          | Live order placement should remain gated until paper scenarios and safeguards pass.                                             |
 
-
 ### Invariants
-
 
 | #   | Invariant                                                   | Why It Must Hold                                                                                                                                                                                                                          |
 | --- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -66,11 +61,9 @@ The current implementation also overweights AI reasoning relative to determinist
 | I5  | Pausing/stopping must prevent new orders                    | A quick-disable mechanism is a recommended control for algorithmic systems ([FINRA Notice 15-09](https://www.finra.org/rules-guidance/notices/15-09)). Note: stopping prevents new orders but does not close existing positions — see H8. |
 | I6  | No hidden fallback to live execution                        | Missing routing/config must fail closed, not silently choose a broker.                                                                                                                                                                    |
 
-
 ## 4. Current State
 
 ### 4.1 Component Map
-
 
 | Area                | Current Files                                                                                                                                                    | Responsibility                                                                                                                                                                                                                                                                                     |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -84,7 +77,6 @@ The current implementation also overweights AI reasoning relative to determinist
 | Mock data           | `electron/main/services/broker/adapters/mock-adapter.ts`, `electron/main/services/ai/tools/market-tools.ts`, `search-reddit-tool.ts`, `trending-symbols-tool.ts` | Synthetic OHLCV/quote/news/social/trending data. See Section 4.2 for detailed mock limitations.                                                                                                                                                                                                    |
 | Strategy/presets    | `electron/shared/domain.ts`, `electron/shared/presets.ts`, `electron/main/services/session/session-strategy-context-service.ts`                                  | Research style, trade rules, risk profile, timeframe, prompt context.                                                                                                                                                                                                                              |
 | Post-trade analysis | `electron/main/services/orchestration/trade-autopsy-service.ts`                                                                                                  | AI-generated trade summaries using `claude-haiku-4-5-20251001` against persisted agent messages and final PnL.                                                                                                                                                                                     |
-
 
 ### 4.2 Execution Flow Today
 
@@ -118,12 +110,9 @@ sequenceDiagram
     Mon->>Broker: getOrderStatus()/closeOrder()
 ```
 
-
-
 The flow is structurally correct for a local autonomous agent. The main weaknesses are that many boxes trust upstream data too much, capital reservation is gated on human approval, and the monitor does not enforce stop/take-profit rules.
 
 ### 4.3 Current Mock Data Limitations
-
 
 | Data Source              | Mock Implementation                                                                         | Limitation                                                                                                                  |
 | ------------------------ | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -135,7 +124,6 @@ The flow is structurally correct for a local autonomous agent. The main weakness
 | Trending symbols         | `MOCK_TRENDING_SYMBOLS` — 3 hardcoded entries                                               | Always NVDA/PLTR/TSLA; sentiment and volumes never change                                                                   |
 | Reddit (live)            | `search-reddit-tool.ts` calls `www.reddit.com/r/{subs}/search.json`                         | Reddit deprecated unauthenticated API access June 2023; live calls will fail with 403 or 429                                |
 | Synthetic OHLCV fallback | `buildSyntheticBars()` in `market-tools.ts`                                                 | Produces 30 daily bars trending downward toward the spot price (drift goes back in time); biases technical analysis bearish |
-
 
 ### 4.4 Current Selector Failure Root Cause (Fixed)
 
@@ -151,7 +139,6 @@ Malformed JSON at any level is silently skipped; the parser fails closed if no v
 
 ### 4.5 Current Preset Configuration
 
-
 | Preset Layer   | Current Default                                                                                                                                                                   | Strength                                                                    | Weakness                                                                                                                                                                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Global preset  | `Trend Momentum` (`trend_momentum` in `presets.ts`)                                                                                                                               | Coherent style/rules/risk/timeframe bundle.                                 | Default risk is `moderate` which has `humanApprovalRequired: false`, so live readiness needs stronger deterministic gates first.                                                                                                           |
@@ -160,9 +147,7 @@ Malformed JSON at any level is silently skipped; the parser fails closed if no v
 | Risk           | `moderate` — `maxPositionUsd: 500`, `maxConcurrentTrades: 3`, `waitForOpenThreshold: 0.8`, `stopLossType: "trailing_atr"`, `atrStopMultiplier: 2`, `humanApprovalRequired: false` | Caps position size, limits concurrency, requires confidence ≥ 0.8.          | `stopLossType`/`atrStopMultiplier` values are read during sizing but **never enforced by `TradeMonitor`** (C3). No price collar, slippage cap, stale data rejection, total broker exposure cap, or mandatory stop/take-profit enforcement. |
 | Timeframe      | `swing` — `primaryTradingTimeframe: "4h"`, `targetHoldDays: 3–14`, `holdingStyle: "multi_day_swing"`                                                                              | 4h/multi-day target; monitor polls every 60 seconds for this holding style. | Market tools return daily bars in mock mode (`timeframe: "1d"`); prompt says 4h but data is 1d.                                                                                                                                            |
 
-
 ### 4.6 Current Safeguards That Exist
-
 
 | Safeguard             | Current Implementation                                                                                                                                                                                                                                  | Status                                                                                                              |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
@@ -176,11 +161,9 @@ Malformed JSON at any level is silently skipped; the parser fails closed if no v
 | Human approvals       | Optional persisted approval records and recheck path via `runApprovalRecheck()`.                                                                                                                                                                        | Good for HITL mode; no-approval mode skips all capital reservation (see C4).                                        |
 | Trade monitor         | Polls open trades. Interval: `intraday_flat` = 5s, `multi_day_swing` = 60s, `weeks_position`/`custom` = 300s. Enforces `maxHoldDays` and prediction-market resolution/exposure.                                                                         | Partial; lacks stop-loss, trailing-ATR, take-profit, and slippage exits despite these being configured in presets.  |
 
-
 ## 5. Production Readiness Findings
 
 ### Critical Findings
-
 
 | #   | Finding                                                                   | Evidence                                                                                                                                                                                                            | Impact                                                                                                           | Required Fix                                                                                                                                                                            |
 | --- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -191,9 +174,7 @@ Malformed JSON at any level is silently skipped; the parser fails closed if no v
 | C5  | Mock data is not close enough to real execution                           | `closeOrder()` returns `price * 0.002` (always positive); no bid/ask in `MarketSnapshot`; Reddit live calls fail unauthenticated; synthetic OHLCV is daily-only.                                                    | Paper testing gives false confidence.                                                                            | Build scenario-based market simulator; fix `closeOrder()` PnL; add bid/ask to quote type; add Reddit OAuth or flag as unsupported in live mode.                                         |
 | C6  | No profitability proof loop                                               | No backtest/replay harness around complete agent cycle.                                                                                                                                                             | Cannot distinguish promising strategy from prompt luck.                                                          | Add deterministic replay fixtures, paper-trade scorecards, and promotion criteria.                                                                                                      |
 
-
 ### High Findings
-
 
 | #   | Finding                                                                          | Evidence                                                                                                                                                                                                                                                                                                   | Impact                                                                                        | Required Fix                                                                                                                                                                        |
 | --- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -206,9 +187,7 @@ Malformed JSON at any level is silently skipped; the parser fails closed if no v
 | H7  | Order idempotency is not explicit                                                | `placeRoutedOrder()` has no client order ID. On crash/retry, the same instrument cycle can re-enter the queue and place a second order.                                                                                                                                                                    | Retries or crashes can duplicate orders at the broker.                                        | Add `cycleId + tradeId` as client order ID header in broker adapter calls; implement de-dupe check before placing.                                                                  |
 | H8  | No emergency stop protocol closes or cancels safely                              | `AgentOrchestrator.stop()` clears the p-queue, detaches the trade-closed listener, and releases approval capital. It does not call `closeOrder()` on any open positions.                                                                                                                                   | User may think stop means risk is neutralized when positions remain open and unmonitored.     | Add explicit stop modes: `stop_new_orders` (current behavior), `cancel_pending`, `flatten_all_paper`, `flatten_all_live_confirmed`. Document which mode fires on which user action. |
 
-
 ### Medium Findings
-
 
 | #   | Finding                                                                           | Evidence                                                                                                                                                                                                                                     | Impact                                                                                                                                                                     | Required Fix                                                                                                                                                                                                                               |
 | --- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -221,7 +200,6 @@ Malformed JSON at any level is silently skipped; the parser fails closed if no v
 | M7  | Runtime errors can crash the whole execution loop                                 | `AgentOrchestrator.start()` rethrows selector failures as `AppError("VALIDATION_FAILED")`. Errors in `enqueueTradeCycles()` are only logged — session remains technically running but produces no new cycles.                                | A single provider/parser/tool/broker error can make further autonomous execution impossible until manual restart.                                                          | Add failure-isolated execution steps with persisted retry state, backoff, and user retry controls (see Section 10.4).                                                                                                                      |
 | M8  | Session cards do not show live execution progress                                 | `src/components/sessions/SessionTable.tsx` renders the `focused` badge, uptime metric, and lifecycle action buttons. No current AI stage or stuck/error state is surfaced.                                                                   | Users cannot tell whether the selector, analysts, reviewer, decision maker, risk gate, broker, or monitor is currently active.                                             | Add session-stage progress model, progress bar, active role chips, retry/error badge, and drill-in controls (see Section 10.5).                                                                                                            |
 | M9  | No-instrument retry interval is hardcoded and the message is wrong                | `NO_INSTRUMENT_RETRY_MS = 3 * 60 * 1000` (line 51 of `agent-orchestrator.ts`) fires after 3 minutes, but the emitted user-visible event message reads "Re-evaluating in 30 minutes."                                                         | Users wait for activity that already happened; support confusion; users cannot tune retry cadence for expensive providers, slow markets, or aggressive discovery sessions. | Replace the hardcoded constant with a user-configurable no-instrument retry interval that defaults to `5 * 60 * 1000` (5 min), persist it in session/runtime configuration, and render the same configured value in user-visible messages. |
-
 
 ## 6. Desired End State
 
@@ -245,12 +223,9 @@ graph TB
     Progress --> Replay[Audit + Replay Fixture]
 ```
 
-
-
 The AI remains responsible for hypothesis generation and qualitative judgment. Deterministic code owns all irreversible actions: whether the instrument is tradable, whether the order fits strategy, whether current market data is fresh, whether capital is available, whether price/slippage is acceptable, whether a duplicate order exists, and whether the trade must be closed. Runtime errors must fail the current step loudly, persist a retryable failure record, and leave the session runtime alive unless the user explicitly stops it or a fatal safety condition is reached.
 
 ## 7. Gap Analysis
-
 
 | Area                  | Current State                                                    | Target State                                                                                      | Required Change                                                                                                               |
 | --------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -269,11 +244,9 @@ The AI remains responsible for hypothesis generation and qualitative judgment. D
 | Error handling        | Errors bubble through runtime start or queue callbacks           | Step-level failed state with retry/backoff and continued loop availability                        | Add `ExecutionStepRunner` and persisted `session_execution_steps`.                                                            |
 | Session observability | Status badge + uptime/trade metrics only                         | Stage progress bar, active AI role, cycle ID, last error, retry CTA, drill-in trace               | Add runtime progress events and `SessionTable` card UI.                                                                       |
 
-
 ## 8. Options Considered
 
 ### Option A: Patch Bugs Only
-
 
 | Dimension        | Assessment                                        |
 | ---------------- | ------------------------------------------------- |
@@ -285,11 +258,9 @@ The AI remains responsible for hypothesis generation and qualitative judgment. D
 | Testability      | Limited.                                          |
 | Maintainability  | Poor because incidents continue as one-off fixes. |
 
-
 This option is insufficient. It fixes `docs/hello.json` and M9 but does not make the autonomous loop safe or production-like.
 
 ### Option B: Deterministic Guardrail Layer Around Current AI Pipeline
-
 
 | Dimension        | Assessment                                      |
 | ---------------- | ----------------------------------------------- |
@@ -301,11 +272,9 @@ This option is insufficient. It fixes `docs/hello.json` and M9 but does not make
 | Testability      | High with scenario fixtures.                    |
 | Maintainability  | Good; separates AI judgment from hard controls. |
 
-
 This is the recommended path. It preserves the current app architecture and adds the controls expected of autonomous order systems.
 
 ### Option C: Build Full Backtesting/Research Platform First
-
 
 | Dimension        | Assessment                                 |
 | ---------------- | ------------------------------------------ |
@@ -316,7 +285,6 @@ This is the recommended path. It preserves the current app architecture and adds
 | Team fit         | Too broad for current break/fix urgency.   |
 | Testability      | Excellent after completion.                |
 | Maintainability  | Good but costly.                           |
-
 
 This is valuable but should follow the immediate guardrail and simulator work. Building a full platform before fixing order safety delays the most important risk reduction.
 
@@ -369,7 +337,11 @@ interface CandidateValidationInput {
 interface CandidateValidationResult {
   allowed: boolean;
   reasons: string[];
-  evidence: Array<{ source: string; symbolMatched: boolean; publishedAt?: string }>;
+  evidence: Array<{
+    source: string;
+    symbolMatched: boolean;
+    publishedAt?: string;
+  }>;
   marketSnapshot?: {
     price: number;
     bid?: number;
@@ -388,7 +360,6 @@ Rules must include: symbol-specific evidence (not just `hadSearch`), enabled cla
 
 Before `placeRoutedOrder()` in `AgentOrchestrator`, require all of:
 
-
 | Gate          | Required Check                                                                                                                                    |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Runtime       | Session status still active; no stop requested.                                                                                                   |
@@ -399,7 +370,6 @@ Before `placeRoutedOrder()` in `AgentOrchestrator`, require all of:
 | Broker        | Broker supports instrument class, account mode matches session mode (paper vs. live), market is open/tradable.                                    |
 | Idempotency   | No existing open or pending order for the same `cycleId + tradeId + brokerAccountId`.                                                             |
 | Exit contract | Trade has an enforceable exit policy (at least one of: `stopLossPct`, `atrStopMultiplier`, `takeProfitPct`, `maxHoldDays`) before order is sent.  |
-
 
 ### 10.4 Failure-Isolated Step Runner
 
@@ -417,7 +387,13 @@ type ExecutionStage =
   | "broker_order"
   | "monitoring";
 
-type ExecutionStepStatus = "pending" | "running" | "succeeded" | "failed" | "retrying" | "skipped";
+type ExecutionStepStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "retrying"
+  | "skipped";
 
 interface ExecutionStepState {
   sessionId: string;
@@ -436,7 +412,6 @@ interface ExecutionStepState {
 
 Rules:
 
-
 | Rule                   | Behavior                                                                                                                        |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Step failure           | Persist failed step, emit progress event, leave runtime alive.                                                                  |
@@ -446,7 +421,6 @@ Rules:
 | User skip              | Only allowed for non-critical research stages (e.g. `analyst_technical` empty output); never for `risk_gate` or `broker_order`. |
 | Fatal safety failure   | Stop new orders, keep observability alive, preserve open-position monitoring unless user explicitly confirms stop.              |
 
-
 Persist this in a new `session_execution_steps` table with `cycleId`, `stage`, `status`, `attempt`, `nextRetryAt`, `lastErrorCode`, and `lastErrorMessage`. Prefer the table because the UI needs a cheap latest-state query for all session cards.
 
 New IPC actions required: `session:getExecutionProgress`, `session:retryStep`, `session:pauseAfterCurrentStep`, `session:clearFailedStep`.
@@ -454,7 +428,6 @@ New IPC actions required: `session:getExecutionProgress`, `session:retryStep`, `
 ### 10.5 Session Card Progress and Observability
 
 The Sessions page should show the execution loop as a live rail inside each session card. The existing `SessionTable.tsx` card has name/objective, badges, metrics, meta strip, and lifecycle buttons. Add a compact progress strip between the top row and meta strip.
-
 
 | Element                 | Behavior                                                                                                                                 |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
@@ -466,9 +439,7 @@ The Sessions page should show the execution loop as a live rail inside each sess
 | Pause-after-step toggle | Lets the user pause after current step instead of immediately interrupting.                                                              |
 | View trace button       | Opens DevPanel filtered to current `sessionId/cycleId/stage`.                                                                            |
 
-
 The visual language should remain consistent with the current industrial/dark Exva cards. Avoid a playful wizard UI; this is operational telemetry for money-moving automation.
-
 
 | Stage                | Percent | User Label            |
 | -------------------- | ------- | --------------------- |
@@ -481,7 +452,6 @@ The visual language should remain consistent with the current industrial/dark Ex
 | risk_gate            | 88      | Risk checks           |
 | broker_order         | 96      | Broker execution      |
 | monitoring           | 100     | Monitoring position   |
-
 
 ### 10.6 Mock Market Simulator
 
@@ -513,7 +483,6 @@ Each scenario defines: quote stream, OHLCV bars by timeframe, news/social/trendi
 
 Add a paper/replay scorecard per strategy:
 
-
 | Metric                        | Why It Matters                                                               |
 | ----------------------------- | ---------------------------------------------------------------------------- |
 | Net P&L after AI/data costs   | AI spend can erase small edges; current mock always returns `price * 0.002`. |
@@ -524,7 +493,6 @@ Add a paper/replay scorecard per strategy:
 | Rejection reasons             | Shows whether safety gates are too loose/tight.                              |
 | Slippage/spread impact        | Critical for real fills; currently zero in mock.                             |
 | Regime split                  | Trend, chop, volatility, news shock.                                         |
-
 
 Promotion rule example: a strategy cannot be live-enabled until it passes at least 100 paper/replay cycles across 8 scenario classes, has no safeguard bypasses, has positive expectancy after costs, and has max drawdown under the configured loss limit.
 
@@ -665,7 +633,6 @@ Done criteria:
 
 ## 12. Testing and Verification Strategy
 
-
 | Layer               | Required Tests                                                                                                                                                              |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Parser              | Terminal tool result null; args fallback; assistantText fallback; malformed args rejected; empty candidates accepted.                                                       |
@@ -682,7 +649,6 @@ Done criteria:
 | End-to-end          | Full no-human paper run through open/close/restart cycle with `moderate` preset.                                                                                            |
 | Replay              | Same fixture produces deterministic decisions and policy results.                                                                                                           |
 
-
 Verification commands:
 
 ```bash
@@ -692,7 +658,6 @@ bunx vitest electron/main/services/orchestration/  # new suite per phase
 ```
 
 ## 13. Risks and Failure Modes
-
 
 | #   | Risk                                                                                | Likelihood            | Impact      | Detection                                                                                 | Mitigation                                                                                            | Rollback                                                      |
 | --- | ----------------------------------------------------------------------------------- | --------------------- | ----------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
@@ -708,7 +673,6 @@ bunx vitest electron/main/services/orchestration/  # new suite per phase
 | R10 | Reddit live calls fail unauthenticated                                              | Certain in production | Medium      | 403/429 responses; selector has no discovery evidence                                     | Mock guard for paper sessions; OAuth for live                                                         | Disable Reddit tool until authenticated                       |
 | R11 | No-instrument retry misleads user and cannot be tuned (3 min timer, 30 min message) | Certain today         | Low/Medium  | User confusion, support inquiries; unnecessary provider spend or slow rediscovery cadence | User-configurable retry interval with 5-minute default; timer and message use the same resolved value | Fall back to 5-minute default if config is missing or invalid |
 
-
 ## 14. Operational Rollout
 
 1. Ship parser fix and M9 no-instrument retry configuration fix immediately.
@@ -721,7 +685,6 @@ bunx vitest electron/main/services/orchestration/  # new suite per phase
 
 ## 15. Open Questions
 
-
 | #   | Question                                                                                                         | Why It Matters                                                                                                                        | Owner   | Resolution Needed By         |
 | --- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---------------------------- |
 | Q1  | Which broker/instrument class is first real live target: Alpaca stocks, Coinbase crypto, futures, or Polymarket? | Determines market-hours, order types, quote schema (bid/ask availability), and risk gates.                                            | Kenneth | Before Phase 3 final design. |
@@ -733,16 +696,13 @@ bunx vitest electron/main/services/orchestration/  # new suite per phase
 | Q7  | Should the session card show all historical stages or only the current/latest cycle?                             | Determines whether progress UI stays compact or becomes a mini timeline.                                                              | Kenneth | Phase 2.                     |
 | Q8  | Should the Reddit tool require OAuth in live mode, or should it be disabled?                                     | Reddit's unauthenticated JSON API is broken in production since June 2023.                                                            | Kenneth | Phase 5.                     |
 
-
 ## 16. Appendix: Industry Benchmark Summary
-
 
 | Benchmark                     | Relevant Requirement                                                                                                                                                                                                                                  | Exva Implication                                                                                    |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | SEC Market Access Rule 15c3-5 | Pre-set credit/capital thresholds, erroneous-order prevention, regulatory controls, restricted access, post-trade reports, regular review. Source: [17 CFR 240.15c3-5](https://www.ecfr.gov/current/title-17/chapter-II/part-240/section-240.15c3-5). | Add capital/exposure gates, price collars, restricted instruments, reports, reviewable audit trail. |
 | FINRA Regulatory Notice 15-09 | Risk assessment, change management, testing, validation, quick disable, pilot rollout, real-time monitoring, compliance communication. Source: [FINRA Notice 15-09](https://www.finra.org/rules-guidance/notices/15-09).                              | Add scenario tests, live readiness gate, emergency stop, paper pilot, scorecards.                   |
 | OWASP LLM Top 10              | Prompt injection, insecure output handling, excessive agency, overreliance. Source: [OWASP LLM Top 10](https://owasp.org/www-project-top-10-for-large-language-model-applications/).                                                                  | Treat external content as untrusted, validate AI outputs, keep deterministic policy gates.          |
-
 
 ## 17. Appendix: Fixed Immediate Error
 
@@ -761,7 +721,6 @@ The original two-level description (resultJson → argsJson) was incomplete. The
 
 These are concrete bugs or discrepancies found during codebase audit that are not covered elsewhere.
 
-
 | #   | File                                         | Finding                                                                                                                                                                                                                                                                                                       | Fix                                                                                                                                                                                                          |
 | --- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | A1  | `agent-orchestrator.ts` line 51 and 833      | `NO_INSTRUMENT_RETRY_MS = 3 * 60 * 1000` but emitted message says "Re-evaluating in 30 minutes." The retry interval is also not configurable.                                                                                                                                                                 | Replace the hardcoded constant with a user-configurable interval that defaults to `5 * 60 * 1000`; use the same resolved value for scheduling and the message, e.g. "Re-evaluating in 5 minutes" by default. |
@@ -771,5 +730,3 @@ These are concrete bugs or discrepancies found during codebase audit that are no
 | A5  | `search-reddit-tool.ts`                      | Live path calls `www.reddit.com/r/{subs}/search.json` without authentication. Reddit deprecated unauthenticated API access June 2023; requests return 403 or 429.                                                                                                                                             | Add OAuth bearer token support or add explicit guard: if no auth configured and not in mock mode, return `{ error: "Reddit search requires authentication in live mode." }`.                                 |
 | A6  | `agent-orchestrator.ts` `placeRoutedOrder()` | `checkInstrumentConflict(brokerAccountId, symbol, sessionId)` scopes the conflict check to the current session only. Two sessions trading the same symbol on the same broker account are not detected as conflicting.                                                                                         | Add a cross-session conflict check or document this limitation explicitly.                                                                                                                                   |
 | A7  | `agent-orchestrator.ts` line 360             | `convertOrderToPosition()` guard: `if (workspace.capitalAllocationMode === "shared_global_pool" && approvalIdForCapital)` — both the approval path and the `shared_global_pool` check are required, so no-approval sessions never convert reservations to positions either. This is the complete scope of C4. | Decouple from `approvalIdForCapital`.                                                                                                                                                                        |
-
-

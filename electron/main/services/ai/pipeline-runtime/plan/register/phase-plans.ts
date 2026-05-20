@@ -20,7 +20,12 @@ export function registerDefaultPhasePlans(): void {
   registerUnifiedPlanRef("selector");
 
   registerTradeAnalysisPhasePlans();
-  for (const phase of ["technical", "fundamental", "review", "decision"] as const) {
+  for (const phase of [
+    "technical",
+    "fundamental",
+    "review",
+    "decision",
+  ] as const) {
     registerUnifiedPlanRef(phase);
   }
 }

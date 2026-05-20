@@ -27,7 +27,10 @@ function brokerProductToCcxtSymbol(productId: string): string {
   const id = productId.trim().toUpperCase();
   const dash = id.indexOf("-");
   if (dash <= 0 || dash === id.length - 1) {
-    throw new AppError(`Invalid Coinbase product id: ${productId}`, "BROKER_ERROR");
+    throw new AppError(
+      `Invalid Coinbase product id: ${productId}`,
+      "BROKER_ERROR",
+    );
   }
   const base = id.slice(0, dash);
   const quote = id.slice(dash + 1);
@@ -48,7 +51,9 @@ function quoteBalanceUsd(bal: Balances): number {
  */
 export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
   readonly brokerType = "coinbase_advanced_trade";
-  readonly supportedInstrumentClasses = ["crypto"] as const satisfies readonly InstrumentClass[];
+  readonly supportedInstrumentClasses = [
+    "crypto",
+  ] as const satisfies readonly InstrumentClass[];
   /**
    * Not launch-capable: closeOrder only cancels (does not flatten), getPositions
    * returns []. Live-readiness gate must block live sessions using this adapter
@@ -87,13 +92,20 @@ export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
   }
 
   async testConnection(): Promise<ConnectionTestResult> {
-    if (!this.credentials.apiKey?.trim() || !this.credentials.apiSecret?.trim()) {
-      return { ok: false, message: "Coinbase API key and API secret (private key) are required." };
+    if (
+      !this.credentials.apiKey?.trim() ||
+      !this.credentials.apiSecret?.trim()
+    ) {
+      return {
+        ok: false,
+        message: "Coinbase API key and API secret (private key) are required.",
+      };
     }
     if (this.mode === "paper") {
       return {
         ok: false,
-        message: "Coinbase Advanced Trade has no paper API; use mock broker or a live account.",
+        message:
+          "Coinbase Advanced Trade has no paper API; use mock broker or a live account.",
       };
     }
     try {
@@ -108,7 +120,10 @@ export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
     } catch (error) {
       return {
         ok: false,
-        message: error instanceof Error ? error.message : "Unable to connect to Coinbase",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to connect to Coinbase",
       };
     }
   }
@@ -133,10 +148,16 @@ export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
     if (order.instrumentType !== "crypto") {
-      throw new AppError("Coinbase adapter supports crypto only", "UNSUPPORTED_INSTRUMENT");
+      throw new AppError(
+        "Coinbase adapter supports crypto only",
+        "UNSUPPORTED_INSTRUMENT",
+      );
     }
     if (this.mode === "paper") {
-      throw new AppError("Coinbase Advanced Trade does not support paper mode", "BROKER_ERROR");
+      throw new AppError(
+        "Coinbase Advanced Trade does not support paper mode",
+        "BROKER_ERROR",
+      );
     }
     const ex = this.getExchange();
     const symbol = brokerProductToCcxtSymbol(order.instrumentSymbol);
@@ -152,7 +173,10 @@ export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
       const ticker = await ex.fetchTicker(symbol);
       const ref = Number(ticker.last ?? ticker.close ?? ticker.bid ?? 0);
       if (!ref) {
-        throw new AppError("Could not price market for sell order", "BROKER_ERROR");
+        throw new AppError(
+          "Could not price market for sell order",
+          "BROKER_ERROR",
+        );
       }
       const baseAmount = order.sizeUsd / ref;
       ccxtOrder = await ex.createMarketSellOrder(symbol, baseAmount);
@@ -198,7 +222,12 @@ export class CoinbaseAdvancedTradeAdapter implements BrokerAdapter {
     return {
       brokerOrderId: o.id ?? orderId,
       status: closed ? "closed" : "open",
-      latestPrice: o.average != null ? Number(o.average) : o.price != null ? Number(o.price) : null,
+      latestPrice:
+        o.average != null
+          ? Number(o.average)
+          : o.price != null
+            ? Number(o.price)
+            : null,
       realizedPnlUsd: null,
     };
   }

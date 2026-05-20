@@ -1,5 +1,10 @@
 import type { DbClient } from "../../client";
-import type { ExecutionMode, InstrumentClass, Trade, TradeStatus } from "@/lib/types";
+import type {
+  ExecutionMode,
+  InstrumentClass,
+  Trade,
+  TradeStatus,
+} from "@/lib/types";
 import { and, asc, desc, eq, inArray, like, ne, sql } from "drizzle-orm";
 import { agentMessages, sessions, trades } from "../../schema";
 import { AppError } from "@electron/shared/infra/errors";
@@ -9,8 +14,13 @@ export class TradesRepo {
   constructor(private readonly client: DbClient) {}
 
   listAll(sessionId?: string): Trade[] {
-    const query = this.client.db.select().from(trades).orderBy(desc(trades.createdAt));
-    const rows = sessionId ? query.where(eq(trades.sessionId, sessionId)).all() : query.all();
+    const query = this.client.db
+      .select()
+      .from(trades)
+      .orderBy(desc(trades.createdAt));
+    const rows = sessionId
+      ? query.where(eq(trades.sessionId, sessionId)).all()
+      : query.all();
     return rows.map(toTrade);
   }
 
@@ -23,12 +33,20 @@ export class TradesRepo {
   }): Trade[] {
     const conditions = [];
 
-    if (filters.sessionId) conditions.push(eq(trades.sessionId, filters.sessionId));
-    if (filters.brokerAccountId) conditions.push(eq(trades.brokerAccountId, filters.brokerAccountId));
+    if (filters.sessionId)
+      conditions.push(eq(trades.sessionId, filters.sessionId));
+    if (filters.brokerAccountId)
+      conditions.push(eq(trades.brokerAccountId, filters.brokerAccountId));
     if (filters.symbolContains?.trim()) {
-      conditions.push(like(sql`lower(${trades.instrumentSymbol})`, `%${filters.symbolContains.trim().toLowerCase()}%`));
+      conditions.push(
+        like(
+          sql`lower(${trades.instrumentSymbol})`,
+          `%${filters.symbolContains.trim().toLowerCase()}%`,
+        ),
+      );
     }
-    if (filters.instrumentType) conditions.push(eq(trades.instrumentType, filters.instrumentType));
+    if (filters.instrumentType)
+      conditions.push(eq(trades.instrumentType, filters.instrumentType));
     if (filters.executionMode) {
       const sessionIds = this.client.db
         .select({ id: sessions.id })
@@ -40,8 +58,13 @@ export class TradesRepo {
       conditions.push(inArray(trades.sessionId, sessionIds));
     }
 
-    const query = this.client.db.select().from(trades).orderBy(desc(trades.createdAt));
-    const rows = conditions.length ? query.where(and(...conditions)).all() : query.all();
+    const query = this.client.db
+      .select()
+      .from(trades)
+      .orderBy(desc(trades.createdAt));
+    const rows = conditions.length
+      ? query.where(and(...conditions)).all()
+      : query.all();
     return rows.map(toTrade);
   }
 
@@ -57,7 +80,11 @@ export class TradesRepo {
     return rows.map(toTrade);
   }
 
-  checkInstrumentConflict(brokerAccountId: string, instrumentSymbol: string, excludeSessionId: string): boolean {
+  checkInstrumentConflict(
+    brokerAccountId: string,
+    instrumentSymbol: string,
+    excludeSessionId: string,
+  ): boolean {
     const row = this.client.db
       .select({ count: sql<number>`count(*)` })
       .from(trades)
@@ -76,7 +103,11 @@ export class TradesRepo {
     return Number(row?.count ?? 0) > 0;
   }
 
-  findOpenTradeOnBroker(brokerAccountId: string, instrumentSymbol: string, excludeSessionId: string): Trade | null {
+  findOpenTradeOnBroker(
+    brokerAccountId: string,
+    instrumentSymbol: string,
+    excludeSessionId: string,
+  ): Trade | null {
     const row = this.client.db
       .select()
       .from(trades)
@@ -95,7 +126,9 @@ export class TradesRepo {
 
   sumOpenPositionSizeUsd(sessionId: string, brokerAccountId: string): number {
     const row = this.client.db
-      .select({ total: sql<number>`coalesce(sum(${trades.positionSizeUsd}), 0)` })
+      .select({
+        total: sql<number>`coalesce(sum(${trades.positionSizeUsd}), 0)`,
+      })
       .from(trades)
       .where(
         and(
@@ -109,7 +142,11 @@ export class TradesRepo {
   }
 
   find(id: string): Trade | null {
-    const row = this.client.db.select().from(trades).where(eq(trades.id, id)).get();
+    const row = this.client.db
+      .select()
+      .from(trades)
+      .where(eq(trades.id, id))
+      .get();
     return row ? toTrade(row) : null;
   }
 
@@ -151,7 +188,10 @@ export class TradesRepo {
       .run();
   }
 
-  checkDuplicateClientOrder(brokerAccountId: string, clientOrderId: string): boolean {
+  checkDuplicateClientOrder(
+    brokerAccountId: string,
+    clientOrderId: string,
+  ): boolean {
     const row = this.client.db
       .select({ count: sql<number>`count(*)` })
       .from(trades)
@@ -166,14 +206,22 @@ export class TradesRepo {
     return Number(row?.count ?? 0) > 0;
   }
 
-  updateStatus(id: string, status: TradeStatus, finalPnlUsd: number | null = null, exitReason?: string): Trade {
+  updateStatus(
+    id: string,
+    status: TradeStatus,
+    finalPnlUsd: number | null = null,
+    exitReason?: string,
+  ): Trade {
     const current = this.require(id);
     const now = new Date().toISOString();
     this.client.db
       .update(trades)
       .set({
         status,
-        closedAt: status === "closed" || status === "rejected" ? now : current.closed_at,
+        closedAt:
+          status === "closed" || status === "rejected"
+            ? now
+            : current.closed_at,
         finalPnlUsd: finalPnlUsd ?? current.final_pnl_usd,
         ...(exitReason != null ? { exitReason } : {}),
       })
@@ -197,22 +245,38 @@ export class TradesRepo {
 
   patchPendingExecution(
     id: string,
-    patch: Partial<Pick<
-      Trade,
-      "side" | "position_size_usd" | "confidence_score" | "brokerAccountId" | "client_order_id" |
-      "entry_price" | "stop_loss_price" | "take_profit_price" | "execution_strategy"
-    >>,
+    patch: Partial<
+      Pick<
+        Trade,
+        | "side"
+        | "position_size_usd"
+        | "confidence_score"
+        | "brokerAccountId"
+        | "client_order_id"
+        | "entry_price"
+        | "stop_loss_price"
+        | "take_profit_price"
+        | "execution_strategy"
+      >
+    >,
   ): void {
     const next: Record<string, unknown> = {};
     if (patch.side != null) next.side = patch.side;
-    if (patch.position_size_usd != null) next.positionSizeUsd = patch.position_size_usd;
-    if (patch.confidence_score != null) next.confidenceScore = patch.confidence_score;
+    if (patch.position_size_usd != null)
+      next.positionSizeUsd = patch.position_size_usd;
+    if (patch.confidence_score != null)
+      next.confidenceScore = patch.confidence_score;
     if (patch.entry_price !== undefined) next.entryPrice = patch.entry_price;
-    if (patch.stop_loss_price !== undefined) next.stopLossPrice = patch.stop_loss_price;
-    if (patch.take_profit_price !== undefined) next.takeProfitPrice = patch.take_profit_price;
-    if (patch.execution_strategy !== undefined) next.executionStrategy = patch.execution_strategy;
-    if (patch.brokerAccountId !== undefined) next.brokerAccountId = patch.brokerAccountId;
-    if (patch.client_order_id !== undefined) next.clientOrderId = patch.client_order_id;
+    if (patch.stop_loss_price !== undefined)
+      next.stopLossPrice = patch.stop_loss_price;
+    if (patch.take_profit_price !== undefined)
+      next.takeProfitPrice = patch.take_profit_price;
+    if (patch.execution_strategy !== undefined)
+      next.executionStrategy = patch.execution_strategy;
+    if (patch.brokerAccountId !== undefined)
+      next.brokerAccountId = patch.brokerAccountId;
+    if (patch.client_order_id !== undefined)
+      next.clientOrderId = patch.client_order_id;
     if (Object.keys(next).length === 0) return;
 
     this.client.db
@@ -236,7 +300,12 @@ export class TradesRepo {
     const tradeIds = this.client.db
       .selectDistinct({ tradeId: agentMessages.tradeId })
       .from(agentMessages)
-      .where(and(eq(agentMessages.cycleId, cycleId), sql`${agentMessages.tradeId} IS NOT NULL`))
+      .where(
+        and(
+          eq(agentMessages.cycleId, cycleId),
+          sql`${agentMessages.tradeId} IS NOT NULL`,
+        ),
+      )
       .all()
       .map((r) => r.tradeId as string);
     if (tradeIds.length === 0) return [];
@@ -249,10 +318,19 @@ export class TradesRepo {
   }
 
   patchAiCost(id: string, costUsd: number): void {
-    this.client.db.update(trades).set({ aiCostUsd: costUsd }).where(eq(trades.id, id)).run();
+    this.client.db
+      .update(trades)
+      .set({ aiCostUsd: costUsd })
+      .where(eq(trades.id, id))
+      .run();
   }
 
-  markOpen(id: string, brokerOrderId: string, entryPrice: number, clientOrderId?: string): Trade {
+  markOpen(
+    id: string,
+    brokerOrderId: string,
+    entryPrice: number,
+    clientOrderId?: string,
+  ): Trade {
     this.client.db
       .update(trades)
       .set({

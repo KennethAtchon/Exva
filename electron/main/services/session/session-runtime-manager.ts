@@ -1,7 +1,11 @@
 import type { ExecutionStage } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import { SessionRuntime } from "./session-runtime";
-import type { ApprovalRecheckInput, OrchestratorDeps, SessionRuntimeManagerDeps } from "./session-types";
+import type {
+  ApprovalRecheckInput,
+  OrchestratorDeps,
+  SessionRuntimeManagerDeps,
+} from "./session-types";
 
 export class SessionRuntimeManager {
   private readonly runtimes = new Map<string, SessionRuntime>();
@@ -88,14 +92,18 @@ export class SessionRuntimeManager {
   async resumeSession(sessionId: string): Promise<void> {
     this.deps.logger.info({ sessionId }, "resuming runtime");
     const priorStatus = this.deps.sessionRepo.getStatus(sessionId);
-    const runtime = this.runtimes.get(sessionId) ?? (await this.startSession(sessionId));
+    const runtime =
+      this.runtimes.get(sessionId) ?? (await this.startSession(sessionId));
     this.deps.bus.setRuntimeStatus(sessionId, "active");
     this.deps.sessionRepo.setStatus("active", sessionId);
     await runtime.resume();
     if (priorStatus === "attention_required") {
       // A failed selector cycle does not auto-reschedule, so an idempotent
       // resume() leaves the loop dead. Force a fresh selector cycle.
-      this.deps.logger.info({ sessionId }, "restarting orchestrator after attention_required");
+      this.deps.logger.info(
+        { sessionId },
+        "restarting orchestrator after attention_required",
+      );
       await runtime.orchestrator.restartFromAttention();
     }
     this.deps.logger.info({ sessionId, priorStatus }, "runtime resumed");
@@ -142,7 +150,10 @@ export class SessionRuntimeManager {
    */
   async rehydrateFromDb(): Promise<void> {
     const sessions = this.deps.sessionRepo.listByStatuses(["active", "paused"]);
-    this.deps.logger.info({ sessionCount: sessions.length }, "rehydrating runtimes from db");
+    this.deps.logger.info(
+      { sessionCount: sessions.length },
+      "rehydrating runtimes from db",
+    );
     for (const session of sessions) {
       if (session.status === "active") {
         this.deps.logger.warn(
@@ -153,11 +164,17 @@ export class SessionRuntimeManager {
       }
       await this.startSession(session.id);
     }
-    this.deps.logger.info({ sessionCount: sessions.length }, "runtime rehydration complete");
+    this.deps.logger.info(
+      { sessionCount: sessions.length },
+      "runtime rehydration complete",
+    );
   }
 
   async enqueueApprovalRecheck(input: ApprovalRecheckInput): Promise<void> {
-    this.deps.logger.debug({ sessionId: input.sessionId, approvalId: input.approvalId }, "enqueue approval recheck");
+    this.deps.logger.debug(
+      { sessionId: input.sessionId, approvalId: input.approvalId },
+      "enqueue approval recheck",
+    );
     const runtime = this.requireRuntime(input.sessionId);
     await runtime.orchestrator.runApprovalRecheck(input);
   }
@@ -179,7 +196,11 @@ export class SessionRuntimeManager {
   private requireRuntime(sessionId: string): SessionRuntime {
     const runtime = this.runtimes.get(sessionId);
     if (!runtime) {
-      throw new AppError(`Runtime for session ${sessionId} is not active`, "SESSION_NOT_ACTIVE", { sessionId });
+      throw new AppError(
+        `Runtime for session ${sessionId} is not active`,
+        "SESSION_NOT_ACTIVE",
+        { sessionId },
+      );
     }
     return runtime;
   }

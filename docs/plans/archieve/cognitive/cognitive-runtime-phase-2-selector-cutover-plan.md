@@ -23,23 +23,23 @@ If Phase 2 is skipped, Exva keeps the weakest part of the old pipeline exactly w
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-| --- | --- | --- |
-| 1 | Replace single-worker selector behavior | `selector.phase.ts` no longer defines one broad `instrument-selector` worker as the actual selector implementation |
-| 2 | Move selector workflow into code | Discovery, verification, scoring, risk filtering, and submission are explicit TypeScript steps rather than `selector-runtime-control.ts` heuristics |
-| 3 | Introduce typed selector candidate contracts | Discovery and verification workers emit schema-validated `Candidate`-shaped outputs rather than prose or implicit tool traces |
-| 4 | Make submission deterministic | Final `InstrumentSelection` is built by code, not by trusting model-authored ranking/output shape |
-| 5 | Preserve the phase-first runtime boundary | `AgentOrchestrator` still invokes selector through the phase runtime entrypoint rather than reintroducing direct role-specific code |
-| 6 | Keep selector replayable | `docs/hello.json` and the Phase 0 fixtures can run against both the current selector and the new selector pipeline for parity checks |
+| #   | Goal                                         | Success Looks Like                                                                                                                                  |
+| --- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Replace single-worker selector behavior      | `selector.phase.ts` no longer defines one broad `instrument-selector` worker as the actual selector implementation                                  |
+| 2   | Move selector workflow into code             | Discovery, verification, scoring, risk filtering, and submission are explicit TypeScript steps rather than `selector-runtime-control.ts` heuristics |
+| 3   | Introduce typed selector candidate contracts | Discovery and verification workers emit schema-validated `Candidate`-shaped outputs rather than prose or implicit tool traces                       |
+| 4   | Make submission deterministic                | Final `InstrumentSelection` is built by code, not by trusting model-authored ranking/output shape                                                   |
+| 5   | Preserve the phase-first runtime boundary    | `AgentOrchestrator` still invokes selector through the phase runtime entrypoint rather than reintroducing direct role-specific code                 |
+| 6   | Keep selector replayable                     | `docs/hello.json` and the Phase 0 fixtures can run against both the current selector and the new selector pipeline for parity checks                |
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-| --- | --- | --- |
-| 1 | Cleaning up every old selector surface | That is Phase 3 work; Phase 2 is the behavior cutover |
-| 2 | Rewriting technical, fundamental, review, or decision | Later phases own those conversions |
-| 3 | Shipping per-worker UI controls | v1 continues to expose phase-level config only |
-| 4 | Eliminating all post-selector orchestrator validation on day one | Some guardrails may remain temporarily until Phase 3 deletes the old path |
+| #   | Non-Goal                                                         | Reason                                                                    |
+| --- | ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | Cleaning up every old selector surface                           | That is Phase 3 work; Phase 2 is the behavior cutover                     |
+| 2   | Rewriting technical, fundamental, review, or decision            | Later phases own those conversions                                        |
+| 3   | Shipping per-worker UI controls                                  | v1 continues to expose phase-level config only                            |
+| 4   | Eliminating all post-selector orchestrator validation on day one | Some guardrails may remain temporarily until Phase 3 deletes the old path |
 
 ---
 
@@ -49,25 +49,25 @@ If Phase 2 is skipped, Exva keeps the weakest part of the old pipeline exactly w
 
 The current runtime already routes selector through the new substrate, but the implementation is still transitional:
 
-| File | Current responsibility | Why it matters to Phase 2 |
-| --- | --- | --- |
-| `electron/main/services/ai/pipeline-runtime/definitions/selector.phase.ts` | Defines one `instrument-selector` worker with broad tools and terminal-tool output | Current selector phase entrypoint to replace internally |
-| `electron/main/services/ai/ai-runtime/selector-runtime-control.ts` | Discovery/verification/commit heuristics, submit forcing, and symbol extraction heuristics | Core old control layer that the new selector pipeline should obsolete |
-| `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts` | Special-cases selector terminal result via `parseInstrumentSelection()` | Shows selector still behaves differently from the target typed-worker pipeline |
-| `electron/main/services/orchestration/agent-orchestrator.ts` | Runs selector, then re-validates output with `validateSelectorOutput()` | Downstream filtering is compensating for weak upstream selector guarantees |
-| `electron/main/services/orchestration/selector-definition-hash.ts` | Includes selector settings in cache/input identity | Must stay correct across the cutover |
+| File                                                                       | Current responsibility                                                                     | Why it matters to Phase 2                                                      |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `electron/main/services/ai/pipeline-runtime/definitions/selector.phase.ts` | Defines one `instrument-selector` worker with broad tools and terminal-tool output         | Current selector phase entrypoint to replace internally                        |
+| `electron/main/services/ai/ai-runtime/selector-runtime-control.ts`         | Discovery/verification/commit heuristics, submit forcing, and symbol extraction heuristics | Core old control layer that the new selector pipeline should obsolete          |
+| `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts`  | Special-cases selector terminal result via `parseInstrumentSelection()`                    | Shows selector still behaves differently from the target typed-worker pipeline |
+| `electron/main/services/orchestration/agent-orchestrator.ts`               | Runs selector, then re-validates output with `validateSelectorOutput()`                    | Downstream filtering is compensating for weak upstream selector guarantees     |
+| `electron/main/services/orchestration/selector-definition-hash.ts`         | Includes selector settings in cache/input identity                                         | Must stay correct across the cutover                                           |
 
 ### Selector engine work this phase must include
 
 Selector is not just a worker split. It is the first real engine-driven phase. The Phase 2 cutover should explicitly absorb these deterministic surfaces:
 
-| Concern | Current code | Target engine/pipeline owner |
-| --- | --- | --- |
-| Candidate evidence validation | `CandidateValidationService` | `candidate-validator` validator engine bound during verification |
-| Quote/liquidity/support checks | orchestrator validation + broker/tool calls | verification workers + selector `RiskFilter` |
-| Candidate ranking | implicit prompt ranking | selector `ScoringEngine` / transformer engine |
-| Session strategy constraints | `SessionStrategyContextService`, `session_trade_rules`, `session_risk_config`, `session_timeframe_config` | context + policy inputs to selector pipeline |
-| Broker tradability and assignment constraints | broker routing/assignment services | selector risk filter + broker-aware verification |
+| Concern                                       | Current code                                                                                              | Target engine/pipeline owner                                     |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Candidate evidence validation                 | `CandidateValidationService`                                                                              | `candidate-validator` validator engine bound during verification |
+| Quote/liquidity/support checks                | orchestrator validation + broker/tool calls                                                               | verification workers + selector `RiskFilter`                     |
+| Candidate ranking                             | implicit prompt ranking                                                                                   | selector `ScoringEngine` / transformer engine                    |
+| Session strategy constraints                  | `SessionStrategyContextService`, `session_trade_rules`, `session_risk_config`, `session_timeframe_config` | context + policy inputs to selector pipeline                     |
+| Broker tradability and assignment constraints | broker routing/assignment services                                                                        | selector risk filter + broker-aware verification                 |
 
 ### Selector should be the first real dependency-graph phase
 
@@ -114,34 +114,34 @@ Sources carried forward from Phase 1:
 
 **Option A: Keep the current single-worker selector and only tighten prompts**
 
-| Dimension | Assessment |
-| --- | --- |
-| Complexity | Low |
-| Reliability | Low |
-| Stack fit | High |
-| Long-term value | Poor |
+| Dimension       | Assessment |
+| --------------- | ---------- |
+| Complexity      | Low        |
+| Reliability     | Low        |
+| Stack fit       | High       |
+| Long-term value | Poor       |
 
 Risks: preserves the exact architectural weakness the spec is trying to remove.
 
 **Option B: Keep one selector worker but move more validation into orchestrator code**
 
-| Dimension | Assessment |
-| --- | --- |
-| Complexity | Medium |
-| Reliability | Medium |
-| Stack fit | Good |
+| Dimension       | Assessment |
+| --------------- | ---------- |
+| Complexity      | Medium     |
+| Reliability     | Medium     |
+| Stack fit       | Good       |
 | Long-term value | Medium-low |
 
 Risks: improves guardrails but still leaves ranking and workflow hidden inside one model call.
 
 **Option C: Build the selector narrow-worker pipeline now**
 
-| Dimension | Assessment |
-| --- | --- |
-| Complexity | Medium-high |
-| Reliability | High |
-| Stack fit | Strong |
-| Long-term value | High |
+| Dimension       | Assessment  |
+| --------------- | ----------- |
+| Complexity      | Medium-high |
+| Reliability     | High        |
+| Stack fit       | Strong      |
+| Long-term value | High        |
 
 Risks: biggest implementation surface in the near term, but it matches the spec and creates the reusable pattern for phases 4-7.
 
@@ -210,25 +210,25 @@ Still outstanding:
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-| --- | --- | --- | --- | --- |
-| 1 | Candidate schema is too narrow for prediction-market or event-contract cases | Medium | High | Validate both standard and event-contract fixtures before cutover |
-| 2 | Old orchestrator validation and new selector risk filtering diverge | High | Medium | Port each rejection rule explicitly and compare replay diffs |
-| 3 | Worker fan-out increases cost unexpectedly | Medium | Medium | Enforce per-worker, per-stage, and per-pipeline spend caps from the spec |
-| 4 | Trace persistence becomes harder to debug after aggregation | Medium | Medium | Persist worker-level evidence inside structured trace payloads even if `agent_runs` stays phase-aggregated |
+| #   | Risk                                                                         | Likelihood | Impact | Mitigation                                                                                                 |
+| --- | ---------------------------------------------------------------------------- | ---------- | ------ | ---------------------------------------------------------------------------------------------------------- |
+| 1   | Candidate schema is too narrow for prediction-market or event-contract cases | Medium     | High   | Validate both standard and event-contract fixtures before cutover                                          |
+| 2   | Old orchestrator validation and new selector risk filtering diverge          | High       | Medium | Port each rejection rule explicitly and compare replay diffs                                               |
+| 3   | Worker fan-out increases cost unexpectedly                                   | Medium     | Medium | Enforce per-worker, per-stage, and per-pipeline spend caps from the spec                                   |
+| 4   | Trace persistence becomes harder to debug after aggregation                  | Medium     | Medium | Persist worker-level evidence inside structured trace payloads even if `agent_runs` stays phase-aggregated |
 
 ---
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-| --- | --- | --- | --- | --- |
-| Deterministic submission | Selector always returns `InstrumentSelection` via code-built submission | Transitional selector still depends on tool-terminal parse | 100% deterministic submission path | Unit tests + replay |
-| Removal of selector loop heuristics | Live selector path depends on `selector-runtime-control.ts` | Yes | No | Grep + code review |
-| Typed candidate flow | Discovery/verification pass prose or implicit tool traces | Transitional mixed model | Typed `Candidate` flow only | Schema tests |
-| Parallel worker execution | Broad single worker | 1 worker | Discovery and verification worker groups run in bounded parallel | Runtime tests |
-| Engine-backed selector validation | Candidate constraints enforced ad hoc in orchestrator | Mixed | Selector verification/risk filtering resolved through pipeline engines/services | Replay + code review |
-| Replay parity | Selector failure mode reproducible only in old path | Partial | New path passes all fixtures with explicit output | Replay harness |
+| Goal                                | Metric                                                                  | Baseline                                                   | Target                                                                          | How Measured         |
+| ----------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------- |
+| Deterministic submission            | Selector always returns `InstrumentSelection` via code-built submission | Transitional selector still depends on tool-terminal parse | 100% deterministic submission path                                              | Unit tests + replay  |
+| Removal of selector loop heuristics | Live selector path depends on `selector-runtime-control.ts`             | Yes                                                        | No                                                                              | Grep + code review   |
+| Typed candidate flow                | Discovery/verification pass prose or implicit tool traces               | Transitional mixed model                                   | Typed `Candidate` flow only                                                     | Schema tests         |
+| Parallel worker execution           | Broad single worker                                                     | 1 worker                                                   | Discovery and verification worker groups run in bounded parallel                | Runtime tests        |
+| Engine-backed selector validation   | Candidate constraints enforced ad hoc in orchestrator                   | Mixed                                                      | Selector verification/risk filtering resolved through pipeline engines/services | Replay + code review |
+| Replay parity                       | Selector failure mode reproducible only in old path                     | Partial                                                    | New path passes all fixtures with explicit output                               | Replay harness       |
 
 Leading indicators:
 
@@ -245,18 +245,18 @@ Lagging indicators:
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-| --- | --- | --- | --- | --- |
-| 1 | Should selector traces be persisted as one aggregated `agent_run` or one synthetic discovery/verification sub-trace block? | Ken | Before Phase 2C | Resolved: one aggregated `agent_run` via `assembleAggregateTrace` with discovery at frontier 0 and verification at frontier 1 |
-| 2 | Which orchestrator-side rejection rules should remain as defense-in-depth after selector risk filtering ships? | Ken | Before Phase 2C | Deferred to Phase 3 cleanup |
-| 3 | Does the selector pipeline live as a dedicated class outside `pipeline-runtime/definitions`, or as a phase definition with a custom aggregate/finalize path? | Ken | Before Phase 2B | Resolved: `PipelineDefinition.run` hook in `selector.phase.ts`. Selector utilities live in `engines/selector-*`. No dedicated class or phase-specific folder. The hook approach generalizes to any future phase that needs multi-stage orchestration without creating a new folder. |
+| #   | Question                                                                                                                                                     | Owner | Needed By       | Status                                                                                                                                                                                                                                                                              |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Should selector traces be persisted as one aggregated `agent_run` or one synthetic discovery/verification sub-trace block?                                   | Ken   | Before Phase 2C | Resolved: one aggregated `agent_run` via `assembleAggregateTrace` with discovery at frontier 0 and verification at frontier 1                                                                                                                                                       |
+| 2   | Which orchestrator-side rejection rules should remain as defense-in-depth after selector risk filtering ships?                                               | Ken   | Before Phase 2C | Deferred to Phase 3 cleanup                                                                                                                                                                                                                                                         |
+| 3   | Does the selector pipeline live as a dedicated class outside `pipeline-runtime/definitions`, or as a phase definition with a custom aggregate/finalize path? | Ken   | Before Phase 2B | Resolved: `PipelineDefinition.run` hook in `selector.phase.ts`. Selector utilities live in `engines/selector-*`. No dedicated class or phase-specific folder. The hook approach generalizes to any future phase that needs multi-stage orchestration without creating a new folder. |
 
 ---
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-| --- | --- |
-| More prompt tuning on the current selector | Keeps workflow and ranking in one model call |
-| Orchestrator-only validation hardening | Catches bad outputs later instead of preventing them structurally |
-| Rewriting selector after technical/fundamental phases | Leaves the highest-risk phase in the old architecture longest |
+| Option                                                | Why Rejected                                                      |
+| ----------------------------------------------------- | ----------------------------------------------------------------- |
+| More prompt tuning on the current selector            | Keeps workflow and ranking in one model call                      |
+| Orchestrator-only validation hardening                | Catches bad outputs later instead of preventing them structurally |
+| Rewriting selector after technical/fundamental phases | Leaves the highest-risk phase in the old architecture longest     |

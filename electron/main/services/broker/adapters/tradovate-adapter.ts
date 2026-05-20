@@ -25,7 +25,9 @@ export type TradovateCredentials = {
  */
 export class TradovateAdapter implements BrokerAdapter {
   readonly brokerType = "tradovate";
-  readonly supportedInstrumentClasses = ["futures"] as const satisfies readonly InstrumentClass[];
+  readonly supportedInstrumentClasses = [
+    "futures",
+  ] as const satisfies readonly InstrumentClass[];
   /**
    * Not launch-capable: placeOrder/cancelOrder/closeOrder are stubbed and
    * getPositions returns []. Live-readiness gate must block live sessions
@@ -43,7 +45,10 @@ export class TradovateAdapter implements BrokerAdapter {
       (this.credentials.username && this.credentials.password) ||
       (this.credentials.cid && this.credentials.secret);
     if (!hasCreds) {
-      return { ok: false, message: "Tradovate username/password or cid/secret is required." };
+      return {
+        ok: false,
+        message: "Tradovate username/password or cid/secret is required.",
+      };
     }
     return {
       ok: true,
@@ -66,7 +71,10 @@ export class TradovateAdapter implements BrokerAdapter {
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
     if (order.instrumentType !== "futures") {
-      throw new AppError("Tradovate adapter supports futures only", "UNSUPPORTED_INSTRUMENT");
+      throw new AppError(
+        "Tradovate adapter supports futures only",
+        "UNSUPPORTED_INSTRUMENT",
+      );
     }
     return {
       brokerOrderId: `tv_sim_${crypto.randomUUID()}`,

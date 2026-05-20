@@ -20,13 +20,22 @@ export class InstrumentCacheService {
 
   getView(session: WorkspaceSession): InstrumentCacheView {
     const deps = this.getOrchestratorDeps();
-    const currentHash = hashSelectorDefinition(buildSelectorDefinitionFingerprint(session, deps));
+    const currentHash = hashSelectorDefinition(
+      buildSelectorDefinitionFingerprint(session, deps),
+    );
     const row = this.repo.get(session.id);
     if (!row) {
-      return { instruments: null, selectedAt: null, definitionHashMatches: true };
+      return {
+        instruments: null,
+        selectedAt: null,
+        definitionHashMatches: true,
+      };
     }
     return {
-      instruments: JSON.parse(row.instruments) as Array<{ symbol: string; instrumentClass: string }>,
+      instruments: JSON.parse(row.instruments) as Array<{
+        symbol: string;
+        instrumentClass: string;
+      }>,
       selectedAt: row.selectedAt,
       definitionHashMatches: row.definitionHash === currentHash,
     };

@@ -1,5 +1,12 @@
-import type { InstrumentClass, SessionStatus, WorkspaceViewMode } from "@/lib/types";
-import type { SessionRepo, SessionFilters } from "../../db/repositories/sessions/session-repo";
+import type {
+  InstrumentClass,
+  SessionStatus,
+  WorkspaceViewMode,
+} from "@/lib/types";
+import type {
+  SessionRepo,
+  SessionFilters,
+} from "../../db/repositories/sessions/session-repo";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { SessionRuntimeManager } from "./session-runtime-manager";
@@ -55,12 +62,17 @@ export class SessionListingService {
 
     const sessions = this.deps.sessionRepo
       .list(repoFilters)
-      .filter((session) =>
-        !search ||
-        session.name.toLowerCase().includes(search) ||
-        session.objective.toLowerCase().includes(search),
+      .filter(
+        (session) =>
+          !search ||
+          session.name.toLowerCase().includes(search) ||
+          session.objective.toLowerCase().includes(search),
       )
-      .filter((session) => !instrumentClass || session.instrumentClasses.includes(instrumentClass))
+      .filter(
+        (session) =>
+          !instrumentClass ||
+          session.instrumentClasses.includes(instrumentClass),
+      )
       .map((session) => {
         const openTradeCount = this.deps.trades
           .listOpenAndPending(session.id)
@@ -76,7 +88,10 @@ export class SessionListingService {
           instrumentClasses: session.instrumentClasses,
           instrumentScope: session.instrumentScope,
           defaultSearchProviderId: session.defaultSearchProviderId,
-          totalAllocatedUsd: assignments.reduce((sum, assignment) => sum + assignment.allocatedUsd, 0),
+          totalAllocatedUsd: assignments.reduce(
+            (sum, assignment) => sum + assignment.allocatedUsd,
+            0,
+          ),
           executionMode: session.executionMode,
           brokerCount: assignments.length,
           openTradeCount,

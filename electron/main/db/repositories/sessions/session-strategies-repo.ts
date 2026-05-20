@@ -1,7 +1,13 @@
 import type { DbClient } from "../../client";
 import type { SessionConfig, SessionStrategy } from "@/lib/types";
 import { eq } from "drizzle-orm";
-import { sessionResearchPosture, sessionRiskConfig, sessionStrategies, sessionTimeframeConfig, sessionTradeRules } from "../../schema";
+import {
+  sessionResearchPosture,
+  sessionRiskConfig,
+  sessionStrategies,
+  sessionTimeframeConfig,
+  sessionTradeRules,
+} from "../../schema";
 import { AppError } from "@electron/shared/infra/errors";
 import { toSessionConfig, toSessionStrategy } from "../system/mappers";
 
@@ -9,9 +15,17 @@ export class SessionStrategiesRepo {
   constructor(private readonly client: DbClient) {}
 
   get(sessionId: string): SessionStrategy {
-    const row = this.client.db.select().from(sessionStrategies).where(eq(sessionStrategies.sessionId, sessionId)).get();
+    const row = this.client.db
+      .select()
+      .from(sessionStrategies)
+      .where(eq(sessionStrategies.sessionId, sessionId))
+      .get();
     if (!row) {
-      throw new AppError(`Strategy for session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
+      throw new AppError(
+        `Strategy for session ${sessionId} was not found`,
+        "NOT_FOUND",
+        { sessionId },
+      );
     }
     return toSessionStrategy(row);
   }
@@ -90,9 +104,17 @@ export class SessionStrategiesRepo {
   }
 
   getConfig(sessionId: string): SessionConfig {
-    const row = this.client.db.select().from(sessionStrategies).where(eq(sessionStrategies.sessionId, sessionId)).get();
+    const row = this.client.db
+      .select()
+      .from(sessionStrategies)
+      .where(eq(sessionStrategies.sessionId, sessionId))
+      .get();
     if (!row) {
-      throw new AppError(`Strategy config for session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
+      throw new AppError(
+        `Strategy config for session ${sessionId} was not found`,
+        "NOT_FOUND",
+        { sessionId },
+      );
     }
     return toSessionConfig(row);
   }

@@ -8,7 +8,10 @@ interface WorkspaceState {
   preferences: WorkspacePreferences | null;
   /** null = unknown/loading, true = all roles connected, false = one or more unconnected */
   focusedSessionAiReady: boolean | null;
-  setViewMode: (mode: WorkspaceViewMode, focusedSessionId?: string | null) => void;
+  setViewMode: (
+    mode: WorkspaceViewMode,
+    focusedSessionId?: string | null,
+  ) => void;
   setPreferences: (prefs: WorkspacePreferences) => void;
   loadWorkspaceView: () => Promise<void>;
   checkAiReady: (sessionId: string) => Promise<void>;
@@ -19,7 +22,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   focusedSessionId: null,
   preferences: null,
   focusedSessionAiReady: null,
-  setViewMode: (viewMode, focusedSessionId = null) => set({ viewMode, focusedSessionId, focusedSessionAiReady: null }),
+  setViewMode: (viewMode, focusedSessionId = null) =>
+    set({ viewMode, focusedSessionId, focusedSessionAiReady: null }),
   setPreferences: (preferences) => set({ preferences }),
   loadWorkspaceView: async () => {
     const view = await api.getWorkspaceView();
@@ -32,7 +36,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     if (view.focusedSessionId) {
       try {
         const strategy = await api.getStrategy(view.focusedSessionId);
-        set({ focusedSessionAiReady: strategy.providers.some((p) => p.isConfigured) });
+        set({
+          focusedSessionAiReady: strategy.providers.some((p) => p.isConfigured),
+        });
       } catch {
         set({ focusedSessionAiReady: false });
       }
@@ -44,7 +50,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
     set({ focusedSessionAiReady: null });
     try {
       const strategy = await api.getStrategy(sessionId);
-      set({ focusedSessionAiReady: strategy.providers.some((p) => p.isConfigured) });
+      set({
+        focusedSessionAiReady: strategy.providers.some((p) => p.isConfigured),
+      });
     } catch {
       set({ focusedSessionAiReady: false });
     }

@@ -1,12 +1,22 @@
 import { z } from "zod";
-import { reviewSignalSchema, type ReviewSignal } from "@electron/shared/ai/pipeline-signals";
+import {
+  reviewSignalSchema,
+  type ReviewSignal,
+} from "@electron/shared/ai/pipeline-signals";
 
 export const conflictDetectorOutputSchema = z.object({
-  technicalFundamentalConflict: z.number().min(0).max(1).nullable().default(null),
+  technicalFundamentalConflict: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null),
   conflictExplanation: z.string().nullable().default(null),
   rawSummary: z.string().default(""),
 });
-export type ConflictDetectorOutput = z.infer<typeof conflictDetectorOutputSchema>;
+export type ConflictDetectorOutput = z.infer<
+  typeof conflictDetectorOutputSchema
+>;
 
 export const riskAssessorOutputSchema = z.object({
   tailRisks: z.array(z.string()).default([]),
@@ -20,8 +30,12 @@ export interface ReviewWorkerOutputs {
   riskAssessor?: RiskAssessorOutput | null;
 }
 
-export function aggregateReviewSignal(symbol: string, workers: ReviewWorkerOutputs): ReviewSignal {
-  const conflict = workers.conflictDetector?.technicalFundamentalConflict ?? null;
+export function aggregateReviewSignal(
+  symbol: string,
+  workers: ReviewWorkerOutputs,
+): ReviewSignal {
+  const conflict =
+    workers.conflictDetector?.technicalFundamentalConflict ?? null;
   const overallRisk = workers.riskAssessor?.overallRisk ?? null;
   const tailRisks = workers.riskAssessor?.tailRisks ?? [];
 
@@ -44,7 +58,8 @@ function deriveRecommendation(
   overallRisk: "low" | "medium" | "high" | null,
   workers: ReviewWorkerOutputs,
 ): "proceed" | "reduce_size" | "skip" {
-  const noEvidence = workers.conflictDetector == null && workers.riskAssessor == null;
+  const noEvidence =
+    workers.conflictDetector == null && workers.riskAssessor == null;
   if (noEvidence) return "skip";
 
   const highConflict = conflict != null && conflict > 0.7;
@@ -59,7 +74,9 @@ function deriveRecommendation(
 
 function buildRawSummary(workers: ReviewWorkerOutputs): string {
   const parts: string[] = [];
-  if (workers.conflictDetector?.rawSummary) parts.push(`Conflict: ${workers.conflictDetector.rawSummary}`);
-  if (workers.riskAssessor?.rawSummary) parts.push(`Risk: ${workers.riskAssessor.rawSummary}`);
+  if (workers.conflictDetector?.rawSummary)
+    parts.push(`Conflict: ${workers.conflictDetector.rawSummary}`);
+  if (workers.riskAssessor?.rawSummary)
+    parts.push(`Risk: ${workers.riskAssessor.rawSummary}`);
   return parts.join(" | ");
 }

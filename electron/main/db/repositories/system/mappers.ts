@@ -32,7 +32,9 @@ export function toTrade(row: Row): Trade {
     brokerAccountId: nullableString(row.broker_account_id),
     instrumentSymbol: String(row.instrument_symbol),
     instrumentDisplayName: nullableString(row.instrument_display_name),
-    predictionOutcome: nullableString(row.prediction_outcome) as Trade["predictionOutcome"],
+    predictionOutcome: nullableString(
+      row.prediction_outcome,
+    ) as Trade["predictionOutcome"],
     instrumentMetadataJson: nullableString(row.instrument_metadata_json),
     instrumentType: row.instrument_type as Trade["instrumentType"],
     side: row.side as Trade["side"],
@@ -66,7 +68,8 @@ export function toAgentRun(row: Row): AgentRun {
     cycle_id: nullableString(row.cycle_id),
     agent_type: row.agent_type as AgentRun["agent_type"],
     model: String(row.model),
-    provider_key: row.provider_key != null ? String(row.provider_key) : "unknown",
+    provider_key:
+      row.provider_key != null ? String(row.provider_key) : "unknown",
     finish_reason: (row.finish_reason as AgentRun["finish_reason"]) ?? "stop",
     input_tokens: Number(row.input_tokens),
     output_tokens: Number(row.output_tokens),
@@ -85,7 +88,9 @@ export function toEventRow(row: Row): EventRow {
     trade_id: nullableString(row.trade_id),
     cycle_id: nullableString(row.cycle_id),
     level: row.level as EventRow["level"],
-    agent_type: row.agent_type ? (row.agent_type as EventRow["agent_type"]) : null,
+    agent_type: row.agent_type
+      ? (row.agent_type as EventRow["agent_type"])
+      : null,
     message: String(row.message),
     created_at: String(row.created_at),
   };
@@ -136,7 +141,9 @@ export function toWorkspaceSession(row: Row): WorkspaceSession {
     status: row.status as WorkspaceSession["status"],
     isFocused: Boolean(row.is_focused),
     selectionMode: row.selection_mode as WorkspaceSession["selectionMode"],
-    instrumentClasses: parseJsonArray(row.instrument_classes) as WorkspaceSession["instrumentClasses"],
+    instrumentClasses: parseJsonArray(
+      row.instrument_classes,
+    ) as WorkspaceSession["instrumentClasses"],
     instrumentScope: String(row.instrument_scope),
     defaultSearchProviderId: nullableString(row.default_search_provider_id),
     executionMode: row.execution_mode as WorkspaceSession["executionMode"],
@@ -150,7 +157,10 @@ export function toSessionSelectorSettings(row: Row): SessionSelectorSettings {
   return {
     sessionId: String(row.session_id),
     aiPickerEnabled: Boolean(row.ai_picker_enabled),
-    noInstrumentRetryMinutes: row.no_instrument_retry_minutes != null ? Number(row.no_instrument_retry_minutes) : null,
+    noInstrumentRetryMinutes:
+      row.no_instrument_retry_minutes != null
+        ? Number(row.no_instrument_retry_minutes)
+        : null,
     updatedAt: String(row.updated_at),
   };
 }
@@ -175,7 +185,8 @@ export function toSessionStrategy(row: Row): SessionStrategy {
     holdingStyle: isHoldingStyle(holdStyle) ? holdStyle : "multi_day_swing",
     targetHoldDays: nullableNumber(row.target_hold_days),
     maxHoldDays: nullableNumber(row.max_hold_days),
-    timeframeNotes: row.timeframe_notes != null ? String(row.timeframe_notes) : "",
+    timeframeNotes:
+      row.timeframe_notes != null ? String(row.timeframe_notes) : "",
   };
 }
 
@@ -183,11 +194,14 @@ export function toSessionResearchPosture(row: Row): SessionResearchPosture {
   row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
-    posturePresetId: row.posture_preset_id as SessionResearchPosture["posturePresetId"],
-    discoveryMode: row.discovery_mode as SessionResearchPosture["discoveryMode"],
+    posturePresetId:
+      row.posture_preset_id as SessionResearchPosture["posturePresetId"],
+    discoveryMode:
+      row.discovery_mode as SessionResearchPosture["discoveryMode"],
     evidenceMode: row.evidence_mode as SessionResearchPosture["evidenceMode"],
     catalystMode: row.catalyst_mode as SessionResearchPosture["catalystMode"],
-    fundamentalStrictness: row.fundamental_strictness as SessionResearchPosture["fundamentalStrictness"],
+    fundamentalStrictness:
+      row.fundamental_strictness as SessionResearchPosture["fundamentalStrictness"],
     postureNotes: row.posture_notes != null ? String(row.posture_notes) : "",
     updatedAt: String(row.updated_at),
   };
@@ -203,7 +217,8 @@ export function toSessionTradeRules(row: Row): SessionTradeRules {
     entryStyle: row.entry_style as SessionTradeRules["entryStyle"],
     exitStyle: row.exit_style as SessionTradeRules["exitStyle"],
     scalingMode: row.scaling_mode as SessionTradeRules["scalingMode"],
-    tradeRulesMarkdown: row.trade_rules_markdown != null ? String(row.trade_rules_markdown) : "",
+    tradeRulesMarkdown:
+      row.trade_rules_markdown != null ? String(row.trade_rules_markdown) : "",
     ruleNotes: row.rule_notes != null ? String(row.rule_notes) : "",
     updatedAt: String(row.updated_at),
   };
@@ -213,7 +228,8 @@ export function toSessionRiskConfig(row: Row): SessionRiskConfig {
   row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
-    riskPresetId: (row.risk_preset_id as SessionRiskConfig["riskPresetId"]) ?? "custom",
+    riskPresetId:
+      (row.risk_preset_id as SessionRiskConfig["riskPresetId"]) ?? "custom",
     maxPositionUsd: Number(row.max_position_usd),
     stopLossPct: nullableNumber(row.stop_loss_pct),
     takeProfitPct: nullableNumber(row.take_profit_pct),
@@ -227,7 +243,8 @@ export function toSessionRiskConfig(row: Row): SessionRiskConfig {
     dailyLossLimitUsd: Number(row.daily_loss_limit_usd),
     profitTargetUsd: Number(row.profit_target_usd),
     maxAiSpendUsd: Number(row.max_ai_spend_usd),
-    maxDataSpendUsd: row.max_data_spend_usd != null ? Number(row.max_data_spend_usd) : 5,
+    maxDataSpendUsd:
+      row.max_data_spend_usd != null ? Number(row.max_data_spend_usd) : 5,
     humanApprovalRequired: Boolean(row.human_approval_required),
     updatedAt: String(row.updated_at),
   };
@@ -239,12 +256,15 @@ export function toSessionTimeframeConfig(row: Row): SessionTimeframeConfig {
   const holdStyle = row.holding_style;
   return {
     sessionId: String(row.session_id),
-    timeframePresetId: (row.timeframe_preset_id as SessionTimeframeConfig["timeframePresetId"]) ?? "custom",
+    timeframePresetId:
+      (row.timeframe_preset_id as SessionTimeframeConfig["timeframePresetId"]) ??
+      "custom",
     primaryTradingTimeframe: isTradingTimeframe(primaryTf) ? primaryTf : "1d",
     holdingStyle: isHoldingStyle(holdStyle) ? holdStyle : "multi_day_swing",
     targetHoldDays: nullableNumber(row.target_hold_days),
     maxHoldDays: nullableNumber(row.max_hold_days),
-    timeframeNotes: row.timeframe_notes != null ? String(row.timeframe_notes) : "",
+    timeframeNotes:
+      row.timeframe_notes != null ? String(row.timeframe_notes) : "",
     updatedAt: String(row.updated_at),
   };
 }
@@ -270,10 +290,14 @@ export function toBrokerAccount(row: Row): BrokerAccount {
     id: String(row.id),
     name: String(row.name),
     brokerType: String(row.broker_type),
-    supportedInstrumentClasses: parseJsonArray(row.supported_instrument_classes) as BrokerAccount["supportedInstrumentClasses"],
+    supportedInstrumentClasses: parseJsonArray(
+      row.supported_instrument_classes,
+    ) as BrokerAccount["supportedInstrumentClasses"],
     mode: row.mode as BrokerAccount["mode"],
     maxSessions: Number(row.max_sessions ?? 10),
-    allocationEnforcement: (row.allocation_enforcement as BrokerAccount["allocationEnforcement"]) ?? "hard",
+    allocationEnforcement:
+      (row.allocation_enforcement as BrokerAccount["allocationEnforcement"]) ??
+      "hard",
     balanceRefreshIntervalMin: Number(row.balance_refresh_interval_min ?? 5),
     balanceCacheUsd: nullableNumber(row.balance_cache_usd),
     balanceCachedAt: nullableString(row.balance_cached_at),
@@ -285,16 +309,20 @@ export function toBrokerAccount(row: Row): BrokerAccount {
 export function toBrokerRoutingDefault(row: Row): BrokerRoutingDefault {
   row = normalizeRow(row);
   return {
-    instrumentClass: row.instrument_class as BrokerRoutingDefault["instrumentClass"],
+    instrumentClass:
+      row.instrument_class as BrokerRoutingDefault["instrumentClass"],
     defaultBrokerAccountId: String(row.default_broker_account_id),
   };
 }
 
-export function toSessionBrokerRoutingOverride(row: Row): SessionBrokerRoutingOverride {
+export function toSessionBrokerRoutingOverride(
+  row: Row,
+): SessionBrokerRoutingOverride {
   row = normalizeRow(row);
   return {
     sessionId: String(row.session_id),
-    instrumentClass: row.instrument_class as SessionBrokerRoutingOverride["instrumentClass"],
+    instrumentClass:
+      row.instrument_class as SessionBrokerRoutingOverride["instrumentClass"],
     brokerAccountId: String(row.broker_account_id),
   };
 }
@@ -306,9 +334,17 @@ export function toWorkspacePreferences(row: Row): WorkspacePreferences {
     globalIncludeArchived: Boolean(row.global_include_archived),
     defaultSearchProviderId: nullableString(row.default_search_provider_id),
     allocationEnforcementOverride:
-      (nullableString(row.allocation_enforcement_override) as WorkspacePreferences["allocationEnforcementOverride"]) ?? null,
-    defaultModelProviderKey: row.default_model_provider_key != null ? String(row.default_model_provider_key) : "",
-    defaultModelModelId: row.default_model_model_id != null ? String(row.default_model_model_id) : "",
+      (nullableString(
+        row.allocation_enforcement_override,
+      ) as WorkspacePreferences["allocationEnforcementOverride"]) ?? null,
+    defaultModelProviderKey:
+      row.default_model_provider_key != null
+        ? String(row.default_model_provider_key)
+        : "",
+    defaultModelModelId:
+      row.default_model_model_id != null
+        ? String(row.default_model_model_id)
+        : "",
     updatedAt: String(row.updated_at),
   };
 }
@@ -321,7 +357,9 @@ export function toSessionTemplate(row: Row): SessionTemplate {
     description: nullableString(row.description),
     sourceSessionId: nullableString(row.source_session_id),
     templatePayloadJson: String(row.template_payload_json),
-    instrumentClasses: parseJsonArray(row.instrument_classes) as SessionTemplate["instrumentClasses"],
+    instrumentClasses: parseJsonArray(
+      row.instrument_classes,
+    ) as SessionTemplate["instrumentClasses"],
     updatedAt: String(row.updated_at),
   };
 }
@@ -335,7 +373,9 @@ export function toTradeApproval(row: Row): TradeApproval {
     brokerAccountId: String(row.broker_account_id),
     instrumentSymbol: String(row.instrument_symbol),
     instrumentDisplayName: nullableString(row.instrument_display_name),
-    predictionOutcome: nullableString(row.prediction_outcome) as TradeApproval["predictionOutcome"],
+    predictionOutcome: nullableString(
+      row.prediction_outcome,
+    ) as TradeApproval["predictionOutcome"],
     instrumentMetadataJson: nullableString(row.instrument_metadata_json),
     instrumentClass: row.instrument_class as TradeApproval["instrumentClass"],
     proposedSide: row.proposed_side as TradeApproval["proposedSide"],

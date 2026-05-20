@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { asc, eq } from "drizzle-orm";
-import { sessionAiPhases, sessionResearchPosture, sessionRiskConfig, sessionTimeframeConfig, sessionTradeRules } from "../../schema";
+import {
+  sessionAiPhases,
+  sessionResearchPosture,
+  sessionRiskConfig,
+  sessionTimeframeConfig,
+  sessionTradeRules,
+} from "../../schema";
 import { createTestDb } from "../../test-helpers";
 import { SessionRepo } from "./session-repo";
 import { SessionStrategiesRepo } from "./session-strategies-repo";
@@ -19,10 +25,26 @@ describe("strategy schema migration compatibility", () => {
       executionMode: "paper_only",
     });
 
-    const posture = db.db.select().from(sessionResearchPosture).where(eq(sessionResearchPosture.sessionId, session.id)).get();
-    const rules = db.db.select().from(sessionTradeRules).where(eq(sessionTradeRules.sessionId, session.id)).get();
-    const risk = db.db.select().from(sessionRiskConfig).where(eq(sessionRiskConfig.sessionId, session.id)).get();
-    const timeframe = db.db.select().from(sessionTimeframeConfig).where(eq(sessionTimeframeConfig.sessionId, session.id)).get();
+    const posture = db.db
+      .select()
+      .from(sessionResearchPosture)
+      .where(eq(sessionResearchPosture.sessionId, session.id))
+      .get();
+    const rules = db.db
+      .select()
+      .from(sessionTradeRules)
+      .where(eq(sessionTradeRules.sessionId, session.id))
+      .get();
+    const risk = db.db
+      .select()
+      .from(sessionRiskConfig)
+      .where(eq(sessionRiskConfig.sessionId, session.id))
+      .get();
+    const timeframe = db.db
+      .select()
+      .from(sessionTimeframeConfig)
+      .where(eq(sessionTimeframeConfig.sessionId, session.id))
+      .get();
     const phases = db.db
       .select({ phase: sessionAiPhases.phase })
       .from(sessionAiPhases)
@@ -76,8 +98,16 @@ describe("strategy schema migration compatibility", () => {
       timeframeNotes: "Hold through multi-session swings.",
     });
 
-    const risk = db.db.select().from(sessionRiskConfig).where(eq(sessionRiskConfig.sessionId, session.id)).get();
-    const timeframe = db.db.select().from(sessionTimeframeConfig).where(eq(sessionTimeframeConfig.sessionId, session.id)).get();
+    const risk = db.db
+      .select()
+      .from(sessionRiskConfig)
+      .where(eq(sessionRiskConfig.sessionId, session.id))
+      .get();
+    const timeframe = db.db
+      .select()
+      .from(sessionTimeframeConfig)
+      .where(eq(sessionTimeframeConfig.sessionId, session.id))
+      .get();
 
     expect(risk?.maxPositionUsd).toBe(750);
     expect(risk?.stopLossPct).toBe(1.5);
@@ -91,7 +121,9 @@ describe("strategy schema migration compatibility", () => {
     expect(timeframe?.holdingStyle).toBe("weeks_position");
     expect(timeframe?.targetHoldDays).toBe(5);
     expect(timeframe?.maxHoldDays).toBe(12);
-    expect(timeframe?.timeframeNotes).toBe("Hold through multi-session swings.");
+    expect(timeframe?.timeframeNotes).toBe(
+      "Hold through multi-session swings.",
+    );
 
     db.sqlite.close();
   });

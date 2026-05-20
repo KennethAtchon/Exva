@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { InstrumentClass, StrategySnapshot } from "@/lib/types";
-import { instrumentSelectionSchema, type InstrumentSelection } from "@/lib/schemas";
+import {
+  instrumentSelectionSchema,
+  type InstrumentSelection,
+} from "@/lib/schemas";
 import {
   reviewSignalSchema,
   technicalSignalSchema,
@@ -26,7 +29,10 @@ import { OrderPolicyGate } from "../policy/order-policy-gate";
 import type { PolicyGateResult } from "../policy/order-policy-gate";
 import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 import type { ExitDecision } from "../../risk/exit-policy-evaluator";
-import { computeExecutionProfile, priceLevelsFromProfile } from "../../ai/engines/execution/execution-profile-engine";
+import {
+  computeExecutionProfile,
+  priceLevelsFromProfile,
+} from "../../ai/engines/execution/execution-profile-engine";
 
 export interface CycleFixture {
   version: 1;
@@ -134,7 +140,9 @@ export class CycleReplayService {
 
     let strategySnapshot: StrategySnapshot | null = null;
     try {
-      strategySnapshot = JSON.parse(firstMsg.strategy_snapshot_json) as StrategySnapshot;
+      strategySnapshot = JSON.parse(
+        firstMsg.strategy_snapshot_json,
+      ) as StrategySnapshot;
     } catch {
       return null;
     }
@@ -171,23 +179,31 @@ export class CycleReplayService {
       const toolCalls: CycleFixture["agentRuns"][number]["toolCalls"] = [];
       if (msg.tool_calls_json) {
         try {
-          const parsed = JSON.parse(msg.tool_calls_json) as Array<RawToolCall | { toolCalls?: RawToolCall[] }>;
+          const parsed = JSON.parse(msg.tool_calls_json) as Array<
+            RawToolCall | { toolCalls?: RawToolCall[] }
+          >;
           const rawCalls = normalizeToolCalls(parsed);
 
           for (const call of rawCalls) {
             const tool = call.tool ?? call.name ?? "unknown";
             const argsJson = call.argsJson ?? JSON.stringify(call.args ?? {});
-            const resultJson = call.resultJson ?? JSON.stringify(call.result ?? {});
+            const resultJson =
+              call.resultJson ?? JSON.stringify(call.result ?? {});
             toolCalls.push({
               tool,
               argsJson,
               resultJson,
             });
 
-            const callResult = call.resultJson ? safeParseJson(call.resultJson) : call.result;
+            const callResult = call.resultJson
+              ? safeParseJson(call.resultJson)
+              : call.result;
 
             // Extract quote from get_quote tool call results
-            if ((tool === "get_quote" || tool === "get_market_snapshot") && callResult) {
+            if (
+              (tool === "get_quote" || tool === "get_market_snapshot") &&
+              callResult
+            ) {
               const quote = callResult as MarketSnapshot & { symbol?: string };
               const sym = quote.instrumentSymbol ?? quote.symbol;
               if (sym && !marketDataMap.has(sym)) {
@@ -203,7 +219,10 @@ export class CycleReplayService {
 
             // Extract ohlcv from get_ohlcv calls
             if (tool === "get_ohlcv" && callResult) {
-              const result = callResult as { symbol?: string; bars?: MockOhlcvBar[] };
+              const result = callResult as {
+                symbol?: string;
+                bars?: MockOhlcvBar[];
+              };
               if (result.symbol && result.bars) {
                 const entry = marketDataMap.get(result.symbol);
                 if (entry) {
@@ -211,7 +230,11 @@ export class CycleReplayService {
                 } else {
                   marketDataMap.set(result.symbol, {
                     symbol: result.symbol,
-                    quote: { instrumentSymbol: result.symbol, price: 0, timestamp: "" },
+                    quote: {
+                      instrumentSymbol: result.symbol,
+                      price: 0,
+                      timestamp: "",
+                    },
                     ohlcvBars: result.bars,
                     newsHeadlines: [],
                     redditPosts: [],
@@ -244,9 +267,13 @@ export class CycleReplayService {
         }
       }
 
-      const parsedOutput = parsePhaseOutput(msg.output_schema_name, msg.output_json);
+      const parsedOutput = parsePhaseOutput(
+        msg.output_schema_name,
+        msg.output_json,
+      );
       if (parsedOutput) {
-        (phaseOutputs as Record<string, unknown>)[parsedOutput.phase] = parsedOutput.output;
+        (phaseOutputs as Record<string, unknown>)[parsedOutput.phase] =
+          parsedOutput.output;
       }
 
       const phaseTrace = parsePhaseTrace(msg.tool_calls_json);
@@ -258,16 +285,25 @@ export class CycleReplayService {
       let promptSummary = "";
       let outputSummary = "";
       try {
-        const parsed = JSON.parse(msg.messages_json) as Array<{ role: string; content: string | unknown[] }>;
+        const parsed = JSON.parse(msg.messages_json) as Array<{
+          role: string;
+          content: string | unknown[];
+        }>;
         const userMsg = parsed.find((m) => m.role === "user");
-        const content = typeof userMsg?.content === "string" ? userMsg.content : JSON.stringify(userMsg?.content ?? "");
+        const content =
+          typeof userMsg?.content === "string"
+            ? userMsg.content
+            : JSON.stringify(userMsg?.content ?? "");
         promptSummary = content.slice(0, 200);
       } catch {
         // skip
       }
       if (msg.output_json) {
         try {
-          outputSummary = JSON.stringify(JSON.parse(msg.output_json)).slice(0, 200);
+          outputSummary = JSON.stringify(JSON.parse(msg.output_json)).slice(
+            0,
+            200,
+          );
         } catch {
           outputSummary = msg.output_json.slice(0, 200);
         }
@@ -300,13 +336,18 @@ export class CycleReplayService {
 
     // Risk outcome from session execution steps
     let riskOutcome: CycleFixture["riskOutcome"] = { allowed: true };
-    const steps = this.deps.sessionExecutionSteps.getLatestByCycle(sessionId, cycleId);
+    const steps = this.deps.sessionExecutionSteps.getLatestByCycle(
+      sessionId,
+      cycleId,
+    );
     const riskStep = steps.find((s) => s.stage === "risk_gate");
     if (riskStep) {
       riskOutcome = {
         allowed: riskStep.status === "succeeded",
         reason: riskStep.lastErrorMessage ?? undefined,
-        gatesFailed: riskStep.lastErrorCode ? [riskStep.lastErrorCode] : undefined,
+        gatesFailed: riskStep.lastErrorCode
+          ? [riskStep.lastErrorCode]
+          : undefined,
       };
     }
 
@@ -360,21 +401,40 @@ export class CycleReplayService {
     }
     const fixture = raw as Record<string, unknown>;
     if (fixture["version"] !== 1) {
-      throw new Error(`Invalid fixture at ${filePath}: expected version 1, got ${String(fixture["version"])}`);
+      throw new Error(
+        `Invalid fixture at ${filePath}: expected version 1, got ${String(fixture["version"])}`,
+      );
     }
-    if (!fixture["sessionId"] || !fixture["cycleId"] || !Array.isArray(fixture["agentRuns"])) {
-      throw new Error(`Invalid fixture at ${filePath}: missing required fields (sessionId, cycleId, agentRuns)`);
+    if (
+      !fixture["sessionId"] ||
+      !fixture["cycleId"] ||
+      !Array.isArray(fixture["agentRuns"])
+    ) {
+      throw new Error(
+        `Invalid fixture at ${filePath}: missing required fields (sessionId, cycleId, agentRuns)`,
+      );
     }
     return fixture as unknown as CycleFixture;
   }
 }
 
-type RawToolCall = { tool?: string; name?: string; args?: unknown; result?: unknown; argsJson?: string; resultJson?: string };
+type RawToolCall = {
+  tool?: string;
+  name?: string;
+  args?: unknown;
+  result?: unknown;
+  argsJson?: string;
+  resultJson?: string;
+};
 
-function normalizeToolCalls(parsed: Array<RawToolCall | { toolCalls?: RawToolCall[] }>): RawToolCall[] {
+function normalizeToolCalls(
+  parsed: Array<RawToolCall | { toolCalls?: RawToolCall[] }>,
+): RawToolCall[] {
   if (parsed.length === 0) return [];
   if ("toolCalls" in parsed[0]!) {
-    return (parsed as Array<{ toolCalls?: RawToolCall[] }>).flatMap((step) => step.toolCalls ?? []);
+    return (parsed as Array<{ toolCalls?: RawToolCall[] }>).flatMap(
+      (step) => step.toolCalls ?? [],
+    );
   }
   return parsed as RawToolCall[];
 }
@@ -393,7 +453,15 @@ export class CycleReplayRunner {
   private readonly exitEvaluator = new ExitPolicyEvaluator();
 
   replay(fixture: CycleFixture): ReplayResult {
-    const { cycleId, strategySnapshot, selectedInstruments, marketData, decision, riskOutcome, trade } = fixture;
+    const {
+      cycleId,
+      strategySnapshot,
+      selectedInstruments,
+      marketData,
+      decision,
+      riskOutcome,
+      trade,
+    } = fixture;
     const phaseOutputs = validatePhaseOutputs(fixture.phaseOutputs);
 
     // Re-run candidate validation for each selected instrument
@@ -431,7 +499,8 @@ export class CycleReplayRunner {
         daily_loss_limit_usd: strategySnapshot.riskConfig.dailyLossLimitUsd,
         profit_target_usd: strategySnapshot.riskConfig.profitTargetUsd,
         max_api_spend_usd: strategySnapshot.riskConfig.maxAiSpendUsd,
-        human_approval_required: strategySnapshot.riskConfig.humanApprovalRequired,
+        human_approval_required:
+          strategySnapshot.riskConfig.humanApprovalRequired,
       };
       replayPolicyGate = this.policyGate.evaluate({
         sessionId: fixture.sessionId,
@@ -460,7 +529,9 @@ export class CycleReplayRunner {
             instrumentSymbol: decision.symbol,
             side: decision.side,
             sizeUsd: decision.sizeUsd ?? 0,
-            instrumentType: selectedInstruments.find((i) => i.symbol === decision.symbol)?.instrumentClass ?? "stock",
+            instrumentType:
+              selectedInstruments.find((i) => i.symbol === decision.symbol)
+                ?.instrumentClass ?? "stock",
           },
           confidence: decision.confidence,
           quoteSnapshot: md?.quote,
@@ -485,7 +556,10 @@ export class CycleReplayRunner {
     let replayExitDecision: ExitDecision | null = null;
     if (trade && decision.symbol) {
       const md = marketData.find((d) => d.symbol === decision.symbol);
-      const lastBar = md && md.ohlcvBars.length > 0 ? md.ohlcvBars[md.ohlcvBars.length - 1] : null;
+      const lastBar =
+        md && md.ohlcvBars.length > 0
+          ? md.ohlcvBars[md.ohlcvBars.length - 1]
+          : null;
       if (md && lastBar) {
         replayExitDecision = this.exitEvaluator.evaluate({
           trade: {
@@ -493,11 +567,16 @@ export class CycleReplayRunner {
             entryPrice: trade.entryPrice,
             side: decision.side ?? "BUY",
             instrumentType:
-              selectedInstruments.find((i) => i.symbol === decision.symbol)?.instrumentClass ?? "stock",
+              selectedInstruments.find((i) => i.symbol === decision.symbol)
+                ?.instrumentClass ?? "stock",
             highWaterMarkPrice: null,
           },
           currentPrice: lastBar.close,
-          ohlcvBars: md.ohlcvBars.map((b) => ({ high: b.high, low: b.low, close: b.close })),
+          ohlcvBars: md.ohlcvBars.map((b) => ({
+            high: b.high,
+            low: b.low,
+            close: b.close,
+          })),
           riskConfig: {
             stopLossType: strategySnapshot.riskConfig.stopLossType,
             stopLossPct: strategySnapshot.riskConfig.stopLossPct,
@@ -510,13 +589,19 @@ export class CycleReplayRunner {
 
     const replayAllowed = replayPolicyGate ? replayPolicyGate.allowed : true;
     const riskOutcomeMatches = replayAllowed === riskOutcome.allowed;
-    const tradeOpenedMatches = (trade !== null) === (decision.action === "trade" && riskOutcome.allowed);
+    const tradeOpenedMatches =
+      (trade !== null) === (decision.action === "trade" && riskOutcome.allowed);
 
     let executionProfile: ReplayResult["executionProfile"] = null;
     const tradeSignal = phaseOutputs.decision;
-    if (decision.action === "trade" && tradeSignal && tradeSignal.action !== "skip") {
+    if (
+      decision.action === "trade" &&
+      tradeSignal &&
+      tradeSignal.action !== "skip"
+    ) {
       const instrumentClass =
-        selectedInstruments.find((i) => i.symbol === tradeSignal.symbol)?.instrumentClass ?? "stock";
+        selectedInstruments.find((i) => i.symbol === tradeSignal.symbol)
+          ?.instrumentClass ?? "stock";
       const profile = computeExecutionProfile({
         signal: tradeSignal,
         instrumentClass,
@@ -552,7 +637,9 @@ export class CycleReplayRunner {
       scorecard: {
         submissionFired: phaseOutputs.selector !== null,
         totalCostUsd: totalFixtureCostUsd(fixture),
-        aiAuthoredSizingFieldCount: countLegacyDecisionSizingFields(fixture.agentRuns),
+        aiAuthoredSizingFieldCount: countLegacyDecisionSizingFields(
+          fixture.agentRuns,
+        ),
       },
       executionProfile,
       matchesOriginal: { riskOutcomeMatches, tradeOpenedMatches },
@@ -568,19 +655,27 @@ function buildDecision(
     const d = phaseOutputs.decision;
     return {
       action: d.action === "skip" ? "no_trade" : "trade",
-      side: d.action === "buy" ? "BUY" : d.action === "sell" ? "SELL" : undefined,
+      side:
+        d.action === "buy" ? "BUY" : d.action === "sell" ? "SELL" : undefined,
       symbol: d.symbol,
       sizeUsd: undefined,
       confidence: d.confidence,
       reasoning: d.reasoning,
     };
   }
-  const decisionMsg = [...messages].reverse().find((m) => m.role === "decision");
+  const decisionMsg = [...messages]
+    .reverse()
+    .find((m) => m.role === "decision");
   if (decisionMsg?.output_json) {
     try {
       const out = JSON.parse(decisionMsg.output_json) as {
-        action?: string; side?: string; symbol?: string;
-        size_usd?: number; sizeUsd?: number; confidence?: number; reasoning?: string;
+        action?: string;
+        side?: string;
+        symbol?: string;
+        size_usd?: number;
+        sizeUsd?: number;
+        confidence?: number;
+        reasoning?: string;
       };
       return {
         action: out.action === "trade" ? "trade" : "no_trade",
@@ -607,7 +702,13 @@ function emptyPhaseOutputs(): CycleFixture["phaseOutputs"] {
   };
 }
 
-const PHASE_SCHEMA_MAP: Record<string, { phase: keyof CycleFixture["phaseOutputs"]; schema: { parse(v: unknown): unknown } }> = {
+const PHASE_SCHEMA_MAP: Record<
+  string,
+  {
+    phase: keyof CycleFixture["phaseOutputs"];
+    schema: { parse(v: unknown): unknown };
+  }
+> = {
   instrumentSelection: { phase: "selector", schema: instrumentSelectionSchema },
   technicalSignal: { phase: "technical", schema: technicalSignalSchema },
   fundamentalSignal: { phase: "fundamental", schema: fundamentalSignalSchema },
@@ -634,28 +735,45 @@ function parsePhaseTrace(raw: string | null): PhaseTraceV1 | null {
   const trace = parsed as Partial<PhaseTraceV1>;
   if (trace.version !== 1) return null;
   if (typeof trace.phase !== "string") return null;
-  if (!Array.isArray(trace.frontiers) || !Array.isArray(trace.workers)) return null;
+  if (!Array.isArray(trace.frontiers) || !Array.isArray(trace.workers))
+    return null;
   return trace as PhaseTraceV1;
 }
 
-function validatePhaseOutputs(outputs: CycleFixture["phaseOutputs"]): CycleFixture["phaseOutputs"] {
+function validatePhaseOutputs(
+  outputs: CycleFixture["phaseOutputs"],
+): CycleFixture["phaseOutputs"] {
   return {
-    selector: outputs.selector ? instrumentSelectionSchema.parse(outputs.selector) : null,
-    technical: outputs.technical ? technicalSignalSchema.parse(outputs.technical) : null,
-    fundamental: outputs.fundamental ? fundamentalSignalSchema.parse(outputs.fundamental) : null,
+    selector: outputs.selector
+      ? instrumentSelectionSchema.parse(outputs.selector)
+      : null,
+    technical: outputs.technical
+      ? technicalSignalSchema.parse(outputs.technical)
+      : null,
+    fundamental: outputs.fundamental
+      ? fundamentalSignalSchema.parse(outputs.fundamental)
+      : null,
     review: outputs.review ? reviewSignalSchema.parse(outputs.review) : null,
-    decision: outputs.decision ? tradeSignalSchema.parse(outputs.decision) : null,
+    decision: outputs.decision
+      ? tradeSignalSchema.parse(outputs.decision)
+      : null,
   };
 }
 
 function totalFixtureCostUsd(fixture: CycleFixture): number {
-  return Object.values(fixture.phaseTraces).reduce((sum, trace) => sum + (trace?.totalCostUsd ?? 0), 0);
+  return Object.values(fixture.phaseTraces).reduce(
+    (sum, trace) => sum + (trace?.totalCostUsd ?? 0),
+    0,
+  );
 }
 
-function countLegacyDecisionSizingFields(agentRuns: CycleFixture["agentRuns"]): number {
+function countLegacyDecisionSizingFields(
+  agentRuns: CycleFixture["agentRuns"],
+): number {
   let count = 0;
   for (const run of agentRuns) {
-    if (run.outputSchemaName !== "tradeSignal" && run.role !== "decision") continue;
+    if (run.outputSchemaName !== "tradeSignal" && run.role !== "decision")
+      continue;
     if (!run.outputJson) continue;
     const parsed = safeParseJson(run.outputJson);
     if (!parsed || typeof parsed !== "object") continue;

@@ -21,16 +21,24 @@ export function buildStrategyPromptContext(
     ...context,
     researchPosture: {
       ...context.researchPosture,
-      postureNotes: truncate(context.researchPosture.postureNotes, MAX_NOTES_CHARS),
+      postureNotes: truncate(
+        context.researchPosture.postureNotes,
+        MAX_NOTES_CHARS,
+      ),
     },
     rules: {
       ...context.rules,
-      tradeRulesMarkdown: context.rules.tradeRulesMarkdown.trim() || buildTradeRulesMarkdown(context.rules),
+      tradeRulesMarkdown:
+        context.rules.tradeRulesMarkdown.trim() ||
+        buildTradeRulesMarkdown(context.rules),
       ruleNotes: truncate(context.rules.ruleNotes, MAX_NOTES_CHARS),
     },
     timeframe: {
       ...context.timeframe,
-      timeframeNotes: truncate(context.timeframe.timeframeNotes, MAX_NOTES_CHARS),
+      timeframeNotes: truncate(
+        context.timeframe.timeframeNotes,
+        MAX_NOTES_CHARS,
+      ),
     },
   });
 
@@ -62,12 +70,18 @@ export function buildStrategyPromptContext(
     "## Session risk (authoritative)",
     `- Max position USD: ${snapshot.riskConfig.maxPositionUsd}`,
     `- Stop loss type: ${snapshot.riskConfig.stopLossType}`,
-    snapshot.riskConfig.stopLossPct != null ? `- Stop loss pct: ${snapshot.riskConfig.stopLossPct}` : null,
-    snapshot.riskConfig.takeProfitPct != null ? `- Take profit pct: ${snapshot.riskConfig.takeProfitPct}` : null,
+    snapshot.riskConfig.stopLossPct != null
+      ? `- Stop loss pct: ${snapshot.riskConfig.stopLossPct}`
+      : null,
+    snapshot.riskConfig.takeProfitPct != null
+      ? `- Take profit pct: ${snapshot.riskConfig.takeProfitPct}`
+      : null,
     snapshot.riskConfig.atrStopMultiplier != null
       ? `- ATR stop multiplier: ${snapshot.riskConfig.atrStopMultiplier}`
       : null,
-    snapshot.riskConfig.maxExposureUsd != null ? `- Max exposure USD: ${snapshot.riskConfig.maxExposureUsd}` : null,
+    snapshot.riskConfig.maxExposureUsd != null
+      ? `- Max exposure USD: ${snapshot.riskConfig.maxExposureUsd}`
+      : null,
     `- Kelly fraction: ${snapshot.riskConfig.kellyFraction}`,
     `- Prediction edge threshold: ${snapshot.riskConfig.predictionEdgeThreshold}`,
     `- Wait-for-open threshold: ${snapshot.riskConfig.waitForOpenThreshold}`,
@@ -81,9 +95,15 @@ export function buildStrategyPromptContext(
     "## Session trading horizon (authoritative)",
     `- Primary timeframe: ${snapshot.timeframe.primaryTradingTimeframe}`,
     `- Holding style: ${snapshot.timeframe.holdingStyle}`,
-    snapshot.timeframe.targetHoldDays != null ? `- Target hold: ~${snapshot.timeframe.targetHoldDays} calendar days` : null,
-    snapshot.timeframe.maxHoldDays != null ? `- Max hold: ${snapshot.timeframe.maxHoldDays} calendar days` : null,
-    snapshot.timeframe.timeframeNotes.trim() ? `- Notes: ${snapshot.timeframe.timeframeNotes.trim()}` : null,
+    snapshot.timeframe.targetHoldDays != null
+      ? `- Target hold: ~${snapshot.timeframe.targetHoldDays} calendar days`
+      : null,
+    snapshot.timeframe.maxHoldDays != null
+      ? `- Max hold: ${snapshot.timeframe.maxHoldDays} calendar days`
+      : null,
+    snapshot.timeframe.timeframeNotes.trim()
+      ? `- Notes: ${snapshot.timeframe.timeframeNotes.trim()}`
+      : null,
   ].filter((line): line is string => line != null);
 
   return {
@@ -124,8 +144,12 @@ export function buildWorkerStrategyPromptContext(
     technical: [
       `Setup: ${rules.setupType}`,
       `Stop type: ${riskConfig.stopLossType}`,
-      riskConfig.stopLossPct != null ? `Stop loss pct: ${riskConfig.stopLossPct}` : "Stop loss pct: (session default)",
-      riskConfig.takeProfitPct != null ? `Take profit pct: ${riskConfig.takeProfitPct}` : "Take profit pct: (session default)",
+      riskConfig.stopLossPct != null
+        ? `Stop loss pct: ${riskConfig.stopLossPct}`
+        : "Stop loss pct: (session default)",
+      riskConfig.takeProfitPct != null
+        ? `Take profit pct: ${riskConfig.takeProfitPct}`
+        : "Take profit pct: (session default)",
     ],
     fundamental: [
       `Catalyst: ${researchPosture.catalystMode}`,
@@ -148,7 +172,10 @@ export function buildWorkerStrategyPromptContext(
   return [...shared, ...phaseLines[phase]].join("\n");
 }
 
-export function prependStrategyContextToUserPrompt(context: SessionStrategyContext, userPrompt: string): StrategyPromptContext {
+export function prependStrategyContextToUserPrompt(
+  context: SessionStrategyContext,
+  userPrompt: string,
+): StrategyPromptContext {
   const built = buildStrategyPromptContext(context);
   return {
     snapshot: built.snapshot,

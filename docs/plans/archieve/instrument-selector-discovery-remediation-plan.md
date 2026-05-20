@@ -19,7 +19,6 @@ This breaks the product promise of AI-selected universe mode. The selector shoul
 
 **Goals**
 
-
 | #   | Goal                                                               | Success Looks Like                                                                                                                                                                                                                              |
 | --- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Make AI-selected universe mode a real discovery loop               | Selector runs begin with `search_web` or `get_news` before quote/OHLCV and before `submit_candidates` when search is required.                                                                                                                  |
@@ -28,9 +27,7 @@ This breaks the product promise of AI-selected universe mode. The selector shoul
 | 4   | Preserve safe no-trade behavior                                    | If no valid candidate is found after real discovery, the selector should fail/idle cleanly instead of forcing a bad candidate.                                                                                                                  |
 | 5   | Make failures diagnosable                                          | Dev logs and persisted traces clearly show missing search provider, effective tools, first search query, terminal submit, and candidate validation results.                                                                                     |
 
-
 **Non-Goals**
-
 
 | #   | Non-Goal                          | Reason                                                                                       |
 | --- | --------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -39,11 +36,9 @@ This breaks the product promise of AI-selected universe mode. The selector shoul
 | 3   | Replace all models                | Model quality matters, but the current failure is mostly contract/wiring/prompt enforcement. |
 | 4   | Add live broker execution changes | The issue is before order routing. Broker execution should remain untouched.                 |
 
-
 ## 3. Background & Context
 
 The intended role/tool contract is already documented in `docs/plan/ai-harness-architecture.md`:
-
 
 | Agent                 | Tools                                                                   | Safety cap | Budget limit | Execution model                                           |
 | --------------------- | ----------------------------------------------------------------------- | ---------- | ------------ | --------------------------------------------------------- |
@@ -52,7 +47,6 @@ The intended role/tool contract is already documented in `docs/plan/ai-harness-a
 | `analyst_fundamental` | `search_web`, `get_news`                                                | 12 steps   | $0.08/run    | Depth loop on injected structured data                    |
 | `reviewer`            | `search_web`                                                            | 8 steps    | $0.05/run    | Spot-check verification + synthesis                       |
 | `decision_maker`      | none                                                                    | 1 step     | $0.04/run    | Single-shot structured output                             |
-
 
 The code has a policy table that matches the documented default in `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`. The gap appears when policy is intersected with infrastructure in `harness-tools.ts`. `search_web` requires `searchProviderId`; `get_news` requires both broker wiring and `searchProviderId`; quote/OHLCV require broker wiring. In the failing run, broker wiring exists but `searchProviderId` is null, so the runtime attaches only quote/OHLCV plus `submit_candidates`.
 
@@ -79,12 +73,9 @@ sequenceDiagram
     Orchestrator->>Runtime: run analyst pipeline per candidate
 ```
 
-
-
 The problem is that the first half of this flow does not enforce discovery. It only asks for discovery.
 
 ## 4. Autopsy Findings
-
 
 | #   | Finding                                                               | Evidence                                                                                                                                             | Impact                                                                                         |
 | --- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -96,7 +87,6 @@ The problem is that the first half of this flow does not enforce discovery. It o
 | 6   | Terminal submit is not truly terminal                                 | The failing trace has `submit_candidates` at step 3 and again at step 4.                                                                             | The harness does not stop immediately on the terminal action.                                  |
 | 7   | Candidate quality is not validated against trace evidence             | `parseInstrumentSelection()` returns the last valid `submit_candidates` payload; orchestrator only filters by instrument class.                      | Unsupported candidates enter the analyst pipeline.                                             |
 | 8   | Analyst roles are starved after selector                              | Analysts receive `Instrument: BTC` and `Context: None`; no selected quote/OHLCV/news context is injected downstream.                                 | Even if selector checked data, analysts re-run blind unless they have their own tools.         |
-
 
 ## 5. Research Summary
 
@@ -124,7 +114,6 @@ Source: [https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview](
 
 Keep current policy, prompts, and validators.
 
-
 | Dimension      | Assessment                                                |
 | -------------- | --------------------------------------------------------- |
 | Complexity     | None.                                                     |
@@ -135,13 +124,11 @@ Keep current policy, prompts, and validators.
 | Stack fit      | Current code.                                             |
 | Team readiness | No work, but unacceptable behavior.                       |
 
-
 Risks: The app continues to look autonomous while selecting unsupported instruments. Users lose trust because logs contradict the intended agent contract.
 
 **Option B: Prompt-Only Fix**
 
 Rewrite `instrument_selector.md` to say “search first,” “do not submit without evidence,” and “prefer stocks.”
-
 
 | Dimension      | Assessment                                                                         |
 | -------------- | ---------------------------------------------------------------------------------- |
@@ -153,13 +140,11 @@ Rewrite `instrument_selector.md` to say “search first,” “do not submit wit
 | Stack fit      | Fits existing prompt assets.                                                       |
 | Team readiness | Easy to implement immediately.                                                     |
 
-
 Risks: The exact failing run still has no `search_web` or `get_news`, so the prompt would instruct the model to use unavailable tools. Smaller models may still submit unsupported candidates.
 
 **Option C: Contract-Enforced Discovery Loop**
 
 Fix effective tool availability, require search/news for AI-selected discovery, force the first selector step through search when appropriate, make `submit_candidates` terminal, and add trace-aware candidate validation.
-
 
 | Dimension      | Assessment                                                                                                            |
 | -------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -171,13 +156,11 @@ Fix effective tool availability, require search/news for AI-selected discovery, 
 | Stack fit      | Uses existing AI SDK tool loop, role policy, search registry, broker registry, and prompt-pack architecture.          |
 | Team readiness | Good. The required seams already exist.                                                                               |
 
-
 Risks: If search provider setup is clunky, users may hit preflight failures until UI is improved. Forcing first-step search may expose provider-specific tool-choice incompatibilities through OpenRouter models.
 
 **Option D: Deterministic App-Owned Screener Before AI**
 
 Build a code-owned market screener that queries provider APIs for movers/news, then gives the selector a pre-ranked universe to refine.
-
 
 | Dimension      | Assessment                                                                                          |
 | -------------- | --------------------------------------------------------------------------------------------------- |
@@ -188,7 +171,6 @@ Build a code-owned market screener that queries provider APIs for movers/news, t
 | Reversibility  | Moderate. New subsystem to maintain.                                                                |
 | Stack fit      | Not yet aligned with current lightweight broker/search tool abstractions.                           |
 | Team readiness | Premature for the immediate bug.                                                                    |
-
 
 Risks: Overbuilds before the current harness contract is correct. Could delay fixing the user-visible broken selector.
 
@@ -362,7 +344,6 @@ Rollback:
 
 ## 9. Risk Register
 
-
 | #   | Risk                                                                      | Likelihood | Impact | Mitigation                                                                                                              |
 | --- | ------------------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------------------------------------------- |
 | 1   | OpenRouter/model provider does not honor forced `toolChoice` consistently | Medium     | High   | Implement deterministic app-issued first search fallback and feature-flag forced tool choice.                           |
@@ -371,9 +352,7 @@ Rollback:
 | 4   | Validator rejects too aggressively                                        | Medium     | Medium | Start with explicit modes: full-universe requires discovery evidence; manual shortlist can allow quote-only validation. |
 | 5   | Prompt says “stocks” but session allows all classes                       | Medium     | High   | Fix UI class broadening and inject allowed classes prominently into selector task.                                      |
 
-
 ## 10. Success Criteria
-
 
 | Goal                    | Metric                                                                                   | Baseline                   | Target                           | How Measured                              |
 | ----------------------- | ---------------------------------------------------------------------------------------- | -------------------------- | -------------------------------- | ----------------------------------------- |
@@ -383,9 +362,7 @@ Rollback:
 | Terminal behavior       | `submit_candidates` calls per selector run                                               | 2 in failing trace         | exactly 1 valid terminal call    | Tool trace                                |
 | Downstream context      | Analyst runs with non-empty injected context after selector                              | 0% in failing trace        | 100% selector-driven runs        | Analyst prompt preview / message snapshot |
 
-
 ## 11. Open Questions
-
 
 | #   | Question                                                                                                   | Owner   | Needed By | Status |
 | --- | ---------------------------------------------------------------------------------------------------------- | ------- | --------- | ------ |
@@ -394,14 +371,10 @@ Rollback:
 | 3   | Should “Search everything” mean all symbols within selected classes, or all asset classes?                 | Kenneth | Phase 1   | Open   |
 | 4   | Which search provider should be the default recommendation: Brave, Tavily, or another provider?            | Kenneth | Phase 1   | Open   |
 
-
 ## 12. Alternatives Rejected
-
 
 | Option                          | Why Rejected                                                                                                     |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Status quo                      | It demonstrably produced no-search, prior-based selection and unsupported BTC handoff.                           |
 | Prompt-only fix                 | Cannot attach missing tools, force first tool call, or validate outputs against trace evidence.                  |
 | Full deterministic screener now | Valuable later, but too large for the immediate bug and not required to enforce the existing tool-loop contract. |
-
-

@@ -38,9 +38,11 @@ export async function runOrchestratorStep<T>(
     recordFailure?: boolean;
   },
 ): Promise<OrchestratorStepOutcome<T>> {
-  const result = await ctx.getStepRunner(options.cycleId).run(options.stage, options.run, {
-    onRetry: options.onRetry,
-  });
+  const result = await ctx
+    .getStepRunner(options.cycleId)
+    .run(options.stage, options.run, {
+      onRetry: options.onRetry,
+    });
 
   if (await ctx.pauseIfRequested(options.cycleId)) {
     return { status: "paused" };
@@ -50,7 +52,12 @@ export async function runOrchestratorStep<T>(
     if (options.onFailure) {
       options.onFailure(result);
     } else if (options.recordFailure !== false) {
-      ctx.handleStepFailure(options.stage, options.cycleId, result, options.tradeId ?? null);
+      ctx.handleStepFailure(
+        options.stage,
+        options.cycleId,
+        result,
+        options.tradeId ?? null,
+      );
     }
     return { status: "failed", result };
   }
@@ -111,7 +118,11 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
   if (outcome.status === "paused") return;
 
   if (outcome.status === "failed") {
-    ctx.handleStepFailure(options.stage, options.context.cycleId, outcome.result);
+    ctx.handleStepFailure(
+      options.stage,
+      options.context.cycleId,
+      outcome.result,
+    );
     if (phase && options.busEvents?.failed !== false) {
       ctx.deps.bus.emit("research_phase_failed", {
         sessionId: ctx.sessionId,
@@ -130,7 +141,12 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
       phase,
       cycleId: options.context.cycleId,
       ...options.completePayload(outcome.value),
-    } as { sessionId: string; phase: string; cycleId: string; instrumentCount: number });
+    } as {
+      sessionId: string;
+      phase: string;
+      cycleId: string;
+      instrumentCount: number;
+    });
   }
   await options.onSuccess(outcome.value);
 }

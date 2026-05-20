@@ -8,7 +8,11 @@ export class WorkspacePreferencesRepo {
   constructor(private readonly client: DbClient) {}
 
   get(): WorkspacePreferences {
-    const row = this.client.db.select().from(workspacePreferences).where(eq(workspacePreferences.id, 1)).get();
+    const row = this.client.db
+      .select()
+      .from(workspacePreferences)
+      .where(eq(workspacePreferences.id, 1))
+      .get();
     if (!row) {
       throw new AppError("Workspace preferences were not found", "NOT_FOUND");
     }
@@ -17,14 +21,17 @@ export class WorkspacePreferencesRepo {
       globalIncludeArchived: row.globalIncludeArchived,
       defaultSearchProviderId: row.defaultSearchProviderId,
       allocationEnforcementOverride:
-        (row.allocationEnforcementOverride as WorkspacePreferences["allocationEnforcementOverride"]) ?? null,
+        (row.allocationEnforcementOverride as WorkspacePreferences["allocationEnforcementOverride"]) ??
+        null,
       defaultModelProviderKey: row.defaultModelProviderKey ?? "",
       defaultModelModelId: row.defaultModelModelId ?? "",
       updatedAt: row.updatedAt,
     };
   }
 
-  update(patch: Partial<Omit<WorkspacePreferences, "id">>): WorkspacePreferences {
+  update(
+    patch: Partial<Omit<WorkspacePreferences, "id">>,
+  ): WorkspacePreferences {
     const current = this.get();
     const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
 

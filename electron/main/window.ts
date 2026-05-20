@@ -5,7 +5,9 @@ import type { AppServices } from "./services/app-services";
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
-export async function createMainWindow(services: AppServices): Promise<BrowserWindow> {
+export async function createMainWindow(
+  services: AppServices,
+): Promise<BrowserWindow> {
   const window = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -44,7 +46,9 @@ export async function createMainWindow(services: AppServices): Promise<BrowserWi
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     await window.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    await window.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    await window.loadFile(
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+    );
   }
 
   return window;

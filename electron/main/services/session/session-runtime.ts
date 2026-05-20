@@ -19,7 +19,9 @@ export class SessionRuntime {
     readonly tradeMonitor: RuntimeTradeMonitor,
   ) {}
 
-  async initialize(initialStatus: Extract<SessionRuntimeStatus, "active" | "paused">): Promise<void> {
+  async initialize(
+    initialStatus: Extract<SessionRuntimeStatus, "active" | "paused">,
+  ): Promise<void> {
     await this.lifecycle.add(async () => {
       this.status = initialStatus === "active" ? "active" : "paused";
       // Trade monitor runs in BOTH active and paused modes — it watches open

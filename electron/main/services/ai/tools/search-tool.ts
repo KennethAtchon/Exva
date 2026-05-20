@@ -31,8 +31,15 @@ export async function createSearchTool(deps: {
     execute: async (input: { query: string }) => {
       const startedAt = Date.now();
       const createdAt = new Date().toISOString();
-      if (deps.maxDataSpendUsd != null && deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >= deps.maxDataSpendUsd) {
-        return { error: "Session max data spend reached; search blocked by runtime policy." };
+      if (
+        deps.maxDataSpendUsd != null &&
+        deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >=
+          deps.maxDataSpendUsd
+      ) {
+        return {
+          error:
+            "Session max data spend reached; search blocked by runtime policy.",
+        };
       }
       const validation = validateDiscoveryQuery(input.query);
       if (!validation.ok) {

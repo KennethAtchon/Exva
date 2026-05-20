@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { technicalSignalSchema, type TechnicalSignal } from "@electron/shared/ai/pipeline-signals";
+import {
+  technicalSignalSchema,
+  type TechnicalSignal,
+} from "@electron/shared/ai/pipeline-signals";
 
 export const chartPatternOutputSchema = z.object({
   patternName: z.string().nullable().default(null),
@@ -20,7 +23,10 @@ export type MomentumOutput = z.infer<typeof momentumOutputSchema>;
 
 export const volumeOutputSchema = z.object({
   volumeScore: z.number().min(0).max(1).nullable().default(null),
-  volumeSignal: z.enum(["accumulation", "distribution", "neutral"]).nullable().default(null),
+  volumeSignal: z
+    .enum(["accumulation", "distribution", "neutral"])
+    .nullable()
+    .default(null),
   rawSummary: z.string().default(""),
 });
 export type VolumeOutput = z.infer<typeof volumeOutputSchema>;
@@ -31,7 +37,10 @@ export interface TechnicalWorkerOutputs {
   volume?: VolumeOutput | null;
 }
 
-export function aggregateTechnicalSignal(symbol: string, workers: TechnicalWorkerOutputs): TechnicalSignal {
+export function aggregateTechnicalSignal(
+  symbol: string,
+  workers: TechnicalWorkerOutputs,
+): TechnicalSignal {
   const trend = workers.momentum?.trendDirection ?? "neutral";
   const trendStrength = workers.momentum?.trendStrength ?? 0;
   const momentumScore = workers.momentum?.momentumScore ?? null;
@@ -60,7 +69,10 @@ export function aggregateTechnicalSignal(symbol: string, workers: TechnicalWorke
   });
 }
 
-function computeAlignment(trend: string, volumeSignal: string | null): number | null {
+function computeAlignment(
+  trend: string,
+  volumeSignal: string | null,
+): number | null {
   if (!volumeSignal) return null;
   if (trend === "bullish" && volumeSignal === "accumulation") return 1;
   if (trend === "bearish" && volumeSignal === "distribution") return 1;
@@ -71,8 +83,11 @@ function computeAlignment(trend: string, volumeSignal: string | null): number | 
 
 function buildRawSummary(workers: TechnicalWorkerOutputs): string {
   const parts: string[] = [];
-  if (workers.momentum?.rawSummary) parts.push(`Momentum: ${workers.momentum.rawSummary}`);
-  if (workers.chartPattern?.rawSummary) parts.push(`Pattern: ${workers.chartPattern.rawSummary}`);
-  if (workers.volume?.rawSummary) parts.push(`Volume: ${workers.volume.rawSummary}`);
+  if (workers.momentum?.rawSummary)
+    parts.push(`Momentum: ${workers.momentum.rawSummary}`);
+  if (workers.chartPattern?.rawSummary)
+    parts.push(`Pattern: ${workers.chartPattern.rawSummary}`);
+  if (workers.volume?.rawSummary)
+    parts.push(`Volume: ${workers.volume.rawSummary}`);
   return parts.join(" | ");
 }

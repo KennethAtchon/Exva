@@ -6,7 +6,12 @@ describe("trade analysis phase plans", () => {
   it("registers technical through decision phase plans", () => {
     registerDefaultPhasePlans();
 
-    for (const phase of ["technical", "fundamental", "review", "decision"] as const) {
+    for (const phase of [
+      "technical",
+      "fundamental",
+      "review",
+      "decision",
+    ] as const) {
       const plan = getPhasePlan(phase);
       expect(plan?.phase).toBe(phase);
       expect(plan?.persistAggregate).toBe(false);

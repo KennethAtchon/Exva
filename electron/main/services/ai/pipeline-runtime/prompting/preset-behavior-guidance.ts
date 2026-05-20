@@ -1,5 +1,9 @@
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
-import type { PresetAiGuidance, PresetPhaseAiGuidance, SessionStrategyContext } from "@electron/shared/domain";
+import type {
+  PresetAiGuidance,
+  PresetPhaseAiGuidance,
+  SessionStrategyContext,
+} from "@electron/shared/domain";
 import {
   findBuiltInGlobalStrategyPresetByExactMatch,
   findResearchPosturePresetById,
@@ -14,9 +18,14 @@ interface GuidanceSource {
   guidance?: PresetAiGuidance;
 }
 
-export function buildPresetBehaviorGuidance(strategyContext: SessionStrategyContext, phase: PipelinePhase): string {
+export function buildPresetBehaviorGuidance(
+  strategyContext: SessionStrategyContext,
+  phase: PipelinePhase,
+): string {
   const { researchPosture, rules, riskConfig, timeframe } = strategyContext;
-  const posturePreset = findResearchPosturePresetById(researchPosture.posturePresetId);
+  const posturePreset = findResearchPosturePresetById(
+    researchPosture.posturePresetId,
+  );
   const rulesPreset = findTradeRulePresetById(rules.rulesPresetId);
   const riskPreset = findRiskPresetById(riskConfig.riskPresetId);
   const timeframePreset = findTimeframePresetById(timeframe.timeframePresetId);
@@ -64,7 +73,9 @@ export function buildPresetBehaviorGuidance(strategyContext: SessionStrategyCont
         }
       : null,
   ];
-  const sources = sourceCandidates.filter((source): source is GuidanceSource => source != null);
+  const sources = sourceCandidates.filter(
+    (source): source is GuidanceSource => source != null,
+  );
 
   const sections = sources
     .map((source) => renderSourceGuidance(source, phase))
@@ -75,7 +86,10 @@ export function buildPresetBehaviorGuidance(strategyContext: SessionStrategyCont
   return ["## Preset behavior guidance", ...sections].join("\n\n");
 }
 
-function renderSourceGuidance(source: GuidanceSource, phase: PipelinePhase): string | null {
+function renderSourceGuidance(
+  source: GuidanceSource,
+  phase: PipelinePhase,
+): string | null {
   const phaseGuidance = mergePhaseGuidance(source.guidance, phase);
   if (!phaseGuidance) return null;
 
@@ -91,7 +105,10 @@ function renderSourceGuidance(source: GuidanceSource, phase: PipelinePhase): str
   return lines.length > 1 ? lines.join("\n") : null;
 }
 
-function mergePhaseGuidance(guidance: PresetAiGuidance | undefined, phase: PipelinePhase): PresetPhaseAiGuidance | null {
+function mergePhaseGuidance(
+  guidance: PresetAiGuidance | undefined,
+  phase: PipelinePhase,
+): PresetPhaseAiGuidance | null {
   if (!guidance) return null;
   const merged = mergeGuidanceBlocks(guidance.shared, guidance[phase]);
   return hasGuidance(merged) ? merged : null;
@@ -103,8 +120,14 @@ function mergeGuidanceBlocks(
 ): PresetPhaseAiGuidance {
   return {
     objective: phaseSpecific?.objective ?? shared?.objective,
-    whatToLookFor: [...(shared?.whatToLookFor ?? []), ...(phaseSpecific?.whatToLookFor ?? [])],
-    howToEvaluate: [...(shared?.howToEvaluate ?? []), ...(phaseSpecific?.howToEvaluate ?? [])],
+    whatToLookFor: [
+      ...(shared?.whatToLookFor ?? []),
+      ...(phaseSpecific?.whatToLookFor ?? []),
+    ],
+    howToEvaluate: [
+      ...(shared?.howToEvaluate ?? []),
+      ...(phaseSpecific?.howToEvaluate ?? []),
+    ],
     avoid: [...(shared?.avoid ?? []), ...(phaseSpecific?.avoid ?? [])],
   };
 }
@@ -112,9 +135,9 @@ function mergeGuidanceBlocks(
 function hasGuidance(guidance: PresetPhaseAiGuidance): boolean {
   return Boolean(
     guidance.objective ||
-      guidance.whatToLookFor?.length ||
-      guidance.howToEvaluate?.length ||
-      guidance.avoid?.length,
+    guidance.whatToLookFor?.length ||
+    guidance.howToEvaluate?.length ||
+    guidance.avoid?.length,
   );
 }
 

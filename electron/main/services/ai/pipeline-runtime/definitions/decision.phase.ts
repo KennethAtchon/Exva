@@ -1,6 +1,12 @@
 import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
-import { tradeSignalSchema, type TradeSignal, type TechnicalSignal, type FundamentalSignal, type ReviewSignal } from "@electron/shared/ai/pipeline-signals";
+import {
+  tradeSignalSchema,
+  type TradeSignal,
+  type TechnicalSignal,
+  type FundamentalSignal,
+  type ReviewSignal,
+} from "@electron/shared/ai/pipeline-signals";
 import {
   entryTimerOutputSchema,
   signalClassifierOutputSchema,
@@ -32,7 +38,10 @@ const ENTRY_TIMER_WORKER = {
 };
 
 /** Registry metadata for decision. Execution is driven by DECISION_PLAN via PhasePlanInterpreter. */
-export const DECISION_PHASE: PipelineDefinition<DecisionPhaseInput, TradeSignal> = {
+export const DECISION_PHASE: PipelineDefinition<
+  DecisionPhaseInput,
+  TradeSignal
+> = {
   phase: "decision",
   outputMode: "object",
   outputSchema: tradeSignalSchema as import("zod").ZodType<TradeSignal>,

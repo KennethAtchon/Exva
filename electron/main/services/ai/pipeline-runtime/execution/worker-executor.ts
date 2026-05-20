@@ -1,16 +1,25 @@
 import type { PrepareStepFunction, ToolSet } from "ai";
 import { AppError } from "@electron/shared/infra/errors";
-import type { PipelinePhase, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import type {
+  PipelinePhase,
+  WorkerDefinition,
+} from "@electron/shared/ai/pipeline-phase";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { ProviderRegistry } from "../../provider-registry";
 import { withProviderRetry } from "../../ai-runtime/runtime-retry";
 import { assembleTrace } from "./trace-assembler";
 import type { WorkerOutputContract } from "../core/types";
 import { resolveStructuredWorkerOutput } from "./worker-structured-output";
-import { buildToolSet, type ToolBuildContext } from "../context/tool-factory-registry";
+import {
+  buildToolSet,
+  type ToolBuildContext,
+} from "../context/tool-factory-registry";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
 import type { PromptAssetLoader } from "../../prompt-asset-loader";
-import { envelopeToMessages, buildPromptEnvelope } from "../prompting/prompt-envelope-builder";
+import {
+  envelopeToMessages,
+  buildPromptEnvelope,
+} from "../prompting/prompt-envelope-builder";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { createLogger } from "../../../infra/log";
 import type { PipelineSpendTracker } from "./pipeline-spend-tracker";
@@ -19,11 +28,20 @@ import { enforceWorkerToolRequirements } from "./worker-tool-requirements";
 
 const logger = createLogger("pipeline-runtime");
 
-function resolveTemperature(modelId: string, configured: number | undefined): number | undefined {
+function resolveTemperature(
+  modelId: string,
+  configured: number | undefined,
+): number | undefined {
   if (configured == null) return undefined;
   const id = modelId.toLowerCase();
   if (id.includes("/")) return undefined;
-  if (id.includes("o1") || id.includes("o3") || id.includes("o4") || id.includes("reasoning")) return undefined;
+  if (
+    id.includes("o1") ||
+    id.includes("o3") ||
+    id.includes("o4") ||
+    id.includes("reasoning")
+  )
+    return undefined;
   return configured;
 }
 
@@ -51,19 +69,32 @@ export async function executeWorker<TOutput>(
   deps: WorkerExecutorDeps,
   opts: WorkerRunOptions,
 ): Promise<AgentResult<TOutput>> {
-  const { phase, worker, sessionId, cycleId, tradeId, task, spendTracker } = opts;
+  const { phase, worker, sessionId, cycleId, tradeId, task, spendTracker } =
+    opts;
 
   if (spendTracker && !spendTracker.canContinue()) {
     const abortMessage = spendTracker.abortLogMessage();
-    if (abortMessage) logger.warn({ sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null }, abortMessage);
+    if (abortMessage)
+      logger.warn(
+        { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null },
+        abortMessage,
+      );
     throw new AppError(
       abortMessage ?? "Pipeline spend cap exceeded; worker aborted.",
       "SPEND_CAP_EXCEEDED",
     );
   }
 
-  const workerExecConfig = deps.phaseConfigResolver.resolveWorkerExecConfig(sessionId, phase, worker.id);
-  const resolvedConfig = deps.phaseConfigResolver.resolveWorkerRuntimeConfig(phase, worker, workerExecConfig.workerOverride);
+  const workerExecConfig = deps.phaseConfigResolver.resolveWorkerExecConfig(
+    sessionId,
+    phase,
+    worker.id,
+  );
+  const resolvedConfig = deps.phaseConfigResolver.resolveWorkerRuntimeConfig(
+    phase,
+    worker,
+    workerExecConfig.workerOverride,
+  );
 
   if (!workerExecConfig.providerKey || !workerExecConfig.modelId) {
     throw new AppError(
@@ -76,7 +107,10 @@ export async function executeWorker<TOutput>(
 
   // Resolve prompt
   let promptMarkdown: string;
-  if (workerExecConfig.promptSource === "session_override" && workerExecConfig.promptMarkdown.trim()) {
+  if (
+    workerExecConfig.promptSource === "session_override" &&
+    workerExecConfig.promptMarkdown.trim()
+  ) {
     promptMarkdown = workerExecConfig.promptMarkdown.trim();
   } else {
     promptMarkdown = deps.promptLoader.load(worker.promptAssetPath);
@@ -131,10 +165,17 @@ export async function executeWorker<TOutput>(
           tools,
           maxSteps: resolvedConfig.caps.maxSteps,
           spendLimitUsd: resolvedConfig.caps.spendLimitUsd,
-          temperature: resolveTemperature(workerExecConfig.modelId, workerExecConfig.temperature),
-          maxTokens: resolvedConfig.caps.maxTokens ?? workerExecConfig.maxTokens,
+          temperature: resolveTemperature(
+            workerExecConfig.modelId,
+            workerExecConfig.temperature,
+          ),
+          maxTokens:
+            resolvedConfig.caps.maxTokens ?? workerExecConfig.maxTokens,
           abortSignal: signal,
-          schema: worker.outputMode === "object" && worker.outputSchema ? worker.outputSchema : undefined,
+          schema:
+            worker.outputMode === "object" && worker.outputSchema
+              ? worker.outputSchema
+              : undefined,
           terminalToolNames: opts.terminalToolNames as string[] | undefined,
           prepareStep: opts.prepareStep,
         }),
@@ -151,16 +192,29 @@ export async function executeWorker<TOutput>(
   let output: TOutput;
   let parseFallback = trace.parseFallback;
 
-  if (worker.outputMode === "object" && worker.outputSchema && resolvedConfig.output) {
-    const outputContract = resolvedConfig.output as WorkerOutputContract<TOutput>;
-    let resolution = resolveStructuredWorkerOutput<TOutput>(outputContract, trace.structuredOutput, false);
+  if (
+    worker.outputMode === "object" &&
+    worker.outputSchema &&
+    resolvedConfig.output
+  ) {
+    const outputContract =
+      resolvedConfig.output as WorkerOutputContract<TOutput>;
+    let resolution = resolveStructuredWorkerOutput<TOutput>(
+      outputContract,
+      trace.structuredOutput,
+      false,
+    );
     if ("needsRetry" in resolution) {
       logger.warn(
         { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null },
         "worker structured output validation failed; retrying once",
       );
       trace = await runAgent();
-      resolution = resolveStructuredWorkerOutput<TOutput>(outputContract, trace.structuredOutput, true);
+      resolution = resolveStructuredWorkerOutput<TOutput>(
+        outputContract,
+        trace.structuredOutput,
+        true,
+      );
     }
     if ("needsRetry" in resolution) {
       throw new AppError(
@@ -172,7 +226,13 @@ export async function executeWorker<TOutput>(
     parseFallback = resolution.parseFallback;
     if (resolution.parseFallback) {
       logger.warn(
-        { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null, retried: resolution.retried },
+        {
+          sessionId,
+          phase,
+          workerId: worker.id,
+          cycleId: cycleId ?? null,
+          retried: resolution.retried,
+        },
         "worker structured output substituted empty dimension after validation failure",
       );
     }
@@ -223,20 +283,22 @@ export async function executeWorker<TOutput>(
   spendTracker?.record(run.cost_usd);
   if (spendTracker && !spendTracker.canContinue()) {
     const abortMessage = spendTracker.abortLogMessage();
-    if (abortMessage) logger.warn({ sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null }, abortMessage);
+    if (abortMessage)
+      logger.warn(
+        { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null },
+        abortMessage,
+      );
   }
 
   return { run, message, output };
 }
 
-function resolveTerminalResult(
-  trace: {
-    assistantText: string;
-    steps: Array<{
-      toolCalls: Array<{ tool?: string; argsJson?: string; resultJson?: string }>;
-    }>;
-  },
-): unknown {
+function resolveTerminalResult(trace: {
+  assistantText: string;
+  steps: Array<{
+    toolCalls: Array<{ tool?: string; argsJson?: string; resultJson?: string }>;
+  }>;
+}): unknown {
   for (const step of trace.steps) {
     for (const call of step.toolCalls) {
       if (call.resultJson) {

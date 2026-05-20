@@ -65,12 +65,17 @@ function toAgentMessage(row: Record<string, unknown>): AgentMessage {
     model_id: String(row.model_id),
     messages_json: String(row.messages_json),
     thinking_json: row.thinking_json == null ? null : String(row.thinking_json),
-    tool_calls_json: row.tool_calls_json == null ? null : String(row.tool_calls_json),
+    tool_calls_json:
+      row.tool_calls_json == null ? null : String(row.tool_calls_json),
     output_json: row.output_json == null ? null : String(row.output_json),
-    output_schema_name: row.output_schema_name == null ? null : String(row.output_schema_name),
+    output_schema_name:
+      row.output_schema_name == null ? null : String(row.output_schema_name),
     parse_fallback: Boolean(row.parse_fallback),
     strategy_snapshot_json: String(row.strategy_snapshot_json),
-    market_snapshot_json: row.market_snapshot_json == null ? null : String(row.market_snapshot_json),
+    market_snapshot_json:
+      row.market_snapshot_json == null
+        ? null
+        : String(row.market_snapshot_json),
     created_at: String(row.created_at),
   };
 }

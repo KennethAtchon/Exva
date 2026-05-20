@@ -1,6 +1,12 @@
 import type { SessionConfig, Trade } from "@/lib/types";
-import type { ReviewSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
-import { computeExecutionProfile, priceLevelsFromProfile } from "../../../ai/engines/execution/execution-profile-engine";
+import type {
+  ReviewSignal,
+  TradeSignal,
+} from "@electron/shared/ai/pipeline-signals";
+import {
+  computeExecutionProfile,
+  priceLevelsFromProfile,
+} from "../../../ai/engines/execution/execution-profile-engine";
 import type { InstrumentClass } from "@/lib/types";
 import type { OrchestratorContext } from "../orchestrator-context";
 import type { ResolvedInstrument } from "../types";
@@ -8,13 +14,19 @@ import { remapPredictionMetadataForOutcome } from "../utils";
 
 export function resolvePredictionTradeFields(
   instrument: ResolvedInstrument,
-): Pick<Trade, "instrumentDisplayName" | "predictionOutcome" | "instrumentMetadataJson"> {
+): Pick<
+  Trade,
+  "instrumentDisplayName" | "predictionOutcome" | "instrumentMetadataJson"
+> {
   const instrumentDisplayName = instrument.instrumentDisplayName ?? null;
   const predictionOutcome = instrument.predictionOutcome ?? null;
   const instrumentMetadataJson =
     instrument.instrumentClass === "prediction_market"
-      ? remapPredictionMetadataForOutcome(instrument.instrumentMetadataJson ?? null, predictionOutcome)
-      : instrument.instrumentMetadataJson ?? null;
+      ? remapPredictionMetadataForOutcome(
+          instrument.instrumentMetadataJson ?? null,
+          predictionOutcome,
+        )
+      : (instrument.instrumentMetadataJson ?? null);
 
   return { instrumentDisplayName, predictionOutcome, instrumentMetadataJson };
 }
@@ -83,9 +95,17 @@ export function buildTradeFromDecision(
   aiCostUsd: number,
   reviewRecommendation?: ReviewSignal["recommendation"],
 ): Trade {
-  const brokerAccountId = ctx.resolveBrokerAccountId(instrument.instrumentClass);
+  const brokerAccountId = ctx.resolveBrokerAccountId(
+    instrument.instrumentClass,
+  );
   const prediction = resolvePredictionTradeFields(instrument);
-  const execution = executionFieldsForSignal(ctx, signal, instrument.instrumentClass, config, reviewRecommendation);
+  const execution = executionFieldsForSignal(
+    ctx,
+    signal,
+    instrument.instrumentClass,
+    config,
+    reviewRecommendation,
+  );
   return {
     id: tradeId,
     sessionId: ctx.sessionId,
@@ -124,7 +144,9 @@ export function createTradeFromDecision(
   reviewRecommendation?: ReviewSignal["recommendation"],
 ): Trade {
   const id = crypto.randomUUID();
-  const brokerAccountId = ctx.resolveBrokerAccountId(instrument.instrumentClass);
+  const brokerAccountId = ctx.resolveBrokerAccountId(
+    instrument.instrumentClass,
+  );
   const isTrade = signal.action !== "skip";
   const prediction = resolvePredictionTradeFields(instrument);
   const execution = executionFieldsForSignal(

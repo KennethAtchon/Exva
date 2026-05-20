@@ -183,7 +183,11 @@
       "totalOutputTokens": 120,
       "aggregateStatus": "succeeded",
       "aggregateOutputSchemaName": "technicalSignal",
-      "aggregateOutputSummary": { "symbol": "AAPL", "trendDirection": "bullish", "trendStrength": 0.91 },
+      "aggregateOutputSummary": {
+        "symbol": "AAPL",
+        "trendDirection": "bullish",
+        "trendStrength": 0.91
+      },
       "frontiers": [],
       "workers": []
     },
@@ -203,7 +207,11 @@
       "totalOutputTokens": 110,
       "aggregateStatus": "succeeded",
       "aggregateOutputSchemaName": "fundamentalSignal",
-      "aggregateOutputSummary": { "symbol": "AAPL", "catalystType": "partnership", "catalystScore": 0.76 },
+      "aggregateOutputSummary": {
+        "symbol": "AAPL",
+        "catalystType": "partnership",
+        "catalystScore": 0.76
+      },
       "frontiers": [],
       "workers": []
     },
@@ -223,7 +231,11 @@
       "totalOutputTokens": 60,
       "aggregateStatus": "succeeded",
       "aggregateOutputSchemaName": "reviewSignal",
-      "aggregateOutputSummary": { "symbol": "AAPL", "recommendation": "proceed", "overallRisk": "low" },
+      "aggregateOutputSummary": {
+        "symbol": "AAPL",
+        "recommendation": "proceed",
+        "overallRisk": "low"
+      },
       "frontiers": [],
       "workers": []
     },
@@ -243,7 +255,11 @@
       "totalOutputTokens": 50,
       "aggregateStatus": "succeeded",
       "aggregateOutputSchemaName": "tradeSignal",
-      "aggregateOutputSummary": { "symbol": "AAPL", "action": "buy", "executionStrategy": "breakout" },
+      "aggregateOutputSummary": {
+        "symbol": "AAPL",
+        "action": "buy",
+        "executionStrategy": "breakout"
+      },
       "frontiers": [],
       "workers": []
     }

@@ -19,7 +19,6 @@ This must be fixed now because the harness plan depends on a canonical strategy 
 
 **Goals**
 
-
 | #   | Goal                                                                        | Success Looks Like                                                                                  |
 | --- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | 1   | Replace bull/bear advocacy with methodology-based analysts                  | Agents research through different lenses rather than forcing opposite conclusions                   |
@@ -29,9 +28,7 @@ This must be fixed now because the harness plan depends on a canonical strategy 
 | 5   | Make strategy context fully auditable                                       | `agent_messages.strategy_snapshot_json` stores the exact injected strategy state for each run       |
 | 6   | Add a complete prediction-market domain model and Polymarket execution path | A prediction-market session can discover, analyze, size, place, monitor, and close trades correctly |
 
-
 **Non-Goals**
-
 
 | #   | Non-Goal                                                   | Reason                                              |
 | --- | ---------------------------------------------------------- | --------------------------------------------------- |
@@ -41,13 +38,11 @@ This must be fixed now because the harness plan depends on a canonical strategy 
 | 4   | Cross-session shared strategy presets with version history | Templates remain latest-snapshot only in this phase |
 | 5   | Fully automated prompt mutation from trade autopsies       | Human-initiated only                                |
 
-
 ---
 
 ## 3. Background & Context
 
 **Current repo reality**
-
 
 | Area                         | Current state                                                                             | Gap this plan closes                                 |
 | ---------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------- |
@@ -56,7 +51,6 @@ This must be fixed now because the harness plan depends on a canonical strategy 
 | `AgentRole` union            | `researcher_bull`, `researcher_bear`, `reviewer`, `decision_maker`, `instrument_selector` | Wrong analyst semantics                              |
 | `AiRuntime.runResearcher()`  | Chooses role by bull/bear stance                                                          | No methodology-based routing                         |
 | `Trade` / broker domain      | Only understands `stock`, `crypto`, `futures` and `BUY`/`SELL`                            | Cannot represent Polymarket YES/NO outcome positions |
-
 
 **Relevant current files**
 
@@ -122,12 +116,10 @@ Both roles look at the same instrument and are rewarded for arguing, not investi
 
 **Recommendation**
 
-
 | Old               | New                   | What it owns                                                         |
 | ----------------- | --------------------- | -------------------------------------------------------------------- |
 | `researcher_bull` | `analyst_technical`   | Price, volume, market structure, indicator state, support/resistance |
 | `researcher_bear` | `analyst_fundamental` | Earnings, growth, valuation, sector context, catalysts, macro/news   |
-
 
 **Rules**
 
@@ -156,7 +148,7 @@ The role key remains `instrument_selector`, but its product meaning changes. It 
 **Modes**
 
 1. **Open discovery**: search broadly for setups matching the strategy.
-2. **Constrained discovery**: if the user provides a shortlist, search only within it, but still explain *why now*.
+2. **Constrained discovery**: if the user provides a shortlist, search only within it, but still explain _why now_.
 
 **UI/wording decision**
 
@@ -327,14 +319,12 @@ instrument_metadata_json TEXT
 
 ### Order semantics
 
-
 | User intent       | Stored `side` | Stored `predictionOutcome` | Meaning                       |
 | ----------------- | ------------- | -------------------------- | ----------------------------- |
 | Open YES position | `BUY`         | `YES`                      | Buy YES shares                |
 | Open NO position  | `BUY`         | `NO`                       | Buy NO shares                 |
 | Exit YES early    | `SELL`        | `YES`                      | Sell YES shares already owned |
 | Exit NO early     | `SELL`        | `NO`                       | Sell NO shares already owned  |
-
 
 This avoids overloading `BUY` to mean YES and `SELL` to mean NO.
 
@@ -366,7 +356,6 @@ This avoids overloading `BUY` to mean YES and `SELL` to mean NO.
 
 Use free text and a few extra columns on the legacy blob.
 
-
 | Dimension      | Assessment                            |
 | -------------- | ------------------------------------- |
 | Complexity     | Low                                   |
@@ -376,7 +365,6 @@ Use free text and a few extra columns on the legacy blob.
 | Reversibility  | High                                  |
 | Stack fit      | Short-term only                       |
 | Team readiness | High                                  |
-
 
 Risks:
 
@@ -388,7 +376,6 @@ Risks:
 
 Keep one table but add strategy-type and entry/exit columns.
 
-
 | Dimension      | Assessment                                      |
 | -------------- | ----------------------------------------------- |
 | Complexity     | Medium                                          |
@@ -398,7 +385,6 @@ Keep one table but add strategy-type and entry/exit columns.
 | Reversibility  | Medium                                          |
 | Stack fit      | Acceptable but messy                            |
 | Team readiness | High                                            |
-
 
 Risks:
 
@@ -410,7 +396,6 @@ Risks:
 
 Use dedicated tables, a structured strategy brief composer, methodology-based analysts, and a canonical strategy snapshot stored with each agent trace.
 
-
 | Dimension      | Assessment                                                |
 | -------------- | --------------------------------------------------------- |
 | Complexity     | High but phaseable                                        |
@@ -420,7 +405,6 @@ Use dedicated tables, a structured strategy brief composer, methodology-based an
 | Reversibility  | High while compatibility table exists                     |
 | Stack fit      | Best match for the harness direction                      |
 | Team readiness | Good                                                      |
-
 
 Risks:
 
@@ -791,15 +775,15 @@ Prediction-market session:
 2. Filter by allowed category, liquidity floor, and time-to-resolution.
 3. Score on edge potential, fill likelihood, and exposure fit.
 4. Return shortlisted markets with canonical identity payload:
-  - `instrumentSymbol`
-  - `instrumentDisplayName`
-  - `predictionOutcome` candidates
-  - `instrumentMetadataJson`
+
+- `instrumentSymbol`
+- `instrumentDisplayName`
+- `predictionOutcome` candidates
+- `instrumentMetadataJson`
 
 ---
 
 ## 14. Risk Register
-
 
 | #   | Risk                                                                     | Likelihood | Impact | Mitigation                                                                                   |
 | --- | ------------------------------------------------------------------------ | ---------- | ------ | -------------------------------------------------------------------------------------------- |
@@ -810,11 +794,9 @@ Prediction-market session:
 | 5   | Kelly sizing overshoots on high-confidence markets                       | Medium     | High   | Cap by both `max_position_usd` and `max_exposure_usd`                                        |
 | 6   | Legacy `session_strategies` never gets fully retired                     | Medium     | Medium | Make Phase 5 an explicit cleanup gate with grep/test enforcement                             |
 
-
 ---
 
 ## 15. Success Criteria
-
 
 | Goal                     | Metric                                                                                            | Baseline | Target           | How Measured                        |
 | ------------------------ | ------------------------------------------------------------------------------------------------- | -------- | ---------------- | ----------------------------------- |
@@ -824,13 +806,11 @@ Prediction-market session:
 | Polymarket support       | End-to-end paper prediction-market trade succeeds                                                 | 0        | 1+ verified flow | Manual integration test             |
 | UI clarity               | Strategy and risk can be edited independently without hidden coupling                             | Poor     | Complete         | UX walkthrough + QA                 |
 
-
 ---
 
 ## 16. Open Questions
 
 No implementation-blocking open questions remain. Only post-launch tuning questions remain:
-
 
 | #   | Question                                                                        | Owner | Needed By           | Status |
 | --- | ------------------------------------------------------------------------------- | ----- | ------------------- | ------ |
@@ -838,11 +818,9 @@ No implementation-blocking open questions remain. Only post-launch tuning questi
 | 2   | Which Polymarket categories should be enabled first in live mode?               | Ken   | Post-launch tuning  | Open   |
 | 3   | Should custom strategy briefs allow section-level templates in v2?              | Ken   | Future UX iteration | Open   |
 
-
 ---
 
 ## 17. Alternatives Rejected
-
 
 | Option                                                 | Why Rejected                                                                         |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
@@ -852,7 +830,6 @@ No implementation-blocking open questions remain. Only post-launch tuning questi
 | Represent Polymarket YES/NO using `BUY` / `SELL` alone | Semantically wrong and breaks early-exit behavior                                    |
 | Delay prediction markets until “later”                 | Leaves a known user requirement outside the model and forces more retrofitting later |
 
-
 ---
 
 ## 18. Future Work
@@ -861,4 +838,3 @@ No implementation-blocking open questions remain. Only post-launch tuning questi
 - Versioned strategy templates
 - Dual-instrument pairs support
 - Strategy preset analytics based on realized outcomes
-

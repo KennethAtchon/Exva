@@ -47,7 +47,9 @@ const SCENARIO_DRIFT: Record<MockScenarioBias, number> = {
   volatile: 0.001,
 };
 
-export const DEFAULT_MOCK_SCENARIO: Required<Pick<MockScenario, "bias" | "volatilityPct" | "trendPctPerDay">> = {
+export const DEFAULT_MOCK_SCENARIO: Required<
+  Pick<MockScenario, "bias" | "volatilityPct" | "trendPctPerDay">
+> = {
   bias: "bullish",
   volatilityPct: 0.018,
   trendPctPerDay: 0.006,
@@ -60,7 +62,9 @@ function symbolSeed(symbol: string): number {
 function seededNormal(seed: number): number {
   const u1 = ((seed * 1664525 + 1013904223) >>> 0) / 0xffffffff;
   const u2 = (((seed + 1) * 1664525 + 1013904223) >>> 0) / 0xffffffff;
-  return Math.sqrt(-2 * Math.log(Math.max(u1, 1e-9))) * Math.cos(2 * Math.PI * u2);
+  return (
+    Math.sqrt(-2 * Math.log(Math.max(u1, 1e-9))) * Math.cos(2 * Math.PI * u2)
+  );
 }
 
 function round2(n: number): number {
@@ -69,19 +73,33 @@ function round2(n: number): number {
 
 export class MockBrokerAdapter implements BrokerAdapter {
   readonly brokerType = "mock";
-  readonly supportedInstrumentClasses: readonly InstrumentClass[] = ["stock", "crypto", "futures", "prediction_market"];
+  readonly supportedInstrumentClasses: readonly InstrumentClass[] = [
+    "stock",
+    "crypto",
+    "futures",
+    "prediction_market",
+  ];
   /**
    * Not launch-capable: this adapter is a deterministic simulator used for
    * paper/dev workflows only. It never touches a real broker.
    */
   readonly launchCapable = false;
 
-  private readonly orders = new Map<string, { order: BrokerOrder; price: number }>();
+  private readonly orders = new Map<
+    string,
+    { order: BrokerOrder; price: number }
+  >();
 
-  constructor(private readonly scenario: MockScenario = DEFAULT_MOCK_SCENARIO) {}
+  constructor(
+    private readonly scenario: MockScenario = DEFAULT_MOCK_SCENARIO,
+  ) {}
 
   async testConnection(): Promise<ConnectionTestResult> {
-    return { ok: true, message: "Mock broker connected", account_balance: 100000 };
+    return {
+      ok: true,
+      message: "Mock broker connected",
+      account_balance: 100000,
+    };
   }
 
   async getAccountBalance(): Promise<number> {
@@ -142,7 +160,10 @@ export class MockBrokerAdapter implements BrokerAdapter {
 
     if (this.scenario.brokerTimeoutMs) {
       await new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Broker request timed out")), this.scenario.brokerTimeoutMs),
+        setTimeout(
+          () => reject(new Error("Broker request timed out")),
+          this.scenario.brokerTimeoutMs,
+        ),
       );
     }
 
@@ -152,7 +173,11 @@ export class MockBrokerAdapter implements BrokerAdapter {
 
     if (kind === "partial_fill") {
       const fillRatio = 0.4 + Math.random() * 0.4;
-      return { brokerOrderId, filledAvgPrice, filledSizeUsd: round2(order.sizeUsd * fillRatio) };
+      return {
+        brokerOrderId,
+        filledAvgPrice,
+        filledSizeUsd: round2(order.sizeUsd * fillRatio),
+      };
     }
 
     return { brokerOrderId, filledAvgPrice };
@@ -183,7 +208,10 @@ export class MockBrokerAdapter implements BrokerAdapter {
     }
 
     const entryPrice = existing.price;
-    const closePrice = this.computeClosePrice(existing.order.instrumentSymbol, entryPrice);
+    const closePrice = this.computeClosePrice(
+      existing.order.instrumentSymbol,
+      entryPrice,
+    );
     const sizeUsd = existing.order.sizeUsd;
     const isSell = existing.order.side === "SELL";
 
@@ -199,16 +227,26 @@ export class MockBrokerAdapter implements BrokerAdapter {
     return {
       brokerOrderId: orderId,
       status: existing ? "open" : "closed",
-      latestPrice: existing ? this.basePriceFor(existing.order.instrumentSymbol) : null,
+      latestPrice: existing
+        ? this.basePriceFor(existing.order.instrumentSymbol)
+        : null,
       realizedPnlUsd: null,
     };
   }
 
-  async getOhlcv(instrumentSymbol: string, timeframe: "1h" | "4h" | "1d", barCount: number): Promise<Array<{ high: number; low: number; close: number }>> {
+  async getOhlcv(
+    instrumentSymbol: string,
+    timeframe: "1h" | "4h" | "1d",
+    barCount: number,
+  ): Promise<Array<{ high: number; low: number; close: number }>> {
     return this.getMockOhlcv(instrumentSymbol, timeframe, barCount);
   }
 
-  getMockOhlcv(symbol: string, timeframe = "1d", barCount = 200): MockOhlcvBar[] {
+  getMockOhlcv(
+    symbol: string,
+    timeframe = "1d",
+    barCount = 200,
+  ): MockOhlcvBar[] {
     const barMs = BAR_MS[timeframe] ?? DAY_MS;
     const seed = symbolSeed(symbol);
     const base = this.basePriceFor(symbol);
@@ -217,10 +255,12 @@ export class MockBrokerAdapter implements BrokerAdapter {
     const periodDrift = dailyDrift * (barMs / DAY_MS);
     const dailyVol = this.scenario.volatilityPct ?? 0.015;
     const periodVol = dailyVol * Math.sqrt(barMs / DAY_MS);
-    const noiseScale = bias === "volatile" ? 1.15 : bias === "sideways" ? 0.75 : 0.35;
+    const noiseScale =
+      bias === "volatile" ? 1.15 : bias === "sideways" ? 0.75 : 0.35;
 
     const bars: MockOhlcvBar[] = [];
-    const trendStart = base * Math.exp(-periodDrift * Math.max(0, barCount - 1));
+    const trendStart =
+      base * Math.exp(-periodDrift * Math.max(0, barCount - 1));
 
     for (let i = 0; i < barCount; i++) {
       const trendPrice = trendStart * Math.exp(periodDrift * i);
@@ -228,9 +268,15 @@ export class MockBrokerAdapter implements BrokerAdapter {
       const closeNoise = seededNormal(seed + i + 500) * periodVol * noiseScale;
       const open = round2(Math.max(0.01, trendPrice * (1 + openNoise)));
       const close = round2(Math.max(0.01, trendPrice * (1 + closeNoise)));
-      const high = round2(Math.max(open, close) * (1 + Math.abs(seededNormal(seed + i + 1000)) * 0.005));
-      const low = round2(Math.min(open, close) * (1 - Math.abs(seededNormal(seed + i + 2000)) * 0.005));
-      const volume = Math.round(base * (500 + (seed + i) % 1000));
+      const high = round2(
+        Math.max(open, close) *
+          (1 + Math.abs(seededNormal(seed + i + 1000)) * 0.005),
+      );
+      const low = round2(
+        Math.min(open, close) *
+          (1 - Math.abs(seededNormal(seed + i + 2000)) * 0.005),
+      );
+      const volume = Math.round(base * (500 + ((seed + i) % 1000)));
       bars.push({
         ts: new Date(Date.now() - (barCount - 1 - i) * barMs).toISOString(),
         open,

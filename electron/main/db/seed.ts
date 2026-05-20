@@ -43,7 +43,11 @@ export function runSeed(db: BetterSQLite3Database<typeof schema>): void {
     .onConflictDoNothing()
     .run();
 
-  const prefs = db.select().from(schema.workspacePreferences).where(eq(schema.workspacePreferences.id, 1)).get();
+  const prefs = db
+    .select()
+    .from(schema.workspacePreferences)
+    .where(eq(schema.workspacePreferences.id, 1))
+    .get();
   if (prefs && prefs.defaultSearchProviderId == null) {
     db.update(schema.workspacePreferences)
       .set({
@@ -58,35 +62,61 @@ export function runSeed(db: BetterSQLite3Database<typeof schema>): void {
 
   for (const preset of builtInGlobalStrategyPresets()) {
     db.insert(schema.globalPresets)
-      .values({ id: preset.id, name: preset.label, isBuiltIn: true, createdAt: now, presetJson: JSON.stringify(preset) })
+      .values({
+        id: preset.id,
+        name: preset.label,
+        isBuiltIn: true,
+        createdAt: now,
+        presetJson: JSON.stringify(preset),
+      })
       .onConflictDoNothing()
       .run();
   }
 
   for (const preset of builtInRiskPresets()) {
     db.insert(schema.riskPresets)
-      .values({ id: preset.id, label: preset.label, isBuiltIn: true, presetJson: JSON.stringify(preset) })
+      .values({
+        id: preset.id,
+        label: preset.label,
+        isBuiltIn: true,
+        presetJson: JSON.stringify(preset),
+      })
       .onConflictDoNothing()
       .run();
   }
 
   for (const preset of builtInTimeframePresets()) {
     db.insert(schema.timeframePresets)
-      .values({ id: preset.id, label: preset.label, isBuiltIn: true, presetJson: JSON.stringify(preset) })
+      .values({
+        id: preset.id,
+        label: preset.label,
+        isBuiltIn: true,
+        presetJson: JSON.stringify(preset),
+      })
       .onConflictDoNothing()
       .run();
   }
 
   for (const preset of builtInResearchPosturePresets()) {
     db.insert(schema.researchPosturePresets)
-      .values({ id: preset.id, label: preset.label, isBuiltIn: true, presetJson: JSON.stringify(preset) })
+      .values({
+        id: preset.id,
+        label: preset.label,
+        isBuiltIn: true,
+        presetJson: JSON.stringify(preset),
+      })
       .onConflictDoNothing()
       .run();
   }
 
   for (const preset of builtInTradeRulePresets()) {
     db.insert(schema.tradeRulePresets)
-      .values({ id: preset.id, label: preset.label, isBuiltIn: true, presetJson: JSON.stringify(preset) })
+      .values({
+        id: preset.id,
+        label: preset.label,
+        isBuiltIn: true,
+        presetJson: JSON.stringify(preset),
+      })
       .onConflictDoNothing()
       .run();
   }

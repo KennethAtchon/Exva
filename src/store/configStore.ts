@@ -17,11 +17,15 @@ const DEFAULT: SessionConfig = {
 interface ConfigState {
   config: SessionConfig;
   setConfig: (c: SessionConfig) => void;
-  patch: <K extends keyof SessionConfig>(key: K, value: SessionConfig[K]) => void;
+  patch: <K extends keyof SessionConfig>(
+    key: K,
+    value: SessionConfig[K],
+  ) => void;
 }
 
 export const useConfigStore = create<ConfigState>((set) => ({
   config: DEFAULT,
   setConfig: (config) => set({ config }),
-  patch: (key, value) => set((s) => ({ config: { ...s.config, [key]: value } })),
+  patch: (key, value) =>
+    set((s) => ({ config: { ...s.config, [key]: value } })),
 }));

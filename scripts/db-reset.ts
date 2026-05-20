@@ -17,11 +17,14 @@ function resetMigrationsFolder(): void {
     `${JSON.stringify({ version: "7", dialect: "sqlite", entries: [] }, null, 2)}\n`,
   );
 
-  const result = Bun.spawnSync(["bunx", "drizzle-kit", "generate", "--name", "initial"], {
-    cwd: ROOT,
-    stdout: "inherit",
-    stderr: "inherit",
-  });
+  const result = Bun.spawnSync(
+    ["bunx", "drizzle-kit", "generate", "--name", "initial"],
+    {
+      cwd: ROOT,
+      stdout: "inherit",
+      stderr: "inherit",
+    },
+  );
   if (result.exitCode !== 0) {
     process.exit(result.exitCode ?? 1);
   }

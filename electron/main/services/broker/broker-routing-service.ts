@@ -18,16 +18,26 @@ export class BrokerRoutingService {
    * Session override → workspace default → single compatible assignment fallback.
    * Throws if no compatible broker, routing is ambiguous, or resolved broker is not allowed for the session.
    */
-  resolveBrokerAccountId(sessionId: string, instrumentClass: InstrumentClass): string {
+  resolveBrokerAccountId(
+    sessionId: string,
+    instrumentClass: InstrumentClass,
+  ): string {
     const compatible = this.compatibleAssignmentIds(sessionId, instrumentClass);
     if (compatible.length === 0) {
-      throw new AppError("No compatible broker for this instrument class", "NO_BROKER", {
-        sessionId,
-        instrumentClass,
-      });
+      throw new AppError(
+        "No compatible broker for this instrument class",
+        "NO_BROKER",
+        {
+          sessionId,
+          instrumentClass,
+        },
+      );
     }
 
-    const routed = this.brokerRoutingRepo.resolveBrokerAccountId(sessionId, instrumentClass);
+    const routed = this.brokerRoutingRepo.resolveBrokerAccountId(
+      sessionId,
+      instrumentClass,
+    );
     let chosen: string | null = routed;
 
     if (chosen && !compatible.includes(chosen)) {
@@ -41,7 +51,12 @@ export class BrokerRoutingService {
     if (!chosen) {
       if (compatible.length === 1) {
         const only = compatible[0];
-        if (!only) throw new AppError("No compatible broker for this instrument class", "NO_BROKER", { sessionId, instrumentClass });
+        if (!only)
+          throw new AppError(
+            "No compatible broker for this instrument class",
+            "NO_BROKER",
+            { sessionId, instrumentClass },
+          );
         chosen = only;
       } else {
         throw new AppError(
@@ -59,18 +74,25 @@ export class BrokerRoutingService {
     sessionId: string,
     instrumentClass: InstrumentClass,
   ): Promise<{ adapter: BrokerAdapter; brokerAccountId: string }> {
-    const brokerAccountId = this.resolveBrokerAccountId(sessionId, instrumentClass);
+    const brokerAccountId = this.resolveBrokerAccountId(
+      sessionId,
+      instrumentClass,
+    );
     const adapter = await this.registry.get(brokerAccountId);
     return { adapter, brokerAccountId };
   }
 
-  async preflightSession(sessionId: string, instrumentClasses: InstrumentClass[]): Promise<void> {
+  async preflightSession(
+    sessionId: string,
+    instrumentClasses: InstrumentClass[],
+  ): Promise<void> {
     const unique = [...new Set(instrumentClasses)];
     for (const cls of unique) {
       await this.resolveAdapter(sessionId, cls);
     }
 
-    const assignments = this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
+    const assignments =
+      this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
     for (const brokerAccountId of assignments) {
       const adapter = await this.registry.get(brokerAccountId);
       const result = await adapter.testConnection();
@@ -88,11 +110,17 @@ export class BrokerRoutingService {
     return this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
   }
 
-  private compatibleAssignmentIds(sessionId: string, instrumentClass: InstrumentClass): string[] {
-    const assignments = this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
+  private compatibleAssignmentIds(
+    sessionId: string,
+    instrumentClass: InstrumentClass,
+  ): string[] {
+    const assignments =
+      this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
     return assignments.filter((id) => {
       const account = this.brokerAccountsRepo.find(id);
-      return account?.supportedInstrumentClasses.includes(instrumentClass) ?? false;
+      return (
+        account?.supportedInstrumentClasses.includes(instrumentClass) ?? false
+      );
     });
   }
 }

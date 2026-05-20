@@ -31,7 +31,8 @@ describe("MockBrokerAdapter", () => {
     const lastBar = bars.at(-1);
     const firstBar = bars.at(0);
     if (!lastBar || !firstBar) throw new Error("expected bars");
-    const spanMs = new Date(lastBar.ts).getTime() - new Date(firstBar.ts).getTime();
+    const spanMs =
+      new Date(lastBar.ts).getTime() - new Date(firstBar.ts).getTime();
     expect(spanMs).toBeLessThan(24 * 60 * 60 * 1000 * 10);
     const barMs = 4 * 60 * 60 * 1000;
     expect(spanMs).toBeCloseTo(barMs * 9, -4);
@@ -151,7 +152,9 @@ describe("MockBrokerAdapter", () => {
   it("marketClosed throws on getMarketSnapshot", async () => {
     const adapter = new MockBrokerAdapter({ marketClosed: true });
 
-    await expect(adapter.getMarketSnapshot("AAPL")).rejects.toThrow("Market is closed");
+    await expect(adapter.getMarketSnapshot("AAPL")).rejects.toThrow(
+      "Market is closed",
+    );
   });
 
   it("marketClosed throws on placeOrder", async () => {

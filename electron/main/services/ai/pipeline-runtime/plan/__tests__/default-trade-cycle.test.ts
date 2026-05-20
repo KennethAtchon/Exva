@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { registerDefaultCyclePlans } from "../register/cycle-plans";
-import { getCyclePlan, listCyclePlanIds, registerCyclePlan } from "../cycle/registry";
+import {
+  getCyclePlan,
+  listCyclePlanIds,
+  registerCyclePlan,
+} from "../cycle/registry";
 import { DEFAULT_TRADE_CYCLE_STAGES } from "../plans/trade/default-cycle-stages";
 import { listEngineInputBuilderIds } from "../engine/input-builder-registry";
 import type { CyclePlan, TradeCyclePlanState } from "../cycle/types";
@@ -20,7 +24,12 @@ describe("default-trade-cycle plan", () => {
       "decision",
       "risk_gate",
     ]);
-    expect(plan?.inspect.phaseStages).toEqual(["technical", "fundamental", "review", "decision"]);
+    expect(plan?.inspect.phaseStages).toEqual([
+      "technical",
+      "fundamental",
+      "review",
+      "decision",
+    ]);
     expect(plan?.inspect.engineStages).toEqual([
       "candidate-validator",
       "execution-profile-engine",
@@ -38,11 +47,17 @@ describe("default-trade-cycle plan", () => {
       "decision",
       "risk_gate",
     ]);
-    expect(DEFAULT_TRADE_CYCLE_STAGES.find((stage) => stage.id === "candidate_validation")).toMatchObject({
+    expect(
+      DEFAULT_TRADE_CYCLE_STAGES.find(
+        (stage) => stage.id === "candidate_validation",
+      ),
+    ).toMatchObject({
       kind: "engine",
       failurePolicy: "warn",
     });
-    expect(DEFAULT_TRADE_CYCLE_STAGES.find((stage) => stage.id === "risk_gate")).toMatchObject({
+    expect(
+      DEFAULT_TRADE_CYCLE_STAGES.find((stage) => stage.id === "risk_gate"),
+    ).toMatchObject({
       kind: "engine-chain",
       failurePolicy: "reject_trade",
     });
@@ -50,7 +65,12 @@ describe("default-trade-cycle plan", () => {
 
   it("registers trade engine input builders", () => {
     expect(listEngineInputBuilderIds()).toEqual(
-      expect.arrayContaining(["candidate-validation", "execution-profile", "risk-gate", "broker-allocation"]),
+      expect.arrayContaining([
+        "candidate-validation",
+        "execution-profile",
+        "risk-gate",
+        "broker-allocation",
+      ]),
     );
   });
 

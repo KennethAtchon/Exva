@@ -2,8 +2,9 @@
 
 > **Status:** Not started — depends on Phase 5 (needs `MarketSnapshot.bid/ask`, `getMockOhlcv(timeframe)`)
 > **Files to create:**
+>
 > - `electron/main/services/risk/exit-policy-evaluator.ts`
-> **Files to modify:**
+>   **Files to modify:**
 > - `electron/main/services/orchestration/trade-monitor.ts` (wire evaluator into `tick()`)
 > - `electron/main/db/repositories/trades-repo.ts` (add `highWaterMark` field)
 > - `electron/main/db/` (migration: add `high_water_mark_price` to `trades` table)
@@ -42,8 +43,8 @@ export type ExitReason =
   | "stop_loss_fixed"
   | "stop_loss_trailing_atr"
   | "take_profit"
-  | "max_hold_days"          // handled by TradeMonitor.enforceMaxHoldDays — not this evaluator
-  | "event_resolution";      // handled by TradeMonitor.enforcePredictionMarketPolicy — not this evaluator
+  | "max_hold_days" // handled by TradeMonitor.enforceMaxHoldDays — not this evaluator
+  | "event_resolution"; // handled by TradeMonitor.enforcePredictionMarketPolicy — not this evaluator
 
 export interface ExitDecision {
   shouldExit: boolean;
@@ -54,21 +55,21 @@ export interface ExitDecision {
 export interface ExitPolicyInput {
   trade: {
     id: string;
-    entryPrice: number;         // filledAvgPrice
+    entryPrice: number; // filledAvgPrice
     side: "BUY" | "SELL";
     instrumentType: InstrumentClass;
     highWaterMarkPrice: number | null;
-    openedAt: string;           // ISO-8601
+    openedAt: string; // ISO-8601
   };
   currentPrice: number;
-  ohlcvBars: MockOhlcvBar[];    // recent bars used to compute ATR; min 14 bars required
+  ohlcvBars: MockOhlcvBar[]; // recent bars used to compute ATR; min 14 bars required
   riskConfig: {
     stopLossType: StopLossType;
     stopLossPct: number | null;
     atrStopMultiplier: number | null;
     takeProfitPct: number | null;
   };
-  now: string;                  // ISO-8601; injectable for tests
+  now: string; // ISO-8601; injectable for tests
 }
 
 export class ExitPolicyEvaluator {
@@ -177,7 +178,8 @@ if (riskConfig.stopLossType === "none") {
 ```ts
 // After enforceMaxHoldDays() and enforcePredictionMarketPolicy():
 
-const remainingOpenTrades = this.tradesRepo.listOpenAndPending(this.sessionId)
+const remainingOpenTrades = this.tradesRepo
+  .listOpenAndPending(this.sessionId)
   .filter((trade) => trade.status === "open");
 
 for (const trade of remainingOpenTrades) {
@@ -191,12 +193,12 @@ for (const trade of remainingOpenTrades) {
   this.tradesRepo.updateHighWaterMark(trade.id, currentPrice);
 
   // Fetch recent OHLCV for ATR
-  const bars = await adapter.getMockOhlcv?.(trade.instrumentSymbol, 20) ?? [];
+  const bars = (await adapter.getMockOhlcv?.(trade.instrumentSymbol, 20)) ?? [];
 
   const exitDecision = this.exitPolicyEvaluator.evaluate({
     trade: {
       id: trade.id,
-      entryPrice: trade.filled_avg_price ?? trade.position_size_usd,  // use filled price
+      entryPrice: trade.filled_avg_price ?? trade.position_size_usd, // use filled price
       side: trade.side as "BUY" | "SELL",
       instrumentType: trade.instrumentType as InstrumentClass,
       highWaterMarkPrice: trade.high_water_mark_price ?? null,

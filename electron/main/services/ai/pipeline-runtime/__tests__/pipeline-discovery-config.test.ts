@@ -8,21 +8,36 @@ import {
 describe("pipeline-discovery-config", () => {
   it("uses standard selector scouts by default", () => {
     const workers = selectorDiscoveryWorkersForMode("trend_scan");
-    expect(workers.map((w) => w.id)).toEqual(["web-scout", "reddit-scout", "trend-scout"]);
+    expect(workers.map((w) => w.id)).toEqual([
+      "web-scout",
+      "reddit-scout",
+      "trend-scout",
+    ]);
   });
 
   it("swaps selector scouts for event_contract_scan", () => {
     const workers = selectorDiscoveryWorkersForMode("event_contract_scan");
-    expect(workers.map((w) => w.id)).toEqual(["event-web-scout", "event-prediction-scout"]);
+    expect(workers.map((w) => w.id)).toEqual([
+      "event-web-scout",
+      "event-prediction-scout",
+    ]);
   });
 
   it("swaps technical workers for event_contract_scan", () => {
     const workers = technicalWorkersForMode("event_contract_scan");
-    expect(workers.map((w) => w.id)).toEqual(["implied-probability", "price-drift", "event-liquidity"]);
+    expect(workers.map((w) => w.id)).toEqual([
+      "implied-probability",
+      "price-drift",
+      "event-liquidity",
+    ]);
   });
 
   it("swaps fundamental workers for event_contract_scan", () => {
     const workers = fundamentalWorkersForMode("event_contract_scan");
-    expect(workers.map((w) => w.id)).toEqual(["resolution-context", "event-catalyst", "event-sentiment"]);
+    expect(workers.map((w) => w.id)).toEqual([
+      "resolution-context",
+      "event-catalyst",
+      "event-sentiment",
+    ]);
   });
 });

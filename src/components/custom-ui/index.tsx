@@ -1,10 +1,22 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { EventSourceType, LogLevel } from "@/lib/types";
 import { Badge as UIBadge, Card as UICard, Separator } from "@/components/ui";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-type BadgeVariant = "default" | "success" | "danger" | "warn" | "blue" | "purple";
+type BadgeVariant =
+  | "default"
+  | "success"
+  | "danger"
+  | "warn"
+  | "blue"
+  | "purple";
 
 export const Badge = ({
   children,
@@ -28,7 +40,9 @@ export const Badge = ({
     <UIBadge
       className={cn(
         "inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] font-mono font-medium tracking-wide",
-        size === "sm" ? "px-[7px] py-[2px] text-[10px]" : "px-[9px] py-[3px] text-[11px]",
+        size === "sm"
+          ? "px-[7px] py-[2px] text-[10px]"
+          : "px-[9px] py-[3px] text-[11px]",
         tone[variant],
       )}
     >
@@ -67,7 +81,10 @@ export const Divider = ({
   style?: CSSProperties;
 }) =>
   vertical ? (
-    <Separator orientation="vertical" style={{ alignSelf: "stretch", flexShrink: 0, ...styleOverride }} />
+    <Separator
+      orientation="vertical"
+      style={{ alignSelf: "stretch", flexShrink: 0, ...styleOverride }}
+    />
   ) : (
     <Separator style={styleOverride} />
   );
@@ -81,7 +98,10 @@ const AGENT_LABEL: Record<string, { label: string; variant: BadgeVariant }> = {
 };
 
 export const AgentLabel = ({ type }: { type: EventSourceType }) => {
-  const meta = AGENT_LABEL[type] ?? { label: type, variant: "default" as const };
+  const meta = AGENT_LABEL[type] ?? {
+    label: type,
+    variant: "default" as const,
+  };
   return (
     <Badge variant={meta.variant} size="sm">
       {meta.label}
@@ -100,11 +120,15 @@ export const LevelDot = ({ level }: { level: LogLevel }) => {
 };
 
 export const PageShell = ({ children }: { children: ReactNode }) => (
-  <div className="flex flex-1 flex-col gap-7 overflow-auto px-9 py-8">{children}</div>
+  <div className="flex flex-1 flex-col gap-7 overflow-auto px-9 py-8">
+    {children}
+  </div>
 );
 
 export const SectionTitle = ({ children }: { children: ReactNode }) => (
-  <h2 className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{children}</h2>
+  <h2 className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+    {children}
+  </h2>
 );
 
 export const Card = ({
@@ -116,7 +140,13 @@ export const Card = ({
   style?: CSSProperties;
   accent?: boolean;
 }) => (
-  <UICard className={cn("rounded-[14px] border border-border bg-card px-6 py-[22px]", accent && "border-primary/35")} style={style}>
+  <UICard
+    className={cn(
+      "rounded-[14px] border border-border bg-card px-6 py-[22px]",
+      accent && "border-primary/35",
+    )}
+    style={style}
+  >
     {children}
   </UICard>
 );
@@ -149,12 +179,20 @@ export const ShadcnSelect = ({
       onValueChange={(next) => onValueChange(next === EMPTY_VALUE ? "" : next)}
       disabled={disabled}
     >
-      <SelectTrigger className={cn("h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]", className)}>
+      <SelectTrigger
+        className={cn(
+          "h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]",
+          className,
+        )}
+      >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (
-          <SelectItem key={option.value || EMPTY_VALUE} value={option.value === "" ? EMPTY_VALUE : option.value}>
+          <SelectItem
+            key={option.value || EMPTY_VALUE}
+            value={option.value === "" ? EMPTY_VALUE : option.value}
+          >
             {option.label}
           </SelectItem>
         ))}

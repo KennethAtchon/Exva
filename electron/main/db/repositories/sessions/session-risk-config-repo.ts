@@ -9,14 +9,25 @@ export class SessionRiskConfigRepo {
   constructor(private readonly client: DbClient) {}
 
   get(sessionId: string): SessionRiskConfig {
-    const row = this.client.db.select().from(sessionRiskConfig).where(eq(sessionRiskConfig.sessionId, sessionId)).get();
+    const row = this.client.db
+      .select()
+      .from(sessionRiskConfig)
+      .where(eq(sessionRiskConfig.sessionId, sessionId))
+      .get();
     if (!row) {
-      throw new AppError(`Risk config for session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
+      throw new AppError(
+        `Risk config for session ${sessionId} was not found`,
+        "NOT_FOUND",
+        { sessionId },
+      );
     }
     return toSessionRiskConfig(row);
   }
 
-  upsert(sessionId: string, patch: Partial<SessionRiskConfig>): SessionRiskConfig {
+  upsert(
+    sessionId: string,
+    patch: Partial<SessionRiskConfig>,
+  ): SessionRiskConfig {
     const current = this.get(sessionId);
     const next: SessionRiskConfig = {
       ...current,

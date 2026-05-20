@@ -24,7 +24,10 @@ const levelRank: Record<LogLevel, number> = {
 export class EventsRepo {
   constructor(private readonly client: DbClient) {}
 
-  insert(event: Omit<EventRow, "id" | "created_at"> & Partial<Pick<EventRow, "id" | "created_at">>): EventRow {
+  insert(
+    event: Omit<EventRow, "id" | "created_at"> &
+      Partial<Pick<EventRow, "id" | "created_at">>,
+  ): EventRow {
     const row: EventRow = {
       id: event.id ?? crypto.randomUUID(),
       session_id: event.session_id ?? null,
@@ -56,14 +59,27 @@ export class EventsRepo {
     const minLevel = filters.minLevel ?? filters.min_level;
     const agentType = filters.agentType ?? filters.agent_type;
     const limit = Math.min(filters.limit ?? 200, 1000);
-    const rows = this.client.db.select().from(events).orderBy(desc(events.createdAt)).limit(limit * 3).all();
+    const rows = this.client.db
+      .select()
+      .from(events)
+      .orderBy(desc(events.createdAt))
+      .limit(limit * 3)
+      .all();
 
     return rows
       .map(toEventRow)
-      .filter((event) => !filters.sessionId || event.session_id === filters.sessionId)
-      .filter((event) => !minLevel || levelRank[event.level] >= levelRank[minLevel])
+      .filter(
+        (event) => !filters.sessionId || event.session_id === filters.sessionId,
+      )
+      .filter(
+        (event) => !minLevel || levelRank[event.level] >= levelRank[minLevel],
+      )
       .filter((event) => !agentType || event.agent_type === agentType)
-      .filter((event) => !filters.search || event.message.toLowerCase().includes(filters.search.toLowerCase()))
+      .filter(
+        (event) =>
+          !filters.search ||
+          event.message.toLowerCase().includes(filters.search.toLowerCase()),
+      )
       .slice(0, limit);
   }
 }

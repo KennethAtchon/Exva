@@ -143,14 +143,19 @@ export class PaperScorecardService {
     const lossRate = 1 - winRate;
 
     const grossWins = wins.reduce((sum, t) => sum + (t.final_pnl_usd ?? 0), 0);
-    const grossLosses = Math.abs(losses.reduce((sum, t) => sum + (t.final_pnl_usd ?? 0), 0));
+    const grossLosses = Math.abs(
+      losses.reduce((sum, t) => sum + (t.final_pnl_usd ?? 0), 0),
+    );
 
     const avgWinUsd = winCount > 0 ? grossWins / winCount : 0;
     const avgLossUsd = lossCount > 0 ? grossLosses / lossCount : 0;
     const expectancy = winRate * avgWinUsd - lossRate * avgLossUsd;
     const profitFactor = grossLosses === 0 ? Infinity : grossWins / grossLosses;
 
-    const netPnlUsd = closedTrades.reduce((sum, t) => sum + (t.final_pnl_usd ?? 0), 0);
+    const netPnlUsd = closedTrades.reduce(
+      (sum, t) => sum + (t.final_pnl_usd ?? 0),
+      0,
+    );
     const netPnlAfterCostsUsd = netPnlUsd - totalAiSpendUsd - totalDataSpendUsd;
 
     const { maxDrawdownUsd, maxDrawdownPct } = computeMaxDrawdown(closedTrades);
@@ -160,7 +165,8 @@ export class PaperScorecardService {
     const exitReasonBreakdown: Record<string, number> = {};
     for (const t of closedTrades) {
       if (t.exit_reason) {
-        exitReasonBreakdown[t.exit_reason] = (exitReasonBreakdown[t.exit_reason] ?? 0) + 1;
+        exitReasonBreakdown[t.exit_reason] =
+          (exitReasonBreakdown[t.exit_reason] ?? 0) + 1;
       }
     }
 
@@ -200,20 +206,35 @@ export class PaperScorecardService {
 function readMockScenarioKind(trade: Trade): MockScenarioKind | null {
   if (!trade.instrumentMetadataJson) return null;
   try {
-    const parsed = JSON.parse(trade.instrumentMetadataJson) as { mockScenarioKind?: string };
+    const parsed = JSON.parse(trade.instrumentMetadataJson) as {
+      mockScenarioKind?: string;
+    };
     const kind = parsed.mockScenarioKind;
     if (!kind) return null;
     const validKinds: MockScenarioKind[] = [
-      "clean_breakout", "failed_breakout", "sideways_chop", "gap_down_after_entry",
-      "news_reversal", "stale_quote", "wide_spread", "partial_fill", "broker_reject", "rate_limit",
+      "clean_breakout",
+      "failed_breakout",
+      "sideways_chop",
+      "gap_down_after_entry",
+      "news_reversal",
+      "stale_quote",
+      "wide_spread",
+      "partial_fill",
+      "broker_reject",
+      "rate_limit",
     ];
-    return validKinds.includes(kind as MockScenarioKind) ? (kind as MockScenarioKind) : null;
+    return validKinds.includes(kind as MockScenarioKind)
+      ? (kind as MockScenarioKind)
+      : null;
   } catch {
     return null;
   }
 }
 
-function computeMaxDrawdown(trades: Trade[]): { maxDrawdownUsd: number; maxDrawdownPct: number } {
+function computeMaxDrawdown(trades: Trade[]): {
+  maxDrawdownUsd: number;
+  maxDrawdownPct: number;
+} {
   let peak = 0;
   let maxDrawdown = 0;
   let cumPnl = 0;
@@ -227,11 +248,16 @@ function computeMaxDrawdown(trades: Trade[]): { maxDrawdownUsd: number; maxDrawd
   return { maxDrawdownUsd: maxDrawdown, maxDrawdownPct };
 }
 
-function computeTimeStats(trades: Trade[]): { tradeFrequency: number; avgHoldHours: number } {
+function computeTimeStats(trades: Trade[]): {
+  tradeFrequency: number;
+  avgHoldHours: number;
+} {
   const withTimestamps = trades.filter(
-    (t): t is Trade & { opened_at: string; closed_at: string } => Boolean(t.opened_at && t.closed_at),
+    (t): t is Trade & { opened_at: string; closed_at: string } =>
+      Boolean(t.opened_at && t.closed_at),
   );
-  if (withTimestamps.length === 0) return { tradeFrequency: 0, avgHoldHours: 0 };
+  if (withTimestamps.length === 0)
+    return { tradeFrequency: 0, avgHoldHours: 0 };
 
   const sorted = [...withTimestamps].sort(
     (a, b) => new Date(a.opened_at).getTime() - new Date(b.opened_at).getTime(),
@@ -246,7 +272,9 @@ function computeTimeStats(trades: Trade[]): { tradeFrequency: number; avgHoldHou
   const tradeFrequency = spanDays > 0 ? withTimestamps.length / spanDays : 0;
 
   const totalHoldMs = withTimestamps.reduce((sum, t) => {
-    return sum + (new Date(t.closed_at).getTime() - new Date(t.opened_at).getTime());
+    return (
+      sum + (new Date(t.closed_at).getTime() - new Date(t.opened_at).getTime())
+    );
   }, 0);
   const avgHoldHours = totalHoldMs / withTimestamps.length / (1000 * 60 * 60);
 

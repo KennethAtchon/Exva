@@ -77,19 +77,34 @@ describe("SessionWriteService", () => {
 
     expect(result.status).toBe("draft");
     expect(sessions.getFocusedSessionId()).toBe(result.id);
-    expect(assignments.listBrokerAccountIds(result.id)).toEqual(["broker-crypto", "broker-stock"]);
+    expect(assignments.listBrokerAccountIds(result.id)).toEqual([
+      "broker-crypto",
+      "broker-stock",
+    ]);
     expect(assignments.listAssignments(result.id)).toEqual([
       { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
       { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
     ]);
     expect(routing.listSessionOverrides(result.id)).toEqual([
-      { sessionId: result.id, instrumentClass: "crypto", brokerAccountId: "broker-crypto" },
-      { sessionId: result.id, instrumentClass: "stock", brokerAccountId: "broker-stock" },
+      {
+        sessionId: result.id,
+        instrumentClass: "crypto",
+        brokerAccountId: "broker-crypto",
+      },
+      {
+        sessionId: result.id,
+        instrumentClass: "stock",
+        brokerAccountId: "broker-stock",
+      },
     ]);
     expect(selectorSettings.get(result.id).aiPickerEnabled).toBe(false);
     expect(aiPhases).toHaveLength(5);
-    expect(aiPhases.every((p) => p.providerKey === "provider-openrouter")).toBe(true);
-    expect(aiPhases.every((p) => p.modelId === "google/gemma-4-31b-it")).toBe(true);
+    expect(aiPhases.every((p) => p.providerKey === "provider-openrouter")).toBe(
+      true,
+    );
+    expect(aiPhases.every((p) => p.modelId === "google/gemma-4-31b-it")).toBe(
+      true,
+    );
     expect(researchPosture.posturePresetId).toBe("trend_hunt");
     expect(tradeRules.rulesPresetId).toBe("breakout_long");
     expect(riskConfig.riskPresetId).toBe("moderate");
@@ -114,7 +129,9 @@ describe("SessionWriteService", () => {
       instrumentScope: "SPY",
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",
-      brokerAssignments: [{ brokerAccountId: "broker-stock", allocatedUsd: 1000 }],
+      brokerAssignments: [
+        { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
+      ],
     });
 
     const aiPhases = new SessionAiPhasesRepo(db).listBySession(result.id);
@@ -142,7 +159,9 @@ describe("SessionWriteService", () => {
         instrumentScope: "BTC-USD",
         selectorSettings: { aiPickerEnabled: false },
         executionMode: "paper_only",
-        brokerAssignments: [{ brokerAccountId: "broker-stock", allocatedUsd: 2500 }],
+        brokerAssignments: [
+          { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
+        ],
       }),
     ).toThrowError(/does not support any of the selected instrument classes/i);
   });
@@ -183,7 +202,9 @@ describe("SessionWriteService", () => {
   });
 });
 
-function createService(db: ReturnType<typeof createTestDb>): SessionWriteService {
+function createService(
+  db: ReturnType<typeof createTestDb>,
+): SessionWriteService {
   return new SessionWriteService({
     sessions: new SessionRepo(db),
     events: new EventsRepo(db),
@@ -200,7 +221,9 @@ function insertBroker(
     id: string;
     name: string;
     brokerType: string;
-    supportedInstrumentClasses: Array<"stock" | "crypto" | "futures" | "prediction_market">;
+    supportedInstrumentClasses: Array<
+      "stock" | "crypto" | "futures" | "prediction_market"
+    >;
     mode: "paper" | "live";
   },
 ): void {

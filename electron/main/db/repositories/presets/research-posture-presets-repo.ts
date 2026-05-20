@@ -15,7 +15,13 @@ export class ResearchPosturePresetsRepo {
   }
 
   findById(id: string): ResearchPosturePreset | undefined {
-    const row = this.client.db.select().from(researchPosturePresets).where(eq(researchPosturePresets.id, id)).get();
-    return row ? (JSON.parse(row.presetJson) as ResearchPosturePreset) : undefined;
+    const row = this.client.db
+      .select()
+      .from(researchPosturePresets)
+      .where(eq(researchPosturePresets.id, id))
+      .get();
+    return row
+      ? (JSON.parse(row.presetJson) as ResearchPosturePreset)
+      : undefined;
   }
 }

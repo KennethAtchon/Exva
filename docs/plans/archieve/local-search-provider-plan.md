@@ -14,22 +14,22 @@ The more useful product shape is the one used by tools like AnythingLLM: the loc
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Decouple web search from LLM provider setup | A user can run a local model and separately enable web search for agent flows. |
-| 2 | Support a credential-light default web search path in v1 | A developer can use search-backed agent flows without first creating a Brave or Tavily account. |
-| 3 | Preserve the existing runtime tool contract | `search_web` and `get_news` keep using the same `SearchRegistry` / `SearchAdapter` surface, minimizing runtime churn. |
-| 4 | Make search backends extensible | Exva can support default/backfill providers such as `duckduckgo`, optional configured providers such as vendor APIs, and later self-hosted providers such as `searxng`. |
-| 5 | Separate capability toggles from provider choice | Agent enablement, web browsing enablement, and search-provider configuration are modeled distinctly in product and code. |
+| #   | Goal                                                     | Success Looks Like                                                                                                                                                      |
+| --- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Decouple web search from LLM provider setup              | A user can run a local model and separately enable web search for agent flows.                                                                                          |
+| 2   | Support a credential-light default web search path in v1 | A developer can use search-backed agent flows without first creating a Brave or Tavily account.                                                                         |
+| 3   | Preserve the existing runtime tool contract              | `search_web` and `get_news` keep using the same `SearchRegistry` / `SearchAdapter` surface, minimizing runtime churn.                                                   |
+| 4   | Make search backends extensible                          | Exva can support default/backfill providers such as `duckduckgo`, optional configured providers such as vendor APIs, and later self-hosted providers such as `searxng`. |
+| 5   | Separate capability toggles from provider choice         | Agent enablement, web browsing enablement, and search-provider configuration are modeled distinctly in product and code.                                                |
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Build a full web search engine from scratch | Exva should leverage existing local services or the user’s browser, not become a crawler company. |
-| 2 | Replace the current hosted provider support | Brave and Tavily remain useful, especially for users who want explicit API-backed search. |
-| 3 | Guarantee zero outbound traffic | Any live web search still reaches the public internet unless searching only a private/local index. |
-| 4 | Build browser automation or private indexing in phase 1 | The first step is better search capability/configuration, not full browser capture or local corpus search. |
+| #   | Non-Goal                                                | Reason                                                                                                     |
+| --- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 1   | Build a full web search engine from scratch             | Exva should leverage existing local services or the user’s browser, not become a crawler company.          |
+| 2   | Replace the current hosted provider support             | Brave and Tavily remain useful, especially for users who want explicit API-backed search.                  |
+| 3   | Guarantee zero outbound traffic                         | Any live web search still reaches the public internet unless searching only a private/local index.         |
+| 4   | Build browser automation or private indexing in phase 1 | The first step is better search capability/configuration, not full browser capture or local corpus search. |
 
 ## 3. Background & Context
 
@@ -94,15 +94,15 @@ Open WebUI supports many web-search providers including `SearXNG`, `Brave Search
 
 Keep the current `brave` and `tavily` provider set and do not add any local mode.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | None |
-| Performance | Good when providers are configured |
-| Reliability | Good relative to custom local scraping |
-| Cost | Ongoing API cost / quota dependence |
-| Reversibility | Already current state |
-| Stack fit | Strong with current code |
-| Team readiness | Immediate |
+| Dimension      | Assessment                             |
+| -------------- | -------------------------------------- |
+| Complexity     | None                                   |
+| Performance    | Good when providers are configured     |
+| Reliability    | Good relative to custom local scraping |
+| Cost           | Ongoing API cost / quota dependence    |
+| Reversibility  | Already current state                  |
+| Stack fit      | Strong with current code               |
+| Team readiness | Immediate                              |
 
 Risks: keeps desktop-local development gated by vendor setup and spend; wastes the local advantages of Electron; continues to create friction for users who expect local-first tooling.
 
@@ -112,15 +112,15 @@ Open questions: none technically, but this fails the product intent.
 
 Keep search as a provider-backed capability, but add at least one provider that does not require account creation or a stored API secret for initial use. A concrete example would be `duckduckgo` as a built-in default adapter.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Low to medium |
-| Performance | Good enough for agent discovery flows |
-| Reliability | Medium; depends on the chosen non-authenticated backend |
-| Cost | Low |
-| Reversibility | Easy |
-| Stack fit | Excellent |
-| Team readiness | High |
+| Dimension      | Assessment                                              |
+| -------------- | ------------------------------------------------------- |
+| Complexity     | Low to medium                                           |
+| Performance    | Good enough for agent discovery flows                   |
+| Reliability    | Medium; depends on the chosen non-authenticated backend |
+| Cost           | Low                                                     |
+| Reversibility  | Easy                                                    |
+| Stack fit      | Excellent                                               |
+| Team readiness | High                                                    |
 
 Risks: anonymous/default providers may be less stable than explicit APIs; result quality and rate limits may vary; this does not solve browser-native capture or private local corpora.
 
@@ -130,15 +130,15 @@ Open questions: which default provider is acceptable for v1, and do we want it a
 
 Model four concerns explicitly: AI provider, agent enablement, web-browsing enablement, and search-provider selection. Search providers can then include `duckduckgo`, `brave`, `tavily`, and later `searxng`, without inventing a product-facing `Local` provider umbrella.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium |
-| Performance | Good; varies by provider |
-| Reliability | High as an architecture; provider-specific runtime reliability varies |
-| Cost | Lowest long-term flexibility |
-| Reversibility | Good |
-| Stack fit | Very strong |
-| Team readiness | Good if phased |
+| Dimension      | Assessment                                                            |
+| -------------- | --------------------------------------------------------------------- |
+| Complexity     | Medium                                                                |
+| Performance    | Good; varies by provider                                              |
+| Reliability    | High as an architecture; provider-specific runtime reliability varies |
+| Cost           | Lowest long-term flexibility                                          |
+| Reversibility  | Good                                                                  |
+| Stack fit      | Very strong                                                           |
+| Team readiness | Good if phased                                                        |
 
 Risks: extra design work up front; configuration UX becomes more explicit; requires refactoring the current account model that assumes every search provider is a secret-backed account.
 
@@ -148,15 +148,15 @@ Open questions: should search-provider config live in Accounts, Agent Settings, 
 
 Add self-hosted providers such as `searxng` as optional search backends, but keep them as one provider choice among several rather than the definition of `Local`.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium |
-| Performance | Good; local HTTP hop plus upstream latency |
-| Reliability | Medium to high |
-| Cost | Low |
-| Reversibility | Medium |
-| Stack fit | Strong |
-| Team readiness | Moderate |
+| Dimension      | Assessment                                 |
+| -------------- | ------------------------------------------ |
+| Complexity     | Medium                                     |
+| Performance    | Good; local HTTP hop plus upstream latency |
+| Reliability    | Medium to high                             |
+| Cost           | Low                                        |
+| Reversibility  | Medium                                     |
+| Stack fit      | Strong                                     |
+| Team readiness | Moderate                                   |
 
 Risks: setup friction; still internet-dependent; can overread as "offline" even though it is just self-hosted routing.
 
@@ -166,15 +166,15 @@ Open questions: do we want to document manual setup only, or bundle helper scrip
 
 Treat browser capture and private/local indexing as distinct capabilities outside the initial live web-search provider decision.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | High |
-| Performance | High once implemented |
-| Reliability | High for the owned corpus |
-| Cost | Low to medium depending on stack |
-| Reversibility | Medium |
-| Stack fit | Strong as a future knowledge mode, weaker as a direct replacement for live web search |
-| Team readiness | Moderate |
+| Dimension      | Assessment                                                                            |
+| -------------- | ------------------------------------------------------------------------------------- |
+| Complexity     | High                                                                                  |
+| Performance    | High once implemented                                                                 |
+| Reliability    | High for the owned corpus                                                             |
+| Cost           | Low to medium depending on stack                                                      |
+| Reversibility  | Medium                                                                                |
+| Stack fit      | Strong as a future knowledge mode, weaker as a direct replacement for live web search |
+| Team readiness | Moderate                                                                              |
 
 Risks: does not answer live-web search needs; broader scope than the immediate selector/search problem.
 
@@ -184,7 +184,7 @@ Open questions: should these surface as separate tools instead of variants behin
 
 **We recommend Option C: separate agent web browsing from search-provider configuration, ship a credential-light default provider first, and add self-hosted providers such as SearXNG as optional follow-ons.**
 
-Why this over the status quo: the current architecture already supports an abstract search provider boundary, and the product needs a simpler path to web-grounded agent use than "create a Brave/Tavily account first." 
+Why this over the status quo: the current architecture already supports an abstract search provider boundary, and the product needs a simpler path to web-grounded agent use than "create a Brave/Tavily account first."
 
 Why this over Option B alone: adding only one default provider helps with immediate friction, but the bigger win is fixing the product model so search is a configurable agent capability rather than a special kind of provider account.
 
@@ -286,23 +286,23 @@ Rollback: keep each adjacent capability experimental or split into a later proje
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|-----------|--------|------------|
-| 1 | Users confuse local model setup with web-search setup | High | Medium | Separate model, agent, browsing, and provider configuration in product copy and settings |
-| 2 | Current provider schema forces secrets for providers that do not need them | High | Medium | Refactor provider save/test contract in Phase 0 |
-| 3 | Default provider quality or reliability is weaker than hosted APIs | Medium | Medium | Position it as the default path, not the highest-guarantee path; keep provider switching easy |
-| 4 | Self-hosted providers like SearXNG are mistaken for true offline search | Medium | Medium | Use precise copy that self-hosted still means live web search through a local service |
-| 5 | Browser capture or local index gets conflated with live web search | Medium | Medium | Keep those as separate capabilities and UI concepts |
-| 6 | Search result normalization becomes provider-specific spaghetti | Medium | Medium | Keep strict `SearchAdapter -> SearchToolResult` contract and adapter-local transformers |
+| #   | Risk                                                                       | Likelihood | Impact | Mitigation                                                                                    |
+| --- | -------------------------------------------------------------------------- | ---------- | ------ | --------------------------------------------------------------------------------------------- |
+| 1   | Users confuse local model setup with web-search setup                      | High       | Medium | Separate model, agent, browsing, and provider configuration in product copy and settings      |
+| 2   | Current provider schema forces secrets for providers that do not need them | High       | Medium | Refactor provider save/test contract in Phase 0                                               |
+| 3   | Default provider quality or reliability is weaker than hosted APIs         | Medium     | Medium | Position it as the default path, not the highest-guarantee path; keep provider switching easy |
+| 4   | Self-hosted providers like SearXNG are mistaken for true offline search    | Medium     | Medium | Use precise copy that self-hosted still means live web search through a local service         |
+| 5   | Browser capture or local index gets conflated with live web search         | Medium     | Medium | Keep those as separate capabilities and UI concepts                                           |
+| 6   | Search result normalization becomes provider-specific spaghetti            | Medium     | Medium | Keep strict `SearchAdapter -> SearchToolResult` contract and adapter-local transformers       |
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|------|--------|----------|--------|--------------|
-| Add a low-friction search path | Search provider config supports a built-in/default provider | 0 | 1 shipped default path | Typecheck + schema tests |
-| Enable local-model development without hosted search accounts | Can start an AI-selected session with a local model plus default web search | No | Yes | Manual QA + integration test |
-| Preserve runtime contract | No change required in selector/analyst tool consumers | N/A | Same tool contract | Existing runtime tests + targeted adapter tests |
-| Keep setup understandable | Time from fresh clone to first agent web search | Requires hosted account | <= 15 minutes with docs | Developer setup walkthrough |
+| Goal                                                          | Metric                                                                      | Baseline                | Target                  | How Measured                                    |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------- | ----------------------- | ----------------------------------------------- |
+| Add a low-friction search path                                | Search provider config supports a built-in/default provider                 | 0                       | 1 shipped default path  | Typecheck + schema tests                        |
+| Enable local-model development without hosted search accounts | Can start an AI-selected session with a local model plus default web search | No                      | Yes                     | Manual QA + integration test                    |
+| Preserve runtime contract                                     | No change required in selector/analyst tool consumers                       | N/A                     | Same tool contract      | Existing runtime tests + targeted adapter tests |
+| Keep setup understandable                                     | Time from fresh clone to first agent web search                             | Requires hosted account | <= 15 minutes with docs | Developer setup walkthrough                     |
 
 Leading indicators:
 
@@ -317,19 +317,19 @@ Lagging indicators:
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| 1 | Should search-provider config live in Accounts, Agent Settings, or both? | Kenneth | Before Phase 0 | Open |
-| 2 | Which default provider is acceptable for v1 from a reliability/legal/product standpoint? | Kenneth | Before Phase 1 | Open |
-| 3 | Should normal chat ever auto-invoke search, or should search remain agent-only / tool-driven? | Kenneth | Before Phase 1 | Open |
-| 4 | When we add SearXNG, should it appear as just another provider or under an "Advanced / Self-hosted" section? | Kenneth | Before Phase 3 | Open |
-| 5 | Should browser capture and local/private corpus retrieval become distinct tools outside `search_web`? | Kenneth | Before Phase 3 | Open |
+| #   | Question                                                                                                     | Owner   | Needed By      | Status |
+| --- | ------------------------------------------------------------------------------------------------------------ | ------- | -------------- | ------ |
+| 1   | Should search-provider config live in Accounts, Agent Settings, or both?                                     | Kenneth | Before Phase 0 | Open   |
+| 2   | Which default provider is acceptable for v1 from a reliability/legal/product standpoint?                     | Kenneth | Before Phase 1 | Open   |
+| 3   | Should normal chat ever auto-invoke search, or should search remain agent-only / tool-driven?                | Kenneth | Before Phase 1 | Open   |
+| 4   | When we add SearXNG, should it appear as just another provider or under an "Advanced / Self-hosted" section? | Kenneth | Before Phase 3 | Open   |
+| 5   | Should browser capture and local/private corpus retrieval become distinct tools outside `search_web`?        | Kenneth | Before Phase 3 | Open   |
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|-------------|
-| Status quo only | Fails the desktop-local development goal entirely. |
-| Whoogle-first default provider | Too fragile; maintainer explicitly states it has reached a reliability wall due to Google blocking. ([Whoogle README](https://github.com/benbusby/whoogle-search)) |
-| SearXNG-as-the-main-product-story | Useful later, but it solves infrastructure preference more than the core UX/config problem. |
-| Browser/index-first | Valuable adjacent capabilities, but they solve different problems from the immediate live web-search gating issue. |
+| Option                            | Why Rejected                                                                                                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Status quo only                   | Fails the desktop-local development goal entirely.                                                                                                                 |
+| Whoogle-first default provider    | Too fragile; maintainer explicitly states it has reached a reliability wall due to Google blocking. ([Whoogle README](https://github.com/benbusby/whoogle-search)) |
+| SearXNG-as-the-main-product-story | Useful later, but it solves infrastructure preference more than the core UX/config problem.                                                                        |
+| Browser/index-first               | Valuable adjacent capabilities, but they solve different problems from the immediate live web-search gating issue.                                                 |

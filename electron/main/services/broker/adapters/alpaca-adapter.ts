@@ -13,7 +13,9 @@ import type {
 
 export class AlpacaAdapter implements BrokerAdapter {
   readonly brokerType = "alpaca";
-  readonly supportedInstrumentClasses = ["stock"] as const satisfies readonly InstrumentClass[];
+  readonly supportedInstrumentClasses = [
+    "stock",
+  ] as const satisfies readonly InstrumentClass[];
   readonly launchCapable = true;
 
   private readonly baseUrl: string;
@@ -27,22 +29,33 @@ export class AlpacaAdapter implements BrokerAdapter {
 
   async testConnection(): Promise<ConnectionTestResult> {
     try {
-      const account = await this.request<{ buying_power?: string; portfolio_value?: string }>("/v2/account");
+      const account = await this.request<{
+        buying_power?: string;
+        portfolio_value?: string;
+      }>("/v2/account");
       return {
         ok: true,
         message: `${this.credentials.mode === "paper" ? "Paper" : "Live"} Alpaca account connected`,
-        account_balance: Number(account.portfolio_value ?? account.buying_power ?? 0),
+        account_balance: Number(
+          account.portfolio_value ?? account.buying_power ?? 0,
+        ),
       };
     } catch (error) {
       return {
         ok: false,
-        message: error instanceof Error ? error.message : "Unable to connect to Alpaca",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to connect to Alpaca",
       };
     }
   }
 
   async getAccountBalance(): Promise<number> {
-    const account = await this.request<{ portfolio_value?: string; buying_power?: string }>("/v2/account");
+    const account = await this.request<{
+      portfolio_value?: string;
+      buying_power?: string;
+    }>("/v2/account");
     return Number(account.portfolio_value ?? account.buying_power ?? 0);
   }
 
@@ -59,23 +72,27 @@ export class AlpacaAdapter implements BrokerAdapter {
 
   async placeOrder(order: BrokerOrder): Promise<BrokerOrderResult> {
     if (order.instrumentType !== "stock") {
-      throw new AppError("Alpaca adapter supports stocks only", "UNSUPPORTED_INSTRUMENT", {
-        instrumentType: order.instrumentType,
-      });
+      throw new AppError(
+        "Alpaca adapter supports stocks only",
+        "UNSUPPORTED_INSTRUMENT",
+        {
+          instrumentType: order.instrumentType,
+        },
+      );
     }
-    const result = await this.request<{ id: string; filled_avg_price?: string }>(
-      "/v2/orders",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          symbol: order.instrumentSymbol,
-          notional: String(order.sizeUsd),
-          side: order.side.toLowerCase(),
-          type: "market",
-          time_in_force: "day",
-        }),
-      },
-    );
+    const result = await this.request<{
+      id: string;
+      filled_avg_price?: string;
+    }>("/v2/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        symbol: order.instrumentSymbol,
+        notional: String(order.sizeUsd),
+        side: order.side.toLowerCase(),
+        type: "market",
+        time_in_force: "day",
+      }),
+    });
     return {
       brokerOrderId: result.id,
       filledAvgPrice: Number(result.filled_avg_price ?? 0),
@@ -83,7 +100,9 @@ export class AlpacaAdapter implements BrokerAdapter {
   }
 
   async cancelOrder(brokerOrderId: string): Promise<void> {
-    await this.request(`/v2/orders/${encodeURIComponent(brokerOrderId)}`, { method: "DELETE" });
+    await this.request(`/v2/orders/${encodeURIComponent(brokerOrderId)}`, {
+      method: "DELETE",
+    });
   }
 
   async getPositions(): Promise<BrokerPosition[]> {
@@ -141,7 +160,9 @@ export class AlpacaAdapter implements BrokerAdapter {
     }
 
     try {
-      await this.request(`/v2/positions/${encodeURIComponent(symbol)}`, { method: "DELETE" });
+      await this.request(`/v2/positions/${encodeURIComponent(symbol)}`, {
+        method: "DELETE",
+      });
     } catch {
       // position may already be flat or just-canceled
     }
@@ -157,8 +178,13 @@ export class AlpacaAdapter implements BrokerAdapter {
     }>(`/v2/orders/${encodeURIComponent(orderId)}`);
     return {
       brokerOrderId: order.id,
-      status: order.status === "filled" || order.status === "canceled" ? "closed" : "open",
-      latestPrice: order.filled_avg_price ? Number(order.filled_avg_price) : null,
+      status:
+        order.status === "filled" || order.status === "canceled"
+          ? "closed"
+          : "open",
+      latestPrice: order.filled_avg_price
+        ? Number(order.filled_avg_price)
+        : null,
       realizedPnlUsd: null,
     };
   }

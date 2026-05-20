@@ -1,4 +1,8 @@
-import type { PipelineDefinition, PipelinePhase, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import type {
+  PipelineDefinition,
+  PipelinePhase,
+  WorkerDefinition,
+} from "@electron/shared/ai/pipeline-phase";
 import { DEFAULT_PIPELINE_CONFIG } from "@electron/shared/ai/pipeline-config";
 import type {
   EffectivePipelineConfig,
@@ -39,7 +43,9 @@ export interface ValidatePipelineDefinitionCatalogOptions {
   promptLoader?: Pick<PromptAssetLoader, "load">;
 }
 
-export function resolveEffectivePipelineConfig(opts: ResolveEffectivePipelineConfigOptions): EffectivePipelineConfig {
+export function resolveEffectivePipelineConfig(
+  opts: ResolveEffectivePipelineConfigOptions,
+): EffectivePipelineConfig {
   const stages = listPipelineDefinitions().map(({ phase, definition }) =>
     resolveEffectiveStage({
       phase,
@@ -66,7 +72,9 @@ export function resolveEffectivePipelineConfig(opts: ResolveEffectivePipelineCon
       phases: DEFAULT_PIPELINE_CONFIG.phases,
     },
     sourceMap: buildSourceMap(stages),
-    planStages: resolveEffectivePlanStages(opts.pipelineId ?? DEFAULT_PIPELINE_ID),
+    planStages: resolveEffectivePlanStages(
+      opts.pipelineId ?? DEFAULT_PIPELINE_ID,
+    ),
   };
 }
 
@@ -88,12 +96,18 @@ export function assertValidEffectivePipelineConfig(
     for (const worker of stage.workers) {
       for (const toolId of worker.tools) {
         if (!SUPPORTED_TOOL_ID_SET.has(toolId)) {
-          errors.push(`Worker '${worker.workerId}' in phase '${stage.id}' references unknown tool '${toolId}'.`);
+          errors.push(
+            `Worker '${worker.workerId}' in phase '${stage.id}' references unknown tool '${toolId}'.`,
+          );
         }
       }
 
       for (const binding of worker.engines) {
-        validateEngineBinding(errors, `Worker '${worker.workerId}' in phase '${stage.id}'`, binding);
+        validateEngineBinding(
+          errors,
+          `Worker '${worker.workerId}' in phase '${stage.id}'`,
+          binding,
+        );
       }
 
       if (opts.promptLoader && worker.promptSource === "default") {
@@ -109,26 +123,35 @@ export function assertValidEffectivePipelineConfig(
   }
 
   if (errors.length > 0) {
-    throw new AppError(`Effective pipeline config is invalid:\n${errors.join("\n")}`, "VALIDATION_FAILED", {
-      pipelineId: config.pipelineId,
-      sessionId: config.sessionId,
-      errors,
-    });
+    throw new AppError(
+      `Effective pipeline config is invalid:\n${errors.join("\n")}`,
+      "VALIDATION_FAILED",
+      {
+        pipelineId: config.pipelineId,
+        sessionId: config.sessionId,
+        errors,
+      },
+    );
   }
 }
 
-export function assertValidPipelineDefinitionCatalog(opts: ValidatePipelineDefinitionCatalogOptions = {}): void {
+export function assertValidPipelineDefinitionCatalog(
+  opts: ValidatePipelineDefinitionCatalogOptions = {},
+): void {
   const errors: string[] = [];
-  const discoveryModes: Array<SessionStrategyContext["researchPosture"]["discoveryMode"]> = ["trend_scan", "event_contract_scan"];
+  const discoveryModes: Array<
+    SessionStrategyContext["researchPosture"]["discoveryMode"]
+  > = ["trend_scan", "event_contract_scan"];
 
   for (const { phase, definition } of listPipelineDefinitions()) {
     for (const binding of definition.engines ?? []) {
       validateEngineBinding(errors, `Phase '${phase}'`, binding);
     }
 
-    const variantKeys = phase === "selector" || phase === "technical" || phase === "fundamental"
-      ? discoveryModes
-      : (["default"] as const);
+    const variantKeys =
+      phase === "selector" || phase === "technical" || phase === "fundamental"
+        ? discoveryModes
+        : (["default"] as const);
 
     for (const variantKey of variantKeys) {
       const workers = workersForEffectiveStage(
@@ -142,11 +165,17 @@ export function assertValidPipelineDefinitionCatalog(opts: ValidatePipelineDefin
       for (const worker of workers) {
         for (const toolId of worker.tools) {
           if (!SUPPORTED_TOOL_ID_SET.has(toolId)) {
-            errors.push(`Worker '${worker.id}' in phase '${phase}' variant '${variantKey}' references unknown tool '${toolId}'.`);
+            errors.push(
+              `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}' references unknown tool '${toolId}'.`,
+            );
           }
         }
         for (const binding of worker.engines ?? []) {
-          validateEngineBinding(errors, `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}'`, binding);
+          validateEngineBinding(
+            errors,
+            `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}'`,
+            binding,
+          );
         }
         if (opts.promptLoader) {
           try {
@@ -162,7 +191,11 @@ export function assertValidPipelineDefinitionCatalog(opts: ValidatePipelineDefin
   }
 
   if (errors.length > 0) {
-    throw new AppError(`Pipeline definition catalog is invalid:\n${errors.join("\n")}`, "VALIDATION_FAILED", { errors });
+    throw new AppError(
+      `Pipeline definition catalog is invalid:\n${errors.join("\n")}`,
+      "VALIDATION_FAILED",
+      { errors },
+    );
   }
 }
 
@@ -173,19 +206,27 @@ function resolveEffectiveStage(input: {
   phaseConfigResolver: PhaseConfigResolver;
   strategyContext: SessionStrategyContext | null;
 }): EffectiveStageConfig {
-  const discoveryMode = input.strategyContext?.researchPosture.discoveryMode ?? "trend_scan";
+  const discoveryMode =
+    input.strategyContext?.researchPosture.discoveryMode ?? "trend_scan";
   const plan = getPhasePlan(input.phase);
-  const workers = workersForEffectiveStage(input.phase, input.definition, discoveryMode);
+  const workers = workersForEffectiveStage(
+    input.phase,
+    input.definition,
+    discoveryMode,
+  );
   const schedulingMode = plan
-    ? (plan.stages.length > 1 ? "dependency_graph" : "flat_parallel")
+    ? plan.stages.length > 1
+      ? "dependency_graph"
+      : "flat_parallel"
     : input.definition.run
       ? "custom_run"
-      : input.definition.scheduling?.mode ?? "flat_parallel";
+      : (input.definition.scheduling?.mode ?? "flat_parallel");
   const maxConcurrency = plan
     ? Math.max(...plan.stages.map((stage) => stage.concurrency), 1)
     : input.definition.run
       ? workers.length
-      : input.definition.scheduling?.maxConcurrency ?? Math.max(1, workers.length);
+      : (input.definition.scheduling?.maxConcurrency ??
+        Math.max(1, workers.length));
 
   return {
     id: input.phase,
@@ -197,17 +238,21 @@ function resolveEffectiveStage(input: {
     schedulingMode,
     maxConcurrency,
     traceMode: input.definition.persistence.traceMode,
-    phaseSpendCapUsd: input.phaseConfigResolver.resolvePhaseSpendCapUsd(input.phase),
+    phaseSpendCapUsd: input.phaseConfigResolver.resolvePhaseSpendCapUsd(
+      input.phase,
+    ),
     inputBuilders: plan?.inspect.inputBuilderIds,
     cachePolicy: plan?.inspect.cachePolicyId,
     engines: input.definition.engines ?? [],
-    workers: workers.map((worker) => resolveEffectiveWorker({
-      phase: input.phase,
-      worker,
-      sessionId: input.sessionId,
-      phaseConfigResolver: input.phaseConfigResolver,
-      definition: input.definition,
-    })),
+    workers: workers.map((worker) =>
+      resolveEffectiveWorker({
+        phase: input.phase,
+        worker,
+        sessionId: input.sessionId,
+        phaseConfigResolver: input.phaseConfigResolver,
+        definition: input.definition,
+      }),
+    ),
   };
 }
 
@@ -218,8 +263,16 @@ function resolveEffectiveWorker(input: {
   phaseConfigResolver: PhaseConfigResolver;
   definition: PipelineDefinition;
 }): EffectiveWorkerConfig {
-  const workerExecConfig = input.phaseConfigResolver.resolveWorkerExecConfig(input.sessionId, input.phase, input.worker.id);
-  const runtimeConfig = input.phaseConfigResolver.resolveWorkerRuntimeConfig(input.phase, input.worker, workerExecConfig.workerOverride);
+  const workerExecConfig = input.phaseConfigResolver.resolveWorkerExecConfig(
+    input.sessionId,
+    input.phase,
+    input.worker.id,
+  );
+  const runtimeConfig = input.phaseConfigResolver.resolveWorkerRuntimeConfig(
+    input.phase,
+    input.worker,
+    workerExecConfig.workerOverride,
+  );
 
   return {
     phase: input.phase,
@@ -234,12 +287,14 @@ function resolveEffectiveWorker(input: {
     toolConfig: input.worker.toolConfig,
     engines: runtimeConfig.engines,
     outputMode: input.worker.outputMode,
-    outputSchemaName: input.worker.outputMode === "object" ? input.worker.id : null,
+    outputSchemaName:
+      input.worker.outputMode === "object" ? input.worker.id : null,
     dependsOn: input.worker.dependsOn ?? [],
     requiredForPhase: input.worker.requiredForPhase ?? true,
     caps: runtimeConfig.caps,
     retry: runtimeConfig.retry,
-    terminalToolNames: input.definition.terminalToolNames ?? runtimeConfig.terminalToolNames,
+    terminalToolNames:
+      input.definition.terminalToolNames ?? runtimeConfig.terminalToolNames,
   };
 }
 
@@ -248,7 +303,8 @@ function workersForEffectiveStage(
   definition: PipelineDefinition,
   discoveryMode: SessionStrategyContext["researchPosture"]["discoveryMode"],
 ): readonly WorkerDefinition[] {
-  if (phase === "selector") return selectorDiscoveryWorkersForMode(discoveryMode);
+  if (phase === "selector")
+    return selectorDiscoveryWorkersForMode(discoveryMode);
   if (phase === "technical") return technicalWorkersForMode(discoveryMode);
   if (phase === "fundamental") return fundamentalWorkersForMode(discoveryMode);
   return definition.workers;
@@ -258,11 +314,14 @@ function variantKeyForPhase(
   phase: PipelinePhase,
   discoveryMode: SessionStrategyContext["researchPosture"]["discoveryMode"],
 ): string {
-  if (phase === "selector" || phase === "technical" || phase === "fundamental") return discoveryMode;
+  if (phase === "selector" || phase === "technical" || phase === "fundamental")
+    return discoveryMode;
   return "default";
 }
 
-function uniqueEngineBindings(bindings: readonly import("@electron/shared/ai/pipeline-phase").EngineBinding[]): import("@electron/shared/ai/pipeline-phase").EngineBinding[] {
+function uniqueEngineBindings(
+  bindings: readonly import("@electron/shared/ai/pipeline-phase").EngineBinding[],
+): import("@electron/shared/ai/pipeline-phase").EngineBinding[] {
   const seen = new Set<string>();
   const out: import("@electron/shared/ai/pipeline-phase").EngineBinding[] = [];
   for (const binding of bindings) {
@@ -282,24 +341,58 @@ function validateEngineBinding(
   try {
     const engine = requireEngine(binding.engine);
     if (engine.kind !== binding.kind) {
-      errors.push(`${owner} binds engine '${binding.engine}' as kind '${binding.kind}', but registry kind is '${engine.kind}'.`);
+      errors.push(
+        `${owner} binds engine '${binding.engine}' as kind '${binding.kind}', but registry kind is '${engine.kind}'.`,
+      );
     }
   } catch (error) {
-    errors.push(`${owner} references missing engine '${binding.engine}': ${error instanceof Error ? error.message : String(error)}`);
+    errors.push(
+      `${owner} references missing engine '${binding.engine}': ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
-function buildSourceMap(stages: EffectiveStageConfig[]): EffectivePipelineConfig["sourceMap"] {
+function buildSourceMap(
+  stages: EffectiveStageConfig[],
+): EffectivePipelineConfig["sourceMap"] {
   return [
-    { path: "DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd", source: "default", value: DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd },
+    {
+      path: "DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd",
+      source: "default",
+      value: DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd,
+    },
     ...stages.flatMap((stage) => [
-      { path: `stages.${stage.id}.variantKey`, source: "derived" as const, value: stage.variantKey },
-      { path: `stages.${stage.id}.phaseSpendCapUsd`, source: "default" as const, value: stage.phaseSpendCapUsd },
+      {
+        path: `stages.${stage.id}.variantKey`,
+        source: "derived" as const,
+        value: stage.variantKey,
+      },
+      {
+        path: `stages.${stage.id}.phaseSpendCapUsd`,
+        source: "default" as const,
+        value: stage.phaseSpendCapUsd,
+      },
       ...stage.workers.flatMap((worker) => [
-        { path: `stages.${stage.id}.workers.${worker.workerId}.providerKey`, source: "db" as const, value: worker.providerKey },
-        { path: `stages.${stage.id}.workers.${worker.workerId}.modelId`, source: "db" as const, value: worker.modelId },
-        { path: `stages.${stage.id}.workers.${worker.workerId}.promptAssetPath`, source: "default" as const, value: worker.promptAssetPath },
-        { path: `stages.${stage.id}.workers.${worker.workerId}.tools`, source: "default" as const, value: worker.tools },
+        {
+          path: `stages.${stage.id}.workers.${worker.workerId}.providerKey`,
+          source: "db" as const,
+          value: worker.providerKey,
+        },
+        {
+          path: `stages.${stage.id}.workers.${worker.workerId}.modelId`,
+          source: "db" as const,
+          value: worker.modelId,
+        },
+        {
+          path: `stages.${stage.id}.workers.${worker.workerId}.promptAssetPath`,
+          source: "default" as const,
+          value: worker.promptAssetPath,
+        },
+        {
+          path: `stages.${stage.id}.workers.${worker.workerId}.tools`,
+          source: "default" as const,
+          value: worker.tools,
+        },
       ]),
     ]),
   ];

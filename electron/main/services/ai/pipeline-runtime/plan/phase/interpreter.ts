@@ -5,7 +5,12 @@ import { resolveSessionInstrumentClasses } from "../../../../session/effective-i
 import { getCachePolicy } from "../registry/cache-policy-registry";
 import { buildCompositeInput } from "../registry/input-builder-registry";
 import type { PhasePlanServices } from "./services";
-import type { PhasePlan, PhasePlanRunContext, PhasePlanRunResult, PhasePlanWorkerTrace } from "./types";
+import type {
+  PhasePlan,
+  PhasePlanRunContext,
+  PhasePlanRunResult,
+  PhasePlanWorkerTrace,
+} from "./types";
 import type { PipelineWorkerRunner } from "../../core/types";
 import type { ToolBuildContext } from "../../context/tool-factory-registry";
 import type { SessionStrategyContext } from "@electron/shared/domain";
@@ -25,8 +30,13 @@ export interface PhasePlanInterpreterRunInput {
 }
 
 export class PhasePlanInterpreter {
-  async run<TOutput>(input: PhasePlanInterpreterRunInput): Promise<PhasePlanRunResult<TOutput>> {
-    const instrumentClasses = resolveSessionInstrumentClasses(input.session, input.services);
+  async run<TOutput>(
+    input: PhasePlanInterpreterRunInput,
+  ): Promise<PhasePlanRunResult<TOutput>> {
+    const instrumentClasses = resolveSessionInstrumentClasses(
+      input.session,
+      input.services,
+    );
     const toolContext: ToolBuildContext = {
       ...input.toolContext,
       instrumentClasses,
@@ -62,20 +72,25 @@ export class PhasePlanInterpreter {
       if (!entryMode.matches(ctx)) continue;
       const output = await entryMode.resolveOutput(ctx);
       return {
-        output: (input.plan.filterOutput?.(output as never, ctx) ?? output) as TOutput,
-        source: entryMode.id === "manual_shortlist" ? "manual_shortlist" : "phase",
+        output: (input.plan.filterOutput?.(output as never, ctx) ??
+          output) as TOutput,
+        source:
+          entryMode.id === "manual_shortlist" ? "manual_shortlist" : "phase",
         instrumentClasses,
       };
     }
 
     if (input.plan.inputBuilderIds?.length) {
-      ctx.input.selectionInstructions = await buildCompositeInput(input.plan.inputBuilderIds, {
-        sessionId: ctx.sessionId,
-        session: ctx.session,
-        instrumentClasses,
-        toolContext: ctx.toolContext,
-        services: ctx.services,
-      });
+      ctx.input.selectionInstructions = await buildCompositeInput(
+        input.plan.inputBuilderIds,
+        {
+          sessionId: ctx.sessionId,
+          session: ctx.session,
+          instrumentClasses,
+          toolContext: ctx.toolContext,
+          services: ctx.services,
+        },
+      );
     }
 
     let state = await input.plan.initialState(ctx);
@@ -86,23 +101,36 @@ export class PhasePlanInterpreter {
       if (workers.length === 0) continue;
 
       const settled = await ctx.runner.executeGroup(
-        workers.map((worker) => () =>
-          ctx.runner.execute<unknown>(worker, stage.buildTask(ctx, state, worker)).then((result) => ({ worker, result })),
+        workers.map(
+          (worker) => () =>
+            ctx.runner
+              .execute<unknown>(worker, stage.buildTask(ctx, state, worker))
+              .then((result) => ({ worker, result })),
         ),
         stage.concurrency,
       );
 
       const results = settled
         .filter(
-          (entry): entry is PromiseFulfilledResult<{ worker: WorkerDefinition; result: AgentResult<unknown> }> =>
-            entry.status === "fulfilled",
+          (
+            entry,
+          ): entry is PromiseFulfilledResult<{
+            worker: WorkerDefinition;
+            result: AgentResult<unknown>;
+          }> => entry.status === "fulfilled",
         )
         .map((entry) => entry.value);
       const rejectedReasons = settled
-        .filter((entry): entry is PromiseRejectedResult => entry.status === "rejected")
+        .filter(
+          (entry): entry is PromiseRejectedResult =>
+            entry.status === "rejected",
+        )
         .map((entry) => formatRejectionReason(entry.reason));
 
-      if (stage.minSuccessfulWorkers != null && results.length < stage.minSuccessfulWorkers) {
+      if (
+        stage.minSuccessfulWorkers != null &&
+        results.length < stage.minSuccessfulWorkers
+      ) {
         throw new AppError(
           `Stage '${stage.id}' in phase '${input.plan.phase}' produced insufficient successful workers (${results.length}/${stage.minSuccessfulWorkers}).${formatRejectedReasons(rejectedReasons)}`,
           "VALIDATION_FAILED",
@@ -110,14 +138,22 @@ export class PhasePlanInterpreter {
       }
 
       if (!stage.toleratePartialFailure && results.length !== workers.length) {
-        throw new AppError(`Stage '${stage.id}' in phase '${input.plan.phase}' failed worker execution.${formatRejectedReasons(rejectedReasons)}`, "VALIDATION_FAILED");
+        throw new AppError(
+          `Stage '${stage.id}' in phase '${input.plan.phase}' failed worker execution.${formatRejectedReasons(rejectedReasons)}`,
+          "VALIDATION_FAILED",
+        );
       }
 
       for (const { worker, result } of results) {
         workerTraces.push({
           workerId: worker.id,
           frontier: stage.frontier,
-          dependsOn: stage.frontier === 0 ? [] : workerTraces.filter((trace) => trace.frontier === 0).map((trace) => trace.workerId),
+          dependsOn:
+            stage.frontier === 0
+              ? []
+              : workerTraces
+                  .filter((trace) => trace.frontier === 0)
+                  .map((trace) => trace.workerId),
           requiredForPhase: stage.frontier === 0,
           run: result.run,
           message: result.message,
@@ -128,7 +164,8 @@ export class PhasePlanInterpreter {
     }
 
     const finalized = await input.plan.finalize(ctx, state, workerTraces);
-    const output = (input.plan.filterOutput?.(finalized.output, ctx) ?? finalized.output) as TOutput;
+    const output = (input.plan.filterOutput?.(finalized.output, ctx) ??
+      finalized.output) as TOutput;
     const aggregate = finalized.aggregate;
 
     if (aggregate && input.plan.persistAggregate !== false) {
@@ -157,7 +194,9 @@ export class PhasePlanInterpreter {
       output,
       source: "ai_picker",
       run: aggregate?.run as AgentResult<TOutput>["run"] | undefined,
-      message: aggregate?.message as AgentResult<TOutput>["message"] | undefined,
+      message: aggregate?.message as
+        | AgentResult<TOutput>["message"]
+        | undefined,
       instrumentClasses,
     };
   }

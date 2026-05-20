@@ -1,4 +1,7 @@
-import type { AllocationEnforcement, BrokerAccountWithState } from "@/lib/types";
+import type {
+  AllocationEnforcement,
+  BrokerAccountWithState,
+} from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
@@ -20,24 +23,42 @@ export class BrokerCapitalService {
 
   listWithState(): BrokerAccountWithState[] {
     const accounts = this.brokerAccountsRepo.list();
-    const activeSessions = this.sessionRepo.listByStatuses(["active", "paused"]);
+    const activeSessions = this.sessionRepo.listByStatuses([
+      "active",
+      "paused",
+    ]);
     const activeIds = new Set(activeSessions.map((session) => session.id));
-    const sessionMap = new Map(activeSessions.map((session) => [session.id, session]));
+    const sessionMap = new Map(
+      activeSessions.map((session) => [session.id, session]),
+    );
 
     return accounts.map((account) => {
-      const allAssignments = this.assignmentsRepo.listAssignmentsForBroker(account.id);
-      const activeAssignments = allAssignments.filter((assignment) => activeIds.has(assignment.sessionId));
-      const totalAllocatedUsd = activeAssignments.reduce((sum, assignment) => sum + assignment.allocatedUsd, 0);
-      const freeCapitalUsd = account.balanceCacheUsd != null ? account.balanceCacheUsd - totalAllocatedUsd : null;
+      const allAssignments = this.assignmentsRepo.listAssignmentsForBroker(
+        account.id,
+      );
+      const activeAssignments = allAssignments.filter((assignment) =>
+        activeIds.has(assignment.sessionId),
+      );
+      const totalAllocatedUsd = activeAssignments.reduce(
+        (sum, assignment) => sum + assignment.allocatedUsd,
+        0,
+      );
+      const freeCapitalUsd =
+        account.balanceCacheUsd != null
+          ? account.balanceCacheUsd - totalAllocatedUsd
+          : null;
       const staleLimitMs = account.balanceRefreshIntervalMin * 60 * 1000;
-      const isStale = !account.balanceCachedAt || Date.now() - Date.parse(account.balanceCachedAt) > staleLimitMs;
+      const isStale =
+        !account.balanceCachedAt ||
+        Date.now() - Date.parse(account.balanceCachedAt) > staleLimitMs;
 
       return {
         ...account,
         isStale,
         sessions: activeAssignments.map((assignment) => ({
           sessionId: assignment.sessionId,
-          sessionName: sessionMap.get(assignment.sessionId)?.name ?? assignment.sessionId,
+          sessionName:
+            sessionMap.get(assignment.sessionId)?.name ?? assignment.sessionId,
           status: sessionMap.get(assignment.sessionId)?.status ?? "draft",
           allocatedUsd: assignment.allocatedUsd,
         })),
@@ -50,15 +71,27 @@ export class BrokerCapitalService {
     });
   }
 
-  checkSessionStartFits(sessionId: string): { ok: true } | { ok: false; failures: AllocationCheckFailure[] } {
+  checkSessionStartFits(
+    sessionId: string,
+  ): { ok: true } | { ok: false; failures: AllocationCheckFailure[] } {
     const assignments = this.assignmentsRepo.listAssignments(sessionId);
-    const activeSessions = this.sessionRepo.listByStatuses(["active", "paused"]);
-    const otherActiveIds = activeSessions.filter((session) => session.id !== sessionId).map((session) => session.id);
+    const activeSessions = this.sessionRepo.listByStatuses([
+      "active",
+      "paused",
+    ]);
+    const otherActiveIds = activeSessions
+      .filter((session) => session.id !== sessionId)
+      .map((session) => session.id);
     const failures: AllocationCheckFailure[] = [];
 
     for (const assignment of assignments) {
-      const account = this.brokerAccountsRepo.require(assignment.brokerAccountId);
-      const currentCount = this.assignmentsRepo.countActiveSessionsForBroker(account.id, otherActiveIds);
+      const account = this.brokerAccountsRepo.require(
+        assignment.brokerAccountId,
+      );
+      const currentCount = this.assignmentsRepo.countActiveSessionsForBroker(
+        account.id,
+        otherActiveIds,
+      );
       if (currentCount >= account.maxSessions) {
         failures.push({
           brokerAccountId: account.id,
@@ -70,7 +103,11 @@ export class BrokerCapitalService {
       }
 
       if (account.balanceCacheUsd != null) {
-        const currentlyAllocated = this.assignmentsRepo.sumAllocatedUsdForBroker(account.id, otherActiveIds);
+        const currentlyAllocated =
+          this.assignmentsRepo.sumAllocatedUsdForBroker(
+            account.id,
+            otherActiveIds,
+          );
         const freeCapital = account.balanceCacheUsd - currentlyAllocated;
         if (assignment.allocatedUsd > freeCapital) {
           failures.push({
@@ -96,11 +133,20 @@ export class BrokerCapitalService {
   ): void {
     if (patch.maxSessions !== undefined) {
       if (patch.maxSessions < 1 || patch.maxSessions > 50) {
-        throw new AppError("maxSessions must be between 1 and 50", "VALIDATION_FAILED");
+        throw new AppError(
+          "maxSessions must be between 1 and 50",
+          "VALIDATION_FAILED",
+        );
       }
-      const activeSessions = this.sessionRepo.listByStatuses(["active", "paused"]);
+      const activeSessions = this.sessionRepo.listByStatuses([
+        "active",
+        "paused",
+      ]);
       const activeIds = activeSessions.map((session) => session.id);
-      const currentCount = this.assignmentsRepo.countActiveSessionsForBroker(brokerAccountId, activeIds);
+      const currentCount = this.assignmentsRepo.countActiveSessionsForBroker(
+        brokerAccountId,
+        activeIds,
+      );
       if (patch.maxSessions < currentCount) {
         throw new AppError(
           `Cannot reduce cap to ${patch.maxSessions}; broker has ${currentCount} active sessions.`,
@@ -109,8 +155,14 @@ export class BrokerCapitalService {
       }
     }
     if (patch.balanceRefreshIntervalMin !== undefined) {
-      if (patch.balanceRefreshIntervalMin < 1 || patch.balanceRefreshIntervalMin > 60) {
-        throw new AppError("balanceRefreshIntervalMin must be between 1 and 60", "VALIDATION_FAILED");
+      if (
+        patch.balanceRefreshIntervalMin < 1 ||
+        patch.balanceRefreshIntervalMin > 60
+      ) {
+        throw new AppError(
+          "balanceRefreshIntervalMin must be between 1 and 60",
+          "VALIDATION_FAILED",
+        );
       }
     }
     this.brokerAccountsRepo.updateSettings(brokerAccountId, patch);

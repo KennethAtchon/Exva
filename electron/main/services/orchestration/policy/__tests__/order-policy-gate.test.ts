@@ -48,7 +48,10 @@ function makeInput(overrides: Partial<PolicyGateInput> = {}): PolicyGateInput {
 describe("OrderPolicyGate - price_collar", () => {
   it("passes when placement quote is within collar", () => {
     const input = makeInput();
-    input.decisionRiskInput.placementQuoteSnapshot = { price: 101, timestamp: new Date().toISOString() };
+    input.decisionRiskInput.placementQuoteSnapshot = {
+      price: 101,
+      timestamp: new Date().toISOString(),
+    };
     const result = new OrderPolicyGate().evaluate(input);
     expect(result.allowed).toBe(true);
     expect(result.gatesFailed).not.toContain("price_collar");
@@ -57,7 +60,10 @@ describe("OrderPolicyGate - price_collar", () => {
   it("fails when placement quote drifts beyond collar (stock = 2%)", () => {
     const input = makeInput();
     // stock collar is 2%; drift from 100 → 103 = 3%
-    input.decisionRiskInput.placementQuoteSnapshot = { price: 103, timestamp: new Date().toISOString() };
+    input.decisionRiskInput.placementQuoteSnapshot = {
+      price: 103,
+      timestamp: new Date().toISOString(),
+    };
     const result = new OrderPolicyGate().evaluate(input);
     expect(result.allowed).toBe(false);
     expect(result.gatesFailed).toContain("price_collar");
@@ -127,7 +133,12 @@ describe("OrderPolicyGate - exit_contract", () => {
 
   it("passes when at least one exit policy is defined", () => {
     const input = makeInput();
-    input.decisionRiskInput.exitPolicy = { maxHoldDays: 5, stopLossPct: null, takeProfitPct: null, atrStopMultiplier: null };
+    input.decisionRiskInput.exitPolicy = {
+      maxHoldDays: 5,
+      stopLossPct: null,
+      takeProfitPct: null,
+      atrStopMultiplier: null,
+    };
     const result = new OrderPolicyGate().evaluate(input);
     expect(result.gatesFailed).not.toContain("exit_contract");
   });

@@ -6,7 +6,10 @@ import { payloadMeta } from "../services/infra/log-safety";
 
 const logger = createLogger("ipc");
 
-type Handler<T> = (payload: unknown, event: IpcMainInvokeEvent) => Promise<T> | T;
+type Handler<T> = (
+  payload: unknown,
+  event: IpcMainInvokeEvent,
+) => Promise<T> | T;
 
 /**
  * Verify the IPC invocation came from our own renderer window — not from a
@@ -18,14 +21,23 @@ function isTrustedSender(event: IpcMainInvokeEvent): boolean {
   if (event.senderFrame && event.senderFrame.parent !== null) return false;
   const sender = event.sender;
   // Reject calls from webContents that aren't one of our own BrowserWindows.
-  const ownedByWindow = BrowserWindow.getAllWindows().some((win) => win.webContents.id === sender.id);
+  const ownedByWindow = BrowserWindow.getAllWindows().some(
+    (win) => win.webContents.id === sender.id,
+  );
   return ownedByWindow;
 }
 
-export function handle<T>(ipcMain: IpcMain, channel: string, handler: Handler<T>): void {
+export function handle<T>(
+  ipcMain: IpcMain,
+  channel: string,
+  handler: Handler<T>,
+): void {
   ipcMain.handle(channel, async (event, payload) => {
     if (!isTrustedSender(event)) {
-      logger.warn({ channel, senderId: event.sender.id }, "rejecting IPC from untrusted sender");
+      logger.warn(
+        { channel, senderId: event.sender.id },
+        "rejecting IPC from untrusted sender",
+      );
       throw new Error("Untrusted IPC sender");
     }
     const startedAt = Date.now();
@@ -43,12 +55,20 @@ export function handle<T>(ipcMain: IpcMain, channel: string, handler: Handler<T>
     );
     try {
       const result = await handler(payload, event);
-      logger.debug({ channel, durationMs: Date.now() - startedAt }, "ipc invoke success");
+      logger.debug(
+        { channel, durationMs: Date.now() - startedAt },
+        "ipc invoke success",
+      );
       return result;
     } catch (error) {
       const ipcError = toIpcError(error);
       logger.error(
-        { err: error, channel, code: ipcError.code, durationMs: Date.now() - startedAt },
+        {
+          err: error,
+          channel,
+          code: ipcError.code,
+          durationMs: Date.now() - startedAt,
+        },
         "ipc handler failed",
       );
       const wrapped = new Error(ipcError.message);

@@ -15,7 +15,11 @@ export class RiskPresetsRepo {
   }
 
   findById(id: string): RiskPreset | undefined {
-    const row = this.client.db.select().from(riskPresets).where(eq(riskPresets.id, id)).get();
+    const row = this.client.db
+      .select()
+      .from(riskPresets)
+      .where(eq(riskPresets.id, id))
+      .get();
     return row ? (JSON.parse(row.presetJson) as RiskPreset) : undefined;
   }
 }

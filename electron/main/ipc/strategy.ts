@@ -26,7 +26,10 @@ export function registerStrategyHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.strategy.saveResearchPosture, async (payload) => {
     const input = strategyResearchPostureSaveSchema.parse(payload);
-    services.strategyContext.saveResearchPosture(resolveSessionId(services, input), input.researchPosture);
+    services.strategyContext.saveResearchPosture(
+      resolveSessionId(services, input),
+      input.researchPosture,
+    );
     return { savedAt: new Date().toISOString() };
   });
 
@@ -37,7 +40,10 @@ export function registerStrategyHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.strategy.saveRules, async (payload) => {
     const input = strategyRulesSaveSchema.parse(payload);
-    services.strategyContext.saveRules(resolveSessionId(services, input), input.rules);
+    services.strategyContext.saveRules(
+      resolveSessionId(services, input),
+      input.rules,
+    );
     return { savedAt: new Date().toISOString() };
   });
 
@@ -48,7 +54,10 @@ export function registerStrategyHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.strategy.saveRiskConfig, async (payload) => {
     const input = strategyRiskConfigSaveSchema.parse(payload);
-    services.strategyContext.saveRiskConfig(resolveSessionId(services, input), input.riskConfig);
+    services.strategyContext.saveRiskConfig(
+      resolveSessionId(services, input),
+      input.riskConfig,
+    );
     return { savedAt: new Date().toISOString() };
   });
 
@@ -59,7 +68,10 @@ export function registerStrategyHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.strategy.saveTimeframeConfig, async (payload) => {
     const input = strategyTimeframeConfigSaveSchema.parse(payload);
-    services.strategyContext.saveTimeframeConfig(resolveSessionId(services, input), input.timeframe);
+    services.strategyContext.saveTimeframeConfig(
+      resolveSessionId(services, input),
+      input.timeframe,
+    );
     return { savedAt: new Date().toISOString() };
   });
 
@@ -107,13 +119,30 @@ export function registerStrategyHandlers(services: AppServices): void {
   });
 
   handle(ipcMain, channels.strategy.globalPresets.create, async (payload) => {
-    const { name, preset } = payload as { name: string; preset: Record<string, unknown> };
-    return services.repos.globalPresets.insert({ name, preset: preset as Parameters<typeof services.repos.globalPresets.insert>[0]["preset"] });
+    const { name, preset } = payload as {
+      name: string;
+      preset: Record<string, unknown>;
+    };
+    return services.repos.globalPresets.insert({
+      name,
+      preset: preset as Parameters<
+        typeof services.repos.globalPresets.insert
+      >[0]["preset"],
+    });
   });
 
   handle(ipcMain, channels.strategy.globalPresets.update, async (payload) => {
-    const { id, name, preset } = payload as { id: string; name: string; preset: Record<string, unknown> };
-    services.repos.globalPresets.update(id, { name, preset: preset as Parameters<typeof services.repos.globalPresets.update>[1]["preset"] });
+    const { id, name, preset } = payload as {
+      id: string;
+      name: string;
+      preset: Record<string, unknown>;
+    };
+    services.repos.globalPresets.update(id, {
+      name,
+      preset: preset as Parameters<
+        typeof services.repos.globalPresets.update
+      >[1]["preset"],
+    });
     return { ok: true };
   });
 
@@ -125,46 +154,86 @@ export function registerStrategyHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.strategy.getWorkspaceDefaultModel, async () => {
     const prefs = services.repos.workspacePreferences.get();
-    return { providerKey: prefs.defaultModelProviderKey, modelId: prefs.defaultModelModelId };
+    return {
+      providerKey: prefs.defaultModelProviderKey,
+      modelId: prefs.defaultModelModelId,
+    };
   });
 
-  handle(ipcMain, channels.strategy.saveWorkspaceDefaultModel, async (payload) => {
-    const { providerKey, modelId } = payload as { providerKey: string; modelId: string };
+  handle(
+    ipcMain,
+    channels.strategy.saveWorkspaceDefaultModel,
+    async (payload) => {
+      const { providerKey, modelId } = payload as {
+        providerKey: string;
+        modelId: string;
+      };
 
-    if (!providerKey.trim()) {
-      throw new AppError("Select an AI provider for the workspace default model.", "VALIDATION_FAILED", {
-        field: "providerKey",
+      if (!providerKey.trim()) {
+        throw new AppError(
+          "Select an AI provider for the workspace default model.",
+          "VALIDATION_FAILED",
+          {
+            field: "providerKey",
+          },
+        );
+      }
+
+      if (!modelId.trim()) {
+        throw new AppError(
+          "Select a model for the workspace default AI provider.",
+          "VALIDATION_FAILED",
+          {
+            field: "modelId",
+          },
+        );
+      }
+
+      const provider = services.repos.providerAccounts.find(providerKey);
+      if (!provider || provider.category !== "ai") {
+        throw new AppError(
+          "Workspace default AI model must use an existing AI provider account.",
+          "PROVIDER_NOT_CONFIGURED",
+          {
+            field: "providerKey",
+            providerKey,
+          },
+        );
+      }
+
+      if (!provider.isConfigured) {
+        throw new AppError(
+          "Connect this AI provider in Accounts before setting it as the workspace default.",
+          "PROVIDER_NOT_CONFIGURED",
+          {
+            field: "providerKey",
+            providerKey,
+          },
+        );
+      }
+
+      services.repos.workspacePreferences.update({
+        defaultModelProviderKey: providerKey,
+        defaultModelModelId: modelId,
       });
-    }
-
-    if (!modelId.trim()) {
-      throw new AppError("Select a model for the workspace default AI provider.", "VALIDATION_FAILED", {
-        field: "modelId",
-      });
-    }
-
-    const provider = services.repos.providerAccounts.find(providerKey);
-    if (!provider || provider.category !== "ai") {
-      throw new AppError("Workspace default AI model must use an existing AI provider account.", "PROVIDER_NOT_CONFIGURED", {
-        field: "providerKey",
+      services.repos.sessionAiPhases.backfillMissingProviderModel({
         providerKey,
+        modelId,
       });
-    }
-
-    if (!provider.isConfigured) {
-      throw new AppError("Connect this AI provider in Accounts before setting it as the workspace default.", "PROVIDER_NOT_CONFIGURED", {
-        field: "providerKey",
-        providerKey,
-      });
-    }
-
-    services.repos.workspacePreferences.update({ defaultModelProviderKey: providerKey, defaultModelModelId: modelId });
-    services.repos.sessionAiPhases.backfillMissingProviderModel({ providerKey, modelId });
-    return { savedAt: new Date().toISOString() };
-  });
+      return { savedAt: new Date().toISOString() };
+    },
+  );
 }
 
-function resolveSessionId(services: AppServices, payload: { sessionId?: string } | unknown): string {
-  const sessionId = typeof payload === "object" && payload !== null && "sessionId" in payload ? payload.sessionId : undefined;
-  return typeof sessionId === "string" && sessionId.length > 0 ? sessionId : services.repos.session.getFocusedSessionId();
+function resolveSessionId(
+  services: AppServices,
+  payload: { sessionId?: string } | unknown,
+): string {
+  const sessionId =
+    typeof payload === "object" && payload !== null && "sessionId" in payload
+      ? payload.sessionId
+      : undefined;
+  return typeof sessionId === "string" && sessionId.length > 0
+    ? sessionId
+    : services.repos.session.getFocusedSessionId();
 }

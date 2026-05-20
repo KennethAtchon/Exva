@@ -26,7 +26,6 @@ If nothing changes: sessions take 5–10 minutes to configure from scratch, user
 
 **Goals**
 
-
 | #   | Goal                                                                                     | Success Looks Like                                                                                                           |
 | --- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Refactor prompt message split so stable content is in system, dynamic content is in user | Prompt cache hit rate >0% for same-session repeated runs; system prompt changes only when role/risk/timeframe config changes |
@@ -36,9 +35,7 @@ If nothing changes: sessions take 5–10 minutes to configure from scratch, user
 | 5   | Set a default AI model for OpenRouter so roles auto-populate                             | New session with OpenRouter connected has all 5 roles pre-filled with `google/gemma-4-31b-it`                                |
 | 6   | Redesign the Strategy tab layout to lead with preset selection                           | Time from "no session configured" to "session ready to start" drops to under 60 seconds for users applying a built-in preset |
 
-
 **Non-Goals**
-
 
 | #   | Non-Goal                                                     | Reason                                                                                        |
 | --- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
@@ -48,7 +45,6 @@ If nothing changes: sessions take 5–10 minutes to configure from scratch, user
 | 4   | Changing the AgentPromptPackBuilder internal rendering logic | Only the system/user split changes, not the content or the builder abstraction                |
 | 5   | Full strategy backtesting or parameter optimization          | Separate product surface                                                                      |
 | 6   | AI model selection UI redesign outside the strategy tab      | Accounts page is out of scope                                                                 |
-
 
 ---
 
@@ -76,7 +72,6 @@ Everything except the task is in the system prompt. This means every single run 
 
 **Preset state in `electron/shared/domain.ts`**:
 
-
 | Section                 | Presets                  | Coverage |
 | ----------------------- | ------------------------ | -------- |
 | Style (ResearchPosture) | 6 named presets + custom | Complete |
@@ -85,7 +80,6 @@ Everything except the task is in the system prompt. This means every single run 
 | Timeframe               | None                     | Missing  |
 | Role Profiles           | None                     | Missing  |
 | Global (cross-section)  | None                     | Missing  |
-
 
 **UI: `src/pages/StrategyConfig.tsx`**
 
@@ -144,7 +138,6 @@ Source: [https://ui-patterns.com/patterns/settings](https://ui-patterns.com/patt
 
 Keep everything as is. Do not change the prompt split, do not add new presets, do not redesign the UI. Minor convenience additions only (e.g. a "copy to all roles" button on the AI Roles tab).
 
-
 | Dimension      | Assessment                                 |
 | -------------- | ------------------------------------------ |
 | Complexity     | Very low — no structural changes           |
@@ -154,7 +147,6 @@ Keep everything as is. Do not change the prompt split, do not add new presets, d
 | Reversibility  | N/A                                        |
 | Stack fit      | Perfect — no risk                          |
 | Team readiness | N/A                                        |
-
 
 Risks:
 
@@ -170,7 +162,6 @@ Open questions: None — status quo is well understood.
 
 Add `RiskPreset`, `TimeframePreset`, and `GlobalStrategyPreset` types to `domain.ts`. Add built-in presets. Set OpenRouter default model. Keep the flat-tab UI layout as is.
 
-
 | Dimension      | Assessment                                                                                 |
 | -------------- | ------------------------------------------------------------------------------------------ |
 | Complexity     | Low-medium — 2 new preset arrays in domain.ts, new global preset type, small store changes |
@@ -180,7 +171,6 @@ Add `RiskPreset`, `TimeframePreset`, and `GlobalStrategyPreset` types to `domain
 | Reversibility  | Easy — additive to domain.ts                                                               |
 | Stack fit      | Good — follows existing RESEARCH_POSTURE_PRESETS pattern                                   |
 | Team readiness | Easy                                                                                       |
-
 
 Risks:
 
@@ -202,7 +192,6 @@ Four coordinated changes delivered in phases:
 3. **Default AI model**: Add workspace-level default AI model config (provider key + model ID). When a session loads and a role has no model set, auto-populate from the workspace default. OpenRouter default = `google/gemma-4-31b-it`.
 4. **UI redesign**: Replace the flat-tab top strip with a two-zone layout. Zone 1 (landing): global preset cards with one-click apply. Zone 2 (detail): section tabs for deep editing, accessible via "Customize" button. The preset grid is the default view; tabs are secondary.
 
-
 | Dimension      | Assessment                                                                       |
 | -------------- | -------------------------------------------------------------------------------- |
 | Complexity     | Medium — 4 coordinated changes, but each is independently shippable              |
@@ -213,9 +202,7 @@ Four coordinated changes delivered in phases:
 | Stack fit      | Strong — follows existing patterns (domain.ts arrays, Zustand store, migrations) |
 | Team readiness | Good — all changes are in known layers                                           |
 
-
 Risks:
-
 
 | Risk                                                                      | Impact | Likelihood                                                  |
 | ------------------------------------------------------------------------- | ------ | ----------------------------------------------------------- |
@@ -223,7 +210,6 @@ Risks:
 | Global preset application overwrites user customizations without warning  | Medium | Medium — mitigate with confirmation dialog                  |
 | DB migration for global_presets table causes issues on existing local DBs | Low    | Low — additive migration                                    |
 | UI redesign takes longer than the prompt/preset work                      | Medium | Medium — phase it: presets first, full redesign second      |
-
 
 Open questions:
 
@@ -236,7 +222,6 @@ Open questions:
 
 Build a full preset management system with versioned presets, cross-device sync, preset marketplace, and live inheritance resolution (sub-presets inherit from global preset at runtime, not at apply-time).
 
-
 | Dimension      | Assessment                                                                |
 | -------------- | ------------------------------------------------------------------------- |
 | Complexity     | Very high — requires a sync backend, version system, inheritance resolver |
@@ -246,7 +231,6 @@ Build a full preset management system with versioned presets, cross-device sync,
 | Reversibility  | Very hard to unwind if the inheritance model turns out to be wrong        |
 | Stack fit      | Poor — requires a backend service; Exva is explicitly local-first         |
 | Team readiness | Low                                                                       |
-
 
 This option is directionally interesting for a future cloud/sync product but is wrong for the current local-first Electron app.
 
@@ -346,7 +330,6 @@ Conditions that would change the recommendation:
 
 **Proposed built-in global presets:**
 
-
 | Name            | Style                      | Rules            | Risk              | Timeframe  |
 | --------------- | -------------------------- | ---------------- | ----------------- | ---------- |
 | Trend Momentum  | Trend Hunt                 | Breakout Long    | Moderate          | Swing      |
@@ -354,7 +337,6 @@ Conditions that would change the recommendation:
 | Quality Value   | Institutional Quality      | Pullback Trend   | Conservative      | Position   |
 | Mean Reversion  | Mean Reversion Dislocation | Reversal Fade    | Moderate          | Swing      |
 | Prediction Edge | Prediction Event Edge      | Probability Edge | Prediction Market | Prediction |
-
 
 **Deliverables:**
 
@@ -406,7 +388,6 @@ Conditions that would change the recommendation:
 
 ## 8. Risk Register
 
-
 | #   | Risk                                                                                          | Likelihood | Impact | Mitigation                                                                                                                                   |
 | --- | --------------------------------------------------------------------------------------------- | ---------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Prompt split breaks agent behavior in a way tests don't catch                                 | Low        | High   | Manual smoke test a full selector→analysts→reviewer→decision run after Phase 1                                                               |
@@ -417,11 +398,9 @@ Conditions that would change the recommendation:
 | 6   | UI redesign causes layout regressions on smaller screens                                      | Medium     | Medium | Test at 1280×800 (minimum target resolution for Electron desktop app)                                                                        |
 | 7   | Prompt caching doesn't activate because Vercel AI SDK doesn't pass cache headers to Anthropic | Medium     | Medium | Phase 1 is still valuable for code clarity even if caching doesn't activate; verify in production                                            |
 
-
 ---
 
 ## 9. Success Criteria
-
 
 | Goal                           | Metric                                                              | Baseline     | Target                                       | How Measured                                     |
 | ------------------------------ | ------------------------------------------------------------------- | ------------ | -------------------------------------------- | ------------------------------------------------ |
@@ -432,7 +411,6 @@ Conditions that would change the recommendation:
 | User-created preset            | User can create, apply, and delete a custom global preset           | Not possible | End-to-end working                           | Manual test                                      |
 | Prompt pack test coverage      | Prompt-pack tests pass after split refactor                         | All passing  | All passing                                  | `bunx vitest run ...prompt-pack-builder.test.ts` |
 
-
 **Leading indicators:** Phase 1 lands with green tests → prompt split is correct. Phase 2 lands with Risk and Timeframe preset selects rendering → sub-preset pattern proven.
 
 **Lagging indicator:** After Phase 4, measure developer time to configure a fresh session from scratch (target: under 60 seconds with a built-in global preset).
@@ -440,7 +418,6 @@ Conditions that would change the recommendation:
 ---
 
 ## 10. Open Questions
-
 
 | #   | Question                                                                                                                     | Owner   | Needed By                     | Status                                                             |
 | --- | ---------------------------------------------------------------------------------------------------------------------------- | ------- | ----------------------------- | ------------------------------------------------------------------ |
@@ -450,11 +427,9 @@ Conditions that would change the recommendation:
 | 4   | Should built-in global preset content include RoleProfile preset references, or only Style/Rules/Risk/Timeframe?             | Kenneth | Before Phase 3                | Open — Role profile presets would require adding a new preset type |
 | 5   | Does Anthropic prompt caching apply when using the Vercel AI SDK `@ai-sdk/anthropic` adapter, or only with direct API calls? | Kenneth | Before Phase 1 is prioritized | Open — verify in dev panel or Anthropic dashboard                  |
 
-
 ---
 
 ## 11. Alternatives Rejected
-
 
 | Option                                     | Why Rejected                                                                                                                                                             |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -463,7 +438,6 @@ Conditions that would change the recommendation:
 | Full versioning/sync architecture          | Requires a backend service; Exva is local-first; apply-time snapshot is simpler and fits the existing audit trail design                                                 |
 | Moving ALL strategy context to user prompt | Reduces effective authority of risk controls over the model (instruction hierarchy research shows system prompt = higher trust); only dynamic per-run VALUES should move |
 | One preset type covering everything        | Conflates sub-preset identity with field values; makes "customize one thing" harder; IBKR pattern shows sub-preset independence is valuable                              |
-
 
 ---
 
@@ -530,9 +504,9 @@ export interface GlobalStrategyPreset {
   summaryBullets: string[];
   posturePresetId: ResearchPosturePresetId;
   rulesPresetId: TradeRulesPresetId;
-  riskPresetId: RiskPresetId;          // new
+  riskPresetId: RiskPresetId; // new
   timeframePresetId: TimeframePresetId; // new
-  roleProfilePresetId?: string;        // optional — for future use
+  roleProfilePresetId?: string; // optional — for future use
 }
 ```
 
@@ -553,8 +527,8 @@ Add to `workspace_prefs` (or a new field in the existing table):
 
 ```ts
 interface WorkspaceDefaultModelConfig {
-  providerKey: string;   // e.g. "openrouter_account_1"
-  modelId: string;       // e.g. "google/gemma-4-31b-it"
+  providerKey: string; // e.g. "openrouter_account_1"
+  modelId: string; // e.g. "google/gemma-4-31b-it"
 }
 ```
 
@@ -574,14 +548,15 @@ export interface RiskPreset {
   id: RiskPresetId;
   label: string;
   description: string;
-  values: Partial<SessionRiskConfig>;  // only the fields the preset controls
+  values: Partial<SessionRiskConfig>; // only the fields the preset controls
 }
 
 export const RISK_PRESETS: readonly RiskPreset[] = [
   {
     id: "conservative",
     label: "Conservative",
-    description: "Low position sizes, tight stops, daily loss limit enforced, human approval required",
+    description:
+      "Low position sizes, tight stops, daily loss limit enforced, human approval required",
     values: {
       maxPositionUsd: 200,
       stopLossType: "fixed_pct",

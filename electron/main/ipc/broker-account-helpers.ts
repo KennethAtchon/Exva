@@ -2,7 +2,9 @@ import type { InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerAccount } from "@/lib/types";
 
-export function supportedInstrumentClassesFor(brokerType: string): InstrumentClass[] {
+export function supportedInstrumentClassesFor(
+  brokerType: string,
+): InstrumentClass[] {
   switch (brokerType) {
     case "alpaca":
       return ["stock"];
@@ -15,7 +17,10 @@ export function supportedInstrumentClassesFor(brokerType: string): InstrumentCla
     case "mock":
       return ["stock", "crypto", "futures", "prediction_market"];
     default:
-      throw new AppError(`Unknown broker type: ${brokerType}`, "UNKNOWN_BROKER");
+      throw new AppError(
+        `Unknown broker type: ${brokerType}`,
+        "UNKNOWN_BROKER",
+      );
   }
 }
 
@@ -55,7 +60,10 @@ export function serializeBrokerCredentials(
         chainId: Number(creds.chainId ?? creds.chain_id ?? 137),
       });
     default:
-      throw new AppError(`Unknown broker type: ${brokerType}`, "UNKNOWN_BROKER");
+      throw new AppError(
+        `Unknown broker type: ${brokerType}`,
+        "UNKNOWN_BROKER",
+      );
   }
 }
 

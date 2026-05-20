@@ -33,18 +33,18 @@ Include real file references where possible.
 
 ## 3. Goals
 
-| # | Goal | Done Means |
-|---|------|------------|
-| 1 | [Engineering goal] | [Objective done condition] |
-| 2 | [Engineering goal] | [Objective done condition] |
-| 3 | [Engineering goal] | [Objective done condition] |
+| #   | Goal               | Done Means                 |
+| --- | ------------------ | -------------------------- |
+| 1   | [Engineering goal] | [Objective done condition] |
+| 2   | [Engineering goal] | [Objective done condition] |
+| 3   | [Engineering goal] | [Objective done condition] |
 
 ## 4. Non-Goals
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | [Excluded implementation work] | [Why excluded] |
-| 2 | [Excluded implementation work] | [Why excluded] |
+| #   | Non-Goal                       | Reason         |
+| --- | ------------------------------ | -------------- |
+| 1   | [Excluded implementation work] | [Why excluded] |
+| 2   | [Excluded implementation work] | [Why excluded] |
 
 ## 5. Current Architecture Snapshot
 
@@ -110,15 +110,15 @@ If no schema change is needed, state that clearly.
 
 ### 7.1 Entities / Tables
 
-| Table / Entity | Change | Notes |
-|----------------|--------|-------|
-| [Name] | Add / Update / Delete | [Why] |
-| [Name] | Add / Update / Delete | [Why] |
+| Table / Entity | Change                | Notes |
+| -------------- | --------------------- | ----- |
+| [Name]         | Add / Update / Delete | [Why] |
+| [Name]         | Add / Update / Delete | [Why] |
 
 ### 7.2 Fields
 
-| Field | Type | Nullable | Default | Meaning |
-|-------|------|----------|---------|---------|
+| Field        | Type   | Nullable | Default   | Meaning            |
+| ------------ | ------ | -------- | --------- | ------------------ |
 | [field_name] | [type] | Yes / No | [default] | [business meaning] |
 | [field_name] | [type] | Yes / No | [default] | [business meaning] |
 
@@ -239,13 +239,13 @@ Explain:
 
 ## 11. File-Level Change Plan
 
-| File / Area | Change |
-|-------------|--------|
-| `src/...` | [What changes in renderer] |
-| `electron/preload/...` | [What changes in preload] |
-| `electron/main/ipc/...` | [What changes in IPC] |
+| File / Area                  | Change                         |
+| ---------------------------- | ------------------------------ |
+| `src/...`                    | [What changes in renderer]     |
+| `electron/preload/...`       | [What changes in preload]      |
+| `electron/main/ipc/...`      | [What changes in IPC]          |
 | `electron/main/services/...` | [What changes in main service] |
-| `electron/main/db/...` | [What changes in persistence] |
+| `electron/main/db/...`       | [What changes in persistence]  |
 
 ## 12. Rollout Plan
 
@@ -295,17 +295,17 @@ List how engineers will verify and debug this feature after implementation.
 
 ## 15. Risks and Trade-offs
 
-| Risk / Trade-off | Impact | Mitigation |
-|------------------|--------|------------|
-| [Risk] | [Impact] | [Mitigation] |
-| [Risk] | [Impact] | [Mitigation] |
+| Risk / Trade-off | Impact   | Mitigation   |
+| ---------------- | -------- | ------------ |
+| [Risk]           | [Impact] | [Mitigation] |
+| [Risk]           | [Impact] | [Mitigation] |
 
 ## 16. Open Questions
 
-| # | Question | Why it matters | Owner |
-|---|----------|----------------|-------|
-| 1 | [Question] | [Impact on implementation] | [Owner] |
-| 2 | [Question] | [Impact on implementation] | [Owner] |
+| #   | Question   | Why it matters             | Owner   |
+| --- | ---------- | -------------------------- | ------- |
+| 1   | [Question] | [Impact on implementation] | [Owner] |
+| 2   | [Question] | [Impact on implementation] | [Owner] |
 
 ## 17. Done Checklist
 

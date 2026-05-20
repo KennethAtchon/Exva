@@ -11,7 +11,10 @@ export function parseInstrumentScopeSymbols(scope: string): string[] {
     .filter(Boolean);
 }
 
-export async function instrumentConflictCheck(session: WorkspaceSession, deps: OrchestratorDeps): Promise<StepResult> {
+export async function instrumentConflictCheck(
+  session: WorkspaceSession,
+  deps: OrchestratorDeps,
+): Promise<StepResult> {
   if (session.selectionMode !== "manual_shortlist") return { ok: true };
 
   const symbols = parseInstrumentScopeSymbols(session.instrumentScope);
@@ -27,7 +30,10 @@ export async function instrumentConflictCheck(session: WorkspaceSession, deps: O
   for (const ic of session.instrumentClasses) {
     let brokerAccountId: string;
     try {
-      brokerAccountId = deps.brokerRouting.resolveBrokerAccountId(session.id, ic);
+      brokerAccountId = deps.brokerRouting.resolveBrokerAccountId(
+        session.id,
+        ic,
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
@@ -39,7 +45,13 @@ export async function instrumentConflictCheck(session: WorkspaceSession, deps: O
     }
 
     for (const symbol of symbols) {
-      if (deps.tradesRepo.checkInstrumentConflict(brokerAccountId, symbol, session.id)) {
+      if (
+        deps.tradesRepo.checkInstrumentConflict(
+          brokerAccountId,
+          symbol,
+          session.id,
+        )
+      ) {
         return {
           ok: false,
           code: "INSTRUMENT_CONFLICT",

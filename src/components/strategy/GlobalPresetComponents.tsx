@@ -33,7 +33,10 @@ function labelize(id: string): string {
 }
 
 function parseUserPreset(p: UserGlobalPresetRow): GlobalStrategyPreset {
-  const j = JSON.parse(p.presetJson) as Omit<GlobalStrategyPreset, "id" | "label">;
+  const j = JSON.parse(p.presetJson) as Omit<
+    GlobalStrategyPreset,
+    "id" | "label"
+  >;
   return { id: p.id, label: p.name, ...j } as GlobalStrategyPreset;
 }
 
@@ -62,10 +65,26 @@ export function GlobalPresetCard({
   const [applyHover, setApplyHover] = useState(false);
 
   const badges = [
-    { label: labelize(preset.posturePresetId), color: "rgba(99,102,241,0.18)", border: "rgba(99,102,241,0.32)" },
-    { label: labelize(preset.rulesPresetId), color: "rgba(16,185,129,0.14)", border: "rgba(16,185,129,0.28)" },
-    { label: labelize(preset.riskPresetId), color: "rgba(245,158,11,0.14)", border: "rgba(245,158,11,0.28)" },
-    { label: labelize(preset.timeframePresetId), color: "rgba(59,130,246,0.14)", border: "rgba(59,130,246,0.28)" },
+    {
+      label: labelize(preset.posturePresetId),
+      color: "rgba(99,102,241,0.18)",
+      border: "rgba(99,102,241,0.32)",
+    },
+    {
+      label: labelize(preset.rulesPresetId),
+      color: "rgba(16,185,129,0.14)",
+      border: "rgba(16,185,129,0.28)",
+    },
+    {
+      label: labelize(preset.riskPresetId),
+      color: "rgba(245,158,11,0.14)",
+      border: "rgba(245,158,11,0.28)",
+    },
+    {
+      label: labelize(preset.timeframePresetId),
+      color: "rgba(59,130,246,0.14)",
+      border: "rgba(59,130,246,0.28)",
+    },
   ];
 
   return (
@@ -103,19 +122,41 @@ export function GlobalPresetCard({
             left: 0,
             right: 0,
             height: 2,
-            background: "linear-gradient(90deg, transparent, rgba(59,130,246,0.7), transparent)",
+            background:
+              "linear-gradient(90deg, transparent, rgba(59,130,246,0.7), transparent)",
             borderRadius: "14px 14px 0 0",
           }}
         />
       )}
 
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text1)", lineHeight: 1.3 }}>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: "var(--text1)",
+              lineHeight: 1.3,
+            }}
+          >
             {preset.label}
           </div>
           {preset.description && (
-            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 3, lineHeight: 1.45 }}>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--text3)",
+                marginTop: 3,
+                lineHeight: 1.45,
+              }}
+            >
               {preset.description}
             </div>
           )}
@@ -125,7 +166,10 @@ export function GlobalPresetCard({
             {onEdit && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit();
+                }}
                 title="Edit preset"
                 style={iconBtnStyle}
               >
@@ -135,7 +179,10 @@ export function GlobalPresetCard({
             {onDelete && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
                 title="Delete preset"
                 style={{ ...iconBtnStyle, color: "rgba(248,113,113,0.8)" }}
               >
@@ -170,9 +217,25 @@ export function GlobalPresetCard({
       {preset.summaryBullets?.length > 0 && (
         <div style={{ display: "grid", gap: 4 }}>
           {preset.summaryBullets.slice(0, 3).map((b) => (
-            <div key={b} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-              <span style={{ color: "var(--text3)", fontSize: 10, marginTop: 2, flexShrink: 0 }}>▸</span>
-              <span style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.5 }}>{b}</span>
+            <div
+              key={b}
+              style={{ display: "flex", gap: 6, alignItems: "flex-start" }}
+            >
+              <span
+                style={{
+                  color: "var(--text3)",
+                  fontSize: 10,
+                  marginTop: 2,
+                  flexShrink: 0,
+                }}
+              >
+                ▸
+              </span>
+              <span
+                style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.5 }}
+              >
+                {b}
+              </span>
             </div>
           ))}
         </div>
@@ -258,16 +321,35 @@ export function GlobalPresetGrid({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <div>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--text1)", letterSpacing: 0.2 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 15,
+              fontWeight: 700,
+              color: "var(--text1)",
+              letterSpacing: 0.2,
+            }}
+          >
             Global Presets
           </h2>
           <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--text3)" }}>
             Apply a preset to configure all sections at once.
           </p>
         </div>
-        <button type="button" onClick={onCreatePreset} disabled={disabled} style={createBtnStyle(disabled)}>
+        <button
+          type="button"
+          onClick={onCreatePreset}
+          disabled={disabled}
+          style={createBtnStyle(disabled)}
+        >
           + Create Preset
         </button>
       </div>
@@ -312,7 +394,6 @@ export function GlobalPresetGrid({
           );
         })}
       </div>
-
     </div>
   );
 }
@@ -334,9 +415,8 @@ export function CreateEditGlobalPresetModal({
 }: CreateEditGlobalPresetModalProps) {
   const isEdit = Boolean(initial?.name);
   const [name, setName] = useState(initial?.name ?? "");
-  const [posturePresetId, setPosturePresetId] = useState<ResearchPosturePresetId>(
-    initial?.posturePresetId ?? "trend_hunt",
-  );
+  const [posturePresetId, setPosturePresetId] =
+    useState<ResearchPosturePresetId>(initial?.posturePresetId ?? "trend_hunt");
   const [rulesPresetId, setRulesPresetId] = useState<TradeRulesPresetId>(
     initial?.rulesPresetId ?? "breakout_long",
   );
@@ -353,7 +433,13 @@ export function CreateEditGlobalPresetModal({
 
   const handleSave = () => {
     if (!canSave) return;
-    onSave({ name: name.trim(), posturePresetId, rulesPresetId, riskPresetId, timeframePresetId });
+    onSave({
+      name: name.trim(),
+      posturePresetId,
+      rulesPresetId,
+      riskPresetId,
+      timeframePresetId,
+    });
   };
 
   return (
@@ -376,18 +462,27 @@ export function CreateEditGlobalPresetModal({
         style={{
           width: "100%",
           maxWidth: 460,
-          background: "linear-gradient(145deg, rgba(22,32,50,0.98), rgba(14,22,38,0.97))",
+          background:
+            "linear-gradient(145deg, rgba(22,32,50,0.98), rgba(14,22,38,0.97))",
           border: "1px solid rgba(255,255,255,0.1)",
           borderRadius: 16,
           padding: "24px 24px 20px",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(59,130,246,0.1)",
+          boxShadow:
+            "0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(59,130,246,0.1)",
           display: "flex",
           flexDirection: "column",
           gap: 18,
         }}
       >
         <div>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text1)" }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: 16,
+              fontWeight: 700,
+              color: "var(--text1)",
+            }}
+          >
             {isEdit ? "Edit Global Preset" : "Create Global Preset"}
           </h2>
           <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text3)" }}>
@@ -404,36 +499,54 @@ export function CreateEditGlobalPresetModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. My Swing Setup"
-              onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSave();
+              }}
               style={modalInputStyle}
             />
           </ModalField>
           <ModalField label="Style (posture)">
             <ShadcnSelect
               value={posturePresetId}
-              onValueChange={(v) => setPosturePresetId(v as ResearchPosturePresetId)}
-              options={RESEARCH_POSTURE_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+              onValueChange={(v) =>
+                setPosturePresetId(v as ResearchPosturePresetId)
+              }
+              options={RESEARCH_POSTURE_PRESETS.map((p) => ({
+                value: p.id,
+                label: p.label,
+              }))}
             />
           </ModalField>
           <ModalField label="Rules">
             <ShadcnSelect
               value={rulesPresetId}
               onValueChange={(v) => setRulesPresetId(v as TradeRulesPresetId)}
-              options={TRADE_RULE_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+              options={TRADE_RULE_PRESETS.map((p) => ({
+                value: p.id,
+                label: p.label,
+              }))}
             />
           </ModalField>
           <ModalField label="Risk">
             <ShadcnSelect
               value={riskPresetId}
               onValueChange={(v) => setRiskPresetId(v as RiskPresetId)}
-              options={RISK_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+              options={RISK_PRESETS.map((p) => ({
+                value: p.id,
+                label: p.label,
+              }))}
             />
           </ModalField>
           <ModalField label="Timeframe">
             <ShadcnSelect
               value={timeframePresetId}
-              onValueChange={(v) => setTimeframePresetId(v as TimeframePresetId)}
-              options={TIMEFRAME_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+              onValueChange={(v) =>
+                setTimeframePresetId(v as TimeframePresetId)
+              }
+              options={TIMEFRAME_PRESETS.map((p) => ({
+                value: p.id,
+                label: p.label,
+              }))}
             />
           </ModalField>
         </div>
@@ -467,9 +580,23 @@ export function CreateEditGlobalPresetModal({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const ModalField = ({ label, children }: { label: string; children: React.ReactNode }) => (
+const ModalField = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => (
   <div style={{ display: "grid", gap: 6 }}>
-    <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>
+    <div
+      style={{
+        fontSize: 11,
+        color: "var(--text3)",
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        textTransform: "uppercase",
+      }}
+    >
       {label}
     </div>
     {children}
@@ -477,19 +604,46 @@ const ModalField = ({ label, children }: { label: string; children: React.ReactN
 );
 
 const CheckIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={2.5}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="2,8 6,12 14,4" />
   </svg>
 );
 
 const PencilIcon = () => (
-  <svg width={13} height={13} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width={13}
+    height={13}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.6}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M11 2l3 3-9 9H2v-3L11 2z" />
   </svg>
 );
 
 const TrashIcon = () => (
-  <svg width={13} height={13} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width={13}
+    height={13}
+    viewBox="0 0 16 16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.6}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <polyline points="2,4 14,4" />
     <path d="M5 4V2h6v2" />
     <path d="M3 4l1 10h8l1-10" />

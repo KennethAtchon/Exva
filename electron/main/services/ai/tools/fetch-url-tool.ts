@@ -8,9 +8,11 @@ const MAX_CONTENT_CHARS = 8000;
 const MAX_REDIRECT_HOPS = 5;
 
 const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
-const BLOCKED_PRIVATE_IPV4_REGEX = /^(10|127|169\.254|172\.(1[6-9]|2\d|3[01])|192\.168)\./;
+const BLOCKED_PRIVATE_IPV4_REGEX =
+  /^(10|127|169\.254|172\.(1[6-9]|2\d|3[01])|192\.168)\./;
 const ALLOWED_PROTOCOLS = new Set(["http:", "https:"]);
-const HTML_BLOCK_TAGS = /(p|div|section|article|main|aside|header|footer|br|li|ul|ol|tr|td|th|blockquote|h[1-6])/i;
+const HTML_BLOCK_TAGS =
+  /(p|div|section|article|main|aside|header|footer|br|li|ul|ol|tr|td|th|blockquote|h[1-6])/i;
 
 function isBlockedIpv6(addr: string): boolean {
   const a = addr.toLowerCase();
@@ -23,7 +25,13 @@ function isBlockedIpv6(addr: string): boolean {
   // Unique local addresses fc00::/7
   if (a.startsWith("fc") || a.startsWith("fd")) return true;
   // Link-local fe80::/10
-  if (a.startsWith("fe8") || a.startsWith("fe9") || a.startsWith("fea") || a.startsWith("feb")) return true;
+  if (
+    a.startsWith("fe8") ||
+    a.startsWith("fe9") ||
+    a.startsWith("fea") ||
+    a.startsWith("feb")
+  )
+    return true;
   return false;
 }
 
@@ -39,7 +47,11 @@ async function resolvesToPrivate(hostname: string): Promise<boolean> {
   try {
     const records = await dns.lookup(hostname, { all: true });
     for (const r of records) {
-      if (r.family === 4 && (BLOCKED_HOSTS.has(r.address) || BLOCKED_PRIVATE_IPV4_REGEX.test(r.address))) {
+      if (
+        r.family === 4 &&
+        (BLOCKED_HOSTS.has(r.address) ||
+          BLOCKED_PRIVATE_IPV4_REGEX.test(r.address))
+      ) {
         return true;
       }
       if (r.family === 6 && isBlockedIpv6(r.address)) return true;
@@ -51,17 +63,24 @@ async function resolvesToPrivate(hostname: string): Promise<boolean> {
   }
 }
 
-async function isBlockedUrl(raw: string): Promise<{ blocked: boolean; reason?: string }> {
+async function isBlockedUrl(
+  raw: string,
+): Promise<{ blocked: boolean; reason?: string }> {
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     return { blocked: true, reason: "Malformed URL" };
   }
-  if (!ALLOWED_PROTOCOLS.has(url.protocol)) return { blocked: true, reason: "Non-HTTP protocol" };
-  if (isBlockedHostname(url.hostname)) return { blocked: true, reason: "Hostname in private/loopback range" };
+  if (!ALLOWED_PROTOCOLS.has(url.protocol))
+    return { blocked: true, reason: "Non-HTTP protocol" };
+  if (isBlockedHostname(url.hostname))
+    return { blocked: true, reason: "Hostname in private/loopback range" };
   if (await resolvesToPrivate(url.hostname)) {
-    return { blocked: true, reason: "Hostname resolves to a private/loopback address" };
+    return {
+      blocked: true,
+      reason: "Hostname resolves to a private/loopback address",
+    };
   }
   return { blocked: false };
 }
@@ -85,7 +104,9 @@ function stripHtml(html: string): string {
       .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
       .replace(/<template[\s\S]*?<\/template>/gi, " ")
       .replace(/<head[\s\S]*?<\/head>/gi, " ")
-      .replace(/<\/?([a-z0-9]+)[^>]*>/gi, (match, tagName: string) => (HTML_BLOCK_TAGS.test(tagName) ? "\n" : " "))
+      .replace(/<\/?([a-z0-9]+)[^>]*>/gi, (match, tagName: string) =>
+        HTML_BLOCK_TAGS.test(tagName) ? "\n" : " ",
+      )
       .replace(/<[^>]+>/g, " ")
       .replace(/\r/g, "")
       .replace(/[\t\f\v ]+/g, " ")
@@ -138,11 +159,20 @@ export function createFetchUrlTool(deps: {
 
       const initialCheck = await isBlockedUrl(url);
       if (initialCheck.blocked) {
-        return { error: `URL is blocked by fetch policy: ${initialCheck.reason ?? "internal/private/non-HTTP"}.` };
+        return {
+          error: `URL is blocked by fetch policy: ${initialCheck.reason ?? "internal/private/non-HTTP"}.`,
+        };
       }
 
-      if (deps.maxDataSpendUsd != null && deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >= deps.maxDataSpendUsd) {
-        return { error: "Session max data spend reached; fetch blocked by runtime policy." };
+      if (
+        deps.maxDataSpendUsd != null &&
+        deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >=
+          deps.maxDataSpendUsd
+      ) {
+        return {
+          error:
+            "Session max data spend reached; fetch blocked by runtime policy.",
+        };
       }
 
       try {
@@ -159,7 +189,8 @@ export function createFetchUrlTool(deps: {
             response = await fetch(currentUrl, {
               headers: {
                 "User-Agent": "Exva/1.0 research-agent",
-                Accept: "text/html,application/xhtml+xml,text/plain,application/json",
+                Accept:
+                  "text/html,application/xhtml+xml,text/plain,application/json",
               },
               signal: controller.signal,
               redirect: "manual",
@@ -170,7 +201,9 @@ export function createFetchUrlTool(deps: {
               const resolved = new URL(next, currentUrl).toString();
               const check = await isBlockedUrl(resolved);
               if (check.blocked) {
-                return { error: `Redirect blocked by fetch policy: ${check.reason ?? "private/internal target"}.` };
+                return {
+                  error: `Redirect blocked by fetch policy: ${check.reason ?? "private/internal target"}.`,
+                };
               }
               currentUrl = resolved;
               continue;
@@ -185,9 +218,14 @@ export function createFetchUrlTool(deps: {
             return { error: `Fetch failed: HTTP ${response.status}` };
           }
 
-          const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+          const contentType = (
+            response.headers.get("content-type") ?? ""
+          ).toLowerCase();
           const raw = await response.text();
-          const content = normalizeContent(raw, contentType).slice(0, MAX_CONTENT_CHARS);
+          const content = normalizeContent(raw, contentType).slice(
+            0,
+            MAX_CONTENT_CHARS,
+          );
 
           deps.apiCallLogRepo.insert({
             id: crypto.randomUUID(),

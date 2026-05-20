@@ -18,7 +18,11 @@ export class InstrumentCacheRepo {
   constructor(private readonly client: DbClient) {}
 
   get(sessionId: string): SessionInstrumentCacheRow | null {
-    const row = this.client.db.select().from(sessionInstrumentCache).where(eq(sessionInstrumentCache.sessionId, sessionId)).get();
+    const row = this.client.db
+      .select()
+      .from(sessionInstrumentCache)
+      .where(eq(sessionInstrumentCache.sessionId, sessionId))
+      .get();
     if (!row) return null;
     return {
       sessionId: row.sessionId,
@@ -34,7 +38,10 @@ export class InstrumentCacheRepo {
   }
 
   clear(sessionId: string): void {
-    this.client.db.delete(sessionInstrumentCache).where(eq(sessionInstrumentCache.sessionId, sessionId)).run();
+    this.client.db
+      .delete(sessionInstrumentCache)
+      .where(eq(sessionInstrumentCache.sessionId, sessionId))
+      .run();
   }
 
   save(input: {

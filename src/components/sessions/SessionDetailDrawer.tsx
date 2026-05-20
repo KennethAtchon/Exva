@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { getSearchProviderDisplayName } from "@electron/shared/catalog/search-providers";
 import { Badge } from "@/components/custom-ui";
 import { api, type SessionSummary } from "@/lib/exva";
-import type { EventRow, InstrumentClass, ProviderAccount, SessionTemplatePayload } from "@/lib/types";
+import type {
+  EventRow,
+  InstrumentClass,
+  ProviderAccount,
+  SessionTemplatePayload,
+} from "@/lib/types";
 import { Button, Dialog, DialogContent } from "@/components/ui";
 
 type InstrumentCacheView = {
@@ -11,12 +16,19 @@ type InstrumentCacheView = {
   definitionHashMatches: boolean;
 };
 
-export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSummary | null; onClose: () => void }) => {
+export const SessionDetailDrawer = ({
+  session,
+  onClose,
+}: {
+  session: SessionSummary | null;
+  onClose: () => void;
+}) => {
   const [payload, setPayload] = useState<SessionTemplatePayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentEvents, setRecentEvents] = useState<EventRow[]>([]);
-  const [instrumentCache, setInstrumentCache] = useState<InstrumentCacheView | null>(null);
+  const [instrumentCache, setInstrumentCache] =
+    useState<InstrumentCacheView | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
   const [cacheAction, setCacheAction] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderAccount[]>([]);
@@ -26,9 +38,15 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
     let cancelled = false;
     void api
       .getEvents({ sessionId: session.id, limit: 25 })
-      .then((rows) => { if (!cancelled) setRecentEvents(rows); })
-      .catch(() => { if (!cancelled) setRecentEvents([]); });
-    return () => { cancelled = true; };
+      .then((rows) => {
+        if (!cancelled) setRecentEvents(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setRecentEvents([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
   useEffect(() => {
@@ -37,10 +55,18 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
     setCacheLoading(true);
     void api
       .getSessionInstrumentCache(session.id)
-      .then((row) => { if (!cancelled) setInstrumentCache(row); })
-      .catch(() => { if (!cancelled) setInstrumentCache(null); })
-      .finally(() => { if (!cancelled) setCacheLoading(false); });
-    return () => { cancelled = true; };
+      .then((row) => {
+        if (!cancelled) setInstrumentCache(row);
+      })
+      .catch(() => {
+        if (!cancelled) setInstrumentCache(null);
+      })
+      .finally(() => {
+        if (!cancelled) setCacheLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
   useEffect(() => {
@@ -53,11 +79,20 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
       api.getStrategy(session.id).then((res) => res.providers),
     ])
       .then(([result, providerList]) => {
-        if (!cancelled) { setPayload(result); setProviders(providerList); }
+        if (!cancelled) {
+          setPayload(result);
+          setProviders(providerList);
+        }
       })
-      .catch((loadError: Error) => { if (!cancelled) setError(loadError.message); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      .catch((loadError: Error) => {
+        if (!cancelled) setError(loadError.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [session]);
 
   if (!session) return null;
@@ -67,16 +102,46 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
       <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-hidden border-border bg-transparent p-0 sm:max-w-[620px]">
         <div style={panelStyle}>
           {/* Header */}
-          <div style={{ paddingBottom: 18, borderBottom: "1px solid var(--border)", marginBottom: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text1)", letterSpacing: "-0.01em" }}>
+          <div
+            style={{
+              paddingBottom: 18,
+              borderBottom: "1px solid var(--border)",
+              marginBottom: 18,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 17,
+                  fontWeight: 700,
+                  color: "var(--text1)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
                 {session.name}
               </h2>
-              <Badge variant={statusVariant(session.status)}>{session.status}</Badge>
+              <Badge variant={statusVariant(session.status)}>
+                {session.status}
+              </Badge>
               {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
             </div>
             {session.objective ? (
-              <div style={{ marginTop: 6, color: "var(--text2)", fontSize: 13, lineHeight: 1.55 }}>
+              <div
+                style={{
+                  marginTop: 6,
+                  color: "var(--text2)",
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                }}
+              >
                 {session.objective}
               </div>
             ) : null}
@@ -84,12 +149,39 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
 
           {error ? <div style={errorBannerStyle}>{error}</div> : null}
 
-          <div style={{ display: "grid", gap: 12, overflowY: "auto", maxHeight: "calc(92vh - 120px)", paddingRight: 4 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              overflowY: "auto",
+              maxHeight: "calc(92vh - 120px)",
+              paddingRight: 4,
+            }}
+          >
             <Section title="Task Definition">
               <Row label="Instrument scope" value={session.instrumentScope} />
-              <Row label="Selection mode" value={session.selectionMode === "ai_selected_universe" ? "AI selected universe" : "Manual shortlist"} />
-              <Row label="Search provider" value={getSearchProviderDisplayName(session.defaultSearchProviderId)} />
-              <Row label="AI picker" value={payload?.selectorSettings.aiPickerEnabled ? "Enabled" : "Disabled"} />
+              <Row
+                label="Selection mode"
+                value={
+                  session.selectionMode === "ai_selected_universe"
+                    ? "AI selected universe"
+                    : "Manual shortlist"
+                }
+              />
+              <Row
+                label="Search provider"
+                value={getSearchProviderDisplayName(
+                  session.defaultSearchProviderId,
+                )}
+              />
+              <Row
+                label="AI picker"
+                value={
+                  payload?.selectorSettings.aiPickerEnabled
+                    ? "Enabled"
+                    : "Disabled"
+                }
+              />
               {session.selectionMode === "ai_selected_universe" ? (
                 <div style={{ marginTop: 4 }}>
                   <div style={rowLabelStyle}>Last AI universe selection</div>
@@ -99,14 +191,23 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
                     ) : instrumentCache?.instruments?.length ? (
                       <div style={{ display: "grid", gap: 8 }}>
                         <div style={{ fontSize: 12, color: "var(--text2)" }}>
-                          {instrumentCache.selectedAt ? `Selected ${formatTimestamp(instrumentCache.selectedAt)}` : "—"}
+                          {instrumentCache.selectedAt
+                            ? `Selected ${formatTimestamp(instrumentCache.selectedAt)}`
+                            : "—"}
                         </div>
                         {!instrumentCache.definitionHashMatches ? (
-                          <Badge variant="warn">Definition changed — next start recomputes universe</Badge>
+                          <Badge variant="warn">
+                            Definition changed — next start recomputes universe
+                          </Badge>
                         ) : null}
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        <div
+                          style={{ display: "flex", flexWrap: "wrap", gap: 4 }}
+                        >
                           {instrumentCache.instruments.map((row) => (
-                            <span key={`${row.symbol}-${row.instrumentClass}`} style={cacheChipStyle}>
+                            <span
+                              key={`${row.symbol}-${row.instrumentClass}`}
+                              style={cacheChipStyle}
+                            >
                               {row.symbol} · {row.instrumentClass}
                             </span>
                           ))}
@@ -115,30 +216,53 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
                           type="button"
                           onClick={async () => {
                             if (!session) return;
-                            if (session.status === "active" || session.status === "paused") {
-                              setCacheAction("Stop the session before clearing the selector cache.");
+                            if (
+                              session.status === "active" ||
+                              session.status === "paused"
+                            ) {
+                              setCacheAction(
+                                "Stop the session before clearing the selector cache.",
+                              );
                               return;
                             }
                             setCacheAction(null);
                             try {
                               await api.clearSessionInstrumentCache(session.id);
-                              const next = await api.getSessionInstrumentCache(session.id);
+                              const next = await api.getSessionInstrumentCache(
+                                session.id,
+                              );
                               setInstrumentCache(next);
-                              setCacheAction("Cache cleared. Selector will run on next session start.");
+                              setCacheAction(
+                                "Cache cleared. Selector will run on next session start.",
+                              );
                             } catch (err) {
-                              setCacheAction(err instanceof Error ? err.message : "Clear failed");
+                              setCacheAction(
+                                err instanceof Error
+                                  ? err.message
+                                  : "Clear failed",
+                              );
                             }
                           }}
-                          disabled={session.status === "active" || session.status === "paused"}
+                          disabled={
+                            session.status === "active" ||
+                            session.status === "paused"
+                          }
                           variant="outline"
                           className="self-start border-border bg-[var(--surface2)] text-xs text-[var(--text2)]"
                         >
                           Re-run selector on next start
                         </Button>
-                        {cacheAction ? <div style={{ fontSize: 12, color: "var(--text3)" }}>{cacheAction}</div> : null}
+                        {cacheAction ? (
+                          <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                            {cacheAction}
+                          </div>
+                        ) : null}
                       </div>
                     ) : (
-                      <span style={mutedStyle}>No cached selection yet (selector runs when you start with AI picker on).</span>
+                      <span style={mutedStyle}>
+                        No cached selection yet (selector runs when you start
+                        with AI picker on).
+                      </span>
                     )}
                   </div>
                 </div>
@@ -146,35 +270,114 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
             </Section>
 
             <Section title="Execution Setup">
-              <Row label="Execution mode" value={session.executionMode === "live_allowed" ? "Live allowed" : "Paper only"} />
+              <Row
+                label="Execution mode"
+                value={
+                  session.executionMode === "live_allowed"
+                    ? "Live allowed"
+                    : "Paper only"
+                }
+              />
               <Row
                 label="Assigned brokers"
                 value={
                   payload?.brokerAssignments.length
-                    ? payload.brokerAssignments.map((entry) => `${entry.brokerAccountId} ($${entry.allocatedUsd.toLocaleString()})`).join(", ")
+                    ? payload.brokerAssignments
+                        .map(
+                          (entry) =>
+                            `${entry.brokerAccountId} ($${entry.allocatedUsd.toLocaleString()})`,
+                        )
+                        .join(", ")
                     : "None assigned"
                 }
               />
-              <Row label="Routing overrides" value={formatOverrides(payload?.brokerOverridesByInstrumentClass)} />
-              <Row label="Instrument classes" value={session.instrumentClasses.map(formatInstrumentClass).join(", ")} />
+              <Row
+                label="Routing overrides"
+                value={formatOverrides(
+                  payload?.brokerOverridesByInstrumentClass,
+                )}
+              />
+              <Row
+                label="Instrument classes"
+                value={session.instrumentClasses
+                  .map(formatInstrumentClass)
+                  .join(", ")}
+              />
             </Section>
 
             <Section title="Risk Limits">
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <StatBlock label="Total allocated" value={`$${session.totalAllocatedUsd.toLocaleString()}`} />
-                <StatBlock label="Max position" value={payload ? `$${payload.strategy.maxPositionUsd.toLocaleString()}` : loading ? "…" : "—"} />
-                <StatBlock label="Stop / target" value={payload ? `${payload.strategy.stopLossPct}% / ${payload.strategy.takeProfitPct}%` : loading ? "…" : "—"} />
-                <StatBlock label="Daily loss / profit" value={payload ? `$${payload.strategy.dailyLossLimitUsd.toLocaleString()} / $${payload.strategy.profitTargetUsd.toLocaleString()}` : loading ? "…" : "—"} />
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                }}
+              >
+                <StatBlock
+                  label="Total allocated"
+                  value={`$${session.totalAllocatedUsd.toLocaleString()}`}
+                />
+                <StatBlock
+                  label="Max position"
+                  value={
+                    payload
+                      ? `$${payload.strategy.maxPositionUsd.toLocaleString()}`
+                      : loading
+                        ? "…"
+                        : "—"
+                  }
+                />
+                <StatBlock
+                  label="Stop / target"
+                  value={
+                    payload
+                      ? `${payload.strategy.stopLossPct}% / ${payload.strategy.takeProfitPct}%`
+                      : loading
+                        ? "…"
+                        : "—"
+                  }
+                />
+                <StatBlock
+                  label="Daily loss / profit"
+                  value={
+                    payload
+                      ? `$${payload.strategy.dailyLossLimitUsd.toLocaleString()} / $${payload.strategy.profitTargetUsd.toLocaleString()}`
+                      : loading
+                        ? "…"
+                        : "—"
+                  }
+                />
               </div>
             </Section>
 
-
             <Section title="Session Summary">
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <StatBlock label="Updated" value={formatTimestamp(session.updatedAt)} />
-                <StatBlock label="Runtime" value={session.uptimeMin > 0 ? `${session.uptimeMin} min` : "Inactive"} />
-                <StatBlock label="Open trades" value={String(session.openTradeCount)} />
-                <StatBlock label="Workspace" value={session.isFocused ? "Focused" : "Alternate context"} />
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                }}
+              >
+                <StatBlock
+                  label="Updated"
+                  value={formatTimestamp(session.updatedAt)}
+                />
+                <StatBlock
+                  label="Runtime"
+                  value={
+                    session.uptimeMin > 0
+                      ? `${session.uptimeMin} min`
+                      : "Inactive"
+                  }
+                />
+                <StatBlock
+                  label="Open trades"
+                  value={String(session.openTradeCount)}
+                />
+                <StatBlock
+                  label="Workspace"
+                  value={session.isFocused ? "Focused" : "Alternate context"}
+                />
               </div>
             </Section>
 
@@ -184,11 +387,34 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
               ) : (
                 <div style={{ display: "grid", gap: 6 }}>
                   {recentEvents.map((ev) => (
-                    <div key={ev.id} style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 10, fontSize: 12, lineHeight: 1.45 }}>
-                      <span style={{ color: "var(--text3)", fontSize: 10, paddingTop: 1, whiteSpace: "nowrap" }}>
+                    <div
+                      key={ev.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "auto 1fr",
+                        gap: 10,
+                        fontSize: 12,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: "var(--text3)",
+                          fontSize: 10,
+                          paddingTop: 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
                         {formatTimestamp(ev.created_at)}
                       </span>
-                      <span style={{ color: ev.level === "ERROR" ? "#f87171" : "var(--text2)" }}>{ev.message}</span>
+                      <span
+                        style={{
+                          color:
+                            ev.level === "ERROR" ? "#f87171" : "var(--text2)",
+                        }}
+                      >
+                        {ev.message}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -201,7 +427,13 @@ export const SessionDetailDrawer = ({ session, onClose }: { session: SessionSumm
   );
 };
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+const Section = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
   <section style={sectionStyle}>
     <div style={sectionTitleStyle}>{title}</div>
     <div style={{ display: "grid", gap: 10 }}>{children}</div>
@@ -209,39 +441,86 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const Row = ({ label, value }: { label: string; value: string }) => (
-  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", gap: 8, alignItems: "start" }}>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "140px 1fr",
+      gap: 8,
+      alignItems: "start",
+    }}
+  >
     <div style={rowLabelStyle}>{label}</div>
-    <div style={{ color: "var(--text1)", fontSize: 13, lineHeight: 1.5 }}>{value}</div>
+    <div style={{ color: "var(--text1)", fontSize: 13, lineHeight: 1.5 }}>
+      {value}
+    </div>
   </div>
 );
 
 const StatBlock = ({ label, value }: { label: string; value: string }) => (
-  <div style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "rgba(7,10,15,0.4)" }}>
+  <div
+    style={{
+      padding: "10px 12px",
+      borderRadius: 10,
+      border: "1px solid var(--border)",
+      background: "rgba(7,10,15,0.4)",
+    }}
+  >
     <div style={rowLabelStyle}>{label}</div>
-    <div style={{ marginTop: 4, color: "var(--text1)", fontSize: 14, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{value}</div>
+    <div
+      style={{
+        marginTop: 4,
+        color: "var(--text1)",
+        fontSize: 14,
+        fontWeight: 600,
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      {value}
+    </div>
   </div>
 );
 
-function statusVariant(status: SessionSummary["status"]): "default" | "success" | "warn" | "danger" | "purple" {
+function statusVariant(
+  status: SessionSummary["status"],
+): "default" | "success" | "warn" | "danger" | "purple" {
   switch (status) {
-    case "active": return "success";
-    case "paused": return "warn";
-    case "archived": return "danger";
-    case "stopped": return "purple";
-    default: return "default";
+    case "active":
+      return "success";
+    case "paused":
+      return "warn";
+    case "archived":
+      return "danger";
+    case "stopped":
+      return "purple";
+    default:
+      return "default";
   }
 }
 
 function formatInstrumentClass(value: InstrumentClass): string {
-  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : value === "futures" ? "Futures" : "Prediction Markets";
+  return value === "stock"
+    ? "Stocks"
+    : value === "crypto"
+      ? "Crypto"
+      : value === "futures"
+        ? "Futures"
+        : "Prediction Markets";
 }
 
-function formatOverrides(overrides?: Partial<Record<InstrumentClass, string>>): string {
-  const entries = Object.entries(overrides ?? {}).filter(([, brokerId]) => brokerId);
+function formatOverrides(
+  overrides?: Partial<Record<InstrumentClass, string>>,
+): string {
+  const entries = Object.entries(overrides ?? {}).filter(
+    ([, brokerId]) => brokerId,
+  );
   if (entries.length === 0) return "No routing overrides";
-  return entries.map(([ic, brokerId]) => `${formatInstrumentClass(ic as InstrumentClass)} → ${brokerId}`).join(" · ");
+  return entries
+    .map(
+      ([ic, brokerId]) =>
+        `${formatInstrumentClass(ic as InstrumentClass)} → ${brokerId}`,
+    )
+    .join(" · ");
 }
-
 
 function formatTimestamp(value: string): string {
   return new Date(value).toLocaleString();
@@ -250,7 +529,8 @@ function formatTimestamp(value: string): string {
 const panelStyle = {
   width: 620,
   maxWidth: "96vw",
-  background: "linear-gradient(180deg, rgba(13,18,25,0.99) 0%, rgba(9,13,18,0.99) 100%)",
+  background:
+    "linear-gradient(180deg, rgba(13,18,25,0.99) 0%, rgba(9,13,18,0.99) 100%)",
   borderRadius: 20,
   padding: 22,
   border: "1px solid var(--border)",
@@ -278,7 +558,6 @@ const rowLabelStyle = {
   lineHeight: 1.5,
   paddingTop: 1,
 } as const;
-
 
 const cacheChipStyle = {
   padding: "3px 8px",

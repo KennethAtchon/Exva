@@ -1,6 +1,11 @@
 import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
 import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
-import type { FundamentalSignal, ReviewSignal, TechnicalSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
+import type {
+  FundamentalSignal,
+  ReviewSignal,
+  TechnicalSignal,
+  TradeSignal,
+} from "@electron/shared/ai/pipeline-signals";
 import { signalForWorkerPrompt } from "@electron/shared/ai/signal-prompt-payload";
 import {
   catalystOutputSchema,
@@ -22,15 +27,22 @@ import {
 } from "../../../../engines/aggregators/trade-signal-aggregator";
 import { DECISION_PHASE } from "../../../definitions/decision.phase";
 import { REVIEW_PHASE } from "../../../definitions/review.phase";
-import { fundamentalWorkersForMode, technicalWorkersForMode } from "../../../pipeline-discovery-config";
+import {
+  fundamentalWorkersForMode,
+  technicalWorkersForMode,
+} from "../../../pipeline-discovery-config";
 import { registerPhasePlan } from "../../phase/registry";
-import { createAggregatorPhasePlan, pickWorkerOutput } from "./aggregator-phase-plan";
+import {
+  createAggregatorPhasePlan,
+  pickWorkerOutput,
+} from "./aggregator-phase-plan";
 
 export const TECHNICAL_PLAN = createAggregatorPhasePlan<TechnicalSignal>({
   phase: "technical",
   outputSchemaName: "technicalSignal",
   persistAggregate: false,
-  resolveWorkers: (ctx) => technicalWorkersForMode(ctx.strategyContext.researchPosture.discoveryMode),
+  resolveWorkers: (ctx) =>
+    technicalWorkersForMode(ctx.strategyContext.researchPosture.discoveryMode),
   buildTask: (ctx) => ({
     instrumentSymbol: ctx.input.instrumentSymbol,
     selectorEvidence: ctx.input.selectorEvidence ?? null,
@@ -52,7 +64,10 @@ export const FUNDAMENTAL_PLAN = createAggregatorPhasePlan<FundamentalSignal>({
   phase: "fundamental",
   outputSchemaName: "fundamentalSignal",
   persistAggregate: false,
-  resolveWorkers: (ctx) => fundamentalWorkersForMode(ctx.strategyContext.researchPosture.discoveryMode),
+  resolveWorkers: (ctx) =>
+    fundamentalWorkersForMode(
+      ctx.strategyContext.researchPosture.discoveryMode,
+    ),
   buildTask: (ctx) => ({
     instrumentSymbol: ctx.input.instrumentSymbol,
     selectorEvidence: ctx.input.selectorEvidence ?? null,
@@ -77,8 +92,12 @@ export const REVIEW_PLAN = createAggregatorPhasePlan<ReviewSignal>({
   resolveWorkers: () => REVIEW_PHASE.workers,
   buildTask: (ctx) => ({
     instrumentSymbol: ctx.input.instrumentSymbol,
-    technicalSignal: JSON.stringify(signalForWorkerPrompt(ctx.input.technical as TechnicalSignal)),
-    fundamentalSignal: JSON.stringify(signalForWorkerPrompt(ctx.input.fundamental as FundamentalSignal)),
+    technicalSignal: JSON.stringify(
+      signalForWorkerPrompt(ctx.input.technical as TechnicalSignal),
+    ),
+    fundamentalSignal: JSON.stringify(
+      signalForWorkerPrompt(ctx.input.fundamental as FundamentalSignal),
+    ),
   }),
   concurrency: 2,
   collectWorkerOutputs: (_workers, results) => ({
@@ -99,9 +118,15 @@ export const DECISION_PLAN = createAggregatorPhasePlan<TradeSignal>({
   resolveWorkers: () => DECISION_PHASE.workers,
   buildTask: (ctx) => ({
     instrumentSymbol: ctx.input.instrumentSymbol,
-    technicalSignal: JSON.stringify(signalForWorkerPrompt(ctx.input.technical as TechnicalSignal)),
-    fundamentalSignal: JSON.stringify(signalForWorkerPrompt(ctx.input.fundamental as FundamentalSignal)),
-    reviewSignal: JSON.stringify(signalForWorkerPrompt(ctx.input.review as ReviewSignal)),
+    technicalSignal: JSON.stringify(
+      signalForWorkerPrompt(ctx.input.technical as TechnicalSignal),
+    ),
+    fundamentalSignal: JSON.stringify(
+      signalForWorkerPrompt(ctx.input.fundamental as FundamentalSignal),
+    ),
+    reviewSignal: JSON.stringify(
+      signalForWorkerPrompt(ctx.input.review as ReviewSignal),
+    ),
   }),
   concurrency: 2,
   collectWorkerOutputs: (_workers, results) => ({

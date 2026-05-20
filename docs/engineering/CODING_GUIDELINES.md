@@ -214,7 +214,10 @@ export class AppError extends Error {
     message: string,
     public readonly code: AppErrorCode,
     public readonly details?: Record<string, unknown>,
-  ) { super(message); this.name = "AppError"; }
+  ) {
+    super(message);
+    this.name = "AppError";
+  }
 }
 
 export type AppErrorCode =
@@ -296,7 +299,7 @@ Rules:
 ## 9. IPC Contract Rules
 
 - Every channel is registered as a constant in `electron/shared/channels.ts` and exposed via `electron/preload/exva-api.ts`.
-- The preload file exports a typed `ExvaAPI` object. Renderer code uses `window.exva.`* — never `ipcRenderer` directly.
+- The preload file exports a typed `ExvaAPI` object. Renderer code uses `window.exva.`\* — never `ipcRenderer` directly.
 - Every IPC handler:
   1. Validates input via Zod.
   2. Looks up the session/resource if the operation is scoped.
@@ -432,10 +435,15 @@ File: `electron/main/config/env.ts` (main process). Mirror at `src/config/env.ts
 import { z } from "zod";
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
   EXVA_LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
   EXVA_DB_PATH: z.string().optional(),
-  EXVA_DEV_BYPASS_KEYCHAIN: z.string().optional().transform(v => v === "true"),
+  EXVA_DEV_BYPASS_KEYCHAIN: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
   EXVA_PROMPTS_DIR_OVERRIDE: z.string().optional(),
 });
 
@@ -472,11 +480,10 @@ export type Env = typeof env;
 - **Frozen object.** `env` is `Object.freeze`'d. No runtime mutation. Tests override by re-importing with a different `process.env`, not by mutating.
 - **Naming.** All app-specific vars are prefixed `EXVA_`. Standard names (`NODE_ENV`) keep their canonical form.
 - **No secrets in env.** Provider API keys, broker credentials, and any user secret live in the OS keychain. The env file holds only configuration: paths, log levels, dev toggles, feature flags. If you are tempted to add `EXVA_ANTHROPIC_API_KEY`, stop — it goes in the keychain via `SecretsService`.
-- **Renderer split.** Renderer never imports the main `env`. If the renderer needs a build-time constant, it goes through Vite's `import.meta.env.VITE_`* and is re-exported from `src/config/env.ts` with the same Zod-validated pattern.
+- **Renderer split.** Renderer never imports the main `env`. If the renderer needs a build-time constant, it goes through Vite's `import.meta.env.VITE_`\* and is re-exported from `src/config/env.ts` with the same Zod-validated pattern.
 - **Test env.** `NODE_ENV=test` is set by `vitest`. Tests using a non-default value set `process.env.X` before importing `env.ts`, or call a `loadEnv()` factory that the module exposes for testability.
 
 ### 16.3 What the config module replaces
-
 
 | Before (forbidden)                                     | After                                                                |
 | ------------------------------------------------------ | -------------------------------------------------------------------- |
@@ -484,8 +491,7 @@ export type Env = typeof env;
 | `process.env.NODE_ENV === "development"`               | `env.isDev`                                                          |
 | `process.env.LOG_LEVEL ?? "info"`                      | `env.logLevel`                                                       |
 | `process.env.DB_PATH ?? defaultDbPath()`               | `env.dbPath ?? defaultDbPath()` (read once in client setup)          |
-| Conditional `if (process.env.DEBUG_X)` flags scattered | a typed `env.devToggles.`* field                                     |
-
+| Conditional `if (process.env.DEBUG_X)` flags scattered | a typed `env.devToggles.`\* field                                    |
 
 ### 16.4 Phase ownership
 

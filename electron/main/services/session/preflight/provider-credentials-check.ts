@@ -3,7 +3,10 @@ import type { OrchestratorDeps, PreflightStepFailure } from "../session-types";
 
 type StepResult = { ok: true } | PreflightStepFailure;
 
-export async function providerCredentialsCheck(session: WorkspaceSession, deps: OrchestratorDeps): Promise<StepResult> {
+export async function providerCredentialsCheck(
+  session: WorkspaceSession,
+  deps: OrchestratorDeps,
+): Promise<StepResult> {
   const phases = deps.sessionAiPhasesRepo.listBySession(session.id);
   for (const phase of phases) {
     if (!phase.providerKey.trim()) {

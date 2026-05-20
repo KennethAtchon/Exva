@@ -46,8 +46,8 @@ Explain each external actor and each boundary crossing.
 
 ## 3. Core Concepts and Glossary
 
-| Term | Meaning |
-|------|---------|
+| Term   | Meaning                        |
+| ------ | ------------------------------ |
 | [Term] | [Definition in plain language] |
 | [Term] | [Definition in plain language] |
 | [Term] | [Definition in plain language] |
@@ -292,8 +292,8 @@ If this section is not relevant, say so explicitly.
 
 ## 12. Design Decisions and Trade-offs
 
-| Decision | Chosen Approach | Alternative | Why |
-|----------|-----------------|------------|-----|
+| Decision   | Chosen Approach    | Alternative   | Why      |
+| ---------- | ------------------ | ------------- | -------- |
 | [Decision] | [Current approach] | [Alternative] | [Reason] |
 | [Decision] | [Current approach] | [Alternative] | [Reason] |
 
@@ -315,13 +315,13 @@ Explain the practical impact of each limitation.
 
 ## 15. File Reference Map
 
-| Area | Key files |
-|------|-----------|
-| Renderer | `src/...` |
-| Preload | `electron/preload/...` |
-| IPC | `electron/main/ipc/...` |
-| Services | `electron/main/services/...` |
-| Persistence | `electron/main/db/...` |
+| Area        | Key files                    |
+| ----------- | ---------------------------- |
+| Renderer    | `src/...`                    |
+| Preload     | `electron/preload/...`       |
+| IPC         | `electron/main/ipc/...`      |
+| Services    | `electron/main/services/...` |
+| Persistence | `electron/main/db/...`       |
 
 ## 16. Documentation Checklist
 

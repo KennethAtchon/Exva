@@ -9,12 +9,17 @@ export function waitForApproval(
   decisionOut: TradeSignal,
   riskNote: string | undefined,
 ): Promise<{ approved: boolean; approvalId: string }> {
-  const resolvedBroker = trade.brokerAccountId ?? ctx.resolveBrokerAccountId(instrumentClass);
+  const resolvedBroker =
+    trade.brokerAccountId ?? ctx.resolveBrokerAccountId(instrumentClass);
   if (trade.brokerAccountId == null) {
-    ctx.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId: resolvedBroker });
+    ctx.deps.tradesRepo.patchPendingExecution(trade.id, {
+      brokerAccountId: resolvedBroker,
+    });
   }
 
-  const sessionStrategy = ctx.deps.strategyContextService.get(ctx.sessionId).timeframe;
+  const sessionStrategy = ctx.deps.strategyContextService.get(
+    ctx.sessionId,
+  ).timeframe;
   const approval = ctx.deps.tradeApprovalsRepo.createPending({
     sessionId: ctx.sessionId,
     tradeId: trade.id,
@@ -71,14 +76,23 @@ export function waitForApproval(
   });
 }
 
-export function failRecheck(ctx: OrchestratorContext, tradeId: string, approvalId: string, message: string): void {
+export function failRecheck(
+  ctx: OrchestratorContext,
+  tradeId: string,
+  approvalId: string,
+  message: string,
+): void {
   ctx.deps.capitalReservation.releaseByApproval(approvalId);
   const rejected = ctx.deps.tradesRepo.updateStatus(tradeId, "rejected", 0);
   ctx.emitEvent("WARN", tradeId, message);
   ctx.deps.bus.emit("trade_closed", rejected);
 }
 
-export function resolveApproval(ctx: OrchestratorContext, tradeId: string, approved: boolean): boolean {
+export function resolveApproval(
+  ctx: OrchestratorContext,
+  tradeId: string,
+  approved: boolean,
+): boolean {
   const resolve = ctx.approvalCallbacks.get(tradeId);
   if (!resolve) return false;
   ctx.approvalCallbacks.delete(tradeId);
@@ -86,6 +100,9 @@ export function resolveApproval(ctx: OrchestratorContext, tradeId: string, appro
   return true;
 }
 
-export function hasApprovalCallback(ctx: OrchestratorContext, tradeId: string): boolean {
+export function hasApprovalCallback(
+  ctx: OrchestratorContext,
+  tradeId: string,
+): boolean {
   return ctx.approvalCallbacks.has(tradeId);
 }

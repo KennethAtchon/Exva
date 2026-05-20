@@ -20,21 +20,21 @@ This blocks the rest of the pipeline. Review cannot consume structured technical
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-| --- | --- | --- |
-| 1 | Replace the single technical analyst worker | `technical.phase.ts` no longer uses one `analyst-technical` worker returning `{ text }` |
-| 2 | Introduce `TechnicalSignal` as the phase contract | Downstream consumers receive typed fields such as `trendDirection`, `momentumScore`, and `volumeScore` |
-| 3 | Split technical work into narrow workers | Chart pattern, momentum, and volume workers run independently with trimmed inputs |
-| 4 | Make aggregation deterministic | Technical aggregation happens in code, not via another LLM merge step |
-| 5 | Keep technical runs replayable and observable | Structured traces preserve worker evidence and the final aggregated signal |
+| #   | Goal                                              | Success Looks Like                                                                                     |
+| --- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 1   | Replace the single technical analyst worker       | `technical.phase.ts` no longer uses one `analyst-technical` worker returning `{ text }`                |
+| 2   | Introduce `TechnicalSignal` as the phase contract | Downstream consumers receive typed fields such as `trendDirection`, `momentumScore`, and `volumeScore` |
+| 3   | Split technical work into narrow workers          | Chart pattern, momentum, and volume workers run independently with trimmed inputs                      |
+| 4   | Make aggregation deterministic                    | Technical aggregation happens in code, not via another LLM merge step                                  |
+| 5   | Keep technical runs replayable and observable     | Structured traces preserve worker evidence and the final aggregated signal                             |
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-| --- | --- | --- |
-| 1 | Rewriting fundamental/review/decision in the same change | Separate phases keep the migration verifiable |
-| 2 | Creating a market-regime ontology | Out of scope for this rewrite |
-| 3 | Building execution sizing logic | Phase 7 owns execution math |
+| #   | Non-Goal                                                 | Reason                                        |
+| --- | -------------------------------------------------------- | --------------------------------------------- |
+| 1   | Rewriting fundamental/review/decision in the same change | Separate phases keep the migration verifiable |
+| 2   | Creating a market-regime ontology                        | Out of scope for this rewrite                 |
+| 3   | Building execution sizing logic                          | Phase 7 owns execution math                   |
 
 ---
 
@@ -42,11 +42,11 @@ This blocks the rest of the pipeline. Review cannot consume structured technical
 
 ### Current technical implementation
 
-| File | Current responsibility | Gap |
-| --- | --- | --- |
-| `electron/main/services/ai/pipeline-runtime/definitions/technical.phase.ts` | One worker, `{ text }` output | No typed technical schema |
-| `electron/main/services/orchestration/agent-orchestrator.ts` | Treats technical output as raw text | Downstream phases cannot consume structured evidence |
-| `electron/shared/ai/pipeline-phase.ts` | Already supports multi-worker/object output definitions | Runtime substrate exists; behavior still needs migration |
+| File                                                                        | Current responsibility                                  | Gap                                                      |
+| --------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------- |
+| `electron/main/services/ai/pipeline-runtime/definitions/technical.phase.ts` | One worker, `{ text }` output                           | No typed technical schema                                |
+| `electron/main/services/orchestration/agent-orchestrator.ts`                | Treats technical output as raw text                     | Downstream phases cannot consume structured evidence     |
+| `electron/shared/ai/pipeline-phase.ts`                                      | Already supports multi-worker/object output definitions | Runtime substrate exists; behavior still needs migration |
 
 ### Target technical shape from the spec
 
@@ -56,12 +56,12 @@ The design spec already defines the target technical phase: parallel workers for
 
 Technical workers should not rediscover session posture from prose. The phase should explicitly consume DB-backed session context and engine outputs:
 
-| Input or engine concern | Source |
-| --- | --- |
+| Input or engine concern        | Source                                                         |
+| ------------------------------ | -------------------------------------------------------------- |
 | Trading horizon and hold style | `session_timeframe_config` via `SessionStrategyContextService` |
-| Side bias and setup posture | `session_trade_rules` via `SessionStrategyContextService` |
-| Risk posture context | `session_risk_config` via `SessionStrategyContextService` |
-| Technical aggregation | `technical-aggregator` transformer engine |
+| Side bias and setup posture    | `session_trade_rules` via `SessionStrategyContextService`      |
+| Risk posture context           | `session_risk_config` via `SessionStrategyContextService`      |
+| Technical aggregation          | `technical-aggregator` transformer engine                      |
 
 ---
 
@@ -75,31 +75,31 @@ No new external research is needed. This phase is an internal application of the
 
 **Option A: Keep one technical analyst but force JSON output**
 
-| Dimension | Assessment |
-| --- | --- |
-| Complexity | Low |
-| Reliability | Medium-low |
+| Dimension       | Assessment |
+| --------------- | ---------- |
+| Complexity      | Low        |
+| Reliability     | Medium-low |
 | Long-term value | Medium-low |
 
 Risks: still leaves all technical reasoning in one opaque model call.
 
 **Option B: Add a technical merge worker on top of multiple text workers**
 
-| Dimension | Assessment |
-| --- | --- |
-| Complexity | Medium |
-| Reliability | Medium |
-| Long-term value | Medium |
+| Dimension       | Assessment |
+| --------------- | ---------- |
+| Complexity      | Medium     |
+| Reliability     | Medium     |
+| Long-term value | Medium     |
 
 Risks: introduces another LLM merge dependency where the spec wants deterministic aggregation.
 
 **Option C: Implement narrow technical workers plus code aggregation**
 
-| Dimension | Assessment |
-| --- | --- |
-| Complexity | Medium |
-| Reliability | High |
-| Long-term value | High |
+| Dimension       | Assessment |
+| --------------- | ---------- |
+| Complexity      | Medium     |
+| Reliability     | High       |
+| Long-term value | High       |
 
 Risks: requires designing real typed schemas now, but that is the point of the migration.
 
@@ -144,38 +144,38 @@ Deliverables completed:
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-| --- | --- | --- | --- | --- |
-| 1 | Technical schema omits a dimension later needed by review/decision | Medium | Medium | Add only stable fields now; keep summaries for audit only |
-| 2 | Workers overlap too much and produce redundant evidence | Medium | Medium | Keep each worker task bounded and non-overlapping |
-| 3 | Partial worker failure causes noisy downstream behavior | Medium | High | Encode explicit null/default semantics and review skip behavior |
+| #   | Risk                                                               | Likelihood | Impact | Mitigation                                                      |
+| --- | ------------------------------------------------------------------ | ---------- | ------ | --------------------------------------------------------------- |
+| 1   | Technical schema omits a dimension later needed by review/decision | Medium     | Medium | Add only stable fields now; keep summaries for audit only       |
+| 2   | Workers overlap too much and produce redundant evidence            | Medium     | Medium | Keep each worker task bounded and non-overlapping               |
+| 3   | Partial worker failure causes noisy downstream behavior            | Medium     | High   | Encode explicit null/default semantics and review skip behavior |
 
 ---
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-| --- | --- | --- | --- | --- |
-| Typed technical output | Technical phase output shape | `{ text: string }` | `TechnicalSignal` | Schema tests + orchestrator types |
-| Narrow workers | Worker count in technical phase | 1 | 3 | Phase definition review |
-| Deterministic aggregation | Aggregation owner | LLM prose | Code | Unit tests |
-| No raw technical prose downstream | Downstream phase input contract | Free text | Typed signal | Grep + code review |
-| DB-backed context wiring | Technical phase reads session posture from prompt prose only | Transitional | Timeframe/rules/risk inputs flow through typed context-engine payloads | Code review + tests |
+| Goal                              | Metric                                                       | Baseline           | Target                                                                 | How Measured                      |
+| --------------------------------- | ------------------------------------------------------------ | ------------------ | ---------------------------------------------------------------------- | --------------------------------- |
+| Typed technical output            | Technical phase output shape                                 | `{ text: string }` | `TechnicalSignal`                                                      | Schema tests + orchestrator types |
+| Narrow workers                    | Worker count in technical phase                              | 1                  | 3                                                                      | Phase definition review           |
+| Deterministic aggregation         | Aggregation owner                                            | LLM prose          | Code                                                                   | Unit tests                        |
+| No raw technical prose downstream | Downstream phase input contract                              | Free text          | Typed signal                                                           | Grep + code review                |
+| DB-backed context wiring          | Technical phase reads session posture from prompt prose only | Transitional       | Timeframe/rules/risk inputs flow through typed context-engine payloads | Code review + tests               |
 
 ---
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-| --- | --- | --- | --- | --- |
-| 1 | Should `volume-profile` get only OHLCV or also quote context for gap-aware interpretation? | Ken | Before Phase 4B | Resolved: OHLCV only. Gap context is inferred from bars; adding quote would duplicate momentum worker's data. |
-| 2 | Do we persist worker raw summaries individually or only the aggregated `rawSummary` in the phase trace? | Ken | Before Phase 4C | Resolved: aggregated `rawSummary` only in the phase trace, via `assembleAggregateTrace`. Individual worker summaries are concatenated into `rawSummary` by `buildRawSummary()` in the aggregator. |
+| #   | Question                                                                                                | Owner | Needed By       | Status                                                                                                                                                                                            |
+| --- | ------------------------------------------------------------------------------------------------------- | ----- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Should `volume-profile` get only OHLCV or also quote context for gap-aware interpretation?              | Ken   | Before Phase 4B | Resolved: OHLCV only. Gap context is inferred from bars; adding quote would duplicate momentum worker's data.                                                                                     |
+| 2   | Do we persist worker raw summaries individually or only the aggregated `rawSummary` in the phase trace? | Ken   | Before Phase 4C | Resolved: aggregated `rawSummary` only in the phase trace, via `assembleAggregateTrace`. Individual worker summaries are concatenated into `rawSummary` by `buildRawSummary()` in the aggregator. |
 
 ---
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-| --- | --- |
-| Single technical analyst with stricter JSON | Still too broad and opaque |
-| LLM-based technical merge worker | Reintroduces model-dependent aggregation |
+| Option                                      | Why Rejected                             |
+| ------------------------------------------- | ---------------------------------------- |
+| Single technical analyst with stricter JSON | Still too broad and opaque               |
+| LLM-based technical merge worker            | Reintroduces model-dependent aggregation |

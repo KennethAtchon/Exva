@@ -6,19 +6,30 @@ import type { CloseResult } from "./adapters/broker-adapter";
 export class BrokerService {
   constructor(private readonly registry: BrokerRegistry) {}
 
-  async closeOrder(brokerAccountId: string, brokerOrderId: string): Promise<CloseResult> {
+  async closeOrder(
+    brokerAccountId: string,
+    brokerOrderId: string,
+  ): Promise<CloseResult> {
     const adapter = await this.registry.get(brokerAccountId);
     return adapter.closeOrder(brokerOrderId);
   }
 
   /** @deprecated Legacy Alpaca-only flow — prefer broker registry IPC. */
-  async saveBroker(_credentials: BrokerCredentials): Promise<ConnectionTestResult> {
+  async saveBroker(
+    _credentials: BrokerCredentials,
+  ): Promise<ConnectionTestResult> {
     void _credentials;
-    return { ok: false, message: "Use Accounts → Add broker to register a broker account." };
+    return {
+      ok: false,
+      message: "Use Accounts → Add broker to register a broker account.",
+    };
   }
 
   async testConnection(): Promise<ConnectionTestResult> {
-    return { ok: false, message: "Test a specific broker account from the broker list." };
+    return {
+      ok: false,
+      message: "Test a specific broker account from the broker list.",
+    };
   }
 
   async removeBroker(): Promise<void> {

@@ -19,7 +19,13 @@ export async function runSelector(
   })) as import("../../../ai/pipeline-runtime/plan/phase/types").PhasePlanRunResult<InstrumentSelection>;
 
   if (result.source === "ai_picker") {
-    ctx.emitEvent("INFO", null, "[stage:selector] starting discovery and verification workers", "orchestrator", cycleId);
+    ctx.emitEvent(
+      "INFO",
+      null,
+      "[stage:selector] starting discovery and verification workers",
+      "orchestrator",
+      cycleId,
+    );
     ctx.deps.bus.emit("research_phase_step", {
       sessionId: ctx.sessionId,
       phase: "selector",
@@ -28,17 +34,25 @@ export async function runSelector(
     });
   }
 
-  const instruments: ResolvedInstrument[] = result.output.instruments.map((row) => ({
-    symbol: row.symbol,
-    instrumentClass: row.instrumentClass,
-    instrumentDisplayName: row.instrumentDisplayName,
-    predictionOutcome: row.predictionOutcome ?? null,
-    instrumentMetadataJson: row.instrumentMetadataJson ?? null,
-    selectorEvidence: row.selectorEvidence ?? null,
-  }));
+  const instruments: ResolvedInstrument[] = result.output.instruments.map(
+    (row) => ({
+      symbol: row.symbol,
+      instrumentClass: row.instrumentClass,
+      instrumentDisplayName: row.instrumentDisplayName,
+      predictionOutcome: row.predictionOutcome ?? null,
+      instrumentMetadataJson: row.instrumentMetadataJson ?? null,
+      selectorEvidence: row.selectorEvidence ?? null,
+    }),
+  );
 
   if (result.source === "ai_picker" && instruments.length > 0) {
-    ctx.emitEvent("INFO", null, `[stage:selector] submission count=${instruments.length}`, "orchestrator", cycleId);
+    ctx.emitEvent(
+      "INFO",
+      null,
+      `[stage:selector] submission count=${instruments.length}`,
+      "orchestrator",
+      cycleId,
+    );
     ctx.deps.bus.emit("research_phase_step", {
       sessionId: ctx.sessionId,
       phase: "selector",
@@ -48,7 +62,12 @@ export async function runSelector(
   }
 
   const diagnostics = result.output.diagnostics;
-  if (result.source === "ai_picker" && instruments.length === 0 && diagnostics && diagnostics.rejected.length > 0) {
+  if (
+    result.source === "ai_picker" &&
+    instruments.length === 0 &&
+    diagnostics &&
+    diagnostics.rejected.length > 0
+  ) {
     const summary = diagnostics.rejected
       .slice(0, 5)
       .map((row) => `${row.symbol}: ${row.reasons[0] ?? "rejected"}`)
@@ -68,5 +87,7 @@ export async function runSelector(
     });
   }
 
-  return marketHours.filterTradable(instruments.slice(0, config.max_concurrent_trades));
+  return marketHours.filterTradable(
+    instruments.slice(0, config.max_concurrent_trades),
+  );
 }

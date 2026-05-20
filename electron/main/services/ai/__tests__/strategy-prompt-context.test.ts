@@ -84,7 +84,10 @@ describe("strategy-prompt-context", () => {
   });
 
   it("prepends full strategy context before user content", () => {
-    const out = prependStrategyContextToUserPrompt(baseContext(), "Instrument: AAPL");
+    const out = prependStrategyContextToUserPrompt(
+      baseContext(),
+      "Instrument: AAPL",
+    );
 
     expect(out.prompt.startsWith("## Session research posture")).toBe(true);
     expect(out.prompt).toContain("trend_hunt");
@@ -150,5 +153,4 @@ describe("strategy-prompt-context", () => {
     expect(userMessage).not.toContain("Worker focus:");
     expect(userMessage).not.toContain("Discovery guidance:");
   });
-
 });

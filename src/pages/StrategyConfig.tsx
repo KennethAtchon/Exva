@@ -1,11 +1,26 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Card, PageShell, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
-import { Switch, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
+import {
+  Card,
+  PageShell,
+  SectionTitle,
+  ShadcnSelect,
+} from "@/components/custom-ui";
+import {
+  Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { AiPhasesSection } from "@/components/strategy/AiPhasesSection";
 import { CostSummaryCard } from "@/components/strategy/CostSummaryCard";
 import { TimeframeHorizonCard } from "@/components/strategy/TimeframeHorizonCard";
-import { GlobalPresetGrid, CreateEditGlobalPresetModal, type UserGlobalPresetInput } from "@/components/strategy/GlobalPresetComponents";
+import {
+  GlobalPresetGrid,
+  CreateEditGlobalPresetModal,
+  type UserGlobalPresetInput,
+} from "@/components/strategy/GlobalPresetComponents";
 import { api } from "@/lib/exva";
 import { useSessionStore } from "@/store/sessionStore";
 import { useStrategyStore } from "@/store/strategyStore";
@@ -49,11 +64,17 @@ const TABS = [
 
 type SectionId = "style" | "rules" | "risk" | "timeframe" | "ai";
 
-export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void }) => {
+export const StrategyConfig = ({
+  onGoToSessions,
+}: {
+  onGoToSessions?: () => void;
+}) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const setViewMode = useWorkspaceStore((state) => state.setViewMode);
-  const loadWorkspaceView = useWorkspaceStore((state) => state.loadWorkspaceView);
+  const loadWorkspaceView = useWorkspaceStore(
+    (state) => state.loadWorkspaceView,
+  );
   const setSessionStatus = useSessionStore((state) => state.setStatus);
 
   const researchPosture = useStrategyStore((state) => state.researchPosture);
@@ -69,19 +90,29 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   const providers = useStrategyStore((state) => state.providers);
   const aiPhases = useStrategyStore((state) => state.aiPhases);
   const loadStrategy = useStrategyStore((state) => state.loadStrategy);
-  const loadGlobalPresets = useStrategyStore((state) => state.loadGlobalPresets);
-  const updateResearchPosture = useStrategyStore((state) => state.updateResearchPosture);
+  const loadGlobalPresets = useStrategyStore(
+    (state) => state.loadGlobalPresets,
+  );
+  const updateResearchPosture = useStrategyStore(
+    (state) => state.updateResearchPosture,
+  );
   const updateRules = useStrategyStore((state) => state.updateRules);
   const updateRiskConfig = useStrategyStore((state) => state.updateRiskConfig);
   const updateTimeframe = useStrategyStore((state) => state.updateTimeframe);
   const updateAiPhase = useStrategyStore((state) => state.updateAiPhase);
-  const applyGlobalPreset = useStrategyStore((state) => state.applyGlobalPreset);
+  const applyGlobalPreset = useStrategyStore(
+    (state) => state.applyGlobalPreset,
+  );
   const saveAll = useStrategyStore((state) => state.saveAll);
   const setActiveSection = useStrategyStore((state) => state.setActiveSection);
 
-  const [activeView, setActiveView] = useState<"presets" | "customize">("presets");
+  const [activeView, setActiveView] = useState<"presets" | "customize">(
+    "presets",
+  );
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [editingPreset, setEditingPreset] = useState<UserGlobalPresetInput & { id: string } | null>(null);
+  const [editingPreset, setEditingPreset] = useState<
+    (UserGlobalPresetInput & { id: string }) | null
+  >(null);
 
   useEffect(() => {
     if (viewMode !== "session" || !focusedSessionId) return;
@@ -104,33 +135,58 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   useEffect(() => {
     if (!hasDirty || isSaving || isLocked || !focusedSessionId) return;
     const t = setTimeout(() => {
-      if (focusedSessionIdRef.current) void saveAllRef.current(focusedSessionIdRef.current);
+      if (focusedSessionIdRef.current)
+        void saveAllRef.current(focusedSessionIdRef.current);
     }, 1500);
     return () => clearTimeout(t);
-  // dirtyFields ref changes every update → correct debounce reset
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // dirtyFields ref changes every update → correct debounce reset
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirtyFields, isSaving, isLocked, focusedSessionId]);
 
   if (viewMode === "global" || !focusedSessionId) {
     return (
       <PageShell>
-        <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
+        <Header
+          loadWorkspaceView={loadWorkspaceView}
+          setViewMode={setViewMode}
+        />
         <div style={emptyStateStyle}>
           <div style={{ fontSize: 32, marginBottom: 16 }}>⚙</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)", marginBottom: 8 }}>
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "var(--text1)",
+              marginBottom: 8,
+            }}
+          >
             No session focused
           </div>
-          <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.65, maxWidth: 380, margin: "0 auto 20px" }}>
-            Strategy configuration is session-scoped. You need to focus a session first, then come back here to configure AI phases, risk limits, and strategy behavior.
+          <p
+            style={{
+              color: "var(--text2)",
+              fontSize: 13,
+              lineHeight: 1.65,
+              maxWidth: 380,
+              margin: "0 auto 20px",
+            }}
+          >
+            Strategy configuration is session-scoped. You need to focus a
+            session first, then come back here to configure AI phases, risk
+            limits, and strategy behavior.
           </p>
           <div style={stepListStyle}>
-            <Step n={1} text='Go to Sessions' />
-            <Step n={2} text='Find the session you want to configure' />
+            <Step n={1} text="Go to Sessions" />
+            <Step n={2} text="Find the session you want to configure" />
             <Step n={3} text='Click "Focus" on that session' />
-            <Step n={4} text='Return here to configure strategy' />
+            <Step n={4} text="Return here to configure strategy" />
           </div>
           {onGoToSessions && (
-            <button type="button" onClick={onGoToSessions} style={goToSessionsButtonStyle}>
+            <button
+              type="button"
+              onClick={onGoToSessions}
+              style={goToSessionsButtonStyle}
+            >
               Go to Sessions →
             </button>
           )}
@@ -140,13 +196,22 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
   }
 
   if (!researchPosture || !rules || !riskConfig || !timeframe) {
-    return <PageShell><div style={{ color: "var(--text3)" }}>Loading strategy...</div></PageShell>;
+    return (
+      <PageShell>
+        <div style={{ color: "var(--text3)" }}>Loading strategy...</div>
+      </PageShell>
+    );
   }
 
   const stylePreview = buildResearchPostureMarkdown(researchPosture);
   const rulesPreview = buildTradeRulesMarkdown(rules);
-  const selectedStylePreset = RESEARCH_POSTURE_PRESETS.find((preset) => preset.id === researchPosture.posturePresetId) ?? RESEARCH_POSTURE_PRESETS[RESEARCH_POSTURE_PRESETS.length - 1];
-  const selectedRulesPreset = TRADE_RULE_PRESETS.find((preset) => preset.id === rules.rulesPresetId) ?? TRADE_RULE_PRESETS[TRADE_RULE_PRESETS.length - 1];
+  const selectedStylePreset =
+    RESEARCH_POSTURE_PRESETS.find(
+      (preset) => preset.id === researchPosture.posturePresetId,
+    ) ?? RESEARCH_POSTURE_PRESETS[RESEARCH_POSTURE_PRESETS.length - 1];
+  const selectedRulesPreset =
+    TRADE_RULE_PRESETS.find((preset) => preset.id === rules.rulesPresetId) ??
+    TRADE_RULE_PRESETS[TRADE_RULE_PRESETS.length - 1];
   const activeGlobalPreset = resolveActiveGlobalPreset({
     builtInPresets: builtInGlobalPresets,
     userPresets: userGlobalPresets,
@@ -160,7 +225,14 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
       <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
 
       {strategyErrors.length > 0 && (
-        <div style={{ ...warningStyle, marginBottom: 12, borderColor: "rgba(248,113,113,0.28)", color: "#fca5a5" }}>
+        <div
+          style={{
+            ...warningStyle,
+            marginBottom: 12,
+            borderColor: "rgba(248,113,113,0.28)",
+            color: "#fca5a5",
+          }}
+        >
           {strategyErrors.map((message) => (
             <div key={message}>{message}</div>
           ))}
@@ -169,7 +241,9 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
 
       {isLocked && (
         <div style={warningStyle}>
-          <div>Stop this session before editing its strategy or AI configuration.</div>
+          <div>
+            Stop this session before editing its strategy or AI configuration.
+          </div>
           <button
             onClick={async () => {
               const next = await api.stopSession();
@@ -183,11 +257,21 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>Strategy</h1>
+          <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>
+            Strategy
+          </h1>
           <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
-            Separate research posture, trade rules, risk limits, timeframe, phase operating briefs, and AI phase model/prompt settings for the focused session.
+            Separate research posture, trade rules, risk limits, timeframe,
+            phase operating briefs, and AI phase model/prompt settings for the
+            focused session.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -195,14 +279,22 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
             <button
               type="button"
               onClick={() => setActiveView("presets")}
-              style={activeView === "presets" ? viewToggleActiveStyle : viewToggleInactiveStyle}
+              style={
+                activeView === "presets"
+                  ? viewToggleActiveStyle
+                  : viewToggleInactiveStyle
+              }
             >
               Presets
             </button>
             <button
               type="button"
               onClick={() => setActiveView("customize")}
-              style={activeView === "customize" ? viewToggleActiveStyle : viewToggleInactiveStyle}
+              style={
+                activeView === "customize"
+                  ? viewToggleActiveStyle
+                  : viewToggleInactiveStyle
+              }
             >
               Customize
             </button>
@@ -214,7 +306,8 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
               padding: "9px 18px",
               borderRadius: 9,
               border: "none",
-              background: !hasDirty || isLocked ? "var(--surface3)" : "var(--accent)",
+              background:
+                !hasDirty || isLocked ? "var(--surface3)" : "var(--accent)",
               color: !hasDirty || isLocked ? "var(--text3)" : "#fff",
               cursor: !hasDirty || isLocked ? "not-allowed" : "pointer",
               fontWeight: 700,
@@ -239,7 +332,9 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
           onApply={(preset) => applyGlobalPreset(preset)}
           onCreatePreset={() => setCreateModalOpen(true)}
           onEditPreset={(p) => {
-            const j = JSON.parse(p.presetJson) as Partial<UserGlobalPresetInput>;
+            const j = JSON.parse(
+              p.presetJson,
+            ) as Partial<UserGlobalPresetInput>;
             setEditingPreset({
               id: p.id,
               name: p.name,
@@ -258,7 +353,10 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
       )}
 
       {activeView === "customize" && (
-        <Tabs value={activeSection} onValueChange={(v) => setActiveSection(v as SectionId)}>
+        <Tabs
+          value={activeSection}
+          onValueChange={(v) => setActiveSection(v as SectionId)}
+        >
           <TabsList>
             {TABS.map(([value, label]) => (
               <TabsTrigger key={value} value={value}>
@@ -267,7 +365,14 @@ export const StrategyConfig = ({ onGoToSessions }: { onGoToSessions?: () => void
             ))}
           </TabsList>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginTop: 16 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: 16,
+              marginTop: 16,
+            }}
+          >
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {TABS.map(([value]) => (
                 <TabsContent key={value} value={value}>
@@ -373,9 +478,18 @@ const Header = ({
   setViewMode,
 }: {
   loadWorkspaceView: () => Promise<void>;
-  setViewMode: (mode: "session" | "global", focusedSessionId?: string | null) => void;
+  setViewMode: (
+    mode: "session" | "global",
+    focusedSessionId?: string | null,
+  ) => void;
 }) => (
-  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+    }}
+  >
     <div />
     <WorkspaceContextChip
       onSwitchSession={async (id) => {
@@ -411,7 +525,9 @@ const PresetSummaryCard = ({
     <div style={presetThesisStyle}>{thesis}</div>
     <div style={{ display: "grid", gap: 8 }}>
       {bullets.map((bullet) => (
-        <div key={bullet} style={presetBulletStyle}>{bullet}</div>
+        <div key={bullet} style={presetBulletStyle}>
+          {bullet}
+        </div>
       ))}
     </div>
   </div>
@@ -425,14 +541,28 @@ const ActiveGlobalPresetIndicator = ({
   <div style={activeGlobalPresetStyle}>
     <div style={{ display: "grid", gap: 4 }}>
       <div style={activeGlobalPresetEyebrowStyle}>Active Global Preset</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <div style={activeGlobalPresetLabelStyle}>{preset?.preset.label ?? "Custom"}</div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={activeGlobalPresetLabelStyle}>
+          {preset?.preset.label ?? "Custom"}
+        </div>
         <div style={activeGlobalPresetSourceStyle(preset?.source)}>
-          {preset ? (preset.source === "built_in" ? "Built-in" : "Saved preset") : "No exact preset match"}
+          {preset
+            ? preset.source === "built_in"
+              ? "Built-in"
+              : "Saved preset"
+            : "No exact preset match"}
         </div>
       </div>
       <div style={activeGlobalPresetDescriptionStyle}>
-        {preset?.preset.description ?? "Current style, rules, risk, and timeframe selections do not match a saved global preset."}
+        {preset?.preset.description ??
+          "Current style, rules, risk, and timeframe selections do not match a saved global preset."}
       </div>
     </div>
   </div>
@@ -453,12 +583,11 @@ function resolveActiveGlobalPreset({
   riskPresetId: string;
   timeframePresetId: string;
 }): { preset: GlobalStrategyPreset; source: "built_in" | "user" } | null {
-  const matches = (preset: GlobalStrategyPreset) => (
-    preset.posturePresetId === posturePresetId
-    && preset.rulesPresetId === rulesPresetId
-    && preset.riskPresetId === riskPresetId
-    && preset.timeframePresetId === timeframePresetId
-  );
+  const matches = (preset: GlobalStrategyPreset) =>
+    preset.posturePresetId === posturePresetId &&
+    preset.rulesPresetId === rulesPresetId &&
+    preset.riskPresetId === riskPresetId &&
+    preset.timeframePresetId === timeframePresetId;
 
   const builtInMatch = builtInPresets.find(matches);
   if (builtInMatch) {
@@ -467,7 +596,14 @@ function resolveActiveGlobalPreset({
 
   for (const row of userPresets) {
     try {
-      const parsed = { id: row.id, label: row.name, ...(JSON.parse(row.presetJson) as Omit<GlobalStrategyPreset, "id" | "label">) };
+      const parsed = {
+        id: row.id,
+        label: row.name,
+        ...(JSON.parse(row.presetJson) as Omit<
+          GlobalStrategyPreset,
+          "id" | "label"
+        >),
+      };
       if (matches(parsed)) {
         return { preset: parsed, source: "user" };
       }
@@ -489,44 +625,206 @@ function labelize(value: string): string {
 
 const Step = ({ n, text }: { n: number; text: string }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--surface3)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--text2)", flexShrink: 0 }}>{n}</div>
+    <div
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: "50%",
+        background: "var(--surface3)",
+        border: "1px solid var(--border)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "var(--text2)",
+        flexShrink: 0,
+      }}
+    >
+      {n}
+    </div>
     <span style={{ color: "var(--text2)", fontSize: 13 }}>{text}</span>
   </div>
 );
 
 const emptyStateStyle = {
-  display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center",
-  textAlign: "center" as const, padding: "60px 24px",
-  border: "1px solid var(--border)", borderRadius: 16, background: "rgba(18,26,36,0.6)",
+  display: "flex",
+  flexDirection: "column" as const,
+  alignItems: "center",
+  justifyContent: "center",
+  textAlign: "center" as const,
+  padding: "60px 24px",
+  border: "1px solid var(--border)",
+  borderRadius: 16,
+  background: "rgba(18,26,36,0.6)",
 } as const;
 
 const stepListStyle = {
-  display: "grid", gap: 10, textAlign: "left" as const, marginBottom: 24, width: "100%", maxWidth: 340,
+  display: "grid",
+  gap: 10,
+  textAlign: "left" as const,
+  marginBottom: 24,
+  width: "100%",
+  maxWidth: 340,
 } as const;
 
 const goToSessionsButtonStyle = {
-  padding: "10px 22px", borderRadius: 10,
-  border: "1px solid rgba(96,165,250,0.3)", background: "rgba(96,165,250,0.1)",
-  color: "rgba(96,165,250,0.95)", fontSize: 13, fontWeight: 600, cursor: "pointer",
+  padding: "10px 22px",
+  borderRadius: 10,
+  border: "1px solid rgba(96,165,250,0.3)",
+  background: "rgba(96,165,250,0.1)",
+  color: "rgba(96,165,250,0.95)",
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
 } as const;
 
-const viewToggleContainerStyle = { display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden", background: "var(--surface2)" } as const;
-const viewToggleActiveStyle = { padding: "7px 16px", border: "none", background: "var(--surface3)", color: "var(--text1)", fontSize: 13, fontWeight: 600, cursor: "pointer" } as const;
-const viewToggleInactiveStyle = { padding: "7px 16px", border: "none", background: "transparent", color: "var(--text3)", fontSize: 13, fontWeight: 500, cursor: "pointer" } as const;
-const briefStyle = { marginTop: 14, padding: 14, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text2)", fontSize: 12, lineHeight: 1.6, whiteSpace: "pre-wrap" } as const;
+const viewToggleContainerStyle = {
+  display: "flex",
+  borderRadius: 8,
+  border: "1px solid var(--border)",
+  overflow: "hidden",
+  background: "var(--surface2)",
+} as const;
+const viewToggleActiveStyle = {
+  padding: "7px 16px",
+  border: "none",
+  background: "var(--surface3)",
+  color: "var(--text1)",
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
+} as const;
+const viewToggleInactiveStyle = {
+  padding: "7px 16px",
+  border: "none",
+  background: "transparent",
+  color: "var(--text3)",
+  fontSize: 13,
+  fontWeight: 500,
+  cursor: "pointer",
+} as const;
+const briefStyle = {
+  marginTop: 14,
+  padding: 14,
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "var(--surface2)",
+  color: "var(--text2)",
+  fontSize: 12,
+  lineHeight: 1.6,
+  whiteSpace: "pre-wrap",
+} as const;
 const formGridStyle = { display: "grid", gap: 14, marginTop: 16 } as const;
-const inputStyle = { width: "100%", padding: "9px 11px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text1)" } as const;
-const warningStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(251,191,36,0.24)", background: "rgba(251,191,36,0.08)", color: "#fbbf24", fontSize: 12 } as const;
-const warningButtonStyle = { padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(251,191,36,0.28)", background: "rgba(251,191,36,0.14)", color: "#fbbf24", cursor: "pointer" } as const;
-const activeGlobalPresetStyle = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", borderRadius: 12, border: "1px solid rgba(96,165,250,0.22)", background: "linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.82))" } as const;
-const activeGlobalPresetEyebrowStyle = { color: "rgba(147,197,253,0.85)", fontSize: 11, fontWeight: 700, letterSpacing: 0.35, textTransform: "uppercase" as const };
-const activeGlobalPresetLabelStyle = { color: "var(--text1)", fontSize: 16, fontWeight: 700 } as const;
-const activeGlobalPresetDescriptionStyle = { color: "var(--text3)", fontSize: 12, lineHeight: 1.55 } as const;
-const activeGlobalPresetSourceStyle = (source: "built_in" | "user" | undefined) => ({ display: "inline-flex", width: "fit-content", padding: "4px 10px", borderRadius: 999, border: source === "user" ? "1px solid rgba(34,197,94,0.28)" : "1px solid rgba(96,165,250,0.28)", background: source === "user" ? "rgba(34,197,94,0.12)" : "rgba(96,165,250,0.12)", color: source === "user" ? "rgba(187,247,208,0.96)" : "rgba(191,219,254,0.96)", fontSize: 11, fontWeight: 700, letterSpacing: 0.2 } as const);
-const presetSummaryStyle = { display: "grid", gap: 12, marginTop: 14, padding: 14, borderRadius: 12, border: "1px solid rgba(96,165,250,0.22)", background: "linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.82))" } as const;
-const presetBadgeStyle = { display: "inline-flex", width: "fit-content", padding: "4px 10px", borderRadius: 999, border: "1px solid rgba(96,165,250,0.28)", background: "rgba(96,165,250,0.12)", color: "rgba(191,219,254,0.96)", fontSize: 11, fontWeight: 700, letterSpacing: 0.2 } as const;
-const presetThesisStyle = { color: "var(--text1)", fontSize: 13, lineHeight: 1.55, fontWeight: 600 } as const;
-const presetBulletStyle = { color: "var(--text3)", fontSize: 12, lineHeight: 1.5 } as const;
+const inputStyle = {
+  width: "100%",
+  padding: "9px 11px",
+  borderRadius: 8,
+  border: "1px solid var(--border)",
+  background: "var(--surface2)",
+  color: "var(--text1)",
+} as const;
+const warningStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  padding: "12px 14px",
+  borderRadius: 10,
+  border: "1px solid rgba(251,191,36,0.24)",
+  background: "rgba(251,191,36,0.08)",
+  color: "#fbbf24",
+  fontSize: 12,
+} as const;
+const warningButtonStyle = {
+  padding: "7px 10px",
+  borderRadius: 8,
+  border: "1px solid rgba(251,191,36,0.28)",
+  background: "rgba(251,191,36,0.14)",
+  color: "#fbbf24",
+  cursor: "pointer",
+} as const;
+const activeGlobalPresetStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  padding: "14px 16px",
+  borderRadius: 12,
+  border: "1px solid rgba(96,165,250,0.22)",
+  background:
+    "linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.82))",
+} as const;
+const activeGlobalPresetEyebrowStyle = {
+  color: "rgba(147,197,253,0.85)",
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: 0.35,
+  textTransform: "uppercase" as const,
+};
+const activeGlobalPresetLabelStyle = {
+  color: "var(--text1)",
+  fontSize: 16,
+  fontWeight: 700,
+} as const;
+const activeGlobalPresetDescriptionStyle = {
+  color: "var(--text3)",
+  fontSize: 12,
+  lineHeight: 1.55,
+} as const;
+const activeGlobalPresetSourceStyle = (
+  source: "built_in" | "user" | undefined,
+) =>
+  ({
+    display: "inline-flex",
+    width: "fit-content",
+    padding: "4px 10px",
+    borderRadius: 999,
+    border:
+      source === "user"
+        ? "1px solid rgba(34,197,94,0.28)"
+        : "1px solid rgba(96,165,250,0.28)",
+    background:
+      source === "user" ? "rgba(34,197,94,0.12)" : "rgba(96,165,250,0.12)",
+    color:
+      source === "user" ? "rgba(187,247,208,0.96)" : "rgba(191,219,254,0.96)",
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 0.2,
+  }) as const;
+const presetSummaryStyle = {
+  display: "grid",
+  gap: 12,
+  marginTop: 14,
+  padding: 14,
+  borderRadius: 12,
+  border: "1px solid rgba(96,165,250,0.22)",
+  background:
+    "linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.82))",
+} as const;
+const presetBadgeStyle = {
+  display: "inline-flex",
+  width: "fit-content",
+  padding: "4px 10px",
+  borderRadius: 999,
+  border: "1px solid rgba(96,165,250,0.28)",
+  background: "rgba(96,165,250,0.12)",
+  color: "rgba(191,219,254,0.96)",
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: 0.2,
+} as const;
+const presetThesisStyle = {
+  color: "var(--text1)",
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 600,
+} as const;
+const presetBulletStyle = {
+  color: "var(--text3)",
+  fontSize: 12,
+  lineHeight: 1.5,
+} as const;
 
 // ─── Section components ───────────────────────────────────────────────────────
 
@@ -551,52 +849,86 @@ const StyleSection = ({
           <ShadcnSelect
             value={researchPosture.posturePresetId}
             onValueChange={(value) => {
-              const preset = RESEARCH_POSTURE_PRESETS.find((entry) => entry.id === value);
+              const preset = RESEARCH_POSTURE_PRESETS.find(
+                (entry) => entry.id === value,
+              );
               if (!preset) return;
               updateResearchPosture(preset.posture);
             }}
             disabled={isLocked}
-            options={RESEARCH_POSTURE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
+            options={RESEARCH_POSTURE_PRESETS.map((preset) => ({
+              value: preset.id,
+              label: preset.label,
+            }))}
           />
         </Field>
         <Field label="Discovery mode">
           <ShadcnSelect
             value={researchPosture.discoveryMode}
-            onValueChange={(value) => updateResearchPosture({ discoveryMode: value as typeof researchPosture.discoveryMode })}
+            onValueChange={(value) =>
+              updateResearchPosture({
+                discoveryMode: value as typeof researchPosture.discoveryMode,
+              })
+            }
             disabled={isLocked}
-            options={RESEARCH_DISCOVERY_MODES.map((value) => ({ value, label: labelize(value) }))}
+            options={RESEARCH_DISCOVERY_MODES.map((value) => ({
+              value,
+              label: labelize(value),
+            }))}
           />
         </Field>
         <Field label="Evidence mode">
           <ShadcnSelect
             value={researchPosture.evidenceMode}
-            onValueChange={(value) => updateResearchPosture({ evidenceMode: value as typeof researchPosture.evidenceMode })}
+            onValueChange={(value) =>
+              updateResearchPosture({
+                evidenceMode: value as typeof researchPosture.evidenceMode,
+              })
+            }
             disabled={isLocked}
-            options={RESEARCH_EVIDENCE_MODES.map((value) => ({ value, label: labelize(value) }))}
+            options={RESEARCH_EVIDENCE_MODES.map((value) => ({
+              value,
+              label: labelize(value),
+            }))}
           />
         </Field>
         <Field label="Catalyst posture">
           <ShadcnSelect
             value={researchPosture.catalystMode}
-            onValueChange={(value) => updateResearchPosture({ catalystMode: value as typeof researchPosture.catalystMode })}
+            onValueChange={(value) =>
+              updateResearchPosture({
+                catalystMode: value as typeof researchPosture.catalystMode,
+              })
+            }
             disabled={isLocked}
-            options={RESEARCH_CATALYST_MODES.map((value) => ({ value, label: labelize(value) }))}
+            options={RESEARCH_CATALYST_MODES.map((value) => ({
+              value,
+              label: labelize(value),
+            }))}
           />
         </Field>
         <Field label="Fundamental strictness">
           <ShadcnSelect
             value={researchPosture.fundamentalStrictness}
             onValueChange={(value) =>
-              updateResearchPosture({ fundamentalStrictness: value as typeof researchPosture.fundamentalStrictness })
+              updateResearchPosture({
+                fundamentalStrictness:
+                  value as typeof researchPosture.fundamentalStrictness,
+              })
             }
             disabled={isLocked}
-            options={RESEARCH_FUNDAMENTAL_STRICTNESS.map((value) => ({ value, label: labelize(value) }))}
+            options={RESEARCH_FUNDAMENTAL_STRICTNESS.map((value) => ({
+              value,
+              label: labelize(value),
+            }))}
           />
         </Field>
         <Field label="Posture notes">
           <textarea
             value={researchPosture.postureNotes}
-            onChange={(event) => updateResearchPosture({ postureNotes: event.target.value })}
+            onChange={(event) =>
+              updateResearchPosture({ postureNotes: event.target.value })
+            }
             disabled={isLocked}
             rows={6}
             placeholder="Describe the edge, posture, and evidence stack this session should favor."
@@ -608,10 +940,22 @@ const StyleSection = ({
 
     <Card>
       <SectionTitle>Selected Style Summary</SectionTitle>
-      <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
-        Keep style high-level here: what edge you want the AI to pursue and what evidence posture it should adopt.
+      <p
+        style={{
+          color: "var(--text3)",
+          fontSize: 12,
+          marginTop: 8,
+          lineHeight: 1.55,
+        }}
+      >
+        Keep style high-level here: what edge you want the AI to pursue and what
+        evidence posture it should adopt.
       </p>
-      <PresetSummaryCard presetLabel={selectedStylePreset.label} thesis={selectedStylePreset.thesis} bullets={selectedStylePreset.summaryBullets} />
+      <PresetSummaryCard
+        presetLabel={selectedStylePreset.label}
+        thesis={selectedStylePreset.thesis}
+        bullets={selectedStylePreset.summaryBullets}
+      />
     </Card>
 
     <Card>
@@ -642,52 +986,82 @@ const RulesSection = ({
           <ShadcnSelect
             value={rules.rulesPresetId}
             onValueChange={(value) => {
-              const preset = TRADE_RULE_PRESETS.find((entry) => entry.id === value);
+              const preset = TRADE_RULE_PRESETS.find(
+                (entry) => entry.id === value,
+              );
               if (!preset) return;
               updateRules(preset.rules);
             }}
             disabled={isLocked}
-            options={TRADE_RULE_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
+            options={TRADE_RULE_PRESETS.map((preset) => ({
+              value: preset.id,
+              label: preset.label,
+            }))}
           />
         </Field>
         <Field label="Setup type">
           <ShadcnSelect
             value={rules.setupType}
-            onValueChange={(value) => updateRules({ setupType: value as typeof rules.setupType })}
+            onValueChange={(value) =>
+              updateRules({ setupType: value as typeof rules.setupType })
+            }
             disabled={isLocked}
-            options={SETUP_TYPES.map((value) => ({ value, label: labelize(value) }))}
+            options={SETUP_TYPES.map((value) => ({
+              value,
+              label: labelize(value),
+            }))}
           />
         </Field>
         <Field label="Side bias">
           <ShadcnSelect
             value={rules.sideBias}
-            onValueChange={(value) => updateRules({ sideBias: value as typeof rules.sideBias })}
+            onValueChange={(value) =>
+              updateRules({ sideBias: value as typeof rules.sideBias })
+            }
             disabled={isLocked}
-            options={STRATEGY_SIDE_BIASES.map((value) => ({ value, label: labelize(value) }))}
+            options={STRATEGY_SIDE_BIASES.map((value) => ({
+              value,
+              label: labelize(value),
+            }))}
           />
         </Field>
         <Field label="Entry style">
           <ShadcnSelect
             value={rules.entryStyle}
-            onValueChange={(value) => updateRules({ entryStyle: value as typeof rules.entryStyle })}
+            onValueChange={(value) =>
+              updateRules({ entryStyle: value as typeof rules.entryStyle })
+            }
             disabled={isLocked}
-            options={STRATEGY_ENTRY_STYLES.map((value) => ({ value, label: labelize(value) }))}
+            options={STRATEGY_ENTRY_STYLES.map((value) => ({
+              value,
+              label: labelize(value),
+            }))}
           />
         </Field>
         <Field label="Exit style">
           <ShadcnSelect
             value={rules.exitStyle}
-            onValueChange={(value) => updateRules({ exitStyle: value as typeof rules.exitStyle })}
+            onValueChange={(value) =>
+              updateRules({ exitStyle: value as typeof rules.exitStyle })
+            }
             disabled={isLocked}
-            options={STRATEGY_EXIT_STYLES.map((value) => ({ value, label: labelize(value) }))}
+            options={STRATEGY_EXIT_STYLES.map((value) => ({
+              value,
+              label: labelize(value),
+            }))}
           />
         </Field>
         <Field label="Scaling mode">
           <ShadcnSelect
             value={rules.scalingMode}
-            onValueChange={(value) => updateRules({ scalingMode: value as typeof rules.scalingMode })}
+            onValueChange={(value) =>
+              updateRules({ scalingMode: value as typeof rules.scalingMode })
+            }
             disabled={isLocked}
-            options={STRATEGY_SCALING_MODES.map((value) => ({ value, label: labelize(value) }))}
+            options={STRATEGY_SCALING_MODES.map((value) => ({
+              value,
+              label: labelize(value),
+            }))}
           />
         </Field>
         <Field label="Rule notes">
@@ -705,10 +1079,22 @@ const RulesSection = ({
 
     <Card>
       <SectionTitle>Selected Rules Summary</SectionTitle>
-      <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
-        Rules define how trades are structured after the style identifies the kind of edge to pursue.
+      <p
+        style={{
+          color: "var(--text3)",
+          fontSize: 12,
+          marginTop: 8,
+          lineHeight: 1.55,
+        }}
+      >
+        Rules define how trades are structured after the style identifies the
+        kind of edge to pursue.
       </p>
-      <PresetSummaryCard presetLabel={selectedRulesPreset.label} thesis={selectedRulesPreset.thesis} bullets={selectedRulesPreset.summaryBullets} />
+      <PresetSummaryCard
+        presetLabel={selectedRulesPreset.label}
+        thesis={selectedRulesPreset.thesis}
+        bullets={selectedRulesPreset.summaryBullets}
+      />
     </Card>
 
     <Card>
@@ -743,53 +1129,197 @@ const RiskSection = ({
         />
       </Field>
       <Field label="Max position USD">
-        <input type="number" value={riskConfig.maxPositionUsd} onChange={(event) => updateRiskConfig({ maxPositionUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          value={riskConfig.maxPositionUsd}
+          onChange={(event) =>
+            updateRiskConfig({
+              maxPositionUsd: Number(event.target.value) || 0,
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Max concurrent trades">
-        <input type="number" value={riskConfig.maxConcurrentTrades} onChange={(event) => updateRiskConfig({ maxConcurrentTrades: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          value={riskConfig.maxConcurrentTrades}
+          onChange={(event) =>
+            updateRiskConfig({
+              maxConcurrentTrades: Number(event.target.value) || 0,
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Stop loss type">
         <ShadcnSelect
           value={riskConfig.stopLossType}
-          onValueChange={(value) => updateRiskConfig({ stopLossType: value as typeof riskConfig.stopLossType })}
+          onValueChange={(value) =>
+            updateRiskConfig({
+              stopLossType: value as typeof riskConfig.stopLossType,
+            })
+          }
           disabled={isLocked}
-          options={STOP_LOSS_TYPES.map((value) => ({ value, label: labelize(value) }))}
+          options={STOP_LOSS_TYPES.map((value) => ({
+            value,
+            label: labelize(value),
+          }))}
         />
       </Field>
       <Field label="Stop loss %">
-        <input type="number" step="0.1" value={riskConfig.stopLossPct ?? ""} onChange={(event) => updateRiskConfig({ stopLossPct: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          step="0.1"
+          value={riskConfig.stopLossPct ?? ""}
+          onChange={(event) =>
+            updateRiskConfig({
+              stopLossPct:
+                event.target.value === "" ? null : Number(event.target.value),
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Take profit %">
-        <input type="number" step="0.1" value={riskConfig.takeProfitPct ?? ""} onChange={(event) => updateRiskConfig({ takeProfitPct: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          step="0.1"
+          value={riskConfig.takeProfitPct ?? ""}
+          onChange={(event) =>
+            updateRiskConfig({
+              takeProfitPct:
+                event.target.value === "" ? null : Number(event.target.value),
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="ATR stop multiplier">
-        <input type="number" step="0.1" value={riskConfig.atrStopMultiplier ?? ""} onChange={(event) => updateRiskConfig({ atrStopMultiplier: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          step="0.1"
+          value={riskConfig.atrStopMultiplier ?? ""}
+          onChange={(event) =>
+            updateRiskConfig({
+              atrStopMultiplier:
+                event.target.value === "" ? null : Number(event.target.value),
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Kelly fraction">
-        <input type="number" step="0.05" value={riskConfig.kellyFraction} onChange={(event) => updateRiskConfig({ kellyFraction: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          step="0.05"
+          value={riskConfig.kellyFraction}
+          onChange={(event) =>
+            updateRiskConfig({ kellyFraction: Number(event.target.value) || 0 })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Prediction edge threshold">
-        <input type="number" step="0.01" value={riskConfig.predictionEdgeThreshold} onChange={(event) => updateRiskConfig({ predictionEdgeThreshold: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          step="0.01"
+          value={riskConfig.predictionEdgeThreshold}
+          onChange={(event) =>
+            updateRiskConfig({
+              predictionEdgeThreshold: Number(event.target.value) || 0,
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Max exposure USD">
-        <input type="number" value={riskConfig.maxExposureUsd ?? ""} onChange={(event) => updateRiskConfig({ maxExposureUsd: event.target.value === "" ? null : Number(event.target.value) })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          value={riskConfig.maxExposureUsd ?? ""}
+          onChange={(event) =>
+            updateRiskConfig({
+              maxExposureUsd:
+                event.target.value === "" ? null : Number(event.target.value),
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Wait-for-open threshold">
-        <input type="number" step="0.01" value={riskConfig.waitForOpenThreshold} onChange={(event) => updateRiskConfig({ waitForOpenThreshold: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          step="0.01"
+          value={riskConfig.waitForOpenThreshold}
+          onChange={(event) =>
+            updateRiskConfig({
+              waitForOpenThreshold: Number(event.target.value) || 0,
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Daily loss limit USD">
-        <input type="number" value={riskConfig.dailyLossLimitUsd} onChange={(event) => updateRiskConfig({ dailyLossLimitUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          value={riskConfig.dailyLossLimitUsd}
+          onChange={(event) =>
+            updateRiskConfig({
+              dailyLossLimitUsd: Number(event.target.value) || 0,
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Profit target USD">
-        <input type="number" value={riskConfig.profitTargetUsd} onChange={(event) => updateRiskConfig({ profitTargetUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          value={riskConfig.profitTargetUsd}
+          onChange={(event) =>
+            updateRiskConfig({
+              profitTargetUsd: Number(event.target.value) || 0,
+            })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
       <Field label="Max AI spend USD / day">
-        <input type="number" step="0.5" value={riskConfig.maxAiSpendUsd} onChange={(event) => updateRiskConfig({ maxAiSpendUsd: Number(event.target.value) || 0 })} disabled={isLocked} style={inputStyle} />
+        <input
+          type="number"
+          step="0.5"
+          value={riskConfig.maxAiSpendUsd}
+          onChange={(event) =>
+            updateRiskConfig({ maxAiSpendUsd: Number(event.target.value) || 0 })
+          }
+          disabled={isLocked}
+          style={inputStyle}
+        />
       </Field>
-      <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 13 }}>
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          color: "var(--text2)",
+          fontSize: 13,
+        }}
+      >
         <Switch
           checked={riskConfig.humanApprovalRequired}
-          onCheckedChange={(checked) => updateRiskConfig({ humanApprovalRequired: checked })}
+          onCheckedChange={(checked) =>
+            updateRiskConfig({ humanApprovalRequired: checked })
+          }
           disabled={isLocked}
         />
         Human Approval Required
@@ -817,14 +1347,24 @@ const TimeframeSection = ({
             onValueChange={(value) => {
               const preset = TIMEFRAME_PRESETS.find((p) => p.id === value);
               if (!preset) return;
-              updateTimeframe({ timeframePresetId: preset.id, ...preset.values });
+              updateTimeframe({
+                timeframePresetId: preset.id,
+                ...preset.values,
+              });
             }}
             disabled={isLocked}
-            options={TIMEFRAME_PRESETS.map((p) => ({ value: p.id, label: p.label }))}
+            options={TIMEFRAME_PRESETS.map((p) => ({
+              value: p.id,
+              label: p.label,
+            }))}
           />
         </Field>
       </div>
     </Card>
-    <TimeframeHorizonCard timeframe={timeframe} disabled={isLocked} onChange={updateTimeframe} />
+    <TimeframeHorizonCard
+      timeframe={timeframe}
+      disabled={isLocked}
+      onChange={updateTimeframe}
+    />
   </>
 );

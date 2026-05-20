@@ -24,7 +24,9 @@ interface BuildOrderPolicyTaskInput {
   totalBrokerExposureUsd?: number;
 }
 
-export function buildOrderPolicyTask(input: BuildOrderPolicyTaskInput): PolicyGateInput {
+export function buildOrderPolicyTask(
+  input: BuildOrderPolicyTaskInput,
+): PolicyGateInput {
   return {
     sessionId: input.sessionId,
     cycleId: input.cycleId,

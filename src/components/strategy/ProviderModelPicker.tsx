@@ -3,8 +3,15 @@ import { ChevronsUpDown, Check } from "lucide-react";
 import { ShadcnSelect } from "@/components/custom-ui";
 import {
   Button,
-  Popover, PopoverContent, PopoverTrigger,
-  Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
 } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { ProviderAccount } from "@/lib/types";
@@ -40,7 +47,11 @@ export const ModelCombobox = ({
           className="h-10 w-full justify-between border-border bg-[var(--surface2)] px-3 text-[13px] font-normal text-[var(--text1)] hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
         >
           <span className={cn("truncate", !value && "text-[var(--text3)]")}>
-            {loading ? "Loading models…" : selected ? selected.label : value || "Select a model"}
+            {loading
+              ? "Loading models…"
+              : selected
+                ? selected.label
+                : value || "Select a model"}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
@@ -63,11 +74,18 @@ export const ModelCombobox = ({
                   }}
                   className="gap-2"
                 >
-                  <Check className={cn("h-4 w-4 shrink-0", o.id === value ? "opacity-100" : "opacity-0")} />
+                  <Check
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      o.id === value ? "opacity-100" : "opacity-0",
+                    )}
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[12px]">{o.label}</div>
                     {o.label !== o.id && (
-                      <div className="truncate font-mono text-[10px] text-[var(--text3)]">{o.id}</div>
+                      <div className="truncate font-mono text-[10px] text-[var(--text3)]">
+                        {o.id}
+                      </div>
                     )}
                   </div>
                 </CommandItem>

@@ -9,13 +9,26 @@ export async function placeRoutedOrder(
   riskOrder: OrderRequest,
   clientOrderId: string,
 ): Promise<{ brokerOrderId: string; filledAvgPrice: number } | null> {
-  const { adapter, brokerAccountId } = await ctx.deps.brokerRouting.resolveAdapter(ctx.sessionId, instrumentClass);
+  const { adapter, brokerAccountId } =
+    await ctx.deps.brokerRouting.resolveAdapter(ctx.sessionId, instrumentClass);
   ctx.deps.logger.debug(
-    { sessionId: ctx.sessionId, tradeId: trade.id, brokerAccountId, instrumentClass, brokerType: adapter.brokerType },
+    {
+      sessionId: ctx.sessionId,
+      tradeId: trade.id,
+      brokerAccountId,
+      instrumentClass,
+      brokerType: adapter.brokerType,
+    },
     "resolved broker adapter",
   );
 
-  if (ctx.deps.tradesRepo.checkInstrumentConflict(brokerAccountId, trade.instrumentSymbol, ctx.sessionId)) {
+  if (
+    ctx.deps.tradesRepo.checkInstrumentConflict(
+      brokerAccountId,
+      trade.instrumentSymbol,
+      ctx.sessionId,
+    )
+  ) {
     return null;
   }
 
@@ -51,5 +64,8 @@ export async function placeRoutedOrder(
     "broker order placed",
   );
 
-  return { brokerOrderId: result.brokerOrderId, filledAvgPrice: result.filledAvgPrice };
+  return {
+    brokerOrderId: result.brokerOrderId,
+    filledAvgPrice: result.filledAvgPrice,
+  };
 }

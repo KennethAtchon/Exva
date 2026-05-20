@@ -10,19 +10,19 @@ Primary fix: make tool evidence a runtime contract for selector verification wor
 
 The relevant log file is `docs/hello.json`.
 
-| Log lines | Observation | Meaning |
-| --- | --- | --- |
-| `95-112` | Runtime starts and orchestrator begins for session `fd1cca3c-1fbd-4146-8d31-c883557b9369`. | Startup path is healthy. |
-| `114-191` | `reddit-scout`, `web-scout`, and `trend-scout` start with tools available. | Selector discovery workers are scheduled correctly. |
-| `210-273` | Workers start with tool lists like `search_reddit`, `search_web`, `fetch_url`, and `get_trending_symbols`. | Tool configuration exists at execution time. |
-| Older run `275-353` | `web-scout` and `trend-scout` returned direct `{"candidates": []}` text on step 1. | The first captured run showed discovery could skip tools. |
-| Older run `371-401` | `reddit-scout` returned `NVDA`, `ARM`, and `BITCOIN` directly. | The first captured run had mostly model-generated discovery. |
-| Newer run `238-246` | Discovery workers call `get_trending_symbols`, `search_web`, and `search_reddit`. | Discovery is now producing real tool traces. |
-| Newer run `250-260` | Discovery workers return `ONON`, `PLTR`, `NVDA`, and `SOL` after tool calls. | Discovery is no longer the primary active failure. |
-| `547-633` | Verification workers start with `get_quote`, `get_ohlcv`, `get_news`, and `fetch_url` available. | Validation tools are wired into workers. |
-| Newer run `279-354` | Verification workers return direct JSON such as `volumeScore: 0.0`, `liquidityScore: 0.0`, or “No quote or OHLCV data available” on step 1. | They are still making validation claims without recorded tool calls. |
-| `1337-1354` | Orchestrator reports started and runtime active. | The selector failure is not treated as a runtime failure. |
-| Newer run `355-357` | `session:start` succeeds after `46638ms`. | The start IPC waits for the initial selector cycle instead of returning when the runtime is ready. |
+| Log lines           | Observation                                                                                                                                 | Meaning                                                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `95-112`            | Runtime starts and orchestrator begins for session `fd1cca3c-1fbd-4146-8d31-c883557b9369`.                                                  | Startup path is healthy.                                                                           |
+| `114-191`           | `reddit-scout`, `web-scout`, and `trend-scout` start with tools available.                                                                  | Selector discovery workers are scheduled correctly.                                                |
+| `210-273`           | Workers start with tool lists like `search_reddit`, `search_web`, `fetch_url`, and `get_trending_symbols`.                                  | Tool configuration exists at execution time.                                                       |
+| Older run `275-353` | `web-scout` and `trend-scout` returned direct `{"candidates": []}` text on step 1.                                                          | The first captured run showed discovery could skip tools.                                          |
+| Older run `371-401` | `reddit-scout` returned `NVDA`, `ARM`, and `BITCOIN` directly.                                                                              | The first captured run had mostly model-generated discovery.                                       |
+| Newer run `238-246` | Discovery workers call `get_trending_symbols`, `search_web`, and `search_reddit`.                                                           | Discovery is now producing real tool traces.                                                       |
+| Newer run `250-260` | Discovery workers return `ONON`, `PLTR`, `NVDA`, and `SOL` after tool calls.                                                                | Discovery is no longer the primary active failure.                                                 |
+| `547-633`           | Verification workers start with `get_quote`, `get_ohlcv`, `get_news`, and `fetch_url` available.                                            | Validation tools are wired into workers.                                                           |
+| Newer run `279-354` | Verification workers return direct JSON such as `volumeScore: 0.0`, `liquidityScore: 0.0`, or “No quote or OHLCV data available” on step 1. | They are still making validation claims without recorded tool calls.                               |
+| `1337-1354`         | Orchestrator reports started and runtime active.                                                                                            | The selector failure is not treated as a runtime failure.                                          |
+| Newer run `355-357` | `session:start` succeeds after `46638ms`.                                                                                                   | The start IPC waits for the initial selector cycle instead of returning when the runtime is ready. |
 
 The key active signal is narrower now: discovery has `agent tool call` entries, but verification workers still have none between `execute run agent start` and `execute run agent complete`. The system had validation tools, but the model satisfied the structured-output request by writing JSON immediately.
 
@@ -92,29 +92,44 @@ const toolNamesUsed = new Set(
   trace.steps.flatMap((step) => step.toolCalls.map((call) => call.tool)),
 );
 
-if (requirement.minToolCalls && trace.steps.flatMap((s) => s.toolCalls).length < requirement.minToolCalls) {
-  throw new AppError(`Worker ${worker.id} did not call required tools.`, "VALIDATION_FAILED");
+if (
+  requirement.minToolCalls &&
+  trace.steps.flatMap((s) => s.toolCalls).length < requirement.minToolCalls
+) {
+  throw new AppError(
+    `Worker ${worker.id} did not call required tools.`,
+    "VALIDATION_FAILED",
+  );
 }
 
 if (requirement.requiredAll?.some((tool) => !toolNamesUsed.has(tool))) {
-  throw new AppError(`Worker ${worker.id} missed required tool evidence.`, "VALIDATION_FAILED");
+  throw new AppError(
+    `Worker ${worker.id} missed required tool evidence.`,
+    "VALIDATION_FAILED",
+  );
 }
 
-if (requirement.requiredAny?.length && !requirement.requiredAny.some((tool) => toolNamesUsed.has(tool))) {
-  throw new AppError(`Worker ${worker.id} did not call any required evidence tool.`, "VALIDATION_FAILED");
+if (
+  requirement.requiredAny?.length &&
+  !requirement.requiredAny.some((tool) => toolNamesUsed.has(tool))
+) {
+  throw new AppError(
+    `Worker ${worker.id} did not call any required evidence tool.`,
+    "VALIDATION_FAILED",
+  );
 }
 ```
 
 Initial selector requirements:
 
-| Worker | Required evidence |
-| --- | --- |
-| `web-scout` | `search_web`, and `fetch_url` when a result URL is used as evidence |
-| `reddit-scout` | `search_reddit` |
-| `trend-scout` | `get_trending_symbols` plus optional `search_web` for context |
-| `market-validator:*` | `get_quote` and `get_ohlcv` |
-| `liquidity-gate:*` | `get_quote` |
-| `catalyst-extractor:*` | at least one of `get_news`, `search_web`, or `fetch_url` |
+| Worker                 | Required evidence                                                   |
+| ---------------------- | ------------------------------------------------------------------- |
+| `web-scout`            | `search_web`, and `fetch_url` when a result URL is used as evidence |
+| `reddit-scout`         | `search_reddit`                                                     |
+| `trend-scout`          | `get_trending_symbols` plus optional `search_web` for context       |
+| `market-validator:*`   | `get_quote` and `get_ohlcv`                                         |
+| `liquidity-gate:*`     | `get_quote`                                                         |
+| `catalyst-extractor:*` | at least one of `get_news`, `search_web`, or `fetch_url`            |
 
 Implementation priority should start with verification workers. Discovery requirements remain useful as a regression guard, but the current active failure is verification.
 
@@ -415,17 +430,17 @@ Success criteria:
 
 ## Minimal Code Hotspots
 
-| Area | Primary file | Change |
-| --- | --- | --- |
-| Tool contract config | `electron/shared/ai/pipeline-phase` and `pipeline-discovery-config.ts` | Add per-worker required tool metadata. |
-| Runtime enforcement | `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts` | Fail workers that miss required tool calls. |
-| Execution trace | `electron/main/services/ai/adapters/run-agent-execute.ts` | Keep current trace capture; optionally add a helper to summarize used tools. |
-| Selector finalization | `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts` | Return accepted and rejected diagnostics. |
-| Risk filtering | `electron/main/services/ai/engines/selector/selector-risk-filter.ts` | Return reasoned evaluation instead of boolean-only filtering. |
-| Market tools | `electron/main/services/ai/tools/market-tools.ts` | Normalize symbols before broker calls. |
-| Tool context | `electron/main/services/ai/pipeline-runtime/context/tool-context-builder.ts` | Use effective instrument classes. |
-| Prompts | `electron/main/services/ai/pipeline-runtime/prompts/selector-workers/*.md` | Require concrete tool-call sequence. |
-| Runtime start lifecycle | `electron/main/services/orchestration/cycle/agent-orchestrator.ts` and session runtime services | Do not block `session:start` on initial selector completion. |
+| Area                    | Primary file                                                                                    | Change                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Tool contract config    | `electron/shared/ai/pipeline-phase` and `pipeline-discovery-config.ts`                          | Add per-worker required tool metadata.                                       |
+| Runtime enforcement     | `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts`                       | Fail workers that miss required tool calls.                                  |
+| Execution trace         | `electron/main/services/ai/adapters/run-agent-execute.ts`                                       | Keep current trace capture; optionally add a helper to summarize used tools. |
+| Selector finalization   | `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts`                        | Return accepted and rejected diagnostics.                                    |
+| Risk filtering          | `electron/main/services/ai/engines/selector/selector-risk-filter.ts`                            | Return reasoned evaluation instead of boolean-only filtering.                |
+| Market tools            | `electron/main/services/ai/tools/market-tools.ts`                                               | Normalize symbols before broker calls.                                       |
+| Tool context            | `electron/main/services/ai/pipeline-runtime/context/tool-context-builder.ts`                    | Use effective instrument classes.                                            |
+| Prompts                 | `electron/main/services/ai/pipeline-runtime/prompts/selector-workers/*.md`                      | Require concrete tool-call sequence.                                         |
+| Runtime start lifecycle | `electron/main/services/orchestration/cycle/agent-orchestrator.ts` and session runtime services | Do not block `session:start` on initial selector completion.                 |
 
 ## Verification Checklist
 

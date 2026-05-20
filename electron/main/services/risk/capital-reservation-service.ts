@@ -4,11 +4,19 @@ import type { CapitalReservation } from "@/lib/types";
 export class CapitalReservationService {
   constructor(private readonly repo: CapitalReservationsRepo) {}
 
-  reserveForOrder(input: { sessionId: string; tradeId: string; amountUsd: number }) {
+  reserveForOrder(input: {
+    sessionId: string;
+    tradeId: string;
+    amountUsd: number;
+  }) {
     return this.repo.reserveForOrder(input);
   }
 
-  reserveForApproval(input: { sessionId: string; approvalId: string; amountUsd: number }) {
+  reserveForApproval(input: {
+    sessionId: string;
+    approvalId: string;
+    amountUsd: number;
+  }) {
     return this.repo.reserveForApproval(input);
   }
 

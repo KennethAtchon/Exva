@@ -16,7 +16,10 @@ import {
   expectedExecutionProfile,
 } from "./cycle-replay-acceptance";
 
-const FIXTURES_DIR = path.join(import.meta.dirname, "../__fixtures__/cycle-replay");
+const FIXTURES_DIR = path.join(
+  import.meta.dirname,
+  "../__fixtures__/cycle-replay",
+);
 
 function makeStrategySnapshot(): StrategySnapshot {
   return {
@@ -66,14 +69,18 @@ function makeStrategySnapshot(): StrategySnapshot {
   };
 }
 
-function makeMinimalFixture(overrides: Partial<CycleFixture> = {}): CycleFixture {
+function makeMinimalFixture(
+  overrides: Partial<CycleFixture> = {},
+): CycleFixture {
   return {
     version: 1,
     exportedAt: "2024-01-01T10:00:00Z",
     sessionId: "s1",
     cycleId: "c1",
     strategySnapshot: makeStrategySnapshot(),
-    selectedInstruments: [{ symbol: "AAPL", instrumentClass: "stock", rationale: "momentum" }],
+    selectedInstruments: [
+      { symbol: "AAPL", instrumentClass: "stock", rationale: "momentum" },
+    ],
     marketData: [
       {
         symbol: "AAPL",
@@ -87,7 +94,14 @@ function makeMinimalFixture(overrides: Partial<CycleFixture> = {}): CycleFixture
           timestamp: "2024-01-01T09:30:00Z",
         },
         ohlcvBars: [
-          { ts: "2024-01-01T09:00:00Z", open: 148, high: 152, low: 147, close: 150, volume: 100000 },
+          {
+            ts: "2024-01-01T09:00:00Z",
+            open: 148,
+            high: 152,
+            low: 147,
+            close: 150,
+            volume: 100000,
+          },
         ],
         newsHeadlines: [],
         redditPosts: [],
@@ -102,7 +116,11 @@ function makeMinimalFixture(overrides: Partial<CycleFixture> = {}): CycleFixture
       decision: null,
     },
     phaseTraces: {},
-    decision: { action: "no_trade", confidence: 0.3, reasoning: "insufficient signal" },
+    decision: {
+      action: "no_trade",
+      confidence: 0.3,
+      reasoning: "insufficient signal",
+    },
     riskOutcome: { allowed: true },
     trade: null,
     ...overrides,
@@ -110,7 +128,9 @@ function makeMinimalFixture(overrides: Partial<CycleFixture> = {}): CycleFixture
 }
 
 function loadFixture(name: string): CycleFixture {
-  return JSON.parse(fs.readFileSync(path.join(FIXTURES_DIR, `${name}.json`), "utf8")) as CycleFixture;
+  return JSON.parse(
+    fs.readFileSync(path.join(FIXTURES_DIR, `${name}.json`), "utf8"),
+  ) as CycleFixture;
 }
 
 describe("CycleReplayService.buildFixture", () => {
@@ -139,7 +159,9 @@ describe("CycleReplayService.buildFixture", () => {
         role: "technical" as const,
         provider_key: "anthropic",
         model_id: "claude-sonnet-4-6",
-        messages_json: JSON.stringify([{ role: "user", content: "analyze AAPL" }]),
+        messages_json: JSON.stringify([
+          { role: "user", content: "analyze AAPL" },
+        ]),
         thinking_json: null,
         tool_calls_json: JSON.stringify({
           version: 1,
@@ -197,7 +219,9 @@ describe("CycleReplayService.buildFixture", () => {
     expect(fixture.cycleId).toBe("c1");
     expect(fixture.strategySnapshot.version).toBe(5);
     expect(fixture.phaseOutputs.technical?.symbol).toBe("AAPL");
-    expect(fixture.phaseTraces.technical?.aggregateOutputSchemaName).toBe("technicalSignal");
+    expect(fixture.phaseTraces.technical?.aggregateOutputSchemaName).toBe(
+      "technicalSignal",
+    );
   });
 
   it("incomplete cycle (no trade) → fixture.trade = null, fixture still valid", () => {
@@ -268,7 +292,11 @@ describe("CycleReplayService.buildFixture", () => {
     const snapshot = makeStrategySnapshot();
     const selectorOutput = {
       instruments: [
-        { symbol: "NVDA", instrumentClass: "stock", rationale: "fresh momentum" },
+        {
+          symbol: "NVDA",
+          instrumentClass: "stock",
+          rationale: "fresh momentum",
+        },
       ],
     };
     const messages = [
@@ -281,7 +309,9 @@ describe("CycleReplayService.buildFixture", () => {
         role: "selector" as const,
         provider_key: "anthropic",
         model_id: "claude-sonnet-4-6",
-        messages_json: JSON.stringify([{ role: "user", content: "find setups" }]),
+        messages_json: JSON.stringify([
+          { role: "user", content: "find setups" },
+        ]),
         thinking_json: null,
         tool_calls_json: JSON.stringify({
           version: 1,
@@ -333,7 +363,14 @@ describe("CycleReplayRunner.replay", () => {
 
   it("same fixture produces same riskOutcome on two consecutive runs", () => {
     const fixture = makeMinimalFixture({
-      decision: { action: "trade", side: "BUY", symbol: "AAPL", sizeUsd: 500, confidence: 0.8, reasoning: "bullish" },
+      decision: {
+        action: "trade",
+        side: "BUY",
+        symbol: "AAPL",
+        sizeUsd: 500,
+        confidence: 0.8,
+        reasoning: "bullish",
+      },
       riskOutcome: { allowed: true },
     });
 
@@ -353,7 +390,14 @@ describe("CycleReplayRunner.replay", () => {
 
   it("fixture from before policy gate was added → matchesOriginal.riskOutcomeMatches can be false", () => {
     const fixture = makeMinimalFixture({
-      decision: { action: "trade", side: "BUY", symbol: "AAPL", sizeUsd: 500, confidence: 0.8, reasoning: "bullish" },
+      decision: {
+        action: "trade",
+        side: "BUY",
+        symbol: "AAPL",
+        sizeUsd: 500,
+        confidence: 0.8,
+        reasoning: "bullish",
+      },
       riskOutcome: { allowed: true },
     });
 
@@ -379,7 +423,9 @@ describe("CycleReplayRunner.replay", () => {
   });
 
   it("loads checked-in fixtures and replays them", () => {
-    const files = fs.readdirSync(FIXTURES_DIR).filter((name) => name.endsWith(".json"));
+    const files = fs
+      .readdirSync(FIXTURES_DIR)
+      .filter((name) => name.endsWith(".json"));
     expect(files.length).toBeGreaterThanOrEqual(5);
 
     for (const file of files) {
@@ -405,7 +451,9 @@ describe("CycleReplayRunner.replay", () => {
 
   it("replays exact technical signal fixtures for stock and prediction-market cases", () => {
     const stock = runner.replay(loadFixture("technical-stock"));
-    const prediction = runner.replay(loadFixture("technical-prediction-market"));
+    const prediction = runner.replay(
+      loadFixture("technical-prediction-market"),
+    );
 
     expect(stock.phaseOutputs.technical).toMatchObject({
       symbol: "AAPL",
@@ -519,10 +567,20 @@ describe("CycleReplayRunner.replay", () => {
     for (const { strategy, instrumentClass } of cases) {
       const replayFixture = {
         ...fixture,
-        selectedInstruments: [{ symbol: "TEST", instrumentClass, rationale: "execution profile check" }],
+        selectedInstruments: [
+          {
+            symbol: "TEST",
+            instrumentClass,
+            rationale: "execution profile check",
+          },
+        ],
         phaseOutputs: {
           ...fixture.phaseOutputs,
-          decision: { ...baseDecision, executionStrategy: strategy, symbol: "TEST" },
+          decision: {
+            ...baseDecision,
+            executionStrategy: strategy,
+            symbol: "TEST",
+          },
         },
         decision: {
           ...fixture.decision,
@@ -548,8 +606,12 @@ describe("CycleReplayRunner.replay", () => {
   });
 
   it("acceptance suite enforces selector submission rate, zero AI sizing, and cost ceilings", () => {
-    const files = fs.readdirSync(FIXTURES_DIR).filter((name) => name.endsWith(".json"));
-    const results = files.map((file) => runner.replay(loadFixture(file.replace(/\.json$/, ""))));
+    const files = fs
+      .readdirSync(FIXTURES_DIR)
+      .filter((name) => name.endsWith(".json"));
+    const results = files.map((file) =>
+      runner.replay(loadFixture(file.replace(/\.json$/, ""))),
+    );
 
     assertSelectorSubmissionRate(results, 1);
     assertZeroAiAuthoredSizing(results);

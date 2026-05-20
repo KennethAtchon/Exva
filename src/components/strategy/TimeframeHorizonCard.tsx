@@ -1,6 +1,10 @@
 import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import type { SessionTimeframeConfig } from "@/lib/types";
-import { HOLDING_STYLES, TRADING_TIMEFRAMES, timeframeConfigHoldMismatchWarning } from "../../../electron/shared/domain";
+import {
+  HOLDING_STYLES,
+  TRADING_TIMEFRAMES,
+  timeframeConfigHoldMismatchWarning,
+} from "../../../electron/shared/domain";
 
 type Props = {
   timeframe: SessionTimeframeConfig;
@@ -8,34 +12,58 @@ type Props = {
   onChange: (patch: Partial<SessionTimeframeConfig>) => void;
 };
 
-export const TimeframeHorizonCard = ({ timeframe, disabled, onChange }: Props) => {
+export const TimeframeHorizonCard = ({
+  timeframe,
+  disabled,
+  onChange,
+}: Props) => {
   const mismatch = timeframeConfigHoldMismatchWarning(timeframe);
 
   return (
     <Card>
       <SectionTitle>Timeframe &amp; holding horizon</SectionTitle>
-      <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 8, lineHeight: 1.55 }}>
-        Bar size agents use for thesis and risk. Optional hold targets align approvals and AI context with how long
-        you intend to keep positions.
+      <p
+        style={{
+          color: "var(--text3)",
+          fontSize: 12,
+          marginTop: 8,
+          lineHeight: 1.55,
+        }}
+      >
+        Bar size agents use for thesis and risk. Optional hold targets align
+        approvals and AI context with how long you intend to keep positions.
       </p>
       <div style={formGridStyle}>
         <Field label="Primary trading timeframe">
-            <ShadcnSelect
-              value={timeframe.primaryTradingTimeframe}
-              onValueChange={(value) =>
-                onChange({ primaryTradingTimeframe: value as SessionTimeframeConfig["primaryTradingTimeframe"] })
-              }
+          <ShadcnSelect
+            value={timeframe.primaryTradingTimeframe}
+            onValueChange={(value) =>
+              onChange({
+                primaryTradingTimeframe:
+                  value as SessionTimeframeConfig["primaryTradingTimeframe"],
+              })
+            }
             disabled={disabled}
-            options={TRADING_TIMEFRAMES.map((timeframe) => ({ value: timeframe, label: timeframe }))}
+            options={TRADING_TIMEFRAMES.map((timeframe) => ({
+              value: timeframe,
+              label: timeframe,
+            }))}
           />
         </Field>
         <Field label="Holding style">
-            <ShadcnSelect
-              value={timeframe.holdingStyle}
-              onValueChange={(value) => onChange({ holdingStyle: value as SessionTimeframeConfig["holdingStyle"] })}
-              disabled={disabled}
-              options={HOLDING_STYLES.map((style) => ({ value: style, label: holdingStyleLabel(style) }))}
-            />
+          <ShadcnSelect
+            value={timeframe.holdingStyle}
+            onValueChange={(value) =>
+              onChange({
+                holdingStyle: value as SessionTimeframeConfig["holdingStyle"],
+              })
+            }
+            disabled={disabled}
+            options={HOLDING_STYLES.map((style) => ({
+              value: style,
+              label: holdingStyleLabel(style),
+            }))}
+          />
         </Field>
         <Field label="Target hold (days, optional)">
           <input
@@ -70,7 +98,9 @@ export const TimeframeHorizonCard = ({ timeframe, disabled, onChange }: Props) =
         <Field label="Timeframe notes">
           <textarea
             value={timeframe.timeframeNotes}
-            onChange={(event) => onChange({ timeframeNotes: event.target.value })}
+            onChange={(event) =>
+              onChange({ timeframeNotes: event.target.value })
+            }
             disabled={disabled}
             rows={3}
             placeholder="e.g. No new entries after Friday 12 ET"
@@ -79,13 +109,24 @@ export const TimeframeHorizonCard = ({ timeframe, disabled, onChange }: Props) =
         </Field>
       </div>
       {mismatch ? (
-        <p style={{ marginTop: 12, fontSize: 12, color: "#fbbf24", lineHeight: 1.45 }}>{mismatch}</p>
+        <p
+          style={{
+            marginTop: 12,
+            fontSize: 12,
+            color: "#fbbf24",
+            lineHeight: 1.45,
+          }}
+        >
+          {mismatch}
+        </p>
       ) : null}
     </Card>
   );
 };
 
-function holdingStyleLabel(style: SessionTimeframeConfig["holdingStyle"]): string {
+function holdingStyleLabel(
+  style: SessionTimeframeConfig["holdingStyle"],
+): string {
   switch (style) {
     case "intraday_flat":
       return "Intraday (flat by default)";
@@ -98,7 +139,13 @@ function holdingStyleLabel(style: SessionTimeframeConfig["holdingStyle"]): strin
   }
 }
 
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+const Field = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => (
   <div style={{ display: "grid", gap: 6 }}>
     <div style={{ fontSize: 12, color: "var(--text3)" }}>{label}</div>
     {children}

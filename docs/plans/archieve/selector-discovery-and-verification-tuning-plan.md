@@ -12,24 +12,24 @@ Exva's current `instrument_selector` can discover real information, but it does 
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Preserve single-agent discovery + verification | `instrument_selector` still performs both discovery and verification in one run; no new agent loop is introduced. |
-| 2 | Bias discovery toward new information | Each additional discovery action adds new symbols, new source types, or new evidence dimensions, instead of repeating the same candidate set. |
-| 3 | Bias verification toward important information | Verification focuses on evidence that materially changes ranking or eligibility: catalyst quality, tradability, price structure, and risk fit. |
-| 4 | Force bounded progression | Selector moves from discovery to verification to `submit_candidates` or explicit empty result within a bounded number of steps/attempts. |
-| 5 | Make tuning configurable | Discovery/verification budgets and novelty thresholds live in selector settings, not hardcoded prompt prose only. |
-| 6 | Improve retry behavior | Retry runs reuse prior evidence and narrow remaining gaps instead of restarting broad rediscovery from scratch. |
+| #   | Goal                                           | Success Looks Like                                                                                                                             |
+| --- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Preserve single-agent discovery + verification | `instrument_selector` still performs both discovery and verification in one run; no new agent loop is introduced.                              |
+| 2   | Bias discovery toward new information          | Each additional discovery action adds new symbols, new source types, or new evidence dimensions, instead of repeating the same candidate set.  |
+| 3   | Bias verification toward important information | Verification focuses on evidence that materially changes ranking or eligibility: catalyst quality, tradability, price structure, and risk fit. |
+| 4   | Force bounded progression                      | Selector moves from discovery to verification to `submit_candidates` or explicit empty result within a bounded number of steps/attempts.       |
+| 5   | Make tuning configurable                       | Discovery/verification budgets and novelty thresholds live in selector settings, not hardcoded prompt prose only.                              |
+| 6   | Improve retry behavior                         | Retry runs reuse prior evidence and narrow remaining gaps instead of restarting broad rediscovery from scratch.                                |
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Split discovery and verification into separate agents | User explicitly wants to avoid a two-agent loop for now. |
-| 2 | Remove broad discovery entirely | The product still needs less-obvious ideas, not just obvious trending names. |
-| 3 | Solve selector quality mainly by swapping models | Model selection may help later, but the core issue is workflow control and evidence discipline. |
-| 4 | Replace model judgment with a fully deterministic screener | Exva still wants model-driven synthesis across diverse sources, not a rules-only stock picker. |
-| 5 | Redesign the full multi-role orchestration stack | This plan is scoped to selector behavior, selector retries, and adjacent observability/configuration. |
+| #   | Non-Goal                                                   | Reason                                                                                                |
+| --- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | Split discovery and verification into separate agents      | User explicitly wants to avoid a two-agent loop for now.                                              |
+| 2   | Remove broad discovery entirely                            | The product still needs less-obvious ideas, not just obvious trending names.                          |
+| 3   | Solve selector quality mainly by swapping models           | Model selection may help later, but the core issue is workflow control and evidence discipline.       |
+| 4   | Replace model judgment with a fully deterministic screener | Exva still wants model-driven synthesis across diverse sources, not a rules-only stock picker.        |
+| 5   | Redesign the full multi-role orchestration stack           | This plan is scoped to selector behavior, selector retries, and adjacent observability/configuration. |
 
 ## 3. Background & Context
 
@@ -110,15 +110,15 @@ The hard problem is not simply “make the selector stop sooner.” The hard pro
 
 What it is: leave the prompt and tool flow mostly unchanged, but reduce `maxSteps`, reduce retries, and possibly force `submit_candidates` earlier.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Low |
-| Performance | Better latency and cost immediately |
-| Reliability | Better termination, weak evidence quality control |
-| Cost | Low engineering cost |
-| Reversibility | High |
-| Stack fit | Excellent |
-| Team readiness | Immediate |
+| Dimension      | Assessment                                        |
+| -------------- | ------------------------------------------------- |
+| Complexity     | Low                                               |
+| Performance    | Better latency and cost immediately               |
+| Reliability    | Better termination, weak evidence quality control |
+| Cost           | Low engineering cost                              |
+| Reversibility  | High                                              |
+| Stack fit      | Excellent                                         |
+| Team readiness | Immediate                                         |
 
 Risks:
 
@@ -134,15 +134,15 @@ Open questions:
 
 What it is: introduce a discovery agent that builds a candidate pool and a verifier agent that scores/filters it before handoff.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | High |
-| Performance | Potentially good once tuned, but more orchestration overhead |
-| Reliability | Clearer responsibilities, but more moving parts and new loop failure modes |
-| Cost | Highest engineering cost |
-| Reversibility | Medium |
-| Stack fit | Moderate; requires orchestration changes across AI runtime and step runner |
-| Team readiness | Medium |
+| Dimension      | Assessment                                                                 |
+| -------------- | -------------------------------------------------------------------------- |
+| Complexity     | High                                                                       |
+| Performance    | Potentially good once tuned, but more orchestration overhead               |
+| Reliability    | Clearer responsibilities, but more moving parts and new loop failure modes |
+| Cost           | Highest engineering cost                                                   |
+| Reversibility  | Medium                                                                     |
+| Stack fit      | Moderate; requires orchestration changes across AI runtime and step runner |
+| Team readiness | Medium                                                                     |
 
 Risks:
 
@@ -158,15 +158,15 @@ Open questions:
 
 What it is: preserve the current single selector role, but wrap it in stronger configuration and deterministic control. Discovery and verification remain in one agent, yet the runtime tracks novelty, restricts tool surfaces by phase, limits repeated low-signal searches, and changes retry mode from “start over” to “reuse prior evidence and fill remaining gaps.”
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium |
-| Performance | Better than today; should materially reduce timeout loops |
-| Reliability | Strong; preserves breadth while adding bounded progression |
-| Cost | Moderate engineering cost |
-| Reversibility | High; changes are mostly role-profile config, prompt-pack rendering, and local runtime control |
-| Stack fit | Strong fit with current `runInstrumentSelector`, `prepareStep`, and role-profile design |
-| Team readiness | High |
+| Dimension      | Assessment                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| Complexity     | Medium                                                                                         |
+| Performance    | Better than today; should materially reduce timeout loops                                      |
+| Reliability    | Strong; preserves breadth while adding bounded progression                                     |
+| Cost           | Moderate engineering cost                                                                      |
+| Reversibility  | High; changes are mostly role-profile config, prompt-pack rendering, and local runtime control |
+| Stack fit      | Strong fit with current `runInstrumentSelector`, `prepareStep`, and role-profile design        |
+| Team readiness | High                                                                                           |
 
 Risks:
 
@@ -400,25 +400,25 @@ Rollback plan:
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|-----------|--------|------------|
-| 1 | Novelty guards reject valid follow-up research | Medium | High | Start in warn-only mode; tune against replay logs before hard enforcement. |
-| 2 | Phase budgets become too tight and miss obscure candidates | Medium | High | Keep budgets configurable in role profile; compare unique-symbol coverage before/after. |
-| 3 | Retry narrowing overfits to bad first-pass candidates | Medium | Medium | Allow one bounded rediscovery burst only when surviving candidates remain weak. |
-| 4 | Extra selector state adds complexity without enough gain | Medium | Medium | Keep state local to selector runtime/tool layer; avoid new persistence tables unless Phase 6 proves necessary. |
-| 5 | Search-result diversification hurts precision | Low | Medium | Apply MMR-like rerank only to discovery result lists and keep relevance-weighted tuning configurable. |
-| 6 | Role-profile text changes alone do not move behavior enough | High | Medium | Treat role-profile text changes as paired with runtime guards, not as the only fix. |
+| #   | Risk                                                        | Likelihood | Impact | Mitigation                                                                                                     |
+| --- | ----------------------------------------------------------- | ---------- | ------ | -------------------------------------------------------------------------------------------------------------- |
+| 1   | Novelty guards reject valid follow-up research              | Medium     | High   | Start in warn-only mode; tune against replay logs before hard enforcement.                                     |
+| 2   | Phase budgets become too tight and miss obscure candidates  | Medium     | High   | Keep budgets configurable in role profile; compare unique-symbol coverage before/after.                        |
+| 3   | Retry narrowing overfits to bad first-pass candidates       | Medium     | Medium | Allow one bounded rediscovery burst only when surviving candidates remain weak.                                |
+| 4   | Extra selector state adds complexity without enough gain    | Medium     | Medium | Keep state local to selector runtime/tool layer; avoid new persistence tables unless Phase 6 proves necessary. |
+| 5   | Search-result diversification hurts precision               | Low        | Medium | Apply MMR-like rerank only to discovery result lists and keep relevance-weighted tuning configurable.          |
+| 6   | Role-profile text changes alone do not move behavior enough | High       | Medium | Treat role-profile text changes as paired with runtime guards, not as the only fix.                            |
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|------|--------|----------|--------|--------------|
-| Bounded progression | Selector runs ending with terminal outcome (`submit_candidates` or valid empty result) | Incident run: 0/5 selector-stage attempts reached terminal tool | >= 95% in replay/eval suite | Replay tests + targeted paper-session QA |
-| Less repetition | Malformed/meta/empty discovery queries per selector run | Incident run: at least 7 obvious malformed/meta queries (`645`, `761`, `783`, `869`, `891`, `929`, `974`) | 0 in replay/eval suite | Query guard metrics |
-| Retry quality | Retry runs that start from prior evidence instead of full rediscovery | Incident run: 5 retries all restarted broad rediscovery | 100% of retryable selector retries carry prior evidence context | Retry trace inspection + tests |
-| Time-to-decision | Selector stage attempts needed before terminal outcome | Incident run: 5 stage attempts | <= 2 attempts for replay/eval scenarios | Session execution step records |
-| Discovery depth | Unique symbols considered before final shortlist | Incident run: mostly recycled `NVDA`, `PLTR`, `TSLA`, `SOL` with a few late additions | >= baseline unique-symbol count while reducing repeated verification churn by 50% | Attempt summary metrics |
-| Decision relevance | Final shortlisted candidates with both discovery and verification evidence | Incident run: no shortlist emitted | 100% of shortlisted candidates have at least 2 evidence categories attached | Selector validation / test assertions |
+| Goal                | Metric                                                                                 | Baseline                                                                                                  | Target                                                                            | How Measured                             |
+| ------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------- |
+| Bounded progression | Selector runs ending with terminal outcome (`submit_candidates` or valid empty result) | Incident run: 0/5 selector-stage attempts reached terminal tool                                           | >= 95% in replay/eval suite                                                       | Replay tests + targeted paper-session QA |
+| Less repetition     | Malformed/meta/empty discovery queries per selector run                                | Incident run: at least 7 obvious malformed/meta queries (`645`, `761`, `783`, `869`, `891`, `929`, `974`) | 0 in replay/eval suite                                                            | Query guard metrics                      |
+| Retry quality       | Retry runs that start from prior evidence instead of full rediscovery                  | Incident run: 5 retries all restarted broad rediscovery                                                   | 100% of retryable selector retries carry prior evidence context                   | Retry trace inspection + tests           |
+| Time-to-decision    | Selector stage attempts needed before terminal outcome                                 | Incident run: 5 stage attempts                                                                            | <= 2 attempts for replay/eval scenarios                                           | Session execution step records           |
+| Discovery depth     | Unique symbols considered before final shortlist                                       | Incident run: mostly recycled `NVDA`, `PLTR`, `TSLA`, `SOL` with a few late additions                     | >= baseline unique-symbol count while reducing repeated verification churn by 50% | Attempt summary metrics                  |
+| Decision relevance  | Final shortlisted candidates with both discovery and verification evidence             | Incident run: no shortlist emitted                                                                        | 100% of shortlisted candidates have at least 2 evidence categories attached       | Selector validation / test assertions    |
 
 Leading indicators:
 
@@ -433,17 +433,17 @@ Lagging indicators:
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| 1 | Should retry context be reconstructed from existing `tool_calls_json`, or should selector-attempt metadata be persisted explicitly on step rows? | Kenneth | Before Phase 6 | Open |
-| 2 | How should we define “less-known but valuable” in a measurable way beyond generic novelty? | Kenneth | Before final success-metric lock | Open |
-| 3 | Should MMR-like diversification happen at query result level only, or also at candidate-pool ranking time? | Kenneth | Before Phase 4 implementation | Open |
-| 4 | Do we want the selector to submit an explicit empty shortlist earlier when it cannot produce high-quality candidates, or keep using retries as the main no-candidate path? | Kenneth | Before Phase 5 | Open |
-| 5 | Are the current provider/model defaults still acceptable once loop control is fixed, or should selector use a different default model after this tuning work lands? | Kenneth | Before rollout | Open |
+| #   | Question                                                                                                                                                                   | Owner   | Needed By                        | Status |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------- | ------ |
+| 1   | Should retry context be reconstructed from existing `tool_calls_json`, or should selector-attempt metadata be persisted explicitly on step rows?                           | Kenneth | Before Phase 6                   | Open   |
+| 2   | How should we define “less-known but valuable” in a measurable way beyond generic novelty?                                                                                 | Kenneth | Before final success-metric lock | Open   |
+| 3   | Should MMR-like diversification happen at query result level only, or also at candidate-pool ranking time?                                                                 | Kenneth | Before Phase 4 implementation    | Open   |
+| 4   | Do we want the selector to submit an explicit empty shortlist earlier when it cannot produce high-quality candidates, or keep using retries as the main no-candidate path? | Kenneth | Before Phase 5                   | Open   |
+| 5   | Are the current provider/model defaults still acceptable once loop control is fixed, or should selector use a different default model after this tuning work lands?        | Kenneth | Before rollout                   | Open   |
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|-------------|
-| Status quo + only lower caps | Too likely to produce shallow obvious-name behavior without fixing novelty or verification quality. |
+| Option                                                 | Why Rejected                                                                                                   |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Status quo + only lower caps                           | Too likely to produce shallow obvious-name behavior without fixing novelty or verification quality.            |
 | Immediate split into discovery and verification agents | More architectural churn than needed, introduces a new inter-agent loop the user explicitly does not want yet. |

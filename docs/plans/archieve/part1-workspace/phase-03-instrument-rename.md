@@ -15,19 +15,19 @@ None — this is mechanical. The risk is **incomplete replacement** leaving stal
 
 ## Rename Map
 
-| Old | New | Scope |
-|-----|-----|-------|
-| `Trade.asset` | `Trade.instrumentSymbol` | `src/lib/types.ts` |
-| `trades.asset` | `trades.instrument_symbol` | `schema.ts`, `migrations.ts` |
-| `AgentType` | `AgentRole` | `electron/shared/domain.ts`, all imports |
-| `SessionConfig` | removed (per-session strategy fields) | `src/lib/types.ts` |
-| `"stock"` hardcoded strings | `InstrumentClass` enum | `agent-orchestrator.ts`, `ai-sdk-service.ts` |
-| `watchlistFor()` hardcoded `["SPY","QQQ"]` | `session.instrumentScope` | `agent-orchestrator.ts` |
-| `modelByAgent` fixed map | per-session AI role config | `ai-sdk-service.ts` (Phase 7) |
-| `asset` param in `ResearcherInput` | `instrumentSymbol` | `ai-sdk-service.ts` |
-| `asset` in `TradeDecisionPayload` | `instrumentSymbol` | `electron/preload/exva-api.ts` |
-| `asset` column reference in `stats-repo.ts` | `instrument_symbol` | `stats-repo.ts` |
-| `asset` in `mappers.ts` | `instrumentSymbol` | `mappers.ts` |
+| Old                                         | New                                   | Scope                                        |
+| ------------------------------------------- | ------------------------------------- | -------------------------------------------- |
+| `Trade.asset`                               | `Trade.instrumentSymbol`              | `src/lib/types.ts`                           |
+| `trades.asset`                              | `trades.instrument_symbol`            | `schema.ts`, `migrations.ts`                 |
+| `AgentType`                                 | `AgentRole`                           | `electron/shared/domain.ts`, all imports     |
+| `SessionConfig`                             | removed (per-session strategy fields) | `src/lib/types.ts`                           |
+| `"stock"` hardcoded strings                 | `InstrumentClass` enum                | `agent-orchestrator.ts`, `ai-sdk-service.ts` |
+| `watchlistFor()` hardcoded `["SPY","QQQ"]`  | `session.instrumentScope`             | `agent-orchestrator.ts`                      |
+| `modelByAgent` fixed map                    | per-session AI role config            | `ai-sdk-service.ts` (Phase 7)                |
+| `asset` param in `ResearcherInput`          | `instrumentSymbol`                    | `ai-sdk-service.ts`                          |
+| `asset` in `TradeDecisionPayload`           | `instrumentSymbol`                    | `electron/preload/exva-api.ts`               |
+| `asset` column reference in `stats-repo.ts` | `instrument_symbol`                   | `stats-repo.ts`                              |
+| `asset` in `mappers.ts`                     | `instrumentSymbol`                    | `mappers.ts`                                 |
 
 ## File-by-File Changes
 
@@ -107,7 +107,7 @@ async runResearcher(input: ResearcherInput, stance: "bull" | "bear"): Promise<Ag
 ```typescript
 // ResearcherInput
 export interface ResearcherInput {
-  instrumentSymbol: string;   // was: asset
+  instrumentSymbol: string; // was: asset
   context?: string;
 }
 ```
@@ -118,7 +118,7 @@ export interface ResearcherInput {
 // TradeDecisionPayload
 export interface TradeDecisionPayload {
   trade_id: string;
-  instrumentSymbol: string;    // was: asset
+  instrumentSymbol: string; // was: asset
   side: "BUY" | "SELL";
   size_usd: number;
   confidence: number;
@@ -174,31 +174,31 @@ grep -r 'asset:' src/ electron/ --include="*.ts" --include="*.tsx"              
 
 ## UI Rename
 
-| File | Change |
-|------|--------|
-| `src/pages/TradesPage.tsx` | `trade.asset` → `trade.instrumentSymbol` |
-| `src/pages/TradeDetail.tsx` | `trade.asset` → `trade.instrumentSymbol` |
-| `src/pages/Dashboard.tsx` | any `asset` display references |
-| `src/lib/mock.ts` | update mock data field names |
-| `src/lib/formatters.ts` | update any formatter that references `asset` |
+| File                        | Change                                       |
+| --------------------------- | -------------------------------------------- |
+| `src/pages/TradesPage.tsx`  | `trade.asset` → `trade.instrumentSymbol`     |
+| `src/pages/TradeDetail.tsx` | `trade.asset` → `trade.instrumentSymbol`     |
+| `src/pages/Dashboard.tsx`   | any `asset` display references               |
+| `src/lib/mock.ts`           | update mock data field names                 |
+| `src/lib/formatters.ts`     | update any formatter that references `asset` |
 
 ## Files Modified in This Phase
 
-| File | Change |
-|------|--------|
-| `electron/shared/domain.ts` | primary source of truth (Phase 1) |
-| `electron/shared/channels.ts` | add new channel constants |
-| `src/lib/types.ts` | update `Trade`, remove `SessionConfig`, re-export domain types |
-| `electron/main/db/repositories/mappers.ts` | update all row mappers |
-| `electron/main/db/repositories/trades-repo.ts` | update column references |
-| `electron/main/db/repositories/stats-repo.ts` | update column references |
-| `electron/main/services/agent-orchestrator.ts` | remove `watchlistFor`, add `getInstruments` |
-| `electron/main/services/ai-sdk-service.ts` | rename `asset` → `instrumentSymbol` in inputs |
-| `electron/preload/exva-api.ts` | rename payload fields |
-| `src/pages/TradesPage.tsx` | display field rename |
-| `src/pages/TradeDetail.tsx` | display field rename |
-| `src/pages/Dashboard.tsx` | display field rename |
-| `src/lib/mock.ts` | mock data field rename |
+| File                                           | Change                                                         |
+| ---------------------------------------------- | -------------------------------------------------------------- |
+| `electron/shared/domain.ts`                    | primary source of truth (Phase 1)                              |
+| `electron/shared/channels.ts`                  | add new channel constants                                      |
+| `src/lib/types.ts`                             | update `Trade`, remove `SessionConfig`, re-export domain types |
+| `electron/main/db/repositories/mappers.ts`     | update all row mappers                                         |
+| `electron/main/db/repositories/trades-repo.ts` | update column references                                       |
+| `electron/main/db/repositories/stats-repo.ts`  | update column references                                       |
+| `electron/main/services/agent-orchestrator.ts` | remove `watchlistFor`, add `getInstruments`                    |
+| `electron/main/services/ai-sdk-service.ts`     | rename `asset` → `instrumentSymbol` in inputs                  |
+| `electron/preload/exva-api.ts`                 | rename payload fields                                          |
+| `src/pages/TradesPage.tsx`                     | display field rename                                           |
+| `src/pages/TradeDetail.tsx`                    | display field rename                                           |
+| `src/pages/Dashboard.tsx`                      | display field rename                                           |
+| `src/lib/mock.ts`                              | mock data field rename                                         |
 
 ## Acceptance Criteria
 

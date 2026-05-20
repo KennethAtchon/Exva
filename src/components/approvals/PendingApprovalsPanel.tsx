@@ -29,12 +29,23 @@ export const PendingApprovalsPanel = ({
   return (
     <>
       <Card style={{ padding: "18px 22px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 4,
+          }}
+        >
           <SectionTitle>Pending approvals</SectionTitle>
-          <Badge variant="warn" size="sm">{pending.length}</Badge>
+          <Badge variant="warn" size="sm">
+            {pending.length}
+          </Badge>
         </div>
         {pending.length === 0 ? (
-          <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 10 }}>No pending approvals.</p>
+          <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 10 }}>
+            No pending approvals.
+          </p>
         ) : (
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             {pending.map((a) => (
@@ -47,24 +58,62 @@ export const PendingApprovalsPanel = ({
               >
                 <div style={{ textAlign: "left" }}>
                   {workspaceViewMode === "global" && (
-                    <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 4 }}>{a.sessionName}</div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text3)",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {a.sessionName}
+                    </div>
                   )}
-                  <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, color: "var(--text1)" }}>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontWeight: 700,
+                      color: "var(--text1)",
+                    }}
+                  >
                     {a.instrumentSymbol}
                   </div>
                   {a.instrumentDisplayName ? (
-                    <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>{a.instrumentDisplayName}</div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text3)",
+                        marginTop: 2,
+                      }}
+                    >
+                      {a.instrumentDisplayName}
+                    </div>
                   ) : null}
-                  <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text3)",
+                      marginTop: 4,
+                    }}
+                  >
                     {a.predictionOutcome ? `${a.predictionOutcome} · ` : ""}
                     {a.proposedSide} · {fmt.usd(a.proposedSizeUsd, 0)}
                     {a.confidenceScore != null && (
                       <> · {Math.round(a.confidenceScore * 100)}% conf</>
                     )}
                   </div>
-                  <div style={{ fontSize: 10, color: "var(--text3)", marginTop: 4 }}>{fmt.time(a.requestedAt)}</div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "var(--text3)",
+                      marginTop: 4,
+                    }}
+                  >
+                    {fmt.time(a.requestedAt)}
+                  </div>
                 </div>
-                <Badge variant="warn" size="sm">pending</Badge>
+                <Badge variant="warn" size="sm">
+                  pending
+                </Badge>
               </Button>
             ))}
           </div>

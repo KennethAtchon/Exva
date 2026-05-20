@@ -16,9 +16,10 @@ function parseMetadata(value: string | null): OpenRouterMetadata {
   try {
     const parsed = JSON.parse(value) as unknown;
     if (typeof parsed !== "object" || parsed === null) return {};
-    const baseUrl = typeof (parsed as { baseUrl?: unknown }).baseUrl === "string"
-      ? (parsed as { baseUrl: string }).baseUrl
-      : undefined;
+    const baseUrl =
+      typeof (parsed as { baseUrl?: unknown }).baseUrl === "string"
+        ? (parsed as { baseUrl: string }).baseUrl
+        : undefined;
     return { baseUrl };
   } catch {
     return {};
@@ -39,12 +40,20 @@ export class ProviderRegistry {
 
     const account = this.providerAccountsRepo.find(providerKey);
     if (!account || !account.isConfigured || account.category !== "ai") {
-      throw new AppError(`Provider not configured: ${providerKey}`, "PROVIDER_NOT_CONFIGURED", { providerKey });
+      throw new AppError(
+        `Provider not configured: ${providerKey}`,
+        "PROVIDER_NOT_CONFIGURED",
+        { providerKey },
+      );
     }
 
     const secret = await this.secrets.get(account.secretRef);
     if (!secret) {
-      throw new AppError(`No secret for provider: ${providerKey}`, "MISSING_SECRET", { providerKey });
+      throw new AppError(
+        `No secret for provider: ${providerKey}`,
+        "MISSING_SECRET",
+        { providerKey },
+      );
     }
 
     const adapter = this.buildAdapter(account, secret);
@@ -61,7 +70,10 @@ export class ProviderRegistry {
     this.adapters.delete(providerKey);
   }
 
-  private buildAdapter(account: ProviderAccount, secret: string): ProviderAdapter {
+  private buildAdapter(
+    account: ProviderAccount,
+    secret: string,
+  ): ProviderAdapter {
     const providerType = String(account.providerType);
     switch (providerType) {
       case "anthropic":
@@ -74,7 +86,10 @@ export class ProviderRegistry {
         return new OpenRouterAdapter(secret, metadata.baseUrl);
       }
       default:
-        throw new AppError(`Unsupported provider type: ${account.providerType}`, "PROVIDER_NOT_CONFIGURED");
+        throw new AppError(
+          `Unsupported provider type: ${account.providerType}`,
+          "PROVIDER_NOT_CONFIGURED",
+        );
     }
   }
 }

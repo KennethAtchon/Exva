@@ -10,7 +10,16 @@ import type {
 import { executeRunAgent } from "./run-agent-execute";
 import type { RunTrace } from "../ai-runtime/ai-runtime-types";
 
-function readUsage(usage: { inputTokens?: number; outputTokens?: number; promptTokens?: number; completionTokens?: number } | undefined): {
+function readUsage(
+  usage:
+    | {
+        inputTokens?: number;
+        outputTokens?: number;
+        promptTokens?: number;
+        completionTokens?: number;
+      }
+    | undefined,
+): {
   inputTokens: number;
   outputTokens: number;
 } {
@@ -25,7 +34,9 @@ export class OpenAiAdapter implements ProviderAdapter {
 
   constructor(private readonly apiKey: string) {}
 
-  async runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>> {
+  async runAgent<T = undefined>(
+    opts: AgentRunOptions<T>,
+  ): Promise<RunTrace<T>> {
     const { createOpenAI } = await import("@ai-sdk/openai");
     const client = createOpenAI({ apiKey: this.apiKey });
     return executeRunAgent({
@@ -67,7 +78,9 @@ export class OpenAiAdapter implements ProviderAdapter {
     };
   }
 
-  async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>> {
+  async generateObject<T>(
+    opts: GenerateObjectOptions<T>,
+  ): Promise<GenerateObjectResult<T>> {
     const { createOpenAI } = await import("@ai-sdk/openai");
     const { generateObject } = await import("ai");
     const client = createOpenAI({ apiKey: this.apiKey });
@@ -102,7 +115,10 @@ export class OpenAiAdapter implements ProviderAdapter {
       });
       return { ok: true };
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
   }
 
@@ -111,10 +127,18 @@ export class OpenAiAdapter implements ProviderAdapter {
       headers: { Authorization: `Bearer ${this.apiKey}` },
     });
     if (!res.ok) throw new Error(`OpenAI models fetch failed: ${res.status}`);
-    const json = await res.json() as { data: { id: string }[] };
+    const json = (await res.json()) as { data: { id: string }[] };
     const relevant = json.data
-      .filter((m) => /^(gpt-4|gpt-3\.5|o1|o3|o4|chatgpt)/.test(m.id) && !m.id.includes("instruct"))
+      .filter(
+        (m) =>
+          /^(gpt-4|gpt-3\.5|o1|o3|o4|chatgpt)/.test(m.id) &&
+          !m.id.includes("instruct"),
+      )
       .sort((a, b) => a.id.localeCompare(b.id));
-    return relevant.map((m) => ({ id: m.id, label: m.id, maxContextTokens: 0 }));
+    return relevant.map((m) => ({
+      id: m.id,
+      label: m.id,
+      maxContextTokens: 0,
+    }));
   }
 }

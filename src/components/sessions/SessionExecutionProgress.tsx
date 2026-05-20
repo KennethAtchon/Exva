@@ -36,16 +36,19 @@ const STAGE_ORDER: ExecutionStage[] = [
   "monitoring",
 ];
 
-const STAGE_META: Record<ExecutionStage, { label: string; progressPct: number }> = {
-  selector:             { label: "Finding instruments",    progressPct: 10 },
-  candidate_validation: { label: "Validating candidates",  progressPct: 20 },
-  technical:            { label: "Technical analysis",     progressPct: 35 },
-  fundamental:          { label: "Fundamental analysis",   progressPct: 50 },
-  review:               { label: "Reviewing thesis",       progressPct: 65 },
-  decision:             { label: "Making decision",        progressPct: 78 },
-  risk_gate:            { label: "Risk checks",            progressPct: 88 },
-  broker_order:         { label: "Broker execution",       progressPct: 96 },
-  monitoring:           { label: "Monitoring position",    progressPct: 100 },
+const STAGE_META: Record<
+  ExecutionStage,
+  { label: string; progressPct: number }
+> = {
+  selector: { label: "Finding instruments", progressPct: 10 },
+  candidate_validation: { label: "Validating candidates", progressPct: 20 },
+  technical: { label: "Technical analysis", progressPct: 35 },
+  fundamental: { label: "Fundamental analysis", progressPct: 50 },
+  review: { label: "Reviewing thesis", progressPct: 65 },
+  decision: { label: "Making decision", progressPct: 78 },
+  risk_gate: { label: "Risk checks", progressPct: 88 },
+  broker_order: { label: "Broker execution", progressPct: 96 },
+  monitoring: { label: "Monitoring position", progressPct: 100 },
 };
 
 export function deriveProgress(
@@ -56,12 +59,22 @@ export function deriveProgress(
   if (steps.length === 0) return null;
 
   type StepEntry = SessionExecutionProgressResponse["steps"][number];
-  const activeStep = STAGE_ORDER.map((stage) => steps.find((s) => s.stage === stage))
+  const activeStep = STAGE_ORDER.map((stage) =>
+    steps.find((s) => s.stage === stage),
+  )
     .filter((s): s is StepEntry => Boolean(s))
-    .find((s) => s.status !== "succeeded" && s.status !== "skipped" && s.status !== "pending");
+    .find(
+      (s) =>
+        s.status !== "succeeded" &&
+        s.status !== "skipped" &&
+        s.status !== "pending",
+    );
 
-  const allSucceeded = steps.every((s) => s.status === "succeeded" || s.status === "skipped");
-  const hasMonitoring = allSucceeded && steps.some((s) => s.stage === "monitoring");
+  const allSucceeded = steps.every(
+    (s) => s.status === "succeeded" || s.status === "skipped",
+  );
+  const hasMonitoring =
+    allSucceeded && steps.some((s) => s.stage === "monitoring");
 
   if (!activeStep && !hasMonitoring) return null;
 
@@ -88,7 +101,11 @@ interface SessionExecutionProgressProps {
   sessionId: string;
   progress: SessionProgressState | null;
   onRetry: (sessionId: string, cycleId: string, stage: ExecutionStage) => void;
-  onViewTrace: (sessionId: string, cycleId: string, stage: ExecutionStage) => void;
+  onViewTrace: (
+    sessionId: string,
+    cycleId: string,
+    stage: ExecutionStage,
+  ) => void;
   onPauseAfterStep: (sessionId: string) => void;
 }
 
@@ -108,7 +125,10 @@ export const SessionExecutionProgress = ({
       const tick = () => {
         const nextRetryAt = progress.nextRetryAt;
         if (!nextRetryAt) return;
-        const secs = Math.max(0, Math.ceil((new Date(nextRetryAt).getTime() - Date.now()) / 1000));
+        const secs = Math.max(
+          0,
+          Math.ceil((new Date(nextRetryAt).getTime() - Date.now()) / 1000),
+        );
         setCountdown(secs);
       };
       tick();
@@ -121,14 +141,32 @@ export const SessionExecutionProgress = ({
 
   if (!progress) return null;
 
-  const { activeStage, activeStatus, progressPct, stageLabel, activeRoleLabel, retryable, lastErrorMessage, cycleId, cycleIdShort } = progress;
+  const {
+    activeStage,
+    activeStatus,
+    progressPct,
+    stageLabel,
+    activeRoleLabel,
+    retryable,
+    lastErrorMessage,
+    cycleId,
+    cycleIdShort,
+  } = progress;
   const isFailed = activeStatus === "failed";
   const isRetrying = activeStatus === "retrying";
   const isRunning = activeStatus === "running";
-  const isMonitoring = activeStatus === "succeeded" && activeStage === "monitoring";
+  const isMonitoring =
+    activeStatus === "succeeded" && activeStage === "monitoring";
 
-  const statusChip = resolveStatusChip({ isRetrying, isFailed, retryable, countdown });
-  const detailMessageColor = isRetrying ? "rgba(147,197,253,0.9)" : "rgba(251,146,60,0.8)";
+  const statusChip = resolveStatusChip({
+    isRetrying,
+    isFailed,
+    retryable,
+    countdown,
+  });
+  const detailMessageColor = isRetrying
+    ? "rgba(147,197,253,0.9)"
+    : "rgba(251,146,60,0.8)";
 
   return (
     <div style={wrapperStyle}>
@@ -145,7 +183,16 @@ export const SessionExecutionProgress = ({
 
       {/* Info row */}
       <div style={infoRowStyle}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flex: 1, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            minWidth: 0,
+            flex: 1,
+            flexWrap: "wrap",
+          }}
+        >
           <span
             style={{
               fontSize: 11,
@@ -176,13 +223,25 @@ export const SessionExecutionProgress = ({
           ) : null}
 
           {lastErrorMessage && (isFailed || isRetrying) ? (
-            <span style={{ ...errorMessageStyle, color: detailMessageColor }} title={lastErrorMessage}>
-              {lastErrorMessage.length > 60 ? `${lastErrorMessage.slice(0, 60)}…` : lastErrorMessage}
+            <span
+              style={{ ...errorMessageStyle, color: detailMessageColor }}
+              title={lastErrorMessage}
+            >
+              {lastErrorMessage.length > 60
+                ? `${lastErrorMessage.slice(0, 60)}…`
+                : lastErrorMessage}
             </span>
           ) : null}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            flexShrink: 0,
+          }}
+        >
           {isFailed && activeStage ? (
             <>
               {retryable ? (
@@ -204,7 +263,7 @@ export const SessionExecutionProgress = ({
             </>
           ) : null}
 
-          {(isRunning || isRetrying || isMonitoring) ? (
+          {isRunning || isRetrying || isMonitoring ? (
             <button
               type="button"
               style={pauseToggleStyle}

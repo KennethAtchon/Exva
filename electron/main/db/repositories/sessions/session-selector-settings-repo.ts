@@ -9,14 +9,25 @@ export class SessionSelectorSettingsRepo {
   constructor(private readonly client: DbClient) {}
 
   get(sessionId: string): SessionSelectorSettings {
-    const row = this.client.db.select().from(sessionSelectorSettings).where(eq(sessionSelectorSettings.sessionId, sessionId)).get();
+    const row = this.client.db
+      .select()
+      .from(sessionSelectorSettings)
+      .where(eq(sessionSelectorSettings.sessionId, sessionId))
+      .get();
     if (!row) {
-      throw new AppError(`Selector settings for session ${sessionId} were not found`, "NOT_FOUND", { sessionId });
+      throw new AppError(
+        `Selector settings for session ${sessionId} were not found`,
+        "NOT_FOUND",
+        { sessionId },
+      );
     }
     return toSessionSelectorSettings(row);
   }
 
-  update(sessionId: string, patch: { aiPickerEnabled: boolean }): SessionSelectorSettings {
+  update(
+    sessionId: string,
+    patch: { aiPickerEnabled: boolean },
+  ): SessionSelectorSettings {
     this.client.db
       .update(sessionSelectorSettings)
       .set({

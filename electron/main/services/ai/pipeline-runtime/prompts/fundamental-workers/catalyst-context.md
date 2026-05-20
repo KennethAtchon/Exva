@@ -3,6 +3,7 @@
 Given recent news and web context for {instrumentSymbol}, identify the primary catalyst driving current price action.
 
 Return JSON:
+
 ```json
 {
   "catalystType": "earnings" | "partnership" | "fda" | "contract" | "macro" | "social_hype" | "unknown" | null,

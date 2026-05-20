@@ -28,7 +28,9 @@ describe("SessionService.getPortfolioValue", () => {
       },
       preflight: async () => ({ ok: true as const }),
       orchestratorDeps: {} as never,
-      liveReadiness: { check: async () => ({ readyToStart: true, checks: [] }) },
+      liveReadiness: {
+        check: async () => ({ readyToStart: true, checks: [] }),
+      },
     } as never);
 
     await expect(service.getPortfolioValue()).resolves.toEqual({
@@ -44,7 +46,11 @@ describe("SessionService.start", () => {
     const insert = vi.fn();
     const service = new SessionService({
       sessionRepo: {
-        requireById: () => ({ id: "session-1", status: "idle", executionMode: "paper_only" }),
+        requireById: () => ({
+          id: "session-1",
+          status: "idle",
+          executionMode: "paper_only",
+        }),
         getStatus: () => "active",
       },
       eventsRepo: { insert },
@@ -53,20 +59,38 @@ describe("SessionService.start", () => {
       },
       preflight: async () => ({ ok: true as const }),
       orchestratorDeps: {} as never,
-      liveReadiness: { check: async () => ({ readyToStart: true, checks: [] }) },
+      liveReadiness: {
+        check: async () => ({ readyToStart: true, checks: [] }),
+      },
     } as never);
 
     await expect(service.start("session-1")).resolves.toBe("active");
 
-    expect(insert).toHaveBeenNthCalledWith(1, expect.objectContaining({ message: "Session starting...", level: "INFO" }));
-    expect(insert).toHaveBeenNthCalledWith(2, expect.objectContaining({ message: "Session runtime ready.", level: "INFO" }));
+    expect(insert).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        message: "Session starting...",
+        level: "INFO",
+      }),
+    );
+    expect(insert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        message: "Session runtime ready.",
+        level: "INFO",
+      }),
+    );
   });
 
   it("emits a startup failure event when runtime initialization throws", async () => {
     const insert = vi.fn();
     const service = new SessionService({
       sessionRepo: {
-        requireById: () => ({ id: "session-1", status: "idle", executionMode: "paper_only" }),
+        requireById: () => ({
+          id: "session-1",
+          status: "idle",
+          executionMode: "paper_only",
+        }),
       },
       eventsRepo: { insert },
       runtimeManager: {
@@ -76,15 +100,28 @@ describe("SessionService.start", () => {
       },
       preflight: async () => ({ ok: true as const }),
       orchestratorDeps: {} as never,
-      liveReadiness: { check: async () => ({ readyToStart: true, checks: [] }) },
+      liveReadiness: {
+        check: async () => ({ readyToStart: true, checks: [] }),
+      },
     } as never);
 
-    await expect(service.start("session-1")).rejects.toThrow("selector crashed");
+    await expect(service.start("session-1")).rejects.toThrow(
+      "selector crashed",
+    );
 
-    expect(insert).toHaveBeenNthCalledWith(1, expect.objectContaining({ message: "Session starting...", level: "INFO" }));
+    expect(insert).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        message: "Session starting...",
+        level: "INFO",
+      }),
+    );
     expect(insert).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ message: "Session failed to start: selector crashed", level: "ERROR" }),
+      expect.objectContaining({
+        message: "Session failed to start: selector crashed",
+        level: "ERROR",
+      }),
     );
   });
 });

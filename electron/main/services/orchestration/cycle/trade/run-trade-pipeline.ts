@@ -11,9 +11,16 @@ import {
   type TradeCyclePlanState,
 } from "../../../ai/pipeline-runtime/plan/cycle/types";
 
-const TRADE_PIPELINE_CONTEXT_STATE_KEYS = ["technical", "fundamental", "review", "decision", "riskOrder"] as const;
+const TRADE_PIPELINE_CONTEXT_STATE_KEYS = [
+  "technical",
+  "fundamental",
+  "review",
+  "decision",
+  "riskOrder",
+] as const;
 
-type TradePipelineContextStateKey = (typeof TRADE_PIPELINE_CONTEXT_STATE_KEYS)[number];
+type TradePipelineContextStateKey =
+  (typeof TRADE_PIPELINE_CONTEXT_STATE_KEYS)[number];
 
 export async function runTradePipeline(
   ctx: OrchestratorContext,
@@ -57,7 +64,8 @@ export async function runTradePipeline(
         });
 
         if (step.status === "paused") throw new CyclePausedError();
-        if (step.status === "failed") throw new CycleStageFailedError(stage, step.result.errorMessage);
+        if (step.status === "failed")
+          throw new CycleStageFailedError(stage, step.result.errorMessage);
         return step.value;
       },
     });
@@ -77,7 +85,9 @@ export async function runTradePipeline(
   }
 }
 
-function tradePipelineSeedFromContext(context: TradeCycleContext): Partial<TradeCyclePlanState> {
+function tradePipelineSeedFromContext(
+  context: TradeCycleContext,
+): Partial<TradeCyclePlanState> {
   const seedState: Partial<TradeCyclePlanState> = {};
   const target = seedState as Record<TradePipelineContextStateKey, unknown>;
   for (const key of TRADE_PIPELINE_CONTEXT_STATE_KEYS) {
@@ -89,7 +99,10 @@ function tradePipelineSeedFromContext(context: TradeCycleContext): Partial<Trade
   return seedState;
 }
 
-export function applyTradePipelineToContext(context: TradeCycleContext, result: TradePipelineResult): void {
+export function applyTradePipelineToContext(
+  context: TradeCycleContext,
+  result: TradePipelineResult,
+): void {
   const target = context as Record<TradePipelineContextStateKey, unknown>;
   const source = result.state as Record<TradePipelineContextStateKey, unknown>;
   for (const key of TRADE_PIPELINE_CONTEXT_STATE_KEYS) {
@@ -106,15 +119,26 @@ export function persistTradeAiRuns(
   results: Array<AgentResult<unknown>>,
 ): void {
   for (const result of results) {
-    ctx.deps.agentRunsRepo.insert({ ...result.run, session_id: ctx.sessionId, trade_id: tradeId });
-    ctx.deps.agentMessagesRepo.insert({ ...result.message, session_id: ctx.sessionId, trade_id: tradeId });
+    ctx.deps.agentRunsRepo.insert({
+      ...result.run,
+      session_id: ctx.sessionId,
+      trade_id: tradeId,
+    });
+    ctx.deps.agentMessagesRepo.insert({
+      ...result.message,
+      session_id: ctx.sessionId,
+      trade_id: tradeId,
+    });
   }
 }
 
 export function requirePipelineAiResults(result: TradePipelineResult) {
   const { technical, fundamental, review, decision } = result.state;
   if (!technical || !fundamental || !review || !decision) {
-    throw new AppError("Internal error: trade pipeline returned incomplete AI results.", "VALIDATION_FAILED");
+    throw new AppError(
+      "Internal error: trade pipeline returned incomplete AI results.",
+      "VALIDATION_FAILED",
+    );
   }
   return { technical, fundamental, review, decision };
 }

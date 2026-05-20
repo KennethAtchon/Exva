@@ -20,9 +20,17 @@ describe("ExecutionStepRunner", () => {
     const result = await runner.run("selector", async () => ["AAPL"]);
 
     expect(result).toEqual({ ok: true, value: ["AAPL"] });
-    expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({ status: "succeeded", attempt: 1, retryable: false });
-    expect(started).toHaveBeenCalledWith(expect.objectContaining({ stage: "selector", attempt: 1 }));
-    expect(succeeded).toHaveBeenCalledWith(expect.objectContaining({ stage: "selector" }));
+    expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({
+      status: "succeeded",
+      attempt: 1,
+      retryable: false,
+    });
+    expect(started).toHaveBeenCalledWith(
+      expect.objectContaining({ stage: "selector", attempt: 1 }),
+    );
+    expect(succeeded).toHaveBeenCalledWith(
+      expect.objectContaining({ stage: "selector" }),
+    );
   });
 
   it("marks provider-style failures as retrying with nextRetryAt", async () => {
@@ -31,14 +39,27 @@ describe("ExecutionStepRunner", () => {
     const { runner, repo, sessionId } = createHarness();
 
     const result = await runner.run("selector", async () => {
-      const error = new Error("provider unavailable") as Error & { statusCode: number };
+      const error = new Error("provider unavailable") as Error & {
+        statusCode: number;
+      };
       error.statusCode = 503;
       throw error;
     });
 
-    expect(result).toEqual({ ok: false, retryable: true, errorCode: "HTTP_503", errorMessage: "provider unavailable" });
-    expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({ status: "retrying", attempt: 1, retryable: true });
-    expect(repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt).toBeTruthy();
+    expect(result).toEqual({
+      ok: false,
+      retryable: true,
+      errorCode: "HTTP_503",
+      errorMessage: "provider unavailable",
+    });
+    expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({
+      status: "retrying",
+      attempt: 1,
+      retryable: true,
+    });
+    expect(
+      repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt,
+    ).toBeTruthy();
     runner.dispose();
   });
 
@@ -49,8 +70,17 @@ describe("ExecutionStepRunner", () => {
       throw new AppError("bad decision", "VALIDATION_FAILED");
     });
 
-    expect(result).toEqual({ ok: false, retryable: false, errorCode: "VALIDATION_FAILED", errorMessage: "bad decision" });
-    expect(repo.get(sessionId, "cycle-1", "decision")).toMatchObject({ status: "failed", retryable: false, attempt: 1 });
+    expect(result).toEqual({
+      ok: false,
+      retryable: false,
+      errorCode: "VALIDATION_FAILED",
+      errorMessage: "bad decision",
+    });
+    expect(repo.get(sessionId, "cycle-1", "decision")).toMatchObject({
+      status: "failed",
+      retryable: false,
+      attempt: 1,
+    });
   });
 
   it("retries provider errors that were wrapped as retryable AppErrors", async () => {
@@ -62,7 +92,12 @@ describe("ExecutionStepRunner", () => {
       throw new AppError(
         "Provider unreachable: Failed after 3 attempts. Last error: Provider returned error",
         "PROVIDER_UNREACHABLE",
-        { retryable: true, status: 503, rawMessage: "Failed after 3 attempts. Last error: Provider returned error" },
+        {
+          retryable: true,
+          status: 503,
+          rawMessage:
+            "Failed after 3 attempts. Last error: Provider returned error",
+        },
       );
     });
 
@@ -70,9 +105,14 @@ describe("ExecutionStepRunner", () => {
       ok: false,
       retryable: true,
       errorCode: "PROVIDER_UNREACHABLE",
-      errorMessage: "Provider unreachable: Failed after 3 attempts. Last error: Provider returned error",
+      errorMessage:
+        "Provider unreachable: Failed after 3 attempts. Last error: Provider returned error",
     });
-    expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({ status: "retrying", attempt: 1, retryable: true });
+    expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({
+      status: "retrying",
+      attempt: 1,
+      retryable: true,
+    });
   });
 
   it("caps retryable failures after four backoff retries", async () => {
@@ -91,8 +131,17 @@ describe("ExecutionStepRunner", () => {
     await runner.run("broker_order", failingFn);
     const result = await runner.run("broker_order", failingFn);
 
-    expect(result).toEqual({ ok: false, retryable: false, errorCode: "HTTP_503", errorMessage: "timeout" });
-    expect(repo.get(sessionId, "cycle-1", "broker_order")).toMatchObject({ status: "failed", retryable: false, attempt: 5 });
+    expect(result).toEqual({
+      ok: false,
+      retryable: false,
+      errorCode: "HTTP_503",
+      errorMessage: "timeout",
+    });
+    expect(repo.get(sessionId, "cycle-1", "broker_order")).toMatchObject({
+      status: "failed",
+      retryable: false,
+      attempt: 5,
+    });
   });
 
   it("uses exponential step backoff across four retries", async () => {
@@ -102,22 +151,40 @@ describe("ExecutionStepRunner", () => {
     const { runner, repo, sessionId } = createHarness();
 
     const failingFn = async () => {
-      const error = new Error("provider unavailable") as Error & { statusCode: number };
+      const error = new Error("provider unavailable") as Error & {
+        statusCode: number;
+      };
       error.statusCode = 503;
       throw error;
     };
 
     await runner.run("selector", failingFn);
-    expect(Date.parse(repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "") - Date.now()).toBe(30_000);
+    expect(
+      Date.parse(
+        repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "",
+      ) - Date.now(),
+    ).toBe(30_000);
 
     await runner.run("selector", failingFn);
-    expect(Date.parse(repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "") - Date.now()).toBe(60_000);
+    expect(
+      Date.parse(
+        repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "",
+      ) - Date.now(),
+    ).toBe(60_000);
 
     await runner.run("selector", failingFn);
-    expect(Date.parse(repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "") - Date.now()).toBe(120_000);
+    expect(
+      Date.parse(
+        repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "",
+      ) - Date.now(),
+    ).toBe(120_000);
 
     await runner.run("selector", failingFn);
-    expect(Date.parse(repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "") - Date.now()).toBe(240_000);
+    expect(
+      Date.parse(
+        repo.get(sessionId, "cycle-1", "selector")?.nextRetryAt ?? "",
+      ) - Date.now(),
+    ).toBe(240_000);
   });
 
   it("skips fn when the step already succeeded and skipIfPreviouslySucceeded is enabled", async () => {
@@ -137,11 +204,16 @@ describe("ExecutionStepRunner", () => {
     });
     const fn = vi.fn(async () => "should not run");
 
-    const result = await runner.run("review", fn, { skipIfPreviouslySucceeded: true });
+    const result = await runner.run("review", fn, {
+      skipIfPreviouslySucceeded: true,
+    });
 
     expect(result.ok).toBe(true);
     expect(fn).not.toHaveBeenCalled();
-    expect(repo.get(sessionId, "cycle-1", "review")).toMatchObject({ status: "succeeded", attempt: 1 });
+    expect(repo.get(sessionId, "cycle-1", "review")).toMatchObject({
+      status: "succeeded",
+      attempt: 1,
+    });
   });
 });
 
@@ -183,14 +255,20 @@ function createMemoryRepo(): SessionExecutionStepsRepo {
       return rows.get(`${sessionId}:${cycleId}:${stage}`) ?? null;
     },
     getLatestByCycle(sessionId, cycleId) {
-      return [...rows.values()].filter((row) => row.sessionId === sessionId && row.cycleId === cycleId);
+      return [...rows.values()].filter(
+        (row) => row.sessionId === sessionId && row.cycleId === cycleId,
+      );
     },
     getLatestBySession(sessionId) {
       return [...rows.values()].filter((row) => row.sessionId === sessionId);
     },
     getLatestCycleState(sessionId) {
-      const all = [...rows.values()].filter((row) => row.sessionId === sessionId);
-      const sorted = all.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      const all = [...rows.values()].filter(
+        (row) => row.sessionId === sessionId,
+      );
+      const sorted = all.sort((a, b) =>
+        String(b.updatedAt).localeCompare(String(a.updatedAt)),
+      );
       const cycleId = sorted[0]?.cycleId ?? null;
       if (!cycleId) return { cycleId: null, steps: [] };
       return { cycleId, steps: sorted.filter((r) => r.cycleId === cycleId) };

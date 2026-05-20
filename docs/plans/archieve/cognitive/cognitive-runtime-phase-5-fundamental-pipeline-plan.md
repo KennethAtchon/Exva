@@ -20,31 +20,31 @@ That prevents deterministic review and decision logic from being built on top of
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-| --- | --- | --- |
-| 1 | Replace the single fundamental analyst worker | `fundamental.phase.ts` no longer returns `{ text }` from one worker |
-| 2 | Introduce `FundamentalSignal` | Downstream phases consume typed catalyst, earnings, sentiment, and contradiction fields |
-| 3 | Split fundamental work into bounded workers | Earnings, catalyst, and sentiment contexts are independently produced |
-| 4 | Keep aggregation deterministic | Fundamental synthesis happens in code, not an LLM merge |
-| 5 | Prepare review for typed cross-phase input | Review can consume technical and fundamental signals directly |
+| #   | Goal                                          | Success Looks Like                                                                      |
+| --- | --------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 1   | Replace the single fundamental analyst worker | `fundamental.phase.ts` no longer returns `{ text }` from one worker                     |
+| 2   | Introduce `FundamentalSignal`                 | Downstream phases consume typed catalyst, earnings, sentiment, and contradiction fields |
+| 3   | Split fundamental work into bounded workers   | Earnings, catalyst, and sentiment contexts are independently produced                   |
+| 4   | Keep aggregation deterministic                | Fundamental synthesis happens in code, not an LLM merge                                 |
+| 5   | Prepare review for typed cross-phase input    | Review can consume technical and fundamental signals directly                           |
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-| --- | --- | --- |
-| 1 | Review logic conversion | Phase 6 owns review migration |
-| 2 | Cross-session memory or learned catalyst taxonomy | Out of scope |
-| 3 | UI for per-worker tuning | Config-only in v1 |
+| #   | Non-Goal                                          | Reason                        |
+| --- | ------------------------------------------------- | ----------------------------- |
+| 1   | Review logic conversion                           | Phase 6 owns review migration |
+| 2   | Cross-session memory or learned catalyst taxonomy | Out of scope                  |
+| 3   | UI for per-worker tuning                          | Config-only in v1             |
 
 ---
 
 ## 3. Background & Context
 
-| File | Current responsibility | Gap |
-| --- | --- | --- |
-| `electron/main/services/ai/pipeline-runtime/definitions/fundamental.phase.ts` | One `analyst-fundamental` worker returning `{ text }` | No typed phase signal |
-| `electron/main/services/orchestration/agent-orchestrator.ts` | Passes `fundamental.output.text` to later phases | Hard free-text coupling |
-| `docs/design/cognitive-pipeline-rearchitecture-spec.md` | Defines target `FundamentalSignal` fields | Migration target already clear |
+| File                                                                          | Current responsibility                                | Gap                            |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------ |
+| `electron/main/services/ai/pipeline-runtime/definitions/fundamental.phase.ts` | One `analyst-fundamental` worker returning `{ text }` | No typed phase signal          |
+| `electron/main/services/orchestration/agent-orchestrator.ts`                  | Passes `fundamental.output.text` to later phases      | Hard free-text coupling        |
+| `docs/design/cognitive-pipeline-rearchitecture-spec.md`                       | Defines target `FundamentalSignal` fields             | Migration target already clear |
 
 The important difference from the technical phase is that fundamental output must also encode contradiction risk and catalyst freshness. Those are not just informative fields; they are inputs to later review and risk decisions.
 
@@ -52,12 +52,12 @@ The important difference from the technical phase is that fundamental output mus
 
 Fundamental workers should be bound to the actual persisted research posture and workspace search defaults:
 
-| Input or engine concern | Source |
-| --- | --- |
-| Discovery mode, evidence mode, catalyst posture, strictness | `session_research_posture` via `SessionStrategyContextService` |
-| Search-provider defaults | `workspace_preferences` + session default search provider |
-| Risk/timeframe context for evidence interpretation | `session_risk_config` + `session_timeframe_config` via `SessionStrategyContextService` |
-| Fundamental aggregation | `fundamental-aggregator` transformer engine |
+| Input or engine concern                                     | Source                                                                                 |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Discovery mode, evidence mode, catalyst posture, strictness | `session_research_posture` via `SessionStrategyContextService`                         |
+| Search-provider defaults                                    | `workspace_preferences` + session default search provider                              |
+| Risk/timeframe context for evidence interpretation          | `session_risk_config` + `session_timeframe_config` via `SessionStrategyContextService` |
+| Fundamental aggregation                                     | `fundamental-aggregator` transformer engine                                            |
 
 ---
 
@@ -71,27 +71,27 @@ No new external research is needed for this phase beyond the Phase 1 architectur
 
 **Option A: Keep one fundamental worker and add a stronger schema**
 
-| Dimension | Assessment |
-| --- | --- |
-| Complexity | Low |
-| Reliability | Medium-low |
+| Dimension       | Assessment |
+| --------------- | ---------- |
+| Complexity      | Low        |
+| Reliability     | Medium-low |
 | Long-term value | Medium-low |
 
 **Option B: Multiple workers plus an LLM merger**
 
-| Dimension | Assessment |
-| --- | --- |
-| Complexity | Medium |
-| Reliability | Medium |
-| Long-term value | Medium |
+| Dimension       | Assessment |
+| --------------- | ---------- |
+| Complexity      | Medium     |
+| Reliability     | Medium     |
+| Long-term value | Medium     |
 
 **Option C: Multiple workers plus deterministic `FundamentalSignal` aggregation**
 
-| Dimension | Assessment |
-| --- | --- |
-| Complexity | Medium |
-| Reliability | High |
-| Long-term value | High |
+| Dimension       | Assessment |
+| --------------- | ---------- |
+| Complexity      | Medium     |
+| Reliability     | High       |
+| Long-term value | High       |
 
 ---
 
@@ -134,38 +134,38 @@ Deliverables completed:
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-| --- | --- | --- | --- | --- |
-| 1 | Sentiment and catalyst workers duplicate work | Medium | Medium | Keep input/output scope explicit per worker |
-| 2 | Fundamental evidence varies widely by instrument class | Medium | High | Encode null/default cases rather than forcing fabricated confidence |
-| 3 | Temporary review adapter survives too long | Medium | Medium | Call it out explicitly in Phase 5 and delete it in Phase 6 acceptance |
+| #   | Risk                                                   | Likelihood | Impact | Mitigation                                                            |
+| --- | ------------------------------------------------------ | ---------- | ------ | --------------------------------------------------------------------- |
+| 1   | Sentiment and catalyst workers duplicate work          | Medium     | Medium | Keep input/output scope explicit per worker                           |
+| 2   | Fundamental evidence varies widely by instrument class | Medium     | High   | Encode null/default cases rather than forcing fabricated confidence   |
+| 3   | Temporary review adapter survives too long             | Medium     | Medium | Call it out explicitly in Phase 5 and delete it in Phase 6 acceptance |
 
 ---
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-| --- | --- | --- | --- | --- |
-| Typed fundamental output | Fundamental phase output shape | `{ text: string }` | `FundamentalSignal` | Schema tests + orchestrator types |
-| Narrow workers | Worker count in fundamental phase | 1 | 3 | Phase definition review |
-| Deterministic aggregation | Aggregation owner | LLM prose | Code | Unit tests |
-| Review-readiness | Downstream contract | Raw prose | Typed signal available | Code review |
-| DB-backed research posture wiring | Fundamental posture inferred mainly from prompt text | Transitional | Research posture and search defaults arrive as typed runtime context | Code review + tests |
+| Goal                              | Metric                                               | Baseline           | Target                                                               | How Measured                      |
+| --------------------------------- | ---------------------------------------------------- | ------------------ | -------------------------------------------------------------------- | --------------------------------- |
+| Typed fundamental output          | Fundamental phase output shape                       | `{ text: string }` | `FundamentalSignal`                                                  | Schema tests + orchestrator types |
+| Narrow workers                    | Worker count in fundamental phase                    | 1                  | 3                                                                    | Phase definition review           |
+| Deterministic aggregation         | Aggregation owner                                    | LLM prose          | Code                                                                 | Unit tests                        |
+| Review-readiness                  | Downstream contract                                  | Raw prose          | Typed signal available                                               | Code review                       |
+| DB-backed research posture wiring | Fundamental posture inferred mainly from prompt text | Transitional       | Research posture and search defaults arrive as typed runtime context | Code review + tests               |
 
 ---
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-| --- | --- | --- | --- | --- |
-| 1 | Should `sentiment-context` have direct Reddit/search access in v1, or should it only consume upstream discovery evidence? | Ken | Before Phase 5B | Resolved: direct access via `search_reddit` + `search_web` per spec table 16.7. |
-| 2 | How should contradiction risk combine multiple weak or conflicting catalyst signals? | Ken | Before Phase 5B | Resolved: `catalyst-context` worker outputs a single `contradictionRisk` score 0-1; no aggregation needed since it's one worker's judgment. Derived `catalystScore = strength × freshness × (1 − contradictionRisk)` in the aggregator. |
+| #   | Question                                                                                                                  | Owner | Needed By       | Status                                                                                                                                                                                                                                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | ----- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Should `sentiment-context` have direct Reddit/search access in v1, or should it only consume upstream discovery evidence? | Ken   | Before Phase 5B | Resolved: direct access via `search_reddit` + `search_web` per spec table 16.7.                                                                                                                                                         |
+| 2   | How should contradiction risk combine multiple weak or conflicting catalyst signals?                                      | Ken   | Before Phase 5B | Resolved: `catalyst-context` worker outputs a single `contradictionRisk` score 0-1; no aggregation needed since it's one worker's judgment. Derived `catalystScore = strength × freshness × (1 − contradictionRisk)` in the aggregator. |
 
 ---
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-| --- | --- |
+| Option                                      | Why Rejected                                     |
+| ------------------------------------------- | ------------------------------------------------ |
 | One fundamental worker with stricter schema | Still centralizes too much reasoning in one call |
-| LLM merger for fundamental synthesis | Conflicts with deterministic aggregation goal |
+| LLM merger for fundamental synthesis        | Conflicts with deterministic aggregation goal    |

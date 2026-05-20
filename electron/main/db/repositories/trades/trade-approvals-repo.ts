@@ -104,8 +104,14 @@ export class TradeApprovalsRepo {
       conditions.push(inArray(tradeApprovals.sessionId, activeSessionIds));
     }
 
-    const query = this.client.db.select().from(tradeApprovals).orderBy(desc(tradeApprovals.requestedAt));
-    const rows = conditions.length > 0 ? query.where(and(...conditions)).all() : query.all();
+    const query = this.client.db
+      .select()
+      .from(tradeApprovals)
+      .orderBy(desc(tradeApprovals.requestedAt));
+    const rows =
+      conditions.length > 0
+        ? query.where(and(...conditions)).all()
+        : query.all();
     return rows.map(toTradeApproval);
   }
 
@@ -113,12 +119,21 @@ export class TradeApprovalsRepo {
     const row = this.client.db
       .select()
       .from(tradeApprovals)
-      .where(and(eq(tradeApprovals.tradeId, tradeId), eq(tradeApprovals.status, "pending")))
+      .where(
+        and(
+          eq(tradeApprovals.tradeId, tradeId),
+          eq(tradeApprovals.status, "pending"),
+        ),
+      )
       .get();
     return row ? toTradeApproval(row) : null;
   }
 
-  resolve(id: string, decision: "approved" | "rejected", note?: string): TradeApproval {
+  resolve(
+    id: string,
+    decision: "approved" | "rejected",
+    note?: string,
+  ): TradeApproval {
     const now = new Date().toISOString();
     const result = this.client.db
       .update(tradeApprovals)
@@ -127,18 +142,28 @@ export class TradeApprovalsRepo {
         resolvedAt: now,
         decisionNote: note ?? undefined,
       })
-      .where(and(eq(tradeApprovals.id, id), eq(tradeApprovals.status, "pending")))
+      .where(
+        and(eq(tradeApprovals.id, id), eq(tradeApprovals.status, "pending")),
+      )
       .run();
 
     if (result.changes === 0) {
-      throw new AppError("Approval was not pending or was not found", "VALIDATION_FAILED", { id });
+      throw new AppError(
+        "Approval was not pending or was not found",
+        "VALIDATION_FAILED",
+        { id },
+      );
     }
 
     return this.require(id);
   }
 
   require(id: string): TradeApproval {
-    const row = this.client.db.select().from(tradeApprovals).where(eq(tradeApprovals.id, id)).get();
+    const row = this.client.db
+      .select()
+      .from(tradeApprovals)
+      .where(eq(tradeApprovals.id, id))
+      .get();
     if (!row) {
       throw new AppError(`Trade approval ${id} was not found`, "NOT_FOUND");
     }

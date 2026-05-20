@@ -4,7 +4,12 @@ import type { OrchestratorDeps } from "./session-types";
 
 export function resolveSessionInstrumentClasses(
   session: WorkspaceSession,
-  deps: Pick<OrchestratorDeps, "sessionSelectorSettingsRepo" | "sessionBrokerAssignmentsRepo" | "brokerAccountsRepo">,
+  deps: Pick<
+    OrchestratorDeps,
+    | "sessionSelectorSettingsRepo"
+    | "sessionBrokerAssignmentsRepo"
+    | "brokerAccountsRepo"
+  >,
 ) {
   const selectorSettings = deps.sessionSelectorSettingsRepo.get(session.id);
   const assignedBrokers = deps.sessionBrokerAssignmentsRepo

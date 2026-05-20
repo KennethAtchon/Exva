@@ -7,7 +7,10 @@ import type { SessionRepo } from "../../../db/repositories/sessions/session-repo
 import type { CapitalReservationService } from "../../risk/capital-reservation-service";
 import type { HoldingStyle, InstrumentClass } from "@/lib/types";
 import type { InstrumentNormalizer } from "../../broker/instrument-normalizer";
-import { ExitPolicyEvaluator, type ExitReason } from "../../risk/exit-policy-evaluator";
+import {
+  ExitPolicyEvaluator,
+  type ExitReason,
+} from "../../risk/exit-policy-evaluator";
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   intraday_flat: 5_000,
@@ -50,14 +53,24 @@ export class TradeMonitor {
   }
 
   private async tick(): Promise<void> {
-    const openTrades = this.tradesRepo.listOpenAndPending(this.sessionId).filter((trade) => trade.status === "open");
+    const openTrades = this.tradesRepo
+      .listOpenAndPending(this.sessionId)
+      .filter((trade) => trade.status === "open");
     const strategyContext = this.strategyContextService.get(this.sessionId);
     this.ensurePollInterval(strategyContext.timeframe.holdingStyle);
 
-    await this.enforceMaxHoldDays(openTrades, strategyContext.timeframe.maxHoldDays);
-    await this.enforcePredictionMarketPolicy(openTrades, strategyContext.riskConfig.maxExposureUsd);
+    await this.enforceMaxHoldDays(
+      openTrades,
+      strategyContext.timeframe.maxHoldDays,
+    );
+    await this.enforcePredictionMarketPolicy(
+      openTrades,
+      strategyContext.riskConfig.maxExposureUsd,
+    );
 
-    const remainingOpenTrades = this.tradesRepo.listOpenAndPending(this.sessionId).filter((trade) => trade.status === "open");
+    const remainingOpenTrades = this.tradesRepo
+      .listOpenAndPending(this.sessionId)
+      .filter((trade) => trade.status === "open");
     for (const trade of remainingOpenTrades) {
       if (!trade.broker_order_id || !trade.brokerAccountId) continue;
 
@@ -76,7 +89,9 @@ export class TradeMonitor {
       this.tradesRepo.updateHighWaterMark(trade.id, currentPrice);
 
       // Get OHLCV for ATR — uses getOhlcv if available; falls back to empty for adapters that don't implement it
-      const ohlcvTimeframe = this.resolveOhlcvTimeframe(strategyContext.timeframe.holdingStyle);
+      const ohlcvTimeframe = this.resolveOhlcvTimeframe(
+        strategyContext.timeframe.holdingStyle,
+      );
       let bars: { high: number; low: number; close: number }[] = [];
       if (adapter.getOhlcv) {
         try {
@@ -100,7 +115,10 @@ export class TradeMonitor {
       });
 
       if (exitDecision.shouldExit) {
-        await this.closeTradeAtBroker(trade, exitDecision.reason, { price: currentPrice, timestamp: snapshot.timestamp });
+        await this.closeTradeAtBroker(trade, exitDecision.reason, {
+          price: currentPrice,
+          timestamp: snapshot.timestamp,
+        });
         continue;
       }
 
@@ -145,9 +163,20 @@ export class TradeMonitor {
     if (maxExposureUsd != null) {
       const remaining = this.tradesRepo
         .listOpenAndPending(this.sessionId)
-        .filter((trade) => trade.status === "open" && trade.instrumentType === "prediction_market");
-      let exposure = remaining.reduce((sum, trade) => sum + trade.position_size_usd, 0);
-      for (const trade of remaining.sort((a, b) => new Date(a.opened_at ?? a.created_at).getTime() - new Date(b.opened_at ?? b.created_at).getTime())) {
+        .filter(
+          (trade) =>
+            trade.status === "open" &&
+            trade.instrumentType === "prediction_market",
+        );
+      let exposure = remaining.reduce(
+        (sum, trade) => sum + trade.position_size_usd,
+        0,
+      );
+      for (const trade of remaining.sort(
+        (a, b) =>
+          new Date(a.opened_at ?? a.created_at).getTime() -
+          new Date(b.opened_at ?? b.created_at).getTime(),
+      )) {
         if (exposure <= maxExposureUsd) break;
         await this.closeTradeAtBroker(trade, "event_resolution");
         exposure -= trade.position_size_usd;
@@ -179,7 +208,10 @@ export class TradeMonitor {
       const adapter = await this.brokerRegistry.get(trade.brokerAccountId);
       const result = await adapter.closeOrder(trade.broker_order_id);
       if (closeSnapshot) {
-        this.tradesRepo.updateCloseSnapshot(trade.id, JSON.stringify(closeSnapshot));
+        this.tradesRepo.updateCloseSnapshot(
+          trade.id,
+          JSON.stringify(closeSnapshot),
+        );
       }
       this.closeTrade(trade.id, result.realizedPnlUsd, exitReason);
     } catch {
@@ -194,19 +226,26 @@ export class TradeMonitor {
   }
 
   private closeTrade(tradeId: string, pnl: number, exitReason?: string) {
-    const closed = this.tradesRepo.updateStatus(tradeId, "closed", pnl, exitReason);
+    const closed = this.tradesRepo.updateStatus(
+      tradeId,
+      "closed",
+      pnl,
+      exitReason,
+    );
     this.capitalReservation.releaseOnClose(tradeId);
     this.eventBus.emit("trade_closed", closed);
     return closed;
   }
 
   private resolvePollIntervalMs(): number {
-    const holdingStyle = this.strategyContextService.get(this.sessionId).timeframe.holdingStyle;
+    const holdingStyle = this.strategyContextService.get(this.sessionId)
+      .timeframe.holdingStyle;
     return POLL_INTERVAL_MS[holdingStyle] ?? POLL_INTERVAL_MS.multi_day_swing;
   }
 
   private ensurePollInterval(holdingStyle: HoldingStyle): void {
-    const next = POLL_INTERVAL_MS[holdingStyle] ?? POLL_INTERVAL_MS.multi_day_swing;
+    const next =
+      POLL_INTERVAL_MS[holdingStyle] ?? POLL_INTERVAL_MS.multi_day_swing;
     if (next === this.pollIntervalMs || !this.timer) return;
     clearInterval(this.timer);
     this.pollIntervalMs = next;

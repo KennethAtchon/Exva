@@ -15,7 +15,9 @@ export class SessionBrokerAssignmentsRepo {
     return rows.map((row) => row.brokerAccountId);
   }
 
-  listAssignments(sessionId: string): Array<{ brokerAccountId: string; allocatedUsd: number }> {
+  listAssignments(
+    sessionId: string,
+  ): Array<{ brokerAccountId: string; allocatedUsd: number }> {
     return this.client.db
       .select({
         brokerAccountId: sessionBrokerAssignments.brokerAccountId,
@@ -31,7 +33,9 @@ export class SessionBrokerAssignmentsRepo {
       }));
   }
 
-  listAssignmentsForBroker(brokerAccountId: string): Array<{ sessionId: string; allocatedUsd: number }> {
+  listAssignmentsForBroker(
+    brokerAccountId: string,
+  ): Array<{ sessionId: string; allocatedUsd: number }> {
     return this.client.db
       .select({
         sessionId: sessionBrokerAssignments.sessionId,
@@ -41,10 +45,17 @@ export class SessionBrokerAssignmentsRepo {
       .where(eq(sessionBrokerAssignments.brokerAccountId, brokerAccountId))
       .orderBy(asc(sessionBrokerAssignments.sessionId))
       .all()
-      .map((row) => ({ sessionId: row.sessionId, allocatedUsd: Number(row.allocatedUsd ?? 0) }));
+      .map((row) => ({
+        sessionId: row.sessionId,
+        allocatedUsd: Number(row.allocatedUsd ?? 0),
+      }));
   }
 
-  listAll(): Array<{ sessionId: string; brokerAccountId: string; allocatedUsd: number }> {
+  listAll(): Array<{
+    sessionId: string;
+    brokerAccountId: string;
+    allocatedUsd: number;
+  }> {
     return this.client.db
       .select({
         sessionId: sessionBrokerAssignments.sessionId,
@@ -52,7 +63,10 @@ export class SessionBrokerAssignmentsRepo {
         allocatedUsd: sessionBrokerAssignments.allocatedUsd,
       })
       .from(sessionBrokerAssignments)
-      .orderBy(asc(sessionBrokerAssignments.sessionId), asc(sessionBrokerAssignments.brokerAccountId))
+      .orderBy(
+        asc(sessionBrokerAssignments.sessionId),
+        asc(sessionBrokerAssignments.brokerAccountId),
+      )
       .all()
       .map((row) => ({
         sessionId: row.sessionId,
@@ -70,7 +84,10 @@ export class SessionBrokerAssignmentsRepo {
     return Number(row?.count ?? 0);
   }
 
-  countActiveSessionsForBroker(brokerAccountId: string, activeSessionIds: string[]): number {
+  countActiveSessionsForBroker(
+    brokerAccountId: string,
+    activeSessionIds: string[],
+  ): number {
     if (activeSessionIds.length === 0) return 0;
     const row = this.client.db
       .select({ count: sql<number>`count(*)` })
@@ -85,10 +102,15 @@ export class SessionBrokerAssignmentsRepo {
     return Number(row?.count ?? 0);
   }
 
-  sumAllocatedUsdForBroker(brokerAccountId: string, activeSessionIds: string[]): number {
+  sumAllocatedUsdForBroker(
+    brokerAccountId: string,
+    activeSessionIds: string[],
+  ): number {
     if (activeSessionIds.length === 0) return 0;
     const row = this.client.db
-      .select({ total: sql<number>`coalesce(sum(${sessionBrokerAssignments.allocatedUsd}), 0)` })
+      .select({
+        total: sql<number>`coalesce(sum(${sessionBrokerAssignments.allocatedUsd}), 0)`,
+      })
       .from(sessionBrokerAssignments)
       .where(
         and(
@@ -100,7 +122,10 @@ export class SessionBrokerAssignmentsRepo {
     return Number(row?.total ?? 0);
   }
 
-  findAssignment(sessionId: string, brokerAccountId: string): { brokerAccountId: string; allocatedUsd: number } | null {
+  findAssignment(
+    sessionId: string,
+    brokerAccountId: string,
+  ): { brokerAccountId: string; allocatedUsd: number } | null {
     const row = this.client.db
       .select({
         brokerAccountId: sessionBrokerAssignments.brokerAccountId,
@@ -115,10 +140,17 @@ export class SessionBrokerAssignmentsRepo {
       )
       .get();
     if (!row) return null;
-    return { brokerAccountId: row.brokerAccountId, allocatedUsd: Number(row.allocatedUsd ?? 0) };
+    return {
+      brokerAccountId: row.brokerAccountId,
+      allocatedUsd: Number(row.allocatedUsd ?? 0),
+    };
   }
 
-  setAllocatedUsd(sessionId: string, brokerAccountId: string, allocatedUsd: number): void {
+  setAllocatedUsd(
+    sessionId: string,
+    brokerAccountId: string,
+    allocatedUsd: number,
+  ): void {
     this.client.db
       .update(sessionBrokerAssignments)
       .set({ allocatedUsd })
@@ -131,9 +163,14 @@ export class SessionBrokerAssignmentsRepo {
       .run();
   }
 
-  replaceAssignments(sessionId: string, assignments: Array<{ brokerAccountId: string; allocatedUsd: number }>): void {
+  replaceAssignments(
+    sessionId: string,
+    assignments: Array<{ brokerAccountId: string; allocatedUsd: number }>,
+  ): void {
     this.client.db.transaction((tx) => {
-      tx.delete(sessionBrokerAssignments).where(eq(sessionBrokerAssignments.sessionId, sessionId)).run();
+      tx.delete(sessionBrokerAssignments)
+        .where(eq(sessionBrokerAssignments.sessionId, sessionId))
+        .run();
       for (const assignment of assignments) {
         tx.insert(sessionBrokerAssignments)
           .values({

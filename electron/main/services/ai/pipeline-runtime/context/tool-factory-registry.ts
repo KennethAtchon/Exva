@@ -2,7 +2,10 @@ import { tool, type ToolSet } from "ai";
 import type { ToolId } from "@electron/shared/ai/pipeline-phase";
 import { AppError } from "@electron/shared/infra/errors";
 import type { InstrumentClass } from "@/lib/types";
-import { instrumentSelectionToolInputSchema, type InstrumentSelection } from "@/lib/schemas";
+import {
+  instrumentSelectionToolInputSchema,
+  type InstrumentSelection,
+} from "@/lib/schemas";
 import type { ApiCallLogRepo } from "../../../../db/repositories/system/api-call-log-repo";
 import type { SearchRegistry } from "../../search";
 import { createSearchTool } from "../../tools/search-tool";
@@ -58,7 +61,7 @@ export type HarnessToolAvailability = {
   getQuote: boolean;
   getOhlcv: boolean;
   submitCandidates: boolean;
-}
+};
 
 function normalizeSymbol(symbol: string): string {
   const trimmed = symbol.trim();
@@ -139,21 +142,33 @@ export async function buildToolSet(
     });
   }
 
-  const needsMarket = idSet.has("get_quote") || idSet.has("get_ohlcv") || idSet.has("get_news");
-  if (needsMarket && hasBrokerWiring && ctx.brokerRouting && ctx.brokerRegistry) {
+  const needsMarket =
+    idSet.has("get_quote") || idSet.has("get_ohlcv") || idSet.has("get_news");
+  if (
+    needsMarket &&
+    hasBrokerWiring &&
+    ctx.brokerRouting &&
+    ctx.brokerRegistry
+  ) {
     const searchOk = Boolean(ctx.searchProviderId);
     const marketTools = createMarketTools({
       sessionId: ctx.sessionId,
       brokerRegistry: ctx.brokerRegistry,
       brokerAccountIdByClass: (instrumentClass: InstrumentClass) => {
         try {
-          return ctx.brokerRouting?.resolveBrokerAccountId(ctx.sessionId, instrumentClass) ?? null;
+          return (
+            ctx.brokerRouting?.resolveBrokerAccountId(
+              ctx.sessionId,
+              instrumentClass,
+            ) ?? null
+          );
         } catch {
           return null;
         }
       },
       searchRegistry: idSet.has("get_news") ? ctx.searchRegistry : undefined,
-      searchProviderId: idSet.has("get_news") && searchOk ? ctx.searchProviderId : null,
+      searchProviderId:
+        idSet.has("get_news") && searchOk ? ctx.searchProviderId : null,
       include: {
         quote: idSet.has("get_quote"),
         ohlcv: idSet.has("get_ohlcv"),

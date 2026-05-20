@@ -12,7 +12,9 @@ export const signalClassifierOutputSchema = z.object({
   confidence: z.number().min(0).max(1),
   reasoning: z.string().min(1),
 });
-export type SignalClassifierOutput = z.infer<typeof signalClassifierOutputSchema>;
+export type SignalClassifierOutput = z.infer<
+  typeof signalClassifierOutputSchema
+>;
 
 export const entryTimerOutputSchema = z.object({
   entryTiming: z.enum(["now", "wait", "skip"]),
@@ -34,7 +36,9 @@ export function aggregateTradeSignal(
       executionStrategy: classifier?.executionStrategy ?? "trend_momentum",
       entryPrice: null,
       confidence: classifier?.confidence ?? 0,
-      reasoning: classifier?.reasoning ?? "Review recommended skip or classifier did not run.",
+      reasoning:
+        classifier?.reasoning ??
+        "Review recommended skip or classifier did not run.",
     });
   }
 

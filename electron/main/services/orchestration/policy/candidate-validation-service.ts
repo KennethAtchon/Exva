@@ -43,30 +43,38 @@ export interface CandidateValidationResult {
   quoteSnapshot: MarketSnapshot;
 }
 
-const MAX_QUOTE_AGE_MS: Record<InstrumentClass, Record<"intraday" | "swing" | "position", number>> = {
-  stock:             { intraday: 30_000,  swing: 300_000,  position: 600_000 },
-  crypto:            { intraday: 15_000,  swing: 120_000,  position: 300_000 },
-  futures:           { intraday: 15_000,  swing: 120_000,  position: 300_000 },
-  prediction_market: { intraday: 300_000, swing: 600_000,  position: 3_600_000 },
+const MAX_QUOTE_AGE_MS: Record<
+  InstrumentClass,
+  Record<"intraday" | "swing" | "position", number>
+> = {
+  stock: { intraday: 30_000, swing: 300_000, position: 600_000 },
+  crypto: { intraday: 15_000, swing: 120_000, position: 300_000 },
+  futures: { intraday: 15_000, swing: 120_000, position: 300_000 },
+  prediction_market: { intraday: 300_000, swing: 600_000, position: 3_600_000 },
 };
 
 const MIN_VOLUME: Partial<Record<InstrumentClass, number>> = {
-  stock:   50_000,
-  crypto:  10_000,
+  stock: 50_000,
+  crypto: 10_000,
   futures: 500,
 };
 
 const MAX_SPREAD_PCT: Partial<Record<InstrumentClass, number>> = {
-  stock:   0.5,
-  crypto:  1.0,
+  stock: 0.5,
+  crypto: 1.0,
   futures: 0.3,
 };
 
-function maxQuoteAgeMs(cls: InstrumentClass, holdingStyle?: HoldingStyle): number {
+function maxQuoteAgeMs(
+  cls: InstrumentClass,
+  holdingStyle?: HoldingStyle,
+): number {
   const bucket: "intraday" | "swing" | "position" =
-    holdingStyle === "intraday_flat" ? "intraday"
-    : holdingStyle === "multi_day_swing" ? "swing"
-    : "position";
+    holdingStyle === "intraday_flat"
+      ? "intraday"
+      : holdingStyle === "multi_day_swing"
+        ? "swing"
+        : "position";
   return MAX_QUOTE_AGE_MS[cls][bucket];
 }
 
@@ -84,7 +92,10 @@ export class CandidateValidationService {
     }
 
     // CV-2: Class enabled
-    if (input.sessionInstrumentClasses && !input.sessionInstrumentClasses.includes(cls)) {
+    if (
+      input.sessionInstrumentClasses &&
+      !input.sessionInstrumentClasses.includes(cls)
+    ) {
       reasons.push(`Instrument class '${cls}' not enabled for session`);
     }
 
@@ -103,7 +114,9 @@ export class CandidateValidationService {
       const quoteAgeMs = nowMs - new Date(quoteSnapshot.timestamp).getTime();
       const maxAgeMs = maxQuoteAgeMs(cls, input.holdingStyle);
       if (quoteAgeMs > maxAgeMs) {
-        reasons.push(`Quote is stale (age: ${Math.round(quoteAgeMs / 1000)}s, max: ${Math.round(maxAgeMs / 1000)}s)`);
+        reasons.push(
+          `Quote is stale (age: ${Math.round(quoteAgeMs / 1000)}s, max: ${Math.round(maxAgeMs / 1000)}s)`,
+        );
       }
     }
 
@@ -113,7 +126,10 @@ export class CandidateValidationService {
         if (call.tool !== "get_news") return false;
         const args = safeParseJson(call.argsJson);
         const result = safeParseJson(call.resultJson);
-        const matched = args?.symbol === instrument.symbol && result != null && !Object.hasOwn(result, "error");
+        const matched =
+          args?.symbol === instrument.symbol &&
+          result != null &&
+          !Object.hasOwn(result, "error");
         if (matched) evidence.push({ source: "get_news", symbolMatched: true });
         return matched;
       }),
@@ -122,7 +138,8 @@ export class CandidateValidationService {
       step.toolCalls.some((call) => {
         if (call.tool !== "search_web") return false;
         const matched = call.resultJson.includes(instrument.symbol);
-        if (matched) evidence.push({ source: "search_web", symbolMatched: true });
+        if (matched)
+          evidence.push({ source: "search_web", symbolMatched: true });
         return matched;
       }),
     );
@@ -135,7 +152,9 @@ export class CandidateValidationService {
       structuredEvidence?.hasOhlcvEvidence ||
       structuredEvidence?.hasFetchEvidence;
     if (!hasNewsEvidence && !hasSearchEvidence && !hasStructuredEvidence) {
-      reasons.push(`No symbol-specific evidence found for ${instrument.symbol}`);
+      reasons.push(
+        `No symbol-specific evidence found for ${instrument.symbol}`,
+      );
     }
 
     // CV-7: Rationale non-empty
@@ -145,14 +164,24 @@ export class CandidateValidationService {
 
     // CV-8: Liquidity (when volume available)
     const minVol = MIN_VOLUME[cls];
-    if (quoteSnapshot.volume != null && minVol != null && quoteSnapshot.volume < minVol) {
+    if (
+      quoteSnapshot.volume != null &&
+      minVol != null &&
+      quoteSnapshot.volume < minVol
+    ) {
       reasons.push(`Volume too low (${quoteSnapshot.volume}, min: ${minVol})`);
     }
 
     // CV-9: Spread (when bid/ask available)
     const maxSpread = MAX_SPREAD_PCT[cls];
-    if (quoteSnapshot.spreadPct != null && maxSpread != null && quoteSnapshot.spreadPct > maxSpread) {
-      reasons.push(`Spread too wide (${quoteSnapshot.spreadPct.toFixed(2)}%, max: ${maxSpread}%)`);
+    if (
+      quoteSnapshot.spreadPct != null &&
+      maxSpread != null &&
+      quoteSnapshot.spreadPct > maxSpread
+    ) {
+      reasons.push(
+        `Spread too wide (${quoteSnapshot.spreadPct.toFixed(2)}%, max: ${maxSpread}%)`,
+      );
     }
 
     // CV-10: Strategy compatibility

@@ -2,7 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
   --background: 220 23% 5%;
@@ -26,19 +32,19 @@
   --ring: 231 87% 69%;
   --radius: 0.6rem;
 
-  --bg:         #080b10;
-  --surface:    #0d1219;
-  --surface2:   #121a24;
-  --surface3:   #1a2333;
-  --chip:       #1e2a38;
-  --border:     #1e2a38;
-  --text1:      #edf2f7;
-  --text2:      #8896a8;
-  --text3:      #4a5a6a;
-  --accent:     oklch(0.65 0.14 240);
-  --accent-dim: rgba(96,165,250,0.2);
-  --font-sans:  'Inter', system-ui, sans-serif;
-  --font-mono:  'JetBrains Mono', 'Fira Code', monospace;
+  --bg: #080b10;
+  --surface: #0d1219;
+  --surface2: #121a24;
+  --surface3: #1a2333;
+  --chip: #1e2a38;
+  --border: #1e2a38;
+  --text1: #edf2f7;
+  --text2: #8896a8;
+  --text3: #4a5a6a;
+  --accent: oklch(0.65 0.14 240);
+  --accent-dim: rgba(96, 165, 250, 0.2);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
 }
 
 .dark {
@@ -63,8 +69,11 @@
   --ring: 231 87% 69%;
 }
 
-html, body, #root {
-  width: 100%; height: 100%;
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
   background: var(--bg);
   color: var(--text1);
   font-family: var(--font-sans);
@@ -72,26 +81,60 @@ html, body, #root {
   text-rendering: optimizeLegibility;
 }
 
-::-webkit-scrollbar       { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface3);
+  border-radius: 3px;
+}
 
-button { font-family: inherit; cursor: pointer; }
-input  { font-family: inherit; color: inherit; }
-input::placeholder { color: var(--text3); }
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+input {
+  font-family: inherit;
+  color: inherit;
+}
+input::placeholder {
+  color: var(--text3);
+}
 
 @keyframes slideIn {
-  from { transform: translateX(30px); opacity: 0; }
-  to   { transform: translateX(0);    opacity: 1; }
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1;   transform: scale(1);    }
-  50%       { opacity: 0.5; transform: scale(0.75); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.75);
+  }
 }
 
-input[type=range] { -webkit-appearance: none; appearance: none; }
-button:active { opacity: 0.75; }
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+button:active {
+  opacity: 0.75;
+}
 input:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 100px var(--surface2) inset;
   -webkit-text-fill-color: var(--text1);

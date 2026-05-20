@@ -1,5 +1,9 @@
 import { expect } from "vitest";
-import type { ExecutionStrategyType, TechnicalSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
+import type {
+  ExecutionStrategyType,
+  TechnicalSignal,
+  TradeSignal,
+} from "@electron/shared/ai/pipeline-signals";
 import type { ReplayResult } from "../cycle-replay-service";
 
 export function assertSubmissionFires(result: ReplayResult): void {
@@ -7,10 +11,17 @@ export function assertSubmissionFires(result: ReplayResult): void {
   expect(result.phaseOutputs.selector).not.toBeNull();
 }
 
-export function assertSelectorSubmissionRate(results: ReplayResult[], minRate: number): void {
-  const selectorResults = results.filter((result) => result.phaseOutputs.selector !== null);
+export function assertSelectorSubmissionRate(
+  results: ReplayResult[],
+  minRate: number,
+): void {
+  const selectorResults = results.filter(
+    (result) => result.phaseOutputs.selector !== null,
+  );
   expect(selectorResults.length).toBeGreaterThan(0);
-  const submitted = selectorResults.filter((result) => result.scorecard.submissionFired).length;
+  const submitted = selectorResults.filter(
+    (result) => result.scorecard.submissionFired,
+  ).length;
   expect(submitted / selectorResults.length).toBeGreaterThanOrEqual(minRate);
 }
 
@@ -51,18 +62,26 @@ export function assertExecutionProfile(
   },
 ): void {
   expect(result.executionProfile).not.toBeNull();
-  expect(result.executionProfile?.positionSizeUsd).toBe(expected.positionSizeUsd);
+  expect(result.executionProfile?.positionSizeUsd).toBe(
+    expected.positionSizeUsd,
+  );
   expect(result.executionProfile?.orderType).toBe(expected.orderType);
   expect(result.executionProfile?.limitPrice).toBe(expected.limitPrice);
   if (expected.stopLossPrice == null) {
     expect(result.executionProfile?.stopLossPrice).toBeNull();
   } else {
-    expect(result.executionProfile?.stopLossPrice).toBeCloseTo(expected.stopLossPrice, 2);
+    expect(result.executionProfile?.stopLossPrice).toBeCloseTo(
+      expected.stopLossPrice,
+      2,
+    );
   }
   if (expected.takeProfitPrice == null) {
     expect(result.executionProfile?.takeProfitPrice).toBeNull();
   } else {
-    expect(result.executionProfile?.takeProfitPrice).toBeCloseTo(expected.takeProfitPrice, 2);
+    expect(result.executionProfile?.takeProfitPrice).toBeCloseTo(
+      expected.takeProfitPrice,
+      2,
+    );
   }
 }
 
@@ -113,12 +132,17 @@ export function expectedExecutionProfile(args: {
 
   let positionSizeUsd =
     instrumentClass === "prediction_market"
-      ? Math.min(maxPositionUsd, maxExposureUsd ?? maxPositionUsd) * kelly * conf * sizeFactor
+      ? Math.min(maxPositionUsd, maxExposureUsd ?? maxPositionUsd) *
+        kelly *
+        conf *
+        sizeFactor
       : maxPositionUsd * conf * kelly * sizeFactor;
   positionSizeUsd = Math.min(positionSizeUsd, maxPositionUsd);
-  if (maxExposureUsd != null) positionSizeUsd = Math.min(positionSizeUsd, maxExposureUsd);
+  if (maxExposureUsd != null)
+    positionSizeUsd = Math.min(positionSizeUsd, maxExposureUsd);
 
-  const orderType = entryPrice != null ? "limit" as const : "market" as const;
+  const orderType =
+    entryPrice != null ? ("limit" as const) : ("market" as const);
   let stopLossPrice: number | null = null;
   let takeProfitPrice: number | null = null;
   if (entryPrice != null && entryPrice > 0) {
@@ -128,7 +152,8 @@ export function expectedExecutionProfile(args: {
     }
     if (takeProfitPct != null && takeProfitPct > 0) {
       const delta = entryPrice * (takeProfitPct / 100);
-      takeProfitPrice = side === "BUY" ? entryPrice + delta : entryPrice - delta;
+      takeProfitPrice =
+        side === "BUY" ? entryPrice + delta : entryPrice - delta;
     }
   }
 

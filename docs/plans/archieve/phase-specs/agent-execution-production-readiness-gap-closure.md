@@ -14,16 +14,16 @@ The current codebase already landed meaningful slices of the deep plan: selector
 
 ## 2. Current Gap Summary
 
-| ID | Area | Current gap | Severity |
-| --- | --- | --- | --- |
-| G1 | Step runtime | `monitoring` exists in shared types/UI metadata but is never persisted as an execution step | High |
-| G2 | Progress UI | `getLatestBySession()` mixes stages from different cycles; `activeRoleLabel` is never populated; `View Trace` does not deep-link to the trace view | High |
-| G3 | Policy gate | Price collar is a no-op; idempotency always returns false; broker capability and market-open gates are not wired with real values | Critical |
-| G4 | Mock fallback | `buildSyntheticBars()` still drifts downward toward spot and does not match the intended production-like fallback behavior | Medium |
-| G5 | Exit enforcement | `TradeMonitor` cannot compute ATR for live/non-mock adapters and does not persist close-time market snapshot evidence | Medium |
-| G6 | Replay scorecards | `PaperScorecardService.generate()` leaves `scenarioCoverage` empty, so promotion criteria are incomplete | Medium |
-| G7 | Live readiness | No hard gate exists before starting a `live_allowed` session | Critical |
-| G8 | Regression coverage | Several behaviors are implemented but not fully protected by tests, especially assistant-text selector fallback and end-to-end readiness failures | Medium |
+| ID  | Area                | Current gap                                                                                                                                        | Severity |
+| --- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| G1  | Step runtime        | `monitoring` exists in shared types/UI metadata but is never persisted as an execution step                                                        | High     |
+| G2  | Progress UI         | `getLatestBySession()` mixes stages from different cycles; `activeRoleLabel` is never populated; `View Trace` does not deep-link to the trace view | High     |
+| G3  | Policy gate         | Price collar is a no-op; idempotency always returns false; broker capability and market-open gates are not wired with real values                  | Critical |
+| G4  | Mock fallback       | `buildSyntheticBars()` still drifts downward toward spot and does not match the intended production-like fallback behavior                         | Medium   |
+| G5  | Exit enforcement    | `TradeMonitor` cannot compute ATR for live/non-mock adapters and does not persist close-time market snapshot evidence                              | Medium   |
+| G6  | Replay scorecards   | `PaperScorecardService.generate()` leaves `scenarioCoverage` empty, so promotion criteria are incomplete                                           | Medium   |
+| G7  | Live readiness      | No hard gate exists before starting a `live_allowed` session                                                                                       | Critical |
+| G8  | Regression coverage | Several behaviors are implemented but not fully protected by tests, especially assistant-text selector fallback and end-to-end readiness failures  | Medium   |
 
 ## 3. Required Delivery Order
 
@@ -38,6 +38,7 @@ Implement in this order. Later items depend on earlier items.
 7. G8 regression test closure
 
 Rationale:
+
 - Live readiness cannot be credible until policy gating, monitoring, and scorecards are actually complete.
 - Progress UI should reflect trustworthy step state before more automation depends on it.
 
@@ -85,7 +86,11 @@ this.deps.sessionExecutionStepsRepo.upsert({
   lastErrorMessage: null,
   retryable: false,
 });
-this.deps.bus.emit("step:succeeded", { sessionId: this.sessionId, cycleId: context.cycleId, stage: "monitoring" });
+this.deps.bus.emit("step:succeeded", {
+  sessionId: this.sessionId,
+  cycleId: context.cycleId,
+  stage: "monitoring",
+});
 ```
 
 Do not run this through `ExecutionStepRunner`. The monitor is not a retryable stage in the same sense as selector/risk/broker; it is a lifecycle handoff marker.
@@ -127,6 +132,7 @@ getLatestCycleState(sessionId: string): { cycleId: string | null; steps: Executi
 ```
 
 Implementation rule:
+
 - Query all rows for the session ordered by `updatedAt desc`.
 - Pick the first row's `cycleId` as the active/latest cycle.
 - Return only rows whose `cycleId` matches that cycle.
@@ -151,7 +157,7 @@ const STAGE_ROLE_MAP: Partial<Record<ExecutionStage, AgentRole>> = {
 Fetch strategy/session AI-role config for the focused session only when needed, and format chip text as:
 
 ```ts
-"technical analyst · openai/gpt-4o-mini"
+"technical analyst · openai/gpt-4o-mini";
 ```
 
 If a stage has no AI role, return `null`.
@@ -160,10 +166,15 @@ If a stage has no AI role, return `null`.
    Add a query-string or in-memory route intent in `App.tsx` such as:
 
 ```ts
-type DevPanelFocus = { sessionId: string; cycleId: string; stage: ExecutionStage } | null;
+type DevPanelFocus = {
+  sessionId: string;
+  cycleId: string;
+  stage: ExecutionStage;
+} | null;
 ```
 
 When `onViewTrace` fires, switch page to `devpanel` and pass `DevPanel` a focus payload. In `DevPanel.tsx`, when a focus payload exists:
+
 - filter events by `session_id` and `cycle_id`
 - auto-select the newest matching event
 - default the inspector tab to `trace`
@@ -229,6 +240,7 @@ Add a repo-backed lookup for duplicate open or pending orders by `(brokerAccount
 3. Wire broker capability and market-open checks with real values.
 
 Before `OrderPolicyGate.evaluate()`:
+
 - resolve the adapter and set `brokerSupportsClass = adapter.supportedInstrumentClasses.includes(context.instrument.instrumentClass)`
 - call a final market-hours/tradability resolver and set `marketIsOpen`
 
@@ -302,6 +314,7 @@ getOhlcv?(instrumentSymbol: string, timeframe: "1h" | "4h" | "1d", barCount: num
 2. Implement it on `MockBrokerAdapter` by delegating to `getMockOhlcv()`.
 
 3. In `TradeMonitor.tick()`, request bars using timeframe derived from session strategy:
+
 - `intraday_flat` -> `1h`
 - `multi_day_swing` -> `4h`
 - `weeks_position` and `custom` -> `1d`
@@ -311,6 +324,7 @@ getOhlcv?(instrumentSymbol: string, timeframe: "1h" | "4h" | "1d", barCount: num
 
 5. Persist close evidence.
    When `closeTradeAtBroker()` closes due to an evaluator decision, update the trade with:
+
 - `exit_reason`
 - close-time `market_snapshot_json`
 - `closed_at`
@@ -347,7 +361,7 @@ Do not infer scenarios from PnL or exit reason.
 Add a helper:
 
 ```ts
-function readMockScenarioKind(trade: Trade): MockScenarioKind | null
+function readMockScenarioKind(trade: Trade): MockScenarioKind | null;
 ```
 
 Increment coverage counts only for classified trades.
@@ -386,18 +400,21 @@ Implement the design in `docs/plans/phase-specs/phase-8-live-readiness.md` with 
 Required flow:
 
 1. `SessionService.start(sessionId)`
+
 - load session
 - if `session.executionMode !== "live_allowed"`, continue normally
 - else call `liveReadinessService.check(sessionId)`
 - if report fails, emit session event and throw `AppError("Live readiness gate failed", "VALIDATION_FAILED", { blockedBy, checks })`
 
 2. Add IPC handlers:
+
 - `session:getLiveReadiness`
 - `session:testLiveBrokerConnection`
 - `session:acknowledgeLiveReadiness`
 
 3. Persist `live_readiness_acknowledged_at` on `sessions`.
    Clear it whenever materially relevant config changes:
+
 - execution mode
 - broker assignments/routing
 - risk config
@@ -405,6 +422,7 @@ Required flow:
 
 4. Add a renderer modal for the checklist.
    Starting a live session from `SessionsPage.tsx` must:
+
 - call `getLiveReadiness`
 - show the modal if blocked
 - allow explicit acknowledgement only after all non-ack checks pass
@@ -477,8 +495,8 @@ This gap-closure work is complete only when all of the following are true:
 
 ## 8. Open Assumptions
 
-| ID | Assumption | Impact if false |
-| --- | --- | --- |
-| A1 | `market_snapshot_json` on trades can safely store close-time exit evidence without breaking existing readers | If false, add a dedicated `close_market_snapshot_json` column instead |
-| A2 | Mock scenario kind can be persisted in `instrument_metadata_json` without needing a new top-level trade column | If false, add `mock_scenario_kind` explicitly to trades |
-| A3 | `DevPanel` can accept a simple focus payload through `App.tsx` state without requiring router changes | If false, add a lightweight global store for DevPanel intent |
+| ID  | Assumption                                                                                                     | Impact if false                                                       |
+| --- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| A1  | `market_snapshot_json` on trades can safely store close-time exit evidence without breaking existing readers   | If false, add a dedicated `close_market_snapshot_json` column instead |
+| A2  | Mock scenario kind can be persisted in `instrument_metadata_json` without needing a new top-level trade column | If false, add `mock_scenario_kind` explicitly to trades               |
+| A3  | `DevPanel` can accept a simple focus payload through `App.tsx` state without requiring router changes          | If false, add a lightweight global store for DevPanel intent          |

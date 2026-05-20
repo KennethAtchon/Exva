@@ -62,23 +62,31 @@ describe("session onboarding integration", () => {
       instrumentScope: "NVDA",
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",
-      brokerAssignments: [{ brokerAccountId: "paper-broker", allocatedUsd: 5000 }],
+      brokerAssignments: [
+        { brokerAccountId: "paper-broker", allocatedUsd: 5000 },
+      ],
       brokerOverridesByInstrumentClass: { stock: "paper-broker" },
     });
 
     await expect(harness.session.start(sessionId)).rejects.toMatchObject({
       code: "PROVIDER_NOT_CONFIGURED",
     });
-    expect(harness.events.query({ sessionId, minLevel: "ERROR" })[0]?.message).toContain("Preflight provider-credentials failed");
+    expect(
+      harness.events.query({ sessionId, minLevel: "ERROR" })[0]?.message,
+    ).toContain("Preflight provider-credentials failed");
 
     harness.configureDefaultAiProvider();
 
     await expect(harness.session.start(sessionId)).resolves.toBe("active");
     expect(harness.sessions.requireById(sessionId).status).toBe("active");
-    expect(harness.sessions.requireById(sessionId).executionMode).toBe("paper_only");
+    expect(harness.sessions.requireById(sessionId).executionMode).toBe(
+      "paper_only",
+    );
     expect(harness.runtimeManager.get(sessionId)?.status).toBe("active");
     expect(harness.startedSessions).toEqual([sessionId]);
-    expect(harness.routing.resolveBrokerAccountId(sessionId, "stock")).toBe("paper-broker");
+    expect(harness.routing.resolveBrokerAccountId(sessionId, "stock")).toBe(
+      "paper-broker",
+    );
   });
 
   it("starts a new session from the workspace default AI model without visiting Strategy", async () => {
@@ -105,14 +113,20 @@ describe("session onboarding integration", () => {
       instrumentScope: "NVDA",
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",
-      brokerAssignments: [{ brokerAccountId: "paper-broker", allocatedUsd: 5000 }],
+      brokerAssignments: [
+        { brokerAccountId: "paper-broker", allocatedUsd: 5000 },
+      ],
       brokerOverridesByInstrumentClass: { stock: "paper-broker" },
     });
 
     const phases = harness.sessionAiPhasesRepo.listBySession(sessionId);
     expect(phases).toHaveLength(5);
-    expect(phases.every((p) => p.providerKey === "provider-openrouter")).toBe(true);
-    expect(phases.every((p) => p.modelId === "google/gemma-4-31b-it")).toBe(true);
+    expect(phases.every((p) => p.providerKey === "provider-openrouter")).toBe(
+      true,
+    );
+    expect(phases.every((p) => p.modelId === "google/gemma-4-31b-it")).toBe(
+      true,
+    );
 
     await expect(harness.session.start(sessionId)).resolves.toBe("active");
     expect(harness.startedSessions).toEqual([sessionId]);
@@ -137,17 +151,23 @@ describe("session onboarding integration", () => {
       instrumentScope: "AAPL",
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "live_allowed",
-      brokerAssignments: [{ brokerAccountId: "live-broker", allocatedUsd: 5000 }],
+      brokerAssignments: [
+        { brokerAccountId: "live-broker", allocatedUsd: 5000 },
+      ],
       brokerOverridesByInstrumentClass: { stock: "live-broker" },
     });
 
     await expect(harness.session.start(sessionId)).resolves.toBe("active");
 
     expect(harness.sessions.requireById(sessionId).status).toBe("active");
-    expect(harness.sessions.requireById(sessionId).executionMode).toBe("live_allowed");
+    expect(harness.sessions.requireById(sessionId).executionMode).toBe(
+      "live_allowed",
+    );
     expect(harness.brokers.require("live-broker").mode).toBe("live");
     expect(harness.startedSessions).toEqual([sessionId]);
-    expect(harness.routing.resolveBrokerAccountId(sessionId, "stock")).toBe("live-broker");
+    expect(harness.routing.resolveBrokerAccountId(sessionId, "stock")).toBe(
+      "live-broker",
+    );
   });
 
   it("returns an empty portfolio value when no session exists yet", async () => {
@@ -230,13 +250,20 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     brokerAccountsRepo: brokers,
     brokerRegistry: brokerRegistry as never,
     brokerRouting: routing,
-    brokerBalanceCache: { getBalance: async () => 0, refreshAll: async () => [] } as never,
-    brokerCapital: { checkSessionStartFits: () => ({ ok: true as const }) } as never,
+    brokerBalanceCache: {
+      getBalance: async () => 0,
+      refreshAll: async () => [],
+    } as never,
+    brokerCapital: {
+      checkSessionStartFits: () => ({ ok: true as const }),
+    } as never,
     brokerAllocationGate: {
       checkOrderFits: () => ({ ok: true as const }),
       checkInstrumentConflict: () => ({ ok: true as const }),
     } as never,
-    instrumentNormalizer: { toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol } as never,
+    instrumentNormalizer: {
+      toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol,
+    } as never,
     ai: {} as never,
     riskEngine: {} as never,
     bus: eventBus,
@@ -281,7 +308,9 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
       runtimeManager,
       preflight: runPreflight,
       orchestratorDeps,
-      liveReadiness: { check: async () => ({ readyToStart: true, checks: [] }) },
+      liveReadiness: {
+        check: async () => ({ readyToStart: true, checks: [] }),
+      },
     }),
     sessions,
     sessionWrites: new SessionWriteService({

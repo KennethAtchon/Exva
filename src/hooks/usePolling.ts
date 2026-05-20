@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 
-export function usePolling(fn: () => void | Promise<void>, intervalMs: number, enabled = true) {
+export function usePolling(
+  fn: () => void | Promise<void>,
+  intervalMs: number,
+  enabled = true,
+) {
   const cbRef = useRef(fn);
   cbRef.current = fn;
   useEffect(() => {

@@ -4,8 +4,8 @@ Summarize resolution rules, timing, and disqualifying scenarios for the event co
 
 Return JSON:
 {
-  "earningsScore": 0.0,
-  "rawSummary": "..."
+"earningsScore": 0.0,
+"rawSummary": "..."
 }
 
 Use news and web evidence; map qualitative facts into rawSummary.

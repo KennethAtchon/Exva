@@ -3,7 +3,10 @@ import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
 import { OrchestratorContext } from "./orchestrator-context";
 import { runPhaseCycle } from "./orchestrator-step";
 import { handleResolvedInstruments } from "./scheduling/instrument-queue";
-import { attachTradeClosedListener, detachTradeClosedListener } from "./scheduling/trade-closed-handler";
+import {
+  attachTradeClosedListener,
+  detachTradeClosedListener,
+} from "./scheduling/trade-closed-handler";
 import { runSelector } from "./selector/run-selector";
 import { hasApprovalCallback, resolveApproval } from "./trade/approval-flow";
 import { runApprovalRecheck } from "./trade/approval-recheck";
@@ -24,15 +27,23 @@ export class AgentOrchestrator {
 
   async start(): Promise<void> {
     if (this.ctx.started) {
-      this.deps.logger.debug({ sessionId: this.sessionId }, "orchestrator already started; resuming queue");
+      this.deps.logger.debug(
+        { sessionId: this.sessionId },
+        "orchestrator already started; resuming queue",
+      );
       this.ctx.queue.start();
       return;
     }
 
     const config = this.getSessionConfig();
     this.ctx.queue.concurrency = config.max_concurrent_trades;
-    this.deps.logger.info({ sessionId: this.sessionId, concurrency: this.ctx.queue.concurrency }, "orchestrator starting");
-    attachTradeClosedListener(this.ctx, () => this.scheduleSelectorCycle("Trade-closed research cycle complete"));
+    this.deps.logger.info(
+      { sessionId: this.sessionId, concurrency: this.ctx.queue.concurrency },
+      "orchestrator starting",
+    );
+    attachTradeClosedListener(this.ctx, () =>
+      this.scheduleSelectorCycle("Trade-closed research cycle complete"),
+    );
     this.ctx.started = true;
     this.ctx.enqueueTask(
       () =>
@@ -50,7 +61,10 @@ export class AgentOrchestrator {
         );
       },
     );
-    this.deps.logger.info({ sessionId: this.sessionId }, "orchestrator started");
+    this.deps.logger.info(
+      { sessionId: this.sessionId },
+      "orchestrator started",
+    );
   }
 
   async pause(): Promise<void> {
@@ -76,7 +90,10 @@ export class AgentOrchestrator {
       return;
     }
     const cycleId = crypto.randomUUID();
-    this.deps.logger.info({ sessionId: this.sessionId, cycleId }, "orchestrator restart from attention_required");
+    this.deps.logger.info(
+      { sessionId: this.sessionId, cycleId },
+      "orchestrator restart from attention_required",
+    );
     this.ctx.enqueueTask(
       () =>
         this.executeSelectorCycle({
@@ -113,20 +130,33 @@ export class AgentOrchestrator {
     this.ctx.disposeStepRunners();
     this.ctx.cycleContexts.clear();
     this.ctx.releaseApprovalsAndCapital();
-    this.deps.logger.info({ sessionId: this.sessionId }, "orchestrator stopped");
+    this.deps.logger.info(
+      { sessionId: this.sessionId },
+      "orchestrator stopped",
+    );
   }
 
   pauseAfterCurrentStep(): void {
     this.ctx.pauseAfterStep = true;
   }
 
-  async retryStep(cycleId: string, stage: ExecutionStage): Promise<{ ok: true } | { ok: false; reason: string }> {
+  async retryStep(
+    cycleId: string,
+    stage: ExecutionStage,
+  ): Promise<{ ok: true } | { ok: false; reason: string }> {
     const context = this.ctx.cycleContexts.get(cycleId);
     if (!context) {
-      return { ok: false, reason: `No live cycle context exists for ${cycleId}.` };
+      return {
+        ok: false,
+        reason: `No live cycle context exists for ${cycleId}.`,
+      };
     }
 
-    this.deps.sessionExecutionStepsRepo.clearFailed(this.sessionId, cycleId, stage);
+    this.deps.sessionExecutionStepsRepo.clearFailed(
+      this.sessionId,
+      cycleId,
+      stage,
+    );
     const runner = this.ctx.stepRunners.get(cycleId);
     if (runner?.get(stage)?.status === "retrying") {
       runner.dispose();
@@ -139,7 +169,13 @@ export class AgentOrchestrator {
         : () => executeTradeCycle(this.ctx, context);
 
     this.ctx.enqueueTask(enqueue, (error) => {
-      this.ctx.emitEvent("ERROR", null, `Step retry failed: ${error instanceof Error ? error.message : String(error)}`, "orchestrator", cycleId);
+      this.ctx.emitEvent(
+        "ERROR",
+        null,
+        `Step retry failed: ${error instanceof Error ? error.message : String(error)}`,
+        "orchestrator",
+        cycleId,
+      );
     });
     return { ok: true };
   }
@@ -161,22 +197,33 @@ export class AgentOrchestrator {
     return runTradeCycle(this.ctx, instrument);
   }
 
-  private async executeSelectorCycle(context: SelectorCycleContext): Promise<void> {
+  private async executeSelectorCycle(
+    context: SelectorCycleContext,
+  ): Promise<void> {
     return runPhaseCycle(this.ctx, {
       context,
       stage: "selector",
       prepare: () => {
-        this.ctx.queue.concurrency = this.getSessionConfig().max_concurrent_trades;
+        this.ctx.queue.concurrency =
+          this.getSessionConfig().max_concurrent_trades;
       },
       run: () => {
         const session = this.ctx.deps.sessionRepo.requireById(this.sessionId);
-        return runSelector(this.ctx, session, this.getSessionConfig(), context.cycleId);
+        return runSelector(
+          this.ctx,
+          session,
+          this.getSessionConfig(),
+          context.cycleId,
+        );
       },
       retryCycle: () => this.executeSelectorCycle(context),
       retryErrorLabel: "Scheduled selector retry failed",
       busEvents: { phase: "selector" },
-      completePayload: (instruments) => ({ instrumentCount: instruments.length }),
-      onSuccess: (instruments) => this.handleResolvedInstruments(instruments, context.label),
+      completePayload: (instruments) => ({
+        instrumentCount: instruments.length,
+      }),
+      onSuccess: (instruments) =>
+        this.handleResolvedInstruments(instruments, context.label),
     });
   }
 
@@ -188,9 +235,13 @@ export class AgentOrchestrator {
     });
   }
 
-  private handleResolvedInstruments(instruments: ResolvedInstrument[], context: string): void {
+  private handleResolvedInstruments(
+    instruments: ResolvedInstrument[],
+    context: string,
+  ): void {
     handleResolvedInstruments(this.ctx, instruments, context, {
-      scheduleSelectorCycle: () => this.scheduleSelectorCycle("Scheduled selector retry complete"),
+      scheduleSelectorCycle: () =>
+        this.scheduleSelectorCycle("Scheduled selector retry complete"),
       enqueueTradeCycle: (instrument) => runTradeCycle(this.ctx, instrument),
     });
   }

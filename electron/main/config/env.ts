@@ -1,8 +1,12 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  EXVA_LOG_LEVEL: z.enum(["error", "warn", "info", "debug", "trace"]).default("info"),
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
+  EXVA_LOG_LEVEL: z
+    .enum(["error", "warn", "info", "debug", "trace"])
+    .default("info"),
   EXVA_LOG_DIR: z.string().optional(),
   EXVA_DB_PATH: z.string().optional(),
   EXVA_DB_REBUILD_FROM_SCRATCH: z
@@ -19,7 +23,9 @@ const envSchema = z.object({
 export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
-    throw new Error(`Invalid environment: ${JSON.stringify(parsed.error.flatten().fieldErrors)}`);
+    throw new Error(
+      `Invalid environment: ${JSON.stringify(parsed.error.flatten().fieldErrors)}`,
+    );
   }
 
   return Object.freeze({

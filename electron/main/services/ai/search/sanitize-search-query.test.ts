@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { normalizeQueryFamily, sanitizeSearchQuery, validateDiscoveryQuery } from "./sanitize-search-query";
+import {
+  normalizeQueryFamily,
+  sanitizeSearchQuery,
+  validateDiscoveryQuery,
+} from "./sanitize-search-query";
 
 describe("sanitizeSearchQuery", () => {
   it("strips filler and normalizes whitespace", () => {
-    expect(sanitizeSearchQuery("  I'll search for:   NVDA breakout on volume   ")).toBe("NVDA breakout on volume");
+    expect(
+      sanitizeSearchQuery("  I'll search for:   NVDA breakout on volume   "),
+    ).toBe("NVDA breakout on volume");
   });
 });
 
@@ -21,7 +27,12 @@ describe("validateDiscoveryQuery", () => {
 
   it("preserves useful queries and computes a normalized family", () => {
     const result = validateDiscoveryQuery("NVDA breakout on volume");
-    expect(result).toMatchObject({ ok: true, sanitized: "NVDA breakout on volume" });
-    expect(normalizeQueryFamily(result.sanitized)).toBe("nvda breakout on volume");
+    expect(result).toMatchObject({
+      ok: true,
+      sanitized: "NVDA breakout on volume",
+    });
+    expect(normalizeQueryFamily(result.sanitized)).toBe(
+      "nvda breakout on volume",
+    );
   });
 });

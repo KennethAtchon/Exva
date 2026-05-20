@@ -40,23 +40,23 @@ Nothing breaks today because the system only has one trade cycle and four AI pha
 
 ### Goals
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| G1 | New AI analysis phase requires 2 files | `plans/trade/<name>-plan.ts` + 1 stage entry in `default-cycle-stages.ts`; no interpreter edits, no struct changes |
-| G2 | New engine stage requires no switch-case edit | Register an input builder + add 1 stage config; `applyEngineOutput` is gone |
-| G3 | approval-recheck shares policy execution with the normal path | `approval-recheck.ts` is <80 lines; risk/allocation/policy gate runs through a shared function |
-| G4 | DevPanel inspects any cycle plan correctly | `resolveEffectivePlanStages` is derived from plan metadata, not a hardcoded branch |
-| G5 | No legacy dead code | `runPhase` removed from `CyclePlanRunContext`; `getPipelineDefinition` calls removed from trade phase plans |
+| #   | Goal                                                          | Success Looks Like                                                                                                 |
+| --- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| G1  | New AI analysis phase requires 2 files                        | `plans/trade/<name>-plan.ts` + 1 stage entry in `default-cycle-stages.ts`; no interpreter edits, no struct changes |
+| G2  | New engine stage requires no switch-case edit                 | Register an input builder + add 1 stage config; `applyEngineOutput` is gone                                        |
+| G3  | approval-recheck shares policy execution with the normal path | `approval-recheck.ts` is <80 lines; risk/allocation/policy gate runs through a shared function                     |
+| G4  | DevPanel inspects any cycle plan correctly                    | `resolveEffectivePlanStages` is derived from plan metadata, not a hardcoded branch                                 |
+| G5  | No legacy dead code                                           | `runPhase` removed from `CyclePlanRunContext`; `getPipelineDefinition` calls removed from trade phase plans        |
 
 ### Non-Goals
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| NG1 | Full DAG-based session planner (selector → N trades) | Scope explosion; stays in orchestration queue per plan NG2 |
-| NG2 | Moving effect runner (approval/broker/capital) into pipeline runtime | Real side effects stay in orchestration |
-| NG3 | JSON/YAML configs | TS typed constants achieve the same runtime shape with better type safety |
-| NG4 | Replacing `ExecutionStepRunner` | Works correctly; this plan wires into it, not around it |
-| NG5 | Removing `TradeCyclePlanState` entirely | The typed struct is correct; the problem is the manual field management around it |
+| #   | Non-Goal                                                             | Reason                                                                            |
+| --- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| NG1 | Full DAG-based session planner (selector → N trades)                 | Scope explosion; stays in orchestration queue per plan NG2                        |
+| NG2 | Moving effect runner (approval/broker/capital) into pipeline runtime | Real side effects stay in orchestration                                           |
+| NG3 | JSON/YAML configs                                                    | TS typed constants achieve the same runtime shape with better type safety         |
+| NG4 | Replacing `ExecutionStepRunner`                                      | Works correctly; this plan wires into it, not around it                           |
+| NG5 | Removing `TradeCyclePlanState` entirely                              | The typed struct is correct; the problem is the manual field management around it |
 
 ---
 
@@ -84,17 +84,17 @@ The diagram reveals: the normal trade cycle path is clean. The approval-recheck 
 
 ### Specific code locations for each problem
 
-| Problem | File | Lines | Description |
-|---------|------|-------|-------------|
-| P1 | `plan/engine/stage-dispatch.ts` | 38–70 | `applyEngineOutput` switch on engine ID string |
-| P2 | `plan/cycle/interpreter.ts` | 79 | `sumAiCost` hardcodes 4 state fields |
-| P3 | `orchestration/cycle/trade/run-trade-pipeline.ts` | 76–92, 105–111 | `applyTradePipelineToContext` + `requirePipelineAiResults` enumerate 4 fields |
-| P4 | `plan/cycle/types.ts` | 35–45 | `TradeCyclePlanState` named fields per AI phase |
-| P5 | `orchestration/cycle/trade/approval-recheck.ts` | 98–179 | Duplicated risk/allocation/policy gate logic |
-| P6 | `plan/unified/registry.ts` | 58–101 | `resolveEffectivePlanStages` hardcoded branch + broken generic path |
-| P7 | `plan/plans/trade/analysis-plans.ts` | 77, 97 | `getPipelineDefinition("review")` / `getPipelineDefinition("decision")` |
-| P8 | `plan/cycle/stage-runner.ts` | 16–19 | `if (config.id === "risk_gate")` hardcoded skip check |
-| P9 | `plan/cycle/types.ts` | 64–67 | `runPhase` in `CyclePlanRunContext` (legacy; should be dead) |
+| Problem | File                                              | Lines          | Description                                                                   |
+| ------- | ------------------------------------------------- | -------------- | ----------------------------------------------------------------------------- |
+| P1      | `plan/engine/stage-dispatch.ts`                   | 38–70          | `applyEngineOutput` switch on engine ID string                                |
+| P2      | `plan/cycle/interpreter.ts`                       | 79             | `sumAiCost` hardcodes 4 state fields                                          |
+| P3      | `orchestration/cycle/trade/run-trade-pipeline.ts` | 76–92, 105–111 | `applyTradePipelineToContext` + `requirePipelineAiResults` enumerate 4 fields |
+| P4      | `plan/cycle/types.ts`                             | 35–45          | `TradeCyclePlanState` named fields per AI phase                               |
+| P5      | `orchestration/cycle/trade/approval-recheck.ts`   | 98–179         | Duplicated risk/allocation/policy gate logic                                  |
+| P6      | `plan/unified/registry.ts`                        | 58–101         | `resolveEffectivePlanStages` hardcoded branch + broken generic path           |
+| P7      | `plan/plans/trade/analysis-plans.ts`              | 77, 97         | `getPipelineDefinition("review")` / `getPipelineDefinition("decision")`       |
+| P8      | `plan/cycle/stage-runner.ts`                      | 16–19          | `if (config.id === "risk_gate")` hardcoded skip check                         |
+| P9      | `plan/cycle/types.ts`                             | 64–67          | `runPhase` in `CyclePlanRunContext` (legacy; should be dead)                  |
 
 ### Constraints
 
@@ -130,15 +130,15 @@ The DZone article on state-driven AI workflow engines ([Building a State-Driven 
 
 Leave the switch-case, the hardcoded state fields, and the duplicated recheck logic. Document the 5-file checklist for new phases.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Zero near-term |
-| Performance | No change |
-| Reliability | Known behavior |
-| Cost | Compounds ~2× per new phase or engine |
-| Reversibility | N/A |
-| Stack fit | Matches current code |
-| Team readiness | Immediate |
+| Dimension      | Assessment                            |
+| -------------- | ------------------------------------- |
+| Complexity     | Zero near-term                        |
+| Performance    | No change                             |
+| Reliability    | Known behavior                        |
+| Cost           | Compounds ~2× per new phase or engine |
+| Reversibility  | N/A                                   |
+| Stack fit      | Matches current code                  |
+| Team readiness | Immediate                             |
 
 **Risks:** Next AI phase or engine stage forces all five edits. Approval-recheck diverges silently when risk logic changes. DevPanel cycle inspection is permanently broken for anything except `default-trade-cycle`.
 
@@ -148,15 +148,15 @@ Leave the switch-case, the hardcoded state fields, and the duplicated recheck lo
 
 Replace `applyEngineOutput` switch with a handler map registered alongside each `EngineInputBuilder`. Move approval-recheck's risk/policy calls to call `runEngineChainStage` on the same stage configs.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Low — two targeted changes, no type changes |
-| Performance | Neutral |
-| Reliability | Removes the dual-maintenance risk for P5 |
-| Cost | ~2 days |
-| Reversibility | Easy — each change is independently reversible |
-| Stack fit | Extends existing registries |
-| Team readiness | High |
+| Dimension      | Assessment                                     |
+| -------------- | ---------------------------------------------- |
+| Complexity     | Low — two targeted changes, no type changes    |
+| Performance    | Neutral                                        |
+| Reliability    | Removes the dual-maintenance risk for P5       |
+| Cost           | ~2 days                                        |
+| Reversibility  | Easy — each change is independently reversible |
+| Stack fit      | Extends existing registries                    |
+| Team readiness | High                                           |
 
 **Risks:** P2/P3 (hardcoded field lists) remain; fifth AI phase still requires struct + interpreter edits. P6 (broken DevPanel) unchanged. Does not achieve G1 fully.
 
@@ -166,14 +166,14 @@ Replace `applyEngineOutput` switch with a handler map registered alongside each 
 
 Extend `EngineInputBuilder` with an optional `applyOutput` handler, eliminating the switch-case. Move AI phase cost tracking to a generic state-walker. Share the post-decision gate runner between main cycle and approval-recheck. Fix `resolveEffectivePlanStages` to derive from plan metadata. Remove legacy `runPhase` and `getPipelineDefinition` leaks.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium — 4 phases, each touching 2–4 files |
-| Performance | Neutral |
-| Reliability | Removes dual-maintenance for P5; exhaustiveness for P1 |
-| Cost | ~1 week phased across two weeks |
-| Reversibility | Phase-by-phase; each phase independently deployable |
-| Stack fit | Direct extension of Phase 3 patterns |
+| Dimension      | Assessment                                                        |
+| -------------- | ----------------------------------------------------------------- |
+| Complexity     | Medium — 4 phases, each touching 2–4 files                        |
+| Performance    | Neutral                                                           |
+| Reliability    | Removes dual-maintenance for P5; exhaustiveness for P1            |
+| Cost           | ~1 week phased across two weeks                                   |
+| Reversibility  | Phase-by-phase; each phase independently deployable               |
+| Stack fit      | Direct extension of Phase 3 patterns                              |
 | Team readiness | Medium — requires careful sequencing to avoid selector regression |
 
 **Risks:** Phase 1 (engine output handler) touches `stage-dispatch.ts` which is exercised by all engine stages — test parity required before merge. Phase 2 (state accumulator) touches `TradeCyclePlanState` consumers — approval-recheck must be updated in the same PR.
@@ -184,15 +184,15 @@ Extend `EngineInputBuilder` with an optional `applyOutput` handler, eliminating 
 
 Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zero-cost to add. This would satisfy G1 at the cost of losing type safety on `requirePipelineAiResults` and every consumer that reads `state.technical`, `state.decision`, etc.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium to build; high to maintain |
-| Performance | Neutral |
-| Reliability | Loses compile-time guarantees on state consumers |
-| Cost | Larger than C |
-| Reversibility | Hard — consumers use typed field access everywhere |
-| Stack fit | Diverges from existing typed patterns |
-| Team readiness | Low — TypeScript type safety is a core invariant |
+| Dimension      | Assessment                                         |
+| -------------- | -------------------------------------------------- |
+| Complexity     | Medium to build; high to maintain                  |
+| Performance    | Neutral                                            |
+| Reliability    | Loses compile-time guarantees on state consumers   |
+| Cost           | Larger than C                                      |
+| Reversibility  | Hard — consumers use typed field access everywhere |
+| Stack fit      | Diverges from existing typed patterns              |
+| Team readiness | Low — TypeScript type safety is a core invariant   |
 
 **Rejected:** The named fields in `TradeCyclePlanState` are correct; the problem is in the _interpreter_, not the struct. Option C fixes the interpreter without losing the struct's type safety.
 
@@ -230,6 +230,7 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Done when:** `applyEngineOutput` function is deleted; all engine registrations include an `applyOutput` handler where needed; `stage-runner.ts` has no hardcoded `if (config.id === "risk_gate")` block.
 
 **Deliverables:**
+
 - [x] Extend `EngineInputBuilder` with optional `applyOutput?: (state: TradeCyclePlanState, output: unknown) => Partial<TradeCyclePlanState>`
 - [x] Add optional `skipIf?: (ctx: CyclePlanRunContext, state: TradeCyclePlanState) => boolean` to engine-chain stage config
 - [x] Update `runEngineStage` and `runEngineChainStage` in `stage-dispatch.ts` to call `applyOutput` or return `state` unchanged if absent
@@ -243,6 +244,7 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Rollback:** Revert `stage-dispatch.ts` to previous version; the switch was the only consumer of the output.
 
 **Risks:**
+
 - An `applyOutput` handler is missing for one of the four existing engines → caught by test; `state` passthrough is safe and visible.
 - `skipIf` lambda for `risk_gate` doesn't match the existing guard exactly → write a unit test for the skip case before deleting the old guard.
 
@@ -255,6 +257,7 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Done when:** Adding a new stage to `DEFAULT_TRADE_CYCLE_STAGES` with `applyOutput: (state, result) => ({ optionsFlow: result })` is sufficient to wire it into cost tracking and context propagation.
 
 **Deliverables:**
+
 - [x] Replace `sumAiCost` in `cycle/interpreter.ts` with `collectAiRunCost(state: TradeCyclePlanState)` that iterates `Object.values(state)` and sums any value where `typeof v === "object" && v !== null && "run" in v && typeof (v as AgentResult<unknown>).run?.cost_usd === "number"`. Move to a shared util.
 - [x] Replace `applyTradePipelineToContext` with a field-keyed merge: each `DeclarativeCycleStageConfig` of kind `"phase"` already has `applyOutput(state, result) => TradeCyclePlanState`; the context merge should read from the state struct directly (context no longer stores redundant copies). If context-mirroring is needed for retry re-seed, express it as `seedState = pick(state, ["technical","fundamental","review","decision","riskOrder"])` — still explicit, but in one place.
 - [ ] Simplify `requirePipelineAiResults` to assert the four fields are present rather than destructuring them — or leave it as-is (it is explicit and correct); the goal here is not to make it dynamic but to ensure it doesn't need editing when a _new_ field is added optionally.
@@ -265,6 +268,7 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Rollback:** No structural type changes; revert is a line-level undo.
 
 **Risks:**
+
 - `collectAiRunCost` accumulates unexpected cost from non-AgentResult state values → guard with `instanceof` check or a narrower shape test. Write a snapshot test.
 
 ---
@@ -276,6 +280,7 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Done when:** Lines 98–179 of `approval-recheck.ts` are replaced by a call to a shared `runPostDecisionGates(ctx, state, cycleId, tradeId)` function that the normal trade cycle path also uses.
 
 **Deliverables:**
+
 - [x] Extract `runPostDecisionGates(ctx: OrchestratorContext, state: TradeCyclePlanState, cycleId: string, tradeId: string | null): Promise<TradeCyclePlanState>` into a new file `orchestration/cycle/trade/post-decision-gates.ts`.
   - This function builds a minimal `CyclePlanRunContext` (instrument, sessionConfig, strategyContext) and calls `runEngineChainStage` with the `risk_gate` stage's `engines` config from `DEFAULT_TRADE_CYCLE_STAGES`.
   - Replaces the three direct calls in `approval-recheck.ts`: `riskEngine.validateDecision`, `brokerAllocationGate.checkOrderFits`, `brokerAllocationGate.checkInstrumentConflict`.
@@ -288,6 +293,7 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Rollback:** Revert `approval-recheck.ts` to previous version; `post-decision-gates.ts` can be deleted.
 
 **Risks:**
+
 - `runEngineChainStage` currently expects a full `CyclePlanRunContext` including `toolContext` and `session` fields, which the risk-gate engines don't actually use. Phase 3 should define a `RiskGateContext` narrower type (subset of `CyclePlanRunContext`) accepted by `runEngineChainStage` via overload or type parameter. Verified: `execution-profile`, `risk-gate`, `broker-allocation` builders only access `ctx.services`, `ctx.sessionId`, `ctx.cycleId`, `ctx.instrument`, `ctx.sessionConfig`, `ctx.strategyContext` — not `ctx.toolContext` or `ctx.session`.
 - Stats computation in `riskGateInputBuilder` (`ctx.services.sessionBrokerAssignmentsRepo.listAssignments(...).reduce(...)`) is equivalent to `ctx.totalAllocatedUsd()` in `approval-recheck.ts`. Verified: same calculation. ✓
 - `capitalReservation.updateReservedAmountForApproval` (line 122) and the order-policy `runEngineBinding` (lines 148–179) are unique to the recheck flow — they stay in `approval-recheck.ts` and are not targets for Phase 3 deduplication.
@@ -301,6 +307,7 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Done when:** `resolveEffectivePlanStages` has no hardcoded `if (planId === "default-trade-cycle")` branch; `CyclePlanRunContext` has no `runPhase` field; `analysis-plans.ts` does not call `getPipelineDefinition`.
 
 **Deliverables:**
+
 - [x] Fix `resolveEffectivePlanStages` in `unified/registry.ts`:
   - For cycle plans: derive from `plan.inspect` — the `inspected.stageIds`, `phaseStages`, `engineStages` are already set correctly by `tradeCycleInspectMetadata()`. Remove the hardcoded branch. The generic path (lines 94–101) had a bug setting all stages to `kind: "phase"` — fix to use `plan.kind` correctly and include `engineIds`.
   - This makes DevPanel stage inspection work for any registered cycle plan, not just `default-trade-cycle`.
@@ -315,6 +322,7 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Rollback:** Revert `unified/registry.ts` and `types.ts`. No behavior change — this is purely structural cleanup.
 
 **Risks:**
+
 - `getPipelineDefinition("review")` returns workers that differ from what `pipeline-discovery-config.ts` would return → audit both before moving. If they differ, `pipeline-discovery-config.ts` wins (it's the authoritative worker catalog).
 
 ---
@@ -335,37 +343,37 @@ flowchart TD
 
 **File count change after all phases:**
 
-| File | Before | After |
-|------|--------|-------|
-| `plan/engine/stage-dispatch.ts` | 70 lines | ~35 lines (switch removed) |
-| `orchestration/cycle/trade/approval-recheck.ts` | 201 lines | <80 lines |
-| `plan/cycle/interpreter.ts` | 88 lines | ~60 lines |
-| `orchestration/cycle/trade/post-decision-gates.ts` | new | ~50 lines |
-| `plan/unified/registry.ts` | 103 lines | ~70 lines (hardcoded branch removed) |
+| File                                               | Before    | After                                |
+| -------------------------------------------------- | --------- | ------------------------------------ |
+| `plan/engine/stage-dispatch.ts`                    | 70 lines  | ~35 lines (switch removed)           |
+| `orchestration/cycle/trade/approval-recheck.ts`    | 201 lines | <80 lines                            |
+| `plan/cycle/interpreter.ts`                        | 88 lines  | ~60 lines                            |
+| `orchestration/cycle/trade/post-decision-gates.ts` | new       | ~50 lines                            |
+| `plan/unified/registry.ts`                         | 103 lines | ~70 lines (hardcoded branch removed) |
 
 ---
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|-----------|--------|------------|
-| R1 | `applyOutput` handler missing for one engine after Phase 1 | Medium | Medium | Test with `expect(state).toMatchSnapshot()` per engine in `default-trade-cycle.test.ts` |
-| R2 | `collectAiRunCost` accumulates wrong values after Phase 2 | Low | Medium | Snapshot test against known 4-phase result; add assertion on total field count |
-| R3 | `runPostDecisionGates` in Phase 3 misses a required context field | Medium | High | Audit all four engine input builder `build()` methods for context access before writing the constructor |
-| R4 | Cycle replay tests break during Phase 4 due to effective config change | Low | Low | Run `cycle-replay-acceptance.ts` before and after; exact fixture match |
-| R5 | `getPipelineDefinition` worker list for review/decision differs from what pipelines use | Medium | Medium | `console.log` both lists in a test before deleting the `getPipelineDefinition` call |
+| #   | Risk                                                                                    | Likelihood | Impact | Mitigation                                                                                              |
+| --- | --------------------------------------------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| R1  | `applyOutput` handler missing for one engine after Phase 1                              | Medium     | Medium | Test with `expect(state).toMatchSnapshot()` per engine in `default-trade-cycle.test.ts`                 |
+| R2  | `collectAiRunCost` accumulates wrong values after Phase 2                               | Low        | Medium | Snapshot test against known 4-phase result; add assertion on total field count                          |
+| R3  | `runPostDecisionGates` in Phase 3 misses a required context field                       | Medium     | High   | Audit all four engine input builder `build()` methods for context access before writing the constructor |
+| R4  | Cycle replay tests break during Phase 4 due to effective config change                  | Low        | Low    | Run `cycle-replay-acceptance.ts` before and after; exact fixture match                                  |
+| R5  | `getPipelineDefinition` worker list for review/decision differs from what pipelines use | Medium     | Medium | `console.log` both lists in a test before deleting the `getPipelineDefinition` call                     |
 
 ---
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|------|--------|----------|--------|--------------|
-| G1 New AI phase = 2 files | Files touched to add "options_flow" | 6 files | 2 files | Manual count against this checklist |
-| G2 No engine switch-case | `applyEngineOutput` existence | Present | Deleted | `grep -r "applyEngineOutput"` returns 0 |
-| G3 Recheck deduplication | Lines in `approval-recheck.ts` | 201 | ~100 (capital-reservation + order-policy unique to recheck stay) | `wc -l` |
-| G4 DevPanel cycle inspection | `resolveEffectivePlanStages("default-trade-cycle")` correct | Hardcoded | Derived from `inspect` | Snapshot test |
-| G5 No legacy dead code | `runPhase` in `CyclePlanRunContext` | Present | Deleted | `grep -r "runPhase" plan/cycle/types.ts` returns 0 |
+| Goal                         | Metric                                                      | Baseline  | Target                                                           | How Measured                                       |
+| ---------------------------- | ----------------------------------------------------------- | --------- | ---------------------------------------------------------------- | -------------------------------------------------- |
+| G1 New AI phase = 2 files    | Files touched to add "options_flow"                         | 6 files   | 2 files                                                          | Manual count against this checklist                |
+| G2 No engine switch-case     | `applyEngineOutput` existence                               | Present   | Deleted                                                          | `grep -r "applyEngineOutput"` returns 0            |
+| G3 Recheck deduplication     | Lines in `approval-recheck.ts`                              | 201       | ~100 (capital-reservation + order-policy unique to recheck stay) | `wc -l`                                            |
+| G4 DevPanel cycle inspection | `resolveEffectivePlanStages("default-trade-cycle")` correct | Hardcoded | Derived from `inspect`                                           | Snapshot test                                      |
+| G5 No legacy dead code       | `runPhase` in `CyclePlanRunContext`                         | Present   | Deleted                                                          | `grep -r "runPhase" plan/cycle/types.ts` returns 0 |
 
 **Leading indicators:** Phase 1 merged with all engine tests passing; `applyEngineOutput` deleted.
 
@@ -375,12 +383,12 @@ flowchart TD
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| OQ1 | Does `runEngineChainStage` require a full `CyclePlanRunContext`? | Engineering | Phase 3 start | **Resolved** — see below |
-| OQ2 | Do `getPipelineDefinition("review").workers` match what the plans use? | Engineering | Phase 4 start | **Resolved** — they match exactly |
-| OQ3 | Is `runPhase` in `CyclePlanRunContext` called in tests or replay? | Engineering | Phase 4 start | **Resolved** — not called anywhere |
-| OQ4 | Should `skipIf` on engine-chain stages support arbitrary conditions? | Engineering | Phase 1 | Open — lambda is fine |
+| #   | Question                                                               | Owner       | Needed By     | Status                             |
+| --- | ---------------------------------------------------------------------- | ----------- | ------------- | ---------------------------------- |
+| OQ1 | Does `runEngineChainStage` require a full `CyclePlanRunContext`?       | Engineering | Phase 3 start | **Resolved** — see below           |
+| OQ2 | Do `getPipelineDefinition("review").workers` match what the plans use? | Engineering | Phase 4 start | **Resolved** — they match exactly  |
+| OQ3 | Is `runPhase` in `CyclePlanRunContext` called in tests or replay?      | Engineering | Phase 4 start | **Resolved** — not called anywhere |
+| OQ4 | Should `skipIf` on engine-chain stages support arbitrary conditions?   | Engineering | Phase 1       | Open — lambda is fine              |
 
 ### OQ1 (Resolved): Phase 3 context construction
 
@@ -389,6 +397,7 @@ flowchart TD
 However, `CyclePlanRunContext` requires `session: WorkspaceSession` and `toolContext: ToolBuildContext` at the type level, even though neither is accessed by the three risk-gate engine input builders (`execution-profile`, `risk-gate`, `broker-allocation`). For the shared `runPostDecisionGates` function, `session` is available via `ctx.deps.sessionRepo.requireById(sessionId)`, and `toolContext` can be stubbed or typed as an optional intersection. The Phase 3 implementation should define a `RiskGateContext` subset type accepted by `runEngineChainStage` rather than force a full `CyclePlanRunContext`.
 
 Additionally: `approval-recheck.ts` has two checks that are unique to the recheck path and cannot be shared with the normal cycle:
+
 1. `capitalReservation.updateReservedAmountForApproval` (line 122) — updates the reserved capital amount; not present in the normal cycle
 2. The order-policy `runEngineBinding` call (lines 148–179) — equivalent to `placeBrokerOrder`'s policy check in `effect-runner.ts`
 
@@ -409,6 +418,7 @@ Phase 4 can safely inline these worker arrays and delete the `getPipelineDefinit
 ### OQ3 (Resolved): `runPhase` is dead code
 
 `grep -rn "runPhase"` across all plan, orchestration, replay, and test files confirms:
+
 - `runPhase` is declared in `CyclePlanRunContext` (types.ts:64) and passed through `CyclePlanInterpreterRunInput` (interpreter.ts:25) and wired in `pipeline-runtime.ts:141`
 - It is **never called** — `stage-runner.ts` exclusively calls `ctx.runPhasePlan`; no test or replay fixture references it
 - Safe to remove in Phase 4
@@ -429,13 +439,13 @@ Line 437 checks `!Array.isArray(fixture["phases"])` but the `CycleFixture` inter
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|-------------|
-| A — Status quo | Compounds ~2× per new phase; approval-recheck duplication is an active maintenance hazard |
-| B — Fix only P1 and P5 | Correct but incomplete; Phase 2 is low-risk and eliminates the remaining interpreter edit tax |
-| D — Dynamic state map | Loses compile-time safety on `TradeCyclePlanState` consumers; wrong trade-off |
+| Option                                 | Why Rejected                                                                                                          |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| A — Status quo                         | Compounds ~2× per new phase; approval-recheck duplication is an active maintenance hazard                             |
+| B — Fix only P1 and P5                 | Correct but incomplete; Phase 2 is low-risk and eliminates the remaining interpreter edit tax                         |
+| D — Dynamic state map                  | Loses compile-time safety on `TradeCyclePlanState` consumers; wrong trade-off                                         |
 | Extract a full `PostDecisionCyclePlan` | Overhead for what is essentially 3 engine calls; shared function in Phase 3 achieves the same without a new plan type |
-| Big-bang all 9 problems in one PR | Too wide; risk of selector regression or cycle replay break hidden by scope |
+| Big-bang all 9 problems in one PR      | Too wide; risk of selector regression or cycle replay break hidden by scope                                           |
 
 ---
 

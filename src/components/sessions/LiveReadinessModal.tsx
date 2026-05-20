@@ -34,16 +34,26 @@ const CHECK_LABELS: Record<string, string> = {
 const CHECK_DESCRIPTIONS: Record<string, string> = {
   execution_mode: "Session must have execution_mode = live_allowed",
   broker_assigned: "At least one live broker must be assigned to this session",
-  broker_live_mode: "Assigned broker must be configured for live (not paper) trading",
+  broker_live_mode:
+    "Assigned broker must be configured for live (not paper) trading",
   broker_connected: "Broker API connection test must pass",
-  user_acknowledged: "You must explicitly acknowledge the risks of live trading",
+  user_acknowledged:
+    "You must explicitly acknowledge the risks of live trading",
 };
 
-export const LiveReadinessModal = ({ sessionId, report, onAcknowledged, onCancel }: Props) => {
+export const LiveReadinessModal = ({
+  sessionId,
+  report,
+  onAcknowledged,
+  onCancel,
+}: Props) => {
   const [report_, setReport] = useState<LiveReadinessReport>(report);
   const [testing, setTesting] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
 
   const nonAckChecks = report_.checks.filter((c) => !c.requiresAck);
   const allNonAckPassed = nonAckChecks.every((c) => c.passed);
@@ -57,7 +67,11 @@ export const LiveReadinessModal = ({ sessionId, report, onAcknowledged, onCancel
       const refreshed = await api.getLiveReadiness(sessionId);
       setReport(refreshed);
     } catch (error) {
-      setTestResult({ ok: false, message: error instanceof Error ? error.message : "Connection test failed" });
+      setTestResult({
+        ok: false,
+        message:
+          error instanceof Error ? error.message : "Connection test failed",
+      });
     } finally {
       setTesting(false);
     }
@@ -77,7 +91,9 @@ export const LiveReadinessModal = ({ sessionId, report, onAcknowledged, onCancel
     <div style={overlayStyle}>
       <div style={dialogStyle}>
         <div style={headerStyle}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)" }}>Live Trading Gate</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)" }}>
+            Live Trading Gate
+          </div>
           <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
             All checks must pass before starting a live session
           </div>
@@ -90,10 +106,18 @@ export const LiveReadinessModal = ({ sessionId, report, onAcknowledged, onCancel
                 {check.passed ? "✓" : "✗"}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: check.passed ? "var(--text1)" : "var(--text2)", fontWeight: 500 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: check.passed ? "var(--text1)" : "var(--text2)",
+                    fontWeight: 500,
+                  }}
+                >
                   {CHECK_LABELS[check.name] ?? check.name}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>
+                <div
+                  style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}
+                >
                   {check.message ?? CHECK_DESCRIPTIONS[check.name]}
                 </div>
               </div>
@@ -114,19 +138,33 @@ export const LiveReadinessModal = ({ sessionId, report, onAcknowledged, onCancel
 
           {allNonAckPassed && !report_.acknowledgedAt && (
             <div style={consentBoxStyle}>
-              <div style={{ fontSize: 13, color: "#fca5a5", fontWeight: 600, marginBottom: 6 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "#fca5a5",
+                  fontWeight: 600,
+                  marginBottom: 6,
+                }}
+              >
                 Live trading uses real capital
               </div>
-              <div style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6 }}>
-                By proceeding, you confirm that this session will execute trades with real money via your connected
-                live broker. Losses incurred are real. This cannot be undone once the session starts.
+              <div
+                style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6 }}
+              >
+                By proceeding, you confirm that this session will execute trades
+                with real money via your connected live broker. Losses incurred
+                are real. This cannot be undone once the session starts.
               </div>
             </div>
           )}
         </div>
 
         <div style={footerStyle}>
-          <Button variant="outline" onClick={onCancel} style={cancelButtonStyle}>
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            style={cancelButtonStyle}
+          >
             Cancel
           </Button>
           <div style={{ display: "flex", gap: 8 }}>

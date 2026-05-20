@@ -22,7 +22,10 @@ function candidate(symbol: string): Candidate {
 
 describe("selector submission builder", () => {
   it("builds a bounded instrument selection", () => {
-    const selection = buildInstrumentSelection([candidate("NVDA"), candidate("PLTR"), candidate("AMD")], 2);
+    const selection = buildInstrumentSelection(
+      [candidate("NVDA"), candidate("PLTR"), candidate("AMD")],
+      2,
+    );
     expect(selection.instruments).toHaveLength(2);
     expect(selection.instruments[0]?.symbol).toBe("NVDA");
     expect(selection.instruments[1]?.symbol).toBe("PLTR");

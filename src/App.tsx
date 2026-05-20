@@ -18,7 +18,9 @@ import { usePolling } from "./hooks/usePolling";
 
 export default function App() {
   const [page, setPage] = useState<PageKey>("dashboard");
-  const [devPanelFocus, setDevPanelFocus] = useState<DevPanelFocus | null>(null);
+  const [devPanelFocus, setDevPanelFocus] = useState<DevPanelFocus | null>(
+    null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
   const status = useSessionStore((s) => s.status);
   const setStatus = useSessionStore((s) => s.setStatus);
@@ -35,32 +37,44 @@ export default function App() {
 
   // Initial load
   useEffect(() => {
-    api.getDashboardStats()
+    api
+      .getDashboardStats()
       .then((next) => {
         setStats(next);
         setStatus(next.session_status);
         setLoadError(null);
       })
       .catch((err) => {
-        setLoadError(err instanceof Error ? err.message : "Failed to load dashboard stats.");
+        setLoadError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load dashboard stats.",
+        );
       });
-    api.getActiveTrades()
+    api
+      .getActiveTrades()
       .then(setTrades)
       .catch((err) => {
-        setLoadError((current) => current ?? (err instanceof Error ? err.message : "Failed to load trades."));
+        setLoadError(
+          (current) =>
+            current ??
+            (err instanceof Error ? err.message : "Failed to load trades."),
+        );
       });
     void loadWorkspaceView();
   }, [loadWorkspaceView, setStats, setTrades]);
 
   useEffect(() => {
-    api.getDashboardStats()
+    api
+      .getDashboardStats()
       .then((next) => {
         setStats(next);
         setStatus(next.session_status);
       })
       .catch(() => {});
     if (page === "trades") return;
-    api.getActiveTrades()
+    api
+      .getActiveTrades()
       .then(setTrades)
       .catch(() => {});
   }, [focusedSessionId, page, setStats, setStatus, setTrades, viewMode]);
@@ -81,7 +95,9 @@ export default function App() {
     status !== "idle",
   );
 
-  const handleSession = async (action: "start" | "pause" | "resume" | "stop") => {
+  const handleSession = async (
+    action: "start" | "pause" | "resume" | "stop",
+  ) => {
     try {
       if (action === "start" || action === "resume") {
         setStatus(await api.startSession());
@@ -97,31 +113,44 @@ export default function App() {
 
   const pageEl = () => {
     switch (page) {
-      case "dashboard": return <Dashboard />;
-      case "sessions":  return (
-        <SessionsPage
-          onGoToStrategy={() => setPage("strategy")}
-          onGoToAccounts={() => setPage("accounts")}
-          onViewTrace={(sessionId, cycleId, stage) => {
-            setDevPanelFocus({ sessionId, cycleId, stage });
-            setPage("devpanel");
-          }}
-        />
-      );
-      case "brokers":   return (
-        <BrokersPage
-          onJumpToSession={async (sessionId) => {
-            await api.focusSession(sessionId);
-            await loadWorkspaceView();
-            setPage("sessions");
-          }}
-        />
-      );
-      case "trades":    return <TradesPage />;
-      case "strategy":  return <StrategyConfig onGoToSessions={() => setPage("sessions")} />;
-      case "costs":     return <CostBreakdownPage />;
-      case "devpanel":  return <DevPanel focus={devPanelFocus} onFocusConsumed={() => setDevPanelFocus(null)} />;
-      case "accounts":  return <AccountsPage />;
+      case "dashboard":
+        return <Dashboard />;
+      case "sessions":
+        return (
+          <SessionsPage
+            onGoToStrategy={() => setPage("strategy")}
+            onGoToAccounts={() => setPage("accounts")}
+            onViewTrace={(sessionId, cycleId, stage) => {
+              setDevPanelFocus({ sessionId, cycleId, stage });
+              setPage("devpanel");
+            }}
+          />
+        );
+      case "brokers":
+        return (
+          <BrokersPage
+            onJumpToSession={async (sessionId) => {
+              await api.focusSession(sessionId);
+              await loadWorkspaceView();
+              setPage("sessions");
+            }}
+          />
+        );
+      case "trades":
+        return <TradesPage />;
+      case "strategy":
+        return <StrategyConfig onGoToSessions={() => setPage("sessions")} />;
+      case "costs":
+        return <CostBreakdownPage />;
+      case "devpanel":
+        return (
+          <DevPanel
+            focus={devPanelFocus}
+            onFocusConsumed={() => setDevPanelFocus(null)}
+          />
+        );
+      case "accounts":
+        return <AccountsPage />;
     }
   };
 
@@ -163,10 +192,19 @@ export default function App() {
           {loadError}
         </div>
       )}
-      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div
+        style={{
+          flex: 1,
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         {pageEl()}
       </div>
-      {selectedId && <TradeDetail tradeId={selectedId} onClose={() => setSelected(null)} />}
+      {selectedId && (
+        <TradeDetail tradeId={selectedId} onClose={() => setSelected(null)} />
+      )}
     </div>
   );
 }

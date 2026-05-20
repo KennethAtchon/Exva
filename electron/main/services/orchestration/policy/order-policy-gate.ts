@@ -19,7 +19,10 @@ export interface PolicyGateInput {
   tradeId: string;
   decisionRiskInput: DecisionRiskInput;
   brokerAccountId: string;
-  existingOrderCheck: (clientOrderId: string, brokerAccountId: string) => boolean;
+  existingOrderCheck: (
+    clientOrderId: string,
+    brokerAccountId: string,
+  ) => boolean;
   sessionIsPaused: () => boolean;
 }
 
@@ -30,30 +33,38 @@ export interface PolicyGateResult {
 }
 
 const PRICE_COLLAR_PCT: Partial<Record<InstrumentClass, number>> = {
-  stock:             0.02,
-  crypto:            0.03,
-  futures:           0.01,
+  stock: 0.02,
+  crypto: 0.03,
+  futures: 0.01,
   prediction_market: 0.05,
 };
 
 const MAX_SPREAD_PCT: Partial<Record<InstrumentClass, number>> = {
-  stock:   0.5,
-  crypto:  1.0,
+  stock: 0.5,
+  crypto: 1.0,
   futures: 0.3,
 };
 
-const MAX_QUOTE_AGE_MS: Record<InstrumentClass, Record<"intraday" | "swing" | "position", number>> = {
-  stock:             { intraday: 30_000,  swing: 300_000,  position: 600_000 },
-  crypto:            { intraday: 15_000,  swing: 120_000,  position: 300_000 },
-  futures:           { intraday: 15_000,  swing: 120_000,  position: 300_000 },
-  prediction_market: { intraday: 300_000, swing: 600_000,  position: 3_600_000 },
+const MAX_QUOTE_AGE_MS: Record<
+  InstrumentClass,
+  Record<"intraday" | "swing" | "position", number>
+> = {
+  stock: { intraday: 30_000, swing: 300_000, position: 600_000 },
+  crypto: { intraday: 15_000, swing: 120_000, position: 300_000 },
+  futures: { intraday: 15_000, swing: 120_000, position: 300_000 },
+  prediction_market: { intraday: 300_000, swing: 600_000, position: 3_600_000 },
 };
 
-function maxQuoteAgeMs(cls: InstrumentClass, holdingStyle?: HoldingStyle): number {
+function maxQuoteAgeMs(
+  cls: InstrumentClass,
+  holdingStyle?: HoldingStyle,
+): number {
   const bucket: "intraday" | "swing" | "position" =
-    holdingStyle === "intraday_flat" ? "intraday"
-    : holdingStyle === "multi_day_swing" ? "swing"
-    : "position";
+    holdingStyle === "intraday_flat"
+      ? "intraday"
+      : holdingStyle === "multi_day_swing"
+        ? "swing"
+        : "position";
   return MAX_QUOTE_AGE_MS[cls][bucket];
 }
 
@@ -82,7 +93,8 @@ export class OrderPolicyGate {
     // data_freshness: quote staleness
     if (d.quoteSnapshot) {
       const maxAgeMs = maxQuoteAgeMs(instrumentClass, d.holdingStyle);
-      const quoteAgeMs = Date.now() - new Date(d.quoteSnapshot.timestamp).getTime();
+      const quoteAgeMs =
+        Date.now() - new Date(d.quoteSnapshot.timestamp).getTime();
       if (quoteAgeMs > maxAgeMs) {
         gatesFailed.push("data_freshness");
       }
@@ -129,7 +141,8 @@ export class OrderPolicyGate {
 
     // exit_contract: at least one enforceable exit must be defined
     if (d.exitPolicy) {
-      const { stopLossPct, atrStopMultiplier, takeProfitPct, maxHoldDays } = d.exitPolicy;
+      const { stopLossPct, atrStopMultiplier, takeProfitPct, maxHoldDays } =
+        d.exitPolicy;
       if (
         stopLossPct == null &&
         atrStopMultiplier == null &&
@@ -145,34 +158,45 @@ export class OrderPolicyGate {
     }
 
     const gateReasons: Record<PolicyGateName, string> = {
-      runtime:       "Session is paused",
-      strategy:      "Order side contradicts strategy sideBias",
+      runtime: "Session is paused",
+      strategy: "Order side contradicts strategy sideBias",
       data_freshness: (() => {
         if (d.quoteSnapshot) {
-          const ageS = Math.round((Date.now() - new Date(d.quoteSnapshot.timestamp).getTime()) / 1000);
-          const maxS = Math.round(maxQuoteAgeMs(instrumentClass, d.holdingStyle) / 1000);
+          const ageS = Math.round(
+            (Date.now() - new Date(d.quoteSnapshot.timestamp).getTime()) / 1000,
+          );
+          const maxS = Math.round(
+            maxQuoteAgeMs(instrumentClass, d.holdingStyle) / 1000,
+          );
           return `Quote is stale (age: ${ageS}s, max: ${maxS}s)`;
         }
         return "Quote is stale";
       })(),
-      price_collar:  "Expected fill exceeds price collar",
-      spread:        (() => {
-        const bps = d.quoteSnapshot?.spreadPct != null ? Math.round(d.quoteSnapshot.spreadPct * 100) : "?";
+      price_collar: "Expected fill exceeds price collar",
+      spread: (() => {
+        const bps =
+          d.quoteSnapshot?.spreadPct != null
+            ? Math.round(d.quoteSnapshot.spreadPct * 100)
+            : "?";
         const maxBps = (MAX_SPREAD_PCT[instrumentClass] ?? 0) * 100;
         return `Spread too wide (${bps}bps, max ${maxBps}bps)`;
       })(),
-      capital:       "Capital limit exceeded",
-      broker:        d.brokerSupportsClass === false
-        ? "Broker does not support instrument class"
-        : "Market is closed",
-      idempotency:   `Duplicate order: clientOrderId ${clientOrderId} already exists`,
-      exit_contract: "No enforceable exit policy — configure stopLoss, takeProfit, or maxHoldDays",
+      capital: "Capital limit exceeded",
+      broker:
+        d.brokerSupportsClass === false
+          ? "Broker does not support instrument class"
+          : "Market is closed",
+      idempotency: `Duplicate order: clientOrderId ${clientOrderId} already exists`,
+      exit_contract:
+        "No enforceable exit policy — configure stopLoss, takeProfit, or maxHoldDays",
     };
 
     const firstFailed = gatesFailed[0];
     return {
       allowed: false,
-      reason: firstFailed ? gateReasons[firstFailed] : "Order blocked by policy gate",
+      reason: firstFailed
+        ? gateReasons[firstFailed]
+        : "Order blocked by policy gate",
       gatesFailed,
     };
   }

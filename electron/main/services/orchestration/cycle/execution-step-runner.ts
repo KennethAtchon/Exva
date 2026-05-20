@@ -33,7 +33,10 @@ const MAX_STEP_RETRIES = STEP_RETRY_BACKOFF_MS.length;
 const MAX_STEP_ATTEMPTS = MAX_STEP_RETRIES + 1;
 
 export class ExecutionStepRunner {
-  private readonly retryTimers = new Map<ExecutionStage, ReturnType<typeof setTimeout>>();
+  private readonly retryTimers = new Map<
+    ExecutionStage,
+    ReturnType<typeof setTimeout>
+  >();
 
   constructor(
     private readonly sessionId: string,
@@ -50,7 +53,11 @@ export class ExecutionStepRunner {
     return this.deps.stepsRepo.get(this.sessionId, this.cycleId, stage);
   }
 
-  async run<T>(stage: ExecutionStage, fn: () => Promise<T>, opts: StepRunOptions = {}): Promise<StepResult<T>> {
+  async run<T>(
+    stage: ExecutionStage,
+    fn: () => Promise<T>,
+    opts: StepRunOptions = {},
+  ): Promise<StepResult<T>> {
     const previous = this.get(stage);
     if (opts.skipIfPreviouslySucceeded && previous?.status === "succeeded") {
       return { ok: true, value: undefined as T };
@@ -73,7 +80,12 @@ export class ExecutionStepRunner {
       lastErrorMessage: null,
       retryable: false,
     });
-    this.deps.bus.emit("step:started", { sessionId: this.sessionId, cycleId: this.cycleId, stage, attempt });
+    this.deps.bus.emit("step:started", {
+      sessionId: this.sessionId,
+      cycleId: this.cycleId,
+      stage,
+      attempt,
+    });
 
     try {
       const value = await fn();
@@ -90,7 +102,11 @@ export class ExecutionStepRunner {
         lastErrorMessage: null,
         retryable: false,
       });
-      this.deps.bus.emit("step:succeeded", { sessionId: this.sessionId, cycleId: this.cycleId, stage });
+      this.deps.bus.emit("step:succeeded", {
+        sessionId: this.sessionId,
+        cycleId: this.cycleId,
+        stage,
+      });
       return { ok: true, value };
     } catch (error) {
       const classified = classifyStepError(error);
@@ -168,38 +184,74 @@ export class ExecutionStepRunner {
   }
 }
 
-function classifyStepError(error: unknown): { retryable: boolean; errorCode: string; errorMessage: string } {
+function classifyStepError(error: unknown): {
+  retryable: boolean;
+  errorCode: string;
+  errorMessage: string;
+} {
   if (error instanceof AppError) {
-    if (["VALIDATION_FAILED", "PROVIDER_NOT_CONFIGURED", "LOCKED"].includes(error.code)) {
-      return { retryable: false, errorCode: error.code, errorMessage: error.message };
+    if (
+      ["VALIDATION_FAILED", "PROVIDER_NOT_CONFIGURED", "LOCKED"].includes(
+        error.code,
+      )
+    ) {
+      return {
+        retryable: false,
+        errorCode: error.code,
+        errorMessage: error.message,
+      };
     }
     if (error.details?.retryable === true) {
-      return { retryable: true, errorCode: error.code, errorMessage: error.message };
+      return {
+        retryable: true,
+        errorCode: error.code,
+        errorMessage: error.message,
+      };
     }
-    return { retryable: false, errorCode: error.code, errorMessage: error.message };
+    return {
+      retryable: false,
+      errorCode: error.code,
+      errorMessage: error.message,
+    };
   }
 
   const httpStatus = readHttpStatus(error);
-  if (httpStatus === 408 || httpStatus === 429 || (httpStatus != null && httpStatus >= 500)) {
+  if (
+    httpStatus === 408 ||
+    httpStatus === 429 ||
+    (httpStatus != null && httpStatus >= 500)
+  ) {
     return {
       retryable: true,
       errorCode: `HTTP_${httpStatus}`,
-      errorMessage: error instanceof Error ? error.message : `HTTP ${httpStatus}`,
+      errorMessage:
+        error instanceof Error ? error.message : `HTTP ${httpStatus}`,
     };
   }
 
   const message = error instanceof Error ? error.message : String(error);
   if (/timeout|timed out|etimedout|econnreset|temporar/i.test(message)) {
-    return { retryable: true, errorCode: "TRANSIENT_ERROR", errorMessage: message };
+    return {
+      retryable: true,
+      errorCode: "TRANSIENT_ERROR",
+      errorMessage: message,
+    };
   }
 
-  return { retryable: false, errorCode: inferUnknownCode(error), errorMessage: message };
+  return {
+    retryable: false,
+    errorCode: inferUnknownCode(error),
+    errorMessage: message,
+  };
 }
 
 function readHttpStatus(error: unknown): number | null {
   if (!error || typeof error !== "object") return null;
   const record = error as Record<string, unknown>;
-  const value = record.status ?? record.statusCode ?? (record.response as Record<string, unknown> | undefined)?.status;
+  const value =
+    record.status ??
+    record.statusCode ??
+    (record.response as Record<string, unknown> | undefined)?.status;
   return typeof value === "number" ? value : null;
 }
 
@@ -209,7 +261,9 @@ function inferUnknownCode(error: unknown): AppErrorCode | "UNKNOWN_ERROR" {
 }
 
 function computeNextRetryAt(attempt: number): string {
-  const backoffMs = STEP_RETRY_BACKOFF_MS[Math.max(0, attempt - 1)] ?? STEP_RETRY_BACKOFF_MS[STEP_RETRY_BACKOFF_MS.length - 1];
+  const backoffMs =
+    STEP_RETRY_BACKOFF_MS[Math.max(0, attempt - 1)] ??
+    STEP_RETRY_BACKOFF_MS[STEP_RETRY_BACKOFF_MS.length - 1];
   const jitterMs = Math.random() * 5_000;
   return new Date(Date.now() + backoffMs + jitterMs).toISOString();
 }

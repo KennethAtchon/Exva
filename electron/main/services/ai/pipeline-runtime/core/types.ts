@@ -1,4 +1,9 @@
-import type { ToolId, EngineBinding, RuntimeDefaultsConfig, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import type {
+  ToolId,
+  EngineBinding,
+  RuntimeDefaultsConfig,
+  WorkerDefinition,
+} from "@electron/shared/ai/pipeline-phase";
 import type { z } from "zod";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { ToolBuildContext } from "../context/tool-factory-registry";
@@ -51,7 +56,13 @@ export interface PipelineRunContext<TInput = Record<string, unknown>> {
 
 /** Execution capabilities injected by the pipeline-runtime into a phase's `run` handler. */
 export interface PipelineWorkerRunner {
-  execute<T>(worker: WorkerDefinition, task: Record<string, unknown>): Promise<AgentResult<T>>;
-  executeGroup<T>(tasks: Array<() => Promise<T>>, concurrency: number): Promise<Array<PromiseSettledResult<T>>>;
+  execute<T>(
+    worker: WorkerDefinition,
+    task: Record<string, unknown>,
+  ): Promise<AgentResult<T>>;
+  executeGroup<T>(
+    tasks: Array<() => Promise<T>>,
+    concurrency: number,
+  ): Promise<Array<PromiseSettledResult<T>>>;
   canContinueWorkers(): boolean;
 }

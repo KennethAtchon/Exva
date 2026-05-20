@@ -5,7 +5,11 @@ import type { PhasePlan } from "../phase/types";
 export type PlanKind = "phase" | "cycle";
 
 export type UnifiedPlanDefinition =
-  | { kind: "phase"; id: import("@electron/shared/ai/pipeline-phase").PipelinePhase; plan: PhasePlan<unknown, unknown> }
+  | {
+      kind: "phase";
+      id: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
+      plan: PhasePlan<unknown, unknown>;
+    }
   | { kind: "cycle"; id: string; plan: CyclePlan<TradeCyclePlanState> };
 
 export interface UnifiedPlanInspectMetadata {

@@ -2,8 +2,9 @@
 
 > **Status:** Not started — depends on Phase 1 (step events must exist)
 > **Files to create:**
+>
 > - `src/components/sessions/SessionExecutionProgress.tsx`
-> **Files to modify:**
+>   **Files to modify:**
 > - `src/components/sessions/SessionTable.tsx` (insert progress strip)
 > - `electron/main/services/infra/event-bus.ts` (add step events to `ExvaEventMap`)
 > - `electron/shared/channels.ts` (add step channel names)
@@ -63,24 +64,28 @@ Add the four channel names to `electron/shared/channels.ts` (wherever `ExvaEvent
 In `electron/main/ipc/session.ts`:
 
 ```ts
-handle("session:getExecutionProgress", ({ sessionId }: { sessionId: string }) => {
-  const steps = deps.sessionExecutionStepsRepo.getLatestBySession(sessionId);
-  const latestCycleId = steps.length > 0
-    ? steps.reduce((a, b) => a.updatedAt > b.updatedAt ? a : b).cycleId
-    : null;
-  return {
-    cycleId: latestCycleId,
-    steps: steps.map((s) => ({
-      stage: s.stage,
-      status: s.status,
-      attempt: s.attempt,
-      nextRetryAt: s.nextRetryAt,
-      lastErrorCode: s.lastErrorCode,
-      lastErrorMessage: s.lastErrorMessage,
-      retryable: s.retryable,
-    })),
-  };
-});
+handle(
+  "session:getExecutionProgress",
+  ({ sessionId }: { sessionId: string }) => {
+    const steps = deps.sessionExecutionStepsRepo.getLatestBySession(sessionId);
+    const latestCycleId =
+      steps.length > 0
+        ? steps.reduce((a, b) => (a.updatedAt > b.updatedAt ? a : b)).cycleId
+        : null;
+    return {
+      cycleId: latestCycleId,
+      steps: steps.map((s) => ({
+        stage: s.stage,
+        status: s.status,
+        attempt: s.attempt,
+        nextRetryAt: s.nextRetryAt,
+        lastErrorCode: s.lastErrorCode,
+        lastErrorMessage: s.lastErrorMessage,
+        retryable: s.retryable,
+      })),
+    };
+  },
+);
 ```
 
 ---
@@ -90,16 +95,19 @@ handle("session:getExecutionProgress", ({ sessionId }: { sessionId: string }) =>
 ```ts
 // src/components/sessions/SessionExecutionProgress.tsx
 
-const STAGE_META: Record<ExecutionStage, { label: string; progressPct: number }> = {
-  selector:             { label: "Finding instruments",  progressPct: 10 },
+const STAGE_META: Record<
+  ExecutionStage,
+  { label: string; progressPct: number }
+> = {
+  selector: { label: "Finding instruments", progressPct: 10 },
   candidate_validation: { label: "Validating candidates", progressPct: 20 },
-  analyst_technical:    { label: "Technical analyst",    progressPct: 35 },
-  analyst_fundamental:  { label: "Fundamental analyst",  progressPct: 50 },
-  reviewer:             { label: "Reviewing thesis",     progressPct: 65 },
-  decision_maker:       { label: "Making decision",      progressPct: 78 },
-  risk_gate:            { label: "Risk checks",          progressPct: 88 },
-  broker_order:         { label: "Broker execution",     progressPct: 96 },
-  monitoring:           { label: "Monitoring position",  progressPct: 100 },
+  analyst_technical: { label: "Technical analyst", progressPct: 35 },
+  analyst_fundamental: { label: "Fundamental analyst", progressPct: 50 },
+  reviewer: { label: "Reviewing thesis", progressPct: 65 },
+  decision_maker: { label: "Making decision", progressPct: 78 },
+  risk_gate: { label: "Risk checks", progressPct: 88 },
+  broker_order: { label: "Broker execution", progressPct: 96 },
+  monitoring: { label: "Monitoring position", progressPct: 100 },
 };
 ```
 
@@ -113,7 +121,11 @@ interface SessionExecutionProgressProps {
   // Passed from the Sessions page store — pre-fetched or subscribed
   progress: SessionProgressState | null;
   onRetry: (sessionId: string, cycleId: string, stage: ExecutionStage) => void;
-  onViewTrace: (sessionId: string, cycleId: string, stage: ExecutionStage) => void;
+  onViewTrace: (
+    sessionId: string,
+    cycleId: string,
+    stage: ExecutionStage,
+  ) => void;
   onPauseAfterStep: (sessionId: string) => void;
 }
 
@@ -121,27 +133,27 @@ interface SessionProgressState {
   cycleId: string;
   activeStage: ExecutionStage | null;
   activeStatus: ExecutionStepStatus | null;
-  progressPct: number;          // 0–100
+  progressPct: number; // 0–100
   stageLabel: string;
-  activeRoleLabel: string | null;  // e.g. "technical analyst · claude-haiku-4-5"
+  activeRoleLabel: string | null; // e.g. "technical analyst · claude-haiku-4-5"
   retryable: boolean;
   nextRetryAt: string | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
-  cycleIdShort: string;         // cycleId.slice(0, 8)
+  cycleIdShort: string; // cycleId.slice(0, 8)
 }
 ```
 
 ### Render rules
 
-| Condition | What to show |
-|-----------|-------------|
-| `progress === null` | Render nothing (no active cycle) |
-| `activeStatus === "running"` | Progress bar at `progressPct`, stage label, active role chip |
-| `activeStatus === "retrying"` | Progress bar frozen, label = `"Retrying in Xs"` with live countdown from `nextRetryAt` |
-| `activeStatus === "failed" && retryable` | Red stage label, Retry button, View Trace button |
-| `activeStatus === "failed" && !retryable` | Orange stage label, View Trace button (no Retry) |
-| `activeStatus === "succeeded" && stage === "monitoring"` | Progress bar at 100%, label = `"Monitoring position"` |
+| Condition                                                | What to show                                                                           |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `progress === null`                                      | Render nothing (no active cycle)                                                       |
+| `activeStatus === "running"`                             | Progress bar at `progressPct`, stage label, active role chip                           |
+| `activeStatus === "retrying"`                            | Progress bar frozen, label = `"Retrying in Xs"` with live countdown from `nextRetryAt` |
+| `activeStatus === "failed" && retryable`                 | Red stage label, Retry button, View Trace button                                       |
+| `activeStatus === "failed" && !retryable`                | Orange stage label, View Trace button (no Retry)                                       |
+| `activeStatus === "succeeded" && stage === "monitoring"` | Progress bar at 100%, label = `"Monitoring position"`                                  |
 
 ### Active role chip
 
@@ -158,17 +170,20 @@ Use a `useEffect` interval that ticks every second and computes `Math.max(0, Mat
 The progress strip sits **between the top row and the meta strip** in `SessionTable.tsx`. Insert after the closing `</div>` of the top row grid.
 
 ```tsx
-{/* Execution progress strip — only rendered when progress data exists */}
+{
+  /* Execution progress strip — only rendered when progress data exists */
+}
 <SessionExecutionProgress
   sessionId={session.id}
   progress={progressBySessionId[session.id] ?? null}
   onRetry={onRetryStep}
   onViewTrace={onViewTrace}
   onPauseAfterStep={onPauseAfterStep}
-/>
+/>;
 ```
 
 **Visual language rules:**
+
 - Progress bar: thin (4px height), `rgba(96,165,250,0.6)` fill on dark track `rgba(255,255,255,0.06)` — matches the card's existing blue accent (`rgba(96,165,250,0.30)`)
 - Stage label: `11px`, `color: var(--text3)`, uppercase, `letterSpacing: 0.08em`
 - Active role chip: `10px`, `color: var(--text2)`, `background: rgba(255,255,255,0.05)`, `borderRadius: 4`, `padding: 2px 6px`
@@ -187,13 +202,15 @@ The Sessions page (wherever it manages session data) must:
 1. On mount and on `"step:started"` / `"step:succeeded"` / `"step:failed"` / `"step:retrying"` events: call `session:getExecutionProgress` for the affected `sessionId` and update local state `progressBySessionId: Record<string, SessionProgressState>`.
 
 2. Derive `SessionProgressState` from the raw `ExecutionStepState[]`:
+
    ```ts
    function deriveProgress(
      steps: ExecutionStepState[],
      cycleId: string,
-     sessionAiRoles: SessionAiRole[]
-   ): SessionProgressState
+     sessionAiRoles: SessionAiRole[],
+   ): SessionProgressState;
    ```
+
    - Find the step with the most recent `updatedAt` that is not `succeeded`
    - If all steps are `succeeded` and `monitoring` is included: activeStage = `"monitoring"`
    - progressPct = `STAGE_META[activeStage].progressPct`

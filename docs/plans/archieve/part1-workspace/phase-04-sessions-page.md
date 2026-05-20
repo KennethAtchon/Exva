@@ -13,7 +13,7 @@ Users can create, view, focus, pause, stop, archive, and duplicate sessions. The
 
 1. **Context chip as navigation** — the context chip on Dashboard/Trades/Strategy needs to open a session-switcher popover that is available from any page. This is a renderer-level global state concern, not a per-page one.
 2. **Go Global gating** — the button must be disabled when no non-archived sessions exist. The condition is derived from the sessions list, not a separate API call.
-3. **Edit-lock enforcement** — the Edit row action must be disabled in the UI *and* the PATCH endpoint must return 409 if the session is active/paused. Both layers must enforce this.
+3. **Edit-lock enforcement** — the Edit row action must be disabled in the UI _and_ the PATCH endpoint must return 409 if the session is active/paused. Both layers must enforce this.
 
 ## IPC API — New Channels
 
@@ -29,7 +29,7 @@ Users can create, view, focus, pause, stop, archive, and duplicate sessions. The
     defaultSearchProviderId: string | null;
     capitalAllocationMode: "per_session_only" | "shared_global_pool";
     globalCapitalPoolUsd: number | null;
-  };
+  }
 }
 ```
 
@@ -170,7 +170,7 @@ Inlined here — these contracts replace the spec cross-reference.
     sourceSessionName: string | null;
     instrumentClasses: InstrumentClass[];
     updatedAt: string;
-  }>
+  }>;
 }
 ```
 
@@ -210,6 +210,7 @@ Handler validates the payload against the Zod schema for `SessionTemplatePayload
 ```
 
 Handler post-processing:
+
 - For every `aiRoles[i].providerKey`, verify the provider exists; if not, set to empty string and add to a `clearedFields` array in the response.
 - Same for every `brokerAssignments[i].brokerAccountId` and `brokerOverridesByInstrumentClass[*]`.
 
@@ -236,7 +237,7 @@ interface WorkspaceState {
   // Actions
   setViewMode(mode: "session" | "global", focusedSessionId?: string): void;
   setPreferences(prefs: WorkspacePreferences): void;
-  loadWorkspaceView(): Promise<void>;    // calls workspace:view:get on mount
+  loadWorkspaceView(): Promise<void>; // calls workspace:view:get on mount
 }
 ```
 
@@ -247,6 +248,7 @@ This store is the single source of truth for workspace context. Every page reads
 ### `src/pages/SessionsPage.tsx`
 
 Structure:
+
 - `SessionsHeader` — title, subtitle, New Session button, Templates button, Go Global button
 - `ActiveContextCard` — shows focused session or Global Workspace summary + lifecycle controls
 - `SessionTable` — searchable, filterable data table
@@ -434,7 +436,8 @@ Implementation:
 ```typescript
 const events: ExvaEventsAPI = {
   subscribe(channel, handler) {
-    const wrapped = (_e: IpcRendererEvent, payload: unknown) => handler(payload as never);
+    const wrapped = (_e: IpcRendererEvent, payload: unknown) =>
+      handler(payload as never);
     ipcRenderer.on(channel, wrapped);
     return () => ipcRenderer.removeListener(channel, wrapped);
   },
@@ -442,6 +445,7 @@ const events: ExvaEventsAPI = {
 ```
 
 Rules:
+
 - Push events are one-way main → renderer. They never expect a response.
 - Every push channel listed above is documented as "push-only" in the channel constants file (`electron/shared/channels.ts`).
 - Renderer code subscribes inside Zustand stores (per `CODING_GUIDELINES.md` §10), never in components.
@@ -461,13 +465,16 @@ import { registerApprovalHandlers } from "./approvals";
 ```
 
 File: `electron/main/ipc/session.ts` — add handlers for:
+
 - `session:list`, `session:create`, `session:update`, `session:focus`
 - `session:archive`, `session:duplicate`, `session:go-global`
 
 File: `electron/main/ipc/workspace.ts` — new file:
+
 - `workspace:view:get`, `workspace:prefs:patch`
 
 File: `electron/main/ipc/templates.ts` — new file:
+
 - `template:list`, `template:create`, `template:delete`, `template:use`
 
 ## TopNav Update — `src/components/TopNav.tsx`
@@ -480,24 +487,24 @@ Dashboard | Sessions | Trades | Strategy | API Usage | Developer | Accounts
 
 ## Files Created / Modified
 
-| Action | File |
-|--------|------|
-| Create | `src/pages/SessionsPage.tsx` |
-| Create | `src/components/WorkspaceContextChip.tsx` |
-| Create | `src/components/sessions/CreateEditSessionModal.tsx` |
-| Create | `src/components/sessions/SessionTemplatesModal.tsx` |
-| Create | `src/components/sessions/SessionDetailDrawer.tsx` |
-| Create | `src/components/sessions/SessionTable.tsx` |
-| Create | `src/store/workspaceStore.ts` |
-| Create | `electron/main/ipc/workspace.ts` |
-| Create | `electron/main/ipc/templates.ts` |
-| Modify | `electron/main/ipc/session.ts` — add new handlers |
-| Modify | `electron/main/ipc/register.ts` — register new handlers |
-| Modify | `electron/preload/exva-api.ts` — expose new channels |
-| Modify | `src/components/TopNav.tsx` — add Sessions route |
-| Modify | `src/App.tsx` — add Sessions route |
-| Modify | `src/pages/Dashboard.tsx` — context chip, global mode, approvals panel |
-| Modify | `src/pages/TradesPage.tsx` — context chip, global mode, Session column |
+| Action | File                                                                          |
+| ------ | ----------------------------------------------------------------------------- |
+| Create | `src/pages/SessionsPage.tsx`                                                  |
+| Create | `src/components/WorkspaceContextChip.tsx`                                     |
+| Create | `src/components/sessions/CreateEditSessionModal.tsx`                          |
+| Create | `src/components/sessions/SessionTemplatesModal.tsx`                           |
+| Create | `src/components/sessions/SessionDetailDrawer.tsx`                             |
+| Create | `src/components/sessions/SessionTable.tsx`                                    |
+| Create | `src/store/workspaceStore.ts`                                                 |
+| Create | `electron/main/ipc/workspace.ts`                                              |
+| Create | `electron/main/ipc/templates.ts`                                              |
+| Modify | `electron/main/ipc/session.ts` — add new handlers                             |
+| Modify | `electron/main/ipc/register.ts` — register new handlers                       |
+| Modify | `electron/preload/exva-api.ts` — expose new channels                          |
+| Modify | `src/components/TopNav.tsx` — add Sessions route                              |
+| Modify | `src/App.tsx` — add Sessions route                                            |
+| Modify | `src/pages/Dashboard.tsx` — context chip, global mode, approvals panel        |
+| Modify | `src/pages/TradesPage.tsx` — context chip, global mode, Session column        |
 | Modify | `src/pages/StrategyConfig.tsx` — context chip, global-mode state, lock banner |
 
 ## Acceptance Criteria

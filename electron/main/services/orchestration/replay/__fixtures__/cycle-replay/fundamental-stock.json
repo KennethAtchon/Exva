@@ -125,7 +125,11 @@
       "totalOutputTokens": 110,
       "aggregateStatus": "succeeded",
       "aggregateOutputSchemaName": "fundamentalSignal",
-      "aggregateOutputSummary": { "symbol": "AAPL", "catalystType": "partnership", "catalystScore": 0.76 },
+      "aggregateOutputSummary": {
+        "symbol": "AAPL",
+        "catalystType": "partnership",
+        "catalystScore": 0.76
+      },
       "frontiers": [],
       "workers": []
     }

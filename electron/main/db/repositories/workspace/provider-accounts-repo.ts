@@ -8,12 +8,20 @@ export class ProviderAccountsRepo {
   constructor(private readonly client: DbClient) {}
 
   list(): ProviderAccount[] {
-    const rows = this.client.db.select().from(providerAccounts).orderBy(asc(providerAccounts.name)).all();
+    const rows = this.client.db
+      .select()
+      .from(providerAccounts)
+      .orderBy(asc(providerAccounts.name))
+      .all();
     return rows.map(toProviderAccount);
   }
 
   find(id: string): ProviderAccount | null {
-    const row = this.client.db.select().from(providerAccounts).where(eq(providerAccounts.id, id)).get();
+    const row = this.client.db
+      .select()
+      .from(providerAccounts)
+      .where(eq(providerAccounts.id, id))
+      .get();
     return row ? toProviderAccount(row) : null;
   }
 
@@ -55,7 +63,10 @@ export class ProviderAccountsRepo {
       .run();
   }
 
-  setLastTestStatus(id: string, status: ProviderAccount["lastTestStatus"]): void {
+  setLastTestStatus(
+    id: string,
+    status: ProviderAccount["lastTestStatus"],
+  ): void {
     this.client.db
       .update(providerAccounts)
       .set({ lastTestStatus: status, updatedAt: new Date().toISOString() })
@@ -64,6 +75,9 @@ export class ProviderAccountsRepo {
   }
 
   delete(id: string): void {
-    this.client.db.delete(providerAccounts).where(eq(providerAccounts.id, id)).run();
+    this.client.db
+      .delete(providerAccounts)
+      .where(eq(providerAccounts.id, id))
+      .run();
   }
 }

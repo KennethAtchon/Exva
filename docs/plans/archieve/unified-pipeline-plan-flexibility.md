@@ -23,7 +23,6 @@ If nothing changes, each future phase (options flow, prediction-market liquidity
 
 ### Goals
 
-
 | #   | Goal                                      | Success Looks Like                                                                                                                |
 | --- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | G1  | **One plan model** for selector and trade | Single registry + interpreter; no separate mental models for "phase plan" vs "cycle plan"                                         |
@@ -33,9 +32,7 @@ If nothing changes, each future phase (options flow, prediction-market liquidity
 | G5  | **Inspectable resolved config**           | DevPanel shows full session workflow: stages, engines, input builders, failure policies — not just five `PipelinePhase` buckets   |
 | G6  | **Preserve step persistence**             | Per-stage retry/pause via `ExecutionStepRunner` continues to work; no regression in orchestrator tests                            |
 
-
 ### Non-Goals
-
 
 | #   | Non-Goal                                           | Reason                                                                                         |
 | --- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -44,7 +41,6 @@ If nothing changes, each future phase (options flow, prediction-market liquidity
 | NG3 | Moving broker placement into pipeline runtime      | Real-world side effect; stays in orchestration effect runner                                   |
 | NG4 | Replacing `ExecutionStepRunner`                    | Works well; plans integrate via existing `runStep` hook                                        |
 | NG5 | External workflow engine (Temporal, etc.)          | In-process Electron app; unnecessary operational complexity                                    |
-
 
 ---
 
@@ -66,9 +62,6 @@ flowchart TD
     AO --> FX[trade-cycle effects: approval, broker, DB]
 ```
 
-
-
-
 | Component              | Path                                                                    | Role today                                               |
 | ---------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------- |
 | Phase plan interpreter | `plan/phase-plan-interpreter.ts` (163 lines)                            | Selector: cache, entry modes, worker frontiers, finalize |
@@ -80,7 +73,6 @@ flowchart TD
 | Legacy phase hooks     | `definitions/{technical,fundamental,review,decision}.phase.ts`          | Custom `run()` still authoritative for AI phases         |
 | Effective config       | `effective-pipeline-config.ts`                                          | Phase-level metadata; no cycle stage graph               |
 
-
 ### Constraints
 
 - Live trade cycles must not break during migration; incremental shippable phases required.
@@ -90,14 +82,12 @@ flowchart TD
 
 ### Prior work
 
-
 | Phase                        | Outcome                                                                                   |
 | ---------------------------- | ----------------------------------------------------------------------------------------- |
 | Phase 1                      | `EffectivePipelineConfig`, DevPanel visibility, engine validation                         |
 | Phase 2                      | Selector → `PhasePlanInterpreter`; removed selector-specific orchestration                |
 | Phase 3                      | Trade → `CyclePlanInterpreter`; removed `runAiPipeline()`; engines for CV/risk/allocation |
 | Orchestration generalization | `runOrchestratorStep`, `runPhaseCycle`; collapsed selector call chain                     |
-
 
 **Lesson from selector debt doc:** moving lines without collapsing concepts produces parallel descriptions of the same behavior. The next migration must unify concepts, not add a third interpreter.
 
@@ -139,7 +129,6 @@ Side-effect boundaries in pipeline systems (dbt run → warehouse write, ML pipe
 
 Keep `PhasePlanInterpreter` + `CyclePlanInterpreter` + legacy `runPhase()`. Add new stages by editing `default-trade-cycle.ts` execute functions.
 
-
 | Dimension      | Assessment                |
 | -------------- | ------------------------- |
 | Complexity     | Low near-term             |
@@ -150,7 +139,6 @@ Keep `PhasePlanInterpreter` + `CyclePlanInterpreter` + legacy `runPhase()`. Add 
 | Stack fit      | Matches current code      |
 | Team readiness | Immediate                 |
 
-
 **Risks:** Continued ballooning; approval-recheck and future variants diverge; DevPanel never shows true graph. **Likelihood:** High if no plan is adopted.
 
 ---
@@ -158,7 +146,6 @@ Keep `PhasePlanInterpreter` + `CyclePlanInterpreter` + legacy `runPhase()`. Add 
 ### Option B: Minimal — declarative engine stages only
 
 Replace `execute()` functions in `default-trade-cycle.ts` with a stage table `{ kind: "engine", engineId, inputBuilderId }` + generic dispatcher. Keep dual interpreters and legacy `runPhase()` for AI stages.
-
 
 | Dimension      | Assessment                                   |
 | -------------- | -------------------------------------------- |
@@ -169,7 +156,6 @@ Replace `execute()` functions in `default-trade-cycle.ts` with a stage table `{ 
 | Reversibility  | Easy — swap table back to functions          |
 | Stack fit      | Extends existing registries (input builders) |
 | Team readiness | High — mirrors selector input builders       |
-
 
 **Risks:** Still three execution paths; AI phases remain special. **Open question:** Is engine input builder registry enough without PhasePlans for technical?
 
@@ -184,7 +170,6 @@ Replace `execute()` functions in `default-trade-cycle.ts` with a stage table `{ 
 5. **Effect runner** — orchestration module that consumes `TradePlanResult` and runs approval/capital/broker.
 6. **Extend EffectivePipelineConfig** to include cycle stage graph.
 
-
 | Dimension      | Assessment                                               |
 | -------------- | -------------------------------------------------------- |
 | Complexity     | High upfront, low ongoing                                |
@@ -195,7 +180,6 @@ Replace `execute()` functions in `default-trade-cycle.ts` with a stage table `{ 
 | Stack fit      | Direct extension of Phase 2/3 work                       |
 | Team readiness | Requires disciplined phase sequencing                    |
 
-
 **Risks:** Big-bang temptation; interpreter merge could break selector. Mitigate with adapter layer and test parity.
 
 ---
@@ -203,7 +187,6 @@ Replace `execute()` functions in `default-trade-cycle.ts` with a stage table `{ 
 ### Option D: External workflow engine (Temporal / custom DAG service)
 
 Extract all stage execution to an external durable workflow engine with persisted state machine.
-
 
 | Dimension      | Assessment                                |
 | -------------- | ----------------------------------------- |
@@ -214,7 +197,6 @@ Extract all stage execution to an external durable workflow engine with persiste
 | Reversibility  | Hard                                      |
 | Stack fit      | Poor — desktop app, in-process today      |
 | Team readiness | Low                                       |
-
 
 **Rejected** for NG5; revisit only if Exva moves to server-side orchestration.
 
@@ -360,12 +342,9 @@ flowchart TD
     ER --> DB[(trades, capital, broker)]
 ```
 
-
-
 ---
 
 ## 8. Risk Register
-
 
 | #   | Risk                                                  | Likelihood | Impact | Mitigation                                                           |
 | --- | ----------------------------------------------------- | ---------- | ------ | -------------------------------------------------------------------- |
@@ -376,11 +355,9 @@ flowchart TD
 | R5  | Scope creep into session-level DAG                    | Medium     | Medium | Non-goal NG2; explicit phase gate before fan-out plan                |
 | R6  | DevPanel config surface incomplete                    | Low        | Low    | Phase B deliverable; don't wait for full merge                       |
 
-
 ---
 
 ## 9. Success Criteria
-
 
 | Goal                  | Metric                                | Baseline                                   | Target                     | How Measured                             |
 | --------------------- | ------------------------------------- | ------------------------------------------ | -------------------------- | ---------------------------------------- |
@@ -391,7 +368,6 @@ flowchart TD
 | G5 Inspectability     | DevPanel shows stage graph            | Phase buckets only                         | Full plan stages + engines | Manual + snapshot test                   |
 | G6 Step persistence   | Orchestrator tests passing            | 15/15                                      | 15/15 + new plan tests     | CI                                       |
 
-
 **Leading indicators:** Engine input builder registry populated; `EffectivePipelineConfig` includes stage list; first phase plan (technical) registered.
 
 **Lagging indicators:** Time to add a new engine stage (target: 1 builder + 1 config line + prompt if needed); zero new orchestration branches for stage ordering.
@@ -400,20 +376,17 @@ flowchart TD
 
 ## 10. Open Questions
 
-
-| #   | Question                                                                        | Owner       | Needed By     | Status |
-| --- | ------------------------------------------------------------------------------- | ----------- | ------------- | ------ |
-| OQ1 | One PhasePlan per AI phase vs single `ANALYSIS_PLAN` with variants?             | Engineering | Phase C start | Open   |
-| OQ2 | Should `PipelineStageId` be persisted to DB or stay UI-only mapping?            | Engineering | Phase D       | Open   |
-| OQ3 | Does approval-recheck share full effect runner or a subset (`placeOrder` only)? | Engineering | Phase E       | Open   |
-| OQ4 | Extend `EngineBinding.mode` to include `policy | validator | execution`?        | Engineering | Phase A       | Open   |
-| OQ5 | Feature-flag per session for new plan runtime during rollout?                   | Product/Eng | Phase C       | Open   |
-
+| #   | Question                                                                        | Owner       | Needed By     | Status      |
+| --- | ------------------------------------------------------------------------------- | ----------- | ------------- | ----------- | ------- | ---- |
+| OQ1 | One PhasePlan per AI phase vs single `ANALYSIS_PLAN` with variants?             | Engineering | Phase C start | Open        |
+| OQ2 | Should `PipelineStageId` be persisted to DB or stay UI-only mapping?            | Engineering | Phase D       | Open        |
+| OQ3 | Does approval-recheck share full effect runner or a subset (`placeOrder` only)? | Engineering | Phase E       | Open        |
+| OQ4 | Extend `EngineBinding.mode` to include `policy                                  | validator   | execution`?   | Engineering | Phase A | Open |
+| OQ5 | Feature-flag per session for new plan runtime during rollout?                   | Product/Eng | Phase C       | Open        |
 
 ---
 
 ## 11. Alternatives Rejected
-
 
 | Option                       | Why Rejected                                                                  |
 | ---------------------------- | ----------------------------------------------------------------------------- |
@@ -423,11 +396,9 @@ flowchart TD
 | Big-bang rewrite             | Violates incremental migration constraint; live trade cycles at risk          |
 | YAML/config files now        | Non-goal NG1; TS constants achieve same runtime shape with better type safety |
 
-
 ---
 
 ## Appendix: File touch map (by phase)
-
 
 | Phase | Primary files                                                                                                          |
 | ----- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -436,5 +407,3 @@ flowchart TD
 | C     | `plan/plans/*-plan.ts`, `definitions/{technical,fundamental,review,decision}.phase.ts`                                 |
 | D     | `plan/plan-interpreter.ts`, `cycle-types.ts`, `orchestration/cycle/types.ts`, `run-trade-pipeline.ts`                  |
 | E     | `trade-cycle.ts`, `approval-recheck.ts`, `orchestration/cycle/trade/effect-runner.ts`                                  |
-
-

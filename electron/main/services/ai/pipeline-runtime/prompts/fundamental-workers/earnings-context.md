@@ -3,6 +3,7 @@
 Given recent news for {instrumentSymbol}, assess earnings quality and trajectory.
 
 Return JSON:
+
 ```json
 {
   "earningsScore": 0..1 or null,

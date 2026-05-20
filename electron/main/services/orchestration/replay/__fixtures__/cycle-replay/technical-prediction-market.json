@@ -127,7 +127,11 @@
       "totalOutputTokens": 125,
       "aggregateStatus": "succeeded",
       "aggregateOutputSchemaName": "technicalSignal",
-      "aggregateOutputSummary": { "symbol": "pm:election-2028", "trendDirection": "bullish", "trendStrength": 0.79 },
+      "aggregateOutputSummary": {
+        "symbol": "pm:election-2028",
+        "trendDirection": "bullish",
+        "trendStrength": 0.79
+      },
       "frontiers": [],
       "workers": []
     }

@@ -20,13 +20,20 @@ export function invokeEndpoint<TInput, TOutput>(
   endpoint: IpcEndpointDef<TInput, TOutput>,
   input: TInput,
 ): Promise<TOutput> {
-  return input === undefined ? invoke(endpoint.channel) : invoke(endpoint.channel, input);
+  return input === undefined
+    ? invoke(endpoint.channel)
+    : invoke(endpoint.channel, input);
 }
 
 export const workspaceEndpoints = {
-  getView: defineEndpoint<undefined, WorkspaceViewResponse>(channels.workspace.viewGet, () => undefined),
-  patchPreferences: defineEndpoint<Partial<Omit<WorkspacePreferences, "id">>, WorkspacePreferences>(
-    channels.workspace.prefsPatch,
-    (payload) => workspacePrefsPatchSchema.parse(payload ?? {}),
+  getView: defineEndpoint<undefined, WorkspaceViewResponse>(
+    channels.workspace.viewGet,
+    () => undefined,
+  ),
+  patchPreferences: defineEndpoint<
+    Partial<Omit<WorkspacePreferences, "id">>,
+    WorkspacePreferences
+  >(channels.workspace.prefsPatch, (payload) =>
+    workspacePrefsPatchSchema.parse(payload ?? {}),
   ),
 } as const;

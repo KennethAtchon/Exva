@@ -9,14 +9,25 @@ export class SessionResearchPostureRepo {
   constructor(private readonly client: DbClient) {}
 
   get(sessionId: string): SessionResearchPosture {
-    const row = this.client.db.select().from(sessionResearchPosture).where(eq(sessionResearchPosture.sessionId, sessionId)).get();
+    const row = this.client.db
+      .select()
+      .from(sessionResearchPosture)
+      .where(eq(sessionResearchPosture.sessionId, sessionId))
+      .get();
     if (!row) {
-      throw new AppError(`Research posture for session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
+      throw new AppError(
+        `Research posture for session ${sessionId} was not found`,
+        "NOT_FOUND",
+        { sessionId },
+      );
     }
     return toSessionResearchPosture(row);
   }
 
-  upsert(sessionId: string, patch: Partial<SessionResearchPosture>): SessionResearchPosture {
+  upsert(
+    sessionId: string,
+    patch: Partial<SessionResearchPosture>,
+  ): SessionResearchPosture {
     const current = this.get(sessionId);
     const next: SessionResearchPosture = {
       ...current,

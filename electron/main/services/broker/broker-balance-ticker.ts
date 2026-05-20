@@ -32,7 +32,9 @@ export class BrokerBalanceTicker {
     for (const account of accounts) {
       const { balanceCachedAt } = this.repo.getBalanceCache(account.id);
       const staleLimitMs = account.balanceRefreshIntervalMin * 60 * 1000;
-      const isStale = !balanceCachedAt || Date.now() - Date.parse(balanceCachedAt) > staleLimitMs;
+      const isStale =
+        !balanceCachedAt ||
+        Date.now() - Date.parse(balanceCachedAt) > staleLimitMs;
       if (!isStale) continue;
 
       try {
@@ -45,7 +47,10 @@ export class BrokerBalanceTicker {
         });
       } catch (error) {
         this.logger.warn(
-          { brokerAccountId: account.id, error: error instanceof Error ? error.message : String(error) },
+          {
+            brokerAccountId: account.id,
+            error: error instanceof Error ? error.message : String(error),
+          },
           "balance refresh failed in tick; retaining stale cache",
         );
       }

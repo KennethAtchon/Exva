@@ -1,7 +1,12 @@
 import type { InstrumentClass, Trade } from "@/lib/types";
 import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
 import type { AgentResult } from "../../ai/ai-runtime/ai-runtime-types";
-import type { TechnicalSignal, FundamentalSignal, ReviewSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
+import type {
+  TechnicalSignal,
+  FundamentalSignal,
+  ReviewSignal,
+  TradeSignal,
+} from "@electron/shared/ai/pipeline-signals";
 import type { ToolStepTrace } from "../policy/candidate-validation-service";
 
 export type ResolvedInstrument = {

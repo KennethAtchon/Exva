@@ -5,7 +5,7 @@ This guide defines how to run quality assurance for Exva end-to-end, before merg
 Implements: `docs/CODING_GUIDELINES.md`
 
 ---
- 
+
 ## 1) QA Goals
 
 - Catch regressions in core trading/session flows.

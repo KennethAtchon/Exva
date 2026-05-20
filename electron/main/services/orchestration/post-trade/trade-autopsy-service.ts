@@ -21,7 +21,11 @@ export class TradeAutopsyService {
   async summarize(tradeId: string): Promise<TradeAutopsy> {
     const trade = this.tradesRepo.require(tradeId);
     const messages = this.agentMessagesRepo.listByTrade(tradeId);
-    const { summary, modelId } = await this.generateSummary(tradeId, messages, trade.final_pnl_usd ?? null);
+    const { summary, modelId } = await this.generateSummary(
+      tradeId,
+      messages,
+      trade.final_pnl_usd ?? null,
+    );
     const autopsy: TradeAutopsy = {
       id: crypto.randomUUID(),
       trade_id: tradeId,
@@ -43,12 +47,15 @@ export class TradeAutopsyService {
     const prompt = buildAutopsyPrompt(tradeId, messages, pnlUsd);
     const latest = messages[messages.length - 1];
     const providerKey = latest?.provider_key ?? "provider-anthropic";
-    const modelId = latest?.model_id?.trim() ? latest.model_id : AUTOPSY_MODEL_ID;
+    const modelId = latest?.model_id?.trim()
+      ? latest.model_id
+      : AUTOPSY_MODEL_ID;
     try {
       const adapter = await this.providerRegistry.get(providerKey);
       const result = await adapter.generateText({
         model: modelId,
-        systemPrompt: "You are a trading post-mortem analyst. Keep output concise and actionable.",
+        systemPrompt:
+          "You are a trading post-mortem analyst. Keep output concise and actionable.",
         userPrompt: prompt,
         maxTokens: 1024,
         temperature: 0.2,
@@ -66,8 +73,16 @@ export class TradeAutopsyService {
   }
 }
 
-function fallbackSummary(messages: AgentMessage[], pnlUsd: number | null): string {
-  const recentMessages = messages.slice(-3).map((message) => `${message.role}: ${safeText(message.output_json ?? message.messages_json)}`);
+function fallbackSummary(
+  messages: AgentMessage[],
+  pnlUsd: number | null,
+): string {
+  const recentMessages = messages
+    .slice(-3)
+    .map(
+      (message) =>
+        `${message.role}: ${safeText(message.output_json ?? message.messages_json)}`,
+    );
   return [
     "Autopsy fallback summary (LLM unavailable).",
     `Final PnL: ${pnlUsd == null ? "unknown" : pnlUsd.toFixed(2)} USD`,
@@ -76,7 +91,11 @@ function fallbackSummary(messages: AgentMessage[], pnlUsd: number | null): strin
   ].join("\n");
 }
 
-function buildAutopsyPrompt(tradeId: string, messages: AgentMessage[], pnlUsd: number | null): string {
+function buildAutopsyPrompt(
+  tradeId: string,
+  messages: AgentMessage[],
+  pnlUsd: number | null,
+): string {
   const transcriptLines = messages.map((message) => {
     const body = safeText(message.output_json ?? message.messages_json);
     return `${message.role} (${message.model_id}): ${body}`;

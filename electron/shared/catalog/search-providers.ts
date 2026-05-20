@@ -9,15 +9,25 @@ export interface ProviderMetadata {
 export const BUILT_IN_DUCKDUCKGO_PROVIDER_ID = "builtin-search-duckduckgo";
 export const BUILT_IN_DUCKDUCKGO_SECRET_REF = "builtin-search-duckduckgo";
 
-export function isBuiltInSearchProviderId(id: string | null | undefined): boolean {
+export function isBuiltInSearchProviderId(
+  id: string | null | undefined,
+): boolean {
   return id === BUILT_IN_DUCKDUCKGO_PROVIDER_ID;
 }
 
-export function isBuiltInSearchProviderAccount(account: Pick<ProviderAccount, "id" | "providerType" | "category">): boolean {
-  return account.category === "search" && (account.id === BUILT_IN_DUCKDUCKGO_PROVIDER_ID || account.providerType === "duckduckgo");
+export function isBuiltInSearchProviderAccount(
+  account: Pick<ProviderAccount, "id" | "providerType" | "category">,
+): boolean {
+  return (
+    account.category === "search" &&
+    (account.id === BUILT_IN_DUCKDUCKGO_PROVIDER_ID ||
+      account.providerType === "duckduckgo")
+  );
 }
 
-export function buildBuiltInDuckDuckGoProviderAccount(now = new Date().toISOString()): ProviderAccount {
+export function buildBuiltInDuckDuckGoProviderAccount(
+  now = new Date().toISOString(),
+): ProviderAccount {
   return {
     id: BUILT_IN_DUCKDUCKGO_PROVIDER_ID,
     name: "DuckDuckGo (Built-in)",
@@ -39,16 +49,23 @@ export function parseProviderMetadata(json: string | null): ProviderMetadata {
     const rawBaseUrl = (value as { baseUrl?: unknown }).baseUrl;
     const rawToolName = (value as { mcpToolName?: unknown }).mcpToolName;
     return {
-      baseUrl: typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0 ? rawBaseUrl.trim() : undefined,
+      baseUrl:
+        typeof rawBaseUrl === "string" && rawBaseUrl.trim().length > 0
+          ? rawBaseUrl.trim()
+          : undefined,
       mcpToolName:
-        typeof rawToolName === "string" && rawToolName.trim().length > 0 ? rawToolName.trim() : undefined,
+        typeof rawToolName === "string" && rawToolName.trim().length > 0
+          ? rawToolName.trim()
+          : undefined,
     };
   } catch {
     return {};
   }
 }
 
-export function getSearchProviderDisplayName(value: string | null | undefined): string {
+export function getSearchProviderDisplayName(
+  value: string | null | undefined,
+): string {
   if (!value) return "Workspace default";
   if (value === BUILT_IN_DUCKDUCKGO_PROVIDER_ID) return "DuckDuckGo (Built-in)";
   return value;

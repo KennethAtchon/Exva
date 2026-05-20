@@ -1,15 +1,28 @@
 import type { DbClient } from "../../client";
-import type { ExecutionStage, ExecutionStepState, ExecutionStepStatus } from "@/lib/types";
+import type {
+  ExecutionStage,
+  ExecutionStepState,
+  ExecutionStepStatus,
+} from "@/lib/types";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { sessionExecutionSteps } from "../../schema";
 import { toExecutionStepState } from "../system/mappers";
 
 export interface SessionExecutionStepsRepo {
-  upsert(step: Omit<ExecutionStepState, "id" | "createdAt" | "updatedAt">): ExecutionStepState;
-  get(sessionId: string, cycleId: string, stage: ExecutionStage): ExecutionStepState | null;
+  upsert(
+    step: Omit<ExecutionStepState, "id" | "createdAt" | "updatedAt">,
+  ): ExecutionStepState;
+  get(
+    sessionId: string,
+    cycleId: string,
+    stage: ExecutionStage,
+  ): ExecutionStepState | null;
   getLatestByCycle(sessionId: string, cycleId: string): ExecutionStepState[];
   getLatestBySession(sessionId: string): ExecutionStepState[];
-  getLatestCycleState(sessionId: string): { cycleId: string | null; steps: ExecutionStepState[] };
+  getLatestCycleState(sessionId: string): {
+    cycleId: string | null;
+    steps: ExecutionStepState[];
+  };
   clearFailed(sessionId: string, cycleId: string, stage: ExecutionStage): void;
 }
 
@@ -18,7 +31,9 @@ const ACTIVE_STEP_STATUSES: ExecutionStepStatus[] = ["failed", "retrying"];
 export class SqliteSessionExecutionStepsRepo implements SessionExecutionStepsRepo {
   constructor(private readonly client: DbClient) {}
 
-  upsert(step: Omit<ExecutionStepState, "id" | "createdAt" | "updatedAt">): ExecutionStepState {
+  upsert(
+    step: Omit<ExecutionStepState, "id" | "createdAt" | "updatedAt">,
+  ): ExecutionStepState {
     const now = new Date().toISOString();
     const existing = this.get(step.sessionId, step.cycleId, step.stage);
     const id = existing?.id ?? crypto.randomUUID();
@@ -43,7 +58,11 @@ export class SqliteSessionExecutionStepsRepo implements SessionExecutionStepsRep
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: [sessionExecutionSteps.sessionId, sessionExecutionSteps.cycleId, sessionExecutionSteps.stage],
+        target: [
+          sessionExecutionSteps.sessionId,
+          sessionExecutionSteps.cycleId,
+          sessionExecutionSteps.stage,
+        ],
         set: {
           status: step.status,
           attempt: step.attempt,
@@ -60,12 +79,18 @@ export class SqliteSessionExecutionStepsRepo implements SessionExecutionStepsRep
 
     const row = this.get(step.sessionId, step.cycleId, step.stage);
     if (!row) {
-      throw new Error(`Failed to read back upserted execution step ${step.sessionId}/${step.cycleId}/${step.stage}`);
+      throw new Error(
+        `Failed to read back upserted execution step ${step.sessionId}/${step.cycleId}/${step.stage}`,
+      );
     }
     return row;
   }
 
-  get(sessionId: string, cycleId: string, stage: ExecutionStage): ExecutionStepState | null {
+  get(
+    sessionId: string,
+    cycleId: string,
+    stage: ExecutionStage,
+  ): ExecutionStepState | null {
     const row = this.client.db
       .select()
       .from(sessionExecutionSteps)
@@ -84,7 +109,12 @@ export class SqliteSessionExecutionStepsRepo implements SessionExecutionStepsRep
     return this.client.db
       .select()
       .from(sessionExecutionSteps)
-      .where(and(eq(sessionExecutionSteps.sessionId, sessionId), eq(sessionExecutionSteps.cycleId, cycleId)))
+      .where(
+        and(
+          eq(sessionExecutionSteps.sessionId, sessionId),
+          eq(sessionExecutionSteps.cycleId, cycleId),
+        ),
+      )
       .orderBy(desc(sessionExecutionSteps.updatedAt))
       .all()
       .map(toExecutionStepState);
@@ -106,7 +136,10 @@ export class SqliteSessionExecutionStepsRepo implements SessionExecutionStepsRep
     return [...latestByStage.values()];
   }
 
-  getLatestCycleState(sessionId: string): { cycleId: string | null; steps: ExecutionStepState[] } {
+  getLatestCycleState(sessionId: string): {
+    cycleId: string | null;
+    steps: ExecutionStepState[];
+  } {
     const rows = this.client.db
       .select()
       .from(sessionExecutionSteps)

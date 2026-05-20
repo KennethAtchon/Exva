@@ -102,7 +102,10 @@ describe("SessionRuntimeManager", () => {
 
 function createManager(
   db: ReturnType<typeof createTestDb>,
-  hooks: { onStart?: (sessionId: string) => void; onStop?: (sessionId: string) => void },
+  hooks: {
+    onStart?: (sessionId: string) => void;
+    onStop?: (sessionId: string) => void;
+  },
 ) {
   const sessionRepo = new SessionRepo(db);
   const tradesRepo = new TradesRepo(db);
@@ -168,12 +171,16 @@ function createManager(
       preflightSession: async () => undefined,
     } as never,
     brokerBalanceCache: { getBalance: async () => 0 } as never,
-    brokerCapital: { checkSessionStartFits: () => ({ ok: true as const }) } as never,
+    brokerCapital: {
+      checkSessionStartFits: () => ({ ok: true as const }),
+    } as never,
     brokerAllocationGate: {
       checkOrderFits: () => ({ ok: true as const }),
       checkInstrumentConflict: () => ({ ok: true as const }),
     } as never,
-    instrumentNormalizer: { toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol } as never,
+    instrumentNormalizer: {
+      toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol,
+    } as never,
     instrumentCacheRepo: new InstrumentCacheRepo(db),
     ai: {} as never,
     riskEngine: {} as never,

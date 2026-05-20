@@ -35,7 +35,10 @@ export function registerDefaultEngines(services: {
     kind: "validator",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input) => services.candidateValidation.validate(input as Parameters<CandidateValidationService["validate"]>[0]),
+    run: (input) =>
+      services.candidateValidation.validate(
+        input as Parameters<CandidateValidationService["validate"]>[0],
+      ),
   });
 
   registerEngine({
@@ -43,7 +46,10 @@ export function registerDefaultEngines(services: {
     kind: "policy",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input) => services.orderPolicyGate.evaluate(input as Parameters<OrderPolicyGate["evaluate"]>[0]),
+    run: (input) =>
+      services.orderPolicyGate.evaluate(
+        input as Parameters<OrderPolicyGate["evaluate"]>[0],
+      ),
   });
 
   registerEngine({
@@ -51,10 +57,23 @@ export function registerDefaultEngines(services: {
     kind: "policy",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input: { brokerAccountId: string; sessionId: string; sizeUsd: number; symbol?: string }) => ({
-      allocation: services.brokerAllocationGate.checkOrderFits(input.brokerAccountId, input.sessionId, input.sizeUsd),
+    run: (input: {
+      brokerAccountId: string;
+      sessionId: string;
+      sizeUsd: number;
+      symbol?: string;
+    }) => ({
+      allocation: services.brokerAllocationGate.checkOrderFits(
+        input.brokerAccountId,
+        input.sessionId,
+        input.sizeUsd,
+      ),
       conflict: input.symbol
-        ? services.brokerAllocationGate.checkInstrumentConflict(input.brokerAccountId, input.symbol, input.sessionId)
+        ? services.brokerAllocationGate.checkInstrumentConflict(
+            input.brokerAccountId,
+            input.symbol,
+            input.sessionId,
+          )
         : { ok: true },
     }),
   });
@@ -64,7 +83,10 @@ export function registerDefaultEngines(services: {
     kind: "lifecycle",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input) => services.exitPolicyEvaluator.evaluate(input as Parameters<ExitPolicyEvaluator["evaluate"]>[0]),
+    run: (input) =>
+      services.exitPolicyEvaluator.evaluate(
+        input as Parameters<ExitPolicyEvaluator["evaluate"]>[0],
+      ),
   });
 
   registerEngine({
@@ -72,6 +94,9 @@ export function registerDefaultEngines(services: {
     kind: "policy",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input) => services.riskEngine.validateDecision(input as Parameters<RiskEngine["validateDecision"]>[0]),
+    run: (input) =>
+      services.riskEngine.validateDecision(
+        input as Parameters<RiskEngine["validateDecision"]>[0],
+      ),
   });
 }

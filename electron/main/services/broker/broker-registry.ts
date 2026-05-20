@@ -4,10 +4,16 @@ import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-ac
 import type { SecretsService } from "../infra/secrets-service";
 import { AlpacaAdapter } from "./adapters/alpaca-adapter";
 import type { BrokerAdapter } from "./adapters/broker-adapter";
-import { CoinbaseAdvancedTradeAdapter, type CoinbaseAdvancedCredentials } from "./adapters/coinbase-advanced-trade-adapter";
+import {
+  CoinbaseAdvancedTradeAdapter,
+  type CoinbaseAdvancedCredentials,
+} from "./adapters/coinbase-advanced-trade-adapter";
 import { MockBrokerAdapter } from "./adapters/mock-adapter";
 import { PolymarketAdapter } from "./adapters/polymarket-adapter";
-import { TradovateAdapter, type TradovateCredentials } from "./adapters/tradovate-adapter";
+import {
+  TradovateAdapter,
+  type TradovateCredentials,
+} from "./adapters/tradovate-adapter";
 import type { BrokerCredentials } from "@/lib/types";
 
 export class BrokerRegistry {
@@ -25,7 +31,11 @@ export class BrokerRegistry {
     const account = this.brokerAccountsRepo.require(brokerAccountId);
     const secret = await this.secrets.get(account.secretRef);
     if (!secret && account.brokerType !== "mock") {
-      throw new AppError(`No secret for broker account: ${brokerAccountId}`, "MISSING_SECRET", { brokerAccountId });
+      throw new AppError(
+        `No secret for broker account: ${brokerAccountId}`,
+        "MISSING_SECRET",
+        { brokerAccountId },
+      );
     }
 
     const adapter = this.buildAdapter(account, secret ?? "{}");
@@ -34,7 +44,10 @@ export class BrokerRegistry {
   }
 
   /** Build adapter without caching (used for add-broker test-before-save). */
-  async buildEphemeral(account: BrokerAccount, credentialsJson: string): Promise<BrokerAdapter> {
+  async buildEphemeral(
+    account: BrokerAccount,
+    credentialsJson: string,
+  ): Promise<BrokerAdapter> {
     return this.buildAdapter(account, credentialsJson);
   }
 
@@ -51,12 +64,18 @@ export class BrokerRegistry {
     }
   }
 
-  private buildAdapter(account: BrokerAccount, credsJson: string): BrokerAdapter {
+  private buildAdapter(
+    account: BrokerAccount,
+    credsJson: string,
+  ): BrokerAdapter {
     switch (account.brokerType) {
       case "alpaca": {
         const parsed = JSON.parse(credsJson) as BrokerCredentials;
         if (parsed.provider !== "alpaca") {
-          throw new AppError("Invalid Alpaca credentials payload", "VALIDATION_FAILED");
+          throw new AppError(
+            "Invalid Alpaca credentials payload",
+            "VALIDATION_FAILED",
+          );
         }
         return new AlpacaAdapter(parsed);
       }
@@ -80,7 +99,10 @@ export class BrokerRegistry {
       case "mock":
         return new MockBrokerAdapter();
       default:
-        throw new AppError(`Unknown broker type: ${account.brokerType}`, "UNKNOWN_BROKER");
+        throw new AppError(
+          `Unknown broker type: ${account.brokerType}`,
+          "UNKNOWN_BROKER",
+        );
     }
   }
 }

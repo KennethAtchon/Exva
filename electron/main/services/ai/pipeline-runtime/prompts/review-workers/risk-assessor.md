@@ -8,6 +8,7 @@ Technical signal: {technicalSignal}
 Fundamental signal: {fundamentalSignal}
 
 Return JSON:
+
 ```json
 {
   "tailRisks": ["risk description", ...],
@@ -19,6 +20,7 @@ Return JSON:
 `tailRisks` — list of specific downside risks (e.g. "earnings miss", "regulatory overhang", "liquidity gap at support"). Empty array if none identified.
 
 `overallRisk` — aggregate risk level based on the signals:
+
 - "low": signals are clean, no significant tail risks
 - "medium": some uncertainty or one notable risk
 - "high": multiple tail risks or a single severe one (e.g. high contradictionRisk + weak earnings)

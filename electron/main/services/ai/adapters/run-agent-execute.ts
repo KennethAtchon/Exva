@@ -1,11 +1,30 @@
-import { generateText, hasToolCall, Output, stepCountIs, type FinishReason, type LanguageModel, type PrepareStepFunction, type StepResult, type StopCondition, type ToolSet } from "ai";
+import {
+  generateText,
+  hasToolCall,
+  Output,
+  stepCountIs,
+  type FinishReason,
+  type LanguageModel,
+  type PrepareStepFunction,
+  type StepResult,
+  type StopCondition,
+  type ToolSet,
+} from "ai";
 import type { z } from "zod";
 import type { AgentRole } from "@/lib/types";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
-import type { RuntimeAgentMessage, RunTrace, StepTrace, ToolCallRecord } from "../ai-runtime/ai-runtime-types";
+import type {
+  RuntimeAgentMessage,
+  RunTrace,
+  StepTrace,
+  ToolCallRecord,
+} from "../ai-runtime/ai-runtime-types";
 import { createLogger } from "../../infra/log";
-import { buildToolStepSignature, canonicalizeToolInput } from "../ai-runtime/tool-loop-guard";
+import {
+  buildToolStepSignature,
+  canonicalizeToolInput,
+} from "../ai-runtime/tool-loop-guard";
 
 const logger = createLogger("run-agent-execute");
 
@@ -26,7 +45,10 @@ export interface RunAgentExecuteParams<T> {
   prepareStep?: PrepareStepFunction<ToolSet>;
 }
 
-function splitSystem(messages: RuntimeAgentMessage[]): { system: string | undefined; rest: RuntimeAgentMessage[] } {
+function splitSystem(messages: RuntimeAgentMessage[]): {
+  system: string | undefined;
+  rest: RuntimeAgentMessage[];
+} {
   const sys: string[] = [];
   const rest: RuntimeAgentMessage[] = [];
   for (const m of messages) {
@@ -42,27 +64,46 @@ function userPromptFrom(messages: RuntimeAgentMessage[]): string {
 
 function loopFingerprintGuard<T extends ToolSet>(): StopCondition<T> {
   return ({ steps }) => {
-    const recent = steps.slice(-4).map((s) => buildToolStepSignature(s as never));
+    const recent = steps
+      .slice(-4)
+      .map((s) => buildToolStepSignature(s as never));
     if (recent.length >= 4 && new Set(recent).size === 1) {
       return true;
     }
 
     const recentCalls = steps
-      .flatMap((step) => step.toolCalls.map((call) => ({
-        toolName: String(call.toolName),
-        signature: canonicalizeToolInput(String(call.toolName), call.input),
-      })))
+      .flatMap((step) =>
+        step.toolCalls.map((call) => ({
+          toolName: String(call.toolName),
+          signature: canonicalizeToolInput(String(call.toolName), call.input),
+        })),
+      )
       .slice(-6);
 
     if (recentCalls.length < 4) return false;
 
-    const searchCalls = recentCalls.filter((call) => call.toolName === "search_web" || call.toolName === "search_reddit");
-    if (searchCalls.length >= 4 && new Set(searchCalls.map((call) => `${call.toolName}:${call.signature}`)).size <= 2) {
+    const searchCalls = recentCalls.filter(
+      (call) =>
+        call.toolName === "search_web" || call.toolName === "search_reddit",
+    );
+    if (
+      searchCalls.length >= 4 &&
+      new Set(searchCalls.map((call) => `${call.toolName}:${call.signature}`))
+        .size <= 2
+    ) {
       return true;
     }
 
-    const verifyCalls = recentCalls.filter((call) => call.toolName === "get_quote" || call.toolName === "get_news" || call.toolName === "get_ohlcv");
-    if (verifyCalls.length >= 4 && new Set(verifyCalls.map((call) => call.signature)).size === 1) {
+    const verifyCalls = recentCalls.filter(
+      (call) =>
+        call.toolName === "get_quote" ||
+        call.toolName === "get_news" ||
+        call.toolName === "get_ohlcv",
+    );
+    if (
+      verifyCalls.length >= 4 &&
+      new Set(verifyCalls.map((call) => call.signature)).size === 1
+    ) {
       return true;
     }
 
@@ -70,12 +111,23 @@ function loopFingerprintGuard<T extends ToolSet>(): StopCondition<T> {
   };
 }
 
-function spendGuardUsd<T extends ToolSet>(modelId: string, maxUsd: number): StopCondition<T> {
+function spendGuardUsd<T extends ToolSet>(
+  modelId: string,
+  maxUsd: number,
+): StopCondition<T> {
   const rates = resolveModelPricingRates(modelId);
   return ({ steps }) => {
-    const inTok = steps.reduce((acc, st) => acc + (st.usage?.inputTokens ?? 0), 0);
-    const outTok = steps.reduce((acc, st) => acc + (st.usage?.outputTokens ?? 0), 0);
-    const cost = (inTok / 1_000_000) * rates.inputPer1M + (outTok / 1_000_000) * rates.outputPer1M;
+    const inTok = steps.reduce(
+      (acc, st) => acc + (st.usage?.inputTokens ?? 0),
+      0,
+    );
+    const outTok = steps.reduce(
+      (acc, st) => acc + (st.usage?.outputTokens ?? 0),
+      0,
+    );
+    const cost =
+      (inTok / 1_000_000) * rates.inputPer1M +
+      (outTok / 1_000_000) * rates.outputPer1M;
     return cost > maxUsd;
   };
 }
@@ -95,11 +147,17 @@ function mapFinishReason(
   return "stop";
 }
 
-function buildStepTraces<TOOLS extends ToolSet>(sdkSteps: StepResult<TOOLS>[], stepFinishTimes: number[], startedAt: number): StepTrace[] {
+function buildStepTraces<TOOLS extends ToolSet>(
+  sdkSteps: StepResult<TOOLS>[],
+  stepFinishTimes: number[],
+  startedAt: number,
+): StepTrace[] {
   return sdkSteps.map((st, i) => {
     const finishTime = stepFinishTimes[i];
-    const prevTime = i === 0 ? startedAt : (stepFinishTimes[i - 1] ?? startedAt);
-    const latencyMs = finishTime != null ? Math.max(0, finishTime - prevTime) : 0;
+    const prevTime =
+      i === 0 ? startedAt : (stepFinishTimes[i - 1] ?? startedAt);
+    const latencyMs =
+      finishTime != null ? Math.max(0, finishTime - prevTime) : 0;
     const toolCalls: ToolCallRecord[] = [];
     const resultsById = new Map<string, unknown>();
     for (const tr of st.toolResults) {
@@ -112,7 +170,8 @@ function buildStepTraces<TOOLS extends ToolSet>(sdkSteps: StepResult<TOOLS>[], s
         step: i + 1,
         tool: String(tc.toolName),
         argsJson,
-        resultJson: typeof rawOut === "string" ? rawOut : JSON.stringify(rawOut ?? null),
+        resultJson:
+          typeof rawOut === "string" ? rawOut : JSON.stringify(rawOut ?? null),
         latencyMs,
       });
     }
@@ -126,7 +185,11 @@ function buildStepTraces<TOOLS extends ToolSet>(sdkSteps: StepResult<TOOLS>[], s
   });
 }
 
-function persistedMessages(system: string | undefined, userBlock: string, assistantText: string): RuntimeAgentMessage[] {
+function persistedMessages(
+  system: string | undefined,
+  userBlock: string,
+  assistantText: string,
+): RuntimeAgentMessage[] {
   const m: RuntimeAgentMessage[] = [];
   if (system?.trim()) m.push({ role: "system", content: system.trim() });
   m.push({ role: "user", content: userBlock });
@@ -134,12 +197,22 @@ function persistedMessages(system: string | undefined, userBlock: string, assist
   return m;
 }
 
-export async function executeRunAgent<T = undefined>(params: RunAgentExecuteParams<T>): Promise<RunTrace<T>> {
+export async function executeRunAgent<T = undefined>(
+  params: RunAgentExecuteParams<T>,
+): Promise<RunTrace<T>> {
   const started = Date.now();
   const { system, rest } = splitSystem(params.messages);
   const prompt = userPromptFrom(rest);
 
-  logger.debug({ role: params.role ?? null, modelId: params.modelId, systemPrompt: system ?? null, userPrompt: prompt }, "agent prompt");
+  logger.debug(
+    {
+      role: params.role ?? null,
+      modelId: params.modelId,
+      systemPrompt: system ?? null,
+      userPrompt: prompt,
+    },
+    "agent prompt",
+  );
   logger.info(
     {
       providerType: params.providerType ?? null,
@@ -171,7 +244,8 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     conditions.push(loopFingerprintGuard());
   }
 
-  let stopWhen: StopCondition<ToolSet> | StopCondition<ToolSet>[] = stepCountIs(1);
+  let stopWhen: StopCondition<ToolSet> | StopCondition<ToolSet>[] =
+    stepCountIs(1);
   if (params.tools && conditions.length > 0) {
     const first = conditions[0];
     stopWhen = conditions.length === 1 ? first : conditions;
@@ -218,7 +292,12 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     }
     if (step.text) {
       logger.info(
-        { role: params.role ?? null, modelId: params.modelId, step: stepIndex + 1, fullText: step.text },
+        {
+          role: params.role ?? null,
+          modelId: params.modelId,
+          step: stepIndex + 1,
+          fullText: step.text,
+        },
         "agent step text",
       );
     }
@@ -250,8 +329,15 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   const totalIn = result.totalUsage.inputTokens ?? 0;
   const totalOut = result.totalUsage.outputTokens ?? 0;
   const totalCost = estimateCostUsd(params.modelId, totalIn, totalOut);
-  const spendExceeded = params.spendLimitUsd != null && params.spendLimitUsd > 0 && totalCost > params.spendLimitUsd;
-  const stepCapHit = Boolean(params.tools && params.maxSteps > 0 && result.steps.length >= params.maxSteps);
+  const spendExceeded =
+    params.spendLimitUsd != null &&
+    params.spendLimitUsd > 0 &&
+    totalCost > params.spendLimitUsd;
+  const stepCapHit = Boolean(
+    params.tools &&
+    params.maxSteps > 0 &&
+    result.steps.length >= params.maxSteps,
+  );
 
   let structured: T | undefined;
   let parseFallback = false;
@@ -264,12 +350,19 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
   try {
     auditMessagesJson = JSON.stringify(result.response.messages);
   } catch {
-    auditMessagesJson = JSON.stringify(persistedMessages(system, prompt, result.text));
+    auditMessagesJson = JSON.stringify(
+      persistedMessages(system, prompt, result.text),
+    );
   }
 
   if (result.reasoningText) {
     logger.info(
-      { role: params.role ?? null, modelId: params.modelId, thinkingChars: result.reasoningText.length, thinking: result.reasoningText },
+      {
+        role: params.role ?? null,
+        modelId: params.modelId,
+        thinkingChars: result.reasoningText.length,
+        thinking: result.reasoningText,
+      },
       "agent reasoning",
     );
   }
@@ -279,7 +372,10 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
       role: params.role ?? null,
       modelId: params.modelId,
       finishReason: result.finishReason,
-      mappedFinishReason: mapFinishReason(result.finishReason, { spendExceeded, stepCapHit }),
+      mappedFinishReason: mapFinishReason(result.finishReason, {
+        spendExceeded,
+        stepCapHit,
+      }),
       steps: result.steps.length,
       inputTokens: totalIn,
       outputTokens: totalOut,
@@ -299,7 +395,10 @@ export async function executeRunAgent<T = undefined>(params: RunAgentExecutePara
     auditMessagesJson,
     steps,
     thinkingText: result.reasoningText ?? null,
-    finishReason: mapFinishReason(result.finishReason, { spendExceeded, stepCapHit }),
+    finishReason: mapFinishReason(result.finishReason, {
+      spendExceeded,
+      stepCapHit,
+    }),
     parseFallback,
     inputTokens: totalIn,
     outputTokens: totalOut,

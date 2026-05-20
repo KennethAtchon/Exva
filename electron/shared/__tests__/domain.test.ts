@@ -8,7 +8,9 @@ import {
   type SessionStrategy,
 } from "../domain";
 
-function baseStrategy(overrides: Partial<SessionStrategy> = {}): SessionStrategy {
+function baseStrategy(
+  overrides: Partial<SessionStrategy> = {},
+): SessionStrategy {
   return {
     sessionId: "s1",
     strategyProfile: "custom",
@@ -59,7 +61,11 @@ describe("domain session helpers", () => {
         baseStrategy({ targetHoldDays: 10, maxHoldDays: 5 }),
       ),
     ).toThrow(/Max hold/);
-    expect(() => validateSessionStrategyTimeframeFields(baseStrategy({ targetHoldDays: -1 }))).toThrow();
+    expect(() =>
+      validateSessionStrategyTimeframeFields(
+        baseStrategy({ targetHoldDays: -1 }),
+      ),
+    ).toThrow();
   });
 
   it("builds strategy timeframe context block", () => {
@@ -78,9 +84,21 @@ describe("domain session helpers", () => {
   });
 
   it("warns on intraday style with slow timeframe", () => {
-    expect(timeframeHoldMismatchWarning(baseStrategy({ holdingStyle: "intraday_flat", primaryTradingTimeframe: "5m" }))).toBeNull();
     expect(
-      timeframeHoldMismatchWarning(baseStrategy({ holdingStyle: "intraday_flat", primaryTradingTimeframe: "1d" })),
+      timeframeHoldMismatchWarning(
+        baseStrategy({
+          holdingStyle: "intraday_flat",
+          primaryTradingTimeframe: "5m",
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      timeframeHoldMismatchWarning(
+        baseStrategy({
+          holdingStyle: "intraday_flat",
+          primaryTradingTimeframe: "1d",
+        }),
+      ),
     ).toMatch(/Intraday/);
   });
 });

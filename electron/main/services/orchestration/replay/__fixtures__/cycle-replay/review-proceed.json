@@ -146,7 +146,11 @@
       "totalOutputTokens": 60,
       "aggregateStatus": "succeeded",
       "aggregateOutputSchemaName": "reviewSignal",
-      "aggregateOutputSummary": { "symbol": "AAPL", "recommendation": "proceed", "overallRisk": "low" },
+      "aggregateOutputSummary": {
+        "symbol": "AAPL",
+        "recommendation": "proceed",
+        "overallRisk": "low"
+      },
       "frontiers": [],
       "workers": []
     }

@@ -5,7 +5,11 @@ import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-ac
 
 export type AllocationGateResult =
   | { ok: true; warning?: "over_allocated" }
-  | { ok: false; reason: string; code: "BROKER_ALLOCATION_EXHAUSTED" | "INSTRUMENT_CONFLICT" };
+  | {
+      ok: false;
+      reason: string;
+      code: "BROKER_ALLOCATION_EXHAUSTED" | "INSTRUMENT_CONFLICT";
+    };
 
 export class BrokerAllocationGate {
   constructor(
@@ -15,11 +19,21 @@ export class BrokerAllocationGate {
     private readonly brokerAccountsRepo: BrokerAccountsRepo,
   ) {}
 
-  checkOrderFits(brokerAccountId: string, sessionId: string, sizeUsd: number): AllocationGateResult {
-    const assignment = this.assignmentsRepo.findAssignment(sessionId, brokerAccountId);
+  checkOrderFits(
+    brokerAccountId: string,
+    sessionId: string,
+    sizeUsd: number,
+  ): AllocationGateResult {
+    const assignment = this.assignmentsRepo.findAssignment(
+      sessionId,
+      brokerAccountId,
+    );
     if (!assignment) return { ok: true };
 
-    const openPositionSizeUsd = this.tradesRepo.sumOpenPositionSizeUsd(sessionId, brokerAccountId);
+    const openPositionSizeUsd = this.tradesRepo.sumOpenPositionSizeUsd(
+      sessionId,
+      brokerAccountId,
+    );
     const freeAllocation = assignment.allocatedUsd - openPositionSizeUsd;
     if (sizeUsd <= freeAllocation) return { ok: true };
 
@@ -35,8 +49,16 @@ export class BrokerAllocationGate {
     };
   }
 
-  checkInstrumentConflict(brokerAccountId: string, symbol: string, sessionId: string): AllocationGateResult {
-    const conflict = this.tradesRepo.findOpenTradeOnBroker(brokerAccountId, symbol, sessionId);
+  checkInstrumentConflict(
+    brokerAccountId: string,
+    symbol: string,
+    sessionId: string,
+  ): AllocationGateResult {
+    const conflict = this.tradesRepo.findOpenTradeOnBroker(
+      brokerAccountId,
+      symbol,
+      sessionId,
+    );
     if (!conflict) return { ok: true };
     return {
       ok: false,
@@ -47,7 +69,11 @@ export class BrokerAllocationGate {
 
   private resolveEnforcement(brokerAccountId: string): "hard" | "warn" {
     const prefs = this.workspacePrefsRepo.get();
-    if (prefs.allocationEnforcementOverride) return prefs.allocationEnforcementOverride;
-    return this.brokerAccountsRepo.find(brokerAccountId)?.allocationEnforcement ?? "hard";
+    if (prefs.allocationEnforcementOverride)
+      return prefs.allocationEnforcementOverride;
+    return (
+      this.brokerAccountsRepo.find(brokerAccountId)?.allocationEnforcement ??
+      "hard"
+    );
   }
 }

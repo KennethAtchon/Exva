@@ -13,7 +13,13 @@ export function registerWorkspaceHandlers(services: AppServices): void {
     };
   });
 
-  handle(ipcMain, workspaceEndpoints.patchPreferences.channel, async (payload) => {
-    return services.repos.workspacePreferences.update(workspaceEndpoints.patchPreferences.parseInput(payload));
-  });
+  handle(
+    ipcMain,
+    workspaceEndpoints.patchPreferences.channel,
+    async (payload) => {
+      return services.repos.workspacePreferences.update(
+        workspaceEndpoints.patchPreferences.parseInput(payload),
+      );
+    },
+  );
 }

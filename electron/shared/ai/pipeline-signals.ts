@@ -6,7 +6,10 @@ export const technicalSignalSchema = z.object({
   trendStrength: z.number().min(0).max(1),
   momentumScore: z.number().min(0).max(1).nullable().default(null),
   volumeScore: z.number().min(0).max(1).nullable().default(null),
-  volumeSignal: z.enum(["accumulation", "distribution", "neutral"]).nullable().default(null),
+  volumeSignal: z
+    .enum(["accumulation", "distribution", "neutral"])
+    .nullable()
+    .default(null),
   patternName: z.string().nullable().default(null),
   patternStrength: z.number().min(0).max(1).nullable().default(null),
   nearestSupport: z.number().nullable().default(null),
@@ -18,7 +21,18 @@ export type TechnicalSignal = z.infer<typeof technicalSignalSchema>;
 
 export const fundamentalSignalSchema = z.object({
   symbol: z.string(),
-  catalystType: z.enum(["earnings", "partnership", "fda", "contract", "macro", "social_hype", "unknown"]).nullable().default(null),
+  catalystType: z
+    .enum([
+      "earnings",
+      "partnership",
+      "fda",
+      "contract",
+      "macro",
+      "social_hype",
+      "unknown",
+    ])
+    .nullable()
+    .default(null),
   catalystStrength: z.number().min(0).max(1).nullable().default(null),
   catalystFreshness: z.number().min(0).max(1).nullable().default(null),
   catalystScore: z.number().min(0).max(1).nullable().default(null),
@@ -32,7 +46,12 @@ export type FundamentalSignal = z.infer<typeof fundamentalSignalSchema>;
 
 export const reviewSignalSchema = z.object({
   symbol: z.string(),
-  technicalFundamentalConflict: z.number().min(0).max(1).nullable().default(null),
+  technicalFundamentalConflict: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null),
   conflictExplanation: z.string().nullable().default(null),
   tailRisks: z.array(z.string()).default([]),
   overallRisk: z.enum(["low", "medium", "high"]).nullable().default(null),

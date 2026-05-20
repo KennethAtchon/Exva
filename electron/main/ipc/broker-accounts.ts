@@ -13,12 +13,15 @@ const updateSettingsSchema = z.object({
 });
 
 export function registerBrokerAccountHandlers(services: AppServices): void {
-  handle(ipcMain, channels.brokerAccounts.list, async () => services.brokerCapital.listWithState());
+  handle(ipcMain, channels.brokerAccounts.list, async () =>
+    services.brokerCapital.listWithState(),
+  );
 
   handle(ipcMain, channels.brokerAccounts.refreshBalance, async (payload) => {
     const { brokerAccountId } = refreshBalanceSchema.parse(payload);
     const cachedAt = new Date().toISOString();
-    const balance = await services.brokerBalanceCache.refreshBalance(brokerAccountId);
+    const balance =
+      await services.brokerBalanceCache.refreshBalance(brokerAccountId);
     services.eventBus.emit("broker_balance_updated", {
       brokerAccountId,
       balanceUsd: balance,

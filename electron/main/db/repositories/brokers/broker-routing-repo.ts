@@ -1,14 +1,28 @@
 import type { DbClient } from "../../client";
-import type { BrokerRoutingDefault, InstrumentClass, SessionBrokerRoutingOverride } from "@/lib/types";
+import type {
+  BrokerRoutingDefault,
+  InstrumentClass,
+  SessionBrokerRoutingOverride,
+} from "@/lib/types";
 import { and, asc, eq } from "drizzle-orm";
-import { brokerRoutingDefaults, sessionBrokerRoutingOverrides } from "../../schema";
-import { toBrokerRoutingDefault, toSessionBrokerRoutingOverride } from "../system/mappers";
+import {
+  brokerRoutingDefaults,
+  sessionBrokerRoutingOverrides,
+} from "../../schema";
+import {
+  toBrokerRoutingDefault,
+  toSessionBrokerRoutingOverride,
+} from "../system/mappers";
 
 export class BrokerRoutingRepo {
   constructor(private readonly client: DbClient) {}
 
   listGlobalDefaults(): BrokerRoutingDefault[] {
-    const rows = this.client.db.select().from(brokerRoutingDefaults).orderBy(asc(brokerRoutingDefaults.instrumentClass)).all();
+    const rows = this.client.db
+      .select()
+      .from(brokerRoutingDefaults)
+      .orderBy(asc(brokerRoutingDefaults.instrumentClass))
+      .all();
     return rows.map(toBrokerRoutingDefault);
   }
 
@@ -41,7 +55,10 @@ export class BrokerRoutingRepo {
 
   upsertSessionOverrides(
     sessionId: string,
-    input: Array<{ instrumentClass: InstrumentClass; brokerAccountId: string | null }>,
+    input: Array<{
+      instrumentClass: InstrumentClass;
+      brokerAccountId: string | null;
+    }>,
   ): void {
     this.client.db.transaction((tx) => {
       for (const row of input) {
@@ -50,7 +67,10 @@ export class BrokerRoutingRepo {
             .where(
               and(
                 eq(sessionBrokerRoutingOverrides.sessionId, sessionId),
-                eq(sessionBrokerRoutingOverrides.instrumentClass, row.instrumentClass),
+                eq(
+                  sessionBrokerRoutingOverrides.instrumentClass,
+                  row.instrumentClass,
+                ),
               ),
             )
             .run();
@@ -64,7 +84,10 @@ export class BrokerRoutingRepo {
             brokerAccountId: row.brokerAccountId,
           })
           .onConflictDoUpdate({
-            target: [sessionBrokerRoutingOverrides.sessionId, sessionBrokerRoutingOverrides.instrumentClass],
+            target: [
+              sessionBrokerRoutingOverrides.sessionId,
+              sessionBrokerRoutingOverrides.instrumentClass,
+            ],
             set: { brokerAccountId: row.brokerAccountId },
           })
           .run();
@@ -72,9 +95,14 @@ export class BrokerRoutingRepo {
     });
   }
 
-  resolveBrokerAccountId(sessionId: string, instrumentClass: InstrumentClass): string | null {
+  resolveBrokerAccountId(
+    sessionId: string,
+    instrumentClass: InstrumentClass,
+  ): string | null {
     const override = this.client.db
-      .select({ brokerAccountId: sessionBrokerRoutingOverrides.brokerAccountId })
+      .select({
+        brokerAccountId: sessionBrokerRoutingOverrides.brokerAccountId,
+      })
       .from(sessionBrokerRoutingOverrides)
       .where(
         and(
@@ -88,7 +116,9 @@ export class BrokerRoutingRepo {
     }
 
     const globalDefault = this.client.db
-      .select({ defaultBrokerAccountId: brokerRoutingDefaults.defaultBrokerAccountId })
+      .select({
+        defaultBrokerAccountId: brokerRoutingDefaults.defaultBrokerAccountId,
+      })
       .from(brokerRoutingDefaults)
       .where(eq(brokerRoutingDefaults.instrumentClass, instrumentClass))
       .get();

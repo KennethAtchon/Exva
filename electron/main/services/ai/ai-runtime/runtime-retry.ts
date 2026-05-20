@@ -48,7 +48,12 @@ export async function withProviderRetry<T>(
       const value = await withTimeout(action);
       if (attempt > 1) {
         logger.info(
-          { ...ctx, attempt, durationMs: Date.now() - attemptStartedAt, totalMs: Date.now() - startedAt },
+          {
+            ...ctx,
+            attempt,
+            durationMs: Date.now() - attemptStartedAt,
+            totalMs: Date.now() - startedAt,
+          },
           "provider request recovered",
         );
       }
@@ -79,7 +84,9 @@ export async function withProviderRetry<T>(
       if (!retryable || attempt >= MAX_PROVIDER_ATTEMPTS) {
         throw wrapProviderError(error, retryable, ctx, attempt);
       }
-      await new Promise((resolve) => setTimeout(resolve, providerBackoffMsForAttempt(attempt)));
+      await new Promise((resolve) =>
+        setTimeout(resolve, providerBackoffMsForAttempt(attempt)),
+      );
     }
   }
 
@@ -87,7 +94,9 @@ export async function withProviderRetry<T>(
   throw wrapProviderError(lastError, false, ctx, MAX_PROVIDER_ATTEMPTS);
 }
 
-async function withTimeout<T>(action: (abortSignal: AbortSignal) => Promise<T>): Promise<T> {
+async function withTimeout<T>(
+  action: (abortSignal: AbortSignal) => Promise<T>,
+): Promise<T> {
   const controller = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<T>((_, reject) => {
@@ -104,7 +113,10 @@ async function withTimeout<T>(action: (abortSignal: AbortSignal) => Promise<T>):
 }
 
 function providerBackoffMsForAttempt(attempt: number): number {
-  return RETRY_CONFIG.backoffMs[Math.max(0, attempt - 1)] ?? RETRY_CONFIG.backoffMs[RETRY_CONFIG.backoffMs.length - 1];
+  return (
+    RETRY_CONFIG.backoffMs[Math.max(0, attempt - 1)] ??
+    RETRY_CONFIG.backoffMs[RETRY_CONFIG.backoffMs.length - 1]
+  );
 }
 
 function shouldRetry(error: unknown): boolean {
@@ -245,7 +257,9 @@ function extractProviderErrorDetails(error: unknown): ProviderErrorDetails {
   const summaryParts = [
     message,
     causeMessage && causeMessage !== message ? `cause=${causeMessage}` : null,
-    responseBody && responseBody !== message && responseBody !== causeMessage ? `body=${responseBody}` : null,
+    responseBody && responseBody !== message && responseBody !== causeMessage
+      ? `body=${responseBody}`
+      : null,
     status != null ? `status=${status}` : null,
     code ? `code=${code}` : null,
   ].filter(Boolean);
@@ -298,7 +312,8 @@ function readErrorCodeDeep(error: unknown): string | null {
 function readErrorCode(error: unknown): string | null {
   if (!error || typeof error !== "object") return null;
   const record = error as Record<string, unknown>;
-  const value = record.code ?? (record.error as Record<string, unknown> | undefined)?.code;
+  const value =
+    record.code ?? (record.error as Record<string, unknown> | undefined)?.code;
   return typeof value === "string" ? value : null;
 }
 

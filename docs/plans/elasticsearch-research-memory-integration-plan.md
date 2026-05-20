@@ -12,24 +12,24 @@ Exva already has live discovery tools, but it does not yet have a workspace-scop
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Add workspace-scoped research memory | Public web evidence can be indexed once and reused across sessions. |
-| 2 | Preserve session isolation | No agent prompt receives another session's hidden reasoning, draft conclusions, or private chain-of-thought. |
-| 3 | Keep fresh discovery intact | Live search providers remain available for new information when local memory is stale or insufficient. |
-| 4 | Reduce duplicate external work | Repeated `search_web`, `get_news`, and `fetch_url` work drops materially after the cache warms up. |
-| 5 | Fit Exva's local-first architecture | The first supported deployment is a local, self-managed single-node Elasticsearch service, not a cloud dependency. |
-| 6 | Start with the smallest useful search surface | Phase 1 uses lexical/full-text search plus metadata filters; vector/semantic features are deferred. |
+| #   | Goal                                          | Success Looks Like                                                                                                 |
+| --- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 1   | Add workspace-scoped research memory          | Public web evidence can be indexed once and reused across sessions.                                                |
+| 2   | Preserve session isolation                    | No agent prompt receives another session's hidden reasoning, draft conclusions, or private chain-of-thought.       |
+| 3   | Keep fresh discovery intact                   | Live search providers remain available for new information when local memory is stale or insufficient.             |
+| 4   | Reduce duplicate external work                | Repeated `search_web`, `get_news`, and `fetch_url` work drops materially after the cache warms up.                 |
+| 5   | Fit Exva's local-first architecture           | The first supported deployment is a local, self-managed single-node Elasticsearch service, not a cloud dependency. |
+| 6   | Start with the smallest useful search surface | Phase 1 uses lexical/full-text search plus metadata filters; vector/semantic features are deferred.                |
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Replace current search providers with Elasticsearch | Elasticsearch is a retrieval/indexing layer, not a live web search provider by itself. ([Elastic](https://www.elastic.co/elasticsearch)) |
-| 2 | Use Elasticsearch as the coordination or locking store | Cross-session claims, ownership, and runtime coordination fit Exva's existing SQLite/session architecture better than a search index. |
-| 3 | Fix selector convergence mainly by adding search infrastructure | The current selector failure mode is still primarily orchestration and loop control, not missing search infra. |
-| 4 | Ship vector or `semantic_text` in the MVP | `semantic_text` commonly relies on inference endpoints and appropriate licensing; that is unnecessary scope for phase 1. ([Elastic semantic_text](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text)) |
-| 5 | Introduce cloud sync, remote workers, or multi-user collaboration | Exva remains local-only and single-user in the current product scope. (`docs/specs/workspace-session-and-model-management.md`) |
+| #   | Non-Goal                                                          | Reason                                                                                                                                                                                                                                  |
+| --- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Replace current search providers with Elasticsearch               | Elasticsearch is a retrieval/indexing layer, not a live web search provider by itself. ([Elastic](https://www.elastic.co/elasticsearch))                                                                                                |
+| 2   | Use Elasticsearch as the coordination or locking store            | Cross-session claims, ownership, and runtime coordination fit Exva's existing SQLite/session architecture better than a search index.                                                                                                   |
+| 3   | Fix selector convergence mainly by adding search infrastructure   | The current selector failure mode is still primarily orchestration and loop control, not missing search infra.                                                                                                                          |
+| 4   | Ship vector or `semantic_text` in the MVP                         | `semantic_text` commonly relies on inference endpoints and appropriate licensing; that is unnecessary scope for phase 1. ([Elastic semantic_text](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text)) |
+| 5   | Introduce cloud sync, remote workers, or multi-user collaboration | Exva remains local-only and single-user in the current product scope. (`docs/specs/workspace-session-and-model-management.md`)                                                                                                          |
 
 ## 3. Background & Context
 
@@ -100,15 +100,15 @@ In this target shape, SQLite stays authoritative for session/runtime coordinatio
 
 What it is: leave `SearchRegistry`, `search_web`, `fetch_url`, and `get_news` behavior structurally as-is and continue relying on traces/API logs for any historical analysis.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Low |
-| Performance | No local retrieval acceleration; repeated external calls remain |
-| Reliability | No new operational surface, but repeated provider dependency stays high |
-| Cost | Lowest engineering cost; continued external-search cost |
-| Reversibility | High |
-| Stack fit | Good for today's architecture, weak for shared research memory |
-| Team readiness | Immediate |
+| Dimension      | Assessment                                                              |
+| -------------- | ----------------------------------------------------------------------- |
+| Complexity     | Low                                                                     |
+| Performance    | No local retrieval acceleration; repeated external calls remain         |
+| Reliability    | No new operational surface, but repeated provider dependency stays high |
+| Cost           | Lowest engineering cost; continued external-search cost                 |
+| Reversibility  | High                                                                    |
+| Stack fit      | Good for today's architecture, weak for shared research memory          |
+| Team readiness | Immediate                                                               |
 
 Risks:
 
@@ -124,15 +124,15 @@ Open questions:
 
 What it is: keep everything local in SQLite, add cache tables and possibly SQLite FTS for public evidence, query hashes, canonical URLs, and extracted content.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium-low |
-| Performance | Good for exact lookup and small corpora; weaker for richer ranked retrieval |
-| Reliability | Strong because it stays within Exva's existing persistence stack |
-| Cost | Low to moderate engineering cost |
-| Reversibility | High |
-| Stack fit | Very strong with current local-first architecture |
-| Team readiness | High |
+| Dimension      | Assessment                                                                  |
+| -------------- | --------------------------------------------------------------------------- |
+| Complexity     | Medium-low                                                                  |
+| Performance    | Good for exact lookup and small corpora; weaker for richer ranked retrieval |
+| Reliability    | Strong because it stays within Exva's existing persistence stack            |
+| Cost           | Low to moderate engineering cost                                            |
+| Reversibility  | High                                                                        |
+| Stack fit      | Very strong with current local-first architecture                           |
+| Team readiness | High                                                                        |
 
 Risks:
 
@@ -148,15 +148,15 @@ Open questions:
 
 What it is: introduce Elasticsearch as a workspace-scoped research-memory service that stores normalized public evidence and supports full-text retrieval, filters, and later optional hybrid search. Keep SQLite as the source of truth for session/runtime coordination and keep live search providers for fresh discovery.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium |
-| Performance | Strong for text retrieval, filtering, dedupe lookups, and future ranking upgrades |
-| Reliability | Good if optional and health-checked; adds a new local service dependency |
-| Cost | Moderate engineering cost plus local machine resource cost |
-| Reversibility | Medium-high; can be feature-flagged and disabled |
-| Stack fit | Strong if treated as a research-memory sidecar instead of a search-provider replacement |
-| Team readiness | Medium |
+| Dimension      | Assessment                                                                              |
+| -------------- | --------------------------------------------------------------------------------------- |
+| Complexity     | Medium                                                                                  |
+| Performance    | Strong for text retrieval, filtering, dedupe lookups, and future ranking upgrades       |
+| Reliability    | Good if optional and health-checked; adds a new local service dependency                |
+| Cost           | Moderate engineering cost plus local machine resource cost                              |
+| Reversibility  | Medium-high; can be feature-flagged and disabled                                        |
+| Stack fit      | Strong if treated as a research-memory sidecar instead of a search-provider replacement |
+| Team readiness | Medium                                                                                  |
 
 Risks:
 
@@ -194,31 +194,31 @@ These estimates are inferred from Exva's current architecture, current file boun
 
 **People**
 
-| Role | Need | Notes |
-|------|------|-------|
-| Backend/full-stack engineer | 1.0 FTE for MVP | Main-process services, DB/config wiring, tests, observability |
-| QA / manual verifier | 0.25 FTE during rollout week | Multi-session smoke tests, failure-mode checks |
-| Product/owner review | Light | Decide whether the feature is developer-only first or user-facing |
+| Role                        | Need                         | Notes                                                             |
+| --------------------------- | ---------------------------- | ----------------------------------------------------------------- |
+| Backend/full-stack engineer | 1.0 FTE for MVP              | Main-process services, DB/config wiring, tests, observability     |
+| QA / manual verifier        | 0.25 FTE during rollout week | Multi-session smoke tests, failure-mode checks                    |
+| Product/owner review        | Light                        | Decide whether the feature is developer-only first or user-facing |
 
 **Elapsed time**
 
-| Slice | Estimate | Notes |
-|------|----------|-------|
-| Spike / proof of concept | 4-5 working days | Connect from Electron main process, create index, index/query sample docs |
-| MVP lexical research memory | 2.5-3.5 weeks | Full-text only, no vectors, optional feature flag |
-| Hardening / rollout | 1-1.5 weeks | Health checks, recovery paths, observability, manual QA |
-| Optional semantic/hybrid phase | +1-2 weeks | Only if lexical MVP proves insufficient |
+| Slice                          | Estimate         | Notes                                                                     |
+| ------------------------------ | ---------------- | ------------------------------------------------------------------------- |
+| Spike / proof of concept       | 4-5 working days | Connect from Electron main process, create index, index/query sample docs |
+| MVP lexical research memory    | 2.5-3.5 weeks    | Full-text only, no vectors, optional feature flag                         |
+| Hardening / rollout            | 1-1.5 weeks      | Health checks, recovery paths, observability, manual QA                   |
+| Optional semantic/hybrid phase | +1-2 weeks       | Only if lexical MVP proves insufficient                                   |
 
 **Machine / local service resources**
 
 These are engineering estimates, not official Elastic sizing guidance.
 
-| Resource | MVP estimate | Notes |
-|----------|--------------|-------|
-| CPU | 4 vCPU available to Docker/local service | Enough for a single-node local index and lightweight ingestion |
-| RAM | 8-12 GB available on the host for Exva + Elasticsearch | Add ~1-2 GB more if Kibana is used regularly in development |
-| Disk | 20-40 GB free | Covers Elasticsearch data, logs, and an initial research corpus |
-| Dependencies | Docker Compose v2+ for dev setup | Elastic's local quickstart and Docker docs assume Docker/Compose. ([Elastic local quickstart](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/local-development-installation-quickstart), [Elastic Docker install](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-with-docker)) |
+| Resource     | MVP estimate                                           | Notes                                                                                                                                                                                                                                                                                                                              |
+| ------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CPU          | 4 vCPU available to Docker/local service               | Enough for a single-node local index and lightweight ingestion                                                                                                                                                                                                                                                                     |
+| RAM          | 8-12 GB available on the host for Exva + Elasticsearch | Add ~1-2 GB more if Kibana is used regularly in development                                                                                                                                                                                                                                                                        |
+| Disk         | 20-40 GB free                                          | Covers Elasticsearch data, logs, and an initial research corpus                                                                                                                                                                                                                                                                    |
+| Dependencies | Docker Compose v2+ for dev setup                       | Elastic's local quickstart and Docker docs assume Docker/Compose. ([Elastic local quickstart](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/local-development-installation-quickstart), [Elastic Docker install](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-with-docker)) |
 
 ## 8. Implementation Plan
 
@@ -418,25 +418,25 @@ Rollback plan:
 
 ## 9. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|-----------|--------|------------|
-| 1 | Local Elasticsearch is too operationally heavy for a desktop product | Medium | High | Make it optional, feature-flagged, and validate with a developer-only phase first. |
-| 2 | Prompt isolation is accidentally violated by cross-session memory reuse | Medium | High | Store only public evidence in Elasticsearch; keep claims and session ownership in SQLite; add leakage tests. |
-| 3 | Stale memory suppresses fresh discovery | Medium | Medium | Add TTLs, freshness gates, and explicit live-search fallback rules. |
-| 4 | Elasticsearch is incorrectly modeled as a search provider | Medium | Medium | Keep `SearchRegistry` unchanged and introduce a separate `ResearchMemoryService`. |
-| 5 | Index schema evolves quickly and causes migration pain | Low | Medium | Version indices and use reindex + ingest pipelines for migration. ([Elastic reindex](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reindex-indices), [Elastic ingest pipelines](https://www.elastic.co/docs/manage-data/ingest/transform-enrich/ingest-pipelines)) |
-| 6 | The team solves the wrong problem first | High | Medium | Treat this as research-memory infrastructure, not as the primary fix for selector convergence. |
+| #   | Risk                                                                    | Likelihood | Impact | Mitigation                                                                                                                                                                                                                                                                         |
+| --- | ----------------------------------------------------------------------- | ---------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Local Elasticsearch is too operationally heavy for a desktop product    | Medium     | High   | Make it optional, feature-flagged, and validate with a developer-only phase first.                                                                                                                                                                                                 |
+| 2   | Prompt isolation is accidentally violated by cross-session memory reuse | Medium     | High   | Store only public evidence in Elasticsearch; keep claims and session ownership in SQLite; add leakage tests.                                                                                                                                                                       |
+| 3   | Stale memory suppresses fresh discovery                                 | Medium     | Medium | Add TTLs, freshness gates, and explicit live-search fallback rules.                                                                                                                                                                                                                |
+| 4   | Elasticsearch is incorrectly modeled as a search provider               | Medium     | Medium | Keep `SearchRegistry` unchanged and introduce a separate `ResearchMemoryService`.                                                                                                                                                                                                  |
+| 5   | Index schema evolves quickly and causes migration pain                  | Low        | Medium | Version indices and use reindex + ingest pipelines for migration. ([Elastic reindex](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/reindex-indices), [Elastic ingest pipelines](https://www.elastic.co/docs/manage-data/ingest/transform-enrich/ingest-pipelines)) |
+| 6   | The team solves the wrong problem first                                 | High       | Medium | Treat this as research-memory infrastructure, not as the primary fix for selector convergence.                                                                                                                                                                                     |
 
 ## 10. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|------|--------|----------|--------|--------------|
-| Shared retrieval exists | Research-memory hit count | 0 | > 0 on warm corpus sessions | New telemetry counters |
-| Less duplicate page work | Duplicate `fetch_url` calls avoided by canonical URL reuse | 0 | >= 50% reduction on replayed multi-session scenarios | Tool-path metrics + tests |
-| Less duplicate external search | External `search_web` calls avoided after warm-up | 0 | >= 30% reduction on warm corpus sessions | Tool telemetry |
-| Isolation preserved | Cross-session prompt leakage incidents | 0 measured, but currently impossible because no shared memory | 0 after feature launch | Targeted tests + manual trace review |
-| Local retrieval is fast enough | p95 research-memory query latency | N/A | <= 200 ms on dev corpus | Local benchmark/logging |
-| Graceful degradation | Runs that still complete when Elasticsearch is unavailable | N/A | 100% of covered test scenarios fall back to live providers or clear operator-visible error | Integration tests |
+| Goal                           | Metric                                                     | Baseline                                                      | Target                                                                                     | How Measured                         |
+| ------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------ |
+| Shared retrieval exists        | Research-memory hit count                                  | 0                                                             | > 0 on warm corpus sessions                                                                | New telemetry counters               |
+| Less duplicate page work       | Duplicate `fetch_url` calls avoided by canonical URL reuse | 0                                                             | >= 50% reduction on replayed multi-session scenarios                                       | Tool-path metrics + tests            |
+| Less duplicate external search | External `search_web` calls avoided after warm-up          | 0                                                             | >= 30% reduction on warm corpus sessions                                                   | Tool telemetry                       |
+| Isolation preserved            | Cross-session prompt leakage incidents                     | 0 measured, but currently impossible because no shared memory | 0 after feature launch                                                                     | Targeted tests + manual trace review |
+| Local retrieval is fast enough | p95 research-memory query latency                          | N/A                                                           | <= 200 ms on dev corpus                                                                    | Local benchmark/logging              |
+| Graceful degradation           | Runs that still complete when Elasticsearch is unavailable | N/A                                                           | 100% of covered test scenarios fall back to live providers or clear operator-visible error | Integration tests                    |
 
 Leading indicators:
 
@@ -451,18 +451,18 @@ Lagging indicators:
 
 ## 11. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| 1 | Should Elasticsearch configuration live in workspace settings, hidden developer config, or a new services page? | Kenneth | Before Phase 1 | Open |
-| 2 | Should the first rollout include SQLite coordination claims, or only passive retrieval reuse? | Kenneth | Before Phase 4 | Open |
-| 3 | What freshness TTLs should apply to different evidence classes (news, social, page content, screener pages)? | Kenneth | Before Phase 3 | Open |
-| 4 | Do we want Kibana as a supported developer dependency, or keep all observability inside Exva logs and test helpers? | Kenneth | Before rollout | Open |
-| 5 | What corpus size threshold would justify semantic/hybrid search beyond lexical retrieval? | Kenneth | After MVP metrics | Open |
+| #   | Question                                                                                                            | Owner   | Needed By         | Status |
+| --- | ------------------------------------------------------------------------------------------------------------------- | ------- | ----------------- | ------ |
+| 1   | Should Elasticsearch configuration live in workspace settings, hidden developer config, or a new services page?     | Kenneth | Before Phase 1    | Open   |
+| 2   | Should the first rollout include SQLite coordination claims, or only passive retrieval reuse?                       | Kenneth | Before Phase 4    | Open   |
+| 3   | What freshness TTLs should apply to different evidence classes (news, social, page content, screener pages)?        | Kenneth | Before Phase 3    | Open   |
+| 4   | Do we want Kibana as a supported developer dependency, or keep all observability inside Exva logs and test helpers? | Kenneth | Before rollout    | Open   |
+| 5   | What corpus size threshold would justify semantic/hybrid search beyond lexical retrieval?                           | Kenneth | After MVP metrics | Open   |
 
 ## 12. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|-------------|
-| Status quo only | Does not solve shared research memory or repeated public-evidence work. |
-| Elasticsearch as a new `SearchProviderType` inside `SearchRegistry` | Conflates live search-provider abstraction with local reusable memory; wrong fit for current code boundaries. |
-| Immediate vector / `semantic_text` MVP | Adds inference/licensing and operational complexity before lexical retrieval value is proven. ([Elastic semantic_text](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text)) |
+| Option                                                              | Why Rejected                                                                                                                                                                                                 |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Status quo only                                                     | Does not solve shared research memory or repeated public-evidence work.                                                                                                                                      |
+| Elasticsearch as a new `SearchProviderType` inside `SearchRegistry` | Conflates live search-provider abstraction with local reusable memory; wrong fit for current code boundaries.                                                                                                |
+| Immediate vector / `semantic_text` MVP                              | Adds inference/licensing and operational complexity before lexical retrieval value is proven. ([Elastic semantic_text](https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/semantic-text)) |

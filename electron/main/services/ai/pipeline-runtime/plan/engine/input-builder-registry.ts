@@ -1,4 +1,7 @@
-import type { EngineKind, PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import type {
+  EngineKind,
+  PipelinePhase,
+} from "@electron/shared/ai/pipeline-phase";
 import type { AgentResult } from "../../../ai-runtime/ai-runtime-types";
 import type { CyclePlanRunContext, TradeCyclePlanState } from "../cycle/types";
 
@@ -6,7 +9,14 @@ export type EngineInputBuilderId = string;
 
 export type EngineRunCtx = Pick<
   CyclePlanRunContext,
-  "sessionId" | "cycleId" | "tradeId" | "instrument" | "sessionConfig" | "instrumentClasses" | "strategyContext" | "services"
+  | "sessionId"
+  | "cycleId"
+  | "tradeId"
+  | "instrument"
+  | "sessionConfig"
+  | "instrumentClasses"
+  | "strategyContext"
+  | "services"
 >;
 
 export interface EngineInputBuilderContext {
@@ -16,8 +26,13 @@ export interface EngineInputBuilderContext {
 
 export interface EngineInputBuilder {
   id: EngineInputBuilderId;
-  build(ctx: EngineInputBuilderContext): EngineInputBuildResult | Promise<EngineInputBuildResult>;
-  applyOutput?(state: TradeCyclePlanState, output: unknown): TradeCyclePlanState;
+  build(
+    ctx: EngineInputBuilderContext,
+  ): EngineInputBuildResult | Promise<EngineInputBuildResult>;
+  applyOutput?(
+    state: TradeCyclePlanState,
+    output: unknown,
+  ): TradeCyclePlanState;
 }
 
 export type EngineInputBuildResult = {
@@ -25,15 +40,21 @@ export type EngineInputBuildResult = {
   statePatch?: Partial<TradeCyclePlanState>;
 };
 
-const ENGINE_INPUT_BUILDERS = new Map<EngineInputBuilderId, EngineInputBuilder>();
+const ENGINE_INPUT_BUILDERS = new Map<
+  EngineInputBuilderId,
+  EngineInputBuilder
+>();
 
 export function registerEngineInputBuilder(builder: EngineInputBuilder): void {
   ENGINE_INPUT_BUILDERS.set(builder.id, builder);
 }
 
-export function getEngineInputBuilder(id: EngineInputBuilderId): EngineInputBuilder {
+export function getEngineInputBuilder(
+  id: EngineInputBuilderId,
+): EngineInputBuilder {
   const builder = ENGINE_INPUT_BUILDERS.get(id);
-  if (!builder) throw new Error(`Engine input builder '${id}' is not registered`);
+  if (!builder)
+    throw new Error(`Engine input builder '${id}' is not registered`);
   return builder;
 }
 
@@ -69,8 +90,14 @@ export type DeclarativeCycleStageConfig =
       executionStage?: import("@/lib/types").ExecutionStage;
       required: boolean;
       failurePolicy?: StageFailurePolicy;
-      buildInput: (ctx: CyclePlanRunContext, state: TradeCyclePlanState) => Record<string, unknown>;
-      applyOutput: (state: TradeCyclePlanState, result: AgentResult<unknown>) => TradeCyclePlanState;
+      buildInput: (
+        ctx: CyclePlanRunContext,
+        state: TradeCyclePlanState,
+      ) => Record<string, unknown>;
+      applyOutput: (
+        state: TradeCyclePlanState,
+        result: AgentResult<unknown>,
+      ) => TradeCyclePlanState;
     };
 
 export type StageFailurePolicy = "warn" | "fail" | "reject_trade";

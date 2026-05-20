@@ -18,7 +18,9 @@ export interface SessionWriteInput {
   selectorSettings: { aiPickerEnabled: boolean };
   executionMode: WorkspaceSession["executionMode"];
   brokerAssignments: Array<{ brokerAccountId: string; allocatedUsd: number }>;
-  brokerOverridesByInstrumentClass?: Partial<Record<InstrumentClass, string | null>>;
+  brokerOverridesByInstrumentClass?: Partial<
+    Record<InstrumentClass, string | null>
+  >;
 }
 
 export class SessionWriteService {
@@ -78,48 +80,82 @@ export class SessionWriteService {
 
   private applySideTables(sessionId: string, input: SessionWriteInput): void {
     this.deps.selectorSettings.update(sessionId, input.selectorSettings);
-    this.deps.assignments.replaceAssignments(sessionId, input.brokerAssignments);
+    this.deps.assignments.replaceAssignments(
+      sessionId,
+      input.brokerAssignments,
+    );
     this.deps.brokerRouting.upsertSessionOverrides(
       sessionId,
-      Object.entries(input.brokerOverridesByInstrumentClass ?? {}).map(([instrumentClass, brokerAccountId]) => ({
-        instrumentClass: instrumentClass as InstrumentClass,
-        brokerAccountId: typeof brokerAccountId === "string" ? brokerAccountId : null,
-      })),
+      Object.entries(input.brokerOverridesByInstrumentClass ?? {}).map(
+        ([instrumentClass, brokerAccountId]) => ({
+          instrumentClass: instrumentClass as InstrumentClass,
+          brokerAccountId:
+            typeof brokerAccountId === "string" ? brokerAccountId : null,
+        }),
+      ),
     );
     // Any change to brokers / routing / execution mode invalidates a prior
     // live-readiness acknowledgement — operator must re-confirm.
     this.deps.liveReadiness?.clearAcknowledgement(sessionId);
   }
 
-  private validate(input: SessionWriteInput, ctx: { excludeSessionId: string | null }): SessionWriteInput {
+  private validate(
+    input: SessionWriteInput,
+    ctx: { excludeSessionId: string | null },
+  ): SessionWriteInput {
     const trimmedName = input.name.trim();
-    if (this.deps.sessions
-      .list({ includeArchived: true })
-      .some((session) => session.id !== ctx.excludeSessionId && session.name.toLowerCase() === trimmedName.toLowerCase())) {
-      throw new AppError(`A session named "${trimmedName}" already exists.`, "VALIDATION_FAILED", {
-        field: "name",
-      });
+    if (
+      this.deps.sessions
+        .list({ includeArchived: true })
+        .some(
+          (session) =>
+            session.id !== ctx.excludeSessionId &&
+            session.name.toLowerCase() === trimmedName.toLowerCase(),
+        )
+    ) {
+      throw new AppError(
+        `A session named "${trimmedName}" already exists.`,
+        "VALIDATION_FAILED",
+        {
+          field: "name",
+        },
+      );
     }
 
     if (!input.instrumentScope.trim()) {
-      throw new AppError("Instrument scope cannot be empty.", "VALIDATION_FAILED", {
-        field: "instrumentScope",
-      });
+      throw new AppError(
+        "Instrument scope cannot be empty.",
+        "VALIDATION_FAILED",
+        {
+          field: "instrumentScope",
+        },
+      );
     }
 
     const brokers = this.deps.brokerAccounts.list();
     const brokerById = new Map(brokers.map((broker) => [broker.id, broker]));
-    const selectedBrokerIds = [...new Set(input.brokerAssignments.map((assignment) => assignment.brokerAccountId))];
-    const requiredMode = input.executionMode === "live_allowed" ? "live" : "paper";
+    const selectedBrokerIds = [
+      ...new Set(
+        input.brokerAssignments.map((assignment) => assignment.brokerAccountId),
+      ),
+    ];
+    const requiredMode =
+      input.executionMode === "live_allowed" ? "live" : "paper";
 
     if (selectedBrokerIds.length === 0) {
-        throw new AppError("Select at least one broker account.", "VALIDATION_FAILED", {
+      throw new AppError(
+        "Select at least one broker account.",
+        "VALIDATION_FAILED",
+        {
           field: "brokerAssignments",
-        });
+        },
+      );
     }
 
     const brokerAssignments = selectedBrokerIds.map((brokerAccountId) => {
-      const match = input.brokerAssignments.find((assignment) => assignment.brokerAccountId === brokerAccountId);
+      const match = input.brokerAssignments.find(
+        (assignment) => assignment.brokerAccountId === brokerAccountId,
+      );
       return {
         brokerAccountId,
         allocatedUsd: match ? Math.max(0, Number(match.allocatedUsd) || 0) : 0,
@@ -129,7 +165,9 @@ export class SessionWriteService {
     const selectedBrokers = selectedBrokerIds.map((id) => {
       const broker = brokerById.get(id);
       if (!broker) {
-        throw new AppError(`Broker account ${id} was not found.`, "NOT_FOUND", { brokerAccountId: id });
+        throw new AppError(`Broker account ${id} was not found.`, "NOT_FOUND", {
+          brokerAccountId: id,
+        });
       }
       if (broker.mode !== requiredMode) {
         throw new AppError(
@@ -141,27 +179,42 @@ export class SessionWriteService {
       return broker;
     });
 
-    const instrumentClasses = resolveEffectiveInstrumentClasses(input, selectedBrokers);
+    const instrumentClasses = resolveEffectiveInstrumentClasses(
+      input,
+      selectedBrokers,
+    );
 
     if (instrumentClasses.length === 0) {
-      throw new AppError("At least one instrument class is required.", "VALIDATION_FAILED", {
-        field: "instrumentClasses",
-      });
+      throw new AppError(
+        "At least one instrument class is required.",
+        "VALIDATION_FAILED",
+        {
+          field: "instrumentClasses",
+        },
+      );
     }
 
     for (const broker of selectedBrokers) {
-      const overlap = broker.supportedInstrumentClasses.some((cls) => instrumentClasses.includes(cls));
+      const overlap = broker.supportedInstrumentClasses.some((cls) =>
+        instrumentClasses.includes(cls),
+      );
       if (!overlap) {
         throw new AppError(
           `Broker "${broker.name}" does not support any of the selected instrument classes.`,
           "VALIDATION_FAILED",
-          { brokerAccountId: broker.id, supports: broker.supportedInstrumentClasses, requested: instrumentClasses },
+          {
+            brokerAccountId: broker.id,
+            supports: broker.supportedInstrumentClasses,
+            requested: instrumentClasses,
+          },
         );
       }
     }
 
     for (const instrumentClass of instrumentClasses) {
-      const covered = selectedBrokers.some((broker) => broker.supportedInstrumentClasses.includes(instrumentClass));
+      const covered = selectedBrokers.some((broker) =>
+        broker.supportedInstrumentClasses.includes(instrumentClass),
+      );
       if (!covered) {
         throw new AppError(
           `No selected broker can trade ${instrumentClass}.`,
@@ -171,13 +224,24 @@ export class SessionWriteService {
       }
     }
 
-    for (const [instrumentClass, brokerAccountId] of Object.entries(input.brokerOverridesByInstrumentClass ?? {})) {
-      if (typeof brokerAccountId !== "string" || brokerAccountId.length === 0) continue;
+    for (const [instrumentClass, brokerAccountId] of Object.entries(
+      input.brokerOverridesByInstrumentClass ?? {},
+    )) {
+      if (typeof brokerAccountId !== "string" || brokerAccountId.length === 0)
+        continue;
       const broker = brokerById.get(brokerAccountId);
       if (!broker) {
-        throw new AppError(`Override broker ${brokerAccountId} was not found.`, "NOT_FOUND", { brokerAccountId });
+        throw new AppError(
+          `Override broker ${brokerAccountId} was not found.`,
+          "NOT_FOUND",
+          { brokerAccountId },
+        );
       }
-      if (!broker.supportedInstrumentClasses.includes(instrumentClass as InstrumentClass)) {
+      if (
+        !broker.supportedInstrumentClasses.includes(
+          instrumentClass as InstrumentClass,
+        )
+      ) {
         throw new AppError(
           `Broker "${broker.name}" does not support ${instrumentClass}.`,
           "VALIDATION_FAILED",

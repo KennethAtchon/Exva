@@ -37,7 +37,7 @@ The end state: Exva has a new architecture for managing AI phases and runs, not 
 
 - Selector ran 6 steps, returned `finishReason: stop`, `sawSubmitCandidates: false` (`docs/hello.json:8699-8752`).
 - `parseInstrumentSelection` threw `VALIDATION_FAILED: "Instrument selector must call submit_candidates with a valid instrument list."` (instrument-selection-parser.ts:38-41).
-- The runtime *had* `terminalToolNames: ["submit_candidates"]` configured (runtime.ts:247) — but `hasToolCall("submit_candidates")` (run-agent-execute.ts:163-165) only *stops* the loop when the tool fires. It does not *require* it.
+- The runtime _had_ `terminalToolNames: ["submit_candidates"]` configured (runtime.ts:247) — but `hasToolCall("submit_candidates")` (run-agent-execute.ts:163-165) only _stops_ the loop when the tool fires. It does not _require_ it.
 - `buildSelectorPrepareStep` (selector-runtime-control.ts:61-86) uses `toolChoice: force_commit` only at `stepNumber >= settings.forceSubmitAfterStep` (default 14). Model stopped at step 6.
 
 ### 2.2 Structural causes across ALL phases
@@ -58,7 +58,6 @@ Continued prompt patching. Each patch reduces hallucination frequency marginally
 
 ## 3. Goals
 
-
 | #   | Goal                                      | Success measured by                                                                                                                                                                                               |
 | --- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Code owns workflow across all phases      | Every stage prompt is ≤400 tokens, contains no phase logic, retry logic, or tool-ordering instructions. Verified by lint.                                                                                         |
@@ -66,19 +65,17 @@ Continued prompt patching. Each patch reduces hallucination frequency marginally
 | 3   | Terminal submission structurally enforced | `SelectorPipeline.run` always returns `InstrumentSelection`. Code path verified by unit test. The 2026-05-17 failure mode is impossible.                                                                          |
 | 4   | AI never computes execution math          | `sizeUsd`, `stopLossPct`, `takeProfitPct` are removed from `TradeDecision`'s AI-authored fields. `ExecutionProfileEngine.compute()` produces them deterministically from `TradeSignal + riskConfig + marketData`. |
 | 5   | Config-driven workers inside each phase   | Adding a worker to any phase = appending one `WorkerConfig` entry. No new runtime function or new top-level UI information architecture.                                                                          |
-| 6   | Dependency-aware parallel execution       | Independent workers within a phase run in parallel; dependent workers are scheduled by a DAG/topological frontier model bounded by `maxConcurrency`.                                                               |
+| 6   | Dependency-aware parallel execution       | Independent workers within a phase run in parallel; dependent workers are scheduled by a DAG/topological frontier model bounded by `maxConcurrency`.                                                              |
 | 7   | Deterministic scoring                     | Same typed inputs + same weights → identical output across runs. Unit-tested.                                                                                                                                     |
 | 8   | Pluggable MCP search                      | Web Scout configurable to Exa/Parallel MCP endpoint. Local DuckDuckGo remains the free default.                                                                                                                   |
 | 9   | Sandbox compatibility                     | All pipelines run against mock fixtures without per-worker conditional logic.                                                                                                                                     |
 | 10  | Backwards-compatible orchestrator surface | `AgentOrchestrator.resolveInstruments`, `runAiPipeline`, `resolvePositionSizeUsd` keep returning the same shapes. Only implementations behind them change.                                                        |
 | 11  | Phase-first runtime and UX model          | Frontend/editor surfaces describe `selector`, `technical`, `fundamental`, `review`, `decision` phases. Individual agent identities are implementation details within a phase.                                     |
-| 12  | Worker and pipeline observability         | Runtime persists structured phase traces with worker/frontier state, and the Developer UI can inspect both aggregate phase output and per-worker execution.                                                          |
-
+| 12  | Worker and pipeline observability         | Runtime persists structured phase traces with worker/frontier state, and the Developer UI can inspect both aggregate phase output and per-worker execution.                                                       |
 
 ---
 
 ## 4. Non-Goals (with reasons)
-
 
 | #   | Non-Goal                                                       | Reason                                                                                                                                                                                                                                  |
 | --- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -90,7 +87,6 @@ Continued prompt patching. Each patch reduces hallucination frequency marginally
 | 6   | Replacing `AiRuntime` infrastructure wholesale                 | `AiRuntime` base infra (`withProviderRetry`, `executeRunAgent`, `spendGuardUsd`) stays. Role-specific methods (`runAnalyst`, `runReviewer`, `runDecisionMaker`, `runInstrumentSelector`) are gutted and replaced by pipeline delegates. |
 | 7   | Removing `RoleToolPolicy` and `harnessToolAvailabilityForRole` | Used during migration; simplified in final cleanup phase.                                                                                                                                                                               |
 | 8   | UI for per-worker model selection                              | Config-only in v1. Future: `session_ai_phase_workers` DB table.                                                                                                                                                                         |
-
 
 ---
 
@@ -250,8 +246,6 @@ flowchart TD
     style EPE fill:#c0392b,color:#fff
 ```
 
-
-
 **Key principle:** Every arrow between boxes carries a **typed, Zod-validated data structure**. No phase receives prose from a previous AI phase. All aggregation, scoring, and execution-math boxes are pure TypeScript functions — not model calls.
 
 ---
@@ -310,10 +304,7 @@ sequenceDiagram
     end
 ```
 
-
-
 ### 9.2 Failure paths
-
 
 | Trigger                                                   | Behavior                                                                                                                                                                                                       |
 | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -325,11 +316,9 @@ sequenceDiagram
 | Cost cap exceeded mid-stage                               | Pipeline aborts further workers. Stage returns partial signals. Null dimensions score 0.                                                                                                                       |
 | Sandbox session                                           | `SessionContext.mocks` populated from `getMockContext`. All tool wrappers use mocks. No pipeline code branches on `isMockSession`.                                                                             |
 
-
 ---
 
 ## 10. Data Visible to the User
-
 
 | Item                       | Meaning                                             | Source                                             |
 | -------------------------- | --------------------------------------------------- | -------------------------------------------------- |
@@ -342,7 +331,6 @@ sequenceDiagram
 | Execution profile          | sizeUsd, stopLossPct, takeProfitPct — CODE authored | `trades` table (existing columns)                  |
 | Aggregated cost            | Sum across all phase workers                        | `agent_runs.cost_usd`                              |
 
-
 No new user-visible fields required. Existing log views benefit from structured per-phase events and should render phase labels rather than legacy agent persona names.
 
 ---
@@ -351,21 +339,18 @@ No new user-visible fields required. Existing log views benefit from structured 
 
 ### Pipeline rules (all phases)
 
-
 | Rule                                                                                        | Enforcement                                                                                                                             |
 | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Phases execute in order: Selector → Technical → Fundamental → Review → Decision → Execution | `AgentOrchestrator.runAiPipeline` is a serial `await` chain.                                                                            |
 | Workers within a phase run in parallel when independent (bounded by `maxConcurrency`)       | Frontier scheduler + `p-queue` concurrency caps.                                                                                        |
-| Worker dependencies are encoded in config, not prompt prose                                 | `WorkerConfig.dependsOn` + startup DAG validation + dependency-aware scheduler.                                                        |
+| Worker dependencies are encoded in config, not prompt prose                                 | `WorkerConfig.dependsOn` + startup DAG validation + dependency-aware scheduler.                                                         |
 | Phase output is Zod-validated before passing to the next phase                              | Each pipeline's `SignalAggregator` parses with `schema.parse()`. Invalid worker output is zeroed, not propagated as prose.              |
 | AI never produces `sizeUsd`, `stopLossPct`, or `takeProfitPct`                              | `TradeSignal` Zod schema has no such fields. `ExecutionProfileEngine` is the only source of those values.                               |
 | Each phase can degrade gracefully                                                           | Workers can fail; phase returns a typed signal with null/zero for failed dimensions. Downstream phases receive typed nulls, not errors. |
 | Submission always fires                                                                     | `SubmissionBuilder.build()` and `ExecutionProfileEngine.compute()` cannot throw. Both always produce valid output.                      |
 | Observability is emitted at both phase and worker level                                     | Runtime writes structured phase traces to `agent_messages` and concise lifecycle events to `events`; DevPanel consumes both.            |
 
-
 ### Worker rules
-
 
 | Rule                                        | Enforcement                                                                                                  |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -374,7 +359,6 @@ No new user-visible fields required. Existing log views benefit from structured 
 | Workers do not call other workers           | I/O is typed: worker receives `WorkerInput`, returns `WorkerOutput`.                                         |
 | Workers receive trimmed context             | Only fields relevant to the worker's task. Not the full strategy snapshot.                                   |
 | Tool descriptions live in tool schemas only | Duplicated prose in `prompt-instructions.json` is removed during cleanup.                                    |
-
 
 ### Banned in ALL worker prompts
 
@@ -400,7 +384,6 @@ No role changes. All pipelines run under the same `AgentOrchestrator` lifecycle.
 
 Internal log labels (via `AgentOrchestrator.emitEvent` → `events` table):
 
-
 | Copy                                                                  | Trigger                                  |
 | --------------------------------------------------------------------- | ---------------------------------------- |
 | `[stage:selector/discovery] starting {N} workers`                     | Before discovery `WorkerGroupRunner.run` |
@@ -416,11 +399,9 @@ Internal log labels (via `AgentOrchestrator.emitEvent` → `events` table):
 | `[worker:{id}] skipped: dependency failure {reason}`                  | `onDependencyFailure` policy triggered   |
 | `[pipeline] aborting further workers: spend ${X} exceeded cap ${Y}`   | Cost cap exceeded                        |
 
-
 ---
 
 ## 14. Metrics and Success Criteria
-
 
 | Goal                          | Metric                                               | Baseline                                          | Target                                        |
 | ----------------------------- | ---------------------------------------------------- | ------------------------------------------------- | --------------------------------------------- |
@@ -432,11 +413,9 @@ Internal log labels (via `AgentOrchestrator.emitEvent` → `events` table):
 | Time to add a new worker      | Engineer-minutes                                     | High (new function + orchestration + prompt + DB) | <30 min (config + prompt file + unit test)    |
 | Cost per full cycle (sandbox) | Sum across all stage workers                         | ~$0 sandbox today                                 | ≤ $0.50/cycle total                           |
 
-
 ---
 
 ## 15. Edge Cases
-
 
 | Case                                                              | Behavior                                                                                                                                                                                                                                                                   |
 | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -457,7 +436,6 @@ Internal log labels (via `AgentOrchestrator.emitEvent` → `events` table):
 | Worker output references a symbol broker doesn't support          | `RiskFilter.allowedInstrumentClasses` drops it.                                                                                                                                                                                                                            |
 | Session paused mid-run                                            | `abortSignal` cascades to all worker SDK calls. Each pipeline returns a partial/null signal. Orchestrator's `pauseIfRequested` handles it.                                                                                                                                 |
 | MCP server 5xx                                                    | Web Scout falls back to `SearchAdapter` configured in `WorkerConfig.tools.search_web.fallbackProviderId`. If none, worker fails gracefully.                                                                                                                                |
-
 
 ---
 
@@ -557,39 +535,58 @@ export const technicalSignalSchema = z.object({
   trendStrength: z.number().min(0).max(1),
   momentumScore: z.number().min(0).max(1).nullable().default(null),
   volumeScore: z.number().min(0).max(1).nullable().default(null),
-  volumeSignal: z.enum(["accumulation", "distribution", "neutral"]).nullable().default(null),
+  volumeSignal: z
+    .enum(["accumulation", "distribution", "neutral"])
+    .nullable()
+    .default(null),
   patternName: z.string().nullable().default(null),
   patternStrength: z.number().min(0).max(1).nullable().default(null),
   nearestSupport: z.number().nullable().default(null),
   nearestResistance: z.number().nullable().default(null),
   timeframeAlignment: z.number().min(0).max(1).nullable().default(null),
-  rawSummary: z.string().default(""),  // for audit log only — not passed to next stage LLMs
+  rawSummary: z.string().default(""), // for audit log only — not passed to next stage LLMs
 });
 export type TechnicalSignal = z.infer<typeof technicalSignalSchema>;
 
 // FundamentalSignal — output of FundamentalPipeline
 export const fundamentalSignalSchema = z.object({
   symbol: z.string(),
-  catalystType: z.enum(["earnings", "partnership", "fda", "contract", "macro", "social_hype", "unknown"]).nullable().default(null),
+  catalystType: z
+    .enum([
+      "earnings",
+      "partnership",
+      "fda",
+      "contract",
+      "macro",
+      "social_hype",
+      "unknown",
+    ])
+    .nullable()
+    .default(null),
   catalystStrength: z.number().min(0).max(1).nullable().default(null),
   catalystFreshness: z.number().min(0).max(1).nullable().default(null),
   catalystSummary: z.string().nullable().default(null),
   earningsScore: z.number().min(0).max(1).nullable().default(null),
   sentimentScore: z.number().min(0).max(1).nullable().default(null),
   contradictionRisk: z.number().min(0).max(1).default(0),
-  rawSummary: z.string().default(""),  // audit only
+  rawSummary: z.string().default(""), // audit only
 });
 export type FundamentalSignal = z.infer<typeof fundamentalSignalSchema>;
 
 // ReviewSignal — output of ReviewPipeline
 export const reviewSignalSchema = z.object({
   symbol: z.string(),
-  technicalFundamentalConflict: z.number().min(0).max(1).nullable().default(null),
+  technicalFundamentalConflict: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null),
   conflictExplanation: z.string().nullable().default(null),
   tailRisks: z.array(z.string()).default([]),
   overallRisk: z.enum(["low", "medium", "high"]).nullable().default(null),
   recommendation: z.enum(["proceed", "reduce_size", "skip"]),
-  rawSummary: z.string().default(""),  // audit only
+  rawSummary: z.string().default(""), // audit only
 });
 export type ReviewSignal = z.infer<typeof reviewSignalSchema>;
 
@@ -610,9 +607,9 @@ export const tradeSignalSchema = z.object({
   symbol: z.string(),
   action: z.enum(["buy", "sell", "skip"]),
   executionStrategy: executionStrategySchema,
-  entryPrice: z.number().positive().nullable().default(null),  // optional price hint; may use market order
+  entryPrice: z.number().positive().nullable().default(null), // optional price hint; may use market order
   confidence: z.number().min(0).max(1),
-  reasoning: z.string().min(1),  // audit trail only — not passed downstream
+  reasoning: z.string().min(1), // audit trail only — not passed downstream
 });
 export type TradeSignal = z.infer<typeof tradeSignalSchema>;
 ```
@@ -648,16 +645,17 @@ export function scoreCandidate(c: Candidate, w: ScoringWeights): number {
   const totalWeight = w.hype + w.volume + w.catalyst + w.liquidity;
   if (totalWeight === 0) return 0;
   return (
-    w.hype       * (c.hypeScore       ?? 0) +
-    w.volume     * (c.volumeScore     ?? 0) +
-    w.catalyst   * (c.catalystScore   ?? 0) +
-    w.liquidity  * (c.liquidityScore  ?? 0)
-  ) / totalWeight;
+    (w.hype * (c.hypeScore ?? 0) +
+      w.volume * (c.volumeScore ?? 0) +
+      w.catalyst * (c.catalystScore ?? 0) +
+      w.liquidity * (c.liquidityScore ?? 0)) /
+    totalWeight
+  );
 }
 
 export function score(candidates: Candidate[], w: ScoringWeights): Candidate[] {
   return candidates
-    .map(c => ({ ...c, finalScore: scoreCandidate(c, w) }))
+    .map((c) => ({ ...c, finalScore: scoreCandidate(c, w) }))
     .sort((a, b) => (b.finalScore ?? 0) - (a.finalScore ?? 0));
 }
 ```
@@ -666,10 +664,10 @@ Defaults:
 
 ```ts
 export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
-  hype: 0.20,       // social attention is weak signal
-  volume: 0.30,     // market participation is strong signal
-  catalyst: 0.35,   // why-it-moves explanation
-  liquidity: 0.15,  // gating constraint
+  hype: 0.2, // social attention is weak signal
+  volume: 0.3, // market participation is strong signal
+  catalyst: 0.35, // why-it-moves explanation
+  liquidity: 0.15, // gating constraint
 };
 ```
 
@@ -679,10 +677,13 @@ The model is **never asked to call `submit_candidates`** in the new pipeline:
 
 ```ts
 // electron/main/services/ai/selector-pipeline/submission-builder.ts
-export function build(candidates: Candidate[], maxCount: number): InstrumentSelection {
+export function build(
+  candidates: Candidate[],
+  maxCount: number,
+): InstrumentSelection {
   const top = candidates.slice(0, maxCount);
   return {
-    instruments: top.map(c => ({
+    instruments: top.map((c) => ({
       symbol: c.symbol,
       instrumentClass: c.instrumentClass,
       instrumentDisplayName: c.instrumentDisplayName ?? undefined,
@@ -701,13 +702,11 @@ Cannot throw. Always produces a valid `InstrumentSelection`. The 2026-05-17 fail
 
 **Workers** (run in parallel per instrument):
 
-
 | Worker               | Tool                      | What it extracts              | Output fields                                                           |
 | -------------------- | ------------------------- | ----------------------------- | ----------------------------------------------------------------------- |
 | `chart-pattern`      | `get_ohlcv`               | Price patterns in recent bars | `patternName`, `patternStrength`, `nearestSupport`, `nearestResistance` |
 | `momentum-indicator` | `get_ohlcv` + `get_quote` | Momentum and trend signals    | `trendDirection`, `trendStrength`, `momentumScore`                      |
 | `volume-profile`     | `get_ohlcv`               | Volume relative to history    | `volumeScore`, `volumeSignal`, `timeframeAlignment`                     |
-
 
 **Aggregator (code):**
 
@@ -715,7 +714,11 @@ Cannot throw. Always produces a valid `InstrumentSelection`. The 2026-05-17 fail
 // technical-pipeline/signal-aggregator.ts
 export function aggregate(
   symbol: string,
-  workers: Partial<{ chartPattern: ChartPatternOutput; momentum: MomentumOutput; volume: VolumeOutput }>,
+  workers: Partial<{
+    chartPattern: ChartPatternOutput;
+    momentum: MomentumOutput;
+    volume: VolumeOutput;
+  }>,
 ): TechnicalSignal {
   const trend = workers.momentum?.trendDirection ?? "neutral";
   const trendStrength = workers.momentum?.trendStrength ?? 0;
@@ -730,9 +733,18 @@ export function aggregate(
   const timeframeAlignment = computeAlignment([trend, workers.volume?.signal]);
 
   return technicalSignalSchema.parse({
-    symbol, trendDirection: trend, trendStrength, momentumScore, volumeScore,
-    volumeSignal, patternName, patternStrength, nearestSupport, nearestResistance,
-    timeframeAlignment, rawSummary: summarizeTechnical(workers),
+    symbol,
+    trendDirection: trend,
+    trendStrength,
+    momentumScore,
+    volumeScore,
+    volumeSignal,
+    patternName,
+    patternStrength,
+    nearestSupport,
+    nearestResistance,
+    timeframeAlignment,
+    rawSummary: summarizeTechnical(workers),
   });
 }
 ```
@@ -759,25 +771,30 @@ Use get_ohlcv for bars, get_quote for current price. No trade decision. No other
 
 **Workers:**
 
-
 | Worker              | Tool                           | What it extracts                   | Output fields                                                                                   |
 | ------------------- | ------------------------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `earnings-context`  | `get_news`                     | Earnings quality, beat/miss        | `earningsScore`, `growthTrend`                                                                  |
 | `catalyst-context`  | `get_news` + `search_web`      | Catalyst type, strength, freshness | `catalystType`, `catalystStrength`, `catalystFreshness`, `catalystSummary`, `contradictionRisk` |
 | `sentiment-context` | `search_reddit` + `search_web` | Retail and institutional sentiment | `sentimentScore`                                                                                |
 
-
 **Aggregator:**
 
 ```ts
 export function aggregate(
   symbol: string,
-  workers: Partial<{ earnings: EarningsOutput; catalyst: CatalystOutput; sentiment: SentimentOutput }>,
+  workers: Partial<{
+    earnings: EarningsOutput;
+    catalyst: CatalystOutput;
+    sentiment: SentimentOutput;
+  }>,
 ): FundamentalSignal {
   // catalystScore from catalyst worker = strength * freshness * (1 - contradictionRisk)
   // earningsScore directly from earnings worker
   // sentimentScore directly from sentiment worker
-  return fundamentalSignalSchema.parse({ symbol, ...mergeWorkerOutputs(workers) });
+  return fundamentalSignalSchema.parse({
+    symbol,
+    ...mergeWorkerOutputs(workers),
+  });
 }
 ```
 
@@ -798,33 +815,49 @@ interface ReviewInput {
 
 **Workers:**
 
-
 | Worker              | Inputs                                                        | What it assesses                         | Output fields                          |
 | ------------------- | ------------------------------------------------------------- | ---------------------------------------- | -------------------------------------- |
 | `conflict-detector` | `TechnicalSignal` + `FundamentalSignal` fields                | Where technical and fundamental disagree | `conflictScore`, `conflictExplanation` |
 | `risk-assessor`     | `TechnicalSignal` + `FundamentalSignal` + session risk config | Specific tail risks for this trade       | `tailRisks[]`, `overallRisk`           |
-
 
 Workers receive the **typed numeric fields** as compact JSON in their user message — not prose summaries. Example user message to `conflict-detector`:
 
 ```json
 {
   "symbol": "NVDA",
-  "technical": { "trendDirection": "bullish", "trendStrength": 0.82, "momentumScore": 0.75 },
-  "fundamental": { "catalystStrength": 0.3, "sentimentScore": 0.6, "contradictionRisk": 0.7 }
+  "technical": {
+    "trendDirection": "bullish",
+    "trendStrength": 0.82,
+    "momentumScore": 0.75
+  },
+  "fundamental": {
+    "catalystStrength": 0.3,
+    "sentimentScore": 0.6,
+    "contradictionRisk": 0.7
+  }
 }
 ```
 
 **ReviewAggregator:**
 
 ```ts
-export function aggregate(symbol: string, workers: { conflict: ConflictOutput; risk: RiskOutput }): ReviewSignal {
+export function aggregate(
+  symbol: string,
+  workers: { conflict: ConflictOutput; risk: RiskOutput },
+): ReviewSignal {
   const conflictScore = workers.conflict.conflictScore;
   const recommendation: ReviewRecommendation =
-    conflictScore > 0.7 || workers.risk.overallRisk === "high" ? "skip"
-    : conflictScore > 0.4 || workers.risk.overallRisk === "medium" ? "reduce_size"
-    : "proceed";
-  return reviewSignalSchema.parse({ symbol, ...workers.conflict, ...workers.risk, recommendation });
+    conflictScore > 0.7 || workers.risk.overallRisk === "high"
+      ? "skip"
+      : conflictScore > 0.4 || workers.risk.overallRisk === "medium"
+        ? "reduce_size"
+        : "proceed";
+  return reviewSignalSchema.parse({
+    symbol,
+    ...workers.conflict,
+    ...workers.risk,
+    recommendation,
+  });
 }
 ```
 
@@ -846,20 +879,27 @@ interface DecisionInput {
 
 **Workers:**
 
-
 | Worker              | What it classifies                                 | Output fields                               |
 | ------------------- | -------------------------------------------------- | ------------------------------------------- |
 | `signal-classifier` | Which `executionStrategy` best fits the confluence | `executionStrategy`, `action`, `confidence` |
 | `entry-timer`       | Is NOW the right entry moment?                     | `entryTiming: "now"                         |
-
 
 Workers receive compact typed JSON as input — not prose. Example user message to `signal-classifier`:
 
 ```json
 {
   "symbol": "NVDA",
-  "technical": { "trendDirection": "bullish", "trendStrength": 0.82, "momentumScore": 0.75, "patternName": "bull_flag" },
-  "fundamental": { "catalystType": "earnings", "catalystStrength": 0.85, "catalystFreshness": 0.9 },
+  "technical": {
+    "trendDirection": "bullish",
+    "trendStrength": 0.82,
+    "momentumScore": 0.75,
+    "patternName": "bull_flag"
+  },
+  "fundamental": {
+    "catalystType": "earnings",
+    "catalystStrength": 0.85,
+    "catalystFreshness": 0.9
+  },
   "review": { "recommendation": "proceed", "conflictScore": 0.1 },
   "holdingStyle": "swing",
   "instrumentClass": "stock"
@@ -873,7 +913,8 @@ export function aggregate(
   symbol: string,
   workers: { classifier: ClassifierOutput; timer: TimerOutput },
 ): TradeSignal {
-  const action = workers.timer.entryTiming === "skip" ? "skip" : workers.classifier.action;
+  const action =
+    workers.timer.entryTiming === "skip" ? "skip" : workers.classifier.action;
   return tradeSignalSchema.parse({
     symbol,
     action,
@@ -903,13 +944,18 @@ export function compute(
   marketData: InstrumentQuote,
   allocatedCapitalUsd: number,
 ): ExecutionProfile {
-  if (signal.action === "skip") throw new Error("Cannot compute execution profile for skip signal");
-  return STRATEGY_PROFILES[signal.executionStrategy](signal, riskConfig, marketData, allocatedCapitalUsd);
+  if (signal.action === "skip")
+    throw new Error("Cannot compute execution profile for skip signal");
+  return STRATEGY_PROFILES[signal.executionStrategy](
+    signal,
+    riskConfig,
+    marketData,
+    allocatedCapitalUsd,
+  );
 }
 ```
 
 Per-strategy profiles (all deterministic code):
-
 
 | `executionStrategy` | Sizing                                                          | Stop loss                                | Take profit                        |
 | ------------------- | --------------------------------------------------------------- | ---------------------------------------- | ---------------------------------- |
@@ -921,12 +967,11 @@ Per-strategy profiles (all deterministic code):
 | `prediction_market` | Kelly fraction (existing logic from `resolvePositionSizeUsd`)   | N/A                                      | Contract resolution                |
 | `futures_trend`     | Contract-adjusted notional (converts `sizeUsd → contracts`)     | `atrStopMultiplier × ATR14`              | From riskConfig                    |
 
-
 `resolvePositionSizeUsd` (agent-orchestrator.ts:1575-1603) is absorbed into `ExecutionProfileEngine`. The orchestrator calls `engine.compute(signal, riskConfig, marketData)` and uses the returned `ExecutionProfile` directly.
 
 ### 16.10 Strategy Execution Layer
 
-**Core principle:** The AI is the brain — it identifies *where* an opportunity exists and *what kind* of trade it is. The system is the executor — it calculates *how much*, *where to stop*, and *when to exit*. The AI outputs `executionStrategy: "trend_momentum"` and `confidence: 0.82`; the system handles everything else.
+**Core principle:** The AI is the brain — it identifies _where_ an opportunity exists and _what kind_ of trade it is. The system is the executor — it calculates _how much_, _where to stop_, and _when to exit_. The AI outputs `executionStrategy: "trend_momentum"` and `confidence: 0.82`; the system handles everything else.
 
 **What the AI no longer needs to know:**
 
@@ -944,14 +989,12 @@ Removing these from AI responsibility:
 
 **Valid `executionStrategy` per `instrumentClass`** (enforced by `RiskFilter`):
 
-
 | `instrumentClass`   | Valid strategies                                               |
 | ------------------- | -------------------------------------------------------------- |
 | `stock`             | `trend_momentum`, `breakout`, `mean_reversion`, `event_driven` |
 | `crypto`            | `trend_momentum`, `breakout`, `mean_reversion`                 |
 | `futures`           | `futures_trend`, `trend_momentum`, `event_driven`              |
 | `prediction_market` | `prediction_market`                                            |
-
 
 **Optional `dynamicRiskAdjustment` mode:**
 
@@ -994,31 +1037,37 @@ export class McpSearchAdapter implements SearchAdapter {
   readonly providerType = "mcp";
   private client: Awaited<ReturnType<typeof createMCPClient>> | null = null;
 
-  constructor(private readonly cfg: {
-    serverUrl: string;
-    headers?: Record<string, string>;
-    toolName: string;
-  }) {}
+  constructor(
+    private readonly cfg: {
+      serverUrl: string;
+      headers?: Record<string, string>;
+      toolName: string;
+    },
+  ) {}
 
   async search(query: string): Promise<SearchToolResult> {
     this.client ??= await createMCPClient({
-      transport: { type: "http", url: this.cfg.serverUrl, headers: this.cfg.headers },
+      transport: {
+        type: "http",
+        url: this.cfg.serverUrl,
+        headers: this.cfg.headers,
+      },
     });
     const tools = await this.client.tools();
     const result = await tools[this.cfg.toolName]?.execute({ query });
     return adaptMcpResultToSearchToolResult(result);
   }
 
-  async close(): Promise<void> { await this.client?.close(); }
+  async close(): Promise<void> {
+    await this.client?.close();
+  }
 }
 ```
-
 
 | Provider | URL                                     | Auth          | Cost |
 | -------- | --------------------------------------- | ------------- | ---- |
 | Exa      | `https://mcp.exa.ai/mcp?exaApiKey=$KEY` | query param   | Paid |
 | Parallel | `https://search.parallel.ai/mcp`        | Bearer header | Paid |
-
 
 **Default:** Local `DuckDuckGoAdapter` (free). MCP is opt-in.
 
@@ -1038,14 +1087,12 @@ Each pipeline run produces:
 
 ### 16.15 Cost budget enforcement
 
-
 | Level            | Cap                                        | Source                                               |
 | ---------------- | ------------------------------------------ | ---------------------------------------------------- |
 | Per worker       | `WorkerConfig.spendCapUsd` (default $0.05) | `executeRunAgent` existing `spendLimitUsd`           |
 | Per stage        | `PhaseConfig.phaseSpendCapUsd`             | `WorkerGroupRunner` tracking                         |
 | Per pipeline run | `PipelineConfig.totalSpendCapUsd`          | `SelectorPipeline.run` / per-phase pipeline tracking |
 | Per session/day  | `riskConfig.maxAiSpendUsd`                 | `apiCallLogRepo.dailyDataSpendUsd` (unchanged)       |
-
 
 Parallel design worst case: 5 instruments × 3 workers × 4 stages = 60 worker calls per cycle. The stage-level caps make the worst case predictable.
 
@@ -1055,12 +1102,10 @@ Parallel design worst case: 5 instruments × 3 workers × 4 stages = 60 worker c
 
 ### 16.17 Discovery mode swap
 
-
 | `discoveryMode`       | Selector config                  | Technical config                                           | Fundamental config                                              |
 | --------------------- | -------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------- |
 | `standard`            | `DEFAULT_PIPELINE_CONFIG`        | `STANDARD_TECHNICAL_CONFIG`                                | `STANDARD_FUNDAMENTAL_CONFIG`                                   |
 | `event_contract_scan` | `EVENT_CONTRACT_PIPELINE_CONFIG` | `EVENT_STAT_PIPELINE_CONFIG` (analyst_statistical workers) | `EVENT_CONTEXTUAL_PIPELINE_CONFIG` (analyst_contextual workers) |
-
 
 Each config is a TypeScript constant in its respective `*-defaults.ts` file. The pipeline selects config via `SessionContext.discoveryMode` switch in each pipeline constructor — mirroring what `resolvePromptForRole` (runtime-prompt.ts:15-18) does today.
 
@@ -1236,7 +1281,6 @@ Companion plan: `docs/plans/cognitive-runtime-phase-8-legacy-cleanup-plan.md`
 
 ## 18. Open Questions
 
-
 | #   | Question                                                                                                                                                       | Impact                                  | Proposed answer                                                                                                                     |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Which MCP server is the default once MCP is enabled?                                                                                                           | Cost + dependency                       | None for v1. MCP opt-in. Defaults stay on local `DuckDuckGoAdapter`.                                                                |
@@ -1251,7 +1295,6 @@ Companion plan: `docs/plans/cognitive-runtime-phase-8-legacy-cleanup-plan.md`
 | 10  | What happens to user-configured `selectorSettings` (maxDiscoverySteps, forceSubmitAfterStep) in the DB-backed phase profile when Phase 3 deletes those fields? | DB migration / user-visible config loss | Phase 3 migration: log deprecated event, drop column. User loses settings; new pipeline doesn't expose equivalent dials in v1.      |
 | 11  | Does `ReviewPipeline` need access to market data tools?                                                                                                        | Cost vs. depth                          | v1: no — workers receive typed signals only. v1.5: optionally give `risk-assessor` `get_quote` for live price.                      |
 | 12  | Do we rename `session_ai_roles` now, or keep it as a compatibility storage layer?                                                                              | Migration complexity + frontend clarity | Keep the table for v1 migration, but add a phase-first service/view model immediately. Physical rename can happen in later cleanup. |
-
 
 ---
 

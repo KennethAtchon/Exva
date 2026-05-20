@@ -14,7 +14,10 @@ import { channels } from "@electron/shared/ipc/channels";
 import { AppError } from "@electron/shared/infra/errors";
 import { isBuiltInSearchProviderAccount } from "@electron/shared/catalog/search-providers";
 import type { AppServices } from "../services/app-services";
-import { serializeBrokerCredentials, tempBrokerAccount } from "./broker-account-helpers";
+import {
+  serializeBrokerCredentials,
+  tempBrokerAccount,
+} from "./broker-account-helpers";
 import { secretKeys } from "../services/infra/secrets-service";
 import { handle } from "./handle";
 
@@ -24,9 +27,13 @@ export function registerAccountHandlers(services: AppServices): void {
     return services.broker.saveBroker(credentials);
   });
 
-  handle(ipcMain, channels.accounts.testBroker, async () => services.broker.testConnection());
+  handle(ipcMain, channels.accounts.testBroker, async () =>
+    services.broker.testConnection(),
+  );
 
-  handle(ipcMain, channels.accounts.removeBroker, async () => services.broker.removeBroker());
+  handle(ipcMain, channels.accounts.removeBroker, async () =>
+    services.broker.removeBroker(),
+  );
 
   handle(ipcMain, channels.accounts.saveApiKey, async (payload) => {
     const { keyType, value } = apiKeySchema.parse(payload);
@@ -45,9 +52,15 @@ export function registerAccountHandlers(services: AppServices): void {
   handle(ipcMain, channels.accounts.saveProvider, async (payload) => {
     const input = providerAccountSaveSchema.parse(payload);
     const id = input.id ?? crypto.randomUUID();
-    const existing = input.id ? services.repos.providerAccounts.find(input.id) : null;
+    const existing = input.id
+      ? services.repos.providerAccounts.find(input.id)
+      : null;
     if (existing && isBuiltInSearchProviderAccount(existing)) {
-      throw new AppError("Built-in search providers cannot be edited.", "VALIDATION_FAILED", { id: existing.id });
+      throw new AppError(
+        "Built-in search providers cannot be edited.",
+        "VALIDATION_FAILED",
+        { id: existing.id },
+      );
     }
     const secretRef = `provider:${id}`;
     await services.secrets.set(secretRef, input.apiKey);
@@ -68,9 +81,14 @@ export function registerAccountHandlers(services: AppServices): void {
   handle(ipcMain, channels.accounts.deleteProvider, async (payload) => {
     const { id } = providerAccountDeleteSchema.parse(payload);
     const account = services.repos.providerAccounts.find(id);
-    if (!account) throw new AppError(`Provider ${id} was not found`, "NOT_FOUND", { id });
+    if (!account)
+      throw new AppError(`Provider ${id} was not found`, "NOT_FOUND", { id });
     if (isBuiltInSearchProviderAccount(account)) {
-      throw new AppError("Built-in search providers cannot be deleted.", "VALIDATION_FAILED", { id });
+      throw new AppError(
+        "Built-in search providers cannot be deleted.",
+        "VALIDATION_FAILED",
+        { id },
+      );
     }
     await services.secrets.delete(account.secretRef);
     services.repos.providerAccounts.delete(id);
@@ -82,13 +100,18 @@ export function registerAccountHandlers(services: AppServices): void {
   handle(ipcMain, channels.accounts.testProvider, async (payload) => {
     const { id } = providerAccountTestSchema.parse(payload);
     const account = services.repos.providerAccounts.find(id);
-    if (!account) throw new AppError(`Provider ${id} was not found`, "NOT_FOUND", { id });
+    if (!account)
+      throw new AppError(`Provider ${id} was not found`, "NOT_FOUND", { id });
 
-    const result = account.category === "search"
-      ? await (await services.searchRegistry.get(id)).testConnection()
-      : await (await services.providerRegistry.get(id)).testConnection();
+    const result =
+      account.category === "search"
+        ? await (await services.searchRegistry.get(id)).testConnection()
+        : await (await services.providerRegistry.get(id)).testConnection();
 
-    services.repos.providerAccounts.setLastTestStatus(id, result.ok ? "ok" : "error");
+    services.repos.providerAccounts.setLastTestStatus(
+      id,
+      result.ok ? "ok" : "error",
+    );
     return result;
   });
 
@@ -100,12 +123,25 @@ export function registerAccountHandlers(services: AppServices): void {
     const input = brokerAccountAddSchema.parse(payload);
     const id = input.id ?? crypto.randomUUID();
     const secretRef = `broker:${id}`;
-    const json = serializeBrokerCredentials(input.brokerType, input.mode, input.credentials);
-    const temp = tempBrokerAccount(id, { name: input.name, brokerType: input.brokerType, mode: input.mode });
+    const json = serializeBrokerCredentials(
+      input.brokerType,
+      input.mode,
+      input.credentials,
+    );
+    const temp = tempBrokerAccount(id, {
+      name: input.name,
+      brokerType: input.brokerType,
+      mode: input.mode,
+    });
     const adapter = await services.brokerRegistry.buildEphemeral(temp, json);
     const test = await adapter.testConnection();
     if (!test.ok) {
-      return { ok: false as const, id, message: test.message, supportedInstrumentClasses: temp.supportedInstrumentClasses };
+      return {
+        ok: false as const,
+        id,
+        message: test.message,
+        supportedInstrumentClasses: temp.supportedInstrumentClasses,
+      };
     }
 
     await services.secrets.set(secretRef, json);
@@ -118,13 +154,20 @@ export function registerAccountHandlers(services: AppServices): void {
       secretRef,
     });
     services.brokerRegistry.invalidate(id);
-    return { ok: true as const, id, supportedInstrumentClasses: temp.supportedInstrumentClasses };
+    return {
+      ok: true as const,
+      id,
+      supportedInstrumentClasses: temp.supportedInstrumentClasses,
+    };
   });
 
   handle(ipcMain, channels.accounts.removeBrokerAccount, async (payload) => {
     const { id } = brokerAccountIdSchema.parse(payload);
     const row = services.repos.brokerAccounts.find(id);
-    if (!row) throw new AppError(`Broker account ${id} was not found`, "NOT_FOUND", { id });
+    if (!row)
+      throw new AppError(`Broker account ${id} was not found`, "NOT_FOUND", {
+        id,
+      });
     await services.secrets.delete(row.secretRef);
     services.repos.brokerAccounts.delete(id);
     services.brokerRegistry.invalidate(id);
@@ -134,7 +177,10 @@ export function registerAccountHandlers(services: AppServices): void {
   handle(ipcMain, channels.accounts.testBrokerAccount, async (payload) => {
     const { id } = brokerAccountIdSchema.parse(payload);
     const account = services.repos.brokerAccounts.find(id);
-    if (!account) throw new AppError(`Broker account ${id} was not found`, "NOT_FOUND", { id });
+    if (!account)
+      throw new AppError(`Broker account ${id} was not found`, "NOT_FOUND", {
+        id,
+      });
     const adapter = await services.brokerRegistry.get(id);
     return adapter.testConnection();
   });
@@ -147,7 +193,11 @@ export function registerAccountHandlers(services: AppServices): void {
       brokerType: input.brokerType,
       mode: input.mode,
     });
-    const json = serializeBrokerCredentials(input.brokerType, input.mode, input.credentials);
+    const json = serializeBrokerCredentials(
+      input.brokerType,
+      input.mode,
+      input.credentials,
+    );
     const adapter = await services.brokerRegistry.buildEphemeral(temp, json);
     return adapter.testConnection();
   });

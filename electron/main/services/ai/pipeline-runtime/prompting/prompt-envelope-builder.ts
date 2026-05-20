@@ -37,7 +37,9 @@ export interface PromptEnvelopeSizeReport {
   exceedsUser: boolean;
 }
 
-export function buildPromptEnvelope(input: PromptEnvelopeInput): PromptEnvelope {
+export function buildPromptEnvelope(
+  input: PromptEnvelopeInput,
+): PromptEnvelope {
   return {
     systemPrompt: input.basePromptMarkdown.trim(),
     userPayload: {
@@ -51,9 +53,13 @@ export function buildPromptEnvelope(input: PromptEnvelopeInput): PromptEnvelope 
 }
 
 /** Character counts vs RUNTIME_DEFAULTS — for tests and observability only; never mutates content. */
-export function measurePromptEnvelope(messages: RuntimeAgentMessage[]): PromptEnvelopeSizeReport {
-  const systemChars = messages.find((m) => m.role === "system")?.content.length ?? 0;
-  const userChars = messages.find((m) => m.role === "user")?.content.length ?? 0;
+export function measurePromptEnvelope(
+  messages: RuntimeAgentMessage[],
+): PromptEnvelopeSizeReport {
+  const systemChars =
+    messages.find((m) => m.role === "system")?.content.length ?? 0;
+  const userChars =
+    messages.find((m) => m.role === "user")?.content.length ?? 0;
   const maxSystemChars = RUNTIME_DEFAULTS.prompt.maxSystemChars;
   const maxUserChars = RUNTIME_DEFAULTS.prompt.maxUserPayloadChars;
   return {
@@ -71,13 +77,19 @@ export function envelopeToMessages(
   strategyContext: SessionStrategyContext,
 ): RuntimeAgentMessage[] {
   const phase = envelope.userPayload.phase as PipelinePhase;
-  const strategyPrompt = buildWorkerStrategyPromptContext(strategyContext, phase);
+  const strategyPrompt = buildWorkerStrategyPromptContext(
+    strategyContext,
+    phase,
+  );
   const presetGuidance = buildPresetBehaviorGuidance(strategyContext, phase);
 
   const userContent = [
     `<trusted_session_context>\n${strategyPrompt}\n</trusted_session_context>`,
-    presetGuidance.trim() ? `<preset_behavior>\n${presetGuidance}\n</preset_behavior>` : null,
-    Object.keys(envelope.userPayload.engineResults as Record<string, unknown>).length > 0
+    presetGuidance.trim()
+      ? `<preset_behavior>\n${presetGuidance}\n</preset_behavior>`
+      : null,
+    Object.keys(envelope.userPayload.engineResults as Record<string, unknown>)
+      .length > 0
       ? `<engine_results>\n${JSON.stringify(envelope.userPayload.engineResults, null, 2)}\n</engine_results>`
       : null,
     `<task>\n${JSON.stringify(envelope.userPayload.task, null, 2)}\n</task>`,

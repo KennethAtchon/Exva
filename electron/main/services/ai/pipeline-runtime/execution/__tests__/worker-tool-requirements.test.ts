@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { AppError } from "@electron/shared/infra/errors";
 import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { RunTrace } from "../../../ai-runtime/ai-runtime-types";
-import { enforceWorkerToolRequirements, extractToolNamesUsed } from "../worker-tool-requirements";
+import {
+  enforceWorkerToolRequirements,
+  extractToolNamesUsed,
+} from "../worker-tool-requirements";
 
 function traceWithTools(tools: string[]): RunTrace {
   return {
@@ -36,22 +39,36 @@ const marketValidator: WorkerDefinition = {
   id: "market-validator:NVDA",
   promptAssetPath: "selector-workers/market-validator",
   tools: ["get_quote", "get_ohlcv"],
-  toolRequirements: { requiredAll: ["get_quote", "get_ohlcv"], minToolCalls: 2 },
+  toolRequirements: {
+    requiredAll: ["get_quote", "get_ohlcv"],
+    minToolCalls: 2,
+  },
   outputMode: "object",
 };
 
 describe("worker-tool-requirements", () => {
   it("extracts unique tool names from a run trace", () => {
-    expect([...extractToolNamesUsed(traceWithTools(["get_quote", "get_ohlcv", "get_quote"]))]).toEqual([
-      "get_quote",
-      "get_ohlcv",
-    ]);
+    expect([
+      ...extractToolNamesUsed(
+        traceWithTools(["get_quote", "get_ohlcv", "get_quote"]),
+      ),
+    ]).toEqual(["get_quote", "get_ohlcv"]);
   });
 
   it("rejects market-validator output with no tool calls", () => {
-    expect(() => enforceWorkerToolRequirements(marketValidator, "selector", traceWithTools([]))).toThrow(AppError);
+    expect(() =>
+      enforceWorkerToolRequirements(
+        marketValidator,
+        "selector",
+        traceWithTools([]),
+      ),
+    ).toThrow(AppError);
     try {
-      enforceWorkerToolRequirements(marketValidator, "selector", traceWithTools([]));
+      enforceWorkerToolRequirements(
+        marketValidator,
+        "selector",
+        traceWithTools([]),
+      );
     } catch (error) {
       expect((error as AppError).code).toBe("VALIDATION_FAILED");
       expect((error as AppError).message).toMatch(/get_quote/);
@@ -60,13 +77,21 @@ describe("worker-tool-requirements", () => {
 
   it("rejects market-validator output missing get_ohlcv", () => {
     expect(() =>
-      enforceWorkerToolRequirements(marketValidator, "selector", traceWithTools(["get_quote"])),
+      enforceWorkerToolRequirements(
+        marketValidator,
+        "selector",
+        traceWithTools(["get_quote"]),
+      ),
     ).toThrow(/get_ohlcv/);
   });
 
   it("accepts market-validator output with required tools", () => {
     expect(() =>
-      enforceWorkerToolRequirements(marketValidator, "selector", traceWithTools(["get_quote", "get_ohlcv"])),
+      enforceWorkerToolRequirements(
+        marketValidator,
+        "selector",
+        traceWithTools(["get_quote", "get_ohlcv"]),
+      ),
     ).not.toThrow();
   });
 
@@ -75,9 +100,18 @@ describe("worker-tool-requirements", () => {
       id: "catalyst-extractor:PLTR",
       promptAssetPath: "selector-workers/catalyst-extractor",
       tools: ["get_news", "search_web", "fetch_url"],
-      toolRequirements: { requiredAny: ["get_news", "search_web", "fetch_url"], minToolCalls: 1 },
+      toolRequirements: {
+        requiredAny: ["get_news", "search_web", "fetch_url"],
+        minToolCalls: 1,
+      },
       outputMode: "object",
     };
-    expect(() => enforceWorkerToolRequirements(worker, "selector", traceWithTools(["search_web"]))).not.toThrow();
+    expect(() =>
+      enforceWorkerToolRequirements(
+        worker,
+        "selector",
+        traceWithTools(["search_web"]),
+      ),
+    ).not.toThrow();
   });
 });

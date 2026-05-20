@@ -6,6 +6,7 @@
 > **Implements:** `docs/design/broker-centric-capital-product-spec.md`, `docs/design/broker-centric-capital-design-spec.md`
 
 > **Implementation Notes:**
+>
 > - Code path is now broker-centric end to end: schema, repos, services, orchestration, IPC/preload contracts, and session/editor surfaces.
 > - Added custom Drizzle SQL migrations `0002_broker_capital_additive.sql` and `0003_broker_capital_cleanup.sql`. These were written manually because `drizzle-kit generate` prompted interactively on removed workspace capital columns.
 > - Verification: `bun run typecheck` passes. `bun test` remains blocked in this environment by Bun incompatibilities with `better-sqlite3`, Playwright spec loading under Vitest, and Electron module-loading issues in non-Electron test runs.
@@ -31,7 +32,6 @@ The refactor replaces all of this with broker-account-scoped capital: real balan
 
 **Goals**
 
-
 | #   | Goal                                          | Success Looks Like                                                                                                                      |
 | --- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Broker balance is source of truth             | `broker_accounts.balance_cache_usd` populated on session start and on a per-broker tick; dashboard reads from it                        |
@@ -41,9 +41,7 @@ The refactor replaces all of this with broker-account-scoped capital: real balan
 | 5   | Brokers tab rendered                          | New renderer route with broker cards, balance, sessions, allocation bar                                                                 |
 | 6   | Configurable per-broker settings              | `maxSessions`, `allocationEnforcement`, `balanceRefreshIntervalMin` editable in UI                                                      |
 
-
 **Non-Goals**
-
 
 | #   | Non-Goal                                        | Reason                                                                |
 | --- | ----------------------------------------------- | --------------------------------------------------------------------- |
@@ -51,7 +49,6 @@ The refactor replaces all of this with broker-account-scoped capital: real balan
 | 2   | Worker-thread balance fetching                  | I/O-only; main-process async is sufficient                            |
 | 3   | Backwards compatibility with old capital fields | App is in development; clean deletion is correct                      |
 | 4   | Live streaming balance via WebSocket            | Polling is sufficient; adapter interfaces don't standardize WebSocket |
-
 
 ---
 
@@ -74,7 +71,6 @@ The `capitalReservation.checkOrderFits()` call at orchestrator:394 reads `worksp
 
 ### Relevant files
 
-
 | File                                                         | Current role                 | Changes                                                                      |
 | ------------------------------------------------------------ | ---------------------------- | ---------------------------------------------------------------------------- |
 | `electron/main/db/schema.ts`                                 | Schema definitions           | Add/remove fields, two migrations                                            |
@@ -86,7 +82,6 @@ The `capitalReservation.checkOrderFits()` call at orchestrator:394 reads `worksp
 | `electron/shared/ipc/channels.ts`                            | Channel constants            | Add `brokerAccounts.*` namespace                                             |
 | `electron/preload/exva-api.ts`                               | Renderer API surface         | Add `brokerAccounts.*` methods, update `SessionSummary`                      |
 | `src/lib/types.ts`                                           | Shared types                 | Remove `capitalLimitUsd`, add `BrokerAccountWithState`                       |
-
 
 ---
 
@@ -124,7 +119,6 @@ Sources: [Drizzle migrations docs](https://orm.drizzle.team/docs/migrations), [Z
 
 Keep `capitalLimitUsd` and the global pool. Document that capital enforcement is "best effort."
 
-
 | Dimension            | Assessment                                    |
 | -------------------- | --------------------------------------------- |
 | Complexity           | None                                          |
@@ -132,7 +126,6 @@ Keep `capitalLimitUsd` and the global pool. Document that capital enforcement is
 | Conflict enforcement | Session-start only; race window at order time |
 | Technical debt       | Grows; two capital models diverge further     |
 | Reversibility        | Trivially reversible                          |
-
 
 **Rejected** because the core invariant — "system knows how much capital a broker has" — is violated, and order-time conflict enforcement is absent.
 
@@ -142,7 +135,6 @@ Keep `capitalLimitUsd` and the global pool. Document that capital enforcement is
 
 Fetch broker balance on-demand and display it on the UI, but keep `capitalLimitUsd` as the enforcement ceiling. Don't add `BrokerAllocationGate` to the order path.
 
-
 | Dimension            | Assessment                                       |
 | -------------------- | ------------------------------------------------ |
 | Complexity           | Low; balance cache + one new IPC call            |
@@ -151,7 +143,6 @@ Fetch broker balance on-demand and display it on the UI, but keep `capitalLimitU
 | Technical debt       | Adds balance plumbing on top of the broken model |
 | Reversibility        | Easy                                             |
 
-
 **Rejected** because it adds UI complexity without fixing the fundamental problem. Two models (display vs enforcement) still diverge.
 
 ---
@@ -159,7 +150,6 @@ Fetch broker balance on-demand and display it on the UI, but keep `capitalLimitU
 ### Option C: Full broker-centric model (recommended)
 
 Replace `capitalLimitUsd` with `session_broker_assignments.allocated_usd`. Add `BrokerBalanceCacheService`, `BrokerCapitalService`, `BrokerAllocationGate`. Wire layer 2 into orchestrator. New Brokers tab.
-
 
 | Dimension            | Assessment                                         |
 | -------------------- | -------------------------------------------------- |
@@ -170,7 +160,6 @@ Replace `capitalLimitUsd` with `session_broker_assignments.allocated_usd`. Add `
 | Reversibility        | Low — schema changes require migration to undo     |
 | Stack fit            | Follows existing repo/service/IPC patterns exactly |
 | Team readiness       | All patterns exist in codebase; no new libraries   |
-
 
 **Risks:**
 
@@ -348,7 +337,9 @@ async function seedAllocations(services: AppServices) {
   for (const assignment of allAssignments) {
     if (assignment.allocatedUsd > 0) continue; // already seeded
     try {
-      const adapter = await services.brokerRegistry.get(assignment.brokerAccountId);
+      const adapter = await services.brokerRegistry.get(
+        assignment.brokerAccountId,
+      );
       const balance = await adapter.getAccountBalance();
       const allocated = Math.floor(balance * 0.5);
       services.repos.sessionBrokerAssignments.setAllocatedUsd(
@@ -394,7 +385,8 @@ export class BrokerBalanceCacheService {
    * Fetches and stores if stale. Propagates adapter errors.
    */
   async getBalance(brokerAccountId: string): Promise<number> {
-    const { balanceCacheUsd, balanceCachedAt } = this.repo.getBalanceCache(brokerAccountId);
+    const { balanceCacheUsd, balanceCachedAt } =
+      this.repo.getBalanceCache(brokerAccountId);
     const account = this.repo.require(brokerAccountId);
     const staleLimitMs = account.balanceRefreshIntervalMin * 60 * 1000;
     const isStale =
@@ -410,12 +402,18 @@ export class BrokerBalanceCacheService {
   async refreshBalance(brokerAccountId: string): Promise<number> {
     const adapter = await this.registry.get(brokerAccountId);
     const balance = await adapter.getAccountBalance();
-    this.repo.updateBalanceCache(brokerAccountId, balance, new Date().toISOString());
+    this.repo.updateBalanceCache(
+      brokerAccountId,
+      balance,
+      new Date().toISOString(),
+    );
     return balance;
   }
 
   /** Refresh all given broker accounts in parallel. Collects errors without throwing. */
-  async refreshAll(brokerAccountIds: string[]): Promise<{ id: string; balance?: number; error?: string }[]> {
+  async refreshAll(
+    brokerAccountIds: string[],
+  ): Promise<{ id: string; balance?: number; error?: string }[]> {
     return Promise.all(
       brokerAccountIds.map(async (id) => {
         try {
@@ -468,14 +466,26 @@ export class BrokerBalanceTicker {
     for (const account of accounts) {
       const { balanceCachedAt } = this.repo.getBalanceCache(account.id);
       const staleLimitMs = account.balanceRefreshIntervalMin * 60 * 1000;
-      const isStale = !balanceCachedAt || Date.now() - Date.parse(balanceCachedAt) > staleLimitMs;
+      const isStale =
+        !balanceCachedAt ||
+        Date.now() - Date.parse(balanceCachedAt) > staleLimitMs;
       if (!isStale) continue;
 
       try {
         const balance = await this.balanceCache.refreshBalance(account.id);
-        this.bus.emit("broker_balance_updated", { brokerAccountId: account.id, balanceUsd: balance, cachedAt: new Date().toISOString() });
+        this.bus.emit("broker_balance_updated", {
+          brokerAccountId: account.id,
+          balanceUsd: balance,
+          cachedAt: new Date().toISOString(),
+        });
       } catch (e) {
-        this.logger.warn({ brokerAccountId: account.id, error: e instanceof Error ? e.message : String(e) }, "balance refresh failed in tick; retaining stale cache");
+        this.logger.warn(
+          {
+            brokerAccountId: account.id,
+            error: e instanceof Error ? e.message : String(e),
+          },
+          "balance refresh failed in tick; retaining stale cache",
+        );
       }
     }
   }
@@ -506,7 +516,12 @@ export interface BrokerAccountWithState {
   balanceCacheUsd: number | null;
   balanceCachedAt: string | null;
   isStale: boolean;
-  sessions: { sessionId: string; sessionName: string; status: SessionStatus; allocatedUsd: number }[];
+  sessions: {
+    sessionId: string;
+    sessionName: string;
+    status: SessionStatus;
+    allocatedUsd: number;
+  }[];
   activeSessionCount: number;
   totalAllocatedUsd: number;
   freeCapitalUsd: number | null;
@@ -530,15 +545,28 @@ export class BrokerCapitalService {
 
   listWithState(): BrokerAccountWithState[] {
     const accounts = this.brokerAccountsRepo.list();
-    const activeSessions = this.sessionRepo.listByStatuses(["active", "paused"]);
+    const activeSessions = this.sessionRepo.listByStatuses([
+      "active",
+      "paused",
+    ]);
     const activeIds = new Set(activeSessions.map((s) => s.id));
     const sessionMap = new Map(activeSessions.map((s) => [s.id, s]));
 
     return accounts.map((account) => {
-      const allAssignments = this.assignmentsRepo.listAssignmentsForBroker(account.id); // new repo method
-      const activeSessions = allAssignments.filter((a) => activeIds.has(a.sessionId));
-      const totalAllocatedUsd = activeSessions.reduce((sum, a) => sum + a.allocatedUsd, 0);
-      const freeCapitalUsd = account.balanceCacheUsd != null ? account.balanceCacheUsd - totalAllocatedUsd : null;
+      const allAssignments = this.assignmentsRepo.listAssignmentsForBroker(
+        account.id,
+      ); // new repo method
+      const activeSessions = allAssignments.filter((a) =>
+        activeIds.has(a.sessionId),
+      );
+      const totalAllocatedUsd = activeSessions.reduce(
+        (sum, a) => sum + a.allocatedUsd,
+        0,
+      );
+      const freeCapitalUsd =
+        account.balanceCacheUsd != null
+          ? account.balanceCacheUsd - totalAllocatedUsd
+          : null;
       const staleLimitMs = account.balanceRefreshIntervalMin * 60 * 1000;
       const isStale =
         !account.balanceCachedAt ||
@@ -566,16 +594,28 @@ export class BrokerCapitalService {
    * Check whether this session can start on all its assigned brokers.
    * Returns ok or a list of failures (one per failing broker).
    */
-  checkSessionStartFits(sessionId: string): { ok: true } | { ok: false; failures: AllocationCheckFailure[] } {
+  checkSessionStartFits(
+    sessionId: string,
+  ): { ok: true } | { ok: false; failures: AllocationCheckFailure[] } {
     const assignments = this.assignmentsRepo.listAssignments(sessionId);
-    const activeSessions = this.sessionRepo.listByStatuses(["active", "paused"]);
-    const otherActiveIds = activeSessions.filter((s) => s.id !== sessionId).map((s) => s.id);
+    const activeSessions = this.sessionRepo.listByStatuses([
+      "active",
+      "paused",
+    ]);
+    const otherActiveIds = activeSessions
+      .filter((s) => s.id !== sessionId)
+      .map((s) => s.id);
 
     const failures: AllocationCheckFailure[] = [];
 
     for (const assignment of assignments) {
-      const account = this.brokerAccountsRepo.require(assignment.brokerAccountId);
-      const currentCount = this.assignmentsRepo.countActiveSessionsForBroker(account.id, otherActiveIds); // new repo method
+      const account = this.brokerAccountsRepo.require(
+        assignment.brokerAccountId,
+      );
+      const currentCount = this.assignmentsRepo.countActiveSessionsForBroker(
+        account.id,
+        otherActiveIds,
+      ); // new repo method
       if (currentCount >= account.maxSessions) {
         failures.push({
           brokerAccountId: account.id,
@@ -587,7 +627,11 @@ export class BrokerCapitalService {
       }
 
       if (account.balanceCacheUsd != null) {
-        const currentlyAllocated = this.assignmentsRepo.sumAllocatedUsdForBroker(account.id, otherActiveIds);
+        const currentlyAllocated =
+          this.assignmentsRepo.sumAllocatedUsdForBroker(
+            account.id,
+            otherActiveIds,
+          );
         const freeCapital = account.balanceCacheUsd - currentlyAllocated;
         if (assignment.allocatedUsd > freeCapital) {
           failures.push({
@@ -605,15 +649,28 @@ export class BrokerCapitalService {
 
   updateSettings(
     brokerAccountId: string,
-    patch: { maxSessions?: number; allocationEnforcement?: "hard" | "warn"; balanceRefreshIntervalMin?: number },
+    patch: {
+      maxSessions?: number;
+      allocationEnforcement?: "hard" | "warn";
+      balanceRefreshIntervalMin?: number;
+    },
   ): void {
     if (patch.maxSessions !== undefined) {
       if (patch.maxSessions < 1 || patch.maxSessions > 50) {
-        throw new AppError("maxSessions must be between 1 and 50", "VALIDATION_FAILED");
+        throw new AppError(
+          "maxSessions must be between 1 and 50",
+          "VALIDATION_FAILED",
+        );
       }
-      const activeSessions = this.sessionRepo.listByStatuses(["active", "paused"]);
+      const activeSessions = this.sessionRepo.listByStatuses([
+        "active",
+        "paused",
+      ]);
       const activeIds = activeSessions.map((s) => s.id);
-      const currentCount = this.assignmentsRepo.countActiveSessionsForBroker(brokerAccountId, activeIds);
+      const currentCount = this.assignmentsRepo.countActiveSessionsForBroker(
+        brokerAccountId,
+        activeIds,
+      );
       if (patch.maxSessions < currentCount) {
         throw new AppError(
           `Cannot reduce cap to ${patch.maxSessions}; broker has ${currentCount} active sessions.`,
@@ -622,8 +679,14 @@ export class BrokerCapitalService {
       }
     }
     if (patch.balanceRefreshIntervalMin !== undefined) {
-      if (patch.balanceRefreshIntervalMin < 1 || patch.balanceRefreshIntervalMin > 60) {
-        throw new AppError("balanceRefreshIntervalMin must be between 1 and 60", "VALIDATION_FAILED");
+      if (
+        patch.balanceRefreshIntervalMin < 1 ||
+        patch.balanceRefreshIntervalMin > 60
+      ) {
+        throw new AppError(
+          "balanceRefreshIntervalMin must be between 1 and 60",
+          "VALIDATION_FAILED",
+        );
       }
     }
     this.brokerAccountsRepo.updateSettings(brokerAccountId, patch);
@@ -643,7 +706,11 @@ countActiveSessionsForBroker(brokerAccountId: string, activeSessionIds: string[]
 ```ts
 export type AllocationGateResult =
   | { ok: true; warning?: "over_allocated" }
-  | { ok: false; reason: string; code: "BROKER_ALLOCATION_EXHAUSTED" | "INSTRUMENT_CONFLICT" };
+  | {
+      ok: false;
+      reason: string;
+      code: "BROKER_ALLOCATION_EXHAUSTED" | "INSTRUMENT_CONFLICT";
+    };
 
 export class BrokerAllocationGate {
   constructor(
@@ -657,11 +724,21 @@ export class BrokerAllocationGate {
    * Layer 2 capital check. Resolves effective enforcement:
    * workspace.allocationEnforcementOverride takes precedence over broker-level setting.
    */
-  checkOrderFits(brokerAccountId: string, sessionId: string, sizeUsd: number): AllocationGateResult {
-    const assignment = this.assignmentsRepo.findAssignment(sessionId, brokerAccountId); // new repo method
+  checkOrderFits(
+    brokerAccountId: string,
+    sessionId: string,
+    sizeUsd: number,
+  ): AllocationGateResult {
+    const assignment = this.assignmentsRepo.findAssignment(
+      sessionId,
+      brokerAccountId,
+    ); // new repo method
     if (!assignment) return { ok: true }; // no assignment found → no constraint
 
-    const openPositionSizeUsd = this.tradesRepo.sumOpenPositionSizeUsd(sessionId, brokerAccountId); // new/existing repo method
+    const openPositionSizeUsd = this.tradesRepo.sumOpenPositionSizeUsd(
+      sessionId,
+      brokerAccountId,
+    ); // new/existing repo method
     const freeAllocation = assignment.allocatedUsd - openPositionSizeUsd;
 
     if (sizeUsd <= freeAllocation) return { ok: true };
@@ -680,8 +757,16 @@ export class BrokerAllocationGate {
   /**
    * Instrument conflict check. Always hard block regardless of allocationEnforcement.
    */
-  checkInstrumentConflict(brokerAccountId: string, symbol: string, sessionId: string): AllocationGateResult {
-    const conflict = this.tradesRepo.findOpenTradeOnBroker(brokerAccountId, symbol, sessionId); // exclude this session
+  checkInstrumentConflict(
+    brokerAccountId: string,
+    symbol: string,
+    sessionId: string,
+  ): AllocationGateResult {
+    const conflict = this.tradesRepo.findOpenTradeOnBroker(
+      brokerAccountId,
+      symbol,
+      sessionId,
+    ); // exclude this session
     if (!conflict) return { ok: true };
     return {
       ok: false,
@@ -692,7 +777,8 @@ export class BrokerAllocationGate {
 
   private resolveEnforcement(brokerAccountId: string): "hard" | "warn" {
     const prefs = this.workspacePrefsRepo.get();
-    if (prefs.allocationEnforcementOverride) return prefs.allocationEnforcementOverride as "hard" | "warn";
+    if (prefs.allocationEnforcementOverride)
+      return prefs.allocationEnforcementOverride as "hard" | "warn";
     const account = this.brokerAccountsRepo.find(brokerAccountId);
     return (account?.allocationEnforcement as "hard" | "warn") ?? "hard";
   }
@@ -739,7 +825,9 @@ constructor(private readonly repo: CapitalReservationsRepo) {}
 Update `createAppServices`:
 
 ```ts
-const capitalReservation = new CapitalReservationService(repos.capitalReservations);
+const capitalReservation = new CapitalReservationService(
+  repos.capitalReservations,
+);
 // Remove the second arg
 ```
 
@@ -756,14 +844,24 @@ const capitalReservation = new CapitalReservationService(repos.capitalReservatio
 #### `electron/main/services/session/preflight/broker-allocation-check.ts` (new)
 
 ```ts
-export async function brokerAllocationCheck(session: WorkspaceSession, deps: OrchestratorDeps): Promise<StepResult> {
+export async function brokerAllocationCheck(
+  session: WorkspaceSession,
+  deps: OrchestratorDeps,
+): Promise<StepResult> {
   // 1. Refresh all broker balances (surfaces adapter errors as preflight failures)
-  const assignmentIds = deps.sessionBrokerAssignmentsRepo.listBrokerAccountIds(session.id);
+  const assignmentIds = deps.sessionBrokerAssignmentsRepo.listBrokerAccountIds(
+    session.id,
+  );
   if (assignmentIds.length === 0) {
-    return { ok: false, code: "VALIDATION_FAILED", message: "No broker accounts assigned. Add at least one to start." };
+    return {
+      ok: false,
+      code: "VALIDATION_FAILED",
+      message: "No broker accounts assigned. Add at least one to start.",
+    };
   }
 
-  const refreshResults = await deps.brokerBalanceCache.refreshAll(assignmentIds);
+  const refreshResults =
+    await deps.brokerBalanceCache.refreshAll(assignmentIds);
   for (const r of refreshResults) {
     if (r.error) {
       return {
@@ -781,7 +879,10 @@ export async function brokerAllocationCheck(session: WorkspaceSession, deps: Orc
     const first = capitalCheck.failures[0]!;
     return {
       ok: false,
-      code: first.reason === "session_cap_exceeded" ? "BROKER_SESSION_CAP_EXCEEDED" : "BROKER_ALLOCATION_EXCEEDED",
+      code:
+        first.reason === "session_cap_exceeded"
+          ? "BROKER_SESSION_CAP_EXCEEDED"
+          : "BROKER_ALLOCATION_EXCEEDED",
       message: first.detail,
       details: { failures: capitalCheck.failures },
     };
@@ -800,12 +901,24 @@ import { brokerAllocationCheck } from "./broker-allocation-check";
 // remove: import { capitalPoolCheck } from "./capital-pool-check";
 
 const steps = [
-  { check: "task-boundary",        run: () => taskBoundaryCheck(session, deps) },
-  { check: "provider-credentials", run: () => providerCredentialsCheck(session, deps) },
-  { check: "broker-reachability",  run: () => brokerReachabilityCheck(session, deps) },
-  { check: "broker-allocation",    run: () => brokerAllocationCheck(session, deps) },  // NEW
-  { check: "selector-config",      run: () => selectorConfigCheck(session, deps) },
-  { check: "instrument-conflict",  run: () => instrumentConflictCheck(session, deps) },
+  { check: "task-boundary", run: () => taskBoundaryCheck(session, deps) },
+  {
+    check: "provider-credentials",
+    run: () => providerCredentialsCheck(session, deps),
+  },
+  {
+    check: "broker-reachability",
+    run: () => brokerReachabilityCheck(session, deps),
+  },
+  {
+    check: "broker-allocation",
+    run: () => brokerAllocationCheck(session, deps),
+  }, // NEW
+  { check: "selector-config", run: () => selectorConfigCheck(session, deps) },
+  {
+    check: "instrument-conflict",
+    run: () => instrumentConflictCheck(session, deps),
+  },
 ];
 ```
 
@@ -820,8 +933,8 @@ import type { BrokerBalanceCacheService } from "../broker/broker-balance-cache-s
 
 export interface OrchestratorDeps {
   // ... existing fields ...
-  brokerAllocationGate: BrokerAllocationGate;   // ADD
-  brokerCapital: BrokerCapitalService;           // ADD
+  brokerAllocationGate: BrokerAllocationGate; // ADD
+  brokerCapital: BrokerCapitalService; // ADD
   brokerBalanceCache: BrokerBalanceCacheService; // ADD
 }
 ```
@@ -836,8 +949,10 @@ Replace the `capitalReservation.checkOrderFits()` calls at lines ~394 and ~421.
 // REMOVE: lines 388-438 (the workspace.capitalAllocationMode block)
 
 // AFTER risk_gate passes and context.riskOrder is set, BEFORE waitForApproval:
-const brokerAccountId = await this.deps.brokerRouting
-  .resolveBrokerAccountId(this.sessionId, context.instrument.instrumentClass);
+const brokerAccountId = await this.deps.brokerRouting.resolveBrokerAccountId(
+  this.sessionId,
+  context.instrument.instrumentClass,
+);
 
 const allocationResult = this.deps.brokerAllocationGate.checkOrderFits(
   brokerAccountId,
@@ -846,12 +961,24 @@ const allocationResult = this.deps.brokerAllocationGate.checkOrderFits(
 );
 if (!allocationResult.ok) {
   this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-  this.emitEvent("WARN", trade.id, allocationResult.reason, "orchestrator", context.cycleId);
+  this.emitEvent(
+    "WARN",
+    trade.id,
+    allocationResult.reason,
+    "orchestrator",
+    context.cycleId,
+  );
   this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
   return;
 }
 if (allocationResult.warning === "over_allocated") {
-  this.emitEvent("WARN", trade.id, "Order exceeds allocation (warn-only mode); proceeding.", "orchestrator", context.cycleId);
+  this.emitEvent(
+    "WARN",
+    trade.id,
+    "Order exceeds allocation (warn-only mode); proceeding.",
+    "orchestrator",
+    context.cycleId,
+  );
 }
 
 const conflictResult = this.deps.brokerAllocationGate.checkInstrumentConflict(
@@ -861,7 +988,13 @@ const conflictResult = this.deps.brokerAllocationGate.checkInstrumentConflict(
 );
 if (!conflictResult.ok) {
   this.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
-  this.emitEvent("WARN", trade.id, conflictResult.reason, "orchestrator", context.cycleId);
+  this.emitEvent(
+    "WARN",
+    trade.id,
+    conflictResult.reason,
+    "orchestrator",
+    context.cycleId,
+  );
   this.deps.bus.emit("trade_closed", this.deps.tradesRepo.require(trade.id));
   return;
 }
@@ -879,19 +1012,33 @@ import { BrokerBalanceTicker } from "./broker/broker-balance-ticker";
 import { BrokerCapitalService } from "./broker/broker-capital-service";
 import { BrokerAllocationGate } from "./risk/broker-allocation-gate";
 
-const brokerBalanceCache = new BrokerBalanceCacheService(repos.brokerAccounts, brokerRegistry);
-const brokerCapital = new BrokerCapitalService(repos.brokerAccounts, repos.sessionBrokerAssignments, repos.session);
+const brokerBalanceCache = new BrokerBalanceCacheService(
+  repos.brokerAccounts,
+  brokerRegistry,
+);
+const brokerCapital = new BrokerCapitalService(
+  repos.brokerAccounts,
+  repos.sessionBrokerAssignments,
+  repos.session,
+);
 const brokerAllocationGate = new BrokerAllocationGate(
   repos.sessionBrokerAssignments,
   repos.trades,
   repos.workspacePreferences,
   repos.brokerAccounts,
 );
-const balanceTicker = new BrokerBalanceTicker(repos.brokerAccounts, brokerBalanceCache, eventBus, logger);
+const balanceTicker = new BrokerBalanceTicker(
+  repos.brokerAccounts,
+  brokerBalanceCache,
+  eventBus,
+  logger,
+);
 balanceTicker.start(); // starts background tick loop
 
 // Update capitalReservation construction:
-const capitalReservation = new CapitalReservationService(repos.capitalReservations); // drop workspacePreferences arg
+const capitalReservation = new CapitalReservationService(
+  repos.capitalReservations,
+); // drop workspacePreferences arg
 
 // Add to orchestratorDepsBase:
 const orchestratorDepsBase: OrchestratorDeps = {
@@ -917,7 +1064,7 @@ balanceTicker: BrokerBalanceTicker;
 
 ### Phase 4: IPC + Preload
 
-**Goal:** New `brokerAccounts.`* IPC channels exposed to renderer. `SessionSummary` updated. Workspace IPC updated. Existing `accounts.listBrokers` is augmented or superseded.
+**Goal:** New `brokerAccounts.`\* IPC channels exposed to renderer. `SessionSummary` updated. Workspace IPC updated. Existing `accounts.listBrokers` is augmented or superseded.
 
 **Done criteria:** Renderer can call `window.exva.brokerAccounts.list()` and receive `BrokerAccountWithState[]`. `window.exva.brokerAccounts.refreshBalance(id)` triggers a live fetch. `broker_balance_updated` events arrive in renderer.
 
@@ -927,7 +1074,7 @@ balanceTicker: BrokerBalanceTicker;
 export const channels = {
   // ... existing ...
   brokerAccounts: {
-    list:           "broker-accounts:list",
+    list: "broker-accounts:list",
     refreshBalance: "broker-accounts:refresh-balance",
     updateSettings: "broker-accounts:update-settings",
   },
@@ -962,8 +1109,11 @@ export function registerBrokerAccountHandlers(services: AppServices): void {
   });
 
   handle(ipcMain, channels.brokerAccounts.refreshBalance, async (payload) => {
-    const { brokerAccountId } = z.object({ brokerAccountId: z.string() }).parse(payload);
-    const balance = await services.brokerBalanceCache.refreshBalance(brokerAccountId);
+    const { brokerAccountId } = z
+      .object({ brokerAccountId: z.string() })
+      .parse(payload);
+    const balance =
+      await services.brokerBalanceCache.refreshBalance(brokerAccountId);
     services.eventBus.emit("broker_balance_updated", {
       brokerAccountId,
       balanceUsd: balance,
@@ -1008,7 +1158,11 @@ brokerAccounts: {
 Add `broker_balance_updated` to `ExvaEventMap`:
 
 ```ts
-broker_balance_updated: { brokerAccountId: string; balanceUsd: number; cachedAt: string };
+broker_balance_updated: {
+  brokerAccountId: string;
+  balanceUsd: number;
+  cachedAt: string;
+}
 ```
 
 Update `SessionSummary` — remove `capitalLimitUsd`, add `totalAllocatedUsd`:
@@ -1017,7 +1171,7 @@ Update `SessionSummary` — remove `capitalLimitUsd`, add `totalAllocatedUsd`:
 export interface SessionSummary {
   // ...
   // REMOVE: capitalLimitUsd: number;
-  totalAllocatedUsd: number;   // ADD: computed from broker assignments
+  totalAllocatedUsd: number; // ADD: computed from broker assignments
   brokerCount: number;
   // ...
 }
@@ -1078,23 +1232,43 @@ function BrokersPage() {
     window.exva.brokerAccounts.list().then(setBrokers);
 
     // subscribe to balance updates — push from main process
-    const unsub = window.exva.events.subscribe("broker_balance_updated", ({ brokerAccountId, balanceUsd, cachedAt }) => {
-      setBrokers((prev) =>
-        prev.map((b) =>
-          b.id === brokerAccountId
-            ? { ...b, balanceCacheUsd: balanceUsd, balanceCachedAt: cachedAt, isStale: false }
-            : b,
-        ),
-      );
-    });
+    const unsub = window.exva.events.subscribe(
+      "broker_balance_updated",
+      ({ brokerAccountId, balanceUsd, cachedAt }) => {
+        setBrokers((prev) =>
+          prev.map((b) =>
+            b.id === brokerAccountId
+              ? {
+                  ...b,
+                  balanceCacheUsd: balanceUsd,
+                  balanceCachedAt: cachedAt,
+                  isStale: false,
+                }
+              : b,
+          ),
+        );
+      },
+    );
 
     // poll every 30s as fallback (broker list membership can change)
-    const interval = setInterval(() => window.exva.brokerAccounts.list().then(setBrokers), 30_000);
+    const interval = setInterval(
+      () => window.exva.brokerAccounts.list().then(setBrokers),
+      30_000,
+    );
 
-    return () => { unsub(); clearInterval(interval); };
+    return () => {
+      unsub();
+      clearInterval(interval);
+    };
   }, []);
 
-  return <div>{brokers.map((b) => <BrokerCard key={b.id} broker={b} />)}</div>;
+  return (
+    <div>
+      {brokers.map((b) => (
+        <BrokerCard key={b.id} broker={b} />
+      ))}
+    </div>
+  );
 }
 ```
 
@@ -1107,18 +1281,22 @@ Jump-to-session: `navigate(\`/sessions/${session.sessionId})` (or however the ex
 Find the existing component that renders broker assignments and `capitalLimitUsd` input. Replace the single `capitalLimitUsd` input with a per-broker row:
 
 ```tsx
-{assignments.map((a) => (
-  <div key={a.brokerAccountId}>
-    <span>{brokerName(a.brokerAccountId)}</span>
-    <input
-      type="number"
-      value={a.allocatedUsd}
-      onChange={(e) => updateAllocation(a.brokerAccountId, Number(e.target.value))}
-    />
-    <span>Free: {formatUsd(freeCapitalFor(a.brokerAccountId))}</span>
-  </div>
-))}
-<div>Total: {formatUsd(totalAllocated)}</div>
+{
+  assignments.map((a) => (
+    <div key={a.brokerAccountId}>
+      <span>{brokerName(a.brokerAccountId)}</span>
+      <input
+        type="number"
+        value={a.allocatedUsd}
+        onChange={(e) =>
+          updateAllocation(a.brokerAccountId, Number(e.target.value))
+        }
+      />
+      <span>Free: {formatUsd(freeCapitalFor(a.brokerAccountId))}</span>
+    </div>
+  ));
+}
+<div>Total: {formatUsd(totalAllocated)}</div>;
 ```
 
 Update `SessionCreateInput` calls to use `brokerAssignments: [{ brokerAccountId, allocatedUsd }]`.
@@ -1154,18 +1332,24 @@ grep -r "capitalAllocationMode\|globalCapitalPoolUsd\|capitalLimitUsd\|shared_gl
 **Steps:**
 
 1. Generate the removal migration in `schema.ts`:
-  - Remove `capitalLimitUsd` from `sessions` table definition
-  - Remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `workspacePreferences` table definition
-  - Run `drizzle-kit generate` — confirm generated SQL contains `DROP COLUMN` statements
-  - Run migration
+
+- Remove `capitalLimitUsd` from `sessions` table definition
+- Remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `workspacePreferences` table definition
+- Run `drizzle-kit generate` — confirm generated SQL contains `DROP COLUMN` statements
+- Run migration
+
 2. Delete `electron/main/services/session/preflight/capital-pool-check.ts`
 3. Remove dead imports:
-  - `WorkspacePreferencesRepo` from `CapitalReservationService` constructor (already done in Phase 2, verify)
-  - Any remaining `capitalAllocationMode` checks in `agent-orchestrator.ts` (the `useSharedPool` variable and its block, already removed in Phase 3, verify)
+
+- `WorkspacePreferencesRepo` from `CapitalReservationService` constructor (already done in Phase 2, verify)
+- Any remaining `capitalAllocationMode` checks in `agent-orchestrator.ts` (the `useSharedPool` variable and its block, already removed in Phase 3, verify)
+
 4. Update `src/lib/types.ts`:
-  - Remove `capitalLimitUsd` from `WorkspaceSession` / session types
-  - Remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `WorkspacePreferences`
-  - Add `allocationEnforcementOverride: "hard" | "warn" | null` to `WorkspacePreferences`
+
+- Remove `capitalLimitUsd` from `WorkspaceSession` / session types
+- Remove `capitalAllocationMode`, `globalCapitalPoolUsd` from `WorkspacePreferences`
+- Add `allocationEnforcementOverride: "hard" | "warn" | null` to `WorkspacePreferences`
+
 5. Update `WorkspacePreferencesRepo.get()` and `update()` — remove old fields, add new field.
 6. Update any remaining type usages in `exva-api.ts` preload types.
 7. Run `tsc --noEmit` — zero errors is the bar.
@@ -1177,7 +1361,6 @@ grep -r "capitalAllocationMode\|globalCapitalPoolUsd\|capitalLimitUsd\|shared_gl
 
 ## 8. Risk Register
 
-
 | #   | Risk                                                                    | Likelihood | Impact                                                   | Mitigation                                                                                                                                     |
 | --- | ----------------------------------------------------------------------- | ---------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | SQLite `DROP COLUMN` fails on older SQLite bundled with Electron        | Medium     | Build break                                              | Check `better-sqlite3` version in package.json; `DROP COLUMN` requires SQLite 3.35+. If not supported, use create-copy-drop migration pattern. |
@@ -1187,11 +1370,9 @@ grep -r "capitalAllocationMode\|globalCapitalPoolUsd\|capitalLimitUsd\|shared_gl
 | 5   | `OrchestratorDeps` interface growing too wide                           | Medium     | Maintenance cost                                         | Consider grouping new deps into `BrokerCapitalDeps` sub-object if it gets unwieldy, but only if the interface exceeds ~20 fields.              |
 | 6   | Session broker panel UX is confusing with per-broker allocation inputs  | Medium     | User sets wrong allocations                              | Add inline validation: red if `allocatedUsd > freeCapital`; show current broker balance as helper text.                                        |
 
-
 ---
 
 ## 9. Success Criteria
-
 
 | Goal                | Metric                                                       | Baseline           | Target                       | How Measured                                               |
 | ------------------- | ------------------------------------------------------------ | ------------------ | ---------------------------- | ---------------------------------------------------------- |
@@ -1200,7 +1381,6 @@ grep -r "capitalAllocationMode\|globalCapitalPoolUsd\|capitalLimitUsd\|shared_gl
 | Layer 2 fires       | Orders blocked by `BrokerAllocationGate` emit event          | 0 (no gate exists) | Event emitted on every block | Unit test                                                  |
 | Dead code removed   | `grep` for old capital fields returns 0 hits                 | Many hits          | 0                            | Shell script in CI                                         |
 | TypeScript clean    | `tsc --noEmit` clean after Phase 6                           | Currently clean    | Stays clean                  | CI                                                         |
-
 
 **Leading indicators:**
 
@@ -1217,18 +1397,15 @@ grep -r "capitalAllocationMode\|globalCapitalPoolUsd\|capitalLimitUsd\|shared_gl
 
 ## 10. Open Questions
 
-
 | #   | Question                                                                                              | Owner | Needed By     | Status                                                              |
 | --- | ----------------------------------------------------------------------------------------------------- | ----- | ------------- | ------------------------------------------------------------------- |
 | 1   | Does better-sqlite3 in this project support `DROP COLUMN` (SQLite 3.35+)?                             | Ken   | Phase 6 start | Open — check `package.json` + `node_modules/better-sqlite3` version |
 | 2   | Should the seed script run automatically on app startup or as an explicit `bun run seed:allocations`? | Ken   | Phase 1       | Open — automatic is smoother for dev, but opt-in is safer           |
 | 3   | Where does the Brokers tab sit in the nav? After Sessions? As a sub-tab under Accounts?               | Ken   | Phase 5 start | Open — needs UX decision                                            |
 
-
 ---
 
 ## 11. Alternatives Rejected
-
 
 | Option                                   | Why Rejected                                                                                                          |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -1239,10 +1416,9 @@ grep -r "capitalAllocationMode\|globalCapitalPoolUsd\|capitalLimitUsd\|shared_gl
 | Worker thread for balance fetching       | Balance fetch is async I/O; worker threads are for CPU-bound work                                                     |
 | Single combined migration (adds + drops) | Higher risk in SQLite; two-migration sequencing is safer and allows rollback between                                  |
 
-
 ---
 
-*Sources consulted:*
+_Sources consulted:_
 
 - [Electron IPC docs](https://www.electronjs.org/docs/latest/tutorial/ipc)
 - [Electron process model](https://www.electronjs.org/docs/latest/tutorial/process-model)

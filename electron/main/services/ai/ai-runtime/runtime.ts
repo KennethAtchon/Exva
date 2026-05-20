@@ -45,12 +45,16 @@ export class AiRuntime {
     brokerRouting?: BrokerRoutingService,
     brokerRegistry?: BrokerRegistry,
     strategyContextService?: SessionStrategyContextService,
-    planServices?: Omit<PhasePlanServices, "strategyContextService" | "brokerRouting"> & {
-      brokerRouting?: BrokerRoutingService;
-    } | null,
-    cyclePlanServices?: Omit<CyclePlanServices, "strategyContextService" | "brokerRouting"> & {
-      brokerRouting?: BrokerRoutingService;
-    } | null,
+    planServices?:
+      | (Omit<PhasePlanServices, "strategyContextService" | "brokerRouting"> & {
+          brokerRouting?: BrokerRoutingService;
+        })
+      | null,
+    cyclePlanServices?:
+      | (Omit<CyclePlanServices, "strategyContextService" | "brokerRouting"> & {
+          brokerRouting?: BrokerRoutingService;
+        })
+      | null,
   ) {
     this.pipelineRuntime = new PipelineRuntime({
       providerRegistry: registry,
@@ -66,7 +70,11 @@ export class AiRuntime {
       brokerRegistry,
     });
 
-    if (brokerRouting && strategyContextService && planServices?.brokerRouting) {
+    if (
+      brokerRouting &&
+      strategyContextService &&
+      planServices?.brokerRouting
+    ) {
       this.pipelineRuntime.setPlanServices({
         ...planServices,
         brokerRouting: planServices.brokerRouting,
@@ -74,7 +82,11 @@ export class AiRuntime {
       });
     }
 
-    if (brokerRouting && strategyContextService && cyclePlanServices?.brokerRouting) {
+    if (
+      brokerRouting &&
+      strategyContextService &&
+      cyclePlanServices?.brokerRouting
+    ) {
       this.pipelineRuntime.setCyclePlanServices({
         ...cyclePlanServices,
         brokerRouting: cyclePlanServices.brokerRouting,
@@ -83,16 +95,27 @@ export class AiRuntime {
     }
   }
 
-  setStrategyContextService(strategyContextService: SessionStrategyContextService): void {
+  setStrategyContextService(
+    strategyContextService: SessionStrategyContextService,
+  ): void {
     this.pipelineRuntime.setStrategyContextService(strategyContextService);
   }
 
-  resolveEffectivePipelineConfig(sessionId: string, pipelineId?: string): EffectivePipelineConfig {
+  resolveEffectivePipelineConfig(
+    sessionId: string,
+    pipelineId?: string,
+  ): EffectivePipelineConfig {
     return this.pipelineRuntime.resolveEffectiveConfig(sessionId, pipelineId);
   }
 
-  assertValidEffectivePipelineConfig(sessionId: string, pipelineId?: string): EffectivePipelineConfig {
-    return this.pipelineRuntime.assertValidEffectiveConfig(sessionId, pipelineId);
+  assertValidEffectivePipelineConfig(
+    sessionId: string,
+    pipelineId?: string,
+  ): EffectivePipelineConfig {
+    return this.pipelineRuntime.assertValidEffectiveConfig(
+      sessionId,
+      pipelineId,
+    );
   }
 
   async runPhasePlan<TOutput>(
@@ -101,8 +124,17 @@ export class AiRuntime {
     cycleId: string,
     input: Record<string, unknown> = {},
   ): Promise<PhasePlanRunResult<TOutput>> {
-    if (!sessionId) throw new AppError("Session id is required for phase plan execution", "VALIDATION_FAILED");
-    return this.pipelineRuntime.runPhasePlan<TOutput>({ phase, sessionId, input, cycleId });
+    if (!sessionId)
+      throw new AppError(
+        "Session id is required for phase plan execution",
+        "VALIDATION_FAILED",
+      );
+    return this.pipelineRuntime.runPhasePlan<TOutput>({
+      phase,
+      sessionId,
+      input,
+      cycleId,
+    });
   }
 
   async runCycle(
@@ -119,7 +151,11 @@ export class AiRuntime {
       lastStageId?: string;
     },
   ): Promise<TradePipelineResult> {
-    if (!opts.sessionId) throw new AppError("Session id is required for cycle execution", "VALIDATION_FAILED");
+    if (!opts.sessionId)
+      throw new AppError(
+        "Session id is required for cycle execution",
+        "VALIDATION_FAILED",
+      );
     return this.pipelineRuntime.runCycle(cyclePlanId, opts);
   }
 
@@ -138,8 +174,11 @@ export class AiRuntime {
       lastStageId?: string;
     },
   ): Promise<TradePipelineResult | PhasePlanRunResult<unknown>> {
-    if (!opts.sessionId) throw new AppError("Session id is required for plan execution", "VALIDATION_FAILED");
+    if (!opts.sessionId)
+      throw new AppError(
+        "Session id is required for plan execution",
+        "VALIDATION_FAILED",
+      );
     return this.pipelineRuntime.runPlan(planId, opts);
   }
-
 }

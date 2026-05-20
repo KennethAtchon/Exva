@@ -29,7 +29,11 @@ export type SelectorDiagnostics = z.infer<typeof selectorDiagnosticsSchema>;
 export function extractToolNamesFromTraces(
   traces: Array<{ toolCalls: Array<{ tool: string }> }>,
 ): string[] {
-  return [...new Set(traces.flatMap((step) => step.toolCalls.map((call) => call.tool)))];
+  return [
+    ...new Set(
+      traces.flatMap((step) => step.toolCalls.map((call) => call.tool)),
+    ),
+  ];
 }
 
 export function collectCandidateToolNames(

@@ -9,8 +9,16 @@ import type {
   SessionTimeframeConfig,
   SelectionMode,
 } from "@/lib/types";
-import type { PhaseRuntimeSummary, PipelinePhase, SessionAiPhase, SessionAiPhaseWorker } from "@electron/shared/ai/pipeline-phase";
-import { isSessionEditable, validateSessionStrategyContext } from "@electron/shared/domain";
+import type {
+  PhaseRuntimeSummary,
+  PipelinePhase,
+  SessionAiPhase,
+  SessionAiPhaseWorker,
+} from "@electron/shared/ai/pipeline-phase";
+import {
+  isSessionEditable,
+  validateSessionStrategyContext,
+} from "@electron/shared/domain";
 import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
@@ -85,23 +93,30 @@ export class SessionStrategyContextService {
     return {
       ...ctx,
       selectorSettings: this.deps.selectorSettingsRepo.get(sessionId),
-      providers: this.deps.providerAccountsRepo.list().filter((provider) => provider.category === "ai"),
+      providers: this.deps.providerAccountsRepo
+        .list()
+        .filter((provider) => provider.category === "ai"),
       sessionStatus: session.status,
       selectionMode: session.selectionMode,
       defaultSearchProviderId: session.defaultSearchProviderId,
       workspaceDefaultSearchProviderId: workspacePrefs.defaultSearchProviderId,
       workspaceDefaultModelProviderKey: workspacePrefs.defaultModelProviderKey,
       workspaceDefaultModelModelId: workspacePrefs.defaultModelModelId,
-      aiPhases: this.deps.sessionAiPhasesRepo.listBySession(sessionId).map((phase) => ({
-        ...phase,
-        workerOverrides: this.deps.sessionAiPhasesRepo
-          .listWorkersBySession(sessionId)
-          .filter((worker) => worker.phase === phase.phase),
-      })),
+      aiPhases: this.deps.sessionAiPhasesRepo
+        .listBySession(sessionId)
+        .map((phase) => ({
+          ...phase,
+          workerOverrides: this.deps.sessionAiPhasesRepo
+            .listWorkersBySession(sessionId)
+            .filter((worker) => worker.phase === phase.phase),
+        })),
     };
   }
 
-  saveResearchPosture(sessionId: string, patch: Partial<SessionResearchPosture>): SessionResearchPosture {
+  saveResearchPosture(
+    sessionId: string,
+    patch: Partial<SessionResearchPosture>,
+  ): SessionResearchPosture {
     this.assertEditable(sessionId);
     const current = this.get(sessionId);
     const next = {
@@ -109,46 +124,81 @@ export class SessionStrategyContextService {
       researchPosture: { ...current.researchPosture, ...patch, sessionId },
     };
     this.validate(next);
-    return this.deps.researchPostureRepo.upsert(sessionId, next.researchPosture);
+    return this.deps.researchPostureRepo.upsert(
+      sessionId,
+      next.researchPosture,
+    );
   }
 
-  saveRules(sessionId: string, patch: Partial<SessionTradeRules>): SessionTradeRules {
+  saveRules(
+    sessionId: string,
+    patch: Partial<SessionTradeRules>,
+  ): SessionTradeRules {
     this.assertEditable(sessionId);
     const current = this.get(sessionId);
-    const next = { ...current, rules: { ...current.rules, ...patch, sessionId } };
+    const next = {
+      ...current,
+      rules: { ...current.rules, ...patch, sessionId },
+    };
     this.validate(next);
     return this.deps.rulesRepo.upsert(sessionId, next.rules);
   }
 
-  saveRiskConfig(sessionId: string, patch: Partial<SessionRiskConfig>): SessionRiskConfig {
+  saveRiskConfig(
+    sessionId: string,
+    patch: Partial<SessionRiskConfig>,
+  ): SessionRiskConfig {
     this.assertEditable(sessionId);
     const current = this.get(sessionId);
-    const next = { ...current, riskConfig: { ...current.riskConfig, ...patch, sessionId } };
+    const next = {
+      ...current,
+      riskConfig: { ...current.riskConfig, ...patch, sessionId },
+    };
     this.validate(next);
     return this.deps.riskRepo.upsert(sessionId, next.riskConfig);
   }
 
-  saveTimeframeConfig(sessionId: string, patch: Partial<SessionTimeframeConfig>): SessionTimeframeConfig {
+  saveTimeframeConfig(
+    sessionId: string,
+    patch: Partial<SessionTimeframeConfig>,
+  ): SessionTimeframeConfig {
     this.assertEditable(sessionId);
     const current = this.get(sessionId);
-    const next = { ...current, timeframe: { ...current.timeframe, ...patch, sessionId } };
+    const next = {
+      ...current,
+      timeframe: { ...current.timeframe, ...patch, sessionId },
+    };
     this.validate(next);
     return this.deps.timeframeRepo.upsert(sessionId, next.timeframe);
   }
 
-  saveAiPhase(sessionId: string, patch: Partial<SessionAiPhase> & { phase: PipelinePhase }): SessionAiPhase {
+  saveAiPhase(
+    sessionId: string,
+    patch: Partial<SessionAiPhase> & { phase: PipelinePhase },
+  ): SessionAiPhase {
     this.assertEditable(sessionId);
-    const current = this.deps.sessionAiPhasesRepo.getByPhase(sessionId, patch.phase);
+    const current = this.deps.sessionAiPhasesRepo.getByPhase(
+      sessionId,
+      patch.phase,
+    );
     if (!current) {
-      throw new AppError(`AI phase ${patch.phase} is not configured for this session.`, "NOT_FOUND", { sessionId, phase: patch.phase });
+      throw new AppError(
+        `AI phase ${patch.phase} is not configured for this session.`,
+        "NOT_FOUND",
+        { sessionId, phase: patch.phase },
+      );
     }
     if (patch.providerKey?.trim()) {
       const provider = this.deps.providerAccountsRepo.find(patch.providerKey);
       if (!provider || provider.category !== "ai" || !provider.isConfigured) {
-        throw new AppError("Select a configured AI provider for this phase.", "PROVIDER_NOT_CONFIGURED", {
-          field: "providerKey",
-          providerKey: patch.providerKey,
-        });
+        throw new AppError(
+          "Select a configured AI provider for this phase.",
+          "PROVIDER_NOT_CONFIGURED",
+          {
+            field: "providerKey",
+            providerKey: patch.providerKey,
+          },
+        );
       }
     }
     const next: SessionAiPhase = {
@@ -161,18 +211,29 @@ export class SessionStrategyContextService {
     return next;
   }
 
-  saveAiPhaseWorker(sessionId: string, patch: SessionAiPhaseWorker): SessionAiPhaseWorker {
+  saveAiPhaseWorker(
+    sessionId: string,
+    patch: SessionAiPhaseWorker,
+  ): SessionAiPhaseWorker {
     this.assertEditable(sessionId);
     if (!this.deps.sessionAiPhasesRepo.getByPhase(sessionId, patch.phase)) {
-      throw new AppError(`AI phase ${patch.phase} is not configured for this session.`, "NOT_FOUND", { sessionId, phase: patch.phase });
+      throw new AppError(
+        `AI phase ${patch.phase} is not configured for this session.`,
+        "NOT_FOUND",
+        { sessionId, phase: patch.phase },
+      );
     }
     if (patch.providerKey?.trim()) {
       const provider = this.deps.providerAccountsRepo.find(patch.providerKey);
       if (!provider || provider.category !== "ai" || !provider.isConfigured) {
-        throw new AppError("Select a configured AI provider for this worker override.", "PROVIDER_NOT_CONFIGURED", {
-          field: "providerKey",
-          providerKey: patch.providerKey,
-        });
+        throw new AppError(
+          "Select a configured AI provider for this worker override.",
+          "PROVIDER_NOT_CONFIGURED",
+          {
+            field: "providerKey",
+            providerKey: patch.providerKey,
+          },
+        );
       }
     }
     const next: SessionAiPhaseWorker = { ...patch, sessionId };
@@ -182,23 +243,38 @@ export class SessionStrategyContextService {
 
   private validate(context: SessionStrategyContext): void {
     try {
-      validateSessionStrategyContext(context, { hasSearchProvider: this.hasSearchProvider(context.researchPosture.sessionId) });
+      validateSessionStrategyContext(context, {
+        hasSearchProvider: this.hasSearchProvider(
+          context.researchPosture.sessionId,
+        ),
+      });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Invalid strategy configuration.";
-      throw new AppError(message, "VALIDATION_FAILED", { sessionId: context.researchPosture.sessionId });
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Invalid strategy configuration.";
+      throw new AppError(message, "VALIDATION_FAILED", {
+        sessionId: context.researchPosture.sessionId,
+      });
     }
   }
 
   private hasSearchProvider(sessionId: string): boolean {
     const session = this.deps.sessionRepo.requireById(sessionId);
     const workspacePrefs = this.deps.workspacePrefsRepo.get();
-    return Boolean(session.defaultSearchProviderId || workspacePrefs.defaultSearchProviderId);
+    return Boolean(
+      session.defaultSearchProviderId || workspacePrefs.defaultSearchProviderId,
+    );
   }
 
   private assertEditable(sessionId: string): void {
     const session = this.deps.sessionRepo.requireById(sessionId);
     if (!isSessionEditable(session.status)) {
-      throw new AppError("Stop this session before editing its strategy or AI configuration.", "LOCKED", { sessionId });
+      throw new AppError(
+        "Stop this session before editing its strategy or AI configuration.",
+        "LOCKED",
+        { sessionId },
+      );
     }
   }
 }

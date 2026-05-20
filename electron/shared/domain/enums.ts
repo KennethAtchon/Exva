@@ -1,6 +1,17 @@
-export type InstrumentClass = "stock" | "crypto" | "futures" | "prediction_market";
+export type InstrumentClass =
+  | "stock"
+  | "crypto"
+  | "futures"
+  | "prediction_market";
 
-export type SessionStatus = "draft" | "idle" | "active" | "attention_required" | "paused" | "stopped" | "archived";
+export type SessionStatus =
+  | "draft"
+  | "idle"
+  | "active"
+  | "attention_required"
+  | "paused"
+  | "stopped"
+  | "archived";
 /**
  * Runtime lifecycle modes.
  * - `starting`: bootstrapping; not yet accepting work.
@@ -9,7 +20,11 @@ export type SessionStatus = "draft" | "idle" | "active" | "attention_required" |
  *   Use this for "stop new entries" while still managing in-flight trades safely.
  * - `stopping`: terminal; monitor stops only once no open positions remain or operator forces it.
  */
-export type SessionRuntimeStatus = "starting" | "active" | "paused" | "stopping";
+export type SessionRuntimeStatus =
+  | "starting"
+  | "active"
+  | "paused"
+  | "stopping";
 
 export type ExecutionStage =
   | "selector"
@@ -22,7 +37,13 @@ export type ExecutionStage =
   | "broker_order"
   | "monitoring";
 
-export type ExecutionStepStatus = "pending" | "running" | "succeeded" | "failed" | "retrying" | "skipped";
+export type ExecutionStepStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "retrying"
+  | "skipped";
 
 export interface ExecutionStepState {
   id: string;
@@ -44,7 +65,11 @@ export interface ExecutionStepState {
 export type SelectionMode = "manual_shortlist" | "ai_selected_universe";
 export type ExecutionMode = "paper_only" | "live_allowed";
 export type ResearchDepth = "light" | "balanced" | "deep";
-export type StrategyProfile = "passive_income" | "growth" | "conservative" | "custom";
+export type StrategyProfile =
+  | "passive_income"
+  | "growth"
+  | "conservative"
+  | "custom";
 export type ResearchPosturePresetId =
   | "trend_hunt"
   | "catalyst_momentum"
@@ -85,8 +110,19 @@ export type SetupType =
   | "reversal_fade"
   | "probability_edge"
   | "custom";
-export type StrategySideBias = "long_only" | "short_only" | "both" | "market_neutral" | "n_a";
-export type StrategyEntryStyle = "breakout" | "pullback" | "reversal" | "range_fade" | "event" | "probability_edge";
+export type StrategySideBias =
+  | "long_only"
+  | "short_only"
+  | "both"
+  | "market_neutral"
+  | "n_a";
+export type StrategyEntryStyle =
+  | "breakout"
+  | "pullback"
+  | "reversal"
+  | "range_fade"
+  | "event"
+  | "probability_edge";
 export type StrategyExitStyle =
   | "fixed_pct"
   | "trailing_atr"
@@ -94,18 +130,48 @@ export type StrategyExitStyle =
   | "time_based"
   | "thesis_based"
   | "market_resolution";
-export type StrategyScalingMode = "single_entry" | "scale_in_2" | "scale_in_3" | "scale_out_partial";
-export type StopLossType = "fixed_pct" | "trailing_atr" | "broker_native_trailing" | "none";
+export type StrategyScalingMode =
+  | "single_entry"
+  | "scale_in_2"
+  | "scale_in_3"
+  | "scale_out_partial";
+export type StopLossType =
+  | "fixed_pct"
+  | "trailing_atr"
+  | "broker_native_trailing"
+  | "none";
 
-export type RiskPresetId = "conservative" | "moderate" | "aggressive" | "prediction_market" | "custom";
+export type RiskPresetId =
+  | "conservative"
+  | "moderate"
+  | "aggressive"
+  | "prediction_market"
+  | "custom";
 
-export type TimeframePresetId = "intraday" | "swing" | "position" | "prediction" | "custom";
+export type TimeframePresetId =
+  | "intraday"
+  | "swing"
+  | "position"
+  | "prediction"
+  | "custom";
 
 /** Bar size the session uses for analysis and agent context. */
-export type TradingTimeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
+export type TradingTimeframe =
+  | "1m"
+  | "5m"
+  | "15m"
+  | "30m"
+  | "1h"
+  | "4h"
+  | "1d"
+  | "1w";
 
 /** Coarse intended hold length — steers prompts and approval copy. */
-export type HoldingStyle = "intraday_flat" | "multi_day_swing" | "weeks_position" | "custom";
+export type HoldingStyle =
+  | "intraday_flat"
+  | "multi_day_swing"
+  | "weeks_position"
+  | "custom";
 
 export type WorkspaceViewMode = "session" | "global";
 export type AllocationEnforcement = "hard" | "warn";
@@ -132,12 +198,23 @@ export type EventSourceType =
   | "capital";
 export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
 /** Matches `trades.status` CHECK in migrations (Phase 2). */
-export type TradeStatus = "pending" | "open" | "closed" | "cancelled" | "failed" | "rejected";
+export type TradeStatus =
+  | "pending"
+  | "open"
+  | "closed"
+  | "cancelled"
+  | "failed"
+  | "rejected";
 export type TradeSide = "BUY" | "SELL";
 export type PredictionOutcome = "YES" | "NO";
 
 /** Persisted on `agent_runs.finish_reason` — aligns with harness telemetry (§5 plan). */
-export type AgentRunFinishReason = "stop" | "length" | "tool_budget" | "timeout" | "error";
+export type AgentRunFinishReason =
+  | "stop"
+  | "length"
+  | "tool_budget"
+  | "timeout"
+  | "error";
 
 export const RESEARCH_POSTURE_PRESET_IDS: readonly ResearchPosturePresetId[] = [
   "trend_hunt",
@@ -171,12 +248,8 @@ export const RESEARCH_CATALYST_MODES: readonly ResearchCatalystMode[] = [
   "not_required",
 ];
 
-export const RESEARCH_FUNDAMENTAL_STRICTNESS: readonly ResearchFundamentalStrictness[] = [
-  "sanity_check",
-  "balanced",
-  "deep_confirmation",
-  "not_applicable",
-];
+export const RESEARCH_FUNDAMENTAL_STRICTNESS: readonly ResearchFundamentalStrictness[] =
+  ["sanity_check", "balanced", "deep_confirmation", "not_applicable"];
 
 export const SETUP_TYPES: readonly SetupType[] = [
   "breakout",
@@ -262,11 +335,17 @@ export const HOLDING_STYLES: readonly HoldingStyle[] = [
 ];
 
 export function isTradingTimeframe(value: unknown): value is TradingTimeframe {
-  return typeof value === "string" && (TRADING_TIMEFRAMES as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (TRADING_TIMEFRAMES as readonly string[]).includes(value)
+  );
 }
 
 export function isHoldingStyle(value: unknown): value is HoldingStyle {
-  return typeof value === "string" && (HOLDING_STYLES as readonly string[]).includes(value);
+  return (
+    typeof value === "string" &&
+    (HOLDING_STYLES as readonly string[]).includes(value)
+  );
 }
 
 const LEGAL_TRANSITIONS: Partial<Record<SessionStatus, SessionStatus[]>> = {

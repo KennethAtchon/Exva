@@ -1,9 +1,15 @@
 import { AppError } from "@electron/shared/infra/errors";
-import type { PipelinePhase, WorkerDefinition, WorkerToolRequirement } from "@electron/shared/ai/pipeline-phase";
+import type {
+  PipelinePhase,
+  WorkerDefinition,
+  WorkerToolRequirement,
+} from "@electron/shared/ai/pipeline-phase";
 import type { RunTrace } from "../../ai-runtime/ai-runtime-types";
 
 export function extractToolNamesUsed(trace: RunTrace<unknown>): Set<string> {
-  return new Set(trace.steps.flatMap((step) => step.toolCalls.map((call) => call.tool)));
+  return new Set(
+    trace.steps.flatMap((step) => step.toolCalls.map((call) => call.tool)),
+  );
 }
 
 export function enforceWorkerToolRequirements(
@@ -15,10 +21,14 @@ export function enforceWorkerToolRequirements(
   if (!requirement) return;
 
   const toolNamesUsed = extractToolNamesUsed(trace);
-  const toolCallCount = trace.steps.reduce((sum, step) => sum + step.toolCalls.length, 0);
+  const toolCallCount = trace.steps.reduce(
+    (sum, step) => sum + step.toolCalls.length,
+    0,
+  );
   const usedList = [...toolNamesUsed].sort().join(", ") || "none";
 
-  const missingAll = requirement.requiredAll?.filter((tool) => !toolNamesUsed.has(tool)) ?? [];
+  const missingAll =
+    requirement.requiredAll?.filter((tool) => !toolNamesUsed.has(tool)) ?? [];
   if (missingAll.length > 0) {
     throw new AppError(
       `Worker ${worker.id} (phase ${phase}) missed required tool evidence: ${missingAll.join(", ")}. Used: [${usedList}].`,
@@ -36,7 +46,10 @@ export function enforceWorkerToolRequirements(
     );
   }
 
-  if (requirement.minToolCalls != null && toolCallCount < requirement.minToolCalls) {
+  if (
+    requirement.minToolCalls != null &&
+    toolCallCount < requirement.minToolCalls
+  ) {
     throw new AppError(
       `Worker ${worker.id} (phase ${phase}) did not call required tools (expected >= ${requirement.minToolCalls}, got ${toolCallCount}). Used: [${usedList}].`,
       "VALIDATION_FAILED",
@@ -60,11 +73,19 @@ export function summarizeWorkerToolCoverage(
   ];
   const usedSet = new Set(usedTools);
   let satisfied = true;
-  if (requirement?.requiredAll?.some((tool) => !usedSet.has(tool))) satisfied = false;
-  if (requirement?.requiredAny?.length && !requirement.requiredAny.some((tool) => usedSet.has(tool))) {
+  if (requirement?.requiredAll?.some((tool) => !usedSet.has(tool)))
+    satisfied = false;
+  if (
+    requirement?.requiredAny?.length &&
+    !requirement.requiredAny.some((tool) => usedSet.has(tool))
+  ) {
     satisfied = false;
   }
-  if (requirement?.minToolCalls != null && usedTools.length < requirement.minToolCalls) satisfied = false;
+  if (
+    requirement?.minToolCalls != null &&
+    usedTools.length < requirement.minToolCalls
+  )
+    satisfied = false;
   return {
     workerId,
     requiredTools: [...new Set(requiredTools)],

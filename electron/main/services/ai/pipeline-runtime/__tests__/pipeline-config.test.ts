@@ -17,9 +17,17 @@ describe("pipeline-config", () => {
   });
 
   it("defines spend caps for every phase", () => {
-    for (const phase of ["selector", "technical", "fundamental", "review", "decision"] as const) {
+    for (const phase of [
+      "selector",
+      "technical",
+      "fundamental",
+      "review",
+      "decision",
+    ] as const) {
       expect(phaseSpendCapUsd(phase)).toBeGreaterThan(0);
-      expect(DEFAULT_PIPELINE_CONFIG.phases[phase].phaseSpendCapUsd).toBe(phaseSpendCapUsd(phase));
+      expect(DEFAULT_PIPELINE_CONFIG.phases[phase].phaseSpendCapUsd).toBe(
+        phaseSpendCapUsd(phase),
+      );
     }
   });
 

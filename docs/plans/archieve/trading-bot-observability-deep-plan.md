@@ -70,34 +70,34 @@ When a trade does exist, clicking it shows Runs + Trace, but neither tab explain
 
 ### Goals
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| G1 | Mock mode produces actual trades | Session in mock mode starts, runs through selector → analyst → reviewer → decision maker, and places at least one mock trade without changes to the configured strategy |
-| G2 | AI output never truncated in DevPanel | RunCard shows full output text, JsonBlock shows full JSON, no `…` cut-offs |
-| G3 | Role name in all logs | Every `run-agent-execute` log line includes the agent role; grep on `"instrument_selector"` finds adapter-level logs |
-| G4 | DevPanel shows decision context | Clicking any session event shows: which instruments were considered, why they passed/failed validation, what reasoning the decision maker gave, and what the final decision was |
-| G5 | Search results logged fully | Full search result JSON visible in DevPanel external calls tab or trace for debugging |
-| G6 | Mock news is bias-aligned | Mock news content reflects the configured scenario bias (bullish news for bullish scenario) |
+| #   | Goal                                  | Success Looks Like                                                                                                                                                              |
+| --- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | Mock mode produces actual trades      | Session in mock mode starts, runs through selector → analyst → reviewer → decision maker, and places at least one mock trade without changes to the configured strategy         |
+| G2  | AI output never truncated in DevPanel | RunCard shows full output text, JsonBlock shows full JSON, no `…` cut-offs                                                                                                      |
+| G3  | Role name in all logs                 | Every `run-agent-execute` log line includes the agent role; grep on `"instrument_selector"` finds adapter-level logs                                                            |
+| G4  | DevPanel shows decision context       | Clicking any session event shows: which instruments were considered, why they passed/failed validation, what reasoning the decision maker gave, and what the final decision was |
+| G5  | Search results logged fully           | Full search result JSON visible in DevPanel external calls tab or trace for debugging                                                                                           |
+| G6  | Mock news is bias-aligned             | Mock news content reflects the configured scenario bias (bullish news for bullish scenario)                                                                                     |
 
 ### Non-Goals
 
-| # | Non-Goal | Why It Is Out Of Scope |
-|---|----------|------------------------|
-| N1 | Real market data integration | Requires broker API credentials; separate initiative |
-| N2 | Replacing DuckDuckGo with Brave/Tavily for search quality | Separate cost decision; fixing mock mode unblocks testing without it |
-| N3 | Full-page content fetching from search URLs | Significant complexity; not needed to unblock mock testing |
-| N4 | AI model swap | Model quality is not the blocking issue; mock data is |
-| N5 | New DevPanel pages or navigation redesign | Scope is enriching existing inspector panel only |
+| #   | Non-Goal                                                  | Why It Is Out Of Scope                                               |
+| --- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| N1  | Real market data integration                              | Requires broker API credentials; separate initiative                 |
+| N2  | Replacing DuckDuckGo with Brave/Tavily for search quality | Separate cost decision; fixing mock mode unblocks testing without it |
+| N3  | Full-page content fetching from search URLs               | Significant complexity; not needed to unblock mock testing           |
+| N4  | AI model swap                                             | Model quality is not the blocking issue; mock data is                |
+| N5  | New DevPanel pages or navigation redesign                 | Scope is enriching existing inspector panel only                     |
 
 ### Invariants
 
-| # | Invariant | Why It Must Hold |
-|---|-----------|------------------|
-| I1 | DB storage is never truncated | AI output in `agent_runs.output_text` and `agent_messages.output_json` must remain full — these are the audit trail |
-| I2 | Mock mode isolation does not affect live sessions | Changes to `MockBrokerAdapter` or mock news must not bleed into real broker sessions |
-| I3 | `validateSelectorOutput` gate stays intact | The quote/news/rationale validation in `agent-orchestrator.ts:480-510` is a safety check; do not weaken it to force trades |
-| I4 | Pino redact rules unchanged | `log.ts` redacts `api_key`, `secret_key`, etc. — do not bypass for any debugging feature |
-| I5 | Search tool spend guard active | `maxDataSpendUsd` limit in `createSearchTool` must remain enforced |
+| #   | Invariant                                         | Why It Must Hold                                                                                                           |
+| --- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| I1  | DB storage is never truncated                     | AI output in `agent_runs.output_text` and `agent_messages.output_json` must remain full — these are the audit trail        |
+| I2  | Mock mode isolation does not affect live sessions | Changes to `MockBrokerAdapter` or mock news must not bleed into real broker sessions                                       |
+| I3  | `validateSelectorOutput` gate stays intact        | The quote/news/rationale validation in `agent-orchestrator.ts:480-510` is a safety check; do not weaken it to force trades |
+| I4  | Pino redact rules unchanged                       | `log.ts` redacts `api_key`, `secret_key`, etc. — do not bypass for any debugging feature                                   |
+| I5  | Search tool spend guard active                    | `maxDataSpendUsd` limit in `createSearchTool` must remain enforced                                                         |
 
 ---
 
@@ -165,6 +165,7 @@ Pino logger, multi-stream (stdout + daily file in `~/.exva/logs/`). `createLogge
 Four diagnostic cards (Runtime Identity, AI Role Matrix, Execution, Stream) + EventTimeline + InspectorPanel.
 
 InspectorPanel has 5 tabs:
+
 - **Event**: shows event metadata, message
 - **Runs**: loads `api.getAgentTraces(tradeId)` — requires `trade_id` on the selected event
 - **Trace**: loads `api.getTradeDetail(tradeId)` — requires `trade_id`
@@ -172,6 +173,7 @@ InspectorPanel has 5 tabs:
 - **Raw**: raw JSON of event row
 
 **Problems:**
+
 1. `selRuns`/`selMessages` only load when `sel?.trade_id` is present. Selector events have no `trade_id`, so Runs/Trace tabs are always empty for those.
 2. `RunCard` renders `run.output_text.slice(0, 500)` — hardcoded truncation.
 3. `ExternalCallsTab` is a static stub.
@@ -180,14 +182,14 @@ InspectorPanel has 5 tabs:
 
 ### 4.6 Observed Pain Points Summary
 
-| Pain Point | Root Cause | File |
-|------------|------------|------|
-| Zero trades in mock | Sideways OHLCV + neutral news → AI correctly passes on everything | `mock-adapter.ts:118`, `market-tools.ts:27` |
-| Can't see why selector rejected | `validateSelectorOutput` results not logged or stored | `agent-orchestrator.ts:480` |
-| AI output truncated in UI | `RunCard` slices to 500 chars | `DevPanel.tsx:687` |
-| Role absent from adapter logs | `RunAgentExecuteParams` has no `role` field | `run-agent-execute.ts:10` |
-| External tab is dead | `ExternalCallsTab` returns static text | `DevPanel.tsx:749` |
-| Selector trace not inspectable | Inspector requires `trade_id`; selector runs lack one | `DevPanel.tsx:916-932` |
+| Pain Point                      | Root Cause                                                        | File                                        |
+| ------------------------------- | ----------------------------------------------------------------- | ------------------------------------------- |
+| Zero trades in mock             | Sideways OHLCV + neutral news → AI correctly passes on everything | `mock-adapter.ts:118`, `market-tools.ts:27` |
+| Can't see why selector rejected | `validateSelectorOutput` results not logged or stored             | `agent-orchestrator.ts:480`                 |
+| AI output truncated in UI       | `RunCard` slices to 500 chars                                     | `DevPanel.tsx:687`                          |
+| Role absent from adapter logs   | `RunAgentExecuteParams` has no `role` field                       | `run-agent-execute.ts:10`                   |
+| External tab is dead            | `ExternalCallsTab` returns static text                            | `DevPanel.tsx:749`                          |
+| Selector trace not inspectable  | Inspector requires `trade_id`; selector runs lack one             | `DevPanel.tsx:916-932`                      |
 
 ---
 
@@ -214,6 +216,7 @@ Common log file entries stop using preview-style field names and truncated value
 **Selector event inspection:** When the selected event has no `trade_id` but has a `cycle_id`, the DevPanel loads agent runs and messages by `cycle_id` instead. The Runs and Trace tabs populate for selector runs.
 
 **Decision context panel:** A dedicated "Decision" tab (or enriched Event tab) shows:
+
 - Instrument considered
 - Decision: TRADE or NO_TRADE
 - Confidence score
@@ -232,18 +235,18 @@ Search tool description updated to be more specific about expected query format 
 
 ## 6. Gap Analysis
 
-| Area | Current State | Target State | Required Change |
-|------|---------------|--------------|-----------------|
-| Mock OHLCV | Sideways bias, deterministic decline | Bullish bias with clear uptrend for momentum | `MockBrokerAdapter` constructor accepts strategy-derived scenario |
-| Mock news | 3 neutral identical headlines for every symbol | Bullish, symbol-specific headlines that mention the instrument | Replace `DEFAULT_MOCK_NEWS` with scenario-aware factory |
-| Mock scenario wiring | Hardcoded `scenario: {}` in registry | Registry reads from a mock config or session strategy | `broker-registry.ts` passes scenario to `MockBrokerAdapter` |
-| Role in logs | Missing from `run-agent-execute` logs and payload fields are preview-truncated | Present on all log lines in adapter with full payload fields | Add `role` param to `RunAgentExecuteParams`, thread through, rename preview fields to full-value names, and log full payloads |
-| UI truncation | `RunCard` cuts at 500 chars, `JsonBlock` at 2000 | Full text with collapse toggle | Remove hard slice, add expand in `RunCard` |
-| Selector inspection | Requires `trade_id`; selector has none | Load by `cycle_id` when no `trade_id` | DevPanel `useEffect` checks `cycle_id` fallback |
-| Decision context | Buried in `output_json` JsonBlock | Dedicated rendered section | Parse decision fields and render as `DataRow` cards |
-| Selector rejections | Silent | DEBUG events per rejection | Emit event in `validateSelectorOutput` |
-| External calls tab | Static stub | Live `api_call_log` data | Wire IPC handler + fetch by `cycle_id`/`session_id` |
-| Search tool description | Generic | Strategy-aware hints | Update string in `search-tool.ts` |
+| Area                    | Current State                                                                  | Target State                                                   | Required Change                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Mock OHLCV              | Sideways bias, deterministic decline                                           | Bullish bias with clear uptrend for momentum                   | `MockBrokerAdapter` constructor accepts strategy-derived scenario                                                             |
+| Mock news               | 3 neutral identical headlines for every symbol                                 | Bullish, symbol-specific headlines that mention the instrument | Replace `DEFAULT_MOCK_NEWS` with scenario-aware factory                                                                       |
+| Mock scenario wiring    | Hardcoded `scenario: {}` in registry                                           | Registry reads from a mock config or session strategy          | `broker-registry.ts` passes scenario to `MockBrokerAdapter`                                                                   |
+| Role in logs            | Missing from `run-agent-execute` logs and payload fields are preview-truncated | Present on all log lines in adapter with full payload fields   | Add `role` param to `RunAgentExecuteParams`, thread through, rename preview fields to full-value names, and log full payloads |
+| UI truncation           | `RunCard` cuts at 500 chars, `JsonBlock` at 2000                               | Full text with collapse toggle                                 | Remove hard slice, add expand in `RunCard`                                                                                    |
+| Selector inspection     | Requires `trade_id`; selector has none                                         | Load by `cycle_id` when no `trade_id`                          | DevPanel `useEffect` checks `cycle_id` fallback                                                                               |
+| Decision context        | Buried in `output_json` JsonBlock                                              | Dedicated rendered section                                     | Parse decision fields and render as `DataRow` cards                                                                           |
+| Selector rejections     | Silent                                                                         | DEBUG events per rejection                                     | Emit event in `validateSelectorOutput`                                                                                        |
+| External calls tab      | Static stub                                                                    | Live `api_call_log` data                                       | Wire IPC handler + fetch by `cycle_id`/`session_id`                                                                           |
+| Search tool description | Generic                                                                        | Strategy-aware hints                                           | Update string in `search-tool.ts`                                                                                             |
 
 **Hard gaps and coupling risks:**
 
@@ -259,15 +262,15 @@ Search tool description updated to be more specific about expected query format 
 
 Make mock OHLCV bullish by defaulting `MockBrokerAdapter` to `bias: "bullish"`. Replace mock news with bullish headlines.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Build complexity | Low — 2-3 file changes |
-| Migration risk | None — mock only |
-| Runtime risk | None — no production path |
-| Reversibility | High — trivially revertible |
-| Team fit | Easy |
-| Testability | Unblocks trade pipeline end-to-end |
-| Maintainability | Leaves no framework for configuring scenarios; hardcoded bullish is a hack |
+| Dimension        | Assessment                                                                 |
+| ---------------- | -------------------------------------------------------------------------- |
+| Build complexity | Low — 2-3 file changes                                                     |
+| Migration risk   | None — mock only                                                           |
+| Runtime risk     | None — no production path                                                  |
+| Reversibility    | High — trivially revertible                                                |
+| Team fit         | Easy                                                                       |
+| Testability      | Unblocks trade pipeline end-to-end                                         |
+| Maintainability  | Leaves no framework for configuring scenarios; hardcoded bullish is a hack |
 
 Downside: `"bullish"` hardcoded globally means a mean-reversion session can't test its logic. No scenario configurability. The fix works for now but creates a new assumption.
 
@@ -275,43 +278,43 @@ Downside: `"bullish"` hardcoded globally means a mean-reversion session can't te
 
 `MockBrokerAdapter` is constructed with a `MockScenario`. `BrokerRegistry` reads a `mockScenario` field from workspace prefs or a simple config. A default "bullish with momentum" scenario is provided for stock/crypto mock accounts. The `DEFAULT_MOCK_NEWS` constant becomes a `scenarioMockNews(scenario)` factory that returns symbol-appropriate headlines.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Build complexity | Medium — 4-5 files, scenario factory, registry wiring |
-| Migration risk | Low |
-| Runtime risk | None |
-| Reversibility | High |
-| Team fit | Moderate — small API surface change |
-| Testability | Excellent — can test bullish/bearish/volatile pipelines |
-| Maintainability | Clean — scenario is explicit and testable |
+| Dimension        | Assessment                                              |
+| ---------------- | ------------------------------------------------------- |
+| Build complexity | Medium — 4-5 files, scenario factory, registry wiring   |
+| Migration risk   | Low                                                     |
+| Runtime risk     | None                                                    |
+| Reversibility    | High                                                    |
+| Team fit         | Moderate — small API surface change                     |
+| Testability      | Excellent — can test bullish/bearish/volatile pipelines |
+| Maintainability  | Clean — scenario is explicit and testable               |
 
 ### Option C: Connect real broker for testing (overkill)
 
 Use a real paper trading account (Alpaca paper mode).
 
-| Dimension | Assessment |
-|-----------|------------|
-| Build complexity | High — credential setup, API compliance |
-| Migration risk | Medium — external dependency |
-| Runtime risk | API rate limits, data costs |
-| Reversibility | Medium |
-| Team fit | Low for solo dev without credentials configured |
-| Testability | Good for real market data; bad for repeatable test scenarios |
-| Maintainability | Depends on external API stability |
+| Dimension        | Assessment                                                   |
+| ---------------- | ------------------------------------------------------------ |
+| Build complexity | High — credential setup, API compliance                      |
+| Migration risk   | Medium — external dependency                                 |
+| Runtime risk     | API rate limits, data costs                                  |
+| Reversibility    | Medium                                                       |
+| Team fit         | Low for solo dev without credentials configured              |
+| Testability      | Good for real market data; bad for repeatable test scenarios |
+| Maintainability  | Depends on external API stability                            |
 
 ### Option D: Status quo
 
 Don't fix mock data; manually configure a `manual_shortlist` session with specific instruments and skip the AI selector.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Build complexity | None |
-| Migration risk | None |
-| Runtime risk | None |
-| Reversibility | N/A |
-| Team fit | Easy workaround |
-| Testability | Limited — bypasses the AI selector you want to test |
-| Maintainability | Doesn't fix the actual problem |
+| Dimension        | Assessment                                          |
+| ---------------- | --------------------------------------------------- |
+| Build complexity | None                                                |
+| Migration risk   | None                                                |
+| Runtime risk     | None                                                |
+| Reversibility    | N/A                                                 |
+| Team fit         | Easy workaround                                     |
+| Testability      | Limited — bypasses the AI selector you want to test |
+| Maintainability  | Doesn't fix the actual problem                      |
 
 ---
 
@@ -361,20 +364,26 @@ Replace the flat constant with a factory:
 export const MOCK_NEWS_BY_SCENARIO: Record<MockScenarioBias, MockNewsItem[]> = {
   bullish: [
     {
-      title: "Momentum surge: breakout candidates showing relative strength vs. market",
-      snippet: "Several liquid names are posting multi-week highs on above-average volume. Sector rotation into growth continues as institutional positioning shifts.",
+      title:
+        "Momentum surge: breakout candidates showing relative strength vs. market",
+      snippet:
+        "Several liquid names are posting multi-week highs on above-average volume. Sector rotation into growth continues as institutional positioning shifts.",
       url: "https://mock.local/news/bullish-1",
       publishedAt: new Date().toISOString(),
     },
     {
-      title: "Technical setup: flag continuation patterns emerging across growth names",
-      snippet: "Chart structures showing tight consolidation after recent breakouts. RSI holding above 50 with MACD crossover in progress on multiple instruments.",
+      title:
+        "Technical setup: flag continuation patterns emerging across growth names",
+      snippet:
+        "Chart structures showing tight consolidation after recent breakouts. RSI holding above 50 with MACD crossover in progress on multiple instruments.",
       url: "https://mock.local/news/bullish-2",
       publishedAt: new Date().toISOString(),
     },
     {
-      title: "Volume confirms breakout: institutional accumulation detected in select names",
-      snippet: "On-balance volume indicators trending up. Block trades visible in recent tape. Risk-on sentiment supporting momentum entries.",
+      title:
+        "Volume confirms breakout: institutional accumulation detected in select names",
+      snippet:
+        "On-balance volume indicators trending up. Block trades visible in recent tape. Risk-on sentiment supporting momentum entries.",
       url: "https://mock.local/news/bullish-3",
       publishedAt: new Date().toISOString(),
     },
@@ -382,19 +391,23 @@ export const MOCK_NEWS_BY_SCENARIO: Record<MockScenarioBias, MockNewsItem[]> = {
   bearish: [
     {
       title: "Distribution phase: high-volume selling in recent sessions",
-      snippet: "Broad distribution visible across major indices. Key support levels being tested. Short-side setups emerging in overextended names.",
+      snippet:
+        "Broad distribution visible across major indices. Key support levels being tested. Short-side setups emerging in overextended names.",
       url: "https://mock.local/news/bearish-1",
       publishedAt: new Date().toISOString(),
     },
     {
       title: "Market breadth weakening: new highs collapse as selling broadens",
-      snippet: "Advance/decline line diverging from index price. Risk-off sentiment; defensive positioning increasing.",
+      snippet:
+        "Advance/decline line diverging from index price. Risk-off sentiment; defensive positioning increasing.",
       url: "https://mock.local/news/bearish-2",
       publishedAt: new Date().toISOString(),
     },
     {
-      title: "Failed breakouts: momentum names reversing sharply on earnings misses",
-      snippet: "Multiple growth names failing at resistance. Short-side momentum building as longs capitulate.",
+      title:
+        "Failed breakouts: momentum names reversing sharply on earnings misses",
+      snippet:
+        "Multiple growth names failing at resistance. Short-side momentum building as longs capitulate.",
       url: "https://mock.local/news/bearish-3",
       publishedAt: new Date().toISOString(),
     },
@@ -406,26 +419,33 @@ export const MOCK_NEWS_BY_SCENARIO: Record<MockScenarioBias, MockNewsItem[]> = {
   volatile: [
     {
       title: "Volatility spike: intraday swings expanding across asset classes",
-      snippet: "VIX elevated. Rapid mean-reversion moves creating short-term setups. Wide bid/ask spreads in some names.",
+      snippet:
+        "VIX elevated. Rapid mean-reversion moves creating short-term setups. Wide bid/ask spreads in some names.",
       url: "https://mock.local/news/volatile-1",
       publishedAt: new Date().toISOString(),
     },
     {
-      title: "Choppy tape: both sides active as market digests macro uncertainty",
-      snippet: "No clear directional trend. Oscillating between support and resistance. Both breakout and mean-reversion setups active.",
+      title:
+        "Choppy tape: both sides active as market digests macro uncertainty",
+      snippet:
+        "No clear directional trend. Oscillating between support and resistance. Both breakout and mean-reversion setups active.",
       url: "https://mock.local/news/volatile-2",
       publishedAt: new Date().toISOString(),
     },
     {
-      title: "Range-bound leaders: sector rotation creating inter-day reversions",
-      snippet: "Sector ETF spreads widening intraday. Oversold bounces and overbought fade setups visible in liquid names.",
+      title:
+        "Range-bound leaders: sector rotation creating inter-day reversions",
+      snippet:
+        "Sector ETF spreads widening intraday. Oversold bounces and overbought fade setups visible in liquid names.",
       url: "https://mock.local/news/volatile-3",
       publishedAt: new Date().toISOString(),
     },
   ],
 };
 
-export function scenarioMockNews(bias: MockScenarioBias = "bullish"): MockNewsItem[] {
+export function scenarioMockNews(
+  bias: MockScenarioBias = "bullish",
+): MockNewsItem[] {
   return MOCK_NEWS_BY_SCENARIO[bias];
 }
 
@@ -475,7 +495,7 @@ Add `role` to `RunAgentExecuteParams`:
 ```ts
 export interface RunAgentExecuteParams<T> {
   // ...existing fields...
-  role?: string;  // AgentRole — optional for backward compat
+  role?: string; // AgentRole — optional for backward compat
 }
 ```
 
@@ -526,11 +546,11 @@ In `runtime.ts`, all three `withProviderRetry(() => adapter.runAgent({...}))` ca
 
 ```ts
 adapter.runAgent({
-  role,  // add this
+  role, // add this
   model: config.modelId,
   messages,
   // ...
-})
+});
 ```
 
 The `RunAgentInput` type (or equivalent in each adapter) is extended to include `role?: string`.
@@ -545,31 +565,73 @@ The same change applies to start/complete entries that currently log `userPrompt
 
 ```tsx
 // Before:
-{run.output_text ? `"${run.output_text.slice(0, 500)}${run.output_text.length > 500 ? "…" : ""}"` : "No output text"}
+{
+  run.output_text
+    ? `"${run.output_text.slice(0, 500)}${run.output_text.length > 500 ? "…" : ""}"`
+    : "No output text";
+}
 
 // After:
-<CollapsibleText text={run.output_text} collapseAt={800} />
+<CollapsibleText text={run.output_text} collapseAt={800} />;
 ```
 
 Add `CollapsibleText` component:
 
 ```tsx
-const CollapsibleText = ({ text, collapseAt = 800 }: { text: string | null; collapseAt?: number }) => {
+const CollapsibleText = ({
+  text,
+  collapseAt = 800,
+}: {
+  text: string | null;
+  collapseAt?: number;
+}) => {
   const [expanded, setExpanded] = useState(false);
-  if (!text) return <span style={{ color: "var(--text3)", fontFamily: "var(--font-mono)", fontSize: 10 }}>No output text</span>;
+  if (!text)
+    return (
+      <span
+        style={{
+          color: "var(--text3)",
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+        }}
+      >
+        No output text
+      </span>
+    );
   const needsCollapse = text.length > collapseAt;
-  const displayed = needsCollapse && !expanded ? text.slice(0, collapseAt) : text;
+  const displayed =
+    needsCollapse && !expanded ? text.slice(0, collapseAt) : text;
   return (
     <div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text2)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-        {displayed}{needsCollapse && !expanded && "…"}
+      <div
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 10,
+          color: "var(--text2)",
+          lineHeight: 1.6,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+        }}
+      >
+        {displayed}
+        {needsCollapse && !expanded && "…"}
       </div>
       {needsCollapse && (
         <button
           onClick={() => setExpanded(!expanded)}
-          style={{ marginTop: 4, background: "transparent", border: "none", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", cursor: "pointer" }}
+          style={{
+            marginTop: 4,
+            background: "transparent",
+            border: "none",
+            fontFamily: "var(--font-mono)",
+            fontSize: 9,
+            color: "var(--text3)",
+            cursor: "pointer",
+          }}
         >
-          {expanded ? "collapse" : `show full (${(text.length / 1000).toFixed(1)}k chars)`}
+          {expanded
+            ? "collapse"
+            : `show full (${(text.length / 1000).toFixed(1)}k chars)`}
         </button>
       )}
     </div>
@@ -600,33 +662,37 @@ useEffect(() => {
 useEffect(() => {
   const tradeId = sel?.trade_id;
   const cycleId = (sel as ExtEventRow)?.cycle_id;
-  
+
   if (!tradeId && !cycleId) {
     setSelRuns([]);
     setSelMessages([]);
     return;
   }
-  
+
   setRunsLoading(true);
   setMessagesLoading(true);
-  
+
   if (tradeId) {
-    api.getAgentTraces(tradeId)
-      .then(runs => setSelRuns(runs as ExtAgentRun[]))
+    api
+      .getAgentTraces(tradeId)
+      .then((runs) => setSelRuns(runs as ExtAgentRun[]))
       .catch(() => setSelRuns([]))
       .finally(() => setRunsLoading(false));
-    api.getTradeDetail(tradeId)
-      .then(detail => setSelMessages(detail.messages ?? []))
+    api
+      .getTradeDetail(tradeId)
+      .then((detail) => setSelMessages(detail.messages ?? []))
       .catch(() => setSelMessages([]))
       .finally(() => setMessagesLoading(false));
   } else if (cycleId) {
     // Load by cycle_id — selector runs
-    api.getAgentTracesByCycle(cycleId)
-      .then(runs => setSelRuns(runs as ExtAgentRun[]))
+    api
+      .getAgentTracesByCycle(cycleId)
+      .then((runs) => setSelRuns(runs as ExtAgentRun[]))
       .catch(() => setSelRuns([]))
       .finally(() => setRunsLoading(false));
-    api.getMessagesByCycle(cycleId)
-      .then(msgs => setSelMessages(msgs))
+    api
+      .getMessagesByCycle(cycleId)
+      .then((msgs) => setSelMessages(msgs))
       .catch(() => setSelMessages([]))
       .finally(() => setMessagesLoading(false));
   }
@@ -643,7 +709,7 @@ handle("getAgentTracesByCycle", async (_, cycleId: string) => {
   return agentRunsRepo.findByCycleId(cycleId);
 });
 
-// getMessagesByCycle  
+// getMessagesByCycle
 handle("getMessagesByCycle", async (_, cycleId: string) => {
   return agentMessagesRepo.findByCycleId(cycleId);
 });
@@ -671,18 +737,40 @@ function DecisionSummary({ outputJson }: { outputJson: string | null }) {
   if (!d) return null;
   const isNo = d.action === "no_trade";
   return (
-    <div style={{
-      background: isNo ? "rgba(255,71,87,0.06)" : "rgba(0,229,160,0.06)",
-      border: `1px solid ${isNo ? "rgba(255,71,87,0.2)" : "rgba(0,229,160,0.2)"}`,
-      borderRadius: 7, padding: "10px 12px", marginBottom: 10,
-    }}>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 800, color: isNo ? "#ff4757" : "#00e5a0", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>
+    <div
+      style={{
+        background: isNo ? "rgba(255,71,87,0.06)" : "rgba(0,229,160,0.06)",
+        border: `1px solid ${isNo ? "rgba(255,71,87,0.2)" : "rgba(0,229,160,0.2)"}`,
+        borderRadius: 7,
+        padding: "10px 12px",
+        marginBottom: 10,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 9,
+          fontWeight: 800,
+          color: isNo ? "#ff4757" : "#00e5a0",
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: 6,
+        }}
+      >
         {isNo ? "NO TRADE" : `TRADE — ${d.side}`}
-        {d.confidence != null && <span style={{ marginLeft: 8, opacity: 0.7 }}>confidence: {(d.confidence * 100).toFixed(0)}%</span>}
-        {d.sizeUsd != null && <span style={{ marginLeft: 8, opacity: 0.7 }}>${d.sizeUsd}</span>}
+        {d.confidence != null && (
+          <span style={{ marginLeft: 8, opacity: 0.7 }}>
+            confidence: {(d.confidence * 100).toFixed(0)}%
+          </span>
+        )}
+        {d.sizeUsd != null && (
+          <span style={{ marginLeft: 8, opacity: 0.7 }}>${d.sizeUsd}</span>
+        )}
       </div>
       {d.reasoning && (
-        <div style={{ fontSize: 11, color: "var(--text2)", lineHeight: 1.6 }}>{d.reasoning}</div>
+        <div style={{ fontSize: 11, color: "var(--text2)", lineHeight: 1.6 }}>
+          {d.reasoning}
+        </div>
       )}
     </div>
   );
@@ -692,7 +780,11 @@ function DecisionSummary({ outputJson }: { outputJson: string | null }) {
 Insert this into the message card for decision_maker messages:
 
 ```tsx
-{m.output_schema_name === "tradeDecision" && <DecisionSummary outputJson={m.output_json} />}
+{
+  m.output_schema_name === "tradeDecision" && (
+    <DecisionSummary outputJson={m.output_json} />
+  );
+}
 ```
 
 #### 9.3.4 Selector Rejection Events
@@ -704,23 +796,43 @@ After each rejection, emit a debug event:
 ```ts
 for (const instrument of instruments) {
   if (!session.instrumentClasses.includes(instrument.instrumentClass)) {
-    this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected — class ${instrument.instrumentClass} not in session`);
+    this.emitEvent(
+      "DEBUG",
+      null,
+      `[selector-filter] ${instrument.symbol}: rejected — class ${instrument.instrumentClass} not in session`,
+    );
     continue;
   }
   if (!instrument.rationale?.trim()) {
-    this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected — no rationale`);
+    this.emitEvent(
+      "DEBUG",
+      null,
+      `[selector-filter] ${instrument.symbol}: rejected — no rationale`,
+    );
     continue;
   }
   if (!this.hasSuccessfulQuote(traces, instrument)) {
-    this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected — no successful quote call`);
+    this.emitEvent(
+      "DEBUG",
+      null,
+      `[selector-filter] ${instrument.symbol}: rejected — no successful quote call`,
+    );
     continue;
   }
   if (!this.hasDiscoveryEvidence(traces, instrument, hadSearch)) {
-    this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected — no discovery evidence (news or search)`);
+    this.emitEvent(
+      "DEBUG",
+      null,
+      `[selector-filter] ${instrument.symbol}: rejected — no discovery evidence (news or search)`,
+    );
     continue;
   }
   if (this.contradictsStrategy(strategy.sideBias, instrument.rationale)) {
-    this.emitEvent("DEBUG", null, `[selector-filter] ${instrument.symbol}: rejected — rationale contradicts ${strategy.sideBias} bias`);
+    this.emitEvent(
+      "DEBUG",
+      null,
+      `[selector-filter] ${instrument.symbol}: rejected — rationale contradicts ${strategy.sideBias} bias`,
+    );
     continue;
   }
   // passed
@@ -737,34 +849,89 @@ These events appear in the DevPanel timeline and are filterable by DEBUG level.
 Replace the stub with a live data component. Load `api_call_log` rows for the current session filtered by `cycle_id` when available:
 
 ```tsx
-const ExternalCallsTab = ({ sessionId, cycleId }: { sessionId: string | null; cycleId: string | null }) => {
+const ExternalCallsTab = ({
+  sessionId,
+  cycleId,
+}: {
+  sessionId: string | null;
+  cycleId: string | null;
+}) => {
   const [calls, setCalls] = useState<ApiCallLogRow[]>([]);
   const [loading, setLoading] = useState(false);
-  
+
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
-    api.getApiCallLog({ sessionId, cycleId })
+    api
+      .getApiCallLog({ sessionId, cycleId })
       .then(setCalls)
       .catch(() => setCalls([]))
       .finally(() => setLoading(false));
   }, [sessionId, cycleId]);
-  
+
   if (loading) return <div style={emptyStyle}>loading…</div>;
-  if (!calls.length) return <div style={emptyStyle}>No external API calls for this selection</div>;
-  
+  if (!calls.length)
+    return (
+      <div style={emptyStyle}>No external API calls for this selection</div>
+    );
+
   return (
-    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
-      {calls.map(call => (
-        <div key={call.id} style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px" }}>
+    <div
+      style={{
+        padding: "12px 14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      {calls.map((call) => (
+        <div
+          key={call.id}
+          style={{
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+            padding: "8px 10px",
+          }}
+        >
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: call.status === "ok" ? "#00e5a0" : "#ff4757" }}>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                fontWeight: 700,
+                color: call.status === "ok" ? "#00e5a0" : "#ff4757",
+              }}
+            >
               {call.status.toUpperCase()}
             </span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{call.provider}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{call.latency_ms}ms</span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                color: "var(--text3)",
+              }}
+            >
+              {call.provider}
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 9,
+                color: "var(--text3)",
+              }}
+            >
+              {call.latency_ms}ms
+            </span>
             {call.credits_used != null && (
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{call.credits_used} credits</span>
+              <span
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 9,
+                  color: "var(--text3)",
+                }}
+              >
+                {call.credits_used} credits
+              </span>
             )}
           </div>
         </div>
@@ -799,6 +966,7 @@ Status: Partially implemented on 2026-05-10. Default bullish mock scenario, scen
 **Objective:** Get the bot to produce at least one trade in mock mode end-to-end.
 
 **Checklist:**
+
 - [x] `mock-adapter.ts`: Define `DEFAULT_MOCK_SCENARIO = { bias: "bullish", volatilityPct: 0.018, trendPctPerDay: 0.006 }`, use as constructor default
 - [x] `mock-adapter.ts`: Add `getScenarioBias(): MockScenarioBias` accessor
 - [x] `market-tools.ts`: Add `MOCK_NEWS_BY_SCENARIO` with bullish/bearish/volatile/sideways arrays, add `scenarioMockNews()` factory, update `DEFAULT_MOCK_NEWS` to point to bullish
@@ -822,6 +990,7 @@ Status: Partially implemented on 2026-05-10. Code wiring and targeted unit verif
 **Objective:** All `run-agent-execute` log lines include the agent role and emit full payloads under non-preview field names in the common log file.
 
 **Checklist:**
+
 - [x] `run-agent-execute.ts`: Add `role?: string` to `RunAgentExecuteParams`
 - [x] `run-agent-execute.ts`: Add `role: params.role ?? null` to start, tool-call, and complete log entries
 - [x] `run-agent-execute.ts`: Rename `userPromptPreview`, `responsePreview`, `argsPreview`, and `resultPreview` to full-value field names such as `userPrompt`, `responseText`, `toolArgs`, and `toolResult`
@@ -847,6 +1016,7 @@ Status: Partially implemented on 2026-05-10. Code wiring for cycle-based inspect
 **Objective:** DevPanel shows full AI output, selector event traces, decision context, rejection reasons, and external calls.
 
 **Checklist:**
+
 - [x] `DevPanel.tsx`: Add `CollapsibleText` component
 - [x] `DevPanel.tsx`: Replace `RunCard` text slice with `CollapsibleText`
 - [x] `DevPanel.tsx`: Increase `JsonBlock` preview from 2000 to 4000 chars
@@ -863,6 +1033,7 @@ Status: Partially implemented on 2026-05-10. Code wiring for cycle-based inspect
 - [x] Add persisted `events.cycle_id` support so selector/debug events can be reloaded with cycle context
 
 **Validation:**
+
 1. Click an `instrument_selector` event in DevPanel → Runs tab shows selector agent run → Trace tab shows messages
 2. Click a decision_maker event → Trace tab shows DecisionSummary with reasoning text
 3. Look for `[selector-filter]` DEBUG events in timeline when selector rejects instruments
@@ -879,6 +1050,7 @@ Status: Partially implemented on 2026-05-10. Code wiring for cycle-based inspect
 Status: Implemented on 2026-05-10.
 
 **Checklist:**
+
 - [x] `tools/search-tool.ts`: Update tool description string to be financial-specific
 - [ ] Optional: update `sanitize-search-query.ts` to preserve financial terms that might be incorrectly stripped
 
@@ -895,7 +1067,10 @@ Status: Implemented on 2026-05-10.
 ```ts
 // mock-adapter.test.ts
 it("bullish scenario produces uptrend over 30 bars", () => {
-  const adapter = new MockBrokerAdapter({ bias: "bullish", trendPctPerDay: 0.005 });
+  const adapter = new MockBrokerAdapter({
+    bias: "bullish",
+    trendPctPerDay: 0.005,
+  });
   const bars = adapter.getMockOhlcv("NVDA", 30);
   const first = bars[0].close;
   const last = bars[bars.length - 1].close;
@@ -908,7 +1083,10 @@ it("bullish scenario produces uptrend over 30 bars", () => {
 ```ts
 it("bullish news contains momentum keywords", () => {
   const news = scenarioMockNews("bullish");
-  const combined = news.map(n => n.title + n.snippet).join(" ").toLowerCase();
+  const combined = news
+    .map((n) => n.title + n.snippet)
+    .join(" ")
+    .toLowerCase();
   expect(combined).toMatch(/breakout|momentum|strength/);
 });
 
@@ -957,13 +1135,13 @@ grep '"trade opened"' ~/.exva/logs/exva-$(date +%Y-%m-%d).log
 
 ## 12. Risks and Failure Modes
 
-| # | Risk | Likelihood | Impact | Detection | Mitigation | Rollback |
-|---|------|------------|--------|-----------|------------|----------|
-| R1 | Bullish mock OHLCV still fails `validateSelectorOutput` (quote check) | Low | High | No `[selector-filter]` PASSED events visible | Add verbose logging to pass cases too; check quote tool returns non-error | Revert to manual_shortlist for testing |
-| R2 | `cycle_id` not present on events emitted before the fix | Low | Medium | Inspector shows empty Runs tab for old events | Filter: only try cycle_id if event has it | N/A — new events will have it |
-| R3 | `findByCycleId` queries are slow on large tables | Very Low | Low | DevPanel takes >500ms to load | Add index on `cycle_id` in migrations if needed | Paginate results |
-| R4 | Agent reasoning text absent (model doesn't fill reasoning field) | Low | Low | `thinking_json` null in trace | Verify with model that supports thinking; no fix needed for non-thinking models | N/A |
-| R5 | DuckDuckGo HTML structure changes break parsing | Medium | Medium | `search_web` returns 0 results | Detect in `parseResults` returning empty; already throws `AppError` | Switch to Brave or Tavily |
+| #   | Risk                                                                  | Likelihood | Impact | Detection                                     | Mitigation                                                                      | Rollback                               |
+| --- | --------------------------------------------------------------------- | ---------- | ------ | --------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------- |
+| R1  | Bullish mock OHLCV still fails `validateSelectorOutput` (quote check) | Low        | High   | No `[selector-filter]` PASSED events visible  | Add verbose logging to pass cases too; check quote tool returns non-error       | Revert to manual_shortlist for testing |
+| R2  | `cycle_id` not present on events emitted before the fix               | Low        | Medium | Inspector shows empty Runs tab for old events | Filter: only try cycle_id if event has it                                       | N/A — new events will have it          |
+| R3  | `findByCycleId` queries are slow on large tables                      | Very Low   | Low    | DevPanel takes >500ms to load                 | Add index on `cycle_id` in migrations if needed                                 | Paginate results                       |
+| R4  | Agent reasoning text absent (model doesn't fill reasoning field)      | Low        | Low    | `thinking_json` null in trace                 | Verify with model that supports thinking; no fix needed for non-thinking models | N/A                                    |
+| R5  | DuckDuckGo HTML structure changes break parsing                       | Medium     | Medium | `search_web` returns 0 results                | Detect in `parseResults` returning empty; already throws `AppError`             | Switch to Brave or Tavily              |
 
 ### R1 in detail
 
@@ -976,11 +1154,13 @@ Even with bullish OHLCV, `validateSelectorOutput` requires `hasSuccessfulQuote` 
 All changes are local (Electron desktop app). No deployment coordination needed.
 
 **Order of operations:**
+
 1. Phase 1 first — unblocks all other testing
 2. Phase 2 and Phase 3 can overlap (no dependencies between them)
 3. Phase 4 last — lowest priority, qualitative
 
 **Monitoring during each phase:** After each phase, run the session for one full cycle and check:
+
 - Logs at `~/.exva/logs/exva-YYYY-MM-DD.log`
 - DevPanel event timeline
 - Mock trade record in TradesPage
@@ -991,13 +1171,13 @@ No feature flags needed. No external services affected.
 
 ## 14. Open Questions
 
-| # | Question | Why It Matters | Owner | Resolution Needed By |
-|---|----------|----------------|-------|----------------------|
-| Q1 | Does `broker-registry.ts` construct `MockBrokerAdapter` with `new MockBrokerAdapter()` (no args) or does it pass a scenario? | Determines if Phase 1 default change propagates automatically | Kenneth | Before Phase 1 implementation |
-| Q2 | Is `cycle_id` present on all events emitted by the orchestrator today, or only on some? | Determines which events will get inspector data after Phase 3 | Kenneth | Before Phase 3 implementation |
-| Q3 | Do `agent_runs` and `agent_messages` have DB indexes on `cycle_id`? | Performance of `findByCycleId` queries | Kenneth | Before Phase 3 IPC handlers |
-| Q4 | Should mock news be symbol-specific (e.g., mention "NVDA" by name in the headline)? | Would increase AI confidence in specific candidates | Kenneth | Phase 1 refinement |
-| Q5 | Should the `validateSelectorOutput` gate be temporarily relaxed for mock testing, or is the real issue just the data? | Determines if Phase 1 alone is sufficient | Kenneth | After Phase 1 runs once |
+| #   | Question                                                                                                                     | Why It Matters                                                | Owner   | Resolution Needed By          |
+| --- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------- | ----------------------------- |
+| Q1  | Does `broker-registry.ts` construct `MockBrokerAdapter` with `new MockBrokerAdapter()` (no args) or does it pass a scenario? | Determines if Phase 1 default change propagates automatically | Kenneth | Before Phase 1 implementation |
+| Q2  | Is `cycle_id` present on all events emitted by the orchestrator today, or only on some?                                      | Determines which events will get inspector data after Phase 3 | Kenneth | Before Phase 3 implementation |
+| Q3  | Do `agent_runs` and `agent_messages` have DB indexes on `cycle_id`?                                                          | Performance of `findByCycleId` queries                        | Kenneth | Before Phase 3 IPC handlers   |
+| Q4  | Should mock news be symbol-specific (e.g., mention "NVDA" by name in the headline)?                                          | Would increase AI confidence in specific candidates           | Kenneth | Phase 1 refinement            |
+| Q5  | Should the `validateSelectorOutput` gate be temporarily relaxed for mock testing, or is the real issue just the data?        | Determines if Phase 1 alone is sufficient                     | Kenneth | After Phase 1 runs once       |
 
 ---
 
@@ -1006,6 +1186,7 @@ No feature flags needed. No external services affected.
 ### A. Log Evidence — Root Cause Confirmation
 
 From `docs/hello.json`, both cycles:
+
 - Step 7 (cycle 1), Step 6 (cycle 2): `submit_candidates` called with `{"instruments":[]}`
 - Preceding steps: `get_quote` returns deterministic prices (NVDA=347, flat every time)
 - Preceding steps: `get_news` returns identical mock headlines for all symbols

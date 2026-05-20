@@ -11,7 +11,16 @@ import type {
 import { executeRunAgent } from "./run-agent-execute";
 import type { RunTrace } from "../ai-runtime/ai-runtime-types";
 
-function readUsage(usage: { inputTokens?: number; outputTokens?: number; promptTokens?: number; completionTokens?: number } | undefined): {
+function readUsage(
+  usage:
+    | {
+        inputTokens?: number;
+        outputTokens?: number;
+        promptTokens?: number;
+        completionTokens?: number;
+      }
+    | undefined,
+): {
   inputTokens: number;
   outputTokens: number;
 } {
@@ -48,7 +57,9 @@ export class AnthropicAdapter implements ProviderAdapter {
     };
   }
 
-  async runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>> {
+  async runAgent<T = undefined>(
+    opts: AgentRunOptions<T>,
+  ): Promise<RunTrace<T>> {
     const { createAnthropic } = await import("@ai-sdk/anthropic");
     const client = createAnthropic({ apiKey: this.apiKey });
     return executeRunAgent({
@@ -68,7 +79,9 @@ export class AnthropicAdapter implements ProviderAdapter {
     });
   }
 
-  async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>> {
+  async generateObject<T>(
+    opts: GenerateObjectOptions<T>,
+  ): Promise<GenerateObjectResult<T>> {
     const { createAnthropic } = await import("@ai-sdk/anthropic");
     const { generateObject } = await import("ai");
     const client = createAnthropic({ apiKey: this.apiKey });
@@ -104,7 +117,10 @@ export class AnthropicAdapter implements ProviderAdapter {
       return { ok: true };
     } catch (error) {
       if (error instanceof AppError) return { ok: false, error: error.message };
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
   }
 
@@ -115,8 +131,11 @@ export class AnthropicAdapter implements ProviderAdapter {
         "anthropic-version": "2023-06-01",
       },
     });
-    if (!res.ok) throw new Error(`Anthropic models fetch failed: ${res.status}`);
-    const json = await res.json() as { data: { id: string; display_name: string }[] };
+    if (!res.ok)
+      throw new Error(`Anthropic models fetch failed: ${res.status}`);
+    const json = (await res.json()) as {
+      data: { id: string; display_name: string }[];
+    };
     return json.data.map((m) => ({
       id: m.id,
       label: m.display_name,

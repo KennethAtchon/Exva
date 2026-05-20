@@ -70,17 +70,21 @@ describe("executeRunAgent logging", () => {
       text: "",
     };
 
-    generateTextMock.mockImplementation(async (args: { onStepFinish?: (step: MockStep) => void }) => {
-      args.onStepFinish?.(step);
-      return {
-        text: longResponse,
-        steps: [step],
-        totalUsage: { inputTokens: 11, outputTokens: 7 },
-        response: { messages: [{ role: "assistant", content: longResponse }] },
-        finishReason: "stop",
-        reasoningText: undefined,
-      };
-    });
+    generateTextMock.mockImplementation(
+      async (args: { onStepFinish?: (step: MockStep) => void }) => {
+        args.onStepFinish?.(step);
+        return {
+          text: longResponse,
+          steps: [step],
+          totalUsage: { inputTokens: 11, outputTokens: 7 },
+          response: {
+            messages: [{ role: "assistant", content: longResponse }],
+          },
+          finishReason: "stop",
+          reasoningText: undefined,
+        };
+      },
+    );
 
     await executeRunAgent({
       model: {} as never,
@@ -94,15 +98,26 @@ describe("executeRunAgent logging", () => {
       maxSteps: 4,
     });
 
-    const startEntry = infoSpy.mock.calls.find(([, message]) => message === "execute run agent start")?.[0];
-    const promptEntry = debugSpy.mock.calls.find(([, message]) => message === "agent prompt")?.[0];
-    const toolEntry = infoSpy.mock.calls.find(([, message]) => message === "agent tool call")?.[0];
-    const completeEntry = infoSpy.mock.calls.find(([, message]) => message === "execute run agent complete")?.[0];
+    const startEntry = infoSpy.mock.calls.find(
+      ([, message]) => message === "execute run agent start",
+    )?.[0];
+    const promptEntry = debugSpy.mock.calls.find(
+      ([, message]) => message === "agent prompt",
+    )?.[0];
+    const toolEntry = infoSpy.mock.calls.find(
+      ([, message]) => message === "agent tool call",
+    )?.[0];
+    const completeEntry = infoSpy.mock.calls.find(
+      ([, message]) => message === "execute run agent complete",
+    )?.[0];
 
     // prompts now at DEBUG, not INFO
     expect(startEntry).not.toHaveProperty("systemPrompt");
     expect(startEntry).not.toHaveProperty("userPrompt");
-    expect(startEntry).toMatchObject({ role: "selector", modelId: "google/gemma-4-31b-it" });
+    expect(startEntry).toMatchObject({
+      role: "selector",
+      modelId: "google/gemma-4-31b-it",
+    });
     expect(promptEntry).toMatchObject({
       role: "selector",
       modelId: "google/gemma-4-31b-it",
@@ -130,7 +145,11 @@ describe("executeRunAgent logging", () => {
     });
     expect(completeEntry).not.toHaveProperty("responsePreview");
     expect(completeEntry.responseText).toHaveLength(900);
-    expect(infoSpy.mock.calls.find(([, message]) => message === "selector attempt summary")).toBeUndefined();
+    expect(
+      infoSpy.mock.calls.find(
+        ([, message]) => message === "selector attempt summary",
+      ),
+    ).toBeUndefined();
   });
 
   it("ignores late step and completion activity after the request aborts", async () => {
@@ -154,38 +173,59 @@ describe("executeRunAgent logging", () => {
       text: "late step",
     };
 
-    generateTextMock.mockImplementation(async (args: { abortSignal?: AbortSignal; onStepFinish?: (step: MockStep) => void }) => {
-      (args.abortSignal as AbortSignal | undefined)?.dispatchEvent?.(new Event("abort"));
-      args.onStepFinish?.(lateStep);
-      return {
-        text: "late response",
-        steps: [lateStep],
-        totalUsage: { inputTokens: 5, outputTokens: 3 },
-        response: { messages: [{ role: "assistant", content: "late response" }] },
-        finishReason: "stop",
-        reasoningText: "late reasoning",
-      };
-    });
+    generateTextMock.mockImplementation(
+      async (args: {
+        abortSignal?: AbortSignal;
+        onStepFinish?: (step: MockStep) => void;
+      }) => {
+        (args.abortSignal as AbortSignal | undefined)?.dispatchEvent?.(
+          new Event("abort"),
+        );
+        args.onStepFinish?.(lateStep);
+        return {
+          text: "late response",
+          steps: [lateStep],
+          totalUsage: { inputTokens: 5, outputTokens: 3 },
+          response: {
+            messages: [{ role: "assistant", content: "late response" }],
+          },
+          finishReason: "stop",
+          reasoningText: "late reasoning",
+        };
+      },
+    );
 
     const controller = new AbortController();
     controller.abort();
 
-    await expect(executeRunAgent({
-      model: {} as never,
-      modelId: "google/gemma-4-31b-it",
-      role: "selector",
-      messages: [
-        { role: "system", content: "System instructions" },
-        { role: "user", content: "Prompt" },
-      ],
-      tools: { get_news: {} } as never,
-      maxSteps: 4,
-      abortSignal: controller.signal,
-    })).rejects.toThrow("AI request aborted");
+    await expect(
+      executeRunAgent({
+        model: {} as never,
+        modelId: "google/gemma-4-31b-it",
+        role: "selector",
+        messages: [
+          { role: "system", content: "System instructions" },
+          { role: "user", content: "Prompt" },
+        ],
+        tools: { get_news: {} } as never,
+        maxSteps: 4,
+        abortSignal: controller.signal,
+      }),
+    ).rejects.toThrow("AI request aborted");
 
-    expect(infoSpy.mock.calls.find(([, message]) => message === "agent tool call")).toBeUndefined();
-    expect(infoSpy.mock.calls.find(([, message]) => message === "agent step text")).toBeUndefined();
-    expect(infoSpy.mock.calls.find(([, message]) => message === "agent reasoning")).toBeUndefined();
-    expect(infoSpy.mock.calls.find(([, message]) => message === "execute run agent complete")).toBeUndefined();
+    expect(
+      infoSpy.mock.calls.find(([, message]) => message === "agent tool call"),
+    ).toBeUndefined();
+    expect(
+      infoSpy.mock.calls.find(([, message]) => message === "agent step text"),
+    ).toBeUndefined();
+    expect(
+      infoSpy.mock.calls.find(([, message]) => message === "agent reasoning"),
+    ).toBeUndefined();
+    expect(
+      infoSpy.mock.calls.find(
+        ([, message]) => message === "execute run agent complete",
+      ),
+    ).toBeUndefined();
   });
 });

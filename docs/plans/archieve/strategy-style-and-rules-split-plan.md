@@ -12,23 +12,23 @@ The current Strategy page is mixing two different concepts into one section: the
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| G1 | Separate style from rules | Strategy data model has a dedicated style section with its own DB fields, API payloads, store state, and prompt context |
-| G2 | Make style switching cheap | A user can switch between style presets without rewriting rule fields or AI prompts |
-| G3 | Clarify naming | The current "strategy" subsection is renamed so it no longer implies it owns the whole trading plan |
-| G4 | Rewrite preset layout | Desktop Strategy UI no longer relies on a horizontal scrolling preset strip |
-| G5 | Support two preset families | The page supports style presets and rules presets independently |
-| G6 | Keep AI guidance coherent | Prompt packs cleanly separate style guidance from rule guidance so the model does not receive muddled recommendations |
+| #   | Goal                        | Success Looks Like                                                                                                      |
+| --- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| G1  | Separate style from rules   | Strategy data model has a dedicated style section with its own DB fields, API payloads, store state, and prompt context |
+| G2  | Make style switching cheap  | A user can switch between style presets without rewriting rule fields or AI prompts                                     |
+| G3  | Clarify naming              | The current "strategy" subsection is renamed so it no longer implies it owns the whole trading plan                     |
+| G4  | Rewrite preset layout       | Desktop Strategy UI no longer relies on a horizontal scrolling preset strip                                             |
+| G5  | Support two preset families | The page supports style presets and rules presets independently                                                         |
+| G6  | Keep AI guidance coherent   | Prompt packs cleanly separate style guidance from rule guidance so the model does not receive muddled recommendations   |
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| N1 | Rewriting all AI role prompts in this phase | This plan only defines the config/domain split needed so prompt cleanup can be precise |
-| N2 | Changing risk or timeframe ownership | `SessionRiskConfig` and `SessionTimeframeConfig` already have a good separation and stay intact |
-| N3 | Building historical preset analytics | Preset performance attribution can come later once the domain split exists |
-| N4 | Preserving dev-time backward compatibility | The repo already accepts local DB resets during development, so we can prefer a clean schema over compatibility layers |
+| #   | Non-Goal                                    | Reason                                                                                                                 |
+| --- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| N1  | Rewriting all AI role prompts in this phase | This plan only defines the config/domain split needed so prompt cleanup can be precise                                 |
+| N2  | Changing risk or timeframe ownership        | `SessionRiskConfig` and `SessionTimeframeConfig` already have a good separation and stay intact                        |
+| N3  | Building historical preset analytics        | Preset performance attribution can come later once the domain split exists                                             |
+| N4  | Preserving dev-time backward compatibility  | The repo already accepts local DB resets during development, so we can prefer a clean schema over compatibility layers |
 
 ## 3. Background & Context
 
@@ -103,15 +103,15 @@ This means style and rules are not just visually mixed; they are stored, validat
 
 Keep the existing Strategy section, keep `SessionStrategyProfile` as-is, and try to solve the problem by rewriting prompts or stuffing more nuance into `customInstructions`.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Low |
-| Performance | No meaningful change |
-| Reliability | High technically, low product clarity |
-| Cost | Lowest immediate engineering cost |
-| Reversibility | Easy |
-| Stack fit | Fits current code, but preserves current ambiguity |
-| Team readiness | Immediate |
+| Dimension      | Assessment                                         |
+| -------------- | -------------------------------------------------- |
+| Complexity     | Low                                                |
+| Performance    | No meaningful change                               |
+| Reliability    | High technically, low product clarity              |
+| Cost           | Lowest immediate engineering cost                  |
+| Reversibility  | Easy                                               |
+| Stack fit      | Fits current code, but preserves current ambiguity |
+| Team readiness | Immediate                                          |
 
 Risks:
 
@@ -127,15 +127,15 @@ Open questions:
 
 Add a new `styleInstructions` field and maybe `stylePresetId`, but keep them inside the existing `profile` object and existing Strategy card.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium-low |
-| Performance | No meaningful change |
-| Reliability | Medium |
-| Cost | Moderate |
-| Reversibility | Good |
-| Stack fit | Strong additive fit |
-| Team readiness | High |
+| Dimension      | Assessment           |
+| -------------- | -------------------- |
+| Complexity     | Medium-low           |
+| Performance    | No meaningful change |
+| Reliability    | Medium               |
+| Cost           | Moderate             |
+| Reversibility  | Good                 |
+| Stack fit      | Strong additive fit  |
+| Team readiness | High                 |
 
 Risks:
 
@@ -151,14 +151,14 @@ Open questions:
 
 Create a dedicated style section with its own table, types, schemas, IPC saves, store state, presets, and prompt context. Rename the current `strategy` subsection to `Rules`, and rewrite the preset UI into compact selectors plus active-summary cards.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium |
-| Performance | Negligible overhead |
-| Reliability | High once migrated because boundaries are clear |
-| Cost | Higher than prompt-only changes, but still bounded to one page/domain area |
-| Reversibility | Moderate; schema and types change |
-| Stack fit | Strong fit with existing split objects for risk/timeframe/AI roles |
+| Dimension      | Assessment                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| Complexity     | Medium                                                                                          |
+| Performance    | Negligible overhead                                                                             |
+| Reliability    | High once migrated because boundaries are clear                                                 |
+| Cost           | Higher than prompt-only changes, but still bounded to one page/domain area                      |
+| Reversibility  | Moderate; schema and types change                                                               |
+| Stack fit      | Strong fit with existing split objects for risk/timeframe/AI roles                              |
 | Team readiness | High; existing code already uses dedicated profile/risk/timeframe repositories and IPC handlers |
 
 Risks:
@@ -237,10 +237,24 @@ Recommended new domain object:
 interface SessionTradingStyle {
   sessionId: string;
   stylePresetId: TradingStylePresetId;
-  discoveryMode: "trend_scan" | "catalyst_scan" | "quality_watchlist" | "event_contract_scan" | "custom";
-  evidenceMode: "narrative_first" | "price_action_first" | "confirmation_first" | "probability_edge" | "balanced";
+  discoveryMode:
+    | "trend_scan"
+    | "catalyst_scan"
+    | "quality_watchlist"
+    | "event_contract_scan"
+    | "custom";
+  evidenceMode:
+    | "narrative_first"
+    | "price_action_first"
+    | "confirmation_first"
+    | "probability_edge"
+    | "balanced";
   catalystMode: "required" | "preferred" | "not_required";
-  fundamentalStrictness: "sanity_check" | "balanced" | "deep_confirmation" | "not_applicable";
+  fundamentalStrictness:
+    | "sanity_check"
+    | "balanced"
+    | "deep_confirmation"
+    | "not_applicable";
   styleNotes: string;
   updatedAt: string;
 }
@@ -466,23 +480,23 @@ Rollback plan:
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|-----------|--------|------------|
-| R1 | Style and rules fields still overlap conceptually | Medium | High | Keep v1 style schema intentionally small and opinionated |
-| R2 | Naming churn breaks too many code paths at once | Medium | Medium | Split implementation into schema, service, then UI phases |
-| R3 | Compact preset selector reduces discoverability | Low | Medium | Pair selector with always-visible summary card |
-| R4 | Prompt builder still compresses style and rules into one paragraph | Medium | High | Add prompt-pack tests for separate sections |
-| R5 | Rules section becomes too thin after style extraction | Medium | Medium | Add 1-3 concrete rule fields only if they fill a real gap |
+| #   | Risk                                                               | Likelihood | Impact | Mitigation                                                |
+| --- | ------------------------------------------------------------------ | ---------- | ------ | --------------------------------------------------------- |
+| R1  | Style and rules fields still overlap conceptually                  | Medium     | High   | Keep v1 style schema intentionally small and opinionated  |
+| R2  | Naming churn breaks too many code paths at once                    | Medium     | Medium | Split implementation into schema, service, then UI phases |
+| R3  | Compact preset selector reduces discoverability                    | Low        | Medium | Pair selector with always-visible summary card            |
+| R4  | Prompt builder still compresses style and rules into one paragraph | Medium     | High   | Add prompt-pack tests for separate sections               |
+| R5  | Rules section becomes too thin after style extraction              | Medium     | Medium | Add 1-3 concrete rule fields only if they fill a real gap |
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|------|--------|----------|--------|--------------|
-| G1 | Distinct persisted style object exists | 0 dedicated style objects | 1 dedicated style object per session | Schema + API inspection |
-| G2 | Time to switch styles | Requires editing mixed fields/prompt text | Style preset switch in <= 2 interactions | Manual QA |
-| G3 | Desktop preset usability | Horizontal scroll strip required | No horizontal scroll needed for preset switching | Manual QA on desktop |
-| G4 | Prompt clarity | One blended strategy brief | Separate style/rules prompt sections | Prompt-pack tests |
-| G5 | Preset independence | One preset concept | Style and rules presets can be applied independently | Store tests + manual QA |
+| Goal | Metric                                 | Baseline                                  | Target                                               | How Measured            |
+| ---- | -------------------------------------- | ----------------------------------------- | ---------------------------------------------------- | ----------------------- |
+| G1   | Distinct persisted style object exists | 0 dedicated style objects                 | 1 dedicated style object per session                 | Schema + API inspection |
+| G2   | Time to switch styles                  | Requires editing mixed fields/prompt text | Style preset switch in <= 2 interactions             | Manual QA               |
+| G3   | Desktop preset usability               | Horizontal scroll strip required          | No horizontal scroll needed for preset switching     | Manual QA on desktop    |
+| G4   | Prompt clarity                         | One blended strategy brief                | Separate style/rules prompt sections                 | Prompt-pack tests       |
+| G5   | Preset independence                    | One preset concept                        | Style and rules presets can be applied independently | Store tests + manual QA |
 
 Leading indicators:
 
@@ -497,19 +511,19 @@ Lagging indicators:
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| Q1 | Should `strategyType` be fully renamed in DB to `setupType`, or only at the TypeScript/UI layer first? | Kenneth | Before Phase 2 | Open |
-| Q2 | Should style presets eventually cascade AI role defaults, or stay prompt-context-only? | Kenneth | Before Phase 5 | Open |
-| Q3 | Do we want a future "full playbook" preset that applies style + rules together, or explicitly keep them separate? | Kenneth | Before Phase 5 | Open |
-| Q4 | Which candidate extra rule fields are genuinely needed now vs. speculative? | Kenneth | Before Phase 4 | Open |
+| #   | Question                                                                                                          | Owner   | Needed By      | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------- | ------- | -------------- | ------ |
+| Q1  | Should `strategyType` be fully renamed in DB to `setupType`, or only at the TypeScript/UI layer first?            | Kenneth | Before Phase 2 | Open   |
+| Q2  | Should style presets eventually cascade AI role defaults, or stay prompt-context-only?                            | Kenneth | Before Phase 5 | Open   |
+| Q3  | Do we want a future "full playbook" preset that applies style + rules together, or explicitly keep them separate? | Kenneth | Before Phase 5 | Open   |
+| Q4  | Which candidate extra rule fields are genuinely needed now vs. speculative?                                       | Kenneth | Before Phase 4 | Open   |
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|-------------|
-| Prompt-only fix | Does not solve the mixed data model or the preset UI problem |
-| Add style fields into existing profile only | Preserves conceptual overlap and page clutter |
+| Option                                            | Why Rejected                                                          |
+| ------------------------------------------------- | --------------------------------------------------------------------- |
+| Prompt-only fix                                   | Does not solve the mixed data model or the preset UI problem          |
+| Add style fields into existing profile only       | Preserves conceptual overlap and page clutter                         |
 | Keep horizontal preset cards and just shrink them | Improves size but not the desktop discoverability/scalability problem |
 
 ## Appendix: Proposed Naming Rewrite

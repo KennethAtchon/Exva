@@ -48,7 +48,8 @@ export const SCENARIO_REDDIT: Record<MockScenarioKind, RedditPost[]> = {
     },
     {
       subreddit: "SecurityAnalysis",
-      title: "Positioning into {symbol} breakout — catalyst still being absorbed",
+      title:
+        "Positioning into {symbol} breakout — catalyst still being absorbed",
       body: "Institutional buying visible in block tape. Float rotation looks clean. Setup matches prior catalyst-driven breakouts with multi-day follow-through.",
       score: 288,
       comments: 64,
@@ -137,7 +138,8 @@ export const SCENARIO_REDDIT: Record<MockScenarioKind, RedditPost[]> = {
   news_reversal: [
     {
       subreddit: "stocks",
-      title: "{symbol} chart looks good but news is terrible — conflicting signals",
+      title:
+        "{symbol} chart looks good but news is terrible — conflicting signals",
       body: "Technically the setup is there — higher lows, volume building, clean breakout structure — but the CEO just resigned and guidance was cut 30%. Hard to go long with that kind of fundamental deterioration.",
       score: 398,
       comments: 104,
@@ -223,96 +225,122 @@ export const SCENARIO_REDDIT: Record<MockScenarioKind, RedditPost[]> = {
 export const SCENARIO_NEWS: Record<MockScenarioKind, NewsItem[]> = {
   clean_breakout: [
     {
-      title: "{symbol} surges on record institutional inflows and momentum continuation",
-      snippet: "Buyers extended their position in {symbol} as price broke above key resistance on strong volume, signaling continued follow-through demand from institutional players.",
+      title:
+        "{symbol} surges on record institutional inflows and momentum continuation",
+      snippet:
+        "Buyers extended their position in {symbol} as price broke above key resistance on strong volume, signaling continued follow-through demand from institutional players.",
       url: "https://mock.local/news/clean_breakout/1",
       publishedAt: new Date().toISOString(),
     },
     {
-      title: "Analysts raise targets on {symbol} as technical structure improves post-breakout",
-      snippet: "Three buy-side desks updated price targets for {symbol} following a clean breakout above the 52-week high with above-average volume and positive options flow.",
+      title:
+        "Analysts raise targets on {symbol} as technical structure improves post-breakout",
+      snippet:
+        "Three buy-side desks updated price targets for {symbol} following a clean breakout above the 52-week high with above-average volume and positive options flow.",
       url: "https://mock.local/news/clean_breakout/2",
       publishedAt: new Date().toISOString(),
     },
   ],
   failed_breakout: [
     {
-      title: "{symbol} retreats sharply after failed test of resistance; sellers reassert control",
-      snippet: "A breakout attempt in {symbol} failed to hold, with sellers quickly regaining control and pushing price back below prior support on above-average volume.",
+      title:
+        "{symbol} retreats sharply after failed test of resistance; sellers reassert control",
+      snippet:
+        "A breakout attempt in {symbol} failed to hold, with sellers quickly regaining control and pushing price back below prior support on above-average volume.",
       url: "https://mock.local/news/failed_breakout/1",
       publishedAt: new Date().toISOString(),
     },
     {
-      title: "Momentum traders exiting {symbol} as breakout collapses below key level",
-      snippet: "Stop-loss cascade accelerated the decline in {symbol} after the failed breakout, with selling pressure intensifying into the close and breadth deteriorating.",
+      title:
+        "Momentum traders exiting {symbol} as breakout collapses below key level",
+      snippet:
+        "Stop-loss cascade accelerated the decline in {symbol} after the failed breakout, with selling pressure intensifying into the close and breadth deteriorating.",
       url: "https://mock.local/news/failed_breakout/2",
       publishedAt: new Date().toISOString(),
     },
   ],
   sideways_chop: [
     {
-      title: "{symbol} holds narrow range as market awaits catalyst; volume below average",
-      snippet: "No major moves in {symbol} this week. Volume is below the 20-day average and price action is consolidating within a tight range with no directional conviction.",
+      title:
+        "{symbol} holds narrow range as market awaits catalyst; volume below average",
+      snippet:
+        "No major moves in {symbol} this week. Volume is below the 20-day average and price action is consolidating within a tight range with no directional conviction.",
       url: "https://mock.local/news/sideways/1",
       publishedAt: new Date().toISOString(),
     },
   ],
   gap_down_after_entry: [
     {
-      title: "{symbol} gaps down 9% after missing earnings estimates and slashing full-year guidance",
-      snippet: "{symbol} reported Q3 EPS well below consensus while revenue missed significantly. Full-year guidance was cut by 22%. Shares fell sharply in after-hours trading.",
+      title:
+        "{symbol} gaps down 9% after missing earnings estimates and slashing full-year guidance",
+      snippet:
+        "{symbol} reported Q3 EPS well below consensus while revenue missed significantly. Full-year guidance was cut by 22%. Shares fell sharply in after-hours trading.",
       url: "https://mock.local/news/gap_down/1",
       publishedAt: new Date().toISOString(),
     },
     {
-      title: "Multiple analysts downgrade {symbol} following earnings disappointment and guidance reduction",
-      snippet: "Sell-side desks cut ratings on {symbol} to Sell or Underperform following the earnings miss and sharply reduced revenue outlook for the coming quarters.",
+      title:
+        "Multiple analysts downgrade {symbol} following earnings disappointment and guidance reduction",
+      snippet:
+        "Sell-side desks cut ratings on {symbol} to Sell or Underperform following the earnings miss and sharply reduced revenue outlook for the coming quarters.",
       url: "https://mock.local/news/gap_down/2",
       publishedAt: new Date().toISOString(),
     },
   ],
   news_reversal: [
     {
-      title: "{symbol} CEO resigns amid regulatory probe; full-year guidance slashed 30%",
-      snippet: "Shares of {symbol} face sharp pressure after the sudden CEO departure and a major reduction in full-year guidance, directly contradicting recent technical strength.",
+      title:
+        "{symbol} CEO resigns amid regulatory probe; full-year guidance slashed 30%",
+      snippet:
+        "Shares of {symbol} face sharp pressure after the sudden CEO departure and a major reduction in full-year guidance, directly contradicting recent technical strength.",
       url: "https://mock.local/news/news_reversal/1",
       publishedAt: new Date().toISOString(),
     },
     {
-      title: "Despite bullish technicals, {symbol} fundamentals raise serious red flags for investors",
-      snippet: "While {symbol} has built a constructive technical structure over recent weeks, the company disclosed material weaknesses in internal controls and an SEC inquiry.",
+      title:
+        "Despite bullish technicals, {symbol} fundamentals raise serious red flags for investors",
+      snippet:
+        "While {symbol} has built a constructive technical structure over recent weeks, the company disclosed material weaknesses in internal controls and an SEC inquiry.",
       url: "https://mock.local/news/news_reversal/2",
       publishedAt: new Date().toISOString(),
     },
   ],
   stale_quote: [
     {
-      title: "Market data delays reported across multiple platforms; {symbol} quotes unreliable",
-      snippet: "Data feed latency is causing delayed or missing quotes for {symbol} and other instruments this session. Traders advised to exercise caution and use limit orders only.",
+      title:
+        "Market data delays reported across multiple platforms; {symbol} quotes unreliable",
+      snippet:
+        "Data feed latency is causing delayed or missing quotes for {symbol} and other instruments this session. Traders advised to exercise caution and use limit orders only.",
       url: "https://mock.local/news/stale_quote/1",
       publishedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
     },
   ],
   wide_spread: [
     {
-      title: "{symbol} liquidity deteriorates; market makers widen spreads amid thin volume",
-      snippet: "Bid-ask spreads in {symbol} have widened significantly as market makers reduce quote size. Execution costs are materially elevated and slippage risk is high.",
+      title:
+        "{symbol} liquidity deteriorates; market makers widen spreads amid thin volume",
+      snippet:
+        "Bid-ask spreads in {symbol} have widened significantly as market makers reduce quote size. Execution costs are materially elevated and slippage risk is high.",
       url: "https://mock.local/news/wide_spread/1",
       publishedAt: new Date().toISOString(),
     },
   ],
   partial_fill: [
     {
-      title: "{symbol} sees elevated demand at current prices as institutional buyers accumulate",
-      snippet: "Strong buy-side interest in {symbol} at current levels, though order flow suggests limited available supply at the ask as sellers hold firm.",
+      title:
+        "{symbol} sees elevated demand at current prices as institutional buyers accumulate",
+      snippet:
+        "Strong buy-side interest in {symbol} at current levels, though order flow suggests limited available supply at the ask as sellers hold firm.",
       url: "https://mock.local/news/partial_fill/1",
       publishedAt: new Date().toISOString(),
     },
   ],
   broker_reject: [
     {
-      title: "{symbol} showing continued strength on rising volume; breakout intact",
-      snippet: "Technical momentum in {symbol} remains strong with price holding above key moving averages and volume confirming the recent move higher.",
+      title:
+        "{symbol} showing continued strength on rising volume; breakout intact",
+      snippet:
+        "Technical momentum in {symbol} remains strong with price holding above key moving averages and volume confirming the recent move higher.",
       url: "https://mock.local/news/broker_reject/1",
       publishedAt: new Date().toISOString(),
     },
@@ -320,7 +348,8 @@ export const SCENARIO_NEWS: Record<MockScenarioKind, NewsItem[]> = {
   rate_limit: [
     {
       title: "{symbol} remains in focus as breakout holds into the close",
-      snippet: "Price action in {symbol} continues to track higher after the initial breakout, with the structure remaining intact and buyers defending intraday dips.",
+      snippet:
+        "Price action in {symbol} continues to track higher after the initial breakout, with the structure remaining intact and buyers defending intraday dips.",
       url: "https://mock.local/news/rate_limit/1",
       publishedAt: new Date().toISOString(),
     },
@@ -329,53 +358,233 @@ export const SCENARIO_NEWS: Record<MockScenarioKind, NewsItem[]> = {
 
 export const SCENARIO_TRENDING: Record<MockScenarioKind, TrendingSymbol[]> = {
   clean_breakout: [
-    { symbol: "GME", name: "GameStop Corp", messageVolume: 2341, sentiment: "Bullish", watchlistCount: 834102 },
-    { symbol: "MSTR", name: "MicroStrategy Inc", messageVolume: 1873, sentiment: "Bullish", watchlistCount: 612448 },
-    { symbol: "COIN", name: "Coinbase Global", messageVolume: 1221, sentiment: "Bullish", watchlistCount: 498003 },
+    {
+      symbol: "GME",
+      name: "GameStop Corp",
+      messageVolume: 2341,
+      sentiment: "Bullish",
+      watchlistCount: 834102,
+    },
+    {
+      symbol: "MSTR",
+      name: "MicroStrategy Inc",
+      messageVolume: 1873,
+      sentiment: "Bullish",
+      watchlistCount: 612448,
+    },
+    {
+      symbol: "COIN",
+      name: "Coinbase Global",
+      messageVolume: 1221,
+      sentiment: "Bullish",
+      watchlistCount: 498003,
+    },
   ],
   failed_breakout: [
-    { symbol: "AAPL", name: "Apple Inc", messageVolume: 1104, sentiment: "Bearish", watchlistCount: 2103441 },
-    { symbol: "META", name: "Meta Platforms", messageVolume: 887, sentiment: "Bearish", watchlistCount: 987322 },
-    { symbol: "NFLX", name: "Netflix Inc", messageVolume: 621, sentiment: "Neutral", watchlistCount: 701554 },
+    {
+      symbol: "AAPL",
+      name: "Apple Inc",
+      messageVolume: 1104,
+      sentiment: "Bearish",
+      watchlistCount: 2103441,
+    },
+    {
+      symbol: "META",
+      name: "Meta Platforms",
+      messageVolume: 887,
+      sentiment: "Bearish",
+      watchlistCount: 987322,
+    },
+    {
+      symbol: "NFLX",
+      name: "Netflix Inc",
+      messageVolume: 621,
+      sentiment: "Neutral",
+      watchlistCount: 701554,
+    },
   ],
   sideways_chop: [
-    { symbol: "SPY", name: "SPDR S&P 500 ETF", messageVolume: 3102, sentiment: "Neutral", watchlistCount: 4102884 },
-    { symbol: "QQQ", name: "Invesco QQQ Trust", messageVolume: 2144, sentiment: "Neutral", watchlistCount: 2871003 },
-    { symbol: "IWM", name: "iShares Russell 2000 ETF", messageVolume: 891, sentiment: "Neutral", watchlistCount: 1203445 },
+    {
+      symbol: "SPY",
+      name: "SPDR S&P 500 ETF",
+      messageVolume: 3102,
+      sentiment: "Neutral",
+      watchlistCount: 4102884,
+    },
+    {
+      symbol: "QQQ",
+      name: "Invesco QQQ Trust",
+      messageVolume: 2144,
+      sentiment: "Neutral",
+      watchlistCount: 2871003,
+    },
+    {
+      symbol: "IWM",
+      name: "iShares Russell 2000 ETF",
+      messageVolume: 891,
+      sentiment: "Neutral",
+      watchlistCount: 1203445,
+    },
   ],
   gap_down_after_entry: [
-    { symbol: "AAPL", name: "Apple Inc", messageVolume: 4221, sentiment: "Bearish", watchlistCount: 2103441 },
-    { symbol: "AMZN", name: "Amazon.com Inc", messageVolume: 2881, sentiment: "Bearish", watchlistCount: 1904332 },
-    { symbol: "GOOGL", name: "Alphabet Inc", messageVolume: 1932, sentiment: "Bearish", watchlistCount: 1401223 },
+    {
+      symbol: "AAPL",
+      name: "Apple Inc",
+      messageVolume: 4221,
+      sentiment: "Bearish",
+      watchlistCount: 2103441,
+    },
+    {
+      symbol: "AMZN",
+      name: "Amazon.com Inc",
+      messageVolume: 2881,
+      sentiment: "Bearish",
+      watchlistCount: 1904332,
+    },
+    {
+      symbol: "GOOGL",
+      name: "Alphabet Inc",
+      messageVolume: 1932,
+      sentiment: "Bearish",
+      watchlistCount: 1401223,
+    },
   ],
   news_reversal: [
-    { symbol: "TSLA", name: "Tesla Inc", messageVolume: 5102, sentiment: "Volatile", watchlistCount: 2801334 },
-    { symbol: "META", name: "Meta Platforms", messageVolume: 3201, sentiment: "Mixed", watchlistCount: 987322 },
-    { symbol: "AMZN", name: "Amazon.com Inc", messageVolume: 2103, sentiment: "Neutral", watchlistCount: 1904332 },
+    {
+      symbol: "TSLA",
+      name: "Tesla Inc",
+      messageVolume: 5102,
+      sentiment: "Volatile",
+      watchlistCount: 2801334,
+    },
+    {
+      symbol: "META",
+      name: "Meta Platforms",
+      messageVolume: 3201,
+      sentiment: "Mixed",
+      watchlistCount: 987322,
+    },
+    {
+      symbol: "AMZN",
+      name: "Amazon.com Inc",
+      messageVolume: 2103,
+      sentiment: "Neutral",
+      watchlistCount: 1904332,
+    },
   ],
   stale_quote: [
-    { symbol: "RIVN", name: "Rivian Automotive", messageVolume: 412, sentiment: "Neutral", watchlistCount: 312441 },
-    { symbol: "LCID", name: "Lucid Group", messageVolume: 298, sentiment: "Neutral", watchlistCount: 241003 },
-    { symbol: "SOFI", name: "SoFi Technologies", messageVolume: 201, sentiment: "Neutral", watchlistCount: 198332 },
+    {
+      symbol: "RIVN",
+      name: "Rivian Automotive",
+      messageVolume: 412,
+      sentiment: "Neutral",
+      watchlistCount: 312441,
+    },
+    {
+      symbol: "LCID",
+      name: "Lucid Group",
+      messageVolume: 298,
+      sentiment: "Neutral",
+      watchlistCount: 241003,
+    },
+    {
+      symbol: "SOFI",
+      name: "SoFi Technologies",
+      messageVolume: 201,
+      sentiment: "Neutral",
+      watchlistCount: 198332,
+    },
   ],
   wide_spread: [
-    { symbol: "RIVN", name: "Rivian Automotive", messageVolume: 311, sentiment: "Cautious", watchlistCount: 312441 },
-    { symbol: "BBAI", name: "BigBear.ai Holdings", messageVolume: 187, sentiment: "Neutral", watchlistCount: 84223 },
-    { symbol: "OPEN", name: "Opendoor Technologies", messageVolume: 143, sentiment: "Neutral", watchlistCount: 71009 },
+    {
+      symbol: "RIVN",
+      name: "Rivian Automotive",
+      messageVolume: 311,
+      sentiment: "Cautious",
+      watchlistCount: 312441,
+    },
+    {
+      symbol: "BBAI",
+      name: "BigBear.ai Holdings",
+      messageVolume: 187,
+      sentiment: "Neutral",
+      watchlistCount: 84223,
+    },
+    {
+      symbol: "OPEN",
+      name: "Opendoor Technologies",
+      messageVolume: 143,
+      sentiment: "Neutral",
+      watchlistCount: 71009,
+    },
   ],
   partial_fill: [
-    { symbol: "GME", name: "GameStop Corp", messageVolume: 1892, sentiment: "Bullish", watchlistCount: 834102 },
-    { symbol: "MSTR", name: "MicroStrategy Inc", messageVolume: 1541, sentiment: "Bullish", watchlistCount: 612448 },
-    { symbol: "HOOD", name: "Robinhood Markets", messageVolume: 741, sentiment: "Bullish", watchlistCount: 321004 },
+    {
+      symbol: "GME",
+      name: "GameStop Corp",
+      messageVolume: 1892,
+      sentiment: "Bullish",
+      watchlistCount: 834102,
+    },
+    {
+      symbol: "MSTR",
+      name: "MicroStrategy Inc",
+      messageVolume: 1541,
+      sentiment: "Bullish",
+      watchlistCount: 612448,
+    },
+    {
+      symbol: "HOOD",
+      name: "Robinhood Markets",
+      messageVolume: 741,
+      sentiment: "Bullish",
+      watchlistCount: 321004,
+    },
   ],
   broker_reject: [
-    { symbol: "NVDA", name: "NVIDIA Corp", messageVolume: 3201, sentiment: "Bullish", watchlistCount: 2103441 },
-    { symbol: "AMD", name: "Advanced Micro Devices", messageVolume: 1821, sentiment: "Bullish", watchlistCount: 1241003 },
-    { symbol: "AVGO", name: "Broadcom Inc", messageVolume: 892, sentiment: "Bullish", watchlistCount: 584002 },
+    {
+      symbol: "NVDA",
+      name: "NVIDIA Corp",
+      messageVolume: 3201,
+      sentiment: "Bullish",
+      watchlistCount: 2103441,
+    },
+    {
+      symbol: "AMD",
+      name: "Advanced Micro Devices",
+      messageVolume: 1821,
+      sentiment: "Bullish",
+      watchlistCount: 1241003,
+    },
+    {
+      symbol: "AVGO",
+      name: "Broadcom Inc",
+      messageVolume: 892,
+      sentiment: "Bullish",
+      watchlistCount: 584002,
+    },
   ],
   rate_limit: [
-    { symbol: "NVDA", name: "NVIDIA Corp", messageVolume: 2891, sentiment: "Bullish", watchlistCount: 2103441 },
-    { symbol: "PLTR", name: "Palantir Technologies", messageVolume: 1102, sentiment: "Bullish", watchlistCount: 612448 },
-    { symbol: "TSLA", name: "Tesla Inc", messageVolume: 941, sentiment: "Neutral", watchlistCount: 2801334 },
+    {
+      symbol: "NVDA",
+      name: "NVIDIA Corp",
+      messageVolume: 2891,
+      sentiment: "Bullish",
+      watchlistCount: 2103441,
+    },
+    {
+      symbol: "PLTR",
+      name: "Palantir Technologies",
+      messageVolume: 1102,
+      sentiment: "Bullish",
+      watchlistCount: 612448,
+    },
+    {
+      symbol: "TSLA",
+      name: "Tesla Inc",
+      messageVolume: 941,
+      sentiment: "Neutral",
+      watchlistCount: 2801334,
+    },
   ],
 };

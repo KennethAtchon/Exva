@@ -27,16 +27,38 @@ export class PipelineSpendTracker {
   check(): SpendCapExceeded | null {
     const pipelineSpent =
       (this.options.pipelineSpentBeforePhaseUsd ?? 0) + this.phaseSpentUsd;
-    const sessionSpent = this.options.sessionSpentBeforeRunUsd + this.phaseSpentUsd;
+    const sessionSpent =
+      this.options.sessionSpentBeforeRunUsd + this.phaseSpentUsd;
 
-    if (this.options.sessionSpendCapUsd != null && sessionSpent > this.options.sessionSpendCapUsd) {
-      return { kind: "session", spentUsd: sessionSpent, capUsd: this.options.sessionSpendCapUsd };
+    if (
+      this.options.sessionSpendCapUsd != null &&
+      sessionSpent > this.options.sessionSpendCapUsd
+    ) {
+      return {
+        kind: "session",
+        spentUsd: sessionSpent,
+        capUsd: this.options.sessionSpendCapUsd,
+      };
     }
-    if (this.options.pipelineSpendCapUsd != null && pipelineSpent > this.options.pipelineSpendCapUsd) {
-      return { kind: "pipeline", spentUsd: pipelineSpent, capUsd: this.options.pipelineSpendCapUsd };
+    if (
+      this.options.pipelineSpendCapUsd != null &&
+      pipelineSpent > this.options.pipelineSpendCapUsd
+    ) {
+      return {
+        kind: "pipeline",
+        spentUsd: pipelineSpent,
+        capUsd: this.options.pipelineSpendCapUsd,
+      };
     }
-    if (this.options.phaseSpendCapUsd != null && this.phaseSpentUsd > this.options.phaseSpendCapUsd) {
-      return { kind: "phase", spentUsd: this.phaseSpentUsd, capUsd: this.options.phaseSpendCapUsd };
+    if (
+      this.options.phaseSpendCapUsd != null &&
+      this.phaseSpentUsd > this.options.phaseSpendCapUsd
+    ) {
+      return {
+        kind: "phase",
+        spentUsd: this.phaseSpentUsd,
+        capUsd: this.options.phaseSpendCapUsd,
+      };
     }
     return null;
   }

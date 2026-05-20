@@ -35,12 +35,25 @@ describe("RiskEngine", () => {
 
   it("blocks preflight when broker or AI credentials are missing", () => {
     expect(
-      engine.preflightSession({ config, stats, brokerConnected: false, aiKeyAvailable: true }),
+      engine.preflightSession({
+        config,
+        stats,
+        brokerConnected: false,
+        aiKeyAvailable: true,
+      }),
     ).toEqual({ allowed: false, reason: "Broker is not connected" });
 
     expect(
-      engine.preflightSession({ config, stats, brokerConnected: true, aiKeyAvailable: false }),
-    ).toEqual({ allowed: false, reason: "Anthropic API key is not configured" });
+      engine.preflightSession({
+        config,
+        stats,
+        brokerConnected: true,
+        aiKeyAvailable: false,
+      }),
+    ).toEqual({
+      allowed: false,
+      reason: "Anthropic API key is not configured",
+    });
   });
 
   it("caps order size to the configured max position", () => {
@@ -107,7 +120,10 @@ describe("RiskEngine", () => {
           sizeUsd: 100,
         },
       }),
-    ).toEqual({ allowed: false, reason: "Decision confidence is below wait-for-open threshold" });
+    ).toEqual({
+      allowed: false,
+      reason: "Decision confidence is below wait-for-open threshold",
+    });
   });
 
   it("uses the session wait-for-open threshold when provided", () => {
@@ -124,7 +140,10 @@ describe("RiskEngine", () => {
           sizeUsd: 100,
         },
       }),
-    ).toEqual({ allowed: false, reason: "Decision confidence is below wait-for-open threshold" });
+    ).toEqual({
+      allowed: false,
+      reason: "Decision confidence is below wait-for-open threshold",
+    });
 
     expect(
       engine.validateDecision({

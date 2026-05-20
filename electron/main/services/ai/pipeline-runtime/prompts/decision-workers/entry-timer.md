@@ -5,6 +5,7 @@ Given the same compact signals for {instrumentSymbol}, decide whether now is the
 No tools. JSON only.
 
 Return JSON:
+
 ```json
 {
   "entryTiming": "now" | "wait" | "skip",

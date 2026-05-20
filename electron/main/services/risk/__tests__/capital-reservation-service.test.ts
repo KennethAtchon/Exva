@@ -18,8 +18,13 @@ describe("CapitalReservationService", () => {
   });
 
   it("tracks reservation lifecycle from approval to close", () => {
-    const service = new CapitalReservationService(new CapitalReservationsRepo(db));
-    const { sessionId, approvalId, tradeId } = createApprovalFixture(db, "Lifecycle");
+    const service = new CapitalReservationService(
+      new CapitalReservationsRepo(db),
+    );
+    const { sessionId, approvalId, tradeId } = createApprovalFixture(
+      db,
+      "Lifecycle",
+    );
 
     service.reserveForApproval({ sessionId, approvalId, amountUsd: 300 });
     expect(service.sumActiveReservedUsd()).toBe(300);
@@ -37,7 +42,9 @@ describe("CapitalReservationService", () => {
   });
 
   it("releases direct order reservations on failure", () => {
-    const service = new CapitalReservationService(new CapitalReservationsRepo(db));
+    const service = new CapitalReservationService(
+      new CapitalReservationsRepo(db),
+    );
     const { sessionId, tradeId } = createApprovalFixture(db, "Failure");
 
     service.reserveForOrder({ sessionId, tradeId, amountUsd: 125 });
@@ -48,7 +55,10 @@ describe("CapitalReservationService", () => {
   });
 });
 
-function createApprovalFixture(db: ReturnType<typeof createTestDb>, name: string) {
+function createApprovalFixture(
+  db: ReturnType<typeof createTestDb>,
+  name: string,
+) {
   const sessions = new SessionRepo(db);
   const sessionId = sessions.create({
     name: `${name} Session`,

@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildPresetBehaviorGuidance } from "../pipeline-runtime/prompting/preset-behavior-guidance";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 
-function minimalContext(overrides: Record<string, unknown> = {}): SessionStrategyContext {
+function minimalContext(
+  overrides: Record<string, unknown> = {},
+): SessionStrategyContext {
   return {
     researchPosture: {
       posturePresetId: "trend_hunt",

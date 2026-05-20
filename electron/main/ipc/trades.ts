@@ -1,5 +1,9 @@
 import { ipcMain } from "electron";
-import { approveTradeSchema, listTradesFiltersSchema, tradeIdSchema } from "@/lib/schemas";
+import {
+  approveTradeSchema,
+  listTradesFiltersSchema,
+  tradeIdSchema,
+} from "@/lib/schemas";
 import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../services/app-services";
 import { decideApproval } from "./approvals";
@@ -29,7 +33,9 @@ export function registerTradeHandlers(services: AppServices): void {
 
     return trades.map((t) => ({
       ...t,
-      sessionName: t.sessionId ? nameById.get(t.sessionId) ?? t.sessionId : undefined,
+      sessionName: t.sessionId
+        ? (nameById.get(t.sessionId) ?? t.sessionId)
+        : undefined,
     }));
   });
 
@@ -47,7 +53,10 @@ export function registerTradeHandlers(services: AppServices): void {
     const trade = services.repos.trades.require(tradeId);
     let pnl = 0;
     if (trade.broker_order_id && trade.brokerAccountId) {
-      const result = await services.broker.closeOrder(trade.brokerAccountId, trade.broker_order_id);
+      const result = await services.broker.closeOrder(
+        trade.brokerAccountId,
+        trade.broker_order_id,
+      );
       pnl = result.realizedPnlUsd;
     }
     const closed = services.repos.trades.updateStatus(tradeId, "closed", pnl);
@@ -66,7 +75,9 @@ export function registerTradeHandlers(services: AppServices): void {
     }
     const trade = services.repos.trades.require(tradeId);
     if (trade.sessionId) {
-      services.runtimeManager.get(trade.sessionId)?.orchestrator.resolveApproval(tradeId, approved);
+      services.runtimeManager
+        .get(trade.sessionId)
+        ?.orchestrator.resolveApproval(tradeId, approved);
     }
   });
 

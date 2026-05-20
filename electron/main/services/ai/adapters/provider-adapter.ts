@@ -1,7 +1,10 @@
 import type { AgentRole, ProviderType } from "@/lib/types";
 import type { PrepareStepFunction, ToolSet } from "ai";
 import type { z } from "zod";
-import type { RuntimeAgentMessage, RunTrace } from "../ai-runtime/ai-runtime-types";
+import type {
+  RuntimeAgentMessage,
+  RunTrace,
+} from "../ai-runtime/ai-runtime-types";
 
 export interface GenerateTextOptions {
   model: string;
@@ -51,7 +54,9 @@ export interface ModelEntry {
 export interface ProviderAdapter {
   readonly providerType: ProviderType;
   generateText(opts: GenerateTextOptions): Promise<GenerateResult>;
-  generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>>;
+  generateObject<T>(
+    opts: GenerateObjectOptions<T>,
+  ): Promise<GenerateObjectResult<T>>;
   runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>>;
   testConnection(): Promise<{ ok: boolean; error?: string }>;
   listModels(): Promise<ModelEntry[]>;

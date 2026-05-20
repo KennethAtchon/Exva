@@ -16,6 +16,7 @@ As services multiply across phases 5–9, the flat `services/` directory becomes
 ## Hard Problems
 
 None — this is mechanical reorganization. The risks are:
+
 1. **Import path breakage** — every file that imports from `services/` must be updated. Use find-and-replace with verification.
 2. **Circular imports** — domain subfolders must not import from each other except through explicit interfaces. Use the dependency rules below.
 
@@ -139,25 +140,27 @@ No domain subfolder imports from `agent-orchestrator` or `ipc/`.
 
 ## File Moves
 
-| From | To |
-|------|----|
-| `services/ai-sdk-service.ts` | deleted in Phase 7 |
-| `services/risk-engine.ts` | `services/risk/risk-engine.ts` |
-| `services/session-service.ts` | `services/session/session-service.ts` |
-| `services/prompt-asset-loader.ts` | `services/ai/prompt-asset-loader.ts` |
-| `services/provider-model-catalog.ts` | `services/ai/provider-model-catalog.ts` |
-| `broker/broker-adapter.ts` | `services/broker/adapters/broker-adapter.ts` |
-| `broker/alpaca-adapter.ts` | `services/broker/adapters/alpaca-adapter.ts` |
+| From                                        | To                                                            |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| `services/ai-sdk-service.ts`                | deleted in Phase 7                                            |
+| `services/risk-engine.ts`                   | `services/risk/risk-engine.ts`                                |
+| `services/session-service.ts`               | `services/session/session-service.ts`                         |
+| `services/prompt-asset-loader.ts`           | `services/ai/prompt-asset-loader.ts`                          |
+| `services/provider-model-catalog.ts`        | `services/ai/provider-model-catalog.ts`                       |
+| `broker/broker-adapter.ts`                  | `services/broker/adapters/broker-adapter.ts`                  |
+| `broker/alpaca-adapter.ts`                  | `services/broker/adapters/alpaca-adapter.ts`                  |
 | `broker/coinbase-advanced-trade-adapter.ts` | `services/broker/adapters/coinbase-advanced-trade-adapter.ts` |
-| `broker/tradovate-adapter.ts` | `services/broker/adapters/tradovate-adapter.ts` |
-| `broker/mock-adapter.ts` | `services/broker/adapters/mock-adapter.ts` |
-| `broker/broker-registry.ts` | `services/broker/broker-registry.ts` |
-| `broker/instrument-normalizer.ts` | `services/broker/instrument-normalizer.ts` |
+| `broker/tradovate-adapter.ts`               | `services/broker/adapters/tradovate-adapter.ts`               |
+| `broker/mock-adapter.ts`                    | `services/broker/adapters/mock-adapter.ts`                    |
+| `broker/broker-registry.ts`                 | `services/broker/broker-registry.ts`                          |
+| `broker/instrument-normalizer.ts`           | `services/broker/instrument-normalizer.ts`                    |
 
 Files that stay at `services/` root:
+
 - `app-services.ts` only (composition root).
 
 Cross-cutting and integration live in subfolders:
+
 - `infra/` — `event-bus.ts`, `log.ts`, `notification-service.ts`, `secrets-service.ts`
 - `orchestration/` — `agent-orchestrator.ts`, `selector-definition-hash.ts`, `trade-monitor.ts`
 
@@ -228,18 +231,18 @@ All above must return zero results.
 
 ## Files Created / Modified
 
-| Action | File |
-|--------|------|
-| Create | `electron/main/services/risk/` directory |
-| Move | `services/risk-engine.ts` → `services/risk/risk-engine.ts` |
-| Create | `electron/main/services/session/` directory |
-| Move | `services/session-service.ts` → `services/session/session-service.ts` |
-| Create | `electron/main/services/instrument/` directory |
-| Create | `services/instrument/instrument-cache-service.ts` |
-| Modify | All files importing moved modules — update import paths |
-| Modify | `tsconfig.json` — add path aliases |
-| Modify | `vite.main.config.ts` — add alias resolution |
-| Modify | `electron/main/services/app-services.ts` — update import paths |
+| Action | File                                                                  |
+| ------ | --------------------------------------------------------------------- |
+| Create | `electron/main/services/risk/` directory                              |
+| Move   | `services/risk-engine.ts` → `services/risk/risk-engine.ts`            |
+| Create | `electron/main/services/session/` directory                           |
+| Move   | `services/session-service.ts` → `services/session/session-service.ts` |
+| Create | `electron/main/services/instrument/` directory                        |
+| Create | `services/instrument/instrument-cache-service.ts`                     |
+| Modify | All files importing moved modules — update import paths               |
+| Modify | `tsconfig.json` — add path aliases                                    |
+| Modify | `vite.main.config.ts` — add alias resolution                          |
+| Modify | `electron/main/services/app-services.ts` — update import paths        |
 
 ## Acceptance Criteria
 

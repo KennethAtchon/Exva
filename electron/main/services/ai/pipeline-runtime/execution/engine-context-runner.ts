@@ -1,4 +1,7 @@
-import type { EngineBinding, PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import type {
+  EngineBinding,
+  PipelinePhase,
+} from "@electron/shared/ai/pipeline-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { requireEngine } from "../../engines/registry/engine-registry";
 import type { EngineRunContext } from "../../engines/registry/types";
@@ -17,7 +20,9 @@ export interface EngineRunInput extends EngineContextRunInput {
 }
 
 /** Runs read-mode engine bindings and returns structured context for the worker payload. */
-export function runReadEngineContext(input: EngineContextRunInput): Record<string, unknown> {
+export function runReadEngineContext(
+  input: EngineContextRunInput,
+): Record<string, unknown> {
   const engineResults: Record<string, unknown> = {};
   for (const binding of input.bindings) {
     if (binding.mode !== "read") continue;
@@ -26,7 +31,9 @@ export function runReadEngineContext(input: EngineContextRunInput): Record<strin
   return engineResults;
 }
 
-export function runEngineBinding<TOutput = unknown>(input: EngineRunInput): TOutput {
+export function runEngineBinding<TOutput = unknown>(
+  input: EngineRunInput,
+): TOutput {
   const engine = requireEngine(input.binding.engine);
   if (engine.kind !== input.binding.kind) {
     throw new Error(

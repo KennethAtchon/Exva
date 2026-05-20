@@ -9,14 +9,25 @@ export class SessionTimeframeConfigRepo {
   constructor(private readonly client: DbClient) {}
 
   get(sessionId: string): SessionTimeframeConfig {
-    const row = this.client.db.select().from(sessionTimeframeConfig).where(eq(sessionTimeframeConfig.sessionId, sessionId)).get();
+    const row = this.client.db
+      .select()
+      .from(sessionTimeframeConfig)
+      .where(eq(sessionTimeframeConfig.sessionId, sessionId))
+      .get();
     if (!row) {
-      throw new AppError(`Timeframe config for session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
+      throw new AppError(
+        `Timeframe config for session ${sessionId} was not found`,
+        "NOT_FOUND",
+        { sessionId },
+      );
     }
     return toSessionTimeframeConfig(row);
   }
 
-  upsert(sessionId: string, patch: Partial<SessionTimeframeConfig>): SessionTimeframeConfig {
+  upsert(
+    sessionId: string,
+    patch: Partial<SessionTimeframeConfig>,
+  ): SessionTimeframeConfig {
     const current = this.get(sessionId);
     const next: SessionTimeframeConfig = {
       ...current,

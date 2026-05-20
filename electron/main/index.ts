@@ -13,7 +13,17 @@ app.disableHardwareAcceleration();
 
 app.whenReady().then(async () => {
   try {
-    logger.info({ pid: process.pid, nodeEnv: env.isProd ? "production" : env.isTest ? "test" : "development" }, "starting Exva main process");
+    logger.info(
+      {
+        pid: process.pid,
+        nodeEnv: env.isProd
+          ? "production"
+          : env.isTest
+            ? "test"
+            : "development",
+      },
+      "starting Exva main process",
+    );
     services = await createAppServices(app);
     logger.info("app services initialized");
     await seedBrokerAllocations(services);
@@ -50,7 +60,9 @@ async function seedBrokerAllocations(services: AppServices): Promise<void> {
   for (const assignment of allAssignments) {
     if (assignment.allocatedUsd > 0) continue;
     try {
-      const adapter = await services.brokerRegistry.get(assignment.brokerAccountId);
+      const adapter = await services.brokerRegistry.get(
+        assignment.brokerAccountId,
+      );
       const balance = await adapter.getAccountBalance();
       const allocatedUsd = Math.floor(balance * 0.5);
       services.repos.sessionBrokerAssignments.setAllocatedUsd(

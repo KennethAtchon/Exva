@@ -24,7 +24,12 @@ export function handleResolvedInstruments(
     return;
   }
   ctx.clearNoInstrumentRetry();
-  ctx.emitEvent("INFO", null, `${context}; ${instruments.length} cycles enqueued.`, "orchestrator");
+  ctx.emitEvent(
+    "INFO",
+    null,
+    `${context}; ${instruments.length} cycles enqueued.`,
+    "orchestrator",
+  );
   enqueueTradeCycles(ctx, callbacks.enqueueTradeCycle, instruments);
 }
 
@@ -53,7 +58,10 @@ function enqueueTradeCycles(
   enqueueTradeCycle: (instrument: ResolvedInstrument) => Promise<void>,
   instruments: ResolvedInstrument[],
 ): void {
-  ctx.deps.logger.info({ sessionId: ctx.sessionId, instrumentCount: instruments.length }, "enqueueing trade cycles");
+  ctx.deps.logger.info(
+    { sessionId: ctx.sessionId, instrumentCount: instruments.length },
+    "enqueueing trade cycles",
+  );
   for (const instrument of instruments) {
     ctx.enqueueTask(
       () => enqueueTradeCycle(instrument),

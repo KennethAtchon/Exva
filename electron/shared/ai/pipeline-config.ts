@@ -72,9 +72,29 @@ export function phaseSpendCapUsd(phase: PipelinePhase): number {
 
 /** Shared read-only engine bindings for worker definitions. */
 export const ENGINE_BINDINGS = {
-  riskSummaryRead: { engine: "risk-summary", kind: "context", mode: "read" } as const,
-  reviewAggregatorFinalize: { engine: "review-aggregator", kind: "transformer", mode: "finalize" } as const,
-  tradeSignalAggregatorFinalize: { engine: "trade-signal-aggregator", kind: "transformer", mode: "finalize" } as const,
-  technicalAggregatorFinalize: { engine: "technical-aggregator", kind: "transformer", mode: "finalize" } as const,
-  fundamentalAggregatorFinalize: { engine: "fundamental-aggregator", kind: "transformer", mode: "finalize" } as const,
+  riskSummaryRead: {
+    engine: "risk-summary",
+    kind: "context",
+    mode: "read",
+  } as const,
+  reviewAggregatorFinalize: {
+    engine: "review-aggregator",
+    kind: "transformer",
+    mode: "finalize",
+  } as const,
+  tradeSignalAggregatorFinalize: {
+    engine: "trade-signal-aggregator",
+    kind: "transformer",
+    mode: "finalize",
+  } as const,
+  technicalAggregatorFinalize: {
+    engine: "technical-aggregator",
+    kind: "transformer",
+    mode: "finalize",
+  } as const,
+  fundamentalAggregatorFinalize: {
+    engine: "fundamental-aggregator",
+    kind: "transformer",
+    mode: "finalize",
+  } as const,
 };

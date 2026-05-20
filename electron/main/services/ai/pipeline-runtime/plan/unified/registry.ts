@@ -2,7 +2,10 @@ import type { EffectivePlanStageConfig } from "@electron/shared/ai/effective-pip
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import { getCyclePlan, listCyclePlanIds } from "../cycle/registry";
 import { getPhasePlan, listPhasePlans } from "../phase/registry";
-import type { UnifiedPlanDefinition, UnifiedPlanInspectMetadata } from "./types";
+import type {
+  UnifiedPlanDefinition,
+  UnifiedPlanInspectMetadata,
+} from "./types";
 
 const UNIFIED_PLAN_IDS = new Set<string>();
 
@@ -10,14 +13,22 @@ export function registerUnifiedPlanRef(id: string): void {
   UNIFIED_PLAN_IDS.add(id);
 }
 
-export function resolveUnifiedPlan(id: string): UnifiedPlanDefinition | undefined {
+export function resolveUnifiedPlan(
+  id: string,
+): UnifiedPlanDefinition | undefined {
   const phasePlan = getPhasePlan(id as PipelinePhase);
   if (phasePlan) {
     return { kind: "phase", id: id as PipelinePhase, plan: phasePlan };
   }
   const cyclePlan = getCyclePlan(id);
   if (cyclePlan) {
-    return { kind: "cycle", id, plan: cyclePlan as import("../cycle/types").CyclePlan<import("../cycle/types").TradeCyclePlanState> };
+    return {
+      kind: "cycle",
+      id,
+      plan: cyclePlan as import("../cycle/types").CyclePlan<
+        import("../cycle/types").TradeCyclePlanState
+      >,
+    };
   }
   return undefined;
 }
@@ -29,11 +40,17 @@ export function requireUnifiedPlan(id: string): UnifiedPlanDefinition {
 }
 
 export function listUnifiedPlanIds(): string[] {
-  const ids = new Set<string>([...listPhasePlans().map(({ phase }) => phase), ...listCyclePlanIds(), ...UNIFIED_PLAN_IDS]);
+  const ids = new Set<string>([
+    ...listPhasePlans().map(({ phase }) => phase),
+    ...listCyclePlanIds(),
+    ...UNIFIED_PLAN_IDS,
+  ]);
   return [...ids].sort();
 }
 
-export function inspectUnifiedPlan(id: string): UnifiedPlanInspectMetadata | undefined {
+export function inspectUnifiedPlan(
+  id: string,
+): UnifiedPlanInspectMetadata | undefined {
   const plan = resolveUnifiedPlan(id);
   if (!plan) return undefined;
   if (plan.kind === "phase") {
@@ -54,7 +71,9 @@ export function inspectUnifiedPlan(id: string): UnifiedPlanInspectMetadata | und
   };
 }
 
-export function resolveEffectivePlanStages(planId: string): EffectivePlanStageConfig[] {
+export function resolveEffectivePlanStages(
+  planId: string,
+): EffectivePlanStageConfig[] {
   const plan = resolveUnifiedPlan(planId);
   if (!plan) return [];
 

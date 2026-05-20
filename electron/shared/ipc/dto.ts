@@ -56,7 +56,9 @@ export interface SessionCreateInput {
   };
   executionMode: ExecutionMode;
   brokerAssignments: Array<{ brokerAccountId: string; allocatedUsd: number }>;
-  brokerOverridesByInstrumentClass?: Partial<Record<InstrumentClass, string | null>>;
+  brokerOverridesByInstrumentClass?: Partial<
+    Record<InstrumentClass, string | null>
+  >;
 }
 
 export interface StrategyGetResponse {
@@ -107,18 +109,46 @@ export type ExvaEventMap = {
   trade_closed: Trade;
   agent_event: EventRow;
   approval_required: TradeDecisionPayload;
-  approval_resolved: { approvalId: string; tradeId: string; status: "approved" | "rejected" };
+  approval_resolved: {
+    approvalId: string;
+    tradeId: string;
+    status: "approved" | "rejected";
+  };
   session_started: Record<string, never>;
   session_stopped: { reason: string };
   session_status_changed: { sessionId: string; status: SessionStatus };
   trade_status_changed: Trade;
   selector_run_completed: { sessionId: string; count: number };
   research_phase_started: { sessionId: string; phase: string; cycleId: string };
-  research_phase_step: { sessionId: string; phase: string; message: string; cycleId: string };
-  research_phase_complete: { sessionId: string; phase: string; cycleId: string; instrumentCount: number };
-  research_phase_failed: { sessionId: string; phase: string; cycleId: string; error: string };
-  "step:started": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number };
-  "step:succeeded": { sessionId: string; cycleId: string; stage: ExecutionStage };
+  research_phase_step: {
+    sessionId: string;
+    phase: string;
+    message: string;
+    cycleId: string;
+  };
+  research_phase_complete: {
+    sessionId: string;
+    phase: string;
+    cycleId: string;
+    instrumentCount: number;
+  };
+  research_phase_failed: {
+    sessionId: string;
+    phase: string;
+    cycleId: string;
+    error: string;
+  };
+  "step:started": {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+    attempt: number;
+  };
+  "step:succeeded": {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+  };
   "step:failed": {
     sessionId: string;
     cycleId: string;
@@ -128,8 +158,18 @@ export type ExvaEventMap = {
     errorMessage: string;
     nextRetryAt: string | null;
   };
-  "step:retrying": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number; nextRetryAt: string };
-  broker_balance_updated: { brokerAccountId: string; balanceUsd: number; cachedAt: string };
+  "step:retrying": {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+    attempt: number;
+    nextRetryAt: string;
+  };
+  broker_balance_updated: {
+    brokerAccountId: string;
+    balanceUsd: number;
+    cachedAt: string;
+  };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 };

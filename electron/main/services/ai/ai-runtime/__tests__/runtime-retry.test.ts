@@ -17,12 +17,17 @@ describe("withProviderRetry", () => {
     const { withProviderRetry } = await import("../runtime-retry");
 
     const error = Object.assign(
-      new Error("Failed after 3 attempts. Last error: Provider returned error", {
-        cause: new Error("OpenRouter 400: Unsupported parameter: toolChoice"),
-      }),
+      new Error(
+        "Failed after 3 attempts. Last error: Provider returned error",
+        {
+          cause: new Error("OpenRouter 400: Unsupported parameter: toolChoice"),
+        },
+      ),
       {
         statusCode: 400,
-        responseBody: JSON.stringify({ error: { message: "Unsupported parameter: toolChoice" } }),
+        responseBody: JSON.stringify({
+          error: { message: "Unsupported parameter: toolChoice" },
+        }),
         code: "BAD_REQUEST",
       },
     );
@@ -31,7 +36,11 @@ describe("withProviderRetry", () => {
       async () => {
         throw error;
       },
-      { providerType: "openrouter", modelId: "google/gemma-4-31b-it", role: "selector" },
+      {
+        providerType: "openrouter",
+        modelId: "google/gemma-4-31b-it",
+        role: "selector",
+      },
     );
 
     await expect(promise).rejects.toMatchObject({
@@ -42,9 +51,11 @@ describe("withProviderRetry", () => {
         modelId: "google/gemma-4-31b-it",
         attempts: 1,
         status: 400,
-        rawMessage: "Failed after 3 attempts. Last error: Provider returned error",
+        rawMessage:
+          "Failed after 3 attempts. Last error: Provider returned error",
         causeMessage: "OpenRouter 400: Unsupported parameter: toolChoice",
-        responseBody: "{\"error\":{\"message\":\"Unsupported parameter: toolChoice\"}}",
+        responseBody:
+          '{"error":{"message":"Unsupported parameter: toolChoice"}}',
         providerCode: "BAD_REQUEST",
       },
     });
@@ -57,7 +68,9 @@ describe("withProviderRetry", () => {
         { providerType: "openrouter" },
       ),
     ).rejects.toMatchObject({
-      message: expect.stringMatching(/^openrouter provider unreachable after 1 attempt\(s\): /),
+      message: expect.stringMatching(
+        /^openrouter provider unreachable after 1 attempt\(s\): /,
+      ),
     });
 
     expect(warnSpy).toHaveBeenCalledWith(
@@ -105,7 +118,11 @@ describe("withProviderRetry", () => {
       "provider request recovered",
     );
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ providerType: "openrouter", attempt: 1, willRetry: true }),
+      expect.objectContaining({
+        providerType: "openrouter",
+        attempt: 1,
+        willRetry: true,
+      }),
       "provider request attempt failed",
     );
   });
@@ -139,16 +156,29 @@ describe("withProviderRetry", () => {
     const { withProviderRetry } = await import("../runtime-retry");
 
     const signals: AbortSignal[] = [];
-    const promise = withProviderRetry((abortSignal) => {
-      signals.push(abortSignal);
-      return new Promise<string>(() => undefined);
-    }, { providerType: "openrouter" });
+    const promise = withProviderRetry(
+      (abortSignal) => {
+        signals.push(abortSignal);
+        return new Promise<string>(() => undefined);
+      },
+      { providerType: "openrouter" },
+    );
     const assertion = expect(promise).rejects.toMatchObject({
       code: "PROVIDER_UNREACHABLE",
       details: { retryable: true, attempts: 5 },
     });
 
-    await vi.advanceTimersByTimeAsync(60_000 + 1_000 + 60_000 + 2_000 + 60_000 + 4_000 + 60_000 + 8_000 + 60_000);
+    await vi.advanceTimersByTimeAsync(
+      60_000 +
+        1_000 +
+        60_000 +
+        2_000 +
+        60_000 +
+        4_000 +
+        60_000 +
+        8_000 +
+        60_000,
+    );
 
     await assertion;
     expect(signals).toHaveLength(5);

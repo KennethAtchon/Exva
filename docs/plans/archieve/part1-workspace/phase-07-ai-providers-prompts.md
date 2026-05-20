@@ -58,7 +58,9 @@ export interface GenerateObjectResult<T> extends GenerateResult {
 export interface ProviderAdapter {
   readonly providerType: ProviderType;
   generateText(opts: GenerateTextOptions): Promise<GenerateResult>;
-  generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>>;
+  generateObject<T>(
+    opts: GenerateObjectOptions<T>,
+  ): Promise<GenerateObjectResult<T>>;
   testConnection(): Promise<{ ok: boolean; error?: string }>;
 }
 ```
@@ -95,7 +97,9 @@ export class AnthropicAdapter implements ProviderAdapter {
     };
   }
 
-  async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>> {
+  async generateObject<T>(
+    opts: GenerateObjectOptions<T>,
+  ): Promise<GenerateObjectResult<T>> {
     const { createAnthropic } = await import("@ai-sdk/anthropic");
     const { generateObject } = await import("ai");
     const client = createAnthropic({ apiKey: this.apiKey });
@@ -128,7 +132,10 @@ export class AnthropicAdapter implements ProviderAdapter {
       });
       return { ok: true };
     } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
     }
   }
 }
@@ -175,11 +182,17 @@ export class ProviderRegistry {
     if (this.adapters.has(providerKey)) return this.adapters.get(providerKey)!;
     const account = this.providerAccountsRepo.get(providerKey);
     if (!account || !account.isConfigured)
-      throw new AppError(`Provider not configured: ${providerKey}`, "PROVIDER_NOT_CONFIGURED");
+      throw new AppError(
+        `Provider not configured: ${providerKey}`,
+        "PROVIDER_NOT_CONFIGURED",
+      );
 
     const secret = await this.secrets.get(account.secretRef);
     if (!secret)
-      throw new AppError(`No secret for provider: ${providerKey}`, "MISSING_SECRET");
+      throw new AppError(
+        `No secret for provider: ${providerKey}`,
+        "MISSING_SECRET",
+      );
 
     const adapter = this.buildAdapter(account, secret);
     this.adapters.set(providerKey, adapter);
@@ -191,12 +204,19 @@ export class ProviderRegistry {
     this.adapters.delete(providerKey);
   }
 
-  private buildAdapter(account: ProviderAccount, secret: string): ProviderAdapter {
+  private buildAdapter(
+    account: ProviderAccount,
+    secret: string,
+  ): ProviderAdapter {
     switch (account.providerType) {
-      case "anthropic": return new AnthropicAdapter(secret);
-      case "openai":    return new OpenAiAdapter(secret);
+      case "anthropic":
+        return new AnthropicAdapter(secret);
+      case "openai":
+        return new OpenAiAdapter(secret);
       case "openrouter": {
-        const metadata = account.metadataJson ? JSON.parse(account.metadataJson) : null;
+        const metadata = account.metadataJson
+          ? JSON.parse(account.metadataJson)
+          : null;
         return new OpenRouterAdapter(secret, metadata?.baseUrl);
       }
     }
@@ -217,7 +237,9 @@ export function buildStrategyTimeframeContext(s: SessionStrategy): string {
     "## Session trading horizon (authoritative)",
     `- Primary timeframe: ${s.primaryTradingTimeframe}`,
     `- Holding style: ${s.holdingStyle}`,
-    s.targetHoldDays != null ? `- Target hold: ~${s.targetHoldDays} calendar days` : null,
+    s.targetHoldDays != null
+      ? `- Target hold: ~${s.targetHoldDays} calendar days`
+      : null,
     s.maxHoldDays != null ? `- Max hold: ${s.maxHoldDays} calendar days` : null,
     s.timeframeNotes.trim() ? `- Notes: ${s.timeframeNotes.trim()}` : null,
   ].filter(Boolean);
@@ -247,9 +269,10 @@ export class AiRuntime {
     const config = this.aiRolesRepo.get(sessionId, role);
     const adapter = await this.registry.get(config.providerKey);
 
-    const systemPrompt = config.promptSource === "session_override"
-      ? config.promptMarkdown
-      : this.promptLoader.load(role);
+    const systemPrompt =
+      config.promptSource === "session_override"
+        ? config.promptMarkdown
+        : this.promptLoader.load(role);
 
     return adapter.generateText({
       model: config.modelId,
@@ -266,9 +289,10 @@ export class AiRuntime {
   ): Promise<AgentResult<TradeDecision>> {
     const config = this.aiRolesRepo.get(sessionId, "decision_maker");
     const adapter = await this.registry.get(config.providerKey);
-    const systemPrompt = config.promptSource === "session_override"
-      ? config.promptMarkdown
-      : this.promptLoader.load("decision_maker");
+    const systemPrompt =
+      config.promptSource === "session_override"
+        ? config.promptMarkdown
+        : this.promptLoader.load("decision_maker");
 
     return adapter.generateObject({
       model: config.modelId,
@@ -287,14 +311,17 @@ export class AiRuntime {
 Each file has a version header comment and structured content.
 
 `electron/prompts/researcher_bull.md`:
+
 ```markdown
 <!-- version: 1.0.0 -->
+
 # Bull Researcher
 
 You are the bull researcher. Your job is to build the strongest evidence-backed
 long thesis for the given instrument.
 
 ## Instructions
+
 - Honor the **Session trading horizon** section in the user message: align setups, indicators, and catalysts with that timeframe and intended hold length; do not argue for a multi-week position when the session is intraday_flat unless the user notes explicitly allow it.
 - Focus on growth catalysts, technical momentum, and fundamental tailwinds.
 - Cite specific data points when available.
@@ -344,7 +371,7 @@ File: `electron/main/ipc/accounts.ts` — extend with:
     isConfigured: boolean;
     lastTestStatus: "unknown" | "ok" | "error";
     updatedAt: string;
-  }>
+  }>;
 }
 ```
 
@@ -364,6 +391,7 @@ File: `electron/main/ipc/accounts.ts` — extend with:
 ```
 
 Handler:
+
 1. Save secret to keychain via `SecretsService`.
 2. Upsert `provider_accounts` row with `secretRef` = keychain key and `metadataJson` when provided.
 3. Call `providerRegistry.invalidate(id)`.
@@ -382,6 +410,7 @@ Handler: `providerRegistry.get(id)` then `adapter.testConnection()`. Update `las
 A search provider is the external web-search backend used when an AI role enables `webSearchEnabled`.
 
 For v1, provider selection is resolved like this:
+
 1. `sessions.default_search_provider_id` if set
 2. otherwise `workspace_preferences.default_search_provider_id`
 3. otherwise validation/start fails for roles that require search
@@ -391,8 +420,8 @@ There is no per-role search-provider picker in v1. Roles only decide whether sea
 The `AiRuntime` checks `config.webSearchEnabled` and injects a search tool if enabled.
 
 ```typescript
-const searchProviderId = session.defaultSearchProviderId
-  ?? workspacePrefs.defaultSearchProviderId;
+const searchProviderId =
+  session.defaultSearchProviderId ?? workspacePrefs.defaultSearchProviderId;
 
 if (config.webSearchEnabled && !searchProviderId) {
   throw new AppError(
@@ -465,7 +494,11 @@ Brave: `https://api.search.brave.com/res/v1/web/search`. Tavily: `https://api.ta
 const bull = await this.deps.ai.runResearcher({ asset }, "bull");
 
 // After
-const bull = await this.deps.ai.runRole(sessionId, "researcher_bull", userPrompt);
+const bull = await this.deps.ai.runRole(
+  sessionId,
+  "researcher_bull",
+  userPrompt,
+);
 ```
 
 `getConfig()` dependency removed — replaced by `sessionId` passed to each run.
@@ -510,34 +543,34 @@ The same policy applies to broker adapter calls in Phase 8 with one difference: 
 
 ## Files Created / Modified
 
-| Action | File |
-|--------|------|
-| Create | `electron/main/services/ai/strategy-prompt-context.ts` — `buildStrategyTimeframeContext` |
-| Create | `electron/main/services/ai/index.ts` |
-| Create | `electron/main/services/ai/adapters/provider-adapter.ts` |
-| Create | `electron/main/services/ai/adapters/anthropic-adapter.ts` |
-| Create | `electron/main/services/ai/adapters/openai-adapter.ts` |
-| Create | `electron/main/services/ai/adapters/openrouter-adapter.ts` |
-| Create | `electron/main/services/ai/provider-registry.ts` |
-| Create | `electron/main/services/ai/ai-runtime.ts` |
-| Create | `electron/main/services/ai/ai-runtime-types.ts` |
-| Create | `electron/main/services/ai/ai-runtime-schemas.ts` |
-| Create | `electron/main/services/ai/search/index.ts` (P1.4) |
-| Create | `electron/main/services/ai/search/search-registry.ts` |
-| Create | `electron/main/services/ai/search/search-types.ts` |
-| Create | `electron/main/services/ai/search/adapters/search-adapter.ts` |
-| Create | `electron/main/services/ai/search/adapters/brave-adapter.ts` |
-| Create | `electron/main/services/ai/search/adapters/tavily-adapter.ts` |
-| Modify | `electron/main/services/ai/prompt-asset-loader.ts` — add version() |
-| Create | `electron/prompts/researcher_bull.md` |
-| Create | `electron/prompts/researcher_bear.md` |
-| Create | `electron/prompts/reviewer.md` |
-| Create | `electron/prompts/decision_maker.md` |
-| Create | `electron/prompts/instrument_selector.md` |
-| Modify | `electron/main/services/agent-orchestrator.ts` — use AiRuntime |
-| Modify | `electron/main/ipc/accounts.ts` — add provider list/save/test handlers |
-| Modify | `electron/main/services/app-services.ts` — wire ProviderRegistry, SearchRegistry, AiRuntime |
-| Delete | `electron/main/services/ai-sdk-service.ts` — replaced by AiRuntime |
+| Action | File                                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------ |
+| Create | `electron/main/services/ai/strategy-prompt-context.ts` — `buildStrategyTimeframeContext`               |
+| Create | `electron/main/services/ai/index.ts`                                                                   |
+| Create | `electron/main/services/ai/adapters/provider-adapter.ts`                                               |
+| Create | `electron/main/services/ai/adapters/anthropic-adapter.ts`                                              |
+| Create | `electron/main/services/ai/adapters/openai-adapter.ts`                                                 |
+| Create | `electron/main/services/ai/adapters/openrouter-adapter.ts`                                             |
+| Create | `electron/main/services/ai/provider-registry.ts`                                                       |
+| Create | `electron/main/services/ai/ai-runtime.ts`                                                              |
+| Create | `electron/main/services/ai/ai-runtime-types.ts`                                                        |
+| Create | `electron/main/services/ai/ai-runtime-schemas.ts`                                                      |
+| Create | `electron/main/services/ai/search/index.ts` (P1.4)                                                     |
+| Create | `electron/main/services/ai/search/search-registry.ts`                                                  |
+| Create | `electron/main/services/ai/search/search-types.ts`                                                     |
+| Create | `electron/main/services/ai/search/adapters/search-adapter.ts`                                          |
+| Create | `electron/main/services/ai/search/adapters/brave-adapter.ts`                                           |
+| Create | `electron/main/services/ai/search/adapters/tavily-adapter.ts`                                          |
+| Modify | `electron/main/services/ai/prompt-asset-loader.ts` — add version()                                     |
+| Create | `electron/prompts/researcher_bull.md`                                                                  |
+| Create | `electron/prompts/researcher_bear.md`                                                                  |
+| Create | `electron/prompts/reviewer.md`                                                                         |
+| Create | `electron/prompts/decision_maker.md`                                                                   |
+| Create | `electron/prompts/instrument_selector.md`                                                              |
+| Modify | `electron/main/services/agent-orchestrator.ts` — use AiRuntime                                         |
+| Modify | `electron/main/ipc/accounts.ts` — add provider list/save/test handlers                                 |
+| Modify | `electron/main/services/app-services.ts` — wire ProviderRegistry, SearchRegistry, AiRuntime            |
+| Delete | `electron/main/services/ai-sdk-service.ts` — replaced by AiRuntime                                     |
 | Modify | `src/pages/AccountsPage.tsx` — provider list UI expansion (free-text model input for openrouter, P1.5) |
 
 ## Acceptance Criteria

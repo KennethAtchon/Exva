@@ -5,9 +5,17 @@ import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { MockScenarioBias } from "../../broker/adapters/mock-adapter";
 import type { SearchRegistry } from "../search";
 import { sanitizeSearchQuery } from "../search/sanitize-search-query";
-import { InstrumentNormalizer, resolveCanonicalSymbol } from "../../broker/instrument-normalizer";
+import {
+  InstrumentNormalizer,
+  resolveCanonicalSymbol,
+} from "../../broker/instrument-normalizer";
 
-const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
+const instrumentClassSchema = z.enum([
+  "stock",
+  "crypto",
+  "futures",
+  "prediction_market",
+]);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const instrumentNormalizer = new InstrumentNormalizer();
 
@@ -30,19 +38,22 @@ export interface MockNewsItem {
 const NEUTRAL_MOCK_NEWS: MockNewsItem[] = [
   {
     title: "Markets steady as macro data comes in mixed",
-    snippet: "Equities remain range-bound with no clear directional catalyst after this week's data releases.",
+    snippet:
+      "Equities remain range-bound with no clear directional catalyst after this week's data releases.",
     url: "https://mock.local/news/1",
     publishedAt: new Date().toISOString(),
   },
   {
     title: "No significant corporate news for this instrument this week",
-    snippet: "Volume has been below average. No earnings, no filings, no analyst upgrades or downgrades.",
+    snippet:
+      "Volume has been below average. No earnings, no filings, no analyst upgrades or downgrades.",
     url: "https://mock.local/news/2",
     publishedAt: new Date().toISOString(),
   },
   {
     title: "Sector rotation continues as investors reassess positioning",
-    snippet: "Broad sector moves reflect ongoing macro uncertainty. Individual stock fundamentals remain the primary driver.",
+    snippet:
+      "Broad sector moves reflect ongoing macro uncertainty. Individual stock fundamentals remain the primary driver.",
     url: "https://mock.local/news/3",
     publishedAt: new Date().toISOString(),
   },
@@ -52,19 +63,22 @@ export const MOCK_NEWS_BY_SCENARIO: Record<MockScenarioBias, MockNewsItem[]> = {
   bullish: [
     {
       title: "{symbol} shows continued breakout momentum on rising volume",
-      snippet: "{symbol} is pressing into fresh short-term highs with above-average volume and follow-through buying interest.",
+      snippet:
+        "{symbol} is pressing into fresh short-term highs with above-average volume and follow-through buying interest.",
       url: "https://mock.local/news/bullish-1",
       publishedAt: new Date().toISOString(),
     },
     {
       title: "Institutional accumulation builds in {symbol}",
-      snippet: "Buyers continue to support {symbol} after a strong multi-session move, with traders watching for continuation entries.",
+      snippet:
+        "Buyers continue to support {symbol} after a strong multi-session move, with traders watching for continuation entries.",
       url: "https://mock.local/news/bullish-2",
       publishedAt: new Date().toISOString(),
     },
     {
       title: "Momentum traders eye {symbol} after catalyst-driven strength",
-      snippet: "Recent strength in {symbol} is being reinforced by bullish sentiment, expanding participation, and favorable breakout structure.",
+      snippet:
+        "Recent strength in {symbol} is being reinforced by bullish sentiment, expanding participation, and favorable breakout structure.",
       url: "https://mock.local/news/bullish-3",
       publishedAt: new Date().toISOString(),
     },
@@ -72,19 +86,22 @@ export const MOCK_NEWS_BY_SCENARIO: Record<MockScenarioBias, MockNewsItem[]> = {
   bearish: [
     {
       title: "{symbol} slips as sellers press recent support",
-      snippet: "Selling pressure in {symbol} is building as failed bounces and weak tape point to distribution.",
+      snippet:
+        "Selling pressure in {symbol} is building as failed bounces and weak tape point to distribution.",
       url: "https://mock.local/news/bearish-1",
       publishedAt: new Date().toISOString(),
     },
     {
       title: "Risk-off flow weighs on {symbol}",
-      snippet: "Participants are cutting exposure in {symbol} as momentum fades and downside follow-through increases.",
+      snippet:
+        "Participants are cutting exposure in {symbol} as momentum fades and downside follow-through increases.",
       url: "https://mock.local/news/bearish-2",
       publishedAt: new Date().toISOString(),
     },
     {
       title: "Failed breakout leaves {symbol} vulnerable",
-      snippet: "A rejected move higher in {symbol} has traders watching for continuation lower if support breaks.",
+      snippet:
+        "A rejected move higher in {symbol} has traders watching for continuation lower if support breaks.",
       url: "https://mock.local/news/bearish-3",
       publishedAt: new Date().toISOString(),
     },
@@ -93,26 +110,31 @@ export const MOCK_NEWS_BY_SCENARIO: Record<MockScenarioBias, MockNewsItem[]> = {
   volatile: [
     {
       title: "{symbol} whipsaws as volatility expands",
-      snippet: "Large intraday swings in {symbol} are creating short-term trading opportunities without a stable directional trend.",
+      snippet:
+        "Large intraday swings in {symbol} are creating short-term trading opportunities without a stable directional trend.",
       url: "https://mock.local/news/volatile-1",
       publishedAt: new Date().toISOString(),
     },
     {
       title: "Fast reversals keep {symbol} range traders active",
-      snippet: "{symbol} is bouncing sharply between support and resistance as traders react to unstable risk sentiment.",
+      snippet:
+        "{symbol} is bouncing sharply between support and resistance as traders react to unstable risk sentiment.",
       url: "https://mock.local/news/volatile-2",
       publishedAt: new Date().toISOString(),
     },
     {
       title: "{symbol} sees elevated volume in choppy tape",
-      snippet: "Volatility remains high in {symbol}, favoring quick reaction trades over clean trend continuation.",
+      snippet:
+        "Volatility remains high in {symbol}, favoring quick reaction trades over clean trend continuation.",
       url: "https://mock.local/news/volatile-3",
       publishedAt: new Date().toISOString(),
     },
   ],
 };
 
-export function scenarioMockNews(bias: MockScenarioBias = "bullish"): MockNewsItem[] {
+export function scenarioMockNews(
+  bias: MockScenarioBias = "bullish",
+): MockNewsItem[] {
   return MOCK_NEWS_BY_SCENARIO[bias].map((item) => ({ ...item }));
 }
 
@@ -139,13 +161,29 @@ export function createMarketTools(deps: {
   if (deps.include.quote) {
     out.get_quote = tool({
       description: "Get current price and basic quote data for a symbol.",
-      inputSchema: z.object({ symbol: z.string(), instrumentClass: instrumentClassSchema }),
-      execute: async ({ symbol, instrumentClass }: { symbol: string; instrumentClass: InstrumentClass }) => {
+      inputSchema: z.object({
+        symbol: z.string(),
+        instrumentClass: instrumentClassSchema,
+      }),
+      execute: async ({
+        symbol,
+        instrumentClass,
+      }: {
+        symbol: string;
+        instrumentClass: InstrumentClass;
+      }) => {
         const brokerAccountId = deps.brokerAccountIdByClass(instrumentClass);
-        if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
+        if (!brokerAccountId)
+          return {
+            error:
+              "No broker account routing available for this instrument class.",
+          };
         try {
           const adapter = await deps.brokerRegistry.get(brokerAccountId);
-          const canonicalSymbol = resolveCanonicalSymbol(symbol, instrumentClass);
+          const canonicalSymbol = resolveCanonicalSymbol(
+            symbol,
+            instrumentClass,
+          );
           const brokerSymbol = instrumentNormalizer.toBrokerSymbol({
             symbol: canonicalSymbol,
             instrumentClass,
@@ -168,7 +206,8 @@ export function createMarketTools(deps: {
 
   if (deps.include.ohlcv) {
     out.get_ohlcv = tool({
-      description: "Get OHLCV bars for a symbol. Supports timeframes: 1h, 4h, 1d (default). Returns up to 200 bars.",
+      description:
+        "Get OHLCV bars for a symbol. Supports timeframes: 1h, 4h, 1d (default). Returns up to 200 bars.",
       inputSchema: z.object({
         symbol: z.string(),
         instrumentClass: instrumentClassSchema,
@@ -184,13 +223,24 @@ export function createMarketTools(deps: {
         timeframe?: string;
       }) => {
         if (deps.getMockOhlcv) {
-          return { symbol, timeframe, bars: deps.getMockOhlcv(symbol, timeframe) };
+          return {
+            symbol,
+            timeframe,
+            bars: deps.getMockOhlcv(symbol, timeframe),
+          };
         }
         const brokerAccountId = deps.brokerAccountIdByClass(instrumentClass);
-        if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
+        if (!brokerAccountId)
+          return {
+            error:
+              "No broker account routing available for this instrument class.",
+          };
         try {
           const adapter = await deps.brokerRegistry.get(brokerAccountId);
-          const canonicalSymbol = resolveCanonicalSymbol(symbol, instrumentClass);
+          const canonicalSymbol = resolveCanonicalSymbol(
+            symbol,
+            instrumentClass,
+          );
           const brokerSymbol = instrumentNormalizer.toBrokerSymbol({
             symbol: canonicalSymbol,
             instrumentClass,
@@ -234,7 +284,9 @@ export function createMarketTools(deps: {
         }
         try {
           const adapter = await deps.searchRegistry.get(deps.searchProviderId);
-          return adapter.search(sanitizeSearchQuery(`${symbol} latest market news`));
+          return adapter.search(
+            sanitizeSearchQuery(`${symbol} latest market news`),
+          );
         } catch (error) {
           return toToolError(error);
         }

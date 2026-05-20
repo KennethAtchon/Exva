@@ -26,7 +26,10 @@ export function buildManualShortlistSelection(
   }
 
   if (instruments.length === 0) {
-    throw new AppError("Manual instrument shortlist is empty after parsing.", "VALIDATION_FAILED");
+    throw new AppError(
+      "Manual instrument shortlist is empty after parsing.",
+      "VALIDATION_FAILED",
+    );
   }
 
   return {
@@ -35,16 +38,29 @@ export function buildManualShortlistSelection(
 }
 
 export function isManualSelectorMode(ctx: PhasePlanRunContext): boolean {
-  const selectorSettings = ctx.services.sessionSelectorSettingsRepo.get(ctx.sessionId);
-  return ctx.session.selectionMode === "manual_shortlist" || !selectorSettings.aiPickerEnabled;
+  const selectorSettings = ctx.services.sessionSelectorSettingsRepo.get(
+    ctx.sessionId,
+  );
+  return (
+    ctx.session.selectionMode === "manual_shortlist" ||
+    !selectorSettings.aiPickerEnabled
+  );
 }
 
-function inferInstrumentClass(symbol: string, classes: InstrumentClass[]): InstrumentClass {
+function inferInstrumentClass(
+  symbol: string,
+  classes: InstrumentClass[],
+): InstrumentClass {
   if (classes.length === 1) return classes[0] ?? "stock";
   const upper = symbol.toUpperCase();
   if (classes.includes("crypto") && upper.includes("-")) return "crypto";
-  if (classes.includes("futures") && /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d{1,2}$/i.test(upper)) return "futures";
-  if (classes.includes("prediction_market") && symbol.startsWith("pm:")) return "prediction_market";
+  if (
+    classes.includes("futures") &&
+    /^[A-Z]{2,4}[FGHJKMNQUVXZ]\d{1,2}$/i.test(upper)
+  )
+    return "futures";
+  if (classes.includes("prediction_market") && symbol.startsWith("pm:"))
+    return "prediction_market";
   if (classes.includes("stock")) return "stock";
   return classes[0] ?? "stock";
 }

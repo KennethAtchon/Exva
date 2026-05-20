@@ -5,6 +5,7 @@ Given compact technical, fundamental, and review signals for {instrumentSymbol},
 No tools. JSON only. Do not output size, stop loss, or take profit.
 
 Return JSON:
+
 ```json
 {
   "executionStrategy": "trend_momentum" | "breakout" | "mean_reversion" | "event_driven" | "arbitrage" | "prediction_market" | "futures_trend",

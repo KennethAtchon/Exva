@@ -1,11 +1,23 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { api } from "@/lib/exva";
 import { ShadcnSelect } from "@/components/custom-ui";
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Input } from "@/components/ui";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Input,
+} from "@/components/ui";
 
 export type SearchProviderType = "brave" | "tavily";
 
-const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 };
+const labelStyle: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 500,
+  color: "var(--text2)",
+  marginBottom: 6,
+};
 
 const DEFAULT_NAMES: Record<SearchProviderType, string> = {
   brave: "Brave Search",
@@ -41,7 +53,9 @@ export const AddSearchProviderModal = ({
     setProviderType(next);
     setName((current) => {
       const prevDefault = DEFAULT_NAMES[providerType];
-      return current === prevDefault || current.trim() === "" ? DEFAULT_NAMES[next] : current;
+      return current === prevDefault || current.trim() === ""
+        ? DEFAULT_NAMES[next]
+        : current;
     });
     setMessage(null);
   };
@@ -61,9 +75,14 @@ export const AddSearchProviderModal = ({
         providerType,
         apiKey: trimmedKey,
       });
-      const test = await api.testProvider(id).catch(() => ({ ok: false as const, error: "Test failed" }));
+      const test = await api
+        .testProvider(id)
+        .catch(() => ({ ok: false as const, error: "Test failed" }));
       if (!test.ok) {
-        setMessage(test.error ?? "Saved key, but the connection test failed. Check the key and try Test on the account.");
+        setMessage(
+          test.error ??
+            "Saved key, but the connection test failed. Check the key and try Test on the account.",
+        );
       }
       setApiKey("");
       await onSaved();
@@ -79,10 +98,21 @@ export const AddSearchProviderModal = ({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-[var(--surface)] p-5 sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold text-[var(--text1)]">Add search provider</DialogTitle>
+          <DialogTitle className="text-base font-bold text-[var(--text1)]">
+            Add search provider
+          </DialogTitle>
         </DialogHeader>
-        <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 16, lineHeight: 1.45 }}>
-          Exva already includes DuckDuckGo as the built-in default search path. Add Brave or Tavily here only if you want an API-backed provider instead.
+        <p
+          style={{
+            fontSize: 12,
+            color: "var(--text3)",
+            marginBottom: 16,
+            lineHeight: 1.45,
+          }}
+        >
+          Exva already includes DuckDuckGo as the built-in default search path.
+          Add Brave or Tavily here only if you want an API-backed provider
+          instead.
         </p>
 
         <div style={{ marginBottom: 14 }}>
@@ -131,7 +161,8 @@ export const AddSearchProviderModal = ({
             lineHeight: 1.45,
           }}
         >
-          Optional providers let you override the built-in default for sessions that need a specific backend.
+          Optional providers let you override the built-in default for sessions
+          that need a specific backend.
         </div>
 
         {message ? (
@@ -150,7 +181,12 @@ export const AddSearchProviderModal = ({
         ) : null}
 
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-          <Button type="button" variant="outline" className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]" onClick={onClose}>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]"
+            onClick={onClose}
+          >
             Cancel
           </Button>
           <Button

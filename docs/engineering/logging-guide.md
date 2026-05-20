@@ -75,8 +75,14 @@
 Good:
 
 ```ts
-logger.info({ sessionId, durationMs, allowed, reason }, "risk preflight evaluated");
-logger.debug({ channel, payloadSizeBytes, sensitiveKeyDetected }, "ipc invoke start");
+logger.info(
+  { sessionId, durationMs, allowed, reason },
+  "risk preflight evaluated",
+);
+logger.debug(
+  { channel, payloadSizeBytes, sensitiveKeyDetected },
+  "ipc invoke start",
+);
 logger.info({ role, inputTokens, outputTokens, costUsd }, "ai role complete");
 ```
 

@@ -5,7 +5,7 @@
 >
 > - `electron/main/services/orchestration/execution-step-runner.ts`
 > - `electron/main/db/repositories/session-execution-steps-repo.ts`
-> **Files to modify:**
+>   **Files to modify:**
 > - `electron/main/services/orchestration/agent-orchestrator.ts`
 > - `electron/main/ipc/` (wherever IPC handlers are registered)
 > - `electron/main/db/migrations.ts`
@@ -112,7 +112,9 @@ export interface SessionExecutionStepsRepo {
    * Insert or update the step row for (sessionId, cycleId, stage).
    * Uses the logical unique key — never creates a second row for the same triple.
    */
-  upsert(step: Omit<ExecutionStepState, "id" | "createdAt" | "updatedAt">): ExecutionStepState;
+  upsert(
+    step: Omit<ExecutionStepState, "id" | "createdAt" | "updatedAt">,
+  ): ExecutionStepState;
 
   /** Returns the latest step state for each stage in the given cycle. */
   getLatestByCycle(sessionId: string, cycleId: string): ExecutionStepState[];
@@ -169,7 +171,6 @@ export type StepResult<T> =
 
 ### Error classification rules
 
-
 | Error type                                     | `retryable` | `status` written |
 | ---------------------------------------------- | ----------- | ---------------- |
 | Provider API timeout / 5xx / rate-limit        | `true`      | `retrying`       |
@@ -181,7 +182,6 @@ export type StepResult<T> =
 | Risk gate denial                               | `false`     | `failed`         |
 | Policy gate denial                             | `false`     | `failed`         |
 | Unknown / unclassified `Error`                 | `false`     | `failed`         |
-
 
 Classification is done by inspecting `error instanceof AppError && error.code` first, then checking HTTP status codes on provider/broker errors if available.
 
@@ -248,7 +248,9 @@ try {
   instruments = await this.runResearchBurst(session, config);
 } catch (error) {
   // ... emitEvent + throw
-  throw error instanceof AppError ? error : new AppError(message, "VALIDATION_FAILED");
+  throw error instanceof AppError
+    ? error
+    : new AppError(message, "VALIDATION_FAILED");
 }
 ```
 
@@ -256,7 +258,7 @@ try {
 
 ```ts
 const selectorResult = await this.stepRunner.run("selector", () =>
-  this.runResearchBurst(session, config)
+  this.runResearchBurst(session, config),
 );
 if (!selectorResult.ok) {
   // stepRunner already wrote DB state + emitted event
@@ -284,7 +286,9 @@ Each of `runAiPipeline`, `RiskEngine.validateDecision`, `placeRoutedOrder` must 
 
 ```ts
 // Request
-{ sessionId: string }
+{
+  sessionId: string;
+}
 
 // Response
 {
@@ -297,7 +301,7 @@ Each of `runAiPipeline`, `RiskEngine.validateDecision`, `placeRoutedOrder` must 
     lastErrorMessage: string | null;
     retryable: boolean;
   }>;
-  cycleId: string | null;  // null if no cycle has started yet
+  cycleId: string | null; // null if no cycle has started yet
 }
 ```
 
@@ -329,10 +333,14 @@ Implementation: clears the step row via `stepsRepo.clearFailed`, then re-enqueue
 
 ```ts
 // Request
-{ sessionId: string }
+{
+  sessionId: string;
+}
 
 // Response
-{ ok: true }
+{
+  ok: true;
+}
 ```
 
 Sets an internal `pauseAfterStep: boolean` flag on `AgentOrchestrator`. After the current `run()` call in the step runner returns (success or failure), the orchestrator pauses instead of proceeding to the next stage or restarting the cycle. The flag is cleared when the session is manually resumed.

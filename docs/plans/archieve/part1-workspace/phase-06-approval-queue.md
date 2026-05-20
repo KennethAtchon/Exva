@@ -53,6 +53,7 @@ capital_reservations
 ```
 
 Indexes:
+
 - `idx_approvals_session ON trade_approvals(session_id, status)`
 - `idx_capital_reservations_session ON capital_reservations(session_id, status)`
 
@@ -135,6 +136,7 @@ async enqueueApprovalRecheck(input: {
 ```
 
 `runApprovalRecheck()` must:
+
 - load the current session, strategy, routing, and risk state
 - re-run the decision/risk path for the target instrument
 - place an order only if the current run still recommends the trade
@@ -171,6 +173,7 @@ interface ApprovalSummary {
 ```
 
 Handler logic:
+
 - If `viewMode = "session"`: filter by `focusedSessionId`.
 - If `viewMode = "global"`: return all approvals across non-archived sessions (+ archived if `globalIncludeArchived`).
 
@@ -185,6 +188,7 @@ Handler logic:
 ```
 
 Handler:
+
 1. Load approval record; verify status is `pending`.
 2. Write decision to `trade_approvals` row.
 3. If decision is `rejected`, release any approval reservation and stop.
@@ -198,10 +202,14 @@ File: `electron/main/db/repositories/trade-approvals-repo.ts`
 
 ```typescript
 class TradeApprovalsRepo {
-  create(input: CreateApprovalInput): TradeApproval
-  listPending(sessionId: string): TradeApproval[]
-  listAll(filters: ApprovalFilters): TradeApproval[]
-  resolve(id: string, decision: "approved" | "rejected", note?: string): TradeApproval
+  create(input: CreateApprovalInput): TradeApproval;
+  listPending(sessionId: string): TradeApproval[];
+  listAll(filters: ApprovalFilters): TradeApproval[];
+  resolve(
+    id: string,
+    decision: "approved" | "rejected",
+    note?: string,
+  ): TradeApproval;
 }
 ```
 
@@ -215,10 +223,10 @@ class CapitalReservationsRepo {
     sessionId: string;
     approvalId: string;
     amountUsd: number;
-  }): CapitalReservation
+  }): CapitalReservation;
 
-  convertApprovalToOpenOrder(approvalId: string, tradeId: string): void
-  releaseByApproval(approvalId: string): void
+  convertApprovalToOpenOrder(approvalId: string, tradeId: string): void;
+  releaseByApproval(approvalId: string): void;
 }
 ```
 
@@ -228,7 +236,11 @@ When `approval:decide` resolves successfully, push a renderer event so the Dashb
 
 ```typescript
 // In IPC handler after resolve:
-mainWindow.webContents.send("approval_resolved", { approvalId, tradeId, decision });
+mainWindow.webContents.send("approval_resolved", {
+  approvalId,
+  tradeId,
+  decision,
+});
 ```
 
 The renderer subscribes:
@@ -262,6 +274,7 @@ PendingApprovalsPanel
 ```
 
 `ApprovalDetailModal`:
+
 - shows persisted `decisionSummaryJson` plus any supporting `agent_runs` context
 - Approve / Reject buttons call `approval:decide`
 - optional decision note textarea
@@ -349,18 +362,18 @@ sequenceDiagram
 
 ## Files Created / Modified
 
-| Action | File |
-|--------|------|
+| Action | File                                                                                                  |
+| ------ | ----------------------------------------------------------------------------------------------------- |
 | Modify | `electron/main/services/agent-orchestrator.ts` — remove in-memory timeout, persist approval snapshots |
-| Modify | `electron/main/services/session/session-runtime-manager.ts` — add approval recheck enqueue path |
-| Create | `electron/main/db/repositories/trade-approvals-repo.ts` |
-| Create | `electron/main/db/repositories/capital-reservations-repo.ts` |
-| Create | `electron/main/ipc/approvals.ts` |
-| Modify | `electron/main/ipc/register.ts` — register approval handlers |
-| Modify | `electron/preload/exva-api.ts` — expose approval:list, approval:decide, approval_resolved event |
-| Modify | `src/pages/Dashboard.tsx` — add PendingApprovalsPanel |
-| Create | `src/components/approvals/PendingApprovalsPanel.tsx` |
-| Create | `src/components/approvals/ApprovalDetailModal.tsx` |
+| Modify | `electron/main/services/session/session-runtime-manager.ts` — add approval recheck enqueue path       |
+| Create | `electron/main/db/repositories/trade-approvals-repo.ts`                                               |
+| Create | `electron/main/db/repositories/capital-reservations-repo.ts`                                          |
+| Create | `electron/main/ipc/approvals.ts`                                                                      |
+| Modify | `electron/main/ipc/register.ts` — register approval handlers                                          |
+| Modify | `electron/preload/exva-api.ts` — expose approval:list, approval:decide, approval_resolved event       |
+| Modify | `src/pages/Dashboard.tsx` — add PendingApprovalsPanel                                                 |
+| Create | `src/components/approvals/PendingApprovalsPanel.tsx`                                                  |
+| Create | `src/components/approvals/ApprovalDetailModal.tsx`                                                    |
 
 ## Acceptance Criteria
 

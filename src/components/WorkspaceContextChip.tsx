@@ -1,14 +1,23 @@
 import { useEffect, useState } from "react";
 import { api, type SessionSummary } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
-import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui";
 
 interface WorkspaceContextChipProps {
   onSwitchSession?: (id: string) => void;
   onGoGlobal?: () => void;
 }
 
-export const WorkspaceContextChip = ({ onSwitchSession, onGoGlobal }: WorkspaceContextChipProps) => {
+export const WorkspaceContextChip = ({
+  onSwitchSession,
+  onGoGlobal,
+}: WorkspaceContextChipProps) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const [open, setOpen] = useState(false);
@@ -16,7 +25,10 @@ export const WorkspaceContextChip = ({ onSwitchSession, onGoGlobal }: WorkspaceC
 
   useEffect(() => {
     if (!open) return;
-    api.listSessions({ includeArchived: false }).then((result) => setSessions(result.sessions)).catch(() => {});
+    api
+      .listSessions({ includeArchived: false })
+      .then((result) => setSessions(result.sessions))
+      .catch(() => {});
   }, [open]);
 
   const focused = sessions.find((session) => session.id === focusedSessionId);
@@ -29,11 +41,27 @@ export const WorkspaceContextChip = ({ onSwitchSession, onGoGlobal }: WorkspaceC
           variant="outline"
           className="max-w-[min(280px,42vw)] overflow-hidden rounded-full border-border bg-[var(--surface2)] px-3 py-2 text-xs text-[var(--text2)]"
         >
-          <span className="truncate">{viewMode === "global" ? "Global Workspace" : focused?.name ?? "Focused Session"}</span>
+          <span className="truncate">
+            {viewMode === "global"
+              ? "Global Workspace"
+              : (focused?.name ?? "Focused Session")}
+          </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="z-[200] w-[min(280px,calc(100vw-48px))] border-border bg-[var(--surface)] p-2">
-        <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 8, textTransform: "uppercase" }}>Workspace Context</div>
+      <DropdownMenuContent
+        align="end"
+        className="z-[200] w-[min(280px,calc(100vw-48px))] border-border bg-[var(--surface)] p-2"
+      >
+        <div
+          style={{
+            fontSize: 11,
+            color: "var(--text3)",
+            marginBottom: 8,
+            textTransform: "uppercase",
+          }}
+        >
+          Workspace Context
+        </div>
         <DropdownMenuItem
           onClick={() => {
             setOpen(false);
@@ -53,7 +81,9 @@ export const WorkspaceContextChip = ({ onSwitchSession, onGoGlobal }: WorkspaceC
             className="justify-between rounded-lg text-[var(--text2)]"
           >
             <span>{session.name}</span>
-            <span style={{ color: "var(--text3)", fontSize: 11 }}>{session.status}</span>
+            <span style={{ color: "var(--text3)", fontSize: 11 }}>
+              {session.status}
+            </span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

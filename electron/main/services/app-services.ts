@@ -65,7 +65,11 @@ import { TradeMonitor } from "./orchestration/lifecycle/trade-monitor";
 import { TradeAutopsyService } from "./orchestration/post-trade/trade-autopsy-service";
 import { CycleReplayService } from "./orchestration/replay/cycle-replay-service";
 import { InstrumentCacheService } from "./instrument";
-import { BrokerAllocationGate, CapitalReservationService, RiskEngine } from "./risk";
+import {
+  BrokerAllocationGate,
+  CapitalReservationService,
+  RiskEngine,
+} from "./risk";
 import { PaperScorecardService } from "./analytics/paper-scorecard-service";
 import { LiveReadinessService } from "./risk/live-readiness-service";
 
@@ -178,21 +182,38 @@ export async function createAppServices(app: App): Promise<AppServices> {
     repos.brokerRouting,
     brokerRegistry,
   );
-  const brokerBalanceCache = new BrokerBalanceCacheService(repos.brokerAccounts, brokerRegistry);
-  const brokerCapital = new BrokerCapitalService(repos.brokerAccounts, repos.sessionBrokerAssignments, repos.session);
+  const brokerBalanceCache = new BrokerBalanceCacheService(
+    repos.brokerAccounts,
+    brokerRegistry,
+  );
+  const brokerCapital = new BrokerCapitalService(
+    repos.brokerAccounts,
+    repos.sessionBrokerAssignments,
+    repos.session,
+  );
   const brokerAllocationGate = new BrokerAllocationGate(
     repos.sessionBrokerAssignments,
     repos.trades,
     repos.workspacePreferences,
     repos.brokerAccounts,
   );
-  const capitalReservation = new CapitalReservationService(repos.capitalReservations);
+  const capitalReservation = new CapitalReservationService(
+    repos.capitalReservations,
+  );
   const broker = new BrokerService(brokerRegistry);
 
   const eventBus = new EventBus();
-  const balanceTicker = new BrokerBalanceTicker(repos.brokerAccounts, brokerBalanceCache, eventBus, logger);
+  const balanceTicker = new BrokerBalanceTicker(
+    repos.brokerAccounts,
+    brokerBalanceCache,
+    eventBus,
+    logger,
+  );
   const risk = new RiskEngine();
-  const providerRegistry = new ProviderRegistry(repos.providerAccounts, secrets);
+  const providerRegistry = new ProviderRegistry(
+    repos.providerAccounts,
+    secrets,
+  );
   const searchRegistry = new SearchRegistry(repos.providerAccounts, secrets);
   const notifications = new NotificationService(eventBus);
   const promptAssetLoader = new PromptAssetLoader();
@@ -289,7 +310,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
 
   const runtimeManagerDeps: SessionRuntimeManagerDeps = {
     ...orchestratorDepsBase,
-    createOrchestrator: (sessionId, deps) => new AgentOrchestrator(sessionId, deps),
+    createOrchestrator: (sessionId, deps) =>
+      new AgentOrchestrator(sessionId, deps),
     createTradeMonitor: (sessionId) =>
       new TradeMonitor(
         sessionId,
@@ -308,7 +330,10 @@ export async function createAppServices(app: App): Promise<AppServices> {
   };
   runtimeManager = new SessionRuntimeManager(runtimeManagerDeps);
 
-  const instrumentCacheService = new InstrumentCacheService(repos.instrumentCache, () => orchestratorDepsBase);
+  const instrumentCacheService = new InstrumentCacheService(
+    repos.instrumentCache,
+    () => orchestratorDepsBase,
+  );
 
   const liveReadiness = new LiveReadinessService(
     db,

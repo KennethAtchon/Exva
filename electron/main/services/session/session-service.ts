@@ -16,9 +16,14 @@ export class SessionService {
     return this.deps.sessionRepo.getStatus(sessionId);
   }
 
-  async start(sessionId = this.deps.sessionRepo.getFocusedSessionId()): Promise<SessionStatus> {
+  async start(
+    sessionId = this.deps.sessionRepo.getFocusedSessionId(),
+  ): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
-    if (session.status === "paused" || session.status === "attention_required") {
+    if (
+      session.status === "paused" ||
+      session.status === "attention_required"
+    ) {
       return this.resume(sessionId);
     }
     this.assertTransition(session.status, "active");
@@ -26,14 +31,22 @@ export class SessionService {
     if (session.executionMode === "live_allowed") {
       const readiness = await this.deps.liveReadiness.check(sessionId);
       if (!readiness.readyToStart) {
-        const blockedBy = readiness.checks.filter((c) => !c.passed).map((c) => c.name);
+        const blockedBy = readiness.checks
+          .filter((c) => !c.passed)
+          .map((c) => c.name);
         const message = `Live readiness gate failed: ${blockedBy.join(", ")}`;
         this.emitSessionEvent(sessionId, "ERROR", message, "preflight");
-        throw new AppError(message, "VALIDATION_FAILED", { blockedBy, checks: readiness.checks });
+        throw new AppError(message, "VALIDATION_FAILED", {
+          blockedBy,
+          checks: readiness.checks,
+        });
       }
     }
 
-    const preflight = await this.deps.preflight(session, this.deps.orchestratorDeps);
+    const preflight = await this.deps.preflight(
+      session,
+      this.deps.orchestratorDeps,
+    );
     if (!preflight.ok) {
       const fullMessage = `Preflight ${preflight.check} failed: ${preflight.message}`;
       this.emitSessionEvent(sessionId, "ERROR", fullMessage, "preflight");
@@ -43,7 +56,12 @@ export class SessionService {
     this.emitSessionEvent(sessionId, "INFO", "Session starting...", "session");
     try {
       await this.deps.runtimeManager.startSession(sessionId);
-      this.emitSessionEvent(sessionId, "INFO", "Session runtime ready.", "session");
+      this.emitSessionEvent(
+        sessionId,
+        "INFO",
+        "Session runtime ready.",
+        "session",
+      );
       return this.getStatus(sessionId);
     } catch (error) {
       this.emitSessionEvent(
@@ -56,7 +74,9 @@ export class SessionService {
     }
   }
 
-  async pause(sessionId = this.deps.sessionRepo.getFocusedSessionId()): Promise<SessionStatus> {
+  async pause(
+    sessionId = this.deps.sessionRepo.getFocusedSessionId(),
+  ): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
     this.assertTransition(session.status, "paused");
     await this.deps.runtimeManager.pauseSession(sessionId);
@@ -64,7 +84,9 @@ export class SessionService {
     return this.getStatus(sessionId);
   }
 
-  async resume(sessionId = this.deps.sessionRepo.getFocusedSessionId()): Promise<SessionStatus> {
+  async resume(
+    sessionId = this.deps.sessionRepo.getFocusedSessionId(),
+  ): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
     this.assertTransition(session.status, "active");
     await this.deps.runtimeManager.resumeSession(sessionId);
@@ -72,7 +94,9 @@ export class SessionService {
     return this.getStatus(sessionId);
   }
 
-  async stop(sessionId = this.deps.sessionRepo.getFocusedSessionId()): Promise<SessionStatus> {
+  async stop(
+    sessionId = this.deps.sessionRepo.getFocusedSessionId(),
+  ): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
     this.assertTransition(session.status, "stopped");
     await this.deps.runtimeManager.stopSession(sessionId);
@@ -81,13 +105,21 @@ export class SessionService {
   }
 
   async getPortfolioValue(sessionId?: string): Promise<PortfolioValueResult> {
-    const resolvedSessionId = sessionId ?? this.deps.sessionRepo.getFocused()?.id ?? null;
+    const resolvedSessionId =
+      sessionId ?? this.deps.sessionRepo.getFocused()?.id ?? null;
     if (!resolvedSessionId) {
       return { value: 0, source: "broker", brokerCount: 0 };
     }
-    const assignedIds = this.deps.sessionBrokerAssignmentsRepo?.listBrokerAccountIds(resolvedSessionId) ?? [];
+    const assignedIds =
+      this.deps.sessionBrokerAssignmentsRepo?.listBrokerAccountIds(
+        resolvedSessionId,
+      ) ?? [];
 
-    if (this.deps.brokerRegistry && this.deps.brokerBalanceCache && assignedIds.length > 0) {
+    if (
+      this.deps.brokerRegistry &&
+      this.deps.brokerBalanceCache &&
+      assignedIds.length > 0
+    ) {
       let total = 0;
       let counted = 0;
       for (const id of assignedIds) {
@@ -117,10 +149,14 @@ export class SessionService {
 
   private assertTransition(from: SessionStatus, to: SessionStatus): void {
     if (!canTransition(from, to)) {
-      throw new AppError(`Cannot transition session from ${from} to ${to}`, "INVALID_TRANSITION", {
-        from,
-        to,
-      });
+      throw new AppError(
+        `Cannot transition session from ${from} to ${to}`,
+        "INVALID_TRANSITION",
+        {
+          from,
+          to,
+        },
+      );
     }
   }
 

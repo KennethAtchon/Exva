@@ -1,6 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { Badge } from "@/components/custom-ui";
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui";
 import { fmt } from "@/lib/formatters";
 import type { ApprovalSummary } from "@/lib/types";
 
@@ -15,7 +21,12 @@ type Props = {
   }) => Promise<{ status: "approved" | "rejected"; resolvedAt: string }>;
 };
 
-export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDecide }: Props) => {
+export const ApprovalDetailModal = ({
+  approval,
+  workspaceViewMode,
+  onClose,
+  onDecide,
+}: Props) => {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +34,10 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
 
   let summary: Record<string, unknown> = {};
   try {
-    summary = JSON.parse(approval.decisionSummaryJson) as Record<string, unknown>;
+    summary = JSON.parse(approval.decisionSummaryJson) as Record<
+      string,
+      unknown
+    >;
   } catch {
     summary = {};
   }
@@ -34,7 +48,11 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
     setBusy(decision === "approved" ? "approve" : "reject");
     setError(null);
     try {
-      await onDecide({ id: approval.id, decision, decisionNote: note.trim() || undefined });
+      await onDecide({
+        id: approval.id,
+        decision,
+        decisionNote: note.trim() || undefined,
+      });
       setNote("");
       onClose();
     } catch (e) {
@@ -50,49 +68,119 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
         <DialogHeader className="space-y-0">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <DialogTitle id="approval-detail-title" className="text-lg text-[var(--text1)]">
+              <DialogTitle
+                id="approval-detail-title"
+                className="text-lg text-[var(--text1)]"
+              >
                 {approval.instrumentSymbol}
               </DialogTitle>
               {approval.instrumentDisplayName ? (
-                <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text2)" }}>{approval.instrumentDisplayName}</p>
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 12,
+                    color: "var(--text2)",
+                  }}
+                >
+                  {approval.instrumentDisplayName}
+                </p>
               ) : null}
-              <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text3)" }}>
-                {approval.predictionOutcome ? `${approval.predictionOutcome} · ` : ""}
-                {approval.proposedSide} · {fmt.usd(approval.proposedSizeUsd, 0)} · {approval.brokerName}
+              <p
+                style={{
+                  margin: "6px 0 0",
+                  fontSize: 12,
+                  color: "var(--text3)",
+                }}
+              >
+                {approval.predictionOutcome
+                  ? `${approval.predictionOutcome} · `
+                  : ""}
+                {approval.proposedSide} · {fmt.usd(approval.proposedSizeUsd, 0)}{" "}
+                · {approval.brokerName}
               </p>
             </div>
-            <Badge variant={approval.status === "pending" ? "warn" : "default"} size="sm">
+            <Badge
+              variant={approval.status === "pending" ? "warn" : "default"}
+              size="sm"
+            >
               {approval.status}
             </Badge>
           </div>
         </DialogHeader>
 
         {workspaceViewMode === "global" && (
-          <p style={{ margin: "12px 0 0", fontSize: 12, color: "var(--text2)" }}>
-            Session: <strong style={{ color: "var(--text1)" }}>{approval.sessionName}</strong>
+          <p
+            style={{ margin: "12px 0 0", fontSize: 12, color: "var(--text2)" }}
+          >
+            Session:{" "}
+            <strong style={{ color: "var(--text1)" }}>
+              {approval.sessionName}
+            </strong>
           </p>
         )}
 
         {renderSessionHorizon(summary.sessionHorizon)}
 
-        <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: "var(--surface2)", border: "1px solid var(--border)" }}>
-          <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 6 }}>Decision snapshot</div>
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            borderRadius: 10,
+            background: "var(--surface2)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 6 }}>
+            Decision snapshot
+          </div>
           {typeof summary.reasoning === "string" && (
-            <p style={{ margin: 0, fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>{summary.reasoning}</p>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13,
+                color: "var(--text2)",
+                lineHeight: 1.5,
+              }}
+            >
+              {summary.reasoning}
+            </p>
           )}
           {typeof summary.riskNote === "string" && summary.riskNote && (
-            <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--text3)" }}>Risk: {String(summary.riskNote)}</p>
+            <p
+              style={{
+                margin: "10px 0 0",
+                fontSize: 12,
+                color: "var(--text3)",
+              }}
+            >
+              Risk: {String(summary.riskNote)}
+            </p>
           )}
         </div>
 
         {showRecheckNote && (
-          <p style={{ marginTop: 14, fontSize: 12, color: "#fbbf24", lineHeight: 1.45 }}>
-            If this approval was created before the current session run, approving will re-run decision and risk checks
-            before any order is sent.
+          <p
+            style={{
+              marginTop: 14,
+              fontSize: 12,
+              color: "#fbbf24",
+              lineHeight: 1.45,
+            }}
+          >
+            If this approval was created before the current session run,
+            approving will re-run decision and risk checks before any order is
+            sent.
           </p>
         )}
 
-        <label style={{ display: "block", marginTop: 14, fontSize: 12, color: "var(--text3)" }}>
+        <label
+          style={{
+            display: "block",
+            marginTop: 14,
+            fontSize: 12,
+            color: "var(--text3)",
+          }}
+        >
           Note (optional)
           <textarea
             value={note}
@@ -102,10 +190,26 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
           />
         </label>
 
-        {error && <p style={{ marginTop: 10, fontSize: 12, color: "#f87171" }}>{error}</p>}
+        {error && (
+          <p style={{ marginTop: 10, fontSize: 12, color: "#f87171" }}>
+            {error}
+          </p>
+        )}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 18, justifyContent: "flex-end" }}>
-          <Button type="button" variant="outline" onClick={onClose} disabled={busy != null}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            marginTop: 18,
+            justifyContent: "flex-end",
+          }}
+        >
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={busy != null}
+          >
             Cancel
           </Button>
           <Button
@@ -135,12 +239,18 @@ export const ApprovalDetailModal = ({ approval, workspaceViewMode, onClose, onDe
 function renderSessionHorizon(value: unknown): ReactNode {
   if (!value || typeof value !== "object") return null;
   const h = value as Record<string, unknown>;
-  const tf = typeof h.primaryTradingTimeframe === "string" ? h.primaryTradingTimeframe : null;
+  const tf =
+    typeof h.primaryTradingTimeframe === "string"
+      ? h.primaryTradingTimeframe
+      : null;
   const hs = typeof h.holdingStyle === "string" ? h.holdingStyle : null;
   if (!tf && !hs) return null;
   const target = h.targetHoldDays;
   const max = h.maxHoldDays;
-  const notes = typeof h.timeframeNotes === "string" && h.timeframeNotes.trim() ? h.timeframeNotes.trim() : null;
+  const notes =
+    typeof h.timeframeNotes === "string" && h.timeframeNotes.trim()
+      ? h.timeframeNotes.trim()
+      : null;
   return (
     <div
       style={{
@@ -151,11 +261,23 @@ function renderSessionHorizon(value: unknown): ReactNode {
         border: "1px solid rgba(96,165,250,0.22)",
       }}
     >
-      <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 8 }}>Session trading horizon</div>
-      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "var(--text2)", lineHeight: 1.55 }}>
+      <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 8 }}>
+        Session trading horizon
+      </div>
+      <ul
+        style={{
+          margin: 0,
+          paddingLeft: 18,
+          fontSize: 12,
+          color: "var(--text2)",
+          lineHeight: 1.55,
+        }}
+      >
         {tf ? <li>Primary timeframe: {tf}</li> : null}
         {hs ? <li>Holding style: {hs}</li> : null}
-        {typeof target === "number" ? <li>Target hold: ~{target} days</li> : null}
+        {typeof target === "number" ? (
+          <li>Target hold: ~{target} days</li>
+        ) : null}
         {typeof max === "number" ? <li>Max hold: {max} days</li> : null}
         {notes ? <li>Notes: {notes}</li> : null}
       </ul>

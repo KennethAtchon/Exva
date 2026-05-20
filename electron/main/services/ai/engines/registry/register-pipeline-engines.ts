@@ -15,7 +15,8 @@ export function registerPipelineEngines(): void {
     kind: "transformer",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input: { batches: unknown[][] }) => mergeCandidates(input.batches as never),
+    run: (input: { batches: unknown[][] }) =>
+      mergeCandidates(input.batches as never),
   });
 
   registerEngine({
@@ -68,7 +69,12 @@ export function registerPipelineEngines(): void {
     kind: "transformer",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input: { symbol: string; review: unknown; classifier: unknown; timer: unknown }) =>
+    run: (input: {
+      symbol: string;
+      review: unknown;
+      classifier: unknown;
+      timer: unknown;
+    }) =>
       aggregateTradeSignal(
         input.symbol,
         input.review as never,

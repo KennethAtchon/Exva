@@ -2,7 +2,12 @@ import type { AgentMessage, AgentRole, AgentRun } from "@/lib/types";
 import { estimateCostUsd } from "../model-pricing";
 import type { RunTrace } from "./ai-runtime-types";
 
-export function toRunFromTrace(agentType: AgentRole, model: string, providerKey: string, trace: RunTrace<unknown>): AgentRun {
+export function toRunFromTrace(
+  agentType: AgentRole,
+  model: string,
+  providerKey: string,
+  trace: RunTrace<unknown>,
+): AgentRun {
   return {
     id: crypto.randomUUID(),
     trade_id: null,

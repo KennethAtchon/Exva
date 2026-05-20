@@ -1,4 +1,7 @@
-import type { ExecutionStrategyType, TradeSignal } from "@electron/shared/ai/pipeline-signals";
+import type {
+  ExecutionStrategyType,
+  TradeSignal,
+} from "@electron/shared/ai/pipeline-signals";
 import type { InstrumentClass } from "@/lib/types";
 
 export interface ExecutionRiskConfig {
@@ -31,7 +34,10 @@ type StrategyProfile = {
   takeProfitFactor: number;
 };
 
-const VALID_STRATEGIES: Record<InstrumentClass, readonly ExecutionStrategyType[]> = {
+const VALID_STRATEGIES: Record<
+  InstrumentClass,
+  readonly ExecutionStrategyType[]
+> = {
   stock: ["trend_momentum", "breakout", "mean_reversion", "event_driven"],
   crypto: ["trend_momentum", "breakout", "mean_reversion", "arbitrage"],
   futures: ["futures_trend", "trend_momentum", "event_driven"],
@@ -48,14 +54,26 @@ const STRATEGY_PROFILES: Record<ExecutionStrategyType, StrategyProfile> = {
   futures_trend: { sizeFactor: 1, stopLossFactor: 1, takeProfitFactor: 1 },
 };
 
-export function computeExecutionProfile(input: ExecutionProfileInput): ExecutionProfile {
-  const { signal, instrumentClass, maxPositionUsd, maxExposureUsd, risk, reviewRecommendation } = input;
+export function computeExecutionProfile(
+  input: ExecutionProfileInput,
+): ExecutionProfile {
+  const {
+    signal,
+    instrumentClass,
+    maxPositionUsd,
+    maxExposureUsd,
+    risk,
+    reviewRecommendation,
+  } = input;
 
   if (signal.action === "skip") {
     throw new Error("Cannot compute execution profile for skip signal");
   }
 
-  const strategy = resolveExecutionStrategy(signal.executionStrategy, instrumentClass);
+  const strategy = resolveExecutionStrategy(
+    signal.executionStrategy,
+    instrumentClass,
+  );
   const profile = STRATEGY_PROFILES[strategy];
   const kelly = Math.max(0, Math.min(1, risk.kellyFraction));
   const confidence = Math.max(0, Math.min(1, signal.confidence));
@@ -126,17 +144,31 @@ function basePositionUsd(args: {
   confidence: number;
   kelly: number;
 }): number {
-  const { profile, instrumentClass, maxPositionUsd, maxExposureUsd, confidence, kelly } = args;
+  const {
+    profile,
+    instrumentClass,
+    maxPositionUsd,
+    maxExposureUsd,
+    confidence,
+    kelly,
+  } = args;
 
   if (instrumentClass === "prediction_market") {
-    const cap = maxExposureUsd != null ? Math.min(maxPositionUsd, maxExposureUsd) : maxPositionUsd;
+    const cap =
+      maxExposureUsd != null
+        ? Math.min(maxPositionUsd, maxExposureUsd)
+        : maxPositionUsd;
     return cap * kelly * confidence * profile.sizeFactor;
   }
 
   return maxPositionUsd * confidence * kelly * profile.sizeFactor;
 }
 
-function capPosition(sizeUsd: number, maxPositionUsd: number, maxExposureUsd: number | null): number {
+function capPosition(
+  sizeUsd: number,
+  maxPositionUsd: number,
+  maxExposureUsd: number | null,
+): number {
   const capped = Math.min(sizeUsd, maxPositionUsd);
   if (maxExposureUsd != null) return Math.min(capped, maxExposureUsd);
   return capped;

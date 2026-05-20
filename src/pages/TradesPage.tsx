@@ -14,17 +14,20 @@ type Filter = "all" | "open" | "closed";
 export const TradesPage = () => {
   const [filter, setFilter] = useState<Filter>("all");
   const [symbolContains, setSymbolContains] = useState("");
-  const [instrumentType, setInstrumentType] = useState<"" | InstrumentClass>("");
+  const [instrumentType, setInstrumentType] = useState<"" | InstrumentClass>(
+    "",
+  );
   const [executionMode, setExecutionMode] = useState<"" | ExecutionMode>("");
   const [brokerAccountId, setBrokerAccountId] = useState("");
   const [sessionFilterId, setSessionFilterId] = useState("");
-
 
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const preferences = useWorkspaceStore((state) => state.preferences);
   const setViewMode = useWorkspaceStore((state) => state.setViewMode);
-  const loadWorkspaceView = useWorkspaceStore((state) => state.loadWorkspaceView);
+  const loadWorkspaceView = useWorkspaceStore(
+    (state) => state.loadWorkspaceView,
+  );
   const allTrades = useTradeStore((s) => s.trades);
   const setTrades = useTradeStore((s) => s.setTrades);
   const selectedId = useTradeStore((s) => s.selectedId);
@@ -44,13 +47,22 @@ export const TradesPage = () => {
     if (instrumentType) f.instrumentType = instrumentType;
     if (executionMode) f.executionMode = executionMode;
     return f;
-  }, [viewMode, sessionFilterId, brokerAccountId, symbolContains, instrumentType, executionMode]);
+  }, [
+    viewMode,
+    sessionFilterId,
+    brokerAccountId,
+    symbolContains,
+    instrumentType,
+    executionMode,
+  ]);
 
   const { data: sessionsData } = useQuery({
     queryKey: ["trades-session-options", preferences?.globalIncludeArchived],
-    queryFn: () => api.listSessions({ includeArchived: preferences?.globalIncludeArchived }),
+    queryFn: () =>
+      api.listSessions({ includeArchived: preferences?.globalIncludeArchived }),
   });
-  const sessionOptions = sessionsData?.sessions.map((s) => ({ id: s.id, name: s.name })) ?? [];
+  const sessionOptions =
+    sessionsData?.sessions.map((s) => ({ id: s.id, name: s.name })) ?? [];
 
   useEffect(() => {
     void api
@@ -59,7 +71,9 @@ export const TradesPage = () => {
       .catch(() => {});
   }, [apiFilters, setTrades, viewMode, focusedSessionId]);
 
-  const trades = allTrades.filter((t) => filter === "all" || t.status === filter);
+  const trades = allTrades.filter(
+    (t) => filter === "all" || t.status === filter,
+  );
   const closed = allTrades.filter((t) => t.status === "closed");
   const wins = closed.filter((t) => (t.final_pnl_usd ?? 0) > 0);
   const realPnl = closed.reduce((s, t) => s + (t.final_pnl_usd ?? 0), 0);
@@ -67,12 +81,28 @@ export const TradesPage = () => {
   return (
     <PageShell>
       <div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text1)", margin: 0 }}>Trades</h1>
+        <h1
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            color: "var(--text1)",
+            margin: 0,
+          }}
+        >
+          Trades
+        </h1>
         <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>
           All trade history and open positions
         </p>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
         <WorkspaceContextChip
           onSwitchSession={async (id) => {
             await api.focusSession(id);
@@ -84,11 +114,21 @@ export const TradesPage = () => {
           }}
         />
         {viewMode === "global" && (
-          <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text2)", fontSize: 12 }}>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: "var(--text2)",
+              fontSize: 12,
+            }}
+          >
             <Checkbox
               checked={preferences?.globalIncludeArchived ?? false}
               onCheckedChange={async (checked) => {
-                await api.patchWorkspacePreferences({ globalIncludeArchived: checked === true });
+                await api.patchWorkspacePreferences({
+                  globalIncludeArchived: checked === true,
+                });
                 await loadWorkspaceView();
               }}
             />
@@ -97,7 +137,15 @@ export const TradesPage = () => {
         )}
       </div>
 
-      <Card style={{ padding: "14px 18px", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+      <Card
+        style={{
+          padding: "14px 18px",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 10,
+          alignItems: "flex-end",
+        }}
+      >
         <label style={filterLabelStyle}>
           Symbol
           <input
@@ -111,7 +159,9 @@ export const TradesPage = () => {
           Class
           <ShadcnSelect
             value={instrumentType}
-            onValueChange={(value) => setInstrumentType(value as "" | InstrumentClass)}
+            onValueChange={(value) =>
+              setInstrumentType(value as "" | InstrumentClass)
+            }
             className="min-w-[120px]"
             options={[
               { value: "", label: "Any" },
@@ -125,7 +175,9 @@ export const TradesPage = () => {
           Execution
           <ShadcnSelect
             value={executionMode}
-            onValueChange={(value) => setExecutionMode(value as "" | ExecutionMode)}
+            onValueChange={(value) =>
+              setExecutionMode(value as "" | ExecutionMode)
+            }
             className="min-w-[120px]"
             options={[
               { value: "", label: "Any" },
@@ -152,7 +204,10 @@ export const TradesPage = () => {
               className="min-w-[180px]"
               options={[
                 { value: "", label: "All sessions" },
-                ...sessionOptions.map((session) => ({ value: session.id, label: session.name })),
+                ...sessionOptions.map((session) => ({
+                  value: session.id,
+                  label: session.name,
+                })),
               ]}
             />
           </label>
@@ -161,16 +216,47 @@ export const TradesPage = () => {
 
       <div style={{ display: "flex", gap: 14 }}>
         {[
-          ["Realized P&L", fmt.pnl(realPnl), realPnl >= 0 ? "#34d399" : "#f87171"],
-          ["Win Rate", closed.length ? `${Math.round((wins.length / closed.length) * 100)}%` : "—", "var(--text1)"],
+          [
+            "Realized P&L",
+            fmt.pnl(realPnl),
+            realPnl >= 0 ? "#34d399" : "#f87171",
+          ],
+          [
+            "Win Rate",
+            closed.length
+              ? `${Math.round((wins.length / closed.length) * 100)}%`
+              : "—",
+            "var(--text1)",
+          ],
           ["Total Trades", `${allTrades.length}`, "var(--text1)"],
-          ["Open", `${allTrades.filter((t) => t.status === "open").length}`, "#60a5fa"],
+          [
+            "Open",
+            `${allTrades.filter((t) => t.status === "open").length}`,
+            "#60a5fa",
+          ],
         ].map(([lbl, val, color]) => (
           <Card key={String(lbl)} style={{ flex: 1, padding: "18px 22px" }}>
-            <div style={{ fontSize: 11, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8, fontWeight: 600 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--text3)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: 8,
+                fontWeight: 600,
+              }}
+            >
               {lbl}
             </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 26, fontWeight: 700, color, lineHeight: 1 }}>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 26,
+                fontWeight: 700,
+                color,
+                lineHeight: 1,
+              }}
+            >
               {val}
             </div>
           </Card>
@@ -178,14 +264,24 @@ export const TradesPage = () => {
       </div>
 
       <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div style={{ display: "flex", gap: 6, padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            padding: "16px 20px",
+            borderBottom: "1px solid var(--border)",
+          }}
+        >
           {(["all", "open", "closed"] as Filter[]).map((s) => (
             <Button
               key={s}
               onClick={() => setFilter(s)}
               variant="ghost"
               style={{
-                padding: "5px 14px", fontSize: 12, borderRadius: 7, cursor: "pointer",
+                padding: "5px 14px",
+                fontSize: 12,
+                borderRadius: 7,
+                cursor: "pointer",
                 background: filter === s ? "var(--surface3)" : "transparent",
                 border: `1px solid ${filter === s ? "var(--border)" : "transparent"}`,
                 color: filter === s ? "var(--text1)" : "var(--text3)",
@@ -199,16 +295,33 @@ export const TradesPage = () => {
         <div style={{ overflowX: "auto" }}>
           <div
             style={{
-                display: "grid",
-                gridTemplateColumns: viewMode === "global" ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px" : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
-              padding: "10px 20px 8px", fontSize: 10, color: "var(--text3)",
-              textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600,
-              borderBottom: "1px solid var(--border)", minWidth: 780,
+              display: "grid",
+              gridTemplateColumns:
+                viewMode === "global"
+                  ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px"
+                  : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
+              padding: "10px 20px 8px",
+              fontSize: 10,
+              color: "var(--text3)",
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+              fontWeight: 600,
+              borderBottom: "1px solid var(--border)",
+              minWidth: 780,
             }}
           >
             {[
               ...(viewMode === "global" ? ["Session"] : []),
-              "Instrument", "Side", "Size", "Entry", "Cur/Exit", "P&L", "AI Cost", "Conf", "Status", "Time",
+              "Instrument",
+              "Side",
+              "Size",
+              "Entry",
+              "Cur/Exit",
+              "P&L",
+              "AI Cost",
+              "Conf",
+              "Status",
+              "Time",
             ].map((h) => (
               <span key={h}>{h}</span>
             ))}
@@ -224,38 +337,145 @@ export const TradesPage = () => {
                 onClick={() => setSelected(t.id === selectedId ? null : t.id)}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: viewMode === "global" ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px" : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
-                  padding: "11px 20px", alignItems: "center",
-                  cursor: "pointer", borderBottom: "1px solid var(--border)",
-                  background: t.id === selectedId ? "var(--surface2)" : "transparent",
-                  transition: "background 0.1s", minWidth: 780,
+                  gridTemplateColumns:
+                    viewMode === "global"
+                      ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px"
+                      : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
+                  padding: "11px 20px",
+                  alignItems: "center",
+                  cursor: "pointer",
+                  borderBottom: "1px solid var(--border)",
+                  background:
+                    t.id === selectedId ? "var(--surface2)" : "transparent",
+                  transition: "background 0.1s",
+                  minWidth: 780,
                 }}
               >
                 {viewMode === "global" && (
-                  <span style={{ fontSize: 12, color: "var(--text3)", overflow: "hidden", textOverflow: "ellipsis" }} title={sessionLabel}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text3)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                    title={sessionLabel}
+                  >
                     {sessionLabel}
                   </span>
                 )}
-                <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--text1)" }}>{t.instrumentSymbol}</span>
-                  {t.instrumentDisplayName ? <span style={{ fontSize: 11, color: "var(--text3)", overflow: "hidden", textOverflow: "ellipsis" }}>{t.instrumentDisplayName}</span> : null}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "var(--text1)",
+                    }}
+                  >
+                    {t.instrumentSymbol}
+                  </span>
+                  {t.instrumentDisplayName ? (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text3)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {t.instrumentDisplayName}
+                    </span>
+                  ) : null}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {t.predictionOutcome ? <Badge variant="purple" size="sm">{t.predictionOutcome}</Badge> : null}
-                  <Badge variant={t.side === "BUY" ? "success" : "danger"} size="sm">{t.side}</Badge>
+                  {t.predictionOutcome ? (
+                    <Badge variant="purple" size="sm">
+                      {t.predictionOutcome}
+                    </Badge>
+                  ) : null}
+                  <Badge
+                    variant={t.side === "BUY" ? "success" : "danger"}
+                    size="sm"
+                  >
+                    {t.side}
+                  </Badge>
                 </div>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{fmt.usd(t.position_size_usd, 0)}</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{t.entry_price != null ? fmt.usd(t.entry_price) : "—"}</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>{isOpen && t.current_price != null ? fmt.usd(t.current_price) : "—"}</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: pos ? "#34d399" : "#f87171", fontWeight: 600 }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 12,
+                    color: "var(--text2)",
+                  }}
+                >
+                  {fmt.usd(t.position_size_usd, 0)}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 12,
+                    color: "var(--text2)",
+                  }}
+                >
+                  {t.entry_price != null ? fmt.usd(t.entry_price) : "—"}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 12,
+                    color: "var(--text2)",
+                  }}
+                >
+                  {isOpen && t.current_price != null
+                    ? fmt.usd(t.current_price)
+                    : "—"}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 12,
+                    color: pos ? "#34d399" : "#f87171",
+                    fontWeight: 600,
+                  }}
+                >
                   {pnl != null ? fmt.pnl(pnl) : "—"}
                 </span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>{fmt.usd(t.ai_cost_usd, 3)}</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text2)" }}>
-                  {t.confidence_score != null ? `${Math.round(t.confidence_score * 100)}%` : "—"}
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    color: "var(--text3)",
+                  }}
+                >
+                  {fmt.usd(t.ai_cost_usd, 3)}
                 </span>
-                <Badge variant={isOpen ? "success" : "default"} size="sm">{t.status}</Badge>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 12,
+                    color: "var(--text2)",
+                  }}
+                >
+                  {t.confidence_score != null
+                    ? `${Math.round(t.confidence_score * 100)}%`
+                    : "—"}
+                </span>
+                <Badge variant={isOpen ? "success" : "default"} size="sm">
+                  {t.status}
+                </Badge>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 11,
+                    color: "var(--text3)",
+                  }}
+                >
                   {t.opened_at ? fmt.time(t.opened_at) : "—"}
                 </span>
               </div>
@@ -267,7 +487,15 @@ export const TradesPage = () => {
   );
 };
 
-const filterLabelStyle = { display: "flex", flexDirection: "column" as const, gap: 6, fontSize: 11, color: "var(--text3)", textTransform: "uppercase" as const, letterSpacing: "0.06em" };
+const filterLabelStyle = {
+  display: "flex",
+  flexDirection: "column" as const,
+  gap: 6,
+  fontSize: 11,
+  color: "var(--text3)",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.06em",
+};
 const filterInputStyle = {
   minWidth: 120,
   padding: "7px 10px",

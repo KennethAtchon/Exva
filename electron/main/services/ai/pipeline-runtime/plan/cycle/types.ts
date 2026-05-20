@@ -1,9 +1,19 @@
-import type { ExecutionStage, InstrumentClass, SessionConfig, WorkspaceSession } from "@/lib/types";
+import type {
+  ExecutionStage,
+  InstrumentClass,
+  SessionConfig,
+  WorkspaceSession,
+} from "@/lib/types";
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import type { StageFailurePolicy } from "../engine/input-builder-registry";
 import type { PhasePlanRunResult } from "../phase/types";
 import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
-import type { FundamentalSignal, ReviewSignal, TechnicalSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
+import type {
+  FundamentalSignal,
+  ReviewSignal,
+  TechnicalSignal,
+  TradeSignal,
+} from "@electron/shared/ai/pipeline-signals";
 import type { AgentResult } from "../../../ai-runtime/ai-runtime-types";
 import type { OrderRequest } from "../../../../broker/adapters/broker-adapter";
 import type { ExecutionProfile } from "../../../engines/execution/execution-profile-engine";

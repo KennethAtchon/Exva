@@ -1,4 +1,7 @@
-import type { PipelinePhase, PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
+import type {
+  PipelinePhase,
+  PipelineDefinition,
+} from "@electron/shared/ai/pipeline-phase";
 import { AppError } from "@electron/shared/infra/errors";
 import { SELECTOR_PHASE } from "../definitions/selector.phase";
 import { TECHNICAL_PHASE } from "../definitions/technical.phase";
@@ -17,7 +20,10 @@ const REGISTRY: Record<PipelinePhase, PipelineDefinition> = {
 
 const SUPPORTED_TOOL_ID_SET = new Set<string>(SUPPORTED_TOOL_IDS);
 
-function validatePipelineDefinition(phase: PipelinePhase, definition: PipelineDefinition): void {
+function validatePipelineDefinition(
+  phase: PipelinePhase,
+  definition: PipelineDefinition,
+): void {
   if (definition.phase !== phase) {
     throw new AppError(
       `Pipeline definition mismatch: registry key '${phase}' does not match definition phase '${definition.phase}'.`,
@@ -26,20 +32,32 @@ function validatePipelineDefinition(phase: PipelinePhase, definition: PipelineDe
   }
 
   if (definition.workers.length === 0) {
-    throw new AppError(`Pipeline definition '${phase}' has no workers.`, "VALIDATION_FAILED");
+    throw new AppError(
+      `Pipeline definition '${phase}' has no workers.`,
+      "VALIDATION_FAILED",
+    );
   }
 
   if (definition.outputMode === "object" && !definition.outputSchema) {
-    throw new AppError(`Pipeline definition '${phase}' uses object mode without outputSchema.`, "VALIDATION_FAILED");
+    throw new AppError(
+      `Pipeline definition '${phase}' uses object mode without outputSchema.`,
+      "VALIDATION_FAILED",
+    );
   }
 
   const workerIds = new Set<string>();
   for (const worker of definition.workers) {
     if (!worker.id.trim()) {
-      throw new AppError(`Pipeline definition '${phase}' contains a worker with empty id.`, "VALIDATION_FAILED");
+      throw new AppError(
+        `Pipeline definition '${phase}' contains a worker with empty id.`,
+        "VALIDATION_FAILED",
+      );
     }
     if (workerIds.has(worker.id)) {
-      throw new AppError(`Pipeline definition '${phase}' has duplicate worker id '${worker.id}'.`, "VALIDATION_FAILED");
+      throw new AppError(
+        `Pipeline definition '${phase}' has duplicate worker id '${worker.id}'.`,
+        "VALIDATION_FAILED",
+      );
     }
     workerIds.add(worker.id);
 
@@ -85,7 +103,10 @@ function validatePipelineDefinition(phase: PipelinePhase, definition: PipelineDe
   const dfs = (node: string): void => {
     if (visited.has(node)) return;
     if (visiting.has(node)) {
-      throw new AppError(`Pipeline definition '${phase}' contains a dependency cycle at worker '${node}'.`, "VALIDATION_FAILED");
+      throw new AppError(
+        `Pipeline definition '${phase}' contains a dependency cycle at worker '${node}'.`,
+        "VALIDATION_FAILED",
+      );
     }
     visiting.add(node);
     for (const dep of adjacency.get(node) ?? []) dfs(dep);
@@ -100,10 +121,18 @@ for (const phase of Object.keys(REGISTRY) as PipelinePhase[]) {
   validatePipelineDefinition(phase, REGISTRY[phase]);
 }
 
-export function getPipelineDefinition(phase: PipelinePhase): PipelineDefinition {
+export function getPipelineDefinition(
+  phase: PipelinePhase,
+): PipelineDefinition {
   return REGISTRY[phase];
 }
 
-export function listPipelineDefinitions(): Array<{ phase: PipelinePhase; definition: PipelineDefinition }> {
-  return (Object.keys(REGISTRY) as PipelinePhase[]).map((phase) => ({ phase, definition: REGISTRY[phase] }));
+export function listPipelineDefinitions(): Array<{
+  phase: PipelinePhase;
+  definition: PipelineDefinition;
+}> {
+  return (Object.keys(REGISTRY) as PipelinePhase[]).map((phase) => ({
+    phase,
+    definition: REGISTRY[phase],
+  }));
 }

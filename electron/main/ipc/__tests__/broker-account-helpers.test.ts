@@ -1,13 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { serializeBrokerCredentials, supportedInstrumentClassesFor, tempBrokerAccount } from "../broker-account-helpers";
+import {
+  serializeBrokerCredentials,
+  supportedInstrumentClassesFor,
+  tempBrokerAccount,
+} from "../broker-account-helpers";
 
 describe("broker-account-helpers", () => {
   it("maps broker types to the instrument classes they support", () => {
     expect(supportedInstrumentClassesFor("alpaca")).toEqual(["stock"]);
-    expect(supportedInstrumentClassesFor("coinbase_advanced_trade")).toEqual(["crypto"]);
+    expect(supportedInstrumentClassesFor("coinbase_advanced_trade")).toEqual([
+      "crypto",
+    ]);
     expect(supportedInstrumentClassesFor("tradovate")).toEqual(["futures"]);
-    expect(supportedInstrumentClassesFor("polymarket")).toEqual(["prediction_market"]);
-    expect(supportedInstrumentClassesFor("mock")).toEqual(["stock", "crypto", "futures", "prediction_market"]);
+    expect(supportedInstrumentClassesFor("polymarket")).toEqual([
+      "prediction_market",
+    ]);
+    expect(supportedInstrumentClassesFor("mock")).toEqual([
+      "stock",
+      "crypto",
+      "futures",
+      "prediction_market",
+    ]);
   });
 
   it("preserves paper/live mode when serializing Alpaca credentials", () => {
@@ -51,7 +64,12 @@ describe("broker-account-helpers", () => {
       id: "paper-mock",
       brokerType: "mock",
       mode: "paper",
-      supportedInstrumentClasses: ["stock", "crypto", "futures", "prediction_market"],
+      supportedInstrumentClasses: [
+        "stock",
+        "crypto",
+        "futures",
+        "prediction_market",
+      ],
     });
 
     expect(
@@ -64,7 +82,12 @@ describe("broker-account-helpers", () => {
       id: "live-mock",
       brokerType: "mock",
       mode: "live",
-      supportedInstrumentClasses: ["stock", "crypto", "futures", "prediction_market"],
+      supportedInstrumentClasses: [
+        "stock",
+        "crypto",
+        "futures",
+        "prediction_market",
+      ],
     });
   });
 });

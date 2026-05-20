@@ -1,5 +1,9 @@
 import type { AppErrorCode } from "@electron/shared/infra/errors";
-import type { InstrumentClass, SessionRuntimeStatus, WorkspaceSession } from "@/lib/types";
+import type {
+  InstrumentClass,
+  SessionRuntimeStatus,
+  WorkspaceSession,
+} from "@/lib/types";
 import type { AgentRunsRepo } from "../../db/repositories/agents/agent-runs-repo";
 import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
@@ -39,7 +43,10 @@ export interface SessionOrchestrator {
   restartFromAttention(): Promise<void>;
   stop(): Promise<void>;
   pauseAfterCurrentStep(): void;
-  retryStep(cycleId: string, stage: ExecutionStage): Promise<{ ok: true } | { ok: false; reason: string }>;
+  retryStep(
+    cycleId: string,
+    stage: ExecutionStage,
+  ): Promise<{ ok: true } | { ok: false; reason: string }>;
   runApprovalRecheck(input: ApprovalRecheckInput): Promise<void>;
   /** Returns true when a live wait callback was invoked. */
   resolveApproval(tradeId: string, approved: boolean): boolean;
@@ -95,7 +102,13 @@ export type PreflightStepFailure = {
 
 export type PreflightResult =
   | { ok: true }
-  | { ok: false; check: string; code: AppErrorCode; message: string; details?: Record<string, unknown> };
+  | {
+      ok: false;
+      check: string;
+      code: AppErrorCode;
+      message: string;
+      details?: Record<string, unknown>;
+    };
 
 export interface SessionRuntime {
   sessionId: string;
@@ -116,7 +129,10 @@ export interface ApprovalRecheckInput {
 }
 
 export interface SessionRuntimeManagerDeps extends OrchestratorDeps {
-  createOrchestrator(sessionId: string, deps: OrchestratorDeps): SessionOrchestrator;
+  createOrchestrator(
+    sessionId: string,
+    deps: OrchestratorDeps,
+  ): SessionOrchestrator;
   createTradeMonitor(sessionId: string): RuntimeTradeMonitor;
 }
 
@@ -135,9 +151,17 @@ export interface SessionLifecycleDeps {
     stopSession(sessionId: string): Promise<void>;
     get(sessionId: string): SessionRuntime | null;
   };
-  preflight: (session: WorkspaceSession, deps: OrchestratorDeps) => Promise<PreflightResult>;
+  preflight: (
+    session: WorkspaceSession,
+    deps: OrchestratorDeps,
+  ) => Promise<PreflightResult>;
   orchestratorDeps: OrchestratorDeps;
   liveReadiness: {
-    check(sessionId: string): Promise<{ readyToStart: boolean; checks: { name: string; passed: boolean }[] }>;
+    check(
+      sessionId: string,
+    ): Promise<{
+      readyToStart: boolean;
+      checks: { name: string; passed: boolean }[];
+    }>;
   };
 }

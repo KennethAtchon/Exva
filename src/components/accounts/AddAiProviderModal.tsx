@@ -1,11 +1,23 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { api } from "@/lib/exva";
 import { ShadcnSelect } from "@/components/custom-ui";
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Input } from "@/components/ui";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Input,
+} from "@/components/ui";
 
 export type AiProviderType = "anthropic" | "openai" | "openrouter";
 
-const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 };
+const labelStyle: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 500,
+  color: "var(--text2)",
+  marginBottom: 6,
+};
 
 const anthropicHintStyle: CSSProperties = {
   marginBottom: 16,
@@ -55,14 +67,18 @@ export const AddAiProviderModal = ({
     setProviderType(next);
     setName((current) => {
       const prevDefault = DEFAULT_NAMES[providerType];
-      return current === prevDefault || current.trim() === "" ? DEFAULT_NAMES[next] : current;
+      return current === prevDefault || current.trim() === ""
+        ? DEFAULT_NAMES[next]
+        : current;
     });
     if (next !== "openrouter") setBaseUrl("");
     setMessage(null);
   };
 
   const metadata =
-    providerType === "openrouter" && baseUrl.trim().length > 0 ? { baseUrl: baseUrl.trim() } : undefined;
+    providerType === "openrouter" && baseUrl.trim().length > 0
+      ? { baseUrl: baseUrl.trim() }
+      : undefined;
 
   const save = async () => {
     setSaving(true);
@@ -80,9 +96,14 @@ export const AddAiProviderModal = ({
         apiKey: trimmedKey,
         metadata,
       });
-      const test = await api.testProvider(id).catch(() => ({ ok: false as const, error: "Test failed" }));
+      const test = await api
+        .testProvider(id)
+        .catch(() => ({ ok: false as const, error: "Test failed" }));
       if (!test.ok) {
-        setMessage(test.error ?? "Saved key, but the connection test failed. Check the key and try Test on the account.");
+        setMessage(
+          test.error ??
+            "Saved key, but the connection test failed. Check the key and try Test on the account.",
+        );
       }
       setApiKey("");
       await onSaved();
@@ -98,10 +119,20 @@ export const AddAiProviderModal = ({
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-border bg-[var(--surface)] p-5 sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="text-base font-bold text-[var(--text1)]">Add AI provider</DialogTitle>
+          <DialogTitle className="text-base font-bold text-[var(--text1)]">
+            Add AI provider
+          </DialogTitle>
         </DialogHeader>
-        <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 16, lineHeight: 1.45 }}>
-          Keys are stored in the OS keychain. Pick a provider, then assign models per role on the Strategy page.
+        <p
+          style={{
+            fontSize: 12,
+            color: "var(--text3)",
+            marginBottom: 16,
+            lineHeight: 1.45,
+          }}
+        >
+          Keys are stored in the OS keychain. Pick a provider, then assign
+          models per role on the Strategy page.
         </p>
 
         <div style={{ marginBottom: 14 }}>
@@ -135,7 +166,11 @@ export const AddAiProviderModal = ({
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder={
-              providerType === "anthropic" ? "sk-ant-…" : providerType === "openai" ? "sk-…" : "sk-or-…"
+              providerType === "anthropic"
+                ? "sk-ant-…"
+                : providerType === "openai"
+                  ? "sk-…"
+                  : "sk-or-…"
             }
             autoComplete="off"
           />
@@ -151,15 +186,19 @@ export const AddAiProviderModal = ({
               placeholder="https://openrouter.ai/api/v1"
             />
             <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 6 }}>
-              Leave empty to use the default OpenRouter endpoint. Use a full https URL if you override it.
+              Leave empty to use the default OpenRouter endpoint. Use a full
+              https URL if you override it.
             </div>
           </div>
         ) : null}
 
         {providerType === "anthropic" ? (
           <div style={anthropicHintStyle}>
-            <span style={{ color: "#34d399", fontWeight: 600 }}>Prompt caching</span> is used on Anthropic models where
-            supported, which typically cuts cost on repeated agent calls.
+            <span style={{ color: "#34d399", fontWeight: 600 }}>
+              Prompt caching
+            </span>{" "}
+            is used on Anthropic models where supported, which typically cuts
+            cost on repeated agent calls.
           </div>
         ) : null}
 
@@ -179,7 +218,12 @@ export const AddAiProviderModal = ({
         ) : null}
 
         <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-          <Button type="button" variant="outline" className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]" onClick={onClose}>
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 border-border bg-[var(--surface2)] text-[var(--text2)]"
+            onClick={onClose}
+          >
             Cancel
           </Button>
           <Button

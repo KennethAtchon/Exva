@@ -8,18 +8,37 @@ import {
   placeBrokerOrder,
   runApprovalAndCapital,
 } from "./effect-runner";
-import { applyTradePipelineToContext, requirePipelineAiResults, runTradePipeline } from "./run-trade-pipeline";
+import {
+  applyTradePipelineToContext,
+  requirePipelineAiResults,
+  runTradePipeline,
+} from "./run-trade-pipeline";
 
-function tradeCycleRetry(ctx: OrchestratorContext, context: TradeCycleContext): () => void {
+function tradeCycleRetry(
+  ctx: OrchestratorContext,
+  context: TradeCycleContext,
+): () => void {
   return () =>
-    enqueueCycleTask(ctx, context.cycleId, "Scheduled trade-step retry failed", () => executeTradeCycle(ctx, context));
+    enqueueCycleTask(
+      ctx,
+      context.cycleId,
+      "Scheduled trade-step retry failed",
+      () => executeTradeCycle(ctx, context),
+    );
 }
 
-export async function executeTradeCycle(ctx: OrchestratorContext, context: TradeCycleContext): Promise<void> {
+export async function executeTradeCycle(
+  ctx: OrchestratorContext,
+  context: TradeCycleContext,
+): Promise<void> {
   if (!ctx.runtimeIsActive()) return;
   ctx.cycleContexts.set(context.cycleId, context);
   ctx.deps.logger.debug(
-    { sessionId: ctx.sessionId, instrumentSymbol: context.instrument.symbol, instrumentClass: context.instrument.instrumentClass },
+    {
+      sessionId: ctx.sessionId,
+      instrumentSymbol: context.instrument.symbol,
+      instrumentClass: context.instrument.instrumentClass,
+    },
     "trade cycle start",
   );
 
@@ -36,27 +55,45 @@ export async function executeTradeCycle(ctx: OrchestratorContext, context: Trade
 
   if (decision.output.action === "skip") {
     ctx.clearAttentionRequired();
-    ctx.emitEvent("INFO", trade.id, `No trade decision for ${trade.instrumentSymbol}; cycle complete.`, "orchestrator", context.cycleId);
+    ctx.emitEvent(
+      "INFO",
+      trade.id,
+      `No trade decision for ${trade.instrumentSymbol}; cycle complete.`,
+      "orchestrator",
+      context.cycleId,
+    );
     return;
   }
 
   const riskOrder = context.riskOrder ?? pipeline.state.riskOrder;
   if (!riskOrder) {
-    throw new AppError("Internal error: riskOrder missing after trade pipeline", "VALIDATION_FAILED");
+    throw new AppError(
+      "Internal error: riskOrder missing after trade pipeline",
+      "VALIDATION_FAILED",
+    );
   }
   context.riskOrder = riskOrder;
 
-  const brokerAccountId = pipeline.state.brokerAccountId ?? ctx.resolveBrokerAccountId(context.instrument.instrumentClass);
+  const brokerAccountId =
+    pipeline.state.brokerAccountId ??
+    ctx.resolveBrokerAccountId(context.instrument.instrumentClass);
   if (trade.brokerAccountId !== brokerAccountId) {
     ctx.deps.tradesRepo.patchPendingExecution(trade.id, { brokerAccountId });
   }
 
   const allocation = pipeline.state.brokerAllocation?.allocation;
   if (allocation?.warning === "over_allocated") {
-    ctx.emitEvent("WARN", trade.id, "Order exceeds allocation (warn-only mode); proceeding.", "orchestrator", context.cycleId);
+    ctx.emitEvent(
+      "WARN",
+      trade.id,
+      "Order exceeds allocation (warn-only mode); proceeding.",
+      "orchestrator",
+      context.cycleId,
+    );
   }
 
-  const { approved, approvalId: approvalIdForCapital } = await runApprovalAndCapital(ctx, context, trade, decision.output);
+  const { approved, approvalId: approvalIdForCapital } =
+    await runApprovalAndCapital(ctx, context, trade, decision.output);
   if (!approved) return;
 
   const brokerStep = await runOrchestratorStep(ctx, {
@@ -78,9 +115,23 @@ export async function executeTradeCycle(ctx: OrchestratorContext, context: Trade
     return;
   }
 
-  finalizeOpenedTrade(ctx, context, trade, brokerStep.value.brokerOrderId, brokerStep.value.filledAvgPrice, approvalIdForCapital);
+  finalizeOpenedTrade(
+    ctx,
+    context,
+    trade,
+    brokerStep.value.brokerOrderId,
+    brokerStep.value.filledAvgPrice,
+    approvalIdForCapital,
+  );
 }
 
-export async function runTradeCycle(ctx: OrchestratorContext, instrument: ResolvedInstrument): Promise<void> {
-  await executeTradeCycle(ctx, { kind: "trade", cycleId: crypto.randomUUID(), instrument });
+export async function runTradeCycle(
+  ctx: OrchestratorContext,
+  instrument: ResolvedInstrument,
+): Promise<void> {
+  await executeTradeCycle(ctx, {
+    kind: "trade",
+    cycleId: crypto.randomUUID(),
+    instrument,
+  });
 }

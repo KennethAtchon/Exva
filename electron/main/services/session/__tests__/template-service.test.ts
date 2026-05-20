@@ -113,7 +113,9 @@ describe("SessionTemplateService", () => {
           maxHoldDays: null,
           timeframeNotes: "",
         },
-        brokerAssignments: [{ brokerAccountId: "missing-broker", allocatedUsd: 5000 }],
+        brokerAssignments: [
+          { brokerAccountId: "missing-broker", allocatedUsd: 5000 },
+        ],
         brokerOverridesByInstrumentClass: { stock: "missing-broker" },
       },
     });
@@ -200,7 +202,9 @@ describe("SessionTemplateService", () => {
   });
 });
 
-function createTemplateService(db: ReturnType<typeof createTestDb>): SessionTemplateService {
+function createTemplateService(
+  db: ReturnType<typeof createTestDb>,
+): SessionTemplateService {
   const sessions = new SessionRepo(db);
   return new SessionTemplateService({
     templates: new SessionTemplatesRepo(db),

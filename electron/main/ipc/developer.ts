@@ -39,7 +39,11 @@ function isAllowedPath(kind: string, filePath?: string): boolean {
 let effectiveLogLevel = process.env.LOG_LEVEL ?? "info";
 
 function getOrCreateSettings(db: AppServices["db"]["db"]) {
-  const row = db.select().from(developerSettings).where(eq(developerSettings.id, "singleton")).get();
+  const row = db
+    .select()
+    .from(developerSettings)
+    .where(eq(developerSettings.id, "singleton"))
+    .get();
   if (row) return row;
   const defaults = {
     id: "singleton" as const,
@@ -59,15 +63,22 @@ export function registerDeveloperHandlers(services: AppServices): void {
   handle(ipcMain, channels.developer.getSettings, async () => {
     const settings = getOrCreateSettings(drizzle);
     const now = new Date().toISOString();
-    const allOverrides = drizzle.select().from(runtimeLogOverrides)
-      .orderBy(desc(runtimeLogOverrides.createdAt)).all();
-    const activeOverrides = allOverrides.filter(o => !o.expiresAt || o.expiresAt > now);
+    const allOverrides = drizzle
+      .select()
+      .from(runtimeLogOverrides)
+      .orderBy(desc(runtimeLogOverrides.createdAt))
+      .all();
+    const activeOverrides = allOverrides.filter(
+      (o) => !o.expiresAt || o.expiresAt > now,
+    );
 
     return {
       settings: {
         defaultEventMinLevel: settings.defaultEventMinLevel,
         defaultTimeWindowMinutes: settings.defaultTimeWindowMinutes,
-        defaultSourceFilters: JSON.parse(settings.defaultSourceFiltersJson ?? "[]") as string[],
+        defaultSourceFilters: JSON.parse(
+          settings.defaultSourceFiltersJson ?? "[]",
+        ) as string[],
         includePromptsInExports: settings.includePromptsInExports,
         includeToolPayloadsInExports: settings.includeToolPayloadsInExports,
       },
@@ -87,13 +98,24 @@ export function registerDeveloperHandlers(services: AppServices): void {
     };
     getOrCreateSettings(drizzle);
     const patch: Record<string, unknown> = {};
-    if (p.defaultEventMinLevel != null) patch["defaultEventMinLevel"] = p.defaultEventMinLevel;
-    if (p.defaultTimeWindowMinutes != null) patch["defaultTimeWindowMinutes"] = p.defaultTimeWindowMinutes;
-    if (p.defaultSourceFilters != null) patch["defaultSourceFiltersJson"] = JSON.stringify(p.defaultSourceFilters);
-    if (p.includePromptsInExports != null) patch["includePromptsInExports"] = p.includePromptsInExports;
-    if (p.includeToolPayloadsInExports != null) patch["includeToolPayloadsInExports"] = p.includeToolPayloadsInExports;
+    if (p.defaultEventMinLevel != null)
+      patch["defaultEventMinLevel"] = p.defaultEventMinLevel;
+    if (p.defaultTimeWindowMinutes != null)
+      patch["defaultTimeWindowMinutes"] = p.defaultTimeWindowMinutes;
+    if (p.defaultSourceFilters != null)
+      patch["defaultSourceFiltersJson"] = JSON.stringify(
+        p.defaultSourceFilters,
+      );
+    if (p.includePromptsInExports != null)
+      patch["includePromptsInExports"] = p.includePromptsInExports;
+    if (p.includeToolPayloadsInExports != null)
+      patch["includeToolPayloadsInExports"] = p.includeToolPayloadsInExports;
     if (Object.keys(patch).length > 0) {
-      drizzle.update(developerSettings).set(patch).where(eq(developerSettings.id, "singleton")).run();
+      drizzle
+        .update(developerSettings)
+        .set(patch)
+        .where(eq(developerSettings.id, "singleton"))
+        .run();
     }
     return { settings: getOrCreateSettings(drizzle) };
   });
@@ -112,18 +134,23 @@ export function registerDeveloperHandlers(services: AppServices): void {
     const now = new Date().toISOString();
     let expiresAt: string | null = null;
     if (!p.untilStopped && p.durationMinutes) {
-      expiresAt = new Date(Date.now() + p.durationMinutes * 60 * 1000).toISOString();
+      expiresAt = new Date(
+        Date.now() + p.durationMinutes * 60 * 1000,
+      ).toISOString();
     }
 
-    drizzle.insert(runtimeLogOverrides).values({
-      id: overrideId,
-      scopeType: p.scopeType,
-      scopeId: p.scopeId ?? null,
-      mainLogLevel: p.mainLogLevel,
-      eventMinLevel: p.eventMinLevel,
-      expiresAt,
-      createdAt: now,
-    }).run();
+    drizzle
+      .insert(runtimeLogOverrides)
+      .values({
+        id: overrideId,
+        scopeType: p.scopeType,
+        scopeId: p.scopeId ?? null,
+        mainLogLevel: p.mainLogLevel,
+        eventMinLevel: p.eventMinLevel,
+        expiresAt,
+        createdAt: now,
+      })
+      .run();
 
     if (p.scopeType === "global") {
       effectiveLogLevel = p.mainLogLevel;
@@ -134,7 +161,10 @@ export function registerDeveloperHandlers(services: AppServices): void {
       const ms = new Date(expiresAt).getTime() - Date.now();
       setTimeout(() => {
         try {
-          drizzle.delete(runtimeLogOverrides).where(eq(runtimeLogOverrides.id, overrideId)).run();
+          drizzle
+            .delete(runtimeLogOverrides)
+            .where(eq(runtimeLogOverrides.id, overrideId))
+            .run();
           effectiveLogLevel = process.env.LOG_LEVEL ?? "info";
           log.info({ overrideId }, "Debug capture expired, log level restored");
         } catch {}
@@ -146,7 +176,10 @@ export function registerDeveloperHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.developer.stopLogOverride, async (payload) => {
     const p = payload as { overrideId: string };
-    drizzle.delete(runtimeLogOverrides).where(eq(runtimeLogOverrides.id, p.overrideId)).run();
+    drizzle
+      .delete(runtimeLogOverrides)
+      .where(eq(runtimeLogOverrides.id, p.overrideId))
+      .run();
     effectiveLogLevel = process.env.LOG_LEVEL ?? "info";
     return { stopped: true as const, effectiveLogLevel };
   });
@@ -162,17 +195,25 @@ export function registerDeveloperHandlers(services: AppServices): void {
     let pipelineConfigError: string | null = null;
 
     if (scope.type === "session" && scope.id) {
-      sessionRow = drizzle.select().from(sessions).where(eq(sessions.id, scope.id)).get() ?? null;
+      sessionRow =
+        drizzle
+          .select()
+          .from(sessions)
+          .where(eq(sessions.id, scope.id))
+          .get() ?? null;
 
-      const steps = drizzle.select().from(sessionExecutionSteps)
+      const steps = drizzle
+        .select()
+        .from(sessionExecutionSteps)
         .where(eq(sessionExecutionSteps.sessionId, scope.id))
         .orderBy(desc(sessionExecutionSteps.updatedAt))
-        .limit(20).all();
+        .limit(20)
+        .all();
 
       if (steps.length > 0) {
         activeCycleId = steps[0].cycleId ?? null;
         executionProgress = {
-          steps: steps.map(s => ({
+          steps: steps.map((s) => ({
             stage: s.stage,
             status: s.status,
             attempt: s.attempt,
@@ -186,9 +227,12 @@ export function registerDeveloperHandlers(services: AppServices): void {
       }
 
       try {
-        pipelineConfig = services.ai.assertValidEffectivePipelineConfig(scope.id);
+        pipelineConfig = services.ai.assertValidEffectivePipelineConfig(
+          scope.id,
+        );
       } catch (error) {
-        pipelineConfigError = error instanceof Error ? error.message : String(error);
+        pipelineConfigError =
+          error instanceof Error ? error.message : String(error);
         try {
           pipelineConfig = services.ai.resolveEffectivePipelineConfig(scope.id);
         } catch {
@@ -198,70 +242,162 @@ export function registerDeveloperHandlers(services: AppServices): void {
     }
 
     const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const scopedEvents = scope.type === "session" && scope.id
-      ? drizzle.select().from(events)
-          .where(and(eq(events.sessionId, scope.id), gte(events.createdAt, windowStart)))
-          .limit(500).all()
-      : drizzle.select().from(events).where(gte(events.createdAt, windowStart)).limit(500).all();
+    const scopedEvents =
+      scope.type === "session" && scope.id
+        ? drizzle
+            .select()
+            .from(events)
+            .where(
+              and(
+                eq(events.sessionId, scope.id),
+                gte(events.createdAt, windowStart),
+              ),
+            )
+            .limit(500)
+            .all()
+        : drizzle
+            .select()
+            .from(events)
+            .where(gte(events.createdAt, windowStart))
+            .limit(500)
+            .all();
 
-    const errorCount = scopedEvents.filter(e => e.level === "ERROR").length;
-    const warnCount = scopedEvents.filter(e => e.level === "WARN").length;
+    const errorCount = scopedEvents.filter((e) => e.level === "ERROR").length;
+    const warnCount = scopedEvents.filter((e) => e.level === "WARN").length;
 
-    const runCount = scope.type === "session" && scope.id
-      ? drizzle.select().from(agentRuns).where(eq(agentRuns.sessionId, scope.id)).all().length
-      : 0;
+    const runCount =
+      scope.type === "session" && scope.id
+        ? drizzle
+            .select()
+            .from(agentRuns)
+            .where(eq(agentRuns.sessionId, scope.id))
+            .all().length
+        : 0;
 
-    const callCount = scope.type === "session" && scope.id
-      ? drizzle.select().from(apiCallLog).where(eq(apiCallLog.sessionId, scope.id)).all().length
-      : 0;
+    const callCount =
+      scope.type === "session" && scope.id
+        ? drizzle
+            .select()
+            .from(apiCallLog)
+            .where(eq(apiCallLog.sessionId, scope.id))
+            .all().length
+        : 0;
 
-    const failedStepCount = scope.type === "session" && scope.id
-      ? drizzle.select().from(sessionExecutionSteps)
-          .where(and(eq(sessionExecutionSteps.sessionId, scope.id), eq(sessionExecutionSteps.status, "failed")))
-          .all().length
-      : 0;
+    const failedStepCount =
+      scope.type === "session" && scope.id
+        ? drizzle
+            .select()
+            .from(sessionExecutionSteps)
+            .where(
+              and(
+                eq(sessionExecutionSteps.sessionId, scope.id),
+                eq(sessionExecutionSteps.status, "failed"),
+              ),
+            )
+            .all().length
+        : 0;
 
-    const latestError = scopedEvents.find(e => e.level === "ERROR");
+    const latestError = scopedEvents.find((e) => e.level === "ERROR");
 
     return {
-      scopeLabel: scope.type === "global"
-        ? "Global workspace"
-        : `${scope.type}: ${sessionRow?.name ?? scope.id ?? ""}`,
+      scopeLabel:
+        scope.type === "global"
+          ? "Global workspace"
+          : `${scope.type}: ${sessionRow?.name ?? scope.id ?? ""}`,
       session: sessionRow
-        ? { id: sessionRow.id, name: sessionRow.name, status: sessionRow.status, executionMode: sessionRow.executionMode, isFocused: sessionRow.isFocused }
+        ? {
+            id: sessionRow.id,
+            name: sessionRow.name,
+            status: sessionRow.status,
+            executionMode: sessionRow.executionMode,
+            isFocused: sessionRow.isFocused,
+          }
         : null,
       activeCycleId,
       executionProgress: executionProgress ?? undefined,
       pipelineConfig,
       pipelineConfigError,
-      counts: { events: scopedEvents.length, errors: errorCount, warnings: warnCount, agentRuns: runCount, externalCalls: callCount, failedSteps: failedStepCount },
+      counts: {
+        events: scopedEvents.length,
+        errors: errorCount,
+        warnings: warnCount,
+        agentRuns: runCount,
+        externalCalls: callCount,
+        failedSteps: failedStepCount,
+      },
       latestError: latestError
-        ? { message: latestError.message, createdAt: latestError.createdAt, eventId: latestError.id }
+        ? {
+            message: latestError.message,
+            createdAt: latestError.createdAt,
+            eventId: latestError.id,
+          }
         : null,
     };
   });
 
   handle(ipcMain, channels.developer.exportDebugBundle, async (payload) => {
-    const p = payload as { scope: { type: string; id?: string }; includePrompts: boolean; includeToolPayloads: boolean; timeWindowMinutes: number };
+    const p = payload as {
+      scope: { type: string; id?: string };
+      includePrompts: boolean;
+      includeToolPayloads: boolean;
+      timeWindowMinutes: number;
+    };
     const now = new Date();
-    const windowStart = p.timeWindowMinutes > 0
-      ? new Date(now.getTime() - p.timeWindowMinutes * 60 * 1000).toISOString()
-      : "1970-01-01T00:00:00.000Z";
+    const windowStart =
+      p.timeWindowMinutes > 0
+        ? new Date(
+            now.getTime() - p.timeWindowMinutes * 60 * 1000,
+          ).toISOString()
+        : "1970-01-01T00:00:00.000Z";
 
-    const scopedEvents = p.scope.type === "session" && p.scope.id
-      ? drizzle.select().from(events).where(and(eq(events.sessionId, p.scope.id), gte(events.createdAt, windowStart))).all()
-      : drizzle.select().from(events).where(gte(events.createdAt, windowStart)).limit(1000).all();
+    const scopedEvents =
+      p.scope.type === "session" && p.scope.id
+        ? drizzle
+            .select()
+            .from(events)
+            .where(
+              and(
+                eq(events.sessionId, p.scope.id),
+                gte(events.createdAt, windowStart),
+              ),
+            )
+            .all()
+        : drizzle
+            .select()
+            .from(events)
+            .where(gte(events.createdAt, windowStart))
+            .limit(1000)
+            .all();
 
-    const scopedRuns = p.scope.type === "session" && p.scope.id
-      ? drizzle.select().from(agentRuns).where(eq(agentRuns.sessionId, p.scope.id)).all()
-      : [];
+    const scopedRuns =
+      p.scope.type === "session" && p.scope.id
+        ? drizzle
+            .select()
+            .from(agentRuns)
+            .where(eq(agentRuns.sessionId, p.scope.id))
+            .all()
+        : [];
 
-    const scopedCalls = p.scope.type === "session" && p.scope.id
-      ? drizzle.select().from(apiCallLog).where(eq(apiCallLog.sessionId, p.scope.id)).all()
-      : [];
+    const scopedCalls =
+      p.scope.type === "session" && p.scope.id
+        ? drizzle
+            .select()
+            .from(apiCallLog)
+            .where(eq(apiCallLog.sessionId, p.scope.id))
+            .all()
+        : [];
 
     const settings = getOrCreateSettings(drizzle);
-    const REDACT_KEYS = new Set(["api_key", "apiKey", "secret_key", "secretKey", "authorization", "password", "token", "secret"]);
+    const REDACT_KEYS = new Set([
+      "api_key",
+      "apiKey",
+      "secret_key",
+      "secretKey",
+      "authorization",
+      "password",
+      "token",
+      "secret",
+    ]);
     let redactionCount = 0;
 
     function redactObj(obj: unknown): unknown {
@@ -269,8 +405,12 @@ export function registerDeveloperHandlers(services: AppServices): void {
       if (Array.isArray(obj)) return obj.map(redactObj);
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-        if (REDACT_KEYS.has(k)) { out[k] = "[REDACTED]"; redactionCount++; }
-        else { out[k] = redactObj(v); }
+        if (REDACT_KEYS.has(k)) {
+          out[k] = "[REDACTED]";
+          redactionCount++;
+        } else {
+          out[k] = redactObj(v);
+        }
       }
       return out;
     }
@@ -282,7 +422,10 @@ export function registerDeveloperHandlers(services: AppServices): void {
       events: redactObj(scopedEvents),
       agentRuns: redactObj(scopedRuns),
       externalCalls: redactObj(scopedCalls),
-      settings: { defaultEventMinLevel: settings.defaultEventMinLevel, defaultTimeWindowMinutes: settings.defaultTimeWindowMinutes },
+      settings: {
+        defaultEventMinLevel: settings.defaultEventMinLevel,
+        defaultTimeWindowMinutes: settings.defaultTimeWindowMinutes,
+      },
     };
 
     const bundleDir = path.join(os.homedir(), ".exva", "debug-bundles");
@@ -294,20 +437,31 @@ export function registerDeveloperHandlers(services: AppServices): void {
 
     const sizeBytes = Buffer.byteLength(bundleJson, "utf8");
     const warnings: string[] = [];
-    if (sizeBytes > 25 * 1024 * 1024) warnings.push("Bundle exceeds 25 MB. Consider narrowing scope or time window.");
+    if (sizeBytes > 25 * 1024 * 1024)
+      warnings.push(
+        "Bundle exceeds 25 MB. Consider narrowing scope or time window.",
+      );
 
-    return { path: bundlePath, sizeBytes, includedSections: ["events", "agentRuns", "externalCalls", "settings"], redactionCount, warnings };
+    return {
+      path: bundlePath,
+      sizeBytes,
+      includedSections: ["events", "agentRuns", "externalCalls", "settings"],
+      redactionCount,
+      warnings,
+    };
   });
 
   handle(ipcMain, channels.developer.openPath, async (payload) => {
     const p = payload as { kind: string; path?: string };
 
-    if (!ALLOWED_PATH_KINDS.has(p.kind)) throw new Error("Path is not allowed.");
+    if (!ALLOWED_PATH_KINDS.has(p.kind))
+      throw new Error("Path is not allowed.");
     if (!isAllowedPath(p.kind, p.path)) throw new Error("Path is not allowed.");
 
     if (p.kind === "logsDirectory") {
       const logDir = resolveLogDir();
-      if (!fs.existsSync(logDir)) throw new Error("Log folder is not available yet.");
+      if (!fs.existsSync(logDir))
+        throw new Error("Log folder is not available yet.");
       await shell.openPath(logDir);
     } else if (p.kind === "debugBundle" && p.path) {
       shell.showItemInFolder(p.path);
@@ -329,11 +483,17 @@ export function registerDeveloperHandlers(services: AppServices): void {
 
     const clampedLimit = Math.min(p.limit ?? 100, 200);
     const twMin = p.timeWindowMinutes ?? 60;
-    const windowStart = twMin > 0
-      ? new Date(Date.now() - twMin * 60 * 1000).toISOString()
-      : "1970-01-01T00:00:00.000Z";
+    const windowStart =
+      twMin > 0
+        ? new Date(Date.now() - twMin * 60 * 1000).toISOString()
+        : "1970-01-01T00:00:00.000Z";
 
-    const LEVEL_ORDER: Record<string, number> = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
+    const LEVEL_ORDER: Record<string, number> = {
+      DEBUG: 0,
+      INFO: 1,
+      WARN: 2,
+      ERROR: 3,
+    };
     const minOrd = p.minLevel ? (LEVEL_ORDER[p.minLevel] ?? 0) : 0;
     const allowedLevels = Object.entries(LEVEL_ORDER)
       .filter(([, ord]) => ord >= minOrd)
@@ -358,7 +518,9 @@ export function registerDeveloperHandlers(services: AppServices): void {
     }
 
     const t0 = Date.now();
-    const rows = drizzle.select().from(events)
+    const rows = drizzle
+      .select()
+      .from(events)
       .where(and(...conditions))
       .orderBy(desc(events.createdAt))
       .limit(clampedLimit + 1)
@@ -367,7 +529,9 @@ export function registerDeveloperHandlers(services: AppServices): void {
     const queryMs = Date.now() - t0;
     const hasMore = rows.length > clampedLimit;
     const page = rows.slice(0, clampedLimit);
-    const nextCursor = hasMore ? (page[page.length - 1]?.createdAt ?? null) : null;
+    const nextCursor = hasMore
+      ? (page[page.length - 1]?.createdAt ?? null)
+      : null;
 
     return { events: page, nextCursor, queryMs };
   });

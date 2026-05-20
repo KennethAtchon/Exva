@@ -39,17 +39,23 @@ export class LiveReadinessService {
       name: "execution_mode",
       passed: session.executionMode === "live_allowed",
       requiresAck: false,
-      message: session.executionMode !== "live_allowed" ? `Execution mode is '${session.executionMode}'` : undefined,
+      message:
+        session.executionMode !== "live_allowed"
+          ? `Execution mode is '${session.executionMode}'`
+          : undefined,
     });
 
     // Check 2: at least one broker assignment exists for the session
-    const assignedIds = this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
+    const assignedIds =
+      this.sessionBrokerAssignmentsRepo.listBrokerAccountIds(sessionId);
     const hasBrokerAssignment = assignedIds.length > 0;
     checks.push({
       name: "broker_assigned",
       passed: hasBrokerAssignment,
       requiresAck: false,
-      message: !hasBrokerAssignment ? "No broker account assigned to this session" : undefined,
+      message: !hasBrokerAssignment
+        ? "No broker account assigned to this session"
+        : undefined,
     });
 
     // Check 3: assigned broker accounts are in live (non-paper) mode
@@ -58,13 +64,16 @@ export class LiveReadinessService {
       const accounts = assignedIds
         .map((id) => this.brokerAccountsRepo.find(id))
         .filter(Boolean);
-      brokerIsLive = accounts.length > 0 && accounts.every((a) => a && a.mode !== "paper");
+      brokerIsLive =
+        accounts.length > 0 && accounts.every((a) => a && a.mode !== "paper");
     }
     checks.push({
       name: "broker_live_mode",
       passed: brokerIsLive,
       requiresAck: false,
-      message: !brokerIsLive ? "Assigned broker account(s) are still in paper mode" : undefined,
+      message: !brokerIsLive
+        ? "Assigned broker account(s) are still in paper mode"
+        : undefined,
     });
 
     // Check 4: ALL assigned brokers pass connection test (not just the first)
@@ -112,7 +121,8 @@ export class LiveReadinessService {
         }),
       );
       nonLaunchAdapters = results.filter((r) => !r.capable).map((r) => r.id);
-      brokerLaunchCapable = results.length > 0 && nonLaunchAdapters.length === 0;
+      brokerLaunchCapable =
+        results.length > 0 && nonLaunchAdapters.length === 0;
     }
     checks.push({
       name: "broker_launch_capable",
@@ -131,7 +141,10 @@ export class LiveReadinessService {
       name: "user_acknowledged",
       passed: acknowledgedAt !== null,
       requiresAck: true,
-      message: acknowledgedAt === null ? "User must acknowledge readiness before starting a live session" : undefined,
+      message:
+        acknowledgedAt === null
+          ? "User must acknowledge readiness before starting a live session"
+          : undefined,
     });
 
     const allChecksPassed = checks.every((c) => c.passed);
@@ -147,7 +160,10 @@ export class LiveReadinessService {
   acknowledge(sessionId: string): void {
     this.client.db
       .update(sessions)
-      .set({ liveReadinessAcknowledgedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
+      .set({
+        liveReadinessAcknowledgedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
       .where(eq(sessions.id, sessionId))
       .run();
   }
@@ -155,14 +171,19 @@ export class LiveReadinessService {
   clearAcknowledgement(sessionId: string): void {
     this.client.db
       .update(sessions)
-      .set({ liveReadinessAcknowledgedAt: null, updatedAt: new Date().toISOString() })
+      .set({
+        liveReadinessAcknowledgedAt: null,
+        updatedAt: new Date().toISOString(),
+      })
       .where(eq(sessions.id, sessionId))
       .run();
   }
 
   private getAcknowledgedAt(sessionId: string): string | null {
     const row = this.client.db
-      .select({ liveReadinessAcknowledgedAt: sessions.liveReadinessAcknowledgedAt })
+      .select({
+        liveReadinessAcknowledgedAt: sessions.liveReadinessAcknowledgedAt,
+      })
       .from(sessions)
       .where(eq(sessions.id, sessionId))
       .get();

@@ -15,7 +15,11 @@ export class TradeRulePresetsRepo {
   }
 
   findById(id: string): TradeRulesPreset | undefined {
-    const row = this.client.db.select().from(tradeRulePresets).where(eq(tradeRulePresets.id, id)).get();
+    const row = this.client.db
+      .select()
+      .from(tradeRulePresets)
+      .where(eq(tradeRulePresets.id, id))
+      .get();
     return row ? (JSON.parse(row.presetJson) as TradeRulesPreset) : undefined;
   }
 }

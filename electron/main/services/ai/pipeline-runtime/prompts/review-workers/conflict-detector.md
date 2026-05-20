@@ -8,6 +8,7 @@ Technical signal: {technicalSignal}
 Fundamental signal: {fundamentalSignal}
 
 Return JSON:
+
 ```json
 {
   "technicalFundamentalConflict": 0..1 or null,

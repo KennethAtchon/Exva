@@ -1,5 +1,12 @@
-import type { PipelinePhase, WorkerDefinition, SessionAiPhaseWorker } from "@electron/shared/ai/pipeline-phase";
-import { RUNTIME_DEFAULTS as DEFAULTS, PHASE_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
+import type {
+  PipelinePhase,
+  WorkerDefinition,
+  SessionAiPhaseWorker,
+} from "@electron/shared/ai/pipeline-phase";
+import {
+  RUNTIME_DEFAULTS as DEFAULTS,
+  PHASE_DEFAULTS,
+} from "@electron/shared/ai/pipeline-phase";
 import { phaseSpendCapUsd as defaultPhaseSpendCapUsd } from "@electron/shared/ai/pipeline-config";
 import type { ResolvedWorkerRuntimeConfig } from "./core/types";
 import type { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
@@ -20,7 +27,10 @@ export interface ResolvedWorkerExecConfig extends ResolvedPhaseExecConfig {
 export class PhaseConfigResolver {
   constructor(private readonly aiPhasesRepo: SessionAiPhasesRepo) {}
 
-  resolvePhaseConfig(sessionId: string, phase: PipelinePhase): ResolvedPhaseExecConfig {
+  resolvePhaseConfig(
+    sessionId: string,
+    phase: PipelinePhase,
+  ): ResolvedPhaseExecConfig {
     const row = this.aiPhasesRepo.getByPhase(sessionId, phase);
     return {
       providerKey: row?.providerKey ?? "",
@@ -38,12 +48,19 @@ export class PhaseConfigResolver {
     workerId: string,
   ): ResolvedWorkerExecConfig {
     const phaseConfig = this.resolvePhaseConfig(sessionId, phase);
-    const workerOverride = this.aiPhasesRepo.getWorker(sessionId, phase, workerId);
-    const promptMarkdown = workerOverride?.promptMarkdown?.trim() ? workerOverride.promptMarkdown : phaseConfig.promptMarkdown;
+    const workerOverride = this.aiPhasesRepo.getWorker(
+      sessionId,
+      phase,
+      workerId,
+    );
+    const promptMarkdown = workerOverride?.promptMarkdown?.trim()
+      ? workerOverride.promptMarkdown
+      : phaseConfig.promptMarkdown;
 
     return {
       ...phaseConfig,
-      providerKey: workerOverride?.providerKey?.trim() || phaseConfig.providerKey,
+      providerKey:
+        workerOverride?.providerKey?.trim() || phaseConfig.providerKey,
       modelId: workerOverride?.modelId?.trim() || phaseConfig.modelId,
       promptMarkdown,
       workerOverride,
@@ -51,7 +68,9 @@ export class PhaseConfigResolver {
   }
 
   resolvePhaseSpendCapUsd(phase: PipelinePhase): number {
-    return PHASE_DEFAULTS[phase].phaseSpendCapUsd ?? defaultPhaseSpendCapUsd(phase);
+    return (
+      PHASE_DEFAULTS[phase].phaseSpendCapUsd ?? defaultPhaseSpendCapUsd(phase)
+    );
   }
 
   resolveWorkerRuntimeConfig(
@@ -64,14 +83,24 @@ export class PhaseConfigResolver {
       ...DEFAULTS.workerCaps,
       ...phaseDefaults.workerCaps,
       ...worker.caps,
-      ...(workerOverride?.maxSteps != null ? { maxSteps: workerOverride.maxSteps } : {}),
-      ...(workerOverride?.spendLimitUsd != null ? { spendLimitUsd: workerOverride.spendLimitUsd } : {}),
+      ...(workerOverride?.maxSteps != null
+        ? { maxSteps: workerOverride.maxSteps }
+        : {}),
+      ...(workerOverride?.spendLimitUsd != null
+        ? { spendLimitUsd: workerOverride.spendLimitUsd }
+        : {}),
     };
     const retry = { ...DEFAULTS.retry, ...phaseDefaults.retry };
-    const tools = worker.tools.length > 0 ? worker.tools : (phaseDefaults.tools ?? []);
-    const engines = (worker.engines?.length ? worker.engines : phaseDefaults.engines) ?? [];
+    const tools =
+      worker.tools.length > 0 ? worker.tools : (phaseDefaults.tools ?? []);
+    const engines =
+      (worker.engines?.length ? worker.engines : phaseDefaults.engines) ?? [];
     const output = worker.outputSchema
-      ? { schema: worker.outputSchema, strict: true as const, onValidationFailure: "retry_once" as const }
+      ? {
+          schema: worker.outputSchema,
+          strict: true as const,
+          onValidationFailure: "retry_once" as const,
+        }
       : null;
 
     return {

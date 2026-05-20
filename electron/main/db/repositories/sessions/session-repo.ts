@@ -1,5 +1,9 @@
 import type { DbClient } from "../../client";
-import type { SessionConfig, SessionStatus, WorkspaceSession } from "@/lib/types";
+import type {
+  SessionConfig,
+  SessionStatus,
+  WorkspaceSession,
+} from "@/lib/types";
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import {
   globalPresets,
@@ -25,7 +29,12 @@ import {
   canTransition,
   isSessionEditable,
 } from "@electron/shared/domain";
-import type { ResearchPosturePreset, RiskPreset, TimeframePreset, TradeRulesPreset } from "@electron/shared/domain";
+import type {
+  ResearchPosturePreset,
+  RiskPreset,
+  TimeframePreset,
+  TradeRulesPreset,
+} from "@electron/shared/domain";
 import type { GlobalStrategyPreset } from "@electron/shared/presets";
 import { PIPELINE_PHASES } from "@electron/shared/ai/pipeline-phase";
 import { toSessionConfig, toWorkspaceSession } from "../system/mappers";
@@ -73,21 +82,58 @@ export class SessionRepo {
       .limit(1)
       .get();
     if (!globalRow) {
-      throw new AppError("No built-in global strategy preset found — run migrations and seed", "INTERNAL_ERROR");
+      throw new AppError(
+        "No built-in global strategy preset found — run migrations and seed",
+        "INTERNAL_ERROR",
+      );
     }
-    const globalPreset = JSON.parse(globalRow.presetJson) as GlobalStrategyPreset;
+    const globalPreset = JSON.parse(
+      globalRow.presetJson,
+    ) as GlobalStrategyPreset;
 
-    const postureRow = this.client.db.select().from(researchPosturePresets).where(eq(researchPosturePresets.id, globalPreset.posturePresetId)).get();
-    if (!postureRow) throw new AppError(`Research posture preset '${globalPreset.posturePresetId}' not found`, "INTERNAL_ERROR");
+    const postureRow = this.client.db
+      .select()
+      .from(researchPosturePresets)
+      .where(eq(researchPosturePresets.id, globalPreset.posturePresetId))
+      .get();
+    if (!postureRow)
+      throw new AppError(
+        `Research posture preset '${globalPreset.posturePresetId}' not found`,
+        "INTERNAL_ERROR",
+      );
 
-    const rulesRow = this.client.db.select().from(tradeRulePresets).where(eq(tradeRulePresets.id, globalPreset.rulesPresetId)).get();
-    if (!rulesRow) throw new AppError(`Trade rule preset '${globalPreset.rulesPresetId}' not found`, "INTERNAL_ERROR");
+    const rulesRow = this.client.db
+      .select()
+      .from(tradeRulePresets)
+      .where(eq(tradeRulePresets.id, globalPreset.rulesPresetId))
+      .get();
+    if (!rulesRow)
+      throw new AppError(
+        `Trade rule preset '${globalPreset.rulesPresetId}' not found`,
+        "INTERNAL_ERROR",
+      );
 
-    const riskRow = this.client.db.select().from(riskPresets).where(eq(riskPresets.id, globalPreset.riskPresetId)).get();
-    if (!riskRow) throw new AppError(`Risk preset '${globalPreset.riskPresetId}' not found`, "INTERNAL_ERROR");
+    const riskRow = this.client.db
+      .select()
+      .from(riskPresets)
+      .where(eq(riskPresets.id, globalPreset.riskPresetId))
+      .get();
+    if (!riskRow)
+      throw new AppError(
+        `Risk preset '${globalPreset.riskPresetId}' not found`,
+        "INTERNAL_ERROR",
+      );
 
-    const timeframeRow = this.client.db.select().from(timeframePresets).where(eq(timeframePresets.id, globalPreset.timeframePresetId)).get();
-    if (!timeframeRow) throw new AppError(`Timeframe preset '${globalPreset.timeframePresetId}' not found`, "INTERNAL_ERROR");
+    const timeframeRow = this.client.db
+      .select()
+      .from(timeframePresets)
+      .where(eq(timeframePresets.id, globalPreset.timeframePresetId))
+      .get();
+    if (!timeframeRow)
+      throw new AppError(
+        `Timeframe preset '${globalPreset.timeframePresetId}' not found`,
+        "INTERNAL_ERROR",
+      );
 
     return {
       posturePreset: JSON.parse(postureRow.presetJson) as ResearchPosturePreset,
@@ -237,8 +283,14 @@ export class SessionRepo {
       conditions.push(inArray(sessions.status, filters.statuses));
     }
 
-    const query = this.client.db.select().from(sessions).orderBy(asc(sessions.createdAt));
-    const rows = conditions.length > 0 ? query.where(and(...conditions)).all() : query.all();
+    const query = this.client.db
+      .select()
+      .from(sessions)
+      .orderBy(asc(sessions.createdAt));
+    const rows =
+      conditions.length > 0
+        ? query.where(and(...conditions)).all()
+        : query.all();
     return rows.map(toWorkspaceSession);
   }
 
@@ -247,7 +299,11 @@ export class SessionRepo {
   }
 
   get(id: string): WorkspaceSession | null {
-    const row = this.client.db.select().from(sessions).where(eq(sessions.id, id)).get();
+    const row = this.client.db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, id))
+      .get();
     return row ? toWorkspaceSession(row) : null;
   }
 
@@ -258,7 +314,9 @@ export class SessionRepo {
   requireById(sessionId: string): WorkspaceSession {
     const session = this.get(sessionId);
     if (!session) {
-      throw new AppError(`Session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
+      throw new AppError(`Session ${sessionId} was not found`, "NOT_FOUND", {
+        sessionId,
+      });
     }
     return session;
   }
@@ -267,13 +325,23 @@ export class SessionRepo {
     this.requireById(sessionId);
 
     this.client.db.transaction((tx) => {
-      tx.update(sessions).set({ isFocused: false }).where(eq(sessions.isFocused, true)).run();
-      tx.update(sessions).set({ isFocused: true }).where(eq(sessions.id, sessionId)).run();
+      tx.update(sessions)
+        .set({ isFocused: false })
+        .where(eq(sessions.isFocused, true))
+        .run();
+      tx.update(sessions)
+        .set({ isFocused: true })
+        .where(eq(sessions.id, sessionId))
+        .run();
     });
   }
 
   clearFocus(): void {
-    this.client.db.update(sessions).set({ isFocused: false }).where(eq(sessions.isFocused, true)).run();
+    this.client.db
+      .update(sessions)
+      .set({ isFocused: false })
+      .where(eq(sessions.isFocused, true))
+      .run();
   }
 
   getFocused(): WorkspaceSession | null {
@@ -298,14 +366,21 @@ export class SessionRepo {
     return this.getFocusedSession().id;
   }
 
-  setStatus(to: SessionStatus, sessionId = this.getFocusedSessionId()): SessionStatus {
+  setStatus(
+    to: SessionStatus,
+    sessionId = this.getFocusedSessionId(),
+  ): SessionStatus {
     const session = this.requireById(sessionId);
     if (!canTransition(session.status, to)) {
-      throw new AppError(`Cannot transition session from ${session.status} to ${to}`, "INVALID_TRANSITION", {
-        sessionId,
-        from: session.status,
-        to,
-      });
+      throw new AppError(
+        `Cannot transition session from ${session.status} to ${to}`,
+        "INVALID_TRANSITION",
+        {
+          sessionId,
+          from: session.status,
+          to,
+        },
+      );
     }
 
     this.client.db
@@ -320,7 +395,10 @@ export class SessionRepo {
   updateTaskBoundary(sessionId: string, input: TaskBoundaryInput): void {
     const session = this.requireById(sessionId);
     if (!isSessionEditable(session.status)) {
-      throw new AppError(`Session ${sessionId} is locked`, "LOCKED", { sessionId, status: session.status });
+      throw new AppError(`Session ${sessionId} is locked`, "LOCKED", {
+        sessionId,
+        status: session.status,
+      });
     }
 
     this.client.db
@@ -377,7 +455,11 @@ export class SessionRepo {
           .run();
       }
 
-      const strategy = tx.select().from(sessionStrategies).where(eq(sessionStrategies.sessionId, sourceId)).get();
+      const strategy = tx
+        .select()
+        .from(sessionStrategies)
+        .where(eq(sessionStrategies.sessionId, sourceId))
+        .get();
       if (strategy) {
         tx.insert(sessionStrategies)
           .values({
@@ -417,7 +499,11 @@ export class SessionRepo {
           .run();
       }
 
-      const risk = tx.select().from(sessionRiskConfig).where(eq(sessionRiskConfig.sessionId, sourceId)).get();
+      const risk = tx
+        .select()
+        .from(sessionRiskConfig)
+        .where(eq(sessionRiskConfig.sessionId, sourceId))
+        .get();
       if (risk) {
         tx.insert(sessionRiskConfig)
           .values({
@@ -428,7 +514,11 @@ export class SessionRepo {
           .run();
       }
 
-      const timeframe = tx.select().from(sessionTimeframeConfig).where(eq(sessionTimeframeConfig.sessionId, sourceId)).get();
+      const timeframe = tx
+        .select()
+        .from(sessionTimeframeConfig)
+        .where(eq(sessionTimeframeConfig.sessionId, sourceId))
+        .get();
       if (timeframe) {
         tx.insert(sessionTimeframeConfig)
           .values({
@@ -439,7 +529,11 @@ export class SessionRepo {
           .run();
       }
 
-      const sourcePhases = tx.select().from(sessionAiPhases).where(eq(sessionAiPhases.sessionId, sourceId)).all();
+      const sourcePhases = tx
+        .select()
+        .from(sessionAiPhases)
+        .where(eq(sessionAiPhases.sessionId, sourceId))
+        .all();
       for (const row of sourcePhases) {
         tx.insert(sessionAiPhases)
           .values({
@@ -494,23 +588,35 @@ export class SessionRepo {
   }
 
   getConfig(sessionId = this.getFocusedSessionId()): SessionConfig {
-    const row = this.client.db.select().from(sessionStrategies).where(eq(sessionStrategies.sessionId, sessionId)).get();
+    const row = this.client.db
+      .select()
+      .from(sessionStrategies)
+      .where(eq(sessionStrategies.sessionId, sessionId))
+      .get();
 
     if (!row) {
-      throw new AppError(`Strategy config for session ${sessionId} was not found`, "NOT_FOUND", { sessionId });
+      throw new AppError(
+        `Strategy config for session ${sessionId} was not found`,
+        "NOT_FOUND",
+        { sessionId },
+      );
     }
 
     return toSessionConfig(row);
   }
 
-  saveConfig(config: SessionConfig, sessionId = this.getFocusedSessionId()): void {
+  saveConfig(
+    config: SessionConfig,
+    sessionId = this.getFocusedSessionId(),
+  ): void {
     const updatedAt = new Date().toISOString();
     const existingRisk = this.client.db
       .select({ maxDataSpendUsd: sessionRiskConfig.maxDataSpendUsd })
       .from(sessionRiskConfig)
       .where(eq(sessionRiskConfig.sessionId, sessionId))
       .get();
-    const maxDataSpendUsd = existingRisk?.maxDataSpendUsd ?? config.max_api_spend_usd;
+    const maxDataSpendUsd =
+      existingRisk?.maxDataSpendUsd ?? config.max_api_spend_usd;
 
     this.client.db.transaction((tx) => {
       tx.update(sessionStrategies)

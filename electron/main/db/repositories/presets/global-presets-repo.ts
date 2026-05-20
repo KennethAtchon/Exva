@@ -22,20 +22,44 @@ export class GlobalPresetsRepo {
       .from(globalPresets)
       .orderBy(globalPresets.createdAt)
       .all()
-      .map((row) => ({ id: row.id, name: row.name, isBuiltIn: row.isBuiltIn, createdAt: row.createdAt, presetJson: row.presetJson }));
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        isBuiltIn: row.isBuiltIn,
+        createdAt: row.createdAt,
+        presetJson: row.presetJson,
+      }));
   }
 
-  insert(input: { name: string; preset: Omit<GlobalStrategyPreset, "id" | "label"> }): UserGlobalPresetRow {
+  insert(input: {
+    name: string;
+    preset: Omit<GlobalStrategyPreset, "id" | "label">;
+  }): UserGlobalPresetRow {
     const id = randomUUID();
     const now = Date.now();
     this.client.db
       .insert(globalPresets)
-      .values({ id, name: input.name, isBuiltIn: false, createdAt: now, presetJson: JSON.stringify(input.preset) })
+      .values({
+        id,
+        name: input.name,
+        isBuiltIn: false,
+        createdAt: now,
+        presetJson: JSON.stringify(input.preset),
+      })
       .run();
-    return { id, name: input.name, isBuiltIn: false, createdAt: now, presetJson: JSON.stringify(input.preset) };
+    return {
+      id,
+      name: input.name,
+      isBuiltIn: false,
+      createdAt: now,
+      presetJson: JSON.stringify(input.preset),
+    };
   }
 
-  update(id: string, input: { name: string; preset: Omit<GlobalStrategyPreset, "id" | "label"> }): void {
+  update(
+    id: string,
+    input: { name: string; preset: Omit<GlobalStrategyPreset, "id" | "label"> },
+  ): void {
     this.client.db
       .update(globalPresets)
       .set({ name: input.name, presetJson: JSON.stringify(input.preset) })
@@ -44,9 +68,15 @@ export class GlobalPresetsRepo {
   }
 
   delete(id: string): void {
-    const row = this.client.db.select({ isBuiltIn: globalPresets.isBuiltIn }).from(globalPresets).where(eq(globalPresets.id, id)).get();
+    const row = this.client.db
+      .select({ isBuiltIn: globalPresets.isBuiltIn })
+      .from(globalPresets)
+      .where(eq(globalPresets.id, id))
+      .get();
     if (row?.isBuiltIn) {
-      throw new AppError("Cannot delete a built-in preset", "FORBIDDEN", { id });
+      throw new AppError("Cannot delete a built-in preset", "FORBIDDEN", {
+        id,
+      });
     }
     this.client.db.delete(globalPresets).where(eq(globalPresets.id, id)).run();
   }

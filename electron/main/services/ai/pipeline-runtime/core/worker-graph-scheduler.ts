@@ -14,10 +14,13 @@ export interface WorkerGraphScheduleResult<TOutput = unknown> {
 
 export function buildWorkerSchedule<TOutput = unknown>(
   workers: readonly WorkerDefinition<TOutput>[],
-  scheduling: { mode: "flat_parallel" | "dependency_graph"; maxConcurrency: number } | undefined,
+  scheduling:
+    | { mode: "flat_parallel" | "dependency_graph"; maxConcurrency: number }
+    | undefined,
 ): WorkerGraphScheduleResult<TOutput> {
   const mode = scheduling?.mode ?? "flat_parallel";
-  const maxConcurrency = scheduling?.maxConcurrency ?? Math.max(1, workers.length);
+  const maxConcurrency =
+    scheduling?.maxConcurrency ?? Math.max(1, workers.length);
 
   if (mode === "flat_parallel") {
     return {
@@ -33,7 +36,11 @@ export function buildWorkerSchedule<TOutput = unknown>(
     const cachedFrontier = frontierMemo.get(workerId);
     if (cachedFrontier !== undefined) return cachedFrontier;
     const worker = workerMap.get(workerId);
-    if (!worker) throw new AppError(`Unknown worker '${workerId}' in schedule build.`, "VALIDATION_FAILED");
+    if (!worker)
+      throw new AppError(
+        `Unknown worker '${workerId}' in schedule build.`,
+        "VALIDATION_FAILED",
+      );
     const deps = worker.dependsOn ?? [];
     const frontier = deps.length === 0 ? 0 : Math.max(...deps.map(visit)) + 1;
     frontierMemo.set(workerId, frontier);
@@ -41,7 +48,9 @@ export function buildWorkerSchedule<TOutput = unknown>(
   };
 
   return {
-    ordered: workers.map((worker) => ({ worker, frontier: visit(worker.id) })).sort((a, b) => a.frontier - b.frontier),
+    ordered: workers
+      .map((worker) => ({ worker, frontier: visit(worker.id) }))
+      .sort((a, b) => a.frontier - b.frontier),
     maxConcurrency,
     schedulingMode: mode,
   };
@@ -65,10 +74,16 @@ export async function executeByFrontier<T>(
   for (const frontier of [...frontierMap.keys()].sort((a, b) => a - b)) {
     if (shouldContinue && !shouldContinue()) break;
     const nodes = frontierMap.get(frontier) ?? [];
-    for (let index = 0; index < nodes.length; index += Math.max(1, maxConcurrency)) {
+    for (
+      let index = 0;
+      index < nodes.length;
+      index += Math.max(1, maxConcurrency)
+    ) {
       if (shouldContinue && !shouldContinue()) break;
       const batch = nodes.slice(index, index + Math.max(1, maxConcurrency));
-      const results = await Promise.all(batch.map(async (node) => ({ node, result: await runWorker(node) })));
+      const results = await Promise.all(
+        batch.map(async (node) => ({ node, result: await runWorker(node) })),
+      );
       out.push(...results);
       if (shouldContinue && !shouldContinue()) break;
     }

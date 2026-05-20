@@ -33,13 +33,16 @@ Add to `electron/main/db/schema.ts`:
 
 ```typescript
 export const sessionInstrumentCache = sqliteTable("session_instrument_cache", {
-  sessionId:         text("session_id").primaryKey()
-                       .references(() => sessions.id, { onDelete: "cascade" }),
-  instruments:       text("instruments").notNull(), // JSON: Array<{ symbol, instrumentClass }>
-  definitionHash:    text("definition_hash").notNull(),
-  selectedAt:        text("selected_at").notNull(),
-  selectorAgentRunId:text("selector_agent_run_id")
-                       .references(() => agentRuns.id, { onDelete: "set null" }), // P2.6
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  instruments: text("instruments").notNull(), // JSON: Array<{ symbol, instrumentClass }>
+  definitionHash: text("definition_hash").notNull(),
+  selectedAt: text("selected_at").notNull(),
+  selectorAgentRunId: text("selector_agent_run_id").references(
+    () => agentRuns.id,
+    { onDelete: "set null" },
+  ), // P2.6
 });
 ```
 
@@ -51,11 +54,16 @@ File: `src/lib/schemas.ts` — add:
 
 ```typescript
 export const instrumentSelectionSchema = z.object({
-  instruments: z.array(z.object({
-    symbol: z.string().min(1).max(20).toUpperCase(),
-    instrumentClass: z.enum(["stock", "crypto", "futures"]),
-    rationale: z.string().optional(),
-  })).min(1).max(50),
+  instruments: z
+    .array(
+      z.object({
+        symbol: z.string().min(1).max(20).toUpperCase(),
+        instrumentClass: z.enum(["stock", "crypto", "futures"]),
+        rationale: z.string().optional(),
+      }),
+    )
+    .min(1)
+    .max(50),
 });
 
 export type InstrumentSelection = z.infer<typeof instrumentSelectionSchema>;
@@ -183,6 +191,7 @@ private async resolveInstruments(
 ## Automatic Invalidation Triggers
 
 The selector cache must invalidate automatically when any of these mutate:
+
 - `selectionMode`
 - `aiPickerEnabled`
 - `instrumentScope`
@@ -220,15 +229,16 @@ if (session.selectionMode === "ai_selected_universe") {
 
 The Instrument Selector tab is conditionally enabled based on session `selectionMode` and selector settings:
 
-| Condition | Tab state |
-|-----------|-----------|
-| `selectionMode = "manual_shortlist"` | Tab disabled + tooltip `Enable AI-selected universe in session settings.` |
+| Condition                                                            | Tab state                                                                                            |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `selectionMode = "manual_shortlist"`                                 | Tab disabled + tooltip `Enable AI-selected universe in session settings.`                            |
 | `selectionMode = "ai_selected_universe"` + `aiPickerEnabled = false` | Tab visible but shows info: `AI picker is disabled for this session. Enable it in session settings.` |
-| `selectionMode = "ai_selected_universe"` + `aiPickerEnabled = true` | Tab fully editable |
+| `selectionMode = "ai_selected_universe"` + `aiPickerEnabled = true`  | Tab fully editable                                                                                   |
 
 ## UI — Session Detail Drawer (Instrument Scope section)
 
 When `selectionMode = "ai_selected_universe"`:
+
 - show `AI Selected Universe` label
 - show `Last Selection` subpanel with timestamp and list of selected instruments (from `session_instrument_cache`)
 - show `Definition Changed` badge if the persisted cache hash no longer matches the current session fingerprint
@@ -303,11 +313,13 @@ sequenceDiagram
 
 ```markdown
 <!-- version: 1.0.0 -->
+
 # Instrument Selector
 
 You select a universe of trading instruments based on the user's screening criteria.
 
 ## Instructions
+
 - Return only instruments you have strong reason to include.
 - Respect instrument class constraints from the session definition.
 - Minimum 1, maximum 50 instruments.
@@ -317,19 +329,19 @@ You select a universe of trading instruments based on the user's screening crite
 
 ## Files Created / Modified
 
-| Action | File |
-|--------|------|
-| Modify | `electron/main/db/schema.ts` — add `session_instrument_cache` table |
-| Modify | `electron/main/db/migrations.ts` — add table DDL |
-| Create | `electron/main/db/repositories/instrument-cache-repo.ts` |
-| Modify | `electron/main/services/ai/ai-runtime.ts` — add `runInstrumentSelector()` |
+| Action | File                                                                                             |
+| ------ | ------------------------------------------------------------------------------------------------ |
+| Modify | `electron/main/db/schema.ts` — add `session_instrument_cache` table                              |
+| Modify | `electron/main/db/migrations.ts` — add table DDL                                                 |
+| Create | `electron/main/db/repositories/instrument-cache-repo.ts`                                         |
+| Modify | `electron/main/services/ai/ai-runtime.ts` — add `runInstrumentSelector()`                        |
 | Modify | `electron/main/services/agent-orchestrator.ts` — add `resolveInstruments()` + definition hashing |
-| Modify | `electron/main/services/session/session-service.ts` — add selector preflight |
-| Modify | `electron/main/ipc/session.ts` — add instrument cache IPC handlers |
-| Modify | `src/lib/schemas.ts` — add `instrumentSelectionSchema` |
-| Modify | `src/pages/StrategyConfig.tsx` — enable/disable Instrument Selector tab |
-| Modify | `src/components/sessions/SessionDetailDrawer.tsx` — add instrument cache display |
-| Create | `electron/prompts/instrument_selector.md` |
+| Modify | `electron/main/services/session/session-service.ts` — add selector preflight                     |
+| Modify | `electron/main/ipc/session.ts` — add instrument cache IPC handlers                               |
+| Modify | `src/lib/schemas.ts` — add `instrumentSelectionSchema`                                           |
+| Modify | `src/pages/StrategyConfig.tsx` — enable/disable Instrument Selector tab                          |
+| Modify | `src/components/sessions/SessionDetailDrawer.tsx` — add instrument cache display                 |
+| Create | `electron/prompts/instrument_selector.md`                                                        |
 
 ## Acceptance Criteria
 

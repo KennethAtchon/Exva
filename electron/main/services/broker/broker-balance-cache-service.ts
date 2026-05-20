@@ -8,7 +8,8 @@ export class BrokerBalanceCacheService {
   ) {}
 
   async getBalance(brokerAccountId: string): Promise<number> {
-    const { balanceCacheUsd, balanceCachedAt } = this.repo.getBalanceCache(brokerAccountId);
+    const { balanceCacheUsd, balanceCachedAt } =
+      this.repo.getBalanceCache(brokerAccountId);
     const account = this.repo.require(brokerAccountId);
     const staleLimitMs = account.balanceRefreshIntervalMin * 60 * 1000;
     const isStale =
@@ -23,18 +24,27 @@ export class BrokerBalanceCacheService {
   async refreshBalance(brokerAccountId: string): Promise<number> {
     const adapter = await this.registry.get(brokerAccountId);
     const balance = await adapter.getAccountBalance();
-    this.repo.updateBalanceCache(brokerAccountId, balance, new Date().toISOString());
+    this.repo.updateBalanceCache(
+      brokerAccountId,
+      balance,
+      new Date().toISOString(),
+    );
     return balance;
   }
 
-  async refreshAll(brokerAccountIds: string[]): Promise<Array<{ id: string; balance?: number; error?: string }>> {
+  async refreshAll(
+    brokerAccountIds: string[],
+  ): Promise<Array<{ id: string; balance?: number; error?: string }>> {
     return Promise.all(
       brokerAccountIds.map(async (id) => {
         try {
           const balance = await this.refreshBalance(id);
           return { id, balance };
         } catch (error) {
-          return { id, error: error instanceof Error ? error.message : String(error) };
+          return {
+            id,
+            error: error instanceof Error ? error.message : String(error),
+          };
         }
       }),
     );

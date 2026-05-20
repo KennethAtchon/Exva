@@ -2,7 +2,11 @@
  * Per-1M token USD rates for spend guards and persisted cost estimates.
  * Longest matching prefix wins (plan § Phase 0).
  */
-export const MODEL_PRICING_USD_PER_1M: Array<{ prefix: string; inputPer1M: number; outputPer1M: number }> = [
+export const MODEL_PRICING_USD_PER_1M: Array<{
+  prefix: string;
+  inputPer1M: number;
+  outputPer1M: number;
+}> = [
   // Anthropic (direct)
   { prefix: "claude-opus", inputPer1M: 15, outputPer1M: 75 },
   { prefix: "claude-sonnet", inputPer1M: 3, outputPer1M: 15 },
@@ -35,17 +39,32 @@ export const MODEL_PRICING_USD_PER_1M: Array<{ prefix: string; inputPer1M: numbe
   { prefix: "", inputPer1M: 1, outputPer1M: 1 },
 ];
 
-export function resolveModelPricingRates(modelId: string): { inputPer1M: number; outputPer1M: number } {
+export function resolveModelPricingRates(modelId: string): {
+  inputPer1M: number;
+  outputPer1M: number;
+} {
   const lower = modelId.toLowerCase();
   let match = MODEL_PRICING_USD_PER_1M[MODEL_PRICING_USD_PER_1M.length - 1];
   for (const row of MODEL_PRICING_USD_PER_1M) {
-    if (lower.startsWith(row.prefix) && row.prefix.length >= (match?.prefix.length ?? 0)) match = row;
+    if (
+      lower.startsWith(row.prefix) &&
+      row.prefix.length >= (match?.prefix.length ?? 0)
+    )
+      match = row;
   }
-  return match ? { inputPer1M: match.inputPer1M, outputPer1M: match.outputPer1M } : { inputPer1M: 1, outputPer1M: 1 };
+  return match
+    ? { inputPer1M: match.inputPer1M, outputPer1M: match.outputPer1M }
+    : { inputPer1M: 1, outputPer1M: 1 };
 }
 
-export function estimateCostUsd(modelId: string, inputTokens: number, outputTokens: number): number {
+export function estimateCostUsd(
+  modelId: string,
+  inputTokens: number,
+  outputTokens: number,
+): number {
   const { inputPer1M, outputPer1M } = resolveModelPricingRates(modelId);
-  const raw = (inputTokens / 1_000_000) * inputPer1M + (outputTokens / 1_000_000) * outputPer1M;
+  const raw =
+    (inputTokens / 1_000_000) * inputPer1M +
+    (outputTokens / 1_000_000) * outputPer1M;
   return Number(raw.toFixed(6));
 }

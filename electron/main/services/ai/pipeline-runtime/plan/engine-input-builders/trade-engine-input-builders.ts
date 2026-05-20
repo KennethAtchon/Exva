@@ -4,7 +4,10 @@ import type { EngineInputBuilder } from "../engine/input-builder-registry";
 export const candidateValidationInputBuilder: EngineInputBuilder = {
   id: "candidate-validation",
   async build({ planCtx: ctx }) {
-    const { adapter } = await ctx.services.brokerRouting.resolveAdapter(ctx.sessionId, ctx.instrument.instrumentClass);
+    const { adapter } = await ctx.services.brokerRouting.resolveAdapter(
+      ctx.sessionId,
+      ctx.instrument.instrumentClass,
+    );
     const wireSymbol = ctx.services.instrumentNormalizer.toBrokerSymbol({
       symbol: ctx.instrument.symbol,
       instrumentClass: ctx.instrument.instrumentClass,
@@ -34,7 +37,10 @@ export const candidateValidationInputBuilder: EngineInputBuilder = {
   applyOutput(state, output) {
     const validation = output as { allowed: boolean; reasons: string[] };
     if (!validation.allowed) {
-      throw new AppError(`Candidate validation failed: ${validation.reasons.join("; ")}`, "VALIDATION_FAILED");
+      throw new AppError(
+        `Candidate validation failed: ${validation.reasons.join("; ")}`,
+        "VALIDATION_FAILED",
+      );
     }
     return state;
   },
@@ -46,7 +52,9 @@ export const executionProfileInputBuilder: EngineInputBuilder = {
     const decision = state.decision;
     const review = state.review;
     if (!decision || !review) {
-      throw new Error("execution-profile input builder requires decision and review in state");
+      throw new Error(
+        "execution-profile input builder requires decision and review in state",
+      );
     }
     return {
       task: {
@@ -64,7 +72,10 @@ export const executionProfileInputBuilder: EngineInputBuilder = {
     };
   },
   applyOutput(state, output) {
-    return { ...state, executionProfile: output as typeof state.executionProfile };
+    return {
+      ...state,
+      executionProfile: output as typeof state.executionProfile,
+    };
   },
 };
 
@@ -74,7 +85,9 @@ export const riskGateInputBuilder: EngineInputBuilder = {
     const decision = state.decision;
     const executionProfile = state.executionProfile;
     if (!decision || !executionProfile) {
-      throw new Error("risk-gate input builder requires decision and executionProfile in state");
+      throw new Error(
+        "risk-gate input builder requires decision and executionProfile in state",
+      );
     }
 
     const stats = ctx.services.statsRepo.dashboardStats(
@@ -103,17 +116,27 @@ export const riskGateInputBuilder: EngineInputBuilder = {
         },
         confidence: decision.output.confidence,
         riskPolicy: {
-          waitForOpenThreshold: ctx.strategyContext.riskConfig.waitForOpenThreshold,
+          waitForOpenThreshold:
+            ctx.strategyContext.riskConfig.waitForOpenThreshold,
           maxExposureUsd:
-            ctx.instrument.instrumentClass === "prediction_market" ? ctx.strategyContext.riskConfig.maxExposureUsd : null,
+            ctx.instrument.instrumentClass === "prediction_market"
+              ? ctx.strategyContext.riskConfig.maxExposureUsd
+              : null,
         },
       },
     };
   },
   applyOutput(state, output) {
-    const risk = output as { allowed: boolean; reason?: string; value?: typeof state.riskOrder };
+    const risk = output as {
+      allowed: boolean;
+      reason?: string;
+      value?: typeof state.riskOrder;
+    };
     if (!risk.allowed || !risk.value) {
-      throw new AppError(risk.reason ?? "Trade rejected by risk engine", "VALIDATION_FAILED");
+      throw new AppError(
+        risk.reason ?? "Trade rejected by risk engine",
+        "VALIDATION_FAILED",
+      );
     }
     return { ...state, riskOrder: risk.value };
   },
@@ -124,9 +147,14 @@ export const brokerAllocationInputBuilder: EngineInputBuilder = {
   build({ planCtx: ctx, state }) {
     const riskOrder = state.riskOrder;
     if (!riskOrder) {
-      throw new Error("broker-allocation input builder requires riskOrder in state");
+      throw new Error(
+        "broker-allocation input builder requires riskOrder in state",
+      );
     }
-    const brokerAccountId = ctx.services.brokerRouting.resolveBrokerAccountId(ctx.sessionId, ctx.instrument.instrumentClass);
+    const brokerAccountId = ctx.services.brokerRouting.resolveBrokerAccountId(
+      ctx.sessionId,
+      ctx.instrument.instrumentClass,
+    );
     return {
       task: {
         brokerAccountId,
@@ -139,14 +167,26 @@ export const brokerAllocationInputBuilder: EngineInputBuilder = {
   },
   applyOutput(state, output) {
     const brokerAllocation = output as typeof state.brokerAllocation;
-    const brokerAccountId = (output as { brokerAccountId?: string }).brokerAccountId;
+    const brokerAccountId = (output as { brokerAccountId?: string })
+      .brokerAccountId;
     if (!brokerAllocation?.allocation.ok) {
-      throw new AppError(brokerAllocation?.allocation.reason ?? "Broker allocation rejected order", "VALIDATION_FAILED");
+      throw new AppError(
+        brokerAllocation?.allocation.reason ??
+          "Broker allocation rejected order",
+        "VALIDATION_FAILED",
+      );
     }
     if (!brokerAllocation.conflict.ok) {
-      throw new AppError(brokerAllocation.conflict.reason ?? "Instrument conflict blocked order", "VALIDATION_FAILED");
+      throw new AppError(
+        brokerAllocation.conflict.reason ?? "Instrument conflict blocked order",
+        "VALIDATION_FAILED",
+      );
     }
-    return { ...state, brokerAllocation, brokerAccountId: brokerAccountId ?? state.brokerAccountId };
+    return {
+      ...state,
+      brokerAllocation,
+      brokerAccountId: brokerAccountId ?? state.brokerAccountId,
+    };
   },
 };
 

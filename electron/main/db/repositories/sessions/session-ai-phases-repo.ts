@@ -1,10 +1,16 @@
 import { and, eq } from "drizzle-orm";
 import { AppError } from "@electron/shared/infra/errors";
-import type { PipelinePhase, SessionAiPhase, SessionAiPhaseWorker } from "@electron/shared/ai/pipeline-phase";
+import type {
+  PipelinePhase,
+  SessionAiPhase,
+  SessionAiPhaseWorker,
+} from "@electron/shared/ai/pipeline-phase";
 import { sessionAiPhases, sessionAiPhaseWorkers } from "../../schema";
 import type { DbClient } from "../../client";
 
-function toSessionAiPhase(row: typeof sessionAiPhases.$inferSelect): SessionAiPhase {
+function toSessionAiPhase(
+  row: typeof sessionAiPhases.$inferSelect,
+): SessionAiPhase {
   return {
     sessionId: row.sessionId,
     phase: row.phase as PipelinePhase,
@@ -18,7 +24,9 @@ function toSessionAiPhase(row: typeof sessionAiPhases.$inferSelect): SessionAiPh
   };
 }
 
-function toSessionAiPhaseWorker(row: typeof sessionAiPhaseWorkers.$inferSelect): SessionAiPhaseWorker {
+function toSessionAiPhaseWorker(
+  row: typeof sessionAiPhaseWorkers.$inferSelect,
+): SessionAiPhaseWorker {
   return {
     sessionId: row.sessionId,
     phase: row.phase as PipelinePhase,
@@ -48,7 +56,12 @@ export class SessionAiPhasesRepo {
     const row = this.client.db
       .select()
       .from(sessionAiPhases)
-      .where(and(eq(sessionAiPhases.sessionId, sessionId), eq(sessionAiPhases.phase, phase)))
+      .where(
+        and(
+          eq(sessionAiPhases.sessionId, sessionId),
+          eq(sessionAiPhases.phase, phase),
+        ),
+      )
       .get();
     return row ? toSessionAiPhase(row) : null;
   }
@@ -65,7 +78,10 @@ export class SessionAiPhasesRepo {
     return phaseConfig;
   }
 
-  upsertPhase(sessionId: string, patch: Partial<SessionAiPhase> & { phase: PipelinePhase }): void {
+  upsertPhase(
+    sessionId: string,
+    patch: Partial<SessionAiPhase> & { phase: PipelinePhase },
+  ): void {
     const now = new Date().toISOString();
     this.client.db
       .insert(sessionAiPhases)
@@ -95,7 +111,10 @@ export class SessionAiPhasesRepo {
       .run();
   }
 
-  backfillMissingProviderModel(defaults: { providerKey: string; modelId: string }): number {
+  backfillMissingProviderModel(defaults: {
+    providerKey: string;
+    modelId: string;
+  }): number {
     if (!defaults.providerKey.trim() || !defaults.modelId.trim()) return 0;
     const rows = this.client.db.select().from(sessionAiPhases).all();
     let updated = 0;
@@ -104,7 +123,12 @@ export class SessionAiPhasesRepo {
         if (row.providerKey?.trim() && row.modelId?.trim()) continue;
         tx.update(sessionAiPhases)
           .set({ providerKey: defaults.providerKey, modelId: defaults.modelId })
-          .where(and(eq(sessionAiPhases.sessionId, row.sessionId), eq(sessionAiPhases.phase, row.phase)))
+          .where(
+            and(
+              eq(sessionAiPhases.sessionId, row.sessionId),
+              eq(sessionAiPhases.phase, row.phase),
+            ),
+          )
           .run();
         updated += 1;
       }
@@ -121,7 +145,11 @@ export class SessionAiPhasesRepo {
     return rows.map(toSessionAiPhaseWorker);
   }
 
-  getWorker(sessionId: string, phase: PipelinePhase, workerId: string): SessionAiPhaseWorker | null {
+  getWorker(
+    sessionId: string,
+    phase: PipelinePhase,
+    workerId: string,
+  ): SessionAiPhaseWorker | null {
     const row = this.client.db
       .select()
       .from(sessionAiPhaseWorkers)
@@ -152,7 +180,11 @@ export class SessionAiPhasesRepo {
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: [sessionAiPhaseWorkers.sessionId, sessionAiPhaseWorkers.phase, sessionAiPhaseWorkers.workerId],
+        target: [
+          sessionAiPhaseWorkers.sessionId,
+          sessionAiPhaseWorkers.phase,
+          sessionAiPhaseWorkers.workerId,
+        ],
         set: {
           providerKey: patch.providerKey ?? null,
           modelId: patch.modelId ?? null,

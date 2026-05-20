@@ -2,10 +2,11 @@
 
 > **Status:** Not started
 > **Files to create:**
+>
 > - `electron/main/services/broker/mock/mock-market-simulator.ts`
 > - `electron/main/services/broker/mock/mock-scenario-fixtures.ts`
 > - `electron/main/services/broker/mock/mock-execution-faults.ts`
-> **Files to modify:**
+>   **Files to modify:**
 > - `electron/main/services/broker/adapters/mock-adapter.ts` (fix PnL, add bid/ask, add timeframe param)
 > - `electron/main/services/broker/adapters/broker-adapter.ts` (expand `MarketSnapshot`)
 > - `electron/main/services/ai/tools/market-tools.ts` (add `timeframe` param to `get_ohlcv`)
@@ -23,16 +24,16 @@ Mock mode must be able to simulate losing trades, bad fills, stale data, rejecte
 
 ```ts
 export type MockScenarioKind =
-  | "clean_breakout"       // bullish trend, clean fill, stop never hit, take-profit exits
-  | "failed_breakout"      // entry on breakout, reversal, stop-loss triggered
-  | "sideways_chop"        // no clear signal, selector should produce no-trade
+  | "clean_breakout" // bullish trend, clean fill, stop never hit, take-profit exits
+  | "failed_breakout" // entry on breakout, reversal, stop-loss triggered
+  | "sideways_chop" // no clear signal, selector should produce no-trade
   | "gap_down_after_entry" // opens with large gap below entry; stop hit immediately
-  | "news_reversal"        // bullish chart but bearish news catalyst; reviewer should reject
-  | "stale_quote"          // quote timestamp is 10+ min old; freshness gate blocks
-  | "wide_spread"          // bid/ask spread > threshold; spread gate blocks
-  | "partial_fill"         // broker fills only 40–70% of requested size
-  | "broker_reject"        // broker returns order rejection; capital reservation released
-  | "rate_limit";          // broker returns 429; step runner retries with backoff
+  | "news_reversal" // bullish chart but bearish news catalyst; reviewer should reject
+  | "stale_quote" // quote timestamp is 10+ min old; freshness gate blocks
+  | "wide_spread" // bid/ask spread > threshold; spread gate blocks
+  | "partial_fill" // broker fills only 40–70% of requested size
+  | "broker_reject" // broker returns order rejection; capital reservation released
+  | "rate_limit"; // broker returns 429; step runner retries with backoff
 ```
 
 ---
@@ -50,28 +51,42 @@ All prices use a `BASE_PRICE` of `100.00` for clarity. Adapters apply a symbol-s
 **Purpose:** Happy path. All gates pass. Exit via take-profit.
 
 **Quote / snapshot:**
+
 ```ts
 { price: 105.00, bid: 104.90, ask: 105.10, spreadPct: 0.19, volume: 850_000, timestamp: now() }
 ```
 
 **OHLCV (4h, 30 bars):**
+
 - Steady uptrend: each bar closes ~0.4% above previous close
 - No bar closes below the prior low (clean structure)
 - Final bar: strong close with above-average volume
 
 **Social/news:**
+
 ```ts
 news: [
-  { headline: `${symbol} reports earnings beat, raises guidance`, sentiment: "bullish" },
-  { headline: `${symbol} breaks multi-week resistance on volume`, sentiment: "bullish" },
-]
+  {
+    headline: `${symbol} reports earnings beat, raises guidance`,
+    sentiment: "bullish",
+  },
+  {
+    headline: `${symbol} breaks multi-week resistance on volume`,
+    sentiment: "bullish",
+  },
+];
 reddit: [
-  { body: `$${symbol} setting up for a breakout, volume confirming`, score: 420, sentiment: "bullish" },
-]
-trending: [symbol]
+  {
+    body: `$${symbol} setting up for a breakout, volume confirming`,
+    score: 420,
+    sentiment: "bullish",
+  },
+];
+trending: [symbol];
 ```
 
 **Broker behavior:**
+
 - `placeOrder`: full fill at `quote.price`
 - `getOrderStatus`: returns `open` for 2 ticks, then `closed` (simulating take-profit hit at broker)
 - `closeOrder`: PnL = `+entry * takeProfitPct / 100 * sizeUsd / entry` → positive
@@ -85,26 +100,34 @@ trending: [symbol]
 **Purpose:** Entry on breakout signal, price reverses, stop-loss triggered. Negative PnL.
 
 **Quote / snapshot:**
+
 ```ts
 { price: 102.00, bid: 101.85, ask: 102.15, spreadPct: 0.29, volume: 620_000, timestamp: now() }
 ```
 
 **OHLCV (4h, 30 bars):**
+
 - 25 bars trending up, final 5 bars showing sharp reversal
 - Last bar closes below 20-bar moving average
 - Volume spike on reversal bar
 
 **Social/news:**
+
 ```ts
 news: [
   { headline: `${symbol} faces regulatory headwinds`, sentiment: "bearish" },
-]
+];
 reddit: [
-  { body: `${symbol} breakout failed, looks like distribution to me`, score: 180, sentiment: "bearish" },
-]
+  {
+    body: `${symbol} breakout failed, looks like distribution to me`,
+    score: 180,
+    sentiment: "bearish",
+  },
+];
 ```
 
 **Broker behavior:**
+
 - `placeOrder`: full fill at `quote.price`
 - `getOrderStatus`: returns `open` for 1 tick
 - `closeOrder` (triggered by `ExitPolicyEvaluator`): PnL = `-(stopLossPct / 100) * sizeUsd` → negative
@@ -118,22 +141,32 @@ reddit: [
 **Purpose:** No clear directional signal. AI should return `action: "no_trade"`. No order placed.
 
 **Quote / snapshot:**
+
 ```ts
 { price: 100.00, bid: 99.80, ask: 100.20, spreadPct: 0.40, volume: 180_000, timestamp: now() }
 ```
 
 **OHLCV (4h, 30 bars):**
+
 - Price oscillates ±2% around 100 with no sustained trend
 - Multiple failed breakout attempts (fakeouts above and below)
 
 **Social/news:**
+
 ```ts
 news: [
-  { headline: `${symbol} reports in-line quarter, no surprises`, sentiment: "neutral" },
-]
+  {
+    headline: `${symbol} reports in-line quarter, no surprises`,
+    sentiment: "neutral",
+  },
+];
 reddit: [
-  { body: `${symbol} going nowhere, just chop`, score: 55, sentiment: "neutral" },
-]
+  {
+    body: `${symbol} going nowhere, just chop`,
+    score: 55,
+    sentiment: "neutral",
+  },
+];
 ```
 
 **Broker behavior:** Not reached.
@@ -147,25 +180,36 @@ reddit: [
 **Purpose:** Trade opens, next bar gaps down massively (e.g. earnings miss). Stop-loss hits immediately on monitor tick.
 
 **Quote / snapshot:**
+
 ```ts
 { price: 98.00, bid: 97.80, ask: 98.20, spreadPct: 0.20, volume: 400_000, timestamp: now() }
 ```
 
 **OHLCV (4h, 30 bars):**
+
 - 29 bars normal uptrend
 - Final bar: gap down to ~85.00 (−13%), closes near lows
 
 **Social/news:**
+
 ```ts
 news: [
-  { headline: `${symbol} misses earnings by wide margin, guides lower`, sentiment: "bearish" },
-]
+  {
+    headline: `${symbol} misses earnings by wide margin, guides lower`,
+    sentiment: "bearish",
+  },
+];
 reddit: [
-  { body: `${symbol} blood bath after earnings, holders not ok`, score: 2300, sentiment: "bearish" },
-]
+  {
+    body: `${symbol} blood bath after earnings, holders not ok`,
+    score: 2300,
+    sentiment: "bearish",
+  },
+];
 ```
 
 **Broker behavior:**
+
 - `placeOrder`: fills at `98.00`
 - On next `getOrderStatus` tick: `latestPrice = 85.00`
 - `closeOrder`: PnL = `(85.00 - 98.00) / 98.00 * sizeUsd` → large negative
@@ -179,22 +223,32 @@ reddit: [
 **Purpose:** Bullish chart + bearish news. AI reviewer/decision should reject. Tests that news content actually influences the decision.
 
 **Quote / snapshot:**
+
 ```ts
 { price: 103.00, bid: 102.85, ask: 103.15, spreadPct: 0.14, volume: 700_000, timestamp: now() }
 ```
 
 **OHLCV (4h, 30 bars):**
+
 - Clean uptrend (technical analyst would score bullish)
 
 **Social/news:**
+
 ```ts
 news: [
-  { headline: `${symbol} under SEC investigation for accounting irregularities`, sentiment: "bearish" },
+  {
+    headline: `${symbol} under SEC investigation for accounting irregularities`,
+    sentiment: "bearish",
+  },
   { headline: `${symbol} CFO resigns unexpectedly`, sentiment: "bearish" },
-]
+];
 reddit: [
-  { body: `${symbol} chart looks great but the news is catastrophic. Staying away.`, score: 890, sentiment: "bearish" },
-]
+  {
+    body: `${symbol} chart looks great but the news is catastrophic. Staying away.`,
+    score: 890,
+    sentiment: "bearish",
+  },
+];
 ```
 
 **Broker behavior:** Not reached if AI correctly rejects.
@@ -208,6 +262,7 @@ reddit: [
 **Purpose:** Quote timestamp is old. Freshness gate (`data_freshness` in `OrderPolicyGate`, `CV-5` in `CandidateValidationService`) must block the order.
 
 **Quote / snapshot:**
+
 ```ts
 {
   price: 100.00,
@@ -234,6 +289,7 @@ reddit: [
 **Purpose:** Bid/ask spread exceeds per-class threshold. `OrderPolicyGate.spread` gate blocks.
 
 **Quote / snapshot:**
+
 ```ts
 // Stock with 2.5% spread — threshold is 0.5%
 { price: 100.00, bid: 97.50, ask: 102.50, spreadPct: 5.0, volume: 200_000, timestamp: now() }
@@ -254,6 +310,7 @@ reddit: [
 **Purpose:** Broker fills only 40–70% of requested size. System records the actual fill, not the requested size.
 
 **Quote / snapshot:**
+
 ```ts
 { price: 100.00, bid: 99.90, ask: 100.10, spreadPct: 0.10, volume: 600_000, timestamp: now() }
 ```
@@ -261,6 +318,7 @@ reddit: [
 **OHLCV:** Normal bullish.
 
 **Broker behavior:**
+
 ```ts
 placeOrder: returns {
   brokerOrderId: "mock_partial_xxx",
@@ -282,11 +340,13 @@ placeOrder: returns {
 **Purpose:** Broker rejects the order. Capital reservation released. Cycle marked failed (non-retryable).
 
 **Quote / snapshot:**
+
 ```ts
 { price: 100.00, bid: 99.90, ask: 100.10, spreadPct: 0.10, volume: 500_000, timestamp: now() }
 ```
 
 **Broker behavior:**
+
 ```ts
 placeOrder: throws BrokerError({ code: "ORDER_REJECTED", message: "Insufficient margin" })
 ```
@@ -302,6 +362,7 @@ placeOrder: throws BrokerError({ code: "ORDER_REJECTED", message: "Insufficient 
 **Quote / snapshot:** Normal.
 
 **Broker behavior:**
+
 ```ts
 // First 2 placeOrder calls: throw BrokerError({ code: "RATE_LIMITED", httpStatus: 429 })
 // Third call: succeeds normally
@@ -316,18 +377,22 @@ placeOrder: throws BrokerError({ code: "ORDER_REJECTED", message: "Insufficient 
 ### Fix `closeOrder()` PnL (A2)
 
 **Current** (line 110):
+
 ```ts
-const realizedPnlUsd = existing ? Number((existing.price * 0.002).toFixed(2)) : 0;
+const realizedPnlUsd = existing
+  ? Number((existing.price * 0.002).toFixed(2))
+  : 0;
 ```
 
 **Target:**
+
 ```ts
 // Track entry price per order (already done in `this.orders` Map as `existing.price`)
 // closePrice comes from: scenario progression or current priceFor() at close time
 const entryPrice = existing.price;
 const closePrice = this.currentPriceFor(existing.order.instrumentSymbol);
 const direction = existing.order.side === "BUY" ? 1 : -1;
-const pnlPct = direction * (closePrice - entryPrice) / entryPrice;
+const pnlPct = (direction * (closePrice - entryPrice)) / entryPrice;
 const realizedPnlUsd = Number((pnlPct * existing.order.sizeUsd).toFixed(2));
 ```
 
@@ -344,16 +409,17 @@ getMockOhlcv(
 ```
 
 Bar spacing:
+
 ```ts
 const BAR_MS: Record<TradingTimeframe, number> = {
-  "1m":  60_000,
-  "5m":  5 * 60_000,
+  "1m": 60_000,
+  "5m": 5 * 60_000,
   "15m": 15 * 60_000,
   "30m": 30 * 60_000,
-  "1h":  60 * 60_000,
-  "4h":  4 * 60 * 60_000,
-  "1d":  24 * 60 * 60_000,
-  "1w":  7 * 24 * 60 * 60_000,
+  "1h": 60 * 60_000,
+  "4h": 4 * 60 * 60_000,
+  "1d": 24 * 60 * 60_000,
+  "1w": 7 * 24 * 60 * 60_000,
 };
 ```
 
@@ -363,6 +429,7 @@ const BAR_MS: Record<TradingTimeframe, number> = {
 The `trendStart` is computed as `base * exp(-drift * (barCount - 1))`, so the oldest bar is lowest and recent bars approach `base`. This is correct for uptrend. But if `dailyDrift` is the wrong sign, it goes down.
 
 **Fix:** Ensure `dailyDrift` is always positive in the synthetic fallback (it represents a neutral drift toward spot from below):
+
 ```ts
 const dailyDrift = Math.abs(0.002); // always up toward spot
 const trendStart = base * Math.exp(-dailyDrift * (barCount - 1));
@@ -407,7 +474,8 @@ Pass `timeframe` through to `MockBrokerAdapter.getMockOhlcv(symbol, barCount, ti
 
 if (!deps.mockPosts && !deps.redditOAuthToken) {
   return {
-    error: "Reddit search is not available in live mode without OAuth authentication. Configure a Reddit OAuth token or disable the Reddit tool.",
+    error:
+      "Reddit search is not available in live mode without OAuth authentication. Configure a Reddit OAuth token or disable the Reddit tool.",
     posts: [],
   };
 }
@@ -424,63 +492,113 @@ The `deps.redditOAuthToken` field does not exist yet — it must be added to the
 
 export const SCENARIO_NEWS: Record<MockScenarioKind, NewsItem[]> = {
   clean_breakout: [
-    { headline: "{symbol} reports earnings beat, raises guidance", sentiment: "bullish" },
-    { headline: "{symbol} breaks multi-week resistance on volume", sentiment: "bullish" },
+    {
+      headline: "{symbol} reports earnings beat, raises guidance",
+      sentiment: "bullish",
+    },
+    {
+      headline: "{symbol} breaks multi-week resistance on volume",
+      sentiment: "bullish",
+    },
   ],
   failed_breakout: [
     { headline: "{symbol} faces regulatory headwinds", sentiment: "bearish" },
   ],
   sideways_chop: [
-    { headline: "{symbol} reports in-line quarter, no surprises", sentiment: "neutral" },
+    {
+      headline: "{symbol} reports in-line quarter, no surprises",
+      sentiment: "neutral",
+    },
   ],
   gap_down_after_entry: [
-    { headline: "{symbol} misses earnings by wide margin, guides lower", sentiment: "bearish" },
+    {
+      headline: "{symbol} misses earnings by wide margin, guides lower",
+      sentiment: "bearish",
+    },
   ],
   news_reversal: [
-    { headline: "{symbol} under SEC investigation for accounting irregularities", sentiment: "bearish" },
+    {
+      headline:
+        "{symbol} under SEC investigation for accounting irregularities",
+      sentiment: "bearish",
+    },
     { headline: "{symbol} CFO resigns unexpectedly", sentiment: "bearish" },
   ],
-  stale_quote:     [],  // news not relevant — freshness gate fires first
-  wide_spread:     [],  // news not relevant — spread gate fires first
-  partial_fill:    [{ headline: "{symbol} shows steady momentum", sentiment: "bullish" }],
-  broker_reject:   [{ headline: "{symbol} bouncing off support", sentiment: "bullish" }],
-  rate_limit:      [{ headline: "{symbol} trending higher", sentiment: "bullish" }],
+  stale_quote: [], // news not relevant — freshness gate fires first
+  wide_spread: [], // news not relevant — spread gate fires first
+  partial_fill: [
+    { headline: "{symbol} shows steady momentum", sentiment: "bullish" },
+  ],
+  broker_reject: [
+    { headline: "{symbol} bouncing off support", sentiment: "bullish" },
+  ],
+  rate_limit: [{ headline: "{symbol} trending higher", sentiment: "bullish" }],
 };
 
 export const SCENARIO_REDDIT: Record<MockScenarioKind, RedditPost[]> = {
   clean_breakout: [
-    { body: "${{symbol}} breakout confirmed, volume is there", score: 420, sentiment: "bullish" },
+    {
+      body: "${{symbol}} breakout confirmed, volume is there",
+      score: 420,
+      sentiment: "bullish",
+    },
   ],
   failed_breakout: [
-    { body: "{{symbol}} failed breakout, looks like distribution", score: 180, sentiment: "bearish" },
+    {
+      body: "{{symbol}} failed breakout, looks like distribution",
+      score: 180,
+      sentiment: "bearish",
+    },
   ],
   sideways_chop: [
-    { body: "{{symbol}} going sideways, nothing to do here", score: 55, sentiment: "neutral" },
+    {
+      body: "{{symbol}} going sideways, nothing to do here",
+      score: 55,
+      sentiment: "neutral",
+    },
   ],
   gap_down_after_entry: [
-    { body: "{{symbol}} after-hours collapse, down 13%", score: 2300, sentiment: "bearish" },
+    {
+      body: "{{symbol}} after-hours collapse, down 13%",
+      score: 2300,
+      sentiment: "bearish",
+    },
   ],
   news_reversal: [
-    { body: "{{symbol}} chart looks great but the news is catastrophic", score: 890, sentiment: "bearish" },
+    {
+      body: "{{symbol}} chart looks great but the news is catastrophic",
+      score: 890,
+      sentiment: "bearish",
+    },
   ],
-  stale_quote:   [],
-  wide_spread:   [],
-  partial_fill:  [{ body: "{{symbol}} momentum play", score: 200, sentiment: "bullish" }],
-  broker_reject: [{ body: "{{symbol}} dip buy setup", score: 150, sentiment: "bullish" }],
-  rate_limit:    [{ body: "{{symbol}} consolidating nicely", score: 300, sentiment: "bullish" }],
+  stale_quote: [],
+  wide_spread: [],
+  partial_fill: [
+    { body: "{{symbol}} momentum play", score: 200, sentiment: "bullish" },
+  ],
+  broker_reject: [
+    { body: "{{symbol}} dip buy setup", score: 150, sentiment: "bullish" },
+  ],
+  rate_limit: [
+    {
+      body: "{{symbol}} consolidating nicely",
+      score: 300,
+      sentiment: "bullish",
+    },
+  ],
 };
 
 export const SCENARIO_TRENDING: Record<MockScenarioKind, string[]> = {
-  clean_breakout:      ["SYMBOL"],
-  failed_breakout:     [],          // not trending during reversal
-  sideways_chop:       [],
-  gap_down_after_entry:[],
-  news_reversal:       ["SYMBOL"],  // trending for wrong reasons
-  stale_quote:         [],
-  wide_spread:         [],
-  partial_fill:        ["SYMBOL"],
-  broker_reject:       [],
-  rate_limit:          ["SYMBOL"],
+  clean_breakout: ["SYMBOL"],
+  failed_breakout: [], // not trending during reversal
+  sideways_chop: [],
+  gap_down_after_entry: [],
+  news_reversal: ["SYMBOL"], // trending for wrong reasons
+  stale_quote: [],
+  wide_spread: [],
+  partial_fill: ["SYMBOL"],
+  broker_reject: [],
+  rate_limit: ["SYMBOL"],
 };
 ```
 
@@ -494,11 +612,11 @@ export const SCENARIO_TRENDING: Record<MockScenarioKind, string[]> = {
 // electron/main/services/broker/mock/mock-execution-faults.ts
 
 export interface MockFaultConfig {
-  partialFillPct?: number;          // 0.0–1.0; if set, placeOrder returns partial fill
-  rejectOrderWithCode?: string;     // if set, placeOrder throws BrokerError with this code
-  timeoutMs?: number;               // if set, placeOrder delays for this many ms before resolving
-  staleQuoteAgeMs?: number;         // if set, getMarketSnapshot returns timestamp this old
-  rateLimitOnAttempts?: number[];   // placeOrder throws 429 on these attempt numbers (1-indexed)
+  partialFillPct?: number; // 0.0–1.0; if set, placeOrder returns partial fill
+  rejectOrderWithCode?: string; // if set, placeOrder throws BrokerError with this code
+  timeoutMs?: number; // if set, placeOrder delays for this many ms before resolving
+  staleQuoteAgeMs?: number; // if set, getMarketSnapshot returns timestamp this old
+  rateLimitOnAttempts?: number[]; // placeOrder throws 429 on these attempt numbers (1-indexed)
 }
 ```
 

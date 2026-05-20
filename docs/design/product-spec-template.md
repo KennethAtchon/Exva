@@ -28,18 +28,18 @@ Describe the current problem in plain language.
 
 ## 3. Goals
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | [Goal] | [Observable user or product outcome] |
-| 2 | [Goal] | [Observable user or product outcome] |
-| 3 | [Goal] | [Observable user or product outcome] |
+| #   | Goal   | Success Looks Like                   |
+| --- | ------ | ------------------------------------ |
+| 1   | [Goal] | [Observable user or product outcome] |
+| 2   | [Goal] | [Observable user or product outcome] |
+| 3   | [Goal] | [Observable user or product outcome] |
 
 ## 4. Non-Goals
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | [What this feature will not do] | [Why it is intentionally excluded] |
-| 2 | [What this feature will not do] | [Why it is intentionally excluded] |
+| #   | Non-Goal                        | Reason                             |
+| --- | ------------------------------- | ---------------------------------- |
+| 1   | [What this feature will not do] | [Why it is intentionally excluded] |
+| 2   | [What this feature will not do] | [Why it is intentionally excluded] |
 
 ## 5. Users and User Stories
 
@@ -121,19 +121,19 @@ Create one subsection per screen, modal, drawer, or panel.
 
 **Key UI elements:**
 
-| Element | Type | Label / Content | Behavior |
-|---------|------|-----------------|----------|
+| Element   | Type                            | Label / Content      | Behavior                 |
+| --------- | ------------------------------- | -------------------- | ------------------------ |
 | [Element] | [Button / Input / Card / Table] | [Text shown to user] | [What happens when used] |
 | [Element] | [Button / Input / Card / Table] | [Text shown to user] | [What happens when used] |
 
 **States:**
 
-| State | Trigger | What the user sees |
-|-------|---------|--------------------|
-| Loading | [Condition] | [UI state] |
-| Empty | [Condition] | [UI state] |
-| Error | [Condition] | [UI state] |
-| Success | [Condition] | [UI state] |
+| State   | Trigger     | What the user sees |
+| ------- | ----------- | ------------------ |
+| Loading | [Condition] | [UI state]         |
+| Empty   | [Condition] | [UI state]         |
+| Error   | [Condition] | [UI state]         |
+| Success | [Condition] | [UI state]         |
 
 Repeat this subsection for every additional screen.
 
@@ -175,10 +175,10 @@ sequenceDiagram
 
 List the important product-level fields or concepts the user interacts with.
 
-| User-facing item | Meaning | Editable? | Source of truth |
-|------------------|---------|-----------|-----------------|
-| [Example: Session name] | [What it means to the user] | Yes / No | [System or entity] |
-| [Example: Status badge] | [What it means to the user] | Yes / No | [System or entity] |
+| User-facing item        | Meaning                     | Editable? | Source of truth    |
+| ----------------------- | --------------------------- | --------- | ------------------ |
+| [Example: Session name] | [What it means to the user] | Yes / No  | [System or entity] |
+| [Example: Status badge] | [What it means to the user] | Yes / No  | [System or entity] |
 
 ## 11. Rules and Behavior
 
@@ -194,10 +194,10 @@ List the product rules in direct language.
 
 If the feature has different behaviors by role, list them clearly.
 
-| Role / User Type | Can View | Can Create | Can Edit | Can Delete | Notes |
-|------------------|----------|------------|----------|------------|-------|
-| [Role] | Yes / No | Yes / No | Yes / No | Yes / No | [Notes] |
-| [Role] | Yes / No | Yes / No | Yes / No | Yes / No | [Notes] |
+| Role / User Type | Can View | Can Create | Can Edit | Can Delete | Notes   |
+| ---------------- | -------- | ---------- | -------- | ---------- | ------- |
+| [Role]           | Yes / No | Yes / No   | Yes / No | Yes / No   | [Notes] |
+| [Role]           | Yes / No | Yes / No   | Yes / No | Yes / No   | [Notes] |
 
 If there is no role difference, say so explicitly.
 
@@ -205,16 +205,16 @@ If there is no role difference, say so explicitly.
 
 Write the real strings the user should see.
 
-| Location | Final copy | Notes |
-|----------|------------|-------|
-| Primary CTA | "[Exact text]" | [When shown] |
-| Error state | "[Exact text]" | [When shown] |
+| Location      | Final copy     | Notes        |
+| ------------- | -------------- | ------------ |
+| Primary CTA   | "[Exact text]" | [When shown] |
+| Error state   | "[Exact text]" | [When shown] |
 | Success toast | "[Exact text]" | [When shown] |
 
 ## 14. Metrics and Success Criteria
 
-| Goal | Metric | Baseline | Target | How measured |
-|------|--------|----------|--------|--------------|
+| Goal   | Metric   | Baseline        | Target          | How measured     |
+| ------ | -------- | --------------- | --------------- | ---------------- |
 | [Goal] | [Metric] | [Current state] | [Desired state] | [How to measure] |
 | [Goal] | [Metric] | [Current state] | [Desired state] | [How to measure] |
 
@@ -227,10 +227,10 @@ Write the real strings the user should see.
 
 ## 16. Open Questions
 
-| # | Question | Why it matters | Owner |
-|---|----------|----------------|-------|
-| 1 | [Question] | [Impact on product or scope] | [Owner] |
-| 2 | [Question] | [Impact on product or scope] | [Owner] |
+| #   | Question   | Why it matters               | Owner   |
+| --- | ---------- | ---------------------------- | ------- |
+| 1   | [Question] | [Impact on product or scope] | [Owner] |
+| 2   | [Question] | [Impact on product or scope] | [Owner] |
 
 ## 17. Acceptance Checklist
 

@@ -93,7 +93,9 @@ function baseContext(): SessionStrategyContext {
   };
 }
 
-function representativeTask(phase: "selector" | "technical" | "fundamental" | "review" | "decision"): Record<string, unknown> {
+function representativeTask(
+  phase: "selector" | "technical" | "fundamental" | "review" | "decision",
+): Record<string, unknown> {
   const technicalSignal = JSON.stringify({
     symbol: "AAPL",
     trendDirection: "bullish",
@@ -144,7 +146,8 @@ function representativeTask(phase: "selector" | "technical" | "fundamental" | "r
     case "fundamental":
       return {
         instrumentSymbol: "AAPL",
-        context: "Verified selector evidence: momentum breakout with recent catalyst confirmation.",
+        context:
+          "Verified selector evidence: momentum breakout with recent catalyst confirmation.",
       };
     case "review":
       return {
@@ -162,16 +165,24 @@ function representativeTask(phase: "selector" | "technical" | "fundamental" | "r
   }
 }
 
-function phaseAndWorkerFrom(file: string): { phase: "selector" | "technical" | "fundamental" | "review" | "decision"; workerId: string } {
+function phaseAndWorkerFrom(file: string): {
+  phase: "selector" | "technical" | "fundamental" | "review" | "decision";
+  workerId: string;
+} {
   const relative = path.relative(PROMPTS_DIR, file);
   const firstSegment = relative.split(path.sep)[0] ?? "";
   const workerId = path.basename(file, ".md");
 
-  if (firstSegment.startsWith("selector-workers")) return { phase: "selector", workerId };
-  if (firstSegment.startsWith("technical-workers")) return { phase: "technical", workerId };
-  if (firstSegment.startsWith("fundamental-workers")) return { phase: "fundamental", workerId };
-  if (firstSegment.startsWith("review-workers")) return { phase: "review", workerId };
-  if (firstSegment.startsWith("decision-workers")) return { phase: "decision", workerId };
+  if (firstSegment.startsWith("selector-workers"))
+    return { phase: "selector", workerId };
+  if (firstSegment.startsWith("technical-workers"))
+    return { phase: "technical", workerId };
+  if (firstSegment.startsWith("fundamental-workers"))
+    return { phase: "fundamental", workerId };
+  if (firstSegment.startsWith("review-workers"))
+    return { phase: "review", workerId };
+  if (firstSegment.startsWith("decision-workers"))
+    return { phase: "decision", workerId };
 
   throw new Error(`Unknown prompt phase for ${relative}`);
 }

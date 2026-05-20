@@ -81,24 +81,49 @@ export interface ExvaApi {
     resume(): Promise<SessionStatus>;
     stop(): Promise<SessionStatus>;
     getStatus(): Promise<SessionStatus>;
-    getExecutionProgress(sessionId: string): Promise<SessionExecutionProgressResponse>;
-    retryStep(input: { sessionId: string; cycleId: string; stage: ExecutionStage }): Promise<{ ok: true } | { ok: false; reason: string }>;
+    getExecutionProgress(
+      sessionId: string,
+    ): Promise<SessionExecutionProgressResponse>;
+    retryStep(input: {
+      sessionId: string;
+      cycleId: string;
+      stage: ExecutionStage;
+    }): Promise<{ ok: true } | { ok: false; reason: string }>;
     pauseAfterCurrentStep(sessionId: string): Promise<{ ok: true }>;
-    clearFailedStep(input: { sessionId: string; cycleId: string; stage: ExecutionStage }): Promise<{ ok: true } | { ok: false; reason: string }>;
+    clearFailedStep(input: {
+      sessionId: string;
+      cycleId: string;
+      stage: ExecutionStage;
+    }): Promise<{ ok: true } | { ok: false; reason: string }>;
     list(filters?: {
       status?: SessionStatus;
       instrumentClass?: InstrumentClass;
       search?: string;
       includeArchived?: boolean;
-    }): Promise<{ workspaceViewMode: WorkspaceViewMode; focusedSessionId: string | null; sessions: SessionSummary[] }>;
+    }): Promise<{
+      workspaceViewMode: WorkspaceViewMode;
+      focusedSessionId: string | null;
+      sessions: SessionSummary[];
+    }>;
     create(input: SessionCreateInput): Promise<{ id: string; status: "draft" }>;
     update(id: string, input: SessionCreateInput): Promise<{ savedAt: string }>;
-    focus(id: string): Promise<{ workspaceViewMode: "session"; focusedSessionId: string }>;
-    goGlobal(): Promise<{ workspaceViewMode: "global"; focusedSessionId: null }>;
+    focus(
+      id: string,
+    ): Promise<{ workspaceViewMode: "session"; focusedSessionId: string }>;
+    goGlobal(): Promise<{
+      workspaceViewMode: "global";
+      focusedSessionId: null;
+    }>;
     archive(id: string): Promise<{ archived: true }>;
-    duplicate(sourceId: string, name: string): Promise<{ id: string; status: "draft" }>;
+    duplicate(
+      sourceId: string,
+      name: string,
+    ): Promise<{ id: string; status: "draft" }>;
     instrumentCacheGet(sessionId: string): Promise<{
-      instruments: Array<{ symbol: string; instrumentClass: InstrumentClass }> | null;
+      instruments: Array<{
+        symbol: string;
+        instrumentClass: InstrumentClass;
+      }> | null;
       selectedAt: string | null;
       definitionHashMatches: boolean;
     }>;
@@ -106,19 +131,32 @@ export interface ExvaApi {
     getLiveReadiness(sessionId: string): Promise<{
       readyToStart: boolean;
       allChecksPassed: boolean;
-      checks: Array<{ name: string; passed: boolean; requiresAck?: boolean; message?: string }>;
+      checks: Array<{
+        name: string;
+        passed: boolean;
+        requiresAck?: boolean;
+        message?: string;
+      }>;
       acknowledgedAt: string | null;
     }>;
-    acknowledgeLiveReadiness(sessionId: string): Promise<{ acknowledgedAt: string }>;
-    testLiveBrokerConnection(sessionId: string): Promise<{ ok: boolean; message: string }>;
+    acknowledgeLiveReadiness(
+      sessionId: string,
+    ): Promise<{ acknowledgedAt: string }>;
+    testLiveBrokerConnection(
+      sessionId: string,
+    ): Promise<{ ok: boolean; message: string }>;
   };
   workspace: {
     getView(): Promise<WorkspaceViewResponse>;
-    patchPreferences(patch: Partial<Omit<WorkspacePreferences, "id">>): Promise<WorkspacePreferences>;
+    patchPreferences(
+      patch: Partial<Omit<WorkspacePreferences, "id">>,
+    ): Promise<WorkspacePreferences>;
   };
   brokerAccounts: {
     list(): Promise<BrokerAccountWithState[]>;
-    refreshBalance(brokerAccountId: string): Promise<{ balanceUsd: number; cachedAt: string }>;
+    refreshBalance(
+      brokerAccountId: string,
+    ): Promise<{ balanceUsd: number; cachedAt: string }>;
     updateSettings(input: {
       brokerAccountId: string;
       maxSessions?: number;
@@ -127,7 +165,10 @@ export interface ExvaApi {
     }): Promise<{ ok: true }>;
   };
   templates: {
-    list(filters?: { search?: string; instrumentClass?: InstrumentClass }): Promise<{
+    list(filters?: {
+      search?: string;
+      instrumentClass?: InstrumentClass;
+    }): Promise<{
       templates: Array<{
         id: string;
         name: string;
@@ -145,19 +186,33 @@ export interface ExvaApi {
       payload: SessionTemplatePayload;
     }): Promise<{ id: string; updatedAt: string }>;
     delete(id: string): Promise<{ deleted: true }>;
-    use(id: string): Promise<{ payload: SessionTemplatePayload; clearedFields: string[] }>;
+    use(
+      id: string,
+    ): Promise<{ payload: SessionTemplatePayload; clearedFields: string[] }>;
     buildPayloadFromSession(sessionId: string): Promise<SessionTemplatePayload>;
   };
   strategy: {
     get(sessionId: string): Promise<StrategyGetResponse>;
     getResearchPosture(sessionId: string): Promise<SessionResearchPosture>;
-    saveResearchPosture(input: { sessionId: string; researchPosture: Partial<SessionResearchPosture> }): Promise<{ savedAt: string }>;
+    saveResearchPosture(input: {
+      sessionId: string;
+      researchPosture: Partial<SessionResearchPosture>;
+    }): Promise<{ savedAt: string }>;
     getRules(sessionId: string): Promise<SessionTradeRules>;
-    saveRules(input: { sessionId: string; rules: Partial<SessionTradeRules> }): Promise<{ savedAt: string }>;
+    saveRules(input: {
+      sessionId: string;
+      rules: Partial<SessionTradeRules>;
+    }): Promise<{ savedAt: string }>;
     getRiskConfig(sessionId: string): Promise<SessionRiskConfig>;
-    saveRiskConfig(input: { sessionId: string; riskConfig: Partial<SessionRiskConfig> }): Promise<{ savedAt: string }>;
+    saveRiskConfig(input: {
+      sessionId: string;
+      riskConfig: Partial<SessionRiskConfig>;
+    }): Promise<{ savedAt: string }>;
     getTimeframeConfig(sessionId: string): Promise<SessionTimeframeConfig>;
-    saveTimeframeConfig(input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }): Promise<{ savedAt: string }>;
+    saveTimeframeConfig(input: {
+      sessionId: string;
+      timeframe: Partial<SessionTimeframeConfig>;
+    }): Promise<{ savedAt: string }>;
     saveAiPhase(input: {
       sessionId: string;
       phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
@@ -178,15 +233,30 @@ export interface ExvaApi {
       spendLimitUsd?: number | null;
       promptMarkdown?: string | null;
     }): Promise<{ savedAt: string }>;
-    getProviderModels(providerKey: string): Promise<{ models: ProviderModelEntry[] }>;
+    getProviderModels(
+      providerKey: string,
+    ): Promise<{ models: ProviderModelEntry[] }>;
     globalPresets: {
       list(): Promise<{ presets: UserGlobalPresetRow[] }>;
-      create(input: { name: string; preset: Record<string, unknown> }): Promise<UserGlobalPresetRow>;
-      update(input: { id: string; name: string; preset: Record<string, unknown> }): Promise<{ ok: true }>;
+      create(input: {
+        name: string;
+        preset: Record<string, unknown>;
+      }): Promise<UserGlobalPresetRow>;
+      update(input: {
+        id: string;
+        name: string;
+        preset: Record<string, unknown>;
+      }): Promise<{ ok: true }>;
       delete(input: { id: string }): Promise<{ ok: true }>;
     };
-    getWorkspaceDefaultModel(): Promise<{ providerKey: string; modelId: string }>;
-    saveWorkspaceDefaultModel(input: { providerKey: string; modelId: string }): Promise<{ savedAt: string }>;
+    getWorkspaceDefaultModel(): Promise<{
+      providerKey: string;
+      modelId: string;
+    }>;
+    saveWorkspaceDefaultModel(input: {
+      providerKey: string;
+      modelId: string;
+    }): Promise<{ savedAt: string }>;
   };
   config: {
     getStrategy(): Promise<SessionStrategy>;
@@ -207,28 +277,48 @@ export interface ExvaApi {
       metadata?: { baseUrl?: string };
     }): Promise<{ id: string; isConfigured: boolean }>;
     deleteProvider(input: { id: string }): Promise<{ ok: true }>;
-    testProvider(input: { id: string }): Promise<{ ok: boolean; error?: string }>;
+    testProvider(input: {
+      id: string;
+    }): Promise<{ ok: boolean; error?: string }>;
     listBrokers(): Promise<{ brokers: BrokerAccount[] }>;
     addBroker(input: {
       id?: string;
-        brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock";
+      brokerType:
+        | "alpaca"
+        | "coinbase_advanced_trade"
+        | "tradovate"
+        | "polymarket"
+        | "mock";
       name: string;
       mode: "paper" | "live";
       credentials: Record<string, string>;
     }): Promise<
       | { ok: true; id: string; supportedInstrumentClasses: InstrumentClass[] }
-      | { ok: false; id: string; message: string; supportedInstrumentClasses: InstrumentClass[] }
+      | {
+          ok: false;
+          id: string;
+          message: string;
+          supportedInstrumentClasses: InstrumentClass[];
+        }
     >;
     removeBrokerAccount(input: { id: string }): Promise<{ ok: true }>;
     testBrokerAccount(input: { id: string }): Promise<ConnectionTestResult>;
     testBrokerEphemeral(input: {
-      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock";
+      brokerType:
+        | "alpaca"
+        | "coinbase_advanced_trade"
+        | "tradovate"
+        | "polymarket"
+        | "mock";
       mode: "paper" | "live";
       credentials: Record<string, string>;
     }): Promise<ConnectionTestResult>;
     routingGet(): Promise<{ routing: BrokerRoutingDefault[] }>;
     routingUpdate(input: {
-      routing: Array<{ instrumentClass: InstrumentClass; defaultBrokerAccountId: string }>;
+      routing: Array<{
+        instrumentClass: InstrumentClass;
+        defaultBrokerAccountId: string;
+      }>;
     }): Promise<{ savedAt: string }>;
   };
   developer: {
@@ -266,9 +356,17 @@ export interface ExvaApi {
       eventMinLevel: string;
       durationMinutes?: number;
       untilStopped?: boolean;
-    }): Promise<{ overrideId: string; effectiveLogLevel: string; expiresAt: string | null }>;
-    stopLogOverride(input: { overrideId: string }): Promise<{ stopped: true; effectiveLogLevel: string }>;
-    getScopeDiagnostics(input: { scope: { type: string; id?: string } }): Promise<unknown>;
+    }): Promise<{
+      overrideId: string;
+      effectiveLogLevel: string;
+      expiresAt: string | null;
+    }>;
+    stopLogOverride(input: {
+      overrideId: string;
+    }): Promise<{ stopped: true; effectiveLogLevel: string }>;
+    getScopeDiagnostics(input: {
+      scope: { type: string; id?: string };
+    }): Promise<unknown>;
     exportDebugBundle(input: {
       scope: { type: string; id?: string };
       includePrompts: boolean;
@@ -290,7 +388,11 @@ export interface ExvaApi {
       timeWindowMinutes?: number;
       cursor?: string | null;
       limit: number;
-    }): Promise<{ events: EventRow[]; nextCursor: string | null; queryMs: number }>;
+    }): Promise<{
+      events: EventRow[];
+      nextCursor: string | null;
+      queryMs: number;
+    }>;
   };
   events: {
     list(filters?: {
@@ -303,7 +405,14 @@ export interface ExvaApi {
     getAgentTraces(tradeId: string): Promise<AgentRun[]>;
     getAgentTracesByCycle(cycleId: string): Promise<AgentRun[]>;
     getMessagesByCycle(cycleId: string): Promise<AgentMessage[]>;
-    getApiCallLog(filters: { sessionId: string; cycleId?: string | null; tradeId?: string | null }): Promise<ApiCallLogEntry[]>;
-    subscribe<K extends ExvaEventName>(name: K, handler: (payload: ExvaEventMap[K]) => void): () => void;
+    getApiCallLog(filters: {
+      sessionId: string;
+      cycleId?: string | null;
+      tradeId?: string | null;
+    }): Promise<ApiCallLogEntry[]>;
+    subscribe<K extends ExvaEventName>(
+      name: K,
+      handler: (payload: ExvaEventMap[K]) => void,
+    ): () => void;
   };
 }

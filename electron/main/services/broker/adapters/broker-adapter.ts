@@ -1,4 +1,8 @@
-import type { ConnectionTestResult, InstrumentClass, PredictionOutcome } from "@/lib/types";
+import type {
+  ConnectionTestResult,
+  InstrumentClass,
+  PredictionOutcome,
+} from "@/lib/types";
 
 export interface MarketSnapshot {
   instrumentSymbol: string;
@@ -87,7 +91,11 @@ export interface BrokerAdapter {
   closeOrder(orderId: string): Promise<CloseResult>;
 
   /** Optional: return OHLCV bars for exit-policy ATR computation. */
-  getOhlcv?(instrumentSymbol: string, timeframe: "1h" | "4h" | "1d", barCount: number): Promise<Array<{ high: number; low: number; close: number }>>;
+  getOhlcv?(
+    instrumentSymbol: string,
+    timeframe: "1h" | "4h" | "1d",
+    barCount: number,
+  ): Promise<Array<{ high: number; low: number; close: number }>>;
 }
 
 /** Raw row shape returned by Polymarket Gamma REST API. */
@@ -108,6 +116,12 @@ export interface MarketDiscoveryAdapter {
   fetchMarketCandidates(): Promise<PolymarketMarketRow[]>;
 }
 
-export function isMarketDiscoveryAdapter(adapter: BrokerAdapter): adapter is BrokerAdapter & MarketDiscoveryAdapter {
-  return "fetchMarketCandidates" in adapter && typeof (adapter as Partial<MarketDiscoveryAdapter>).fetchMarketCandidates === "function";
+export function isMarketDiscoveryAdapter(
+  adapter: BrokerAdapter,
+): adapter is BrokerAdapter & MarketDiscoveryAdapter {
+  return (
+    "fetchMarketCandidates" in adapter &&
+    typeof (adapter as Partial<MarketDiscoveryAdapter>)
+      .fetchMarketCandidates === "function"
+  );
 }

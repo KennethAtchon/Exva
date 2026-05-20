@@ -10,7 +10,7 @@
 
 ## 1. Summary
 
-Today capital is scoped to a *session* — each session has a `capitalLimitUsd` ceiling and, optionally, a global shared pool that all sessions draw from. This model is broken: it ignores real broker account balances, creates ambiguous risk math when one broker account is shared across sessions, and produces a dashboard that obscures where money actually lives.
+Today capital is scoped to a _session_ — each session has a `capitalLimitUsd` ceiling and, optionally, a global shared pool that all sessions draw from. This model is broken: it ignores real broker account balances, creates ambiguous risk math when one broker account is shared across sessions, and produces a dashboard that obscures where money actually lives.
 
 This spec replaces that model entirely. Capital is now scoped to **broker accounts**. Each broker account has a real balance fetched from the API. Sessions connect to one or more broker accounts and receive an **allocation** from each. Risk for any given trade is calculated against the single broker account that will execute it — not against a session aggregate or a global pool. Total session balance is the sum of all its connected accounts' allocations.
 
@@ -35,7 +35,6 @@ This change eliminates the global capital pool concept, introduces a Broker tab 
 
 ## 3. Goals
 
-
 | #   | Goal                           | Success Looks Like                                                                                 |
 | --- | ------------------------------ | -------------------------------------------------------------------------------------------------- |
 | 1   | Capital truth                  | Dashboard numbers always reflect real broker account balances, not user-entered estimates          |
@@ -46,11 +45,9 @@ This change eliminates the global capital pool concept, introduces a Broker tab 
 | 6   | Broker tab                     | Users can navigate directly to broker accounts to see health, sessions, and allocations            |
 | 7   | Clean elimination of old model | `capitalAllocationMode`, `globalCapitalPoolUsd`, and session-level `capitalLimitUsd` are removed   |
 
-
 ---
 
 ## 4. Non-Goals
-
 
 | #   | Non-Goal                                      | Reason                                                                                   |
 | --- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -59,7 +56,6 @@ This change eliminates the global capital pool concept, introduces a Broker tab 
 | 3   | Cross-broker arbitrage or netting             | Each broker account is treated as independent; no cross-broker position netting          |
 | 4   | Fractional share / lot-size normalization     | Instrument normalizer handles this; out of scope for capital model                       |
 | 5   | Historical capital curve or NAV tracking      | Metrics are point-in-time; historical charting is a future feature                       |
-
 
 ---
 
@@ -138,8 +134,6 @@ flowchart TD
     UI -->|jump to| SA2
 ```
 
-
-
 The broker account sits at the center of all capital and conflict logic. Sessions connect to broker accounts and receive allocations from them. Both risk layers must pass before an order reaches the broker. The Brokers tab provides a broker-first view complementing the session-first view on the Sessions tab.
 
 ---
@@ -199,7 +193,6 @@ Broker Settings — [Broker Name]
 
 **Key UI elements:**
 
-
 | Element            | Type            | Label / Content                 | Behavior                                        |
 | ------------------ | --------------- | ------------------------------- | ----------------------------------------------- |
 | Balance            | Display + badge | "$12,450.00 · 4m ago"           | Clicking refresh icon triggers balance fetch    |
@@ -210,9 +203,7 @@ Broker Settings — [Broker Name]
 | Settings gear      | Icon button     | ⚙                               | Expands inline broker settings panel            |
 | Add Broker Account | Button          | "Add Broker Account"            | Opens existing broker add flow                  |
 
-
 **States:**
-
 
 | State          | Trigger                                  | What the user sees                                                            |
 | -------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
@@ -222,7 +213,6 @@ Broker Settings — [Broker Name]
 | Disconnected   | `testConnection()` failed                | Red "Disconnected" badge, balance shows last known value with stale indicator |
 | At session cap | Sessions = maxSessions                   | Red "At capacity" badge, new session assignment blocked                       |
 | Over-allocated | Sum of allocations > balance             | Red warning: "Over-allocated — reduce allocations"                            |
-
 
 ---
 
@@ -252,7 +242,6 @@ Session Broker Panel
 
 **Key UI elements:**
 
-
 | Element                 | Type             | Label / Content                          | Behavior                                            |
 | ----------------------- | ---------------- | ---------------------------------------- | --------------------------------------------------- |
 | Allocation input        | Number input     | "$5,000"                                 | Validates against broker free capital               |
@@ -260,7 +249,6 @@ Session Broker Panel
 | Free on broker          | Read-only        | "$7,450 free"                            | Balance minus all active allocations on this broker |
 | Total capital           | Computed display | "$15,000 total"                          | Sum of all broker allocations for this session      |
 | Over-allocation warning | Alert            | "Allocation exceeds broker free capital" | Shown if allocated > free                           |
-
 
 ---
 
@@ -320,8 +308,6 @@ sequenceDiagram
     UI-->>User: Shows updated broker panel with new row
 ```
 
-
-
 **Step-by-step:**
 
 1. User opens a session and navigates to the Broker section.
@@ -353,8 +339,6 @@ sequenceDiagram
     UI-->>User: Start or show error
 ```
 
-
-
 **Alternate / Error Paths:**
 
 - **If broker disconnected:** "Broker [Name] is unreachable. Check credentials or network."
@@ -380,8 +364,6 @@ sequenceDiagram
     AI->>Adapter: placeOrder() [only if both layers pass]
 ```
 
-
-
 **Failure paths:**
 
 - **If instrument conflict detected at order time:** Order is blocked. Session emits an event. AI runtime marks the candidate as conflicted and moves to next candidate.
@@ -390,7 +372,6 @@ sequenceDiagram
 ---
 
 ## 10. Data Visible to the User
-
 
 | User-facing item         | Meaning                                                            | Editable?                                                              | Source of truth                                                                                    |
 | ------------------------ | ------------------------------------------------------------------ | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -403,7 +384,6 @@ sequenceDiagram
 | Shared indicator         | Whether 2+ active sessions use the same broker account             | No                                                                     | Computed                                                                                           |
 | Total session capital    | Sum of all allocations across all broker accounts for a session    | No                                                                     | Computed                                                                                           |
 | Conflict status          | Whether a symbol held by another session blocks this session       | No                                                                     | Computed at preflight and order time                                                               |
-
 
 ---
 
@@ -433,7 +413,6 @@ No role differentiation. All users see all broker accounts and sessions. This is
 
 ## 13. Copy and Labels
 
-
 | Location                             | Final copy                                                                                                                | Notes                                                 |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | Brokers tab nav item                 | "Brokers"                                                                                                                 | Short, matches Sessions                               |
@@ -454,11 +433,9 @@ No role differentiation. All users see all broker accounts and sessions. This is
 | Preflight error: instrument conflict | "[Session Name] already holds [SYMBOL] on [Broker Name]. Stop that session or remove the symbol."                         | Preflight failure modal                               |
 | Empty broker tab                     | "No broker accounts yet. Add one to connect Exva to your trading account."                                                | Empty state                                           |
 
-
 ---
 
 ## 14. Metrics and Success Criteria
-
 
 | Goal                 | Metric                                                               | Baseline         | Target                             | How measured                |
 | -------------------- | -------------------------------------------------------------------- | ---------------- | ---------------------------------- | --------------------------- |
@@ -466,7 +443,6 @@ No role differentiation. All users see all broker accounts and sessions. This is
 | Conflict prevention  | Instrument conflicts caught at order time (not just preflight)       | 0 (not measured) | 100% of real-time conflicts caught | Order rejection events      |
 | Broker tab adoption  | % of users who visit Brokers tab within 7 days                       | 0% (new)         | >60%                               | Navigation events           |
 | Over-allocation rate | Sessions where sum-allocations > broker balance                      | Unknown          | <5%                                | Balance vs allocation check |
-
 
 ---
 
@@ -532,4 +508,3 @@ No open questions. All resolved.
 - The copy section contains real strings.
 - Edge cases cover mid-session state changes, concurrent sessions, and zero-balance scenarios.
 - Open questions are called out clearly.
-

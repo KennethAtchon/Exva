@@ -33,7 +33,12 @@ function adaptMcpPayload(payload: unknown, query: string): SearchToolResult {
   } else if (Array.isArray(payload)) {
     for (const item of payload) {
       if (typeof item !== "object" || item === null) continue;
-      const row = item as { title?: unknown; url?: unknown; snippet?: unknown; description?: unknown };
+      const row = item as {
+        title?: unknown;
+        url?: unknown;
+        snippet?: unknown;
+        description?: unknown;
+      };
       const title = typeof row.title === "string" ? row.title : "";
       const url = typeof row.url === "string" ? row.url : "";
       const snippet =
@@ -45,13 +50,19 @@ function adaptMcpPayload(payload: unknown, query: string): SearchToolResult {
       pushResult(title, snippet, url);
     }
   } else if (typeof payload === "object" && payload !== null) {
-    const row = payload as { results?: unknown; title?: unknown; url?: unknown; snippet?: unknown };
+    const row = payload as {
+      results?: unknown;
+      title?: unknown;
+      url?: unknown;
+      snippet?: unknown;
+    };
     if (Array.isArray(row.results)) {
       return adaptMcpPayload(row.results, query);
     }
     const title = typeof row.title === "string" ? row.title : "MCP result";
     const url = typeof row.url === "string" ? row.url : "";
-    const snippet = typeof row.snippet === "string" ? row.snippet : JSON.stringify(payload);
+    const snippet =
+      typeof row.snippet === "string" ? row.snippet : JSON.stringify(payload);
     pushResult(title, snippet, url);
   } else {
     pushResult("MCP result", String(payload ?? ""), "");
@@ -78,7 +89,10 @@ export class McpSearchAdapter implements SearchAdapter {
     const metadata = parseProviderMetadata(this.account.metadataJson);
     const serverUrl = metadata.baseUrl?.trim();
     if (!serverUrl) {
-      throw new AppError("MCP search provider requires metadata.baseUrl", "VALIDATION_FAILED");
+      throw new AppError(
+        "MCP search provider requires metadata.baseUrl",
+        "VALIDATION_FAILED",
+      );
     }
 
     const toolName = metadata.mcpToolName?.trim() || "search";
@@ -105,22 +119,35 @@ export class McpSearchAdapter implements SearchAdapter {
     });
 
     if (!response.ok) {
-      throw new AppError(`MCP search failed with ${response.status}`, "PROVIDER_UNREACHABLE");
+      throw new AppError(
+        `MCP search failed with ${response.status}`,
+        "PROVIDER_UNREACHABLE",
+      );
     }
 
     const body = (await response.json()) as McpJsonRpcResponse;
     if (body.error?.message) {
-      throw new AppError(`MCP search error: ${body.error.message}`, "PROVIDER_UNREACHABLE");
+      throw new AppError(
+        `MCP search error: ${body.error.message}`,
+        "PROVIDER_UNREACHABLE",
+      );
     }
 
     const content = body.result?.content ?? [];
     const textParts = content
-      .filter((entry) => entry.type === "text" && typeof entry.text === "string")
+      .filter(
+        (entry) => entry.type === "text" && typeof entry.text === "string",
+      )
       .map((entry) => entry.text as string);
-    const structured = body.result?.structuredContent ?? (textParts.length > 0 ? textParts.join("\n") : null);
+    const structured =
+      body.result?.structuredContent ??
+      (textParts.length > 0 ? textParts.join("\n") : null);
 
     if (structured == null) {
-      throw new AppError("MCP search returned no structured content", "PROVIDER_UNREACHABLE");
+      throw new AppError(
+        "MCP search returned no structured content",
+        "PROVIDER_UNREACHABLE",
+      );
     }
 
     let payload: unknown = structured;
@@ -140,7 +167,8 @@ export class McpSearchAdapter implements SearchAdapter {
       await this.search("test connection");
       return { ok: true };
     } catch (error) {
-      const message = error instanceof Error ? error.message : "MCP search connection failed";
+      const message =
+        error instanceof Error ? error.message : "MCP search connection failed";
       return { ok: false, error: message };
     }
   }

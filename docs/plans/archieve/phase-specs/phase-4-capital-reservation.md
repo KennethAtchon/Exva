@@ -2,6 +2,7 @@
 
 > **Status:** Not started
 > **Files to modify:**
+>
 > - `electron/main/services/orchestration/agent-orchestrator.ts` (lines 334–364)
 > - `electron/main/services/risk/capital-reservation-service.ts` (add `reserveForOrder`)
 > - `electron/main/db/repositories/capital-reservations-repo.ts` (add `reserveForOrder`)
@@ -167,7 +168,9 @@ The orchestrator `stop()` method must release all reservations for the session. 
 // In AgentOrchestrator.stop():
 
 // Release all active no-approval reservations for this session
-const activeReservations = this.deps.capitalReservation.listActiveBySession(this.sessionId);
+const activeReservations = this.deps.capitalReservation.listActiveBySession(
+  this.sessionId,
+);
 for (const r of activeReservations) {
   if (r.approvalId == null) {
     this.deps.capitalReservation.releaseOnFailure(r.tradeId);

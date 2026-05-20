@@ -52,14 +52,19 @@ export class CyclePlanInterpreter {
 
       try {
         if (stage.executionStage && input.runStep) {
-          state = (await input.runStep(stage.executionStage, execute)) as TradeCyclePlanState;
+          state = (await input.runStep(
+            stage.executionStage,
+            execute,
+          )) as TradeCyclePlanState;
         } else {
           state = await execute();
         }
       } catch (error) {
         if (isCycleControlError(error)) throw error;
         if (stage.required) {
-          throw error instanceof Error ? error : new AppError(String(error), "UNKNOWN");
+          throw error instanceof Error
+            ? error
+            : new AppError(String(error), "UNKNOWN");
         }
       }
 
@@ -75,13 +80,22 @@ export class CyclePlanInterpreter {
 
 function sumAiCost(state: TradeCyclePlanState): number {
   const runs = Object.values(state).filter(
-    (v): v is { run: { cost_usd?: number } } => typeof v === "object" && v !== null && "run" in v,
+    (v): v is { run: { cost_usd?: number } } =>
+      typeof v === "object" && v !== null && "run" in v,
   );
-  return Number(runs.reduce((sum, r) => sum + (r.run.cost_usd ?? 0), 0).toFixed(6));
+  return Number(
+    runs.reduce((sum, r) => sum + (r.run.cost_usd ?? 0), 0).toFixed(6),
+  );
 }
 
-function isCycleControlError(error: unknown): error is CyclePausedError | CycleStageFailedError {
-  return error instanceof Error && (error.name === "CyclePausedError" || error.name === "CycleStageFailedError");
+function isCycleControlError(
+  error: unknown,
+): error is CyclePausedError | CycleStageFailedError {
+  return (
+    error instanceof Error &&
+    (error.name === "CyclePausedError" ||
+      error.name === "CycleStageFailedError")
+  );
 }
 
 export { CyclePausedError, CycleStageFailedError } from "./types";

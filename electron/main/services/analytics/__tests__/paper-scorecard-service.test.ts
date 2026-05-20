@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { PaperScorecardService, meetsPromotionCriteria } from "../paper-scorecard-service";
+import {
+  PaperScorecardService,
+  meetsPromotionCriteria,
+} from "../paper-scorecard-service";
 import type { Trade } from "@/lib/types";
 
 function makeTrade(overrides: Partial<Trade> = {}): Trade {
@@ -52,8 +55,12 @@ function makeService(trades: Trade[]) {
 describe("PaperScorecardService.generate", () => {
   it("10 trades: 6 wins $50, 4 losses $30 → winRate=0.6, expectancy=18", () => {
     const trades = [
-      ...Array.from({ length: 6 }, (_, i) => makeTrade({ id: `w${i}`, final_pnl_usd: 50 })),
-      ...Array.from({ length: 4 }, (_, i) => makeTrade({ id: `l${i}`, final_pnl_usd: -30 })),
+      ...Array.from({ length: 6 }, (_, i) =>
+        makeTrade({ id: `w${i}`, final_pnl_usd: 50 }),
+      ),
+      ...Array.from({ length: 4 }, (_, i) =>
+        makeTrade({ id: `l${i}`, final_pnl_usd: -30 }),
+      ),
     ];
     const scorecard = makeService(trades).generate("s1");
 
@@ -66,8 +73,12 @@ describe("PaperScorecardService.generate", () => {
 
   it("profitFactor = (6*50)/(4*30) = 300/120 = 2.5", () => {
     const trades = [
-      ...Array.from({ length: 6 }, (_, i) => makeTrade({ id: `w${i}`, final_pnl_usd: 50 })),
-      ...Array.from({ length: 4 }, (_, i) => makeTrade({ id: `l${i}`, final_pnl_usd: -30 })),
+      ...Array.from({ length: 6 }, (_, i) =>
+        makeTrade({ id: `w${i}`, final_pnl_usd: 50 }),
+      ),
+      ...Array.from({ length: 4 }, (_, i) =>
+        makeTrade({ id: `l${i}`, final_pnl_usd: -30 }),
+      ),
     ];
     const scorecard = makeService(trades).generate("s1");
 
@@ -78,14 +89,18 @@ describe("PaperScorecardService.generate", () => {
     // Cumulative PnL: 50,100,70,120,90,140,110,160,130,180
     // PnL diffs: 50,50,-30,50,-30,50,-30,50,-30,50
     const pnls = [50, 50, -30, 50, -30, 50, -30, 50, -30, 50];
-    const trades = pnls.map((pnl, i) => makeTrade({ id: `t${i}`, final_pnl_usd: pnl }));
+    const trades = pnls.map((pnl, i) =>
+      makeTrade({ id: `t${i}`, final_pnl_usd: pnl }),
+    );
     const scorecard = makeService(trades).generate("s1");
 
     expect(scorecard.maxDrawdownUsd).toBeCloseTo(30);
   });
 
   it("netPnlAfterCostsUsd = netPnlUsd - (aiSpend + dataSpend)", () => {
-    const tradesRepo = { listClosed: vi.fn().mockReturnValue([makeTrade({ final_pnl_usd: 100 })]) };
+    const tradesRepo = {
+      listClosed: vi.fn().mockReturnValue([makeTrade({ final_pnl_usd: 100 })]),
+    };
     const apiCallLog = {
       listByScope: vi.fn().mockReturnValue([
         { call_type: "ai", cost_usd: 5 },
@@ -93,7 +108,9 @@ describe("PaperScorecardService.generate", () => {
       ]),
     };
     const session = { get: vi.fn().mockReturnValue({ name: "s" }) };
-    const sessionExecutionSteps = { getLatestBySession: vi.fn().mockReturnValue([]) };
+    const sessionExecutionSteps = {
+      getLatestBySession: vi.fn().mockReturnValue([]),
+    };
     const svc = new PaperScorecardService({
       trades: tradesRepo as never,
       apiCallLog: apiCallLog as never,
@@ -109,7 +126,9 @@ describe("PaperScorecardService.generate", () => {
   });
 
   it("no losses → profitFactor = Infinity", () => {
-    const trades = Array.from({ length: 3 }, (_, i) => makeTrade({ id: `w${i}`, final_pnl_usd: 50 }));
+    const trades = Array.from({ length: 3 }, (_, i) =>
+      makeTrade({ id: `w${i}`, final_pnl_usd: 50 }),
+    );
     const scorecard = makeService(trades).generate("s1");
 
     expect(scorecard.profitFactor).toBe(Infinity);
@@ -126,7 +145,9 @@ describe("PaperScorecardService.generate", () => {
 });
 
 describe("meetsPromotionCriteria", () => {
-  function makeScorecard(overrides: Partial<Parameters<typeof meetsPromotionCriteria>[0]> = {}) {
+  function makeScorecard(
+    overrides: Partial<Parameters<typeof meetsPromotionCriteria>[0]> = {},
+  ) {
     return {
       sessionId: "s1",
       strategyPresetLabel: "test",
@@ -179,13 +200,16 @@ describe("meetsPromotionCriteria", () => {
   });
 
   it("maxDrawdownPct > 0.20 → failedCriteria includes 'maxDrawdownPct'", () => {
-    const result = meetsPromotionCriteria(makeScorecard({ maxDrawdownPct: 0.25 }), {
-      minTradeCount: 100,
-      minWinRate: 0.4,
-      minExpectancy: 0,
-      maxDrawdownPct: 0.2,
-      requiredScenarioCoverage: [],
-    });
+    const result = meetsPromotionCriteria(
+      makeScorecard({ maxDrawdownPct: 0.25 }),
+      {
+        minTradeCount: 100,
+        minWinRate: 0.4,
+        minExpectancy: 0,
+        maxDrawdownPct: 0.2,
+        requiredScenarioCoverage: [],
+      },
+    );
     expect(result.meets).toBe(false);
     expect(result.failedCriteria).toContain("maxDrawdownPct");
   });
@@ -224,17 +248,23 @@ describe("PaperScorecardService - scenarioCoverage", () => {
     const trades = [
       makeTrade({
         id: "t1",
-        instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "clean_breakout" }),
+        instrumentMetadataJson: JSON.stringify({
+          mockScenarioKind: "clean_breakout",
+        }),
         final_pnl_usd: 20,
       }),
       makeTrade({
         id: "t2",
-        instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "clean_breakout" }),
+        instrumentMetadataJson: JSON.stringify({
+          mockScenarioKind: "clean_breakout",
+        }),
         final_pnl_usd: -10,
       }),
       makeTrade({
         id: "t3",
-        instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "failed_breakout" }),
+        instrumentMetadataJson: JSON.stringify({
+          mockScenarioKind: "failed_breakout",
+        }),
         final_pnl_usd: -15,
       }),
     ];
@@ -247,7 +277,13 @@ describe("PaperScorecardService - scenarioCoverage", () => {
   it("ignores trades with no instrumentMetadataJson", () => {
     const trades = [
       makeTrade({ id: "t1", instrumentMetadataJson: null, final_pnl_usd: 10 }),
-      makeTrade({ id: "t2", instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "news_reversal" }), final_pnl_usd: 10 }),
+      makeTrade({
+        id: "t2",
+        instrumentMetadataJson: JSON.stringify({
+          mockScenarioKind: "news_reversal",
+        }),
+        final_pnl_usd: 10,
+      }),
     ];
     const scorecard = makeService(trades).generate("s1");
 
@@ -257,7 +293,13 @@ describe("PaperScorecardService - scenarioCoverage", () => {
 
   it("ignores invalid/unknown scenario kind values", () => {
     const trades = [
-      makeTrade({ id: "t1", instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "not_a_real_scenario" }), final_pnl_usd: 10 }),
+      makeTrade({
+        id: "t1",
+        instrumentMetadataJson: JSON.stringify({
+          mockScenarioKind: "not_a_real_scenario",
+        }),
+        final_pnl_usd: 10,
+      }),
     ];
     const scorecard = makeService(trades).generate("s1");
 
@@ -266,11 +308,23 @@ describe("PaperScorecardService - scenarioCoverage", () => {
 
   it("meetsPromotionCriteria fails when required scenario has 0 coverage", () => {
     const scorecard = makeService([
-      makeTrade({ id: "t1", instrumentMetadataJson: JSON.stringify({ mockScenarioKind: "clean_breakout" }), final_pnl_usd: 10 }),
+      makeTrade({
+        id: "t1",
+        instrumentMetadataJson: JSON.stringify({
+          mockScenarioKind: "clean_breakout",
+        }),
+        final_pnl_usd: 10,
+      }),
     ]).generate("s1");
 
     const result = meetsPromotionCriteria(
-      { ...scorecard, tradeCount: 100, winRate: 0.5, expectancy: 5, maxDrawdownPct: 0.1 },
+      {
+        ...scorecard,
+        tradeCount: 100,
+        winRate: 0.5,
+        expectancy: 5,
+        maxDrawdownPct: 0.1,
+      },
       {
         minTradeCount: 1,
         minWinRate: 0.4,

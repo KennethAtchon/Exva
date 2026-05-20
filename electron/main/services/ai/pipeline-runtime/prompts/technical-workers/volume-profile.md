@@ -3,6 +3,7 @@
 Given OHLCV bars for {instrumentSymbol}, assess volume behavior relative to recent history.
 
 Return JSON:
+
 ```json
 {
   "volumeScore": 0..1 or null,

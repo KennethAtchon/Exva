@@ -1,6 +1,11 @@
 import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
-import { reviewSignalSchema, type ReviewSignal, type TechnicalSignal, type FundamentalSignal } from "@electron/shared/ai/pipeline-signals";
+import {
+  reviewSignalSchema,
+  type ReviewSignal,
+  type TechnicalSignal,
+  type FundamentalSignal,
+} from "@electron/shared/ai/pipeline-signals";
 import {
   conflictDetectorOutputSchema,
   riskAssessorOutputSchema,
@@ -31,14 +36,15 @@ const RISK_ASSESSOR_WORKER = {
 };
 
 /** Registry metadata for review. Execution is driven by REVIEW_PLAN via PhasePlanInterpreter. */
-export const REVIEW_PHASE: PipelineDefinition<ReviewPhaseInput, ReviewSignal> = {
-  phase: "review",
-  outputMode: "object",
-  outputSchema: reviewSignalSchema as import("zod").ZodType<ReviewSignal>,
-  workers: [CONFLICT_DETECTOR_WORKER, RISK_ASSESSOR_WORKER],
-  engines: [ENGINE_BINDINGS.reviewAggregatorFinalize],
-  persistence: {
-    outputSchemaName: "reviewSignal",
-    traceMode: "aggregate_workers",
-  },
-};
+export const REVIEW_PHASE: PipelineDefinition<ReviewPhaseInput, ReviewSignal> =
+  {
+    phase: "review",
+    outputMode: "object",
+    outputSchema: reviewSignalSchema as import("zod").ZodType<ReviewSignal>,
+    workers: [CONFLICT_DETECTOR_WORKER, RISK_ASSESSOR_WORKER],
+    engines: [ENGINE_BINDINGS.reviewAggregatorFinalize],
+    persistence: {
+      outputSchemaName: "reviewSignal",
+      traceMode: "aggregate_workers",
+    },
+  };

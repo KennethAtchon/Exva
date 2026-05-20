@@ -22,22 +22,39 @@ export class StatsRepo {
         final_pnl_usd: trades.finalPnlUsd,
       })
       .from(trades)
-      .where(sessionId ? and(eq(trades.sessionId, sessionId), todayCondition) : todayCondition)
+      .where(
+        sessionId
+          ? and(eq(trades.sessionId, sessionId), todayCondition)
+          : todayCondition,
+      )
       .all();
     const spendRow = this.client.db
       .select({ spend: sql<number>`sum(${agentRuns.costUsd})` })
       .from(agentRuns)
-      .where(sessionId ? and(eq(agentRuns.sessionId, sessionId), runTodayCondition) : runTodayCondition)
+      .where(
+        sessionId
+          ? and(eq(agentRuns.sessionId, sessionId), runTodayCondition)
+          : runTodayCondition,
+      )
       .get();
     const openTrades = this.client.db
       .select({ count: sql<number>`count(*)` })
       .from(trades)
-      .where(sessionId ? and(eq(trades.sessionId, sessionId), eq(trades.status, "open")) : eq(trades.status, "open"))
+      .where(
+        sessionId
+          ? and(eq(trades.sessionId, sessionId), eq(trades.status, "open"))
+          : eq(trades.status, "open"),
+      )
       .get();
 
     const closed = tradeRows.filter((row) => row.status === "closed");
-    const dailyPnl = closed.reduce((sum, row) => sum + Number(row.final_pnl_usd ?? 0), 0);
-    const wins = closed.filter((row) => Number(row.final_pnl_usd ?? 0) > 0).length;
+    const dailyPnl = closed.reduce(
+      (sum, row) => sum + Number(row.final_pnl_usd ?? 0),
+      0,
+    );
+    const wins = closed.filter(
+      (row) => Number(row.final_pnl_usd ?? 0) > 0,
+    ).length;
     const spend = Number(spendRow?.spend ?? 0);
 
     return {
@@ -58,7 +75,10 @@ export class StatsRepo {
     };
   }
 
-  costBreakdown(input?: { sessionId?: string | null; dateRange?: "today" | "all" }): CostBreakdown {
+  costBreakdown(input?: {
+    sessionId?: string | null;
+    dateRange?: "today" | "all";
+  }): CostBreakdown {
     const sessionId = input?.sessionId ?? null;
     const dateRange = input?.dateRange ?? "today";
     const today = new Date().toISOString().slice(0, 10);
@@ -68,14 +88,20 @@ export class StatsRepo {
 
     const scopedRunCondition =
       sessionId && dateRange === "today"
-        ? and(eq(agentRuns.sessionId, sessionId), sql`substr(${agentRuns.createdAt}, 1, 10) = ${today}`)
+        ? and(
+            eq(agentRuns.sessionId, sessionId),
+            sql`substr(${agentRuns.createdAt}, 1, 10) = ${today}`,
+          )
         : sessionId
           ? eq(agentRuns.sessionId, sessionId)
           : dateRange === "today"
             ? sql`substr(${agentRuns.createdAt}, 1, 10) = ${today}`
             : undefined;
     const historyCondition = sessionId
-      ? and(eq(agentRuns.sessionId, sessionId), sql`substr(${agentRuns.createdAt}, 1, 10) >= ${historyStart}`)
+      ? and(
+          eq(agentRuns.sessionId, sessionId),
+          sql`substr(${agentRuns.createdAt}, 1, 10) >= ${historyStart}`,
+        )
       : sql`substr(${agentRuns.createdAt}, 1, 10) >= ${historyStart}`;
 
     const byAgentQuery = this.client.db
@@ -85,7 +111,9 @@ export class StatsRepo {
         cost: sql<number>`sum(${agentRuns.costUsd})`,
       })
       .from(agentRuns);
-    const byAgent = (scopedRunCondition ? byAgentQuery.where(scopedRunCondition) : byAgentQuery)
+    const byAgent = (
+      scopedRunCondition ? byAgentQuery.where(scopedRunCondition) : byAgentQuery
+    )
       .groupBy(agentRuns.agentType)
       .orderBy(desc(sql`sum(${agentRuns.costUsd})`))
       .all() as CostBreakdown["by_agent"];
@@ -97,7 +125,9 @@ export class StatsRepo {
       })
       .from(agentRuns)
       .innerJoin(trades, eq(trades.id, agentRuns.tradeId));
-    const byTrade = (scopedRunCondition ? byTradeQuery.where(scopedRunCondition) : byTradeQuery)
+    const byTrade = (
+      scopedRunCondition ? byTradeQuery.where(scopedRunCondition) : byTradeQuery
+    )
       .groupBy(trades.id)
       .orderBy(desc(sql`sum(${agentRuns.costUsd})`))
       .limit(20)

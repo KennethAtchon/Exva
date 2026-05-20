@@ -28,7 +28,6 @@ This matters now because the strategy plan introduces methodology-based analysts
 
 **Goals**
 
-
 | #   | Goal                                                                                        | Success Looks Like                                                                          |
 | --- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | 1   | Canonical AI runtime contract: message arrays, self-terminating tool loops, per-step traces | Provider adapters return full `RunTrace` with step telemetry                                |
@@ -37,9 +36,7 @@ This matters now because the strategy plan introduces methodology-based analysts
 | 4   | Complete audit trail for every agent run                                                    | `agent_runs` for summary; `agent_messages` for full messages, tool calls, strategy snapshot |
 | 5   | Non-LLM monitoring with cycle restart after trade close                                     | Polling, time-based exits, and cycle restart all work deterministically                     |
 
-
 **Non-Goals**
-
 
 | #   | Non-Goal                              | Reason                                        |
 | --- | ------------------------------------- | --------------------------------------------- |
@@ -48,7 +45,6 @@ This matters now because the strategy plan introduces methodology-based analysts
 | 3   | Cross-session collaborative research  | Sessions remain isolated                      |
 | 4   | Automatic autopsy on every trade      | Autopsy is user-initiated on demand           |
 | 5   | Options-chain or derivatives research | Execution surface does not support it         |
-
 
 ---
 
@@ -84,15 +80,13 @@ Prompt assembly, structured context injection, tool registration, execution boun
 
 Each role uses a differentiated execution model. Tools are role-specific. The model self-terminates when it has enough information; safety caps and spend guards fire only when something goes wrong.
 
-
 | Agent                 | Tools                                                                   | Safety cap | Budget limit | Execution model                                           |
 | --------------------- | ----------------------------------------------------------------------- | ---------- | ------------ | --------------------------------------------------------- |
 | `instrument_selector` | `search_web`, `get_quote`, `get_ohlcv`, `get_news`, `submit_candidates` | 25 steps   | $0.15/burst  | Discovery loop; terminates by calling `submit_candidates` |
 | `analyst_technical`   | `search_web`, `get_news`                                                | 12 steps   | $0.08/run    | Depth loop on injected structured data                    |
 | `analyst_fundamental` | `search_web`, `get_news`                                                | 12 steps   | $0.08/run    | Depth loop on injected structured data                    |
 | `reviewer`            | `search_web`                                                            | 8 steps    | $0.05/run    | Spot-check verification + synthesis                       |
-| `decision_maker`      | none                                                                    | 1 step     | $0.04/run    | Single-shot structured output (no tool loop)             |
-
+| `decision_maker`      | none                                                                    | 1 step     | $0.04/run    | Single-shot structured output (no tool loop)              |
 
 Listed tools are **policy defaults** from `ROLE_TOOL_POLICY` in `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`. At runtime, `deriveHarnessToolAvailability` and `buildHarnessToolSet` (`harness-tools.ts`) intersect policy with infrastructure: a configured **search provider** is required for `search_web` and `get_news`; **broker routing + broker registry** on `AiRuntime` is required for quote/OHLCV/news market tools. The system prompt’s “Tool Policy For This Run” section reflects **effective** tools only (same predicates as the registered `ToolSet`).
 
@@ -122,7 +116,7 @@ submit_candidates: tool({
   description: "Submit the final shortlist when research is complete.",
   inputSchema: instrumentSelectionSchema,
   execute: async (candidates) => candidates,
-})
+});
 ```
 
 When the model calls `submit_candidates`, the harness records `finishReason: "stop"`. When the step cap fires instead, the harness records `finishReason: "tool_budget"` and emits a warning event. These two outcomes are distinguishable in the audit trail.
@@ -130,23 +124,37 @@ When the model calls `submit_candidates`, the harness records `finishReason: "st
 **Spend guard pattern (Vercel AI SDK `stopWhen`):**
 
 ```ts
-const spendGuard = (maxUsd: number, inputRate: number, outputRate: number): StopCondition =>
+const spendGuard =
+  (maxUsd: number, inputRate: number, outputRate: number): StopCondition =>
   ({ steps }) => {
     const inTok = steps.reduce((s, st) => s + (st.usage?.inputTokens ?? 0), 0);
-    const outTok = steps.reduce((s, st) => s + (st.usage?.outputTokens ?? 0), 0);
-    return (inTok / 1_000_000) * inputRate + (outTok / 1_000_000) * outputRate > maxUsd;
+    const outTok = steps.reduce(
+      (s, st) => s + (st.usage?.outputTokens ?? 0),
+      0,
+    );
+    return (
+      (inTok / 1_000_000) * inputRate + (outTok / 1_000_000) * outputRate >
+      maxUsd
+    );
   };
 ```
 
 **Loop detection (standard production pattern):**
 
 ```ts
-const loopGuard = (): StopCondition => ({ steps }) => {
-  const recent = steps.slice(-3).map(s =>
-    s.toolCalls?.map(tc => `${tc.toolName}:${JSON.stringify(tc.args)}`).join(",") ?? ""
-  );
-  return recent.length === 3 && new Set(recent).size === 1;
-};
+const loopGuard =
+  (): StopCondition =>
+  ({ steps }) => {
+    const recent = steps
+      .slice(-3)
+      .map(
+        (s) =>
+          s.toolCalls
+            ?.map((tc) => `${tc.toolName}:${JSON.stringify(tc.args)}`)
+            .join(",") ?? "",
+      );
+    return recent.length === 3 && new Set(recent).size === 1;
+  };
 ```
 
 All roles apply: `stopWhen: [stepCountIs(safetyCap), spendGuard(roleBudget, ...), loopGuard()]`.
@@ -198,7 +206,7 @@ SESSION START
     - persist to trade_autopsies table
 ```
 
-`**waitForOpenThreshold`:** minimum `confidence_score` from `decision_maker` required before order placement proceeds. Default 0.80. If the model returns confidence below this value, the trade is logged as `no_trade` and the research brief is preserved. Checked in the risk engine after decision output validation.
+`**waitForOpenThreshold`:\*\* minimum `confidence_score` from `decision_maker` required before order placement proceeds. Default 0.80. If the model returns confidence below this value, the trade is logged as `no_trade` and the research brief is preserved. Checked in the risk engine after decision output validation.
 
 ---
 
@@ -206,14 +214,12 @@ SESSION START
 
 Market data resolves by `instrumentClass + routed broker account`. No silent fallback from live data to stale scraped data.
 
-
 | Instrument class    | Quote + OHLCV                             | Fundamentals                                        | News                  |
 | ------------------- | ----------------------------------------- | --------------------------------------------------- | --------------------- |
 | `stock`             | Alpaca Data API v2 (REST snapshots)       | Financial Modeling Prep (FMP) REST API              | FMP Stock News API    |
 | `crypto`            | Coinbase Advanced public candles endpoint | Not applicable — `## Fundamentals (not applicable)` | FMP or search-derived |
 | `futures`           | Broker-native / Tradovate                 | Not applicable                                      | Not applicable        |
 | `prediction_market` | Polymarket CLOB + Gamma market metadata   | Not applicable                                      | Not applicable        |
-
 
 **No yfinance.** yfinance is a Python scraper library with no REST API. It cannot be called from TypeScript without a Python sidecar process. FMP provides all fundamentals fields as a native REST API callable with `fetch`.
 
@@ -223,7 +229,6 @@ Market data resolves by `instrumentClass + routed broker account`. No silent fal
 
 **Snapshot freshness TTL:**
 
-
 | Instrument class                 | TTL        |
 | -------------------------------- | ---------- |
 | `stock` (intraday session)       | 15 minutes |
@@ -231,11 +236,9 @@ Market data resolves by `instrumentClass + routed broker account`. No silent fal
 | `crypto`                         | 10 minutes |
 | `prediction_market`              | 30 minutes |
 
-
 A snapshot older than its TTL is refetched before use. The cycle cache key is `(sessionId, symbol, cycleId)` — a new cycle always starts with fresh data.
 
 ### Role-readiness rules
-
 
 | Role                                    | Required snapshot fields                      | If unavailable                                      |
 | --------------------------------------- | --------------------------------------------- | --------------------------------------------------- |
@@ -245,21 +248,23 @@ A snapshot older than its TTL is refetched before use. The cycle cache key is `(
 | `analyst_fundamental` on crypto/futures | news only                                     | Continue; inject `## Fundamentals (not applicable)` |
 | `reviewer`                              | analyst briefs only                           | Continue                                            |
 
-
 ### Example injected blocks
 
 ```markdown
 ## Market Data — AAPL (as of 2026-05-05 14:32 ET, source: Alpaca)
+
 - Price: $189.42 | Day change: +1.2% | Volume: 42.1M (1.3x avg)
 - 20d return: +4.1% | ATR(14): 3.21 | RSI(14): 58.4
 - SMA(20): 186.7 | SMA(50): 182.5 | SMA(200): 175.8
 
 ## Fundamentals — AAPL (source: FMP)
+
 - Market cap: $2.9T | Sector: Technology | Industry: Consumer Electronics
 - P/E: 29.4x | Revenue growth: +6.2% YoY
 - Next earnings: 2026-07-24 | Analyst consensus: Moderate Buy
 
 ## News — AAPL (source: FMP, as of 2026-05-05)
+
 1. Apple reports record services revenue — Reuters, 2026-05-02
 2. AAPL upgraded to Buy by Goldman Sachs — MarketWatch, 2026-05-01
 3. Vision Pro sales disappoint analysts — The Verge, 2026-04-28
@@ -278,10 +283,10 @@ type SearchToolResult = {
   results: Array<{
     url: string;
     title: string;
-    snippet: string;       // extracted text, 500–2000 chars max per result
+    snippet: string; // extracted text, 500–2000 chars max per result
     publishedDate: string | null;
   }>;
-  query: string;           // sanitized query actually sent to provider
+  query: string; // sanitized query actually sent to provider
   provider: "tavily" | "brave" | "exa";
   creditsUsed: number;
   cachedAt: string | null; // ISO timestamp if served from session cache
@@ -302,13 +307,11 @@ Every query is sanitized before reaching the provider:
 
 Search results are cached in-memory per session, keyed by normalized query hash (lowercased, punctuation stripped). TTL by content type:
 
-
 | Query type              | TTL        |
 | ----------------------- | ---------- |
 | News / financial events | 20 minutes |
 | Company fundamentals    | 4 hours    |
 | General market context  | 1 hour     |
-
 
 Before every search API call the harness checks the cache. A cache hit sets `cachedAt` in the result and skips the API call entirely. This prevents duplicate credit spend during research bursts where multiple roles may search for the same company.
 
@@ -331,11 +334,10 @@ A single rate-limit hit does not kill a research burst.
 **Design intent (not implemented):** differentiate adapters/parameters by role:
 
 | --------------------- | -------- | -------------- | ------------ | ------------------------------------------------- |
-| `instrument_selector` | Brave    | —              | `week`       | —                                                 |
-| `analyst_technical`   | Tavily   | `advanced`     | `month`      | —                                                 |
-| `analyst_fundamental` | Tavily   | `advanced`     | `year`       | `["sec.gov", "reuters.com", "ft.com", "wsj.com"]` |
-| `reviewer`            | Tavily   | `basic`        | `week`       | —                                                 |
-
+| `instrument_selector` | Brave | — | `week` | — |
+| `analyst_technical` | Tavily | `advanced` | `month` | — |
+| `analyst_fundamental` | Tavily | `advanced` | `year` | `["sec.gov", "reuters.com", "ft.com", "wsj.com"]` |
+| `reviewer` | Tavily | `basic` | `week` | — |
 
 Tavily `advanced` depth (2 credits) is worth the cost for analyst roles. Brave is used for the selector's broad discovery pass. Exa is a future optional adapter for `analyst_fundamental` on stocks (`depth=deep-reasoning`, semantic search across SEC filings).
 
@@ -364,7 +366,7 @@ type ToolCallRecord = {
   step: number;
   tool: string;
   argsJson: string;
-  resultJson: string;   // structured SearchToolResult or market data result
+  resultJson: string; // structured SearchToolResult or market data result
   latencyMs: number;
   error?: string;
   fromCache?: boolean;
@@ -374,11 +376,11 @@ type RunTrace<T = undefined> = {
   assistantText: string;
   structuredOutput?: T;
   messages: AgentMessage[];
-  steps: StepTrace[];         // per-step telemetry — drives spend guard accuracy
+  steps: StepTrace[]; // per-step telemetry — drives spend guard accuracy
   thinkingText?: string | null;
   finishReason: "stop" | "length" | "tool_budget" | "timeout" | "error";
   parseFallback: boolean;
-  inputTokens: number;        // total across all steps
+  inputTokens: number; // total across all steps
   outputTokens: number;
   durationMs: number;
 };
@@ -397,17 +399,19 @@ type AgentMessage = {
 
 ```ts
 interface AgentRunOptions {
-  messages: AgentMessage[];   // replaces systemPrompt + userPrompt strings
+  messages: AgentMessage[]; // replaces systemPrompt + userPrompt strings
   tools?: ToolSet;
-  maxSteps?: number;          // safety cap only — not the expected exit
-  spendLimitUsd?: number;     // primary budget control via stopWhen
+  maxSteps?: number; // safety cap only — not the expected exit
+  spendLimitUsd?: number; // primary budget control via stopWhen
   abortSignal?: AbortSignal;
   onStep?: (step: StepTrace) => void;
 }
 
 interface ProviderAdapter {
   readonly providerType: ProviderType;
-  runAgent<T>(opts: AgentRunOptions & { schema?: z.ZodType<T> }): Promise<RunTrace<T>>;
+  runAgent<T>(
+    opts: AgentRunOptions & { schema?: z.ZodType<T> },
+  ): Promise<RunTrace<T>>;
   testConnection(): Promise<{ ok: boolean; error?: string }>;
 }
 ```
@@ -419,12 +423,16 @@ Single `runAgent()` path for both text and structured-output roles. Schema prese
 Per-model pricing table keyed by model ID prefix. Never hardcoded to a single model's rates. Maintained in `electron/main/services/ai/model-pricing.ts`:
 
 ```ts
-const MODEL_PRICING: Array<{ prefix: string; inputPer1M: number; outputPer1M: number }> = [
-  { prefix: "claude-opus",    inputPer1M: 15,   outputPer1M: 75  },
-  { prefix: "claude-sonnet",  inputPer1M: 3,    outputPer1M: 15  },
-  { prefix: "claude-haiku",   inputPer1M: 0.80, outputPer1M: 4   },
-  { prefix: "gpt-4o",         inputPer1M: 2.50, outputPer1M: 10  },
-  { prefix: "gpt-4o-mini",    inputPer1M: 0.15, outputPer1M: 0.60},
+const MODEL_PRICING: Array<{
+  prefix: string;
+  inputPer1M: number;
+  outputPer1M: number;
+}> = [
+  { prefix: "claude-opus", inputPer1M: 15, outputPer1M: 75 },
+  { prefix: "claude-sonnet", inputPer1M: 3, outputPer1M: 15 },
+  { prefix: "claude-haiku", inputPer1M: 0.8, outputPer1M: 4 },
+  { prefix: "gpt-4o", inputPer1M: 2.5, outputPer1M: 10 },
+  { prefix: "gpt-4o-mini", inputPer1M: 0.15, outputPer1M: 0.6 },
   // add models as needed
 ];
 ```
@@ -518,7 +526,7 @@ type MarketDataSnapshot = {
   instrumentClass: "stock" | "crypto" | "futures" | "prediction_market";
   asOf: string;
   source: string;
-  barCount: number;        // actual bars returned — validated ≥ 200 for technical roles
+  barCount: number; // actual bars returned — validated ≥ 200 for technical roles
   quote: {
     price: number;
     dayChangePct: number | null;
@@ -526,8 +534,16 @@ type MarketDataSnapshot = {
     volumeRatio: number | null;
     spreadBps: number | null;
   };
-  ohlcv: Array<{ ts: string; open: number; high: number; low: number; close: number; volume: number | null }>;
-  technicals: {            // computed by MarketDataService from ohlcv — never fetched
+  ohlcv: Array<{
+    ts: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number | null;
+  }>;
+  technicals: {
+    // computed by MarketDataService from ohlcv — never fetched
     return20d: number | null;
     atr14: number | null;
     rsi14: number | null;
@@ -544,7 +560,12 @@ type MarketDataSnapshot = {
     earningsDate: string | null;
     analystConsensus: string | null;
   };
-  news: Array<{ headline: string; source: string; publishedAt: string; url: string }>;
+  news: Array<{
+    headline: string;
+    source: string;
+    publishedAt: string;
+    url: string;
+  }>;
 };
 ```
 
@@ -592,8 +613,10 @@ ALTER TABLE session_instrument_cache ADD COLUMN research_generated_at TEXT;
 3. `MarketHoursService` filters shortlist.
 4. For each surviving symbol, `MarketDataService.buildSnapshot()` runs in parallel.
 5. `analyst_technical` and `analyst_fundamental` run in parallel per symbol, each with independent tool logs.
-  - If both fail: symbol dropped, `WARN` event emitted, cycle continues.
-  - If one fails: reviewer receives available analysis + explicit gap flag ("Fundamental analysis unavailable: {reason}").
+
+- If both fail: symbol dropped, `WARN` event emitted, cycle continues.
+- If one fails: reviewer receives available analysis + explicit gap flag ("Fundamental analysis unavailable: {reason}").
+
 6. `reviewer` runs spot-check and synthesis.
 7. Research brief (reviewer output + snapshot summary) cached in `session_instrument_cache.research_briefs_json`.
 
@@ -643,10 +666,10 @@ get_news: search-backed headlines query for symbol
 
 ```ts
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
-  intraday_flat:   5_000,
+  intraday_flat: 5_000,
   multi_day_swing: 60_000,
-  weeks_position:  300_000,
-  custom:          300_000,
+  weeks_position: 300_000,
+  custom: 300_000,
 };
 ```
 
@@ -705,7 +728,6 @@ CREATE TABLE trade_autopsies (
 
 ## 10. Risk Register
 
-
 | #   | Risk                                                            | Likelihood | Impact | Mitigation                                                                    |
 | --- | --------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------- |
 | 1   | Provider adapters expose step telemetry inconsistently          | Medium     | High   | Phase 0 adapter tests with replay fixtures per provider                       |
@@ -719,11 +741,9 @@ CREATE TABLE trade_autopsies (
 | 9   | Cycle restart loops in sideways markets                         | Medium     | Medium | Session-level stop conditions + cooldown between cycles                       |
 | 10  | FMP news freshness insufficient for intraday sessions           | Low        | Medium | Fall back to search-derived news for intraday                                 |
 
-
 ---
 
 ## 11. Success Criteria
-
 
 | Goal                      | Metric                                                   | Target                     | How Measured                    |
 | ------------------------- | -------------------------------------------------------- | -------------------------- | ------------------------------- |
@@ -736,11 +756,9 @@ CREATE TABLE trade_autopsies (
 | Cost control (data)       | Average data API spend per research cycle                | <$0.20                     | `api_call_log`                  |
 | Monitoring correctness    | % closed trades followed by cycle restart or clean stop  | 95%                        | Session event sequence          |
 
-
 ---
 
 ## 12. Open Questions
-
 
 | #   | Question                                                                           | Owner | Needed By          |
 | --- | ---------------------------------------------------------------------------------- | ----- | ------------------ |
@@ -748,7 +766,6 @@ CREATE TABLE trade_autopsies (
 | 2   | Should `weeks_position` polling use 5m or 15m by default?                          | Ken   | Post-launch tuning |
 | 3   | How many days of `agent_messages` traces stay hot before archival?                 | Ken   | Post-launch tuning |
 | 4   | Should Exa be added as a third search adapter for `analyst_fundamental`?           | Ken   | Phase 2 planning   |
-
 
 ---
 
@@ -759,4 +776,3 @@ CREATE TABLE trade_autopsies (
 - Exa adapter for fundamental research on public companies
 - Richer replay tooling for prompt/trace diffing between profitable and unprofitable trades
 - Search result deduplication across roles in the same research burst (shared session cache partially addresses this)
-

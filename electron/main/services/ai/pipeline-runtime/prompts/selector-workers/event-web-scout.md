@@ -6,18 +6,18 @@ Prioritize contracts with clear resolution dates, liquid order books, and fresh 
 
 Return JSON:
 {
-  "candidates": [
-    {
-      "symbol": "...",
-      "instrumentClass": "prediction_market",
-      "instrumentDisplayName": "...",
-      "source": ["event-web-scout"],
-      "hypeScore": 0.0,
-      "catalystScore": 0.0,
-      "catalystSummary": "...",
-      "rationale": "..."
-    }
-  ]
+"candidates": [
+{
+"symbol": "...",
+"instrumentClass": "prediction_market",
+"instrumentDisplayName": "...",
+"source": ["event-web-scout"],
+"hypeScore": 0.0,
+"catalystScore": 0.0,
+"catalystSummary": "...",
+"rationale": "..."
+}
+]
 }
 
 Only include symbols backed by current web evidence.

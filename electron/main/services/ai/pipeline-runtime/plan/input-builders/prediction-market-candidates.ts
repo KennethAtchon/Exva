@@ -8,7 +8,10 @@ export const predictionMarketCandidatesInputBuilder: InputBuilder = {
       return null;
     }
 
-    const candidates = await fetchPredictionMarketCandidates(ctx.sessionId, ctx.services.brokerRouting);
+    const candidates = await fetchPredictionMarketCandidates(
+      ctx.sessionId,
+      ctx.services.brokerRouting,
+    );
     if (candidates.length === 0) {
       return null;
     }

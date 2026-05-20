@@ -43,7 +43,10 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     promptAssetPath: "selector-workers/trend-scout",
     tools: ["get_trending_symbols", "search_web"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
-    toolRequirements: { requiredAll: ["get_trending_symbols"], minToolCalls: 1 },
+    toolRequirements: {
+      requiredAll: ["get_trending_symbols"],
+      minToolCalls: 1,
+    },
     engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "object",
     outputSchema: candidateOutputSchema,
@@ -179,14 +182,26 @@ function isEventContractScan(discoveryMode: ResearchDiscoveryMode): boolean {
   return discoveryMode === "event_contract_scan";
 }
 
-export function selectorDiscoveryWorkersForMode(discoveryMode: ResearchDiscoveryMode): readonly WorkerDefinition[] {
-  return isEventContractScan(discoveryMode) ? EVENT_SELECTOR_DISCOVERY : STANDARD_SELECTOR_DISCOVERY;
+export function selectorDiscoveryWorkersForMode(
+  discoveryMode: ResearchDiscoveryMode,
+): readonly WorkerDefinition[] {
+  return isEventContractScan(discoveryMode)
+    ? EVENT_SELECTOR_DISCOVERY
+    : STANDARD_SELECTOR_DISCOVERY;
 }
 
-export function technicalWorkersForMode(discoveryMode: ResearchDiscoveryMode): readonly WorkerDefinition[] {
-  return isEventContractScan(discoveryMode) ? EVENT_TECHNICAL : STANDARD_TECHNICAL;
+export function technicalWorkersForMode(
+  discoveryMode: ResearchDiscoveryMode,
+): readonly WorkerDefinition[] {
+  return isEventContractScan(discoveryMode)
+    ? EVENT_TECHNICAL
+    : STANDARD_TECHNICAL;
 }
 
-export function fundamentalWorkersForMode(discoveryMode: ResearchDiscoveryMode): readonly WorkerDefinition[] {
-  return isEventContractScan(discoveryMode) ? EVENT_FUNDAMENTAL : STANDARD_FUNDAMENTAL;
+export function fundamentalWorkersForMode(
+  discoveryMode: ResearchDiscoveryMode,
+): readonly WorkerDefinition[] {
+  return isEventContractScan(discoveryMode)
+    ? EVENT_FUNDAMENTAL
+    : STANDARD_FUNDAMENTAL;
 }

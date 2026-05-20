@@ -1,7 +1,10 @@
 import type { ToolSet } from "ai";
 import type { z } from "zod";
 import type { ProviderAdapter } from "./adapters/provider-adapter";
-import type { RuntimeAgentMessage, RunTrace } from "./ai-runtime/ai-runtime-types";
+import type {
+  RuntimeAgentMessage,
+  RunTrace,
+} from "./ai-runtime/ai-runtime-types";
 
 export type HarnessConfig<T = undefined> = {
   provider: ProviderAdapter;
@@ -17,7 +20,9 @@ export type HarnessConfig<T = undefined> = {
   schema?: z.ZodType<T>;
 };
 
-export async function executeToolUseHarness<T = undefined>(config: HarnessConfig<T>): Promise<RunTrace<T>> {
+export async function executeToolUseHarness<T = undefined>(
+  config: HarnessConfig<T>,
+): Promise<RunTrace<T>> {
   return config.provider.runAgent<T>({
     model: config.model,
     messages: config.messages,

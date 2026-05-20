@@ -7,7 +7,11 @@ import { toCapitalReservation } from "../system/mappers";
 export class CapitalReservationsRepo {
   constructor(private readonly client: DbClient) {}
 
-  reserveForOrder(input: { sessionId: string; tradeId: string; amountUsd: number }): CapitalReservation {
+  reserveForOrder(input: {
+    sessionId: string;
+    tradeId: string;
+    amountUsd: number;
+  }): CapitalReservation {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
@@ -29,7 +33,11 @@ export class CapitalReservationsRepo {
     return this.require(id);
   }
 
-  reserveForApproval(input: { sessionId: string; approvalId: string; amountUsd: number }): CapitalReservation {
+  reserveForApproval(input: {
+    sessionId: string;
+    approvalId: string;
+    amountUsd: number;
+  }): CapitalReservation {
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
@@ -55,7 +63,12 @@ export class CapitalReservationsRepo {
     this.client.db
       .update(capitalReservations)
       .set({ tradeId, reason: "open_order", status: "consumed" })
-      .where(and(eq(capitalReservations.approvalId, approvalId), eq(capitalReservations.status, "reserved")))
+      .where(
+        and(
+          eq(capitalReservations.approvalId, approvalId),
+          eq(capitalReservations.status, "reserved"),
+        ),
+      )
       .run();
   }
 
@@ -63,7 +76,12 @@ export class CapitalReservationsRepo {
     this.client.db
       .update(capitalReservations)
       .set({ status: "released", releasedAt: new Date().toISOString() })
-      .where(and(eq(capitalReservations.approvalId, approvalId), inArray(capitalReservations.status, ["reserved", "consumed"])))
+      .where(
+        and(
+          eq(capitalReservations.approvalId, approvalId),
+          inArray(capitalReservations.status, ["reserved", "consumed"]),
+        ),
+      )
       .run();
   }
 
@@ -72,16 +90,26 @@ export class CapitalReservationsRepo {
     this.client.db
       .update(capitalReservations)
       .set({ amountUsd })
-      .where(and(eq(capitalReservations.approvalId, approvalId), eq(capitalReservations.status, "reserved")))
+      .where(
+        and(
+          eq(capitalReservations.approvalId, approvalId),
+          eq(capitalReservations.status, "reserved"),
+        ),
+      )
       .run();
   }
 
   sumActiveReservedUsd(sessionId?: string): number {
     const condition = sessionId
-      ? and(eq(capitalReservations.sessionId, sessionId), inArray(capitalReservations.status, ["reserved", "consumed"]))
+      ? and(
+          eq(capitalReservations.sessionId, sessionId),
+          inArray(capitalReservations.status, ["reserved", "consumed"]),
+        )
       : inArray(capitalReservations.status, ["reserved", "consumed"]);
     const row = this.client.db
-      .select({ total: sql<number>`coalesce(sum(${capitalReservations.amountUsd}), 0)` })
+      .select({
+        total: sql<number>`coalesce(sum(${capitalReservations.amountUsd}), 0)`,
+      })
       .from(capitalReservations)
       .where(condition)
       .get();
@@ -92,7 +120,12 @@ export class CapitalReservationsRepo {
     const rows = this.client.db
       .select()
       .from(capitalReservations)
-      .where(and(eq(capitalReservations.sessionId, sessionId), inArray(capitalReservations.status, ["reserved", "consumed"])))
+      .where(
+        and(
+          eq(capitalReservations.sessionId, sessionId),
+          inArray(capitalReservations.status, ["reserved", "consumed"]),
+        ),
+      )
       .orderBy(asc(capitalReservations.createdAt))
       .all();
     return rows.map(toCapitalReservation);
@@ -147,7 +180,11 @@ export class CapitalReservationsRepo {
   }
 
   private require(id: string): CapitalReservation {
-    const row = this.client.db.select().from(capitalReservations).where(eq(capitalReservations.id, id)).get();
+    const row = this.client.db
+      .select()
+      .from(capitalReservations)
+      .where(eq(capitalReservations.id, id))
+      .get();
     if (!row) {
       throw new Error(`Capital reservation ${id} was not found`);
     }

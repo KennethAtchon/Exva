@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSearchRedditTool, MOCK_REDDIT_POSTS } from "../tools/search-reddit-tool";
-import { createTrendingSymbolsTool, MOCK_TRENDING_SYMBOLS } from "../tools/trending-symbols-tool";
+import {
+  createSearchRedditTool,
+  MOCK_REDDIT_POSTS,
+} from "../tools/search-reddit-tool";
+import {
+  createTrendingSymbolsTool,
+  MOCK_TRENDING_SYMBOLS,
+} from "../tools/trending-symbols-tool";
 
 type RedditExecutor = {
   execute: (input: {
@@ -12,7 +18,9 @@ type RedditExecutor = {
 };
 
 type TrendingExecutor = {
-  execute: () => Promise<{ symbols: Array<{ symbol: string; sentiment: string | null }> }>;
+  execute: () => Promise<{
+    symbols: Array<{ symbol: string; sentiment: string | null }>;
+  }>;
 };
 
 describe("social discovery tools", () => {
@@ -28,7 +36,11 @@ describe("social discovery tools", () => {
       mockPosts: MOCK_REDDIT_POSTS,
     }) as unknown as RedditExecutor;
 
-    const result = await tool.execute({ query: "breakout", sort: "top", timeFilter: "day" });
+    const result = await tool.execute({
+      query: "breakout",
+      sort: "top",
+      timeFilter: "day",
+    });
 
     expect(result.posts.length).toBeGreaterThan(0);
     expect(result.posts[0]?.body.length).toBeGreaterThan(0);
@@ -46,6 +58,9 @@ describe("social discovery tools", () => {
     const result = await tool.execute();
 
     expect(result.symbols).toHaveLength(MOCK_TRENDING_SYMBOLS.length);
-    expect(result.symbols[0]).toMatchObject({ symbol: "NVDA", sentiment: "Bullish" });
+    expect(result.symbols[0]).toMatchObject({
+      symbol: "NVDA",
+      sentiment: "Bullish",
+    });
   });
 });

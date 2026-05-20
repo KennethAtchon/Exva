@@ -8,10 +8,16 @@ describe("runMigrations", () => {
   it("applies schema, seed SQL, and runtime seed defaults", () => {
     const { db } = createTestDb();
 
-    const prefs = db.select().from(workspacePreferences).where(eq(workspacePreferences.id, 1)).get();
+    const prefs = db
+      .select()
+      .from(workspacePreferences)
+      .where(eq(workspacePreferences.id, 1))
+      .get();
     expect(prefs).toBeDefined();
     expect(prefs?.allocationEnforcementOverride).toBeNull();
-    expect(prefs?.defaultSearchProviderId).toBe(BUILT_IN_DUCKDUCKGO_PROVIDER_ID);
+    expect(prefs?.defaultSearchProviderId).toBe(
+      BUILT_IN_DUCKDUCKGO_PROVIDER_ID,
+    );
 
     const builtIn = db
       .select()

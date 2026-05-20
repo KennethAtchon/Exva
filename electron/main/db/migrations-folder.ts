@@ -14,5 +14,7 @@ export function resolveMigrationsFolder(): string {
     }
   }
 
-  throw new Error(`Drizzle migrations folder not found (checked: ${candidates.join(", ")})`);
+  throw new Error(
+    `Drizzle migrations folder not found (checked: ${candidates.join(", ")})`,
+  );
 }

@@ -203,8 +203,8 @@ export interface ResearchPosturePreset {
     posturePresetId: ResearchPosturePresetId;
     discoveryMode: ResearchDiscoveryMode;
     evidenceMode: ResearchEvidenceMode;
-      catalystMode: ResearchCatalystMode;
-      fundamentalStrictness: ResearchFundamentalStrictness;
+    catalystMode: ResearchCatalystMode;
+    fundamentalStrictness: ResearchFundamentalStrictness;
   };
   aiGuidance?: PresetAiGuidance;
 }
@@ -220,8 +220,8 @@ export interface TradeRulesPreset {
     setupType: SetupType;
     sideBias: StrategySideBias;
     entryStyle: StrategyEntryStyle;
-      exitStyle: StrategyExitStyle;
-      scalingMode: StrategyScalingMode;
+    exitStyle: StrategyExitStyle;
+    scalingMode: StrategyScalingMode;
   };
   aiGuidance?: PresetAiGuidance;
 }
@@ -247,14 +247,18 @@ export function buildStrategyTimeframeContext(s: SessionStrategy): string {
     "## Session trading horizon (authoritative)",
     `- Primary timeframe: ${s.primaryTradingTimeframe}`,
     `- Holding style: ${s.holdingStyle}`,
-    s.targetHoldDays != null ? `- Target hold: ~${s.targetHoldDays} calendar days` : null,
+    s.targetHoldDays != null
+      ? `- Target hold: ~${s.targetHoldDays} calendar days`
+      : null,
     s.maxHoldDays != null ? `- Max hold: ${s.maxHoldDays} calendar days` : null,
     s.timeframeNotes.trim() ? `- Notes: ${s.timeframeNotes.trim()}` : null,
   ].filter(Boolean) as string[];
   return lines.join("\n");
 }
 
-export function validateSessionStrategyTimeframeFields(s: SessionStrategy): void {
+export function validateSessionStrategyTimeframeFields(
+  s: SessionStrategy,
+): void {
   if (!isTradingTimeframe(s.primaryTradingTimeframe)) {
     throw new Error("Select a primary trading timeframe.");
   }
@@ -267,12 +271,18 @@ export function validateSessionStrategyTimeframeFields(s: SessionStrategy): void
   if (s.maxHoldDays != null && s.maxHoldDays < 0) {
     throw new Error("Hold days cannot be negative.");
   }
-  if (s.targetHoldDays != null && s.maxHoldDays != null && s.maxHoldDays < s.targetHoldDays) {
+  if (
+    s.targetHoldDays != null &&
+    s.maxHoldDays != null &&
+    s.maxHoldDays < s.targetHoldDays
+  ) {
     throw new Error("Max hold must be greater than or equal to target hold.");
   }
 }
 
-function validateSessionTimeframeConfigFields(timeframe: SessionTimeframeConfig): void {
+function validateSessionTimeframeConfigFields(
+  timeframe: SessionTimeframeConfig,
+): void {
   if (!isTradingTimeframe(timeframe.primaryTradingTimeframe)) {
     throw new Error("Select a primary trading timeframe.");
   }
@@ -295,19 +305,30 @@ function validateSessionTimeframeConfigFields(timeframe: SessionTimeframeConfig)
 }
 
 /** Non-blocking UX hint: intraday intent with very slow primary bar. */
-export function timeframeHoldMismatchWarning(s: SessionStrategy): string | null {
+export function timeframeHoldMismatchWarning(
+  s: SessionStrategy,
+): string | null {
   if (s.holdingStyle !== "intraday_flat") return null;
-  if (s.primaryTradingTimeframe !== "1d" && s.primaryTradingTimeframe !== "1w") return null;
+  if (s.primaryTradingTimeframe !== "1d" && s.primaryTradingTimeframe !== "1w")
+    return null;
   return "Intraday style usually uses intraday timeframes; consider 5m–1h.";
 }
 
-export function timeframeConfigHoldMismatchWarning(timeframe: SessionTimeframeConfig): string | null {
+export function timeframeConfigHoldMismatchWarning(
+  timeframe: SessionTimeframeConfig,
+): string | null {
   if (timeframe.holdingStyle !== "intraday_flat") return null;
-  if (timeframe.primaryTradingTimeframe !== "1d" && timeframe.primaryTradingTimeframe !== "1w") return null;
+  if (
+    timeframe.primaryTradingTimeframe !== "1d" &&
+    timeframe.primaryTradingTimeframe !== "1w"
+  )
+    return null;
   return "Intraday style usually uses intraday timeframes; consider 5m-1h.";
 }
 
-export function buildResearchPostureMarkdown(posture: SessionResearchPosture): string {
+export function buildResearchPostureMarkdown(
+  posture: SessionResearchPosture,
+): string {
   const lines = [
     "# Research posture",
     "",
@@ -350,7 +371,9 @@ export function buildTradeRulesMarkdown(rules: SessionTradeRules): string {
     : markdown;
 }
 
-export function buildStrategySnapshot(context: SessionStrategyContext): StrategySnapshot {
+export function buildStrategySnapshot(
+  context: SessionStrategyContext,
+): StrategySnapshot {
   return {
     version: 5,
     researchPosture: {
@@ -404,35 +427,66 @@ export function validateSessionStrategyContext(
 ): void {
   validateSessionTimeframeConfigFields(context.timeframe);
 
-  if (context.riskConfig.maxPositionUsd < 0) throw new Error("Max position must be zero or greater.");
-  if (context.riskConfig.maxConcurrentTrades < 0) throw new Error("Max concurrent trades must be zero or greater.");
-  if (context.riskConfig.dailyLossLimitUsd < 0) throw new Error("Daily loss limit must be zero or greater.");
-  if (context.riskConfig.profitTargetUsd < 0) throw new Error("Profit target must be zero or greater.");
-  if (context.riskConfig.maxAiSpendUsd < 0) throw new Error("Max AI spend must be zero or greater.");
-  if (context.riskConfig.maxDataSpendUsd < 0) throw new Error("Max data spend must be zero or greater.");
-  if (context.riskConfig.stopLossPct != null && context.riskConfig.stopLossPct < 0) {
+  if (context.riskConfig.maxPositionUsd < 0)
+    throw new Error("Max position must be zero or greater.");
+  if (context.riskConfig.maxConcurrentTrades < 0)
+    throw new Error("Max concurrent trades must be zero or greater.");
+  if (context.riskConfig.dailyLossLimitUsd < 0)
+    throw new Error("Daily loss limit must be zero or greater.");
+  if (context.riskConfig.profitTargetUsd < 0)
+    throw new Error("Profit target must be zero or greater.");
+  if (context.riskConfig.maxAiSpendUsd < 0)
+    throw new Error("Max AI spend must be zero or greater.");
+  if (context.riskConfig.maxDataSpendUsd < 0)
+    throw new Error("Max data spend must be zero or greater.");
+  if (
+    context.riskConfig.stopLossPct != null &&
+    context.riskConfig.stopLossPct < 0
+  ) {
     throw new Error("Stop loss percent must be zero or greater.");
   }
-  if (context.riskConfig.takeProfitPct != null && context.riskConfig.takeProfitPct < 0) {
+  if (
+    context.riskConfig.takeProfitPct != null &&
+    context.riskConfig.takeProfitPct < 0
+  ) {
     throw new Error("Take profit percent must be zero or greater.");
   }
-  if (researchPostureNeedsSearchProvider(context.researchPosture) && !options.hasSearchProvider) {
-    throw new Error("Catalyst-driven and event-contract styles require a configured search provider.");
+  if (
+    researchPostureNeedsSearchProvider(context.researchPosture) &&
+    !options.hasSearchProvider
+  ) {
+    throw new Error(
+      "Catalyst-driven and event-contract styles require a configured search provider.",
+    );
   }
-  if (isPredictionEventResearchPosture(context.researchPosture) || context.rules.setupType === "probability_edge") {
+  if (
+    isPredictionEventResearchPosture(context.researchPosture) ||
+    context.rules.setupType === "probability_edge"
+  ) {
     if (context.riskConfig.kellyFraction <= 0) {
-      throw new Error("Probability-edge rules require kelly fraction greater than zero.");
+      throw new Error(
+        "Probability-edge rules require kelly fraction greater than zero.",
+      );
     }
-    if (context.riskConfig.maxExposureUsd == null || context.riskConfig.maxExposureUsd <= 0) {
+    if (
+      context.riskConfig.maxExposureUsd == null ||
+      context.riskConfig.maxExposureUsd <= 0
+    ) {
       throw new Error("Probability-edge rules require max exposure USD.");
     }
   }
-  if (context.rules.tradeRulesMarkdown.length > TRADE_RULES_MARKDOWN_MAX_CHARS) {
-    throw new Error(`Trade rules markdown must stay under ${TRADE_RULES_MARKDOWN_MAX_CHARS} characters.`);
+  if (
+    context.rules.tradeRulesMarkdown.length > TRADE_RULES_MARKDOWN_MAX_CHARS
+  ) {
+    throw new Error(
+      `Trade rules markdown must stay under ${TRADE_RULES_MARKDOWN_MAX_CHARS} characters.`,
+    );
   }
 }
 
-export function toLegacySessionConfig(context: SessionStrategyContext): SessionConfig {
+export function toLegacySessionConfig(
+  context: SessionStrategyContext,
+): SessionConfig {
   return {
     strategy: context.rules.setupType,
     max_position_usd: context.riskConfig.maxPositionUsd,
@@ -455,10 +509,21 @@ function labelizeToken(token: string): string {
     .join(" ");
 }
 
-function researchPostureNeedsSearchProvider(posture: SessionResearchPosture): boolean {
-  return posture.catalystMode === "required" || posture.discoveryMode === "catalyst_scan" || posture.discoveryMode === "event_contract_scan";
+function researchPostureNeedsSearchProvider(
+  posture: SessionResearchPosture,
+): boolean {
+  return (
+    posture.catalystMode === "required" ||
+    posture.discoveryMode === "catalyst_scan" ||
+    posture.discoveryMode === "event_contract_scan"
+  );
 }
 
-function isPredictionEventResearchPosture(posture: SessionResearchPosture): boolean {
-  return posture.discoveryMode === "event_contract_scan" || posture.evidenceMode === "probability_edge";
+function isPredictionEventResearchPosture(
+  posture: SessionResearchPosture,
+): boolean {
+  return (
+    posture.discoveryMode === "event_contract_scan" ||
+    posture.evidenceMode === "probability_edge"
+  );
 }

@@ -31,7 +31,10 @@ export class SecretsService {
 
   async get(account: string): Promise<string | null> {
     const secret = await keytar.getPassword(SERVICE, account);
-    logger.debug({ account, exists: Boolean(secret), secretLength: secret?.length ?? 0 }, "read secret from keychain");
+    logger.debug(
+      { account, exists: Boolean(secret), secretLength: secret?.length ?? 0 },
+      "read secret from keychain",
+    );
     return secret;
   }
 

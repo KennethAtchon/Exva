@@ -3,7 +3,8 @@ export const fmt = {
     const a = Math.abs(v).toFixed(d);
     return v < 0 ? `-$${a}` : `$${a}`;
   },
-  pct: (v: number, d = 1): string => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(d)}%`,
+  pct: (v: number, d = 1): string =>
+    `${v >= 0 ? "+" : ""}${(v * 100).toFixed(d)}%`,
   pnl: (v: number): string => (v >= 0 ? `+${fmt.usd(v)}` : fmt.usd(v)),
   time: (iso: string): string =>
     new Date(iso).toLocaleTimeString("en-US", {

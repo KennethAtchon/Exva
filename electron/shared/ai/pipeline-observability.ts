@@ -36,7 +36,14 @@ export interface PhaseTraceWorkerV1 {
   frontier: number;
   dependsOn: string[];
   requiredForPhase: boolean;
-  status: "pending" | "blocked" | "running" | "succeeded" | "failed" | "skipped" | "degraded";
+  status:
+    | "pending"
+    | "blocked"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "skipped"
+    | "degraded";
   startedAt: string | null;
   finishedAt: string | null;
   durationMs: number | null;

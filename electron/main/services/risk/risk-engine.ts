@@ -71,23 +71,38 @@ export class RiskEngine {
       return { allowed: false, reason: "Anthropic API key is not configured" };
     }
     const result = this.checkStats(input.config, input.stats);
-    logger.info({ allowed: result.allowed, reason: result.reason ?? null }, "risk preflight evaluated");
+    logger.info(
+      { allowed: result.allowed, reason: result.reason ?? null },
+      "risk preflight evaluated",
+    );
     return result;
   }
 
   validateDecision(input: DecisionRiskInput): RiskResult<OrderRequest> {
     const statsResult = this.checkStats(input.config, input.stats);
     if (!statsResult.allowed) {
-      logger.warn({ reason: statsResult.reason ?? null }, "risk decision denied by stats");
+      logger.warn(
+        { reason: statsResult.reason ?? null },
+        "risk decision denied by stats",
+      );
       return { allowed: false, reason: statsResult.reason };
     }
     if (input.order.sizeUsd <= 0) {
-      logger.warn({ sizeUsd: input.order.sizeUsd }, "risk decision denied due to invalid size");
-      return { allowed: false, reason: "Position size must be greater than zero" };
+      logger.warn(
+        { sizeUsd: input.order.sizeUsd },
+        "risk decision denied due to invalid size",
+      );
+      return {
+        allowed: false,
+        reason: "Position size must be greater than zero",
+      };
     }
     if (input.stats.open_trades >= input.config.max_concurrent_trades) {
       logger.warn(
-        { openTrades: input.stats.open_trades, maxConcurrentTrades: input.config.max_concurrent_trades },
+        {
+          openTrades: input.stats.open_trades,
+          maxConcurrentTrades: input.config.max_concurrent_trades,
+        },
         "risk decision denied due to concurrent trade cap",
       );
       return { allowed: false, reason: "Maximum concurrent trades reached" };
@@ -98,23 +113,42 @@ export class RiskEngine {
         value: { ...input.order, sizeUsd: input.config.max_position_usd },
         reason: "Position size reduced to configured maximum",
       };
-      logger.info({ originalSizeUsd: input.order.sizeUsd, reducedToUsd: input.config.max_position_usd }, "risk decision size reduced");
+      logger.info(
+        {
+          originalSizeUsd: input.order.sizeUsd,
+          reducedToUsd: input.config.max_position_usd,
+        },
+        "risk decision size reduced",
+      );
       return reduced;
     }
     const maxExposureUsd = this.maxExposureUsd(input);
-    if (input.order.instrumentType === "prediction_market" && maxExposureUsd != null && input.order.sizeUsd > maxExposureUsd) {
+    if (
+      input.order.instrumentType === "prediction_market" &&
+      maxExposureUsd != null &&
+      input.order.sizeUsd > maxExposureUsd
+    ) {
       const reduced = {
         allowed: true,
         value: { ...input.order, sizeUsd: maxExposureUsd },
         reason: "Prediction-market position reduced to max exposure",
       };
-      logger.info({ originalSizeUsd: input.order.sizeUsd, reducedToUsd: maxExposureUsd }, "risk decision exposure reduced");
+      logger.info(
+        { originalSizeUsd: input.order.sizeUsd, reducedToUsd: maxExposureUsd },
+        "risk decision exposure reduced",
+      );
       return reduced;
     }
     const confidenceThreshold = input.riskPolicy?.waitForOpenThreshold ?? 0.6;
     if (input.confidence < confidenceThreshold) {
-      logger.warn({ confidence: input.confidence, confidenceThreshold }, "risk decision denied due to confidence");
-      return { allowed: false, reason: "Decision confidence is below wait-for-open threshold" };
+      logger.warn(
+        { confidence: input.confidence, confidenceThreshold },
+        "risk decision denied due to confidence",
+      );
+      return {
+        allowed: false,
+        reason: "Decision confidence is below wait-for-open threshold",
+      };
     }
     logger.debug(
       {
@@ -127,9 +161,12 @@ export class RiskEngine {
     return { allowed: true, value: input.order };
   }
 
-  checkSessionLimits(config: SessionConfig, stats: DashboardStats): string | null {
+  checkSessionLimits(
+    config: SessionConfig,
+    stats: DashboardStats,
+  ): string | null {
     const result = this.checkStats(config, stats);
-    return result.allowed ? null : result.reason ?? "Risk limit reached";
+    return result.allowed ? null : (result.reason ?? "Risk limit reached");
   }
 
   private checkStats(config: SessionConfig, stats: DashboardStats): RiskResult {

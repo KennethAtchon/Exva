@@ -1,5 +1,8 @@
 import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
-import { sessionTemplatePayloadSchema, templateCreateInputSchema } from "@electron/shared/validation/schemas";
+import {
+  sessionTemplatePayloadSchema,
+  templateCreateInputSchema,
+} from "@electron/shared/validation/schemas";
 import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
@@ -39,18 +42,25 @@ export class SessionTemplateService {
     },
   ) {}
 
-  list(filters: { search?: string; instrumentClass?: InstrumentClass } = {}): TemplateListItem[] {
+  list(
+    filters: { search?: string; instrumentClass?: InstrumentClass } = {},
+  ): TemplateListItem[] {
     const sessionsById = new Map(
-      this.deps.sessions.list({ includeArchived: true }).map((session) => [session.id, session]),
+      this.deps.sessions
+        .list({ includeArchived: true })
+        .map((session) => [session.id, session]),
     );
     const search = filters.search?.toLowerCase().trim() ?? "";
 
     return this.deps.templates
       .list()
-      .filter((template) => !search || template.name.toLowerCase().includes(search))
+      .filter(
+        (template) => !search || template.name.toLowerCase().includes(search),
+      )
       .filter(
         (template) =>
-          !filters.instrumentClass || template.instrumentClasses.includes(filters.instrumentClass),
+          !filters.instrumentClass ||
+          template.instrumentClasses.includes(filters.instrumentClass),
       )
       .map((template) => ({
         id: template.id,
@@ -58,7 +68,7 @@ export class SessionTemplateService {
         description: template.description,
         sourceSessionId: template.sourceSessionId,
         sourceSessionName: template.sourceSessionId
-          ? sessionsById.get(template.sourceSessionId)?.name ?? null
+          ? (sessionsById.get(template.sourceSessionId)?.name ?? null)
           : null,
         instrumentClasses: template.instrumentClasses,
         updatedAt: template.updatedAt,
@@ -97,30 +107,44 @@ export class SessionTemplateService {
       throw new AppError(`Template ${id} was not found`, "NOT_FOUND", { id });
     }
 
-    const parsed = sessionTemplatePayloadSchema.safeParse(JSON.parse(template.templatePayloadJson));
+    const parsed = sessionTemplatePayloadSchema.safeParse(
+      JSON.parse(template.templatePayloadJson),
+    );
     if (!parsed.success) {
-      throw new AppError("Stored template payload is invalid.", "VALIDATION_FAILED", {
-        templateId: id,
-        issues: parsed.error.flatten(),
-      });
+      throw new AppError(
+        "Stored template payload is invalid.",
+        "VALIDATION_FAILED",
+        {
+          templateId: id,
+          issues: parsed.error.flatten(),
+        },
+      );
     }
 
     const payload = parsed.data;
     const clearedFields: string[] = [];
 
-    const providerIds = new Set(this.deps.providerAccounts.list().map((provider) => provider.id));
-    const brokerIds = new Set(this.deps.brokerAccounts.list().map((broker) => broker.id));
+    const providerIds = new Set(
+      this.deps.providerAccounts.list().map((provider) => provider.id),
+    );
+    const brokerIds = new Set(
+      this.deps.brokerAccounts.list().map((broker) => broker.id),
+    );
 
-    payload.brokerAssignments = payload.brokerAssignments.map((assignment, index) => {
-      if (!brokerIds.has(assignment.brokerAccountId)) {
-        clearedFields.push(`brokerAssignments[${index}]`);
-        return { brokerAccountId: "", allocatedUsd: 0 };
-      }
-      return assignment;
-    });
+    payload.brokerAssignments = payload.brokerAssignments.map(
+      (assignment, index) => {
+        if (!brokerIds.has(assignment.brokerAccountId)) {
+          clearedFields.push(`brokerAssignments[${index}]`);
+          return { brokerAccountId: "", allocatedUsd: 0 };
+        }
+        return assignment;
+      },
+    );
 
     const nextOverrides: Partial<Record<InstrumentClass, string>> = {};
-    for (const [key, brokerAccountId] of Object.entries(payload.brokerOverridesByInstrumentClass)) {
+    for (const [key, brokerAccountId] of Object.entries(
+      payload.brokerOverridesByInstrumentClass,
+    )) {
       const ic = key as InstrumentClass;
       if (brokerAccountId && !brokerIds.has(brokerAccountId)) {
         clearedFields.push(`brokerOverridesByInstrumentClass.${ic}`);
@@ -162,7 +186,8 @@ export class SessionTemplateService {
         profitTargetUsd: strategyContext.riskConfig.profitTargetUsd,
         maxAiSpendUsd: strategyContext.riskConfig.maxAiSpendUsd,
         humanApprovalRequired: strategyContext.riskConfig.humanApprovalRequired,
-        primaryTradingTimeframe: strategyContext.timeframe.primaryTradingTimeframe,
+        primaryTradingTimeframe:
+          strategyContext.timeframe.primaryTradingTimeframe,
         holdingStyle: strategyContext.timeframe.holdingStyle,
         targetHoldDays: strategyContext.timeframe.targetHoldDays,
         maxHoldDays: strategyContext.timeframe.maxHoldDays,
@@ -170,7 +195,10 @@ export class SessionTemplateService {
       },
       brokerAssignments: this.deps.brokerAssignments.listAssignments(sessionId),
       brokerOverridesByInstrumentClass: Object.fromEntries(
-        overrides.map((override) => [override.instrumentClass, override.brokerAccountId]),
+        overrides.map((override) => [
+          override.instrumentClass,
+          override.brokerAccountId,
+        ]),
       ) as Partial<Record<InstrumentClass, string>>,
     };
   }

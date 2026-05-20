@@ -1,12 +1,19 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
-import type { PipelinePhase, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import type {
+  PipelinePhase,
+  WorkerDefinition,
+} from "@electron/shared/ai/pipeline-phase";
 import type { AgentResult } from "../../../ai-runtime/ai-runtime-types";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { ToolBuildContext } from "../../context/tool-factory-registry";
 import type { PipelineWorkerRunner } from "../../core/types";
 import type { PhasePlanServices } from "./services";
 
-export type PhasePlanSource = "cache" | "manual_shortlist" | "ai_picker" | "phase";
+export type PhasePlanSource =
+  | "cache"
+  | "manual_shortlist"
+  | "ai_picker"
+  | "phase";
 
 export interface PhasePlanWorkerTrace {
   workerId: string;
@@ -35,7 +42,11 @@ export interface PhasePlanStage<TState> {
   id: string;
   frontier: number;
   resolveWorkers(ctx: PhasePlanRunContext, state: TState): WorkerDefinition[];
-  buildTask(ctx: PhasePlanRunContext, state: TState, worker: WorkerDefinition): Record<string, unknown>;
+  buildTask(
+    ctx: PhasePlanRunContext,
+    state: TState,
+    worker: WorkerDefinition,
+  ): Record<string, unknown>;
   concurrency: number;
   toleratePartialFailure: boolean;
   minSuccessfulWorkers?: number;
@@ -74,7 +85,10 @@ export interface PhasePlan<TState, TOutput> {
     workerTraces: PhasePlanWorkerTrace[],
   ): Promise<{
     output: TOutput;
-    aggregate?: { run: AgentResult<TOutput>["run"]; message: AgentResult<TOutput>["message"] };
+    aggregate?: {
+      run: AgentResult<TOutput>["run"];
+      message: AgentResult<TOutput>["message"];
+    };
   }>;
   filterOutput?(output: TOutput, ctx: PhasePlanRunContext): TOutput;
   inspect: PhasePlanInspectMetadata;

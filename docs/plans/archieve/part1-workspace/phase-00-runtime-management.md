@@ -10,6 +10,7 @@
 Introduce a `SessionRuntimeManager` that owns one long-lived runtime object per active or paused session.
 
 Each runtime keeps warm state that should not be rebuilt every cycle:
+
 - session-scoped `AgentOrchestrator`
 - trade-monitor subscriptions
 - broker adapter subscriptions/handles
@@ -20,6 +21,7 @@ Each runtime keeps warm state that should not be rebuilt every cycle:
 ## Why This Model Wins
 
 The plan already assumes multiple sessions can be active in parallel. A long-lived runtime per session is the better fit here than stateless per-cycle workers because:
+
 - pause/resume becomes a real lifecycle operation instead of "reconstruct everything"
 - broker and monitor subscriptions stay warm
 - approval handling can resume inside the same process without rebuilding context every loop
@@ -83,6 +85,7 @@ export class SessionRuntimeManager {
 ```
 
 Rules:
+
 - exactly one runtime object per active or paused session
 - `draft`, `idle`, `stopped`, and `archived` sessions must not have live runtimes
 - starting an already-live session returns the existing runtime instead of creating a duplicate
@@ -109,6 +112,7 @@ sequenceDiagram
 ## Lifecycle Ownership
 
 `SessionService` stops being the direct owner of a singleton orchestrator. Instead:
+
 - `SessionService.start()` delegates to `SessionRuntimeManager.startSession(sessionId)`
 - `SessionService.pause()` delegates to `pauseSession(sessionId)`
 - `SessionService.resume()` delegates to `resumeSession(sessionId)`
@@ -172,7 +176,12 @@ Centralized, ordered, fail-fast. Every check is a pure function returning a `Pre
 ```typescript
 export type PreflightResult =
   | { ok: true }
-  | { ok: false; code: AppErrorCode; message: string; details?: Record<string, unknown> };
+  | {
+      ok: false;
+      code: AppErrorCode;
+      message: string;
+      details?: Record<string, unknown>;
+    };
 
 export async function runPreflight(
   session: WorkspaceSession,
@@ -196,6 +205,7 @@ export async function runPreflight(
 ```
 
 Order:
+
 1. **Task boundary** — name, objective, instrumentClasses non-empty, instrumentScope non-empty, capitalLimitUsd > 0, executionMode set.
 2. **Provider credentials** — every AI role's `providerKey` references a configured `provider_account` with `isConfigured = true`.
 3. **Broker reachability** — `BrokerRoutingService.preflightSession(session.id, session.instrumentClasses)`. Tests `resolveAdapter` for each class + `testConnection()` on each assigned broker.
@@ -230,6 +240,7 @@ private async runTradeCycle(symbol: string, instrumentClass: InstrumentClass): P
 ```
 
 Rules:
+
 - An in-flight `await` cannot be cancelled mid-call. The check happens between phases, not during a network round-trip.
 - `pause()` does not interrupt a running cycle; it prevents the next cycle phase from continuing.
 - Cycles aborted by status change emit an `INFO` event: `Cycle aborted: session paused mid-flight.`
@@ -239,11 +250,13 @@ Rules:
 ## Test Setup (P2.1)
 
 This phase establishes the test infrastructure that every later phase relies on. Files:
+
 - `vitest.config.ts` at repo root.
 - `electron/main/db/test-helpers.ts` — `createTestDb()` returns an in-memory `better-sqlite3` instance with all migrations applied.
 - `electron/main/services/session/__tests__/runtime-manager.test.ts` — first reference test.
 
 Conventions:
+
 - Tests use a real in-memory SQLite (`new Database(":memory:")`), never mocks.
 - Each test gets a fresh DB. No shared state across tests.
 - Coverage threshold gates `services/` and `db/repositories/` at 80% (per `CODING_GUIDELINES.md` §13).
@@ -252,6 +265,7 @@ Conventions:
 ## Tooling Setup (P2.2)
 
 Add in this phase, used by every later phase:
+
 - `eslint.config.js` — `@typescript-eslint/strict` ruleset + the `no-restricted-syntax` rule for `process.env` access (per `CODING_GUIDELINES.md` §16.2).
 - `.prettierrc` — match existing style (2-space indent, double quotes, trailing comma).
 - `husky` pre-commit hook running `tsc --noEmit && lint-staged`.
@@ -274,28 +288,29 @@ Levels follow `CODING_GUIDELINES.md` §11. Log level is read from `env.logLevel`
 
 Every system-emitted `events` row uses one of the following shapes. Later phases append rows.
 
-| Event | level | agent_type | message template | Emitted by |
-|-------|-------|-----------|-------------------|------------|
-| Session created | `INFO` | `session` | `Session created: {name}` | `SessionService.create` |
-| Session started | `INFO` | `session` | `Session started.` | `SessionService.start` |
-| Session paused | `INFO` | `session` | `Session paused.` | `SessionService.pause` |
-| Session resumed | `INFO` | `session` | `Session resumed.` | `SessionService.resume` |
-| Session stopped | `INFO` | `session` | `Session stopped.` | `SessionService.stop` |
-| Preflight failed | `ERROR` | `preflight` | `Preflight {check} failed: {reason}` | `runPreflight` |
-| Approval required | `INFO` | `approval` | `Trade {symbol} {side} ${size} requires approval.` | `AgentOrchestrator.waitForApproval` |
-| Approval resolved | `INFO` | `approval` | `Approval {decision}.` | `approval:decide` IPC |
-| Cycle aborted (pause) | `INFO` | `orchestrator` | `Cycle aborted: session paused mid-flight.` | `AgentOrchestrator.runTradeCycle` |
-| Instrument conflict | `WARN` | `orchestrator` | `Skipped {symbol}: another session holds the same broker+instrument.` | `AgentOrchestrator.runTradeCycle` |
-| Selector run | `INFO` | `instrument_selector` | `Selector chose {n} instruments.` | `AgentOrchestrator.resolveInstruments` |
-| Broker order placed | `INFO` | `broker` | `Placed {side} {symbol} ${size} via {brokerType}.` | `AgentOrchestrator.runTradeCycle` |
-| Broker order failed | `ERROR` | `broker` | `Broker rejected {side} {symbol}: {reason}` | `AgentOrchestrator.runTradeCycle` |
-| Capital pool exceeded | `WARN` | `capital` | `Capital pool would be exceeded: ${requested} > ${available}` | `CapitalReservationService` |
+| Event                 | level   | agent_type            | message template                                                      | Emitted by                             |
+| --------------------- | ------- | --------------------- | --------------------------------------------------------------------- | -------------------------------------- |
+| Session created       | `INFO`  | `session`             | `Session created: {name}`                                             | `SessionService.create`                |
+| Session started       | `INFO`  | `session`             | `Session started.`                                                    | `SessionService.start`                 |
+| Session paused        | `INFO`  | `session`             | `Session paused.`                                                     | `SessionService.pause`                 |
+| Session resumed       | `INFO`  | `session`             | `Session resumed.`                                                    | `SessionService.resume`                |
+| Session stopped       | `INFO`  | `session`             | `Session stopped.`                                                    | `SessionService.stop`                  |
+| Preflight failed      | `ERROR` | `preflight`           | `Preflight {check} failed: {reason}`                                  | `runPreflight`                         |
+| Approval required     | `INFO`  | `approval`            | `Trade {symbol} {side} ${size} requires approval.`                    | `AgentOrchestrator.waitForApproval`    |
+| Approval resolved     | `INFO`  | `approval`            | `Approval {decision}.`                                                | `approval:decide` IPC                  |
+| Cycle aborted (pause) | `INFO`  | `orchestrator`        | `Cycle aborted: session paused mid-flight.`                           | `AgentOrchestrator.runTradeCycle`      |
+| Instrument conflict   | `WARN`  | `orchestrator`        | `Skipped {symbol}: another session holds the same broker+instrument.` | `AgentOrchestrator.runTradeCycle`      |
+| Selector run          | `INFO`  | `instrument_selector` | `Selector chose {n} instruments.`                                     | `AgentOrchestrator.resolveInstruments` |
+| Broker order placed   | `INFO`  | `broker`              | `Placed {side} {symbol} ${size} via {brokerType}.`                    | `AgentOrchestrator.runTradeCycle`      |
+| Broker order failed   | `ERROR` | `broker`              | `Broker rejected {side} {symbol}: {reason}`                           | `AgentOrchestrator.runTradeCycle`      |
+| Capital pool exceeded | `WARN`  | `capital`             | `Capital pool would be exceeded: ${requested} > ${available}`         | `CapitalReservationService`            |
 
 `agent_type` is the producing subsystem. Renderer filters/groups events by this field.
 
 ## Approval Restart Policy
 
 This phase establishes the restart rule used later in Phase 6:
+
 - if an approval is still pending in the same live process, the runtime may resume via its in-memory callback
 - if the app restarted, the callback is gone and the old approval must never place the old order directly
 - approving a pre-restart item must enqueue a fresh decision/risk pass against current session state before any order is sent
@@ -303,6 +318,7 @@ This phase establishes the restart rule used later in Phase 6:
 ## Shared Global Pool Enforcement Hook
 
 When `capitalAllocationMode = 'shared_global_pool'`, runtime startup and order flow must consult a shared reservation layer:
+
 - session start preflight checks the sum of active session capital limits against `workspace_preferences.global_capital_pool_usd`
 - pending approved trades reserve capital before order placement
 - open orders and open positions keep capital reserved until exit, cancel, or failure reconciliation
@@ -311,25 +327,25 @@ The schema and service details land in Phases 2 and 8, but the ownership model l
 
 ## Files Created / Modified
 
-| Action | File |
-|--------|------|
-| Create | `electron/main/services/session/session-runtime-manager.ts` |
-| Create | `electron/main/services/session/session-runtime.ts` |
-| Create | `electron/main/services/session/session-types.ts` — `OrchestratorDeps`, `PreflightResult`, runtime types (P0.5) |
-| Create | `electron/main/services/session/preflight/` — one file per check (P1.7) |
-| Create | `electron/main/services/session/index.ts` |
-| Create | `electron/main/services/log.ts` — `createLogger(scope)` (P2.3) |
-| Create | `electron/main/config/env.ts` — typed env (per `CODING_GUIDELINES.md` §16) |
-| Create | `vitest.config.ts` (P2.1) |
-| Create | `electron/main/db/test-helpers.ts` (P2.1) |
-| Create | `eslint.config.js` (P2.2) |
-| Create | `.prettierrc` (P2.2) |
-| Create | `.husky/pre-commit` (P2.2) |
-| Modify | `package.json` — add `lint`, `test`, `test:watch` scripts; add husky/lint-staged/vitest devDeps |
-| Modify | `electron/main/services/session/session-service.ts` — delegate runtime lifecycle, run preflight |
+| Action | File                                                                                                                                   |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Create | `electron/main/services/session/session-runtime-manager.ts`                                                                            |
+| Create | `electron/main/services/session/session-runtime.ts`                                                                                    |
+| Create | `electron/main/services/session/session-types.ts` — `OrchestratorDeps`, `PreflightResult`, runtime types (P0.5)                        |
+| Create | `electron/main/services/session/preflight/` — one file per check (P1.7)                                                                |
+| Create | `electron/main/services/session/index.ts`                                                                                              |
+| Create | `electron/main/services/log.ts` — `createLogger(scope)` (P2.3)                                                                         |
+| Create | `electron/main/config/env.ts` — typed env (per `CODING_GUIDELINES.md` §16)                                                             |
+| Create | `vitest.config.ts` (P2.1)                                                                                                              |
+| Create | `electron/main/db/test-helpers.ts` (P2.1)                                                                                              |
+| Create | `eslint.config.js` (P2.2)                                                                                                              |
+| Create | `.prettierrc` (P2.2)                                                                                                                   |
+| Create | `.husky/pre-commit` (P2.2)                                                                                                             |
+| Modify | `package.json` — add `lint`, `test`, `test:watch` scripts; add husky/lint-staged/vitest devDeps                                        |
+| Modify | `electron/main/services/session/session-service.ts` — delegate runtime lifecycle, run preflight                                        |
 | Modify | `electron/main/services/agent-orchestrator.ts` — per-session constructor + `OrchestratorDeps` (P0.5), yield-point status checks (P1.8) |
-| Modify | `electron/main/services/app-services.ts` — wire `SessionRuntimeManager` |
-| Modify | `electron/main/index.ts` — call `rehydrateFromDb()` on launch |
+| Modify | `electron/main/services/app-services.ts` — wire `SessionRuntimeManager`                                                                |
+| Modify | `electron/main/index.ts` — call `rehydrateFromDb()` on launch                                                                          |
 
 ## Acceptance Criteria
 

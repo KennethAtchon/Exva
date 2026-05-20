@@ -1,4 +1,8 @@
-import type { EngineBinding, PipelinePhase, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import type {
+  EngineBinding,
+  PipelinePhase,
+  WorkerDefinition,
+} from "@electron/shared/ai/pipeline-phase";
 import type { AgentResult } from "../../../../ai-runtime/ai-runtime-types";
 import { runEngineBinding } from "../../../execution/engine-context-runner";
 import { assembleAggregateTrace } from "../../../execution/trace-assembler";
@@ -17,8 +21,14 @@ export function createAggregatorPhasePlan<TOutput>(config: {
   resolveWorkers: (ctx: PhasePlanRunContext) => readonly WorkerDefinition[];
   buildTask: (ctx: PhasePlanRunContext) => Record<string, unknown>;
   concurrency: number;
-  collectWorkerOutputs: (workers: readonly WorkerDefinition[], results: WorkerResult[]) => unknown;
-  buildFinalizeTask: (ctx: PhasePlanRunContext, workerPayload: unknown) => Record<string, unknown>;
+  collectWorkerOutputs: (
+    workers: readonly WorkerDefinition[],
+    results: WorkerResult[],
+  ) => unknown;
+  buildFinalizeTask: (
+    ctx: PhasePlanRunContext,
+    workerPayload: unknown,
+  ) => Record<string, unknown>;
   finalizeBinding: EngineBinding;
   persistAggregate?: boolean;
 }): PhasePlan<AggregatorPlanState, TOutput> {
@@ -36,12 +46,18 @@ export function createAggregatorPhasePlan<TOutput>(config: {
         concurrency: config.concurrency,
         toleratePartialFailure: false,
         applyResults(ctx, _state, results) {
-          return { workers: config.resolveWorkers(ctx), workerResults: results };
+          return {
+            workers: config.resolveWorkers(ctx),
+            workerResults: results,
+          };
         },
       },
     ],
     async finalize(ctx, state, workerTraces) {
-      const workerPayload = config.collectWorkerOutputs(state.workers, state.workerResults);
+      const workerPayload = config.collectWorkerOutputs(
+        state.workers,
+        state.workerResults,
+      );
       const output = runEngineBinding<TOutput>({
         phase: config.phase,
         sessionId: ctx.sessionId,
@@ -74,7 +90,10 @@ export function createAggregatorPhasePlan<TOutput>(config: {
         })),
       });
 
-      return { output, aggregate: { run: aggregate.run, message: aggregate.message } };
+      return {
+        output,
+        aggregate: { run: aggregate.run, message: aggregate.message },
+      };
     },
     inspect: {
       inputBuilderIds: [],

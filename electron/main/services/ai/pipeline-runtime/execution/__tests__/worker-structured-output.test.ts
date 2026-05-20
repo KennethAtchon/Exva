@@ -15,17 +15,37 @@ describe("resolveStructuredWorkerOutput", () => {
   };
 
   it("returns parsed output when validation succeeds", () => {
-    const result = resolveStructuredWorkerOutput(contract, { score: 0.8, label: "ok" }, false);
-    expect(result).toEqual({ output: { score: 0.8, label: "ok" }, parseFallback: false, retried: false });
+    const result = resolveStructuredWorkerOutput(
+      contract,
+      { score: 0.8, label: "ok" },
+      false,
+    );
+    expect(result).toEqual({
+      output: { score: 0.8, label: "ok" },
+      parseFallback: false,
+      retried: false,
+    });
   });
 
   it("requests one retry when validation fails", () => {
-    const result = resolveStructuredWorkerOutput(contract, { score: 2, label: "bad" }, false);
+    const result = resolveStructuredWorkerOutput(
+      contract,
+      { score: 2, label: "bad" },
+      false,
+    );
     expect(result).toEqual({ needsRetry: true, retried: true });
   });
 
   it("substitutes zero dimension after retry exhaustion", () => {
-    const result = resolveStructuredWorkerOutput(contract, { score: 2, label: "bad" }, true);
-    expect(result).toEqual({ output: { score: 0, label: "" }, parseFallback: true, retried: true });
+    const result = resolveStructuredWorkerOutput(
+      contract,
+      { score: 2, label: "bad" },
+      true,
+    );
+    expect(result).toEqual({
+      output: { score: 0, label: "" },
+      parseFallback: true,
+      retried: true,
+    });
   });
 });

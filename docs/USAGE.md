@@ -6,10 +6,10 @@ How to install, run, and interact with the desktop app.
 
 ## 1. Prereqs
 
-| Tool | Version | Notes |
-|---|---|---|
-| Bun | 1.3+ | required package manager and script runner for Electron Forge, Vite, and TypeScript |
-| Platform build tools | current OS toolchain | required by Electron native modules such as `better-sqlite3` and `keytar` |
+| Tool                 | Version              | Notes                                                                               |
+| -------------------- | -------------------- | ----------------------------------------------------------------------------------- |
+| Bun                  | 1.3+                 | required package manager and script runner for Electron Forge, Vite, and TypeScript |
+| Platform build tools | current OS toolchain | required by Electron native modules such as `better-sqlite3` and `keytar`           |
 
 ---
 
@@ -50,28 +50,29 @@ Pause / Stop are next to Start. Stop emits `session_stopped` and halts new cycle
 
 ## 5. Pages
 
-| Page | Use it for |
-|---|---|
-| **Dashboard** | Live stat strip, open + recent trades, real-time agent feed |
-| **Trades** | Full trade history with filter + summary cards |
+| Page                        | Use it for                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------ |
+| **Dashboard**               | Live stat strip, open + recent trades, real-time agent feed                                |
+| **Trades**                  | Full trade history with filter + summary cards                                             |
 | **Trade Detail** (slide-in) | Per-trade P&L, stop/target rail, agent traces with token + cost breakdown, **Force Close** |
-| **Strategy** | All risk/sizing knobs. Saving writes to `session_config` table |
-| **API Usage** | Today's API spend, donut + 7-day history, per-agent / per-trade cost, projections |
-| **Developer** | Filterable event log, level + agent filters, click row → detailed agent runs |
-| **Accounts** | Anthropic + Alpaca + Web Search keys. Stored in OS keychain only |
+| **Strategy**                | All risk/sizing knobs. Saving writes to `session_config` table                             |
+| **API Usage**               | Today's API spend, donut + 7-day history, per-agent / per-trade cost, projections          |
+| **Developer**               | Filterable event log, level + agent filters, click row → detailed agent runs               |
+| **Accounts**                | Anthropic + Alpaca + Web Search keys. Stored in OS keychain only                           |
 
 ---
 
 ## 6. Where data lives
 
-| Thing | Location |
-|---|---|
-| SQLite DB | Electron `app.getPath("userData")/exva.db` |
+| Thing                     | Location                                                             |
+| ------------------------- | -------------------------------------------------------------------- |
+| SQLite DB                 | Electron `app.getPath("userData")/exva.db`                           |
 | API keys & broker secrets | OS keychain (macOS Keychain, Win Cred Manager, Linux Secret Service) |
-| Migrations | Electron main process runs local SQLite migrations on boot |
-| Logs | local Electron process logs; never uploaded by default |
+| Migrations                | Electron main process runs local SQLite migrations on boot           |
+| Logs                      | local Electron process logs; never uploaded by default               |
 
 Wipe the DB during dev:
+
 ```bash
 rm "$HOME/Library/Application Support/Exva/exva.db"
 ```
@@ -105,6 +106,6 @@ Packaged output lands in `out/`.
 2. Add or extend a handler in `electron/main/ipc/`.
 3. Expose a narrow method in `electron/preload/index.ts`.
 4. Add a typed wrapper to `src/lib/exva.ts`, including a mock fallback.
-4. Call `api.myCmd(...)` from a page or store.
+5. Call `api.myCmd(...)` from a page or store.
 
 Same pattern for events: main `eventBus.emit("name", payload)` to frontend `useExvaEvent("name", handler)`.

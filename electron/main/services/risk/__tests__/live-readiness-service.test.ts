@@ -1,13 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import { LiveReadinessService } from "../live-readiness-service";
 
-function makeService(overrides: {
-  executionMode?: string;
-  assignedIds?: string[];
-  brokerMode?: string;
-  connectionOk?: boolean;
-  acknowledgedAt?: string | null;
-} = {}) {
+function makeService(
+  overrides: {
+    executionMode?: string;
+    assignedIds?: string[];
+    brokerMode?: string;
+    connectionOk?: boolean;
+    acknowledgedAt?: string | null;
+  } = {},
+) {
   const {
     executionMode = "live_allowed",
     assignedIds = ["broker-1"],
@@ -24,7 +26,9 @@ function makeService(overrides: {
       run: vi.fn(),
       select: vi.fn().mockReturnThis(),
       from: vi.fn().mockReturnThis(),
-      get: vi.fn().mockReturnValue({ liveReadinessAcknowledgedAt: acknowledgedAt }),
+      get: vi
+        .fn()
+        .mockReturnValue({ liveReadinessAcknowledgedAt: acknowledgedAt }),
     },
   } as never;
 
@@ -42,7 +46,12 @@ function makeService(overrides: {
 
   const brokerRegistry = {
     get: vi.fn().mockResolvedValue({
-      testConnection: vi.fn().mockResolvedValue({ ok: connectionOk, message: connectionOk ? "ok" : "failed" }),
+      testConnection: vi
+        .fn()
+        .mockResolvedValue({
+          ok: connectionOk,
+          message: connectionOk ? "ok" : "failed",
+        }),
       launchCapable: true,
     }),
   } as never;

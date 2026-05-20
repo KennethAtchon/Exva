@@ -25,7 +25,10 @@ function dropApplicationTables(sqlite: Database.Database): void {
   sqlite.pragma("foreign_keys = ON");
 }
 
-export function runMigrations(sqlite: Database.Database, options?: RunMigrationsOptions): void {
+export function runMigrations(
+  sqlite: Database.Database,
+  options?: RunMigrationsOptions,
+): void {
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("journal_mode = WAL");
 

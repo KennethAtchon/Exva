@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { computeExecutionProfile, priceLevelsFromProfile } from "./execution-profile-engine";
-import type { ExecutionStrategyType, TradeSignal } from "@electron/shared/ai/pipeline-signals";
+import {
+  computeExecutionProfile,
+  priceLevelsFromProfile,
+} from "./execution-profile-engine";
+import type {
+  ExecutionStrategyType,
+  TradeSignal,
+} from "@electron/shared/ai/pipeline-signals";
 
 const baseSignal: TradeSignal = {
   symbol: "NVDA",
@@ -66,13 +72,37 @@ describe("execution profile engine", () => {
   });
 
   it("defines deterministic sizing behavior for every execution strategy", () => {
-    const cases: Array<{ strategy: ExecutionStrategyType; instrumentClass: "stock" | "crypto" | "futures"; expectedSizeUsd: number }> = [
-      { strategy: "trend_momentum", instrumentClass: "stock", expectedSizeUsd: 800 },
+    const cases: Array<{
+      strategy: ExecutionStrategyType;
+      instrumentClass: "stock" | "crypto" | "futures";
+      expectedSizeUsd: number;
+    }> = [
+      {
+        strategy: "trend_momentum",
+        instrumentClass: "stock",
+        expectedSizeUsd: 800,
+      },
       { strategy: "breakout", instrumentClass: "stock", expectedSizeUsd: 800 },
-      { strategy: "mean_reversion", instrumentClass: "stock", expectedSizeUsd: 400 },
-      { strategy: "event_driven", instrumentClass: "stock", expectedSizeUsd: 400 },
-      { strategy: "arbitrage", instrumentClass: "crypto", expectedSizeUsd: 400 },
-      { strategy: "futures_trend", instrumentClass: "futures", expectedSizeUsd: 800 },
+      {
+        strategy: "mean_reversion",
+        instrumentClass: "stock",
+        expectedSizeUsd: 400,
+      },
+      {
+        strategy: "event_driven",
+        instrumentClass: "stock",
+        expectedSizeUsd: 400,
+      },
+      {
+        strategy: "arbitrage",
+        instrumentClass: "crypto",
+        expectedSizeUsd: 400,
+      },
+      {
+        strategy: "futures_trend",
+        instrumentClass: "futures",
+        expectedSizeUsd: 800,
+      },
     ];
 
     for (const { strategy, instrumentClass, expectedSizeUsd } of cases) {
@@ -104,7 +134,10 @@ describe("execution profile engine", () => {
   });
 
   it("computes stop and take profit prices from entry", () => {
-    const levels = priceLevelsFromProfile("BUY", 100, { stopLossPct: 2, takeProfitPct: 4 });
+    const levels = priceLevelsFromProfile("BUY", 100, {
+      stopLossPct: 2,
+      takeProfitPct: 4,
+    });
     expect(levels.stopLossPrice).toBeCloseTo(98);
     expect(levels.takeProfitPrice).toBeCloseTo(104);
   });

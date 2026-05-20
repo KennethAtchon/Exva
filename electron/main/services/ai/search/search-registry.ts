@@ -24,12 +24,22 @@ export class SearchRegistry {
 
     const account = this.providerAccountsRepo.find(providerKey);
     if (!account || !account.isConfigured || account.category !== "search") {
-      throw new AppError(`Search provider not configured: ${providerKey}`, "SEARCH_PROVIDER_REQUIRED", { providerKey });
+      throw new AppError(
+        `Search provider not configured: ${providerKey}`,
+        "SEARCH_PROVIDER_REQUIRED",
+        { providerKey },
+      );
     }
 
-    const secret = isBuiltInSearchProviderAccount(account) ? null : await this.secrets.get(account.secretRef);
+    const secret = isBuiltInSearchProviderAccount(account)
+      ? null
+      : await this.secrets.get(account.secretRef);
     if (!isBuiltInSearchProviderAccount(account) && !secret) {
-      throw new AppError(`No secret for search provider: ${providerKey}`, "MISSING_SECRET", { providerKey });
+      throw new AppError(
+        `No secret for search provider: ${providerKey}`,
+        "MISSING_SECRET",
+        { providerKey },
+      );
     }
 
     const adapter = this.buildAdapter(account, secret);
@@ -41,7 +51,10 @@ export class SearchRegistry {
     this.adapters.delete(providerKey);
   }
 
-  private buildAdapter(account: ProviderAccount, secret: string | null): SearchAdapter {
+  private buildAdapter(
+    account: ProviderAccount,
+    secret: string | null,
+  ): SearchAdapter {
     switch (account.providerType) {
       case "duckduckgo":
         return new DuckDuckGoAdapter();
@@ -52,14 +65,21 @@ export class SearchRegistry {
       case "mcp": {
         const metadata = parseProviderMetadata(account.metadataJson);
         if (!metadata.baseUrl?.trim()) {
-          throw new AppError("MCP search provider requires metadata.baseUrl", "VALIDATION_FAILED", {
-            providerKey: account.id,
-          });
+          throw new AppError(
+            "MCP search provider requires metadata.baseUrl",
+            "VALIDATION_FAILED",
+            {
+              providerKey: account.id,
+            },
+          );
         }
         return new McpSearchAdapter(account, secret ?? "");
       }
       default:
-        throw new AppError(`Unsupported search provider type: ${account.providerType}`, "SEARCH_PROVIDER_REQUIRED");
+        throw new AppError(
+          `Unsupported search provider type: ${account.providerType}`,
+          "SEARCH_PROVIDER_REQUIRED",
+        );
     }
   }
 }

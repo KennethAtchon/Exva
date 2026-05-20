@@ -1,6 +1,10 @@
 import type { AgentMessage, AgentRun } from "@/lib/types";
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
-import type { PhaseTraceV1, PhaseTraceWorkerV1, PhaseTraceFrontierV1 } from "@electron/shared/ai/pipeline-observability";
+import type {
+  PhaseTraceV1,
+  PhaseTraceWorkerV1,
+  PhaseTraceFrontierV1,
+} from "@electron/shared/ai/pipeline-observability";
 import type { RunTrace } from "../../ai-runtime/ai-runtime-types";
 import { estimateCostUsd } from "../../model-pricing";
 import { buildStrategyPromptContext } from "../../strategy-prompt-context";
@@ -65,7 +69,11 @@ export function assembleTrace(input: TraceAssemblyInput): AssembledTrace {
     finish_reason: input.trace.finishReason,
     input_tokens: input.trace.inputTokens,
     output_tokens: input.trace.outputTokens,
-    cost_usd: estimateCostUsd(input.modelId, input.trace.inputTokens, input.trace.outputTokens),
+    cost_usd: estimateCostUsd(
+      input.modelId,
+      input.trace.inputTokens,
+      input.trace.outputTokens,
+    ),
     output_text: input.trace.assistantText,
     duration_ms: input.trace.durationMs,
     created_at: new Date().toISOString(),
@@ -99,16 +107,31 @@ export function assembleTrace(input: TraceAssemblyInput): AssembledTrace {
   return { run, message };
 }
 
-export function assembleAggregateTrace(input: AggregateTraceAssemblyInput): AssembledTrace {
+export function assembleAggregateTrace(
+  input: AggregateTraceAssemblyInput,
+): AssembledTrace {
   const createdAt = new Date().toISOString();
   const runId = crypto.randomUUID();
   const { snapshot } = buildStrategyPromptContext(input.strategyContext);
 
-  const totalInputTokens = input.workers.reduce((sum, worker) => sum + worker.run.input_tokens, 0);
-  const totalOutputTokens = input.workers.reduce((sum, worker) => sum + worker.run.output_tokens, 0);
-  const totalCostUsd = input.workers.reduce((sum, worker) => sum + worker.run.cost_usd, 0);
-  const totalDurationMs = input.workers.reduce((sum, worker) => sum + worker.run.duration_ms, 0);
-  const startedAt = input.workers.map((worker) => worker.run.created_at).sort()[0] ?? createdAt;
+  const totalInputTokens = input.workers.reduce(
+    (sum, worker) => sum + worker.run.input_tokens,
+    0,
+  );
+  const totalOutputTokens = input.workers.reduce(
+    (sum, worker) => sum + worker.run.output_tokens,
+    0,
+  );
+  const totalCostUsd = input.workers.reduce(
+    (sum, worker) => sum + worker.run.cost_usd,
+    0,
+  );
+  const totalDurationMs = input.workers.reduce(
+    (sum, worker) => sum + worker.run.duration_ms,
+    0,
+  );
+  const startedAt =
+    input.workers.map((worker) => worker.run.created_at).sort()[0] ?? createdAt;
   const outputSummary = summarizeOutput(input.output);
   const phaseTrace = buildPhaseTrace({
     phase: input.phase,
@@ -147,12 +170,19 @@ export function assembleAggregateTrace(input: AggregateTraceAssemblyInput): Asse
     phase: input.phase,
     workers: input.workers.map((worker) => ({
       workerId: worker.workerId,
-      messages: safeParseJson(worker.message.messages_json) ?? worker.message.messages_json,
+      messages:
+        safeParseJson(worker.message.messages_json) ??
+        worker.message.messages_json,
     })),
   });
 
   const thinkingBlocks = input.workers
-    .map((worker) => ({ workerId: worker.workerId, thinking: safeParseJson(worker.message.thinking_json) ?? worker.message.thinking_json }))
+    .map((worker) => ({
+      workerId: worker.workerId,
+      thinking:
+        safeParseJson(worker.message.thinking_json) ??
+        worker.message.thinking_json,
+    }))
     .filter((entry) => entry.thinking != null);
 
   const message: AgentMessage = {
@@ -165,11 +195,14 @@ export function assembleAggregateTrace(input: AggregateTraceAssemblyInput): Asse
     provider_key: input.providerKey,
     model_id: input.modelId,
     messages_json: messagesJson,
-    thinking_json: thinkingBlocks.length > 0 ? JSON.stringify(thinkingBlocks) : null,
+    thinking_json:
+      thinkingBlocks.length > 0 ? JSON.stringify(thinkingBlocks) : null,
     tool_calls_json: JSON.stringify(phaseTrace),
     output_json: JSON.stringify(input.output),
     output_schema_name: input.outputSchemaName,
-    parse_fallback: input.workers.some((worker) => worker.message.parse_fallback),
+    parse_fallback: input.workers.some(
+      (worker) => worker.message.parse_fallback,
+    ),
     strategy_snapshot_json: JSON.stringify(snapshot),
     market_snapshot_json: input.marketSnapshotJson ?? null,
     created_at: createdAt,
@@ -205,13 +238,20 @@ function buildPhaseTrace(input: {
   const frontiers: PhaseTraceFrontierV1[] = [...frontierMap.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([frontier, workers]) => {
-      const startedAt = workers.map((worker) => worker.run.created_at).sort()[0] ?? input.startedAt;
-      const durationMs = workers.reduce((sum, worker) => sum + worker.run.duration_ms, 0);
+      const startedAt =
+        workers.map((worker) => worker.run.created_at).sort()[0] ??
+        input.startedAt;
+      const durationMs = workers.reduce(
+        (sum, worker) => sum + worker.run.duration_ms,
+        0,
+      );
       return {
         frontier,
         workerIds: workers.map((worker) => worker.workerId),
         startedAt,
-        finishedAt: new Date(new Date(startedAt).getTime() + durationMs).toISOString(),
+        finishedAt: new Date(
+          new Date(startedAt).getTime() + durationMs,
+        ).toISOString(),
         durationMs,
         costUsd: workers.reduce((sum, worker) => sum + worker.run.cost_usd, 0),
         status: "succeeded",
@@ -219,14 +259,18 @@ function buildPhaseTrace(input: {
     });
 
   const workers: PhaseTraceWorkerV1[] = input.workers.map((worker) => {
-    const toolSteps = safeParseJson(worker.message.tool_calls_json) as Array<{ toolCalls?: Array<{ tool?: string; error?: string; latencyMs?: number }> }> | null;
+    const toolSteps = safeParseJson(worker.message.tool_calls_json) as Array<{
+      toolCalls?: Array<{ tool?: string; error?: string; latencyMs?: number }>;
+    }> | null;
     const toolTrace = Array.isArray(toolSteps)
-      ? toolSteps.flatMap((step) => (step.toolCalls ?? []).map((call) => ({
-          tool: call.tool ?? "unknown",
-          status: call.error ? "error" as const : "ok" as const,
-          latencyMs: call.latencyMs,
-          summary: call.error ?? null,
-        })))
+      ? toolSteps.flatMap((step) =>
+          (step.toolCalls ?? []).map((call) => ({
+            tool: call.tool ?? "unknown",
+            status: call.error ? ("error" as const) : ("ok" as const),
+            latencyMs: call.latencyMs,
+            summary: call.error ?? null,
+          })),
+        )
       : [];
 
     return {
@@ -236,7 +280,9 @@ function buildPhaseTrace(input: {
       requiredForPhase: worker.requiredForPhase,
       status: "succeeded",
       startedAt: worker.run.created_at,
-      finishedAt: new Date(new Date(worker.run.created_at).getTime() + worker.run.duration_ms).toISOString(),
+      finishedAt: new Date(
+        new Date(worker.run.created_at).getTime() + worker.run.duration_ms,
+      ).toISOString(),
       durationMs: worker.run.duration_ms,
       costUsd: worker.run.cost_usd,
       inputTokens: worker.run.input_tokens,
@@ -244,7 +290,9 @@ function buildPhaseTrace(input: {
       providerKey: worker.run.provider_key,
       modelId: worker.run.model,
       outputSchemaName: worker.message.output_schema_name,
-      outputSummary: summarizeOutput(safeParseJson(worker.message.output_json) ?? worker.message.output_json),
+      outputSummary: summarizeOutput(
+        safeParseJson(worker.message.output_json) ?? worker.message.output_json,
+      ),
       toolCallCount: toolTrace.length,
       externalCallCount: toolTrace.length,
       blockedBy: [],
@@ -279,10 +327,16 @@ function buildPhaseTrace(input: {
 function summarizeOutput(value: unknown): Record<string, unknown> | null {
   if (value == null) return null;
   if (typeof value === "string") return { textPreview: value.slice(0, 200) };
-  if (Array.isArray(value)) return { count: value.length, sample: value.slice(0, 3) };
+  if (Array.isArray(value))
+    return { count: value.length, sample: value.slice(0, 3) };
   if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).slice(0, 8);
-    return Object.fromEntries(entries.map(([key, entryValue]) => [key, summarizeLeaf(entryValue)]));
+    const entries = Object.entries(value as Record<string, unknown>).slice(
+      0,
+      8,
+    );
+    return Object.fromEntries(
+      entries.map(([key, entryValue]) => [key, summarizeLeaf(entryValue)]),
+    );
   }
   return { value };
 }

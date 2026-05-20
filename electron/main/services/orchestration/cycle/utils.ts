@@ -25,6 +25,12 @@ export function remapPredictionMetadataForOutcome(
     noOutcomeTokenId?: string;
     outcomeTokenId?: string;
   };
-  const outcomeTokenId = predictionOutcome === "YES" ? parsed.yesOutcomeTokenId : parsed.noOutcomeTokenId;
-  return JSON.stringify({ ...parsed, outcomeTokenId: outcomeTokenId ?? parsed.outcomeTokenId });
+  const outcomeTokenId =
+    predictionOutcome === "YES"
+      ? parsed.yesOutcomeTokenId
+      : parsed.noOutcomeTokenId;
+  return JSON.stringify({
+    ...parsed,
+    outcomeTokenId: outcomeTokenId ?? parsed.outcomeTokenId,
+  });
 }

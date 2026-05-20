@@ -66,11 +66,14 @@ function bridge() {
 }
 
 export const api = {
-  getDashboardStats: (): Promise<DashboardStats> => bridge().dashboard.getStats(),
+  getDashboardStats: (): Promise<DashboardStats> =>
+    bridge().dashboard.getStats(),
   getCostBreakdown: (dateRange?: string): Promise<CostBreakdown> =>
     bridge().dashboard.getCostBreakdown(dateRange ?? "today"),
 
-  listApprovals: (filters?: { status?: "pending" | "approved" | "rejected" }): Promise<{
+  listApprovals: (filters?: {
+    status?: "pending" | "approved" | "rejected";
+  }): Promise<{
     workspaceViewMode: WorkspaceViewMode;
     approvals: ApprovalSummary[];
   }> => bridge().approvals.list(filters),
@@ -78,7 +81,8 @@ export const api = {
     id: string;
     decision: "approved" | "rejected";
     decisionNote?: string;
-  }): Promise<{ status: "approved" | "rejected"; resolvedAt: string }> => bridge().approvals.decide(input),
+  }): Promise<{ status: "approved" | "rejected"; resolvedAt: string }> =>
+    bridge().approvals.decide(input),
 
   getActiveTrades: (filters?: {
     sessionId?: string;
@@ -87,10 +91,14 @@ export const api = {
     instrumentType?: InstrumentClass;
     executionMode?: ExecutionMode;
   }): Promise<Trade[]> => bridge().trades.listActive(filters),
-  getTradeDetail: (tradeId: string): Promise<TradeDetail> => bridge().trades.getDetail(tradeId),
-  forceCloseTrade: (tradeId: string): Promise<void> => bridge().trades.forceClose(tradeId),
-  summarizeTradeAutopsy: (tradeId: string): Promise<TradeAutopsy> => bridge().trades.summarizeAutopsy(tradeId),
-  listTradeAutopsies: (tradeId: string): Promise<TradeAutopsy[]> => bridge().trades.listAutopsies(tradeId),
+  getTradeDetail: (tradeId: string): Promise<TradeDetail> =>
+    bridge().trades.getDetail(tradeId),
+  forceCloseTrade: (tradeId: string): Promise<void> =>
+    bridge().trades.forceClose(tradeId),
+  summarizeTradeAutopsy: (tradeId: string): Promise<TradeAutopsy> =>
+    bridge().trades.summarizeAutopsy(tradeId),
+  listTradeAutopsies: (tradeId: string): Promise<TradeAutopsy[]> =>
+    bridge().trades.listAutopsies(tradeId),
   approveTrade: async (tradeId: string, approved: boolean): Promise<void> => {
     await bridge().trades.approve(tradeId, approved);
   },
@@ -99,34 +107,56 @@ export const api = {
   pauseSession: (): Promise<SessionStatus> => bridge().session.pause(),
   resumeSession: (): Promise<SessionStatus> => bridge().session.resume(),
   stopSession: (): Promise<SessionStatus> => bridge().session.stop(),
-  getSessionExecutionProgress: (sessionId: string): Promise<SessionExecutionProgressResponse> =>
+  getSessionExecutionProgress: (
+    sessionId: string,
+  ): Promise<SessionExecutionProgressResponse> =>
     bridge().session.getExecutionProgress(sessionId),
-  retrySessionStep: (input: { sessionId: string; cycleId: string; stage: ExecutionStage }) => bridge().session.retryStep(input),
-  pauseSessionAfterCurrentStep: (sessionId: string): Promise<{ ok: true }> => bridge().session.pauseAfterCurrentStep(sessionId),
-  clearFailedSessionStep: (input: { sessionId: string; cycleId: string; stage: ExecutionStage }) =>
-    bridge().session.clearFailedStep(input),
+  retrySessionStep: (input: {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+  }) => bridge().session.retryStep(input),
+  pauseSessionAfterCurrentStep: (sessionId: string): Promise<{ ok: true }> =>
+    bridge().session.pauseAfterCurrentStep(sessionId),
+  clearFailedSessionStep: (input: {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+  }) => bridge().session.clearFailedStep(input),
   listSessions: (filters?: {
     status?: SessionStatus;
     instrumentClass?: InstrumentClass;
     search?: string;
     includeArchived?: boolean;
-  }): Promise<{ workspaceViewMode: WorkspaceViewMode; focusedSessionId: string | null; sessions: SessionSummary[] }> =>
-    bridge().session.list(filters),
+  }): Promise<{
+    workspaceViewMode: WorkspaceViewMode;
+    focusedSessionId: string | null;
+    sessions: SessionSummary[];
+  }> => bridge().session.list(filters),
   createSession: (input: SessionCreateInput) => bridge().session.create(input),
-  updateSession: (id: string, input: SessionCreateInput) => bridge().session.update(id, input),
+  updateSession: (id: string, input: SessionCreateInput) =>
+    bridge().session.update(id, input),
   focusSession: (id: string) => bridge().session.focus(id),
   goGlobal: () => bridge().session.goGlobal(),
   archiveSession: (id: string) => bridge().session.archive(id),
-  duplicateSession: (sourceId: string, name: string) => bridge().session.duplicate(sourceId, name),
-  getSessionInstrumentCache: (sessionId: string) => bridge().session.instrumentCacheGet(sessionId),
-  clearSessionInstrumentCache: (sessionId: string) => bridge().session.instrumentCacheClear(sessionId),
+  duplicateSession: (sourceId: string, name: string) =>
+    bridge().session.duplicate(sourceId, name),
+  getSessionInstrumentCache: (sessionId: string) =>
+    bridge().session.instrumentCacheGet(sessionId),
+  clearSessionInstrumentCache: (sessionId: string) =>
+    bridge().session.instrumentCacheClear(sessionId),
 
-  getWorkspaceView: (): Promise<WorkspaceViewResponse> => bridge().workspace.getView(),
-  patchWorkspacePreferences: (patch: Partial<Omit<WorkspacePreferences, "id">>) =>
-    bridge().workspace.patchPreferences(patch),
+  getWorkspaceView: (): Promise<WorkspaceViewResponse> =>
+    bridge().workspace.getView(),
+  patchWorkspacePreferences: (
+    patch: Partial<Omit<WorkspacePreferences, "id">>,
+  ) => bridge().workspace.patchPreferences(patch),
 
-  listBrokerAccountState: (): Promise<BrokerAccountWithState[]> => bridge().brokerAccounts.list(),
-  refreshBrokerBalance: (brokerAccountId: string): Promise<{ balanceUsd: number; cachedAt: string }> =>
+  listBrokerAccountState: (): Promise<BrokerAccountWithState[]> =>
+    bridge().brokerAccounts.list(),
+  refreshBrokerBalance: (
+    brokerAccountId: string,
+  ): Promise<{ balanceUsd: number; cachedAt: string }> =>
     bridge().brokerAccounts.refreshBalance(brokerAccountId),
   updateBrokerAccountSettings: (input: {
     brokerAccountId: string;
@@ -135,30 +165,53 @@ export const api = {
     balanceRefreshIntervalMin?: number;
   }) => bridge().brokerAccounts.updateSettings(input),
 
-  listTemplates: (filters?: { search?: string; instrumentClass?: InstrumentClass }) =>
-    bridge().templates.list(filters),
-  createTemplate: (input: { name: string; description?: string; sourceSessionId?: string; payload: SessionTemplatePayload }) =>
-    bridge().templates.create(input),
+  listTemplates: (filters?: {
+    search?: string;
+    instrumentClass?: InstrumentClass;
+  }) => bridge().templates.list(filters),
+  createTemplate: (input: {
+    name: string;
+    description?: string;
+    sourceSessionId?: string;
+    payload: SessionTemplatePayload;
+  }) => bridge().templates.create(input),
   deleteTemplate: (id: string) => bridge().templates.delete(id),
   useTemplate: (id: string) => bridge().templates.use(id),
-  buildTemplatePayloadFromSession: (sessionId: string): Promise<SessionTemplatePayload> =>
+  buildTemplatePayloadFromSession: (
+    sessionId: string,
+  ): Promise<SessionTemplatePayload> =>
     bridge().templates.buildPayloadFromSession(sessionId),
 
-  getStrategy: (sessionId: string): Promise<StrategyGetResponse> => bridge().strategy.get(sessionId),
-  getStrategyResearchPosture: (sessionId: string): Promise<SessionResearchPosture> =>
+  getStrategy: (sessionId: string): Promise<StrategyGetResponse> =>
+    bridge().strategy.get(sessionId),
+  getStrategyResearchPosture: (
+    sessionId: string,
+  ): Promise<SessionResearchPosture> =>
     bridge().strategy.getResearchPosture(sessionId),
-  saveStrategyResearchPosture: (input: { sessionId: string; researchPosture: Partial<SessionResearchPosture> }) =>
-    bridge().strategy.saveResearchPosture(input),
-  getTradeRules: (sessionId: string): Promise<SessionTradeRules> => bridge().strategy.getRules(sessionId),
-  saveTradeRules: (input: { sessionId: string; rules: Partial<SessionTradeRules> }) =>
-    bridge().strategy.saveRules(input),
-  getStrategyRiskConfig: (sessionId: string): Promise<SessionRiskConfig> => bridge().strategy.getRiskConfig(sessionId),
-  saveStrategyRiskConfig: (input: { sessionId: string; riskConfig: Partial<SessionRiskConfig> }) =>
-    bridge().strategy.saveRiskConfig(input),
-  getStrategyTimeframeConfig: (sessionId: string): Promise<SessionTimeframeConfig> =>
+  saveStrategyResearchPosture: (input: {
+    sessionId: string;
+    researchPosture: Partial<SessionResearchPosture>;
+  }) => bridge().strategy.saveResearchPosture(input),
+  getTradeRules: (sessionId: string): Promise<SessionTradeRules> =>
+    bridge().strategy.getRules(sessionId),
+  saveTradeRules: (input: {
+    sessionId: string;
+    rules: Partial<SessionTradeRules>;
+  }) => bridge().strategy.saveRules(input),
+  getStrategyRiskConfig: (sessionId: string): Promise<SessionRiskConfig> =>
+    bridge().strategy.getRiskConfig(sessionId),
+  saveStrategyRiskConfig: (input: {
+    sessionId: string;
+    riskConfig: Partial<SessionRiskConfig>;
+  }) => bridge().strategy.saveRiskConfig(input),
+  getStrategyTimeframeConfig: (
+    sessionId: string,
+  ): Promise<SessionTimeframeConfig> =>
     bridge().strategy.getTimeframeConfig(sessionId),
-  saveStrategyTimeframeConfig: (input: { sessionId: string; timeframe: Partial<SessionTimeframeConfig> }) =>
-    bridge().strategy.saveTimeframeConfig(input),
+  saveStrategyTimeframeConfig: (input: {
+    sessionId: string;
+    timeframe: Partial<SessionTimeframeConfig>;
+  }) => bridge().strategy.saveTimeframeConfig(input),
   saveStrategyAiPhase: (input: {
     sessionId: string;
     phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
@@ -179,31 +232,49 @@ export const api = {
     spendLimitUsd?: number | null;
     promptMarkdown?: string | null;
   }) => bridge().strategy.saveAiPhaseWorker(input),
-  getStrategyProviderModels: (providerKey: string): Promise<{ models: ProviderModelEntry[] }> =>
+  getStrategyProviderModels: (
+    providerKey: string,
+  ): Promise<{ models: ProviderModelEntry[] }> =>
     bridge().strategy.getProviderModels(providerKey),
 
-  listGlobalPresets: (): Promise<{ presets: UserGlobalPresetRow[] }> => bridge().strategy.globalPresets.list(),
-  createGlobalPreset: (input: { name: string; preset: Record<string, unknown> }): Promise<UserGlobalPresetRow> =>
+  listGlobalPresets: (): Promise<{ presets: UserGlobalPresetRow[] }> =>
+    bridge().strategy.globalPresets.list(),
+  createGlobalPreset: (input: {
+    name: string;
+    preset: Record<string, unknown>;
+  }): Promise<UserGlobalPresetRow> =>
     bridge().strategy.globalPresets.create(input),
-  updateGlobalPreset: (input: { id: string; name: string; preset: Record<string, unknown> }): Promise<{ ok: true }> =>
-    bridge().strategy.globalPresets.update(input),
+  updateGlobalPreset: (input: {
+    id: string;
+    name: string;
+    preset: Record<string, unknown>;
+  }): Promise<{ ok: true }> => bridge().strategy.globalPresets.update(input),
   deleteGlobalPreset: (input: { id: string }): Promise<{ ok: true }> =>
     bridge().strategy.globalPresets.delete(input),
-  getWorkspaceDefaultModel: (): Promise<{ providerKey: string; modelId: string }> =>
-    bridge().strategy.getWorkspaceDefaultModel(),
-  saveWorkspaceDefaultModel: (input: { providerKey: string; modelId: string }): Promise<{ savedAt: string }> =>
+  getWorkspaceDefaultModel: (): Promise<{
+    providerKey: string;
+    modelId: string;
+  }> => bridge().strategy.getWorkspaceDefaultModel(),
+  saveWorkspaceDefaultModel: (input: {
+    providerKey: string;
+    modelId: string;
+  }): Promise<{ savedAt: string }> =>
     bridge().strategy.saveWorkspaceDefaultModel(input),
 
-  getStrategyConfig: (): Promise<SessionStrategy> => bridge().config.getStrategy(),
-  saveStrategyConfig: (cfg: SessionStrategy): Promise<void> => bridge().config.saveStrategy(cfg),
+  getStrategyConfig: (): Promise<SessionStrategy> =>
+    bridge().config.getStrategy(),
+  saveStrategyConfig: (cfg: SessionStrategy): Promise<void> =>
+    bridge().config.saveStrategy(cfg),
 
   addBrokerAccount: (creds: BrokerCredentials): Promise<ConnectionTestResult> =>
     bridge().accounts.saveBroker(creds),
-  testBrokerConnection: (): Promise<ConnectionTestResult> => bridge().accounts.testBroker(),
+  testBrokerConnection: (): Promise<ConnectionTestResult> =>
+    bridge().accounts.testBroker(),
   removeBrokerAccount: (): Promise<void> => bridge().accounts.removeBroker(),
   saveApiKey: (keyType: string, value: string): Promise<void> =>
     bridge().accounts.saveApiKey(keyType, value),
-  listProviders: (): Promise<{ providers: ProviderAccount[] }> => bridge().accounts.listProviders(),
+  listProviders: (): Promise<{ providers: ProviderAccount[] }> =>
+    bridge().accounts.listProviders(),
   saveProvider: (input: {
     id?: string;
     name: string;
@@ -211,39 +282,67 @@ export const api = {
     providerType: ProviderAccount["providerType"];
     apiKey: string;
     metadata?: { baseUrl?: string };
-  }): Promise<{ id: string; isConfigured: boolean }> => bridge().accounts.saveProvider(input),
-  deleteProvider: (id: string): Promise<{ ok: true }> => bridge().accounts.deleteProvider({ id }),
-  testProvider: (id: string): Promise<{ ok: boolean; error?: string }> => bridge().accounts.testProvider({ id }),
+  }): Promise<{ id: string; isConfigured: boolean }> =>
+    bridge().accounts.saveProvider(input),
+  deleteProvider: (id: string): Promise<{ ok: true }> =>
+    bridge().accounts.deleteProvider({ id }),
+  testProvider: (id: string): Promise<{ ok: boolean; error?: string }> =>
+    bridge().accounts.testProvider({ id }),
 
-  listBrokerAccounts: (): Promise<{ brokers: BrokerAccount[] }> => bridge().accounts.listBrokers(),
+  listBrokerAccounts: (): Promise<{ brokers: BrokerAccount[] }> =>
+    bridge().accounts.listBrokers(),
   registerBrokerAccount: (input: {
     id?: string;
-      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock";
+    brokerType:
+      | "alpaca"
+      | "coinbase_advanced_trade"
+      | "tradovate"
+      | "polymarket"
+      | "mock";
     name: string;
     mode: "paper" | "live";
     credentials: Record<string, string>;
   }) => bridge().accounts.addBroker(input),
-  deleteBrokerAccount: (id: string) => bridge().accounts.removeBrokerAccount({ id }),
+  deleteBrokerAccount: (id: string) =>
+    bridge().accounts.removeBrokerAccount({ id }),
   testSavedBrokerAccount: (id: string): Promise<ConnectionTestResult> =>
     bridge().accounts.testBrokerAccount({ id }),
   testBrokerCredentials: (input: {
-      brokerType: "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock";
+    brokerType:
+      | "alpaca"
+      | "coinbase_advanced_trade"
+      | "tradovate"
+      | "polymarket"
+      | "mock";
     mode: "paper" | "live";
     credentials: Record<string, string>;
-  }): Promise<ConnectionTestResult> => bridge().accounts.testBrokerEphemeral(input),
-  getBrokerRoutingDefaults: (): Promise<{ routing: BrokerRoutingDefault[] }> => bridge().accounts.routingGet(),
+  }): Promise<ConnectionTestResult> =>
+    bridge().accounts.testBrokerEphemeral(input),
+  getBrokerRoutingDefaults: (): Promise<{ routing: BrokerRoutingDefault[] }> =>
+    bridge().accounts.routingGet(),
   saveBrokerRoutingDefaults: (routing: BrokerRoutingDefault[]) =>
     bridge().accounts.routingUpdate({ routing }),
 
-  getLiveReadiness: (sessionId: string): Promise<{
+  getLiveReadiness: (
+    sessionId: string,
+  ): Promise<{
     readyToStart: boolean;
     allChecksPassed: boolean;
-    checks: Array<{ name: string; passed: boolean; requiresAck?: boolean; message?: string }>;
+    checks: Array<{
+      name: string;
+      passed: boolean;
+      requiresAck?: boolean;
+      message?: string;
+    }>;
     acknowledgedAt: string | null;
   }> => bridge().session.getLiveReadiness(sessionId),
-  acknowledgeLiveReadiness: (sessionId: string): Promise<{ acknowledgedAt: string }> =>
+  acknowledgeLiveReadiness: (
+    sessionId: string,
+  ): Promise<{ acknowledgedAt: string }> =>
     bridge().session.acknowledgeLiveReadiness(sessionId),
-  testLiveBrokerConnection: (sessionId: string): Promise<{ ok: boolean; message: string }> =>
+  testLiveBrokerConnection: (
+    sessionId: string,
+  ): Promise<{ ok: boolean; message: string }> =>
     bridge().session.testLiveBrokerConnection(sessionId),
 
   getEvents: (filters?: {
@@ -253,11 +352,17 @@ export const api = {
     limit?: number;
     sessionId?: string;
   }): Promise<EventRow[]> => bridge().events.list(filters),
-  getAgentTraces: (tradeId: string): Promise<AgentRun[]> => bridge().events.getAgentTraces(tradeId),
-  getAgentTracesByCycle: (cycleId: string): Promise<AgentRun[]> => bridge().events.getAgentTracesByCycle(cycleId),
-  getMessagesByCycle: (cycleId: string): Promise<AgentMessage[]> => bridge().events.getMessagesByCycle(cycleId),
-  getApiCallLog: (filters: { sessionId: string; cycleId?: string | null; tradeId?: string | null }): Promise<ApiCallLogEntry[]> =>
-    bridge().events.getApiCallLog(filters),
+  getAgentTraces: (tradeId: string): Promise<AgentRun[]> =>
+    bridge().events.getAgentTraces(tradeId),
+  getAgentTracesByCycle: (cycleId: string): Promise<AgentRun[]> =>
+    bridge().events.getAgentTracesByCycle(cycleId),
+  getMessagesByCycle: (cycleId: string): Promise<AgentMessage[]> =>
+    bridge().events.getMessagesByCycle(cycleId),
+  getApiCallLog: (filters: {
+    sessionId: string;
+    cycleId?: string | null;
+    tradeId?: string | null;
+  }): Promise<ApiCallLogEntry[]> => bridge().events.getApiCallLog(filters),
 };
 
 export async function listenEvent<K extends ExvaEventName>(

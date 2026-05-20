@@ -3,6 +3,7 @@
 Given OHLCV bars and a current quote for {instrumentSymbol}, assess directional momentum.
 
 Return JSON:
+
 ```json
 {
   "trendDirection": "bullish" | "bearish" | "neutral",

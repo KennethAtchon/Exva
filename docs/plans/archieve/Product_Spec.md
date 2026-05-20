@@ -113,7 +113,6 @@ Dashboard
 
 **Element inventory:**
 
-
 | Element                   | Type         | Label / Content                                       | State                       | Action on Interact                                                                 |
 | ------------------------- | ------------ | ----------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------- |
 | Session status badge      | Badge        | "Active" / "Paused" / "Stopped"                       | Dynamic                     | Opens session control modal                                                        |
@@ -129,9 +128,7 @@ Dashboard
 | Pause All                 | Button       | "Pause All"                                           | Enabled when session Active | Pauses all agent cycles                                                            |
 | Emergency Stop            | Button       | "Emergency Stop"                                      | Always enabled              | Confirmation modal → halts everything, closes no positions (user manages manually) |
 
-
 **States:**
-
 
 | State                   | Condition                           | What the User Sees                                                             |
 | ----------------------- | ----------------------------------- | ------------------------------------------------------------------------------ |
@@ -141,7 +138,6 @@ Dashboard
 | Stopped (threshold hit) | Profit target or loss limit reached | Banner: "Session stopped — [reason]. Review summary."                          |
 | Loading                 | App starting, fetching initial data | Skeleton loaders in all stat cards and table                                   |
 | Error                   | Broker API unreachable              | Banner: "Broker connection lost. Reconnect in Settings." — agent cycles halted |
-
 
 ---
 
@@ -176,13 +172,11 @@ Trade Detail Panel (right-side drawer, 480px wide)
 
 **States:**
 
-
 | State            | Condition                                              | What the User Sees                                   |
 | ---------------- | ------------------------------------------------------ | ---------------------------------------------------- |
 | Pending approval | Human-in-the-loop mode, decision made but not executed | Approve / Reject buttons visible, trade not yet live |
 | Open             | Trade executing                                        | Live price + P&L, Force Close available              |
 | Closed           | Trade completed                                        | Final P&L shown, no actions                          |
-
 
 ---
 
@@ -218,7 +212,6 @@ Strategy Configuration
 
 **Element inventory:**
 
-
 | Element                  | Type                | Label / Content                  | State                     | Action on Interact               |
 | ------------------------ | ------------------- | -------------------------------- | ------------------------- | -------------------------------- |
 | Strategy radio group     | Radio               | 4 options                        | One selected at all times | Switches parameter panel below   |
@@ -233,7 +226,6 @@ Strategy Configuration
 | Human-in-the-loop toggle | Toggle              | "Require approval before trades" | Off by default            | Enables approval gate            |
 | Save button              | Button              | "Save Strategy"                  | Disabled if no changes    | Persists config to local storage |
 | Reset to Defaults        | Button              | "Reset to Defaults"              | Always enabled            | Confirmation → restores defaults |
-
 
 ---
 
@@ -264,14 +256,12 @@ Account & Broker Setup
 
 **States:**
 
-
 | State            | Condition                             | What the User Sees                                                  |
 | ---------------- | ------------------------------------- | ------------------------------------------------------------------- |
 | No accounts      | First visit                           | Empty state: "No brokers connected. Add one to start." + Add button |
 | Connected        | Account added, connection verified    | Account row with green "Connected" badge                            |
 | Connection error | API key invalid or broker unreachable | Red "Error" badge + "Re-test" link                                  |
 | Testing          | Test Connection clicked               | Button spinner: "Testing..."                                        |
-
 
 ---
 
@@ -383,8 +373,6 @@ flowchart TD
     S -- No --> A
 ```
 
-
-
 **Happy path:**
 
 1. Session is active. System identifies EUR/USD as the current research topic based on strategy parameters.
@@ -428,8 +416,6 @@ flowchart TD
     I --> J[Launch Exva → Dashboard]
 ```
 
-
-
 ---
 
 ### 5.3 Manual Override / Force Close
@@ -464,57 +450,51 @@ flowchart TD
 
 ### 6.1 Trade Record
 
-
-| UI Label            | Field Name          | Type                                 | Required | Validation              | Notes                                       |
-| ------------------- | ------------------- | ------------------------------------ | -------- | ----------------------- | ------------------------------------------- |
-| Asset               | `asset`             | `string`                             | Yes      | Non-empty               | e.g. "EUR/USD", "BTC/USD"                   |
-| Side                | `side`              | `enum: BUY|SELL`                     | Yes      | Valid enum              | Derived from decision                       |
-| Entry Price         | `entry_price`       | `float`                              | Yes      | > 0                     | Set at execution time                       |
-| Current Price       | `current_price`     | `float`                              | No       | > 0                     | Polled every 5s, display only               |
-| Position Size       | `position_size_usd` | `float`                              | Yes      | > 0, ≤ max per strategy | In USD                                      |
-| Stop-Loss Price     | `stop_loss_price`   | `float`                              | Yes      | > 0                     | Calculated from % at open                   |
-| Take-Profit Price   | `take_profit_price` | `float`                              | Yes      | > 0                     | Calculated from % at open                   |
-| Strategy            | `strategy`          | `enum`                               | Yes      | Valid enum              | Copied from session config at open time     |
-| Status              | `status`            | `enum: pending|open|closed|rejected` | Yes      | Valid enum              | —                                           |
-| Opened At           | `opened_at`         | `timestamp`                          | Yes      | —                       | Set at execution                            |
-| Closed At           | `closed_at`         | `timestamp`                          | No       | —                       | Null until closed                           |
-| Final P&L           | `final_pnl_usd`     | `float`                              | No       | —                       | Null until closed                           |
-| AI Cost             | `ai_cost_usd`       | `float`                              | Yes      | ≥ 0                     | Sum of all agent calls for this trade cycle |
-| Decision Confidence | `confidence_score`  | `float`                              | No       | 0.0–1.0                 | Output by decision-maker agent              |
-
+| UI Label            | Field Name          | Type           | Required | Validation              | Notes                                       |
+| ------------------- | ------------------- | -------------- | -------- | ----------------------- | ------------------------------------------- | --------------------- | ---------- | --- |
+| Asset               | `asset`             | `string`       | Yes      | Non-empty               | e.g. "EUR/USD", "BTC/USD"                   |
+| Side                | `side`              | `enum: BUY     | SELL`    | Yes                     | Valid enum                                  | Derived from decision |
+| Entry Price         | `entry_price`       | `float`        | Yes      | > 0                     | Set at execution time                       |
+| Current Price       | `current_price`     | `float`        | No       | > 0                     | Polled every 5s, display only               |
+| Position Size       | `position_size_usd` | `float`        | Yes      | > 0, ≤ max per strategy | In USD                                      |
+| Stop-Loss Price     | `stop_loss_price`   | `float`        | Yes      | > 0                     | Calculated from % at open                   |
+| Take-Profit Price   | `take_profit_price` | `float`        | Yes      | > 0                     | Calculated from % at open                   |
+| Strategy            | `strategy`          | `enum`         | Yes      | Valid enum              | Copied from session config at open time     |
+| Status              | `status`            | `enum: pending | open     | closed                  | rejected`                                   | Yes                   | Valid enum | —   |
+| Opened At           | `opened_at`         | `timestamp`    | Yes      | —                       | Set at execution                            |
+| Closed At           | `closed_at`         | `timestamp`    | No       | —                       | Null until closed                           |
+| Final P&L           | `final_pnl_usd`     | `float`        | No       | —                       | Null until closed                           |
+| AI Cost             | `ai_cost_usd`       | `float`        | Yes      | ≥ 0                     | Sum of all agent calls for this trade cycle |
+| Decision Confidence | `confidence_score`  | `float`        | No       | 0.0–1.0                 | Output by decision-maker agent              |
 
 ### 6.2 Agent Run Record
 
-
-| UI Label      | Field Name      | Type                                                            | Required | Notes                          |
-| ------------- | --------------- | --------------------------------------------------------------- | -------- | ------------------------------ |
-| Agent Type    | `agent_type`    | `enum: researcher_bull|researcher_bear|reviewer|decision_maker` | Yes      | —                              |
-| Trade ID      | `trade_id`      | `uuid`                                                          | Yes      | FK to trade record             |
-| Model Used    | `model`         | `string`                                                        | Yes      | e.g. "claude-opus-4-7"         |
-| Input Tokens  | `input_tokens`  | `integer`                                                       | Yes      | —                              |
-| Output Tokens | `output_tokens` | `integer`                                                       | Yes      | —                              |
-| Cost USD      | `cost_usd`      | `float`                                                         | Yes      | Calculated from token counts   |
-| Output Text   | `output_text`   | `text`                                                          | Yes      | Full agent response            |
-| Duration ms   | `duration_ms`   | `integer`                                                       | Yes      | Wall clock time for agent call |
-| Timestamp     | `created_at`    | `timestamp`                                                     | Yes      | —                              |
-
+| UI Label      | Field Name      | Type                   | Required        | Notes                          |
+| ------------- | --------------- | ---------------------- | --------------- | ------------------------------ | --------------- | --- | --- |
+| Agent Type    | `agent_type`    | `enum: researcher_bull | researcher_bear | reviewer                       | decision_maker` | Yes | —   |
+| Trade ID      | `trade_id`      | `uuid`                 | Yes             | FK to trade record             |
+| Model Used    | `model`         | `string`               | Yes             | e.g. "claude-opus-4-7"         |
+| Input Tokens  | `input_tokens`  | `integer`              | Yes             | —                              |
+| Output Tokens | `output_tokens` | `integer`              | Yes             | —                              |
+| Cost USD      | `cost_usd`      | `float`                | Yes             | Calculated from token counts   |
+| Output Text   | `output_text`   | `text`                 | Yes             | Full agent response            |
+| Duration ms   | `duration_ms`   | `integer`              | Yes             | Wall clock time for agent call |
+| Timestamp     | `created_at`    | `timestamp`            | Yes             | —                              |
 
 ### 6.3 Session Config (persisted locally)
 
-
-| UI Label              | Field Name                | Type                       | Default          | Notes        |
-| --------------------- | ------------------------- | -------------------------- | ---------------- | ------------ |
-| Strategy              | `strategy`                | `enum`                     | `passive_income` | —            |
-| Max Position Size     | `max_position_usd`        | `float`                    | `500`            | —            |
-| Stop-Loss %           | `stop_loss_pct`           | `float`                    | `2.0`            | —            |
-| Take-Profit %         | `take_profit_pct`         | `float`                    | `4.0`            | —            |
-| Max Concurrent Trades | `max_concurrent_trades`   | `integer`                  | `3`              | 1–10         |
-| Research Depth        | `research_depth`          | `enum: fast|balanced|deep` | `balanced`       | —            |
-| Daily Loss Limit      | `daily_loss_limit_usd`    | `float`                    | `200`            | —            |
-| Profit Target         | `profit_target_usd`       | `float`                    | `1000`           | 0 = disabled |
-| Max Daily API Spend   | `max_api_spend_usd`       | `float`                    | `5.00`           | —            |
-| Human-in-the-loop     | `human_approval_required` | `boolean`                  | `false`          | —            |
-
+| UI Label              | Field Name                | Type        | Default          | Notes        |
+| --------------------- | ------------------------- | ----------- | ---------------- | ------------ | ---------- | --- |
+| Strategy              | `strategy`                | `enum`      | `passive_income` | —            |
+| Max Position Size     | `max_position_usd`        | `float`     | `500`            | —            |
+| Stop-Loss %           | `stop_loss_pct`           | `float`     | `2.0`            | —            |
+| Take-Profit %         | `take_profit_pct`         | `float`     | `4.0`            | —            |
+| Max Concurrent Trades | `max_concurrent_trades`   | `integer`   | `3`              | 1–10         |
+| Research Depth        | `research_depth`          | `enum: fast | balanced         | deep`        | `balanced` | —   |
+| Daily Loss Limit      | `daily_loss_limit_usd`    | `float`     | `200`            | —            |
+| Profit Target         | `profit_target_usd`       | `float`     | `1000`           | 0 = disabled |
+| Max Daily API Spend   | `max_api_spend_usd`       | `float`     | `5.00`           | —            |
+| Human-in-the-loop     | `human_approval_required` | `boolean`   | `false`          | —            |
 
 ---
 
@@ -524,7 +504,7 @@ flowchart TD
 
 The agent orchestration layer is an internal module, not a REST API. It exposes the following interface:
 
-`**runTradeCycle(asset: string, sessionConfig: SessionConfig): Promise<TradeCycleResult>`**
+`**runTradeCycle(asset: string, sessionConfig: SessionConfig): Promise<TradeCycleResult>`\*\*
 
 - Spawns Researcher A (bull) and Researcher B (bear) in parallel
 - Awaits both, then calls Reviewer
@@ -556,15 +536,18 @@ interface BrokerAdapter {
     stop_loss: number;
     take_profit: number;
   }): Promise<{ order_id: string; fill_price: number; status: string }>;
-  closeOrder(orderId: string): Promise<{ final_price: number; pnl_usd: number }>;
-  getOrderStatus(orderId: string): Promise<{ status: string; current_price: number; unrealized_pnl: number }>;
+  closeOrder(
+    orderId: string,
+  ): Promise<{ final_price: number; pnl_usd: number }>;
+  getOrderStatus(
+    orderId: string,
+  ): Promise<{ status: string; current_price: number; unrealized_pnl: number }>;
 }
 ```
 
 ### 7.3 Claude API (Anthropic)
 
 Each agent call uses the Claude API. Key parameters per agent type:
-
 
 | Agent          | Model           | Max Tokens (output) | System Prompt Role                                                                                                                    |
 | -------------- | --------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -573,7 +556,6 @@ Each agent call uses the Claude API. Key parameters per agent type:
 | Reviewer       | claude-opus-4-7 | 1500                | "You are a critical analyst. Review both research articles and score their argument strength."                                        |
 | Decision Maker | claude-opus-4-7 | 500                 | "You are a trading decision-maker. Based on the research and review, decide: trade or no trade, side, and size as % of max position." |
 
-
 Researcher agents have access to a `web_search` tool. All agent calls use prompt caching on system prompts to reduce costs.
 
 ---
@@ -581,7 +563,6 @@ Researcher agents have access to a `web_search` tool. All agent calls use prompt
 ## 8. Permissions & Access Control
 
 Exva is a single-user desktop application. No multi-user roles in v1.
-
 
 | Action                             | Allowed                   | Notes                                            |
 | ---------------------------------- | ------------------------- | ------------------------------------------------ |
@@ -595,7 +576,6 @@ Exva is a single-user desktop application. No multi-user roles in v1.
 | Edit agent system prompts          | No (v1)                   | Read-only in developer panel                     |
 | Export trade history               | No (v1)                   | Out of scope                                     |
 
-
 **Credential security:**
 
 - All API keys (broker, Anthropic, web search) are stored encrypted in the OS keychain, not in plain text config files.
@@ -604,7 +584,6 @@ Exva is a single-user desktop application. No multi-user roles in v1.
 ---
 
 ## 9. Error States & Edge Cases
-
 
 | Scenario                                    | Trigger                                                 | What the User Sees                                                                    | What the System Does                                                   |
 | ------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -622,11 +601,9 @@ Exva is a single-user desktop application. No multi-user roles in v1.
 | Config changed mid-cycle                    | User saves new strategy config while a cycle is running | New config takes effect on the next cycle                                             | Current cycle uses the config that was active when it started          |
 | Self-adaptation triggers                    | Win rate drops below 40% over last 10 trades            | Notification: "Strategy underperforming. Adjusting parameters."                       | System logs the adaptation event; applies new parameters automatically |
 
-
 ---
 
 ## 10. Copy & Labels
-
 
 | Location                       | String                                                                                                   | Notes                           |
 | ------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------- |
@@ -653,21 +630,19 @@ Exva is a single-user desktop application. No multi-user roles in v1.
 | Test connection — failure      | "Connection failed. Check your API key and try again."                                                   | —                               |
 | Self-adaptation notification   | "Strategy underperforming (win rate: [rate]%). Parameters adjusted automatically."                       | —                               |
 
-
 ---
 
 ## 11. Resolved Product Decisions
 
-| #   | Decision | Notes |
-| --- | -------- | ----- |
-| 1   | Launch broker set: `Alpaca` for stocks, `Coinbase Advanced Trade` for crypto, `Tradovate` for futures, plus `Mock` for development. | This is the minimum honest stock+crypto+futures proof-of-concept scope. |
-| 2   | Desktop framework: `Electron`. | Matches the current codebase and architecture. |
-| 3   | Trade and session data persist in local `SQLite`, with privileged access in the Electron main process. | No local server process in v1. |
-| 4   | Web search providers supported in v1: `Brave` and `Tavily`. | Search resolution is workspace default with optional per-session override. |
-| 5   | Self-adaptation in v1 is limited to configurable strategy/risk/prompt changes made by the user, not autonomous self-modification. | The system may learn through logs and review, but it does not rewrite its own strategy rules automatically in v1. |
-| 6   | Paper/live separation is per broker account via `mode`, and both modes may exist simultaneously in the app. | Sessions route through the assigned broker account and inherit that account's mode. |
-| 7   | No extra hidden hard safety cap beyond configured risk limits in v1. | Enforce the saved session/global limits rather than introducing an undocumented ceiling. |
-| 8   | Open trades are persisted when the app closes and monitoring resumes on next launch after runtime rehydration. | Do not force-close trades on exit. |
-| 9   | Developer panel is an explicit visible navigation destination, not a hidden shortcut-only surface. | Discoverability wins for local single-user v1. |
-| 10  | Instrument selection logic is session-driven: manual shortlist by default, optional AI-selected universe via the instrument selector role, then per-session trade cycles run across that resolved set. | No global market scanner scheduler in v1. |
-
+| #   | Decision                                                                                                                                                                                               | Notes                                                                                                             |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| 1   | Launch broker set: `Alpaca` for stocks, `Coinbase Advanced Trade` for crypto, `Tradovate` for futures, plus `Mock` for development.                                                                    | This is the minimum honest stock+crypto+futures proof-of-concept scope.                                           |
+| 2   | Desktop framework: `Electron`.                                                                                                                                                                         | Matches the current codebase and architecture.                                                                    |
+| 3   | Trade and session data persist in local `SQLite`, with privileged access in the Electron main process.                                                                                                 | No local server process in v1.                                                                                    |
+| 4   | Web search providers supported in v1: `Brave` and `Tavily`.                                                                                                                                            | Search resolution is workspace default with optional per-session override.                                        |
+| 5   | Self-adaptation in v1 is limited to configurable strategy/risk/prompt changes made by the user, not autonomous self-modification.                                                                      | The system may learn through logs and review, but it does not rewrite its own strategy rules automatically in v1. |
+| 6   | Paper/live separation is per broker account via `mode`, and both modes may exist simultaneously in the app.                                                                                            | Sessions route through the assigned broker account and inherit that account's mode.                               |
+| 7   | No extra hidden hard safety cap beyond configured risk limits in v1.                                                                                                                                   | Enforce the saved session/global limits rather than introducing an undocumented ceiling.                          |
+| 8   | Open trades are persisted when the app closes and monitoring resumes on next launch after runtime rehydration.                                                                                         | Do not force-close trades on exit.                                                                                |
+| 9   | Developer panel is an explicit visible navigation destination, not a hidden shortcut-only surface.                                                                                                     | Discoverability wins for local single-user v1.                                                                    |
+| 10  | Instrument selection logic is session-driven: manual shortlist by default, optional AI-selected universe via the instrument selector role, then per-session trade cycles run across that resolved set. | No global market scanner scheduler in v1.                                                                         |

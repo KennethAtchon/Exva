@@ -1,13 +1,19 @@
 /** plan §8 — truncate, strip filler, keep encoding-safe text for fetch (encodeURIComponent applied by adapters). */
 export function sanitizeSearchQuery(raw: string): string {
   let q = raw.trim();
-  q = q.replace(/^\s*(i'?ll search for|let me (look up|search)|here'?s a search for)[^.:\n]*[.:]?\s*/i, "").trim();
+  q = q
+    .replace(
+      /^\s*(i'?ll search for|let me (look up|search)|here'?s a search for)[^.:\n]*[.:]?\s*/i,
+      "",
+    )
+    .trim();
   q = q.replace(/^['"`]+|['"`]+$/g, "").trim();
   q = q.replace(/\s+/g, " ").trim();
   return q.length > 200 ? q.slice(0, 200) : q;
 }
 
-const TOOL_NAME_QUERY_REGEX = /^(search_web|search_reddit|get_trending_symbols|get_quote|get_news|get_ohlcv|fetch_url|submit_candidates)$/i;
+const TOOL_NAME_QUERY_REGEX =
+  /^(search_web|search_reddit|get_trending_symbols|get_quote|get_news|get_ohlcv|fetch_url|submit_candidates)$/i;
 
 export interface DiscoveryQueryValidationResult {
   sanitized: string;
@@ -16,7 +22,9 @@ export interface DiscoveryQueryValidationResult {
   reason?: string;
 }
 
-export function validateDiscoveryQuery(raw: string): DiscoveryQueryValidationResult {
+export function validateDiscoveryQuery(
+  raw: string,
+): DiscoveryQueryValidationResult {
   const sanitized = sanitizeSearchQuery(raw);
   const normalizedFamily = normalizeQueryFamily(sanitized);
 
@@ -43,7 +51,8 @@ export function validateDiscoveryQuery(raw: string): DiscoveryQueryValidationRes
       sanitized,
       normalizedFamily,
       ok: false,
-      reason: "Query must describe an instrument, catalyst, setup, or theme instead of a tool name.",
+      reason:
+        "Query must describe an instrument, catalyst, setup, or theme instead of a tool name.",
     };
   }
 

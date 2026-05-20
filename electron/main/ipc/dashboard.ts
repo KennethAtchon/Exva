@@ -5,7 +5,10 @@ import { handle } from "./handle";
 
 function resolveCostBreakdownDateRange(payload: unknown): "today" | "all" {
   if (!payload || typeof payload !== "object") return "today";
-  const dateRange = "dateRange" in payload ? (payload as { dateRange?: unknown }).dateRange : undefined;
+  const dateRange =
+    "dateRange" in payload
+      ? (payload as { dateRange?: unknown }).dateRange
+      : undefined;
   return dateRange === "all" ? "all" : "today";
 }
 
@@ -36,11 +39,15 @@ export function registerDashboardHandlers(services: AppServices): void {
       ? services.strategyContext.get(focused.id).riskConfig.maxAiSpendUsd
       : aggregateApiBudgetUsd(services);
 
-    const uptimeMin = focused ? services.session.uptimeMin(focused.id) : aggregateUptimeMin(services);
+    const uptimeMin = focused
+      ? services.session.uptimeMin(focused.id)
+      : aggregateUptimeMin(services);
 
     const sessionStatus = focused?.status ?? "idle";
 
-    const portfolio = await services.session.getPortfolioValue(sessionId ?? undefined);
+    const portfolio = await services.session.getPortfolioValue(
+      sessionId ?? undefined,
+    );
     const stats = services.repos.stats.dashboardStats(
       sessionId,
       sessionStatus,
@@ -48,7 +55,11 @@ export function registerDashboardHandlers(services: AppServices): void {
       uptimeMin,
       apiBudget,
     );
-    return { ...stats, portfolio_value_source: portfolio.source, portfolio_broker_count: portfolio.brokerCount };
+    return {
+      ...stats,
+      portfolio_value_source: portfolio.source,
+      portfolio_broker_count: portfolio.brokerCount,
+    };
   });
 
   handle(ipcMain, channels.dashboard.getCostBreakdown, async (payload) => {

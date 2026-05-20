@@ -15,7 +15,10 @@ export default defineConfig({
     include: ["electron/main/**/*.test.ts", "electron/shared/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      include: ["electron/main/services/**/*.ts", "electron/main/db/repositories/**/*.ts"],
+      include: [
+        "electron/main/services/**/*.ts",
+        "electron/main/db/repositories/**/*.ts",
+      ],
       thresholds: {
         lines: 80,
         functions: 80,

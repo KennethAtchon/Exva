@@ -2,9 +2,10 @@
 
 > **Status:** Not started
 > **Files to create:**
+>
 > - `electron/main/services/orchestration/order-policy-gate.ts`
 > - `electron/main/services/orchestration/candidate-validation-service.ts`
-> **Files to modify:**
+>   **Files to modify:**
 > - `electron/main/services/risk/risk-engine.ts` (expand `DecisionRiskInput`)
 > - `electron/main/services/broker/adapters/broker-adapter.ts` (expand `MarketSnapshot`, `BrokerOrder`)
 > - `electron/main/services/orchestration/agent-orchestrator.ts` (wire gates + fix side-default bug)
@@ -30,10 +31,10 @@ export interface MarketSnapshot {
   instrumentDisplayName?: string | null;
   predictionOutcome?: PredictionOutcome | null;
   price: number;
-  bid?: number;           // ADD
-  ask?: number;           // ADD
-  spreadPct?: number;     // ADD — (ask - bid) / mid * 100; null if no bid/ask
-  volume?: number;        // ADD — shares/contracts in last bar; null if unavailable
+  bid?: number; // ADD
+  ask?: number; // ADD
+  spreadPct?: number; // ADD — (ask - bid) / mid * 100; null if no bid/ask
+  volume?: number; // ADD — shares/contracts in last bar; null if unavailable
   timestamp: string;
 }
 ```
@@ -51,7 +52,7 @@ export interface BrokerOrder {
   sizeUsd: number;
   stopLossPrice?: number;
   takeProfitPrice?: number;
-  clientOrderId: string;  // ADD — format: `${cycleId}:${tradeId}`
+  clientOrderId: string; // ADD — format: `${cycleId}:${tradeId}`
 }
 ```
 
@@ -78,7 +79,7 @@ export interface DecisionRiskInput {
     ask?: number;
     spreadPct?: number;
     volume?: number;
-    timestamp: string;           // ISO-8601
+    timestamp: string; // ISO-8601
   };
   side: "BUY" | "SELL";
   exitPolicy: {
@@ -87,13 +88,13 @@ export interface DecisionRiskInput {
     takeProfitPct?: number | null;
     maxHoldDays?: number | null;
   };
-  totalBrokerExposureUsd?: number;   // sum of open position sizes on the same broker account
+  totalBrokerExposureUsd?: number; // sum of open position sizes on the same broker account
   strategyRules: {
     sideBias: StrategySideBias;
   };
   sessionMode: "paper" | "live";
-  brokerSupportsClass: boolean;      // pre-resolved by broker routing service
-  marketIsOpen: boolean;             // pre-resolved by MarketHoursService
+  brokerSupportsClass: boolean; // pre-resolved by broker routing service
+  marketIsOpen: boolean; // pre-resolved by MarketHoursService
 }
 ```
 
@@ -113,18 +114,18 @@ export interface CandidateValidationInput {
   strategy: SessionStrategyContext;
   selectorTrace: ToolStepTrace[];
   quoteSnapshot: MarketSnapshot;
-  now: string;   // ISO-8601; injectable for tests
+  now: string; // ISO-8601; injectable for tests
 }
 
 export interface CandidateEvidenceEntry {
   source: "get_news" | "search_web" | "get_quote" | "fetch_url";
-  symbolMatched: boolean;   // true if the ticker appears in args or returned text
+  symbolMatched: boolean; // true if the ticker appears in args or returned text
   publishedAt?: string;
 }
 
 export interface CandidateValidationResult {
   allowed: boolean;
-  reasons: string[];         // human-readable rejection reasons; empty if allowed
+  reasons: string[]; // human-readable rejection reasons; empty if allowed
   evidence: CandidateEvidenceEntry[];
   quoteSnapshot: MarketSnapshot;
 }
@@ -136,34 +137,42 @@ export class CandidateValidationService {
 
 ### Validation rules (in order; first failure sets `allowed: false`)
 
-| # | Rule | Pass condition |
-|---|------|---------------|
-| CV-1 | Symbol present | `instrument.symbol` is non-empty string |
-| CV-2 | Class enabled | `instrument.instrumentClass` is in the session's enabled instrument classes |
-| CV-3 | Broker route available | A registered broker account supports `instrument.instrumentClass` |
-| CV-4 | Quote success | `quoteSnapshot.price > 0` and no error |
-| CV-5 | Quote freshness | `Date.now() - new Date(quoteSnapshot.timestamp).getTime() < maxQuoteAgeMs(class, timeframe)` |
-| CV-6 | Symbol-specific evidence | At least one trace entry satisfies: `source === "get_news" && args.symbol === instrument.symbol`, OR `source === "search_web" && returnedText.includes(instrument.symbol)` |
-| CV-7 | Rationale non-empty | `instrument.selectorResearchBrief` is non-null and non-empty |
-| CV-8 | Liquidity (when volume available) | `quoteSnapshot.volume > minVolume(class)` — skip if `volume` is null |
-| CV-9 | Spread (when bid/ask available) | `quoteSnapshot.spreadPct < maxSpread(class)` — skip if `spreadPct` is null |
-| CV-10 | Strategy compatibility | Rationale text does not contain words indicating the opposite of `sideBias` (e.g. "short" for `long_only`) |
+| #     | Rule                              | Pass condition                                                                                                                                                             |
+| ----- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CV-1  | Symbol present                    | `instrument.symbol` is non-empty string                                                                                                                                    |
+| CV-2  | Class enabled                     | `instrument.instrumentClass` is in the session's enabled instrument classes                                                                                                |
+| CV-3  | Broker route available            | A registered broker account supports `instrument.instrumentClass`                                                                                                          |
+| CV-4  | Quote success                     | `quoteSnapshot.price > 0` and no error                                                                                                                                     |
+| CV-5  | Quote freshness                   | `Date.now() - new Date(quoteSnapshot.timestamp).getTime() < maxQuoteAgeMs(class, timeframe)`                                                                               |
+| CV-6  | Symbol-specific evidence          | At least one trace entry satisfies: `source === "get_news" && args.symbol === instrument.symbol`, OR `source === "search_web" && returnedText.includes(instrument.symbol)` |
+| CV-7  | Rationale non-empty               | `instrument.selectorResearchBrief` is non-null and non-empty                                                                                                               |
+| CV-8  | Liquidity (when volume available) | `quoteSnapshot.volume > minVolume(class)` — skip if `volume` is null                                                                                                       |
+| CV-9  | Spread (when bid/ask available)   | `quoteSnapshot.spreadPct < maxSpread(class)` — skip if `spreadPct` is null                                                                                                 |
+| CV-10 | Strategy compatibility            | Rationale text does not contain words indicating the opposite of `sideBias` (e.g. "short" for `long_only`)                                                                 |
 
 ### `maxQuoteAgeMs` per class/timeframe
 
 ```ts
-const MAX_QUOTE_AGE_MS: Record<InstrumentClass, Record<"intraday" | "swing" | "position", number>> = {
-  stock:             { intraday: 30_000,  swing: 300_000,  position: 600_000 },
-  crypto:            { intraday: 15_000,  swing: 120_000,  position: 300_000 },
-  futures:           { intraday: 15_000,  swing: 120_000,  position: 300_000 },
-  prediction_market: { intraday: 300_000, swing: 600_000,  position: 3_600_000 },
+const MAX_QUOTE_AGE_MS: Record<
+  InstrumentClass,
+  Record<"intraday" | "swing" | "position", number>
+> = {
+  stock: { intraday: 30_000, swing: 300_000, position: 600_000 },
+  crypto: { intraday: 15_000, swing: 120_000, position: 300_000 },
+  futures: { intraday: 15_000, swing: 120_000, position: 300_000 },
+  prediction_market: { intraday: 300_000, swing: 600_000, position: 3_600_000 },
 };
 
-function maxQuoteAgeMs(cls: InstrumentClass, holdingStyle: HoldingStyle): number {
+function maxQuoteAgeMs(
+  cls: InstrumentClass,
+  holdingStyle: HoldingStyle,
+): number {
   const bucket =
-    holdingStyle === "intraday_flat" ? "intraday"
-    : holdingStyle === "multi_day_swing" ? "swing"
-    : "position";
+    holdingStyle === "intraday_flat"
+      ? "intraday"
+      : holdingStyle === "multi_day_swing"
+        ? "swing"
+        : "position";
   return MAX_QUOTE_AGE_MS[cls][bucket];
 }
 ```
@@ -173,15 +182,15 @@ function maxQuoteAgeMs(cls: InstrumentClass, holdingStyle: HoldingStyle): number
 ```ts
 // Default thresholds — override via session config in the future
 const MIN_VOLUME: Partial<Record<InstrumentClass, number>> = {
-  stock:   50_000,    // shares in last bar
-  crypto:  10_000,    // USD notional equivalent
-  futures: 500,       // contracts
+  stock: 50_000, // shares in last bar
+  crypto: 10_000, // USD notional equivalent
+  futures: 500, // contracts
   // prediction_market: not enforced (volume semantics differ)
 };
 
 const MAX_SPREAD_PCT: Partial<Record<InstrumentClass, number>> = {
-  stock:   0.5,
-  crypto:  1.0,
+  stock: 0.5,
+  crypto: 1.0,
   futures: 0.3,
   // prediction_market: not enforced
 };
@@ -202,7 +211,10 @@ export interface PolicyGateInput {
   tradeId: string;
   decisionRiskInput: DecisionRiskInput;
   brokerAccountId: string;
-  existingOrderCheck: (clientOrderId: string, brokerAccountId: string) => boolean;
+  existingOrderCheck: (
+    clientOrderId: string,
+    brokerAccountId: string,
+  ) => boolean;
   sessionIsPaused: () => boolean;
 }
 
@@ -231,12 +243,14 @@ export class OrderPolicyGate {
 ### Gate definitions
 
 #### `runtime`
+
 ```
 FAIL if: sessionIsPaused() === true
 Reason: "Session is paused"
 ```
 
 #### `strategy`
+
 ```
 FAIL if: sideBias === "long_only" && side === "SELL"
 FAIL if: sideBias === "short_only" && side === "BUY"
@@ -244,12 +258,14 @@ Reason: "Order side contradicts strategy sideBias"
 ```
 
 #### `data_freshness`
+
 ```
 FAIL if: Date.now() - new Date(quoteSnapshot.timestamp).getTime() > maxQuoteAgeMs(class, holdingStyle)
 Reason: "Quote is stale (age: Xs, max: Ys)"
 ```
 
 #### `price_collar`
+
 ```
 // expected fill = quoteSnapshot.price (last known)
 collar = PRICE_COLLAR_PCT[instrumentType]  // see table below
@@ -261,14 +277,15 @@ Reason: "Expected fill exceeds price collar (±N%)"
 
 **Price collar defaults:**
 
-| Class | `collar` |
-|-------|---------|
-| `stock` | 0.02 (±2%) |
-| `crypto` | 0.03 (±3%) |
-| `futures` | 0.01 (±1%) |
+| Class               | `collar`   |
+| ------------------- | ---------- |
+| `stock`             | 0.02 (±2%) |
+| `crypto`            | 0.03 (±3%) |
+| `futures`           | 0.01 (±1%) |
 | `prediction_market` | 0.05 (±5%) |
 
 #### `spread`
+
 ```
 FAIL if: spreadPct != null && spreadPct > MAX_SPREAD_PCT[instrumentType]
 Reason: "Spread too wide (Xbps, max Ybps)"
@@ -276,6 +293,7 @@ Skip: if quoteSnapshot.spreadPct is null
 ```
 
 #### `capital`
+
 ```
 // Three sub-checks — any failure blocks:
 1. Session cap: order.sizeUsd <= config.max_position_usd
@@ -285,6 +303,7 @@ Reason: "Capital limit exceeded: [session|global|broker]"
 ```
 
 #### `broker`
+
 ```
 FAIL if: !brokerSupportsClass
 FAIL if: !marketIsOpen  (checked here as the final just-in-time guard)
@@ -292,6 +311,7 @@ Reason: "Broker does not support instrument class" | "Market is closed"
 ```
 
 #### `idempotency`
+
 ```
 clientOrderId = `${cycleId}:${tradeId}`
 FAIL if: existingOrderCheck(clientOrderId, brokerAccountId) === true
@@ -299,6 +319,7 @@ Reason: "Duplicate order: clientOrderId already exists"
 ```
 
 #### `exit_contract`
+
 ```
 FAIL if:
   exitPolicy.stopLossPct == null &&
@@ -313,17 +334,19 @@ Reason: "No enforceable exit policy — configure stopLoss, takeProfit, or maxHo
 ## 4. Side Bias Enforcement Fix
 
 In `agent-orchestrator.ts` around line 758, the current code:
+
 ```ts
-side: decision.side ?? "BUY"
+side: decision.side ?? "BUY";
 ```
 
 **Must become:**
+
 ```ts
 if (!decision.side) {
   if (strategy.rules.sideBias !== "both" && strategy.rules.sideBias !== "n_a") {
     throw new AppError(
       `Decision missing side field; cannot default with sideBias=${strategy.rules.sideBias}`,
-      "VALIDATION_FAILED"
+      "VALIDATION_FAILED",
     );
   }
   // only default when bias doesn't constrain direction
@@ -359,10 +382,14 @@ if (cache) {
 ```ts
 function instrumentCacheTtlMs(holdingStyle: HoldingStyle): number {
   switch (holdingStyle) {
-    case "intraday_flat":    return 30 * 60 * 1000;      // 30 min
-    case "multi_day_swing":  return 4 * 60 * 60 * 1000;  // 4h
-    case "weeks_position":   return 24 * 60 * 60 * 1000; // 24h
-    case "custom":           return 4 * 60 * 60 * 1000;  // 4h default
+    case "intraday_flat":
+      return 30 * 60 * 1000; // 30 min
+    case "multi_day_swing":
+      return 4 * 60 * 60 * 1000; // 4h
+    case "weeks_position":
+      return 24 * 60 * 60 * 1000; // 24h
+    case "custom":
+      return 4 * 60 * 60 * 1000; // 4h default
   }
 }
 ```

@@ -29,7 +29,9 @@ export const SessionTemplatesModal = ({
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
   const [search, setSearch] = useState("");
-  const [instrumentClass, setInstrumentClass] = useState<InstrumentClass | "all">("all");
+  const [instrumentClass, setInstrumentClass] = useState<
+    InstrumentClass | "all"
+  >("all");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,8 @@ export const SessionTemplatesModal = ({
     void api
       .listTemplates({
         search: search.trim() || undefined,
-        instrumentClass: instrumentClass === "all" ? undefined : instrumentClass,
+        instrumentClass:
+          instrumentClass === "all" ? undefined : instrumentClass,
       })
       .then((result) => setTemplates(result.templates))
       .catch((loadError: Error) => setError(loadError.message))
@@ -59,138 +62,266 @@ export const SessionTemplatesModal = ({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-auto rounded-[20px] border-border bg-transparent p-0 sm:max-w-[920px]">
-      <div style={panelStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 20 }}>Session Templates</h2>
-            <div style={{ marginTop: 6, color: "var(--text3)", fontSize: 13 }}>
-              Capture a full session payload or seed a new one from saved structure.
+        <div style={panelStyle}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 18,
+            }}
+          >
+            <div>
+              <h2 style={{ margin: 0, fontSize: 20 }}>Session Templates</h2>
+              <div
+                style={{ marginTop: 6, color: "var(--text3)", fontSize: 13 }}
+              >
+                Capture a full session payload or seed a new one from saved
+                structure.
+              </div>
             </div>
           </div>
-        </div>
 
-        {error ? <div style={errorBannerStyle}>{error}</div> : null}
+          {error ? <div style={errorBannerStyle}>{error}</div> : null}
 
-        <div style={heroCardStyle}>
-          <div>
-            <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text3)" }}>Save session as template</div>
-            <div style={{ marginTop: 8, color: "var(--text1)", fontSize: 16, fontWeight: 700 }}>
-              {sourceSession?.name ?? "Choose a session from the table first"}
+          <div style={heroCardStyle}>
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "var(--text3)",
+                }}
+              >
+                Save session as template
+              </div>
+              <div
+                style={{
+                  marginTop: 8,
+                  color: "var(--text1)",
+                  fontSize: 16,
+                  fontWeight: 700,
+                }}
+              >
+                {sourceSession?.name ?? "Choose a session from the table first"}
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  color: "var(--text2)",
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}
+              >
+                {sourceSession?.objective ??
+                  "Use the page-level Templates button to manage existing templates, or use a row action to save a specific session."}
+              </div>
             </div>
-            <div style={{ marginTop: 6, color: "var(--text2)", fontSize: 13, lineHeight: 1.5 }}>
-              {sourceSession?.objective ?? "Use the page-level Templates button to manage existing templates, or use a row action to save a specific session."}
+
+            <div style={{ display: "grid", gap: 10 }}>
+              <Input
+                value={templateName}
+                onChange={(event) => setTemplateName(event.target.value)}
+                placeholder="Template name"
+                className="h-10 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
+              />
+              <textarea
+                value={templateDescription}
+                onChange={(event) => setTemplateDescription(event.target.value)}
+                placeholder="What this template is for"
+                rows={3}
+                style={textareaStyle}
+              />
+              <Button
+                onClick={async () => {
+                  if (!sourceSession || !templateName.trim()) return;
+                  setSaving(true);
+                  setError(null);
+                  try {
+                    const payload = await api.buildTemplatePayloadFromSession(
+                      sourceSession.id,
+                    );
+                    await api.createTemplate({
+                      name: templateName.trim(),
+                      description: templateDescription.trim() || undefined,
+                      sourceSessionId: sourceSession.id,
+                      payload,
+                    });
+                    const result = await api.listTemplates({
+                      search: search.trim() || undefined,
+                      instrumentClass:
+                        instrumentClass === "all" ? undefined : instrumentClass,
+                    });
+                    setTemplates(result.templates);
+                  } catch (saveError) {
+                    setError(
+                      saveError instanceof Error
+                        ? saveError.message
+                        : "Failed to save template.",
+                    );
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="bg-[var(--accent)] text-white"
+                disabled={saving || !sourceSession || !templateName.trim()}
+              >
+                {saving ? "Saving Template..." : "Save Full Session Payload"}
+              </Button>
             </div>
+          </div>
+
+          <div style={toolbarStyle}>
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search templates"
+              className="h-10 flex-1 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
+            />
+            <ShadcnSelect
+              value={instrumentClass}
+              onValueChange={(value) =>
+                setInstrumentClass(value as InstrumentClass | "all")
+              }
+              className="w-[180px]"
+              options={[
+                { value: "all", label: "All instruments" },
+                { value: "stock", label: "Stocks" },
+                { value: "crypto", label: "Crypto" },
+                { value: "futures", label: "Futures" },
+              ]}
+            />
           </div>
 
           <div style={{ display: "grid", gap: 10 }}>
-            <Input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="Template name" className="h-10 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]" />
-            <textarea value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder="What this template is for" rows={3} style={textareaStyle} />
-            <Button
-              onClick={async () => {
-                if (!sourceSession || !templateName.trim()) return;
-                setSaving(true);
-                setError(null);
-                try {
-                  const payload = await api.buildTemplatePayloadFromSession(sourceSession.id);
-                  await api.createTemplate({
-                    name: templateName.trim(),
-                    description: templateDescription.trim() || undefined,
-                    sourceSessionId: sourceSession.id,
-                    payload,
-                  });
-                  const result = await api.listTemplates({
-                    search: search.trim() || undefined,
-                    instrumentClass: instrumentClass === "all" ? undefined : instrumentClass,
-                  });
-                  setTemplates(result.templates);
-                } catch (saveError) {
-                  setError(saveError instanceof Error ? saveError.message : "Failed to save template.");
-                } finally {
-                  setSaving(false);
-                }
-              }}
-              className="bg-[var(--accent)] text-white"
-              disabled={saving || !sourceSession || !templateName.trim()}
-            >
-              {saving ? "Saving Template..." : "Save Full Session Payload"}
-            </Button>
-          </div>
-        </div>
-
-        <div style={toolbarStyle}>
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search templates" className="h-10 flex-1 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]" />
-          <ShadcnSelect
-            value={instrumentClass}
-            onValueChange={(value) => setInstrumentClass(value as InstrumentClass | "all")}
-            className="w-[180px]"
-            options={[
-              { value: "all", label: "All instruments" },
-              { value: "stock", label: "Stocks" },
-              { value: "crypto", label: "Crypto" },
-              { value: "futures", label: "Futures" },
-            ]}
-          />
-        </div>
-
-        <div style={{ display: "grid", gap: 10 }}>
-          {loading ? <div style={emptyStateStyle}>Loading templates...</div> : null}
-          {!loading && templates.length === 0 ? <div style={emptyStateStyle}>No templates matched the current filters.</div> : null}
-          {!loading
-            ? templates.map((template) => (
-                <div key={template.id} style={templateCardStyle}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <div style={{ fontSize: 15, color: "var(--text1)", fontWeight: 700 }}>{template.name}</div>
-                        {template.instrumentClasses.map((value) => (
-                          <span key={value} style={chipStyle}>{formatInstrumentClass(value)}</span>
-                        ))}
+            {loading ? (
+              <div style={emptyStateStyle}>Loading templates...</div>
+            ) : null}
+            {!loading && templates.length === 0 ? (
+              <div style={emptyStateStyle}>
+                No templates matched the current filters.
+              </div>
+            ) : null}
+            {!loading
+              ? templates.map((template) => (
+                  <div key={template.id} style={templateCardStyle}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 14,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 15,
+                              color: "var(--text1)",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {template.name}
+                          </div>
+                          {template.instrumentClasses.map((value) => (
+                            <span key={value} style={chipStyle}>
+                              {formatInstrumentClass(value)}
+                            </span>
+                          ))}
+                        </div>
+                        <div
+                          style={{
+                            marginTop: 8,
+                            fontSize: 13,
+                            color: "var(--text2)",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {template.description ?? "No description provided."}
+                        </div>
+                        <div
+                          style={{
+                            marginTop: 10,
+                            fontSize: 12,
+                            color: "var(--text3)",
+                          }}
+                        >
+                          Source:{" "}
+                          {template.sourceSessionName ??
+                            template.sourceSessionId ??
+                            "Manual template"}{" "}
+                          · Updated {formatTimestamp(template.updatedAt)}
+                        </div>
                       </div>
-                      <div style={{ marginTop: 8, fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>
-                        {template.description ?? "No description provided."}
-                      </div>
-                      <div style={{ marginTop: 10, fontSize: 12, color: "var(--text3)" }}>
-                        Source: {template.sourceSessionName ?? template.sourceSessionId ?? "Manual template"} · Updated {formatTimestamp(template.updatedAt)}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
-                      <Button
-                        onClick={async () => {
-                          setError(null);
-                          try {
-                            const result = await api.useTemplate(template.id);
-                            onUseTemplate(payloadToInput(result.payload), result.clearedFields);
-                            onClose();
-                          } catch (useError) {
-                            setError(useError instanceof Error ? useError.message : "Failed to apply template.");
-                          }
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          alignItems: "flex-start",
+                          flexWrap: "wrap",
                         }}
-                        className="bg-[var(--accent)] text-white"
                       >
-                        Use Template
-                      </Button>
-                      <Button
-                        onClick={async () => {
-                          setError(null);
-                          try {
-                            await api.deleteTemplate(template.id);
-                            setTemplates((current) => current.filter((entry) => entry.id !== template.id));
-                          } catch (deleteError) {
-                            setError(deleteError instanceof Error ? deleteError.message : "Failed to delete template.");
-                          }
-                        }}
-                        variant="outline"
-                        className="border-border bg-[var(--surface2)] text-[var(--text2)]"
-                      >
-                        Delete
-                      </Button>
+                        <Button
+                          onClick={async () => {
+                            setError(null);
+                            try {
+                              const result = await api.useTemplate(template.id);
+                              onUseTemplate(
+                                payloadToInput(result.payload),
+                                result.clearedFields,
+                              );
+                              onClose();
+                            } catch (useError) {
+                              setError(
+                                useError instanceof Error
+                                  ? useError.message
+                                  : "Failed to apply template.",
+                              );
+                            }
+                          }}
+                          className="bg-[var(--accent)] text-white"
+                        >
+                          Use Template
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            setError(null);
+                            try {
+                              await api.deleteTemplate(template.id);
+                              setTemplates((current) =>
+                                current.filter(
+                                  (entry) => entry.id !== template.id,
+                                ),
+                              );
+                            } catch (deleteError) {
+                              setError(
+                                deleteError instanceof Error
+                                  ? deleteError.message
+                                  : "Failed to delete template.",
+                              );
+                            }
+                          }}
+                          variant="outline"
+                          className="border-border bg-[var(--surface2)] text-[var(--text2)]"
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
-            : null}
+                ))
+              : null}
+          </div>
         </div>
-      </div>
       </DialogContent>
     </Dialog>
   );
@@ -206,25 +337,97 @@ function payloadToInput(payload: SessionTemplatePayload): SessionCreateInput {
     defaultSearchProviderId: payload.identity.defaultSearchProviderId,
     selectorSettings: payload.selectorSettings,
     executionMode: payload.identity.executionMode,
-    brokerAssignments: payload.brokerAssignments.filter((assignment) => assignment.brokerAccountId),
+    brokerAssignments: payload.brokerAssignments.filter(
+      (assignment) => assignment.brokerAccountId,
+    ),
     brokerOverridesByInstrumentClass: payload.brokerOverridesByInstrumentClass,
   };
 }
 
 function formatInstrumentClass(value: InstrumentClass): string {
-  return value === "stock" ? "Stocks" : value === "crypto" ? "Crypto" : value === "futures" ? "Futures" : "Prediction Markets";
+  return value === "stock"
+    ? "Stocks"
+    : value === "crypto"
+      ? "Crypto"
+      : value === "futures"
+        ? "Futures"
+        : "Prediction Markets";
 }
 
 function formatTimestamp(value: string): string {
   return new Date(value).toLocaleString();
 }
 
-const panelStyle = { width: 920, maxWidth: "96vw", maxHeight: "92vh", overflow: "auto", background: "linear-gradient(180deg, rgba(13,18,25,0.98), rgba(9,13,18,0.98))", border: "1px solid var(--border)", borderRadius: 20, padding: 24, boxShadow: "0 26px 60px rgba(2,6,23,0.48)" } as const;
-const heroCardStyle = { display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 18, alignItems: "start", marginBottom: 18, padding: 18, borderRadius: 18, border: "1px solid var(--accent-dim)", background: "linear-gradient(135deg, rgba(96,165,250,0.12), rgba(15,23,42,0.18))" } as const;
-const toolbarStyle = { display: "flex", gap: 10, alignItems: "center", marginBottom: 14, flexWrap: "wrap" } as const;
-const templateCardStyle = { border: "1px solid var(--border)", borderRadius: 16, padding: 16, background: "rgba(18,26,36,0.72)" } as const;
-const emptyStateStyle = { border: "1px dashed var(--border)", borderRadius: 16, padding: 22, color: "var(--text3)", textAlign: "center" as const };
-const inputStyle = { padding: "11px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "rgba(7,10,15,0.5)", color: "var(--text1)" } as const;
-const textareaStyle = { ...inputStyle, resize: "vertical" as const, minHeight: 84 };
-const chipStyle = { padding: "4px 9px", borderRadius: 999, border: "1px solid var(--border)", background: "rgba(7,10,15,0.38)", color: "var(--text2)", fontSize: 11 } as const;
-const errorBannerStyle = { marginBottom: 16, padding: "12px 14px", borderRadius: 12, border: "1px solid rgba(248,113,113,0.34)", background: "rgba(248,113,113,0.08)", color: "#fca5a5", fontSize: 13 } as const;
+const panelStyle = {
+  width: 920,
+  maxWidth: "96vw",
+  maxHeight: "92vh",
+  overflow: "auto",
+  background:
+    "linear-gradient(180deg, rgba(13,18,25,0.98), rgba(9,13,18,0.98))",
+  border: "1px solid var(--border)",
+  borderRadius: 20,
+  padding: 24,
+  boxShadow: "0 26px 60px rgba(2,6,23,0.48)",
+} as const;
+const heroCardStyle = {
+  display: "grid",
+  gridTemplateColumns: "1.2fr 1fr",
+  gap: 18,
+  alignItems: "start",
+  marginBottom: 18,
+  padding: 18,
+  borderRadius: 18,
+  border: "1px solid var(--accent-dim)",
+  background:
+    "linear-gradient(135deg, rgba(96,165,250,0.12), rgba(15,23,42,0.18))",
+} as const;
+const toolbarStyle = {
+  display: "flex",
+  gap: 10,
+  alignItems: "center",
+  marginBottom: 14,
+  flexWrap: "wrap",
+} as const;
+const templateCardStyle = {
+  border: "1px solid var(--border)",
+  borderRadius: 16,
+  padding: 16,
+  background: "rgba(18,26,36,0.72)",
+} as const;
+const emptyStateStyle = {
+  border: "1px dashed var(--border)",
+  borderRadius: 16,
+  padding: 22,
+  color: "var(--text3)",
+  textAlign: "center" as const,
+};
+const inputStyle = {
+  padding: "11px 12px",
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "rgba(7,10,15,0.5)",
+  color: "var(--text1)",
+} as const;
+const textareaStyle = {
+  ...inputStyle,
+  resize: "vertical" as const,
+  minHeight: 84,
+};
+const chipStyle = {
+  padding: "4px 9px",
+  borderRadius: 999,
+  border: "1px solid var(--border)",
+  background: "rgba(7,10,15,0.38)",
+  color: "var(--text2)",
+  fontSize: 11,
+} as const;
+const errorBannerStyle = {
+  marginBottom: 16,
+  padding: "12px 14px",
+  borderRadius: 12,
+  border: "1px solid rgba(248,113,113,0.34)",
+  background: "rgba(248,113,113,0.08)",
+  color: "#fca5a5",
+  fontSize: 13,
+} as const;

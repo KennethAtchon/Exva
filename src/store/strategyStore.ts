@@ -11,9 +11,18 @@ import {
 } from "../../electron/shared/presets";
 import type { GlobalStrategyPreset } from "../../electron/shared/presets";
 
-const RESEARCH_POSTURE_PRESETS_MAP = Object.fromEntries(RESEARCH_POSTURE_PRESETS.map((p) => [p.id, p]));
-const TRADE_RULE_PRESETS_MAP = Object.fromEntries(TRADE_RULE_PRESETS.map((p) => [p.id, p]));
-import { api, type PhaseRuntimeSummary, type StrategyGetResponse, type UserGlobalPresetRow } from "@/lib/exva";
+const RESEARCH_POSTURE_PRESETS_MAP = Object.fromEntries(
+  RESEARCH_POSTURE_PRESETS.map((p) => [p.id, p]),
+);
+const TRADE_RULE_PRESETS_MAP = Object.fromEntries(
+  TRADE_RULE_PRESETS.map((p) => [p.id, p]),
+);
+import {
+  api,
+  type PhaseRuntimeSummary,
+  type StrategyGetResponse,
+  type UserGlobalPresetRow,
+} from "@/lib/exva";
 import type { PipelinePhase } from "../../electron/shared/ai/pipeline-phase";
 import type {
   SessionResearchPosture,
@@ -52,7 +61,10 @@ interface StrategyStoreState {
   updateRules: (patch: Partial<SessionTradeRules>) => void;
   updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
   updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
-  updateAiPhase: (phase: PipelinePhase, patch: Partial<PhaseRuntimeSummary>) => void;
+  updateAiPhase: (
+    phase: PipelinePhase,
+    patch: Partial<PhaseRuntimeSummary>,
+  ) => void;
   applyGlobalPreset: (preset: GlobalStrategyPreset) => void;
   saveAll: (sessionId: string) => Promise<void>;
   setActiveSection: (section: StrategySectionTab) => void;
@@ -100,8 +112,12 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       activeSection: "style",
       strategyErrors: [],
       isSaving: false,
-      isLocked: result.sessionStatus === "active" || result.sessionStatus === "paused",
-      state: result.sessionStatus === "active" || result.sessionStatus === "paused" ? "locked" : "editable",
+      isLocked:
+        result.sessionStatus === "active" || result.sessionStatus === "paused",
+      state:
+        result.sessionStatus === "active" || result.sessionStatus === "paused"
+          ? "locked"
+          : "editable",
     });
   },
   loadGlobalPresets: async () => {
@@ -112,8 +128,13 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     const researchPosture = get().researchPosture;
     if (!researchPosture) return;
     const dirtyFields = new Set(get().dirtyFields);
-    for (const key of Object.keys(patch)) dirtyFields.add(`researchPosture.${key}`);
-    set({ researchPosture: { ...researchPosture, ...patch }, dirtyFields, strategyErrors: [] });
+    for (const key of Object.keys(patch))
+      dirtyFields.add(`researchPosture.${key}`);
+    set({
+      researchPosture: { ...researchPosture, ...patch },
+      dirtyFields,
+      strategyErrors: [],
+    });
   },
   updateRules: (patch) => {
     const rules = get().rules;
@@ -127,21 +148,30 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     if (!riskConfig) return;
     const dirtyFields = new Set(get().dirtyFields);
     for (const key of Object.keys(patch)) dirtyFields.add(`riskConfig.${key}`);
-    set({ riskConfig: { ...riskConfig, ...patch }, dirtyFields, strategyErrors: [] });
+    set({
+      riskConfig: { ...riskConfig, ...patch },
+      dirtyFields,
+      strategyErrors: [],
+    });
   },
   updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => {
     const timeframe = get().timeframe;
     if (!timeframe) return;
     const dirtyFields = new Set(get().dirtyFields);
     for (const key of Object.keys(patch)) dirtyFields.add(`timeframe.${key}`);
-    set({ timeframe: { ...timeframe, ...patch }, dirtyFields, strategyErrors: [] });
+    set({
+      timeframe: { ...timeframe, ...patch },
+      dirtyFields,
+      strategyErrors: [],
+    });
   },
   updateAiPhase: (phase, patch) => {
     const aiPhases = get().aiPhases;
     const index = aiPhases.findIndex((p) => p.phase === phase);
     if (index < 0) return;
     const dirtyFields = new Set(get().dirtyFields);
-    for (const key of Object.keys(patch)) dirtyFields.add(`aiPhases.${phase}.${key}`);
+    for (const key of Object.keys(patch))
+      dirtyFields.add(`aiPhases.${phase}.${key}`);
     const next = [...aiPhases];
     next[index] = { ...aiPhases[index]!, ...patch, phase };
     set({ aiPhases: next, dirtyFields, strategyErrors: [] });
@@ -153,27 +183,45 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     const stylePreset = RESEARCH_POSTURE_PRESETS_MAP[preset.posturePresetId];
     const rulesPreset = TRADE_RULE_PRESETS_MAP[preset.rulesPresetId];
     const riskPreset = RISK_PRESETS.find((p) => p.id === preset.riskPresetId);
-    const timeframePreset = TIMEFRAME_PRESETS.find((p) => p.id === preset.timeframePresetId);
+    const timeframePreset = TIMEFRAME_PRESETS.find(
+      (p) => p.id === preset.timeframePresetId,
+    );
 
     const dirtyFields = new Set(get().dirtyFields);
 
     if (stylePreset) {
-      for (const key of Object.keys(stylePreset.posture)) dirtyFields.add(`researchPosture.${key}`);
+      for (const key of Object.keys(stylePreset.posture))
+        dirtyFields.add(`researchPosture.${key}`);
       set({ researchPosture: { ...researchPosture, ...stylePreset.posture } });
     }
     if (rulesPreset) {
-      for (const key of Object.keys(rulesPreset.rules)) dirtyFields.add(`rules.${key}`);
+      for (const key of Object.keys(rulesPreset.rules))
+        dirtyFields.add(`rules.${key}`);
       set({ rules: { ...rules, ...rulesPreset.rules } });
     }
     if (riskPreset) {
       dirtyFields.add("riskConfig.riskPresetId");
-      for (const key of Object.keys(riskPreset.values)) dirtyFields.add(`riskConfig.${key}`);
-      set({ riskConfig: { ...riskConfig, riskPresetId: riskPreset.id, ...riskPreset.values } });
+      for (const key of Object.keys(riskPreset.values))
+        dirtyFields.add(`riskConfig.${key}`);
+      set({
+        riskConfig: {
+          ...riskConfig,
+          riskPresetId: riskPreset.id,
+          ...riskPreset.values,
+        },
+      });
     }
     if (timeframePreset) {
       dirtyFields.add("timeframe.timeframePresetId");
-      for (const key of Object.keys(timeframePreset.values)) dirtyFields.add(`timeframe.${key}`);
-      set({ timeframe: { ...timeframe, timeframePresetId: timeframePreset.id, ...timeframePreset.values } });
+      for (const key of Object.keys(timeframePreset.values))
+        dirtyFields.add(`timeframe.${key}`);
+      set({
+        timeframe: {
+          ...timeframe,
+          timeframePresetId: timeframePreset.id,
+          ...timeframePreset.values,
+        },
+      });
     }
 
     set({ dirtyFields, strategyErrors: [] });
@@ -190,20 +238,35 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     try {
       validateSessionStrategyContext(
         { ...context, rules: rulesWithMarkdown },
-        { hasSearchProvider: Boolean(get().defaultSearchProviderId || get().workspaceDefaultSearchProviderId) },
+        {
+          hasSearchProvider: Boolean(
+            get().defaultSearchProviderId ||
+            get().workspaceDefaultSearchProviderId,
+          ),
+        },
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Invalid strategy configuration.";
+      const message =
+        err instanceof Error ? err.message : "Invalid strategy configuration.";
       set({ strategyErrors: [message] });
       return;
     }
 
     set({ isSaving: true, strategyErrors: [] });
     try {
-      await api.saveStrategyResearchPosture({ sessionId, researchPosture: context.researchPosture });
+      await api.saveStrategyResearchPosture({
+        sessionId,
+        researchPosture: context.researchPosture,
+      });
       await api.saveTradeRules({ sessionId, rules: rulesWithMarkdown });
-      await api.saveStrategyRiskConfig({ sessionId, riskConfig: context.riskConfig });
-      await api.saveStrategyTimeframeConfig({ sessionId, timeframe: context.timeframe });
+      await api.saveStrategyRiskConfig({
+        sessionId,
+        riskConfig: context.riskConfig,
+      });
+      await api.saveStrategyTimeframeConfig({
+        sessionId,
+        timeframe: context.timeframe,
+      });
       const dirtyAiPhases = [...get().dirtyFields]
         .filter((field) => field.startsWith("aiPhases."))
         .map((field) => field.split(".")[1] as PipelinePhase | undefined)
@@ -229,7 +292,10 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
         strategyErrors: [],
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to save strategy configuration.";
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to save strategy configuration.";
       set({ strategyErrors: [message] });
     } finally {
       set({ isSaving: false });
@@ -238,8 +304,16 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   setActiveSection: (section) => set({ activeSection: section }),
 }));
 
-function currentContext(state: StrategyStoreState): SessionStrategyContext | null {
-  if (!state.researchPosture || !state.rules || !state.riskConfig || !state.timeframe) return null;
+function currentContext(
+  state: StrategyStoreState,
+): SessionStrategyContext | null {
+  if (
+    !state.researchPosture ||
+    !state.rules ||
+    !state.riskConfig ||
+    !state.timeframe
+  )
+    return null;
   return {
     researchPosture: state.researchPosture,
     rules: state.rules,

@@ -8,15 +8,25 @@ import { handle } from "./handle";
 
 export async function decideApproval(
   services: AppServices,
-  input: { approvalId: string; decision: "approved" | "rejected"; decisionNote?: string },
+  input: {
+    approvalId: string;
+    decision: "approved" | "rejected";
+    decisionNote?: string;
+  },
 ): Promise<{ status: "approved" | "rejected"; resolvedAt: string }> {
   const approval = services.repos.tradeApprovals.require(input.approvalId);
   if (approval.status !== "pending") {
-    throw new AppError("Approval is not pending", "VALIDATION_FAILED", { id: input.approvalId });
+    throw new AppError("Approval is not pending", "VALIDATION_FAILED", {
+      id: input.approvalId,
+    });
   }
 
   if (input.decision === "rejected") {
-    const resolved = services.repos.tradeApprovals.resolve(input.approvalId, "rejected", input.decisionNote);
+    const resolved = services.repos.tradeApprovals.resolve(
+      input.approvalId,
+      "rejected",
+      input.decisionNote,
+    );
     services.repos.capitalReservations.releaseByApproval(input.approvalId);
     const trade = services.repos.trades.require(approval.tradeId);
     if (trade.status === "pending") {
@@ -27,19 +37,31 @@ export async function decideApproval(
       tradeId: approval.tradeId,
       status: "rejected",
     });
-    return { status: "rejected", resolvedAt: resolved.resolvedAt ?? new Date().toISOString() };
+    return {
+      status: "rejected",
+      resolvedAt: resolved.resolvedAt ?? new Date().toISOString(),
+    };
   }
 
   const runtime = services.runtimeManager.get(approval.sessionId);
-  const hadCallback = runtime?.orchestrator.hasApprovalCallback(approval.tradeId) ?? false;
+  const hadCallback =
+    runtime?.orchestrator.hasApprovalCallback(approval.tradeId) ?? false;
 
   if (!hadCallback && !runtime) {
-    throw new AppError("Start the session before completing this approval.", "SESSION_NOT_ACTIVE", {
-      sessionId: approval.sessionId,
-    });
+    throw new AppError(
+      "Start the session before completing this approval.",
+      "SESSION_NOT_ACTIVE",
+      {
+        sessionId: approval.sessionId,
+      },
+    );
   }
 
-  const resolved = services.repos.tradeApprovals.resolve(input.approvalId, "approved", input.decisionNote);
+  const resolved = services.repos.tradeApprovals.resolve(
+    input.approvalId,
+    "approved",
+    input.decisionNote,
+  );
 
   if (hadCallback && runtime) {
     runtime.orchestrator.resolveApproval(approval.tradeId, true);
@@ -58,7 +80,10 @@ export async function decideApproval(
     status: "approved",
   });
 
-  return { status: "approved", resolvedAt: resolved.resolvedAt ?? new Date().toISOString() };
+  return {
+    status: "approved",
+    resolvedAt: resolved.resolvedAt ?? new Date().toISOString(),
+  };
 }
 
 function parseConfidenceFromSummary(json: string): number | undefined {
@@ -76,11 +101,14 @@ export function registerApprovalHandlers(services: AppServices): void {
 
     const prefs = services.repos.workspacePreferences.get();
     const focused = services.repos.session.getFocused();
-    const workspaceViewMode = focused ? ("session" as const) : ("global" as const);
+    const workspaceViewMode = focused
+      ? ("session" as const)
+      : ("global" as const);
 
     const status = filters?.status ?? "pending";
 
-    const sessionIds = workspaceViewMode === "session" && focused ? [focused.id] : undefined;
+    const sessionIds =
+      workspaceViewMode === "session" && focused ? [focused.id] : undefined;
     const excludeArchivedSessions =
       workspaceViewMode === "global" ? !prefs.globalIncludeArchived : true;
 

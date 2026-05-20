@@ -1,6 +1,13 @@
 import type { BrowserWindow } from "electron";
 import type { SessionRuntimeStatus } from "@/lib/types";
-import type { DashboardStats, EventRow, ExecutionStage, SessionStatus, Trade, TradeDecisionPayload } from "@/lib/types";
+import type {
+  DashboardStats,
+  EventRow,
+  ExecutionStage,
+  SessionStatus,
+  Trade,
+  TradeDecisionPayload,
+} from "@/lib/types";
 import type { ExvaEventName } from "@electron/shared/ipc/channels";
 
 export interface ExvaEventMap {
@@ -19,11 +26,35 @@ export interface ExvaEventMap {
   trade_status_changed: Trade;
   selector_run_completed: { sessionId: string; count: number };
   research_phase_started: { sessionId: string; phase: string; cycleId: string };
-  research_phase_step: { sessionId: string; phase: string; message: string; cycleId: string };
-  research_phase_complete: { sessionId: string; phase: string; cycleId: string; instrumentCount: number };
-  research_phase_failed: { sessionId: string; phase: string; cycleId: string; error: string };
-  "step:started": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number };
-  "step:succeeded": { sessionId: string; cycleId: string; stage: ExecutionStage };
+  research_phase_step: {
+    sessionId: string;
+    phase: string;
+    message: string;
+    cycleId: string;
+  };
+  research_phase_complete: {
+    sessionId: string;
+    phase: string;
+    cycleId: string;
+    instrumentCount: number;
+  };
+  research_phase_failed: {
+    sessionId: string;
+    phase: string;
+    cycleId: string;
+    error: string;
+  };
+  "step:started": {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+    attempt: number;
+  };
+  "step:succeeded": {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+  };
   "step:failed": {
     sessionId: string;
     cycleId: string;
@@ -33,8 +64,18 @@ export interface ExvaEventMap {
     errorMessage: string;
     nextRetryAt: string | null;
   };
-  "step:retrying": { sessionId: string; cycleId: string; stage: ExecutionStage; attempt: number; nextRetryAt: string };
-  broker_balance_updated: { brokerAccountId: string; balanceUsd: number; cachedAt: string };
+  "step:retrying": {
+    sessionId: string;
+    cycleId: string;
+    stage: ExecutionStage;
+    attempt: number;
+    nextRetryAt: string;
+  };
+  broker_balance_updated: {
+    brokerAccountId: string;
+    balanceUsd: number;
+    cachedAt: string;
+  };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
 }
@@ -60,7 +101,10 @@ export class EventBus {
     }
   }
 
-  on<K extends ExvaEventName>(name: K, handler: (payload: ExvaEventMap[K]) => void): () => void {
+  on<K extends ExvaEventName>(
+    name: K,
+    handler: (payload: ExvaEventMap[K]) => void,
+  ): () => void {
     const handlers = this.listeners.get(name) ?? new Set();
     handlers.add(handler as (payload: unknown) => void);
     this.listeners.set(name, handlers);

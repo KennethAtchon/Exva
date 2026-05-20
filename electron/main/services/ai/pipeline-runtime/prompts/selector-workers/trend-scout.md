@@ -11,18 +11,18 @@ Find up to 3 concrete trade candidates from trending sources that fit the sessio
 
 Return JSON:
 {
-  "candidates": [
-    {
-      "symbol": "...",
-      "instrumentClass": "stock|crypto|futures|prediction_market",
-      "instrumentDisplayName": "...",
-      "source": ["trend-scout"],
-      "hypeScore": 0.0,
-      "catalystScore": 0.0,
-      "catalystSummary": "...",
-      "rationale": "..."
-    }
-  ]
+"candidates": [
+{
+"symbol": "...",
+"instrumentClass": "stock|crypto|futures|prediction_market",
+"instrumentDisplayName": "...",
+"source": ["trend-scout"],
+"hypeScore": 0.0,
+"catalystScore": 0.0,
+"catalystSummary": "...",
+"rationale": "..."
+}
+]
 }
 
 Only include symbols with concrete current evidence.

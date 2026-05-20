@@ -3,6 +3,7 @@
 Given Reddit and web discussion for {instrumentSymbol}, assess current retail and institutional sentiment.
 
 Return JSON:
+
 ```json
 {
   "sentimentScore": 0..1 or null,

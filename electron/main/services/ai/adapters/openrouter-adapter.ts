@@ -11,7 +11,16 @@ import type {
 import { executeRunAgent } from "./run-agent-execute";
 import type { RunTrace } from "../ai-runtime/ai-runtime-types";
 
-function readUsage(usage: { inputTokens?: number; outputTokens?: number; promptTokens?: number; completionTokens?: number } | undefined): {
+function readUsage(
+  usage:
+    | {
+        inputTokens?: number;
+        outputTokens?: number;
+        promptTokens?: number;
+        completionTokens?: number;
+      }
+    | undefined,
+): {
   inputTokens: number;
   outputTokens: number;
 } {
@@ -39,7 +48,9 @@ export class OpenRouterAdapter implements ProviderAdapter {
     return createOpenAI(opts);
   }
 
-  async runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>> {
+  async runAgent<T = undefined>(
+    opts: AgentRunOptions<T>,
+  ): Promise<RunTrace<T>> {
     const client = await this.createClient();
     return executeRunAgent({
       model: client.chat(opts.model),
@@ -81,7 +92,9 @@ export class OpenRouterAdapter implements ProviderAdapter {
     };
   }
 
-  async generateObject<T>(opts: GenerateObjectOptions<T>): Promise<GenerateObjectResult<T>> {
+  async generateObject<T>(
+    opts: GenerateObjectOptions<T>,
+  ): Promise<GenerateObjectResult<T>> {
     const { generateObject } = await import("ai");
     const client = await this.createClient();
     const started = Date.now();
@@ -110,8 +123,11 @@ export class OpenRouterAdapter implements ProviderAdapter {
     const res = await fetch(`${baseURL}/models`, {
       headers: { Authorization: `Bearer ${this.apiKey}` },
     });
-    if (!res.ok) throw new Error(`OpenRouter models fetch failed: ${res.status}`);
-    const json = await res.json() as { data: { id: string; name: string; context_length: number }[] };
+    if (!res.ok)
+      throw new Error(`OpenRouter models fetch failed: ${res.status}`);
+    const json = (await res.json()) as {
+      data: { id: string; name: string; context_length: number }[];
+    };
     return json.data.map((m) => ({
       id: m.id,
       label: m.name,

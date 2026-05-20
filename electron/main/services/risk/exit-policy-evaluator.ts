@@ -1,7 +1,10 @@
 import type { InstrumentClass } from "@/lib/types";
 import type { StopLossType } from "@electron/shared/domain";
 
-export type ExitReason = "stop_loss_fixed" | "stop_loss_trailing_atr" | "take_profit";
+export type ExitReason =
+  | "stop_loss_fixed"
+  | "stop_loss_trailing_atr"
+  | "take_profit";
 
 export interface ExitDecision {
   shouldExit: boolean;
@@ -38,16 +41,25 @@ export class ExitPolicyEvaluator {
       return { shouldExit: false };
     }
 
-    const { stopLossType, stopLossPct, atrStopMultiplier, takeProfitPct } = riskConfig;
+    const { stopLossType, stopLossPct, atrStopMultiplier, takeProfitPct } =
+      riskConfig;
     const { entryPrice, side } = trade;
     const isLong = side === "BUY";
 
     // Take-profit checked first — more favorable exit takes priority
     if (takeProfitPct != null) {
-      const tpPrice = isLong ? entryPrice * (1 + takeProfitPct / 100) : entryPrice * (1 - takeProfitPct / 100);
-      const triggered = isLong ? currentPrice >= tpPrice : currentPrice <= tpPrice;
+      const tpPrice = isLong
+        ? entryPrice * (1 + takeProfitPct / 100)
+        : entryPrice * (1 - takeProfitPct / 100);
+      const triggered = isLong
+        ? currentPrice >= tpPrice
+        : currentPrice <= tpPrice;
       if (triggered) {
-        return { shouldExit: true, reason: "take_profit", triggerPrice: tpPrice };
+        return {
+          shouldExit: true,
+          reason: "take_profit",
+          triggerPrice: tpPrice,
+        };
       }
     }
 
@@ -57,10 +69,18 @@ export class ExitPolicyEvaluator {
 
     if (stopLossType === "fixed_pct") {
       if (stopLossPct == null) return { shouldExit: false };
-      const stopPrice = isLong ? entryPrice * (1 - stopLossPct / 100) : entryPrice * (1 + stopLossPct / 100);
-      const triggered = isLong ? currentPrice <= stopPrice : currentPrice >= stopPrice;
+      const stopPrice = isLong
+        ? entryPrice * (1 - stopLossPct / 100)
+        : entryPrice * (1 + stopLossPct / 100);
+      const triggered = isLong
+        ? currentPrice <= stopPrice
+        : currentPrice >= stopPrice;
       if (triggered) {
-        return { shouldExit: true, reason: "stop_loss_fixed", triggerPrice: stopPrice };
+        return {
+          shouldExit: true,
+          reason: "stop_loss_fixed",
+          triggerPrice: stopPrice,
+        };
       }
     }
 
@@ -70,16 +90,30 @@ export class ExitPolicyEvaluator {
       if (atr == null) return { shouldExit: false };
 
       if (isLong) {
-        const hwm = Math.max(trade.highWaterMarkPrice ?? entryPrice, currentPrice);
+        const hwm = Math.max(
+          trade.highWaterMarkPrice ?? entryPrice,
+          currentPrice,
+        );
         const trailStop = hwm - atrStopMultiplier * atr;
         if (currentPrice <= trailStop) {
-          return { shouldExit: true, reason: "stop_loss_trailing_atr", triggerPrice: trailStop };
+          return {
+            shouldExit: true,
+            reason: "stop_loss_trailing_atr",
+            triggerPrice: trailStop,
+          };
         }
       } else {
-        const lwm = Math.min(trade.highWaterMarkPrice ?? entryPrice, currentPrice);
+        const lwm = Math.min(
+          trade.highWaterMarkPrice ?? entryPrice,
+          currentPrice,
+        );
         const trailStop = lwm + atrStopMultiplier * atr;
         if (currentPrice >= trailStop) {
-          return { shouldExit: true, reason: "stop_loss_trailing_atr", triggerPrice: trailStop };
+          return {
+            shouldExit: true,
+            reason: "stop_loss_trailing_atr",
+            triggerPrice: trailStop,
+          };
         }
       }
     }
@@ -95,7 +129,11 @@ function computeATR(bars: OhlcvBar[], period = 14): number | null {
   const trueRanges = recent.slice(1).map((bar, i) => {
     const prev = recent[i];
     if (!prev) return bar.high - bar.low;
-    return Math.max(bar.high - bar.low, Math.abs(bar.high - prev.close), Math.abs(bar.low - prev.close));
+    return Math.max(
+      bar.high - bar.low,
+      Math.abs(bar.high - prev.close),
+      Math.abs(bar.low - prev.close),
+    );
   });
 
   let atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;

@@ -47,7 +47,10 @@ Guard in IPC handler:
 ```typescript
 const session = sessionRepo.get(sessionId);
 if (!isSessionEditable(session.status)) {
-  return { error: "Stop this session before editing its strategy or AI configuration.", code: 409 };
+  return {
+    error: "Stop this session before editing its strategy or AI configuration.",
+    code: 409,
+  };
 }
 ```
 
@@ -138,9 +141,21 @@ export type ModelEntry = {
 
 export const MODEL_CATALOG: Record<ProviderType, ModelEntry[]> = {
   anthropic: [
-    { id: "claude-opus-4-7", label: "Claude Opus 4.7", maxContextTokens: 200000 },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", maxContextTokens: 200000 },
-    { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", maxContextTokens: 200000 },
+    {
+      id: "claude-opus-4-7",
+      label: "Claude Opus 4.7",
+      maxContextTokens: 200000,
+    },
+    {
+      id: "claude-sonnet-4-6",
+      label: "Claude Sonnet 4.6",
+      maxContextTokens: 200000,
+    },
+    {
+      id: "claude-haiku-4-5-20251001",
+      label: "Claude Haiku 4.5",
+      maxContextTokens: 200000,
+    },
   ],
   openai: [
     { id: "gpt-4o", label: "GPT-4o", maxContextTokens: 128000 },
@@ -218,11 +233,11 @@ Add to `src/store/sessionStore.ts` (or create `src/store/strategyStore.ts`):
 interface StrategyStoreState {
   strategy: SessionStrategy | null;
   aiRoles: Map<AgentRole, SessionAiRole>;
-  dirtyFields: Set<string>;            // field-level dirty tracking
-  dirtyRoles: Set<AgentRole>;          // role-level dirty tracking
+  dirtyFields: Set<string>; // field-level dirty tracking
+  dirtyRoles: Set<AgentRole>; // role-level dirty tracking
   activeRoleTab: AgentRole;
   isSaving: boolean;
-  isLocked: boolean;                   // true when session is active/paused
+  isLocked: boolean; // true when session is active/paused
 
   loadStrategy(sessionId: string): Promise<void>;
   updateStrategy(patch: Partial<SessionStrategy>): void;
@@ -302,45 +317,45 @@ sequenceDiagram
 
 ## Validation Rules (enforced before save)
 
-| Rule | Error Message |
-|------|---------------|
-| Provider key references unconfigured provider | "Connect this provider in Accounts before assigning it to a role." |
-| Model ID is empty | "Select a model for [Role Name]." |
-| Prompt markdown is empty on session_override | "Prompt cannot be empty. Reset to default or add content." |
-| Web search enabled but no search provider configured | "Connect a web search provider to enable internet search for this role." |
-| Web search enabled and session override is unset | Uses workspace default search provider automatically; no per-role picker in v1 |
-| Instrument selector role enabled but session is manual_shortlist | Tab disabled — no validation needed |
-| `targetHoldDays` or `maxHoldDays` set and `< 0` | "Hold days cannot be negative." |
-| Both `targetHoldDays` and `maxHoldDays` set and `maxHoldDays < targetHoldDays` | "Max hold must be greater than or equal to target hold." |
-| `primaryTradingTimeframe` missing or not a known enum value | "Select a primary trading timeframe." |
-| `holdingStyle` missing or unknown | "Select a holding style." |
+| Rule                                                                           | Error Message                                                                  |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Provider key references unconfigured provider                                  | "Connect this provider in Accounts before assigning it to a role."             |
+| Model ID is empty                                                              | "Select a model for [Role Name]."                                              |
+| Prompt markdown is empty on session_override                                   | "Prompt cannot be empty. Reset to default or add content."                     |
+| Web search enabled but no search provider configured                           | "Connect a web search provider to enable internet search for this role."       |
+| Web search enabled and session override is unset                               | Uses workspace default search provider automatically; no per-role picker in v1 |
+| Instrument selector role enabled but session is manual_shortlist               | Tab disabled — no validation needed                                            |
+| `targetHoldDays` or `maxHoldDays` set and `< 0`                                | "Hold days cannot be negative."                                                |
+| Both `targetHoldDays` and `maxHoldDays` set and `maxHoldDays < targetHoldDays` | "Max hold must be greater than or equal to target hold."                       |
+| `primaryTradingTimeframe` missing or not a known enum value                    | "Select a primary trading timeframe."                                          |
+| `holdingStyle` missing or unknown                                              | "Select a holding style."                                                      |
 
 ## Files Created / Modified
 
-| Action | File |
-|--------|------|
-| Modify | `src/pages/StrategyConfig.tsx` — add AI role config right column |
-| Create | `src/components/strategy/AiRoleConfigCard.tsx` |
-| Create | `src/components/strategy/TimeframeHorizonCard.tsx` |
-| Create | `src/components/strategy/PromptEditor.tsx` |
-| Create | `src/components/strategy/CostSummaryCard.tsx` |
-| Create | `src/store/strategyStore.ts` |
-| Create | `electron/main/services/prompt-asset-loader.ts` |
-| Create | `electron/main/services/provider-model-catalog.ts` |
-| Create | `electron/prompts/researcher_bull.md` |
-| Create | `electron/prompts/researcher_bear.md` |
-| Create | `electron/prompts/reviewer.md` |
-| Create | `electron/prompts/decision_maker.md` |
-| Create | `electron/prompts/instrument_selector.md` |
+| Action | File                                                                                                               |
+| ------ | ------------------------------------------------------------------------------------------------------------------ |
+| Modify | `src/pages/StrategyConfig.tsx` — add AI role config right column                                                   |
+| Create | `src/components/strategy/AiRoleConfigCard.tsx`                                                                     |
+| Create | `src/components/strategy/TimeframeHorizonCard.tsx`                                                                 |
+| Create | `src/components/strategy/PromptEditor.tsx`                                                                         |
+| Create | `src/components/strategy/CostSummaryCard.tsx`                                                                      |
+| Create | `src/store/strategyStore.ts`                                                                                       |
+| Create | `electron/main/services/prompt-asset-loader.ts`                                                                    |
+| Create | `electron/main/services/provider-model-catalog.ts`                                                                 |
+| Create | `electron/prompts/researcher_bull.md`                                                                              |
+| Create | `electron/prompts/researcher_bear.md`                                                                              |
+| Create | `electron/prompts/reviewer.md`                                                                                     |
+| Create | `electron/prompts/decision_maker.md`                                                                               |
+| Create | `electron/prompts/instrument_selector.md`                                                                          |
 | Modify | `electron/main/ipc/session.ts` — add strategy:get, strategy:save, strategy:resetPrompt, strategy:getProviderModels |
 
 ## Strategy Page — Three Visible States (P2.12)
 
-| State | Condition | Banner | Inputs |
-|-------|-----------|--------|--------|
-| **No focused session** | `workspace.viewMode === "global"` | "Choose a session to configure its strategy." + `Choose Session` button (links to Sessions page) | Hidden |
-| **Focused, editable** | `workspace.viewMode === "session"` and session.status ∈ {`draft`,`idle`,`stopped`} | None (default) | Editable |
-| **Focused, locked** | session.status ∈ {`active`,`paused`} | "Stop this session before editing its strategy or AI configuration." + `Stop Session` button | Read-only |
+| State                  | Condition                                                                          | Banner                                                                                           | Inputs    |
+| ---------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------- |
+| **No focused session** | `workspace.viewMode === "global"`                                                  | "Choose a session to configure its strategy." + `Choose Session` button (links to Sessions page) | Hidden    |
+| **Focused, editable**  | `workspace.viewMode === "session"` and session.status ∈ {`draft`,`idle`,`stopped`} | None (default)                                                                                   | Editable  |
+| **Focused, locked**    | session.status ∈ {`active`,`paused`}                                               | "Stop this session before editing its strategy or AI configuration." + `Stop Session` button     | Read-only |
 
 The store exposes `state: "no_session" | "editable" | "locked"` derived from `workspaceStore` + `sessionsStore`. The page selects on `state` and renders one of three top-level layouts. No conditional inline disabling scattered across components.
 

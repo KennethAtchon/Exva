@@ -11,7 +11,9 @@ export class PlanInterpreter {
   private readonly phaseInterpreter = new PhasePlanInterpreter();
   private readonly cycleInterpreter = new CyclePlanInterpreter();
 
-  runPhase<TOutput>(input: PhasePlanInterpreterRunInput): Promise<PhasePlanRunResult<TOutput>> {
+  runPhase<TOutput>(
+    input: PhasePlanInterpreterRunInput,
+  ): Promise<PhasePlanRunResult<TOutput>> {
     return this.phaseInterpreter.run<TOutput>(input);
   }
 
@@ -19,7 +21,10 @@ export class PlanInterpreter {
     return this.cycleInterpreter.run(input);
   }
 
-  run(plan: UnifiedPlanDefinition, input: PhasePlanInterpreterRunInput | CyclePlanInterpreterRunInput) {
+  run(
+    plan: UnifiedPlanDefinition,
+    input: PhasePlanInterpreterRunInput | CyclePlanInterpreterRunInput,
+  ) {
     if (plan.kind === "phase") {
       return this.phaseInterpreter.run(input as PhasePlanInterpreterRunInput);
     }

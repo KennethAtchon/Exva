@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { mergeCandidates, type WorkingCandidate } from "./selector-candidate-merger";
+import {
+  mergeCandidates,
+  type WorkingCandidate,
+} from "./selector-candidate-merger";
 
-function candidate(symbol: string, overrides: Partial<WorkingCandidate> = {}): WorkingCandidate {
+function candidate(
+  symbol: string,
+  overrides: Partial<WorkingCandidate> = {},
+): WorkingCandidate {
   return {
     symbol,
     instrumentClass: "stock",
@@ -24,8 +30,20 @@ function candidate(symbol: string, overrides: Partial<WorkingCandidate> = {}): W
 describe("selector candidate merger", () => {
   it("dedupes by instrumentClass:symbol key and max-merges scores", () => {
     const merged = mergeCandidates([
-      [candidate("NVDA", { hypeScore: 0.3, volumeScore: 0.6, source: ["web-scout"] })],
-      [candidate("NVDA", { hypeScore: 0.7, catalystScore: 0.5, source: ["reddit-scout"] })],
+      [
+        candidate("NVDA", {
+          hypeScore: 0.3,
+          volumeScore: 0.6,
+          source: ["web-scout"],
+        }),
+      ],
+      [
+        candidate("NVDA", {
+          hypeScore: 0.7,
+          catalystScore: 0.5,
+          source: ["reddit-scout"],
+        }),
+      ],
     ]);
 
     expect(merged).toHaveLength(1);
@@ -33,7 +51,9 @@ describe("selector candidate merger", () => {
     expect(merged[0]?.hypeScore).toBe(0.7);
     expect(merged[0]?.volumeScore).toBe(0.6);
     expect(merged[0]?.catalystScore).toBe(0.5);
-    expect(merged[0]?.source).toEqual(expect.arrayContaining(["web-scout", "reddit-scout"]));
+    expect(merged[0]?.source).toEqual(
+      expect.arrayContaining(["web-scout", "reddit-scout"]),
+    );
   });
 
   it("treats different instrument classes as separate candidates", () => {
@@ -48,7 +68,12 @@ describe("selector candidate merger", () => {
   it("keeps first non-null display name and rationale", () => {
     const merged = mergeCandidates([
       [candidate("PLTR", { instrumentDisplayName: null, rationale: null })],
-      [candidate("PLTR", { instrumentDisplayName: "Palantir", rationale: "Strong AI revenue" })],
+      [
+        candidate("PLTR", {
+          instrumentDisplayName: "Palantir",
+          rationale: "Strong AI revenue",
+        }),
+      ],
     ]);
 
     expect(merged[0]?.instrumentDisplayName).toBe("Palantir");
@@ -62,7 +87,9 @@ describe("selector candidate merger", () => {
     ]);
 
     expect(merged[0]?.riskFlags).toHaveLength(3);
-    expect(merged[0]?.riskFlags).toEqual(expect.arrayContaining(["low_liquidity", "sector_risk", "high_spread"]));
+    expect(merged[0]?.riskFlags).toEqual(
+      expect.arrayContaining(["low_liquidity", "sector_risk", "high_spread"]),
+    );
   });
 
   it("returns empty list for empty input", () => {

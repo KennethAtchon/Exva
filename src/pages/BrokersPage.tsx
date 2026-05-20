@@ -16,11 +16,16 @@ export const BrokersPage = ({
   const [error, setError] = useState<string | null>(null);
   const [expandedBrokerId, setExpandedBrokerId] = useState<string | null>(null);
   const [savingBrokerId, setSavingBrokerId] = useState<string | null>(null);
-  const [settingsDrafts, setSettingsDrafts] = useState<Record<string, {
-    maxSessions: number;
-    allocationEnforcement: "hard" | "warn";
-    balanceRefreshIntervalMin: number;
-  }>>({});
+  const [settingsDrafts, setSettingsDrafts] = useState<
+    Record<
+      string,
+      {
+        maxSessions: number;
+        allocationEnforcement: "hard" | "warn";
+        balanceRefreshIntervalMin: number;
+      }
+    >
+  >({});
 
   const load = async () => {
     setLoading(true);
@@ -40,7 +45,11 @@ export const BrokersPage = ({
         return next;
       });
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Failed to load broker accounts.");
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to load broker accounts.",
+      );
     } finally {
       setLoading(false);
     }
@@ -54,51 +63,103 @@ export const BrokersPage = ({
     return () => window.clearInterval(interval);
   }, []);
 
-  useExvaEvent("broker_balance_updated", ({ brokerAccountId, balanceUsd, cachedAt }) => {
-    setBrokers((current) =>
-      current.map((broker) =>
-        broker.id === brokerAccountId
-          ? {
-              ...broker,
-              balanceCacheUsd: balanceUsd,
-              balanceCachedAt: cachedAt,
-              isStale: false,
-              freeCapitalUsd: balanceUsd - broker.totalAllocatedUsd,
-              isOverAllocated: balanceUsd - broker.totalAllocatedUsd < 0,
-            }
-          : broker,
-      ),
-    );
-  });
+  useExvaEvent(
+    "broker_balance_updated",
+    ({ brokerAccountId, balanceUsd, cachedAt }) => {
+      setBrokers((current) =>
+        current.map((broker) =>
+          broker.id === brokerAccountId
+            ? {
+                ...broker,
+                balanceCacheUsd: balanceUsd,
+                balanceCachedAt: cachedAt,
+                isStale: false,
+                freeCapitalUsd: balanceUsd - broker.totalAllocatedUsd,
+                isOverAllocated: balanceUsd - broker.totalAllocatedUsd < 0,
+              }
+            : broker,
+        ),
+      );
+    },
+  );
 
   const totalBalanceUsd = useMemo(
-    () => brokers.reduce((sum, broker) => sum + (broker.balanceCacheUsd ?? 0), 0),
+    () =>
+      brokers.reduce((sum, broker) => sum + (broker.balanceCacheUsd ?? 0), 0),
     [brokers],
   );
 
   return (
     <PageShell>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 16,
+          flexWrap: "wrap",
+        }}
+      >
         <div>
-          <div style={{ fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text3)" }}>Broker Topology</div>
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "var(--text3)",
+            }}
+          >
+            Broker Topology
+          </div>
           <h1 style={{ margin: "10px 0 0", fontSize: 28 }}>Brokers</h1>
-          <p style={{ marginTop: 8, color: "var(--text3)", fontSize: 13, maxWidth: 700 }}>
-            Real broker balances, active session sharing, and per-broker allocation policy now live in one place.
+          <p
+            style={{
+              marginTop: 8,
+              color: "var(--text3)",
+              fontSize: 13,
+              maxWidth: 700,
+            }}
+          >
+            Real broker balances, active session sharing, and per-broker
+            allocation policy now live in one place.
           </p>
         </div>
         <Card style={{ minWidth: 220, padding: 18 }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text3)" }}>Tracked balance</div>
-          <div style={{ marginTop: 6, fontSize: 24, fontWeight: 700, color: "var(--text1)", fontVariantNumeric: "tabular-nums" }}>
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--text3)",
+            }}
+          >
+            Tracked balance
+          </div>
+          <div
+            style={{
+              marginTop: 6,
+              fontSize: 24,
+              fontWeight: 700,
+              color: "var(--text1)",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
             {fmt.usd(totalBalanceUsd)}
           </div>
-          <div style={{ marginTop: 4, color: "var(--text3)", fontSize: 12 }}>{brokers.length} broker account{brokers.length === 1 ? "" : "s"}</div>
+          <div style={{ marginTop: 4, color: "var(--text3)", fontSize: 12 }}>
+            {brokers.length} broker account{brokers.length === 1 ? "" : "s"}
+          </div>
         </Card>
       </div>
 
       {error ? <div style={errorBannerStyle}>{error}</div> : null}
 
-      {loading && brokers.length === 0 ? <div style={emptyStateStyle}>Loading broker balances...</div> : null}
-      {!loading && brokers.length === 0 ? <div style={emptyStateStyle}>No broker accounts configured yet.</div> : null}
+      {loading && brokers.length === 0 ? (
+        <div style={emptyStateStyle}>Loading broker balances...</div>
+      ) : null}
+      {!loading && brokers.length === 0 ? (
+        <div style={emptyStateStyle}>No broker accounts configured yet.</div>
+      ) : null}
 
       <div style={{ display: "grid", gap: 14 }}>
         {brokers.map((broker) => {
@@ -109,26 +170,77 @@ export const BrokersPage = ({
           };
           const allocationPct =
             broker.balanceCacheUsd && broker.balanceCacheUsd > 0
-              ? Math.min((broker.totalAllocatedUsd / broker.balanceCacheUsd) * 100, 100)
+              ? Math.min(
+                  (broker.totalAllocatedUsd / broker.balanceCacheUsd) * 100,
+                  100,
+                )
               : 0;
 
           return (
             <Card key={broker.id} style={{ padding: 20 }}>
               <div style={{ display: "grid", gap: 14 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 14, alignItems: "flex-start", flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 14,
+                    alignItems: "flex-start",
+                    flexWrap: "wrap",
+                  }}
+                >
                   <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text1)" }}>{broker.name}</div>
-                      <Badge variant={broker.mode === "live" ? "danger" : "blue"}>{broker.mode}</Badge>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 18,
+                          fontWeight: 700,
+                          color: "var(--text1)",
+                        }}
+                      >
+                        {broker.name}
+                      </div>
+                      <Badge
+                        variant={broker.mode === "live" ? "danger" : "blue"}
+                      >
+                        {broker.mode}
+                      </Badge>
                       <Badge variant="default">{broker.brokerType}</Badge>
-                      {broker.sessions.length > 1 ? <Badge variant="warn">Shared · {broker.sessions.length} sessions</Badge> : null}
-                      {broker.atSessionCap ? <Badge variant="danger">At capacity</Badge> : null}
-                      {broker.isOverAllocated ? <Badge variant="danger">Over-allocated</Badge> : null}
-                      {broker.isStale ? <Badge variant="warn">Stale balance</Badge> : null}
+                      {broker.sessions.length > 1 ? (
+                        <Badge variant="warn">
+                          Shared · {broker.sessions.length} sessions
+                        </Badge>
+                      ) : null}
+                      {broker.atSessionCap ? (
+                        <Badge variant="danger">At capacity</Badge>
+                      ) : null}
+                      {broker.isOverAllocated ? (
+                        <Badge variant="danger">Over-allocated</Badge>
+                      ) : null}
+                      {broker.isStale ? (
+                        <Badge variant="warn">Stale balance</Badge>
+                      ) : null}
                     </div>
-                    <div style={{ marginTop: 8, color: "var(--text3)", fontSize: 12 }}>
-                      Balance {broker.balanceCacheUsd != null ? fmt.usd(broker.balanceCacheUsd) : "—"}
-                      {broker.balanceCachedAt ? ` · updated ${new Date(broker.balanceCachedAt).toLocaleString()}` : ""}
+                    <div
+                      style={{
+                        marginTop: 8,
+                        color: "var(--text3)",
+                        fontSize: 12,
+                      }}
+                    >
+                      Balance{" "}
+                      {broker.balanceCacheUsd != null
+                        ? fmt.usd(broker.balanceCacheUsd)
+                        : "—"}
+                      {broker.balanceCachedAt
+                        ? ` · updated ${new Date(broker.balanceCachedAt).toLocaleString()}`
+                        : ""}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -139,7 +251,11 @@ export const BrokersPage = ({
                         try {
                           await api.refreshBrokerBalance(broker.id);
                         } catch (refreshError) {
-                          setError(refreshError instanceof Error ? refreshError.message : "Failed to refresh balance.");
+                          setError(
+                            refreshError instanceof Error
+                              ? refreshError.message
+                              : "Failed to refresh balance.",
+                          );
                         }
                       }}
                     >
@@ -148,51 +264,116 @@ export const BrokersPage = ({
                     <Button
                       variant="outline"
                       className="border-border bg-[var(--surface2)] text-[var(--text2)]"
-                      onClick={() => setExpandedBrokerId((current) => (current === broker.id ? null : broker.id))}
+                      onClick={() =>
+                        setExpandedBrokerId((current) =>
+                          current === broker.id ? null : broker.id,
+                        )
+                      }
                     >
-                      {expandedBrokerId === broker.id ? "Hide Settings" : "Settings"}
+                      {expandedBrokerId === broker.id
+                        ? "Hide Settings"
+                        : "Settings"}
                     </Button>
                   </div>
                 </div>
 
                 <div style={{ display: "grid", gap: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text3)" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 12,
+                      color: "var(--text3)",
+                    }}
+                  >
                     <span>Allocated {fmt.usd(broker.totalAllocatedUsd)}</span>
-                    <span>Free {broker.freeCapitalUsd != null ? fmt.usd(broker.freeCapitalUsd) : "—"}</span>
+                    <span>
+                      Free{" "}
+                      {broker.freeCapitalUsd != null
+                        ? fmt.usd(broker.freeCapitalUsd)
+                        : "—"}
+                    </span>
                   </div>
-                  <div style={{ height: 10, borderRadius: 999, background: "var(--surface3)", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      height: 10,
+                      borderRadius: 999,
+                      background: "var(--surface3)",
+                      overflow: "hidden",
+                    }}
+                  >
                     <div
                       style={{
                         width: `${allocationPct}%`,
                         height: "100%",
                         borderRadius: 999,
-                        background: broker.isOverAllocated ? "#f87171" : "var(--accent)",
+                        background: broker.isOverAllocated
+                          ? "#f87171"
+                          : "var(--accent)",
                       }}
                     />
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text3)" }}>
-                    <span>{broker.activeSessionCount} / {broker.maxSessions} active sessions</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 12,
+                      color: "var(--text3)",
+                    }}
+                  >
+                    <span>
+                      {broker.activeSessionCount} / {broker.maxSessions} active
+                      sessions
+                    </span>
                     <span>{allocationPct.toFixed(1)}% used</span>
                   </div>
                 </div>
 
                 <div style={{ display: "grid", gap: 8 }}>
-                  <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text3)" }}>Attached sessions</div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "var(--text3)",
+                    }}
+                  >
+                    Attached sessions
+                  </div>
                   {broker.sessions.length === 0 ? (
-                    <div style={{ color: "var(--text3)", fontSize: 12 }}>No active or paused sessions are using this broker.</div>
+                    <div style={{ color: "var(--text3)", fontSize: 12 }}>
+                      No active or paused sessions are using this broker.
+                    </div>
                   ) : (
                     broker.sessions.map((session) => (
                       <div key={session.sessionId} style={sessionRowStyle}>
                         <div>
-                          <div style={{ color: "var(--text1)", fontSize: 13, fontWeight: 600 }}>{session.sessionName}</div>
-                          <div style={{ color: "var(--text3)", fontSize: 11, marginTop: 2 }}>
-                            {session.status} · allocated {fmt.usd(session.allocatedUsd)}
+                          <div
+                            style={{
+                              color: "var(--text1)",
+                              fontSize: 13,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {session.sessionName}
+                          </div>
+                          <div
+                            style={{
+                              color: "var(--text3)",
+                              fontSize: 11,
+                              marginTop: 2,
+                            }}
+                          >
+                            {session.status} · allocated{" "}
+                            {fmt.usd(session.allocatedUsd)}
                           </div>
                         </div>
                         <Button
                           variant="outline"
                           className="border-border bg-[var(--surface2)] text-[var(--text2)]"
-                          onClick={() => void onJumpToSession?.(session.sessionId)}
+                          onClick={() =>
+                            void onJumpToSession?.(session.sessionId)
+                          }
                         >
                           Jump
                         </Button>
@@ -203,7 +384,14 @@ export const BrokersPage = ({
 
                 {expandedBrokerId === broker.id ? (
                   <div style={settingsPanelStyle}>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: 12,
+                      }}
+                    >
                       <label style={fieldStyle}>
                         <span style={fieldLabelStyle}>Max sessions</span>
                         <input
@@ -214,14 +402,19 @@ export const BrokersPage = ({
                           onChange={(event) =>
                             setSettingsDrafts((current) => ({
                               ...current,
-                              [broker.id]: { ...draft, maxSessions: Number(event.target.value) || 1 },
+                              [broker.id]: {
+                                ...draft,
+                                maxSessions: Number(event.target.value) || 1,
+                              },
                             }))
                           }
                           style={inputStyle}
                         />
                       </label>
                       <label style={fieldStyle}>
-                        <span style={fieldLabelStyle}>Allocation enforcement</span>
+                        <span style={fieldLabelStyle}>
+                          Allocation enforcement
+                        </span>
                         <select
                           value={draft.allocationEnforcement}
                           onChange={(event) =>
@@ -229,7 +422,9 @@ export const BrokersPage = ({
                               ...current,
                               [broker.id]: {
                                 ...draft,
-                                allocationEnforcement: event.target.value as "hard" | "warn",
+                                allocationEnforcement: event.target.value as
+                                  | "hard"
+                                  | "warn",
                               },
                             }))
                           }
@@ -240,7 +435,9 @@ export const BrokersPage = ({
                         </select>
                       </label>
                       <label style={fieldStyle}>
-                        <span style={fieldLabelStyle}>Refresh interval (min)</span>
+                        <span style={fieldLabelStyle}>
+                          Refresh interval (min)
+                        </span>
                         <input
                           type="number"
                           min={1}
@@ -249,14 +446,24 @@ export const BrokersPage = ({
                           onChange={(event) =>
                             setSettingsDrafts((current) => ({
                               ...current,
-                              [broker.id]: { ...draft, balanceRefreshIntervalMin: Number(event.target.value) || 1 },
+                              [broker.id]: {
+                                ...draft,
+                                balanceRefreshIntervalMin:
+                                  Number(event.target.value) || 1,
+                              },
                             }))
                           }
                           style={inputStyle}
                         />
                       </label>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 8,
+                      }}
+                    >
                       <Button
                         variant="outline"
                         className="border-border bg-[var(--surface2)] text-[var(--text2)]"
@@ -265,8 +472,10 @@ export const BrokersPage = ({
                             ...current,
                             [broker.id]: {
                               maxSessions: broker.maxSessions,
-                              allocationEnforcement: broker.allocationEnforcement,
-                              balanceRefreshIntervalMin: broker.balanceRefreshIntervalMin,
+                              allocationEnforcement:
+                                broker.allocationEnforcement,
+                              balanceRefreshIntervalMin:
+                                broker.balanceRefreshIntervalMin,
                             },
                           }))
                         }
@@ -280,11 +489,18 @@ export const BrokersPage = ({
                           setSavingBrokerId(broker.id);
                           setError(null);
                           try {
-                            await api.updateBrokerAccountSettings({ brokerAccountId: broker.id, ...draft });
+                            await api.updateBrokerAccountSettings({
+                              brokerAccountId: broker.id,
+                              ...draft,
+                            });
                             await load();
                             setExpandedBrokerId(null);
                           } catch (saveError) {
-                            setError(saveError instanceof Error ? saveError.message : "Failed to save broker settings.");
+                            setError(
+                              saveError instanceof Error
+                                ? saveError.message
+                                : "Failed to save broker settings.",
+                            );
                           } finally {
                             setSavingBrokerId(null);
                           }

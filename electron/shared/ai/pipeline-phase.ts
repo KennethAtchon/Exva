@@ -2,7 +2,12 @@ import { z } from "zod";
 import type { PrepareStepFunction, ToolSet } from "ai";
 import type { WorkerToolConfig } from "./pipeline-config";
 
-export type PipelinePhase = "selector" | "technical" | "fundamental" | "review" | "decision";
+export type PipelinePhase =
+  | "selector"
+  | "technical"
+  | "fundamental"
+  | "review"
+  | "decision";
 
 export const PIPELINE_PHASES: PipelinePhase[] = [
   "selector",
@@ -14,7 +19,13 @@ export const PIPELINE_PHASES: PipelinePhase[] = [
 
 export type ToolId = string;
 export type EngineId = string;
-export type EngineKind = "context" | "policy" | "validator" | "transformer" | "execution" | "lifecycle";
+export type EngineKind =
+  | "context"
+  | "policy"
+  | "validator"
+  | "transformer"
+  | "execution"
+  | "lifecycle";
 export type PipelineFinalizerId = string;
 export type WorkerInputBuilderId = string;
 
@@ -25,7 +36,9 @@ export interface EngineBinding {
   config?: Record<string, unknown>;
 }
 
-export type AggregateStrategy<TOutput> = (results: Array<Partial<TOutput>>) => TOutput;
+export type AggregateStrategy<TOutput> = (
+  results: Array<Partial<TOutput>>,
+) => TOutput;
 
 export type WorkerToolRequirement = {
   requiredAny?: readonly string[];

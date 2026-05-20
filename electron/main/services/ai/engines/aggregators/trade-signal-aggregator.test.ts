@@ -38,7 +38,11 @@ describe("trade signal aggregator", () => {
         confidence: 0.8,
         reasoning: "Momentum",
       },
-      { entryTiming: "skip", entryPrice: null, rawSummary: "Wait for pullback" },
+      {
+        entryTiming: "skip",
+        entryPrice: null,
+        rawSummary: "Wait for pullback",
+      },
     );
 
     expect(signal.action).toBe("skip");
@@ -54,7 +58,11 @@ describe("trade signal aggregator", () => {
         confidence: 0.8,
         reasoning: "Momentum",
       },
-      { entryTiming: "wait", entryPrice: 118.25, rawSummary: "Wait for pullback" },
+      {
+        entryTiming: "wait",
+        entryPrice: 118.25,
+        rawSummary: "Wait for pullback",
+      },
     );
 
     expect(signal.action).toBe("skip");

@@ -18,7 +18,8 @@ describe("BrokerRoutingService", () => {
   });
 
   it("prefers a session override over the workspace default", () => {
-    const { sessionId, brokers, assignments, routingRepo } = createRoutingContext(db, ["stock"]);
+    const { sessionId, brokers, assignments, routingRepo } =
+      createRoutingContext(db, ["stock"]);
     brokers.insert({
       id: "stock-default",
       name: "Default Stock Broker",
@@ -39,15 +40,23 @@ describe("BrokerRoutingService", () => {
       { brokerAccountId: "stock-default", allocatedUsd: 1000 },
       { brokerAccountId: "stock-override", allocatedUsd: 1000 },
     ]);
-    routingRepo.upsertGlobalDefaults([{ instrumentClass: "stock", defaultBrokerAccountId: "stock-default" }]);
-    routingRepo.upsertSessionOverrides(sessionId, [{ instrumentClass: "stock", brokerAccountId: "stock-override" }]);
+    routingRepo.upsertGlobalDefaults([
+      { instrumentClass: "stock", defaultBrokerAccountId: "stock-default" },
+    ]);
+    routingRepo.upsertSessionOverrides(sessionId, [
+      { instrumentClass: "stock", brokerAccountId: "stock-override" },
+    ]);
 
     const service = createService(db);
-    expect(service.resolveBrokerAccountId(sessionId, "stock")).toBe("stock-override");
+    expect(service.resolveBrokerAccountId(sessionId, "stock")).toBe(
+      "stock-override",
+    );
   });
 
   it("falls back to the single compatible assignment when no route is configured", () => {
-    const { sessionId, brokers, assignments } = createRoutingContext(db, ["crypto"]);
+    const { sessionId, brokers, assignments } = createRoutingContext(db, [
+      "crypto",
+    ]);
     brokers.insert({
       id: "crypto-only",
       name: "Crypto Only",
@@ -56,14 +65,20 @@ describe("BrokerRoutingService", () => {
       mode: "paper",
       secretRef: "broker:crypto-only",
     });
-    assignments.replaceAssignments(sessionId, [{ brokerAccountId: "crypto-only", allocatedUsd: 1000 }]);
+    assignments.replaceAssignments(sessionId, [
+      { brokerAccountId: "crypto-only", allocatedUsd: 1000 },
+    ]);
 
     const service = createService(db);
-    expect(service.resolveBrokerAccountId(sessionId, "crypto")).toBe("crypto-only");
+    expect(service.resolveBrokerAccountId(sessionId, "crypto")).toBe(
+      "crypto-only",
+    );
   });
 
   it("throws when multiple compatible brokers exist with no routing default", () => {
-    const { sessionId, brokers, assignments } = createRoutingContext(db, ["stock"]);
+    const { sessionId, brokers, assignments } = createRoutingContext(db, [
+      "stock",
+    ]);
     brokers.insert({
       id: "stock-a",
       name: "Stock A",
@@ -86,11 +101,14 @@ describe("BrokerRoutingService", () => {
     ]);
 
     const service = createService(db);
-    expect(() => service.resolveBrokerAccountId(sessionId, "stock")).toThrow(/multiple brokers are compatible/i);
+    expect(() => service.resolveBrokerAccountId(sessionId, "stock")).toThrow(
+      /multiple brokers are compatible/i,
+    );
   });
 
   it("rejects routed brokers that are not assigned to the session", () => {
-    const { sessionId, brokers, assignments, routingRepo } = createRoutingContext(db, ["stock"]);
+    const { sessionId, brokers, assignments, routingRepo } =
+      createRoutingContext(db, ["stock"]);
     brokers.insert({
       id: "assigned-stock",
       name: "Assigned Stock",
@@ -107,15 +125,23 @@ describe("BrokerRoutingService", () => {
       mode: "live",
       secretRef: "broker:unassigned-stock",
     });
-    assignments.replaceAssignments(sessionId, [{ brokerAccountId: "assigned-stock", allocatedUsd: 1000 }]);
-    routingRepo.upsertGlobalDefaults([{ instrumentClass: "stock", defaultBrokerAccountId: "unassigned-stock" }]);
+    assignments.replaceAssignments(sessionId, [
+      { brokerAccountId: "assigned-stock", allocatedUsd: 1000 },
+    ]);
+    routingRepo.upsertGlobalDefaults([
+      { instrumentClass: "stock", defaultBrokerAccountId: "unassigned-stock" },
+    ]);
 
     const service = createService(db);
-    expect(() => service.resolveBrokerAccountId(sessionId, "stock")).toThrow(/not assigned to this session/i);
+    expect(() => service.resolveBrokerAccountId(sessionId, "stock")).toThrow(
+      /not assigned to this session/i,
+    );
   });
 
   it("fails preflight when an assigned broker test connection fails", async () => {
-    const { sessionId, brokers, assignments } = createRoutingContext(db, ["stock"]);
+    const { sessionId, brokers, assignments } = createRoutingContext(db, [
+      "stock",
+    ]);
     brokers.insert({
       id: "failing-stock",
       name: "Failing Stock",
@@ -124,7 +150,9 @@ describe("BrokerRoutingService", () => {
       mode: "paper",
       secretRef: "broker:failing-stock",
     });
-    assignments.replaceAssignments(sessionId, [{ brokerAccountId: "failing-stock", allocatedUsd: 1000 }]);
+    assignments.replaceAssignments(sessionId, [
+      { brokerAccountId: "failing-stock", allocatedUsd: 1000 },
+    ]);
 
     const service = createService(db, {
       async get(id: string) {
@@ -137,7 +165,9 @@ describe("BrokerRoutingService", () => {
       },
     });
 
-    await expect(service.preflightSession(sessionId, ["stock"])).rejects.toMatchObject({
+    await expect(
+      service.preflightSession(sessionId, ["stock"]),
+    ).rejects.toMatchObject({
       code: "BROKER_UNREACHABLE",
     });
   });
@@ -145,7 +175,9 @@ describe("BrokerRoutingService", () => {
 
 function createRoutingContext(
   db: ReturnType<typeof createTestDb>,
-  instrumentClasses: Array<"stock" | "crypto" | "futures" | "prediction_market">,
+  instrumentClasses: Array<
+    "stock" | "crypto" | "futures" | "prediction_market"
+  >,
 ) {
   const sessions = new SessionRepo(db);
   const sessionId = sessions.create({
@@ -167,10 +199,24 @@ function createRoutingContext(
 
 function createService(
   db: ReturnType<typeof createTestDb>,
-  registry: { get(id: string): Promise<{ testConnection(): Promise<{ ok: boolean; message: string; account_balance?: number }> }> } = {
+  registry: {
+    get(
+      id: string,
+    ): Promise<{
+      testConnection(): Promise<{
+        ok: boolean;
+        message: string;
+        account_balance?: number;
+      }>;
+    }>;
+  } = {
     async get() {
       return {
-        testConnection: async () => ({ ok: true, message: "ok", account_balance: 1000 }),
+        testConnection: async () => ({
+          ok: true,
+          message: "ok",
+          account_balance: 1000,
+        }),
       };
     },
   },

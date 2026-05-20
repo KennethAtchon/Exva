@@ -7,7 +7,10 @@ export type SelectorPhaseInput = {
 };
 
 /** Registry metadata for selector. Execution is driven by SELECTOR_PLAN via PhasePlanInterpreter. */
-export const SELECTOR_PHASE: PipelineDefinition<SelectorPhaseInput, InstrumentSelection> = {
+export const SELECTOR_PHASE: PipelineDefinition<
+  SelectorPhaseInput,
+  InstrumentSelection
+> = {
   phase: "selector",
   outputMode: "tool_terminal",
   workers: selectorDiscoveryWorkersForMode("trend_scan"),

@@ -30,12 +30,19 @@ function resolveLogDir(): string {
 function pruneOldLogFiles(logDir: string, retentionDays: number): void {
   const entries = fs.readdirSync(logDir, { withFileTypes: true });
   const today = new Date();
-  const todayStartUtcMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-  const cutoffUtcMs = todayStartUtcMs - (retentionDays - 1) * 24 * 60 * 60 * 1000;
+  const todayStartUtcMs = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate(),
+  );
+  const cutoffUtcMs =
+    todayStartUtcMs - (retentionDays - 1) * 24 * 60 * 60 * 1000;
 
   for (const entry of entries) {
     if (!entry.isFile()) continue;
-    const match = new RegExp(`^${LOG_PREFIX}(\\d{4}-\\d{2}-\\d{2})${LOG_SUFFIX}$`).exec(entry.name);
+    const match = new RegExp(
+      `^${LOG_PREFIX}(\\d{4}-\\d{2}-\\d{2})${LOG_SUFFIX}$`,
+    ).exec(entry.name);
     if (!match) continue;
 
     const fileDateUtcMs = Date.parse(`${match[1]}T00:00:00.000Z`);
@@ -51,16 +58,25 @@ function createBaseLogger(): Logger {
   fs.mkdirSync(logDir, { recursive: true });
   pruneOldLogFiles(logDir, LOG_RETENTION_DAYS);
 
-  const logFilePath = path.join(logDir, `${LOG_PREFIX}${toIsoDateUtc(new Date())}${LOG_SUFFIX}`);
+  const logFilePath = path.join(
+    logDir,
+    `${LOG_PREFIX}${toIsoDateUtc(new Date())}${LOG_SUFFIX}`,
+  );
   const streams = pino.multistream([
     { stream: process.stdout, level: env.logLevel },
-    { stream: pino.destination({ dest: logFilePath, mkdir: true, sync: false }), level: env.logLevel },
+    {
+      stream: pino.destination({ dest: logFilePath, mkdir: true, sync: false }),
+      level: env.logLevel,
+    },
   ]);
 
-  return pino({
-    level: env.logLevel,
-    redact,
-  }, streams);
+  return pino(
+    {
+      level: env.logLevel,
+      redact,
+    },
+    streams,
+  );
 }
 
 const baseLogger = createBaseLogger();

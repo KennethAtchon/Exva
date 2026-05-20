@@ -84,7 +84,8 @@ export class BrokerRegistry {
   ) {}
 
   async get(brokerAccountId: string): Promise<BrokerAdapter> {
-    if (this.adapters.has(brokerAccountId)) return this.adapters.get(brokerAccountId)!;
+    if (this.adapters.has(brokerAccountId))
+      return this.adapters.get(brokerAccountId)!;
     const account = this.brokerAccountsRepo.get(brokerAccountId);
     if (!account) throw new AppError("Broker account not found", "NOT_FOUND");
     const creds = await this.secrets.get(account.secretRef);
@@ -109,7 +110,10 @@ export class BrokerRegistry {
       case "mock":
         return new MockBrokerAdapter(); // supportedInstrumentClasses = ["stock","crypto","futures"] (P1.6)
       default:
-        throw new AppError(`Unknown broker type: ${account.brokerType}`, "UNKNOWN_BROKER");
+        throw new AppError(
+          `Unknown broker type: ${account.brokerType}`,
+          "UNKNOWN_BROKER",
+        );
     }
   }
 }
@@ -118,6 +122,7 @@ export class BrokerRegistry {
 ## v1 Real Adapter Set
 
 The v1 proof-of-concept claim is explicit now:
+
 - `AlpacaAdapter` for stocks
 - `CoinbaseAdvancedTradeAdapter` for crypto
 - `TradovateAdapter` for futures
@@ -137,6 +142,7 @@ type CanonicalInstrument = {
 ```
 
 Rules:
+
 - stocks: canonical symbol like `AAPL`
 - crypto: canonical pair like `BTC-USD`; adapters may translate to `BTC/USD` or venue-specific ids
 - futures: canonical contract symbol like `MESM6`; adapters may translate to venue month/exchange formats
@@ -197,16 +203,23 @@ export class BrokerRoutingService {
     });
 
     if (compatible.length === 0) {
-      throw new AppError("No compatible broker for this instrument class", "NO_BROKER");
+      throw new AppError(
+        "No compatible broker for this instrument class",
+        "NO_BROKER",
+      );
     }
 
-    const sessionOverride = this.brokerRoutingRepo.getSessionOverride(sessionId, instrumentClass);
-    const workspaceDefault = this.brokerRoutingRepo.getGlobalDefault(instrumentClass);
+    const sessionOverride = this.brokerRoutingRepo.getSessionOverride(
+      sessionId,
+      instrumentClass,
+    );
+    const workspaceDefault =
+      this.brokerRoutingRepo.getGlobalDefault(instrumentClass);
 
     const chosenBrokerAccountId =
-      sessionOverride?.brokerAccountId
-      ?? workspaceDefault?.defaultBrokerAccountId
-      ?? (compatible.length === 1 ? compatible[0].brokerAccountId : null);
+      sessionOverride?.brokerAccountId ??
+      workspaceDefault?.defaultBrokerAccountId ??
+      (compatible.length === 1 ? compatible[0].brokerAccountId : null);
 
     if (!chosenBrokerAccountId) {
       throw new AppError(
@@ -219,7 +232,10 @@ export class BrokerRoutingService {
     return { adapter, brokerAccountId: chosenBrokerAccountId };
   }
 
-  async preflightSession(sessionId: string, instrumentClasses: InstrumentClass[]): Promise<void> {
+  async preflightSession(
+    sessionId: string,
+    instrumentClasses: InstrumentClass[],
+  ): Promise<void> {
     for (const cls of instrumentClasses) {
       await this.resolveAdapter(sessionId, cls);
     }
@@ -278,7 +294,11 @@ File: `electron/main/services/risk/capital-reservation-service.ts`
 ```typescript
 export class CapitalReservationService {
   // approval flow
-  reserveForApproval(input: { sessionId: string; approvalId: string; amountUsd: number }): CapitalReservation;
+  reserveForApproval(input: {
+    sessionId: string;
+    approvalId: string;
+    amountUsd: number;
+  }): CapitalReservation;
   releaseByApproval(approvalId: string): void;
 
   // approval → order (same live process or after recheck approval)
@@ -297,23 +317,26 @@ export class CapitalReservationService {
   listActiveBySession(sessionId: string): CapitalReservation[];
 
   // preflight
-  checkSessionStartFits(sessionId: string, capitalLimitUsd: number): { ok: true } | { ok: false; reserved: number; ceiling: number };
+  checkSessionStartFits(
+    sessionId: string,
+    capitalLimitUsd: number,
+  ): { ok: true } | { ok: false; reserved: number; ceiling: number };
 }
 ```
 
 ### Transition rules
 
-| Trigger | From | To | Method |
-|---------|------|----|--------|
-| Approval created (shared mode) | — | `reserved` (reason=approval) | `reserveForApproval` |
-| Approval rejected | `reserved` (approval) | `released` | `releaseByApproval` |
-| Approval approved, live process | `reserved` (approval) | `reserved` (open_order) | `convertApprovalToOpenOrder` |
-| Approval approved, post-restart, recheck approves | `reserved` (approval) | `reserved` (open_order) | `convertApprovalToOpenOrder` (after recheck) |
-| Approval approved, post-restart, recheck rejects | `reserved` (approval) | `released` | `releaseByApproval` |
-| Broker fill confirmed | `reserved` (open_order) | `reserved` (open_position) | `convertOrderToPosition` |
-| Order cancelled before fill | `reserved` (open_order) | `released` | `releaseOnCancel` |
-| Broker rejection / fill never confirmed | `reserved` (open_order) | `released` | `releaseOnFailure` |
-| Position closed (exit) | `reserved` (open_position) | `released` | `releaseOnClose` |
+| Trigger                                           | From                       | To                           | Method                                       |
+| ------------------------------------------------- | -------------------------- | ---------------------------- | -------------------------------------------- |
+| Approval created (shared mode)                    | —                          | `reserved` (reason=approval) | `reserveForApproval`                         |
+| Approval rejected                                 | `reserved` (approval)      | `released`                   | `releaseByApproval`                          |
+| Approval approved, live process                   | `reserved` (approval)      | `reserved` (open_order)      | `convertApprovalToOpenOrder`                 |
+| Approval approved, post-restart, recheck approves | `reserved` (approval)      | `reserved` (open_order)      | `convertApprovalToOpenOrder` (after recheck) |
+| Approval approved, post-restart, recheck rejects  | `reserved` (approval)      | `released`                   | `releaseByApproval`                          |
+| Broker fill confirmed                             | `reserved` (open_order)    | `reserved` (open_position)   | `convertOrderToPosition`                     |
+| Order cancelled before fill                       | `reserved` (open_order)    | `released`                   | `releaseOnCancel`                            |
+| Broker rejection / fill never confirmed           | `reserved` (open_order)    | `released`                   | `releaseOnFailure`                           |
+| Position closed (exit)                            | `reserved` (open_position) | `released`                   | `releaseOnClose`                             |
 
 All transitions run inside a single `db.transaction()` per `CODING_GUIDELINES.md` §5. Conversions update the existing row's `reason` field rather than creating a new row, so reservation continuity is observable.
 
@@ -324,6 +347,7 @@ All transitions run inside a single `db.transaction()` per `CODING_GUIDELINES.md
 ## Orchestrator Integration
 
 The orchestrator must:
+
 1. accept `sessionId` from the owning `SessionRuntime`
 2. resolve broker via `BrokerRoutingService.resolveAdapter()` per trade
 3. call `TradesRepo.checkInstrumentConflict()` before `placeOrder()`
@@ -331,10 +355,8 @@ The orchestrator must:
 5. consult `CapitalReservationService` before and after approval/order transitions when shared pool mode is enabled
 
 ```typescript
-const { adapter, brokerAccountId } = await this.deps.brokerRouting.resolveAdapter(
-  this.sessionId,
-  instrumentClass,
-);
+const { adapter, brokerAccountId } =
+  await this.deps.brokerRouting.resolveAdapter(this.sessionId, instrumentClass);
 
 const conflict = this.deps.tradesRepo.checkInstrumentConflict(
   brokerAccountId,
@@ -379,7 +401,7 @@ const order = await adapter.placeOrder({
     supportedInstrumentClasses: InstrumentClass[];
     mode: BrokerMode;
     updatedAt: string;
-  }>
+  }>;
 }
 ```
 
@@ -397,6 +419,7 @@ const order = await adapter.placeOrder({
 ```
 
 Handler:
+
 1. Build a temporary adapter from credentials and call `testConnection()`.
 2. On success: write credentials to keychain, insert `broker_accounts` row.
 3. Return new broker account id + supported classes.
@@ -529,26 +552,26 @@ sequenceDiagram
 
 ## Files Created / Modified
 
-| Action | File |
-|--------|------|
-| Modify | `electron/main/broker/broker-adapter.ts` — update interface |
-| Modify | `electron/main/broker/alpaca-adapter.ts` — update to new interface |
-| Modify | `electron/main/broker/mock-adapter.ts` — update to new interface |
-| Create | `electron/main/broker/coinbase-advanced-trade-adapter.ts` |
-| Create | `electron/main/broker/tradovate-adapter.ts` |
-| Create | `electron/main/broker/instrument-normalizer.ts` |
-| Create | `electron/main/broker/broker-registry.ts` |
-| Create | `electron/main/services/broker/broker-routing-service.ts` |
-| Create | `electron/main/services/risk/capital-reservation-service.ts` |
-| Create | `electron/main/db/repositories/session-broker-assignments-repo.ts` |
-| Create | `electron/main/db/repositories/broker-routing-repo.ts` |
-| Create | `electron/main/db/repositories/capital-reservations-repo.ts` |
-| Modify | `electron/main/services/agent-orchestrator.ts` — use BrokerRoutingService |
-| Modify | `electron/main/ipc/accounts.ts` — add broker list/add/remove/test/routing handlers |
-| Modify | `electron/main/services/session/session-service.ts` — call preflightSession |
+| Action | File                                                                                                            |
+| ------ | --------------------------------------------------------------------------------------------------------------- |
+| Modify | `electron/main/broker/broker-adapter.ts` — update interface                                                     |
+| Modify | `electron/main/broker/alpaca-adapter.ts` — update to new interface                                              |
+| Modify | `electron/main/broker/mock-adapter.ts` — update to new interface                                                |
+| Create | `electron/main/broker/coinbase-advanced-trade-adapter.ts`                                                       |
+| Create | `electron/main/broker/tradovate-adapter.ts`                                                                     |
+| Create | `electron/main/broker/instrument-normalizer.ts`                                                                 |
+| Create | `electron/main/broker/broker-registry.ts`                                                                       |
+| Create | `electron/main/services/broker/broker-routing-service.ts`                                                       |
+| Create | `electron/main/services/risk/capital-reservation-service.ts`                                                    |
+| Create | `electron/main/db/repositories/session-broker-assignments-repo.ts`                                              |
+| Create | `electron/main/db/repositories/broker-routing-repo.ts`                                                          |
+| Create | `electron/main/db/repositories/capital-reservations-repo.ts`                                                    |
+| Modify | `electron/main/services/agent-orchestrator.ts` — use BrokerRoutingService                                       |
+| Modify | `electron/main/ipc/accounts.ts` — add broker list/add/remove/test/routing handlers                              |
+| Modify | `electron/main/services/session/session-service.ts` — call preflightSession                                     |
 | Modify | `electron/main/services/app-services.ts` — wire BrokerRegistry, BrokerRoutingService, CapitalReservationService |
-| Modify | `src/pages/AccountsPage.tsx` — broker list, routing card, capital allocation card |
-| Create | `src/components/accounts/AddBrokerModal.tsx` |
+| Modify | `src/pages/AccountsPage.tsx` — broker list, routing card, capital allocation card                               |
+| Create | `src/components/accounts/AddBrokerModal.tsx`                                                                    |
 
 ## Acceptance Criteria
 

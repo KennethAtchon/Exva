@@ -23,13 +23,12 @@ If nothing is done, Exva will keep shipping new AI behavior as one-off runtime f
 
 **Goals**
 
-
 | #   | Goal                                                      | Success Looks Like                                                                                                                                                                  |
 | --- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Remove role-specific runtime entrypoints                  | No `AiRuntime.runAnalyst`, `runReviewer`, `runDecisionMaker`, or `runInstrumentSelector` remain as canonical execution paths                                                        |
 | 2   | Introduce one generic phase runner                        | `AgentOrchestrator` invokes one runtime entrypoint such as `runPhase()` or `pipelineRuntime.run()` for all five phases                                                              |
 | 3   | Make worker orchestration config-driven                   | Adding a worker that uses existing tools and fits an existing phase output contract requires config plus prompt/schema files, not new runtime functions                             |
-| 4   | Support dependency-aware worker scheduling                | Worker config can express DAG-style dependencies so independent workers run in parallel while dependent workers wait for required upstream outputs                                   |
+| 4   | Support dependency-aware worker scheduling                | Worker config can express DAG-style dependencies so independent workers run in parallel while dependent workers wait for required upstream outputs                                  |
 | 5   | Aggressively consolidate worker-definition surfaces       | The normal path for adding a worker is one config entry and one prompt file, with no orchestrator/runtime edits                                                                     |
 | 6   | Make tool hookup config-driven                            | Worker definitions reference tool IDs; runtime resolves tool implementations through a registry instead of role-specific switch logic                                               |
 | 7   | Make engine hookup config-driven                          | Workers can opt into reusable engines such as risk, position sizing, ranking, or validation through config bindings instead of bespoke role code                                    |
@@ -37,11 +36,9 @@ If nothing is done, Exva will keep shipping new AI behavior as one-off runtime f
 | 9   | Standardize all phases on structured output contracts     | Every phase emits structured typed output in Phase 1; no prose-only phase contracts remain in the target design                                                                     |
 | 10  | Preserve current provider and audit infrastructure        | `ProviderAdapter.runAgent`, `executeRunAgent`, `withProviderRetry`, `agent_runs`, and `agent_messages` remain the execution and audit substrate                                     |
 | 11  | Replace role-keyed runtime config with phase-keyed config | The new runtime reads a phase/pipeline config model directly. No role-compatibility bridge remains in the final Phase 1 codepath.                                                   |
-| 12  | Build the full engine substrate, not just engine types    | Existing deterministic services are wrapped or re-homed behind `EngineRegistry` with DB-backed config resolution and app-service wiring spelled out                                  |
-
+| 12  | Build the full engine substrate, not just engine types    | Existing deterministic services are wrapped or re-homed behind `EngineRegistry` with DB-backed config resolution and app-service wiring spelled out                                 |
 
 **Non-Goals**
-
 
 | #   | Non-Goal                                                      | Reason                                                                                               |
 | --- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -51,7 +48,6 @@ If nothing is done, Exva will keep shipping new AI behavior as one-off runtime f
 | 4   | Implementing net-new business engines in Phase 1              | Phase 1 makes engines pluggable and decoupled; it does not require inventing every future engine now |
 | 5   | Replacing provider adapters or adopting a new agent framework | Current Vercel AI SDK adapter layer is sufficient and already integrated                             |
 | 6   | Renaming existing DB tables immediately                       | Table rename adds migration noise without helping the runtime redesign                               |
-
 
 ---
 
@@ -90,12 +86,9 @@ flowchart TD
     PARSE --> DB
 ```
 
-
-
 Today, orchestration is serialized in `AgentOrchestrator`, but execution semantics live in several different places. `runtime.ts` chooses which prompt path to build and which parse path to run. `harness-tools.ts` decides which tools exist based on role and infra availability. `prompt-pack-builder.ts` renders role-specific tool policy into prompt text. `ai-runtime-types.ts` defines both `ROLE_HARNESS_CAPS` and `ROLE_TOOL_POLICY`, so a new worker or phase behavior usually requires edits in multiple files.
 
 ### Relevant current code surfaces
-
 
 | File                                                            | Current responsibility                                 | Why it matters to Phase 1                                       |
 | --------------------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------- |
@@ -109,11 +102,9 @@ Today, orchestration is serialized in `AgentOrchestrator`, but execution semanti
 | `electron/main/db/repositories/session-ai-role-profile-repo.ts` | Reads profile JSON by role                             | Old pattern to delete                                           |
 | `electron/shared/ai/default-ai-role-profiles.ts`                | Role-profile defaults encoded as prose                 | Must stop driving orchestration logic directly                  |
 
-
 ### Additional consolidation targets found in the final scan
 
 The runtime refactor is not complete if these adjacent role-keyed or prompt-bloated surfaces are left behind.
-
 
 | Surface                                       | Current file(s)                                                                                   | Required action                                                                                                        |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -131,11 +122,9 @@ The runtime refactor is not complete if these adjacent role-keyed or prompt-bloa
 | App services / dependency wiring              | `electron/main/services/app-services.ts`, `session/session-types.ts`                              | Replace old repos/services with phase config and engine registry wiring                                                |
 | Engineering docs that explain old model       | `docs/engineering/ai-model-configuration-guide.md`, `docs/architecture/ai-runtime-and-harness.md` | Rewrite to match the new runtime; do not leave stale role-based docs around                                            |
 
-
 ### Scattered control points found in the current build
 
 The deeper scan confirms that runtime control is currently spread across unrelated files instead of living in one coherent configuration model.
-
 
 | Concern                                               | Current location                                                                                                      | Why this is a problem                                                                        |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -148,7 +137,6 @@ The deeper scan confirms that runtime control is currently spread across unrelat
 | Decision sizing path                                  | `agent-orchestrator.ts` `resolvePositionSizeUsd()`                                                                    | Deterministic execution logic is buried in orchestrator code instead of modeled as an engine |
 | Exit policy logic                                     | `electron/main/services/risk/exit-policy-evaluator.ts`                                                                | Engine-like behavior exists, but is not exposed as a composable runtime component            |
 | Candidate validation / order policy gates             | `candidate-validation-service.ts`, `order-policy-gate.ts`, `broker-allocation-gate.ts`                                | These are effectively engines/policies today, but not represented as first-class bindings    |
-
 
 Phase 1 should explicitly centralize these controls into a runtime config hierarchy so that limits, retries, bindings, and output contracts are discoverable from the phase/worker definition rather than hidden in service code.
 
@@ -177,17 +165,17 @@ Replacement table direction:
 
 The engine layer is only real if it is wired to the actual persisted configuration Exva already owns. Phase 1 should not invent a parallel engine-config universe for business logic that already lives in session/workspace tables.
 
-| Config source | Current table/repo | Current consumers | Engine relevance |
-| --- | --- | --- | --- |
-| Phase runtime provider/model/prompt config | `session_ai_phases`, `session_ai_phase_workers`, `SessionAiPhasesRepo` | `PhaseConfigResolver`, `AiRuntime`, `PipelineRuntime` | Canonical runtime execution config per phase/worker |
-| Research posture | `session_research_posture`, `SessionResearchPostureRepo` | `SessionStrategyContextService`, prompt shaping | Context-engine input for discovery/fundamental workers |
-| Trade rules | `session_trade_rules`, `SessionTradeRulesRepo` | `SessionStrategyContextService`, orchestrator side-bias checks | Context + policy-engine input |
-| Risk config | `session_risk_config`, `SessionRiskConfigRepo` | `SessionStrategyContextService`, `RiskEngine`, `TradeMonitor`, orchestrator sizing | Core policy/execution/lifecycle engine input |
-| Timeframe config | `session_timeframe_config`, `SessionTimeframeConfigRepo` | `SessionStrategyContextService`, monitors, prompt context | Context + lifecycle-engine input |
-| Selector settings | `session_selector_settings`, `SessionSelectorSettingsRepo` | selector runtime/orchestrator retry behavior | Transitional selector config, shrinking after Phase 3 |
-| Workspace defaults | `workspace_preferences`, `WorkspacePreferencesRepo` | default model/search provider resolution, allocation override | Runtime defaults + engine policy context |
-| Broker assignment/routing state | `session_broker_assignments`, `broker_routing`, related repos | orchestrator, broker allocation, broker routing | Policy/execution-engine input |
-| Built-in/user presets | `risk_presets`, `timeframe_presets`, `research_posture_presets`, `trade_rule_presets` | strategy UI and session config authoring | Source of DB-backed preset materialization into canonical session config |
+| Config source                              | Current table/repo                                                                    | Current consumers                                                                  | Engine relevance                                                         |
+| ------------------------------------------ | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Phase runtime provider/model/prompt config | `session_ai_phases`, `session_ai_phase_workers`, `SessionAiPhasesRepo`                | `PhaseConfigResolver`, `AiRuntime`, `PipelineRuntime`                              | Canonical runtime execution config per phase/worker                      |
+| Research posture                           | `session_research_posture`, `SessionResearchPostureRepo`                              | `SessionStrategyContextService`, prompt shaping                                    | Context-engine input for discovery/fundamental workers                   |
+| Trade rules                                | `session_trade_rules`, `SessionTradeRulesRepo`                                        | `SessionStrategyContextService`, orchestrator side-bias checks                     | Context + policy-engine input                                            |
+| Risk config                                | `session_risk_config`, `SessionRiskConfigRepo`                                        | `SessionStrategyContextService`, `RiskEngine`, `TradeMonitor`, orchestrator sizing | Core policy/execution/lifecycle engine input                             |
+| Timeframe config                           | `session_timeframe_config`, `SessionTimeframeConfigRepo`                              | `SessionStrategyContextService`, monitors, prompt context                          | Context + lifecycle-engine input                                         |
+| Selector settings                          | `session_selector_settings`, `SessionSelectorSettingsRepo`                            | selector runtime/orchestrator retry behavior                                       | Transitional selector config, shrinking after Phase 3                    |
+| Workspace defaults                         | `workspace_preferences`, `WorkspacePreferencesRepo`                                   | default model/search provider resolution, allocation override                      | Runtime defaults + engine policy context                                 |
+| Broker assignment/routing state            | `session_broker_assignments`, `broker_routing`, related repos                         | orchestrator, broker allocation, broker routing                                    | Policy/execution-engine input                                            |
+| Built-in/user presets                      | `risk_presets`, `timeframe_presets`, `research_posture_presets`, `trade_rule_presets` | strategy UI and session config authoring                                           | Source of DB-backed preset materialization into canonical session config |
 
 The required rule is:
 
@@ -272,7 +260,6 @@ Sources: [https://www.anthropic.com/engineering/building-effective-agents](https
 
 This keeps `runAnalyst`, `runReviewer`, `runDecisionMaker`, and `runInstrumentSelector`, adds more helpers, and slowly ports logic over time without changing the top-level API shape.
 
-
 | Dimension      | Assessment                                    |
 | -------------- | --------------------------------------------- |
 | Complexity     | Low near-term, high long-term                 |
@@ -283,7 +270,6 @@ This keeps `runAnalyst`, `runReviewer`, `runDecisionMaker`, and `runInstrumentSe
 | Stack fit      | Fits current code, but preserves the problem  |
 | Team readiness | Very high                                     |
 
-
 Risks: every new AI worker keeps requiring multi-file edits; selector-style failures remain likely because orchestration remains prose-heavy and special-cased.
 
 Open questions: none. The main issue is that this option does not satisfy the forcing function.
@@ -291,7 +277,6 @@ Open questions: none. The main issue is that this option does not satisfy the fo
 **Option B: Replace per-role methods with one generic `runPhase()` but keep internal switch statements**
 
 This introduces one public runtime method, but internally it still does `switch (phase)` for prompt building, tool availability, output parsing, and persistence handling. The external API is cleaner, but the runtime core remains phase-specific code.
-
 
 | Dimension      | Assessment                           |
 | -------------- | ------------------------------------ |
@@ -303,7 +288,6 @@ This introduces one public runtime method, but internally it still does `switch 
 | Stack fit      | Good                                 |
 | Team readiness | High                                 |
 
-
 Risks: the code becomes a single large switchboard; adding a worker still means editing orchestration code, tool resolution code, and parse code. The user-visible API improves, but the maintenance model does not.
 
 Open questions: how many phase-specific branches are acceptable before the new runtime becomes another `runRole` in disguise?
@@ -311,7 +295,6 @@ Open questions: how many phase-specific branches are acceptable before the new r
 **Option C: Build a registry-driven phase runtime with config-defined workers and tool bindings**
 
 This introduces a generic runtime engine that executes `PipelineDefinition` objects. Each phase declares workers, tools, output mode, and aggregation/finalization rules through configuration. The runtime executes those definitions using the existing provider adapters, tool implementations, prompt builder, and audit layer. Old role-keyed runtime config is deleted and replaced rather than wrapped.
-
 
 | Dimension      | Assessment                                                             |
 | -------------- | ---------------------------------------------------------------------- |
@@ -323,7 +306,6 @@ This introduces a generic runtime engine that executes `PipelineDefinition` obje
 | Stack fit      | Strong; reuses current AI SDK/provider/persistence stack               |
 | Team readiness | High; patterns are straightforward TypeScript registries and executors |
 
-
 Risks: over-generalizing the config model could create a DSL that is harder to reason about than the code it replaces; mixed text/object support could complicate the first cut.
 
 Open questions: where should the boundary sit between generic aggregation config and code finalizers? How much text-output support is worth keeping in Phase 1 before forcing all phases onto typed contracts?
@@ -334,7 +316,7 @@ Open questions: where should the boundary sit between generic aggregation config
 
 **We recommend Option C: a registry-driven phase runtime with config-defined workers, tool bindings, engine bindings, and strict prompt-boundary rules.**
 
-It wins over the status quo because it removes the core source of change friction: per-role runtime functions. It wins over the simpler `runPhase()` switchboard because it makes the *inside* of the runtime configurable, not just the method name. It also avoids the risk of a big-bang final pipeline rewrite by allowing Phase 1 to port the current five roles as single-worker phase definitions first, then split them into multi-worker phase definitions later without changing the core engine again.
+It wins over the status quo because it removes the core source of change friction: per-role runtime functions. It wins over the simpler `runPhase()` switchboard because it makes the _inside_ of the runtime configurable, not just the method name. It also avoids the risk of a big-bang final pipeline rewrite by allowing Phase 1 to port the current five roles as single-worker phase definitions first, then split them into multi-worker phase definitions later without changing the core engine again.
 
 The decisive design choice is to separate four concerns that are currently interleaved:
 
@@ -435,7 +417,7 @@ export const RUNTIME_DEFAULTS: RuntimeDefaultsConfig = {
   },
   workerCaps: {
     maxSteps: 4,
-    spendLimitUsd: 0.10,
+    spendLimitUsd: 0.1,
     maxTokens: 2_000,
   },
   prompt: {
@@ -447,7 +429,7 @@ export const RUNTIME_DEFAULTS: RuntimeDefaultsConfig = {
 export const PHASE_DEFAULTS: Record<PipelinePhase, PhaseDefaultsConfig> = {
   selector: {
     phase: "selector",
-    workerCaps: { maxSteps: 8, spendLimitUsd: 0.30, maxTokens: 2_500 },
+    workerCaps: { maxSteps: 8, spendLimitUsd: 0.3, maxTokens: 2_500 },
     retry: { providerAttempts: 4 },
   },
   technical: {
@@ -499,14 +481,17 @@ flowchart TD
     TRACE --> DB
 ```
 
-
-
 `AgentOrchestrator` should only know phase order and phase inputs. `PipelineRuntime` should own execution. `PipelineRegistry` should return the phase definition. `PhaseConfigResolver` should resolve the new phase/pipeline config model directly, not translate old role rows. `WorkerExecutor` should be the only place that builds prompt envelopes, resolves tools, binds engines, and calls provider adapters. `PromptEnvelopeBuilder` should build a small static system prompt plus a structured user message. `EngineRegistry` should expose reusable code components such as risk, ranking, validation, and later position/execution engines through stable IDs. `TraceAssembler` should convert one or many worker runs into the persisted `agent_runs` and `agent_messages` format that the rest of the app already expects.
 
 ### Proposed core types
 
 ```ts
-export type PipelinePhase = "selector" | "technical" | "fundamental" | "review" | "decision";
+export type PipelinePhase =
+  | "selector"
+  | "technical"
+  | "fundamental"
+  | "review"
+  | "decision";
 
 export interface PipelineDefinition<TInput, TOutput> {
   phase: PipelinePhase;
@@ -617,20 +602,20 @@ That preserves plug-and-play at the runtime layer while still allowing deep inte
 
 Phase 1 should not stop at abstract engine categories. It should name the concrete deterministic services that are being absorbed into the engine system.
 
-| Engine ID | Kind | Backing code today | Primary config source |
-| --- | --- | --- | --- |
-| `risk-summary` | `context` | `SessionStrategyContextService`, `session_risk_config`, `session_trade_rules`, `session_timeframe_config` | session strategy context + workspace prefs |
-| `candidate-validator` | `validator` | `CandidateValidationService` | session strategy context + selector evidence + broker/tool snapshots |
-| `broker-allocation` | `policy` | `BrokerAllocationGate` | broker assignments + workspace allocation override |
-| `order-policy` | `policy` | `OrderPolicyGate` | session risk/timeframe/rules + quote snapshots + broker metadata |
-| `risk-gate` | `policy` | `RiskEngine.validateDecision()` | `session_risk_config` + legacy session config bridge during migration |
-| `technical-aggregator` | `transformer` | new | typed worker outputs |
-| `fundamental-aggregator` | `transformer` | new | typed worker outputs |
-| `review-aggregator` | `transformer` | new | typed worker outputs |
-| `decision-validator` | `validator` | new | typed decision worker outputs + review recommendation |
-| `execution-profile` | `execution` | new, later replacing `resolvePositionSizeUsd()` | `session_risk_config` + broker/instrument state |
-| `exit-policy` | `lifecycle` | `ExitPolicyEvaluator` | `session_risk_config` + `session_timeframe_config` |
-| `position-manager` | `lifecycle` | `TradeMonitor`, `PositionManagerService` helpers | `session_risk_config` + trade state |
+| Engine ID                | Kind          | Backing code today                                                                                        | Primary config source                                                 |
+| ------------------------ | ------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `risk-summary`           | `context`     | `SessionStrategyContextService`, `session_risk_config`, `session_trade_rules`, `session_timeframe_config` | session strategy context + workspace prefs                            |
+| `candidate-validator`    | `validator`   | `CandidateValidationService`                                                                              | session strategy context + selector evidence + broker/tool snapshots  |
+| `broker-allocation`      | `policy`      | `BrokerAllocationGate`                                                                                    | broker assignments + workspace allocation override                    |
+| `order-policy`           | `policy`      | `OrderPolicyGate`                                                                                         | session risk/timeframe/rules + quote snapshots + broker metadata      |
+| `risk-gate`              | `policy`      | `RiskEngine.validateDecision()`                                                                           | `session_risk_config` + legacy session config bridge during migration |
+| `technical-aggregator`   | `transformer` | new                                                                                                       | typed worker outputs                                                  |
+| `fundamental-aggregator` | `transformer` | new                                                                                                       | typed worker outputs                                                  |
+| `review-aggregator`      | `transformer` | new                                                                                                       | typed worker outputs                                                  |
+| `decision-validator`     | `validator`   | new                                                                                                       | typed decision worker outputs + review recommendation                 |
+| `execution-profile`      | `execution`   | new, later replacing `resolvePositionSizeUsd()`                                                           | `session_risk_config` + broker/instrument state                       |
+| `exit-policy`            | `lifecycle`   | `ExitPolicyEvaluator`                                                                                     | `session_risk_config` + `session_timeframe_config`                    |
+| `position-manager`       | `lifecycle`   | `TradeMonitor`, `PositionManagerService` helpers                                                          | `session_risk_config` + trade state                                   |
 
 The migration does not require every engine to be used by workers in Phase 1, but it does require the registry, run context, and service wiring to make these engines first-class citizens instead of ad hoc helper calls.
 
@@ -682,7 +667,8 @@ export const ENGINE_REGISTRY: Record<EngineId, EngineDefinition> = {
     kind: "context",
     inputSchema: riskSummaryInputSchema,
     outputSchema: riskSummaryOutputSchema,
-    run: (input, ctx) => buildRiskSummary(input, ctx.strategyContext.riskConfig),
+    run: (input, ctx) =>
+      buildRiskSummary(input, ctx.strategyContext.riskConfig),
   },
   "candidate-validator": {
     id: "candidate-validator",
@@ -703,7 +689,8 @@ export const ENGINE_REGISTRY: Record<EngineId, EngineDefinition> = {
     kind: "execution",
     inputSchema: executionProfileInputSchema,
     outputSchema: executionProfileOutputSchema,
-    run: (input, ctx) => buildExecutionProfile(input, ctx.strategyContext.riskConfig),
+    run: (input, ctx) =>
+      buildExecutionProfile(input, ctx.strategyContext.riskConfig),
   },
 };
 ```
@@ -762,8 +749,10 @@ This gives Exva both properties it wants:
 Suggested config extension:
 
 ```ts
-export interface GraphAwareWorkerDefinition<TInput = unknown, TPhaseOutput = unknown>
-  extends WorkerDefinition<TInput, TPhaseOutput> {
+export interface GraphAwareWorkerDefinition<
+  TInput = unknown,
+  TPhaseOutput = unknown,
+> extends WorkerDefinition<TInput, TPhaseOutput> {
   dependsOn?: readonly string[];
   requiredForPhase?: boolean;
   onDependencyFailure?: "skip" | "run_with_partial_inputs" | "fail_phase";
@@ -836,7 +825,14 @@ export interface PhaseTraceWorkerV1 {
   frontier: number;
   dependsOn: string[];
   requiredForPhase: boolean;
-  status: "pending" | "blocked" | "running" | "succeeded" | "failed" | "skipped" | "degraded";
+  status:
+    | "pending"
+    | "blocked"
+    | "running"
+    | "succeeded"
+    | "failed"
+    | "skipped"
+    | "degraded";
   startedAt: string | null;
   finishedAt: string | null;
   durationMs: number | null;
@@ -909,12 +905,17 @@ Default rule: workers get `read` only unless the phase definition explicitly all
 ### Example config shape
 
 ```ts
-export const REVIEW_PHASE: PipelineDefinition<ReviewPhaseInput, ReviewPhaseOutput> = {
+export const REVIEW_PHASE: PipelineDefinition<
+  ReviewPhaseInput,
+  ReviewPhaseOutput
+> = {
   phase: "review",
   inputSchema: reviewPhaseInputSchema,
   outputMode: "object",
   outputSchema: reviewPhaseOutputSchema,
-  engines: [{ engine: "review-aggregator", kind: "transformer", mode: "finalize" }],
+  engines: [
+    { engine: "review-aggregator", kind: "transformer", mode: "finalize" },
+  ],
   workers: [
     {
       id: "conflict-detector",
@@ -943,7 +944,10 @@ This is the intended operator experience: if an engineer asks "where do I add a 
 ### Technical phase example
 
 ```ts
-export const TECHNICAL_PHASE: PipelineDefinition<TechnicalPhaseInput, TechnicalPhaseOutput> = {
+export const TECHNICAL_PHASE: PipelineDefinition<
+  TechnicalPhaseInput,
+  TechnicalPhaseOutput
+> = {
   phase: "technical",
   inputSchema: technicalPhaseInputSchema,
   outputMode: "object",
@@ -951,11 +955,10 @@ export const TECHNICAL_PHASE: PipelineDefinition<TechnicalPhaseInput, TechnicalP
   workers: [
     {
       id: "momentum-indicator",
-      promptAssetPath: "electron/prompts/technical-workers/momentum-indicator.md",
+      promptAssetPath:
+        "electron/prompts/technical-workers/momentum-indicator.md",
       tools: ["get_quote", "get_ohlcv"],
-      engines: [
-        { engine: "risk-summary", kind: "context", mode: "read" },
-      ],
+      engines: [{ engine: "risk-summary", kind: "context", mode: "read" }],
       outputMode: "object",
       outputSchema: momentumIndicatorOutputSchema,
       inputBuilder: "technicalMomentumInput",
@@ -984,7 +987,10 @@ export const TECHNICAL_PHASE: PipelineDefinition<TechnicalPhaseInput, TechnicalP
 ### Decision phase example
 
 ```ts
-export const DECISION_PHASE: PipelineDefinition<DecisionPhaseInput, DecisionPhaseOutput> = {
+export const DECISION_PHASE: PipelineDefinition<
+  DecisionPhaseInput,
+  DecisionPhaseOutput
+> = {
   phase: "decision",
   inputSchema: decisionPhaseInputSchema,
   outputMode: "object",
@@ -1037,7 +1043,9 @@ function resolveWorkerRuntimeConfig(
     },
     prompt: defaults.prompt,
     tools: worker.tools.length > 0 ? worker.tools : (phaseDefaults.tools ?? []),
-    engines: worker.engines?.length ? worker.engines : (phaseDefaults.engines ?? []),
+    engines: worker.engines?.length
+      ? worker.engines
+      : (phaseDefaults.engines ?? []),
     output: worker.outputSchema
       ? {
           schema: worker.outputSchema,
@@ -1224,7 +1232,6 @@ Rollback plan: revert the branch if hidden role-keyed dependencies are too broad
 
 ## 8. Risk Register
 
-
 | #   | Risk                                                                                          | Likelihood | Impact | Mitigation                                                                                                                                         |
 | --- | --------------------------------------------------------------------------------------------- | ---------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | The config model becomes a mini-framework that is harder to debug than plain code             | Medium     | High   | Keep config declarative; allow explicit finalizer IDs instead of encoding everything in data                                                       |
@@ -1235,11 +1242,9 @@ Rollback plan: revert the branch if hidden role-keyed dependencies are too broad
 | 6   | Team adds new ad hoc helper methods during migration                                          | Medium     | Medium | Make `pipelineRuntime.run()` the only allowed orchestrator entrypoint and enforce via code review                                                  |
 | 7   | Consolidation goal erodes and worker onboarding still requires touching multiple layers       | Medium     | High   | Add explicit onboarding tests and code-review rule: worker additions must stay inside config/prompt unless they introduce a new platform primitive |
 
-
 ---
 
 ## 9. Success Criteria
-
 
 | Goal                                  | Metric                                                                                          | Baseline                                                                       | Target                                           | How Measured                            |
 | ------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------ | --------------------------------------- |
@@ -1249,12 +1254,11 @@ Rollback plan: revert the branch if hidden role-keyed dependencies are too broad
 | Generic orchestration                 | Count of phase-specific branches in orchestrator runtime calls                                  | 5 hardcoded calls                                                              | 0 hardcoded runtime-method calls                 | `agent-orchestrator.ts` review          |
 | Tool and engine hookup centralization | Number of role-based tool/engine policy maps used by runtime                                    | `ROLE_TOOL_POLICY` plus availability branching and implicit role-owned engines | 0 canonical role maps in runtime execution path  | Grep                                    |
 | Worker/phase observability            | Ability to inspect worker graph execution in DevPanel and persisted traces                      | Aggregate-only or prose-only debugging                                         | Structured phase trace + worker/frontier events  | DevPanel contract test + manual review  |
-| Engine substrate completeness         | Existing deterministic services registered behind stable `EngineId`s                             | Ad hoc direct service calls and only a stub `engine-registry.ts`               | Canonical registry path for current engine set   | App-service bootstrap test + grep       |
+| Engine substrate completeness         | Existing deterministic services registered behind stable `EngineId`s                            | Ad hoc direct service calls and only a stub `engine-registry.ts`               | Canonical registry path for current engine set   | App-service bootstrap test + grep       |
 | Hard DB cutover                       | Old role-keyed AI config tables still required by the app                                       | `session_ai_roles` + `session_ai_role_profile`                                 | 0; app boots from `session_ai_phases` shape only | Schema review + `db:reset` smoke test   |
 | Legacy surface deletion               | Count of deletion-inventory files/surfaces still required by the main path                      | Many                                                                           | 0 legacy runtime/config surfaces in main path    | Grep and runtime smoke test             |
 | Parity of persistence                 | Existing logs still render after migration                                                      | Current behavior                                                               | No regression                                    | Manual UI smoke test + integration test |
 | Runtime substrate readiness           | Ability to port later multi-worker phases without API changes                                   | Not possible today                                                             | Later phases only change config/finalizers       | Design review against Phase 2+ spec     |
-
 
 Leading indicators:
 
@@ -1273,7 +1277,6 @@ Lagging indicators:
 
 ## 10. Open Questions
 
-
 | #   | Question                                                                                     | Owner | Needed By       | Status                                                                                                                          |
 | --- | -------------------------------------------------------------------------------------------- | ----- | --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Structured output migration approach for Phase 1?                                            | Ken   | Before Phase 1C | Resolved: all phases move to the new structured format immediately                                                              |
@@ -1282,7 +1285,6 @@ Lagging indicators:
 | 4   | Worker override persistence in Phase 1?                                                      | Ken   | Before Phase 1A | Resolved: ship `session_ai_phase_workers` in Phase 1                                                                            |
 | 5   | What qualifies as an engine?                                                                 | Ken   | Before Phase 1B | Resolved: anything that does deterministic work/calculation the AI does not need to know about should be an engine              |
 | 6   | Which finalizers should be generic merge strategies and which should be explicit code hooks? | Ken   | Before Phase 1B | Open                                                                                                                            |
-
 
 ### Resolved Decisions
 
@@ -1298,7 +1300,6 @@ These are now fixed requirements for implementation:
 ---
 
 ## 11. Alternatives Rejected
-
 
 | Option                                                                  | Why Rejected                                                                                                                            |
 | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |

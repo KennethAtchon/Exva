@@ -3,6 +3,7 @@
 Given OHLCV bars for {instrumentSymbol}, identify the dominant price pattern and key support/resistance levels.
 
 Return JSON:
+
 ```json
 {
   "patternName": "string or null",
