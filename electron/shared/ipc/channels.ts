@@ -107,6 +107,16 @@ export const channels = {
     list: "approval:list",
     decide: "approval:decide",
   },
+  developer: {
+    getSettings: "developer:get-settings",
+    updateSettings: "developer:update-settings",
+    setLogLevel: "developer:set-log-level",
+    stopLogOverride: "developer:stop-log-override",
+    getScopeDiagnostics: "developer:get-scope-diagnostics",
+    exportDebugBundle: "developer:export-debug-bundle",
+    openPath: "developer:open-path",
+    listEventsV2: "events:list-v2",
+  },
 } as const;
 
 export const mainToRendererEvents = [

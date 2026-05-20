@@ -513,6 +513,25 @@ export const tradeApprovals = sqliteTable(
   }),
 );
 
+export const developerSettings = sqliteTable("developer_settings", {
+  id: text("id").primaryKey().default("singleton"),
+  defaultEventMinLevel: text("default_event_min_level").notNull().default("INFO"),
+  defaultTimeWindowMinutes: integer("default_time_window_minutes").notNull().default(60),
+  defaultSourceFiltersJson: text("default_source_filters_json").notNull().default("[]"),
+  includePromptsInExports: integer("include_prompts_in_exports", { mode: "boolean" }).notNull().default(false),
+  includeToolPayloadsInExports: integer("include_tool_payloads_in_exports", { mode: "boolean" }).notNull().default(true),
+});
+
+export const runtimeLogOverrides = sqliteTable("runtime_log_overrides", {
+  id: text("id").primaryKey(),
+  scopeType: text("scope_type").notNull(),
+  scopeId: text("scope_id"),
+  mainLogLevel: text("main_log_level").notNull(),
+  eventMinLevel: text("event_min_level").notNull(),
+  expiresAt: text("expires_at"),
+  createdAt: text("created_at").notNull(),
+});
+
 export const capitalReservations = sqliteTable(
   "capital_reservations",
   {

@@ -4,6 +4,7 @@ import { registerApprovalHandlers } from "./approvals";
 import { registerBrokerAccountHandlers } from "./broker-accounts";
 import { registerConfigHandlers } from "./config";
 import { registerDashboardHandlers } from "./dashboard";
+import { registerDeveloperHandlers } from "./developer";
 import { registerEventHandlers } from "./events";
 import { registerReplayHandlers } from "./replay";
 import { registerSessionHandlers } from "./session";
@@ -25,4 +26,5 @@ export function registerIpcHandlers(services: AppServices): void {
   registerBrokerAccountHandlers(services);
   registerEventHandlers(services);
   registerReplayHandlers(services);
+  registerDeveloperHandlers(services);
 }

@@ -358,6 +358,67 @@ export interface ExvaApi {
       routing: Array<{ instrumentClass: InstrumentClass; defaultBrokerAccountId: string }>;
     }): Promise<{ savedAt: string }>;
   };
+  developer: {
+    getSettings(): Promise<{
+      settings: {
+        defaultEventMinLevel: string;
+        defaultTimeWindowMinutes: number;
+        defaultSourceFilters: string[];
+        includePromptsInExports: boolean;
+        includeToolPayloadsInExports: boolean;
+      };
+      effectiveLogLevel: string;
+      activeOverrides: Array<{
+        id: string;
+        scopeType: string;
+        scopeId: string | null;
+        mainLogLevel: string;
+        eventMinLevel: string;
+        expiresAt: string | null;
+        createdAt: string;
+      }>;
+      logDirectory: string;
+    }>;
+    updateSettings(patch: {
+      defaultEventMinLevel?: string;
+      defaultTimeWindowMinutes?: number;
+      defaultSourceFilters?: string[];
+      includePromptsInExports?: boolean;
+      includeToolPayloadsInExports?: boolean;
+    }): Promise<{ settings: unknown }>;
+    setLogLevel(input: {
+      scopeType: string;
+      scopeId?: string;
+      mainLogLevel: string;
+      eventMinLevel: string;
+      durationMinutes?: number;
+      untilStopped?: boolean;
+    }): Promise<{ overrideId: string; effectiveLogLevel: string; expiresAt: string | null }>;
+    stopLogOverride(input: { overrideId: string }): Promise<{ stopped: true; effectiveLogLevel: string }>;
+    getScopeDiagnostics(input: { scope: { type: string; id?: string } }): Promise<unknown>;
+    exportDebugBundle(input: {
+      scope: { type: string; id?: string };
+      includePrompts: boolean;
+      includeToolPayloads: boolean;
+      timeWindowMinutes: number;
+    }): Promise<{
+      path: string;
+      sizeBytes: number;
+      includedSections: string[];
+      redactionCount: number;
+      warnings: string[];
+    }>;
+    openPath(input: { kind: string; path?: string }): Promise<{ opened: true }>;
+    listEventsV2(input: {
+      scope?: { type: string; id?: string };
+      minLevel?: string;
+      sourceTypes?: string[];
+      search?: string;
+      timeWindowMinutes?: number;
+      cursor?: string | null;
+      limit: number;
+    }): Promise<{ events: EventRow[]; nextCursor: string | null; queryMs: number }>;
+  };
   events: {
     list(filters?: {
       minLevel?: string;

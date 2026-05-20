@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getSearchProviderDisplayName } from "@electron/shared/catalog/search-providers";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Dot, PageShell } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { useSessionStore } from "@/store/sessionStore";
-import type { AgentMessage, AgentRun, EventRow, EventSourceType, LogLevel } from "@/lib/types";
-import type { PhaseRuntimeSummary, PhaseTraceV1, SessionSummary } from "@/lib/exva";
+import type {
+  AgentMessage,
+  AgentRun,
+  EventRow,
+  EventSourceType,
+  LogLevel,
+} from "@/lib/types";
+import type { PhaseTraceV1, SessionSummary } from "@/lib/exva";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface DevPanelFocus {
   sessionId: string;
@@ -15,20 +22,80 @@ export interface DevPanelFocus {
   stage: string;
 }
 
-// ─── Extended types for spec fields not yet in schema ───────────────────────
+type ScopeType = "global" | "session" | "cycle" | "trade" | "provider" | "broker";
+interface ActiveScope { type: ScopeType; id?: string; label?: string }
 
-interface ExtEventRow extends EventRow {
-  cycle_id?: string | null;
+type InspectorTab = "overview" | "execution" | "trace" | "graph" | "calls" | "raw";
+type TimeWindow = 15 | 60 | 360 | 1440 | 0;
+
+interface ExtEventRow extends EventRow { cycle_id?: string | null }
+interface ExtAgentRun extends AgentRun { cycle_id?: string | null }
+
+interface DeveloperSettings {
+  defaultEventMinLevel: LogLevel;
+  defaultTimeWindowMinutes: TimeWindow;
+  defaultSourceFilters: string[];
+  includePromptsInExports: boolean;
+  includeToolPayloadsInExports: boolean;
 }
 
-interface ExtAgentRun extends AgentRun {
-  cycle_id?: string | null;
+interface ActiveOverride {
+  id: string;
+  scopeType: string;
+  scopeId: string | null;
+  mainLogLevel: string;
+  eventMinLevel: LogLevel;
+  expiresAt: string | null;
+  createdAt: string;
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
+interface DeveloperSettingsResponse {
+  settings: DeveloperSettings;
+  effectiveLogLevel: string;
+  activeOverrides: ActiveOverride[];
+  logDirectory: string;
+}
+
+interface ScopeDiagnostics {
+  scopeLabel: string;
+  session?: SessionSummary | null;
+  activeCycleId?: string | null;
+  executionProgress?: import("@/lib/exva").SessionExecutionProgressResponse;
+  counts: {
+    events: number;
+    errors: number;
+    warnings: number;
+    agentRuns: number;
+    externalCalls: number;
+    failedSteps: number;
+  };
+  latestError?: { message: string; createdAt: string; eventId: string } | null;
+}
+
+interface ExportBundleResult {
+  path: string;
+  sizeBytes: number;
+  includedSections: string[];
+  redactionCount: number;
+  warnings: string[];
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const LEVELS: LogLevel[] = ["DEBUG", "INFO", "WARN", "ERROR"];
-type RoleFilter = "all" | "selector" | "technical" | "fundamental" | "review" | "decision" | "system" | "orchestrator";
+const LOG_LEVELS = ["trace", "debug", "info", "warn", "error"] as const;
+type PinoLevel = (typeof LOG_LEVELS)[number];
+const TIME_WINDOWS: Array<{ value: TimeWindow; label: string }> = [
+  { value: 15, label: "15m" },
+  { value: 60, label: "1h" },
+  { value: 360, label: "6h" },
+  { value: 1440, label: "24h" },
+  { value: 0, label: "All" },
+];
+const SOURCE_TYPES = [
+  "session", "selector", "technical", "fundamental", "review",
+  "decision", "broker", "capital", "preflight", "orchestrator",
+];
 
 const LEVEL_COLOR: Record<LogLevel, string> = {
   DEBUG: "#3d4f60",
@@ -36,76 +103,45 @@ const LEVEL_COLOR: Record<LogLevel, string> = {
   WARN: "#ffb733",
   ERROR: "#ff4757",
 };
-
 const LEVEL_BG: Record<LogLevel, string> = {
-  DEBUG: "rgba(61,79,96,0.18)",
-  INFO: "rgba(77,166,255,0.12)",
-  WARN: "rgba(255,183,51,0.12)",
-  ERROR: "rgba(255,71,87,0.12)",
+  DEBUG: "rgba(61,79,96,0.2)",
+  INFO: "rgba(77,166,255,0.14)",
+  WARN: "rgba(255,183,51,0.14)",
+  ERROR: "rgba(255,71,87,0.14)",
 };
-
 const ROLE_COLOR: Record<string, string> = {
   technical: "#00e5a0",
   fundamental: "#ff7b8a",
   review: "#4da6ff",
   decision: "#c084fc",
   selector: "#fbbf24",
+  orchestrator: "#fb923c",
+  preflight: "#a3e635",
+  capital: "#34d399",
+  broker: "#60a5fa",
+  session: "#94a3b8",
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  technical: "tech",
-  fundamental: "fund",
-  review: "review",
-  decision: "decide",
-  selector: "selector",
-  system: "system",
-  orchestrator: "orch",
-};
-
-type InspectorTab = "event" | "runs" | "graph" | "trace" | "calls" | "raw";
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Shared Styles ────────────────────────────────────────────────────────────
 
 const S = {
-  monoLabel: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 10,
-    letterSpacing: "0.06em",
-    textTransform: "uppercase" as const,
-    fontWeight: 700,
+  mono9: { fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.08em" } as const,
+  mono10: { fontFamily: "var(--font-mono)", fontSize: 10 } as const,
+  mono11: { fontFamily: "var(--font-mono)", fontSize: 11 } as const,
+  label: {
+    fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 800,
+    letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "var(--text3)",
   },
-  monoValue: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 11,
-    color: "var(--text2)",
-  },
-  card: {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderRadius: 12,
-    padding: "16px 18px",
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 10,
-  },
-  cardTitle: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase" as const,
-    color: "var(--text3)",
-    paddingBottom: 8,
-    borderBottom: "1px solid var(--border)",
-    marginBottom: 2,
+  sectionTitle: {
+    fontFamily: "var(--font-mono)", fontSize: 8, fontWeight: 800,
+    letterSpacing: "0.16em", textTransform: "uppercase" as const, color: "var(--text3)",
+    padding: "10px 12px 4px",
   },
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function copyText(text: string) {
-  navigator.clipboard.writeText(text).catch(() => {});
-}
+function copyText(t: string) { navigator.clipboard.writeText(t).catch(() => {}); }
 
 function parseJsonSafe(s: string | null | undefined): unknown {
   if (!s) return null;
@@ -113,82 +149,49 @@ function parseJsonSafe(s: string | null | undefined): unknown {
 }
 
 function formatJsonPretty(s: string | null | undefined): string {
-  const parsed = parseJsonSafe(s);
-  if (parsed === null) return s ?? "";
-  return JSON.stringify(parsed, null, 2);
+  const p = parseJsonSafe(s);
+  if (p === null) return s ?? "";
+  return JSON.stringify(p, null, 2);
 }
 
-function roleLabelShort(role: string): string {
-  return ROLE_LABELS[role] ?? role;
+function parsePhaseTrace(m: AgentMessage | null | undefined): PhaseTraceV1 | null {
+  const p = parseJsonSafe(m?.tool_calls_json) as PhaseTraceV1 | null;
+  if (!p || typeof p !== "object") return null;
+  if (p.version !== 1 || !p.phase || !Array.isArray(p.workers) || !Array.isArray(p.frontiers)) return null;
+  return p;
 }
 
-function summarizeEventAction(ev: ExtEventRow): string {
-  const msg = ev.message.trim();
+function summarizeEventSource(ev: ExtEventRow): string {
+  const msg = ev.message;
   if (msg.startsWith("[stage:")) return "stage";
   if (msg.startsWith("[worker:")) return "worker";
   if (msg.startsWith("[execution]")) return "execution";
-  if (msg.toLowerCase().includes("selector")) return "selector";
-  if (msg.toLowerCase().includes("trade cycle")) return "cycle";
   return ev.agent_type ?? "system";
 }
 
-function parsePhaseTrace(message: AgentMessage | null | undefined): PhaseTraceV1 | null {
-  const parsed = parseJsonSafe(message?.tool_calls_json) as PhaseTraceV1 | null;
-  if (!parsed || typeof parsed !== "object") return null;
-  if (parsed.version !== 1 || !parsed.phase || !Array.isArray(parsed.workers) || !Array.isArray(parsed.frontiers)) return null;
-  return parsed;
+function useToasts() {
+  const [toasts, setToasts] = useState<Array<{ id: string; msg: string; kind: "ok" | "err" }>>([]);
+  const show = useCallback((msg: string, kind: "ok" | "err" = "ok") => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((prev) => [...prev, { id, msg, kind }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+  return { toasts, show };
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Atom components ──────────────────────────────────────────────────────────
 
-const DataRow = ({ label, value, mono = true }: { label: string; value: React.ReactNode; mono?: boolean }) => (
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, minHeight: 22 }}>
-    <span style={{ ...S.monoLabel, color: "var(--text3)", flexShrink: 0 }}>{label}</span>
-    <span style={{ ...(mono ? S.monoValue : {}), fontSize: 11, color: "var(--text2)", textAlign: "right", wordBreak: "break-all" }}>
-      {value}
-    </span>
-  </div>
-);
-
-const StatusChip = ({ status }: { status: string }) => {
-  const color =
-    status === "active" ? "#00e5a0"
-    : status === "paused" ? "#ffb733"
-    : status === "error" ? "#ff4757"
-    : status === "stopping" ? "#ff8c42"
-    : "var(--text3)";
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      background: `${color}18`, border: `1px solid ${color}44`,
-      borderRadius: 6, padding: "2px 8px",
-      fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700,
-      color, letterSpacing: "0.06em", textTransform: "uppercase",
-    }}>
-      <Dot color={color} pulse={status === "active"} size={5} />
-      {status}
-    </span>
-  );
-};
-
-const CopyButton = ({ text, label = "copy" }: { text: string; label?: string }) => {
+const CopyBtn = ({ text, label = "copy" }: { text: string; label?: string }) => {
   const [copied, setCopied] = useState(false);
-  const handle = () => {
-    copyText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
   return (
     <button
-      onClick={handle}
+      onClick={() => { copyText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
       style={{
         background: copied ? "rgba(0,229,160,0.12)" : "var(--surface3)",
         border: `1px solid ${copied ? "#00e5a040" : "var(--border)"}`,
-        borderRadius: 5, padding: "3px 8px",
-        fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700,
-        color: copied ? "#00e5a0" : "var(--text3)",
-        letterSpacing: "0.08em", textTransform: "uppercase",
-        transition: "all 0.2s",
+        borderRadius: 4, padding: "2px 7px",
+        ...S.mono9, fontWeight: 700, color: copied ? "#00e5a0" : "var(--text3)",
+        cursor: "pointer", transition: "all 0.15s",
       }}
     >
       {copied ? "copied!" : label}
@@ -196,173 +199,464 @@ const CopyButton = ({ text, label = "copy" }: { text: string; label?: string }) 
   );
 };
 
+const StatusChip = ({ status }: { status: string }) => {
+  const c = status === "active" ? "#00e5a0" : status === "paused" ? "#ffb733"
+    : status === "error" ? "#ff4757" : status === "stopping" ? "#ff8c42" : "var(--text3)";
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      background: `${c}18`, border: `1px solid ${c}44`,
+      borderRadius: 5, padding: "2px 7px",
+      ...S.mono9, fontWeight: 700, color: c,
+    }}>
+      <Dot color={c} pulse={status === "active"} size={4} />
+      {status}
+    </span>
+  );
+};
+
+const SkeletonRow = () => (
+  <div style={{ height: 36, display: "flex", gap: 10, padding: "0 14px", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.025)" }}>
+    {[48, 40, 80, 200].map((w, i) => (
+      <div key={i} style={{ width: w, height: 8, borderRadius: 3, background: "var(--surface3)", opacity: 0.6 }} />
+    ))}
+  </div>
+);
+
+const Spinner = () => (
+  <svg width="12" height="12" viewBox="0 0 12 12" style={{ animation: "spin 0.8s linear infinite" }}>
+    <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    <circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="14 6" />
+  </svg>
+);
+
 const JsonBlock = ({ data, label }: { data: string | null | undefined; label: string }) => {
   const [expanded, setExpanded] = useState(false);
   if (!data) return null;
   const pretty = formatJsonPretty(data);
-  const preview = pretty.slice(0, 4000);
-  const needsTrunc = pretty.length > 4000;
+  const truncated = pretty.length > 3000 && !expanded;
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-        <span style={{ ...S.monoLabel, color: "var(--text3)", fontSize: 9 }}>{label}</span>
-        <div style={{ display: "flex", gap: 6 }}>
-          <CopyButton text={pretty} label="copy" />
-          {needsTrunc && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              style={{ background: "transparent", border: "none", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", cursor: "pointer" }}
-            >
-              {expanded ? "collapse" : `show full (${(pretty.length / 1000).toFixed(1)}k)`}
+        <span style={S.label}>{label}</span>
+        <div style={{ display: "flex", gap: 5 }}>
+          <CopyBtn text={pretty} />
+          {pretty.length > 3000 && (
+            <button onClick={() => setExpanded(!expanded)} style={{ background: "none", border: "none", ...S.mono9, color: "var(--text3)", cursor: "pointer" }}>
+              {expanded ? "collapse" : `+${((pretty.length - 3000) / 1000).toFixed(1)}k`}
             </button>
           )}
         </div>
       </div>
       <pre style={{
-        background: "var(--bg)",
-        border: "1px solid var(--border)",
-        borderRadius: 6, padding: "10px 12px",
-        fontFamily: "var(--font-mono)", fontSize: 10,
-        color: "var(--text2)", lineHeight: 1.6,
-        overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all",
-        maxHeight: expanded ? "none" : 200, overflow: expanded ? "auto" : "hidden",
+        background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6,
+        padding: "8px 10px", ...S.mono9, color: "var(--text2)", lineHeight: 1.6,
+        maxHeight: expanded ? "none" : 180, overflow: expanded ? "auto" : "hidden",
+        whiteSpace: "pre-wrap", wordBreak: "break-all",
       }}>
-        {needsTrunc && !expanded ? preview + "\n…" : pretty}
+        {truncated ? pretty.slice(0, 3000) + "\n…" : pretty}
       </pre>
     </div>
   );
 };
 
-const CollapsibleText = ({ text, collapseAt = 800 }: { text: string | null | undefined; collapseAt?: number }) => {
+const CollapsibleText = ({ text, collapseAt = 700 }: { text: string | null | undefined; collapseAt?: number }) => {
   const [expanded, setExpanded] = useState(false);
-  if (!text) {
-    return <span style={{ color: "var(--text3)", fontFamily: "var(--font-mono)", fontSize: 10 }}>No output text</span>;
-  }
-  const needsCollapse = text.length > collapseAt;
-  const displayed = needsCollapse && !expanded ? text.slice(0, collapseAt) : text;
+  if (!text) return <span style={{ ...S.mono9, color: "var(--text3)" }}>—</span>;
+  const needs = text.length > collapseAt;
   return (
     <div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text2)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-        {displayed}
-        {needsCollapse && !expanded ? "…" : ""}
+      <div style={{ ...S.mono10, color: "var(--text2)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+        {needs && !expanded ? text.slice(0, collapseAt) + "…" : text}
       </div>
-      {needsCollapse && (
-        <button
-          onClick={() => setExpanded((value) => !value)}
-          style={{ marginTop: 6, background: "transparent", border: "none", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", cursor: "pointer" }}
-        >
-          {expanded ? "collapse" : `show full (${(text.length / 1000).toFixed(1)}k chars)`}
+      {needs && (
+        <button onClick={() => setExpanded(v => !v)} style={{ marginTop: 4, background: "none", border: "none", ...S.mono9, color: "var(--text3)", cursor: "pointer" }}>
+          {expanded ? "collapse" : `show all (${(text.length / 1000).toFixed(1)}k)`}
         </button>
       )}
     </div>
   );
 };
 
-// ─── Diagnostics Cards ───────────────────────────────────────────────────────
+// ─── Scope Rail ───────────────────────────────────────────────────────────────
 
-const RuntimeIdentityCard = ({
-  session,
-  stats,
-  cycleState,
-  viewMode,
+const ScopeRail = ({
+  activeScope,
+  onScopeChange,
+  sessions,
+  focusedSessionId,
 }: {
-  session: SessionSummary | null;
-  stats: import("@/lib/types").DashboardStats | null;
-  cycleState: string;
-  viewMode: string;
-}) => (
-  <div style={S.card}>
-    <div style={S.cardTitle}>Runtime Identity</div>
-    <DataRow label="runtime" value="Electron / TypeScript" />
-    <DataRow label="session id" value={session?.id ?? <span style={{ color: "var(--text3)" }}>—</span>} />
-    <DataRow label="session" value={session?.name ?? <span style={{ color: "var(--text3)" }}>No session focused</span>} />
-    <DataRow label="status" value={session ? <StatusChip status={session.status} /> : <span style={{ color: "var(--text3)" }}>—</span>} mono={false} />
-    <DataRow label="mode" value={viewMode} />
-    <DataRow label="uptime" value={stats ? fmt.uptime(stats.session_uptime_min) : "—"} />
-    <DataRow label="cycle" value={
-      <span style={{ color: cycleState.startsWith("active") || cycleState.startsWith("step") ? "#00e5a0" : cycleState.startsWith("failed") ? "#ff4757" : "var(--text2)" }}>
-        {cycleState}
-      </span>
-    } />
-  </div>
-);
+  activeScope: ActiveScope;
+  onScopeChange: (scope: ActiveScope) => void;
+  sessions: SessionSummary[];
+  focusedSessionId: string | null;
+}) => {
+  const focused = sessions.find(s => s.id === focusedSessionId) ?? null;
+  const others = sessions.filter(s => s.id !== focusedSessionId && s.status !== "archived");
 
-const PhaseRuntimeMatrixCard = ({ strategy }: { strategy: { aiPhases?: PhaseRuntimeSummary[] } | null }) => (
-  <div style={S.card}>
-    <div style={S.cardTitle}>Phase Runtime Matrix</div>
-    {(strategy?.aiPhases?.length ?? 0) === 0 ? (
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>No phase runtime config loaded</div>
-    ) : (
-      (strategy?.aiPhases ?? []).map((phase) => (
-        <div key={phase.phase} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-            <span style={{ ...S.monoLabel, color: ROLE_COLOR[phase.phase] ?? "var(--text2)" }}>{phase.phase}</span>
-            <span style={{ ...S.monoValue, fontSize: 9 }}>{phase.workerOverrides.length} overrides</span>
-          </div>
-          <DataRow label="provider" value={phase.providerKey || "—"} />
-          <DataRow label="model" value={phase.modelId || "—"} />
-          <DataRow label="prompt" value={phase.promptSource} />
-        </div>
-      ))
-    )}
-  </div>
-);
-
-
-const ExecutionCard = ({ session, stats }: { session: SessionSummary | null; stats: import("@/lib/types").DashboardStats | null }) => (
-  <div style={S.card}>
-    <div style={S.cardTitle}>Execution</div>
-    <DataRow label="exec mode" value={session?.executionMode ?? "—"} />
-    <DataRow
-      label="search"
-      value={session ? getSearchProviderDisplayName(session.defaultSearchProviderId) : <span style={{ color: "var(--text3)" }}>workspace default</span>}
-    />
-    <DataRow label="open trades" value={stats?.open_trades ?? "—"} />
-    <DataRow label="daily spend" value={stats ? fmt.usd(stats.daily_api_spend, 4) : "—"} />
-    <DataRow label="selection" value={session?.selectionMode?.replace("_", " ") ?? "—"} />
-  </div>
-);
-
-const StreamCard = ({
-  events,
-  filtered,
-  streamHealthy,
-  lastEventAt,
-  onCopySnapshot,
-}: {
-  events: ExtEventRow[];
-  filtered: ExtEventRow[];
-  streamHealthy: boolean;
-  lastEventAt: string | null;
-  onCopySnapshot: () => void;
-}) => (
-  <div style={S.card}>
-    <div style={S.cardTitle}>Logging & Stream</div>
-    <DataRow label="stream" value={
-      <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-        <Dot color={streamHealthy ? "#00e5a0" : "#ffb733"} pulse={streamHealthy} size={5} />
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: streamHealthy ? "#00e5a0" : "#ffb733" }}>
-          {streamHealthy ? "live" : "delayed · polling fallback"}
-        </span>
-      </span>
-    } mono={false} />
-    <DataRow label="last event" value={lastEventAt ? fmt.time(lastEventAt) : "—"} />
-    <DataRow label="shown / total" value={`${filtered.length} / ${events.length}`} />
-    <DataRow label="db" value="SQLite · exva.db" />
-    <div style={{ marginTop: 4 }}>
-      <button
-        onClick={onCopySnapshot}
+  const RailItem = ({
+    scope,
+    label,
+    subLabel,
+    status,
+    icon,
+  }: {
+    scope: ActiveScope;
+    label: string;
+    subLabel?: string;
+    status?: string;
+    icon?: string;
+  }) => {
+    const isActive = activeScope.type === scope.type && activeScope.id === scope.id;
+    const c = isActive ? "var(--accent)" : "transparent";
+    return (
+      <div
+        onClick={() => onScopeChange(scope)}
         style={{
-          width: "100%", padding: "7px 0",
-          background: "var(--surface3)", border: "1px solid var(--border)",
-          borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700,
-          color: "var(--text3)", letterSpacing: "0.08em", textTransform: "uppercase",
-          cursor: "pointer", transition: "all 0.15s",
+          padding: "7px 12px 7px 14px",
+          borderLeft: `2px solid ${c}`,
+          background: isActive ? "rgba(77,166,255,0.07)" : "transparent",
+          cursor: "pointer",
+          transition: "all 0.1s",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
         }}
       >
-        Copy Diagnostics Snapshot
-      </button>
+        {icon && <span style={{ fontSize: 10, opacity: 0.5 }}>{icon}</span>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ ...S.mono10, color: isActive ? "var(--text1)" : "var(--text2)", fontWeight: isActive ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {label}
+          </div>
+          {subLabel && <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 1 }}>{subLabel}</div>}
+        </div>
+        {status && <StatusChip status={status} />}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{
+      width: 210,
+      flexShrink: 0,
+      background: "var(--surface)",
+      borderRight: "1px solid var(--border)",
+      display: "flex",
+      flexDirection: "column",
+      overflowY: "auto",
+    }}>
+      <div style={{ padding: "14px 12px 8px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+        <div style={{ ...S.mono9, fontWeight: 800, color: "var(--text3)", letterSpacing: "0.16em" }}>SCOPE</div>
+      </div>
+
+      <RailItem scope={{ type: "global" }} label="Global workspace" icon="◈" />
+
+      <div style={S.sectionTitle}>Session</div>
+      {focused ? (
+        <RailItem
+          scope={{ type: "session", id: focused.id, label: focused.name }}
+          label={focused.name}
+          subLabel="focused"
+          status={focused.status}
+        />
+      ) : (
+        <div style={{ padding: "6px 14px", ...S.mono9, color: "var(--text3)" }}>No focused session</div>
+      )}
+
+      {others.length > 0 && (
+        <>
+          <div style={S.sectionTitle}>Active sessions</div>
+          {others.slice(0, 6).map(s => (
+            <RailItem
+              key={s.id}
+              scope={{ type: "session", id: s.id, label: s.name }}
+              label={s.name}
+              status={s.status}
+            />
+          ))}
+        </>
+      )}
+
+      <div style={{ flex: 1 }} />
+      <div style={{ borderTop: "1px solid var(--border)", padding: "8px 0" }}>
+        <div style={{ ...S.mono9, color: "var(--text3)", padding: "4px 14px" }}>
+          {sessions.length} session{sessions.length !== 1 ? "s" : ""}
+        </div>
+      </div>
     </div>
+  );
+};
+
+// ─── Action Strip ─────────────────────────────────────────────────────────────
+
+const ActionStrip = ({
+  diagnostics,
+  diagnosticsLoading,
+  timeWindow,
+  setTimeWindow,
+  minLevel,
+  setMinLevel,
+  sourceFilters,
+  setSourceFilters,
+  effectiveLogLevel,
+  onSetLogLevel,
+  logLevelLoading,
+  activeScope,
+}: {
+  diagnostics: ScopeDiagnostics | null;
+  diagnosticsLoading: boolean;
+  timeWindow: TimeWindow;
+  setTimeWindow: (v: TimeWindow) => void;
+  minLevel: LogLevel;
+  setMinLevel: (v: LogLevel) => void;
+  sourceFilters: string[];
+  setSourceFilters: (v: string[]) => void;
+  effectiveLogLevel: string;
+  onSetLogLevel: (level: PinoLevel) => void;
+  logLevelLoading: boolean;
+  activeScope: ActiveScope;
+}) => {
+  const progress = diagnostics?.executionProgress;
+  const failedSteps = progress?.steps.filter(s => s.status === "failed") ?? [];
+  const retryableStep = failedSteps.find(s => s.retryable) ?? null;
+  const failedNonRetryable = failedSteps.find(s => !s.retryable) ?? null;
+
+  const qc = useQueryClient();
+
+  const retryMutation = useMutation({
+    mutationFn: async () => {
+      if (!retryableStep || !diagnostics?.session?.id || !progress?.cycleId) return;
+      return api.retrySessionStep({
+        sessionId: diagnostics.session.id,
+        cycleId: progress.cycleId!,
+        stage: retryableStep.stage,
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-diagnostics"] }),
+  });
+
+  const pauseMutation = useMutation({
+    mutationFn: async () => {
+      if (!diagnostics?.session?.id) return;
+      return api.pauseSessionAfterCurrentStep(diagnostics.session.id);
+    },
+  });
+
+  const clearMutation = useMutation({
+    mutationFn: async () => {
+      if (!failedNonRetryable || !diagnostics?.session?.id || !progress?.cycleId) return;
+      return api.clearFailedSessionStep({
+        sessionId: diagnostics.session.id,
+        cycleId: progress.cycleId!,
+        stage: failedNonRetryable.stage,
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-diagnostics"] }),
+  });
+
+  const sess = diagnostics?.session;
+  const canRetry = !!retryableStep && !!sess;
+  const canClear = !!failedNonRetryable && !!sess;
+  const canPause = sess?.status === "active";
+  const isSessionScope = activeScope.type === "session";
+
+  const StripBtn = ({
+    label,
+    disabled,
+    loading,
+    onClick,
+    color = "var(--text3)",
+  }: {
+    label: string;
+    disabled: boolean;
+    loading: boolean;
+    onClick: () => void;
+    color?: string;
+  }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled || loading}
+      style={{
+        display: "flex", alignItems: "center", gap: 5,
+        padding: "5px 10px",
+        background: disabled ? "transparent" : `${color}14`,
+        border: `1px solid ${disabled ? "var(--border)" : color + "44"}`,
+        borderRadius: 5, cursor: disabled ? "default" : "pointer",
+        ...S.mono9, fontWeight: 700, color: disabled ? "var(--text3)" : color,
+        opacity: disabled ? 0.4 : 1, transition: "all 0.12s",
+      }}
+    >
+      {loading && <Spinner />}
+      {label}
+    </button>
+  );
+
+  return (
+    <div style={{
+      background: "var(--surface2)",
+      borderBottom: "1px solid var(--border)",
+      padding: "8px 16px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 8,
+      flexShrink: 0,
+    }}>
+      {/* Row 1: Status + Controls */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        {/* Status cards */}
+        {diagnosticsLoading ? (
+          <div style={{ display: "flex", gap: 6 }}>
+            {[80, 60, 100].map((w, i) => (
+              <div key={i} style={{ width: w, height: 24, borderRadius: 5, background: "var(--surface3)" }} />
+            ))}
+          </div>
+        ) : diagnostics ? (
+          <>
+            <StatPill label="events" value={diagnostics.counts.events} />
+            <StatPill label="errors" value={diagnostics.counts.errors} color="#ff4757" />
+            <StatPill label="warns" value={diagnostics.counts.warnings} color="#ffb733" />
+            <StatPill label="runs" value={diagnostics.counts.agentRuns} />
+            <StatPill label="calls" value={diagnostics.counts.externalCalls} />
+            {diagnostics.counts.failedSteps > 0 && (
+              <StatPill label="failed steps" value={diagnostics.counts.failedSteps} color="#ff4757" />
+            )}
+          </>
+        ) : (
+          <span style={{ ...S.mono9, color: "var(--text3)" }}>—</span>
+        )}
+
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+          {/* Log level */}
+          <span style={S.label}>log</span>
+          <select
+            value={effectiveLogLevel}
+            onChange={e => onSetLogLevel(e.target.value as PinoLevel)}
+            disabled={logLevelLoading}
+            style={{
+              background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5,
+              padding: "3px 6px", ...S.mono9, color: "var(--text2)", cursor: "pointer",
+            }}
+          >
+            {LOG_LEVELS.map(l => (
+              <option key={l} value={l}>{l}</option>
+            ))}
+          </select>
+
+          {/* Time window */}
+          <span style={S.label}>window</span>
+          <div style={{ display: "flex", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, overflow: "hidden" }}>
+            {TIME_WINDOWS.map(tw => (
+              <button
+                key={tw.value}
+                onClick={() => setTimeWindow(tw.value)}
+                style={{
+                  padding: "4px 8px", border: "none",
+                  background: timeWindow === tw.value ? "rgba(77,166,255,0.18)" : "transparent",
+                  ...S.mono9, fontWeight: 700,
+                  color: timeWindow === tw.value ? "#4da6ff" : "var(--text3)",
+                  cursor: "pointer",
+                }}
+              >
+                {tw.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Source filters + step controls */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        {/* Level filter */}
+        <div style={{ display: "flex", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, overflow: "hidden" }}>
+          {LEVELS.map(l => (
+            <button
+              key={l}
+              onClick={() => setMinLevel(l)}
+              style={{
+                padding: "3px 8px", border: "none",
+                background: minLevel === l ? LEVEL_BG[l] : "transparent",
+                ...S.mono9, fontWeight: 700,
+                color: minLevel === l ? LEVEL_COLOR[l] : "var(--text3)",
+                cursor: "pointer",
+              }}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {/* Source filters */}
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {SOURCE_TYPES.map(src => {
+            const on = sourceFilters.includes(src) || sourceFilters.length === 0;
+            const c = ROLE_COLOR[src] ?? "var(--text2)";
+            return (
+              <button
+                key={src}
+                onClick={() => {
+                  if (sourceFilters.length === 0) {
+                    setSourceFilters(SOURCE_TYPES.filter(s => s !== src));
+                  } else if (sourceFilters.includes(src)) {
+                    const next = sourceFilters.filter(s => s !== src);
+                    setSourceFilters(next.length === SOURCE_TYPES.length - 1 && next.length > 0 ? [] : next);
+                  } else {
+                    const next = [...sourceFilters, src];
+                    setSourceFilters(next.length === SOURCE_TYPES.length ? [] : next);
+                  }
+                }}
+                style={{
+                  padding: "2px 7px", borderRadius: 4, cursor: "pointer",
+                  background: on ? `${c}18` : "transparent",
+                  border: `1px solid ${on ? c + "44" : "var(--border)"}`,
+                  ...S.mono9, fontWeight: 700,
+                  color: on ? c : "var(--text3)",
+                }}
+              >
+                {src}
+              </button>
+            );
+          })}
+        </div>
+
+        {isSessionScope && (
+          <>
+            <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 2px" }} />
+            <StripBtn
+              label="Retry Failed Step"
+              disabled={!canRetry}
+              loading={retryMutation.isPending}
+              onClick={() => retryMutation.mutate()}
+              color="#00e5a0"
+            />
+            <StripBtn
+              label="Pause After Step"
+              disabled={!canPause}
+              loading={pauseMutation.isPending}
+              onClick={() => pauseMutation.mutate()}
+              color="#ffb733"
+            />
+            <StripBtn
+              label="Clear Failed"
+              disabled={!canClear}
+              loading={clearMutation.isPending}
+              onClick={() => clearMutation.mutate()}
+              color="#ff4757"
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const StatPill = ({ label, value, color = "var(--text2)" }: { label: string; value: number; color?: string }) => (
+  <div style={{
+    display: "flex", alignItems: "center", gap: 4,
+    background: "var(--bg)", border: "1px solid var(--border)",
+    borderRadius: 5, padding: "3px 8px",
+  }}>
+    <span style={{ ...S.mono9, color: "var(--text3)" }}>{label}</span>
+    <span style={{ ...S.mono9, fontWeight: 800, color }}>{value}</span>
   </div>
 );
 
@@ -370,407 +664,318 @@ const StreamCard = ({
 
 const EventTimeline = ({
   events,
+  filtered,
   selectedId,
   onSelect,
-  minLevel,
-  setMinLevel,
-  roleFilter,
-  setRoleFilter,
   search,
   setSearch,
-  filtered,
+  loading,
+  hasMore,
+  onLoadMore,
+  queryMs,
 }: {
   events: ExtEventRow[];
+  filtered: ExtEventRow[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  minLevel: LogLevel;
-  setMinLevel: (l: LogLevel) => void;
-  roleFilter: RoleFilter;
-  setRoleFilter: (r: RoleFilter) => void;
   search: string;
   setSearch: (s: string) => void;
-  filtered: ExtEventRow[];
-}) => (
-  <div style={{
-    flex: 1, display: "flex", flexDirection: "column",
-    background: "var(--surface)", border: "1px solid var(--border)",
-    borderRadius: 12, overflow: "hidden", minWidth: 0,
-  }}>
-    {/* Toolbar */}
+  loading: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
+  queryMs?: number;
+}) => {
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  return (
     <div style={{
-      padding: "12px 14px", borderBottom: "1px solid var(--border)",
-      display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", flexShrink: 0,
-      background: "var(--surface2)",
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      background: "var(--surface)",
+      border: "1px solid var(--border)",
+      borderRadius: 10,
+      overflow: "hidden",
+      minWidth: 0,
     }}>
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search events, errors, trade IDs, cycle IDs…"
-        style={{
-          background: "var(--bg)", border: "1px solid var(--border)",
-          borderRadius: 6, padding: "6px 11px", color: "var(--text1)",
-          fontSize: 11, outline: "none", fontFamily: "var(--font-mono)", width: 280,
-        }}
-      />
-      {/* Level filters */}
-      <div style={{ display: "flex", background: "var(--bg)", borderRadius: 6, border: "1px solid var(--border)", overflow: "hidden" }}>
-        {LEVELS.map((l) => (
-          <button
-            key={l}
-            onClick={() => setMinLevel(l)}
-            style={{
-              padding: "5px 9px", fontSize: 10, cursor: "pointer",
-              background: minLevel === l ? LEVEL_BG[l] : "transparent",
-              border: "none",
-              color: minLevel === l ? LEVEL_COLOR[l] : "var(--text3)",
-              fontFamily: "var(--font-mono)", fontWeight: 700, letterSpacing: "0.05em",
-              transition: "all 0.12s",
-            }}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
-      {/* Role filters */}
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-        {(["all", "selector", "technical", "fundamental", "review", "decision"] as RoleFilter[]).map((r) => (
-          <button
-            key={r}
-            onClick={() => setRoleFilter(r)}
-            style={{
-              padding: "4px 8px", fontSize: 9, borderRadius: 5, cursor: "pointer",
-              background: roleFilter === r ? "var(--surface3)" : "transparent",
-              border: `1px solid ${roleFilter === r ? "var(--text3)" : "var(--border)"}`,
-              color: roleFilter === r
-                ? ROLE_COLOR[r] ?? "var(--text2)"
-                : "var(--text3)",
-              fontFamily: "var(--font-mono)", fontWeight: 700,
-              letterSpacing: "0.06em", textTransform: "uppercase",
-              transition: "all 0.12s",
-            }}
-          >
-            {roleLabelShort(r)}
-          </button>
-        ))}
-      </div>
-      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
-        <Dot color={filtered.length > 0 ? "#00e5a0" : "var(--text3)"} size={5} />
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>
-          {filtered.length} / {events.length}
-        </span>
-      </div>
-    </div>
-
-    {/* Rows */}
-    <div style={{ flex: 1, overflowY: "auto" }}>
-      {filtered.map((ev) => {
-        const isSelected = ev.id === selectedId;
-        const lc = LEVEL_COLOR[ev.level];
-        return (
-          <div
-            key={ev.id}
-            onClick={() => onSelect(ev.id)}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "46px 46px auto 1fr",
-              gap: 0,
-              padding: "8px 14px",
-              cursor: "pointer",
-              background: isSelected ? "var(--surface2)" : "transparent",
-              borderBottom: "1px solid rgba(255,255,255,0.025)",
-              borderLeft: `2px solid ${isSelected ? lc : lc + "44"}`,
-              transition: "background 0.1s",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>
-              {fmt.time(ev.created_at)}
-            </span>
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 800,
-              color: lc, letterSpacing: "0.05em",
-            }}>
-              {ev.level}
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, paddingRight: 10 }}>
-              {ev.agent_type && <AgentLabel type={ev.agent_type} />}
-              {(ev as ExtEventRow).trade_id && (
-                <span style={{
-                  fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--text3)",
-                  background: "var(--surface3)", borderRadius: 4, padding: "1px 5px",
-                }}>
-                  {String((ev as ExtEventRow).trade_id).slice(0, 8)}…
-                </span>
-              )}
-              {(ev as ExtEventRow).cycle_id && (
-                <span style={{
-                  fontSize: 9, fontFamily: "var(--font-mono)", color: "var(--text3)",
-                  background: "var(--surface3)", borderRadius: 4, padding: "1px 5px",
-                }}>
-                  cyc·{String((ev as ExtEventRow).cycle_id).slice(0, 6)}
-                </span>
-              )}
-            </div>
-            <span style={{ fontSize: 11, color: isSelected ? "var(--text1)" : "var(--text2)", lineHeight: 1.45, minWidth: 0 }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4da6ff", marginRight: 6, fontWeight: 700 }}>
-                [{summarizeEventAction(ev)}]
-              </span>
-              {ev.message}
-            </span>
-          </div>
-        );
-      })}
-      {filtered.length === 0 && (
-        <div style={{ padding: "56px 24px", textAlign: "center" }}>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text3)" }}>
-            {events.length === 0 ? "No developer events yet" : "No events match these filters"}
-          </div>
-        </div>
-      )}
-    </div>
-  </div>
-);
-
-// ─── Inspector ────────────────────────────────────────────────────────────────
-
-const EventDetailTab = ({ ev }: { ev: ExtEventRow }) => {
-  const copyPayload = JSON.stringify(ev, null, 2);
-  return (
-    <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{
-          fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 800,
-          color: LEVEL_COLOR[ev.level], letterSpacing: "0.06em",
-          background: LEVEL_BG[ev.level], padding: "3px 7px", borderRadius: 4,
-        }}>
-          {ev.level}
-        </span>
-        {ev.agent_type && <AgentLabel type={ev.agent_type} />}
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4da6ff", background: "rgba(77,166,255,0.1)", padding: "3px 7px", borderRadius: 4, fontWeight: 700 }}>
-          {summarizeEventAction(ev)}
-        </span>
-        <div style={{ marginLeft: "auto" }}>
-          <CopyButton text={copyPayload} label="copy event" />
-        </div>
-      </div>
-
-      {/* Timestamp */}
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>
-        {ev.created_at.replace("T", " ").replace("Z", " UTC")}
-      </div>
-
-      {/* Identity block */}
-      <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 7 }}>
-        {ev.session_id && <DataRow label="session" value={ev.session_id} />}
-        {ev.trade_id && <DataRow label="trade" value={ev.trade_id} />}
-        {ev.cycle_id && <DataRow label="cycle" value={ev.cycle_id} />}
-        {ev.agent_type && <DataRow label="source" value={ev.agent_type} />}
-      </div>
-
-      {/* Message */}
-      <div style={{ fontSize: 12, color: "var(--text1)", lineHeight: 1.6, padding: "10px 12px", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8 }}>
-        {ev.message}
-      </div>
-
-      {/* Linked counts */}
-      {(ev.trade_id || ev.cycle_id) && (
-        <div style={{ display: "flex", gap: 6 }}>
-          {ev.trade_id && (
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", background: "var(--surface3)", borderRadius: 4, padding: "3px 7px" }}>
-              has trade
-            </span>
-          )}
-          {ev.cycle_id && (
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", background: "var(--surface3)", borderRadius: 4, padding: "3px 7px" }}>
-              has cycle
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const AgentRunsTab = ({ runs, loading }: { runs: ExtAgentRun[]; loading: boolean }) => {
-  const totalTokens = runs.reduce((s, r) => s + r.input_tokens + r.output_tokens, 0);
-  const totalCost = runs.reduce((s, r) => s + r.cost_usd, 0);
-  const totalDuration = runs.reduce((s, r) => s + r.duration_ms, 0);
-
-  if (loading) return (
-    <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-      loading runs…
-    </div>
-  );
-
-  if (runs.length === 0) return (
-    <div style={{ padding: "32px 16px", textAlign: "center" }}>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-        No agent run was recorded for this failure.
-      </div>
-      <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)", marginTop: 6 }}>
-        This error occurred before AI execution.
-      </div>
-    </div>
-  );
-
-  return (
-    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-      {/* Summary bar */}
+      {/* Search bar */}
       <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr",
-        gap: 8, background: "var(--bg)", border: "1px solid var(--border)",
-        borderRadius: 7, padding: "8px 12px",
+        padding: "8px 12px",
+        borderBottom: "1px solid var(--border)",
+        background: "var(--surface2)",
+        display: "flex",
+        gap: 8,
+        alignItems: "center",
+        flexShrink: 0,
       }}>
-        {[
-          ["runs", runs.length.toString()],
-          ["tokens", fmt.tokens(totalTokens)],
-          ["cost", fmt.usd(totalCost, 4)],
-          ["duration", fmt.duration(totalDuration)],
-        ].map(([label, value]) => (
-          <div key={label} style={{ textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{label}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--text1)", fontWeight: 700, marginTop: 2 }}>{value}</div>
-          </div>
-        ))}
+        <input
+          ref={searchRef}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search message, id, symbol, provider, error…"
+          style={{
+            flex: 1, background: "var(--bg)", border: "1px solid var(--border)",
+            borderRadius: 5, padding: "5px 10px",
+            ...S.mono10, color: "var(--text1)", outline: "none",
+          }}
+        />
+        {loading && <Spinner />}
+        <span style={{ ...S.mono9, color: "var(--text3)", flexShrink: 0 }}>
+          {filtered.length}/{events.length}
+          {queryMs != null && <> · {queryMs}ms</>}
+        </span>
       </div>
 
-      {runs.map((r) => {
-        const accent = ROLE_COLOR[r.agent_type] ?? "var(--text3)";
-        const copyPayload = JSON.stringify(r, null, 2);
+      {/* Event rows */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {loading && events.length === 0 && (
+          Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
+        )}
+
+        {!loading && filtered.length === 0 && (
+          <div style={{ padding: "48px 24px", textAlign: "center" }}>
+            <div style={{ ...S.mono10, color: "var(--text3)" }}>
+              {events.length === 0
+                ? "No developer events have been recorded yet."
+                : "No events match these filters."}
+            </div>
+            {events.length === 0 && (
+              <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 6 }}>
+                Start a session or run a diagnostic to create events.
+              </div>
+            )}
+          </div>
+        )}
+
+        {filtered.map((ev) => {
+          const sel = ev.id === selectedId;
+          const lc = LEVEL_COLOR[ev.level];
+          const rc = ROLE_COLOR[ev.agent_type ?? ""] ?? "var(--text3)";
+          return (
+            <div
+              key={ev.id}
+              onClick={() => onSelect(ev.id)}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "50px 44px 110px 1fr",
+                padding: "7px 14px",
+                cursor: "pointer",
+                background: sel ? "var(--surface2)" : "transparent",
+                borderBottom: "1px solid rgba(255,255,255,0.022)",
+                borderLeft: `2px solid ${sel ? lc : lc + "44"}`,
+                transition: "background 0.08s",
+                alignItems: "baseline",
+                gap: 0,
+              }}
+            >
+              <span style={{ ...S.mono9, color: "var(--text3)" }}>
+                {fmt.time(ev.created_at)}
+              </span>
+              <span style={{ ...S.mono9, fontWeight: 800, color: lc, letterSpacing: "0.05em" }}>
+                {ev.level}
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {ev.agent_type && (
+                  <span style={{
+                    ...S.mono9, fontWeight: 700, color: rc,
+                    background: `${rc}18`, borderRadius: 3, padding: "1px 5px",
+                  }}>
+                    {ev.agent_type}
+                  </span>
+                )}
+                {ev.cycle_id && (
+                  <span style={{ ...S.mono9, color: "var(--text3)", background: "var(--surface3)", borderRadius: 3, padding: "1px 4px" }}>
+                    cyc·{String(ev.cycle_id).slice(0, 5)}
+                  </span>
+                )}
+              </div>
+              <span style={{ ...S.mono10, color: sel ? "var(--text1)" : "var(--text2)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ ...S.mono9, color: "#4da6ff40", marginRight: 5 }}>
+                  [{summarizeEventSource(ev)}]
+                </span>
+                {ev.message}
+              </span>
+            </div>
+          );
+        })}
+
+        {hasMore && (
+          <div style={{ padding: "12px 14px", display: "flex", justifyContent: "center" }}>
+            <button
+              onClick={onLoadMore}
+              style={{
+                padding: "6px 16px",
+                background: "var(--surface3)", border: "1px solid var(--border)",
+                borderRadius: 5, ...S.mono9, fontWeight: 700, color: "var(--text2)",
+                cursor: "pointer",
+              }}
+            >
+              Load more
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Inspector Tabs ───────────────────────────────────────────────────────────
+
+const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
+  if (!diag) return <EmptyState msg="Select a scope to inspect diagnostics." />;
+  const sess = diag.session;
+  return (
+    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <SectionCard title="Scope">
+        <DataRow label="scope" value={diag.scopeLabel} />
+        {sess && (
+          <>
+            <DataRow label="session" value={sess.name} />
+            <DataRow label="status" value={<StatusChip status={sess.status} />} mono={false} />
+            <DataRow label="mode" value={sess.executionMode} />
+            <DataRow label="cycle" value={diag.activeCycleId ?? "—"} />
+          </>
+        )}
+      </SectionCard>
+      <SectionCard title="Counts">
+        <DataRow label="events" value={diag.counts.events} />
+        <DataRow label="errors" value={<span style={{ color: diag.counts.errors > 0 ? "#ff4757" : "var(--text2)" }}>{diag.counts.errors}</span>} mono={false} />
+        <DataRow label="warnings" value={<span style={{ color: diag.counts.warnings > 0 ? "#ffb733" : "var(--text2)" }}>{diag.counts.warnings}</span>} mono={false} />
+        <DataRow label="agent runs" value={diag.counts.agentRuns} />
+        <DataRow label="ext calls" value={diag.counts.externalCalls} />
+        <DataRow label="failed steps" value={<span style={{ color: diag.counts.failedSteps > 0 ? "#ff4757" : "var(--text2)" }}>{diag.counts.failedSteps}</span>} mono={false} />
+      </SectionCard>
+      {diag.latestError && (
+        <SectionCard title="Latest Error">
+          <div style={{ ...S.mono9, color: "#ff4757", lineHeight: 1.5 }}>{diag.latestError.message}</div>
+          <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 4 }}>{fmt.time(diag.latestError.createdAt)}</div>
+        </SectionCard>
+      )}
+    </div>
+  );
+};
+
+const ExecutionTab = ({
+  diag,
+  sessionId,
+}: {
+  diag: ScopeDiagnostics | null;
+  sessionId: string | null | undefined;
+}) => {
+  const steps = diag?.executionProgress?.steps ?? [];
+  if (!sessionId || steps.length === 0) return <EmptyState msg="No execution steps found for this scope." />;
+  return (
+    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+      {diag?.executionProgress?.cycleId && (
+        <div style={{ ...S.mono9, color: "var(--text3)", marginBottom: 4 }}>
+          Cycle: {diag.executionProgress.cycleId}
+        </div>
+      )}
+      {steps.map(step => {
+        const c = step.status === "succeeded" ? "#00e5a0"
+          : step.status === "failed" ? "#ff4757"
+          : step.status === "running" ? "#4da6ff"
+          : "var(--text3)";
         return (
-          <RunCard key={r.id} run={r} accent={accent} copyPayload={copyPayload} />
+          <div key={step.stage} style={{
+            background: "var(--bg)", border: `1px solid ${c}40`,
+            borderRadius: 6, padding: "8px 10px",
+            borderLeft: `2px solid ${c}`,
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+              <span style={{ ...S.mono9, fontWeight: 800, color: c }}>{step.stage}</span>
+              <span style={{ ...S.mono9, color: c }}>{step.status}</span>
+            </div>
+            {step.attempt > 0 && <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 4 }}>attempt {step.attempt}</div>}
+            {step.lastErrorMessage && (
+              <div style={{ ...S.mono9, color: "#ff4757", marginTop: 4, lineHeight: 1.5 }}>{step.lastErrorMessage}</div>
+            )}
+            {step.nextRetryAt && (
+              <div style={{ ...S.mono9, color: "#ffb733", marginTop: 2 }}>retry at {fmt.time(step.nextRetryAt)}</div>
+            )}
+          </div>
         );
       })}
     </div>
   );
 };
 
-const RunCard = ({ run, accent, copyPayload }: { run: ExtAgentRun; accent: string; copyPayload: string }) => {
+const AITraceTab = ({ runs, loading }: { runs: ExtAgentRun[]; loading: boolean }) => {
+  if (loading) return <EmptyState msg="Loading agent runs…" />;
+  if (runs.length === 0) return <EmptyState msg="No agent runs for this selection." />;
+
+  const total = { tokens: 0, cost: 0, ms: 0 };
+  runs.forEach(r => { total.tokens += r.input_tokens + r.output_tokens; total.cost += r.cost_usd; total.ms += r.duration_ms; });
+
+  return (
+    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+        {[["runs", String(runs.length)], ["tokens", fmt.tokens(total.tokens)], ["cost", fmt.usd(total.cost, 4)]].map(([l, v]) => (
+          <div key={l} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, padding: "6px 8px", textAlign: "center" }}>
+            <div style={{ ...S.mono9, color: "var(--text3)" }}>{l}</div>
+            <div style={{ ...S.mono10, fontWeight: 700, color: "var(--text1)", marginTop: 2 }}>{v}</div>
+          </div>
+        ))}
+      </div>
+      {runs.map(r => {
+        const accent = ROLE_COLOR[r.agent_type] ?? "var(--text3)";
+        return <RunCard key={r.id} run={r} accent={accent} />;
+      })}
+    </div>
+  );
+};
+
+const RunCard = ({ run, accent }: { run: ExtAgentRun; accent: string }) => {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ border: `1px solid var(--border)`, borderRadius: 8, overflow: "hidden", borderLeft: `2px solid ${accent}` }}>
-      <div
-        onClick={() => setOpen(!open)}
-        style={{
-          padding: "9px 12px", background: "var(--surface2)",
-          display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
-        }}
-      >
+    <div style={{ border: "1px solid var(--border)", borderRadius: 7, overflow: "hidden", borderLeft: `2px solid ${accent}` }}>
+      <div onClick={() => setOpen(v => !v)} style={{ padding: "8px 10px", background: "var(--surface2)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
         <AgentLabel type={run.agent_type as EventSourceType} />
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>
-          {run.provider_key} · {run.model}
-        </span>
+        <span style={{ ...S.mono9, color: "var(--text3)" }}>{run.provider_key} · {run.model}</span>
         <span style={{
-          fontSize: 9, fontFamily: "var(--font-mono)", padding: "2px 6px",
-          borderRadius: 4, background: run.finish_reason === "stop" ? "rgba(0,229,160,0.1)" : "rgba(255,71,87,0.1)",
+          ...S.mono9, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
+          background: run.finish_reason === "stop" ? "rgba(0,229,160,0.1)" : "rgba(255,71,87,0.1)",
           color: run.finish_reason === "stop" ? "#00e5a0" : "#ff4757",
-          border: `1px solid ${run.finish_reason === "stop" ? "#00e5a030" : "#ff475730"}`,
         }}>
           {run.finish_reason}
         </span>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ ...S.mono9, color: "var(--text3)" }}>
             {fmt.tokens(run.input_tokens + run.output_tokens)} · {fmt.usd(run.cost_usd, 4)} · {fmt.duration(run.duration_ms)}
           </span>
-          <CopyButton text={copyPayload} label="copy run" />
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)" }}>{open ? "▲" : "▼"}</span>
+          <CopyBtn text={JSON.stringify(run, null, 2)} label="copy" />
+          <span style={{ ...S.mono9, color: "var(--text3)" }}>{open ? "▲" : "▼"}</span>
         </div>
       </div>
       {open && (
-        <div style={{ padding: "10px 12px", borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
+        <div style={{ padding: "10px 12px", background: "var(--bg)", borderTop: "1px solid var(--border)" }}>
           <CollapsibleText text={run.output_text ? `"${run.output_text}"` : null} />
-          {run.cycle_id && (
-            <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>
-              cycle: {run.cycle_id}
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 };
 
-const DecisionSummary = ({ outputJson }: { outputJson: string | null }) => {
-  const decision = parseJsonSafe(outputJson) as {
-    action?: string;
-    instrumentSymbol?: string;
-    reasoning?: string;
-    confidence?: number;
-    side?: string;
-    sizeUsd?: number;
-  } | null;
-
-  if (!decision) return null;
-
-  const isNoTrade = decision.action === "no_trade";
-  const accent = isNoTrade ? "#ff4757" : "#00e5a0";
-
+const TraceTab = ({ messages, loading }: { messages: AgentMessage[]; loading: boolean }) => {
+  if (loading) return <EmptyState msg="Loading message trace…" />;
+  if (messages.length === 0) return <EmptyState msg="No message trace recorded." />;
   return (
-    <div style={{
-      background: isNoTrade ? "rgba(255,71,87,0.06)" : "rgba(0,229,160,0.06)",
-      border: `1px solid ${isNoTrade ? "rgba(255,71,87,0.2)" : "rgba(0,229,160,0.2)"}`,
-      borderRadius: 7,
-      padding: "10px 12px",
-      marginBottom: 10,
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 800, color: accent, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-          {isNoTrade ? "No Trade" : `Trade${decision.side ? ` - ${decision.side}` : ""}`}
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {decision.instrumentSymbol && <span style={{ ...S.monoValue, fontSize: 9 }}>{decision.instrumentSymbol}</span>}
-          {decision.confidence != null && <span style={{ ...S.monoValue, fontSize: 9 }}>confidence {(decision.confidence * 100).toFixed(0)}%</span>}
-          {decision.sizeUsd != null && <span style={{ ...S.monoValue, fontSize: 9 }}>{fmt.usd(decision.sizeUsd)}</span>}
-        </div>
-      </div>
-      {decision.reasoning && <CollapsibleText text={decision.reasoning} collapseAt={1200} />}
-    </div>
-  );
-};
-
-const MessageTraceTab = ({ messages, loading }: { messages: AgentMessage[]; loading: boolean }) => {
-  if (loading) return (
-    <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-      loading trace…
-    </div>
-  );
-  if (messages.length === 0) return (
-    <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-      No message trace recorded
-    </div>
-  );
-  return (
-    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
-      {messages.map((m) => {
-        const fullPayload = JSON.stringify(m, null, 2);
+    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {messages.map(m => {
+        const c = ROLE_COLOR[m.role] ?? "var(--text3)";
         return (
-          <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", borderLeft: `2px solid ${ROLE_COLOR[m.role] ?? "var(--text3)"}` }}>
-            <div style={{ padding: "8px 12px", background: "var(--surface2)", display: "flex", alignItems: "center", gap: 8 }}>
+          <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 7, overflow: "hidden", borderLeft: `2px solid ${c}` }}>
+            <div style={{ padding: "7px 10px", background: "var(--surface2)", display: "flex", alignItems: "center", gap: 6 }}>
               <AgentLabel type={m.role as EventSourceType} />
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>
-                {m.provider_key} · {m.model_id}
-              </span>
-              {m.output_schema_name && (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4da6ff" }}>
-                  {m.output_schema_name}
-                </span>
-              )}
-              {m.parse_fallback && (
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#ffb733", background: "rgba(255,183,51,0.1)", padding: "2px 5px", borderRadius: 3 }}>
-                  parse fallback
-                </span>
-              )}
-              <div style={{ marginLeft: "auto" }}>
-                <CopyButton text={fullPayload} label="copy trace" />
-              </div>
+              <span style={{ ...S.mono9, color: "var(--text3)" }}>{m.provider_key} · {m.model_id}</span>
+              {m.output_schema_name && <span style={{ ...S.mono9, color: "#4da6ff" }}>{m.output_schema_name}</span>}
+              {m.parse_fallback && <span style={{ ...S.mono9, color: "#ffb733", background: "rgba(255,183,51,0.1)", padding: "1px 4px", borderRadius: 3 }}>parse fallback</span>}
+              <div style={{ marginLeft: "auto" }}><CopyBtn text={JSON.stringify(m, null, 2)} /></div>
             </div>
             <div style={{ padding: "10px 12px", background: "var(--bg)" }}>
-              {m.output_schema_name === "tradeDecision" && <DecisionSummary outputJson={m.output_json} />}
               <JsonBlock data={m.output_json} label="output" />
               <JsonBlock data={m.tool_calls_json} label="tool calls" />
               <JsonBlock data={m.thinking_json} label="thinking" />
-              <JsonBlock data={m.messages_json} label="prompt messages" />
             </div>
           </div>
         );
@@ -780,55 +985,31 @@ const MessageTraceTab = ({ messages, loading }: { messages: AgentMessage[]; load
 };
 
 const PhaseGraphTab = ({ messages, loading }: { messages: AgentMessage[]; loading: boolean }) => {
-  const traces = messages
-    .map((message) => ({ message, trace: parsePhaseTrace(message) }))
-    .filter((entry): entry is { message: AgentMessage; trace: PhaseTraceV1 } => entry.trace != null);
-
-  if (loading) return (
-    <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-      loading phase graph…
-    </div>
-  );
-
-  if (traces.length === 0) return (
-    <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-      graph metadata unavailable
-    </div>
-  );
-
+  const traces = messages.map(m => ({ m, t: parsePhaseTrace(m) })).filter((x): x is { m: AgentMessage; t: PhaseTraceV1 } => x.t != null);
+  if (loading) return <EmptyState msg="Loading phase graph…" />;
+  if (traces.length === 0) return <EmptyState msg="Phase graph metadata unavailable." />;
   return (
-    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
-      {traces.map(({ message, trace }) => (
-        <div key={message.id} style={{ border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-          <div style={{ padding: "8px 12px", background: "var(--surface2)", display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ ...S.monoLabel, color: ROLE_COLOR[trace.phase] ?? "var(--text2)" }}>{trace.phase}</span>
-              <span style={{ ...S.monoValue, fontSize: 9 }}>{trace.schedulingMode}</span>
-              <span style={{ ...S.monoValue, fontSize: 9 }}>{trace.frontiers.length} frontiers</span>
-              <span style={{ ...S.monoValue, fontSize: 9 }}>{trace.workers.length} workers</span>
+    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {traces.map(({ m, t }) => (
+        <div key={m.id} style={{ border: "1px solid var(--border)", borderRadius: 7, overflow: "hidden" }}>
+          <div style={{ padding: "7px 10px", background: "var(--surface2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ ...S.mono9, fontWeight: 800, color: ROLE_COLOR[t.phase] ?? "var(--text2)" }}>{t.phase}</span>
+              <span style={{ ...S.mono9, color: "var(--text3)" }}>{t.schedulingMode}</span>
+              <span style={{ ...S.mono9, color: "var(--text3)" }}>{t.frontiers.length} frontiers · {t.workers.length} workers</span>
             </div>
-            <CopyButton text={JSON.stringify(trace, null, 2)} label="copy graph" />
+            <CopyBtn text={JSON.stringify(t, null, 2)} />
           </div>
-          <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {trace.frontiers.map((frontier) => (
-                <div key={frontier.frontier} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 8px", minWidth: 120 }}>
-                  <div style={{ ...S.monoLabel, fontSize: 8 }}>frontier {frontier.frontier}</div>
-                  <div style={{ ...S.monoValue, fontSize: 9 }}>{frontier.workerIds.join(", ")}</div>
+          <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8, background: "var(--bg)" }}>
+            {t.workers.map(w => (
+              <div key={w.workerId} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 5, padding: "7px 9px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                  <span style={{ ...S.mono9, fontWeight: 800, color: ROLE_COLOR[t.phase] ?? "var(--text2)" }}>{w.workerId}</span>
+                  <span style={{ ...S.mono9, color: "var(--text3)" }}>{w.status}</span>
                 </div>
-              ))}
-            </div>
-            {trace.workers.map((worker) => (
-              <div key={worker.workerId} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                  <span style={{ ...S.monoLabel, color: ROLE_COLOR[trace.phase] ?? "var(--text2)" }}>{worker.workerId}</span>
-                  <span style={{ ...S.monoValue, fontSize: 9 }}>{worker.status}</span>
-                </div>
-                <DataRow label="depends on" value={worker.dependsOn.length ? worker.dependsOn.join(", ") : "—"} />
-                <DataRow label="model" value={`${worker.providerKey} · ${worker.modelId}`} />
-                <DataRow label="cost/dur" value={`${fmt.usd(worker.costUsd ?? 0, 4)} · ${fmt.duration(worker.durationMs ?? 0)}`} />
-                <DataRow label="tools" value={`${worker.toolCallCount} calls`} />
-                {worker.dependencyFailureReason && <DataRow label="dep fail" value={worker.dependencyFailureReason} />}
+                <DataRow label="model" value={`${w.providerKey} · ${w.modelId}`} />
+                <DataRow label="cost/dur" value={`${fmt.usd(w.costUsd ?? 0, 4)} · ${fmt.duration(w.durationMs ?? 0)}`} />
+                {w.dependsOn.length > 0 && <DataRow label="deps" value={w.dependsOn.join(", ")} />}
               </div>
             ))}
           </div>
@@ -838,83 +1019,45 @@ const PhaseGraphTab = ({ messages, loading }: { messages: AgentMessage[]; loadin
   );
 };
 
-const ExternalCallsTab = ({
-  sessionId,
-  cycleId,
-  tradeId,
-}: {
-  sessionId: string | null | undefined;
-  cycleId: string | null | undefined;
-  tradeId: string | null | undefined;
-}) => {
-  const { data: calls = [], isLoading: loading } = useQuery({
-    queryKey: ["api-call-log", sessionId, cycleId, tradeId],
-    queryFn: () => api.getApiCallLog({ sessionId: sessionId ?? "", cycleId: cycleId ?? null, tradeId: tradeId ?? null }),
+const ExternalCallsTab = ({ sessionId, cycleId, tradeId }: { sessionId?: string | null; cycleId?: string | null; tradeId?: string | null }) => {
+  const { data: calls = [], isLoading } = useQuery({
+    queryKey: ["api-calls", sessionId, cycleId, tradeId],
+    queryFn: () => api.getApiCallLog({ sessionId: sessionId!, cycleId: cycleId ?? null, tradeId: tradeId ?? null }),
     enabled: !!sessionId,
   });
-
-  if (loading) {
-    return (
-      <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-        loading external calls…
-      </div>
-    );
-  }
-
-  if (!sessionId) {
-    return (
-      <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-        No session scope available for external call lookup.
-      </div>
-    );
-  }
-
-  if (calls.length === 0) {
-    return (
-      <div style={{ padding: "32px 16px", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)" }}>
-        No external API calls recorded for this selection.
-      </div>
-    );
-  }
-
+  if (!sessionId) return <EmptyState msg="Select a session-scoped event to see external calls." />;
+  if (isLoading) return <EmptyState msg="Loading external calls…" />;
+  if (calls.length === 0) return <EmptyState msg="No external API calls recorded." />;
   return (
-    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-      {calls.map((call) => {
-        const ok = call.status === "ok";
-        return (
-          <div key={call.id} style={{ border: "1px solid var(--border)", borderRadius: 6, padding: "8px 10px", background: "var(--bg)" }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: ok ? "#00e5a0" : "#ff4757" }}>
-                {call.status.toUpperCase()}
-              </span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text2)" }}>{call.provider}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{call.call_type}</span>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{call.latency_ms}ms</span>
-              {call.credits_used != null && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{call.credits_used} credits</span>}
-              {call.cost_usd != null && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)" }}>{fmt.usd(call.cost_usd, 4)}</span>}
-              {call.from_cache && <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "#4da6ff" }}>cache</span>}
-            </div>
-            <div style={{ marginTop: 6, fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", wordBreak: "break-all" }}>
-              {call.endpoint}
-            </div>
+    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+      {calls.map(c => (
+        <div key={c.id} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, padding: "7px 9px" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ ...S.mono9, fontWeight: 700, color: c.status === "ok" ? "#00e5a0" : "#ff4757" }}>{c.status.toUpperCase()}</span>
+            <span style={{ ...S.mono9, color: "var(--text2)" }}>{c.provider}</span>
+            <span style={{ ...S.mono9, color: "var(--text3)" }}>{c.call_type}</span>
+            <span style={{ ...S.mono9, color: "var(--text3)" }}>{c.latency_ms}ms</span>
+            {c.cost_usd != null && <span style={{ ...S.mono9, color: "var(--text3)" }}>{fmt.usd(c.cost_usd, 4)}</span>}
+            {c.from_cache && <span style={{ ...S.mono9, color: "#4da6ff" }}>cached</span>}
           </div>
-        );
-      })}
+          <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 4, wordBreak: "break-all" }}>{c.endpoint}</div>
+        </div>
+      ))}
     </div>
   );
 };
 
-const RawJsonTab = ({ ev }: { ev: ExtEventRow }) => {
+const RawTab = ({ ev }: { ev: ExtEventRow }) => {
   const pretty = JSON.stringify(ev, null, 2);
   return (
     <div style={{ padding: "12px 14px" }}>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
-        <CopyButton text={pretty} label="copy raw" />
+        <CopyBtn text={pretty} label="copy raw" />
       </div>
       <pre style={{
-        background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8,
-        padding: "12px 14px", fontFamily: "var(--font-mono)", fontSize: 10,
-        color: "var(--text2)", lineHeight: 1.65, overflowX: "auto", whiteSpace: "pre-wrap",
+        background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 7,
+        padding: "10px 12px", ...S.mono9, color: "var(--text2)", lineHeight: 1.65,
+        overflowX: "auto", whiteSpace: "pre-wrap",
       }}>
         {pretty}
       </pre>
@@ -928,76 +1071,353 @@ const InspectorPanel = ({
   selMessages,
   runsLoading,
   messagesLoading,
+  diagnostics,
+  activeScope,
 }: {
   sel: ExtEventRow | null;
   selRuns: ExtAgentRun[];
   selMessages: AgentMessage[];
   runsLoading: boolean;
   messagesLoading: boolean;
+  diagnostics: ScopeDiagnostics | null;
+  activeScope: ActiveScope;
 }) => {
-  const [tab, setTab] = useState<InspectorTab>("event");
+  const [tab, setTab] = useState<InspectorTab>("overview");
 
-  const TAB_CONFIG: Array<{ id: InspectorTab; label: string }> = [
-    { id: "event", label: "Event" },
-    { id: "runs", label: `Runs${selRuns.length ? ` (${selRuns.length})` : ""}` },
-    { id: "graph", label: "Phase Graph" },
-    { id: "trace", label: `Trace${selMessages.length ? ` (${selMessages.length})` : ""}` },
+  const TABS: Array<{ id: InspectorTab; label: string }> = [
+    { id: "overview", label: "Overview" },
+    { id: "execution", label: "Execution" },
+    { id: "trace", label: `AI Trace${selRuns.length > 0 ? ` (${selRuns.length})` : ""}` },
+    { id: "graph", label: "Graph" },
     { id: "calls", label: "External" },
     { id: "raw", label: "Raw" },
   ];
 
-  if (!sel) {
-    return (
-      <div style={{ padding: "20px 18px" }}>
-        <div style={{ ...S.cardTitle, marginBottom: 16 }}>Inspector</div>
-        <div style={{
-          padding: "18px 16px", background: "var(--bg)", border: "1px solid var(--border)",
-          borderRadius: 8, fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text3)",
-          lineHeight: 1.6, textAlign: "center",
-        }}>
-          Select an event, cycle, trade, or run
-          <br />to inspect full trace data
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Tabs */}
-      <div style={{
-        display: "flex", borderBottom: "1px solid var(--border)",
-        background: "var(--surface2)", flexShrink: 0,
-      }}>
-        {TAB_CONFIG.map(({ id, label }) => (
+    <div style={{
+      background: "var(--surface)",
+      border: "1px solid var(--border)",
+      borderRadius: 10,
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+    }}>
+      {/* Tab bar */}
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border)", background: "var(--surface2)", flexShrink: 0, overflowX: "auto" }}>
+        {TABS.map(t => (
           <button
-            key={id}
-            onClick={() => setTab(id)}
+            key={t.id}
+            onClick={() => setTab(t.id)}
             style={{
-              padding: "9px 14px", border: "none",
+              padding: "8px 12px", border: "none", whiteSpace: "nowrap",
               background: "transparent",
-              borderBottom: `2px solid ${tab === id ? "var(--accent)" : "transparent"}`,
-              color: tab === id ? "var(--text1)" : "var(--text3)",
-              fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700,
-              letterSpacing: "0.05em", cursor: "pointer",
-              transition: "color 0.12s, border-color 0.12s",
+              borderBottom: `2px solid ${tab === t.id ? "var(--accent)" : "transparent"}`,
+              color: tab === t.id ? "var(--text1)" : "var(--text3)",
+              ...S.mono9, fontWeight: 700, letterSpacing: "0.06em", cursor: "pointer",
+              transition: "color 0.1s, border-color 0.1s",
             }}
           >
-            {label}
+            {t.label}
           </button>
         ))}
       </div>
+
+      {/* Tab content */}
       <div style={{ flex: 1, overflowY: "auto" }}>
-        {tab === "event" && <EventDetailTab ev={sel} />}
-        {tab === "runs" && <AgentRunsTab runs={selRuns} loading={runsLoading} />}
+        {tab === "overview" && <OverviewTab diag={diagnostics} />}
+        {tab === "execution" && (
+          <ExecutionTab diag={diagnostics} sessionId={activeScope.type === "session" ? activeScope.id : null} />
+        )}
+        {tab === "trace" && <AITraceTab runs={selRuns} loading={runsLoading} />}
         {tab === "graph" && <PhaseGraphTab messages={selMessages} loading={messagesLoading} />}
-        {tab === "trace" && <MessageTraceTab messages={selMessages} loading={messagesLoading} />}
-        {tab === "calls" && <ExternalCallsTab sessionId={sel.session_id} cycleId={sel.cycle_id} tradeId={sel.trade_id} />}
-        {tab === "raw" && <RawJsonTab ev={sel} />}
+        {tab === "calls" && sel && (
+          <ExternalCallsTab sessionId={sel.session_id} cycleId={sel.cycle_id} tradeId={sel.trade_id} />
+        )}
+        {tab === "calls" && !sel && <EmptyState msg="Select an event to view external calls." />}
+        {tab === "raw" && sel && <RawTab ev={sel} />}
+        {tab === "raw" && !sel && <EmptyState msg="Select an event to view raw payload." />}
       </div>
     </div>
   );
 };
+
+// ─── Debug Capture Modal ──────────────────────────────────────────────────────
+
+const DebugCaptureModal = ({
+  activeScope,
+  onClose,
+  onStarted,
+}: {
+  activeScope: ActiveScope;
+  onClose: () => void;
+  onStarted: (overrideId: string, expiresAt: string | null) => void;
+}) => {
+  const [duration, setDuration] = useState<5 | 15 | 30 | null>(15);
+  const [untilStopped, setUntilStopped] = useState(false);
+  const [mainLevel, setMainLevel] = useState<PinoLevel>("debug");
+  const [eventLevel, setEventLevel] = useState<LogLevel>("DEBUG");
+  const [includePrompts, setIncludePrompts] = useState(false);
+  const [includeTools, setIncludeTools] = useState(true);
+  const [traceConfirm, setTraceConfirm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (mainLevel === "trace" && !traceConfirm) throw new Error("Trace logging requires confirmation.");
+      return (window as any).exva?.developer?.setLogLevel({
+        scopeType: activeScope.type,
+        scopeId: activeScope.id,
+        mainLogLevel: mainLevel,
+        eventMinLevel: eventLevel,
+        durationMinutes: untilStopped ? undefined : (duration ?? 15),
+        untilStopped,
+      }) as Promise<{ overrideId: string; effectiveLogLevel: string; expiresAt: string | null }>;
+    },
+    onSuccess: (res) => {
+      if (res) onStarted(res.overrideId, res.expiresAt);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const OVERLAY: React.CSSProperties = {
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex",
+    alignItems: "center", justifyContent: "center", zIndex: 1000,
+  };
+  const MODAL: React.CSSProperties = {
+    background: "var(--surface)", border: "1px solid var(--border)",
+    borderRadius: 12, padding: "20px 24px", width: 420,
+    display: "flex", flexDirection: "column", gap: 16,
+  };
+
+  return (
+    <div style={OVERLAY} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={MODAL}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ ...S.mono9, fontWeight: 800, letterSpacing: "0.12em", color: "var(--text1)" }}>CAPTURE DEBUG WINDOW</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: 14 }}>✕</button>
+        </div>
+
+        <div style={{ ...S.mono9, color: "var(--text3)", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 6, padding: "6px 10px" }}>
+          Scope: {activeScope.label ?? activeScope.type}
+        </div>
+
+        {/* Duration */}
+        <FieldGroup label="Duration">
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {([5, 15, 30] as const).map(d => (
+              <button
+                key={d}
+                onClick={() => { setDuration(d); setUntilStopped(false); }}
+                style={{
+                  padding: "5px 12px", borderRadius: 5, cursor: "pointer",
+                  background: duration === d && !untilStopped ? "rgba(77,166,255,0.18)" : "var(--surface3)",
+                  border: `1px solid ${duration === d && !untilStopped ? "#4da6ff44" : "var(--border)"}`,
+                  ...S.mono9, fontWeight: 700, color: duration === d && !untilStopped ? "#4da6ff" : "var(--text2)",
+                }}
+              >
+                {d}m
+              </button>
+            ))}
+            <button
+              onClick={() => { setUntilStopped(true); setDuration(null); }}
+              style={{
+                padding: "5px 12px", borderRadius: 5, cursor: "pointer",
+                background: untilStopped ? "rgba(255,183,51,0.18)" : "var(--surface3)",
+                border: `1px solid ${untilStopped ? "#ffb73344" : "var(--border)"}`,
+                ...S.mono9, fontWeight: 700, color: untilStopped ? "#ffb733" : "var(--text2)",
+              }}
+            >
+              Until stopped
+            </button>
+          </div>
+        </FieldGroup>
+
+        {/* Verbosity */}
+        <FieldGroup label="Main log level">
+          <select
+            value={mainLevel}
+            onChange={e => setMainLevel(e.target.value as PinoLevel)}
+            style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, padding: "5px 8px", ...S.mono10, color: "var(--text1)", width: "100%" }}
+          >
+            {LOG_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+          {mainLevel === "trace" && !traceConfirm && (
+            <div style={{ marginTop: 6 }}>
+              <div style={{ ...S.mono9, color: "#ffb733", marginBottom: 4 }}>
+                Trace logs can include large payload metadata and may slow the app.
+              </div>
+              <button onClick={() => setTraceConfirm(true)} style={{
+                padding: "4px 10px", background: "rgba(255,183,51,0.12)", border: "1px solid #ffb73344",
+                borderRadius: 4, ...S.mono9, fontWeight: 700, color: "#ffb733", cursor: "pointer",
+              }}>
+                Confirm trace level
+              </button>
+            </div>
+          )}
+        </FieldGroup>
+
+        <FieldGroup label="Event min level">
+          <div style={{ display: "flex", background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, overflow: "hidden" }}>
+            {LEVELS.map(l => (
+              <button
+                key={l}
+                onClick={() => setEventLevel(l)}
+                style={{
+                  flex: 1, padding: "5px 4px", border: "none",
+                  background: eventLevel === l ? LEVEL_BG[l] : "transparent",
+                  ...S.mono9, fontWeight: 700, color: eventLevel === l ? LEVEL_COLOR[l] : "var(--text3)",
+                  cursor: "pointer",
+                }}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </FieldGroup>
+
+        {/* Toggles */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Toggle label="Include prompt messages" checked={includePrompts} onChange={setIncludePrompts} />
+          <Toggle label="Include tool payloads" checked={includeTools} onChange={setIncludeTools} />
+        </div>
+
+        {/* Safety note */}
+        <div style={{ ...S.mono9, color: "var(--text3)", lineHeight: 1.5 }}>
+          Secrets are redacted before export. API keys and authorization headers are never shown.
+        </div>
+
+        {error && <div style={{ ...S.mono9, color: "#ff4757" }}>{error}</div>}
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ padding: "7px 16px", background: "var(--surface3)", border: "1px solid var(--border)", borderRadius: 6, ...S.mono9, fontWeight: 700, color: "var(--text2)", cursor: "pointer" }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending || (mainLevel === "trace" && !traceConfirm)}
+            style={{
+              padding: "7px 16px", background: "rgba(77,166,255,0.18)", border: "1px solid #4da6ff44",
+              borderRadius: 6, ...S.mono9, fontWeight: 700, color: "#4da6ff", cursor: "pointer",
+              opacity: mutation.isPending ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6,
+            }}
+          >
+            {mutation.isPending && <Spinner />}
+            {mutation.isPending ? "Starting…" : "Start Capture"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FieldGroup = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div style={S.label}>{label}</div>
+    {children}
+  </div>
+);
+
+const Toggle = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) => (
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <span style={{ ...S.mono10, color: "var(--text2)" }}>{label}</span>
+    <button
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 36, height: 18, borderRadius: 9, border: "none", cursor: "pointer",
+        background: checked ? "var(--accent)" : "var(--surface3)",
+        position: "relative", transition: "background 0.2s",
+      }}
+    >
+      <div style={{
+        position: "absolute", top: 2, left: checked ? 18 : 2, width: 14, height: 14,
+        borderRadius: "50%", background: checked ? "#fff" : "var(--text3)", transition: "left 0.2s",
+      }} />
+    </button>
+  </div>
+);
+
+// ─── Export Result Drawer ─────────────────────────────────────────────────────
+
+const ExportResultDrawer = ({ result, onClose }: { result: ExportBundleResult; onClose: () => void }) => (
+  <div style={{
+    position: "fixed", bottom: 20, right: 20, width: 360,
+    background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10,
+    padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10,
+    zIndex: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+  }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ ...S.mono9, fontWeight: 800, color: "#00e5a0" }}>Debug bundle exported.</span>
+      <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text3)", cursor: "pointer" }}>✕</button>
+    </div>
+    <div style={{ ...S.mono9, color: "var(--text3)", wordBreak: "break-all" }}>{result.path}</div>
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {result.includedSections.map(s => (
+        <span key={s} style={{ ...S.mono9, color: "var(--text2)", background: "var(--surface3)", borderRadius: 3, padding: "2px 5px" }}>{s}</span>
+      ))}
+    </div>
+    <div style={{ ...S.mono9, color: "var(--text3)" }}>
+      {result.redactionCount} field{result.redactionCount !== 1 ? "s" : ""} redacted · {(result.sizeBytes / 1024).toFixed(0)} KB
+    </div>
+    {result.warnings.map((w, i) => (
+      <div key={i} style={{ ...S.mono9, color: "#ffb733" }}>{w}</div>
+    ))}
+    <div style={{ display: "flex", gap: 6 }}>
+      <button
+        onClick={() => (window as any).exva?.developer?.openPath({ kind: "debugBundle", path: result.path })}
+        style={{ flex: 1, padding: "6px 0", background: "var(--surface3)", border: "1px solid var(--border)", borderRadius: 5, ...S.mono9, fontWeight: 700, color: "var(--text2)", cursor: "pointer" }}
+      >
+        Reveal in Finder
+      </button>
+      <button
+        onClick={() => copyText(result.path)}
+        style={{ flex: 1, padding: "6px 0", background: "var(--surface3)", border: "1px solid var(--border)", borderRadius: 5, ...S.mono9, fontWeight: 700, color: "var(--text2)", cursor: "pointer" }}
+      >
+        Copy Path
+      </button>
+    </div>
+  </div>
+);
+
+// ─── Toast container ──────────────────────────────────────────────────────────
+
+const ToastContainer = ({ toasts }: { toasts: Array<{ id: string; msg: string; kind: "ok" | "err" }> }) => (
+  <div style={{ position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", gap: 6, zIndex: 600, pointerEvents: "none" }}>
+    {toasts.map(t => (
+      <div key={t.id} style={{
+        padding: "8px 16px", borderRadius: 8,
+        background: t.kind === "ok" ? "rgba(0,229,160,0.15)" : "rgba(255,71,87,0.15)",
+        border: `1px solid ${t.kind === "ok" ? "#00e5a044" : "#ff475744"}`,
+        ...S.mono9, fontWeight: 700, color: t.kind === "ok" ? "#00e5a0" : "#ff4757",
+        backdropFilter: "blur(8px)",
+      }}>
+        {t.msg}
+      </div>
+    ))}
+  </div>
+);
+
+// ─── Shared sub-components ────────────────────────────────────────────────────
+
+const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 7, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
+    <div style={{ ...S.label, paddingBottom: 5, borderBottom: "1px solid var(--border)", marginBottom: 2 }}>{title}</div>
+    {children}
+  </div>
+);
+
+const DataRow = ({ label, value, mono = true }: { label: string; value: React.ReactNode; mono?: boolean }) => (
+  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", minHeight: 20 }}>
+    <span style={{ ...S.mono9, color: "var(--text3)", flexShrink: 0 }}>{label}</span>
+    <span style={{ ...(mono ? S.mono9 : {}), fontSize: 10, color: "var(--text2)", textAlign: "right", wordBreak: "break-all" }}>
+      {value}
+    </span>
+  </div>
+);
+
+const EmptyState = ({ msg }: { msg: string }) => (
+  <div style={{ padding: "36px 20px", textAlign: "center", ...S.mono9, color: "var(--text3)", lineHeight: 1.6 }}>{msg}</div>
+);
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -1008,55 +1428,129 @@ export const DevPanel = ({
   focus?: DevPanelFocus | null;
   onFocusConsumed?: () => void;
 }) => {
-  const [events, setEvents] = useState<ExtEventRow[]>([]);
+  // Scope state
+  const [activeScope, setActiveScope] = useState<ActiveScope>({ type: "global" });
+
+  // Filter state
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>(60);
   const [minLevel, setMinLevel] = useState<LogLevel>("DEBUG");
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [sourceFilters, setSourceFilters] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const searchRef = useRef<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Events state
+  const [events, setEvents] = useState<ExtEventRow[]>([]);
+  const [eventCursor, setEventCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [queryMs, setQueryMs] = useState<number | undefined>(undefined);
+
+  // Inspector state
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [cycleState, setCycleState] = useState("idle");
-  const focusAppliedRef = useRef(false);
-  // Seed events from fetched data; push events are appended via useExvaEvent below
+
+  // Stream health
   const [streamHealthy, setStreamHealthy] = useState(true);
-  const [lastEventAt, setLastEventAt] = useState<string | null>(null);
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const stats = useSessionStore((s) => s.stats);
+  // UI state
+  const [showCapture, setShowCapture] = useState(false);
+  const [captureActive, setCaptureActive] = useState<{ overrideId: string; expiresAt: string | null } | null>(null);
+  const [exportResult, setExportResult] = useState<ExportBundleResult | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
+  // Developer settings state (for log level display)
+  const [effectiveLogLevel, setEffectiveLogLevel] = useState("info");
+  const [logLevelLoading, setLogLevelLoading] = useState(false);
+
+  const { toasts, show: showToast } = useToasts();
+  const focusAppliedRef = useRef(false);
+  const stats = useSessionStore((s) => s.stats);
+  const qc = useQueryClient();
+
+  // Debounce search
+  useEffect(() => {
+    searchRef.current = search;
+    const t = setTimeout(() => {
+      if (searchRef.current === search) setDebouncedSearch(search);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Sessions list
   const { data: sessionOverview } = useQuery({
     queryKey: ["devpanel-session-overview"],
     queryFn: () => api.listSessions(),
+    refetchInterval: 8000,
   });
+  const sessions = sessionOverview?.sessions ?? [];
+  const focusedSessionId = sessionOverview?.focusedSessionId ?? null;
 
-  const focusedSession = useMemo(() => {
-    if (!sessionOverview) return null;
-    return sessionOverview.sessions.find((s) => s.id === sessionOverview.focusedSessionId) ?? null;
-  }, [sessionOverview]);
-
-  const viewMode = sessionOverview?.workspaceViewMode ?? "global";
-
-  const { data: strategy = null } = useQuery({
-    queryKey: ["devpanel-strategy", focusedSession?.id],
-    queryFn: () => api.getStrategy(focusedSession?.id ?? ""),
-    enabled: !!focusedSession?.id,
-  });
-
-  const { data: fetchedEvents = [] } = useQuery({
-    queryKey: ["devpanel-events", focusedSession?.id],
-    queryFn: () => api.getEvents({ limit: 500, sessionId: focusedSession?.id }) as Promise<ExtEventRow[]>,
-  });
-
+  // Auto-set focused session as default scope when data arrives
   useEffect(() => {
-    if (fetchedEvents.length > 0) setEvents(fetchedEvents);
-  }, [fetchedEvents]);
+    if (focusedSessionId && activeScope.type === "global") {
+      const focused = sessions.find(s => s.id === focusedSessionId);
+      if (focused) {
+        setActiveScope({ type: "session", id: focused.id, label: focused.name });
+      }
+    }
+  }, [focusedSessionId]); // eslint-disable-line
 
+  // Handle DevPanel focus injection from other pages
   useEffect(() => {
-    if (!focus || focusAppliedRef.current || events.length === 0) return;
+    if (!focus || focusAppliedRef.current) return;
     focusAppliedRef.current = true;
-    setSearch(focus.cycleId);
-    const match = events.find((e) => (e as ExtEventRow).cycle_id === focus.cycleId);
-    if (match) setSelectedId(match.id);
+    const sess = sessions.find(s => s.id === focus.sessionId);
+    if (sess) {
+      setActiveScope({ type: "session", id: sess.id, label: sess.name });
+      setSearch(focus.cycleId);
+    }
     onFocusConsumed?.();
-  }, [focus, events, onFocusConsumed]);
+  }, [focus, sessions, onFocusConsumed]);
+
+  // Load developer settings
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await (window as any).exva?.developer?.getSettings() as DeveloperSettingsResponse | undefined;
+        if (res) setEffectiveLogLevel(res.effectiveLogLevel);
+      } catch {}
+    })();
+  }, []);
+
+  // Scope diagnostics
+  const { data: diagnostics, isLoading: diagnosticsLoading } = useQuery<ScopeDiagnostics>({
+    queryKey: ["scope-diagnostics", activeScope.type, activeScope.id],
+    queryFn: async () => {
+      const res = await (window as any).exva?.developer?.getScopeDiagnostics({ scope: { type: activeScope.type, id: activeScope.id } });
+      return res as ScopeDiagnostics;
+    },
+    enabled: !!(window as any).exva?.developer,
+    refetchInterval: 5000,
+  });
+
+  // Load events when scope or filters change
+  const loadEvents = useCallback(async (cursor?: string | null) => {
+    try {
+      const sessionId = activeScope.type === "session" ? activeScope.id : undefined;
+      const fetched = await api.getEvents({
+        sessionId,
+        minLevel,
+        search: debouncedSearch || undefined,
+        limit: 200,
+      }) as ExtEventRow[];
+      setEvents(cursor ? (prev) => [...prev, ...fetched] : fetched);
+      setHasMore(fetched.length === 200);
+      setEventCursor(fetched.length > 0 ? fetched[fetched.length - 1].id : null);
+    } catch {}
+  }, [activeScope, minLevel, debouncedSearch, timeWindow]); // eslint-disable-line
+
+  useEffect(() => {
+    setEvents([]);
+    setSelectedId(null);
+    setEventCursor(null);
+    setHasMore(false);
+    void loadEvents(null);
+  }, [loadEvents]);
 
   // Stream health watchdog
   const resetStreamTimer = useCallback(() => {
@@ -1065,29 +1559,32 @@ export const DevPanel = ({
     streamTimerRef.current = setTimeout(() => setStreamHealthy(false), 15_000);
   }, []);
 
-  useEffect(() => { resetStreamTimer(); return () => { if (streamTimerRef.current) clearTimeout(streamTimerRef.current); }; }, []);
+  useEffect(() => {
+    resetStreamTimer();
+    return () => { if (streamTimerRef.current) clearTimeout(streamTimerRef.current); };
+  }, [resetStreamTimer]);
 
   useExvaEvent("agent_event", (ev) => {
-    setEvents((prev) => [ev as ExtEventRow, ...prev].slice(0, 500));
-    setLastEventAt(new Date().toISOString());
+    const extEv = ev as ExtEventRow;
+    const scopeMatch =
+      activeScope.type === "global" ||
+      (activeScope.type === "session" && extEv.session_id === activeScope.id);
+    if (scopeMatch) {
+      setEvents((prev) => [extEv, ...prev].slice(0, 500));
+    }
     resetStreamTimer();
   });
 
-  useExvaEvent("research_phase_started", (ev) => { setCycleState(`started: ${ev.phase}`); resetStreamTimer(); });
-  useExvaEvent("research_phase_step", (ev) => { setCycleState(`step: ${ev.message}`); resetStreamTimer(); });
-  useExvaEvent("research_phase_complete", (ev) => { setCycleState(`complete: ${ev.phase} (${ev.instrumentCount})`); resetStreamTimer(); });
-  useExvaEvent("research_phase_failed", (ev) => { setCycleState(`failed: ${ev.error}`); resetStreamTimer(); });
-
-  // Inspector selection
-  const sel = selectedId ? (events.find((e) => e.id === selectedId) as ExtEventRow | undefined) ?? null : null;
+  // Inspector data
+  const sel = selectedId ? (events.find(e => e.id === selectedId) ?? null) as ExtEventRow | null : null;
   const inspectorTradeId = sel?.trade_id ?? null;
   const inspectorCycleId = sel?.cycle_id ?? null;
 
   const { data: selRuns = [], isLoading: runsLoading } = useQuery({
     queryKey: ["inspector-runs", inspectorTradeId, inspectorCycleId],
     queryFn: () => inspectorTradeId
-      ? (api.getAgentTraces(inspectorTradeId) as Promise<ExtAgentRun[]>)
-      : (api.getAgentTracesByCycle(inspectorCycleId ?? "") as Promise<ExtAgentRun[]>),
+      ? api.getAgentTraces(inspectorTradeId) as Promise<ExtAgentRun[]>
+      : api.getAgentTracesByCycle(inspectorCycleId!) as Promise<ExtAgentRun[]>,
     enabled: !!(inspectorTradeId || inspectorCycleId),
   });
 
@@ -1095,146 +1592,274 @@ export const DevPanel = ({
     queryKey: ["inspector-messages", inspectorTradeId, inspectorCycleId],
     queryFn: async () => {
       if (inspectorTradeId) {
-        const detail = await api.getTradeDetail(inspectorTradeId);
-        return detail.messages ?? [];
+        const d = await api.getTradeDetail(inspectorTradeId);
+        return d.messages ?? [];
       }
-      return api.getMessagesByCycle(inspectorCycleId ?? "");
+      return api.getMessagesByCycle(inspectorCycleId!);
     },
     enabled: !!(inspectorTradeId || inspectorCycleId),
   });
 
-  const filtered = useMemo(() => events.filter((ev) => {
-    if (LEVELS.indexOf(ev.level) < LEVELS.indexOf(minLevel)) return false;
-    if (roleFilter !== "all") {
-      const agentType = ev.agent_type ?? "";
-      if (agentType !== roleFilter) return false;
+  // Filtered events (client-side for UI filtering while server loads)
+  const filtered = useMemo(() => {
+    let list = events;
+    if (LEVELS.indexOf(minLevel) > 0) {
+      list = list.filter(ev => LEVELS.indexOf(ev.level) >= LEVELS.indexOf(minLevel));
     }
-    if (search && !ev.message.toLowerCase().includes(search.toLowerCase()) &&
-      !(ev.trade_id ?? "").includes(search) &&
-      !((ev as ExtEventRow).cycle_id ?? "").includes(search)) return false;
-    return true;
-  }), [events, minLevel, roleFilter, search]);
+    if (sourceFilters.length > 0) {
+      list = list.filter(ev => !ev.agent_type || sourceFilters.includes(ev.agent_type));
+    }
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      list = list.filter(ev =>
+        ev.message.toLowerCase().includes(q) ||
+        (ev.trade_id ?? "").includes(q) ||
+        (ev.cycle_id ?? "").includes(q) ||
+        (ev.session_id ?? "").includes(q)
+      );
+    }
+    return list;
+  }, [events, minLevel, sourceFilters, debouncedSearch]);
 
-  const handleCopySnapshot = () => {
-    const snapshot = {
-      timestamp: new Date().toISOString(),
-      runtime: "Electron / TypeScript",
-      viewMode,
-      session: focusedSession ? {
-        id: focusedSession.id,
-        name: focusedSession.name,
-        status: focusedSession.status,
-        executionMode: focusedSession.executionMode,
-      } : null,
-      stats: stats ? {
-        openTrades: stats.open_trades,
-        dailySpend: stats.daily_api_spend,
-        uptimeMin: stats.session_uptime_min,
-      } : null,
-      cycleState,
-      streamHealthy,
-      eventCount: events.length,
-    };
-    copyText(JSON.stringify(snapshot, null, 2));
+  // Handle scope change
+  const handleScopeChange = (scope: ActiveScope) => {
+    setActiveScope(scope);
+    setSelectedId(null);
+    setSearch("");
+    setDebouncedSearch("");
+    qc.invalidateQueries({ queryKey: ["scope-diagnostics"] });
   };
 
+  // Log level change
+  const handleSetLogLevel = async (level: PinoLevel) => {
+    setLogLevelLoading(true);
+    try {
+      await (window as any).exva?.developer?.setLogLevel({
+        scopeType: "global",
+        mainLogLevel: level,
+        eventMinLevel: minLevel,
+        untilStopped: true,
+      });
+      setEffectiveLogLevel(level);
+      showToast(`Log level set to ${level}`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to set log level", "err");
+    } finally {
+      setLogLevelLoading(false);
+    }
+  };
+
+  // Export bundle
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      const res = await (window as any).exva?.developer?.exportDebugBundle({
+        scope: { type: activeScope.type, id: activeScope.id },
+        includePrompts: false,
+        includeToolPayloads: true,
+        timeWindowMinutes: timeWindow,
+      }) as ExportBundleResult | undefined;
+      if (res) {
+        setExportResult(res);
+        if (res.sizeBytes > 25 * 1024 * 1024) {
+          showToast("Bundle is large (>25 MB). Consider narrowing scope.", "err");
+        }
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Debug bundle export failed.", "err");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  // Build scope label
+  const scopeLabel = activeScope.type === "global"
+    ? "Global workspace"
+    : `${activeScope.type.charAt(0).toUpperCase() + activeScope.type.slice(1)}: ${activeScope.label ?? activeScope.id ?? ""}`;
+
   return (
-    <PageShell>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: "var(--text1)", margin: 0, letterSpacing: "-0.02em" }}>
-            Developer
-          </h1>
-          <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 3, fontFamily: "var(--font-mono)" }}>
-            Focused session observability, traces, and diagnostics
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {focusedSession ? (
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700,
-              color: "var(--text2)", background: "var(--surface2)",
-              border: "1px solid var(--border)", borderRadius: 6, padding: "4px 10px",
-            }}>
-              {focusedSession.name}
-            </span>
-          ) : (
-            <span style={{
-              fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text3)",
-              background: "var(--surface2)", border: "1px solid var(--border)",
-              borderRadius: 6, padding: "4px 10px",
-            }}>
-              No session focused
-            </span>
-          )}
-          {focusedSession && <StatusChip status={focusedSession.status} />}
-          {!streamHealthy && (
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 5,
-              background: "rgba(255,183,51,0.1)", border: "1px solid rgba(255,183,51,0.3)",
-              borderRadius: 6, padding: "4px 10px",
-              fontFamily: "var(--font-mono)", fontSize: 9, fontWeight: 700, color: "#ffb733",
-              letterSpacing: "0.06em",
-            }}>
-              <Dot color="#ffb733" pulse size={5} />
-              Live stream delayed · polling fallback active
-            </span>
-          )}
-        </div>
-      </div>
+    <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      {/* Scope Rail */}
+      <ScopeRail
+        activeScope={activeScope}
+        onScopeChange={handleScopeChange}
+        sessions={sessions}
+        focusedSessionId={focusedSessionId}
+      />
 
-      {/* Diagnostics Grid 2×2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, flexShrink: 0 }}>
-        <RuntimeIdentityCard session={focusedSession} stats={stats} cycleState={cycleState} viewMode={viewMode} />
-        <PhaseRuntimeMatrixCard strategy={strategy} />
-        <ExecutionCard session={focusedSession} stats={stats} />
-        <StreamCard
-          events={events}
-          filtered={filtered}
-          streamHealthy={streamHealthy}
-          lastEventAt={lastEventAt}
-          onCopySnapshot={handleCopySnapshot}
-        />
-      </div>
-
-      {/* Split view */}
-      <div style={{ flex: 1, display: "flex", gap: 12, minHeight: 0 }}>
-        {/* Timeline — 60% */}
-        <div style={{ flex: "0 0 60%", display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <EventTimeline
-            events={events}
-            selectedId={selectedId}
-            onSelect={(id) => setSelectedId(id === selectedId ? null : id)}
-            minLevel={minLevel}
-            setMinLevel={setMinLevel}
-            roleFilter={roleFilter}
-            setRoleFilter={setRoleFilter}
-            search={search}
-            setSearch={setSearch}
-            filtered={filtered}
-          />
-        </div>
-        {/* Inspector — 40% */}
+      {/* Main content */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        {/* Header */}
         <div style={{
-          flex: "0 0 40%", flexShrink: 0,
-          background: "var(--surface)", border: "1px solid var(--border)",
-          borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column",
+          padding: "10px 16px",
+          borderBottom: "1px solid var(--border)",
+          display: "flex", alignItems: "center", gap: 10,
+          background: "var(--surface2)", flexShrink: 0,
         }}>
-          <InspectorPanel
-            sel={sel}
-            selRuns={selRuns}
-            selMessages={selMessages}
-            runsLoading={runsLoading}
-            messagesLoading={messagesLoading}
-          />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text1)", letterSpacing: "-0.01em" }}>Developer Workbench</div>
+            <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 2 }}>
+              {scopeLabel}
+            </div>
+          </div>
+
+          {/* Stream health badge */}
+          <div style={{ marginLeft: 8 }}>
+            {streamHealthy ? (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, ...S.mono9, color: "#00e5a0", background: "rgba(0,229,160,0.1)", border: "1px solid #00e5a030", borderRadius: 5, padding: "3px 8px" }}>
+                <Dot color="#00e5a0" pulse size={4} /> Live
+              </span>
+            ) : (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, ...S.mono9, color: "#ffb733", background: "rgba(255,183,51,0.1)", border: "1px solid #ffb73330", borderRadius: 5, padding: "3px 8px" }}>
+                <Dot color="#ffb733" pulse size={4} /> Delayed · polling
+              </span>
+            )}
+          </div>
+
+          {captureActive && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, ...S.mono9, color: "#c084fc", background: "rgba(192,132,252,0.1)", border: "1px solid #c084fc30", borderRadius: 5, padding: "3px 8px" }}>
+              <Dot color="#c084fc" pulse size={4} />
+              Capture active{captureActive.expiresAt ? ` · ends ${fmt.time(captureActive.expiresAt)}` : ""}
+            </span>
+          )}
+
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            <HeaderBtn
+              label="Capture Debug Window"
+              disabled={!!captureActive}
+              onClick={() => setShowCapture(true)}
+              color="#c084fc"
+            />
+            <HeaderBtn
+              label="Export Debug Bundle"
+              disabled={exportLoading}
+              loading={exportLoading}
+              onClick={handleExport}
+              color="#4da6ff"
+            />
+            <HeaderBtn
+              label="Open Logs Folder"
+              onClick={() => (window as any).exva?.developer?.openPath({ kind: "logsDirectory" })}
+              color="var(--text3)"
+            />
+          </div>
+        </div>
+
+        {/* Action Strip */}
+        <ActionStrip
+          diagnostics={diagnostics ?? null}
+          diagnosticsLoading={diagnosticsLoading}
+          timeWindow={timeWindow}
+          setTimeWindow={setTimeWindow}
+          minLevel={minLevel}
+          setMinLevel={setMinLevel}
+          sourceFilters={sourceFilters}
+          setSourceFilters={setSourceFilters}
+          effectiveLogLevel={effectiveLogLevel}
+          onSetLogLevel={handleSetLogLevel}
+          logLevelLoading={logLevelLoading}
+          activeScope={activeScope}
+        />
+
+        {/* Main split */}
+        <div style={{ flex: 1, display: "flex", gap: 10, padding: "10px", overflow: "hidden", minHeight: 0 }}>
+          {/* Timeline — 60% */}
+          <div style={{ flex: "0 0 60%", display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <EventTimeline
+              events={events}
+              filtered={filtered}
+              selectedId={selectedId}
+              onSelect={id => setSelectedId(id === selectedId ? null : id)}
+              search={search}
+              setSearch={setSearch}
+              loading={false}
+              hasMore={hasMore}
+              onLoadMore={() => loadEvents(eventCursor)}
+              queryMs={queryMs}
+            />
+          </div>
+
+          {/* Inspector — 40% */}
+          <div style={{ flex: "0 0 calc(40% - 10px)", display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <InspectorPanel
+              sel={sel}
+              selRuns={selRuns as ExtAgentRun[]}
+              selMessages={selMessages}
+              runsLoading={runsLoading}
+              messagesLoading={messagesLoading}
+              diagnostics={diagnostics ?? null}
+              activeScope={activeScope}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: "4px 16px", borderTop: "1px solid var(--border)",
+          display: "flex", gap: 16, alignItems: "center",
+          background: "var(--surface2)", flexShrink: 0,
+        }}>
+          <span style={{ ...S.mono9, color: "var(--text3)" }}>{filtered.length} events</span>
+          {queryMs != null && <span style={{ ...S.mono9, color: "var(--text3)" }}>{queryMs}ms</span>}
+          <span style={{ ...S.mono9, color: "var(--text3)", marginLeft: "auto" }}>
+            SQLite · exva.db
+          </span>
         </div>
       </div>
 
-      {/* Footer */}
-      <div style={{ textAlign: "center", fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--text3)", flexShrink: 0, letterSpacing: "0.06em" }}>
-        Select an event, cycle, trade, or run to inspect full trace data
-      </div>
-    </PageShell>
+      {/* Modals */}
+      {showCapture && (
+        <DebugCaptureModal
+          activeScope={activeScope}
+          onClose={() => setShowCapture(false)}
+          onStarted={(overrideId, expiresAt) => {
+            setShowCapture(false);
+            setCaptureActive({ overrideId, expiresAt });
+            showToast("Debug capture started.");
+          }}
+        />
+      )}
+
+      {exportResult && (
+        <ExportResultDrawer result={exportResult} onClose={() => setExportResult(null)} />
+      )}
+
+      <ToastContainer toasts={toasts} />
+    </div>
   );
 };
+
+// ─── Header button ────────────────────────────────────────────────────────────
+
+const HeaderBtn = ({
+  label,
+  disabled = false,
+  loading = false,
+  onClick,
+  color = "var(--text2)",
+}: {
+  label: string;
+  disabled?: boolean;
+  loading?: boolean;
+  onClick: () => void;
+  color?: string;
+}) => (
+  <button
+    onClick={onClick}
+    disabled={disabled || loading}
+    style={{
+      display: "flex", alignItems: "center", gap: 5,
+      padding: "5px 10px",
+      background: `${color}10`,
+      border: `1px solid ${color}30`,
+      borderRadius: 6,
+      ...S.mono9, fontWeight: 700, color,
+      cursor: disabled ? "default" : "pointer",
+      opacity: disabled ? 0.4 : 1,
+      transition: "all 0.12s",
+    }}
+  >
+    {loading && <Spinner />}
+    {label}
+  </button>
+);

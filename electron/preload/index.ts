@@ -149,6 +149,16 @@ const exva: ExvaApi = {
     list: (filters) => invoke(channels.approvals.list, approvalListFiltersSchema.parse(filters ?? {})),
     decide: (input) => invoke(channels.approvals.decide, approvalDecideSchema.parse(input)),
   },
+  developer: {
+    getSettings: () => invoke(channels.developer.getSettings),
+    updateSettings: (patch: unknown) => invoke(channels.developer.updateSettings, patch),
+    setLogLevel: (input: unknown) => invoke(channels.developer.setLogLevel, input),
+    stopLogOverride: (input: { overrideId: string }) => invoke(channels.developer.stopLogOverride, input),
+    getScopeDiagnostics: (input: unknown) => invoke(channels.developer.getScopeDiagnostics, input),
+    exportDebugBundle: (input: unknown) => invoke(channels.developer.exportDebugBundle, input),
+    openPath: (input: { kind: string; path?: string }) => invoke(channels.developer.openPath, input),
+    listEventsV2: (input: unknown) => invoke(channels.developer.listEventsV2, input),
+  },
   events: {
     list: (filters) => invoke(channels.events.list, eventFiltersSchema.parse(filters)),
     getAgentTraces: (tradeId) => invoke(channels.events.getAgentTraces, tradeIdSchema.parse({ tradeId })),
