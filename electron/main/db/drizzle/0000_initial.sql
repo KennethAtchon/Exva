@@ -100,6 +100,15 @@ CREATE TABLE `capital_reservations` (
 --> statement-breakpoint
 CREATE INDEX `idx_capital_reservations_session` ON `capital_reservations` (`session_id`,`status`);--> statement-breakpoint
 CREATE INDEX `idx_capital_reservations_approval` ON `capital_reservations` (`approval_id`);--> statement-breakpoint
+CREATE TABLE `developer_settings` (
+	`id` text PRIMARY KEY DEFAULT 'singleton' NOT NULL,
+	`default_event_min_level` text DEFAULT 'INFO' NOT NULL,
+	`default_time_window_minutes` integer DEFAULT 60 NOT NULL,
+	`default_source_filters_json` text DEFAULT '[]' NOT NULL,
+	`include_prompts_in_exports` integer DEFAULT false NOT NULL,
+	`include_tool_payloads_in_exports` integer DEFAULT true NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`session_id` text,
@@ -147,6 +156,16 @@ CREATE TABLE `risk_presets` (
 	`label` text NOT NULL,
 	`is_built_in` integer DEFAULT false NOT NULL,
 	`preset_json` text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `runtime_log_overrides` (
+	`id` text PRIMARY KEY NOT NULL,
+	`scope_type` text NOT NULL,
+	`scope_id` text,
+	`main_log_level` text NOT NULL,
+	`event_min_level` text NOT NULL,
+	`expires_at` text,
+	`created_at` text NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `session_ai_phase_workers` (

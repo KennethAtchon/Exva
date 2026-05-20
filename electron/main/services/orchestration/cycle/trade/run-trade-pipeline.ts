@@ -11,6 +11,10 @@ import {
   type TradeCyclePlanState,
 } from "../../../ai/pipeline-runtime/plan/cycle/types";
 
+const TRADE_PIPELINE_CONTEXT_STATE_KEYS = ["technical", "fundamental", "review", "decision", "riskOrder"] as const;
+
+type TradePipelineContextStateKey = (typeof TRADE_PIPELINE_CONTEXT_STATE_KEYS)[number];
+
 export async function runTradePipeline(
   ctx: OrchestratorContext,
   context: TradeCycleContext,
@@ -74,21 +78,26 @@ export async function runTradePipeline(
 }
 
 function tradePipelineSeedFromContext(context: TradeCycleContext): Partial<TradeCyclePlanState> {
-  return {
-    technical: context.technical,
-    fundamental: context.fundamental,
-    review: context.review,
-    decision: context.decision,
-    riskOrder: context.riskOrder,
-  };
+  const seedState: Partial<TradeCyclePlanState> = {};
+  const target = seedState as Record<TradePipelineContextStateKey, unknown>;
+  for (const key of TRADE_PIPELINE_CONTEXT_STATE_KEYS) {
+    const value = context[key];
+    if (value !== undefined) {
+      target[key] = value;
+    }
+  }
+  return seedState;
 }
 
 export function applyTradePipelineToContext(context: TradeCycleContext, result: TradePipelineResult): void {
-  context.technical = result.state.technical ?? context.technical;
-  context.fundamental = result.state.fundamental ?? context.fundamental;
-  context.review = result.state.review ?? context.review;
-  context.decision = result.state.decision ?? context.decision;
-  context.riskOrder = result.state.riskOrder ?? context.riskOrder;
+  const target = context as Record<TradePipelineContextStateKey, unknown>;
+  const source = result.state as Record<TradePipelineContextStateKey, unknown>;
+  for (const key of TRADE_PIPELINE_CONTEXT_STATE_KEYS) {
+    const value = source[key];
+    if (value !== undefined) {
+      target[key] = value;
+    }
+  }
 }
 
 export function persistTradeAiRuns(

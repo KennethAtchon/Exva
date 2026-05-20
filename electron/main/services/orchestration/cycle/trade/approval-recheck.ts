@@ -3,6 +3,7 @@ import type { TradeCycleInstrument, TradePipelineResult } from "../../../ai/pipe
 import { runEngineBinding } from "../../../ai/pipeline-runtime/execution/engine-context-runner";
 import type { OrchestratorContext } from "../orchestrator-context";
 import { failRecheck } from "./approval-flow";
+import { buildOrderPolicyTask } from "./order-policy-task";
 import { placeRoutedOrder } from "./order-placer";
 import { runPostDecisionGates } from "./post-decision-gates";
 import { buildTradeFromDecision } from "./trade-record-builder";
@@ -81,6 +82,11 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
 
   const strategy = ctx.deps.strategyContextService.get(ctx.sessionId);
   const recheckClientOrderId = `${cycleId}:${trade.id}`;
+  const recheckBrokerAccountId = gateState.brokerAccountId ?? nextTrade.brokerAccountId ?? trade.brokerAccountId;
+  if (!recheckBrokerAccountId) {
+    failRecheck(ctx, trade.id, approval.id, "Approval recheck could not resolve a broker account.");
+    return;
+  }
   const recheckPolicy = runEngineBinding<{ allowed: boolean; reason?: string }>({
     phase: "decision",
     sessionId: ctx.sessionId,
@@ -88,36 +94,27 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
     strategyContext: strategy,
     bindings: [],
     binding: { engine: "order-policy", kind: "policy", mode: "read" },
-    task: {
+    task: buildOrderPolicyTask({
       sessionId: ctx.sessionId,
       cycleId,
       tradeId: trade.id,
-      brokerAccountId: gateState.brokerAccountId,
+      brokerAccountId: recheckBrokerAccountId,
       existingOrderCheck: (orderId: string, accountId: string) => ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
       sessionIsPaused: () => !ctx.runtimeIsActive(),
-      decisionRiskInput: {
-        config,
-        stats: ctx.deps.statsRepo.dashboardStats(
-          ctx.sessionId,
-          ctx.deps.sessionRepo.getStatus(ctx.sessionId),
-          ctx.totalAllocatedUsd(),
-          ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
-          config.max_api_spend_usd,
-        ),
-        order: gateState.riskOrder!,
-        confidence: fresh.confidence,
-        side: nextTrade.side,
-        holdingStyle: strategy.timeframe.holdingStyle,
-        exitPolicy: {
-          stopLossPct: strategy.riskConfig.stopLossPct,
-          atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
-          takeProfitPct: strategy.riskConfig.takeProfitPct,
-          maxHoldDays: strategy.timeframe.maxHoldDays,
-        },
-        strategyRules: { sideBias: strategy.rules.sideBias },
-        brokerSupportsClass: true,
-      },
-    },
+      config,
+      stats: ctx.deps.statsRepo.dashboardStats(
+        ctx.sessionId,
+        ctx.deps.sessionRepo.getStatus(ctx.sessionId),
+        ctx.totalAllocatedUsd(),
+        ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
+        config.max_api_spend_usd,
+      ),
+      order: gateState.riskOrder!,
+      confidence: fresh.confidence,
+      side: nextTrade.side,
+      strategy,
+      brokerSupportsClass: true,
+    }) as unknown as Record<string, unknown>,
   });
   if (!recheckPolicy.allowed) {
     failRecheck(ctx, trade.id, approval.id, recheckPolicy.reason ?? "Approval recheck blocked by policy gate.");

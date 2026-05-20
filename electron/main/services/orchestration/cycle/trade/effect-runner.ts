@@ -7,6 +7,7 @@ import type { TradePipelineResult } from "../../../ai/pipeline-runtime/plan/cycl
 import type { OrchestratorContext } from "../orchestrator-context";
 import type { TradeCycleContext } from "../types";
 import { waitForApproval } from "./approval-flow";
+import { buildOrderPolicyTask } from "./order-policy-task";
 import { placeRoutedOrder } from "./order-placer";
 import { persistTradeAiRuns, requirePipelineAiResults } from "./run-trade-pipeline";
 import { createTradeFromDecision } from "./trade-record-builder";
@@ -115,32 +116,23 @@ export async function placeBrokerOrder(
     strategyContext: strategy,
     bindings: [],
     binding: { engine: "order-policy", kind: "policy", mode: "read" },
-    task: {
+    task: buildOrderPolicyTask({
       sessionId: ctx.sessionId,
       cycleId: context.cycleId,
       tradeId: trade.id,
       brokerAccountId: resolvedBrokerAccountId,
       existingOrderCheck: (orderId: string, accountId: string) => ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
       sessionIsPaused: () => !ctx.runtimeIsActive(),
-      decisionRiskInput: {
-        config,
-        stats: freshStats,
-        order: riskOrder,
-        confidence: trade.confidence_score ?? 0,
-        quoteSnapshot: latestQuote ?? undefined,
-        placementQuoteSnapshot: placementQuote,
-        side: trade.side,
-        holdingStyle: strategy.timeframe.holdingStyle,
-        exitPolicy: {
-          stopLossPct: strategy.riskConfig.stopLossPct,
-          atrStopMultiplier: strategy.riskConfig.atrStopMultiplier,
-          takeProfitPct: strategy.riskConfig.takeProfitPct,
-          maxHoldDays: strategy.timeframe.maxHoldDays,
-        },
-        strategyRules: { sideBias: strategy.rules.sideBias },
-        brokerSupportsClass,
-      },
-    },
+      config,
+      stats: freshStats,
+      order: riskOrder,
+      confidence: trade.confidence_score ?? 0,
+      side: trade.side,
+      strategy,
+      brokerSupportsClass,
+      quoteSnapshot: latestQuote ?? undefined,
+      placementQuoteSnapshot: placementQuote,
+    }) as unknown as Record<string, unknown>,
   });
   if (!policyResult.allowed) {
     throw new AppError(policyResult.reason ?? "Order blocked by policy gate", "VALIDATION_FAILED");

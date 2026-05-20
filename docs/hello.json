@@ -1,0 +1,1355 @@
+{
+    "level": 30,
+    "time": 1779262086184,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "main",
+    "pid": 41093,
+    "nodeEnv": "development",
+    "msg": "starting Exva main process"
+}
+{
+    "level": 30,
+    "time": 1779262086203,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "main",
+    "msg": "app services initialized"
+}
+{
+    "level": 30,
+    "time": 1779262086203,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "main",
+    "msg": "broker allocation seed pass complete"
+}
+{
+    "level": 30,
+    "time": 1779262086203,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "app-services",
+    "sessionCount": 0,
+    "msg": "rehydrating runtimes from db"
+}
+{
+    "level": 30,
+    "time": 1779262086203,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "app-services",
+    "sessionCount": 0,
+    "msg": "runtime rehydration complete"
+}
+{
+    "level": 30,
+    "time": 1779262086203,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "main",
+    "msg": "runtime manager rehydrated from database"
+}
+{
+    "level": 30,
+    "time": 1779262086204,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "main",
+    "msg": "ipc handlers registered"
+}
+{
+    "level": 30,
+    "time": 1779262087055,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "main",
+    "msg": "main window created"
+}
+{
+    "level": 30,
+    "time": 1779262113660,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "secrets-service",
+    "account": "provider:4a142daa-1833-4291-9620-6d553db0e96a",
+    "secretLength": 73,
+    "secretTooLong": false,
+    "sensitivePatternDetected": false,
+    "msg": "setting secret in keychain"
+}
+AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+AI SDK Warning: The "temperature" setting is not supported by this model - temperature is not supported for reasoning models
+{
+    "level": 30,
+    "time": 1779262128328,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "secrets-service",
+    "account": "broker:b398e52b-bf58-446e-a70b-3a595366e53a",
+    "secretLength": 2,
+    "secretTooLong": false,
+    "sensitivePatternDetected": false,
+    "msg": "setting secret in keychain"
+}
+{
+    "level": 30,
+    "time": 1779262159686,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "app-services",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "msg": "starting runtime"
+}
+{
+    "level": 30,
+    "time": 1779262159687,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "app-services",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "concurrency": 3,
+    "msg": "orchestrator starting"
+}
+{
+    "level": 30,
+    "time": 1779262159701,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "reddit-scout",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 1,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262159701,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262159701,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "web-scout",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262159701,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262159702,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "trend-scout",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262159702,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262159702,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "search_reddit"
+    ],
+    "hasSchema": true,
+    "systemChars": 273,
+    "promptChars": 3255,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262159703,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "search_web",
+        "fetch_url"
+    ],
+    "hasSchema": true,
+    "systemChars": 460,
+    "promptChars": 3255,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262159703,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "search_web",
+        "get_trending_symbols"
+    ],
+    "hasSchema": true,
+    "systemChars": 208,
+    "promptChars": 3255,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262164938,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{\"candidates\": []}",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262164939,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1547,
+    "outputTokens": 6,
+    "durationMs": 5235,
+    "totalCostUsd": 0.001553,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{\"candidates\": []}",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262164939,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "web-scout",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1547,
+    "outputTokens": 6,
+    "durationMs": 5235,
+    "costUsd": 0.001553,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262167098,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{ \"candidates\": [] }",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262167098,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1407,
+    "outputTokens": 7,
+    "durationMs": 7395,
+    "totalCostUsd": 0.001414,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{ \"candidates\": [] }",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262167099,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "trend-scout",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1407,
+    "outputTokens": 7,
+    "durationMs": 7395,
+    "costUsd": 0.001414,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262168417,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{\n  \"candidates\": [\n    {\n      \"instrumentClass\": \"stock\",\n      \"symbol\": \"NVDA\",\n      \"volumeScore\": 0.9\n    },\n    {\n      \"instrumentClass\": \"stock\",\n      \"symbol\": \"ARM\",\n      \"volumeScore\": 0.8\n    },\n    {\n      \"instrumentClass\": \"crypto\",\n      \"symbol\": \"BITCOIN\",\n      \"volumeScore\": 0.85\n    }\n  ]\n}",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262168417,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1373,
+    "outputTokens": 101,
+    "durationMs": 8715,
+    "totalCostUsd": 0.001474,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{\n  \"candidates\": [\n    {\n      \"instrumentClass\": \"stock\",\n      \"symbol\": \"NVDA\",\n      \"volumeScore\": 0.9\n    },\n    {\n      \"instrumentClass\": \"stock\",\n      \"symbol\": \"ARM\",\n      \"volumeScore\": 0.8\n    },\n    {\n      \"instrumentClass\": \"crypto\",\n      \"symbol\": \"BITCOIN\",\n      \"volumeScore\": 0.85\n    }\n  ]\n}",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262168417,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "reddit-scout",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1373,
+    "outputTokens": 101,
+    "durationMs": 8715,
+    "costUsd": 0.001474,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262168422,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "market-validator:NVDA",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262168422,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262168422,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "catalyst-extractor:NVDA",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262168422,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262168422,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "liquidity-gate:NVDA",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262168422,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262168422,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "market-validator:BITCOIN",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262168422,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262168422,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "get_quote",
+        "get_ohlcv"
+    ],
+    "hasSchema": true,
+    "systemChars": 377,
+    "promptChars": 3040,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262168423,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "fetch_url",
+        "get_news"
+    ],
+    "hasSchema": true,
+    "systemChars": 367,
+    "promptChars": 3040,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262168423,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "get_quote",
+        "get_ohlcv"
+    ],
+    "hasSchema": true,
+    "systemChars": 365,
+    "promptChars": 3040,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262168423,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "get_quote",
+        "get_ohlcv"
+    ],
+    "hasSchema": true,
+    "systemChars": 377,
+    "promptChars": 3044,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262172043,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{ \"candidate\": { \"instrumentClass\": \"stock\", \"symbol\": \"NVDA\", \"volumeScore\": 0.0 } }",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262172043,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1336,
+    "outputTokens": 32,
+    "durationMs": 3620,
+    "totalCostUsd": 0.001368,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{ \"candidate\": { \"instrumentClass\": \"stock\", \"symbol\": \"NVDA\", \"volumeScore\": 0.0 } }",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262172043,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "catalyst-extractor:NVDA",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1336,
+    "outputTokens": 32,
+    "durationMs": 3620,
+    "costUsd": 0.001368,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262173013,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{\"candidate\": {\"instrumentClass\": \"stock\", \"instrumentDisplayName\": \"NVIDIA Corporation\", \"liquidityScore\": 0.0, \"rationale\": \"High-volume tech leader with strong momentum and institutional participation, showing persistent uptrend with clean structure and relative strength.\", \"symbol\": \"NVDA\", \"volumeScore\": 0.0}}",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262173014,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1389,
+    "outputTokens": 75,
+    "durationMs": 4592,
+    "totalCostUsd": 0.001464,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{\"candidate\": {\"instrumentClass\": \"stock\", \"instrumentDisplayName\": \"NVIDIA Corporation\", \"liquidityScore\": 0.0, \"rationale\": \"High-volume tech leader with strong momentum and institutional participation, showing persistent uptrend with clean structure and relative strength.\", \"symbol\": \"NVDA\", \"volumeScore\": 0.0}}",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262173014,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "market-validator:NVDA",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1389,
+    "outputTokens": 75,
+    "durationMs": 4592,
+    "costUsd": 0.001464,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262173845,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{\"candidate\": {\"instrumentClass\": \"stock\", \"rationale\": \"Cannot verify NVDA ticker liquidity and market data. If get_quote/get_news/get_ohlcv cannot reach symbol, treat as not tradable enough for this session.\", \"symbol\": \"NVDA\", \"volumeScore\": 0.0}}",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262173846,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1385,
+    "outputTokens": 68,
+    "durationMs": 5422,
+    "totalCostUsd": 0.001453,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{\"candidate\": {\"instrumentClass\": \"stock\", \"rationale\": \"Cannot verify NVDA ticker liquidity and market data. If get_quote/get_news/get_ohlcv cannot reach symbol, treat as not tradable enough for this session.\", \"symbol\": \"NVDA\", \"volumeScore\": 0.0}}",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262173846,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "liquidity-gate:NVDA",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1385,
+    "outputTokens": 68,
+    "durationMs": 5422,
+    "costUsd": 0.001453,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262175068,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{\"candidate\":{\"instrumentClass\":\"crypto\",\"instrumentDisplayName\":\"Bitcoin\",\"rationale\":\"Cannot find quote data for BITCOIN symbol. This suggests either the symbol is incorrect or Bitcoin trading may not be available through the current broker system. Need to verify correct trading symbols.\",\"symbol\":\"BITCOIN\",\"volumeScore\":0.0}}",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262175068,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1391,
+    "outputTokens": 71,
+    "durationMs": 6645,
+    "totalCostUsd": 0.001462,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{\"candidate\":{\"instrumentClass\":\"crypto\",\"instrumentDisplayName\":\"Bitcoin\",\"rationale\":\"Cannot find quote data for BITCOIN symbol. This suggests either the symbol is incorrect or Bitcoin trading may not be available through the current broker system. Need to verify correct trading symbols.\",\"symbol\":\"BITCOIN\",\"volumeScore\":0.0}}",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262175069,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "market-validator:BITCOIN",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1391,
+    "outputTokens": 71,
+    "durationMs": 6645,
+    "costUsd": 0.001462,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262175071,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "catalyst-extractor:BITCOIN",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262175071,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262175072,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "liquidity-gate:BITCOIN",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262175072,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262175072,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "market-validator:ARM",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262175072,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262175072,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "catalyst-extractor:ARM",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262175072,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262175072,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "fetch_url",
+        "get_news"
+    ],
+    "hasSchema": true,
+    "systemChars": 367,
+    "promptChars": 3044,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262175072,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "get_quote",
+        "get_ohlcv"
+    ],
+    "hasSchema": true,
+    "systemChars": 365,
+    "promptChars": 3044,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262175072,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "get_quote",
+        "get_ohlcv"
+    ],
+    "hasSchema": true,
+    "systemChars": 377,
+    "promptChars": 3039,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262175073,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "fetch_url",
+        "get_news"
+    ],
+    "hasSchema": true,
+    "systemChars": 367,
+    "promptChars": 3039,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262178073,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{ \"candidate\": { \"instrumentClass\": \"stock\", \"symbol\": \"ARM\", \"volumeScore\": 0.87 } }",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262178073,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1338,
+    "outputTokens": 31,
+    "durationMs": 3000,
+    "totalCostUsd": 0.001369,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{ \"candidate\": { \"instrumentClass\": \"stock\", \"symbol\": \"ARM\", \"volumeScore\": 0.87 } }",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262178073,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "catalyst-extractor:ARM",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1338,
+    "outputTokens": 31,
+    "durationMs": 3000,
+    "costUsd": 0.001369,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262178460,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{\"candidate\": {\"instrumentClass\": \"stock\", \"instrumentDisplayName\": null, \"liquidityScore\": 0.0, \"rationale\": null, \"symbol\": \"ARM\", \"volumeScore\": 0.0}}",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262178460,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1388,
+    "outputTokens": 50,
+    "durationMs": 3388,
+    "totalCostUsd": 0.001438,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{\"candidate\": {\"instrumentClass\": \"stock\", \"instrumentDisplayName\": null, \"liquidityScore\": 0.0, \"rationale\": null, \"symbol\": \"ARM\", \"volumeScore\": 0.0}}",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262178460,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "market-validator:ARM",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1388,
+    "outputTokens": 50,
+    "durationMs": 3388,
+    "costUsd": 0.001438,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262178599,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{ \"candidate\": { \"instrumentClass\": \"crypto\", \"instrumentDisplayName\": null, \"rationale\": null, \"symbol\": \"BITCOIN\" } }",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262178599,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1338,
+    "outputTokens": 37,
+    "durationMs": 3527,
+    "totalCostUsd": 0.001375,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{ \"candidate\": { \"instrumentClass\": \"crypto\", \"instrumentDisplayName\": null, \"rationale\": null, \"symbol\": \"BITCOIN\" } }",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262178599,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "catalyst-extractor:BITCOIN",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1338,
+    "outputTokens": 37,
+    "durationMs": 3527,
+    "costUsd": 0.001375,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262182231,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{ \"candidate\": { \"instrumentClass\": \"crypto\", \"liquidityScore\": 0.0, \"rationale\": \"The symbol 'BITCOIN' cannot be verified via market data tools. This suggests the ticker symbol may be incorrect or the instrument is not accessible through available broker coverage. For crypto instruments, proper symbols like 'BTC-USD', 'BTC/USD', or exchange-specific tickers are required. Excluding from selection due to inability to verify tradability.\", \"symbol\": \"BITCOIN\", \"volumeScore\": 0.0 } }",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262182231,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1387,
+    "outputTokens": 120,
+    "durationMs": 7159,
+    "totalCostUsd": 0.001507,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{ \"candidate\": { \"instrumentClass\": \"crypto\", \"liquidityScore\": 0.0, \"rationale\": \"The symbol 'BITCOIN' cannot be verified via market data tools. This suggests the ticker symbol may be incorrect or the instrument is not accessible through available broker coverage. For crypto instruments, proper symbols like 'BTC-USD', 'BTC/USD', or exchange-specific tickers are required. Excluding from selection due to inability to verify tradability.\", \"symbol\": \"BITCOIN\", \"volumeScore\": 0.0 } }",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262182231,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "liquidity-gate:BITCOIN",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1387,
+    "outputTokens": 120,
+    "durationMs": 7159,
+    "costUsd": 0.001507,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262182232,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "liquidity-gate:ARM",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "model": "deepseek/deepseek-v3.2",
+    "maxSteps": 50,
+    "toolCount": 2,
+    "msg": "worker start"
+}
+{
+    "level": 30,
+    "time": 1779262182232,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "ai-runtime",
+    "providerType": "openrouter",
+    "modelId": "deepseek/deepseek-v3.2",
+    "role": "selector",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "attempt": 1,
+    "maxAttempts": 5,
+    "maxRetries": 4,
+    "timeoutMs": 60000,
+    "msg": "provider request attempt"
+}
+{
+    "level": 30,
+    "time": 1779262182232,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "providerType": "openrouter",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "temperature": null,
+    "hasTools": true,
+    "toolNames": [
+        "get_quote",
+        "get_ohlcv"
+    ],
+    "hasSchema": true,
+    "systemChars": 365,
+    "promptChars": 3039,
+    "maxSteps": 50,
+    "spendLimitUsd": 0.3,
+    "msg": "execute run agent start"
+}
+{
+    "level": 30,
+    "time": 1779262187783,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "step": 1,
+    "fullText": "{\"candidate\":{\"instrumentClass\":\"stock\",\"liquidityScore\":0.0,\"rationale\":\"Unable to verify tradability for ARM stock as get_quote returned no data. Candidate appears not covered by broker data sources and must be excluded from selection.\",\"symbol\":\"ARM\",\"volumeScore\":0.0}}",
+    "msg": "agent step text"
+}
+{
+    "level": 30,
+    "time": 1779262187784,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "run-agent-execute",
+    "role": null,
+    "modelId": "deepseek/deepseek-v3.2",
+    "finishReason": "stop",
+    "mappedFinishReason": "stop",
+    "steps": 1,
+    "inputTokens": 1384,
+    "outputTokens": 64,
+    "durationMs": 5552,
+    "totalCostUsd": 0.001448,
+    "spendExceeded": false,
+    "stepCapHit": false,
+    "responseText": "{\"candidate\":{\"instrumentClass\":\"stock\",\"liquidityScore\":0.0,\"rationale\":\"Unable to verify tradability for ARM stock as get_quote returned no data. Candidate appears not covered by broker data sources and must be excluded from selection.\",\"symbol\":\"ARM\",\"volumeScore\":0.0}}",
+    "msg": "execute run agent complete"
+}
+{
+    "level": 30,
+    "time": 1779262187784,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "pipeline-runtime",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "phase": "selector",
+    "workerId": "liquidity-gate:ARM",
+    "cycleId": "826344fb-f080-47f5-be16-575116c14e94",
+    "inputTokens": 1384,
+    "outputTokens": 64,
+    "durationMs": 5552,
+    "costUsd": 0.001448,
+    "msg": "worker complete"
+}
+{
+    "level": 30,
+    "time": 1779262187786,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "app-services",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "msg": "orchestrator started"
+}
+{
+    "level": 30,
+    "time": 1779262187786,
+    "pid": 41093,
+    "hostname": "Kenneths-MBP",
+    "scope": "app-services",
+    "sessionId": "fd1cca3c-1fbd-4146-8d31-c883557b9369",
+    "runtimeStatus": "active",
+    "msg": "runtime started"
+}

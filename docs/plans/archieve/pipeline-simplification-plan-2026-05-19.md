@@ -1,7 +1,7 @@
 # Pipeline Simplification & Phase Onboarding — Plan
 
 > **Date:** 2026-05-19
-> **Status:** Draft
+> **Status:** In Progress
 > **Deciders:** Exva engineering
 > **Related:** [Unified Pipeline Flexibility Plan](./unified-pipeline-plan-flexibility.md), [Orchestration Architecture Review](../reviews/orchestration-pipeline-architecture-review-2026-05-19.md), [Selector Debt](../reviews/selector-custom-configuration-debt-2026-05-19.md)
 
@@ -230,12 +230,12 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Done when:** `applyEngineOutput` function is deleted; all engine registrations include an `applyOutput` handler where needed; `stage-runner.ts` has no hardcoded `if (config.id === "risk_gate")` block.
 
 **Deliverables:**
-- [ ] Extend `EngineInputBuilder` with optional `applyOutput?: (state: TradeCyclePlanState, output: unknown) => Partial<TradeCyclePlanState>`
-- [ ] Add optional `skipIf?: (ctx: CyclePlanRunContext, state: TradeCyclePlanState) => boolean` to engine-chain stage config
-- [ ] Update `runEngineStage` and `runEngineChainStage` in `stage-dispatch.ts` to call `applyOutput` or return `state` unchanged if absent
-- [ ] Migrate existing registrations: `candidate-validator`, `execution-profile-engine`, `risk-gate`, `broker-allocation` each get their `applyOutput` logic moved from the switch into their `EngineInputBuilder` registration in `trade-engine-input-builders.ts`
-- [ ] Replace `if (config.id === "risk_gate")` in `stage-runner.ts` with `config.skipIf?.(ctx, state) ?? false`
-- [ ] Delete `applyEngineOutput` from `stage-dispatch.ts`
+- [x] Extend `EngineInputBuilder` with optional `applyOutput?: (state: TradeCyclePlanState, output: unknown) => Partial<TradeCyclePlanState>`
+- [x] Add optional `skipIf?: (ctx: CyclePlanRunContext, state: TradeCyclePlanState) => boolean` to engine-chain stage config
+- [x] Update `runEngineStage` and `runEngineChainStage` in `stage-dispatch.ts` to call `applyOutput` or return `state` unchanged if absent
+- [x] Migrate existing registrations: `candidate-validator`, `execution-profile-engine`, `risk-gate`, `broker-allocation` each get their `applyOutput` logic moved from the switch into their `EngineInputBuilder` registration in `trade-engine-input-builders.ts`
+- [x] Replace `if (config.id === "risk_gate")` in `stage-runner.ts` with `config.skipIf?.(ctx, state) ?? false`
+- [x] Delete `applyEngineOutput` from `stage-dispatch.ts`
 - [ ] Run existing `default-trade-cycle.test.ts` and cycle replay tests — must pass
 
 **Dependencies:** None.
@@ -255,10 +255,10 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Done when:** Adding a new stage to `DEFAULT_TRADE_CYCLE_STAGES` with `applyOutput: (state, result) => ({ optionsFlow: result })` is sufficient to wire it into cost tracking and context propagation.
 
 **Deliverables:**
-- [ ] Replace `sumAiCost` in `cycle/interpreter.ts` with `collectAiRunCost(state: TradeCyclePlanState)` that iterates `Object.values(state)` and sums any value where `typeof v === "object" && v !== null && "run" in v && typeof (v as AgentResult<unknown>).run?.cost_usd === "number"`. Move to a shared util.
-- [ ] Replace `applyTradePipelineToContext` with a field-keyed merge: each `DeclarativeCycleStageConfig` of kind `"phase"` already has `applyOutput(state, result) => TradeCyclePlanState`; the context merge should read from the state struct directly (context no longer stores redundant copies). If context-mirroring is needed for retry re-seed, express it as `seedState = pick(state, ["technical","fundamental","review","decision","riskOrder"])` — still explicit, but in one place.
+- [x] Replace `sumAiCost` in `cycle/interpreter.ts` with `collectAiRunCost(state: TradeCyclePlanState)` that iterates `Object.values(state)` and sums any value where `typeof v === "object" && v !== null && "run" in v && typeof (v as AgentResult<unknown>).run?.cost_usd === "number"`. Move to a shared util.
+- [x] Replace `applyTradePipelineToContext` with a field-keyed merge: each `DeclarativeCycleStageConfig` of kind `"phase"` already has `applyOutput(state, result) => TradeCyclePlanState`; the context merge should read from the state struct directly (context no longer stores redundant copies). If context-mirroring is needed for retry re-seed, express it as `seedState = pick(state, ["technical","fundamental","review","decision","riskOrder"])` — still explicit, but in one place.
 - [ ] Simplify `requirePipelineAiResults` to assert the four fields are present rather than destructuring them — or leave it as-is (it is explicit and correct); the goal here is not to make it dynamic but to ensure it doesn't need editing when a _new_ field is added optionally.
-- [ ] Ensure `approval-recheck.ts` Phase 3 compatibility: it still destructures `pipeline.state.technical` etc. directly — that is fine and should stay.
+- [x] Ensure `approval-recheck.ts` Phase 3 compatibility: it still destructures `pipeline.state.technical` etc. directly — that is fine and should stay.
 
 **Dependencies:** Phase 1 complete.
 
@@ -276,11 +276,11 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Done when:** Lines 98–179 of `approval-recheck.ts` are replaced by a call to a shared `runPostDecisionGates(ctx, state, cycleId, tradeId)` function that the normal trade cycle path also uses.
 
 **Deliverables:**
-- [ ] Extract `runPostDecisionGates(ctx: OrchestratorContext, state: TradeCyclePlanState, cycleId: string, tradeId: string | null): Promise<TradeCyclePlanState>` into a new file `orchestration/cycle/trade/post-decision-gates.ts`.
+- [x] Extract `runPostDecisionGates(ctx: OrchestratorContext, state: TradeCyclePlanState, cycleId: string, tradeId: string | null): Promise<TradeCyclePlanState>` into a new file `orchestration/cycle/trade/post-decision-gates.ts`.
   - This function builds a minimal `CyclePlanRunContext` (instrument, sessionConfig, strategyContext) and calls `runEngineChainStage` with the `risk_gate` stage's `engines` config from `DEFAULT_TRADE_CYCLE_STAGES`.
   - Replaces the three direct calls in `approval-recheck.ts`: `riskEngine.validateDecision`, `brokerAllocationGate.checkOrderFits`, `brokerAllocationGate.checkInstrumentConflict`.
-- [ ] Refactor `approval-recheck.ts` to: (a) run the AI pipeline with `lastStageId: "decision"`, (b) call `runPostDecisionGates`, (c) run the order-policy check, (d) place the order. Target <80 lines.
-- [ ] Confirm `run-trade-pipeline.ts` can optionally call the same shared gates (it currently runs them through `runEngineChainStage` via the cycle interpreter — no change needed; this phase only changes the recheck path).
+- [x] Refactor `approval-recheck.ts` to: (a) run the AI pipeline with `lastStageId: "decision"`, (b) call `runPostDecisionGates`, (c) run the order-policy check, (d) place the order. Target <80 lines.
+- [x] Confirm `run-trade-pipeline.ts` can optionally call the same shared gates (it currently runs them through `runEngineChainStage` via the cycle interpreter — no change needed; this phase only changes the recheck path).
 - [ ] Add a unit test that confirms `runPostDecisionGates` throws on risk rejection and on allocation failure.
 
 **Dependencies:** Phase 1 complete (engine output handler map must be in place before the shared runner is extracted, because the shared runner relies on `applyOutput` handlers).
@@ -301,13 +301,13 @@ Replace the typed struct with `Map<phaseId, AgentResult>` to make new phases zer
 **Done when:** `resolveEffectivePlanStages` has no hardcoded `if (planId === "default-trade-cycle")` branch; `CyclePlanRunContext` has no `runPhase` field; `analysis-plans.ts` does not call `getPipelineDefinition`.
 
 **Deliverables:**
-- [ ] Fix `resolveEffectivePlanStages` in `unified/registry.ts`:
+- [x] Fix `resolveEffectivePlanStages` in `unified/registry.ts`:
   - For cycle plans: derive from `plan.inspect` — the `inspected.stageIds`, `phaseStages`, `engineStages` are already set correctly by `tradeCycleInspectMetadata()`. Remove the hardcoded branch. The generic path (lines 94–101) had a bug setting all stages to `kind: "phase"` — fix to use `plan.kind` correctly and include `engineIds`.
   - This makes DevPanel stage inspection work for any registered cycle plan, not just `default-trade-cycle`.
-- [ ] Move review/decision worker resolution out of `getPipelineDefinition` call:
+- [x] Move review/decision worker resolution out of `getPipelineDefinition` call:
   - `REVIEW_PLAN.resolveWorkers` calls `getPipelineDefinition("review").workers` — move the worker list inline or to `pipeline-discovery-config.ts` alongside `STANDARD_SELECTOR_DISCOVERY` etc. Same for `DECISION_PLAN`.
   - Add `reviewWorkersForMode()` and `decisionWorkersForMode()` to `pipeline-discovery-config.ts` following the existing pattern.
-- [ ] Remove `runPhase` from `CyclePlanRunContext` in `plan/cycle/types.ts`. Verify no callers remain (should be zero — it was the legacy `AiRuntime.runPhase` bridge that Phase 2/3 retired).
+- [x] Remove `runPhase` from `CyclePlanRunContext` in `plan/cycle/types.ts`. Verify no callers remain (should be zero — it was the legacy `AiRuntime.runPhase` bridge that Phase 2/3 retired).
 - [ ] Run full test suite + cycle replay acceptance tests.
 
 **Dependencies:** Phases 1–3 complete (or can be done independently if Phase 3 is deferred).

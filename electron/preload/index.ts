@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { channels, mainToRendererEvents, type ExvaEventName } from "@electron/shared/ipc/channels";
+import { invokeEndpoint, workspaceEndpoints } from "@electron/shared/ipc/endpoints";
 import { sessionIdParamSchema } from "../shared/validation/schemas";
 import {
   apiKeySchema,
@@ -27,7 +28,8 @@ import {
   strategyAiPhaseWorkerSaveSchema,
   tradeIdSchema,
 } from "@/lib/schemas";
-import type { ExvaApi, ExvaEventMap } from "./exva-api";
+import type { ExvaEventMap } from "@electron/shared/ipc/dto";
+import type { ExvaApi } from "./exva-api";
 
 function invoke<T>(channel: string, payload?: unknown): Promise<T> {
   return ipcRenderer.invoke(channel, payload) as Promise<T>;
@@ -106,8 +108,18 @@ const exva: ExvaApi = {
     saveWorkspaceDefaultModel: (input) => invoke(channels.strategy.saveWorkspaceDefaultModel, input),
   },
   workspace: {
-    getView: () => invoke(channels.workspace.viewGet),
-    patchPreferences: (patch) => invoke(channels.workspace.prefsPatch, patch),
+    getView: () =>
+      invokeEndpoint<undefined, import("@electron/shared/ipc/dto").WorkspaceViewResponse>(
+        invoke,
+        workspaceEndpoints.getView,
+        undefined,
+      ),
+    patchPreferences: (patch) =>
+      invokeEndpoint<Partial<Omit<import("@/lib/types").WorkspacePreferences, "id">>, import("@/lib/types").WorkspacePreferences>(
+        invoke,
+        workspaceEndpoints.patchPreferences,
+        patch,
+      ),
   },
   brokerAccounts: {
     list: () => invoke(channels.brokerAccounts.list),

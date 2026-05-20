@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { registerDefaultCyclePlans } from "../register/cycle-plans";
-import { getCyclePlan, listCyclePlanIds } from "../cycle/registry";
+import { getCyclePlan, listCyclePlanIds, registerCyclePlan } from "../cycle/registry";
 import { DEFAULT_TRADE_CYCLE_STAGES } from "../plans/trade/default-cycle-stages";
 import { listEngineInputBuilderIds } from "../engine/input-builder-registry";
+import type { CyclePlan, TradeCyclePlanState } from "../cycle/types";
+import { resolveEffectivePlanStages } from "../unified/registry";
 
 describe("default-trade-cycle plan", () => {
   it("registers the default trade cycle with configured stages", () => {
@@ -50,5 +52,53 @@ describe("default-trade-cycle plan", () => {
     expect(listEngineInputBuilderIds()).toEqual(
       expect.arrayContaining(["candidate-validation", "execution-profile", "risk-gate", "broker-allocation"]),
     );
+  });
+
+  it("resolves effective stages for non-default cycle plans", () => {
+    const planId = "test-non-default-cycle-plan";
+    const customCyclePlan: CyclePlan<TradeCyclePlanState> = {
+      id: planId,
+      initialState: (_ctx, seed = {}) => ({ ...seed }),
+      inspect: {
+        stageIds: ["technical", "risk_gate"],
+        phaseStages: ["technical"],
+        engineStages: ["risk-gate", "broker-allocation"],
+      },
+      stages: [
+        {
+          id: "technical",
+          executionStage: "technical",
+          required: true,
+          execute: async (_ctx, state) => state,
+        },
+        {
+          id: "risk_gate",
+          executionStage: "risk_gate",
+          required: true,
+          failurePolicy: "reject_trade",
+          execute: async (_ctx, state) => state,
+        },
+      ],
+    };
+
+    registerCyclePlan(customCyclePlan);
+
+    expect(resolveEffectivePlanStages(planId)).toEqual([
+      {
+        id: "technical",
+        kind: "phase",
+        executionStage: "technical",
+        phase: "technical",
+        required: true,
+        failurePolicy: undefined,
+      },
+      {
+        id: "risk_gate",
+        kind: "engine-chain",
+        executionStage: "risk_gate",
+        required: true,
+        failurePolicy: "reject_trade",
+      },
+    ]);
   });
 });

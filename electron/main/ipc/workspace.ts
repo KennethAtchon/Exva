@@ -1,11 +1,10 @@
 import { ipcMain } from "electron";
-import { channels } from "@electron/shared/ipc/channels";
-import { workspacePrefsPatchSchema } from "@electron/shared/validation/schemas";
+import { workspaceEndpoints } from "@electron/shared/ipc/endpoints";
 import type { AppServices } from "../services/app-services";
 import { handle } from "./handle";
 
 export function registerWorkspaceHandlers(services: AppServices): void {
-  handle(ipcMain, channels.workspace.viewGet, async () => {
+  handle(ipcMain, workspaceEndpoints.getView.channel, async () => {
     const focused = services.repos.session.getFocused();
     return {
       workspaceViewMode: focused ? "session" : "global",
@@ -14,8 +13,7 @@ export function registerWorkspaceHandlers(services: AppServices): void {
     };
   });
 
-  handle(ipcMain, channels.workspace.prefsPatch, async (payload) => {
-    const patch = workspacePrefsPatchSchema.parse(payload ?? {});
-    return services.repos.workspacePreferences.update(patch);
+  handle(ipcMain, workspaceEndpoints.patchPreferences.channel, async (payload) => {
+    return services.repos.workspacePreferences.update(workspaceEndpoints.patchPreferences.parseInput(payload));
   });
 }
