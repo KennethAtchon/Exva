@@ -14,6 +14,7 @@ import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
 import { PipelineRuntime } from "../pipeline-runtime/core/pipeline-runtime";
 import { PhaseConfigResolver } from "../pipeline-runtime/phase-config-resolver";
+import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
 
 export class AiRuntime {
   private readonly pipelineRuntime: PipelineRuntime;
@@ -48,6 +49,14 @@ export class AiRuntime {
 
   setStrategyContextService(strategyContextService: SessionStrategyContextService): void {
     this.pipelineRuntime.setStrategyContextService(strategyContextService);
+  }
+
+  resolveEffectivePipelineConfig(sessionId: string, pipelineId?: string): EffectivePipelineConfig {
+    return this.pipelineRuntime.resolveEffectiveConfig(sessionId, pipelineId);
+  }
+
+  assertValidEffectivePipelineConfig(sessionId: string, pipelineId?: string): EffectivePipelineConfig {
+    return this.pipelineRuntime.assertValidEffectiveConfig(sessionId, pipelineId);
   }
 
   async runPhase<TInput, TOutput>(

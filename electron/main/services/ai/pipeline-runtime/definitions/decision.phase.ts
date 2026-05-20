@@ -11,7 +11,7 @@ import {
   signalClassifierOutputSchema,
   type EntryTimerOutput,
   type SignalClassifierOutput,
-} from "../../engines/trade-signal-aggregator";
+} from "../../engines/aggregators/trade-signal-aggregator";
 
 export type DecisionPhaseInput = {
   instrumentSymbol: string;

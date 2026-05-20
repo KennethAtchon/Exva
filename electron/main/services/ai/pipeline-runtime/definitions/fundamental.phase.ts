@@ -13,7 +13,7 @@ import {
   type EarningsOutput,
   type CatalystOutput,
   type SentimentOutput,
-} from "../../engines/fundamental-aggregator";
+} from "../../engines/aggregators/fundamental-aggregator";
 import { fundamentalWorkersForMode } from "../pipeline-discovery-config";
 
 export type FundamentalPhaseInput = {

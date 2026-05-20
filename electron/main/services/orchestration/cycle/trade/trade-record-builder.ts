@@ -1,6 +1,6 @@
 import type { SessionConfig, Trade } from "@/lib/types";
 import type { ReviewSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
-import { computeExecutionProfile, priceLevelsFromProfile } from "../../../ai/engines/execution-profile-engine";
+import { computeExecutionProfile, priceLevelsFromProfile } from "../../../ai/engines/execution/execution-profile-engine";
 import type { InstrumentClass } from "@/lib/types";
 import type { OrchestratorContext } from "../orchestrator-context";
 import type { ResolvedInstrument } from "../types";

@@ -26,7 +26,7 @@ import { OrderPolicyGate } from "../policy/order-policy-gate";
 import type { PolicyGateResult } from "../policy/order-policy-gate";
 import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 import type { ExitDecision } from "../../risk/exit-policy-evaluator";
-import { computeExecutionProfile, priceLevelsFromProfile } from "../../ai/engines/execution-profile-engine";
+import { computeExecutionProfile, priceLevelsFromProfile } from "../../ai/engines/execution/execution-profile-engine";
 
 export interface CycleFixture {
   version: 1;

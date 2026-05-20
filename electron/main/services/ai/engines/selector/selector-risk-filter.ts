@@ -1,9 +1,9 @@
-import type { ToolStepTrace } from "../../orchestration/policy/candidate-validation-service";
-import { CandidateValidationService } from "../../orchestration/policy/candidate-validation-service";
+import type { ToolStepTrace } from "../../../orchestration/policy/candidate-validation-service";
+import { CandidateValidationService } from "../../../orchestration/policy/candidate-validation-service";
 import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
 import type { InstrumentClass } from "@/lib/types";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import type { BrokerRoutingService } from "../../broker/broker-routing-service";
+import type { BrokerRoutingService } from "../../../broker/broker-routing-service";
 import { DEFAULT_RISK_RULE_SET, type RiskRuleSet } from "@electron/shared/ai/pipeline-config";
 import type { WorkingCandidate } from "./selector-candidate-merger";
 

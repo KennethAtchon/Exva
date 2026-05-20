@@ -8,12 +8,12 @@ import {
   chartPatternOutputSchema,
   momentumOutputSchema,
   volumeOutputSchema,
-} from "../engines/technical-aggregator";
+} from "../engines/aggregators/technical-aggregator";
 import {
   earningsOutputSchema,
   catalystOutputSchema,
   sentimentOutputSchema,
-} from "../engines/fundamental-aggregator";
+} from "../engines/aggregators/fundamental-aggregator";
 
 const candidateOutputSchema = z.object({
   candidates: z.array(

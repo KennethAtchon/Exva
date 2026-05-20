@@ -11,7 +11,7 @@ import {
   riskAssessorOutputSchema,
   type ConflictDetectorOutput,
   type RiskAssessorOutput,
-} from "../../engines/review-aggregator";
+} from "../../engines/aggregators/review-aggregator";
 
 export type ReviewPhaseInput = {
   instrumentSymbol: string;

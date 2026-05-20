@@ -13,7 +13,7 @@ import {
   type ChartPatternOutput,
   type MomentumOutput,
   type VolumeOutput,
-} from "../../engines/technical-aggregator";
+} from "../../engines/aggregators/technical-aggregator";
 import { technicalWorkersForMode } from "../pipeline-discovery-config";
 
 export type TechnicalPhaseInput = {

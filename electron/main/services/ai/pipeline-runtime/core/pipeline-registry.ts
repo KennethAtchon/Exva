@@ -103,3 +103,7 @@ for (const phase of Object.keys(REGISTRY) as PipelinePhase[]) {
 export function getPipelineDefinition(phase: PipelinePhase): PipelineDefinition {
   return REGISTRY[phase];
 }
+
+export function listPipelineDefinitions(): Array<{ phase: PipelinePhase; definition: PipelineDefinition }> {
+  return (Object.keys(REGISTRY) as PipelinePhase[]).map((phase) => ({ phase, definition: REGISTRY[phase] }));
+}

@@ -1,7 +1,7 @@
 import type { EngineBinding, PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import { getEngine } from "../../engines/engine-registry";
-import type { EngineRunContext } from "../../engines/types";
+import { getEngine } from "../../engines/registry/engine-registry";
+import type { EngineRunContext } from "../../engines/registry/types";
 
 export interface EngineContextRunInput {
   phase: PipelinePhase;

@@ -45,7 +45,7 @@ import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
 import { PromptAssetLoader } from "./ai/prompt-asset-loader";
-import { registerDefaultEngines } from "./ai/engines/register-default-engines";
+import { registerDefaultEngines } from "./ai/engines/registry/register-default-engines";
 import { ProviderRegistry } from "./ai/provider-registry";
 import { SearchRegistry } from "./ai/search/search-registry";
 import { SecretsService } from "./infra/secrets-service";

@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { registerEngine } from "./engine-registry";
-import { aggregateTechnicalSignal } from "./technical-aggregator";
-import { aggregateFundamentalSignal } from "./fundamental-aggregator";
-import { aggregateReviewSignal } from "./review-aggregator";
-import { aggregateTradeSignal } from "./trade-signal-aggregator";
-import { mergeCandidates } from "./selector-candidate-merger";
-import { scoreCandidate } from "./selector-scoring-engine";
-import { buildInstrumentSelection } from "./selector-submission-builder";
-import { computeExecutionProfile } from "./execution-profile-engine";
+import { aggregateTechnicalSignal } from "../aggregators/technical-aggregator";
+import { aggregateFundamentalSignal } from "../aggregators/fundamental-aggregator";
+import { aggregateReviewSignal } from "../aggregators/review-aggregator";
+import { aggregateTradeSignal } from "../aggregators/trade-signal-aggregator";
+import { mergeCandidates } from "../selector/selector-candidate-merger";
+import { scoreCandidate } from "../selector/selector-scoring-engine";
+import { buildInstrumentSelection } from "../selector/selector-submission-builder";
+import { computeExecutionProfile } from "../execution/execution-profile-engine";
 
 export function registerPipelineEngines(): void {
   registerEngine({

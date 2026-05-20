@@ -24,6 +24,12 @@ import { buildToolContext } from "../context/tool-context-builder";
 import { DEFAULT_PIPELINE_CONFIG } from "@electron/shared/ai/pipeline-config";
 import { PipelineSpendTracker } from "../execution/pipeline-spend-tracker";
 import { createLogger } from "../../../infra/log";
+import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
+import {
+  assertValidEffectivePipelineConfig,
+  DEFAULT_PIPELINE_ID,
+  resolveEffectivePipelineConfig,
+} from "../effective-pipeline-config";
 
 const logger = createLogger("pipeline-runtime");
 
@@ -59,6 +65,22 @@ export class PipelineRuntime {
 
   setStrategyContextService(strategyContextService: SessionStrategyContextService): void {
     this.deps.strategyContextService = strategyContextService;
+  }
+
+  resolveEffectiveConfig(sessionId: string, pipelineId = DEFAULT_PIPELINE_ID): EffectivePipelineConfig {
+    const strategyContext = this.requireStrategyContextService().get(sessionId);
+    return resolveEffectivePipelineConfig({
+      sessionId,
+      pipelineId,
+      phaseConfigResolver: this.deps.phaseConfigResolver,
+      strategyContext,
+    });
+  }
+
+  assertValidEffectiveConfig(sessionId: string, pipelineId = DEFAULT_PIPELINE_ID): EffectivePipelineConfig {
+    const config = this.resolveEffectiveConfig(sessionId, pipelineId);
+    assertValidEffectivePipelineConfig(config, { promptLoader: this.deps.promptLoader });
+    return config;
   }
 
   async run<TInput, TOutput>(opts: RunPhaseOptions<TInput>): Promise<AgentResult<TOutput>> {

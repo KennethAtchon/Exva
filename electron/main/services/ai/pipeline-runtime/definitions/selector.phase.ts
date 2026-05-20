@@ -7,11 +7,11 @@ import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
 import type { ToolBuildContext } from "../context/tool-factory-registry";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { assembleAggregateTrace } from "../execution/trace-assembler";
-import { mergeCandidates, type WorkingCandidate } from "../../engines/selector-candidate-merger";
+import { mergeCandidates, type WorkingCandidate } from "../../engines/selector/selector-candidate-merger";
 import { DEFAULT_SCORING_WEIGHTS } from "@electron/shared/ai/pipeline-config";
-import { scoreCandidate } from "../../engines/selector-scoring-engine";
-import { RiskFilter } from "../../engines/selector-risk-filter";
-import { buildInstrumentSelection } from "../../engines/selector-submission-builder";
+import { scoreCandidate } from "../../engines/selector/selector-scoring-engine";
+import { RiskFilter } from "../../engines/selector/selector-risk-filter";
+import { buildInstrumentSelection } from "../../engines/selector/selector-submission-builder";
 import { AppError } from "@electron/shared/infra/errors";
 
 export type SelectorPhaseInput = {
