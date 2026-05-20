@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+out
+.vite
+.vite-build
+*.tsbuildinfo
+bun.lock
+
+.env
+.env.*
+
+docs/.DS_Store
+docs/hello.json
+**/.DS_Store

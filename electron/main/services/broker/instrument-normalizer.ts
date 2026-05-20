@@ -6,6 +6,26 @@ export type CanonicalInstrument = {
   instrumentClass: InstrumentClass;
 };
 
+const CRYPTO_ALIASES: Record<string, string> = {
+  BITCOIN: "BTC",
+  BTC: "BTC",
+  ETHEREUM: "ETH",
+  ETH: "ETH",
+};
+
+/** Resolve common aliases to a canonical uppercase symbol before broker normalization. */
+export function resolveCanonicalSymbol(symbol: string, instrumentClass: InstrumentClass): string {
+  if (instrumentClass === "prediction_market") return symbol.trim();
+  const normalized = symbol.trim().toUpperCase();
+  if (instrumentClass === "crypto") {
+    return CRYPTO_ALIASES[normalized] ?? normalized
+      .replace(/[-/]USD$/, "")
+      .replace(/[-/]USDT$/, "")
+      .replace(/USDT$/, "");
+  }
+  return normalized;
+}
+
 export class InstrumentNormalizer {
   /** Wire-format symbol for a specific broker implementation. */
   toBrokerSymbol(input: { symbol: string; instrumentClass: InstrumentClass; brokerType: string }): string {

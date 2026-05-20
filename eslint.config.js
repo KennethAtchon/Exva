@@ -4,7 +4,15 @@ import reactHooks from "eslint-plugin-react-hooks";
 
 export default tseslint.config(
   {
-    ignores: ["dist", ".vite", ".vite-build", "node_modules", "e2e", "playwright.config.ts"],
+    ignores: [
+      "dist",
+      ".vite",
+      ".vite-build",
+      "node_modules",
+      "e2e",
+      "scripts",
+      "playwright.config.ts",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.strict,
@@ -25,8 +33,10 @@ export default tseslint.config(
       "no-restricted-syntax": [
         "error",
         {
-          selector: "MemberExpression[object.object.name='process'][object.property.name='env']",
-          message: "Read env via electron/main/config/env.ts, not process.env directly.",
+          selector:
+            "MemberExpression[object.object.name='process'][object.property.name='env']",
+          message:
+            "Read env via electron/main/config/env.ts, not process.env directly.",
         },
       ],
     },
@@ -38,7 +48,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ["electron/main/services/**/*.ts", "electron/main/ipc/**/*.ts", "electron/main/index.ts"],
+    files: [
+      "electron/main/services/**/*.ts",
+      "electron/main/ipc/**/*.ts",
+      "electron/main/index.ts",
+    ],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -46,7 +60,8 @@ export default tseslint.config(
           paths: [
             {
               name: "pino",
-              message: "Use createLogger from electron/main/services/infra/log.ts instead of importing pino directly.",
+              message:
+                "Use createLogger from electron/main/services/infra/log.ts instead of importing pino directly.",
             },
           ],
         },

@@ -1,6 +1,7 @@
 import type { ToolStepTrace } from "../../../orchestration/policy/candidate-validation-service";
 import { CandidateValidationService } from "../../../orchestration/policy/candidate-validation-service";
-import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
+import type { CandidateRejection } from "@electron/shared/ai/selector-diagnostics";
+import { collectCandidateToolNames } from "@electron/shared/ai/selector-diagnostics";
 import type { InstrumentClass } from "@/lib/types";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { BrokerRoutingService } from "../../../broker/broker-routing-service";
@@ -15,46 +16,95 @@ export interface RiskFilterDeps {
   riskRules?: RiskRuleSet;
 }
 
+export interface RiskFilterEvaluation {
+  accepted: WorkingCandidate[];
+  rejected: CandidateRejection[];
+}
+
 export class RiskFilter {
   private readonly validator = new CandidateValidationService();
 
   constructor(private readonly deps: RiskFilterDeps) {}
 
   filter(candidates: WorkingCandidate[]): WorkingCandidate[] {
-    return candidates.filter((candidate) => {
-      if (!this.deps.instrumentClasses.includes(candidate.instrumentClass)) return false;
-      const minFinalScore = this.deps.riskRules?.minFinalScore ?? DEFAULT_RISK_RULE_SET.minFinalScore;
-      if ((candidate.finalScore ?? 0) < minFinalScore) return false;
-      if (!candidate.rationale?.trim()) return false;
-      if (this.deps.brokerRouting) {
-        try {
-          this.deps.brokerRouting.resolveBrokerAccountId(this.deps.sessionId, candidate.instrumentClass);
-        } catch {
-          return false;
-        }
-      }
+    return this.evaluate(candidates).accepted;
+  }
 
-      const quoteSnapshot = extractQuoteSnapshot(candidate.selectorTraces);
-      if (!quoteSnapshot) return false;
+  evaluate(candidates: WorkingCandidate[]): RiskFilterEvaluation {
+    const accepted: WorkingCandidate[] = [];
+    const rejected: CandidateRejection[] = [];
 
-      const validation = this.validator.validate({
-        sessionId: this.deps.sessionId,
-        cycleId: "selector",
-        instrument: {
+    for (const candidate of candidates) {
+      const toolNamesUsed = collectCandidateToolNames(candidate.selectorTraces);
+      const reasons = this.collectRejectionReasons(candidate);
+      if (reasons.length === 0) {
+        accepted.push(candidate);
+      } else {
+        rejected.push({
           symbol: candidate.symbol,
           instrumentClass: candidate.instrumentClass,
-          selectorEvidence: candidate.selectorEvidence,
-        },
-        sessionInstrumentClasses: this.deps.instrumentClasses,
-        brokerRouteAvailable: true,
-        sideBias: this.deps.strategyContext.rules.sideBias,
-        holdingStyle: this.deps.strategyContext.timeframe.holdingStyle,
-        selectorTrace: candidate.selectorTraces as ToolStepTrace[],
-        quoteSnapshot,
-      });
+          finalScore: candidate.finalScore,
+          sourceWorkers: candidate.source,
+          toolNamesUsed,
+          reasons,
+        });
+      }
+    }
 
-      return validation.allowed;
+    return { accepted, rejected };
+  }
+
+  private collectRejectionReasons(candidate: WorkingCandidate): string[] {
+    const reasons: string[] = [];
+
+    if (!this.deps.instrumentClasses.includes(candidate.instrumentClass)) {
+      reasons.push(`Instrument class '${candidate.instrumentClass}' not enabled for session`);
+    }
+
+    const minFinalScore = this.deps.riskRules?.minFinalScore ?? DEFAULT_RISK_RULE_SET.minFinalScore;
+    if ((candidate.finalScore ?? 0) < minFinalScore) {
+      reasons.push(`Final score ${candidate.finalScore ?? 0} below minimum ${minFinalScore}`);
+    }
+
+    if (!candidate.rationale?.trim()) {
+      reasons.push("Selector rationale is empty");
+    }
+
+    if (this.deps.brokerRouting) {
+      try {
+        this.deps.brokerRouting.resolveBrokerAccountId(this.deps.sessionId, candidate.instrumentClass);
+      } catch {
+        reasons.push("No broker account supports this instrument class");
+      }
+    }
+
+    const quoteSnapshot = extractQuoteSnapshot(candidate.selectorTraces);
+    if (!quoteSnapshot) {
+      reasons.push("Missing get_quote trace or valid quote snapshot");
+      return reasons;
+    }
+
+    const validation = this.validator.validate({
+      sessionId: this.deps.sessionId,
+      cycleId: "selector",
+      instrument: {
+        symbol: candidate.symbol,
+        instrumentClass: candidate.instrumentClass,
+        selectorEvidence: candidate.selectorEvidence,
+      },
+      sessionInstrumentClasses: this.deps.instrumentClasses,
+      brokerRouteAvailable: true,
+      sideBias: this.deps.strategyContext.rules.sideBias,
+      holdingStyle: this.deps.strategyContext.timeframe.holdingStyle,
+      selectorTrace: candidate.selectorTraces as ToolStepTrace[],
+      quoteSnapshot,
     });
+
+    if (!validation.allowed) {
+      reasons.push(...validation.reasons);
+    }
+
+    return reasons;
   }
 }
 

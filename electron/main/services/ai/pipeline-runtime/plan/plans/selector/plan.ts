@@ -11,8 +11,10 @@ import { scoreCandidate } from "../../../../engines/selector/selector-scoring-en
 import { RiskFilter } from "../../../../engines/selector/selector-risk-filter";
 import { buildInstrumentSelection } from "../../../../engines/selector/selector-submission-builder";
 import { selectorDiscoveryWorkersForMode } from "../../../pipeline-discovery-config";
+import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/catalog/search-providers";
 import { assembleAggregateTrace } from "../../../execution/trace-assembler";
-import type { PhasePlan, PhasePlanRunContext, PhasePlanWorkerTrace } from "../../phase/types";
+import { summarizeWorkerToolCoverage } from "../../../execution/worker-tool-requirements";
+import type { PhasePlan, PhasePlanWorkerTrace } from "../../phase/types";
 import { buildManualShortlistSelection, isManualSelectorMode } from "../../input-builders/manual-shortlist";
 
 type DiscoveryOutput = z.infer<typeof candidateOutputSchema>;
@@ -31,13 +33,16 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
       id: `market-validator:${candidate.symbol}`,
       promptAssetPath: "selector-workers/market-validator",
       tools: ["get_quote", "get_ohlcv"],
+      toolRequirements: { requiredAll: ["get_quote", "get_ohlcv"], minToolCalls: 2 },
       outputMode: "object",
       outputSchema: verificationOutputSchema,
     },
     {
       id: `catalyst-extractor:${candidate.symbol}`,
       promptAssetPath: "selector-workers/catalyst-extractor",
-      tools: ["get_news", "fetch_url"],
+      tools: ["get_news", "search_web", "fetch_url"],
+      toolConfig: { search_web: { fallbackProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID } },
+      toolRequirements: { requiredAny: ["get_news", "search_web", "fetch_url"], minToolCalls: 1 },
       outputMode: "object",
       outputSchema: verificationOutputSchema,
     },
@@ -45,6 +50,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
       id: `liquidity-gate:${candidate.symbol}`,
       promptAssetPath: "selector-workers/liquidity-gate",
       tools: ["get_quote", "get_ohlcv"],
+      toolRequirements: { requiredAll: ["get_quote"], minToolCalls: 1 },
       outputMode: "object",
       outputSchema: verificationOutputSchema,
     },
@@ -83,10 +89,10 @@ export const SELECTOR_PLAN: PhasePlan<SelectorPlanState, InstrumentSelection> = 
       resolveWorkers(ctx) {
         return [...selectorDiscoveryWorkersForMode(ctx.strategyContext.researchPosture.discoveryMode)];
       },
-      buildTask(ctx, _state, _worker) {
+      buildTask(ctx) {
         return {
           selectionInstructions: ctx.input.selectionInstructions,
-          instrumentClasses: ctx.toolContext.instrumentClasses,
+          instrumentClasses: ctx.instrumentClasses,
           discoveryMode: ctx.strategyContext.researchPosture.discoveryMode,
         };
       },
@@ -134,6 +140,7 @@ export const SELECTOR_PLAN: PhasePlan<SelectorPlanState, InstrumentSelection> = 
       },
       concurrency: 4,
       toleratePartialFailure: true,
+      minSuccessfulWorkers: 1,
       applyResults(_ctx, state, results) {
         const verified = applyVerificationResults(state.candidatesForVerification, results as Array<{
           worker: WorkerDefinition;
@@ -147,20 +154,29 @@ export const SELECTOR_PLAN: PhasePlan<SelectorPlanState, InstrumentSelection> = 
     },
   ],
   async finalize(ctx, state, workerTraces) {
-    const filtered = new RiskFilter({
+    const evaluation = new RiskFilter({
       sessionId: ctx.sessionId,
-      instrumentClasses: ctx.toolContext.instrumentClasses,
+      instrumentClasses: ctx.instrumentClasses,
       strategyContext: ctx.strategyContext,
       brokerRouting: ctx.toolContext.brokerRouting,
-    }).filter(state.verifiedCandidates);
+    }).evaluate(state.verifiedCandidates);
 
-    const output = buildInstrumentSelection(
-      filtered.map((candidate) => ({
-        ...candidate,
-        selectorEvidence: buildSelectorEvidence(candidate),
-      })),
-      ctx.strategyContext.riskConfig.maxConcurrentTrades,
-    );
+    const output = {
+      ...buildInstrumentSelection(
+        evaluation.accepted.map((candidate) => ({
+          ...candidate,
+          selectorEvidence: buildSelectorEvidence(candidate),
+        })),
+        ctx.strategyContext.riskConfig.maxConcurrentTrades,
+      ),
+      diagnostics: {
+        discoveredCount: state.candidatesForVerification.length,
+        verifiedCount: state.verifiedCandidates.length,
+        acceptedCount: evaluation.accepted.length,
+        rejected: evaluation.rejected,
+        workerToolCoverage: buildWorkerToolCoverage(workerTraces),
+      },
+    };
 
     const discoveryTrace = workerTraces.find((trace) => trace.frontier === 0);
     const aggregate = assembleAggregateTrace({
@@ -175,6 +191,7 @@ export const SELECTOR_PLAN: PhasePlan<SelectorPlanState, InstrumentSelection> = 
       maxConcurrency: 4,
       output,
       outputSchemaName: "instrumentSelection",
+      marketSnapshotJson: JSON.stringify(output.diagnostics),
       workers: workerTraces,
     });
 
@@ -182,6 +199,7 @@ export const SELECTOR_PLAN: PhasePlan<SelectorPlanState, InstrumentSelection> = 
   },
   filterOutput(output, ctx) {
     return {
+      ...output,
       instruments: output.instruments
         .filter((row) => ctx.instrumentClasses.includes(row.instrumentClass))
         .slice(0, ctx.strategyContext.riskConfig.maxConcurrentTrades),
@@ -274,4 +292,40 @@ function inferThesisDirection(summary: string | null): SelectorEvidence["thesisD
   if (/bearish|downtrend|selloff|breakdown|short setup/.test(text)) return "short";
   if (/bullish|uptrend|breakout|long setup|momentum/.test(text)) return "long";
   return "neutral";
+}
+
+function buildWorkerToolCoverage(workerTraces: PhasePlanWorkerTrace[]) {
+  return workerTraces.map((trace) => {
+    const usedTools = parseWorkerToolNames(trace.message.tool_calls_json);
+    const workerPrefix = trace.workerId.split(":")[0] ?? trace.workerId;
+    const requirement = resolveToolRequirementForWorker(workerPrefix);
+    return summarizeWorkerToolCoverage(trace.workerId, requirement, usedTools);
+  });
+}
+
+function parseWorkerToolNames(raw: string | null): string[] {
+  const steps = parseWorkerToolTrace(raw);
+  return [...new Set(steps.flatMap((step) => step.toolCalls.map((call) => call.tool)))];
+}
+
+function resolveToolRequirementForWorker(workerPrefix: string) {
+  if (workerPrefix === "market-validator") {
+    return { requiredAll: ["get_quote", "get_ohlcv"], minToolCalls: 2 } as const;
+  }
+  if (workerPrefix === "liquidity-gate") {
+    return { requiredAll: ["get_quote"], minToolCalls: 1 } as const;
+  }
+  if (workerPrefix === "catalyst-extractor") {
+    return { requiredAny: ["get_news", "search_web", "fetch_url"], minToolCalls: 1 } as const;
+  }
+  if (workerPrefix === "web-scout") {
+    return { requiredAll: ["search_web"], minToolCalls: 1 } as const;
+  }
+  if (workerPrefix === "reddit-scout") {
+    return { requiredAll: ["search_reddit"], minToolCalls: 1 } as const;
+  }
+  if (workerPrefix === "trend-scout") {
+    return { requiredAll: ["get_trending_symbols"], minToolCalls: 1 } as const;
+  }
+  return undefined;
 }

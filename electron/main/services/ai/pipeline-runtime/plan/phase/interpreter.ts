@@ -27,6 +27,10 @@ export interface PhasePlanInterpreterRunInput {
 export class PhasePlanInterpreter {
   async run<TOutput>(input: PhasePlanInterpreterRunInput): Promise<PhasePlanRunResult<TOutput>> {
     const instrumentClasses = resolveSessionInstrumentClasses(input.session, input.services);
+    const toolContext: ToolBuildContext = {
+      ...input.toolContext,
+      instrumentClasses,
+    };
     const ctx: PhasePlanRunContext = {
       phase: input.plan.phase,
       sessionId: input.sessionId,
@@ -35,7 +39,7 @@ export class PhasePlanInterpreter {
       session: input.session,
       instrumentClasses,
       strategyContext: input.strategyContext,
-      toolContext: input.toolContext,
+      toolContext,
       services: input.services,
       runner: input.runner,
       input: { ...input.input },
@@ -94,16 +98,19 @@ export class PhasePlanInterpreter {
             entry.status === "fulfilled",
         )
         .map((entry) => entry.value);
+      const rejectedReasons = settled
+        .filter((entry): entry is PromiseRejectedResult => entry.status === "rejected")
+        .map((entry) => formatRejectionReason(entry.reason));
 
       if (stage.minSuccessfulWorkers != null && results.length < stage.minSuccessfulWorkers) {
         throw new AppError(
-          `Stage '${stage.id}' in phase '${input.plan.phase}' produced insufficient successful workers (${results.length}/${stage.minSuccessfulWorkers}).`,
+          `Stage '${stage.id}' in phase '${input.plan.phase}' produced insufficient successful workers (${results.length}/${stage.minSuccessfulWorkers}).${formatRejectedReasons(rejectedReasons)}`,
           "VALIDATION_FAILED",
         );
       }
 
       if (!stage.toleratePartialFailure && results.length !== workers.length) {
-        throw new AppError(`Stage '${stage.id}' in phase '${input.plan.phase}' failed worker execution.`, "VALIDATION_FAILED");
+        throw new AppError(`Stage '${stage.id}' in phase '${input.plan.phase}' failed worker execution.${formatRejectedReasons(rejectedReasons)}`, "VALIDATION_FAILED");
       }
 
       for (const { worker, result } of results) {
@@ -160,4 +167,14 @@ function hasNonEmptyOutput(output: unknown): boolean {
   if (!output || typeof output !== "object") return false;
   const instruments = (output as { instruments?: unknown[] }).instruments;
   return Array.isArray(instruments) && instruments.length > 0;
+}
+
+function formatRejectedReasons(reasons: string[]): string {
+  if (reasons.length === 0) return "";
+  return ` Rejections: ${reasons.slice(0, 3).join(" | ")}`;
+}
+
+function formatRejectionReason(reason: unknown): string {
+  if (reason instanceof Error) return reason.message;
+  return String(reason);
 }

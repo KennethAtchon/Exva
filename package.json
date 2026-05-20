@@ -20,9 +20,14 @@
     "make": "electron-forge make",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "check": "bun run typecheck && bun run lint && bun run format:check && bun run test",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "prepare": "husky",
     "logs:clear": "rm -f \"$HOME/.exva/logs\"/*.log",
     "clean": "rm -rf node_modules && rm -rf dist && rm -rf .vite"
   },
@@ -94,8 +99,11 @@
     "vitest": "^2.1.8"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
+    "*.{ts,tsx,js,jsx}": [
       "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md,yml,yaml}": [
       "prettier --write"
     ]
   }

@@ -48,6 +48,7 @@ export interface AggregateTraceAssemblyInput {
   maxConcurrency: number;
   output: unknown;
   outputSchemaName: string | null;
+  marketSnapshotJson?: string | null;
   workers: ExecutedWorkerTraceInput[];
 }
 
@@ -170,7 +171,7 @@ export function assembleAggregateTrace(input: AggregateTraceAssemblyInput): Asse
     output_schema_name: input.outputSchemaName,
     parse_fallback: input.workers.some((worker) => worker.message.parse_fallback),
     strategy_snapshot_json: JSON.stringify(snapshot),
-    market_snapshot_json: null,
+    market_snapshot_json: input.marketSnapshotJson ?? null,
     created_at: createdAt,
   };
 

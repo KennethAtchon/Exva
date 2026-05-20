@@ -1,4 +1,4 @@
-import type { ExecutionStage, SessionConfig, WorkspaceSession } from "@/lib/types";
+import type { ExecutionStage, SessionConfig } from "@/lib/types";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
 import { OrchestratorContext } from "./orchestrator-context";
 import { runPhaseCycle } from "./orchestrator-step";
@@ -34,11 +34,22 @@ export class AgentOrchestrator {
     this.deps.logger.info({ sessionId: this.sessionId, concurrency: this.ctx.queue.concurrency }, "orchestrator starting");
     attachTradeClosedListener(this.ctx, () => this.scheduleSelectorCycle("Trade-closed research cycle complete"));
     this.ctx.started = true;
-    await this.executeSelectorCycle({
-      kind: "selector",
-      cycleId: crypto.randomUUID(),
-      label: "Initial research cycle complete",
-    });
+    this.ctx.enqueueTask(
+      () =>
+        this.executeSelectorCycle({
+          kind: "selector",
+          cycleId: crypto.randomUUID(),
+          label: "Initial research cycle complete",
+        }),
+      (error) => {
+        this.ctx.emitEvent(
+          "ERROR",
+          null,
+          `Initial selector cycle failed: ${error instanceof Error ? error.message : String(error)}`,
+          "orchestrator",
+        );
+      },
+    );
     this.deps.logger.info({ sessionId: this.sessionId }, "orchestrator started");
   }
 

@@ -47,5 +47,26 @@ export async function runSelector(
     });
   }
 
+  const diagnostics = result.output.diagnostics;
+  if (result.source === "ai_picker" && instruments.length === 0 && diagnostics && diagnostics.rejected.length > 0) {
+    const summary = diagnostics.rejected
+      .slice(0, 5)
+      .map((row) => `${row.symbol}: ${row.reasons[0] ?? "rejected"}`)
+      .join("; ");
+    ctx.emitEvent(
+      "WARN",
+      null,
+      `[stage:selector] no instruments accepted; ${diagnostics.rejected.length} rejected (${summary})`,
+      "orchestrator",
+      cycleId,
+    );
+    ctx.deps.bus.emit("research_phase_step", {
+      sessionId: ctx.sessionId,
+      phase: "selector",
+      cycleId,
+      message: `Selector rejected all candidates: ${summary}`,
+    });
+  }
+
   return marketHours.filterTradable(instruments.slice(0, config.max_concurrent_trades));
 }

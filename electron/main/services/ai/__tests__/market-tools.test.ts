@@ -3,6 +3,9 @@ import { createMarketTools, scenarioMockNews } from "../tools/market-tools";
 import { MockBrokerAdapter } from "../../broker/adapters/mock-adapter";
 
 type StockToolExecutor = { execute: (input: { symbol: string; instrumentClass: "stock" }) => Promise<unknown> };
+type CryptoQuoteToolExecutor = {
+  execute: (input: { symbol: string; instrumentClass: "crypto" }) => Promise<unknown>;
+};
 type OhlcvToolExecutor = {
   execute: (input: { symbol: string; instrumentClass: "stock"; timeframe?: string }) => Promise<{ bars?: unknown[]; timeframe?: string }>;
 };
@@ -125,5 +128,37 @@ describe("market-tools", () => {
     expect(capturedCalls[0]?.timeframe).toBe("4h");
     expect(out.timeframe).toBe("4h");
     expect(Array.isArray(out.bars)).toBe(true);
+  });
+
+  it("normalizes BITCOIN to BTC-USD for Coinbase crypto quotes", async () => {
+    const getMarketSnapshot = vi.fn().mockResolvedValue({
+      instrumentSymbol: "BTC-USD",
+      price: 65000,
+      timestamp: "2026-05-20T00:00:00.000Z",
+    });
+    const brokerRegistry = {
+      get: vi.fn().mockResolvedValue({
+        brokerType: "coinbase_advanced_trade",
+        getMarketSnapshot,
+      }),
+    };
+    const tools = createMarketTools({
+      sessionId: "s1",
+      brokerRegistry: brokerRegistry as never,
+      brokerAccountIdByClass: () => "coinbase-1",
+      include: { quote: true, ohlcv: false, news: false },
+    });
+
+    const getQuote = tools.get_quote as unknown as CryptoQuoteToolExecutor;
+    const out = await getQuote.execute({ symbol: "BITCOIN", instrumentClass: "crypto" });
+
+    expect(getMarketSnapshot).toHaveBeenCalledWith("BTC-USD");
+    expect(out).toMatchObject({
+      symbol: "BITCOIN",
+      canonicalSymbol: "BTC",
+      brokerSymbol: "BTC-USD",
+      instrumentClass: "crypto",
+      price: 65000,
+    });
   });
 });

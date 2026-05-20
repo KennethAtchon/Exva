@@ -8,6 +8,10 @@ import * as runSelectorModule from "../selector/run-selector";
 
 registerDefaultPhasePlans();
 
+async function drainOrchestratorQueue(orchestrator: AgentOrchestrator): Promise<void> {
+  await (orchestrator as never as { ctx: { queue: { onIdle: () => Promise<void> } } }).ctx.queue.onIdle();
+}
+
 describe("AgentOrchestrator", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -63,6 +67,7 @@ describe("AgentOrchestrator", () => {
     );
 
     await expect(orchestrator.start()).resolves.toBeUndefined();
+    await drainOrchestratorQueue(orchestrator);
 
     const [step] = deps.sessionExecutionStepsRepo.getLatestBySession("session-1");
     expect(step).toMatchObject({ stage: "selector", status: "retrying", retryable: true });
@@ -85,6 +90,7 @@ describe("AgentOrchestrator", () => {
       .mockResolvedValueOnce([{ symbol: "AAPL", instrumentClass: "stock" }]);
 
     await orchestrator.start();
+    await drainOrchestratorQueue(orchestrator);
     const [failedStep] = deps.sessionExecutionStepsRepo.getLatestBySession("session-1");
     const retryResult = await orchestrator.retryStep(failedStep.cycleId, "selector");
     await Promise.resolve();
@@ -93,6 +99,34 @@ describe("AgentOrchestrator", () => {
     expect(retryResult).toEqual({ ok: true });
     expect(runSelector).toHaveBeenCalledTimes(2);
     expect(deps.sessionExecutionStepsRepo.get("session-1", failedStep.cycleId, "selector")).toMatchObject({ status: "succeeded" });
+    await orchestrator.stop();
+  });
+
+  it("returns from start before the initial selector cycle completes", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let selectorFinished = false;
+    const deps = createDeps({ noInstrumentRetryMinutes: 5 });
+    const orchestrator = new AgentOrchestrator("session-1", deps as never);
+    vi.spyOn(orchestrator as never as { getSessionConfig: () => SessionConfig }, "getSessionConfig").mockReturnValue(baseConfig());
+    vi.spyOn(runSelectorModule, "runSelector").mockImplementation(async () => {
+      await gate;
+      selectorFinished = true;
+      return [];
+    });
+
+    const startedAt = Date.now();
+    await orchestrator.start();
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(elapsedMs).toBeLessThan(200);
+    expect(selectorFinished).toBe(false);
+
+    release();
+    await drainOrchestratorQueue(orchestrator);
+    expect(selectorFinished).toBe(true);
     await orchestrator.stop();
   });
 });

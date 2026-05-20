@@ -5,9 +5,11 @@ import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { MockScenarioBias } from "../../broker/adapters/mock-adapter";
 import type { SearchRegistry } from "../search";
 import { sanitizeSearchQuery } from "../search/sanitize-search-query";
+import { InstrumentNormalizer, resolveCanonicalSymbol } from "../../broker/instrument-normalizer";
 
 const instrumentClassSchema = z.enum(["stock", "crypto", "futures", "prediction_market"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
+const instrumentNormalizer = new InstrumentNormalizer();
 
 type SyntheticBar = {
   ts: string;
@@ -143,7 +145,20 @@ export function createMarketTools(deps: {
         if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
         try {
           const adapter = await deps.brokerRegistry.get(brokerAccountId);
-          return await adapter.getMarketSnapshot(symbol);
+          const canonicalSymbol = resolveCanonicalSymbol(symbol, instrumentClass);
+          const brokerSymbol = instrumentNormalizer.toBrokerSymbol({
+            symbol: canonicalSymbol,
+            instrumentClass,
+            brokerType: adapter.brokerType,
+          });
+          const snapshot = await adapter.getMarketSnapshot(brokerSymbol);
+          return {
+            ...snapshot,
+            symbol,
+            canonicalSymbol,
+            brokerSymbol,
+            instrumentClass,
+          };
         } catch (error) {
           return toToolError(error);
         }
@@ -175,9 +190,18 @@ export function createMarketTools(deps: {
         if (!brokerAccountId) return { error: "No broker account routing available for this instrument class." };
         try {
           const adapter = await deps.brokerRegistry.get(brokerAccountId);
-          const snap = await adapter.getMarketSnapshot(symbol);
+          const canonicalSymbol = resolveCanonicalSymbol(symbol, instrumentClass);
+          const brokerSymbol = instrumentNormalizer.toBrokerSymbol({
+            symbol: canonicalSymbol,
+            instrumentClass,
+            brokerType: adapter.brokerType,
+          });
+          const snap = await adapter.getMarketSnapshot(brokerSymbol);
           return {
             symbol,
+            canonicalSymbol,
+            brokerSymbol,
+            instrumentClass,
             timeframe,
             bars: buildSyntheticBars(snap.price),
             note: "Synthetic OHLCV generated from latest market snapshot.",

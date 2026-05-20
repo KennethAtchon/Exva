@@ -2,7 +2,7 @@ import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import { AppError } from "@electron/shared/infra/errors";
 
 export interface WorkerGraphNode<TOutput = unknown> {
-  worker: WorkerDefinition<unknown, TOutput>;
+  worker: WorkerDefinition<TOutput>;
   frontier: number;
 }
 
@@ -13,7 +13,7 @@ export interface WorkerGraphScheduleResult<TOutput = unknown> {
 }
 
 export function buildWorkerSchedule<TOutput = unknown>(
-  workers: readonly WorkerDefinition<unknown, TOutput>[],
+  workers: readonly WorkerDefinition<TOutput>[],
   scheduling: { mode: "flat_parallel" | "dependency_graph"; maxConcurrency: number } | undefined,
 ): WorkerGraphScheduleResult<TOutput> {
   const mode = scheduling?.mode ?? "flat_parallel";
@@ -30,7 +30,8 @@ export function buildWorkerSchedule<TOutput = unknown>(
   const workerMap = new Map(workers.map((worker) => [worker.id, worker]));
   const frontierMemo = new Map<string, number>();
   const visit = (workerId: string): number => {
-    if (frontierMemo.has(workerId)) return frontierMemo.get(workerId)!;
+    const cachedFrontier = frontierMemo.get(workerId);
+    if (cachedFrontier !== undefined) return cachedFrontier;
     const worker = workerMap.get(workerId);
     if (!worker) throw new AppError(`Unknown worker '${workerId}' in schedule build.`, "VALIDATION_FAILED");
     const deps = worker.dependsOn ?? [];

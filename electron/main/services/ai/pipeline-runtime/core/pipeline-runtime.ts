@@ -16,6 +16,7 @@ import type { AgentRunsRepo } from "../../../../db/repositories/agents/agent-run
 import type { SearchRegistry } from "../../search";
 import type { BrokerRoutingService } from "../../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../../broker/broker-registry";
+import { resolveSessionInstrumentClasses } from "../../../session/effective-instrument-classes";
 import { buildToolContext } from "../context/tool-context-builder";
 import { DEFAULT_PIPELINE_CONFIG } from "@electron/shared/ai/pipeline-config";
 import { PipelineSpendTracker } from "../execution/pipeline-spend-tracker";
@@ -234,12 +235,18 @@ export class PipelineRuntime {
       pipelineSpentBeforePhaseUsd: opts.cycleId ? (this.cycleSpendUsd.get(cycleKey) ?? 0) : 0,
     });
 
-    const toolContext = opts.toolContext ?? await buildToolContext(this.deps, {
+    const session = this.deps.sessionRepo.requireById(opts.sessionId);
+    const instrumentClasses = resolveSessionInstrumentClasses(session, this.deps.planServices);
+    const baseToolContext = opts.toolContext ?? await buildToolContext(this.deps, {
       sessionId: opts.sessionId,
       cycleId: opts.cycleId,
       tradeId: opts.tradeId,
       strategyContext,
     });
+    const toolContext: ToolBuildContext = {
+      ...baseToolContext,
+      instrumentClasses,
+    };
 
     const executorDeps: WorkerExecutorDeps = {
       providerRegistry: this.deps.providerRegistry,
@@ -264,7 +271,6 @@ export class PipelineRuntime {
       canContinueWorkers: () => spendTracker.canContinue(),
     };
 
-    const session = this.deps.sessionRepo.requireById(opts.sessionId);
     const result = await this.planInterpreter.run<TOutput>({
       plan,
       sessionId: opts.sessionId,
@@ -297,4 +303,3 @@ export class PipelineRuntime {
     return this.deps.strategyContextService;
   }
 }
-

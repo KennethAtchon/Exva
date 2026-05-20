@@ -29,6 +29,7 @@
   "include": [
     "src",
     "electron",
+    "drizzle.config.ts",
     "forge.config.ts",
     "vite.config.ts",
     "vite.*.config.ts",

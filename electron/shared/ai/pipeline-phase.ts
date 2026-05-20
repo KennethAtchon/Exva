@@ -27,10 +27,17 @@ export interface EngineBinding {
 
 export type AggregateStrategy<TOutput> = (results: Array<Partial<TOutput>>) => TOutput;
 
-export interface WorkerDefinition<TInput = unknown, TPhaseOutput = unknown> {
+export type WorkerToolRequirement = {
+  requiredAny?: readonly string[];
+  requiredAll?: readonly string[];
+  minToolCalls?: number;
+};
+
+export interface WorkerDefinition<TPhaseOutput = unknown> {
   id: string;
   promptAssetPath: string;
   tools: readonly ToolId[];
+  toolRequirements?: WorkerToolRequirement;
   toolConfig?: WorkerToolConfig;
   engines?: readonly EngineBinding[];
   outputMode: "text" | "object" | "tool_terminal";
@@ -50,7 +57,7 @@ export interface PipelineDefinition<TInput = unknown, TOutput = unknown> {
   inputSchema?: z.ZodType<TInput>;
   outputMode: "text" | "object" | "tool_terminal";
   outputSchema?: z.ZodType<TOutput>;
-  workers: readonly WorkerDefinition<TInput, TOutput>[];
+  workers: readonly WorkerDefinition<TOutput>[];
   scheduling?: {
     mode: "flat_parallel" | "dependency_graph";
     maxConcurrency: number;

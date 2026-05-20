@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { RISK_PRESET_IDS, TIMEFRAME_PRESET_IDS, type RiskPresetId, type TimeframePresetId } from "../../electron/shared/domain";
 import { selectorEvidenceSchema } from "../../electron/shared/ai/selector-pipeline-candidate";
+import { selectorDiagnosticsSchema } from "../../electron/shared/ai/selector-diagnostics";
 
 export const sessionStatusSchema = z.enum(["draft", "idle", "active", "paused", "stopped", "archived"]);
 export const tradeSideSchema = z.enum(["BUY", "SELL"]);
@@ -82,6 +83,7 @@ export const instrumentSelectionSchema = z.object({
       }),
     )
     .max(50),
+  diagnostics: z.lazy(() => selectorDiagnosticsSchema).optional(),
 });
 
 export type InstrumentSelection = z.infer<typeof instrumentSelectionSchema>;

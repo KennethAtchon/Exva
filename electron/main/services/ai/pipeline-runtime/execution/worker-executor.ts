@@ -15,6 +15,7 @@ import type { SessionStrategyContext } from "@electron/shared/domain";
 import { createLogger } from "../../../infra/log";
 import type { PipelineSpendTracker } from "./pipeline-spend-tracker";
 import { runReadEngineContext } from "./engine-context-runner";
+import { enforceWorkerToolRequirements } from "./worker-tool-requirements";
 
 const logger = createLogger("pipeline-runtime");
 
@@ -187,6 +188,8 @@ export async function executeWorker<TOutput>(
   } else {
     output = { text: trace.assistantText } as TOutput;
   }
+
+  enforceWorkerToolRequirements(worker, phase, trace);
 
   const { run, message } = assembleTrace({
     phase,
