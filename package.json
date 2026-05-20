@@ -7,7 +7,7 @@
   "main": ".vite/build/main.cjs",
   "scripts": {
     "dev": "electron-forge start",
-    "dev:trace": "EXVA_LOG_LEVEL=trace electron-forge start",
+    "dev:debug": "EXVA_LOG_LEVEL=debug electron-forge start",
     "dev:rebuild-db": "EXVA_DB_REBUILD_FROM_SCRATCH=true electron-forge start",
     "db:reset": "bun run scripts/db-reset.ts",
     "db:generate": "drizzle-kit generate",

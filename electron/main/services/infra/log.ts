@@ -53,8 +53,8 @@ function createBaseLogger(): Logger {
 
   const logFilePath = path.join(logDir, `${LOG_PREFIX}${toIsoDateUtc(new Date())}${LOG_SUFFIX}`);
   const streams = pino.multistream([
-    { stream: process.stdout },
-    { stream: pino.destination({ dest: logFilePath, mkdir: true, sync: false }) },
+    { stream: process.stdout, level: env.logLevel },
+    { stream: pino.destination({ dest: logFilePath, mkdir: true, sync: false }), level: env.logLevel },
   ]);
 
   return pino({

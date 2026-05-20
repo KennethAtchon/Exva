@@ -161,18 +161,6 @@ export const TopNav = ({
           </div>
         )}
 
-        {/* Strategy nudge — shown when session is configured but not started */}
-        {needsStrategyConfig && (
-          <button
-            type="button"
-            style={s.strategyNudge}
-            onClick={() => onNavigate("strategy")}
-            title={`Configure strategy and AI phases for "${sessionName}" before starting`}
-          >
-            Configure →
-          </button>
-        )}
-
         {!isGlobal && sessionStatus !== "active" && (
           <Button
             style={{

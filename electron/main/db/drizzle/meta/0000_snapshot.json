@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e59603b5-646e-4a55-8a5b-a5e2c11e8133",
+  "id": "5fee2023-db72-4fd4-9429-1aa8f77a4fab",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_messages": {
