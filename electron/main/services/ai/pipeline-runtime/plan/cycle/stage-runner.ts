@@ -13,10 +13,7 @@ export async function runDeclarativeStage(
     case "engine":
       return runEngineStage(config.engine, ctx, state);
     case "engine-chain":
-      if (config.id === "risk_gate") {
-        const decision = state.decision;
-        if (decision?.output.action === "skip") return state;
-      }
+      if (config.skipIf?.(state)) return state;
       return runEngineChainStage(config.engines, ctx, state);
     case "phase": {
       const result = await ctx.runPhasePlan(config.phase, config.buildInput(ctx, state));

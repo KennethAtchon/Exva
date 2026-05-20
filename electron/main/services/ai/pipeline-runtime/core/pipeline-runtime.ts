@@ -1,13 +1,9 @@
 import type { PrepareStepFunction, ToolSet } from "ai";
 import { AppError } from "@electron/shared/infra/errors";
 import type { PipelinePhase, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
-import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
-import { getPipelineDefinition } from "./pipeline-registry";
-import { buildWorkerSchedule, executeByFrontier } from "./worker-graph-scheduler";
 import { executeWorker, type WorkerExecutorDeps } from "../execution/worker-executor";
-import { assembleAggregateTrace } from "../execution/trace-assembler";
 import { runConcurrentGroup } from "./concurrent-group-runner";
-import type { PipelineRunContext, PipelineWorkerRunner } from "./types";
+import type { PipelineWorkerRunner } from "./types";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
 import type { ProviderRegistry } from "../../provider-registry";
 import type { PromptAssetLoader } from "../../prompt-asset-loader";
@@ -23,7 +19,6 @@ import type { BrokerRegistry } from "../../../broker/broker-registry";
 import { buildToolContext } from "../context/tool-context-builder";
 import { DEFAULT_PIPELINE_CONFIG } from "@electron/shared/ai/pipeline-config";
 import { PipelineSpendTracker } from "../execution/pipeline-spend-tracker";
-import { createLogger } from "../../../infra/log";
 import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
 import {
   assertValidEffectivePipelineConfig,
@@ -31,17 +26,15 @@ import {
   resolveEffectivePipelineConfig,
 } from "../effective-pipeline-config";
 import { PhasePlanInterpreter } from "../plan/phase/interpreter";
-import { requirePhasePlan, getPhasePlan } from "../plan/phase/registry";
+import { requirePhasePlan } from "../plan/phase/registry";
 import type { PhasePlanServices } from "../plan/phase/services";
 import { CyclePlanInterpreter } from "../plan/cycle/interpreter";
-import { requireCyclePlan, getCyclePlan } from "../plan/cycle/registry";
+import { requireCyclePlan } from "../plan/cycle/registry";
 import { requireUnifiedPlan } from "../plan/unified/registry";
 import type { CyclePlanServices } from "../plan/cycle/services";
 import type { CycleStepRunner, TradeCycleInstrument, TradeCyclePlanState, TradePipelineResult } from "../plan/cycle/types";
 import type { SessionConfig } from "@/lib/types";
 import type { InstrumentClass } from "@/lib/types";
-
-const logger = createLogger("pipeline-runtime");
 
 export interface PipelineRuntimeDeps {
   providerRegistry: ProviderRegistry;
@@ -138,15 +131,6 @@ export class PipelineRuntime {
       seedState: opts.seedState,
       runStep: opts.runStep,
       lastStageId: opts.lastStageId,
-      runPhase: (phase, input) =>
-        this.run({
-          phase,
-          sessionId: opts.sessionId,
-          input,
-          cycleId: opts.cycleId,
-          tradeId: opts.tradeId ?? null,
-          toolContext,
-        }),
       runPhasePlan: (phase, input) =>
         this.runPhasePlan({
           phase,
@@ -297,145 +281,6 @@ export class PipelineRuntime {
     return result;
   }
 
-  async run<TInput, TOutput>(opts: RunPhaseOptions<TInput>): Promise<AgentResult<TOutput>> {
-    if (!opts.sessionId) {
-      throw new AppError("Session id is required for phase execution", "VALIDATION_FAILED");
-    }
-
-    if (getPhasePlan(opts.phase)) {
-      const result = await this.runPhasePlan<TOutput>({
-        phase: opts.phase,
-        sessionId: opts.sessionId,
-        input: opts.input as Record<string, unknown>,
-        cycleId: opts.cycleId,
-        tradeId: opts.tradeId,
-        toolContext: opts.toolContext,
-      });
-      if (!result.run || !result.message) {
-        throw new AppError(`Phase plan '${opts.phase}' did not return agent metadata.`, "VALIDATION_FAILED");
-      }
-      return { run: result.run, message: result.message, output: result.output };
-    }
-
-    const definition = getPipelineDefinition(opts.phase);
-    const workers = definition.workers;
-
-    if (workers.length === 0) {
-      throw new AppError(`Phase ${opts.phase} has no workers defined`, "VALIDATION_FAILED");
-    }
-
-    const strategyContext = this.requireStrategyContextService().get(opts.sessionId);
-    const cycleKey = opts.cycleId ?? opts.sessionId;
-    const pipelineSpentBeforePhaseUsd = opts.cycleId ? (this.cycleSpendUsd.get(cycleKey) ?? 0) : 0;
-    const spendTracker = new PipelineSpendTracker({
-      phaseSpendCapUsd: this.deps.phaseConfigResolver.resolvePhaseSpendCapUsd(opts.phase),
-      pipelineSpendCapUsd: DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd,
-      sessionSpendCapUsd: strategyContext.riskConfig.maxAiSpendUsd,
-      sessionSpentBeforeRunUsd: this.deps.agentRunsRepo.dailyAiSpendUsd(opts.sessionId),
-      pipelineSpentBeforePhaseUsd,
-    });
-
-    const toolContext = opts.toolContext ?? await buildToolContext(this.deps, {
-      sessionId: opts.sessionId,
-      cycleId: opts.cycleId,
-      tradeId: opts.tradeId,
-      strategyContext,
-    });
-
-    const executorDeps: WorkerExecutorDeps = {
-      providerRegistry: this.deps.providerRegistry,
-      phaseConfigResolver: this.deps.phaseConfigResolver,
-      promptLoader: this.deps.promptLoader,
-      toolContext,
-      strategyContext,
-    };
-
-    const workerRunBase = {
-      phase: opts.phase,
-      sessionId: opts.sessionId,
-      cycleId: opts.cycleId ?? null,
-      tradeId: opts.tradeId ?? null,
-      spendTracker,
-    };
-
-    if (definition.run) {
-      const runner: PipelineWorkerRunner = {
-        execute: <T>(worker: WorkerDefinition, task: Record<string, unknown>) =>
-          executeWorker<T>(executorDeps, {
-            ...workerRunBase,
-            worker,
-            task,
-          }),
-        executeGroup: (tasks, concurrency) => runConcurrentGroup(tasks, concurrency, () => spendTracker.canContinue()),
-        canContinueWorkers: () => spendTracker.canContinue(),
-      };
-      const ctx: PipelineRunContext = {
-        input: opts.input as Record<string, unknown>,
-        sessionId: opts.sessionId,
-        cycleId: opts.cycleId ?? null,
-        tradeId: opts.tradeId ?? null,
-        toolContext,
-        strategyContext,
-        spendTracker,
-      };
-      const result = (await definition.run(ctx, runner)) as AgentResult<TOutput>;
-      this.recordCycleSpend(cycleKey, spendTracker.phaseSpent);
-      return result;
-    }
-
-    const task = opts.input as Record<string, unknown>;
-    const terminalToolNames = opts.terminalToolNames ?? definition.terminalToolNames;
-    const prepareStep = opts.prepareStep ?? definition.buildPrepareStep?.(toolContext);
-
-    const schedule = buildWorkerSchedule(workers as never, definition.scheduling);
-    const shouldContinue = () => spendTracker.canContinue();
-    const executed = await executeByFrontier(
-      schedule.ordered,
-      schedule.maxConcurrency,
-      async ({ worker }) =>
-        executeWorker<unknown>(executorDeps, {
-          ...workerRunBase,
-          worker,
-          task,
-          terminalToolNames,
-          prepareStep,
-        }),
-      shouldContinue,
-    );
-
-    if (!shouldContinue()) {
-      const abortMessage = spendTracker.abortLogMessage();
-      if (abortMessage) logger.warn({ sessionId: opts.sessionId, phase: opts.phase, cycleId: opts.cycleId ?? null }, abortMessage);
-    }
-
-    const output = aggregatePhaseOutput(definition, executed.map((entry) => entry.result.output)) as TOutput;
-    const phaseExecConfig = this.deps.phaseConfigResolver.resolvePhaseConfig(opts.sessionId, opts.phase);
-    const aggregate = assembleAggregateTrace({
-      phase: opts.phase,
-      sessionId: opts.sessionId,
-      tradeId: opts.tradeId ?? null,
-      cycleId: opts.cycleId ?? null,
-      providerKey: phaseExecConfig.providerKey || executed[0]?.result.run.provider_key || "unknown",
-      modelId: phaseExecConfig.modelId || executed[0]?.result.run.model || "unknown",
-      strategyContext,
-      schedulingMode: schedule.schedulingMode,
-      maxConcurrency: schedule.maxConcurrency,
-      output,
-      outputSchemaName: definition.persistence.outputSchemaName,
-      workers: executed.map(({ node, result }) => ({
-        workerId: node.worker.id,
-        frontier: node.frontier,
-        dependsOn: [...(node.worker.dependsOn ?? [])],
-        requiredForPhase: node.worker.requiredForPhase ?? true,
-        run: result.run,
-        message: result.message,
-      })),
-    });
-
-    this.recordCycleSpend(cycleKey, spendTracker.phaseSpent);
-    return { run: aggregate.run, message: aggregate.message, output };
-  }
-
   private recordCycleSpend(cycleKey: string, phaseSpentUsd: number): void {
     if (phaseSpentUsd <= 0) return;
     this.cycleSpendUsd.set(cycleKey, (this.cycleSpendUsd.get(cycleKey) ?? 0) + phaseSpentUsd);
@@ -453,19 +298,3 @@ export class PipelineRuntime {
   }
 }
 
-function aggregatePhaseOutput(definition: { aggregate?: unknown; outputMode: string }, outputs: unknown[]): unknown {
-  if (typeof definition.aggregate === "function") {
-    return definition.aggregate(outputs as never);
-  }
-  if (outputs.length === 1) return outputs[0] ?? null;
-  if (definition.outputMode === "text") return outputs.join("\n\n");
-  return outputs.reduce<Record<string, unknown>>((acc, output) => {
-    if (output && typeof output === "object") {
-      for (const key of Object.keys(output as object)) {
-        if (key in acc) logger.warn({ key }, "worker output key collision in phase aggregation");
-      }
-      Object.assign(acc, output);
-    }
-    return acc;
-  }, {});
-}

@@ -4,14 +4,20 @@ import type { CyclePlanRunContext, TradeCyclePlanState } from "../cycle/types";
 
 export type EngineInputBuilderId = string;
 
+export type EngineRunCtx = Pick<
+  CyclePlanRunContext,
+  "sessionId" | "cycleId" | "tradeId" | "instrument" | "sessionConfig" | "instrumentClasses" | "strategyContext" | "services"
+>;
+
 export interface EngineInputBuilderContext {
-  planCtx: CyclePlanRunContext;
+  planCtx: EngineRunCtx;
   state: TradeCyclePlanState;
 }
 
 export interface EngineInputBuilder {
   id: EngineInputBuilderId;
   build(ctx: EngineInputBuilderContext): EngineInputBuildResult | Promise<EngineInputBuildResult>;
+  applyOutput?(state: TradeCyclePlanState, output: unknown): TradeCyclePlanState;
 }
 
 export type EngineInputBuildResult = {
@@ -51,6 +57,7 @@ export type DeclarativeCycleStageConfig =
       id: string;
       kind: "engine-chain";
       engines: EngineStageConfig[];
+      skipIf?: (state: TradeCyclePlanState) => boolean;
       executionStage?: import("@/lib/types").ExecutionStage;
       required: boolean;
       failurePolicy?: StageFailurePolicy;

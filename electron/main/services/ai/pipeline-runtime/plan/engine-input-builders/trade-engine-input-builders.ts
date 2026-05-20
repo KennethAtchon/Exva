@@ -1,3 +1,4 @@
+import { AppError } from "@electron/shared/infra/errors";
 import type { EngineInputBuilder } from "../engine/input-builder-registry";
 
 export const candidateValidationInputBuilder: EngineInputBuilder = {
@@ -30,6 +31,13 @@ export const candidateValidationInputBuilder: EngineInputBuilder = {
       statePatch: { quoteSnapshot },
     };
   },
+  applyOutput(state, output) {
+    const validation = output as { allowed: boolean; reasons: string[] };
+    if (!validation.allowed) {
+      throw new AppError(`Candidate validation failed: ${validation.reasons.join("; ")}`, "VALIDATION_FAILED");
+    }
+    return state;
+  },
 };
 
 export const executionProfileInputBuilder: EngineInputBuilder = {
@@ -54,6 +62,9 @@ export const executionProfileInputBuilder: EngineInputBuilder = {
         reviewRecommendation: review.output.recommendation,
       },
     };
+  },
+  applyOutput(state, output) {
+    return { ...state, executionProfile: output as typeof state.executionProfile };
   },
 };
 
@@ -99,6 +110,13 @@ export const riskGateInputBuilder: EngineInputBuilder = {
       },
     };
   },
+  applyOutput(state, output) {
+    const risk = output as { allowed: boolean; reason?: string; value?: typeof state.riskOrder };
+    if (!risk.allowed || !risk.value) {
+      throw new AppError(risk.reason ?? "Trade rejected by risk engine", "VALIDATION_FAILED");
+    }
+    return { ...state, riskOrder: risk.value };
+  },
 };
 
 export const brokerAllocationInputBuilder: EngineInputBuilder = {
@@ -118,6 +136,17 @@ export const brokerAllocationInputBuilder: EngineInputBuilder = {
       },
       statePatch: { brokerAccountId },
     };
+  },
+  applyOutput(state, output) {
+    const brokerAllocation = output as typeof state.brokerAllocation;
+    const brokerAccountId = (output as { brokerAccountId?: string }).brokerAccountId;
+    if (!brokerAllocation?.allocation.ok) {
+      throw new AppError(brokerAllocation?.allocation.reason ?? "Broker allocation rejected order", "VALIDATION_FAILED");
+    }
+    if (!brokerAllocation.conflict.ok) {
+      throw new AppError(brokerAllocation.conflict.reason ?? "Instrument conflict blocked order", "VALIDATION_FAILED");
+    }
+    return { ...state, brokerAllocation, brokerAccountId: brokerAccountId ?? state.brokerAccountId };
   },
 };
 

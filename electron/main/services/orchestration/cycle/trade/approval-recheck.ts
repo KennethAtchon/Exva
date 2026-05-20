@@ -1,12 +1,10 @@
 import type { ApprovalRecheckInput } from "../../../session";
-import type { InstrumentClass } from "@/lib/types";
+import type { TradeCycleInstrument, TradePipelineResult } from "../../../ai/pipeline-runtime/plan/cycle/types";
 import { runEngineBinding } from "../../../ai/pipeline-runtime/execution/engine-context-runner";
 import type { OrchestratorContext } from "../orchestrator-context";
-import type { TradeCycleContext } from "../types";
-import { enqueueCycleTask } from "../orchestrator-step";
-import { executeTradeCycle } from "./trade-cycle";
 import { failRecheck } from "./approval-flow";
 import { placeRoutedOrder } from "./order-placer";
+import { runPostDecisionGates } from "./post-decision-gates";
 import { buildTradeFromDecision } from "./trade-record-builder";
 
 export async function runApprovalRecheck(ctx: OrchestratorContext, input: ApprovalRecheckInput): Promise<void> {
@@ -17,38 +15,27 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
   if (trade.status !== "pending") return;
 
   const config = ctx.getSessionConfig();
-  const stats = ctx.deps.statsRepo.dashboardStats(
-    ctx.sessionId,
-    ctx.deps.sessionRepo.getStatus(ctx.sessionId),
-    ctx.totalAllocatedUsd(),
-    ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
-    config.max_api_spend_usd,
-  );
-
   const cycleId = crypto.randomUUID();
-  const context: TradeCycleContext = {
-    kind: "trade",
-    cycleId,
-    instrument: {
-      symbol: trade.instrumentSymbol,
-      instrumentClass: trade.instrumentType,
-      instrumentDisplayName: trade.instrumentDisplayName ?? undefined,
-      predictionOutcome: trade.predictionOutcome ?? null,
-      instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
-    },
+  const instrument: TradeCycleInstrument = {
+    symbol: trade.instrumentSymbol,
+    instrumentClass: trade.instrumentType,
+    instrumentDisplayName: trade.instrumentDisplayName ?? undefined,
+    predictionOutcome: trade.predictionOutcome ?? null,
+    instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
   };
-  ctx.cycleContexts.set(cycleId, context);
+  ctx.cycleContexts.set(cycleId, { kind: "trade", cycleId, instrument });
 
   const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
   const pipeline = (await ctx.deps.ai.runPlan("default-trade-cycle", {
     sessionId: ctx.sessionId,
     cycleId,
     tradeId: trade.id,
-    instrument: context.instrument,
+    instrument,
     sessionConfig: config,
     instrumentClasses: ctx.getEffectiveInstrumentClasses(session),
     lastStageId: "decision",
-  })) as import("../../../ai/pipeline-runtime/plan/cycle/types").TradePipelineResult;
+  })) as TradePipelineResult;
+
   const { technical, fundamental, review, decision } = pipeline.state;
   if (!technical || !fundamental || !review || !decision) {
     failRecheck(ctx, trade.id, approval.id, "Fresh AI pipeline did not complete.");
@@ -67,84 +54,33 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
     return;
   }
 
-  const nextTrade = buildTradeFromDecision(
-    ctx,
-    trade.id,
-    {
-      symbol: trade.instrumentSymbol,
-      instrumentClass: trade.instrumentType,
-      instrumentDisplayName: trade.instrumentDisplayName ?? undefined,
-      predictionOutcome: trade.predictionOutcome ?? null,
-      instrumentMetadataJson: trade.instrumentMetadataJson ?? null,
-    },
-    config,
-    fresh,
-    pipeline.totalAiCostUsd,
-    review.output.recommendation,
-  );
+  let gateState;
+  try {
+    gateState = await runPostDecisionGates(ctx, instrument, pipeline.state, cycleId, trade.id);
+  } catch (err) {
+    failRecheck(ctx, trade.id, approval.id, err instanceof Error ? err.message : "Post-decision gate rejected trade.");
+    return;
+  }
+
+  const nextTrade = buildTradeFromDecision(ctx, trade.id, instrument, config, fresh, pipeline.totalAiCostUsd, review.output.recommendation);
   ctx.deps.tradesRepo.patchPendingExecution(trade.id, {
     side: nextTrade.side,
     entry_price: nextTrade.entry_price,
-    position_size_usd: nextTrade.position_size_usd,
+    position_size_usd: gateState.riskOrder!.sizeUsd,
     stop_loss_price: nextTrade.stop_loss_price,
     take_profit_price: nextTrade.take_profit_price,
     execution_strategy: nextTrade.execution_strategy,
     confidence_score: nextTrade.confidence_score,
-    brokerAccountId: nextTrade.brokerAccountId,
+    brokerAccountId: gateState.brokerAccountId ?? nextTrade.brokerAccountId,
   });
-  const updated = ctx.deps.tradesRepo.require(trade.id);
+  ctx.deps.capitalReservation.updateReservedAmountForApproval(approval.id, gateState.riskOrder!.sizeUsd);
 
-  const riskConfig = ctx.deps.strategyContextService.get(ctx.sessionId).riskConfig;
-  const risk = ctx.deps.riskEngine.validateDecision({
-    config,
-    stats,
-    order: {
-      instrumentSymbol: updated.instrumentSymbol,
-      instrumentDisplayName: updated.instrumentDisplayName ?? null,
-      predictionOutcome: updated.predictionOutcome ?? null,
-      instrumentMetadataJson: updated.instrumentMetadataJson ?? null,
-      instrumentType: input.instrumentClass,
-      side: updated.side,
-      sizeUsd: updated.position_size_usd,
-    },
-    confidence: updated.confidence_score ?? 0,
-    riskPolicy: {
-      waitForOpenThreshold: riskConfig.waitForOpenThreshold,
-      maxExposureUsd: input.instrumentClass === "prediction_market" ? riskConfig.maxExposureUsd : null,
-    },
-  });
-
-  if (!risk.allowed || !risk.value) {
-    failRecheck(ctx, trade.id, approval.id, risk.reason ?? "Fresh risk check rejected the trade.");
-    return;
-  }
-
-  ctx.deps.capitalReservation.updateReservedAmountForApproval(approval.id, risk.value.sizeUsd);
-
-  const recheckBrokerAccountId = updated.brokerAccountId ?? ctx.resolveBrokerAccountId(input.instrumentClass as InstrumentClass);
-  if (updated.brokerAccountId !== recheckBrokerAccountId) {
-    ctx.deps.tradesRepo.patchPendingExecution(updated.id, { brokerAccountId: recheckBrokerAccountId });
-  }
-  const recheckAllocation = ctx.deps.brokerAllocationGate.checkOrderFits(recheckBrokerAccountId, ctx.sessionId, risk.value.sizeUsd);
-  if (!recheckAllocation.ok) {
-    failRecheck(ctx, trade.id, approval.id, recheckAllocation.reason);
-    return;
-  }
-  if (recheckAllocation.warning === "over_allocated") {
+  if (gateState.brokerAllocation?.allocation.warning === "over_allocated") {
     ctx.emitEvent("WARN", trade.id, "Order exceeds allocation (warn-only mode); proceeding.", "orchestrator", cycleId);
   }
-  const recheckConflict = ctx.deps.brokerAllocationGate.checkInstrumentConflict(
-    recheckBrokerAccountId,
-    updated.instrumentSymbol,
-    ctx.sessionId,
-  );
-  if (!recheckConflict.ok) {
-    failRecheck(ctx, trade.id, approval.id, recheckConflict.reason);
-    return;
-  }
 
-  const recheckClientOrderId = `${cycleId}:${trade.id}`;
   const strategy = ctx.deps.strategyContextService.get(ctx.sessionId);
+  const recheckClientOrderId = `${cycleId}:${trade.id}`;
   const recheckPolicy = runEngineBinding<{ allowed: boolean; reason?: string }>({
     phase: "decision",
     sessionId: ctx.sessionId,
@@ -156,15 +92,21 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
       sessionId: ctx.sessionId,
       cycleId,
       tradeId: trade.id,
-      brokerAccountId: recheckBrokerAccountId,
+      brokerAccountId: gateState.brokerAccountId,
       existingOrderCheck: (orderId: string, accountId: string) => ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
       sessionIsPaused: () => !ctx.runtimeIsActive(),
       decisionRiskInput: {
         config,
-        stats,
-        order: risk.value,
-        confidence: updated.confidence_score ?? 0,
-        side: updated.side,
+        stats: ctx.deps.statsRepo.dashboardStats(
+          ctx.sessionId,
+          ctx.deps.sessionRepo.getStatus(ctx.sessionId),
+          ctx.totalAllocatedUsd(),
+          ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
+          config.max_api_spend_usd,
+        ),
+        order: gateState.riskOrder!,
+        confidence: fresh.confidence,
+        side: nextTrade.side,
         holdingStyle: strategy.timeframe.holdingStyle,
         exitPolicy: {
           stopLossPct: strategy.riskConfig.stopLossPct,
@@ -182,7 +124,8 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
     return;
   }
 
-  const placed = await placeRoutedOrder(ctx, updated, input.instrumentClass, risk.value, recheckClientOrderId);
+  const updated = ctx.deps.tradesRepo.require(trade.id);
+  const placed = await placeRoutedOrder(ctx, updated, input.instrumentClass, gateState.riskOrder!, recheckClientOrderId);
   if (!placed) {
     failRecheck(ctx, trade.id, approval.id, "Instrument conflict or broker routing blocked order placement.");
     return;
@@ -190,12 +133,7 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
   const opened = ctx.deps.tradesRepo.markOpen(trade.id, placed.brokerOrderId, placed.filledAvgPrice);
   ctx.deps.capitalReservation.convertApprovalToOpenOrder(approval.id, trade.id);
   ctx.deps.capitalReservation.convertOrderToPosition(trade.id);
-  ctx.emitEvent("INFO", trade.id, `Placed ${updated.side} ${updated.instrumentSymbol} $${updated.position_size_usd} via broker (post-approval recheck).`, "broker");
+  ctx.emitEvent("INFO", trade.id, `Placed ${nextTrade.side} ${trade.instrumentSymbol} $${gateState.riskOrder!.sizeUsd} via broker (post-approval recheck).`, "broker");
   ctx.deps.bus.emit("trade_opened", opened);
-  ctx.emitEvent(
-    "INFO",
-    trade.id,
-    `Trade opened ${updated.side} ${updated.instrumentSymbol}; session waiting for position to close before next cycle.`,
-    "orchestrator",
-  );
+  ctx.emitEvent("INFO", trade.id, `Trade opened ${nextTrade.side} ${trade.instrumentSymbol}; session waiting for position to close before next cycle.`, "orchestrator");
 }

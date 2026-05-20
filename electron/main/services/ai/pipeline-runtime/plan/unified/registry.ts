@@ -3,7 +3,6 @@ import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import { getCyclePlan, listCyclePlanIds } from "../cycle/registry";
 import { getPhasePlan, listPhasePlans } from "../phase/registry";
 import type { UnifiedPlanDefinition, UnifiedPlanInspectMetadata } from "./types";
-import { DEFAULT_TRADE_CYCLE_STAGES } from "../plans/trade/default-cycle-stages";
 
 const UNIFIED_PLAN_IDS = new Set<string>();
 
@@ -56,47 +55,40 @@ export function inspectUnifiedPlan(id: string): UnifiedPlanInspectMetadata | und
 }
 
 export function resolveEffectivePlanStages(planId: string): EffectivePlanStageConfig[] {
-  if (planId === "default-trade-cycle") {
-    return DEFAULT_TRADE_CYCLE_STAGES.map((stage) => {
-      if (stage.kind === "engine") {
-        return {
-          id: stage.id,
-          kind: stage.kind,
-          executionStage: stage.executionStage,
-          engineIds: [stage.engine.engineId],
-          inputBuilderIds: [stage.engine.inputBuilderId],
-          failurePolicy: stage.failurePolicy,
-          required: stage.required,
-        };
-      }
-      if (stage.kind === "engine-chain") {
-        return {
-          id: stage.id,
-          kind: stage.kind,
-          executionStage: stage.executionStage,
-          engineIds: stage.engines.map((engine) => engine.engineId),
-          inputBuilderIds: stage.engines.map((engine) => engine.inputBuilderId),
-          failurePolicy: stage.failurePolicy,
-          required: stage.required,
-        };
-      }
-      return {
-        id: stage.id,
-        kind: stage.kind,
-        executionStage: stage.executionStage,
-        phase: stage.phase,
-        failurePolicy: stage.failurePolicy,
-        required: stage.required,
-      };
-    });
+  const plan = resolveUnifiedPlan(planId);
+  if (!plan) return [];
+
+  if (plan.kind === "phase") {
+    const inspected = inspectUnifiedPlan(planId)!;
+    return inspected.stageIds.map((stageId) => ({
+      id: stageId,
+      kind: "phase" as const,
+      phase: inspected.id as PipelinePhase,
+      required: true,
+    }));
   }
 
-  const inspected = inspectUnifiedPlan(planId);
-  if (!inspected) return [];
-  return inspected.stageIds.map((stageId) => ({
-    id: stageId,
-    kind: inspected.kind === "phase" ? "phase" : "phase",
-    phase: inspected.kind === "phase" ? (inspected.id as PipelinePhase) : undefined,
-    required: true,
-  }));
+  // Cycle plan: derive from inspect metadata + plan.stages for per-stage details
+  const { inspect } = plan.plan;
+  const phaseSet = new Set<string>(inspect.phaseStages);
+  return inspect.stageIds.map((stageId) => {
+    const stage = plan.plan.stages.find((s) => s.id === stageId);
+    if (phaseSet.has(stageId)) {
+      return {
+        id: stageId,
+        kind: "phase" as const,
+        executionStage: stage?.executionStage,
+        phase: stageId as PipelinePhase,
+        required: stage?.required ?? true,
+        failurePolicy: stage?.failurePolicy,
+      };
+    }
+    return {
+      id: stageId,
+      kind: "engine-chain" as const,
+      executionStage: stage?.executionStage,
+      required: stage?.required ?? true,
+      failurePolicy: stage?.failurePolicy,
+    };
+  });
 }

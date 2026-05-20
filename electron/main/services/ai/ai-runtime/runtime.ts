@@ -1,6 +1,5 @@
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import { AppError } from "@electron/shared/infra/errors";
-import type { AgentResult } from "./ai-runtime-types";
 import type { ProviderRegistry } from "../provider-registry";
 import type { SearchRegistry } from "../search";
 import type { PromptAssetLoader } from "../prompt-asset-loader";
@@ -143,21 +142,4 @@ export class AiRuntime {
     return this.pipelineRuntime.runPlan(planId, opts);
   }
 
-  async runPhase<TInput, TOutput>(
-    phase: PipelinePhase,
-    sessionId: string,
-    input: TInput,
-    cycleId?: string | null,
-    tradeId?: string | null,
-  ): Promise<AgentResult<TOutput>> {
-    if (!sessionId) throw new AppError("Session id is required for phase execution", "VALIDATION_FAILED");
-
-    return this.pipelineRuntime.run<TInput, TOutput>({
-      phase,
-      sessionId,
-      input,
-      cycleId,
-      tradeId,
-    });
-  }
 }

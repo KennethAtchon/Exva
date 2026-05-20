@@ -210,6 +210,20 @@ export async function createAppServices(app: App): Promise<AppServices> {
     workspacePrefsRepo: repos.workspacePreferences,
     sessionAiPhasesRepo: repos.sessionAiPhases,
   });
+  const cyclePlanServicesDeps = {
+    sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
+    sessionAiPhasesRepo: repos.sessionAiPhases,
+    workspacePreferencesRepo: repos.workspacePreferences,
+    instrumentCacheRepo: repos.instrumentCache,
+    agentRunsRepo: repos.agentRuns,
+    agentMessagesRepo: repos.agentMessages,
+    sessionBrokerAssignmentsRepo: repos.sessionBrokerAssignments,
+    brokerAccountsRepo: repos.brokerAccounts,
+    brokerRouting,
+    statsRepo: repos.stats,
+    sessionRepo: repos.session,
+    instrumentNormalizer,
+  };
   const ai = new AiRuntime(
     providerRegistry,
     searchRegistry,
@@ -222,29 +236,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerRouting,
     brokerRegistry,
     strategyContext,
-    {
-      sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
-      sessionAiPhasesRepo: repos.sessionAiPhases,
-      workspacePreferencesRepo: repos.workspacePreferences,
-      instrumentCacheRepo: repos.instrumentCache,
-      agentRunsRepo: repos.agentRuns,
-      agentMessagesRepo: repos.agentMessages,
-      sessionBrokerAssignmentsRepo: repos.sessionBrokerAssignments,
-      brokerAccountsRepo: repos.brokerAccounts,
-    },
-    {
-      sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
-      sessionAiPhasesRepo: repos.sessionAiPhases,
-      workspacePreferencesRepo: repos.workspacePreferences,
-      instrumentCacheRepo: repos.instrumentCache,
-      agentRunsRepo: repos.agentRuns,
-      agentMessagesRepo: repos.agentMessages,
-      sessionBrokerAssignmentsRepo: repos.sessionBrokerAssignments,
-      brokerAccountsRepo: repos.brokerAccounts,
-      statsRepo: repos.stats,
-      sessionRepo: repos.session,
-      instrumentNormalizer,
-    },
+    cyclePlanServicesDeps,
+    cyclePlanServicesDeps,
   );
   registerDefaultEngines({
     riskEngine: risk,
@@ -315,8 +308,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   };
   runtimeManager = new SessionRuntimeManager(runtimeManagerDeps);
 
-  const orchestratorDeps = orchestratorDepsBase;
-  const instrumentCacheService = new InstrumentCacheService(repos.instrumentCache, () => orchestratorDeps);
+  const instrumentCacheService = new InstrumentCacheService(repos.instrumentCache, () => orchestratorDepsBase);
 
   const liveReadiness = new LiveReadinessService(
     db,
@@ -334,7 +326,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerBalanceCache,
     runtimeManager,
     preflight: runPreflight,
-    orchestratorDeps,
+    orchestratorDeps: orchestratorDepsBase,
     liveReadiness,
   });
 
@@ -390,7 +382,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
 
   return {
     db,
-    orchestratorDeps,
+    orchestratorDeps: orchestratorDepsBase,
     instrumentCacheService,
     repos,
     ai,

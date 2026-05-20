@@ -20,7 +20,8 @@ import {
   entryTimerOutputSchema,
   signalClassifierOutputSchema,
 } from "../../../../engines/aggregators/trade-signal-aggregator";
-import { getPipelineDefinition } from "../../../core/pipeline-registry";
+import { DECISION_PHASE } from "../../../definitions/decision.phase";
+import { REVIEW_PHASE } from "../../../definitions/review.phase";
 import { fundamentalWorkersForMode, technicalWorkersForMode } from "../../../pipeline-discovery-config";
 import { registerPhasePlan } from "../../phase/registry";
 import { createAggregatorPhasePlan, pickWorkerOutput } from "./aggregator-phase-plan";
@@ -73,7 +74,7 @@ export const REVIEW_PLAN = createAggregatorPhasePlan<ReviewSignal>({
   phase: "review",
   outputSchemaName: "reviewSignal",
   persistAggregate: false,
-  resolveWorkers: () => getPipelineDefinition("review").workers,
+  resolveWorkers: () => REVIEW_PHASE.workers,
   buildTask: (ctx) => ({
     instrumentSymbol: ctx.input.instrumentSymbol,
     technicalSignal: JSON.stringify(signalForWorkerPrompt(ctx.input.technical as TechnicalSignal)),
@@ -95,7 +96,7 @@ export const DECISION_PLAN = createAggregatorPhasePlan<TradeSignal>({
   phase: "decision",
   outputSchemaName: "tradeSignal",
   persistAggregate: false,
-  resolveWorkers: () => getPipelineDefinition("decision").workers,
+  resolveWorkers: () => DECISION_PHASE.workers,
   buildTask: (ctx) => ({
     instrumentSymbol: ctx.input.instrumentSymbol,
     technicalSignal: JSON.stringify(signalForWorkerPrompt(ctx.input.technical as TechnicalSignal)),

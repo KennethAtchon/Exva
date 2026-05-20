@@ -73,6 +73,7 @@ export const DEFAULT_TRADE_CYCLE_STAGES: readonly DeclarativeCycleStageConfig[] 
   {
     id: "risk_gate",
     kind: "engine-chain",
+    skipIf: (state) => state.decision?.output.action === "skip",
     executionStage: "risk_gate",
     required: true,
     failurePolicy: "reject_trade",

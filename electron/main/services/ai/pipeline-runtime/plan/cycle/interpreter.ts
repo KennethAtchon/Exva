@@ -22,7 +22,6 @@ export interface CyclePlanInterpreterRunInput {
   strategyContext: CyclePlanRunContext["strategyContext"];
   toolContext: CyclePlanRunContext["toolContext"];
   services: CyclePlanServices;
-  runPhase: CyclePlanRunContext["runPhase"];
   runPhasePlan: CyclePlanRunContext["runPhasePlan"];
   runStep?: CycleStepRunner;
   seedState?: Partial<TradeCyclePlanState>;
@@ -43,7 +42,6 @@ export class CyclePlanInterpreter {
       strategyContext: input.strategyContext,
       toolContext: input.toolContext,
       services: input.services,
-      runPhase: input.runPhase,
       runPhasePlan: input.runPhasePlan,
     };
 
@@ -76,10 +74,10 @@ export class CyclePlanInterpreter {
 }
 
 function sumAiCost(state: TradeCyclePlanState): number {
-  const runs = [state.technical, state.fundamental, state.review, state.decision].filter(Boolean);
-  return Number(
-    runs.reduce((sum, result) => sum + (result?.run.cost_usd ?? 0), 0).toFixed(6),
+  const runs = Object.values(state).filter(
+    (v): v is { run: { cost_usd?: number } } => typeof v === "object" && v !== null && "run" in v,
   );
+  return Number(runs.reduce((sum, r) => sum + (r.run.cost_usd ?? 0), 0).toFixed(6));
 }
 
 function isCycleControlError(error: unknown): error is CyclePausedError | CycleStageFailedError {

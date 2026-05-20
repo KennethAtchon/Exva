@@ -171,25 +171,7 @@ export class CycleReplayService {
       const toolCalls: CycleFixture["agentRuns"][number]["toolCalls"] = [];
       if (msg.tool_calls_json) {
         try {
-          const parsed = JSON.parse(msg.tool_calls_json) as
-            | Array<{
-                tool?: string;
-                name?: string;
-                args?: unknown;
-                result?: unknown;
-                argsJson?: string;
-                resultJson?: string;
-              }>
-            | Array<{
-                toolCalls?: Array<{
-                  tool?: string;
-                  name?: string;
-                  args?: unknown;
-                  result?: unknown;
-                  argsJson?: string;
-                  resultJson?: string;
-                }>;
-              }>;
+          const parsed = JSON.parse(msg.tool_calls_json) as Array<RawToolCall | { toolCalls?: RawToolCall[] }>;
           const rawCalls = normalizeToolCalls(parsed);
 
           for (const call of rawCalls) {
@@ -264,23 +246,7 @@ export class CycleReplayService {
 
       const parsedOutput = parsePhaseOutput(msg.output_schema_name, msg.output_json);
       if (parsedOutput) {
-        switch (parsedOutput.phase) {
-          case "selector":
-            phaseOutputs.selector = parsedOutput.output;
-            break;
-          case "technical":
-            phaseOutputs.technical = parsedOutput.output;
-            break;
-          case "fundamental":
-            phaseOutputs.fundamental = parsedOutput.output;
-            break;
-          case "review":
-            phaseOutputs.review = parsedOutput.output;
-            break;
-          case "decision":
-            phaseOutputs.decision = parsedOutput.output;
-            break;
-        }
+        (phaseOutputs as Record<string, unknown>)[parsedOutput.phase] = parsedOutput.output;
       }
 
       const phaseTrace = parsePhaseTrace(msg.tool_calls_json);
@@ -330,45 +296,7 @@ export class CycleReplayService {
       );
     }
 
-    const decisionMsg = [...messages].reverse().find((m) => m.role === "decision");
-    let decision: CycleFixture["decision"] = { action: "no_trade", confidence: 0, reasoning: "" };
-    if (phaseOutputs.decision) {
-      decision = {
-        action: phaseOutputs.decision.action === "skip" ? "no_trade" : "trade",
-        side:
-          phaseOutputs.decision.action === "buy"
-            ? "BUY"
-            : phaseOutputs.decision.action === "sell"
-              ? "SELL"
-              : undefined,
-        symbol: phaseOutputs.decision.symbol,
-        sizeUsd: undefined,
-        confidence: phaseOutputs.decision.confidence,
-        reasoning: phaseOutputs.decision.reasoning,
-      };
-    } else if (decisionMsg?.output_json) {
-      try {
-        const out = JSON.parse(decisionMsg.output_json) as {
-          action?: string;
-          side?: string;
-          symbol?: string;
-          size_usd?: number;
-          sizeUsd?: number;
-          confidence?: number;
-          reasoning?: string;
-        };
-        decision = {
-          action: out.action === "trade" ? "trade" : "no_trade",
-          side: out.side === "BUY" || out.side === "SELL" ? out.side : undefined,
-          symbol: out.symbol,
-          sizeUsd: out.size_usd ?? out.sizeUsd,
-          confidence: out.confidence ?? 0,
-          reasoning: out.reasoning ?? "",
-        };
-      } catch {
-        // leave default
-      }
-    }
+    const decision = buildDecision(phaseOutputs, messages);
 
     // Risk outcome from session execution steps
     let riskOutcome: CycleFixture["riskOutcome"] = { allowed: true };
@@ -434,63 +362,21 @@ export class CycleReplayService {
     if (fixture["version"] !== 1) {
       throw new Error(`Invalid fixture at ${filePath}: expected version 1, got ${String(fixture["version"])}`);
     }
-    if (!fixture["sessionId"] || !fixture["cycleId"] || !Array.isArray(fixture["phases"])) {
-      throw new Error(`Invalid fixture at ${filePath}: missing required fields (sessionId, cycleId, phases)`);
+    if (!fixture["sessionId"] || !fixture["cycleId"] || !Array.isArray(fixture["agentRuns"])) {
+      throw new Error(`Invalid fixture at ${filePath}: missing required fields (sessionId, cycleId, agentRuns)`);
     }
     return fixture as unknown as CycleFixture;
   }
 }
 
-function normalizeToolCalls(
-  parsed:
-    | Array<{
-        tool?: string;
-        name?: string;
-        args?: unknown;
-        result?: unknown;
-        argsJson?: string;
-        resultJson?: string;
-      }>
-    | Array<{
-        toolCalls?: Array<{
-          tool?: string;
-          name?: string;
-          args?: unknown;
-          result?: unknown;
-          argsJson?: string;
-          resultJson?: string;
-        }>;
-      }>,
-): Array<{
-  tool?: string;
-  name?: string;
-  args?: unknown;
-  result?: unknown;
-  argsJson?: string;
-  resultJson?: string;
-}> {
+type RawToolCall = { tool?: string; name?: string; args?: unknown; result?: unknown; argsJson?: string; resultJson?: string };
+
+function normalizeToolCalls(parsed: Array<RawToolCall | { toolCalls?: RawToolCall[] }>): RawToolCall[] {
   if (parsed.length === 0) return [];
   if ("toolCalls" in parsed[0]!) {
-    const steps = parsed as Array<{
-      toolCalls?: Array<{
-        tool?: string;
-        name?: string;
-        args?: unknown;
-        result?: unknown;
-        argsJson?: string;
-        resultJson?: string;
-      }>;
-    }>;
-    return steps.flatMap((step) => step.toolCalls ?? []);
+    return (parsed as Array<{ toolCalls?: RawToolCall[] }>).flatMap((step) => step.toolCalls ?? []);
   }
-  return parsed as Array<{
-    tool?: string;
-    name?: string;
-    args?: unknown;
-    result?: unknown;
-    argsJson?: string;
-    resultJson?: string;
-  }>;
+  return parsed as RawToolCall[];
 }
 
 function safeParseJson(value: string): unknown {
@@ -674,6 +560,43 @@ export class CycleReplayRunner {
   }
 }
 
+function buildDecision(
+  phaseOutputs: CycleFixture["phaseOutputs"],
+  messages: Array<{ role: string; output_json: string | null }>,
+): CycleFixture["decision"] {
+  if (phaseOutputs.decision) {
+    const d = phaseOutputs.decision;
+    return {
+      action: d.action === "skip" ? "no_trade" : "trade",
+      side: d.action === "buy" ? "BUY" : d.action === "sell" ? "SELL" : undefined,
+      symbol: d.symbol,
+      sizeUsd: undefined,
+      confidence: d.confidence,
+      reasoning: d.reasoning,
+    };
+  }
+  const decisionMsg = [...messages].reverse().find((m) => m.role === "decision");
+  if (decisionMsg?.output_json) {
+    try {
+      const out = JSON.parse(decisionMsg.output_json) as {
+        action?: string; side?: string; symbol?: string;
+        size_usd?: number; sizeUsd?: number; confidence?: number; reasoning?: string;
+      };
+      return {
+        action: out.action === "trade" ? "trade" : "no_trade",
+        side: out.side === "BUY" || out.side === "SELL" ? out.side : undefined,
+        symbol: out.symbol,
+        sizeUsd: out.size_usd ?? out.sizeUsd,
+        confidence: out.confidence ?? 0,
+        reasoning: out.reasoning ?? "",
+      };
+    } catch {
+      // fall through to default
+    }
+  }
+  return { action: "no_trade", confidence: 0, reasoning: "" };
+}
+
 function emptyPhaseOutputs(): CycleFixture["phaseOutputs"] {
   return {
     selector: null,
@@ -684,34 +607,24 @@ function emptyPhaseOutputs(): CycleFixture["phaseOutputs"] {
   };
 }
 
+const PHASE_SCHEMA_MAP: Record<string, { phase: keyof CycleFixture["phaseOutputs"]; schema: { parse(v: unknown): unknown } }> = {
+  instrumentSelection: { phase: "selector", schema: instrumentSelectionSchema },
+  technicalSignal: { phase: "technical", schema: technicalSignalSchema },
+  fundamentalSignal: { phase: "fundamental", schema: fundamentalSignalSchema },
+  reviewSignal: { phase: "review", schema: reviewSignalSchema },
+  tradeSignal: { phase: "decision", schema: tradeSignalSchema },
+};
+
 function parsePhaseOutput(
   schemaName: string | null,
   outputJson: string | null,
-):
-  | { phase: "selector"; output: InstrumentSelection }
-  | { phase: "technical"; output: TechnicalSignal }
-  | { phase: "fundamental"; output: FundamentalSignal }
-  | { phase: "review"; output: ReviewSignal }
-  | { phase: "decision"; output: TradeSignal }
-  | null {
+): { phase: keyof CycleFixture["phaseOutputs"]; output: unknown } | null {
   if (!schemaName || !outputJson) return null;
+  const entry = PHASE_SCHEMA_MAP[schemaName];
+  if (!entry) return null;
   const parsed = safeParseJson(outputJson);
   if (!parsed) return null;
-
-  switch (schemaName) {
-    case "instrumentSelection":
-      return { phase: "selector", output: instrumentSelectionSchema.parse(parsed) };
-    case "technicalSignal":
-      return { phase: "technical", output: technicalSignalSchema.parse(parsed) };
-    case "fundamentalSignal":
-      return { phase: "fundamental", output: fundamentalSignalSchema.parse(parsed) };
-    case "reviewSignal":
-      return { phase: "review", output: reviewSignalSchema.parse(parsed) };
-    case "tradeSignal":
-      return { phase: "decision", output: tradeSignalSchema.parse(parsed) };
-    default:
-      return null;
-  }
+  return { phase: entry.phase, output: entry.schema.parse(parsed) };
 }
 
 function parsePhaseTrace(raw: string | null): PhaseTraceV1 | null {
@@ -736,9 +649,7 @@ function validatePhaseOutputs(outputs: CycleFixture["phaseOutputs"]): CycleFixtu
 }
 
 function totalFixtureCostUsd(fixture: CycleFixture): number {
-  const traceCosts = Object.values(fixture.phaseTraces).reduce((sum, trace) => sum + (trace?.totalCostUsd ?? 0), 0);
-  if (traceCosts > 0) return traceCosts;
-  return 0;
+  return Object.values(fixture.phaseTraces).reduce((sum, trace) => sum + (trace?.totalCostUsd ?? 0), 0);
 }
 
 function countLegacyDecisionSizingFields(agentRuns: CycleFixture["agentRuns"]): number {

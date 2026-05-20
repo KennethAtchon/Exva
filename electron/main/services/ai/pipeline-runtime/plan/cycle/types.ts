@@ -61,10 +61,6 @@ export interface CyclePlanRunContext {
   strategyContext: SessionStrategyContext;
   toolContext: ToolBuildContext;
   services: CyclePlanServices;
-  runPhase: <TInput, TOutput>(
-    phase: PipelinePhase,
-    input: TInput,
-  ) => Promise<AgentResult<TOutput>>;
   runPhasePlan: <TOutput>(
     phase: PipelinePhase,
     input: Record<string, unknown>,
