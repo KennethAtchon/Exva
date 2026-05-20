@@ -49,6 +49,8 @@ export interface EffectiveStageConfig {
   maxConcurrency: number;
   traceMode: "single_phase_run" | "aggregate_workers";
   phaseSpendCapUsd: number;
+  inputBuilders?: readonly string[];
+  cachePolicy?: string;
   engines: readonly EngineBinding[];
   workers: EffectiveWorkerConfig[];
 }

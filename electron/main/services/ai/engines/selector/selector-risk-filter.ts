@@ -60,7 +60,7 @@ export class RiskFilter {
 
 function extractQuoteSnapshot(
   traces: WorkingCandidate["selectorTraces"],
-): import("../../broker/adapters/broker-adapter").MarketSnapshot | null {
+): import("../../../broker/adapters/broker-adapter").MarketSnapshot | null {
   for (const trace of traces) {
     for (const call of trace.toolCalls) {
       if (call.tool !== "get_quote") continue;

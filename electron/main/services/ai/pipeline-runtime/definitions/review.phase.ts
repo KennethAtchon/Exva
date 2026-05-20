@@ -6,12 +6,12 @@ import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
 import { assembleAggregateTrace } from "../execution/trace-assembler";
 import {
-  aggregateReviewSignal,
   conflictDetectorOutputSchema,
   riskAssessorOutputSchema,
   type ConflictDetectorOutput,
   type RiskAssessorOutput,
 } from "../../engines/aggregators/review-aggregator";
+import { runEngineBinding } from "../execution/engine-context-runner";
 
 export type ReviewPhaseInput = {
   instrumentSymbol: string;
@@ -85,7 +85,15 @@ async function run(
     }
   }
 
-  const output = aggregateReviewSignal(instrumentSymbol, { conflictDetector, riskAssessor });
+  const output = runEngineBinding<ReviewSignal>({
+    phase: "review",
+    sessionId: ctx.sessionId,
+    cycleId: ctx.cycleId,
+    strategyContext: ctx.strategyContext,
+    bindings: [],
+    binding: ENGINE_BINDINGS.reviewAggregatorFinalize,
+    task: { symbol: instrumentSymbol, workers: { conflictDetector, riskAssessor } },
+  });
 
   const phaseRun = workerResults[0]?.run;
   const aggregate = assembleAggregateTrace({

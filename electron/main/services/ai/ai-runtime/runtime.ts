@@ -9,11 +9,18 @@ import type { SessionRepo } from "../../../db/repositories/sessions/session-repo
 import type { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
 import type { AgentRunsRepo } from "../../../db/repositories/agents/agent-runs-repo";
+import type { AgentMessagesRepo } from "../../../db/repositories/agents/agent-messages-repo";
+import type { InstrumentCacheRepo } from "../../../db/repositories/market/instrument-cache-repo";
+import type { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/session-selector-settings-repo";
+import type { SessionBrokerAssignmentsRepo } from "../../../db/repositories/sessions/session-broker-assignments-repo";
+import type { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
 import { PipelineRuntime } from "../pipeline-runtime/core/pipeline-runtime";
 import { PhaseConfigResolver } from "../pipeline-runtime/phase-config-resolver";
+import type { PhasePlanRunResult } from "../pipeline-runtime/plan/types";
+import type { PhasePlanServices } from "../pipeline-runtime/plan/phase-plan-services";
 import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
 
 export class AiRuntime {
@@ -31,6 +38,9 @@ export class AiRuntime {
     brokerRouting?: BrokerRoutingService,
     brokerRegistry?: BrokerRegistry,
     strategyContextService?: SessionStrategyContextService,
+    planServices?: Omit<PhasePlanServices, "strategyContextService" | "brokerRouting"> & {
+      brokerRouting?: BrokerRoutingService;
+    } | null,
   ) {
     this.pipelineRuntime = new PipelineRuntime({
       providerRegistry: registry,
@@ -45,6 +55,14 @@ export class AiRuntime {
       brokerRouting,
       brokerRegistry,
     });
+
+    if (brokerRouting && strategyContextService && planServices?.brokerRouting) {
+      this.pipelineRuntime.setPlanServices({
+        ...planServices,
+        brokerRouting: planServices.brokerRouting,
+        strategyContextService,
+      });
+    }
   }
 
   setStrategyContextService(strategyContextService: SessionStrategyContextService): void {
@@ -57,6 +75,16 @@ export class AiRuntime {
 
   assertValidEffectivePipelineConfig(sessionId: string, pipelineId?: string): EffectivePipelineConfig {
     return this.pipelineRuntime.assertValidEffectiveConfig(sessionId, pipelineId);
+  }
+
+  async runPhasePlan<TOutput>(
+    phase: PipelinePhase,
+    sessionId: string,
+    cycleId: string,
+    input: Record<string, unknown> = {},
+  ): Promise<PhasePlanRunResult<TOutput>> {
+    if (!sessionId) throw new AppError("Session id is required for phase plan execution", "VALIDATION_FAILED");
+    return this.pipelineRuntime.runPhasePlan<TOutput>({ phase, sessionId, input, cycleId });
   }
 
   async runPhase<TInput, TOutput>(

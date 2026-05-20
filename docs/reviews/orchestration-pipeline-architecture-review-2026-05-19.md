@@ -5,6 +5,8 @@
 > **Audience:** Exva engineering
 > **Goal:** Identify ownership leaks and move the AI/trading mechanism toward a configuration-based architecture that makes new phases, workers, tools, engines, and execution policies easy to onboard.
 
+> **Implementation status:** Phase 1 foundation and Phase 2 selector plan migration implemented on 2026-05-19. Selector runs via generic `PhasePlanInterpreter` with shared input-builder, cache-policy, and phase-plan registries. Phase 3/5 remain separate follow-up work.
+
 ---
 
 ## Executive Summary
@@ -410,35 +412,58 @@ This does not require configs to be JSON files immediately. They can start as ty
 
 ### Phase 1: Make the Current Config Resolvable and Inspectable
 
-- Add `resolveEffectivePipelineConfig(sessionId, pipelineId)`.
-- Keep current TypeScript definitions, but normalize them into one effective shape.
-- Add validation for engine IDs, prompt assets, finalizers, and variants.
-- Expose the resolved config in Developer Workbench.
+- [x] Add `resolveEffectivePipelineConfig(sessionId, pipelineId)`.
+- [x] Keep current TypeScript definitions, but normalize them into one effective shape.
+- [x] Add validation for engine IDs, prompt assets, finalizers, and variants.
+- [x] Expose the resolved config in Developer Workbench.
+
+Implemented files:
+
+- `electron/shared/ai/effective-pipeline-config.ts`
+- `electron/main/services/ai/pipeline-runtime/effective-pipeline-config.ts`
+- `electron/main/services/ai/pipeline-runtime/core/pipeline-runtime.ts`
+- `electron/main/services/ai/ai-runtime/runtime.ts`
+- `electron/main/ipc/developer.ts`
+- `src/pages/DevPanel.tsx`
 
 ### Phase 2: Move Selector Input/Cache/Variants Into Pipeline Runtime
 
-- Convert `buildSelectionInstructions()`, prediction-market candidate fetch, selector cache policy, and discovery-mode worker selection into configured input builders and stage config.
-- Leave manual shortlist as a selector input builder, not an orchestration branch.
-- Make selector return an `InstrumentSelection` plus trace/candidate metadata; orchestration only schedules trade cycles.
+- [x] Convert `buildSelectionInstructions()`, prediction-market candidate fetch, selector cache policy, and discovery-mode worker selection into configured input builders and stage config.
+- [x] Leave manual shortlist as a selector input builder, not an orchestration branch.
+- [x] Make selector return an `InstrumentSelection` plus trace/candidate metadata; orchestration only schedules trade cycles.
+
+Implemented files:
+
+- `electron/main/services/ai/pipeline-runtime/plan/` (interpreter, registries, selector plan)
+- `electron/main/services/ai/ai-runtime/runtime.ts` (`runPhasePlan`)
+- `electron/main/services/orchestration/cycle/selector/instrument-resolver.ts` (scheduling adapter)
 
 ### Phase 3: Replace `runAiPipeline()` With a Configured Trade Cycle
 
-- Add `AiRuntime.runCycle()` or `PipelineRuntime.runCycle()`.
-- Model technical/fundamental/review/decision as configured stages.
-- Add configured `candidate_validation`, `execution_profile`, `risk_gate`, and `order_policy` engine stages.
-- Return a typed `TradePipelineResult` that contains the decision and prevalidated execution profile.
+- [ ] Add `AiRuntime.runCycle()` or `PipelineRuntime.runCycle()`.
+- [ ] Model technical/fundamental/review/decision as configured stages.
+- [ ] Add configured `candidate_validation`, `execution_profile`, `risk_gate`, and `order_policy` engine stages.
+- [ ] Return a typed `TradePipelineResult` that contains the decision and prevalidated execution profile.
 
 ### Phase 4: Make Engines Authoritative
 
-- Route finalizers through engine bindings.
-- Remove direct aggregator imports from phase definitions.
-- Use `requireEngine()` during config validation.
-- Give engines typed schemas instead of `z.any()` where possible.
+- [x] Route finalizers through engine bindings.
+- [x] Remove direct aggregator function imports from phase definitions. Schema/type imports remain because worker output contracts live next to the aggregator implementations today.
+- [x] Use `requireEngine()` during config validation and engine execution.
+- [ ] Give engines typed schemas instead of `z.any()` where possible.
+
+Implemented files:
+
+- `electron/main/services/ai/pipeline-runtime/execution/engine-context-runner.ts`
+- `electron/main/services/ai/pipeline-runtime/definitions/technical.phase.ts`
+- `electron/main/services/ai/pipeline-runtime/definitions/fundamental.phase.ts`
+- `electron/main/services/ai/pipeline-runtime/definitions/review.phase.ts`
+- `electron/main/services/ai/pipeline-runtime/definitions/decision.phase.ts`
 
 ### Phase 5: Shrink Orchestration to Lifecycle + Effects
 
-- Keep approval wait, capital reservation, trade insert/update, broker order placement, and event emission in orchestration.
-- Remove AI phase ordering, policy decision branching, selector cache ownership, and direct deterministic policy calls from orchestration.
+- [ ] Keep approval wait, capital reservation, trade insert/update, broker order placement, and event emission in orchestration.
+- [ ] Remove AI phase ordering, policy decision branching, selector cache ownership, and direct deterministic policy calls from orchestration.
 
 ---
 
@@ -446,9 +471,9 @@ This does not require configs to be JSON files immediately. They can start as ty
 
 | Move | From | To |
 |------|------|----|
-| Selector instructions | `orchestration/cycle/selector/selection-instructions.ts` | `ai/pipeline-runtime/input-builders/selector-scope-input.ts` |
-| Selector cache/fingerprint policy | `orchestration/cycle/selector/instrument-resolver.ts` | `ai/pipeline-runtime/cache/selector-cache-policy.ts` |
-| Manual shortlist parsing | `orchestration/cycle/selector/manual-shortlist.ts` | `ai/pipeline-runtime/input-builders/manual-shortlist-builder.ts` |
+| Selector instructions | `orchestration/cycle/selector/selection-instructions.ts` | `ai/pipeline-runtime/selector/input-builders/selector-scope-input.ts` |
+| Selector cache/fingerprint policy | `orchestration/cycle/selector/instrument-resolver.ts` | `ai/pipeline-runtime/selector/cache/selector-cache-policy.ts` |
+| Manual shortlist parsing | `orchestration/cycle/selector/manual-shortlist.ts` | `ai/pipeline-runtime/selector/input-builders/manual-shortlist-builder.ts` |
 | Prediction-market candidate prefeed | `orchestration/cycle/selector/prediction-market-candidates.ts` | `ai/engines/selector/prediction-market-candidate-engine.ts` |
 | AI phase order | `orchestration/cycle/trade/ai-pipeline.ts` | configured `default-trade-cycle` |
 | Candidate validation | `orchestration/policy/candidate-validation-service.ts` direct call | `candidate-validator` policy engine stage |

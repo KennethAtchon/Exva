@@ -158,6 +158,8 @@ export function registerDeveloperHandlers(services: AppServices): void {
     let sessionRow: typeof sessions.$inferSelect | null = null;
     let activeCycleId: string | null = null;
     let executionProgress: object | null = null;
+    let pipelineConfig: unknown = null;
+    let pipelineConfigError: string | null = null;
 
     if (scope.type === "session" && scope.id) {
       sessionRow = drizzle.select().from(sessions).where(eq(sessions.id, scope.id)).get() ?? null;
@@ -181,6 +183,17 @@ export function registerDeveloperHandlers(services: AppServices): void {
           })),
           cycleId: activeCycleId,
         };
+      }
+
+      try {
+        pipelineConfig = services.ai.assertValidEffectivePipelineConfig(scope.id);
+      } catch (error) {
+        pipelineConfigError = error instanceof Error ? error.message : String(error);
+        try {
+          pipelineConfig = services.ai.resolveEffectivePipelineConfig(scope.id);
+        } catch {
+          pipelineConfig = null;
+        }
       }
     }
 
@@ -219,6 +232,8 @@ export function registerDeveloperHandlers(services: AppServices): void {
         : null,
       activeCycleId,
       executionProgress: executionProgress ?? undefined,
+      pipelineConfig,
+      pipelineConfigError,
       counts: { events: scopedEvents.length, errors: errorCount, warnings: warnCount, agentRuns: runCount, externalCalls: callCount, failedSteps: failedStepCount },
       latestError: latestError
         ? { message: latestError.message, createdAt: latestError.createdAt, eventId: latestError.id }

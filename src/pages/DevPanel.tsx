@@ -13,6 +13,7 @@ import type {
   LogLevel,
 } from "@/lib/types";
 import type { PhaseTraceV1, SessionSummary } from "@/lib/exva";
+import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ export interface DevPanelFocus {
 type ScopeType = "global" | "session" | "cycle" | "trade" | "provider" | "broker";
 interface ActiveScope { type: ScopeType; id?: string; label?: string }
 
-type InspectorTab = "overview" | "execution" | "trace" | "graph" | "calls" | "raw";
+type InspectorTab = "overview" | "execution" | "config" | "trace" | "graph" | "calls" | "raw";
 type TimeWindow = 15 | 60 | 360 | 1440 | 0;
 
 interface ExtEventRow extends EventRow { cycle_id?: string | null }
@@ -61,6 +62,8 @@ interface ScopeDiagnostics {
   session?: SessionSummary | null;
   activeCycleId?: string | null;
   executionProgress?: import("@/lib/exva").SessionExecutionProgressResponse;
+  pipelineConfig?: EffectivePipelineConfig | null;
+  pipelineConfigError?: string | null;
   counts: {
     events: number;
     errors: number;
@@ -900,6 +903,59 @@ const ExecutionTab = ({
   );
 };
 
+const PipelineConfigTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
+  const config = diag?.pipelineConfig;
+  if (!diag?.session) return <EmptyState msg="Select a session scope to inspect effective pipeline config." />;
+  if (!config) return <EmptyState msg={diag.pipelineConfigError ?? "Effective pipeline config unavailable."} />;
+  const pretty = JSON.stringify(config, null, 2);
+  return (
+    <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+      {diag.pipelineConfigError && (
+        <SectionCard title="Validation Error">
+          <div style={{ ...S.mono9, color: "#ff4757", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+            {diag.pipelineConfigError}
+          </div>
+        </SectionCard>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+        {[
+          ["pipeline", config.pipelineId],
+          ["stages", String(config.stages.length)],
+          ["workers", String(config.workers.length)],
+          ["engines", String(config.engines.length)],
+        ].map(([label, value]) => (
+          <div key={label} style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 5, padding: "6px 8px", textAlign: "center" }}>
+            <div style={{ ...S.mono9, color: "var(--text3)" }}>{label}</div>
+            <div style={{ ...S.mono10, fontWeight: 700, color: "var(--text1)", marginTop: 2 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+      {config.stages.map(stage => (
+        <SectionCard key={stage.id} title={`${stage.id} · ${stage.variantKey}`}>
+          <DataRow label="mode" value={`${stage.schedulingMode} · max ${stage.maxConcurrency}`} />
+          <DataRow label="budget" value={fmt.usd(stage.phaseSpendCapUsd, 4)} />
+          {stage.inputBuilders?.length ? <DataRow label="input builders" value={stage.inputBuilders.join(", ")} /> : null}
+          {stage.cachePolicy ? <DataRow label="cache policy" value={stage.cachePolicy} /> : null}
+          <DataRow label="workers" value={stage.workers.map(w => w.workerId).join(", ")} />
+        </SectionCard>
+      ))}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <span style={S.label}>resolved config</span>
+          <CopyBtn text={pretty} label="copy config" />
+        </div>
+        <pre style={{
+          background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 7,
+          padding: "10px 12px", ...S.mono9, color: "var(--text2)", lineHeight: 1.65,
+          overflowX: "auto", whiteSpace: "pre-wrap", maxHeight: 420,
+        }}>
+          {pretty}
+        </pre>
+      </div>
+    </div>
+  );
+};
+
 const AITraceTab = ({ runs, loading }: { runs: ExtAgentRun[]; loading: boolean }) => {
   if (loading) return <EmptyState msg="Loading agent runs…" />;
   if (runs.length === 0) return <EmptyState msg="No agent runs for this selection." />;
@@ -1087,6 +1143,7 @@ const InspectorPanel = ({
   const TABS: Array<{ id: InspectorTab; label: string }> = [
     { id: "overview", label: "Overview" },
     { id: "execution", label: "Execution" },
+    { id: "config", label: "Config" },
     { id: "trace", label: `AI Trace${selRuns.length > 0 ? ` (${selRuns.length})` : ""}` },
     { id: "graph", label: "Graph" },
     { id: "calls", label: "External" },
@@ -1128,6 +1185,7 @@ const InspectorPanel = ({
         {tab === "execution" && (
           <ExecutionTab diag={diagnostics} sessionId={activeScope.type === "session" ? activeScope.id : null} />
         )}
+        {tab === "config" && <PipelineConfigTab diag={diagnostics} />}
         {tab === "trace" && <AITraceTab runs={selRuns} loading={runsLoading} />}
         {tab === "graph" && <PhaseGraphTab messages={selMessages} loading={messagesLoading} />}
         {tab === "calls" && sel && (

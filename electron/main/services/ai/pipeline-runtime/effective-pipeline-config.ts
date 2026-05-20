@@ -17,6 +17,7 @@ import {
   selectorDiscoveryWorkersForMode,
   technicalWorkersForMode,
 } from "./pipeline-discovery-config";
+import { getPhasePlan } from "./plan/phase-plan-registry";
 
 export const DEFAULT_PIPELINE_ID = "default-trade-cycle";
 
@@ -30,6 +31,10 @@ export interface ResolveEffectivePipelineConfigOptions {
 }
 
 export interface ValidateEffectivePipelineConfigOptions {
+  promptLoader?: Pick<PromptAssetLoader, "load">;
+}
+
+export interface ValidatePipelineDefinitionCatalogOptions {
   promptLoader?: Pick<PromptAssetLoader, "load">;
 }
 
@@ -110,6 +115,55 @@ export function assertValidEffectivePipelineConfig(
   }
 }
 
+export function assertValidPipelineDefinitionCatalog(opts: ValidatePipelineDefinitionCatalogOptions = {}): void {
+  const errors: string[] = [];
+  const discoveryModes: Array<SessionStrategyContext["researchPosture"]["discoveryMode"]> = ["trend_scan", "event_contract_scan"];
+
+  for (const { phase, definition } of listPipelineDefinitions()) {
+    for (const binding of definition.engines ?? []) {
+      validateEngineBinding(errors, `Phase '${phase}'`, binding);
+    }
+
+    const variantKeys = phase === "selector" || phase === "technical" || phase === "fundamental"
+      ? discoveryModes
+      : (["default"] as const);
+
+    for (const variantKey of variantKeys) {
+      const workers = workersForEffectiveStage(
+        phase,
+        definition,
+        variantKey === "default" ? "trend_scan" : variantKey,
+      );
+      if (workers.length === 0) {
+        errors.push(`Phase '${phase}' variant '${variantKey}' has no workers.`);
+      }
+      for (const worker of workers) {
+        for (const toolId of worker.tools) {
+          if (!SUPPORTED_TOOL_ID_SET.has(toolId)) {
+            errors.push(`Worker '${worker.id}' in phase '${phase}' variant '${variantKey}' references unknown tool '${toolId}'.`);
+          }
+        }
+        for (const binding of worker.engines ?? []) {
+          validateEngineBinding(errors, `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}'`, binding);
+        }
+        if (opts.promptLoader) {
+          try {
+            opts.promptLoader.load(worker.promptAssetPath);
+          } catch (error) {
+            errors.push(
+              `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}' references missing prompt '${worker.promptAssetPath}': ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new AppError(`Pipeline definition catalog is invalid:\n${errors.join("\n")}`, "VALIDATION_FAILED", { errors });
+  }
+}
+
 function resolveEffectiveStage(input: {
   phase: PipelinePhase;
   definition: PipelineDefinition;
@@ -118,13 +172,18 @@ function resolveEffectiveStage(input: {
   strategyContext: SessionStrategyContext | null;
 }): EffectiveStageConfig {
   const discoveryMode = input.strategyContext?.researchPosture.discoveryMode ?? "trend_scan";
+  const plan = getPhasePlan(input.phase);
   const workers = workersForEffectiveStage(input.phase, input.definition, discoveryMode);
-  const schedulingMode = input.definition.run
-    ? "custom_run"
-    : input.definition.scheduling?.mode ?? "flat_parallel";
-  const maxConcurrency = input.definition.run
-    ? workers.length
-    : input.definition.scheduling?.maxConcurrency ?? Math.max(1, workers.length);
+  const schedulingMode = plan
+    ? (plan.stages.length > 1 ? "dependency_graph" : "flat_parallel")
+    : input.definition.run
+      ? "custom_run"
+      : input.definition.scheduling?.mode ?? "flat_parallel";
+  const maxConcurrency = plan
+    ? Math.max(...plan.stages.map((stage) => stage.concurrency), 1)
+    : input.definition.run
+      ? workers.length
+      : input.definition.scheduling?.maxConcurrency ?? Math.max(1, workers.length);
 
   return {
     id: input.phase,
@@ -137,6 +196,8 @@ function resolveEffectiveStage(input: {
     maxConcurrency,
     traceMode: input.definition.persistence.traceMode,
     phaseSpendCapUsd: input.phaseConfigResolver.resolvePhaseSpendCapUsd(input.phase),
+    inputBuilders: plan?.inspect.inputBuilderIds,
+    cachePolicy: plan?.inspect.cachePolicyId,
     engines: input.definition.engines ?? [],
     workers: workers.map((worker) => resolveEffectiveWorker({
       phase: input.phase,

@@ -6,12 +6,12 @@ import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
 import { assembleAggregateTrace } from "../execution/trace-assembler";
 import {
-  aggregateTradeSignal,
   entryTimerOutputSchema,
   signalClassifierOutputSchema,
   type EntryTimerOutput,
   type SignalClassifierOutput,
 } from "../../engines/aggregators/trade-signal-aggregator";
+import { runEngineBinding } from "../execution/engine-context-runner";
 
 export type DecisionPhaseInput = {
   instrumentSymbol: string;
@@ -90,7 +90,15 @@ async function run(
     }
   }
 
-  const output = aggregateTradeSignal(ctx.input.instrumentSymbol, ctx.input.review, classifier, timer);
+  const output = runEngineBinding<TradeSignal>({
+    phase: "decision",
+    sessionId: ctx.sessionId,
+    cycleId: ctx.cycleId,
+    strategyContext: ctx.strategyContext,
+    bindings: [],
+    binding: ENGINE_BINDINGS.tradeSignalAggregatorFinalize,
+    task: { symbol: ctx.input.instrumentSymbol, review: ctx.input.review, classifier, timer },
+  });
 
   const phaseRun = workerResults[0]?.run;
   const aggregate = assembleAggregateTrace({

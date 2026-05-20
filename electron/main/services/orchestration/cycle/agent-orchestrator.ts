@@ -2,7 +2,6 @@ import type { ExecutionStage, SessionConfig, WorkspaceSession } from "@/lib/type
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
 import { OrchestratorContext } from "./orchestrator-context";
 import { resolveInstruments } from "./selector/instrument-resolver";
-import { buildSelectionInstructions } from "./selector/selection-instructions";
 import { ResearchBurstService } from "./research-burst-service";
 import { executeSelectorCycle } from "./selector/selector-cycle";
 import { handleResolvedInstruments } from "./scheduling/instrument-queue";
@@ -188,11 +187,6 @@ export class AgentOrchestrator {
   /** @internal Visible to orchestrator unit tests. */
   private async runResearchBurst(session: WorkspaceSession, config: SessionConfig, cycleId?: string): Promise<ResolvedInstrument[]> {
     return new ResearchBurstService(this).resolve(session, config, cycleId);
-  }
-
-  /** @internal Visible to orchestrator unit tests. */
-  private async buildSelectionInstructions(session: WorkspaceSession): Promise<string> {
-    return buildSelectionInstructions(this.ctx, session);
   }
 
   /** @internal Visible to orchestrator unit tests. */

@@ -2,8 +2,7 @@ import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/catalog/search-providers";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
-import { z } from "zod";
-import { candidateSchema } from "@electron/shared/ai/selector-pipeline-candidate";
+import { candidateOutputSchema } from "./plan/plans/selector-plan";
 import {
   chartPatternOutputSchema,
   momentumOutputSchema,
@@ -14,24 +13,6 @@ import {
   catalystOutputSchema,
   sentimentOutputSchema,
 } from "../engines/aggregators/fundamental-aggregator";
-
-const candidateOutputSchema = z.object({
-  candidates: z.array(
-    candidateSchema.pick({
-      symbol: true,
-      instrumentClass: true,
-      instrumentDisplayName: true,
-      source: true,
-      hypeScore: true,
-      volumeScore: true,
-      catalystScore: true,
-      liquidityScore: true,
-      catalystSummary: true,
-      riskFlags: true,
-      rationale: true,
-    }),
-  ).max(6),
-});
 
 const SEARCH_WEB_TOOL_CONFIG = {
   search_web: { fallbackProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID },

@@ -1,20 +1,31 @@
+import { z } from "zod";
 import { isMarketDiscoveryAdapter, type PolymarketMarketRow } from "../../../broker/adapters/broker-adapter";
-import type { OrchestratorContext } from "../orchestrator-context";
-import type { PredictionToken, ResolvedInstrument } from "../types";
-import { predictionResolutionScore } from "../utils";
+import type { BrokerRoutingService } from "../../../broker/broker-routing-service";
 
-export async function fetchPredictionMarketCandidates(ctx: OrchestratorContext): Promise<ResolvedInstrument[]> {
+type PredictionToken = { outcome?: unknown; token_id?: unknown };
+
+export type PredictionMarketCandidateRow = {
+  symbol: string;
+  instrumentClass: "prediction_market";
+  instrumentDisplayName?: string;
+  predictionOutcome?: "YES" | "NO" | null;
+  instrumentMetadataJson?: string | null;
+};
+
+export async function fetchPredictionMarketCandidates(
+  sessionId: string,
+  brokerRouting: BrokerRoutingService,
+): Promise<PredictionMarketCandidateRow[]> {
   let rows: PolymarketMarketRow[];
   try {
-    const { adapter } = await ctx.deps.brokerRouting.resolveAdapter(ctx.sessionId, "prediction_market");
+    const { adapter } = await brokerRouting.resolveAdapter(sessionId, "prediction_market");
     if (!isMarketDiscoveryAdapter(adapter)) return [];
     rows = await adapter.fetchMarketCandidates();
   } catch {
-    ctx.emitEvent("WARN", null, "Polymarket candidate fetch failed: no adapter or fetch error");
     return [];
   }
 
-  const out: Array<ResolvedInstrument & { score: number }> = [];
+  const out: Array<PredictionMarketCandidateRow & { score: number }> = [];
 
   for (const row of rows) {
     const conditionId = typeof row.conditionId === "string" ? row.conditionId : null;
@@ -73,11 +84,35 @@ export async function fetchPredictionMarketCandidates(ctx: OrchestratorContext):
   return out
     .sort((a, b) => b.score - a.score)
     .slice(0, 20)
-    .map(({ symbol, instrumentClass, instrumentDisplayName, predictionOutcome, instrumentMetadataJson }): ResolvedInstrument => ({
+    .map(({ symbol, instrumentClass, instrumentDisplayName, predictionOutcome, instrumentMetadataJson }) => ({
       symbol,
       instrumentClass,
       instrumentDisplayName,
       predictionOutcome,
       instrumentMetadataJson,
     }));
+}
+
+export const predictionMarketCandidateInputSchema = z.object({
+  sessionId: z.string().min(1),
+});
+
+export const predictionMarketCandidateOutputSchema = z.array(
+  z.object({
+    symbol: z.string(),
+    instrumentClass: z.literal("prediction_market"),
+    instrumentDisplayName: z.string().optional(),
+    predictionOutcome: z.enum(["YES", "NO"]).nullable().optional(),
+    instrumentMetadataJson: z.string().nullable().optional(),
+  }),
+);
+
+function predictionResolutionScore(resolutionTime: string): number {
+  const ms = new Date(resolutionTime).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return 0;
+  const days = ms / (1000 * 60 * 60 * 24);
+  if (days <= 1) return 30;
+  if (days <= 7) return 20;
+  if (days <= 30) return 10;
+  return 4;
 }

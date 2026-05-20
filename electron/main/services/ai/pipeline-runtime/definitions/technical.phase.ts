@@ -6,7 +6,6 @@ import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
 import { assembleAggregateTrace } from "../execution/trace-assembler";
 import {
-  aggregateTechnicalSignal,
   chartPatternOutputSchema,
   momentumOutputSchema,
   volumeOutputSchema,
@@ -15,6 +14,7 @@ import {
   type VolumeOutput,
 } from "../../engines/aggregators/technical-aggregator";
 import { technicalWorkersForMode } from "../pipeline-discovery-config";
+import { runEngineBinding } from "../execution/engine-context-runner";
 
 export type TechnicalPhaseInput = {
   instrumentSymbol: string;
@@ -89,7 +89,15 @@ async function run(
   );
 
   const { chartPattern, momentum, volume, workerResults } = collectTechnicalOutputs(workers, results);
-  const output = aggregateTechnicalSignal(instrumentSymbol, { chartPattern, momentum, volume });
+  const output = runEngineBinding<TechnicalSignal>({
+    phase: "technical",
+    sessionId: ctx.sessionId,
+    cycleId: ctx.cycleId,
+    strategyContext: ctx.strategyContext,
+    bindings: [],
+    binding: ENGINE_BINDINGS.technicalAggregatorFinalize,
+    task: { symbol: instrumentSymbol, workers: { chartPattern, momentum, volume } },
+  });
 
   const phaseRun = workerResults[0]?.run;
   const aggregate = assembleAggregateTrace({

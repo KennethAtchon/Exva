@@ -6,7 +6,6 @@ import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { PipelineRunContext, PipelineWorkerRunner } from "../core/types";
 import { assembleAggregateTrace } from "../execution/trace-assembler";
 import {
-  aggregateFundamentalSignal,
   earningsOutputSchema,
   catalystOutputSchema,
   sentimentOutputSchema,
@@ -15,6 +14,7 @@ import {
   type SentimentOutput,
 } from "../../engines/aggregators/fundamental-aggregator";
 import { fundamentalWorkersForMode } from "../pipeline-discovery-config";
+import { runEngineBinding } from "../execution/engine-context-runner";
 
 export type FundamentalPhaseInput = {
   instrumentSymbol: string;
@@ -89,7 +89,15 @@ async function run(
   );
 
   const { earnings, catalyst, sentiment, workerResults } = collectFundamentalOutputs(workers, results);
-  const output = aggregateFundamentalSignal(instrumentSymbol, { earnings, catalyst, sentiment });
+  const output = runEngineBinding<FundamentalSignal>({
+    phase: "fundamental",
+    sessionId: ctx.sessionId,
+    cycleId: ctx.cycleId,
+    strategyContext: ctx.strategyContext,
+    bindings: [],
+    binding: ENGINE_BINDINGS.fundamentalAggregatorFinalize,
+    task: { symbol: instrumentSymbol, workers: { earnings, catalyst, sentiment } },
+  });
 
   const phaseRun = workerResults[0]?.run;
   const aggregate = assembleAggregateTrace({

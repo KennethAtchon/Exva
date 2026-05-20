@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
 import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
+import { registerDefaultPhasePlans } from "../../../ai/pipeline-runtime/plan/register-default-plans";
+import { buildCompositeInput } from "../../../ai/pipeline-runtime/plan/input-builder-registry";
 import { AgentOrchestrator } from "../agent-orchestrator";
+
+registerDefaultPhasePlans();
 
 describe("AgentOrchestrator", () => {
   afterEach(() => {
@@ -90,7 +94,9 @@ describe("AgentOrchestrator", () => {
     expect(deps.sessionExecutionStepsRepo.get("session-1", failedStep.cycleId, "selector")).toMatchObject({ status: "succeeded" });
     await orchestrator.stop();
   });
+});
 
+describe("selector input builders", () => {
   it("builds full-universe selector instructions from assigned broker coverage instead of stored class picks", async () => {
     const deps = createDeps({
       noInstrumentRetryMinutes: 5,
@@ -103,11 +109,29 @@ describe("AgentOrchestrator", () => {
         { id: "broker-crypto", name: "Crypto Broker", supportedInstrumentClasses: ["crypto"] },
       ],
     });
-    const orchestrator = new AgentOrchestrator("session-1", deps as never);
+    const session = deps.sessionRepo.requireById();
 
-    const instructions = await (orchestrator as never as {
-      buildSelectionInstructions: (session: WorkspaceSession) => Promise<string>;
-    }).buildSelectionInstructions(deps.sessionRepo.requireById());
+    const instructions = await buildCompositeInput(
+      ["selector-scope", "broker-coverage"],
+      {
+        sessionId: session.id,
+        session,
+        instrumentClasses: ["crypto"],
+        toolContext: {
+          sessionId: session.id,
+          cycleId: null,
+          searchProviderId: null,
+          instrumentClasses: ["crypto"],
+          strategyContext: deps.strategyContextService.get() as never,
+        } as never,
+        services: {
+          sessionSelectorSettingsRepo: deps.sessionSelectorSettingsRepo,
+          sessionBrokerAssignmentsRepo: deps.sessionBrokerAssignmentsRepo,
+          brokerAccountsRepo: deps.brokerAccountsRepo,
+          brokerRouting: { resolveAdapter: vi.fn() },
+        } as never,
+      },
+    );
 
     expect(instructions).toContain("Selector mode: full-universe discovery.");
     expect(instructions).toContain("broker-backed classes: crypto");

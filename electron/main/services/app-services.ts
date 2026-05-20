@@ -46,6 +46,8 @@ import { NotificationService } from "./infra/notification-service";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
 import { PromptAssetLoader } from "./ai/prompt-asset-loader";
 import { registerDefaultEngines } from "./ai/engines/registry/register-default-engines";
+import { assertValidPipelineDefinitionCatalog } from "./ai/pipeline-runtime/effective-pipeline-config";
+import { registerDefaultPhasePlans } from "./ai/pipeline-runtime/plan/register-default-plans";
 import { ProviderRegistry } from "./ai/provider-registry";
 import { SearchRegistry } from "./ai/search/search-registry";
 import { SecretsService } from "./infra/secrets-service";
@@ -219,6 +221,16 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerRouting,
     brokerRegistry,
     strategyContext,
+    {
+      sessionSelectorSettingsRepo: repos.sessionSelectorSettings,
+      sessionAiPhasesRepo: repos.sessionAiPhases,
+      workspacePreferencesRepo: repos.workspacePreferences,
+      instrumentCacheRepo: repos.instrumentCache,
+      agentRunsRepo: repos.agentRuns,
+      agentMessagesRepo: repos.agentMessages,
+      sessionBrokerAssignmentsRepo: repos.sessionBrokerAssignments,
+      brokerAccountsRepo: repos.brokerAccounts,
+    },
   );
   registerDefaultEngines({
     riskEngine: risk,
@@ -227,6 +239,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerAllocationGate,
     exitPolicyEvaluator,
   });
+  registerDefaultPhasePlans();
+  assertValidPipelineDefinitionCatalog({ promptLoader: promptAssetLoader });
   balanceTicker.start();
 
   // reason: forward reference — createTradeMonitor closure reads runtimeManager before it's assigned below
