@@ -2,8 +2,8 @@ import { z } from "zod";
 import type { BrokerAllocationGate } from "../../risk/broker-allocation-gate";
 import type { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 import type { RiskEngine } from "../../risk/risk-engine";
-import type { CandidateValidationService } from "../../orchestration/candidate-validation-service";
-import type { OrderPolicyGate } from "../../orchestration/order-policy-gate";
+import type { CandidateValidationService } from "../../orchestration/policy/candidate-validation-service";
+import type { OrderPolicyGate } from "../../orchestration/policy/order-policy-gate";
 import { registerEngine } from "./engine-registry";
 import { registerPipelineEngines } from "./register-pipeline-engines";
 

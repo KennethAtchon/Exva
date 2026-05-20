@@ -3,14 +3,14 @@ import { toLegacySessionConfig, type EventSourceType, type ExecutionStage, type 
 import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
 import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
 import { AppError } from "@electron/shared/infra/errors";
-import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../broker/adapters/broker-adapter";
-import type { ApprovalRecheckInput, OrchestratorDeps } from "../session";
-import { resolveSessionInstrumentClasses } from "../session/effective-instrument-classes";
+import { isMarketDiscoveryAdapter, type OrderRequest, type PolymarketMarketRow } from "../../broker/adapters/broker-adapter";
+import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
+import { resolveSessionInstrumentClasses } from "../../session/effective-instrument-classes";
 import { buildSelectorDefinitionFingerprint, hashSelectorDefinition } from "./selector-definition-hash";
 import { ResearchBurstService } from "./research-burst-service";
 import { ExecutionStepRunner, type StepResult } from "./execution-step-runner";
-import { CandidateValidationService, type ToolStepTrace } from "./candidate-validation-service";
-import { OrderPolicyGate } from "./order-policy-gate";
+import { CandidateValidationService, type ToolStepTrace } from "../policy/candidate-validation-service";
+import { OrderPolicyGate } from "../policy/order-policy-gate";
 
 type ResolvedInstrument = {
   symbol: string;
@@ -22,9 +22,9 @@ type ResolvedInstrument = {
   selectorTraces?: ToolStepTrace[];
 };
 
-import type { AgentResult } from "../ai/ai-runtime/ai-runtime-types";
+import type { AgentResult } from "../../ai/ai-runtime/ai-runtime-types";
 import type { TechnicalSignal, FundamentalSignal, ReviewSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
-import { computeExecutionProfile, priceLevelsFromProfile } from "../ai/engines/execution-profile-engine";
+import { computeExecutionProfile, priceLevelsFromProfile } from "../../ai/engines/execution-profile-engine";
 
 type AiTechnicalRun = AgentResult<TechnicalSignal>;
 type AiFundamentalRun = AgentResult<FundamentalSignal>;

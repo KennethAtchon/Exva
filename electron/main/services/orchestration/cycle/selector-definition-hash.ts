@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { InstrumentClass, PromptSource, SelectionMode, WorkspaceSession } from "@/lib/types";
-import type { OrchestratorDeps } from "../session/session-types";
-import { resolveSessionInstrumentClasses } from "../session/effective-instrument-classes";
+import type { OrchestratorDeps } from "../../session/session-types";
+import { resolveSessionInstrumentClasses } from "../../session/effective-instrument-classes";
 
 export type SelectorDefinitionFingerprint = {
   selectionMode: SelectionMode;

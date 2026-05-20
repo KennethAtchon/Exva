@@ -1,5 +1,5 @@
-import type { ToolStepTrace } from "../../orchestration/candidate-validation-service";
-import { CandidateValidationService } from "../../orchestration/candidate-validation-service";
+import type { ToolStepTrace } from "../../orchestration/policy/candidate-validation-service";
+import { CandidateValidationService } from "../../orchestration/policy/candidate-validation-service";
 import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
 import type { InstrumentClass } from "@/lib/types";
 import type { SessionStrategyContext } from "@electron/shared/domain";

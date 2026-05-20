@@ -23,4 +23,4 @@ jobs:
         run: bun run vitest run electron/main/services/ai/__tests__/pipeline-worker-prompts.test.ts
 
       - name: Cycle replay acceptance suite
-        run: bun run vitest run electron/main/services/orchestration/__tests__/cycle-replay-service.test.ts
+        run: bun run vitest run electron/main/services/orchestration/replay/__tests__/cycle-replay-service.test.ts

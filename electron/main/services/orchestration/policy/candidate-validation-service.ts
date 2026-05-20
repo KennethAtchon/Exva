@@ -1,7 +1,7 @@
 import type { InstrumentClass } from "@/lib/types";
 import type { HoldingStyle, StrategySideBias } from "@electron/shared/domain";
 import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
-import type { MarketSnapshot } from "../broker/adapters/broker-adapter";
+import type { MarketSnapshot } from "../../broker/adapters/broker-adapter";
 
 export type ToolStepTrace = {
   step: number;

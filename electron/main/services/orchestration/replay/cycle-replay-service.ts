@@ -14,19 +14,19 @@ import {
 } from "@electron/shared/ai/pipeline-signals";
 import type { PhaseTraceV1 } from "@electron/shared/ai/pipeline-observability";
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
-import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
-import type { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
-import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
-import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
-import type { MarketSnapshot } from "../broker/adapters/broker-adapter";
-import type { MockOhlcvBar } from "../broker/adapters/mock-adapter";
-import { CandidateValidationService } from "./candidate-validation-service";
-import type { CandidateValidationResult } from "./candidate-validation-service";
-import { OrderPolicyGate } from "./order-policy-gate";
-import type { PolicyGateResult } from "./order-policy-gate";
-import { ExitPolicyEvaluator } from "../risk/exit-policy-evaluator";
-import type { ExitDecision } from "../risk/exit-policy-evaluator";
-import { computeExecutionProfile, priceLevelsFromProfile } from "../ai/engines/execution-profile-engine";
+import type { AgentMessagesRepo } from "../../../db/repositories/agents/agent-messages-repo";
+import type { InstrumentCacheRepo } from "../../../db/repositories/market/instrument-cache-repo";
+import type { SqliteSessionExecutionStepsRepo } from "../../../db/repositories/sessions/session-execution-steps-repo";
+import type { TradesRepo } from "../../../db/repositories/trades/trades-repo";
+import type { MarketSnapshot } from "../../broker/adapters/broker-adapter";
+import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
+import { CandidateValidationService } from "../policy/candidate-validation-service";
+import type { CandidateValidationResult } from "../policy/candidate-validation-service";
+import { OrderPolicyGate } from "../policy/order-policy-gate";
+import type { PolicyGateResult } from "../policy/order-policy-gate";
+import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
+import type { ExitDecision } from "../../risk/exit-policy-evaluator";
+import { computeExecutionProfile, priceLevelsFromProfile } from "../../ai/engines/execution-profile-engine";
 
 export interface CycleFixture {
   version: 1;

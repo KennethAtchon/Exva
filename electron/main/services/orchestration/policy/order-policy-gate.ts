@@ -1,6 +1,6 @@
 import type { InstrumentClass } from "@/lib/types";
 import type { HoldingStyle } from "@electron/shared/domain";
-import type { DecisionRiskInput } from "../risk/risk-engine";
+import type { DecisionRiskInput } from "../../risk/risk-engine";
 
 export type PolicyGateName =
   | "runtime"
