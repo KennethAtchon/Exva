@@ -1,4 +1,4 @@
-export { AgentOrchestrator } from "./cycle/agent-orchestrator";
+export { AgentOrchestrator, type ResolvedInstrument } from "./cycle/agent-orchestrator";
 export { ExecutionStepRunner, type StepResult } from "./cycle/execution-step-runner";
 export { ResearchBurstService } from "./cycle/research-burst-service";
 export { MarketHoursService, type BurstInstrument } from "./cycle/market-hours-service";
