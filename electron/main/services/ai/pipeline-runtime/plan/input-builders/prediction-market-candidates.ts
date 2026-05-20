@@ -1,5 +1,5 @@
 import { fetchPredictionMarketCandidates } from "../../../engines/selector/prediction-market-candidate-engine";
-import type { InputBuilder } from "../input-builder-registry";
+import type { InputBuilder } from "../registry/input-builder-registry";
 
 export const predictionMarketCandidatesInputBuilder: InputBuilder = {
   id: "prediction-market-candidates",

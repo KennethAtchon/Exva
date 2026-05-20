@@ -17,7 +17,8 @@ import {
   selectorDiscoveryWorkersForMode,
   technicalWorkersForMode,
 } from "./pipeline-discovery-config";
-import { getPhasePlan } from "./plan/phase-plan-registry";
+import { getPhasePlan } from "./plan/phase/registry";
+import { resolveEffectivePlanStages } from "./plan/unified/registry";
 
 export const DEFAULT_PIPELINE_ID = "default-trade-cycle";
 
@@ -65,6 +66,7 @@ export function resolveEffectivePipelineConfig(opts: ResolveEffectivePipelineCon
       phases: DEFAULT_PIPELINE_CONFIG.phases,
     },
     sourceMap: buildSourceMap(stages),
+    planStages: resolveEffectivePlanStages(opts.pipelineId ?? DEFAULT_PIPELINE_ID),
   };
 }
 

@@ -930,6 +930,23 @@ const PipelineConfigTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           </div>
         ))}
       </div>
+      {config.planStages?.length ? (
+        <SectionCard title="cycle plan stages">
+          {config.planStages.map((stage) => (
+            <DataRow
+              key={stage.id}
+              label={stage.id}
+              value={[
+                stage.kind,
+                stage.phase,
+                stage.engineIds?.join(", "),
+                stage.inputBuilderIds?.join(", "),
+                stage.failurePolicy,
+              ].filter(Boolean).join(" · ")}
+            />
+          ))}
+        </SectionCard>
+      ) : null}
       {config.stages.map(stage => (
         <SectionCard key={stage.id} title={`${stage.id} · ${stage.variantKey}`}>
           <DataRow label="mode" value={`${stage.schedulingMode} · max ${stage.maxConcurrency}`} />

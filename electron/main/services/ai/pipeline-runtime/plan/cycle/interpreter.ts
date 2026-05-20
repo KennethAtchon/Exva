@@ -7,8 +7,8 @@ import {
   type CycleStepRunner,
   type TradeCyclePlanState,
   type TradePipelineResult,
-} from "./cycle-types";
-import type { CyclePlanServices } from "./cycle-plan-services";
+} from "./types";
+import type { CyclePlanServices } from "./services";
 
 export interface CyclePlanInterpreterRunInput {
   plan: CyclePlan<TradeCyclePlanState>;
@@ -23,6 +23,7 @@ export interface CyclePlanInterpreterRunInput {
   toolContext: CyclePlanRunContext["toolContext"];
   services: CyclePlanServices;
   runPhase: CyclePlanRunContext["runPhase"];
+  runPhasePlan: CyclePlanRunContext["runPhasePlan"];
   runStep?: CycleStepRunner;
   seedState?: Partial<TradeCyclePlanState>;
   lastStageId?: string;
@@ -43,6 +44,7 @@ export class CyclePlanInterpreter {
       toolContext: input.toolContext,
       services: input.services,
       runPhase: input.runPhase,
+      runPhasePlan: input.runPhasePlan,
     };
 
     let state = input.plan.initialState(ctx, input.seedState);
@@ -84,4 +86,4 @@ function isCycleControlError(error: unknown): error is CyclePausedError | CycleS
   return error instanceof Error && (error.name === "CyclePausedError" || error.name === "CycleStageFailedError");
 }
 
-export { CyclePausedError, CycleStageFailedError } from "./cycle-types";
+export { CyclePausedError, CycleStageFailedError } from "./types";

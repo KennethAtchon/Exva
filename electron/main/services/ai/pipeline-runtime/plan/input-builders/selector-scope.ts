@@ -1,5 +1,5 @@
 import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
-import type { InputBuilder } from "../input-builder-registry";
+import type { InputBuilder } from "../registry/input-builder-registry";
 
 export const selectorScopeInputBuilder: InputBuilder = {
   id: "selector-scope",

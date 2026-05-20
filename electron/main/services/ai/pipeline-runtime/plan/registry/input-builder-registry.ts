@@ -1,6 +1,6 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
-import type { ToolBuildContext } from "../context/tool-factory-registry";
-import type { PhasePlanServices } from "./phase-plan-services";
+import type { ToolBuildContext } from "../../context/tool-factory-registry";
+import type { PhasePlanServices } from "../phase/services";
 
 export type InputBuilderId = string;
 

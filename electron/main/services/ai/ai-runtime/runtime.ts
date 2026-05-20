@@ -19,15 +19,15 @@ import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
 import { PipelineRuntime } from "../pipeline-runtime/core/pipeline-runtime";
 import { PhaseConfigResolver } from "../pipeline-runtime/phase-config-resolver";
-import type { PhasePlanRunResult } from "../pipeline-runtime/plan/types";
-import type { PhasePlanServices } from "../pipeline-runtime/plan/phase-plan-services";
-import type { CyclePlanServices } from "../pipeline-runtime/plan/cycle-plan-services";
+import type { PhasePlanRunResult } from "../pipeline-runtime/plan/phase/types";
+import type { PhasePlanServices } from "../pipeline-runtime/plan/phase/services";
+import type { CyclePlanServices } from "../pipeline-runtime/plan/cycle/services";
 import type {
   CycleStepRunner,
   TradeCycleInstrument,
   TradeCyclePlanState,
   TradePipelineResult,
-} from "../pipeline-runtime/plan/cycle-types";
+} from "../pipeline-runtime/plan/cycle/types";
 import type { SessionConfig, InstrumentClass } from "@/lib/types";
 import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
 
@@ -122,6 +122,25 @@ export class AiRuntime {
   ): Promise<TradePipelineResult> {
     if (!opts.sessionId) throw new AppError("Session id is required for cycle execution", "VALIDATION_FAILED");
     return this.pipelineRuntime.runCycle(cyclePlanId, opts);
+  }
+
+  async runPlan(
+    planId: string,
+    opts: {
+      sessionId: string;
+      cycleId: string;
+      tradeId?: string | null;
+      instrument?: TradeCycleInstrument;
+      sessionConfig?: SessionConfig;
+      instrumentClasses?: InstrumentClass[];
+      input?: Record<string, unknown>;
+      seedState?: Partial<TradeCyclePlanState>;
+      runStep?: CycleStepRunner;
+      lastStageId?: string;
+    },
+  ): Promise<TradePipelineResult | PhasePlanRunResult<unknown>> {
+    if (!opts.sessionId) throw new AppError("Session id is required for plan execution", "VALIDATION_FAILED");
+    return this.pipelineRuntime.runPlan(planId, opts);
   }
 
   async runPhase<TInput, TOutput>(

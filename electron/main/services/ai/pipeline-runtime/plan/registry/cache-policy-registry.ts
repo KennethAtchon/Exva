@@ -1,4 +1,4 @@
-import type { PhasePlanRunContext } from "./types";
+import type { PhasePlanRunContext } from "../phase/types";
 
 export type CachePolicyId = string;
 

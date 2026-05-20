@@ -53,6 +53,8 @@ flowchart TD
     PD --> ENG[Direct engine function imports]
 ```
 
+
+
 The system has the right rough layers, but the arrows reveal the problem: orchestration and phase definitions both reach around the runtime boundary. Orchestration calls deterministic policy services directly; phase definitions import deterministic engines directly; `PipelineRuntime` is mostly an executor for workers rather than the owner of the pipeline mechanism.
 
 ---
@@ -248,6 +250,8 @@ flowchart LR
     Policy --> Effect[orchestration places broker order]
 ```
 
+
+
 The configured pipeline should return a `readyToPlaceOrder` payload. Orchestration then performs approval, capital reservation, broker placement, and persistence.
 
 ---
@@ -359,6 +363,8 @@ flowchart TD
     AO --> EFFECTS[Approvals, trades, capital, broker order, events]
 ```
 
+
+
 In this model, `AgentOrchestrator` stops being the AI workflow author. It becomes the owner of lifecycle and real-world effects. `PipelineRuntime` becomes the owner of the mechanism. `EngineRegistry` becomes the deterministic function catalog. Config becomes the place where new things are onboarded.
 
 ---
@@ -412,10 +418,10 @@ This does not require configs to be JSON files immediately. They can start as ty
 
 ### Phase 1: Make the Current Config Resolvable and Inspectable
 
-- [x] Add `resolveEffectivePipelineConfig(sessionId, pipelineId)`.
-- [x] Keep current TypeScript definitions, but normalize them into one effective shape.
-- [x] Add validation for engine IDs, prompt assets, finalizers, and variants.
-- [x] Expose the resolved config in Developer Workbench.
+- Add `resolveEffectivePipelineConfig(sessionId, pipelineId)`.
+- Keep current TypeScript definitions, but normalize them into one effective shape.
+- Add validation for engine IDs, prompt assets, finalizers, and variants.
+- Expose the resolved config in Developer Workbench.
 
 Implemented files:
 
@@ -428,9 +434,9 @@ Implemented files:
 
 ### Phase 2: Move Selector Input/Cache/Variants Into Pipeline Runtime
 
-- [x] Convert `buildSelectionInstructions()`, prediction-market candidate fetch, selector cache policy, and discovery-mode worker selection into configured input builders and stage config.
-- [x] Leave manual shortlist as a selector input builder, not an orchestration branch.
-- [x] Make selector return an `InstrumentSelection` plus trace/candidate metadata; orchestration only schedules trade cycles.
+- Convert `buildSelectionInstructions()`, prediction-market candidate fetch, selector cache policy, and discovery-mode worker selection into configured input builders and stage config.
+- Leave manual shortlist as a selector input builder, not an orchestration branch.
+- Make selector return an `InstrumentSelection` plus trace/candidate metadata; orchestration only schedules trade cycles.
 
 Implemented files:
 
@@ -440,10 +446,10 @@ Implemented files:
 
 ### Phase 3: Replace `runAiPipeline()` With a Configured Trade Cycle
 
-- [x] Add `AiRuntime.runCycle()` or `PipelineRuntime.runCycle()`.
-- [x] Model technical/fundamental/review/decision as configured stages.
-- [x] Add configured `candidate_validation`, `execution_profile`, `risk_gate`, and `order_policy` engine stages.
-- [x] Return a typed `TradePipelineResult` that contains the decision and prevalidated execution profile.
+- Add `AiRuntime.runCycle()` or `PipelineRuntime.runCycle()`.
+- Model technical/fundamental/review/decision as configured stages.
+- Add configured `candidate_validation`, `execution_profile`, `risk_gate`, and `order_policy` engine stages.
+- Return a typed `TradePipelineResult` that contains the decision and prevalidated execution profile.
 
 Implemented files:
 
@@ -454,10 +460,10 @@ Implemented files:
 
 ### Phase 4: Make Engines Authoritative
 
-- [x] Route finalizers through engine bindings.
-- [x] Remove direct aggregator function imports from phase definitions. Schema/type imports remain because worker output contracts live next to the aggregator implementations today.
-- [x] Use `requireEngine()` during config validation and engine execution.
-- [ ] Give engines typed schemas instead of `z.any()` where possible.
+- Route finalizers through engine bindings.
+- Remove direct aggregator function imports from phase definitions. Schema/type imports remain because worker output contracts live next to the aggregator implementations today.
+- Use `requireEngine()` during config validation and engine execution.
+- Give engines typed schemas instead of `z.any()` where possible.
 
 Implemented files:
 
@@ -469,25 +475,27 @@ Implemented files:
 
 ### Phase 5: Shrink Orchestration to Lifecycle + Effects
 
-- [ ] Keep approval wait, capital reservation, trade insert/update, broker order placement, and event emission in orchestration.
-- [ ] Remove AI phase ordering, policy decision branching, selector cache ownership, and direct deterministic policy calls from orchestration.
+- Keep approval wait, capital reservation, trade insert/update, broker order placement, and event emission in orchestration.
+- Remove AI phase ordering, policy decision branching, selector cache ownership, and direct deterministic policy calls from orchestration.
 
 ---
 
 ## Concrete File-Level Moves
 
-| Move | From | To |
-|------|------|----|
-| Selector instructions | `orchestration/cycle/selector/selection-instructions.ts` | `plan/input-builders/selector-scope.ts` |
-| Selector cache/fingerprint policy | `orchestration/cycle/selector/instrument-resolver.ts` | `plan/cache/selector-instrument-cache.ts` |
-| Manual shortlist parsing | `orchestration/cycle/selector/manual-shortlist.ts` | `plan/input-builders/manual-shortlist.ts` |
-| Prediction-market candidate prefeed | `orchestration/cycle/selector/prediction-market-candidates.ts` | `ai/engines/selector/prediction-market-candidate-engine.ts` |
-| AI phase order | `orchestration/cycle/trade/ai-pipeline.ts` | configured `default-trade-cycle` |
-| Candidate validation | `orchestration/policy/candidate-validation-service.ts` direct call | `candidate-validator` policy engine stage |
-| Risk gate | `riskEngine.validateDecision()` direct call | `risk-gate` policy engine stage |
-| Order policy | `new OrderPolicyGate().evaluate()` direct call | `order-policy` policy engine stage |
-| Aggregators | phase definition direct imports | engine finalizers |
-| Retry constants | `ExecutionStepRunner` | resolved stage retry config |
+
+| Move                                | From                                                               | To                                                          |
+| ----------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| Selector instructions               | `orchestration/cycle/selector/selection-instructions.ts`           | `plan/input-builders/selector-scope.ts`                     |
+| Selector cache/fingerprint policy   | `orchestration/cycle/selector/instrument-resolver.ts`              | `plan/cache/selector-instrument-cache.ts`                   |
+| Manual shortlist parsing            | `orchestration/cycle/selector/manual-shortlist.ts`                 | `plan/input-builders/manual-shortlist.ts`                   |
+| Prediction-market candidate prefeed | `orchestration/cycle/selector/prediction-market-candidates.ts`     | `ai/engines/selector/prediction-market-candidate-engine.ts` |
+| AI phase order                      | `orchestration/cycle/trade/ai-pipeline.ts`                         | configured `default-trade-cycle`                            |
+| Candidate validation                | `orchestration/policy/candidate-validation-service.ts` direct call | `candidate-validator` policy engine stage                   |
+| Risk gate                           | `riskEngine.validateDecision()` direct call                        | `risk-gate` policy engine stage                             |
+| Order policy                        | `new OrderPolicyGate().evaluate()` direct call                     | `order-policy` policy engine stage                          |
+| Aggregators                         | phase definition direct imports                                    | engine finalizers                                           |
+| Retry constants                     | `ExecutionStepRunner`                                              | resolved stage retry config                                 |
+
 
 ---
 

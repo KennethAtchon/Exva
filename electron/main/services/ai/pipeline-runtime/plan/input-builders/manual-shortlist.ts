@@ -1,7 +1,7 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
 import type { InstrumentSelection } from "@/lib/schemas";
 import { AppError } from "@electron/shared/infra/errors";
-import type { PhasePlanRunContext } from "../types";
+import type { PhasePlanRunContext } from "../phase/types";
 
 export function buildManualShortlistSelection(
   session: WorkspaceSession,

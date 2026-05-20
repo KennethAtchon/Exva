@@ -1,5 +1,5 @@
 import type { InstrumentClass } from "@/lib/types";
-import type { InputBuilder, InputBuilderContext } from "../input-builder-registry";
+import type { InputBuilder, InputBuilderContext } from "../registry/input-builder-registry";
 
 export const brokerCoverageInputBuilder: InputBuilder = {
   id: "broker-coverage",

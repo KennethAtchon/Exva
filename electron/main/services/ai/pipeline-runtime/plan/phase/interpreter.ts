@@ -1,13 +1,13 @@
 import { AppError } from "@electron/shared/infra/errors";
-import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
+import type { AgentResult } from "../../../ai-runtime/ai-runtime-types";
 import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
-import { resolveSessionInstrumentClasses } from "../../../session/effective-instrument-classes";
-import { getCachePolicy } from "./cache-policy-registry";
-import { buildCompositeInput } from "./input-builder-registry";
-import type { PhasePlanServices } from "./phase-plan-services";
+import { resolveSessionInstrumentClasses } from "../../../../session/effective-instrument-classes";
+import { getCachePolicy } from "../registry/cache-policy-registry";
+import { buildCompositeInput } from "../registry/input-builder-registry";
+import type { PhasePlanServices } from "./services";
 import type { PhasePlan, PhasePlanRunContext, PhasePlanRunResult, PhasePlanWorkerTrace } from "./types";
-import type { PipelineWorkerRunner } from "../core/types";
-import type { ToolBuildContext } from "../context/tool-factory-registry";
+import type { PipelineWorkerRunner } from "../../core/types";
+import type { ToolBuildContext } from "../../context/tool-factory-registry";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { WorkspaceSession } from "@/lib/types";
 
@@ -124,7 +124,7 @@ export class PhasePlanInterpreter {
     const output = (input.plan.filterOutput?.(finalized.output, ctx) ?? finalized.output) as TOutput;
     const aggregate = finalized.aggregate;
 
-    if (aggregate) {
+    if (aggregate && input.plan.persistAggregate !== false) {
       input.services.agentRunsRepo.insert({
         ...aggregate.run,
         session_id: ctx.sessionId,

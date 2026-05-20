@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import type { InstrumentClass, PromptSource, SelectionMode, WorkspaceSession } from "@/lib/types";
 import type { InstrumentSelection } from "@/lib/schemas";
-import type { PhasePlanServices } from "../phase-plan-services";
-import type { CachePolicy } from "../cache-policy-registry";
-import type { PhasePlanRunContext } from "../types";
+import type { PhasePlanServices } from "../phase/services";
+import type { CachePolicy } from "../registry/cache-policy-registry";
+import type { PhasePlanRunContext } from "../phase/types";
 import { resolveSessionInstrumentClasses } from "../../../../session/effective-instrument-classes";
 
 export type SelectorDefinitionFingerprint = {

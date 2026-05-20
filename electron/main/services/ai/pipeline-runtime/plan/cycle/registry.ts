@@ -1,4 +1,4 @@
-import type { CyclePlan } from "./cycle-types";
+import type { CyclePlan } from "./types";
 
 const cyclePlans = new Map<string, CyclePlan<unknown>>();
 

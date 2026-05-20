@@ -12,7 +12,7 @@ describe("runSelector", () => {
       sessionId: "session-1",
       deps: {
         ai: {
-          runPhasePlan: async () => ({
+          runPlan: async () => ({
             source: "ai_picker",
             output: {
               instruments: [
@@ -40,7 +40,7 @@ describe("runSelector", () => {
       sessionId: "session-1",
       deps: {
         ai: {
-          runPhasePlan: async () => ({ source: "manual_shortlist", output: { instruments: [] } }),
+          runPlan: async () => ({ source: "manual_shortlist", output: { instruments: [] } }),
         },
         bus: { emit: vi.fn() },
       },

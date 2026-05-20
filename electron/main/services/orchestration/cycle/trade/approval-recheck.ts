@@ -40,7 +40,7 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
   ctx.cycleContexts.set(cycleId, context);
 
   const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
-  const pipeline = await ctx.deps.ai.runCycle("default-trade-cycle", {
+  const pipeline = (await ctx.deps.ai.runPlan("default-trade-cycle", {
     sessionId: ctx.sessionId,
     cycleId,
     tradeId: trade.id,
@@ -48,7 +48,7 @@ export async function runApprovalRecheck(ctx: OrchestratorContext, input: Approv
     sessionConfig: config,
     instrumentClasses: ctx.getEffectiveInstrumentClasses(session),
     lastStageId: "decision",
-  });
+  })) as import("../../../ai/pipeline-runtime/plan/cycle/types").TradePipelineResult;
   const { technical, fundamental, review, decision } = pipeline.state;
   if (!technical || !fundamental || !review || !decision) {
     failRecheck(ctx, trade.id, approval.id, "Fresh AI pipeline did not complete.");

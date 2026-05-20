@@ -1,12 +1,15 @@
+import { AppError } from "@electron/shared/infra/errors";
+import type { AgentResult } from "../../../ai/ai-runtime/ai-runtime-types";
+import type { TradePipelineResult } from "../../../ai/pipeline-runtime/plan/cycle/types";
+import { tradeCycleStageFailurePolicy } from "../../../ai/pipeline-runtime/plan/plans/trade/default-cycle-stages";
+import type { OrchestratorContext } from "../orchestrator-context";
+import { runOrchestratorStep } from "../orchestrator-step";
+import type { TradeCycleContext } from "../types";
 import {
   CyclePausedError,
   CycleStageFailedError,
   type TradeCyclePlanState,
-  type TradePipelineResult,
-} from "../../../ai/pipeline-runtime/plan/cycle-types";
-import type { OrchestratorContext } from "../orchestrator-context";
-import { runOrchestratorStep } from "../orchestrator-step";
-import type { TradeCycleContext } from "../types";
+} from "../../../ai/pipeline-runtime/plan/cycle/types";
 
 export async function runTradePipeline(
   ctx: OrchestratorContext,
@@ -18,7 +21,7 @@ export async function runTradePipeline(
   const seedState = tradePipelineSeedFromContext(context);
 
   try {
-    return await ctx.deps.ai.runCycle("default-trade-cycle", {
+    const result = await ctx.deps.ai.runPlan("default-trade-cycle", {
       sessionId: ctx.sessionId,
       cycleId: context.cycleId,
       tradeId: context.trade?.id ?? null,
@@ -27,19 +30,20 @@ export async function runTradePipeline(
       instrumentClasses: ctx.getEffectiveInstrumentClasses(session),
       seedState,
       runStep: async (stage, execute) => {
+        const failurePolicy = tradeCycleStageFailurePolicy(stage);
         const step = await runOrchestratorStep(ctx, {
           cycleId: context.cycleId,
           stage,
           onRetry,
           tradeId: context.trade?.id ?? null,
-          recordFailure: stage === "candidate_validation" ? false : true,
+          recordFailure: failurePolicy !== "warn",
           onFailure:
-            stage === "candidate_validation"
+            failurePolicy === "warn"
               ? (result) => {
                   ctx.emitEvent(
                     "WARN",
                     null,
-                    `[candidate-validation] ${context.instrument.symbol}: ${result.errorMessage}`,
+                    `[${stage}] ${context.instrument.symbol}: ${result.errorMessage}`,
                     "orchestrator",
                     context.cycleId,
                   );
@@ -53,6 +57,7 @@ export async function runTradePipeline(
         return step.value;
       },
     });
+    return result as TradePipelineResult;
   } catch (error) {
     if (error instanceof CyclePausedError) {
       ctx.emitAbort();
@@ -84,4 +89,23 @@ export function applyTradePipelineToContext(context: TradeCycleContext, result: 
   context.review = result.state.review ?? context.review;
   context.decision = result.state.decision ?? context.decision;
   context.riskOrder = result.state.riskOrder ?? context.riskOrder;
+}
+
+export function persistTradeAiRuns(
+  ctx: OrchestratorContext,
+  tradeId: string,
+  results: Array<AgentResult<unknown>>,
+): void {
+  for (const result of results) {
+    ctx.deps.agentRunsRepo.insert({ ...result.run, session_id: ctx.sessionId, trade_id: tradeId });
+    ctx.deps.agentMessagesRepo.insert({ ...result.message, session_id: ctx.sessionId, trade_id: tradeId });
+  }
+}
+
+export function requirePipelineAiResults(result: TradePipelineResult) {
+  const { technical, fundamental, review, decision } = result.state;
+  if (!technical || !fundamental || !review || !decision) {
+    throw new AppError("Internal error: trade pipeline returned incomplete AI results.", "VALIDATION_FAILED");
+  }
+  return { technical, fundamental, review, decision };
 }

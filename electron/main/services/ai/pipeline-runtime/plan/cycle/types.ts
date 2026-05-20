@@ -1,14 +1,16 @@
 import type { ExecutionStage, InstrumentClass, SessionConfig, WorkspaceSession } from "@/lib/types";
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import type { StageFailurePolicy } from "../engine/input-builder-registry";
+import type { PhasePlanRunResult } from "../phase/types";
 import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
 import type { FundamentalSignal, ReviewSignal, TechnicalSignal, TradeSignal } from "@electron/shared/ai/pipeline-signals";
-import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
-import type { OrderRequest } from "../../../broker/adapters/broker-adapter";
-import type { ExecutionProfile } from "../../engines/execution/execution-profile-engine";
+import type { AgentResult } from "../../../ai-runtime/ai-runtime-types";
+import type { OrderRequest } from "../../../../broker/adapters/broker-adapter";
+import type { ExecutionProfile } from "../../../engines/execution/execution-profile-engine";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import type { ToolBuildContext } from "../context/tool-factory-registry";
-import type { CyclePlanServices } from "./cycle-plan-services";
-import type { ToolStepTrace } from "../../../orchestration/policy/candidate-validation-service";
+import type { ToolBuildContext } from "../../context/tool-factory-registry";
+import type { CyclePlanServices } from "./services";
+import type { ToolStepTrace } from "../../../../orchestration/policy/candidate-validation-service";
 
 export type TradeCycleInstrument = {
   symbol: string;
@@ -63,6 +65,10 @@ export interface CyclePlanRunContext {
     phase: PipelinePhase,
     input: TInput,
   ) => Promise<AgentResult<TOutput>>;
+  runPhasePlan: <TOutput>(
+    phase: PipelinePhase,
+    input: Record<string, unknown>,
+  ) => Promise<PhasePlanRunResult<TOutput>>;
 }
 
 export type CycleStepRunner = <T>(
@@ -74,6 +80,7 @@ export interface CyclePlanStage<TState> {
   id: string;
   executionStage?: ExecutionStage;
   required: boolean;
+  failurePolicy?: StageFailurePolicy;
   execute(ctx: CyclePlanRunContext, state: TState): Promise<TState>;
 }
 

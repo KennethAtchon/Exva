@@ -30,13 +30,14 @@ import {
   DEFAULT_PIPELINE_ID,
   resolveEffectivePipelineConfig,
 } from "../effective-pipeline-config";
-import { PhasePlanInterpreter } from "../plan/phase-plan-interpreter";
-import { requirePhasePlan } from "../plan/phase-plan-registry";
-import type { PhasePlanServices } from "../plan/phase-plan-services";
-import { CyclePlanInterpreter } from "../plan/cycle-plan-interpreter";
-import { requireCyclePlan } from "../plan/cycle-plan-registry";
-import type { CyclePlanServices } from "../plan/cycle-plan-services";
-import type { CycleStepRunner, TradeCycleInstrument, TradeCyclePlanState, TradePipelineResult } from "../plan/cycle-types";
+import { PhasePlanInterpreter } from "../plan/phase/interpreter";
+import { requirePhasePlan, getPhasePlan } from "../plan/phase/registry";
+import type { PhasePlanServices } from "../plan/phase/services";
+import { CyclePlanInterpreter } from "../plan/cycle/interpreter";
+import { requireCyclePlan, getCyclePlan } from "../plan/cycle/registry";
+import { requireUnifiedPlan } from "../plan/unified/registry";
+import type { CyclePlanServices } from "../plan/cycle/services";
+import type { CycleStepRunner, TradeCycleInstrument, TradeCyclePlanState, TradePipelineResult } from "../plan/cycle/types";
 import type { SessionConfig } from "@/lib/types";
 import type { InstrumentClass } from "@/lib/types";
 
@@ -123,7 +124,7 @@ export class PipelineRuntime {
     const session = this.deps.sessionRepo.requireById(opts.sessionId);
 
     return this.cyclePlanInterpreter.run({
-      plan: plan as import("../plan/cycle-types").CyclePlan<TradeCyclePlanState>,
+      plan: plan as import("../plan/cycle/types").CyclePlan<TradeCyclePlanState>,
       sessionId: opts.sessionId,
       cycleId: opts.cycleId,
       tradeId: opts.tradeId ?? null,
@@ -146,6 +147,58 @@ export class PipelineRuntime {
           tradeId: opts.tradeId ?? null,
           toolContext,
         }),
+      runPhasePlan: (phase, input) =>
+        this.runPhasePlan({
+          phase,
+          sessionId: opts.sessionId,
+          input,
+          cycleId: opts.cycleId,
+          tradeId: opts.tradeId ?? null,
+          toolContext,
+        }),
+    });
+  }
+
+  async runPlan(
+    planId: string,
+    opts: {
+      sessionId: string;
+      cycleId: string;
+      tradeId?: string | null;
+      instrument?: TradeCycleInstrument;
+      sessionConfig?: SessionConfig;
+      instrumentClasses?: InstrumentClass[];
+      input?: Record<string, unknown>;
+      seedState?: Partial<TradeCyclePlanState>;
+      runStep?: CycleStepRunner;
+      lastStageId?: string;
+    },
+  ): Promise<TradePipelineResult | import("../plan/phase/types").PhasePlanRunResult<unknown>> {
+    const plan = requireUnifiedPlan(planId);
+    if (plan.kind === "phase") {
+      return this.runPhasePlan({
+        phase: plan.id,
+        sessionId: opts.sessionId,
+        cycleId: opts.cycleId,
+        tradeId: opts.tradeId ?? null,
+        input: opts.input ?? {},
+      });
+    }
+
+    if (!opts.instrument || !opts.sessionConfig || !opts.instrumentClasses) {
+      throw new AppError(`Cycle plan '${planId}' requires instrument, sessionConfig, and instrumentClasses.`, "VALIDATION_FAILED");
+    }
+
+    return this.runCycle(planId, {
+      sessionId: opts.sessionId,
+      cycleId: opts.cycleId,
+      tradeId: opts.tradeId,
+      instrument: opts.instrument,
+      sessionConfig: opts.sessionConfig,
+      instrumentClasses: opts.instrumentClasses,
+      seedState: opts.seedState,
+      runStep: opts.runStep,
+      lastStageId: opts.lastStageId,
     });
   }
 
@@ -181,7 +234,7 @@ export class PipelineRuntime {
 
   async runPhasePlan<TOutput>(
     opts: Omit<RunPhaseOptions, "input"> & { input?: Record<string, unknown> },
-  ): Promise<import("../plan/types").PhasePlanRunResult<TOutput>> {
+  ): Promise<import("../plan/phase/types").PhasePlanRunResult<TOutput>> {
     const plan = requirePhasePlan(opts.phase);
     if (!this.deps.planServices) {
       throw new AppError(`Phase plan services are not configured for '${opts.phase}'.`, "UNKNOWN");
@@ -247,6 +300,21 @@ export class PipelineRuntime {
   async run<TInput, TOutput>(opts: RunPhaseOptions<TInput>): Promise<AgentResult<TOutput>> {
     if (!opts.sessionId) {
       throw new AppError("Session id is required for phase execution", "VALIDATION_FAILED");
+    }
+
+    if (getPhasePlan(opts.phase)) {
+      const result = await this.runPhasePlan<TOutput>({
+        phase: opts.phase,
+        sessionId: opts.sessionId,
+        input: opts.input as Record<string, unknown>,
+        cycleId: opts.cycleId,
+        tradeId: opts.tradeId,
+        toolContext: opts.toolContext,
+      });
+      if (!result.run || !result.message) {
+        throw new AppError(`Phase plan '${opts.phase}' did not return agent metadata.`, "VALIDATION_FAILED");
+      }
+      return { run: result.run, message: result.message, output: result.output };
     }
 
     const definition = getPipelineDefinition(opts.phase);

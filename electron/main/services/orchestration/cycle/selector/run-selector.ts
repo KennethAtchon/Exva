@@ -12,7 +12,11 @@ export async function runSelector(
   config: SessionConfig,
   cycleId: string,
 ): Promise<ResolvedInstrument[]> {
-  const result = await ctx.deps.ai.runPhasePlan<InstrumentSelection>("selector", session.id, cycleId);
+  const result = (await ctx.deps.ai.runPlan("selector", {
+    sessionId: session.id,
+    cycleId,
+    input: {},
+  })) as import("../../../ai/pipeline-runtime/plan/phase/types").PhasePlanRunResult<InstrumentSelection>;
 
   if (result.source === "ai_picker") {
     ctx.emitEvent("INFO", null, "[stage:selector] starting discovery and verification workers", "orchestrator", cycleId);

@@ -2,7 +2,7 @@ import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/catalog/search-providers";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
-import { candidateOutputSchema } from "./plan/plans/selector-schemas";
+import { candidateOutputSchema } from "./plan/plans/selector/schemas";
 import {
   chartPatternOutputSchema,
   momentumOutputSchema,

@@ -1,10 +1,10 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
 import type { PipelinePhase, WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
-import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
+import type { AgentResult } from "../../../ai-runtime/ai-runtime-types";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import type { ToolBuildContext } from "../context/tool-factory-registry";
-import type { PipelineWorkerRunner } from "../core/types";
-import type { PhasePlanServices } from "./phase-plan-services";
+import type { ToolBuildContext } from "../../context/tool-factory-registry";
+import type { PipelineWorkerRunner } from "../../core/types";
+import type { PhasePlanServices } from "./services";
 
 export type PhasePlanSource = "cache" | "manual_shortlist" | "ai_picker" | "phase";
 
@@ -63,6 +63,8 @@ export interface PhasePlan<TState, TOutput> {
   phase: PipelinePhase;
   cachePolicyId?: string;
   inputBuilderIds?: readonly string[];
+  /** When false, aggregate trace is returned but not persisted (trade cycle persists on trade insert). */
+  persistAggregate?: boolean;
   entryModes: readonly PhaseEntryMode[];
   initialState(ctx: PhasePlanRunContext): TState | Promise<TState>;
   stages: readonly PhasePlanStage<TState>[];

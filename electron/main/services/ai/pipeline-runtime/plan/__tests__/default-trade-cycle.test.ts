@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { registerDefaultCyclePlans } from "../register-default-cycles";
-import { getCyclePlan, listCyclePlanIds } from "../cycle-plan-registry";
+import { registerDefaultCyclePlans } from "../register/cycle-plans";
+import { getCyclePlan, listCyclePlanIds } from "../cycle/registry";
+import { DEFAULT_TRADE_CYCLE_STAGES } from "../plans/trade/default-cycle-stages";
+import { listEngineInputBuilderIds } from "../engine/input-builder-registry";
 
 describe("default-trade-cycle plan", () => {
   it("registers the default trade cycle with configured stages", () => {
@@ -23,5 +25,30 @@ describe("default-trade-cycle plan", () => {
       "risk-gate",
       "broker-allocation",
     ]);
+  });
+
+  it("uses a declarative stage table for engine and phase stages", () => {
+    expect(DEFAULT_TRADE_CYCLE_STAGES.map((stage) => stage.id)).toEqual([
+      "candidate_validation",
+      "technical",
+      "fundamental",
+      "review",
+      "decision",
+      "risk_gate",
+    ]);
+    expect(DEFAULT_TRADE_CYCLE_STAGES.find((stage) => stage.id === "candidate_validation")).toMatchObject({
+      kind: "engine",
+      failurePolicy: "warn",
+    });
+    expect(DEFAULT_TRADE_CYCLE_STAGES.find((stage) => stage.id === "risk_gate")).toMatchObject({
+      kind: "engine-chain",
+      failurePolicy: "reject_trade",
+    });
+  });
+
+  it("registers trade engine input builders", () => {
+    expect(listEngineInputBuilderIds()).toEqual(
+      expect.arrayContaining(["candidate-validation", "execution-profile", "risk-gate", "broker-allocation"]),
+    );
   });
 });

@@ -60,6 +60,17 @@ export interface EffectiveBudgetConfig {
   phases: Record<PipelinePhase, { phaseSpendCapUsd: number }>;
 }
 
+export interface EffectivePlanStageConfig {
+  id: string;
+  kind: "phase" | "engine" | "engine-chain";
+  executionStage?: string;
+  phase?: PipelinePhase;
+  engineIds?: readonly string[];
+  inputBuilderIds?: readonly string[];
+  failurePolicy?: string;
+  required: boolean;
+}
+
 export interface EffectivePipelineConfig {
   pipelineId: string;
   sessionId: string;
@@ -68,4 +79,5 @@ export interface EffectivePipelineConfig {
   engines: EngineBinding[];
   budgets: EffectiveBudgetConfig;
   sourceMap: EffectivePipelineConfigSourceEntry[];
+  planStages?: EffectivePlanStageConfig[];
 }
