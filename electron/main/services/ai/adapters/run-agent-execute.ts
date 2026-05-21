@@ -28,11 +28,36 @@ import {
 
 const logger = createLogger("run-agent-execute");
 
+function agentLogContext(params: RunAgentExecuteParams<unknown>): {
+  role: AgentRole | null;
+  workerId: string | null;
+  workerName: string | null;
+  sessionId: string | null;
+  cycleId: string | null;
+  tradeId: string | null;
+  modelId: string;
+} {
+  return {
+    role: params.role ?? null,
+    workerId: params.workerId ?? null,
+    workerName: params.workerName ?? null,
+    sessionId: params.sessionId ?? null,
+    cycleId: params.cycleId ?? null,
+    tradeId: params.tradeId ?? null,
+    modelId: params.modelId,
+  };
+}
+
 export interface RunAgentExecuteParams<T> {
   model: LanguageModel;
   modelId: string;
   providerType?: string;
   role?: AgentRole;
+  workerId?: string;
+  workerName?: string;
+  sessionId?: string;
+  cycleId?: string | null;
+  tradeId?: string | null;
   messages: RuntimeAgentMessage[];
   tools?: ToolSet;
   maxSteps: number;
@@ -206,8 +231,7 @@ export async function executeRunAgent<T = undefined>(
 
   logger.debug(
     {
-      role: params.role ?? null,
-      modelId: params.modelId,
+      ...agentLogContext(params),
       systemPrompt: system ?? null,
       userPrompt: prompt,
     },
@@ -216,8 +240,7 @@ export async function executeRunAgent<T = undefined>(
   logger.info(
     {
       providerType: params.providerType ?? null,
-      role: params.role ?? null,
-      modelId: params.modelId,
+      ...agentLogContext(params),
       temperature: params.temperature ?? null,
       hasTools: Boolean(params.tools),
       toolNames: params.tools ? Object.keys(params.tools) : [],
@@ -279,8 +302,7 @@ export async function executeRunAgent<T = undefined>(
         const rawOut = resultsById.get(tc.toolCallId);
         logger.info(
           {
-            role: params.role ?? null,
-            modelId: params.modelId,
+            ...agentLogContext(params),
             step: stepIndex + 1,
             tool: String(tc.toolName),
             toolArgs: tc.input,
@@ -293,8 +315,7 @@ export async function executeRunAgent<T = undefined>(
     if (step.text) {
       logger.info(
         {
-          role: params.role ?? null,
-          modelId: params.modelId,
+          ...agentLogContext(params),
           step: stepIndex + 1,
           fullText: step.text,
         },
@@ -358,8 +379,7 @@ export async function executeRunAgent<T = undefined>(
   if (result.reasoningText) {
     logger.info(
       {
-        role: params.role ?? null,
-        modelId: params.modelId,
+        ...agentLogContext(params),
         thinkingChars: result.reasoningText.length,
         thinking: result.reasoningText,
       },
@@ -369,8 +389,7 @@ export async function executeRunAgent<T = undefined>(
 
   logger.info(
     {
-      role: params.role ?? null,
-      modelId: params.modelId,
+      ...agentLogContext(params),
       finishReason: result.finishReason,
       mappedFinishReason: mapFinishReason(result.finishReason, {
         spendExceeded,

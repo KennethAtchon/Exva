@@ -10,18 +10,36 @@ export const conflictDetectorOutputSchema = z.object({
     .min(0)
     .max(1)
     .nullable()
-    .default(null),
-  conflictExplanation: z.string().nullable().default(null),
-  rawSummary: z.string().default(""),
+    .default(null)
+    .describe(
+      "Degree technical and fundamental signals disagree (0 = aligned, 1 = opposed); null only if both absent.",
+    ),
+  conflictExplanation: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe("One-sentence explanation of the conflict, or null."),
+  rawSummary: z.string().default("").describe("One-sentence observation."),
 });
 export type ConflictDetectorOutput = z.infer<
   typeof conflictDetectorOutputSchema
 >;
 
 export const riskAssessorOutputSchema = z.object({
-  tailRisks: z.array(z.string()).default([]),
-  overallRisk: z.enum(["low", "medium", "high"]).nullable().default(null),
-  rawSummary: z.string().default(""),
+  tailRisks: z
+    .array(z.string())
+    .default([])
+    .describe(
+      'Specific downside risks (e.g. "earnings miss", "liquidity gap"). Empty if none.',
+    ),
+  overallRisk: z
+    .enum(["low", "medium", "high"])
+    .nullable()
+    .default(null)
+    .describe(
+      "Aggregate risk level; null only if both input signals are entirely absent.",
+    ),
+  rawSummary: z.string().default("").describe("One-sentence observation."),
 });
 export type RiskAssessorOutput = z.infer<typeof riskAssessorOutputSchema>;
 

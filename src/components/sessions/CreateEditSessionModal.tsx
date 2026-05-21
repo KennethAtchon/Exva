@@ -729,7 +729,10 @@ export const CreateEditSessionModal = ({
                                     brokerAssignments: updateBrokerAllocation(
                                       form.brokerAssignments,
                                       broker.id,
-                                      Number(event.target.value) || 0,
+                                      Number(event.target.value) ||
+                                        (broker.balanceCacheUsd != null
+                                          ? broker.balanceCacheUsd / 10
+                                          : 0),
                                     ),
                                   })
                                 }

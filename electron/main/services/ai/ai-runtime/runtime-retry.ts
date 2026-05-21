@@ -21,6 +21,8 @@ export interface ProviderRetryContext {
   providerType?: string | null;
   modelId?: string | null;
   role?: string | null;
+  workerId?: string | null;
+  workerName?: string | null;
   sessionId?: string | null;
   cycleId?: string | null;
 }

@@ -112,6 +112,19 @@ export function envelopeToMessages(
   ];
 
   const sizes = measurePromptEnvelope(messages);
+  logger.info(
+    {
+      phase,
+      workerId: envelope.userPayload.workerId,
+      ...sizes,
+      hasStrategyGuidance: presetGuidance.trim().length > 0,
+      hasEngineResults:
+        Object.keys(envelope.userPayload.engineResults as Record<string, unknown>)
+          .length > 0,
+      taskKeys: Object.keys(envelope.userPayload.task as Record<string, unknown>).sort(),
+    },
+    "worker prompt assembled",
+  );
   if (sizes.exceedsSystem || sizes.exceedsUser) {
     logger.warn(
       {

@@ -5,6 +5,9 @@ import type {
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { requireEngine } from "../../engines/registry/engine-registry";
 import type { EngineRunContext } from "../../engines/registry/types";
+import { createLogger } from "../../../infra/log";
+
+const logger = createLogger("pipeline-runtime");
 
 export interface EngineContextRunInput {
   phase: PipelinePhase;
@@ -24,9 +27,36 @@ export function runReadEngineContext(
   input: EngineContextRunInput,
 ): Record<string, unknown> {
   const engineResults: Record<string, unknown> = {};
-  for (const binding of input.bindings) {
-    if (binding.mode !== "read") continue;
+  const readBindings = input.bindings.filter(
+    (binding) => binding.mode === "read",
+  );
+  if (readBindings.length === 0) return engineResults;
+
+  logger.info(
+    {
+      sessionId: input.sessionId,
+      phase: input.phase,
+      cycleId: input.cycleId,
+      engineIds: readBindings.map((binding) => binding.engine),
+      taskKeys: Object.keys(input.task).sort(),
+    },
+    "worker engine context read start",
+  );
+
+  for (const binding of readBindings) {
+    const startedAt = Date.now();
     engineResults[binding.engine] = runEngineBinding({ ...input, binding });
+    logger.info(
+      {
+        sessionId: input.sessionId,
+        phase: input.phase,
+        cycleId: input.cycleId,
+        engineId: binding.engine,
+        durationMs: Date.now() - startedAt,
+        hasResult: engineResults[binding.engine] != null,
+      },
+      "worker engine context read complete",
+    );
   }
   return engineResults;
 }

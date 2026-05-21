@@ -9,6 +9,9 @@ import {
   type TradePipelineResult,
 } from "./types";
 import type { CyclePlanServices } from "./services";
+import { createLogger } from "../../../../infra/log";
+
+const logger = createLogger("pipeline-runtime");
 
 export interface CyclePlanInterpreterRunInput {
   plan: CyclePlan<TradeCyclePlanState>;
@@ -30,6 +33,21 @@ export interface CyclePlanInterpreterRunInput {
 
 export class CyclePlanInterpreter {
   async run(input: CyclePlanInterpreterRunInput): Promise<TradePipelineResult> {
+    const cycleStartedAt = Date.now();
+    logger.info(
+      {
+        sessionId: input.sessionId,
+        cycleId: input.cycleId,
+        cyclePlanId: input.plan.id,
+        tradeId: input.tradeId,
+        instrumentSymbol: input.instrument.symbol,
+        instrumentClass: input.instrument.instrumentClass,
+        stageCount: input.plan.stages.length,
+        lastStageId: input.lastStageId ?? null,
+      },
+      "cycle plan start",
+    );
+
     const ctx: CyclePlanRunContext = {
       cyclePlanId: input.plan.id,
       sessionId: input.sessionId,
@@ -48,6 +66,19 @@ export class CyclePlanInterpreter {
     let state = input.plan.initialState(ctx, input.seedState);
 
     for (const stage of input.plan.stages) {
+      const stageStartedAt = Date.now();
+      logger.info(
+        {
+          sessionId: input.sessionId,
+          cycleId: input.cycleId,
+          cyclePlanId: input.plan.id,
+          stageId: stage.id,
+          executionStage: stage.executionStage ?? null,
+          required: stage.required,
+        },
+        "cycle stage start",
+      );
+
       const execute = () => stage.execute(ctx, state);
 
       try {
@@ -59,7 +90,29 @@ export class CyclePlanInterpreter {
         } else {
           state = await execute();
         }
+        logger.info(
+          {
+            sessionId: input.sessionId,
+            cycleId: input.cycleId,
+            cyclePlanId: input.plan.id,
+            stageId: stage.id,
+            durationMs: Date.now() - stageStartedAt,
+          },
+          "cycle stage complete",
+        );
       } catch (error) {
+        logger.warn(
+          {
+            sessionId: input.sessionId,
+            cycleId: input.cycleId,
+            cyclePlanId: input.plan.id,
+            stageId: stage.id,
+            required: stage.required,
+            durationMs: Date.now() - stageStartedAt,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          "cycle stage failed",
+        );
         if (isCycleControlError(error)) throw error;
         if (stage.required) {
           throw error instanceof Error
@@ -71,9 +124,21 @@ export class CyclePlanInterpreter {
       if (input.lastStageId && stage.id === input.lastStageId) break;
     }
 
+    const totalAiCostUsd = sumAiCost(state);
+    logger.info(
+      {
+        sessionId: input.sessionId,
+        cycleId: input.cycleId,
+        cyclePlanId: input.plan.id,
+        totalAiCostUsd,
+        durationMs: Date.now() - cycleStartedAt,
+      },
+      "cycle plan complete",
+    );
+
     return {
       state,
-      totalAiCostUsd: sumAiCost(state),
+      totalAiCostUsd,
     };
   }
 }

@@ -15,6 +15,9 @@ import type { PipelineWorkerRunner } from "../../core/types";
 import type { ToolBuildContext } from "../../context/tool-factory-registry";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { WorkspaceSession } from "@/lib/types";
+import { createLogger } from "../../../../infra/log";
+
+const logger = createLogger("pipeline-runtime");
 
 export interface PhasePlanInterpreterRunInput {
   plan: PhasePlan<unknown, unknown>;
@@ -33,6 +36,21 @@ export class PhasePlanInterpreter {
   async run<TOutput>(
     input: PhasePlanInterpreterRunInput,
   ): Promise<PhasePlanRunResult<TOutput>> {
+    const phaseStartedAt = Date.now();
+    logger.info(
+      {
+        sessionId: input.sessionId,
+        phase: input.plan.phase,
+        cycleId: input.cycleId,
+        tradeId: input.tradeId,
+        stageCount: input.plan.stages.length,
+        inputKeys: Object.keys(input.input).sort(),
+        cachePolicyId: input.plan.cachePolicyId ?? null,
+        entryModeCount: input.plan.entryModes.length,
+      },
+      "phase plan start",
+    );
+
     const instrumentClasses = resolveSessionInstrumentClasses(
       input.session,
       input.services,
@@ -60,6 +78,16 @@ export class PhasePlanInterpreter {
       const fingerprint = policy.fingerprint(ctx);
       const cached = policy.read(ctx, fingerprint);
       if (cached) {
+        logger.info(
+          {
+            sessionId: input.sessionId,
+            phase: input.plan.phase,
+            cycleId: input.cycleId,
+            cachePolicyId: input.plan.cachePolicyId,
+            fingerprint,
+          },
+          "phase plan cache hit",
+        );
         return {
           output: cached as TOutput,
           source: "cache",
@@ -70,6 +98,15 @@ export class PhasePlanInterpreter {
 
     for (const entryMode of input.plan.entryModes) {
       if (!entryMode.matches(ctx)) continue;
+      logger.info(
+        {
+          sessionId: input.sessionId,
+          phase: input.plan.phase,
+          cycleId: input.cycleId,
+          entryModeId: entryMode.id,
+        },
+        "phase plan entry mode matched",
+      );
       const output = await entryMode.resolveOutput(ctx);
       return {
         output: (input.plan.filterOutput?.(output as never, ctx) ??
@@ -98,7 +135,36 @@ export class PhasePlanInterpreter {
 
     for (const stage of input.plan.stages) {
       const workers = stage.resolveWorkers(ctx, state);
-      if (workers.length === 0) continue;
+      if (workers.length === 0) {
+        logger.info(
+          {
+            sessionId: input.sessionId,
+            phase: input.plan.phase,
+            cycleId: input.cycleId,
+            stageId: stage.id,
+            frontier: stage.frontier,
+          },
+          "phase stage skipped (no workers)",
+        );
+        continue;
+      }
+
+      const stageStartedAt = Date.now();
+      const workerIds = workers.map((worker) => worker.id);
+      logger.info(
+        {
+          sessionId: input.sessionId,
+          phase: input.plan.phase,
+          cycleId: input.cycleId,
+          stageId: stage.id,
+          frontier: stage.frontier,
+          workerIds,
+          concurrency: stage.concurrency,
+          minSuccessfulWorkers: stage.minSuccessfulWorkers ?? null,
+          toleratePartialFailure: stage.toleratePartialFailure,
+        },
+        "phase stage start",
+      );
 
       const settled = await ctx.runner.executeGroup(
         workers.map(
@@ -126,6 +192,25 @@ export class PhasePlanInterpreter {
             entry.status === "rejected",
         )
         .map((entry) => formatRejectionReason(entry.reason));
+
+      logger.info(
+        {
+          sessionId: input.sessionId,
+          phase: input.plan.phase,
+          cycleId: input.cycleId,
+          stageId: stage.id,
+          frontier: stage.frontier,
+          workerIds,
+          successfulWorkers: results.map(({ worker }) => worker.id),
+          failedWorkers: workerIds.filter(
+            (workerId) =>
+              !results.some(({ worker }) => worker.id === workerId),
+          ),
+          rejectedCount: rejectedReasons.length,
+          durationMs: Date.now() - stageStartedAt,
+        },
+        "phase stage complete",
+      );
 
       if (
         stage.minSuccessfulWorkers != null &&
@@ -167,6 +252,22 @@ export class PhasePlanInterpreter {
     const output = (input.plan.filterOutput?.(finalized.output, ctx) ??
       finalized.output) as TOutput;
     const aggregate = finalized.aggregate;
+
+    logger.info(
+      {
+        sessionId: input.sessionId,
+        phase: input.plan.phase,
+        cycleId: input.cycleId,
+        tradeId: input.tradeId,
+        workerTraceCount: workerTraces.length,
+        workerIds: workerTraces.map((trace) => trace.workerId),
+        source: "ai_picker",
+        hasAggregate: Boolean(aggregate),
+        aggregateCostUsd: aggregate?.run.cost_usd ?? null,
+        durationMs: Date.now() - phaseStartedAt,
+      },
+      "phase plan complete",
+    );
 
     if (aggregate && input.plan.persistAggregate !== false) {
       input.services.agentRunsRepo.insert({

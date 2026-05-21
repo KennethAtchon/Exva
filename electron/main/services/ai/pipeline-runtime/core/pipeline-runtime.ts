@@ -47,6 +47,9 @@ import type {
 } from "../plan/cycle/types";
 import type { SessionConfig } from "@/lib/types";
 import type { InstrumentClass } from "@/lib/types";
+import { createLogger } from "../../../infra/log";
+
+const logger = createLogger("pipeline-runtime");
 
 export interface PipelineRuntimeDeps {
   providerRegistry: ProviderRegistry;
@@ -279,6 +282,28 @@ export class PipelineRuntime {
         : 0,
     });
 
+    logger.info(
+      {
+        sessionId: opts.sessionId,
+        phase: opts.phase,
+        cycleId: opts.cycleId ?? null,
+        tradeId: opts.tradeId ?? null,
+        phaseSpendCapUsd: this.deps.phaseConfigResolver.resolvePhaseSpendCapUsd(
+          opts.phase,
+        ),
+        pipelineSpendCapUsd: DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd,
+        sessionSpendCapUsd: strategyContext.riskConfig.maxAiSpendUsd,
+        sessionSpentBeforeRunUsd: this.deps.agentRunsRepo.dailyAiSpendUsd(
+          opts.sessionId,
+        ),
+        pipelineSpentBeforePhaseUsd: opts.cycleId
+          ? (this.cycleSpendUsd.get(cycleKey) ?? 0)
+          : 0,
+        inputKeys: Object.keys(opts.input ?? {}).sort(),
+      },
+      "phase run start",
+    );
+
     const session = this.deps.sessionRepo.requireById(opts.sessionId);
     const instrumentClasses = resolveSessionInstrumentClasses(
       session,
@@ -336,6 +361,19 @@ export class PipelineRuntime {
       runner,
     });
     this.recordCycleSpend(cycleKey, spendTracker.phaseSpent);
+    logger.info(
+      {
+        sessionId: opts.sessionId,
+        phase: opts.phase,
+        cycleId: opts.cycleId ?? null,
+        tradeId: opts.tradeId ?? null,
+        source: result.source,
+        phaseSpentUsd: spendTracker.phaseSpent,
+        pipelineSpentUsd: spendTracker.pipelineSpent,
+        aggregateCostUsd: result.run?.cost_usd ?? null,
+      },
+      "phase run complete",
+    );
     return result;
   }
 

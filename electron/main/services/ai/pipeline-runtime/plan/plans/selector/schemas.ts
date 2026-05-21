@@ -18,12 +18,18 @@ export const candidateOutputSchema = z.object({
         rationale: true,
       }),
     )
-    .max(6),
+    .max(6)
+    .describe("Up to 6 evidence-backed trade candidates; fewer is fine."),
 });
 
 export const verificationOutputSchema = z.object({
-  candidate: candidateSchema.partial().extend({
-    symbol: z.string().min(1),
-    instrumentClass: candidateSchema.shape.instrumentClass,
-  }),
+  candidate: candidateSchema
+    .partial()
+    .extend({
+      symbol: z.string().min(1),
+      instrumentClass: candidateSchema.shape.instrumentClass,
+    })
+    .describe(
+      "The single validated candidate with verification scores filled in.",
+    ),
 });

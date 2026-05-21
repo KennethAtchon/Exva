@@ -5,8 +5,19 @@ import {
 } from "@electron/shared/ai/pipeline-signals";
 
 export const earningsOutputSchema = z.object({
-  earningsScore: z.number().min(0).max(1).nullable().default(null),
-  rawSummary: z.string().default(""),
+  earningsScore: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe(
+      "Earnings quality vs expectations (0 = miss/deteriorating, 1 = strong beat), or null if no evidence.",
+    ),
+  rawSummary: z
+    .string()
+    .default("")
+    .describe("One-to-two sentence observation."),
 });
 export type EarningsOutput = z.infer<typeof earningsOutputSchema>;
 
@@ -22,18 +33,60 @@ export const catalystOutputSchema = z.object({
       "unknown",
     ])
     .nullable()
-    .default(null),
-  catalystStrength: z.number().min(0).max(1).nullable().default(null),
-  catalystFreshness: z.number().min(0).max(1).nullable().default(null),
-  catalystSummary: z.string().nullable().default(null),
-  contradictionRisk: z.number().min(0).max(1).default(0),
-  rawSummary: z.string().default(""),
+    .default(null)
+    .describe("Primary catalyst category, or null if none identified."),
+  catalystStrength: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe(
+      "How material the catalyst is for near-term price (0 = minor, 1 = major).",
+    ),
+  catalystFreshness: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe(
+      "How recently it emerged (0 = stale/priced-in, 1 = just breaking).",
+    ),
+  catalystSummary: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe("One-to-two sentence catalyst description, or null."),
+  contradictionRisk: z
+    .number()
+    .min(0)
+    .max(1)
+    .default(0)
+    .describe(
+      "Probability conflicting signals undermine the catalyst (0 = clean, 1 = heavily contradicted).",
+    ),
+  rawSummary: z
+    .string()
+    .default("")
+    .describe("One-to-two sentence observation."),
 });
 export type CatalystOutput = z.infer<typeof catalystOutputSchema>;
 
 export const sentimentOutputSchema = z.object({
-  sentimentScore: z.number().min(0).max(1).nullable().default(null),
-  rawSummary: z.string().default(""),
+  sentimentScore: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe(
+      "Aggregate sentiment (0 = bearish consensus, 1 = bullish consensus), or null if no signal.",
+    ),
+  rawSummary: z
+    .string()
+    .default("")
+    .describe("One-to-two sentence observation."),
 });
 export type SentimentOutput = z.infer<typeof sentimentOutputSchema>;
 

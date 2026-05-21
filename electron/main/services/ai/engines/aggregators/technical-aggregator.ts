@@ -5,29 +5,89 @@ import {
 } from "@electron/shared/ai/pipeline-signals";
 
 export const chartPatternOutputSchema = z.object({
-  patternName: z.string().nullable().default(null),
-  patternStrength: z.number().min(0).max(1).nullable().default(null),
-  nearestSupport: z.number().nullable().default(null),
-  nearestResistance: z.number().nullable().default(null),
-  rawSummary: z.string().default(""),
+  patternName: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe(
+      'Standard pattern name (e.g. "bull flag", "double bottom"), or null if no clear pattern.',
+    ),
+  patternStrength: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe(
+      "Confidence the pattern is well-formed (0 = ambiguous, 1 = textbook).",
+    ),
+  nearestSupport: z
+    .number()
+    .nullable()
+    .default(null)
+    .describe("Nearest support price from visible structure, or null."),
+  nearestResistance: z
+    .number()
+    .nullable()
+    .default(null)
+    .describe("Nearest resistance price from visible structure, or null."),
+  rawSummary: z
+    .string()
+    .default("")
+    .describe("One-to-two sentence observation."),
 });
 export type ChartPatternOutput = z.infer<typeof chartPatternOutputSchema>;
 
 export const momentumOutputSchema = z.object({
-  trendDirection: z.enum(["bullish", "bearish", "neutral"]).default("neutral"),
-  trendStrength: z.number().min(0).max(1).default(0),
-  momentumScore: z.number().min(0).max(1).nullable().default(null),
-  rawSummary: z.string().default(""),
+  trendDirection: z
+    .enum(["bullish", "bearish", "neutral"])
+    .default("neutral")
+    .describe("Dominant directional bias across recent bars."),
+  trendStrength: z
+    .number()
+    .min(0)
+    .max(1)
+    .default(0)
+    .describe(
+      "How sustained and consistent the direction is (0 = none, 1 = strong).",
+    ),
+  momentumScore: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe(
+      "Combined RSI/MACD-style signal strength (0 = exhausted, 1 = strong continuation).",
+    ),
+  rawSummary: z
+    .string()
+    .default("")
+    .describe("One-to-two sentence observation."),
 });
 export type MomentumOutput = z.infer<typeof momentumOutputSchema>;
 
 export const volumeOutputSchema = z.object({
-  volumeScore: z.number().min(0).max(1).nullable().default(null),
+  volumeScore: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe(
+      "Relative volume strength (0 = below average, 1 = strong surge), or null.",
+    ),
   volumeSignal: z
     .enum(["accumulation", "distribution", "neutral"])
     .nullable()
-    .default(null),
-  rawSummary: z.string().default(""),
+    .default(null)
+    .describe(
+      "accumulation (volume on up days), distribution (volume on down days), neutral, or null.",
+    ),
+  rawSummary: z
+    .string()
+    .default("")
+    .describe("One-to-two sentence observation."),
 });
 export type VolumeOutput = z.infer<typeof volumeOutputSchema>;
 

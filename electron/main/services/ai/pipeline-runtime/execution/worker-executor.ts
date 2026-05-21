@@ -27,9 +27,38 @@ import type { SessionStrategyContext } from "@electron/shared/domain";
 import { createLogger } from "../../../infra/log";
 import type { PipelineSpendTracker } from "./pipeline-spend-tracker";
 import { runReadEngineContext } from "./engine-context-runner";
-import { enforceWorkerToolRequirements } from "./worker-tool-requirements";
+import { enforceWorkerToolRequirements, extractToolNamesUsed, summarizeWorkerToolCoverage } from "./worker-tool-requirements";
 
 const logger = createLogger("pipeline-runtime");
+
+function workerNameFromPrompt(markdown: string): string | undefined {
+  const line = markdown.split("\n").find((entry) => entry.startsWith("# "));
+  return line?.slice(2).trim() || undefined;
+}
+
+function workerLogContext(
+  opts: Pick<
+    WorkerRunOptions,
+    "phase" | "sessionId" | "cycleId" | "tradeId" | "worker"
+  >,
+  workerName?: string,
+): {
+  sessionId: string;
+  phase: PipelinePhase;
+  workerId: string;
+  workerName: string | null;
+  cycleId: string | null;
+  tradeId: string | null;
+} {
+  return {
+    sessionId: opts.sessionId,
+    phase: opts.phase,
+    workerId: opts.worker.id,
+    workerName: workerName ?? null,
+    cycleId: opts.cycleId ?? null,
+    tradeId: opts.tradeId ?? null,
+  };
+}
 
 function resolveTemperature(
   modelId: string,
@@ -78,7 +107,11 @@ export async function executeWorker<TOutput>(
     const abortMessage = spendTracker.abortLogMessage();
     if (abortMessage)
       logger.warn(
-        { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null },
+        {
+          ...workerLogContext(opts),
+          phaseSpentUsd: spendTracker.phaseSpent,
+          pipelineSpentUsd: spendTracker.pipelineSpent,
+        },
         abortMessage,
       );
     throw new AppError(
@@ -118,6 +151,8 @@ export async function executeWorker<TOutput>(
     promptMarkdown = deps.promptLoader.load(worker.promptAssetPath);
   }
 
+  const workerName = workerNameFromPrompt(promptMarkdown);
+
   const engineResults = runReadEngineContext({
     phase,
     sessionId,
@@ -156,16 +191,57 @@ export async function executeWorker<TOutput>(
     outputTool,
     worker.toolConfig,
   );
+  const registeredToolNames = tools ? Object.keys(tools).sort() : [];
+  const configuredToolIds = [...resolvedConfig.tools].sort();
+  const engineIds = resolvedConfig.engines.map((binding) => binding.engine);
+  const logCtx = () => workerLogContext(opts, workerName);
 
   logger.info(
     {
-      sessionId,
-      phase,
-      workerId: worker.id,
-      cycleId: cycleId ?? null,
+      ...logCtx(),
+      providerKey: workerExecConfig.providerKey,
+      providerType: adapter.providerType,
+      model: workerExecConfig.modelId,
+      promptSource: workerExecConfig.promptSource,
+      promptAssetPath: worker.promptAssetPath,
+      configuredToolIds,
+      registeredToolNames,
+      terminalToolName: terminalToolName ?? null,
+      engineIds,
+      outputMode: worker.outputMode,
+      hasOutputSchema: Boolean(worker.outputSchema),
+      toolRequirements: worker.toolRequirements ?? null,
+      maxSteps: resolvedConfig.caps.maxSteps,
+      spendLimitUsd: resolvedConfig.caps.spendLimitUsd ?? null,
+      maxTokens:
+        resolvedConfig.caps.maxTokens ?? workerExecConfig.maxTokens ?? null,
+      temperature: resolveTemperature(
+        workerExecConfig.modelId,
+        workerExecConfig.temperature,
+      ),
+      taskKeys: Object.keys(task).sort(),
+      engineResultKeys: Object.keys(engineResults).sort(),
+    },
+    "worker configured",
+  );
+
+  logger.info(
+    {
+      ...logCtx(),
+      configuredToolIds,
+      registeredToolNames,
+      terminalToolName: terminalToolName ?? null,
+      toolCount: registeredToolNames.length,
+    },
+    "worker registered tools",
+  );
+
+  logger.info(
+    {
+      ...logCtx(),
       model: workerExecConfig.modelId,
       maxSteps: resolvedConfig.caps.maxSteps,
-      toolCount: tools ? Object.keys(tools).length : 0,
+      toolCount: registeredToolNames.length,
     },
     "worker start",
   );
@@ -175,6 +251,12 @@ export async function executeWorker<TOutput>(
       (signal) =>
         adapter.runAgent({
           model: workerExecConfig.modelId,
+          role: phase,
+          workerId: worker.id,
+          workerName,
+          sessionId,
+          cycleId: cycleId ?? null,
+          tradeId: tradeId ?? null,
           messages,
           tools,
           maxSteps: resolvedConfig.caps.maxSteps,
@@ -193,6 +275,8 @@ export async function executeWorker<TOutput>(
         providerType: adapter.providerType,
         modelId: workerExecConfig.modelId,
         role: phase,
+        workerId: worker.id,
+        workerName: workerName ?? null,
         sessionId,
         cycleId: cycleId ?? null,
       },
@@ -212,7 +296,12 @@ export async function executeWorker<TOutput>(
     );
     if ("needsRetry" in resolution) {
       logger.warn(
-        { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null },
+        {
+          ...logCtx(),
+          terminalToolName,
+          finishReason: trace.finishReason,
+          stepCount: trace.steps.length,
+        },
         "worker terminal output validation failed; retrying once",
       );
       trace = await runAgent();
@@ -233,11 +322,10 @@ export async function executeWorker<TOutput>(
     if (resolution.parseFallback) {
       logger.warn(
         {
-          sessionId,
-          phase,
-          workerId: worker.id,
-          cycleId: cycleId ?? null,
+          ...logCtx(),
+          terminalToolName,
           retried: resolution.retried,
+          finishReason: trace.finishReason,
         },
         "worker terminal output substituted empty dimension after validation failure",
       );
@@ -246,7 +334,27 @@ export async function executeWorker<TOutput>(
     output = { text: trace.assistantText } as TOutput;
   }
 
+  const toolsUsed = [...extractToolNamesUsed(trace)].sort();
+  const toolCoverage = summarizeWorkerToolCoverage(
+    worker.id,
+    worker.toolRequirements,
+    toolsUsed,
+  );
   enforceWorkerToolRequirements(worker, phase, trace);
+  if (toolCoverage.satisfied) {
+    logger.info(
+      {
+        ...logCtx(),
+        requiredTools: toolCoverage.requiredTools,
+        toolsUsed,
+        toolCallCount: trace.steps.reduce(
+          (sum, step) => sum + step.toolCalls.length,
+          0,
+        ),
+      },
+      "worker tool requirements satisfied",
+    );
+  }
 
   const { run, message } = assembleTrace({
     phase,
@@ -265,14 +373,26 @@ export async function executeWorker<TOutput>(
 
   logger.info(
     {
-      sessionId,
-      phase,
-      workerId: worker.id,
-      cycleId: cycleId ?? null,
+      ...logCtx(),
+      providerKey: workerExecConfig.providerKey,
+      model: workerExecConfig.modelId,
+      finishReason: trace.finishReason,
+      parseFallback,
+      stepCount: trace.steps.length,
+      toolsUsed,
+      toolCallCount: trace.steps.reduce(
+        (sum, step) => sum + step.toolCalls.length,
+        0,
+      ),
+      terminalToolSubmitted: terminalToolName
+        ? extractTerminalSubmission(trace, terminalToolName) != null
+        : null,
       inputTokens: run.input_tokens,
       outputTokens: run.output_tokens,
       durationMs: run.duration_ms,
       costUsd: run.cost_usd,
+      phaseSpentUsd: spendTracker?.phaseSpent ?? null,
+      canContinueWorkers: spendTracker?.canContinue() ?? null,
     },
     "worker complete",
   );
@@ -282,7 +402,11 @@ export async function executeWorker<TOutput>(
     const abortMessage = spendTracker.abortLogMessage();
     if (abortMessage)
       logger.warn(
-        { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null },
+        {
+          ...logCtx(),
+          phaseSpentUsd: spendTracker.phaseSpent,
+          pipelineSpentUsd: spendTracker.pipelineSpent,
+        },
         abortMessage,
       );
   }

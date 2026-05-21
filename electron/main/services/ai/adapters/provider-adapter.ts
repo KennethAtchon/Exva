@@ -33,6 +33,11 @@ export interface GenerateObjectResult<T> extends GenerateResult {
 export interface AgentRunOptions<T = undefined> {
   model: string;
   role?: AgentRole;
+  workerId?: string;
+  workerName?: string;
+  sessionId?: string;
+  cycleId?: string | null;
+  tradeId?: string | null;
   messages: RuntimeAgentMessage[];
   tools?: ToolSet;
   maxSteps: number;
