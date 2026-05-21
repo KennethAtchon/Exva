@@ -2,10 +2,4 @@
 
 Summarize resolution rules, timing, and disqualifying scenarios for the event contract.
 
-Return JSON:
-{
-"earningsScore": 0.0,
-"rawSummary": "..."
-}
-
-Use news and web evidence; map qualitative facts into rawSummary.
+Use news and web evidence; map qualitative facts into `rawSummary`. When finished, call the `submit_result` tool; its schema defines every field.

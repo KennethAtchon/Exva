@@ -1,8 +1,9 @@
 import type { PrepareStepFunction, ToolSet } from "ai";
 import { AppError } from "@electron/shared/infra/errors";
-import type {
-  PipelinePhase,
-  WorkerDefinition,
+import {
+  DEFAULT_OUTPUT_TOOL_NAME,
+  type PipelinePhase,
+  type WorkerDefinition,
 } from "@electron/shared/ai/pipeline-phase";
 import type { AgentResult } from "../../ai-runtime/ai-runtime-types";
 import type { ProviderRegistry } from "../../provider-registry";
@@ -12,6 +13,8 @@ import type { WorkerOutputContract } from "../core/types";
 import { resolveStructuredWorkerOutput } from "./worker-structured-output";
 import {
   buildToolSet,
+  DEFAULT_TERMINAL_TOOL_DESCRIPTION,
+  type TerminalOutputToolSpec,
   type ToolBuildContext,
 } from "../context/tool-factory-registry";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
@@ -60,7 +63,6 @@ export interface WorkerRunOptions {
   cycleId?: string | null;
   tradeId?: string | null;
   task: Record<string, unknown>;
-  terminalToolNames?: readonly string[];
   prepareStep?: PrepareStepFunction<ToolSet>;
   spendTracker?: PipelineSpendTracker;
 }
@@ -137,10 +139,21 @@ export async function executeWorker<TOutput>(
 
   const messages = envelopeToMessages(envelope, deps.strategyContext);
 
+  const outputTool: TerminalOutputToolSpec | undefined =
+    worker.outputSchema && resolvedConfig.output
+      ? {
+          name: worker.outputTool?.name ?? DEFAULT_OUTPUT_TOOL_NAME,
+          description:
+            worker.outputTool?.description ?? DEFAULT_TERMINAL_TOOL_DESCRIPTION,
+          schema: resolvedConfig.output.schema,
+        }
+      : undefined;
+  const terminalToolName = outputTool?.name;
+
   const tools = await buildToolSet(
     resolvedConfig.tools,
     deps.toolContext,
-    opts.terminalToolNames as string[] | undefined,
+    outputTool,
     worker.toolConfig,
   );
 
@@ -173,11 +186,7 @@ export async function executeWorker<TOutput>(
           maxTokens:
             resolvedConfig.caps.maxTokens ?? workerExecConfig.maxTokens,
           abortSignal: signal,
-          schema:
-            worker.outputMode === "object" && worker.outputSchema
-              ? worker.outputSchema
-              : undefined,
-          terminalToolNames: opts.terminalToolNames as string[] | undefined,
+          terminalToolNames: terminalToolName ? [terminalToolName] : undefined,
           prepareStep: opts.prepareStep,
         }),
       {
@@ -193,33 +202,29 @@ export async function executeWorker<TOutput>(
   let output: TOutput;
   let parseFallback = trace.parseFallback;
 
-  if (
-    worker.outputMode === "object" &&
-    worker.outputSchema &&
-    resolvedConfig.output
-  ) {
+  if (terminalToolName && resolvedConfig.output) {
     const outputContract =
       resolvedConfig.output as WorkerOutputContract<TOutput>;
     let resolution = resolveStructuredWorkerOutput<TOutput>(
       outputContract,
-      trace.structuredOutput,
+      extractTerminalSubmission(trace, terminalToolName),
       false,
     );
     if ("needsRetry" in resolution) {
       logger.warn(
         { sessionId, phase, workerId: worker.id, cycleId: cycleId ?? null },
-        "worker structured output validation failed; retrying once",
+        "worker terminal output validation failed; retrying once",
       );
       trace = await runAgent();
       resolution = resolveStructuredWorkerOutput<TOutput>(
         outputContract,
-        trace.structuredOutput,
+        extractTerminalSubmission(trace, terminalToolName),
         true,
       );
     }
     if ("needsRetry" in resolution) {
       throw new AppError(
-        `Worker ${worker.id} (phase ${phase}) returned invalid structured output after retry.`,
+        `Worker ${worker.id} (phase ${phase}) did not submit valid output via ${terminalToolName} after retry.`,
         "VALIDATION_FAILED",
       );
     }
@@ -234,18 +239,9 @@ export async function executeWorker<TOutput>(
           cycleId: cycleId ?? null,
           retried: resolution.retried,
         },
-        "worker structured output substituted empty dimension after validation failure",
+        "worker terminal output substituted empty dimension after validation failure",
       );
     }
-  } else if (worker.outputMode === "tool_terminal") {
-    const terminalResult = resolveTerminalResult(trace);
-    if (!terminalResult) {
-      throw new AppError(
-        `Worker ${worker.id} (phase ${phase}) reached no terminal tool result.`,
-        "VALIDATION_FAILED",
-      );
-    }
-    output = terminalResult as TOutput;
   } else {
     output = { text: trace.assistantText } as TOutput;
   }
@@ -262,7 +258,7 @@ export async function executeWorker<TOutput>(
     modelId: workerExecConfig.modelId,
     trace,
     outputJson: JSON.stringify(output),
-    outputSchemaName: worker.outputMode === "object" ? worker.id : null,
+    outputSchemaName: worker.outputSchema ? worker.id : null,
     strategyContext: deps.strategyContext,
     parseFallback,
   });
@@ -294,22 +290,30 @@ export async function executeWorker<TOutput>(
   return { run, message, output };
 }
 
-function resolveTerminalResult(trace: {
-  assistantText: string;
-  steps: Array<{
-    toolCalls: Array<{ tool?: string; argsJson?: string; resultJson?: string }>;
-  }>;
-}): unknown {
+/**
+ * Pull the worker's submitted output from its terminal tool call. The terminal
+ * tool's `execute` echoes its validated input, so the call args carry the
+ * structured submission. Returns the last submission if called more than once,
+ * or undefined if the worker never called the terminal tool.
+ */
+export function extractTerminalSubmission(
+  trace: {
+    steps: Array<{
+      toolCalls: Array<{ tool?: string; argsJson?: string }>;
+    }>;
+  },
+  terminalToolName: string,
+): unknown | undefined {
+  let submission: unknown | undefined;
   for (const step of trace.steps) {
     for (const call of step.toolCalls) {
-      if (call.resultJson) {
-        try {
-          return JSON.parse(call.resultJson);
-        } catch {
-          return call.resultJson;
-        }
+      if (call.tool !== terminalToolName || !call.argsJson) continue;
+      try {
+        submission = JSON.parse(call.argsJson);
+      } catch {
+        submission = call.argsJson;
       }
     }
   }
-  return null;
+  return submission;
 }

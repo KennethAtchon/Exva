@@ -35,7 +35,7 @@ const CONFLICT_DETECTOR_WORKER = {
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
   strategyContext: REVIEW_STRATEGY_CONTEXT,
-  outputMode: "object" as const,
+  outputMode: "tool_result" as const,
   outputSchema: conflictDetectorOutputSchema,
 };
 
@@ -45,7 +45,7 @@ const RISK_ASSESSOR_WORKER = {
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
   strategyContext: REVIEW_STRATEGY_CONTEXT,
-  outputMode: "object" as const,
+  outputMode: "tool_result" as const,
   outputSchema: riskAssessorOutputSchema,
 };
 

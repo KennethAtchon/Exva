@@ -2,11 +2,4 @@
 
 Assess spread, depth proxy, and volume quality for the contract.
 
-Return JSON:
-{
-"volumeScore": 0.0,
-"volumeSignal": "accumulation|distribution|neutral",
-"rawSummary": "..."
-}
-
-Flag illiquid books in rawSummary; JSON only.
+Flag illiquid books in `rawSummary`. When finished, call the `submit_result` tool; its schema defines every field.

@@ -49,7 +49,7 @@ const marketValidator: WorkerDefinition = {
     minToolCalls: 2,
   },
   strategyContext: testStrategyContext,
-  outputMode: "object",
+  outputMode: "tool_result",
 };
 
 describe("worker-tool-requirements", () => {
@@ -111,7 +111,7 @@ describe("worker-tool-requirements", () => {
         minToolCalls: 1,
       },
       strategyContext: testStrategyContext,
-      outputMode: "object",
+      outputMode: "tool_result",
     };
     expect(() =>
       enforceWorkerToolRequirements(

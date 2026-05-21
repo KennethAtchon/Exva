@@ -287,8 +287,7 @@ function resolveEffectiveWorker(input: {
     toolConfig: input.worker.toolConfig,
     engines: runtimeConfig.engines,
     outputMode: input.worker.outputMode,
-    outputSchemaName:
-      input.worker.outputMode === "object" ? input.worker.id : null,
+    outputSchemaName: input.worker.outputSchema ? input.worker.id : null,
     dependsOn: input.worker.dependsOn ?? [],
     requiredForPhase: input.worker.requiredForPhase ?? true,
     caps: runtimeConfig.caps,

@@ -72,7 +72,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
         minToolCalls: 2,
       },
       strategyContext: MARKET_VALIDATOR_STRATEGY_CONTEXT,
-      outputMode: "object",
+      outputMode: "tool_result",
       outputSchema: verificationOutputSchema,
     },
     {
@@ -87,7 +87,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
         minToolCalls: 1,
       },
       strategyContext: CATALYST_EXTRACTOR_STRATEGY_CONTEXT,
-      outputMode: "object",
+      outputMode: "tool_result",
       outputSchema: verificationOutputSchema,
     },
     {
@@ -96,7 +96,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
       tools: ["get_quote", "get_ohlcv"],
       toolRequirements: { requiredAll: ["get_quote"], minToolCalls: 1 },
       strategyContext: LIQUIDITY_GATE_STRATEGY_CONTEXT,
-      outputMode: "object",
+      outputMode: "tool_result",
       outputSchema: verificationOutputSchema,
     },
   ];

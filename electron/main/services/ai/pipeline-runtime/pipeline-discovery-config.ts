@@ -58,7 +58,7 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     toolRequirements: { requiredAll: ["search_web"], minToolCalls: 1 },
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: candidateOutputSchema,
   },
   {
@@ -68,7 +68,7 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     toolRequirements: { requiredAll: ["search_reddit"], minToolCalls: 1 },
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: candidateOutputSchema,
   },
   {
@@ -82,7 +82,7 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     },
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: candidateOutputSchema,
   },
 ];
@@ -95,7 +95,7 @@ const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: candidateOutputSchema,
   },
   {
@@ -105,7 +105,7 @@ const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: candidateOutputSchema,
   },
 ];
@@ -117,7 +117,7 @@ const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
     tools: ["get_ohlcv"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: chartPatternOutputSchema,
   },
   {
@@ -126,7 +126,7 @@ const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
     tools: ["get_ohlcv", "get_quote"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: momentumOutputSchema,
   },
   {
@@ -135,7 +135,7 @@ const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
     tools: ["get_ohlcv"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: volumeOutputSchema,
   },
 ];
@@ -146,7 +146,7 @@ const EVENT_TECHNICAL: readonly WorkerDefinition[] = [
     promptAssetPath: "technical-workers/event-implied-probability",
     tools: ["get_quote", "get_ohlcv"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: chartPatternOutputSchema,
   },
   {
@@ -154,7 +154,7 @@ const EVENT_TECHNICAL: readonly WorkerDefinition[] = [
     promptAssetPath: "technical-workers/event-price-drift",
     tools: ["get_ohlcv", "get_quote"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: momentumOutputSchema,
   },
   {
@@ -162,7 +162,7 @@ const EVENT_TECHNICAL: readonly WorkerDefinition[] = [
     promptAssetPath: "technical-workers/event-liquidity",
     tools: ["get_ohlcv", "get_quote"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: volumeOutputSchema,
   },
 ];
@@ -174,7 +174,7 @@ const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
     tools: ["get_news"],
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: earningsOutputSchema,
   },
   {
@@ -184,7 +184,7 @@ const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: catalystOutputSchema,
   },
   {
@@ -194,7 +194,7 @@ const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: sentimentOutputSchema,
   },
 ];
@@ -205,7 +205,7 @@ const EVENT_FUNDAMENTAL: readonly WorkerDefinition[] = [
     promptAssetPath: "fundamental-workers/event-resolution",
     tools: ["get_news", "search_web"],
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: earningsOutputSchema,
   },
   {
@@ -213,7 +213,7 @@ const EVENT_FUNDAMENTAL: readonly WorkerDefinition[] = [
     promptAssetPath: "fundamental-workers/event-catalyst",
     tools: ["get_news", "search_web", "fetch_url"],
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: catalystOutputSchema,
   },
   {
@@ -221,7 +221,7 @@ const EVENT_FUNDAMENTAL: readonly WorkerDefinition[] = [
     promptAssetPath: "fundamental-workers/event-sentiment",
     tools: ["search_web", "search_reddit"],
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
-    outputMode: "object",
+    outputMode: "tool_result",
     outputSchema: sentimentOutputSchema,
   },
 ];

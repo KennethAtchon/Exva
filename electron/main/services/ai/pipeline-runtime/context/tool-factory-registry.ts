@@ -1,11 +1,8 @@
 import { tool, type ToolSet } from "ai";
+import type { z } from "zod";
 import type { ToolId } from "@electron/shared/ai/pipeline-phase";
 import { AppError } from "@electron/shared/infra/errors";
 import type { InstrumentClass } from "@/lib/types";
-import {
-  instrumentSelectionToolInputSchema,
-  type InstrumentSelection,
-} from "@/lib/schemas";
 import type { ApiCallLogRepo } from "../../../../db/repositories/system/api-call-log-repo";
 import type { SearchRegistry } from "../../search";
 import { createSearchTool } from "../../tools/search-tool";
@@ -23,7 +20,6 @@ import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { WorkerToolConfig } from "@electron/shared/ai/pipeline-config";
 
 export const SUPPORTED_TOOL_IDS = [
-  "submit_candidates",
   "search_web",
   "fetch_url",
   "search_reddit",
@@ -32,6 +28,16 @@ export const SUPPORTED_TOOL_IDS = [
   "get_ohlcv",
   "get_news",
 ] as const;
+
+export const DEFAULT_TERMINAL_TOOL_DESCRIPTION =
+  "Submit your final structured result. Call this exactly once when your analysis is complete; the arguments must match the required schema.";
+
+/** Runtime configuration for a worker's terminal output tool. */
+export interface TerminalOutputToolSpec {
+  name: string;
+  description: string;
+  schema: z.ZodType<unknown>;
+}
 
 export interface ToolBuildContext {
   sessionId: string;
@@ -60,37 +66,25 @@ export type HarnessToolAvailability = {
   getNews: boolean;
   getQuote: boolean;
   getOhlcv: boolean;
-  submitCandidates: boolean;
 };
-
-function normalizeSymbol(symbol: string): string {
-  const trimmed = symbol.trim();
-  return trimmed.startsWith("pm:") ? trimmed : trimmed.toUpperCase();
-}
 
 export async function buildToolSet(
   toolIds: readonly ToolId[],
   ctx: ToolBuildContext,
-  terminalToolNames?: readonly string[],
+  outputTool?: TerminalOutputToolSpec,
   toolConfig?: WorkerToolConfig,
 ): Promise<ToolSet | undefined> {
-  if (toolIds.length === 0 && !terminalToolNames?.length) return undefined;
+  if (toolIds.length === 0 && !outputTool) return undefined;
 
   const tools: ToolSet = {};
   const idSet = new Set(toolIds);
-  const terminalSet = new Set(terminalToolNames ?? []);
   const hasBrokerWiring = Boolean(ctx.brokerRouting && ctx.brokerRegistry);
 
-  if (idSet.has("submit_candidates") || terminalSet.has("submit_candidates")) {
-    tools.submit_candidates = tool({
-      description: "Submit the final shortlist when research is complete.",
-      inputSchema: instrumentSelectionToolInputSchema,
-      execute: async (candidates): Promise<InstrumentSelection> => ({
-        instruments: candidates.instruments.map((instrument) => ({
-          ...instrument,
-          symbol: normalizeSymbol(instrument.symbol),
-        })),
-      }),
+  if (outputTool) {
+    tools[outputTool.name] = tool({
+      description: outputTool.description,
+      inputSchema: outputTool.schema,
+      execute: async (input: unknown) => input,
     });
   }
 

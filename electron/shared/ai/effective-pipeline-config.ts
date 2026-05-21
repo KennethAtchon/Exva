@@ -1,4 +1,8 @@
-import type { EngineBinding, PipelinePhase } from "./pipeline-phase";
+import type {
+  EngineBinding,
+  PipelinePhase,
+  WorkerOutputMode,
+} from "./pipeline-phase";
 
 export type PipelineConfigSource = "default" | "db" | "session" | "derived";
 
@@ -20,7 +24,7 @@ export interface EffectiveWorkerConfig {
   tools: readonly string[];
   toolConfig?: unknown;
   engines: readonly EngineBinding[];
-  outputMode: "text" | "object" | "tool_terminal";
+  outputMode: WorkerOutputMode;
   outputSchemaName: string | null;
   dependsOn: readonly string[];
   requiredForPhase: boolean;

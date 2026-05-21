@@ -66,6 +66,25 @@ export interface WorkerStrategyContextRequest {
   maxGuidanceItems?: number;
 }
 
+/**
+ * Worker output mode.
+ * - `tool_result`: worker yields its result by calling a runtime-configured
+ *   terminal tool whose input schema is `outputSchema`. This is the standard
+ *   path for any worker with a structured contract.
+ * - `text`: worker produces free-form assistant text (no schema).
+ */
+export type WorkerOutputMode = "text" | "tool_result";
+
+export const DEFAULT_OUTPUT_TOOL_NAME = "submit_result";
+
+/** Per-worker configuration of the terminal output tool. */
+export interface WorkerOutputToolConfig {
+  /** Tool name surfaced to the model. Defaults to `submit_result`. */
+  name?: string;
+  /** Description surfaced to the model for the terminal tool. */
+  description?: string;
+}
+
 export interface WorkerDefinition<TPhaseOutput = unknown> {
   id: string;
   promptAssetPath: string;
@@ -74,8 +93,10 @@ export interface WorkerDefinition<TPhaseOutput = unknown> {
   strategyContext: WorkerStrategyContextRequest;
   toolConfig?: WorkerToolConfig;
   engines?: readonly EngineBinding[];
-  outputMode: "text" | "object" | "tool_terminal";
+  outputMode: WorkerOutputMode;
   outputSchema?: z.ZodType<Partial<TPhaseOutput>>;
+  /** Terminal output tool config; only meaningful when `outputSchema` is set. */
+  outputTool?: WorkerOutputToolConfig;
   inputBuilder?: WorkerInputBuilderId;
   dependsOn?: readonly string[];
   requiredForPhase?: boolean;

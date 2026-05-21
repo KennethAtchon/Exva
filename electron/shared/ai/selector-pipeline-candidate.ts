@@ -14,18 +14,72 @@ export const selectorEvidenceSchema = z.object({
 export type SelectorEvidence = z.infer<typeof selectorEvidenceSchema>;
 
 export const candidateSchema = z.object({
-  symbol: z.string().min(1).max(20),
-  instrumentClass: z.enum(["stock", "crypto", "futures", "prediction_market"]),
-  instrumentDisplayName: z.string().nullable().default(null),
-  source: z.array(z.string()).default([]),
-  hypeScore: z.number().min(0).max(1).nullable().default(null),
-  volumeScore: z.number().min(0).max(1).nullable().default(null),
-  catalystScore: z.number().min(0).max(1).nullable().default(null),
-  liquidityScore: z.number().min(0).max(1).nullable().default(null),
-  catalystSummary: z.string().nullable().default(null),
-  riskFlags: z.array(z.string()).default([]),
-  finalScore: z.number().min(0).max(1).nullable().default(null),
-  rationale: z.string().nullable().default(null),
+  symbol: z
+    .string()
+    .min(1)
+    .max(20)
+    .describe("Ticker or contract symbol, evidence-backed; never invented."),
+  instrumentClass: z
+    .enum(["stock", "crypto", "futures", "prediction_market"])
+    .describe("Asset class of the candidate."),
+  instrumentDisplayName: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe("Human-readable name, or null if unknown."),
+  source: z
+    .array(z.string())
+    .default([])
+    .describe("Discovery worker id(s) that surfaced this candidate."),
+  hypeScore: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe("Social/attention intensity (0 = none, 1 = peak), or null."),
+  volumeScore: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe("Relative volume strength (0 = thin, 1 = surge), or null."),
+  catalystScore: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe("Strength of the near-term catalyst (0 = none, 1 = major)."),
+  liquidityScore: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe("Tradability/liquidity (0 = illiquid, 1 = deep), or null."),
+  catalystSummary: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe("One-to-two sentence catalyst description, or null."),
+  riskFlags: z
+    .array(z.string())
+    .default([])
+    .describe("Specific risk markers (e.g. low_liquidity, stale_data)."),
+  finalScore: z
+    .number()
+    .min(0)
+    .max(1)
+    .nullable()
+    .default(null)
+    .describe("Reserved for engine scoring; leave null."),
+  rationale: z
+    .string()
+    .nullable()
+    .default(null)
+    .describe("Why this candidate fits the session instructions."),
   selectorEvidence: selectorEvidenceSchema.nullable().default(null),
 });
 

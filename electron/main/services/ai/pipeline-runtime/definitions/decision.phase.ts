@@ -37,7 +37,7 @@ const SIGNAL_CLASSIFIER_WORKER = {
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
   strategyContext: DECISION_STRATEGY_CONTEXT,
-  outputMode: "object" as const,
+  outputMode: "tool_result" as const,
   outputSchema: signalClassifierOutputSchema,
 };
 
@@ -47,7 +47,7 @@ const ENTRY_TIMER_WORKER = {
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
   strategyContext: DECISION_STRATEGY_CONTEXT,
-  outputMode: "object" as const,
+  outputMode: "tool_result" as const,
   outputSchema: entryTimerOutputSchema,
 };
 

@@ -61,9 +61,9 @@ function validatePipelineDefinition(
     }
     workerIds.add(worker.id);
 
-    if (worker.outputMode === "object" && !worker.outputSchema) {
+    if (worker.outputMode === "tool_result" && !worker.outputSchema) {
       throw new AppError(
-        `Worker '${worker.id}' in phase '${phase}' uses object mode without outputSchema.`,
+        `Worker '${worker.id}' in phase '${phase}' uses tool_result mode without outputSchema.`,
         "VALIDATION_FAILED",
       );
     }
