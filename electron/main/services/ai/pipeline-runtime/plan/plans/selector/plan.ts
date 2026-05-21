@@ -29,6 +29,31 @@ import {
 type DiscoveryOutput = z.infer<typeof candidateOutputSchema>;
 type VerificationOutput = z.infer<typeof verificationOutputSchema>;
 
+const MARKET_VALIDATOR_STRATEGY_CONTEXT = {
+  fields: [
+    "identity",
+    "researchPosture",
+    "tradeRules",
+    "riskLimits",
+    "timeframe",
+    "presetBehavior",
+  ],
+  guidance: ["objective", "whatToLookFor", "howToEvaluate", "avoid"],
+  maxGuidanceItems: 2,
+} as const;
+
+const CATALYST_EXTRACTOR_STRATEGY_CONTEXT = {
+  fields: ["identity", "researchPosture", "timeframe", "presetBehavior"],
+  guidance: ["objective", "whatToLookFor", "howToEvaluate", "avoid"],
+  maxGuidanceItems: 2,
+} as const;
+
+const LIQUIDITY_GATE_STRATEGY_CONTEXT = {
+  fields: ["identity", "riskLimits", "timeframe", "presetBehavior"],
+  guidance: ["howToEvaluate", "avoid"],
+  maxGuidanceItems: 2,
+} as const;
+
 export type SelectorPlanState = {
   selectionInstructions: string;
   discoveryWorkerIds: string[];
@@ -46,6 +71,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
         requiredAll: ["get_quote", "get_ohlcv"],
         minToolCalls: 2,
       },
+      strategyContext: MARKET_VALIDATOR_STRATEGY_CONTEXT,
       outputMode: "object",
       outputSchema: verificationOutputSchema,
     },
@@ -60,6 +86,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
         requiredAny: ["get_news", "search_web", "fetch_url"],
         minToolCalls: 1,
       },
+      strategyContext: CATALYST_EXTRACTOR_STRATEGY_CONTEXT,
       outputMode: "object",
       outputSchema: verificationOutputSchema,
     },
@@ -68,6 +95,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
       promptAssetPath: "selector-workers/liquidity-gate",
       tools: ["get_quote", "get_ohlcv"],
       toolRequirements: { requiredAll: ["get_quote"], minToolCalls: 1 },
+      strategyContext: LIQUIDITY_GATE_STRATEGY_CONTEXT,
       outputMode: "object",
       outputSchema: verificationOutputSchema,
     },

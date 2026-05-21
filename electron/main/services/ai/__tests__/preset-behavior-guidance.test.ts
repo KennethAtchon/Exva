@@ -113,4 +113,27 @@ describe("buildPresetBehaviorGuidance", () => {
     );
     expect(text).toBe("");
   });
+
+  it("filters guidance sources and categories for worker requests", () => {
+    const text = buildPresetBehaviorGuidance(
+      minimalContext({
+        riskConfig: {
+          ...minimalContext().riskConfig,
+          riskPresetId: "moderate",
+        },
+      }),
+      "selector",
+      {
+        fields: ["identity", "riskLimits", "timeframe", "presetBehavior"],
+        guidance: ["howToEvaluate", "avoid"],
+        maxGuidanceItems: 1,
+      },
+    );
+
+    expect(text).toContain("Global preset: Trend Momentum");
+    expect(text).toContain("How to evaluate");
+    expect(text).not.toContain("Research posture: Trend Hunt");
+    expect(text).not.toContain("Trade rules: Breakout Long");
+    expect(text).not.toContain("What to look for");
+  });
 });

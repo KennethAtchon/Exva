@@ -1,12 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { buildWorkerSchedule } from "./worker-graph-scheduler";
 
+const strategyContext = {
+  fields: ["identity", "presetBehavior"],
+  guidance: ["howToEvaluate"],
+} as const;
+
 describe("worker graph scheduler", () => {
   it("builds a flat schedule when no graph mode is requested", () => {
     const schedule = buildWorkerSchedule(
       [
-        { id: "a", promptAssetPath: "a", tools: [], outputMode: "text" },
-        { id: "b", promptAssetPath: "b", tools: [], outputMode: "text" },
+        {
+          id: "a",
+          promptAssetPath: "a",
+          tools: [],
+          strategyContext,
+          outputMode: "text",
+        },
+        {
+          id: "b",
+          promptAssetPath: "b",
+          tools: [],
+          strategyContext,
+          outputMode: "text",
+        },
       ],
       undefined,
     );
@@ -18,12 +35,25 @@ describe("worker graph scheduler", () => {
   it("assigns dependent workers to later frontiers", () => {
     const schedule = buildWorkerSchedule(
       [
-        { id: "a", promptAssetPath: "a", tools: [], outputMode: "text" },
-        { id: "b", promptAssetPath: "b", tools: [], outputMode: "text" },
+        {
+          id: "a",
+          promptAssetPath: "a",
+          tools: [],
+          strategyContext,
+          outputMode: "text",
+        },
+        {
+          id: "b",
+          promptAssetPath: "b",
+          tools: [],
+          strategyContext,
+          outputMode: "text",
+        },
         {
           id: "c",
           promptAssetPath: "c",
           tools: [],
+          strategyContext,
           outputMode: "text",
           dependsOn: ["a", "b"],
         },

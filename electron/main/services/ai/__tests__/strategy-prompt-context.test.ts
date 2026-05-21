@@ -8,7 +8,6 @@ import {
 import {
   buildPromptEnvelope,
   envelopeToMessages,
-  measurePromptEnvelope,
 } from "../pipeline-runtime/prompting/prompt-envelope-builder";
 
 function baseContext(): SessionStrategyContext {
@@ -69,6 +68,19 @@ function baseContext(): SessionStrategyContext {
   };
 }
 
+const TEST_STRATEGY_CONTEXT_REQUEST = {
+  fields: [
+    "identity",
+    "researchPosture",
+    "tradeRules",
+    "riskLimits",
+    "timeframe",
+    "presetBehavior",
+  ],
+  guidance: ["objective", "whatToLookFor", "howToEvaluate", "avoid"],
+  maxGuidanceItems: 2,
+} as const;
+
 describe("strategy-prompt-context", () => {
   it("truncates long timeframe notes inside the prompt snapshot", () => {
     const context = baseContext();
@@ -98,10 +110,13 @@ describe("strategy-prompt-context", () => {
   it("builds a smaller worker-scoped strategy context than the full snapshot prompt", () => {
     const context = baseContext();
     const full = buildStrategyPromptContext(context).prompt;
-    const worker = buildWorkerStrategyPromptContext(context, "technical");
+    const worker = buildWorkerStrategyPromptContext(
+      context,
+      TEST_STRATEGY_CONTEXT_REQUEST,
+    );
     expect(worker.length).toBeLessThan(full.length);
     expect(worker).toContain("Discovery: trend_scan");
-    expect(worker).toContain("Stop type:");
+    expect(worker).toContain("Stop loss type:");
     expect(worker).not.toContain("Posture notes:");
     expect(worker).not.toContain("Trade rules markdown:");
   });
@@ -118,6 +133,7 @@ describe("strategy-prompt-context", () => {
       basePromptMarkdown: "# Chart pattern",
       task: { instrumentSymbol: "AAPL", context: "brief from selector" },
       strategyContext: context,
+      strategyContextRequest: TEST_STRATEGY_CONTEXT_REQUEST,
     });
 
     const messages = envelopeToMessages(envelope, context);
@@ -141,16 +157,54 @@ describe("strategy-prompt-context", () => {
       basePromptMarkdown: "# Web scout",
       task: { selectionInstructions: "Find candidates" },
       strategyContext: context,
+      strategyContextRequest: TEST_STRATEGY_CONTEXT_REQUEST,
     });
 
     const messages = envelopeToMessages(envelope, context);
     const userMessage = messages[1]?.content ?? "";
 
-    expect(userMessage).toContain("<trusted_session_context>");
+    expect(userMessage).toContain("<trusted_strategy_facts>");
     expect(userMessage).toContain("Discovery: trend_scan");
-    expect(userMessage).toContain("<preset_behavior>");
+    expect(userMessage).toContain("<trusted_strategy_guidance>");
+    expect(userMessage).not.toContain("<trusted_session_context>");
+    expect(userMessage).not.toContain("<preset_behavior>");
     expect(userMessage).not.toContain("## Session research posture");
     expect(userMessage).not.toContain("Worker focus:");
     expect(userMessage).not.toContain("Discovery guidance:");
+  });
+
+  it("renders worker-declared strategy facts and guidance only", () => {
+    const context = baseContext();
+    context.riskConfig.riskPresetId = "moderate";
+    context.timeframe.timeframePresetId = "swing";
+
+    const envelope = buildPromptEnvelope({
+      phase: "selector",
+      workerId: "liquidity-gate:AAPL",
+      basePromptMarkdown: "# Liquidity gate",
+      task: { instrumentSymbol: "AAPL" },
+      strategyContext: context,
+      strategyContextRequest: {
+        fields: ["identity", "riskLimits", "timeframe", "presetBehavior"],
+        guidance: ["howToEvaluate", "avoid"],
+        maxGuidanceItems: 2,
+      },
+    });
+
+    const messages = envelopeToMessages(envelope, context);
+    const userMessage = messages[1]?.content ?? "";
+
+    expect(userMessage).toContain("<trusted_strategy_facts>");
+    expect(userMessage).toContain("Max position USD: 100");
+    expect(userMessage).toContain("Horizon: 1h (multi_day_swing)");
+    expect(userMessage).not.toContain("<trusted_session_context>");
+    expect(userMessage).not.toContain("Discovery: trend_scan");
+    expect(userMessage).not.toContain("Entry: breakout");
+
+    expect(userMessage).toContain("<trusted_strategy_guidance>");
+    expect(userMessage).toContain("Global preset: Trend Momentum");
+    expect(userMessage).toContain("How to evaluate");
+    expect(userMessage).not.toContain("What to look for");
+    expect(userMessage).not.toContain("Research posture: Trend Hunt");
   });
 });

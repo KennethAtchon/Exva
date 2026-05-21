@@ -11,6 +11,18 @@ import {
   riskAssessorOutputSchema,
 } from "../../engines/aggregators/review-aggregator";
 
+const REVIEW_STRATEGY_CONTEXT = {
+  fields: [
+    "identity",
+    "researchPosture",
+    "riskLimits",
+    "timeframe",
+    "presetBehavior",
+  ],
+  guidance: ["objective", "howToEvaluate", "avoid"],
+  maxGuidanceItems: 2,
+} as const;
+
 export type ReviewPhaseInput = {
   instrumentSymbol: string;
   technical: TechnicalSignal;
@@ -22,6 +34,7 @@ const CONFLICT_DETECTOR_WORKER = {
   promptAssetPath: "review-workers/conflict-detector",
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
+  strategyContext: REVIEW_STRATEGY_CONTEXT,
   outputMode: "object" as const,
   outputSchema: conflictDetectorOutputSchema,
 };
@@ -31,6 +44,7 @@ const RISK_ASSESSOR_WORKER = {
   promptAssetPath: "review-workers/risk-assessor",
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
+  strategyContext: REVIEW_STRATEGY_CONTEXT,
   outputMode: "object" as const,
   outputSchema: riskAssessorOutputSchema,
 };

@@ -46,11 +46,32 @@ export type WorkerToolRequirement = {
   minToolCalls?: number;
 };
 
+export type StrategyContextField =
+  | "identity"
+  | "researchPosture"
+  | "tradeRules"
+  | "riskLimits"
+  | "timeframe"
+  | "presetBehavior";
+
+export type StrategyGuidanceField =
+  | "objective"
+  | "whatToLookFor"
+  | "howToEvaluate"
+  | "avoid";
+
+export interface WorkerStrategyContextRequest {
+  fields: readonly StrategyContextField[];
+  guidance: readonly StrategyGuidanceField[];
+  maxGuidanceItems?: number;
+}
+
 export interface WorkerDefinition<TPhaseOutput = unknown> {
   id: string;
   promptAssetPath: string;
   tools: readonly ToolId[];
   toolRequirements?: WorkerToolRequirement;
+  strategyContext: WorkerStrategyContextRequest;
   toolConfig?: WorkerToolConfig;
   engines?: readonly EngineBinding[];
   outputMode: "text" | "object" | "tool_terminal";

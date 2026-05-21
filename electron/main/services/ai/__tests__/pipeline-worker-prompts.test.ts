@@ -187,6 +187,19 @@ function phaseAndWorkerFrom(file: string): {
   throw new Error(`Unknown prompt phase for ${relative}`);
 }
 
+const TEST_STRATEGY_CONTEXT_REQUEST = {
+  fields: [
+    "identity",
+    "researchPosture",
+    "tradeRules",
+    "riskLimits",
+    "timeframe",
+    "presetBehavior",
+  ],
+  guidance: ["objective", "whatToLookFor", "howToEvaluate", "avoid"],
+  maxGuidanceItems: 2,
+} as const;
+
 describe("pipeline worker prompts", () => {
   const files = walkMarkdownFiles(PROMPTS_DIR);
   const context = baseContext();
@@ -218,6 +231,7 @@ describe("pipeline worker prompts", () => {
         basePromptMarkdown: content,
         task: representativeTask(phase),
         strategyContext: context,
+        strategyContextRequest: TEST_STRATEGY_CONTEXT_REQUEST,
         engineResults: {
           riskSummary: {
             maxPositionUsd: 100,

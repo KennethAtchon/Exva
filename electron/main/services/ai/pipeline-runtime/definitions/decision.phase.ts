@@ -12,6 +12,18 @@ import {
   signalClassifierOutputSchema,
 } from "../../engines/aggregators/trade-signal-aggregator";
 
+const DECISION_STRATEGY_CONTEXT = {
+  fields: [
+    "identity",
+    "tradeRules",
+    "riskLimits",
+    "timeframe",
+    "presetBehavior",
+  ],
+  guidance: ["objective", "whatToLookFor", "howToEvaluate", "avoid"],
+  maxGuidanceItems: 2,
+} as const;
+
 export type DecisionPhaseInput = {
   instrumentSymbol: string;
   technical: TechnicalSignal;
@@ -24,6 +36,7 @@ const SIGNAL_CLASSIFIER_WORKER = {
   promptAssetPath: "decision-workers/signal-classifier",
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
+  strategyContext: DECISION_STRATEGY_CONTEXT,
   outputMode: "object" as const,
   outputSchema: signalClassifierOutputSchema,
 };
@@ -33,6 +46,7 @@ const ENTRY_TIMER_WORKER = {
   promptAssetPath: "decision-workers/entry-timer",
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
+  strategyContext: DECISION_STRATEGY_CONTEXT,
   outputMode: "object" as const,
   outputSchema: entryTimerOutputSchema,
 };

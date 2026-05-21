@@ -1,5 +1,10 @@
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import type {
+  StrategyGuidanceField,
+  StrategyContextField,
+  WorkerStrategyContextRequest,
+} from "@electron/shared/ai/pipeline-phase";
+import type {
   PresetAiGuidance,
   PresetPhaseAiGuidance,
   SessionStrategyContext,
@@ -16,69 +21,138 @@ interface GuidanceSource {
   label: string;
   summary: string | null;
   guidance?: PresetAiGuidance;
+  field: StrategyContextField;
 }
+
+type GuidanceSourceDescriptor = {
+  field: StrategyContextField;
+  resolve: (context: SessionStrategyContext) => GuidanceSource | null;
+};
+
+type GuidanceSectionDescriptor = {
+  field: StrategyGuidanceField;
+  render: (
+    guidance: PresetPhaseAiGuidance,
+    maxItems: number | undefined,
+  ) => string[];
+};
+
+const GUIDANCE_SOURCE_DESCRIPTORS = [
+  {
+    field: "identity",
+    resolve: ({ researchPosture, rules, riskConfig, timeframe }) => {
+      const preset = findBuiltInGlobalStrategyPresetByExactMatch({
+        posturePresetId: researchPosture.posturePresetId,
+        rulesPresetId: rules.rulesPresetId,
+        riskPresetId: riskConfig.riskPresetId,
+        timeframePresetId: timeframe.timeframePresetId,
+      });
+      return preset
+        ? {
+            label: `Global preset: ${preset.label}`,
+            summary: preset.description,
+            guidance: preset.aiGuidance,
+            field: "identity",
+          }
+        : null;
+    },
+  },
+  {
+    field: "researchPosture",
+    resolve: ({ researchPosture }) => {
+      const preset = findResearchPosturePresetById(
+        researchPosture.posturePresetId,
+      );
+      return preset
+        ? {
+            label: `Research posture: ${preset.label}`,
+            summary: preset.thesis,
+            guidance: preset.aiGuidance,
+            field: "researchPosture",
+          }
+        : null;
+    },
+  },
+  {
+    field: "tradeRules",
+    resolve: ({ rules }) => {
+      const preset = findTradeRulePresetById(rules.rulesPresetId);
+      return preset
+        ? {
+            label: `Trade rules: ${preset.label}`,
+            summary: preset.thesis,
+            guidance: preset.aiGuidance,
+            field: "tradeRules",
+          }
+        : null;
+    },
+  },
+  {
+    field: "riskLimits",
+    resolve: ({ riskConfig }) => {
+      const preset = findRiskPresetById(riskConfig.riskPresetId);
+      return preset
+        ? {
+            label: `Risk preset: ${preset.label}`,
+            summary: preset.description,
+            guidance: preset.aiGuidance,
+            field: "riskLimits",
+          }
+        : null;
+    },
+  },
+  {
+    field: "timeframe",
+    resolve: ({ timeframe }) => {
+      const preset = findTimeframePresetById(timeframe.timeframePresetId);
+      return preset
+        ? {
+            label: `Timeframe preset: ${preset.label}`,
+            summary: preset.description,
+            guidance: preset.aiGuidance,
+            field: "timeframe",
+          }
+        : null;
+    },
+  },
+] satisfies readonly GuidanceSourceDescriptor[];
+
+const GUIDANCE_SECTION_DESCRIPTORS: readonly GuidanceSectionDescriptor[] = [
+  {
+    field: "objective",
+    render: (guidance) =>
+      guidance.objective ? [`- Objective: ${guidance.objective}`] : [],
+  },
+  {
+    field: "whatToLookFor",
+    render: (guidance, maxItems) =>
+      renderList("What to look for", guidance.whatToLookFor, maxItems),
+  },
+  {
+    field: "howToEvaluate",
+    render: (guidance, maxItems) =>
+      renderList("How to evaluate", guidance.howToEvaluate, maxItems),
+  },
+  {
+    field: "avoid",
+    render: (guidance, maxItems) =>
+      renderList("Avoid", guidance.avoid, maxItems),
+  },
+];
 
 export function buildPresetBehaviorGuidance(
   strategyContext: SessionStrategyContext,
   phase: PipelinePhase,
+  request?: WorkerStrategyContextRequest,
 ): string {
-  const { researchPosture, rules, riskConfig, timeframe } = strategyContext;
-  const posturePreset = findResearchPosturePresetById(
-    researchPosture.posturePresetId,
-  );
-  const rulesPreset = findTradeRulePresetById(rules.rulesPresetId);
-  const riskPreset = findRiskPresetById(riskConfig.riskPresetId);
-  const timeframePreset = findTimeframePresetById(timeframe.timeframePresetId);
-  const globalPreset = findBuiltInGlobalStrategyPresetByExactMatch({
-    posturePresetId: researchPosture.posturePresetId,
-    rulesPresetId: rules.rulesPresetId,
-    riskPresetId: riskConfig.riskPresetId,
-    timeframePresetId: timeframe.timeframePresetId,
-  });
-
-  const sourceCandidates: Array<GuidanceSource | null> = [
-    globalPreset
-      ? {
-          label: `Global preset: ${globalPreset.label}`,
-          summary: globalPreset.description,
-          guidance: globalPreset.aiGuidance,
-        }
-      : null,
-    posturePreset
-      ? {
-          label: `Research posture: ${posturePreset.label}`,
-          summary: posturePreset.thesis,
-          guidance: posturePreset.aiGuidance,
-        }
-      : null,
-    rulesPreset
-      ? {
-          label: `Trade rules: ${rulesPreset.label}`,
-          summary: rulesPreset.thesis,
-          guidance: rulesPreset.aiGuidance,
-        }
-      : null,
-    riskPreset
-      ? {
-          label: `Risk preset: ${riskPreset.label}`,
-          summary: riskPreset.description,
-          guidance: riskPreset.aiGuidance,
-        }
-      : null,
-    timeframePreset
-      ? {
-          label: `Timeframe preset: ${timeframePreset.label}`,
-          summary: timeframePreset.description,
-          guidance: timeframePreset.aiGuidance,
-        }
-      : null,
-  ];
-  const sources = sourceCandidates.filter(
-    (source): source is GuidanceSource => source != null,
+  if (request && !request.fields.includes("presetBehavior")) return "";
+  const requestedFields = request ? new Set(request.fields) : null;
+  const sources = resolveGuidanceSources(strategyContext).filter((source) =>
+    shouldIncludeSource(source, requestedFields),
   );
 
   const sections = sources
-    .map((source) => renderSourceGuidance(source, phase))
+    .map((source) => renderSourceGuidance(source, phase, request))
     .filter((section): section is string => Boolean(section));
 
   if (sections.length === 0) return "";
@@ -89,20 +163,49 @@ export function buildPresetBehaviorGuidance(
 function renderSourceGuidance(
   source: GuidanceSource,
   phase: PipelinePhase,
+  request?: WorkerStrategyContextRequest,
 ): string | null {
   const phaseGuidance = mergePhaseGuidance(source.guidance, phase);
   if (!phaseGuidance) return null;
+  const guidanceFields = request ? new Set(request.guidance) : null;
 
   const lines = [
     `### ${source.label}`,
     source.summary ? `- Summary: ${source.summary}` : null,
-    phaseGuidance.objective ? `- Objective: ${phaseGuidance.objective}` : null,
-    ...renderList("What to look for", phaseGuidance.whatToLookFor),
-    ...renderList("How to evaluate", phaseGuidance.howToEvaluate),
-    ...renderList("Avoid", phaseGuidance.avoid),
+    ...GUIDANCE_SECTION_DESCRIPTORS.filter(
+      (section) => !guidanceFields || guidanceFields.has(section.field),
+    ).flatMap((section) =>
+      section.render(phaseGuidance, request?.maxGuidanceItems),
+    ),
   ].filter((line): line is string => line != null);
 
   return lines.length > 1 ? lines.join("\n") : null;
+}
+
+function resolveGuidanceSources(
+  context: SessionStrategyContext,
+): GuidanceSource[] {
+  const sources: Array<GuidanceSource | null> = GUIDANCE_SOURCE_DESCRIPTORS.map(
+    (descriptor) => descriptor.resolve(context),
+  );
+  return sources.filter(isGuidanceSource);
+}
+
+function isGuidanceSource(
+  source: GuidanceSource | null,
+): source is GuidanceSource {
+  return source != null;
+}
+
+function shouldIncludeSource(
+  source: GuidanceSource,
+  requestedFields: ReadonlySet<StrategyContextField> | null,
+): boolean {
+  if (!requestedFields) return true;
+  return (
+    requestedFields.has(source.field) ||
+    (source.field === "identity" && requestedFields.has("presetBehavior"))
+  );
 }
 
 function mergePhaseGuidance(
@@ -141,7 +244,12 @@ function hasGuidance(guidance: PresetPhaseAiGuidance): boolean {
   );
 }
 
-function renderList(label: string, items: string[] | undefined): string[] {
+function renderList(
+  label: string,
+  items: string[] | undefined,
+  maxItems?: number,
+): string[] {
   if (!items?.length) return [];
-  return [`- ${label}:`, ...items.map((item) => `  - ${item}`)];
+  const renderedItems = maxItems ? items.slice(0, maxItems) : items;
+  return [`- ${label}:`, ...renderedItems.map((item) => `  - ${item}`)];
 }

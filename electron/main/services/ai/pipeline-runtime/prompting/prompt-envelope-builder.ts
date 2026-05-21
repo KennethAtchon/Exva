@@ -1,4 +1,5 @@
 import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import type { WorkerStrategyContextRequest } from "@electron/shared/ai/pipeline-phase";
 import { RUNTIME_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { buildWorkerStrategyPromptContext } from "../../strategy-prompt-context";
@@ -19,6 +20,7 @@ export interface PromptEnvelopeInput {
   basePromptMarkdown: string;
   task: Record<string, unknown>;
   strategyContext: SessionStrategyContext;
+  strategyContextRequest: WorkerStrategyContextRequest;
   engineResults?: Record<string, unknown>;
   sandboxMode?: boolean;
   riskPolicy?: {
@@ -46,6 +48,7 @@ export function buildPromptEnvelope(
       phase: input.phase,
       workerId: input.workerId,
       task: input.task,
+      strategyContextRequest: input.strategyContextRequest,
       engineResults: input.engineResults ?? {},
       sandboxMode: input.sandboxMode ?? false,
     },
@@ -77,16 +80,22 @@ export function envelopeToMessages(
   strategyContext: SessionStrategyContext,
 ): RuntimeAgentMessage[] {
   const phase = envelope.userPayload.phase as PipelinePhase;
+  const strategyContextRequest = envelope.userPayload
+    .strategyContextRequest as WorkerStrategyContextRequest;
   const strategyPrompt = buildWorkerStrategyPromptContext(
     strategyContext,
-    phase,
+    strategyContextRequest,
   );
-  const presetGuidance = buildPresetBehaviorGuidance(strategyContext, phase);
+  const presetGuidance = buildPresetBehaviorGuidance(
+    strategyContext,
+    phase,
+    strategyContextRequest,
+  );
 
   const userContent = [
-    `<trusted_session_context>\n${strategyPrompt}\n</trusted_session_context>`,
+    `<trusted_strategy_facts>\n${strategyPrompt}\n</trusted_strategy_facts>`,
     presetGuidance.trim()
-      ? `<preset_behavior>\n${presetGuidance}\n</preset_behavior>`
+      ? `<trusted_strategy_guidance>\n${presetGuidance}\n</trusted_strategy_guidance>`
       : null,
     Object.keys(envelope.userPayload.engineResults as Record<string, unknown>)
       .length > 0

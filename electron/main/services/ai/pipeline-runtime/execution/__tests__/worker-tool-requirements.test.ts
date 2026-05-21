@@ -35,6 +35,11 @@ function traceWithTools(tools: string[]): RunTrace {
   };
 }
 
+const testStrategyContext = {
+  fields: ["identity", "presetBehavior"],
+  guidance: ["howToEvaluate"],
+} as const;
+
 const marketValidator: WorkerDefinition = {
   id: "market-validator:NVDA",
   promptAssetPath: "selector-workers/market-validator",
@@ -43,6 +48,7 @@ const marketValidator: WorkerDefinition = {
     requiredAll: ["get_quote", "get_ohlcv"],
     minToolCalls: 2,
   },
+  strategyContext: testStrategyContext,
   outputMode: "object",
 };
 
@@ -104,6 +110,7 @@ describe("worker-tool-requirements", () => {
         requiredAny: ["get_news", "search_web", "fetch_url"],
         minToolCalls: 1,
       },
+      strategyContext: testStrategyContext,
       outputMode: "object",
     };
     expect(() =>

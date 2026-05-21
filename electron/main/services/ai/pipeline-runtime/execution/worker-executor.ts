@@ -131,6 +131,7 @@ export async function executeWorker<TOutput>(
     basePromptMarkdown: promptMarkdown,
     task,
     strategyContext: deps.strategyContext,
+    strategyContextRequest: worker.strategyContext,
     engineResults,
   });
 
@@ -156,7 +157,7 @@ export async function executeWorker<TOutput>(
     "worker start",
   );
 
-  const runAgent = (abortSignal?: AbortSignal) =>
+  const runAgent = () =>
     withProviderRetry(
       (signal) =>
         adapter.runAgent({

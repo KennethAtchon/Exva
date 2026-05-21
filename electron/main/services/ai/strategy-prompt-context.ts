@@ -1,4 +1,7 @@
-import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import type {
+  StrategyContextField,
+  WorkerStrategyContextRequest,
+} from "@electron/shared/ai/pipeline-phase";
 import {
   buildTradeRulesMarkdown,
   buildStrategySnapshot,
@@ -13,6 +16,63 @@ export interface StrategyPromptContext {
   prompt: string;
   snapshot: StrategySnapshot;
 }
+
+type WorkerStrategyFactSection = {
+  field: StrategyContextField;
+  render: (context: SessionStrategyContext) => Array<string | null>;
+};
+
+const WORKER_STRATEGY_FACT_SECTIONS: readonly WorkerStrategyFactSection[] = [
+  {
+    field: "identity",
+    render: ({ researchPosture, rules, riskConfig, timeframe }) => [
+      `Posture preset: ${researchPosture.posturePresetId}`,
+      `Rules preset: ${rules.rulesPresetId}`,
+      `Risk preset: ${riskConfig.riskPresetId}`,
+      `Timeframe preset: ${timeframe.timeframePresetId}`,
+    ],
+  },
+  {
+    field: "researchPosture",
+    render: ({ researchPosture }) => [
+      `Discovery: ${researchPosture.discoveryMode}`,
+      `Evidence: ${researchPosture.evidenceMode}`,
+      `Catalyst: ${researchPosture.catalystMode}`,
+      `Fundamental strictness: ${researchPosture.fundamentalStrictness}`,
+    ],
+  },
+  {
+    field: "tradeRules",
+    render: ({ rules }) => [
+      `Setup: ${rules.setupType}`,
+      `Side bias: ${rules.sideBias}`,
+      `Entry: ${rules.entryStyle}`,
+      `Exit: ${rules.exitStyle}`,
+      `Scaling: ${rules.scalingMode}`,
+    ],
+  },
+  {
+    field: "riskLimits",
+    render: ({ riskConfig }) => [
+      `Max position USD: ${riskConfig.maxPositionUsd}`,
+      `Max exposure USD: ${riskConfig.maxExposureUsd ?? "none"}`,
+      `Max concurrent: ${riskConfig.maxConcurrentTrades}`,
+      `Stop loss type: ${riskConfig.stopLossType}`,
+      `Wait-for-open threshold: ${riskConfig.waitForOpenThreshold}`,
+      `Human approval: ${riskConfig.humanApprovalRequired ? "yes" : "no"}`,
+      renderNullable("Stop loss pct", riskConfig.stopLossPct),
+      renderNullable("Take profit pct", riskConfig.takeProfitPct),
+    ],
+  },
+  {
+    field: "timeframe",
+    render: ({ timeframe }) => [
+      `Horizon: ${timeframe.primaryTradingTimeframe} (${timeframe.holdingStyle})`,
+      renderNullable("Target hold days", timeframe.targetHoldDays),
+      renderNullable("Max hold days", timeframe.maxHoldDays),
+    ],
+  },
+];
 
 export function buildStrategyPromptContext(
   context: SessionStrategyContext,
@@ -119,57 +179,16 @@ export function buildStrategyPromptContext(
  */
 export function buildWorkerStrategyPromptContext(
   context: SessionStrategyContext,
-  phase: PipelinePhase,
+  request: WorkerStrategyContextRequest,
 ): string {
-  const { researchPosture, rules, riskConfig, timeframe } = context;
-  const shared = [
-    `Posture preset: ${researchPosture.posturePresetId}`,
-    `Rules preset: ${rules.rulesPresetId}`,
-    `Risk preset: ${riskConfig.riskPresetId}`,
-    `Timeframe preset: ${timeframe.timeframePresetId}`,
-    `Discovery: ${researchPosture.discoveryMode}`,
-    `Evidence: ${researchPosture.evidenceMode}`,
-    `Side bias: ${rules.sideBias}`,
-    `Entry: ${rules.entryStyle}`,
-    `Exit: ${rules.exitStyle}`,
-    `Horizon: ${timeframe.primaryTradingTimeframe} (${timeframe.holdingStyle})`,
-  ];
+  const fields = new Set(request.fields);
 
-  const phaseLines: Record<PipelinePhase, string[]> = {
-    selector: [
-      `Catalyst: ${researchPosture.catalystMode}`,
-      `Fundamental strictness: ${researchPosture.fundamentalStrictness}`,
-      `Max concurrent: ${riskConfig.maxConcurrentTrades}`,
-    ],
-    technical: [
-      `Setup: ${rules.setupType}`,
-      `Stop type: ${riskConfig.stopLossType}`,
-      riskConfig.stopLossPct != null
-        ? `Stop loss pct: ${riskConfig.stopLossPct}`
-        : "Stop loss pct: (session default)",
-      riskConfig.takeProfitPct != null
-        ? `Take profit pct: ${riskConfig.takeProfitPct}`
-        : "Take profit pct: (session default)",
-    ],
-    fundamental: [
-      `Catalyst: ${researchPosture.catalystMode}`,
-      `Fundamental strictness: ${researchPosture.fundamentalStrictness}`,
-    ],
-    review: [
-      `Max position USD: ${riskConfig.maxPositionUsd}`,
-      `Max exposure USD: ${riskConfig.maxExposureUsd ?? "none"}`,
-      `Daily loss limit USD: ${riskConfig.dailyLossLimitUsd}`,
-      `Human approval: ${riskConfig.humanApprovalRequired ? "yes" : "no"}`,
-    ],
-    decision: [
-      `Max position USD: ${riskConfig.maxPositionUsd}`,
-      `Kelly fraction: ${riskConfig.kellyFraction}`,
-      `Prediction edge threshold: ${riskConfig.predictionEdgeThreshold}`,
-      `Stop loss type: ${riskConfig.stopLossType}`,
-    ],
-  };
-
-  return [...shared, ...phaseLines[phase]].join("\n");
+  return WORKER_STRATEGY_FACT_SECTIONS.filter((section) =>
+    fields.has(section.field),
+  )
+    .flatMap((section) => section.render(context))
+    .filter((line): line is string => line != null)
+    .join("\n");
 }
 
 export function prependStrategyContextToUserPrompt(
@@ -185,4 +204,8 @@ export function prependStrategyContextToUserPrompt(
 
 function truncate(value: string, maxChars: number): string {
   return value.length > maxChars ? `${value.slice(0, maxChars)}...` : value;
+}
+
+function renderNullable(label: string, value: number | null): string | null {
+  return value == null ? null : `${label}: ${value}`;
 }
