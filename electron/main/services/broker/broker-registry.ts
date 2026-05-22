@@ -8,7 +8,12 @@ import {
   CoinbaseAdvancedTradeAdapter,
   type CoinbaseAdvancedCredentials,
 } from "./adapters/coinbase-advanced-trade-adapter";
-import { MockBrokerAdapter } from "./adapters/mock-adapter";
+import { MockMarketSimulator } from "./mock/mock-market-simulator";
+import {
+  DEFAULT_MOCK_SCENARIO_KIND,
+  isMockScenarioKind,
+  type MockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
 import { PolymarketAdapter } from "./adapters/polymarket-adapter";
 import {
   TradovateAdapter,
@@ -96,8 +101,10 @@ export class BrokerRegistry {
         };
         return new PolymarketAdapter(parsed);
       }
-      case "mock":
-        return new MockBrokerAdapter();
+      case "mock": {
+        const kind = resolveMockScenarioKind(account);
+        return MockMarketSimulator.createAdapter(kind);
+      }
       default:
         throw new AppError(
           `Unknown broker type: ${account.brokerType}`,
@@ -105,4 +112,10 @@ export class BrokerRegistry {
         );
     }
   }
+}
+
+function resolveMockScenarioKind(account: BrokerAccount): MockScenarioKind {
+  const kind = account.mockScenarioKind;
+  if (kind && isMockScenarioKind(kind)) return kind;
+  return DEFAULT_MOCK_SCENARIO_KIND;
 }

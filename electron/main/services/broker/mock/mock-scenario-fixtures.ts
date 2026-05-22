@@ -359,25 +359,25 @@ export const SCENARIO_NEWS: Record<MockScenarioKind, NewsItem[]> = {
 export const SCENARIO_TRENDING: Record<MockScenarioKind, TrendingSymbol[]> = {
   clean_breakout: [
     {
-      symbol: "GME",
-      name: "GameStop Corp",
-      messageVolume: 2341,
+      symbol: "NVDA",
+      name: "NVIDIA Corp",
+      messageVolume: 3201,
       sentiment: "Bullish",
-      watchlistCount: 834102,
+      watchlistCount: 2103441,
     },
     {
-      symbol: "MSTR",
-      name: "MicroStrategy Inc",
-      messageVolume: 1873,
+      symbol: "AMD",
+      name: "Advanced Micro Devices",
+      messageVolume: 1821,
+      sentiment: "Bullish",
+      watchlistCount: 1241003,
+    },
+    {
+      symbol: "PLTR",
+      name: "Palantir Technologies",
+      messageVolume: 1102,
       sentiment: "Bullish",
       watchlistCount: 612448,
-    },
-    {
-      symbol: "COIN",
-      name: "Coinbase Global",
-      messageVolume: 1221,
-      sentiment: "Bullish",
-      watchlistCount: 498003,
     },
   ],
   failed_breakout: [

@@ -15,6 +15,13 @@
       "when": 1779418768544,
       "tag": "0001_global_env_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779500000000,
+      "tag": "0002_mock_scenario_kind",
+      "breakpoints": true
     }
   ]
 }

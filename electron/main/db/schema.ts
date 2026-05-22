@@ -37,6 +37,7 @@ export const brokerAccounts = sqliteTable("broker_accounts", {
     .default(5),
   balanceCacheUsd: real("balance_cache_usd"),
   balanceCachedAt: text("balance_cached_at"),
+  mockScenarioKind: text("mock_scenario_kind"),
   secretRef: text("secret_ref").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

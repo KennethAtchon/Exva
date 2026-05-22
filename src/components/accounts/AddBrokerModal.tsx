@@ -1,5 +1,11 @@
 import { useState, type CSSProperties } from "react";
 import type { InstrumentClass } from "@/lib/types";
+import {
+  DEFAULT_MOCK_SCENARIO_KIND,
+  MOCK_SCENARIO_KINDS,
+  MOCK_SCENARIO_LABELS,
+  type MockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
 import { api } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { ShadcnSelect } from "@/components/custom-ui";
@@ -32,6 +38,8 @@ export const AddBrokerModal = ({
   const [brokerType, setBrokerType] = useState<
     "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock"
   >("mock");
+  const [mockScenarioKind, setMockScenarioKind] =
+    useState<MockScenarioKind>(DEFAULT_MOCK_SCENARIO_KIND);
   const [name, setName] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
@@ -90,6 +98,7 @@ export const AddBrokerModal = ({
         name: name.trim() || `${brokerType} account`,
         mode: environmentMode,
         credentials: credentials(),
+        ...(brokerType === "mock" ? { mockScenarioKind } : {}),
       });
       if (!result.ok) {
         setMessage(result.message);
@@ -165,6 +174,26 @@ export const AddBrokerModal = ({
             Supports: {supportedHint().join(", ")}
           </div>
         </div>
+
+        {brokerType === "mock" && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={labelStyle}>Mock scenario</div>
+            <ShadcnSelect
+              value={mockScenarioKind}
+              onValueChange={(value) =>
+                setMockScenarioKind(value as MockScenarioKind)
+              }
+              options={MOCK_SCENARIO_KINDS.map((kind) => ({
+                value: kind,
+                label: `${MOCK_SCENARIO_LABELS[kind].label} ${MOCK_SCENARIO_LABELS[kind].outcome}`,
+              }))}
+            />
+            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>
+              Use Clean breakout to verify the bot selects, decides, and fills a
+              trade end-to-end.
+            </div>
+          </div>
+        )}
 
         <div style={{ marginBottom: 12 }}>
           <div style={labelStyle}>Display name</div>

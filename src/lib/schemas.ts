@@ -211,6 +211,20 @@ export const brokerAccountAddSchema = z.object({
   name: z.string().min(1),
   mode: z.enum(["paper", "live"]),
   credentials: z.record(z.string()),
+  mockScenarioKind: z
+    .enum([
+      "clean_breakout",
+      "failed_breakout",
+      "sideways_chop",
+      "gap_down_after_entry",
+      "news_reversal",
+      "stale_quote",
+      "wide_spread",
+      "partial_fill",
+      "broker_reject",
+      "rate_limit",
+    ])
+    .optional(),
 });
 
 export const brokerAccountIdSchema = z.object({

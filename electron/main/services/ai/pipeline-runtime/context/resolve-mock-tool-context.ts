@@ -3,16 +3,24 @@ import type { BrokerRegistry } from "../../../broker/broker-registry";
 import { MockBrokerAdapter } from "../../../broker/adapters/mock-adapter";
 import type { MockOhlcvBar } from "../../../broker/adapters/mock-adapter";
 import { MockMarketSimulator } from "../../../broker/mock/mock-market-simulator";
+import type { MockWebSearchItem } from "../../../broker/mock/mock-discovery-fixtures";
+import {
+  DEFAULT_MOCK_SCENARIO_KIND,
+  type MockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
 import { scenarioMockNews, type MockNewsItem } from "../../tools/market-tools";
 import { MOCK_REDDIT_POSTS } from "../../tools/search-reddit-tool";
 import { MOCK_TRENDING_SYMBOLS } from "../../tools/trending-symbols-tool";
 
 export type MockToolContext = {
   isMockSession: boolean;
+  mockScenarioKind?: MockScenarioKind;
   getMockOhlcv?: (symbol: string, timeframe?: string) => MockOhlcvBar[];
   mockNewsData?: MockNewsItem[];
   mockRedditData?: typeof MOCK_REDDIT_POSTS;
   mockTrendingData?: typeof MOCK_TRENDING_SYMBOLS;
+  mockWebSearchData?: MockWebSearchItem[];
+  mockUrlContent?: Record<string, string>;
 };
 
 export async function resolveMockToolContext(input: {
@@ -24,25 +32,31 @@ export async function resolveMockToolContext(input: {
   if (!mockAdapter) {
     return {
       isMockSession: false,
+      mockScenarioKind: undefined,
       getMockOhlcv: undefined,
       mockNewsData: undefined,
       mockRedditData: undefined,
       mockTrendingData: undefined,
+      mockWebSearchData: undefined,
+      mockUrlContent: undefined,
     };
   }
 
-  const kind = mockAdapter.getScenarioKind();
-  const fixtures = kind ? MockMarketSimulator.fixturesFor(kind) : null;
+  const kind = mockAdapter.getScenarioKind() ?? DEFAULT_MOCK_SCENARIO_KIND;
+  const fixtures = MockMarketSimulator.fixturesFor(kind);
   return {
     isMockSession: true,
+    mockScenarioKind: kind,
     getMockOhlcv: (symbol: string, timeframe?: string) =>
       mockAdapter.getMockOhlcv(symbol, timeframe),
     mockNewsData:
-      fixtures?.news ?? scenarioMockNews(mockAdapter.getScenarioBias()),
-    mockRedditData: (fixtures?.redditPosts ??
+      fixtures.news ?? scenarioMockNews(mockAdapter.getScenarioBias()),
+    mockRedditData: (fixtures.redditPosts ??
       MOCK_REDDIT_POSTS) as typeof MOCK_REDDIT_POSTS,
-    mockTrendingData: (fixtures?.trendingSymbols ??
+    mockTrendingData: (fixtures.trendingSymbols ??
       MOCK_TRENDING_SYMBOLS) as typeof MOCK_TRENDING_SYMBOLS,
+    mockWebSearchData: fixtures.webSearch,
+    mockUrlContent: fixtures.urlContent,
   };
 }
 

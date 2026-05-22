@@ -166,6 +166,7 @@ export const api = {
     maxSessions?: number;
     allocationEnforcement?: "hard" | "warn";
     balanceRefreshIntervalMin?: number;
+    mockScenarioKind?: import("@electron/shared/domain/mock-scenario").MockScenarioKind | null;
   }) => bridge().brokerAccounts.updateSettings(input),
 
   listTemplates: (filters?: {
@@ -305,6 +306,7 @@ export const api = {
     name: string;
     mode: "paper" | "live";
     credentials: Record<string, string>;
+    mockScenarioKind?: import("@electron/shared/domain/mock-scenario").MockScenarioKind;
   }) => bridge().accounts.addBroker(input),
   deleteBrokerAccount: (id: string) =>
     bridge().accounts.removeBrokerAccount({ id }),

@@ -11,6 +11,21 @@ const updateSettingsSchema = z.object({
   maxSessions: z.number().int().min(1).max(50).optional(),
   allocationEnforcement: z.enum(["hard", "warn"]).optional(),
   balanceRefreshIntervalMin: z.number().int().min(1).max(60).optional(),
+  mockScenarioKind: z
+    .enum([
+      "clean_breakout",
+      "failed_breakout",
+      "sideways_chop",
+      "gap_down_after_entry",
+      "news_reversal",
+      "stale_quote",
+      "wide_spread",
+      "partial_fill",
+      "broker_reject",
+      "rate_limit",
+    ])
+    .nullable()
+    .optional(),
 });
 
 export function registerBrokerAccountHandlers(services: AppServices): void {
@@ -42,6 +57,9 @@ export function registerBrokerAccountHandlers(services: AppServices): void {
   handle(ipcMain, channels.brokerAccounts.updateSettings, async (payload) => {
     const { brokerAccountId, ...patch } = updateSettingsSchema.parse(payload);
     services.brokerCapital.updateSettings(brokerAccountId, patch);
+    if (patch.mockScenarioKind !== undefined) {
+      services.brokerRegistry.invalidate(brokerAccountId);
+    }
     return { ok: true as const };
   });
 }

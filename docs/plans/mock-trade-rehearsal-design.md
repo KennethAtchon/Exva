@@ -1,7 +1,7 @@
 # Mock Trade Rehearsal — Design
 
 > **Date:** 2026-05-21  
-> **Status:** Draft  
+> **Status:** Implemented (2026-05-21)  
 > **Audience:** Engineers validating the bot end-to-end in paper/mock mode  
 > **Related:** [mock-broker-sandbox-deep-plan.md](./archieve/mock-broker-sandbox-deep-plan.md), [mock-simulator-spec.md](./archieve/phase-specs/mock-simulator-spec.md), session log sample in [hello.json](../hello.json)
 

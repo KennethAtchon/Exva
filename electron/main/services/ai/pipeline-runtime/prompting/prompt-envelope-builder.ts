@@ -2,6 +2,8 @@ import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import type { WorkerStrategyContextRequest } from "@electron/shared/ai/pipeline-phase";
 import { RUNTIME_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
+import { MOCK_SCENARIO_LABELS } from "@electron/shared/domain/mock-scenario";
 import { buildWorkerStrategyPromptContext } from "../../strategy-prompt-context";
 import type { RuntimeAgentMessage } from "../../ai-runtime/ai-runtime-types";
 import { createLogger } from "../../../infra/log";
@@ -23,6 +25,7 @@ export interface PromptEnvelopeInput {
   strategyContextRequest: WorkerStrategyContextRequest;
   engineResults?: Record<string, unknown>;
   sandboxMode?: boolean;
+  mockScenarioKind?: MockScenarioKind;
   riskPolicy?: {
     maxPositionUsd: number;
     maxDataSpendUsd: number;
@@ -51,7 +54,38 @@ export function buildPromptEnvelope(
       strategyContextRequest: input.strategyContextRequest,
       engineResults: input.engineResults ?? {},
       sandboxMode: input.sandboxMode ?? false,
+      mockScenarioKind: input.mockScenarioKind ?? null,
     },
+  };
+}
+
+function renderSandboxSystemBlock(
+  scenarioKind: MockScenarioKind | null | undefined,
+): string {
+  const scenario = scenarioKind ?? "clean_breakout";
+  const label = MOCK_SCENARIO_LABELS[scenario];
+  return [
+    "## Sandbox Mode",
+    "You are in Exva paper/mock mode. All tool data is synthetic but internally consistent.",
+    "Evaluate it as real market evidence. Make a genuine trade/no-trade decision from the data.",
+    "Do not skip solely because data is simulated. Do not mention sandbox status in analysis text.",
+    `Scenario: ${scenario} (${label.label}; ${label.outcome}).`,
+  ].join("\n");
+}
+
+function augmentMockTask(
+  task: Record<string, unknown>,
+  phase: PipelinePhase,
+  sandboxMode: boolean,
+): Record<string, unknown> {
+  if (!sandboxMode || phase !== "selector") return task;
+  const selectionInstructions =
+    typeof task.selectionInstructions === "string"
+      ? task.selectionInstructions
+      : "";
+  return {
+    ...task,
+    selectionInstructions: `${selectionInstructions}\n\nMock sandbox: treat tool results as authoritative evidence. Do not supplement with memory, assumed live prices, or external knowledge.`,
   };
 }
 
@@ -82,6 +116,11 @@ export function envelopeToMessages(
   const phase = envelope.userPayload.phase as PipelinePhase;
   const strategyContextRequest = envelope.userPayload
     .strategyContextRequest as WorkerStrategyContextRequest;
+  const sandboxMode = Boolean(envelope.userPayload.sandboxMode);
+  const mockScenarioKind = envelope.userPayload.mockScenarioKind as
+    | MockScenarioKind
+    | null
+    | undefined;
   const strategyPrompt = buildWorkerStrategyPromptContext(
     strategyContext,
     strategyContextRequest,
@@ -90,6 +129,11 @@ export function envelopeToMessages(
     strategyContext,
     phase,
     strategyContextRequest,
+  );
+  const task = augmentMockTask(
+    envelope.userPayload.task as Record<string, unknown>,
+    phase,
+    sandboxMode,
   );
 
   const userContent = [
@@ -101,13 +145,18 @@ export function envelopeToMessages(
       .length > 0
       ? `<engine_results>\n${JSON.stringify(envelope.userPayload.engineResults, null, 2)}\n</engine_results>`
       : null,
-    `<task>\n${JSON.stringify(envelope.userPayload.task, null, 2)}\n</task>`,
+    `<task>\n${JSON.stringify(task, null, 2)}\n</task>`,
   ]
     .filter((block): block is string => block != null)
     .join("\n\n");
 
+  const systemSections = [envelope.systemPrompt.trim()];
+  if (sandboxMode) {
+    systemSections.push("", renderSandboxSystemBlock(mockScenarioKind));
+  }
+
   const messages: RuntimeAgentMessage[] = [
-    { role: "system", content: envelope.systemPrompt },
+    { role: "system", content: systemSections.join("\n") },
     { role: "user", content: userContent },
   ];
 

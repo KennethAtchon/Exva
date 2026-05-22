@@ -5,11 +5,12 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { InstrumentClass } from "@/lib/types";
 import type { ApiCallLogRepo } from "../../../../db/repositories/system/api-call-log-repo";
 import type { SearchRegistry } from "../../search";
-import { createSearchTool } from "../../tools/search-tool";
+import { createSearchTool, createMockSearchTool } from "../../tools/search-tool";
 import type { BrokerRoutingService } from "../../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../../broker/broker-registry";
 import type { MockOhlcvBar } from "../../../broker/adapters/mock-adapter";
 import type { MockNewsItem } from "../../tools/market-tools";
+import type { MockWebSearchItem } from "../../../broker/mock/mock-discovery-fixtures";
 import { createMarketTools } from "../../tools/market-tools";
 import { createFetchUrlTool } from "../../tools/fetch-url-tool";
 import { createSearchRedditTool } from "../../tools/search-reddit-tool";
@@ -17,6 +18,7 @@ import { createTrendingSymbolsTool } from "../../tools/trending-symbols-tool";
 import type { MOCK_REDDIT_POSTS } from "../../tools/search-reddit-tool";
 import type { MOCK_TRENDING_SYMBOLS } from "../../tools/trending-symbols-tool";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import type { WorkerToolConfig } from "@electron/shared/ai/pipeline-config";
 
 export const SUPPORTED_TOOL_IDS = [
@@ -55,6 +57,9 @@ export interface ToolBuildContext {
   mockNewsData?: MockNewsItem[];
   mockRedditData?: typeof MOCK_REDDIT_POSTS;
   mockTrendingData?: typeof MOCK_TRENDING_SYMBOLS;
+  mockWebSearchData?: MockWebSearchItem[];
+  mockUrlContent?: Record<string, string>;
+  mockScenarioKind?: MockScenarioKind;
   isMockSession?: boolean;
 }
 
@@ -89,22 +94,32 @@ export async function buildToolSet(
   }
 
   if (idSet.has("search_web")) {
-    if (!ctx.searchProviderId) {
-      throw new AppError(
-        "Session cannot enable web search because no search provider is configured.",
-        "SEARCH_PROVIDER_REQUIRED",
-      );
+    if (ctx.isMockSession && ctx.mockWebSearchData) {
+      tools.search_web = createMockSearchTool({
+        sessionId: ctx.sessionId,
+        apiCallLogRepo: ctx.apiCallLogRepo,
+        cycleId: ctx.cycleId,
+        tradeId: ctx.tradeId ?? null,
+        mockWebSearchData: ctx.mockWebSearchData,
+      });
+    } else {
+      if (!ctx.searchProviderId) {
+        throw new AppError(
+          "Session cannot enable web search because no search provider is configured.",
+          "SEARCH_PROVIDER_REQUIRED",
+        );
+      }
+      tools.search_web = await createSearchTool({
+        sessionId: ctx.sessionId,
+        searchProviderId: ctx.searchProviderId,
+        fallbackProviderId: toolConfig?.search_web?.fallbackProviderId ?? null,
+        searchRegistry: ctx.searchRegistry,
+        apiCallLogRepo: ctx.apiCallLogRepo,
+        cycleId: ctx.cycleId,
+        tradeId: ctx.tradeId ?? null,
+        maxDataSpendUsd: ctx.maxDataSpendUsd,
+      });
     }
-    tools.search_web = await createSearchTool({
-      sessionId: ctx.sessionId,
-      searchProviderId: ctx.searchProviderId,
-      fallbackProviderId: toolConfig?.search_web?.fallbackProviderId ?? null,
-      searchRegistry: ctx.searchRegistry,
-      apiCallLogRepo: ctx.apiCallLogRepo,
-      cycleId: ctx.cycleId,
-      tradeId: ctx.tradeId ?? null,
-      maxDataSpendUsd: ctx.maxDataSpendUsd,
-    });
   }
 
   if (idSet.has("fetch_url")) {
@@ -112,7 +127,10 @@ export async function buildToolSet(
       sessionId: ctx.sessionId,
       apiCallLogRepo: ctx.apiCallLogRepo,
       cycleId: ctx.cycleId,
+      tradeId: ctx.tradeId ?? null,
       maxDataSpendUsd: ctx.maxDataSpendUsd,
+      isMockSession: ctx.isMockSession,
+      mockUrlContent: ctx.mockUrlContent,
     });
   }
 

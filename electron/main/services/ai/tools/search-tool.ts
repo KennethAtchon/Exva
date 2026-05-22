@@ -3,6 +3,54 @@ import { z } from "zod";
 import type { SearchRegistry } from "../search";
 import { validateDiscoveryQuery } from "../search/sanitize-search-query";
 import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
+import {
+  filterMockWebSearch,
+  type MockWebSearchItem,
+} from "../../broker/mock/mock-discovery-fixtures";
+
+export function createMockSearchTool(deps: {
+  sessionId: string;
+  apiCallLogRepo: ApiCallLogRepo;
+  cycleId?: string | null;
+  tradeId?: string | null;
+  mockWebSearchData: MockWebSearchItem[];
+}) {
+  return tool({
+    description: [
+      "Search the web for current financial news, market signals, catalysts, and trading ideas.",
+      "Use specific queries with tickers, company names, sectors, catalysts, or setup terms such as breakout, momentum, unusual options activity, short interest, insider buying, social sentiment, or earnings surprise.",
+      "After finding a promising result, use fetch_url to read the actual content before trusting it.",
+    ].join(" "),
+    inputSchema: z.object({ query: z.string().min(1) }),
+    execute: async (input: { query: string }) => {
+      const startedAt = Date.now();
+      const createdAt = new Date().toISOString();
+      const results = filterMockWebSearch(deps.mockWebSearchData, input.query);
+      deps.apiCallLogRepo.insert({
+        id: crypto.randomUUID(),
+        session_id: deps.sessionId,
+        trade_id: deps.tradeId ?? null,
+        cycle_id: deps.cycleId ?? null,
+        provider: "mock",
+        endpoint: "/search",
+        call_type: "search",
+        credits_used: 0,
+        cost_usd: null,
+        latency_ms: Date.now() - startedAt,
+        status: "ok",
+        from_cache: true,
+        created_at: createdAt,
+      });
+      return {
+        results,
+        query: input.query,
+        provider: "mock",
+        creditsUsed: 0,
+        cachedAt: createdAt,
+      };
+    },
+  });
+}
 
 export async function createSearchTool(deps: {
   sessionId: string;

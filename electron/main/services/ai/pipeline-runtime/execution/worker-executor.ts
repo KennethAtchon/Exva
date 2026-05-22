@@ -170,6 +170,8 @@ export async function executeWorker<TOutput>(
     strategyContext: deps.strategyContext,
     strategyContextRequest: worker.strategyContext,
     engineResults,
+    sandboxMode: deps.toolContext.isMockSession ?? false,
+    mockScenarioKind: deps.toolContext.mockScenarioKind,
   });
 
   const messages = envelopeToMessages(envelope, deps.strategyContext);

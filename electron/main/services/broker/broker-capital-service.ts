@@ -1,3 +1,4 @@
+import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import type {
   AllocationEnforcement,
   BrokerAccountWithState,
@@ -129,6 +130,7 @@ export class BrokerCapitalService {
       maxSessions?: number;
       allocationEnforcement?: AllocationEnforcement;
       balanceRefreshIntervalMin?: number;
+      mockScenarioKind?: MockScenarioKind | null;
     },
   ): void {
     if (patch.maxSessions !== undefined) {

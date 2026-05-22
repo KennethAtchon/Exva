@@ -5,6 +5,11 @@ import {
   SCENARIO_REDDIT,
   SCENARIO_TRENDING,
 } from "./mock-scenario-fixtures";
+import {
+  SCENARIO_PRIMARY_SYMBOLS,
+  SCENARIO_URL_CONTENT,
+  SCENARIO_WEB_SEARCH,
+} from "./mock-discovery-fixtures";
 
 const SCENARIO_CONFIG: Record<MockScenarioKind, MockScenario> = {
   clean_breakout: {
@@ -95,6 +100,9 @@ export const MockMarketSimulator = {
       news: SCENARIO_NEWS[kind],
       redditPosts: SCENARIO_REDDIT[kind],
       trendingSymbols: SCENARIO_TRENDING[kind],
+      webSearch: SCENARIO_WEB_SEARCH[kind],
+      urlContent: SCENARIO_URL_CONTENT[kind],
+      primarySymbols: SCENARIO_PRIMARY_SYMBOLS[kind],
     };
   },
 };

@@ -5,6 +5,11 @@ import type {
   BrokerMode,
   InstrumentClass,
 } from "@/lib/types";
+import {
+  DEFAULT_MOCK_SCENARIO_KIND,
+  isMockScenarioKind,
+  type MockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
 import { asc, eq } from "drizzle-orm";
 import { AppError } from "@electron/shared/infra/errors";
 import { brokerAccounts } from "../../schema";
@@ -47,8 +52,13 @@ export class BrokerAccountsRepo {
     supportedInstrumentClasses: InstrumentClass[];
     mode: BrokerMode;
     secretRef: string;
+    mockScenarioKind?: MockScenarioKind | null;
   }): BrokerAccount {
     const now = new Date().toISOString();
+    const mockScenarioKind =
+      input.brokerType === "mock"
+        ? (input.mockScenarioKind ?? DEFAULT_MOCK_SCENARIO_KIND)
+        : null;
     this.client.db
       .insert(brokerAccounts)
       .values({
@@ -59,6 +69,7 @@ export class BrokerAccountsRepo {
           input.supportedInstrumentClasses,
         ),
         mode: input.mode,
+        mockScenarioKind,
         secretRef: input.secretRef,
         updatedAt: now,
       })
@@ -113,11 +124,20 @@ export class BrokerAccountsRepo {
       maxSessions?: number;
       allocationEnforcement?: AllocationEnforcement;
       balanceRefreshIntervalMin?: number;
+      mockScenarioKind?: MockScenarioKind | null;
     },
   ): void {
+    const account = this.require(id);
+    const { mockScenarioKind, ...rest } = patch;
     this.client.db
       .update(brokerAccounts)
-      .set({ ...patch, updatedAt: new Date().toISOString() })
+      .set({
+        ...rest,
+        ...(mockScenarioKind !== undefined && account.brokerType === "mock"
+          ? { mockScenarioKind }
+          : {}),
+        updatedAt: new Date().toISOString(),
+      })
       .where(eq(brokerAccounts.id, id))
       .run();
   }

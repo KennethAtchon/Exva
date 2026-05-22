@@ -8,6 +8,7 @@ import type {
   SelectionMode,
   SessionStatus,
 } from "./enums";
+import type { MockScenarioKind } from "./mock-scenario";
 import type { SessionStrategy, SessionStrategyContext } from "./session";
 
 export interface WorkspaceSession {
@@ -49,6 +50,8 @@ export interface BrokerAccount {
   brokerType: string;
   supportedInstrumentClasses: InstrumentClass[];
   mode: BrokerMode;
+  /** Mock broker only — drives scenario fixtures and adapter behavior. */
+  mockScenarioKind: MockScenarioKind | null;
   maxSessions: number;
   allocationEnforcement: AllocationEnforcement;
   balanceRefreshIntervalMin: number;

@@ -21,6 +21,10 @@ import type {
   WorkspaceSession,
 } from "@/lib/types";
 import { isHoldingStyle, isTradingTimeframe } from "@electron/shared/domain";
+import {
+  DEFAULT_MOCK_SCENARIO_KIND,
+  isMockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
 
 type Row = Record<string, unknown>;
 
@@ -294,6 +298,13 @@ export function toBrokerAccount(row: Row): BrokerAccount {
       row.supported_instrument_classes,
     ) as BrokerAccount["supportedInstrumentClasses"],
     mode: row.mode as BrokerAccount["mode"],
+    mockScenarioKind:
+      row.mock_scenario_kind != null &&
+      isMockScenarioKind(String(row.mock_scenario_kind))
+        ? (String(row.mock_scenario_kind) as BrokerAccount["mockScenarioKind"])
+        : row.broker_type === "mock"
+          ? DEFAULT_MOCK_SCENARIO_KIND
+          : null,
     maxSessions: Number(row.max_sessions ?? 10),
     allocationEnforcement:
       (row.allocation_enforcement as BrokerAccount["allocationEnforcement"]) ??

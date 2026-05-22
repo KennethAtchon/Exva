@@ -71,6 +71,37 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+function shapeCleanBreakoutBars(bars: MockOhlcvBar[]): MockOhlcvBar[] {
+  const rangeHigh = Math.max(...bars.map((bar) => bar.high));
+  const lastIndex = bars.length - 1;
+  const last = bars[lastIndex];
+  if (!last) return bars;
+
+  const targetClose = round2(rangeHigh * 0.998);
+  const shapedLast: MockOhlcvBar = {
+    ...last,
+    close: targetClose,
+    open: round2(Math.min(last.open, targetClose * 0.998)),
+    high: round2(Math.max(rangeHigh, targetClose * 1.001)),
+    low: round2(Math.min(last.low, targetClose * 0.992)),
+    volume: Math.round((last.volume ?? 0) * 1.35),
+  };
+
+  const next = [...bars];
+  next[lastIndex] = shapedLast;
+
+  for (let i = Math.max(0, lastIndex - 4); i < lastIndex; i += 1) {
+    const bar = next[i];
+    if (!bar) continue;
+    next[i] = {
+      ...bar,
+      volume: Math.round((bar.volume ?? 0) * (1.05 + (i - (lastIndex - 4)) * 0.05)),
+    };
+  }
+
+  return next;
+}
+
 export class MockBrokerAdapter implements BrokerAdapter {
   readonly brokerType = "mock";
   readonly supportedInstrumentClasses: readonly InstrumentClass[] = [
@@ -286,6 +317,11 @@ export class MockBrokerAdapter implements BrokerAdapter {
         volume,
       });
     }
+
+    if (this.scenario.kind === "clean_breakout" && bars.length > 0) {
+      return shapeCleanBreakoutBars(bars);
+    }
+
     return bars;
   }
 

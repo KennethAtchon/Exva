@@ -55,6 +55,9 @@ export async function buildToolContext(
     mockNewsData: mock.mockNewsData,
     mockRedditData: mock.mockRedditData,
     mockTrendingData: mock.mockTrendingData,
+    mockWebSearchData: mock.mockWebSearchData,
+    mockUrlContent: mock.mockUrlContent,
+    mockScenarioKind: mock.mockScenarioKind,
     isMockSession: mock.isMockSession,
   };
 }

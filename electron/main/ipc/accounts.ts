@@ -148,6 +148,7 @@ export function registerAccountHandlers(services: AppServices): void {
       name: input.name,
       brokerType: input.brokerType,
       mode: input.mode,
+      mockScenarioKind: input.mockScenarioKind ?? null,
     });
     const adapter = await services.brokerRegistry.buildEphemeral(temp, json);
     const test = await adapter.testConnection();
@@ -168,6 +169,10 @@ export function registerAccountHandlers(services: AppServices): void {
       supportedInstrumentClasses: temp.supportedInstrumentClasses,
       mode: input.mode,
       secretRef,
+      mockScenarioKind:
+        input.brokerType === "mock"
+          ? (input.mockScenarioKind ?? "clean_breakout")
+          : null,
     });
     services.brokerRegistry.invalidate(id);
     return {

@@ -176,4 +176,15 @@ describe("MockBrokerAdapter", () => {
 
     expect(adapter.getScenarioKind()).toBe("news_reversal");
   });
+
+  it("clean_breakout bars close near the range high with rising late volume", () => {
+    const adapter = new MockBrokerAdapter({ kind: "clean_breakout" });
+    const bars = adapter.getMockOhlcv("NVDA", "4h", 30);
+    const last = bars.at(-1);
+    const rangeHigh = Math.max(...bars.map((bar) => bar.high));
+
+    expect(last).toBeDefined();
+    expect(last!.close).toBeGreaterThanOrEqual(rangeHigh * 0.995);
+    expect((last!.volume ?? 0)).toBeGreaterThan(bars.at(-5)?.volume ?? 0);
+  });
 });

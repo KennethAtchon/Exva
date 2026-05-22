@@ -171,7 +171,7 @@ export function createSearchRedditTool(deps: {
       }
 
       try {
-        const posts = deps.mockPosts
+        const posts = (deps.mockPosts
           ? deps.mockPosts
           : (
               await searchReddit(
@@ -188,7 +188,17 @@ export function createSearchRedditTool(deps: {
               comments: post.num_comments,
               url: toRedditThreadUrl(post),
               postedAt: new Date(post.created_utc * 1000).toISOString(),
-            }));
+            }))
+        ).map((post) => {
+          const symbol =
+            validation.sanitized.match(/\b[A-Z]{1,5}\b/)?.[0] ?? null;
+          if (!symbol) return post;
+          return {
+            ...post,
+            title: post.title.replaceAll("{symbol}", symbol),
+            body: post.body.replaceAll("{symbol}", symbol),
+          };
+        });
 
         deps.apiCallLogRepo.insert({
           id: crypto.randomUUID(),

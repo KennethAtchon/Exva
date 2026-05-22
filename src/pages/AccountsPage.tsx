@@ -17,6 +17,11 @@ import { ProviderModelPicker } from "@/components/strategy/ProviderModelPicker";
 import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
 import { AddSearchProviderModal } from "@/components/accounts/AddSearchProviderModal";
 import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
+import {
+  MOCK_SCENARIO_KINDS,
+  MOCK_SCENARIO_LABELS,
+  type MockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
 import { api, type ProviderModelEntry } from "@/lib/exva";
 import type {
   BrokerRoutingDefault,
@@ -834,6 +839,24 @@ export const AccountsPage = () => {
                       {b.brokerType} ·{" "}
                       {b.supportedInstrumentClasses.join(", ")}
                     </div>
+                    {b.brokerType === "mock" && (
+                      <div style={{ marginTop: 8, maxWidth: 320 }}>
+                        <ShadcnSelect
+                          value={b.mockScenarioKind ?? "clean_breakout"}
+                          onValueChange={async (value) => {
+                            await api.updateBrokerAccountSettings({
+                              brokerAccountId: b.id,
+                              mockScenarioKind: value as MockScenarioKind,
+                            });
+                            void refetchWorkspace();
+                          }}
+                          options={MOCK_SCENARIO_KINDS.map((kind) => ({
+                            value: kind,
+                            label: `${MOCK_SCENARIO_LABELS[kind].label} ${MOCK_SCENARIO_LABELS[kind].outcome}`,
+                          }))}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <button

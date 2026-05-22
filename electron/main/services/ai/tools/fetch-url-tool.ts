@@ -136,6 +136,8 @@ export function createFetchUrlTool(deps: {
   cycleId?: string | null;
   tradeId?: string | null;
   maxDataSpendUsd?: number | null;
+  isMockSession?: boolean;
+  mockUrlContent?: Record<string, string>;
 }) {
   /**
    * Fetches the content of a given URL.
@@ -156,6 +158,43 @@ export function createFetchUrlTool(deps: {
     execute: async ({ url }: { url: string; reason?: string }) => {
       const startedAt = Date.now();
       const createdAt = new Date().toISOString();
+
+      if (deps.isMockSession) {
+        const mockContent = deps.mockUrlContent?.[url];
+        if (mockContent) {
+          const content = mockContent.slice(0, MAX_CONTENT_CHARS);
+          deps.apiCallLogRepo.insert({
+            id: crypto.randomUUID(),
+            session_id: deps.sessionId,
+            trade_id: deps.tradeId ?? null,
+            cycle_id: deps.cycleId ?? null,
+            provider: "mock",
+            endpoint: url,
+            call_type: "fetch",
+            credits_used: 0,
+            cost_usd: 0,
+            latency_ms: Date.now() - startedAt,
+            status: "ok",
+            from_cache: true,
+            created_at: createdAt,
+          });
+          return {
+            url,
+            contentLength: content.length,
+            content,
+            note: "Mock sandbox page content. Extract only financial data.",
+          };
+        }
+        if (url.includes("mock.local")) {
+          return {
+            error: `Mock URL not registered in sandbox fixtures: ${url}`,
+          };
+        }
+        return {
+          error:
+            "Live fetch disabled in mock session. Use URLs returned by search_web or search_reddit in this sandbox.",
+        };
+      }
 
       const initialCheck = await isBlockedUrl(url);
       if (initialCheck.blocked) {
