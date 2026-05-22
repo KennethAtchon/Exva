@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import { z } from "zod";
 import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../services/app-services";
+import { resolveBrokerModeFilter } from "../services/workspace/environment-scope";
 import { handle } from "./handle";
 
 const refreshBalanceSchema = z.object({ brokerAccountId: z.string() });
@@ -13,9 +14,17 @@ const updateSettingsSchema = z.object({
 });
 
 export function registerBrokerAccountHandlers(services: AppServices): void {
-  handle(ipcMain, channels.brokerAccounts.list, async () =>
-    services.brokerCapital.listWithState(),
-  );
+  handle(ipcMain, channels.brokerAccounts.list, async (payload) => {
+    const parsed = z
+      .object({ includeAllEnvironments: z.boolean().optional() })
+      .optional()
+      .parse(payload);
+    const includeAllEnvironments = parsed?.includeAllEnvironments === true;
+    const prefs = services.repos.workspacePreferences.get();
+    const mode = resolveBrokerModeFilter(prefs, { includeAllEnvironments });
+    const rows = services.brokerCapital.listWithState();
+    return mode ? rows.filter((broker) => broker.mode === mode) : rows;
+  });
 
   handle(ipcMain, channels.brokerAccounts.refreshBalance, async (payload) => {
     const { brokerAccountId } = refreshBalanceSchema.parse(payload);

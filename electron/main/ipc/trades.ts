@@ -6,18 +6,21 @@ import {
 } from "@/lib/schemas";
 import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../services/app-services";
+import { resolveExecutionModeFilter } from "../services/workspace/environment-scope";
 import { decideApproval } from "./approvals";
 import { handle } from "./handle";
 
 export function registerTradeHandlers(services: AppServices): void {
   handle(ipcMain, channels.trades.listActive, async (payload) => {
     const filters = listTradesFiltersSchema.parse(payload ?? {});
+    const prefs = services.repos.workspacePreferences.get();
     const focused = services.repos.session.getFocused();
     const sessionScope = focused?.id;
 
     const merged = {
       ...filters,
       sessionId: filters.sessionId ?? sessionScope,
+      executionMode: resolveExecutionModeFilter(prefs, filters),
     };
 
     const trades = services.repos.trades.listAllFiltered({

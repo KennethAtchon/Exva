@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TopNav, type PageKey } from "./components/TopNav";
+import { LiveReadinessModal } from "./components/sessions/LiveReadinessModal";
 import { Dashboard } from "./pages/Dashboard";
 import { BrokersPage } from "./pages/BrokersPage";
 import { SessionsPage } from "./pages/SessionsPage";
@@ -12,9 +13,22 @@ import { AccountsPage } from "./pages/AccountsPage";
 import { useSessionStore } from "./store/sessionStore";
 import { useTradeStore } from "./store/tradeStore";
 import { useWorkspaceStore } from "./store/workspaceStore";
-import { api, showMock } from "./lib/exva";
+import { api, type SessionSummary } from "./lib/exva";
+import { executionModeForEnvironment } from "./lib/environment-mode";
 import { useExvaEvent } from "./hooks/useExvaEvent";
 import { usePolling } from "./hooks/usePolling";
+
+interface LiveReadinessReport {
+  readyToStart: boolean;
+  allChecksPassed: boolean;
+  checks: Array<{
+    name: string;
+    passed: boolean;
+    requiresAck?: boolean;
+    message?: string;
+  }>;
+  acknowledgedAt: string | null;
+}
 
 export default function App() {
   const [page, setPage] = useState<PageKey>("dashboard");
@@ -22,37 +36,28 @@ export default function App() {
     null,
   );
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [liveReadinessSession, setLiveReadinessSession] =
+    useState<SessionSummary | null>(null);
+  const [liveReadinessReport, setLiveReadinessReport] =
+    useState<LiveReadinessReport | null>(null);
   const status = useSessionStore((s) => s.status);
   const setStatus = useSessionStore((s) => s.setStatus);
   const stats = useSessionStore((s) => s.stats);
   const setStats = useSessionStore((s) => s.setStats);
 
   const setTrades = useTradeStore((s) => s.setTrades);
-  const upsertTrade = useTradeStore((s) => s.upsertTrade);
   const selectedId = useTradeStore((s) => s.selectedId);
   const setSelected = useTradeStore((s) => s.setSelected);
   const loadWorkspaceView = useWorkspaceStore((s) => s.loadWorkspaceView);
   const viewMode = useWorkspaceStore((s) => s.viewMode);
   const focusedSessionId = useWorkspaceStore((s) => s.focusedSessionId);
+  const environmentMode = useWorkspaceStore((s) => s.environmentMode);
 
-  // Initial load
-  useEffect(() => {
-    api
-      .getDashboardStats()
-      .then((next) => {
-        setStats(next);
-        setStatus(next.session_status);
-        setLoadError(null);
+  const reloadTrades = useCallback(() => {
+    return api
+      .getActiveTrades({
+        executionMode: executionModeForEnvironment(environmentMode),
       })
-      .catch((err) => {
-        setLoadError(
-          err instanceof Error
-            ? err.message
-            : "Failed to load dashboard stats.",
-        );
-      });
-    api
-      .getActiveTrades()
       .then(setTrades)
       .catch((err) => {
         setLoadError(
@@ -61,30 +66,52 @@ export default function App() {
             (err instanceof Error ? err.message : "Failed to load trades."),
         );
       });
-    void loadWorkspaceView();
-  }, [loadWorkspaceView, setStats, setTrades]);
+  }, [environmentMode, setTrades]);
 
-  useEffect(() => {
-    api
+  const reloadStats = useCallback(() => {
+    return api
       .getDashboardStats()
       .then((next) => {
         setStats(next);
         setStatus(next.session_status);
+        setLoadError(null);
       })
-      .catch(() => {});
+      .catch((err) => {
+        setLoadError(
+          (current) =>
+            current ??
+            (err instanceof Error
+              ? err.message
+              : "Failed to load dashboard stats."),
+        );
+      });
+  }, [setStats, setStatus]);
+
+  useEffect(() => {
+    void reloadStats();
+    void reloadTrades();
+    void loadWorkspaceView();
+  }, [loadWorkspaceView, reloadStats, reloadTrades]);
+
+  useEffect(() => {
+    void reloadStats();
     if (page === "trades") return;
-    api
-      .getActiveTrades()
-      .then(setTrades)
-      .catch(() => {});
-  }, [focusedSessionId, page, setStats, setStatus, setTrades, viewMode]);
+    void reloadTrades();
+  }, [focusedSessionId, page, reloadStats, reloadTrades, viewMode]);
 
-  // Live updates from the Electron main process
+  useEffect(() => {
+    void reloadStats();
+    void reloadTrades();
+  }, [environmentMode, reloadStats, reloadTrades]);
+
   useExvaEvent("stats_update", (payload) => setStats(payload));
-  useExvaEvent("trade_opened", (t) => upsertTrade(t));
-  useExvaEvent("trade_closed", (t) => upsertTrade(t));
+  useExvaEvent("trade_opened", () => {
+    void reloadTrades();
+  });
+  useExvaEvent("trade_closed", () => {
+    void reloadTrades();
+  });
 
-  // Fallback polling when events aren't flowing (e.g. dev browser)
   usePolling(
     async () => {
       const next = await api.getDashboardStats();
@@ -98,8 +125,24 @@ export default function App() {
   const handleSession = async (
     action: "start" | "pause" | "resume" | "stop",
   ) => {
+    setLoadError(null);
     try {
       if (action === "start" || action === "resume") {
+        const sessions = await api.listSessions({ includeArchived: false });
+        const focused = sessions.sessions.find(
+          (session) => session.id === focusedSessionId,
+        );
+        if (
+          focused?.executionMode === "live_allowed" &&
+          environmentMode === "live"
+        ) {
+          const readiness = await api.getLiveReadiness(focused.id);
+          if (!readiness.readyToStart || !readiness.acknowledgedAt) {
+            setLiveReadinessReport(readiness);
+            setLiveReadinessSession(focused);
+            return;
+          }
+        }
         setStatus(await api.startSession());
       } else if (action === "pause") {
         setStatus(await api.pauseSession());
@@ -107,7 +150,9 @@ export default function App() {
         setStatus(await api.stopSession());
       }
     } catch (error) {
-      void error;
+      setLoadError(
+        error instanceof Error ? error.message : "Session action failed.",
+      );
     }
   };
 
@@ -176,7 +221,6 @@ export default function App() {
         sessionStatus={status}
         onSessionAction={handleSession}
         stats={stats}
-        showMock={showMock}
       />
       {loadError && (
         <div
@@ -205,6 +249,30 @@ export default function App() {
       {selectedId && (
         <TradeDetail tradeId={selectedId} onClose={() => setSelected(null)} />
       )}
+      {liveReadinessSession && liveReadinessReport ? (
+        <LiveReadinessModal
+          sessionId={liveReadinessSession.id}
+          report={liveReadinessReport}
+          onAcknowledged={async () => {
+            const session = liveReadinessSession;
+            setLiveReadinessReport(null);
+            setLiveReadinessSession(null);
+            try {
+              setStatus(await api.startSession());
+            } catch (error) {
+              setLoadError(
+                error instanceof Error
+                  ? error.message
+                  : "Failed to start session.",
+              );
+            }
+          }}
+          onCancel={() => {
+            setLiveReadinessReport(null);
+            setLiveReadinessSession(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -311,6 +311,9 @@ export const workspacePreferences = sqliteTable("workspace_preferences", {
   globalIncludeArchived: integer("global_include_archived", { mode: "boolean" })
     .notNull()
     .default(false),
+  globalEnvironmentMode: text("global_environment_mode")
+    .notNull()
+    .default("paper"),
   defaultSearchProviderId: text("default_search_provider_id").references(
     () => providerAccounts.id,
     {

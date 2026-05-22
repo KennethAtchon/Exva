@@ -90,6 +90,7 @@ export const api = {
     symbolContains?: string;
     instrumentType?: InstrumentClass;
     executionMode?: ExecutionMode;
+    includeAllEnvironments?: boolean;
   }): Promise<Trade[]> => bridge().trades.listActive(filters),
   getTradeDetail: (tradeId: string): Promise<TradeDetail> =>
     bridge().trades.getDetail(tradeId),
@@ -128,6 +129,8 @@ export const api = {
     instrumentClass?: InstrumentClass;
     search?: string;
     includeArchived?: boolean;
+    executionMode?: ExecutionMode;
+    includeAllEnvironments?: boolean;
   }): Promise<{
     workspaceViewMode: WorkspaceViewMode;
     focusedSessionId: string | null;
@@ -384,5 +387,4 @@ export type {
   WorkspaceViewResponse,
 } from "@electron/shared/ipc/dto";
 export { hasExva };
-export const showMock = false;
 export type { PhaseTraceV1, PhaseRuntimeSummary };

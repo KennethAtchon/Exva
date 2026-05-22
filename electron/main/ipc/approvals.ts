@@ -3,7 +3,9 @@ import { AppError } from "@electron/shared/infra/errors";
 import { channels } from "@electron/shared/ipc/channels";
 import { approvalDecideSchema, approvalListFiltersSchema } from "@/lib/schemas";
 import type { ApprovalSummary } from "@/lib/types";
+import { sessionMatchesEnvironment } from "@electron/shared/domain/environment-mode";
 import type { AppServices } from "../services/app-services";
+import { resolveExecutionModeFilter } from "../services/workspace/environment-scope";
 import { handle } from "./handle";
 
 export async function decideApproval(
@@ -101,16 +103,37 @@ export function registerApprovalHandlers(services: AppServices): void {
 
     const prefs = services.repos.workspacePreferences.get();
     const focused = services.repos.session.getFocused();
-    const workspaceViewMode = focused
+    const focusedInEnv =
+      focused &&
+      sessionMatchesEnvironment(
+        focused.executionMode,
+        prefs.globalEnvironmentMode,
+      )
+        ? focused
+        : null;
+    const workspaceViewMode = focusedInEnv
       ? ("session" as const)
       : ("global" as const);
 
     const status = filters?.status ?? "pending";
 
-    const sessionIds =
-      workspaceViewMode === "session" && focused ? [focused.id] : undefined;
     const excludeArchivedSessions =
       workspaceViewMode === "global" ? !prefs.globalIncludeArchived : true;
+    const envExecutionMode = resolveExecutionModeFilter(prefs, {});
+    const envSessions = services.repos.session.list({
+      includeArchived: !excludeArchivedSessions,
+      executionMode: envExecutionMode,
+    });
+    const envSessionIds = new Set(envSessions.map((session) => session.id));
+
+    const sessionIds =
+      workspaceViewMode === "session" && focusedInEnv
+        ? [focusedInEnv.id]
+        : [...envSessionIds];
+
+    if (sessionIds.length === 0) {
+      return { workspaceViewMode, approvals: [] };
+    }
 
     const rows = services.repos.tradeApprovals.listAll({
       status,
@@ -118,7 +141,7 @@ export function registerApprovalHandlers(services: AppServices): void {
       excludeArchivedSessions,
     });
 
-    const sessions = services.repos.session.list({ includeArchived: true });
+    const sessions = envSessions;
     const nameById = new Map(sessions.map((s) => [s.id, s.name]));
 
     const summaries: ApprovalSummary[] = rows.map((a) => {

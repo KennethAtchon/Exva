@@ -46,8 +46,9 @@ export const CostBreakdownPage = () => {
   const stats = useSessionStore((s) => s.stats);
   const viewMode = useWorkspaceStore((s) => s.viewMode);
   const focusedSessionId = useWorkspaceStore((s) => s.focusedSessionId);
+  const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const { data: d } = useQuery({
-    queryKey: ["cost-breakdown", viewMode, focusedSessionId],
+    queryKey: ["cost-breakdown", viewMode, focusedSessionId, environmentMode],
     queryFn: () => api.getCostBreakdown(),
     refetchInterval: 5000,
   });

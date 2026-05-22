@@ -5,6 +5,7 @@ import { fmt } from "@/lib/formatters";
 import { Button } from "@/components/ui";
 import { api } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+import { sessionMatchesEnvironment } from "@/lib/environment-mode";
 import type { SessionSummary } from "@/lib/exva";
 
 export type PageKey =
@@ -47,7 +48,6 @@ interface Props {
   sessionStatus: SessionStatus;
   onSessionAction: (a: "start" | "pause" | "resume" | "stop") => void;
   stats: DashboardStats | null;
-  showMock: boolean;
 }
 
 export const TopNav = ({
@@ -56,11 +56,11 @@ export const TopNav = ({
   sessionStatus,
   onSessionAction,
   stats,
-  showMock,
 }: Props) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const aiReady = useWorkspaceStore((state) => state.focusedSessionAiReady);
+  const environmentMode = useWorkspaceStore((state) => state.environmentMode);
   const [focusedSession, setFocusedSession] = useState<SessionSummary | null>(
     null,
   );
@@ -78,12 +78,24 @@ export const TopNav = ({
         setFocusedSession(found);
       })
       .catch(() => setFocusedSession(null));
-  }, [focusedSessionId]);
+  }, [focusedSessionId, environmentMode]);
+
+  const focusedInCurrentEnvironment =
+    focusedSession != null &&
+    sessionMatchesEnvironment(
+      focusedSession.executionMode,
+      environmentMode,
+    );
+  const sessionControlsDisabled =
+    !focusedInCurrentEnvironment || viewMode === "global";
 
   const ss = SESSION_STATUS[sessionStatus];
   const isRunning = sessionStatus === "active" || sessionStatus === "paused";
-  const isGlobal = viewMode === "global" || !focusedSessionId;
-  const sessionName = focusedSession?.name ?? "Focused Session";
+  const isGlobal =
+    viewMode === "global" || !focusedSessionId || !focusedInCurrentEnvironment;
+  const sessionName = focusedInCurrentEnvironment
+    ? (focusedSession?.name ?? "Focused Session")
+    : "Focused Session";
 
   const needsStrategyConfig =
     !isGlobal &&
@@ -147,26 +159,28 @@ export const TopNav = ({
       <div style={s.session}>
         {/* Data source indicator */}
         <div
-          style={showMock ? s.mockPill : s.connectedPill}
+          style={
+            environmentMode === "live" ? s.liveEnvPill : s.paperEnvPill
+          }
           title={
-            showMock
-              ? "Using simulated data — no real broker connection"
-              : "Connected to live broker data feed"
+            environmentMode === "live"
+              ? "Live trading mode — real broker connection"
+              : "Paper trading mode — no real orders"
           }
         >
           <Dot
-            color={showMock ? "#fbbf24" : "#34d399"}
-            pulse={!showMock}
+            color={environmentMode === "live" ? "#34d399" : "#fbbf24"}
+            pulse={environmentMode === "live"}
             size={7}
           />
           <span
             style={{
               fontSize: 11,
-              color: showMock ? "#fbbf24" : "#34d399",
+              color: environmentMode === "live" ? "#34d399" : "#fbbf24",
               fontWeight: 500,
             }}
           >
-            {showMock ? "Mock" : "Connected"}
+            {environmentMode === "live" ? "Live" : "Paper"}
           </span>
         </div>
 
@@ -207,7 +221,7 @@ export const TopNav = ({
           <Button
             style={{
               ...s.btnStart,
-              ...(aiReady === false
+              ...(aiReady === false || sessionControlsDisabled
                 ? {
                     opacity: 0.4,
                     cursor: "not-allowed",
@@ -217,11 +231,13 @@ export const TopNav = ({
                 : {}),
             }}
             variant="ghost"
-            disabled={aiReady === false}
+            disabled={aiReady === false || sessionControlsDisabled}
             title={
-              aiReady === false
-                ? "AI providers not connected — configure in Strategy tab"
-                : undefined
+              sessionControlsDisabled
+                ? "Focused session is not in the current workspace environment"
+                : aiReady === false
+                  ? "AI providers not connected — configure in Strategy tab"
+                  : undefined
             }
             onClick={() =>
               onSessionAction(sessionStatus === "paused" ? "resume" : "start")
@@ -230,7 +246,7 @@ export const TopNav = ({
             ▶ {sessionStatus === "paused" ? "Resume" : "Start"}
           </Button>
         )}
-        {sessionStatus === "active" && (
+        {sessionStatus === "active" && !sessionControlsDisabled && (
           <Button
             variant="ghost"
             style={s.btnPause}
@@ -239,7 +255,7 @@ export const TopNav = ({
             ⏸ Pause
           </Button>
         )}
-        {isRunning && (
+        {isRunning && !sessionControlsDisabled && (
           <Button
             variant="ghost"
             style={s.btnStop}
@@ -318,7 +334,7 @@ const s: Record<string, CSSProperties> = {
     flexShrink: 0,
   },
   session: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
-  connectedPill: {
+  liveEnvPill: {
     display: "flex",
     alignItems: "center",
     gap: 5,
@@ -328,7 +344,7 @@ const s: Record<string, CSSProperties> = {
     border: "1px solid rgba(52,211,153,0.15)",
     cursor: "default",
   },
-  mockPill: {
+  paperEnvPill: {
     display: "flex",
     alignItems: "center",
     gap: 5,

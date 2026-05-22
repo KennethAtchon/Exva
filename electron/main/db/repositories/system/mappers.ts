@@ -332,6 +332,8 @@ export function toWorkspacePreferences(row: Row): WorkspacePreferences {
   return {
     id: 1,
     globalIncludeArchived: Boolean(row.global_include_archived),
+    globalEnvironmentMode:
+      row.global_environment_mode === "live" ? "live" : "paper",
     defaultSearchProviderId: nullableString(row.default_search_provider_id),
     allocationEnforcementOverride:
       (nullableString(

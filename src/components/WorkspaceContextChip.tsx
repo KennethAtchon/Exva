@@ -20,16 +20,21 @@ export const WorkspaceContextChip = ({
 }: WorkspaceContextChipProps) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
+  const environmentMode = useWorkspaceStore((state) => state.environmentMode);
   const [open, setOpen] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
 
   useEffect(() => {
     if (!open) return;
     api
-      .listSessions({ includeArchived: false })
+      .listSessions({
+        includeArchived: false,
+        executionMode:
+          environmentMode === "live" ? "live_allowed" : "paper_only",
+      })
       .then((result) => setSessions(result.sessions))
       .catch(() => {});
-  }, [open]);
+  }, [open, environmentMode]);
 
   const focused = sessions.find((session) => session.id === focusedSessionId);
 

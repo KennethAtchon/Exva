@@ -87,6 +87,7 @@ export interface SessionBrokerRoutingOverride {
 export interface WorkspacePreferences {
   id: 1;
   globalIncludeArchived: boolean;
+  globalEnvironmentMode: "paper" | "live";
   defaultSearchProviderId: string | null;
   allocationEnforcementOverride: AllocationEnforcement | null;
   defaultModelProviderKey: string;

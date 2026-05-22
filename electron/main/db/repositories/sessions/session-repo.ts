@@ -42,6 +42,7 @@ import { toSessionConfig, toWorkspaceSession } from "../system/mappers";
 export interface SessionFilters {
   statuses?: SessionStatus[];
   includeArchived?: boolean;
+  executionMode?: WorkspaceSession["executionMode"];
 }
 
 export interface CreateSessionInput {
@@ -281,6 +282,9 @@ export class SessionRepo {
     }
     if (filters.statuses?.length) {
       conditions.push(inArray(sessions.status, filters.statuses));
+    }
+    if (filters.executionMode) {
+      conditions.push(eq(sessions.executionMode, filters.executionMode));
     }
 
     const query = this.client.db

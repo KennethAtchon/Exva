@@ -84,6 +84,7 @@ export const listTradesFiltersSchema = z.object({
   symbolContains: z.string().optional(),
   instrumentType: instrumentClassSchema.optional(),
   executionMode: z.enum(["paper_only", "live_allowed"]).optional(),
+  includeAllEnvironments: z.boolean().optional(),
 });
 
 const instrumentSelectionCandidateInputSchema = z.object({

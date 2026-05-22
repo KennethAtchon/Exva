@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import type {
   BrokerAccountWithState,
   InstrumentClass,
@@ -40,6 +41,7 @@ export const CreateEditSessionModal = ({
   onClose,
   onSubmit,
 }: Props) => {
+  const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const [form, setForm] = useState<SessionCreateInput>(defaultInput());
   const [searchEverything, setSearchEverything] = useState(false);
   const [searchEverythingSnapshot, setSearchEverythingSnapshot] = useState<{
@@ -66,13 +68,16 @@ export const CreateEditSessionModal = ({
     let cancelled = false;
     setError(null);
 
+    const envExecMode =
+      environmentMode === "live" ? "live_allowed" : "paper_only";
+
     if (templateInput) {
-      setForm(templateInput);
+      setForm({ ...templateInput, executionMode: envExecMode });
       return;
     }
 
     if (!initialSession) {
-      setForm(defaultInput());
+      setForm({ ...defaultInput(), executionMode: envExecMode });
       return;
     }
 
@@ -81,12 +86,15 @@ export const CreateEditSessionModal = ({
       .buildTemplatePayloadFromSession(initialSession.id)
       .then((payload) => {
         if (cancelled) return;
-        setForm(payloadToInput(payload, initialSession.name));
+        setForm({
+          ...payloadToInput(payload, initialSession.name),
+          executionMode: envExecMode,
+        });
       })
       .catch((seedError: Error) => {
         if (cancelled) return;
         setError(seedError.message);
-        setForm(summaryToInput(initialSession));
+        setForm({ ...summaryToInput(initialSession), executionMode: envExecMode });
       })
       .finally(() => {
         if (!cancelled) setLoadingSeed(false);
@@ -95,7 +103,7 @@ export const CreateEditSessionModal = ({
     return () => {
       cancelled = true;
     };
-  }, [open, initialSession, templateInput]);
+  }, [open, initialSession, templateInput, environmentMode]);
 
   useEffect(() => {
     if (!open) return;
@@ -165,7 +173,7 @@ export const CreateEditSessionModal = ({
     () => new Map(brokerAccounts.map((broker) => [broker.id, broker])),
     [brokerAccounts],
   );
-  const brokerMode = form.executionMode === "live_allowed" ? "live" : "paper";
+  const brokerMode = environmentMode;
   const visibleBrokers = useMemo(
     () => brokerAccounts.filter((broker) => broker.mode === brokerMode),
     [brokerAccounts, brokerMode],
@@ -572,44 +580,9 @@ export const CreateEditSessionModal = ({
             <section style={sectionStyle}>
               <SectionHeader
                 title="Execution Setup"
-                caption="Choose paper or live, then pick broker accounts for this session."
+                caption="Pick broker accounts for this session."
               />
-              <div style={twoColumnGridStyle}>
-                <div>
-                  <Field label="Mode">
-                    <div style={modeToggleStyle}>
-                      <button
-                        type="button"
-                        style={{
-                          ...modeToggleButtonStyle,
-                          ...(form.executionMode === "paper_only"
-                            ? modeToggleButtonActiveStyle
-                            : {}),
-                        }}
-                        onClick={() =>
-                          setForm({ ...form, executionMode: "paper_only" })
-                        }
-                      >
-                        Paper
-                      </button>
-                      <button
-                        type="button"
-                        style={{
-                          ...modeToggleButtonStyle,
-                          ...(form.executionMode === "live_allowed"
-                            ? modeToggleButtonActiveStyle
-                            : {}),
-                        }}
-                        onClick={() =>
-                          setForm({ ...form, executionMode: "live_allowed" })
-                        }
-                      >
-                        Live
-                      </button>
-                    </div>
-                  </Field>
-                </div>
-                <Field label="Broker accounts">
+              <Field label="Broker accounts">
                   <div style={brokerPickerStyle}>
                     {loadingBrokers ? (
                       <div style={inlineHintStyle}>
@@ -657,8 +630,7 @@ export const CreateEditSessionModal = ({
                                   fontSize: 11,
                                 }}
                               >
-                                {broker.id} · {broker.brokerType} ·{" "}
-                                {broker.mode}
+                                {broker.id} · {broker.brokerType}
                               </span>
                             </span>
                           </label>
@@ -758,7 +730,6 @@ export const CreateEditSessionModal = ({
                     )}
                   </div>
                 </Field>
-              </div>
             </section>
           </div>
 
@@ -1094,30 +1065,6 @@ const allocationRowStyle = {
   background: "rgba(7,10,15,0.34)",
 } as const;
 const inlineHintStyle = { color: "var(--text3)", fontSize: 12 } as const;
-const modeToggleStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: 8,
-  padding: 6,
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.34)",
-} as const;
-const modeToggleButtonStyle = {
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  borderRadius: 8,
-  padding: "8px 10px",
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-} as const;
-const modeToggleButtonActiveStyle = {
-  background: "var(--accent)",
-  color: "white",
-  borderColor: "var(--accent)",
-} as const;
 const selectAllButtonStyle = {
   marginTop: 2,
   border: "1px solid var(--border)",

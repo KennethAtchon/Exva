@@ -13,16 +13,32 @@ import {
   sessionListFiltersSchema,
   sessionUpdateInputSchema,
 } from "@electron/shared/validation/schemas";
+import { sessionMatchesEnvironment } from "@electron/shared/domain/environment-mode";
 import type { AppServices } from "../services/app-services";
+import { resolveExecutionModeFilter } from "../services/workspace/environment-scope";
+import {
+  assertExecutionModeMatchesWorkspace,
+  assertFocusedSessionMatchesWorkspace,
+} from "./environment-guards";
 import { handle } from "./handle";
 
 export function registerSessionHandlers(services: AppServices): void {
-  handle(ipcMain, channels.session.start, async () => services.session.start());
-  handle(ipcMain, channels.session.pause, async () => services.session.pause());
-  handle(ipcMain, channels.session.resume, async () =>
-    services.session.resume(),
-  );
-  handle(ipcMain, channels.session.stop, async () => services.session.stop());
+  handle(ipcMain, channels.session.start, async () => {
+    assertFocusedSessionMatchesWorkspace(services);
+    return services.session.start();
+  });
+  handle(ipcMain, channels.session.pause, async () => {
+    assertFocusedSessionMatchesWorkspace(services);
+    return services.session.pause();
+  });
+  handle(ipcMain, channels.session.resume, async () => {
+    assertFocusedSessionMatchesWorkspace(services);
+    return services.session.resume();
+  });
+  handle(ipcMain, channels.session.stop, async () => {
+    assertFocusedSessionMatchesWorkspace(services);
+    return services.session.stop();
+  });
   handle(ipcMain, channels.session.getStatus, async () =>
     services.session.getStatus(),
   );
@@ -103,22 +119,47 @@ export function registerSessionHandlers(services: AppServices): void {
   });
 
   handle(ipcMain, channels.session.list, async (payload) => {
-    const filters = sessionListFiltersSchema.parse(payload) ?? {};
-    return services.sessionListing.list(filters);
+    const parsed = sessionListFiltersSchema.parse(payload) ?? {};
+    const prefs = services.repos.workspacePreferences.get();
+    const executionMode = resolveExecutionModeFilter(prefs, parsed);
+    return services.sessionListing.list({
+      ...parsed,
+      executionMode,
+    });
   });
 
   handle(ipcMain, channels.session.create, async (payload) => {
     const input = sessionCreateInputSchema.parse(payload);
+    assertExecutionModeMatchesWorkspace(services, input.executionMode);
     return services.sessionWrites.create(input);
   });
 
   handle(ipcMain, channels.session.update, async (payload) => {
     const { id, input } = sessionUpdateInputSchema.parse(payload);
+    assertExecutionModeMatchesWorkspace(services, input.executionMode);
     return services.sessionWrites.update(id, input);
   });
 
   handle(ipcMain, channels.session.focus, async (payload) => {
     const { id } = sessionFocusSchema.parse(payload);
+    const session = services.repos.session.requireById(id);
+    const prefs = services.repos.workspacePreferences.get();
+    if (
+      !sessionMatchesEnvironment(
+        session.executionMode,
+        prefs.globalEnvironmentMode,
+      )
+    ) {
+      throw new AppError(
+        `Session "${session.name}" is not in the current ${prefs.globalEnvironmentMode} workspace environment.`,
+        "VALIDATION_FAILED",
+        {
+          sessionId: id,
+          sessionExecutionMode: session.executionMode,
+          globalEnvironmentMode: prefs.globalEnvironmentMode,
+        },
+      );
+    }
     services.repos.session.setFocus(id);
     return { workspaceViewMode: "session" as const, focusedSessionId: id };
   });

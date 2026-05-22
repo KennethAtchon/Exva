@@ -351,6 +351,8 @@ export const sessionListFiltersSchema = z
     instrumentClass: instrumentClassSchema.optional(),
     search: z.string().optional(),
     includeArchived: z.boolean().optional(),
+    executionMode: executionModeSchema.optional(),
+    includeAllEnvironments: z.boolean().optional(),
   })
   .optional();
 
@@ -380,6 +382,7 @@ export const sessionArchiveSchema = z.object({ id: z.string().min(1) });
 export const workspacePrefsPatchSchema = z
   .object({
     globalIncludeArchived: z.boolean().optional(),
+    globalEnvironmentMode: z.enum(["paper", "live"]).optional(),
     defaultSearchProviderId: z.string().nullable().optional(),
     allocationEnforcementOverride: z
       .enum(["hard", "warn"])

@@ -5,7 +5,7 @@ interface SessionState {
   status: SessionStatus;
   stats: DashboardStats | null;
   setStatus: (s: SessionStatus) => void;
-  setStats: (s: DashboardStats) => void;
+  setStats: (s: DashboardStats | null) => void;
 }
 
 export const useSessionStore = create<SessionState>((set) => ({

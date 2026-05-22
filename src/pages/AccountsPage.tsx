@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
   isBuiltInSearchProviderAccount,
   parseProviderMetadata,
@@ -123,6 +124,31 @@ const ConnBadge = ({ ok }: { ok: boolean }) => (
 );
 
 export const AccountsPage = () => {
+  const environmentMode = useWorkspaceStore((s) => s.environmentMode);
+  const setEnvironmentMode = useWorkspaceStore((s) => s.setEnvironmentMode);
+
+  const handleToggleEnvironment = async (next: "paper" | "live") => {
+    if (next === environmentMode) return;
+    if (next === "paper") {
+      const sessions = await api.listSessions({
+        includeArchived: false,
+        includeAllEnvironments: true,
+      });
+      const activeLive = sessions.sessions.filter(
+        (s) =>
+          s.executionMode === "live_allowed" &&
+          ["active", "paused", "attention_required"].includes(s.status),
+      );
+      if (activeLive.length > 0) {
+        const ok = confirm(
+          `You have ${activeLive.length} active live session(s). Switching to Paper will hide them — they will continue running.\n\nSwitch anyway?`,
+        );
+        if (!ok) return;
+      }
+    }
+    await setEnvironmentMode(next);
+  };
+
   const [testing, setTesting] = useState(false);
   const [status, setStatus] = useState<{
     broker: boolean;
@@ -159,7 +185,7 @@ export const AccountsPage = () => {
     queryFn: () => api.listProviders(),
   });
   const { data: workspaceData, refetch: refetchWorkspace } = useQuery({
-    queryKey: ["accounts-workspace"],
+    queryKey: ["accounts-workspace", environmentMode],
     queryFn: async () => {
       const [b, r, view] = await Promise.all([
         api.listBrokerAccounts(),
@@ -178,7 +204,9 @@ export const AccountsPage = () => {
     providersData?.providers.filter((p) => p.category === "ai") ?? [];
   const searchProviders =
     providersData?.providers.filter((p) => p.category === "search") ?? [];
-  const brokers = workspaceData?.brokers ?? [];
+  const brokers = (workspaceData?.brokers ?? []).filter(
+    (b) => b.mode === environmentMode,
+  );
   const prefs = workspaceData?.prefs ?? null;
   const hasTestedSearchProvider = searchProviders.some(
     (provider) => provider.lastTestStatus !== "unknown",
@@ -198,6 +226,11 @@ export const AccountsPage = () => {
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providersData]);
+
+  useEffect(() => {
+    setRoutingDraft({});
+    setPrefsDraft(null);
+  }, [environmentMode]);
 
   // Sync editable form state from workspace data
   useEffect(() => {
@@ -248,7 +281,9 @@ export const AccountsPage = () => {
       void refetchProviders();
 
       let anyBrokerOk = false;
-      for (const b of brokerResp.brokers) {
+      for (const b of brokerResp.brokers.filter(
+        (broker) => broker.mode === environmentMode,
+      )) {
         const t = await api
           .testSavedBrokerAccount(b.id)
           .catch(() => ({ ok: false as const }));
@@ -325,20 +360,50 @@ export const AccountsPage = () => {
 
   return (
     <PageShell>
-      <div>
-        <h1
-          style={{
-            fontSize: 22,
-            fontWeight: 700,
-            color: "var(--text1)",
-            margin: 0,
-          }}
-        >
-          Accounts
-        </h1>
-        <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>
-          API keys stored in OS keychain — never written to disk or logs
-        </p>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
+        <div>
+          <h1
+            style={{
+              fontSize: 22,
+              fontWeight: 700,
+              color: "var(--text1)",
+              margin: 0,
+            }}
+          >
+            Accounts
+          </h1>
+          <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>
+            API keys stored in OS keychain — never written to disk or logs
+          </p>
+        </div>
+        <div style={envToggleStyle}>
+          <button
+            type="button"
+            style={{
+              ...envToggleButtonStyle,
+              ...(environmentMode === "paper" ? envTogglePaperActiveStyle : {}),
+            }}
+            onClick={() => handleToggleEnvironment("paper")}
+          >
+            Paper
+          </button>
+          <button
+            type="button"
+            style={{
+              ...envToggleButtonStyle,
+              ...(environmentMode === "live" ? envToggleLiveActiveStyle : {}),
+            }}
+            onClick={() => handleToggleEnvironment("live")}
+          >
+            Live
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 16 }}>
@@ -766,7 +831,7 @@ export const AccountsPage = () => {
                         fontFamily: "var(--font-mono)",
                       }}
                     >
-                      {b.brokerType} · {b.mode} ·{" "}
+                      {b.brokerType} ·{" "}
                       {b.supportedInstrumentClasses.join(", ")}
                     </div>
                   </div>
@@ -1471,3 +1536,37 @@ export const AccountsPage = () => {
     </PageShell>
   );
 };
+
+const envToggleStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: 6,
+  padding: 5,
+  borderRadius: 10,
+  border: "1px solid var(--border)",
+  background: "rgba(7,10,15,0.34)",
+  marginTop: 4,
+} as const;
+
+const envToggleButtonStyle = {
+  border: "1px solid var(--border)",
+  background: "transparent",
+  color: "var(--text2)",
+  borderRadius: 7,
+  padding: "7px 16px",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+} as const;
+
+const envTogglePaperActiveStyle = {
+  background: "rgba(251,191,36,0.15)",
+  color: "#fbbf24",
+  borderColor: "rgba(251,191,36,0.4)",
+} as const;
+
+const envToggleLiveActiveStyle = {
+  background: "rgba(52,211,153,0.15)",
+  color: "#34d399",
+  borderColor: "rgba(52,211,153,0.4)",
+} as const;

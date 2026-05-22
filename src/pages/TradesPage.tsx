@@ -17,13 +17,13 @@ export const TradesPage = () => {
   const [instrumentType, setInstrumentType] = useState<"" | InstrumentClass>(
     "",
   );
-  const [executionMode, setExecutionMode] = useState<"" | ExecutionMode>("");
   const [brokerAccountId, setBrokerAccountId] = useState("");
   const [sessionFilterId, setSessionFilterId] = useState("");
 
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
   const preferences = useWorkspaceStore((state) => state.preferences);
+  const environmentMode = useWorkspaceStore((state) => state.environmentMode);
   const setViewMode = useWorkspaceStore((state) => state.setViewMode);
   const loadWorkspaceView = useWorkspaceStore(
     (state) => state.loadWorkspaceView,
@@ -45,7 +45,7 @@ export const TradesPage = () => {
     if (brokerAccountId.trim()) f.brokerAccountId = brokerAccountId.trim();
     if (symbolContains.trim()) f.symbolContains = symbolContains.trim();
     if (instrumentType) f.instrumentType = instrumentType;
-    if (executionMode) f.executionMode = executionMode;
+    f.executionMode = environmentMode === "live" ? "live_allowed" : "paper_only";
     return f;
   }, [
     viewMode,
@@ -53,16 +53,31 @@ export const TradesPage = () => {
     brokerAccountId,
     symbolContains,
     instrumentType,
-    executionMode,
+    environmentMode,
   ]);
 
+  const executionModeFilter =
+    environmentMode === "live" ? "live_allowed" : "paper_only";
+
   const { data: sessionsData } = useQuery({
-    queryKey: ["trades-session-options", preferences?.globalIncludeArchived],
+    queryKey: [
+      "trades-session-options",
+      preferences?.globalIncludeArchived,
+      environmentMode,
+      executionModeFilter,
+    ],
     queryFn: () =>
-      api.listSessions({ includeArchived: preferences?.globalIncludeArchived }),
+      api.listSessions({
+        includeArchived: preferences?.globalIncludeArchived,
+        executionMode: executionModeFilter,
+      }),
   });
   const sessionOptions =
     sessionsData?.sessions.map((s) => ({ id: s.id, name: s.name })) ?? [];
+
+  useEffect(() => {
+    setSessionFilterId("");
+  }, [environmentMode]);
 
   useEffect(() => {
     void api
@@ -168,21 +183,6 @@ export const TradesPage = () => {
               { value: "stock", label: "Stock" },
               { value: "crypto", label: "Crypto" },
               { value: "futures", label: "Futures" },
-            ]}
-          />
-        </label>
-        <label style={filterLabelStyle}>
-          Execution
-          <ShadcnSelect
-            value={executionMode}
-            onValueChange={(value) =>
-              setExecutionMode(value as "" | ExecutionMode)
-            }
-            className="min-w-[120px]"
-            options={[
-              { value: "", label: "Any" },
-              { value: "paper_only", label: "Paper only" },
-              { value: "live_allowed", label: "Live allowed" },
             ]}
           />
         </label>

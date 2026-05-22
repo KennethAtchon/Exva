@@ -1,6 +1,6 @@
 import type { DbClient } from "../../client";
 import type { CostBreakdown, DashboardStats, SessionStatus } from "@/lib/types";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { agentRuns, trades } from "../../schema";
 
 export class StatsRepo {
@@ -12,10 +12,41 @@ export class StatsRepo {
     portfolioValue: number,
     uptimeMin: number,
     apiBudget: number,
+    sessionIds?: string[],
   ): DashboardStats {
     const today = new Date().toISOString().slice(0, 10);
     const todayCondition = sql`substr(${trades.createdAt}, 1, 10) = ${today}`;
     const runTodayCondition = sql`substr(${agentRuns.createdAt}, 1, 10) = ${today}`;
+    const tradeSessionCondition = sessionId
+      ? eq(trades.sessionId, sessionId)
+      : sessionIds?.length
+        ? inArray(trades.sessionId, sessionIds)
+        : undefined;
+    const runSessionCondition = sessionId
+      ? eq(agentRuns.sessionId, sessionId)
+      : sessionIds?.length
+        ? inArray(agentRuns.sessionId, sessionIds)
+        : undefined;
+
+    if (!sessionId && sessionIds?.length === 0) {
+      return {
+        session_status: status,
+        daily_pnl_usd: 0,
+        daily_pnl_pct: 0,
+        total_trades_today: 0,
+        closed_trades_today: 0,
+        win_rate_today: 0,
+        open_trades: 0,
+        daily_api_spend: 0,
+        api_budget: apiBudget,
+        portfolio_value: portfolioValue,
+        portfolio_value_source: "broker",
+        portfolio_broker_count: 0,
+        unrealized_pnl: 0,
+        session_uptime_min: uptimeMin,
+      };
+    }
+
     const tradeRows = this.client.db
       .select({
         status: trades.status,
@@ -23,8 +54,8 @@ export class StatsRepo {
       })
       .from(trades)
       .where(
-        sessionId
-          ? and(eq(trades.sessionId, sessionId), todayCondition)
+        tradeSessionCondition
+          ? and(tradeSessionCondition, todayCondition)
           : todayCondition,
       )
       .all();
@@ -32,8 +63,8 @@ export class StatsRepo {
       .select({ spend: sql<number>`sum(${agentRuns.costUsd})` })
       .from(agentRuns)
       .where(
-        sessionId
-          ? and(eq(agentRuns.sessionId, sessionId), runTodayCondition)
+        runSessionCondition
+          ? and(runSessionCondition, runTodayCondition)
           : runTodayCondition,
       )
       .get();
@@ -41,8 +72,8 @@ export class StatsRepo {
       .select({ count: sql<number>`count(*)` })
       .from(trades)
       .where(
-        sessionId
-          ? and(eq(trades.sessionId, sessionId), eq(trades.status, "open"))
+        tradeSessionCondition
+          ? and(tradeSessionCondition, eq(trades.status, "open"))
           : eq(trades.status, "open"),
       )
       .get();
@@ -77,29 +108,48 @@ export class StatsRepo {
 
   costBreakdown(input?: {
     sessionId?: string | null;
+    sessionIds?: string[];
     dateRange?: "today" | "all";
   }): CostBreakdown {
     const sessionId = input?.sessionId ?? null;
+    const sessionIds = input?.sessionIds;
     const dateRange = input?.dateRange ?? "today";
+    const emptyScope = !sessionId && sessionIds?.length === 0;
     const today = new Date().toISOString().slice(0, 10);
     const sevenDayStart = new Date();
     sevenDayStart.setUTCDate(sevenDayStart.getUTCDate() - 6);
     const historyStart = sevenDayStart.toISOString().slice(0, 10);
 
+    const runSessionScope = sessionId
+      ? eq(agentRuns.sessionId, sessionId)
+      : sessionIds?.length
+        ? inArray(agentRuns.sessionId, sessionIds)
+        : undefined;
+
+    if (emptyScope) {
+      return {
+        total: 0,
+        by_agent: [],
+        by_trade: [],
+        cache_savings_usd: 0,
+        daily_history: [],
+      };
+    }
+
     const scopedRunCondition =
-      sessionId && dateRange === "today"
+      runSessionScope && dateRange === "today"
         ? and(
-            eq(agentRuns.sessionId, sessionId),
+            runSessionScope,
             sql`substr(${agentRuns.createdAt}, 1, 10) = ${today}`,
           )
-        : sessionId
-          ? eq(agentRuns.sessionId, sessionId)
+        : runSessionScope
+          ? runSessionScope
           : dateRange === "today"
             ? sql`substr(${agentRuns.createdAt}, 1, 10) = ${today}`
             : undefined;
-    const historyCondition = sessionId
+    const historyCondition = runSessionScope
       ? and(
-          eq(agentRuns.sessionId, sessionId),
+          runSessionScope,
           sql`substr(${agentRuns.createdAt}, 1, 10) >= ${historyStart}`,
         )
       : sql`substr(${agentRuns.createdAt}, 1, 10) >= ${historyStart}`;

@@ -1,14 +1,14 @@
 # Exva AI Runtime — Architecture Design Document
 
-> **Last updated:** 2026-05-19
-> **Scope:** Everything from session start through trade close — the AI pipeline, orchestration loop, broker execution, risk guards, and observability. Excludes: UI/renderer layer, broker adapter internals, auth/credential storage.
+> **Last updated:** 2026-05-21
+> **Scope:** Main-process runtime from session start through trade close: session lifecycle, AI plan execution, selector/trade cycles, broker order placement, risk/order gates, approval handling, monitoring, persistence, events, and observability. Excludes renderer page design, broker adapter internals, and credential onboarding UX.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
 
 ---
 
 ## 1. Executive Summary
 
-Exva is an Electron desktop application that runs AI-powered trading sessions. Each session starts a `SessionRuntime` — a container that wraps an `AgentOrchestrator` (the decision loop) and a `TradeMonitor` (the open-position watcher). The orchestrator drives a five-stage AI pipeline: Selector → Technical → Fundamental → Review → Decision. Each stage is executed by the `PipelineRuntime`, which schedules AI workers concurrently, enforces per-phase USD spend caps, and records every message and tool call to SQLite. When the decision stage produces a trade signal, a risk gate validates it, an optional human-approval gate pauses the flow, and a broker adapter submits the order. The `TradeMonitor` then polls the open position until an exit policy triggers, after which the orchestrator restarts from the top. All inter-component communication flows through a typed `EventBus` that fans events both to in-process listeners and to the renderer via Electron IPC.
+Exva is a local-first Electron trading desktop app. The AI runtime lives entirely in the Electron main process and is owned per session by `SessionRuntimeManager`, which creates one `SessionRuntime` containing an `AgentOrchestrator` and a `TradeMonitor`. The current AI pipeline is plan-driven: `AiRuntime` delegates to `PipelineRuntime`, which runs a selector phase plan or the `default-trade-cycle` cycle plan using declarative stages, AI workers, engine stages, spend caps, and execution-step persistence. A trade cycle now includes candidate validation, technical analysis, fundamental analysis, review, decision, risk gate, broker allocation gate, broker order placement, and monitoring-step recording. Runtime state, traces, trades, approvals, capital reservations, events, and execution progress are persisted to SQLite; secrets stay in OS Keychain.
 
 ---
 
@@ -16,70 +16,64 @@ Exva is an Electron desktop application that runs AI-powered trading sessions. E
 
 ```mermaid
 graph TB
-    User["User (macOS)"]
-    subgraph Exva["Exva — Electron App"]
-        Renderer["Renderer Process\n(React / TanStack Query)"]
-        Preload["Preload Bridge\n(Typed IPC)"]
-        Main["Main Process\n(Node.js)"]
-        DB[("SQLite\n(better-sqlite3)")]
+    User["User"]
+    subgraph Exva["Exva Electron App"]
+        Renderer["Renderer Process\nReact / TanStack Query / Zustand"]
+        Preload["Preload Bridge\ncontextBridge window.exva"]
+        Main["Main Process\nServices + Runtime"]
+        DB[("SQLite + Drizzle\nbetter-sqlite3 WAL")]
     end
-    Keychain[("OS Keychain")]
-    Broker["Broker APIs\n(Alpaca, Coinbase,\nTradovate, Polymarket)"]
-    AIProvider["AI Providers\n(Anthropic, OpenAI,\nOpenRouter)"]
-    Search["Search Providers\n(Brave, Tavily,\nDuckDuckGo, MCP)"]
+    Keychain[("OS Keychain\nkeytar service=exva")]
+    AI["AI Providers\nAnthropic / OpenAI / OpenRouter"]
+    Search["Search Providers\nDuckDuckGo / Brave / Tavily / MCP"]
+    Brokers["Broker APIs\nAlpaca / Coinbase / Tradovate / Polymarket / Mock"]
 
     User --> Renderer
     Renderer <--> Preload
     Preload <--> Main
     Main --> DB
     Main --> Keychain
-    Main --> Broker
-    Main --> AIProvider
+    Main --> AI
     Main --> Search
+    Main --> Brokers
 ```
 
 **Actors:**
 
-- **User** — operates the app through the renderer (start/pause/stop sessions, approve trades, view logs).
-- **Renderer** — React SPA running in a sandboxed Chromium process. Talks to main only via the typed preload bridge.
-- **Preload Bridge** — exposes a whitelist of typed `window.exva.*` methods. No direct Node access from renderer.
-- **Main Process** — all privileged work: DB writes, secrets reads, AI calls, broker calls. Source of truth.
-- **SQLite** — single file in `app.getPath("userData")`. All persistent state.
-- **OS Keychain** — stores broker API keys and AI provider keys via `SecretsService`.
-- **Broker APIs** — external trading venues. Called only from main.
-- **AI Providers** — LLM inference endpoints. Called only from main.
-- **Search Providers** — web search tools injected into AI worker contexts.
+- **Renderer** — sandboxed React UI. It invokes allowlisted IPC methods through `window.exva` and subscribes to allowlisted runtime events. It does not access Node directly.
+- **Preload Bridge** — `electron/preload/index.ts`. Exposes typed `window.exva` methods, validates many payloads with Zod before `ipcRenderer.invoke`, and restricts subscriptions to `mainToRendererEvents`.
+- **Main Process** — source of truth for DB, secrets, broker calls, search calls, AI execution, runtime lifecycle, risk checks, and event fan-out.
+- **SQLite** — local app database under `app.getPath("userData")`, or `EXVA_DB_PATH` when configured. `createDbClient()` enables WAL and runs migrations at boot.
+- **OS Keychain** — `SecretsService` wraps `keytar` and stores provider/broker/search secrets by `secretRef`.
+- **External providers** — accessed only from main-process adapters and registries.
 
 ---
 
 ## 3. Core Concepts & Glossary
 
-| Term                          | Definition                                                                                                                           |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| **Session**                   | A named configuration + lifecycle unit. One session = one trading strategy running until stopped. Maps to the `sessions` table.      |
-| **SessionRuntime**            | In-memory wrapper around one `AgentOrchestrator` + one `TradeMonitor`. Created by `SessionRuntimeManager` when a session starts.     |
-| **AgentOrchestrator**         | The main trading loop. Runs selector cycles and trade cycles. `electron/main/services/orchestration/agent-orchestrator.ts`.          |
-| **Selector Cycle**            | One pass of the instrument-discovery pipeline. Produces a ranked list of trade candidates.                                           |
-| **Trade Cycle**               | One pass of the full AI pipeline for a specific instrument: technical → fundamental → review → decision → order.                     |
-| **PipelineRuntime**           | Executes a `PipelineDefinition` — a named set of AI workers with concurrency rules and spend caps.                                   |
-| **PipelineDefinition**        | Static object (`SELECTOR_PHASE`, `TECHNICAL_PHASE`, etc.) declaring which workers run and in what order.                             |
-| **Worker**                    | Atomic AI unit. Has a `promptAssetPath`, `tools`, `engines`, `outputMode`, and optional `outputSchema`. Executed by `executeWorker`. |
-| **Engine**                    | Named data injector. Resolves strategy context (risk config, trade rules, market snapshot) into prompt variables before LLM call.    |
-| **Phase**                     | One of: `selector`, `technical`, `fundamental`, `review`, `decision`. Each maps to a `PipelineDefinition`.                           |
-| **Agent Run**                 | One DB record per pipeline invocation. Contains all worker messages and tool calls. Table: `agent_runs` + `agent_messages`.          |
-| **Execution Step**            | One DB record per orchestration stage (e.g., `technical`, `decision`, `broker_order`). Table: `session_execution_steps`.             |
-| **TradeMonitor**              | Background poller. Checks open positions on a timer. Calls `ExitPolicyEvaluator` per position.                                       |
-| **RiskEngine**                | Pre-trade guard. Validates confidence, concurrent cap, position size, daily loss limit. Returns `{allowed, reason, value}`.          |
-| **BrokerAllocationGate**      | Checks per-broker capital exposure before an order is placed.                                                                        |
-| **OrderPolicyGate**           | Applies session-level order policy rules (e.g., no orders outside market hours).                                                     |
-| **CapitalReservationService** | Locks a USD amount in `capital_reservations` during the order/approval window to prevent double-spend.                               |
-| **PipelineSpendTracker**      | Accumulates USD cost per phase and enforces per-phase and per-session caps.                                                          |
-| **ProviderAdapter**           | Interface implemented by Anthropic, OpenAI, OpenRouter adapters. Exposes `runAgent`, `generateText`, `generateObject`.               |
-| **BrokerAdapter**             | Interface implemented by Alpaca, Coinbase, Tradovate, Polymarket, Mock adapters.                                                     |
-| **EventBus**                  | Typed pub/sub. Emits to in-process listeners + all renderer windows via `webContents.send`.                                          |
-| **Discovery Mode**            | `trend_scan` or `event_contract_scan`. Controls which selector workers run.                                                          |
-| **Instrument Cache**          | `session_instrument_cache` table. Keyed by `(sessionId, definition hash)`. Avoids re-running selector when strategy is unchanged.    |
-| **Human Approval**            | Optional gate. Orchestrator pauses trade cycle, emits event to renderer, awaits Promise resolution from `approvalCallbacks` map.     |
+| Term                      | Current meaning                                                                                                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Session**               | Persisted strategy/runtime unit in `sessions`. Status is `draft`, `idle`, `active`, `attention_required`, `paused`, `stopped`, or `archived`.                                                                                  |
+| **SessionRuntimeManager** | Owns live `sessionId -> SessionRuntime` instances, starts/pauses/resumes/stops runtimes, rehydrates `active`/`paused` sessions at boot, and routes approval rechecks and execution controls.                                   |
+| **SessionRuntime**        | In-memory lifecycle wrapper around one orchestrator and one monitor. Lifecycle commands are serialized with `PQueue({ concurrency: 1 })`.                                                                                      |
+| **AgentOrchestrator**     | Per-session trading loop in `electron/main/services/orchestration/cycle/agent-orchestrator.ts`. Enqueues selector and trade-cycle tasks, owns approval callbacks, step runners, and no-instrument retry timers.                |
+| **TradeMonitor**          | Per-session polling monitor in `orchestration/lifecycle/trade-monitor.ts`. Watches open trades, enforces exit rules, closes broker orders, releases capital, emits stats and trade-close events.                               |
+| **AiRuntime**             | Facade over `PipelineRuntime`. Exposes `runPlan`, `runCycle`, `runPhasePlan`, and effective pipeline config resolution.                                                                                                        |
+| **PipelineRuntime**       | Executes selector phase plans and trade cycle plans. Builds tool context, resolves session/worker config, applies spend caps, dispatches workers, and runs declarative engines.                                                |
+| **PhasePlan**             | Declarative AI phase plan. The selector is currently a phase plan with discovery and verification stages plus a cache policy.                                                                                                  |
+| **CyclePlan**             | Declarative multi-stage trade plan. `default-trade-cycle` runs candidate validation, technical, fundamental, review, decision, and risk/allocation engines.                                                                    |
+| **Worker**                | Atomic AI call definition with prompt asset, tools, engines, output mode/schema, terminal tool, and optional tool requirements. Executed by `executeWorker`.                                                                   |
+| **Engine**                | Deterministic stage binding registered in the engine registry, such as `candidate-validator`, `risk-gate`, `broker-allocation`, `order-policy`, and `exit-policy`.                                                             |
+| **Execution Step**        | Persisted stage progress row in `session_execution_steps`. Current stages: `selector`, `candidate_validation`, `technical`, `fundamental`, `review`, `decision`, `risk_gate`, `broker_order`, `monitoring`.                    |
+| **Agent Run / Message**   | AI trace persisted in `agent_runs` and `agent_messages`. Trade AI phases are inserted after the pending trade is created; selector stores an aggregate run/message.                                                            |
+| **Instrument Cache**      | `session_instrument_cache`, one row per session. Selector cache policy stores non-empty selector output with a definition fingerprint, selected cycle, aggregate run id, research briefs, and expiry.                          |
+| **Human Approval**        | Optional session risk setting. Creates a pending trade and `trade_approvals` row, reserves capital by approval id, emits `approval_required`, and waits on an in-memory callback if the app is still in the same runtime path. |
+| **Approval Recheck**      | If an approved pending approval has no live callback but the session runtime exists, the runtime re-runs the AI pipeline through decision, reruns gates, updates the pending trade, and only then places the order.            |
+| **Capital Reservation**   | Persisted lock in `capital_reservations`. Reservations move from approval/order to open position and release on rejection, failure, cancel, or close.                                                                          |
+| **RiskEngine**            | Deterministic pre-order guard. Checks API spend, daily P&L, concurrent trade count, max position, prediction-market max exposure, and confidence threshold.                                                                    |
+| **BrokerAllocationGate**  | Checks session broker allocation and same-broker/same-symbol conflicts across sessions. Enforcement is `hard` or `warn`.                                                                                                       |
+| **OrderPolicyGate**       | Last pre-placement policy gate. Checks runtime pause state, side bias, quote freshness, price collar, spread, capital, broker support/market hours, idempotency, and exit contract.                                            |
+| **EventBus**              | In-process + renderer fan-out for allowlisted events. Stores runtime status in memory and sends event payloads to attached BrowserWindows.                                                                                     |
 
 ---
 
@@ -87,80 +81,54 @@ graph TB
 
 ```mermaid
 graph LR
-    subgraph Renderer["Renderer Process"]
-        Pages["Pages / Screens"]
-        Store["TanStack Query Cache"]
+    subgraph Renderer["Renderer"]
+        UI["Pages / Components"]
+        Stores["TanStack Query + Zustand"]
     end
-    subgraph Preload["Preload Bridge"]
-        Bridge["window.exva.*\n(Typed IPC)"]
+    subgraph Preload["Preload"]
+        API["window.exva"]
     end
     subgraph Main["Main Process"]
-        IPC["IPC Handlers\n(registerIpcHandlers)"]
-        SM["SessionRuntimeManager"]
-        SR["SessionRuntime(s)"]
+        IPC["IPC handlers"]
+        Services["AppServices composition root"]
+        SRM["SessionRuntimeManager"]
+        Runtime["SessionRuntime"]
         AO["AgentOrchestrator"]
         TM["TradeMonitor"]
-        PR["PipelineRuntime"]
+        AIR["AiRuntime / PipelineRuntime"]
+        Gates["Risk / Allocation / Policy Gates"]
+        Broker["BrokerRegistry + BrokerRoutingService"]
         EB["EventBus"]
-        RK["RiskEngine"]
-        BA["BrokerService\n/ Registry"]
-        SS["SecretsService"]
     end
-    subgraph Storage["Persistence"]
-        DB[("SQLite")]
-        KC[("OS Keychain")]
-    end
-    subgraph External["External"]
-        AIprov["AI Providers"]
-        Brokers["Broker APIs"]
-        SearchProv["Search APIs"]
+    subgraph Persistence["Persistence"]
+        SQLite[("SQLite")]
+        Keychain[("Keychain")]
     end
 
-    Pages --> Store --> Bridge --> IPC
-    IPC --> SM
-    SM --> SR
-    SR --> AO
-    SR --> TM
-    AO --> PR
-    PR --> AIprov
-    PR --> SearchProv
-    AO --> RK
-    AO --> BA
-    BA --> Brokers
-    IPC --> EB
-    AO --> EB
-    TM --> EB
-    EB --> Bridge
-    IPC --> DB
-    AO --> DB
-    PR --> DB
-    TM --> DB
-    BA --> SS --> KC
+    UI --> Stores --> API --> IPC --> Services
+    Services --> SRM --> Runtime
+    Runtime --> AO --> AIR
+    Runtime --> TM
+    AO --> Gates
+    AO --> Broker
+    TM --> Broker
+    Services --> SQLite
+    AIR --> SQLite
+    AO --> SQLite
+    TM --> SQLite
+    Broker --> Keychain
+    Services --> EB --> API
 ```
 
-### Layer descriptions
+**Main components:**
 
-**Renderer** — React SPA. Reads data via TanStack Query (polling IPC calls). Receives live updates via `EventBus` → IPC push. Owns zero business logic.
-
-**Preload Bridge** — Thin TypeScript shim. Exposes a typed `window.exva` object via `contextBridge.exposeInMainWorld`. Prevents renderer from accessing Node APIs directly.
-
-**IPC Handlers** — Registered in `electron/main/ipc/`. Each handler validates input, delegates to a service, returns a typed response. Also receives `EventBus` events and forwards them to renderer windows.
-
-**SessionRuntimeManager** — Owns the map of `sessionId → SessionRuntime`. Serializes lifecycle transitions (start/pause/resume/stop) per session. Calls `rehydrateFromDb()` at boot to demote any `active` sessions to `paused`.
-
-**SessionRuntime** — Wraps orchestrator + trade monitor. Uses a `PQueue({concurrency:1})` to serialize lifecycle commands. Pause keeps monitor running; stop shuts both down.
-
-**AgentOrchestrator** — The decision loop. Executes selector cycles and trade cycles. Manages the `approvalCallbacks` promise map for human approval. Uses `ExecutionStepRunner` for retry/persistence of each stage.
-
-**PipelineRuntime** — Executes pipeline definitions. Builds a `WorkerFrontier` (dependency-aware scheduler), calls `executeWorker` per worker, tracks spend via `PipelineSpendTracker`.
-
-**RiskEngine / Gates** — Stateless validators called in the trade cycle before order submission.
-
-**BrokerService / Registry** — Looks up the correct `BrokerAdapter` for a session. Delegates order placement, position queries, and market snapshots.
-
-**EventBus** — Central event fan-out. `emit(name, payload)` writes to all registered in-process handlers AND all open BrowserWindows.
-
-**Persistence** — SQLite holds all state. Keychain holds secrets. Split exists because secrets need OS-level encryption; structured relational data doesn't.
+- **`createAppServices`** (`electron/main/services/app-services.ts`) is the composition root. It creates repositories, registries, `AiRuntime`, default engines/plans, `EventBus`, `SessionRuntimeManager`, session services, replay/autopsy/scorecard services, and starts the broker balance ticker.
+- **IPC handlers** (`electron/main/ipc/*.ts`) are grouped by resource: dashboard, trades, approvals, sessions, strategy, workspace, templates, accounts, events, replay, and developer tools.
+- **`SessionRuntimeManager`** builds per-session orchestrator dependencies and runtime instances. Boot rehydration starts previously `active` and `paused` sessions in paused runtime mode, so monitors are live but new intake stays off until resume.
+- **`AgentOrchestrator`** owns the queue for selector/trade work. Its queue concurrency is set from `max_concurrent_trades`, but session runtime state gates actual work through `EventBus.runtimeStatus(sessionId)`.
+- **`AiRuntime` / `PipelineRuntime`** own the current AI plan execution model. Static phase definitions still exist as metadata, but real execution is through registered phase/cycle plans and interpreters.
+- **`TradeMonitor`** owns position lifecycle after order open. It polls per holding style and emits `trade_closed` when a position closes or is detected closed externally.
+- **`EventBus`** attaches BrowserWindows in `createMainWindow()` and emits both to renderer windows and in-process listeners.
 
 ---
 
@@ -168,39 +136,44 @@ graph LR
 
 ```mermaid
 erDiagram
-    sessions ||--o{ session_execution_steps : "records steps"
-    sessions ||--o{ trades : "owns"
-    sessions ||--o{ agent_runs : "produces"
-    sessions ||--o{ events : "emits"
-    sessions ||--|| session_risk_config : "has"
-    sessions ||--|| session_timeframe_config : "has"
-    sessions ||--|| session_research_posture : "has"
-    sessions ||--o{ session_trade_rules : "has"
-    sessions ||--o{ session_strategies : "has"
-    sessions ||--o{ session_ai_phases : "configures"
-    sessions ||--o{ session_broker_assignments : "routes"
-    sessions ||--o{ session_instrument_cache : "caches"
-    sessions ||--o{ capital_reservations : "holds"
-    session_ai_phases ||--o{ session_ai_phase_workers : "defines workers"
-    agent_runs ||--o{ agent_messages : "contains"
-    trades ||--o{ trade_autopsies : "analyzed by"
-    trades ||--o{ trade_approvals : "gated by"
-    trades ||--o{ capital_reservations : "reserved for"
+    sessions ||--o{ session_execution_steps : records
+    sessions ||--o{ trades : owns
+    sessions ||--o{ agent_runs : produces
+    sessions ||--o{ agent_messages : contains
+    sessions ||--o{ events : emits
+    sessions ||--|| session_selector_settings : configures
+    sessions ||--|| session_risk_config : configures
+    sessions ||--|| session_timeframe_config : configures
+    sessions ||--|| session_research_posture : configures
+    sessions ||--|| session_trade_rules : configures
+    sessions ||--o{ session_ai_phases : configures
+    sessions ||--o{ session_ai_phase_workers : overrides
+    sessions ||--o{ session_broker_assignments : allocates
+    sessions ||--o{ session_broker_routing_overrides : routes
+    sessions ||--|| session_instrument_cache : caches
+    trades ||--o{ trade_approvals : gated_by
+    trades ||--o{ trade_autopsies : analyzed_by
+    trades ||--o{ capital_reservations : reserves
+    provider_accounts ||--o{ sessions : default_search
+    broker_accounts ||--o{ session_broker_assignments : assigned
 ```
 
-**Key entities:**
+**Key entities and fields:**
 
-- **sessions** — Core lifecycle record. Fields: `id`, `status` (`idle|active|paused|stopped|attention_required`), `name`, `mode` (`paper|live`), `created_at`, `broker_connection_status`.
-- **session_execution_steps** — One row per orchestration stage per cycle. Fields: `id`, `session_id`, `cycle_id`, `trade_id`, `stage`, `status` (`pending|running|succeeded|failed`), `attempt`, `error`, `duration_ms`, `started_at`, `completed_at`.
-- **trades** — Open and closed positions. Fields: `id`, `session_id`, `cycle_id`, `instrument`, `direction`, `size_usd`, `entry_price`, `exit_price`, `status` (`open|closed|cancelled`), `pnl`, `broker_order_id`, `opened_at`, `closed_at`.
-- **agent_runs** — One row per pipeline phase invocation. Fields: `id`, `session_id`, `cycle_id`, `phase`, `model`, `total_tokens`, `cost_usd`, `duration_ms`, `created_at`.
-- **agent_messages** — Individual LLM messages within an agent run. Fields: `id`, `run_id`, `role`, `content`, `tool_calls`, `tool_results`, `worker`, `created_at`.
-- **trade_approvals** — Human approval requests. Fields: `id`, `trade_id`, `session_id`, `signal` (JSON), `status` (`pending|approved|rejected`), `created_at`, `resolved_at`.
-- **capital_reservations** — Locked capital during order window. Fields: `id`, `session_id`, `trade_id`, `amount_usd`, `created_at`, `released_at`.
-- **session_instrument_cache** — Cached selector results. Fields: `id`, `session_id`, `definition_hash`, `instruments` (JSON), `expires_at`.
-- **api_call_log** — Raw AI provider call log for cost tracking. Fields: `id`, `session_id`, `provider`, `model`, `input_tokens`, `output_tokens`, `cost_usd`, `latency_ms`, `created_at`.
-- **events** — Audit log of runtime events. Fields: `id`, `session_id`, `name`, `payload` (JSON), `created_at`.
-- **developer_settings** / **runtime_log_overrides** — Dev-mode config overrides stored in DB.
+- **`sessions`** — `id`, `name`, `objective`, `status`, `is_focused`, `selection_mode`, `instrument_classes`, `instrument_scope`, `default_search_provider_id`, `execution_mode`, `live_readiness_acknowledged_at`, timestamps.
+- **`session_execution_steps`** — one unique row per `(session_id, cycle_id, stage)`. Tracks `status`, `attempt`, `next_retry_at`, `last_error_code`, `last_error_message`, and `retryable`.
+- **`session_selector_settings`** — `ai_picker_enabled` and `no_instrument_retry_minutes`.
+- **`session_research_posture` / `session_trade_rules` / `session_risk_config` / `session_timeframe_config`** — split strategy context consumed by prompt-pack builders, engines, risk gates, monitor, and UI.
+- **`session_ai_phases` / `session_ai_phase_workers`** — per-phase provider/model/prompt config and per-worker overrides such as provider/model, max steps, spend limit, and prompt markdown.
+- **`provider_accounts`** — both AI and search providers. `category` differentiates `ai` and `search`; secrets are referenced by `secret_ref`, not stored inline.
+- **`broker_accounts`** — broker type, supported instrument classes, mode, allocation enforcement, balance cache, `secret_ref`.
+- **`trades`** — instrument symbol/display/type, prediction outcome/metadata, side, position size, entry/exit fields, broker account/order/client IDs, high-water mark, close snapshot, AI cost, confidence, and status.
+- **`agent_runs`** — `agent_type`, `provider_key`, `model`, token counts, cost, output text, finish reason, duration.
+- **`agent_messages`** — trace payloads: `messages_json`, `thinking_json`, `tool_calls_json`, `output_json`, schema name, `parse_fallback`, `strategy_snapshot_json`, optional `market_snapshot_json`, and optional `cycle_id`.
+- **`api_call_log`** — external AI/search call accounting: provider, endpoint, call type, credits/cost, latency, status, cache flag, optional session/trade/cycle.
+- **`events`** — persisted runtime log rows with `session_id`, `trade_id`, `cycle_id`, `level`, `agent_type`, `message`, `created_at`.
+- **`trade_approvals`** — pending/resolved approval state including broker account, instrument fields, proposed side/size, decision summary, status, timestamps, note.
+- **`capital_reservations`** — reservation amount, reason, status, optional approval/trade link, created/released timestamps.
 
 ---
 
@@ -208,395 +181,296 @@ erDiagram
 
 ### 6.1 App Boot
 
-**Trigger:** User launches Exva.
-**Outcome:** All services initialized, DB migrated, stale sessions demoted, IPC handlers registered, window shown.
+**Trigger:** Electron `app.whenReady()`.
+**Outcome:** Services, DB, plans, engines, runtime rehydration, IPC, and window are ready.
 
 ```mermaid
 sequenceDiagram
-    participant Electron as Electron (app.whenReady)
+    participant Main as electron/main/index.ts
     participant AS as createAppServices
-    participant SM as SessionRuntimeManager
+    participant DB as createDbClient
+    participant SRM as SessionRuntimeManager
     participant IPC as registerIpcHandlers
     participant Win as createMainWindow
 
-    Electron->>AS: createAppServices(app)
-    AS->>AS: createDbClient → migrate schema
-    AS->>AS: new SecretsService, BrokerRegistry, ProviderRegistry
-    AS->>AS: new AiRuntime, EventBus, RiskEngine, ...
+    Main->>AS: createAppServices(app)
+    AS->>DB: open exva.db, WAL, run migrations
+    AS->>AS: create repos, registries, services
+    AS->>AS: register engines + phase/cycle plans
+    AS->>AS: assert pipeline catalog validity
     AS->>AS: balanceTicker.start()
-    AS-->>Electron: AppServices
-    Electron->>Electron: seedBrokerAllocations(services)
-    Electron->>SM: rehydrateFromDb()
-    SM->>SM: demote active → paused in DB
-    Electron->>IPC: registerIpcHandlers(win, services)
-    Electron->>Win: createMainWindow()
-    Win-->>Electron: BrowserWindow shown
+    AS-->>Main: AppServices
+    Main->>Main: seedBrokerAllocations(services)
+    Main->>SRM: rehydrateFromDb()
+    SRM->>SRM: active -> paused, start monitor-only intake-paused runtimes
+    Main->>IPC: registerIpcHandlers(services)
+    Main->>Win: createMainWindow(services)
+    Win->>Win: attach EventBus, load renderer
 ```
 
-**Notes:**
+**Important behavior:** previously `active` sessions do not auto-resume new entries. They are demoted to `paused` and started with the monitor alive so existing positions remain watched.
 
-- `createAppServices` is the composition root. All dependencies are wired here. No service creates its own dependencies.
-- `rehydrateFromDb` ensures crashed sessions are not left in `active` state on next launch.
-- `balanceTicker.start()` begins polling broker balances on a background interval immediately.
+### 6.2 Session Start / Resume
 
----
-
-### 6.2 Session Start
-
-**Trigger:** User clicks "Start Session" in the renderer.
-**Outcome:** `SessionRuntime` created and running, orchestrator executing first selector cycle.
+**Trigger:** Renderer calls `window.exva.session.start()` or `resume()`.
+**Outcome:** Session is active and the orchestrator enqueues a selector cycle.
 
 ```mermaid
 sequenceDiagram
     actor User
     participant UI as Renderer
-    participant IPC as IPC Handler
+    participant IPC as session IPC
     participant SS as SessionService
-    participant SM as SessionRuntimeManager
-    participant SR as SessionRuntime
+    participant LR as LiveReadinessService
+    participant PF as Preflight
+    participant SRM as SessionRuntimeManager
+    participant RT as SessionRuntime
     participant AO as AgentOrchestrator
     participant TM as TradeMonitor
 
-    User->>UI: Click Start
-    UI->>IPC: session:start(sessionId)
-    IPC->>SS: startSession(sessionId)
-    SS->>SS: preflight checks (broker connected, config valid)
-    SS->>SM: startSession(sessionId)
-    SM->>SM: load strategy context
-    SM->>SR: new SessionRuntime(orchestratorDeps)
-    SM->>SR: start()
-    SR->>AO: start()
-    SR->>TM: start()
-    AO->>AO: executeSelectorCycle()
-    TM->>TM: begin polling interval
-    AO-->>SR: running
-    SR-->>SM: running
-    SM-->>SS: ok
-    SS-->>IPC: {status: active}
-    IPC-->>UI: session updated event
-    UI-->>User: Session shows Active
+    User->>UI: Start or Resume
+    UI->>IPC: session:start / session:resume
+    IPC->>SS: start(sessionId)
+    alt live_allowed
+        SS->>LR: check(sessionId)
+    end
+    SS->>PF: runPreflight(session, deps)
+    SS->>SRM: startSession or resumeSession
+    SRM->>RT: create if missing
+    RT->>TM: start()
+    RT->>AO: start() or resume()
+    AO->>AO: enqueue selector cycle
 ```
 
-**Failure paths:**
+**Failure paths:** live-readiness or preflight failures throw `AppError`, insert an `events` row, and leave the runtime unstarted. Resume from `attention_required` forces a fresh selector cycle because a previously failed selector is not auto-rescheduled.
 
-- Preflight fails (broker not connected) → `startSession` throws, session stays `idle`, error surfaced to renderer.
-- Strategy context load fails → session demoted to `attention_required`, event emitted.
+### 6.3 Selector Phase Plan
 
----
-
-### 6.3 Selector Cycle
-
-**Trigger:** `AgentOrchestrator.start()` or restart after trade closes.
-**Outcome:** Ranked list of trade candidates stored in `session_instrument_cache`. Trade cycles enqueued.
+**Trigger:** Orchestrator starts or restarts research.
+**Outcome:** A list of resolved instruments is returned from cache, manual shortlist, or AI selector; trade cycles are enqueued or a no-instrument retry timer is scheduled.
 
 ```mermaid
 sequenceDiagram
     participant AO as AgentOrchestrator
     participant ESR as ExecutionStepRunner
-    participant SC as StrategyContextService
-    participant IC as InstrumentCacheRepo
+    participant AI as AiRuntime.runPlan("selector")
     participant PR as PipelineRuntime
-    participant SP as SELECTOR_PHASE
+    participant Plan as SELECTOR_PLAN
+    participant Cache as session_instrument_cache
     participant EB as EventBus
 
-    AO->>AO: executeSelectorCycle()
-    AO->>SC: get(sessionId) → strategyContext
-    AO->>IC: getByDefinitionHash(hash)
-    alt Cache hit and valid
-        IC-->>AO: cached instruments
-    else Cache miss or expired
-        AO->>ESR: run("selector", fn)
-        ESR->>DB: insert execution_step (running)
-        ESR->>PR: run(SELECTOR_PHASE, sessionId, input)
-        PR->>SP: run(ctx, runner)
-        SP->>SP: Stage 1 — discovery workers (concurrent)
-        SP->>SP: web-scout + reddit-scout + trend-scout
-        SP->>SP: merge + score → top 5
-        SP->>SP: Stage 2 — verification workers (concurrent)
-        SP->>SP: market-validator + catalyst-extractor + liquidity-gate
-        SP->>SP: re-score → risk filter → build output
-        SP-->>PR: SelectorOutput
-        PR-->>ESR: AgentResult<SelectorOutput>
-        ESR->>DB: update execution_step (succeeded)
-        AO->>IC: upsert(sessionId, hash, instruments)
+    AO->>ESR: run stage selector
+    ESR->>AI: runPlan("selector", sessionId, cycleId)
+    AI->>PR: runPhasePlan(selector)
+    PR->>Plan: PhasePlanInterpreter.run
+    Plan->>Cache: read selector-instrument-cache fingerprint
+    alt cache hit
+        Cache-->>Plan: cached output
+    else manual_shortlist mode
+        Plan-->>PR: buildManualShortlistSelection
+    else ai_selected_universe
+        Plan->>Plan: build selector input from scope, broker coverage, prediction candidates
+        Plan->>Plan: discovery stage, concurrency 3, partial failure tolerated
+        Plan->>Plan: verification stage, concurrency 4, partial failure tolerated
+        Plan->>Plan: merge, score, risk filter, build output
+        Plan->>Cache: write non-empty output with aggregate run id
     end
-    AO->>EB: emit("selector:complete", instruments)
-    AO->>AO: handleResolvedInstruments(instruments)
-    alt Instruments found
-        AO->>AO: enqueue trade cycles (one per instrument)
-    else No instruments
-        AO->>AO: scheduleNoInstrumentRetry(delayMs)
-    end
+    PR-->>ESR: InstrumentSelection
+    ESR-->>AO: ResolvedInstrument[]
+    AO->>EB: research_phase_complete
 ```
 
-**Stage 1 workers** (run concurrently, discovery mode controls which set):
+**Current selector details:**
 
-- `trend_scan`: `web-scout`, `reddit-scout`, `trend-scout`
-- `event_contract_scan`: `polymarket-event-scout`, `polymarket-liquidity-scout`, `web-scout`
+- Entry mode `manual_shortlist` bypasses AI and returns configured instruments capped by `maxConcurrentTrades`.
+- AI mode uses discovery workers selected by `selectorDiscoveryWorkersForMode(discoveryMode)`. Supported research discovery modes include `trend_scan`, `catalyst_scan`, `quality_watchlist`, `mean_reversion_scan`, `event_contract_scan`, and `custom`.
+- Verification workers are generated per candidate: `market-validator:<symbol>`, `catalyst-extractor:<symbol>`, and `liquidity-gate:<symbol>`.
+- The selector filters final instruments to effective session instrument classes and `maxConcurrentTrades`.
+- If no instruments are selected, `noInstrumentRetryMinutes` from `session_selector_settings` controls the retry timer, defaulting to the runtime default.
 
-**Stage 2 workers** (run concurrently):
+### 6.4 Trade Cycle
 
-- `market-validator`, `catalyst-extractor`, `liquidity-gate`
-
-Cache key = SHA256 of the `PipelineDefinition` JSON + strategy config snapshot. Cache TTL is set in `RUNTIME_DEFAULTS`.
-
----
-
-### 6.4 Trade Cycle (full path)
-
-**Trigger:** `AgentOrchestrator.handleResolvedInstruments()` enqueues a trade cycle per candidate.
-**Outcome:** Position opened at broker OR cycle aborted at a gate.
+**Trigger:** Selector returns one or more instruments.
+**Outcome:** A pending/open/rejected trade is persisted; order placement happens only after gates and optional approval.
 
 ```mermaid
 sequenceDiagram
     participant AO as AgentOrchestrator
+    participant AI as AiRuntime.runPlan("default-trade-cycle")
     participant ESR as ExecutionStepRunner
-    participant PR as PipelineRuntime
-    participant RE as RiskEngine
-    participant BAG as BrokerAllocationGate
-    participant OPG as OrderPolicyGate
-    participant CR as CapitalReservationService
-    participant Appr as ApprovalGate
-    participant BA as BrokerAdapter
-    participant TM as TradeMonitor
+    participant Plan as CyclePlanInterpreter
+    participant Gate as Engines
+    participant DB as SQLite
+    participant Broker as BrokerAdapter
+    participant EB as EventBus
 
-    AO->>AO: executeTradeCycle(instrument, cycleId)
-
-    note over AO,ESR: Stage: technical
-    AO->>ESR: run("technical", fn)
-    ESR->>PR: run(TECHNICAL_PHASE, sessionId, instrument)
-    PR-->>AO: TechnicalSignal
-
-    note over AO,ESR: Stage: fundamental
-    AO->>ESR: run("fundamental", fn)
-    ESR->>PR: run(FUNDAMENTAL_PHASE, sessionId, instrument)
-    PR-->>AO: FundamentalSignal
-
-    note over AO,ESR: Stage: review
-    AO->>ESR: run("review", fn)
-    ESR->>PR: run(REVIEW_PHASE, sessionId, {technical, fundamental})
-    PR-->>AO: ReviewSignal
-
-    note over AO,ESR: Stage: decision
-    AO->>ESR: run("decision", fn)
-    ESR->>PR: run(DECISION_PHASE, sessionId, {technical, fundamental, review})
-    PR-->>AO: TradeSignal
-
-    note over AO,RE: Risk gate
-    AO->>RE: validateDecision(signal, context)
-    alt Not allowed
-        RE-->>AO: {allowed: false, reason}
-        AO->>AO: skip — no order
-    else Allowed
-        RE-->>AO: {allowed: true, value: OrderRequest}
+    AO->>AI: run default-trade-cycle
+    AI->>Plan: candidate_validation
+    Plan->>ESR: stage candidate_validation (warn policy)
+    AI->>Plan: technical -> fundamental -> review -> decision
+    Plan->>ESR: persist each stage status/retry
+    AI->>Gate: execution-profile -> risk-gate -> broker-allocation
+    Gate-->>AI: riskOrder + broker allocation result
+    AI-->>AO: TradePipelineResult
+    AO->>DB: insert pending trade + agent runs/messages
+    alt decision action is skip
+        AO->>DB: keep cycle complete, no order
+    else requires approval
+        AO->>DB: create trade_approval + reserve capital
+        AO->>EB: approval_required
+        AO->>AO: await in-memory callback
+    else no approval
+        AO->>DB: reserveForOrder
     end
-
-    note over AO,BAG: Broker allocation gate
-    AO->>BAG: check(sessionId, brokerId, sizeUsd)
-    alt Over allocation
-        BAG-->>AO: rejected
-        AO->>AO: skip
-    end
-
-    note over AO,OPG: Order policy gate
-    AO->>OPG: check(signal, sessionContext)
-    alt Policy violation
-        OPG-->>AO: rejected
-        AO->>AO: skip
-    end
-
-    note over AO,CR: Capital reservation
-    AO->>CR: reserve(sessionId, tradeId, sizeUsd)
-
-    note over AO,Appr: Optional human approval
-    opt requiresApproval
-        AO->>AO: persist trade_approval (pending)
-        AO->>AO: emit approval:requested event → renderer
-        AO->>AO: await approvalCallbacks.get(tradeId)
-        alt User rejects
-            AO->>CR: release(tradeId)
-            AO->>AO: abort trade cycle
-        end
-    end
-
-    note over AO,BA: Broker order
-    AO->>ESR: run("broker_order", fn)
-    ESR->>BA: placeOrder(orderRequest)
-    BA-->>AO: OrderResult (orderId, fills)
-    AO->>DB: insert trade (open)
-    AO->>CR: release(tradeId)
-
-    AO->>TM: notifyNewTrade(trade)
-    AO->>AO: attachTradeClosedListener(tradeId)
+    AO->>ESR: stage broker_order
+    ESR->>Broker: place routed order after order-policy gate
+    Broker-->>ESR: brokerOrderId + fill price
+    AO->>DB: mark trade open, convert reservation to position
+    AO->>EB: trade_opened
+    AO->>DB: upsert monitoring step succeeded
 ```
 
-**Failure paths:**
+**Trade cycle stages:**
 
-- Any `ESR.run` stage that exhausts retries → execution step marked `failed`, cycle aborted, session may transition to `attention_required`.
-- Capital release always happens in finally block — no leaked reservations.
-- If broker `placeOrder` throws → trade record not inserted, capital released, error logged.
+| Stage                  | Type                 | Failure behavior                                                                                                                         |
+| ---------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `candidate_validation` | deterministic engine | Failure is logged as a warning rather than an attention-required session failure, but the current cycle returns without opening a trade. |
+| `technical`            | AI phase             | Required. Failing non-retryably can move the session to `attention_required`.                                                            |
+| `fundamental`          | AI phase             | Required. Same retry/attention behavior as technical.                                                                                    |
+| `review`               | AI phase             | Required. Combines technical and fundamental output.                                                                                     |
+| `decision`             | AI phase             | Required. Produces `TradeSignal`; `action: skip` avoids order placement.                                                                 |
+| `risk_gate`            | engine chain         | Required; rejects the pending trade on failure but does not put the whole session into `attention_required`.                             |
+| `broker_order`         | broker side effect   | Required for opening. On failure the pending trade is marked `rejected`, reservation is released, and `trade_closed` is emitted.         |
+| `monitoring`           | persisted marker     | Written as succeeded after order open to show the session is waiting for close.                                                          |
 
----
+### 6.5 Approval Handling
 
-### 6.5 Human Approval Gate
-
-**Trigger:** Session config has `requiresApproval: true` and risk gate passes.
-**Outcome:** User approves or rejects the trade in the renderer.
+**Trigger:** `humanApprovalRequired` is true and the trade passed AI and deterministic gates.
+**Outcome:** The trade is approved/rejected, or an approved stale approval is rechecked before order placement.
 
 ```mermaid
 sequenceDiagram
-    actor User
     participant AO as AgentOrchestrator
     participant DB as SQLite
     participant EB as EventBus
-    participant IPC as IPC Handler
     participant UI as Renderer
+    participant IPC as approvals IPC
+    participant SRM as SessionRuntimeManager
 
-    AO->>DB: insert trade_approvals (pending, signal JSON)
-    AO->>EB: emit("trade:approval:requested", {tradeId, signal})
-    EB->>IPC: forward to renderer
-    IPC->>UI: webContents.send("trade:approval:requested")
-    UI->>User: Show approval modal
-
-    alt User approves
-        User->>UI: Click Approve
-        UI->>IPC: trade:approve(tradeId)
-        IPC->>DB: update trade_approvals (approved)
-        IPC->>AO: approvalCallbacks.get(tradeId).resolve(true)
-        AO->>AO: continue to broker_order stage
-    else User rejects
-        User->>UI: Click Reject
-        UI->>IPC: trade:reject(tradeId)
-        IPC->>DB: update trade_approvals (rejected)
-        IPC->>AO: approvalCallbacks.get(tradeId).resolve(false)
-        AO->>AO: release capital reservation, abort cycle
+    AO->>DB: insert pending trade_approval
+    AO->>DB: reserveForApproval(approvalId)
+    AO->>EB: approval_required
+    EB->>UI: push event
+    UI->>IPC: approval:decide
+    alt rejected
+        IPC->>DB: resolve rejected, release reservation, reject pending trade
+        IPC->>EB: approval_resolved
+    else approved and callback exists
+        IPC->>DB: resolve approved
+        IPC->>AO: resolveApproval(tradeId, true)
+        AO->>AO: continue broker_order
+    else approved and no callback but runtime exists
+        IPC->>DB: resolve approved
+        IPC->>SRM: enqueueApprovalRecheck(...)
+        SRM->>AO: run fresh AI pipeline through decision + gates
+        AO->>AO: place order only if fresh check passes
     end
 ```
 
-**Important invariant:** `approvalCallbacks` is an in-memory `Map<tradeId, {resolve, reject}>`. If the app restarts while an approval is pending, the promise is gone. On rehydration, any `pending` approval records are surfaced as `attention_required` and the session does not auto-resume.
-
----
+**Invariant:** approvals are persisted, but the live Promise callback is not. The safe recovery path is not blind resume: `runApprovalRecheck()` reruns the trade pipeline through decision, reruns post-decision gates, updates the pending trade/reservation amount, runs order policy, and then places the order.
 
 ### 6.6 Trade Monitoring
 
-**Trigger:** `TradeMonitor.start()` sets a `setInterval` based on strategy timeframe.
-**Outcome:** Open positions closed when exit conditions are met, or detected as externally closed.
+**Trigger:** `SessionRuntime.initialize()` or `resume()` starts the monitor.
+**Outcome:** Open trades are closed by exit policy, prediction-market policy, max hold, or external broker status.
 
 ```mermaid
 sequenceDiagram
     participant TM as TradeMonitor
-    participant BA as BrokerAdapter
-    participant EP as ExitPolicyEvaluator
+    participant Broker as BrokerAdapter
+    participant Exit as ExitPolicyEvaluator
     participant DB as SQLite
     participant EB as EventBus
 
-    loop Every poll interval (5s / 60s / 300s)
-        TM->>TM: enforceMaxHoldDays()
-        TM->>TM: enforcePredictionMarketPolicy()
-        loop Per open trade
-            TM->>BA: getMarketSnapshot(instrument)
-            BA-->>TM: {price, volume, bid, ask}
-            TM->>TM: updateHighWaterMark(tradeId, price)
-            opt OHLCV needed for exit policy
-                TM->>BA: getOhlcv(instrument, timeframe)
+    loop poll by holdingStyle
+        TM->>DB: list open trades
+        TM->>TM: enforce maxHoldDays + prediction-market policy
+        loop each open trade
+            TM->>Broker: getMarketSnapshot
+            TM->>DB: update high-water mark
+            opt adapter supports OHLCV
+                TM->>Broker: getOhlcv
             end
-            TM->>EP: evaluate(trade, snapshot, ohlcv, riskConfig)
-            alt Exit triggered (stop-loss, take-profit, trailing-stop, max-hold)
-                EP-->>TM: {exit: true, reason}
-                TM->>BA: closeOrder(orderId)
-                TM->>DB: update trade (closed, exit_price, pnl)
-                TM->>EB: emit("trade:closed", tradeId)
-            else No exit
-                TM->>BA: getOrderStatus(orderId)
-                alt Externally closed
-                    BA-->>TM: status = filled/cancelled
-                    TM->>DB: update trade (closed)
-                    TM->>EB: emit("trade:closed", tradeId)
-                end
+            TM->>Exit: evaluate fixed/ATR/take-profit/max-hold exits
+            alt should exit
+                TM->>Broker: closeOrder
+                TM->>DB: close trade, release capital
+                TM->>EB: trade_closed
+            else broker externally closed
+                TM->>Broker: getOrderStatus
+                TM->>DB: close trade, release capital
+                TM->>EB: trade_closed
             end
         end
+        TM->>EB: stats_update
     end
 ```
 
-**Poll intervals by timeframe:**
+**Poll intervals:** `intraday_flat` = 5s, `multi_day_swing` = 60s, `weeks_position` and `custom` = 300s.
 
-- `intraday` → 5 seconds
-- `swing` → 60 seconds
-- `weeks` → 300 seconds
+### 6.7 Cycle Restart After Close
 
----
-
-### 6.7 Cycle Restart After Trade Close
-
-**Trigger:** `TradeMonitor` emits `trade:closed`.
-**Outcome:** Orchestrator re-enters selector cycle.
+**Trigger:** `trade_closed` event for the same session and a `closed` trade.
+**Outcome:** If runtime is active and no restart is already in flight, a new selector cycle is queued.
 
 ```mermaid
 sequenceDiagram
     participant TM as TradeMonitor
     participant EB as EventBus
     participant AO as AgentOrchestrator
+    participant Q as PQueue
 
-    TM->>EB: emit("trade:closed", {tradeId, sessionId})
-    EB->>AO: attachTradeClosedListener callback fires
-    AO->>AO: decrement activeTrades count
-    alt No more active trades
-        AO->>AO: executeSelectorCycle()
-    else Still has active trades
-        AO->>AO: wait for remaining trades
-    end
+    TM->>EB: trade_closed(closed trade)
+    EB->>AO: attached listener
+    AO->>AO: check session id, status closed, runtime active, no restart in flight
+    AO->>Q: queue selector restart
 ```
 
-The orchestrator uses `PQueue({concurrency: max_concurrent_trades})` for trade cycles. When all queued trade cycles complete and the monitor emits `trade:closed`, the `attachTradeClosedListener` re-triggers the selector cycle.
+### 6.8 Worker Execution
 
----
-
-### 6.8 Worker Execution (single AI call)
-
-**Trigger:** `PipelineRuntime` calls `executeWorker` for one worker definition.
-**Outcome:** Parsed, schema-validated output. Spend recorded. Messages persisted.
+**Trigger:** A phase plan calls `runner.execute(worker, task)`.
+**Outcome:** One provider run trace is assembled into an `AgentResult`; aggregate or trade persistence happens outside the worker executor.
 
 ```mermaid
 sequenceDiagram
     participant PR as PipelineRuntime
     participant WE as executeWorker
     participant PST as PipelineSpendTracker
+    participant PCR as PhaseConfigResolver
     participant PAL as PromptAssetLoader
-    participant ENG as Engine resolvers
-    participant PA as ProviderAdapter
-    participant DB as SQLite
+    participant Tools as ToolFactoryRegistry
+    participant Provider as ProviderAdapter
 
-    PR->>WE: executeWorker(deps, opts)
-    WE->>PST: checkCap(phase, sessionSpend)
-    alt Over cap
-        PST-->>WE: throw SpendCapExceeded
+    PR->>WE: executeWorker(worker, task, spendTracker)
+    WE->>PST: canContinue()
+    alt cap exceeded before call
+        WE-->>PR: throw SPEND_CAP_EXCEEDED
     end
-    WE->>PAL: load(promptAssetPath)
-    PAL-->>WE: prompt template string
-    WE->>ENG: resolve engines (riskSummaryRead, etc.)
-    ENG-->>WE: engine-injected variables
-    WE->>WE: build prompt envelope (system + user + variables)
-    WE->>WE: resolve tools (search adapters, broker snapshot)
-    WE->>PA: runAgent(envelope, tools, model, schema?)
-    PA-->>WE: RunTrace<raw output>
-    alt outputMode = "object" and schema defined
-        WE->>WE: zodParse(output, schema)
-        alt Parse fails (first attempt)
-            WE->>PA: runAgent(retry prompt with parse error)
-            PA-->>WE: RunTrace<corrected output>
-            WE->>WE: zodParse(output, schema)
-        end
+    WE->>PCR: resolve worker provider/model/tools/caps/output
+    WE->>PAL: load default prompt or session override
+    WE->>WE: run read engines and build prompt envelope
+    WE->>Tools: build tool set + terminal output tool
+    WE->>Provider: runAgent(..., abortSignal, terminal tools)
+    alt terminal output validation fails
+        WE->>Provider: retry provider run once for structured output
     end
-    WE->>PST: recordSpend(costUsd)
-    WE->>DB: persist agent_run + agent_messages
-    WE-->>PR: AgentResult<TOutput>
+    WE->>WE: enforce worker tool requirements
+    WE->>WE: assemble run + message trace
+    WE->>PST: record cost
+    WE-->>PR: AgentResult
 ```
 
-**Key invariants:**
-
-- Spend cap is checked BEFORE the LLM call. If the cap is already exceeded, the worker short-circuits.
-- Output validation retry happens at most once. If the second attempt also fails, the worker throws.
-- LLM outputs are parsed against Zod schemas — never evaluated as code. All dynamic content is treated as untrusted data.
+**Current persistence boundary:** `executeWorker()` does not insert DB rows. Selector finalization persists one aggregate `agent_runs`/`agent_messages` row; trade cycles persist technical/fundamental/review/decision rows after the pending trade exists.
 
 ---
 
@@ -604,67 +478,63 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> idle : session created
-    idle --> active : startSession()
-    active --> paused : pauseSession()
-    paused --> active : resumeSession()
-    active --> stopped : stopSession()
-    paused --> stopped : stopSession()
-    active --> attention_required : unrecoverable error
-    paused --> attention_required : rehydration with prior attention state
-    attention_required --> active : restartFromAttention()
-    stopped --> [*]
+    [*] --> draft
+    draft --> idle
+    draft --> active
+    draft --> archived
+    idle --> active
+    idle --> archived
+    active --> paused
+    active --> stopped
+    active --> attention_required
+    attention_required --> active
+    attention_required --> paused
+    attention_required --> stopped
+    paused --> active
+    paused --> stopped
+    stopped --> idle
+    stopped --> archived
 ```
 
-| State                | Meaning                 | Orchestrator           | TradeMonitor      |
-| -------------------- | ----------------------- | ---------------------- | ----------------- |
-| `idle`               | Configured, not running | not created            | not created       |
-| `active`             | Running normally        | running                | running           |
-| `paused`             | User-paused             | paused (queue drained) | **still running** |
-| `stopped`            | Fully shut down         | stopped                | stopped           |
-| `attention_required` | Error or stale approval | stopped                | stopped           |
+| Persisted state      | Meaning                                              | Runtime behavior                                                            |
+| -------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------- |
+| `draft`              | Created/configurable but not initialized for running | No runtime required.                                                        |
+| `idle`               | Configured and not running                           | No runtime required.                                                        |
+| `active`             | New selector/trade intake allowed                    | Orchestrator queue active; monitor active.                                  |
+| `paused`             | Intake paused                                        | Orchestrator queue paused; monitor active if runtime is rehydrated/running. |
+| `attention_required` | Operator action required after failure/stale state   | Resume forces a fresh selector if needed.                                   |
+| `stopped`            | Fully stopped                                        | Runtime removed; monitor stopped.                                           |
+| `archived`           | Hidden from normal workspace views                   | Not runnable until restored by future UI behavior.                          |
 
-**Why monitor keeps running during pause:** Open positions need to be watched even when the discovery loop is paused. The user may pause while holding trades.
-
-**Lifecycle serialization:** Each `SessionRuntime` has a `PQueue({concurrency:1})` for lifecycle commands. Start, pause, resume, and stop are always serialized — no concurrent state transitions.
+Runtime modes are narrower: `starting`, `active`, `paused`, `stopping`. The monitor intentionally runs in both `active` and `paused` modes to manage already-open positions.
 
 ---
 
-## 8. Spend & Risk Guard Rails
+## 8. Spend & Guard Rails
 
 ```mermaid
 graph TD
-    WE["executeWorker"]
-    PST{"PipelineSpendTracker\nper-phase cap\nper-session cap"}
-    RE{"RiskEngine\nconfidence threshold\nconcurrent trade cap\ndaily loss limit\nprofit target\nAPI spend limit"}
-    BAG{"BrokerAllocationGate\nper-broker exposure cap"}
-    OPG{"OrderPolicyGate\nsession order rules"}
-    CR["CapitalReservationService\nlock amount_usd\nrelease on close"]
-    ORDER["BrokerAdapter.placeOrder"]
-
-    WE -->|before LLM call| PST
-    PST -->|cap exceeded| SKIP1["abort worker"]
-    PST -->|ok| WE2["run LLM"]
-    WE2 --> AO["AgentOrchestrator"]
-    AO --> RE
-    RE -->|not allowed| SKIP2["abort trade cycle"]
-    RE -->|allowed| BAG
-    BAG -->|over allocation| SKIP3["abort trade cycle"]
-    BAG -->|ok| OPG
-    OPG -->|policy violation| SKIP4["abort trade cycle"]
-    OPG -->|ok| CR
-    CR --> ORDER
+    Worker["executeWorker"] --> Spend{"PipelineSpendTracker\nphase / pipeline / session"}
+    Spend -->|ok| AI["Provider run"]
+    AI --> Candidate["candidate-validator"]
+    Candidate --> Decision["AI decision"]
+    Decision --> Risk{"RiskEngine"}
+    Risk --> Allocation{"BrokerAllocationGate"}
+    Allocation --> Approval{"Human approval?"}
+    Approval --> Policy{"OrderPolicyGate"}
+    Policy --> Order["Broker order"]
+    Order --> Monitor["TradeMonitor"]
 ```
 
-**Guard rail layers (in order):**
+**Guard order and behavior:**
 
-1. **PipelineSpendTracker** — First. Stops LLM calls if the phase or session USD cap is hit.
-2. **RiskEngine** — Validates the final decision signal. Checks confidence, concurrent trade cap, position size, daily loss, profit target, and API spend.
-3. **BrokerAllocationGate** — Checks per-broker capital exposure against the workspace allocation limit.
-4. **OrderPolicyGate** — Session-level rule enforcement (e.g., time-of-day restrictions).
-5. **CapitalReservationService** — Locks capital before the order window. Released immediately after order placement or on abort.
-
-Any gate can abort a trade cycle without affecting other concurrent cycles.
+1. **Spend caps** — phase cap from phase config, pipeline cap from `DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd`, and session daily cap from `riskConfig.maxAiSpendUsd` plus `agent_runs` daily spend. The tracker gates before dispatch and again after each worker cost is recorded.
+2. **Candidate validation** — broker snapshot plus strategy/session class checks before AI trade analysis. A failure emits a warning and aborts the current candidate without moving the whole session to `attention_required`.
+3. **Risk gate** — API spend, daily loss/profit target, position size, concurrent trades, prediction-market exposure, confidence threshold.
+4. **Broker allocation gate** — assignment free allocation and same-broker/same-symbol open-trade conflict. Allocation can be hard-blocking or warn-only.
+5. **Human approval** — optional. Reserves capital before the user approves and rechecks if the original callback is gone.
+6. **Order policy gate** — runtime state, side bias, quote freshness, price collar, spread, max position, broker support/market hours, idempotency, and exit contract.
+7. **Capital reservation conversion/release** — converted to position on open; released on rejection, failure, cancel, or close.
 
 ---
 
@@ -672,39 +542,29 @@ Any gate can abort a trade cycle without affecting other concurrent cycles.
 
 ```mermaid
 graph LR
-    subgraph Main["Main Process"]
-        AO["AgentOrchestrator"]
-        TM["TradeMonitor"]
-        EB["EventBus"]
-        IPC["IPC / webContents"]
-    end
-    subgraph Renderer["Renderer"]
-        Listeners["ipcRenderer.on listeners\n(TanStack Query invalidation,\nUI notifications)"]
-    end
-
-    AO -->|emit| EB
-    TM -->|emit| EB
-    EB -->|fan-out to all BrowserWindows| IPC
-    IPC -->|webContents.send| Listeners
-    EB -->|in-process callbacks| AO
-    EB -->|in-process callbacks| TM
+    AO["AgentOrchestrator"] --> EB["EventBus"]
+    TM["TradeMonitor"] --> EB
+    Services["Services"] --> EB
+    EB --> Windows["BrowserWindow.webContents.send"]
+    EB --> Listeners["In-process listeners"]
+    Renderer["Renderer"] --> IPC["ipcRenderer.invoke"] --> Handlers["IPC handlers"]
 ```
 
-**Typed event map** (selected events from `ExvaEventMap`):
+**Current main-to-renderer events:**
 
-| Event name                 | Payload                                   | Direction       |
-| -------------------------- | ----------------------------------------- | --------------- |
-| `selector:complete`        | `{sessionId, instruments}`                | main → renderer |
-| `trade:opened`             | `{sessionId, tradeId, instrument}`        | main → renderer |
-| `trade:closed`             | `{sessionId, tradeId, pnl}`               | main → renderer |
-| `trade:approval:requested` | `{sessionId, tradeId, signal}`            | main → renderer |
-| `step:started`             | `{sessionId, cycleId, stage}`             | main → renderer |
-| `step:succeeded`           | `{sessionId, cycleId, stage, durationMs}` | main → renderer |
-| `step:failed`              | `{sessionId, cycleId, stage, error}`      | main → renderer |
-| `session:status`           | `{sessionId, status}`                     | main → renderer |
-| `balance:updated`          | `{brokerId, balance}`                     | main → renderer |
+| Event                                                                                                  | Payload summary                                                        |
+| ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `trade_opened` / `trade_closed` / `trade_status_changed`                                               | Full `Trade` object.                                                   |
+| `agent_event`                                                                                          | Persisted `EventRow` including optional `cycleId`.                     |
+| `approval_required` / `approval_resolved`                                                              | Approval request/decision payloads.                                    |
+| `session_status_changed`                                                                               | `{ sessionId, status }`.                                               |
+| `research_phase_started` / `research_phase_step` / `research_phase_complete` / `research_phase_failed` | Selector/research progress with `cycleId`.                             |
+| `step:started` / `step:succeeded` / `step:failed` / `step:retrying`                                    | Execution-step progress, attempts, retry schedule, error code/message. |
+| `broker_balance_updated`                                                                               | Broker balance cache update.                                           |
+| `stats_update`                                                                                         | Dashboard stats.                                                       |
+| `notification`                                                                                         | UI notification payload.                                               |
 
-**No two-way channel exists.** Renderer → main always goes through IPC handlers (invoked via `ipcRenderer.invoke`). Main → renderer is push-only via `EventBus` → `webContents.send`.
+Renderer-to-main is request/response through IPC handlers only. Event subscriptions are push-only and allowlisted by `mainToRendererEvents` in `electron/shared/ipc/channels.ts`.
 
 ---
 
@@ -712,34 +572,23 @@ graph LR
 
 ```mermaid
 flowchart LR
-    UserInput["User Input\n(untrusted)"]
-    Renderer["Renderer\n(sandboxed Chromium)"]
-    PreloadBridge["Typed Preload Bridge\n(allowlist)"]
-    IPCHandlers["IPC Handlers\n(validate + sanitize)"]
-    Services["Privileged Services\n(trust boundary)"]
-    Keychain["OS Keychain\n(secrets)"]
-    ExternalAPIs["External APIs\n(untrusted responses)"]
-    DB["SQLite\n(trusted)"]
-
-    UserInput --> Renderer
-    Renderer -->|contextBridge only| PreloadBridge
-    PreloadBridge -->|typed channels| IPCHandlers
-    IPCHandlers -->|validated input| Services
-    Services --> Keychain
-    Services --> ExternalAPIs
-    ExternalAPIs -->|parsed against Zod schemas| Services
-    Services --> DB
+    Renderer["Renderer\nsandboxed, no Node"] --> Preload["Preload allowlist"]
+    Preload --> IPC["IPC handlers + schemas"]
+    IPC --> Main["Privileged services"]
+    Main --> Keychain["Keychain secrets"]
+    Main --> DB["SQLite"]
+    Main --> External["External AI/search/broker APIs"]
 ```
 
-**Trust model:**
+**Current controls:**
 
-- **Renderer is untrusted.** It runs in a sandboxed Chromium process with `nodeIntegration: false` and `contextIsolation: true`. It cannot access Node APIs.
-- **Preload bridge is the only crossing point.** Only methods explicitly exposed via `contextBridge.exposeInMainWorld` can be called. The set is defined statically.
-- **IPC handlers validate all input.** No handler passes raw renderer input directly to a service. Types are checked; values are sanitized.
-- **Secrets never cross to renderer.** API keys are read from keychain in main, used in the same process, never serialized to IPC responses.
-- **External API responses are schema-validated.** Every LLM response and broker API response is parsed against a Zod schema before use. No property access on raw unknown objects.
-- **LLM outputs are data, not code.** All LLM responses are parsed as structured data. Dynamic code evaluation is not used anywhere in the runtime — LLM output is never executed.
-- **Drizzle ORM.** All DB queries are parameterized. No string-concatenated SQL.
+- `BrowserWindow` uses `nodeIntegration: false`, `contextIsolation: true`, and `sandbox: true`.
+- Navigation is restricted to the Vite dev server in dev or `file://` in packaged mode; external HTTPS links are opened via `shell.openExternal` and denied inside the app window.
+- Renderer API access is limited to `contextBridge.exposeInMainWorld("exva", exva)`.
+- Preload and IPC handlers validate many payloads with Zod schemas before service calls.
+- Secrets are referenced by `secretRef` and resolved only in main-process registries/services.
+- LLM outputs are parsed as data through structured terminal tools and schemas; runtime code does not evaluate LLM output as code.
+- Database access is local SQLite through Drizzle-backed schema/repositories and `better-sqlite3`; migrations run at startup.
 
 ---
 
@@ -747,130 +596,122 @@ flowchart LR
 
 ```mermaid
 graph TD
-    Runtime["Runtime Action\n(orchestrator, monitor, pipeline)"]
-    ESR["ExecutionStepRunner\n(step:started/succeeded/failed events)"]
-    EB["EventBus"]
-    DB[("SQLite\nagent_runs\nagent_messages\nsession_execution_steps\nevents\napi_call_log")]
-    DevPanel["Developer Panel\n(renderer UI)"]
-    Logs["Console Logs\n(createLogger)"]
-
-    Runtime --> ESR --> EB --> DB
-    Runtime --> EB --> DB
-    Runtime --> Logs
-    DB --> DevPanel
+    Runtime["Runtime services"] --> Events["events table + agent_event"]
+    Runtime --> Steps["session_execution_steps"]
+    AI["AI workers/plans"] --> Runs["agent_runs + agent_messages"]
+    External["AI/search calls"] --> Calls["api_call_log"]
+    Broker["Broker lifecycle"] --> Trades["trades + capital_reservations"]
+    Logs["Pino logs"] --> Files["~/.exva/logs/exva-YYYY-MM-DD.log"]
+    DB[("SQLite")] --> Dev["Developer/Event/Replay UI"]
 ```
 
-**What is observable:**
+**Observable signals:**
 
-| Signal                                              | Where                                          |
-| --------------------------------------------------- | ---------------------------------------------- |
-| Per-step status and timing                          | `session_execution_steps`                      |
-| All LLM messages (prompts + responses + tool calls) | `agent_messages`                               |
-| Per-phase cost and token usage                      | `agent_runs` + `api_call_log`                  |
-| Trade lifecycle events                              | `trades` + `events`                            |
-| Human approval history                              | `trade_approvals`                              |
-| Error traces                                        | `session_execution_steps.error` + console      |
-| Broker balance snapshots                            | `EventBus` → renderer (not persisted)          |
-| Developer runtime overrides                         | `developer_settings` + `runtime_log_overrides` |
+| Signal                                 | Source                                                 |
+| -------------------------------------- | ------------------------------------------------------ |
+| Execution progress, retries, failures  | `session_execution_steps` + `step:*` events            |
+| AI prompts/messages/tool calls/outputs | `agent_messages`                                       |
+| AI cost/token/duration                 | `agent_runs`                                           |
+| External search/API usage              | `api_call_log`                                         |
+| Runtime events and cycle correlation   | `events` with `cycle_id`                               |
+| Trade lifecycle and capital locks      | `trades`, `trade_approvals`, `capital_reservations`    |
+| Broker balance changes                 | `broker_balance_updated`, broker account balance cache |
+| Debug bundles/replay                   | Developer IPC, replay IPC, `CycleReplayService`        |
 
-**Cycle replay:** `CycleReplayService` can reconstruct a full cycle's context from `agent_messages`, `trades`, `session_execution_steps`, and `session_instrument_cache`. Used for debugging and post-hoc analysis.
+**Replay/autopsy/scorecard services:**
 
-**Trade autopsy:** `TradeAutopsyService` runs a secondary AI analysis on a closed trade, reading the full `agent_messages` history to explain the outcome. Result stored in `trade_autopsies`.
-
-**Paper scorecard:** `PaperScorecardService` aggregates paper-mode trade performance, API cost, and execution step timing into a scorecard structure.
-
-**Developer settings:** `developer_settings` table can enable verbose logging, override retry counts, or disable specific gates at runtime without a code change.
+- `CycleReplayService` reconstructs cycles from `agent_messages`, `trades`, `session_execution_steps`, `session_instrument_cache`, and log files under user data.
+- `TradeAutopsyService` analyzes a closed trade using its persisted agent messages and stores `trade_autopsies`.
+- `PaperScorecardService` summarizes paper trade performance, API cost, and execution-step timing.
 
 ---
 
 ## 12. Infrastructure & Deployment
 
-**Runtime:** Electron (Node.js main + Chromium renderer). Single binary distributed as a macOS `.dmg`. No server component.
-
-**Database:** SQLite single file at `app.getPath("userData")` (`~/Library/Application Support/Exva/`). Migrations run at boot via Drizzle.
-
-**Secrets:** OS Keychain (`keytar` or equivalent). One entry per broker account + one per AI provider account.
-
-**AI providers:** HTTP calls from main process. Provider selection per-phase is configured in `session_ai_phases`. Model and temperature are configurable per phase. `ProviderRegistry` resolves the correct adapter at runtime.
-
-**Broker adapters:** HTTP (REST + WebSocket where applicable). Adapter selected via `BrokerRoutingService` which reads `session_broker_assignments` and `broker_routing_defaults`.
-
-**No CI/CD pipeline or deployment infrastructure** — local desktop app. Build is Electron Forge or equivalent.
-
-**Environment config:** No `.env` file at runtime. All secrets are in keychain. Build-time environment is standard Electron Forge `forge.config.ts`.
+- **Runtime:** Electron 33 main process + Chromium renderer. No server component is required.
+- **Package manager:** Bun (`packageManager: bun@1.3.11`). Primary verification commands are `bun run typecheck`, `bun run lint`, `bun run test`, and `bun run check`.
+- **Build/distribution:** Electron Forge with Vite. Scripts include `bun run start`, `bun run package`, `bun run make`, and `bun run build`.
+- **Database:** SQLite via `better-sqlite3`, Drizzle schema, WAL mode. Default file is `exva.db` under Electron `userData`; `EXVA_DB_PATH` can override it.
+- **Secrets:** `keytar` OS Keychain service `exva`.
+- **Logs:** Pino; common log files are written under `~/.exva/logs/` unless `EXVA_LOG_DIR` overrides the directory.
+- **External APIs:** AI/search/broker calls are local main-process HTTP/client-library calls through registries and adapters.
 
 ---
 
 ## 13. Design Decisions & Trade-offs
 
-| Decision                | Chosen Approach                                                       | Alternative                      | Why                                                                                                             |
-| ----------------------- | --------------------------------------------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| AI pipeline stages      | Five discrete phases (selector→technical→fundamental→review→decision) | Single monolithic prompt         | Isolates failure, enables per-phase spend caps, allows phase-level caching and retry                            |
-| Worker concurrency      | Workers within a phase run concurrently; phases run sequentially      | Full sequential or full parallel | Sequential phases ensure each phase's output feeds the next; concurrent workers within a phase minimize latency |
-| SQLite                  | Single embedded file DB                                               | PostgreSQL, cloud DB             | Desktop app — no network dep, no server to run, fast for single-user write load                                 |
-| Capital reservation     | DB-persisted lock before order                                        | In-memory lock                   | Survives crash; prevents double-order if process restarts during approval window                                |
-| Human approval          | Promise stored in memory map                                          | Poll DB for approval status      | Simpler, lower latency; trade-off is approval is lost on crash (handled via `attention_required`)               |
-| EventBus fan-out        | Push to all BrowserWindows                                            | Query-polling from renderer      | Live updates without renderer holding timers; works for multiple windows                                        |
-| Instrument cache        | Hash of `PipelineDefinition` + strategy config                        | Time-based TTL only              | Cache is invalidated when strategy changes, not just on time — avoids stale results after config edit           |
-| Retry strategy          | Exponential backoff per step, max N attempts                          | No retry / immediate fail        | Transient AI provider errors and rate limits are common; retry is cheaper than re-running a full cycle          |
-| PQueue for trade cycles | `concurrency: max_concurrent_trades`                                  | Unlimited concurrency            | Prevents runaway parallel orders; matches the `maxConcurrentTrades` risk setting                                |
-| Drizzle ORM             | Typed query builder + migrations                                      | Raw SQL, Prisma                  | Type safety without code generation overhead; migration control                                                 |
+| Decision             | Chosen approach                                                   | Why                                                                                                            | Trade-off                                                            |
+| -------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Runtime ownership    | One `SessionRuntime` per live session                             | Multiple sessions can run independently while sharing registries/repos                                         | Runtime callbacks and timers remain process-local.                   |
+| Startup rehydration  | Demote prior `active` to `paused`, start monitor                  | Avoids stale-context new trades while still protecting open positions                                          | Operator must explicitly resume new intake.                          |
+| AI execution         | Declarative phase/cycle plans                                     | Adds candidate validation and deterministic gates around AI phases without hardcoding all flow in orchestrator | Plan interpreter is more abstract than a single imperative function. |
+| Selector caching     | Session cache with policy fingerprint and non-empty-output writes | Avoids repeated discovery when config/effective scope is unchanged                                             | Empty selector outputs are not cached.                               |
+| Approval recovery    | Re-run AI/gates before stale approved order placement             | Prevents placing orders from stale approval context                                                            | Costs extra AI/API calls after restart/stale callback.               |
+| Execution progress   | Persist per-stage rows with retry metadata                        | UI/developer tools can show exact cycle state and retry schedule                                               | Requires careful cycle-id propagation.                               |
+| Capital reservations | Persisted reservations with approval/order/position lifecycle     | Survives process restarts and prevents double-spend windows                                                    | Requires cleanup paths on every abort/failure.                       |
+| EventBus             | In-process + BrowserWindow fan-out                                | Simple live UI updates and orchestrator listeners                                                              | Not an external event stream; all windows receive allowed events.    |
+| Local-first storage  | SQLite + Keychain                                                 | Fits desktop single-user app and keeps secrets encrypted by OS                                                 | Not distributed or multi-machine.                                    |
 
 ---
 
 ## 14. Known Limitations
 
-- **In-memory approval callbacks.** If the process crashes while awaiting human approval, the promise is gone. Session moves to `attention_required` on next launch and requires manual restart. No background durability for the approval socket.
-
-- **Single SQLite writer.** All DB writes go through one `better-sqlite3` connection. High-frequency concurrent writes (multiple active sessions + trade monitor polling) can cause brief contention. The current user load is expected to be low (1–5 concurrent sessions).
-
-- **No distributed state.** All runtime state is in-memory within the Electron main process. There is no way to share a session across machines or run the orchestrator headlessly.
-
-- **EventBus is in-process only.** Events fan out to renderer windows, but not to any external system. No webhook, no streaming API, no log aggregation service is wired in.
-
-- **Selector cache hash collision risk.** Cache key is a SHA256 of strategy config JSON. If two configs produce the same hash (collision), stale cached instruments would be used. Collision probability is negligible but not zero.
-
-- **TradeMonitor polling is fixed-interval.** No websocket push from brokers for position changes. External closes are detected by polling `getOrderStatus`, which adds latency proportional to the poll interval.
-
-- **No multi-window isolation.** All open BrowserWindows receive all `EventBus` events. If the app has multiple windows open, all receive all session events.
+- **Runtime callbacks are process-local.** Pending approval rows persist, but original Promise callbacks do not. The code mitigates this with approval recheck when possible, not by restoring the original continuation.
+- **No external event stream.** `EventBus` is in-process and BrowserWindow-only. There is no webhook, SSE, or remote log pipeline.
+- **SQLite is single-user local storage.** WAL improves local concurrency, but this is not designed as a multi-user or multi-machine runtime.
+- **Selector cache is session-scoped.** It avoids stale cross-session sharing but cannot reuse discoveries across sessions with equivalent scopes.
+- **Trade monitoring is poll-based.** Broker websocket/push position updates are not the source of truth; external closes are detected on polling ticks.
+- **Worker traces are persisted at aggregate/trade phase boundaries.** Individual selector worker traces are packed into aggregate selector messages rather than inserted as separate `agent_runs` rows.
+- **Some old compatibility APIs remain.** The renderer and IPC still expose legacy config/account methods alongside the newer session/workspace/strategy APIs.
 
 ---
 
 ## 15. File Reference Map
 
-| Area                       | Key files                                                                     |
-| -------------------------- | ----------------------------------------------------------------------------- |
-| Entry point                | `electron/main/index.ts`                                                      |
-| Composition root           | `electron/main/services/app-services.ts`                                      |
-| Orchestrator (main loop)   | `electron/main/services/orchestration/agent-orchestrator.ts`                  |
-| Session runtime            | `electron/main/services/session/session-runtime.ts`                           |
-| Session runtime manager    | `electron/main/services/session/session-runtime-manager.ts`                   |
-| AI runtime facade          | `electron/main/services/ai/ai-runtime/runtime.ts`                             |
-| AI runtime types           | `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`                    |
-| Pipeline runtime           | `electron/main/services/ai/pipeline-runtime/core/pipeline-runtime.ts`         |
-| Worker executor            | `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts`     |
-| Selector phase             | `electron/main/services/ai/pipeline-runtime/definitions/selector.phase.ts`    |
-| Technical phase            | `electron/main/services/ai/pipeline-runtime/definitions/technical.phase.ts`   |
-| Fundamental phase          | `electron/main/services/ai/pipeline-runtime/definitions/fundamental.phase.ts` |
-| Review phase               | `electron/main/services/ai/pipeline-runtime/definitions/review.phase.ts`      |
-| Decision phase             | `electron/main/services/ai/pipeline-runtime/definitions/decision.phase.ts`    |
-| Discovery worker config    | `electron/main/services/ai/pipeline-runtime/pipeline-discovery-config.ts`     |
-| Execution step runner      | `electron/main/services/orchestration/execution-step-runner.ts`               |
-| Trade monitor              | `electron/main/services/orchestration/trade-monitor.ts`                       |
-| Risk engine                | `electron/main/services/risk/risk-engine.ts`                                  |
-| Broker allocation gate     | `electron/main/services/risk/broker-allocation-gate.ts`                       |
-| Order policy gate          | `electron/main/services/orchestration/order-policy-gate.ts`                   |
-| Capital reservation        | `electron/main/services/risk/capital-reservation-service.ts`                  |
-| Exit policy evaluator      | `electron/main/services/risk/exit-policy-evaluator.ts`                        |
-| Event bus                  | `electron/main/services/infra/event-bus.ts`                                   |
-| Provider adapter interface | `electron/main/services/ai/adapters/provider-adapter.ts`                      |
-| Broker adapter interface   | `electron/main/services/broker/adapters/broker-adapter.ts`                    |
-| Strategy context service   | `electron/main/services/session/session-strategy-context-service.ts`          |
-| Prompt asset loader        | `electron/main/services/ai/prompt-asset-loader.ts`                            |
-| DB schema                  | `electron/main/db/schema.ts`                                                  |
-| DB client                  | `electron/main/db/client.ts`                                                  |
-| IPC handlers               | `electron/main/ipc/`                                                          |
-| Trade autopsy              | `electron/main/services/orchestration/trade-autopsy-service.ts`               |
-| Cycle replay               | `electron/main/services/orchestration/cycle-replay-service.ts`                |
-| Paper scorecard            | `electron/main/services/analytics/paper-scorecard-service.ts`                 |
-| Live readiness             | `electron/main/services/risk/live-readiness-service.ts`                       |
+| Area                   | Current files                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------- |
+| Electron entry         | `electron/main/index.ts`                                                              |
+| Window/security setup  | `electron/main/window.ts`                                                             |
+| Composition root       | `electron/main/services/app-services.ts`                                              |
+| Session service        | `electron/main/services/session/session-service.ts`                                   |
+| Runtime manager        | `electron/main/services/session/session-runtime-manager.ts`                           |
+| Runtime wrapper        | `electron/main/services/session/session-runtime.ts`                                   |
+| Orchestrator           | `electron/main/services/orchestration/cycle/agent-orchestrator.ts`                    |
+| Orchestrator context   | `electron/main/services/orchestration/cycle/orchestrator-context.ts`                  |
+| Step runner            | `electron/main/services/orchestration/cycle/execution-step-runner.ts`                 |
+| Selector orchestration | `electron/main/services/orchestration/cycle/selector/run-selector.ts`                 |
+| Trade cycle            | `electron/main/services/orchestration/cycle/trade/trade-cycle.ts`                     |
+| Trade pipeline bridge  | `electron/main/services/orchestration/cycle/trade/run-trade-pipeline.ts`              |
+| Trade side effects     | `electron/main/services/orchestration/cycle/trade/effect-runner.ts`                   |
+| Approval flow          | `electron/main/services/orchestration/cycle/trade/approval-flow.ts`                   |
+| Approval recheck       | `electron/main/services/orchestration/cycle/trade/approval-recheck.ts`                |
+| Trade monitor          | `electron/main/services/orchestration/lifecycle/trade-monitor.ts`                     |
+| AI runtime facade      | `electron/main/services/ai/ai-runtime/runtime.ts`                                     |
+| Pipeline runtime       | `electron/main/services/ai/pipeline-runtime/core/pipeline-runtime.ts`                 |
+| Phase plan interpreter | `electron/main/services/ai/pipeline-runtime/plan/phase/interpreter.ts`                |
+| Cycle plan interpreter | `electron/main/services/ai/pipeline-runtime/plan/cycle/interpreter.ts`                |
+| Selector plan          | `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts`              |
+| Trade cycle plan       | `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle.ts`        |
+| Trade stages           | `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle-stages.ts` |
+| Worker executor        | `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts`             |
+| Spend tracker          | `electron/main/services/ai/pipeline-runtime/execution/pipeline-spend-tracker.ts`      |
+| Engine registry        | `electron/main/services/ai/engines/registry/register-default-engines.ts`              |
+| Risk engine            | `electron/main/services/risk/risk-engine.ts`                                          |
+| Allocation gate        | `electron/main/services/risk/broker-allocation-gate.ts`                               |
+| Capital reservations   | `electron/main/services/risk/capital-reservation-service.ts`                          |
+| Order policy           | `electron/main/services/orchestration/policy/order-policy-gate.ts`                    |
+| Exit policy            | `electron/main/services/risk/exit-policy-evaluator.ts`                                |
+| Event bus              | `electron/main/services/infra/event-bus.ts`                                           |
+| Preload bridge         | `electron/preload/index.ts`                                                           |
+| IPC handlers           | `electron/main/ipc/`                                                                  |
+| DB schema              | `electron/main/db/schema.ts`                                                          |
+| DB client              | `electron/main/db/client.ts`                                                          |
+| Provider registry      | `electron/main/services/ai/provider-registry.ts`                                      |
+| Search registry        | `electron/main/services/ai/search/search-registry.ts`                                 |
+| Broker registry        | `electron/main/services/broker/broker-registry.ts`                                    |
+| Broker routing         | `electron/main/services/broker/broker-routing-service.ts`                             |
+| Strategy context       | `electron/main/services/session/session-strategy-context-service.ts`                  |
+| Cycle replay           | `electron/main/services/orchestration/replay/cycle-replay-service.ts`                 |
+| Trade autopsy          | `electron/main/services/orchestration/post-trade/trade-autopsy-service.ts`            |
+| Paper scorecard        | `electron/main/services/analytics/paper-scorecard-service.ts`                         |
+| Live readiness         | `electron/main/services/risk/live-readiness-service.ts`                               |

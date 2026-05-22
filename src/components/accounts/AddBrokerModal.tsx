@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import type { InstrumentClass } from "@/lib/types";
 import { api } from "@/lib/exva";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 import { ShadcnSelect } from "@/components/custom-ui";
 import {
   Button,
@@ -27,11 +28,11 @@ export const AddBrokerModal = ({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) => {
+  const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const [brokerType, setBrokerType] = useState<
     "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock"
   >("mock");
   const [name, setName] = useState("");
-  const [mode, setMode] = useState<"paper" | "live">("paper");
   const [apiKey, setApiKey] = useState("");
   const [secretKey, setSecretKey] = useState("");
   const [passphrase, setPassphrase] = useState("");
@@ -67,7 +68,7 @@ export const AddBrokerModal = ({
     try {
       const result = await api.testBrokerCredentials({
         brokerType,
-        mode,
+        mode: environmentMode,
         credentials: credentials(),
       });
       setTestOk(result.ok);
@@ -87,7 +88,7 @@ export const AddBrokerModal = ({
       const result = await api.registerBrokerAccount({
         brokerType,
         name: name.trim() || `${brokerType} account`,
-        mode,
+        mode: environmentMode,
         credentials: credentials(),
       });
       if (!result.ok) {
@@ -143,7 +144,6 @@ export const AddBrokerModal = ({
             onValueChange={(value) => {
               const next = value as typeof brokerType;
               setBrokerType(next);
-              if (next === "coinbase_advanced_trade") setMode("live");
               setTestOk(null);
               setMessage(null);
             }}
@@ -173,18 +173,6 @@ export const AddBrokerModal = ({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Main Alpaca"
-          />
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>Mode</div>
-          <ShadcnSelect
-            value={mode}
-            onValueChange={(value) => setMode(value as "paper" | "live")}
-            options={[
-              { value: "paper", label: "Paper" },
-              { value: "live", label: "Live" },
-            ]}
           />
         </div>
 

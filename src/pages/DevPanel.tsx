@@ -2780,7 +2780,7 @@ export const DevPanel = ({
   // Sessions list
   const { data: sessionOverview } = useQuery({
     queryKey: ["devpanel-session-overview"],
-    queryFn: () => api.listSessions(),
+    queryFn: () => api.listSessions({ includeAllEnvironments: true }),
     refetchInterval: 8000,
   });
   const sessions = sessionOverview?.sessions ?? [];

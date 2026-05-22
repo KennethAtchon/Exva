@@ -456,6 +456,7 @@ export const Dashboard = () => {
   const preferences = useWorkspaceStore((s) => s.preferences);
   const setViewMode = useWorkspaceStore((s) => s.setViewMode);
   const loadWorkspaceView = useWorkspaceStore((s) => s.loadWorkspaceView);
+  const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [approvalList, setApprovalList] = useState<{
     workspaceViewMode: "session" | "global";
@@ -475,15 +476,17 @@ export const Dashboard = () => {
   };
 
   useEffect(() => {
+    setEvents([]);
     api
       .getEvents({ limit: 30 })
       .then(setEvents)
       .catch(() => {});
-  }, []);
+  }, [environmentMode]);
 
   useEffect(() => {
+    setApprovalList({ workspaceViewMode: "session", approvals: [] });
     refreshApprovals();
-  }, []);
+  }, [environmentMode]);
 
   useExvaEvent("agent_event", (ev) => {
     setEvents((prev) => [ev, ...prev].slice(0, 100));

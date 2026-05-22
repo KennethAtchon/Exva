@@ -5,12 +5,14 @@ import { api } from "@/lib/exva";
 import type { BrokerAccountWithState } from "@/lib/types";
 import { fmt } from "@/lib/formatters";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
+import { useWorkspaceStore } from "@/store/workspaceStore";
 
 export const BrokersPage = ({
   onJumpToSession,
 }: {
   onJumpToSession?: (sessionId: string) => Promise<void> | void;
 }) => {
+  const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const [brokers, setBrokers] = useState<BrokerAccountWithState[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,12 +58,16 @@ export const BrokersPage = ({
   };
 
   useEffect(() => {
+    setBrokers([]);
+    setExpandedBrokerId(null);
+    setSettingsDrafts({});
+    setError(null);
     void load();
     const interval = window.setInterval(() => {
       void load();
     }, 30_000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [environmentMode]);
 
   useExvaEvent(
     "broker_balance_updated",
@@ -83,10 +89,18 @@ export const BrokersPage = ({
     },
   );
 
+  const visibleBrokers = useMemo(
+    () => brokers.filter((b) => b.mode === environmentMode),
+    [brokers, environmentMode],
+  );
+
   const totalBalanceUsd = useMemo(
     () =>
-      brokers.reduce((sum, broker) => sum + (broker.balanceCacheUsd ?? 0), 0),
-    [brokers],
+      visibleBrokers.reduce(
+        (sum, broker) => sum + (broker.balanceCacheUsd ?? 0),
+        0,
+      ),
+    [visibleBrokers],
   );
 
   return (
@@ -147,22 +161,25 @@ export const BrokersPage = ({
             {fmt.usd(totalBalanceUsd)}
           </div>
           <div style={{ marginTop: 4, color: "var(--text3)", fontSize: 12 }}>
-            {brokers.length} broker account{brokers.length === 1 ? "" : "s"}
+            {visibleBrokers.length} broker account
+            {visibleBrokers.length === 1 ? "" : "s"}
           </div>
         </Card>
       </div>
 
       {error ? <div style={errorBannerStyle}>{error}</div> : null}
 
-      {loading && brokers.length === 0 ? (
+      {loading && visibleBrokers.length === 0 ? (
         <div style={emptyStateStyle}>Loading broker balances...</div>
       ) : null}
-      {!loading && brokers.length === 0 ? (
-        <div style={emptyStateStyle}>No broker accounts configured yet.</div>
+      {!loading && visibleBrokers.length === 0 ? (
+        <div style={emptyStateStyle}>
+          No {environmentMode} broker accounts configured yet.
+        </div>
       ) : null}
 
       <div style={{ display: "grid", gap: 14 }}>
-        {brokers.map((broker) => {
+        {visibleBrokers.map((broker) => {
           const draft = settingsDrafts[broker.id] ?? {
             maxSessions: broker.maxSessions,
             allocationEnforcement: broker.allocationEnforcement,
@@ -206,11 +223,6 @@ export const BrokersPage = ({
                       >
                         {broker.name}
                       </div>
-                      <Badge
-                        variant={broker.mode === "live" ? "danger" : "blue"}
-                      >
-                        {broker.mode}
-                      </Badge>
                       <Badge variant="default">{broker.brokerType}</Badge>
                       {broker.sessions.length > 1 ? (
                         <Badge variant="warn">

@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { z } from "zod";
 import {
   apiKeySchema,
   brokerAccountAddSchema,
@@ -14,6 +15,10 @@ import { channels } from "@electron/shared/ipc/channels";
 import { AppError } from "@electron/shared/infra/errors";
 import { isBuiltInSearchProviderAccount } from "@electron/shared/catalog/search-providers";
 import type { AppServices } from "../services/app-services";
+import { resolveBrokerModeFilter } from "../services/workspace/environment-scope";
+import {
+  assertBrokerModeMatchesWorkspace,
+} from "./environment-guards";
 import {
   serializeBrokerCredentials,
   tempBrokerAccount,
@@ -115,12 +120,23 @@ export function registerAccountHandlers(services: AppServices): void {
     return result;
   });
 
-  handle(ipcMain, channels.accounts.listBrokers, async () => ({
-    brokers: services.repos.brokerAccounts.list(),
-  }));
+  handle(ipcMain, channels.accounts.listBrokers, async (payload) => {
+    const parsed = z
+      .object({ includeAllEnvironments: z.boolean().optional() })
+      .optional()
+      .parse(payload);
+    const includeAllEnvironments = parsed?.includeAllEnvironments === true;
+    const prefs = services.repos.workspacePreferences.get();
+    const mode = resolveBrokerModeFilter(prefs, { includeAllEnvironments });
+    const brokers = services.repos.brokerAccounts
+      .list()
+      .filter((broker) => !mode || broker.mode === mode);
+    return { brokers };
+  });
 
   handle(ipcMain, channels.accounts.addBroker, async (payload) => {
     const input = brokerAccountAddSchema.parse(payload);
+    assertBrokerModeMatchesWorkspace(services, input.mode);
     const id = input.id ?? crypto.randomUUID();
     const secretRef = `broker:${id}`;
     const json = serializeBrokerCredentials(
@@ -208,6 +224,31 @@ export function registerAccountHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.accounts.routingUpdate, async (payload) => {
     const { routing } = brokerRoutingUpdateSchema.parse(payload);
+    const prefs = services.repos.workspacePreferences.get();
+    const requiredMode = prefs.globalEnvironmentMode;
+    for (const row of routing) {
+      if (!row.defaultBrokerAccountId) continue;
+      const broker = services.repos.brokerAccounts.find(
+        row.defaultBrokerAccountId,
+      );
+      if (!broker) {
+        throw new AppError(
+          `Broker ${row.defaultBrokerAccountId} was not found.`,
+          "NOT_FOUND",
+        );
+      }
+      if (broker.mode !== requiredMode) {
+        throw new AppError(
+          `Routing default for ${row.instrumentClass} must use a ${requiredMode} broker in the current workspace environment.`,
+          "VALIDATION_FAILED",
+          {
+            instrumentClass: row.instrumentClass,
+            brokerMode: broker.mode,
+            requiredMode,
+          },
+        );
+      }
+    }
     services.repos.brokerRouting.upsertGlobalDefaults(routing);
     return { savedAt: new Date().toISOString() };
   });

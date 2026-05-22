@@ -75,6 +75,7 @@ export const SessionsPage = ({
   >({});
   const aiReady = useWorkspaceStore((state) => state.focusedSessionAiReady);
   const checkAiReady = useWorkspaceStore((state) => state.checkAiReady);
+  const environmentMode = useWorkspaceStore((state) => state.environmentMode);
   const [liveReadinessSession, setLiveReadinessSession] =
     useState<SessionSummary | null>(null);
   const [liveReadinessReport, setLiveReadinessReport] =
@@ -128,6 +129,8 @@ export const SessionsPage = ({
         instrumentClass:
           instrumentFilter === "all" ? undefined : instrumentFilter,
         includeArchived: preferences?.globalIncludeArchived,
+        executionMode:
+          environmentMode === "live" ? "live_allowed" : "paper_only",
       });
       setSessions(result.sessions);
       await loadWorkspaceView();
@@ -155,7 +158,22 @@ export const SessionsPage = ({
     statusFilter,
     instrumentFilter,
     preferences?.globalIncludeArchived,
+    environmentMode,
   ]);
+
+  useEffect(() => {
+    setDetail(null);
+    setEditing(null);
+    setModalOpen(false);
+    setTemplatesOpen(false);
+    setTemplateInput(null);
+    setTemplateWarnings([]);
+    setProgressBySessionId({});
+    setLiveReadinessSession(null);
+    setLiveReadinessReport(null);
+    setActionSessionId(null);
+    setError(null);
+  }, [environmentMode]);
 
   useEffect(() => {
     if (focusedSessionId) void checkAiReady(focusedSessionId);

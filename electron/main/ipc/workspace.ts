@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import { workspaceEndpoints } from "@electron/shared/ipc/endpoints";
 import type { AppServices } from "../services/app-services";
+import { clearFocusIfEnvironmentMismatch } from "./environment-guards";
 import { handle } from "./handle";
 
 export function registerWorkspaceHandlers(services: AppServices): void {
@@ -17,9 +18,12 @@ export function registerWorkspaceHandlers(services: AppServices): void {
     ipcMain,
     workspaceEndpoints.patchPreferences.channel,
     async (payload) => {
-      return services.repos.workspacePreferences.update(
-        workspaceEndpoints.patchPreferences.parseInput(payload),
-      );
+      const patch = workspaceEndpoints.patchPreferences.parseInput(payload);
+      const preferences = services.repos.workspacePreferences.update(patch);
+      if (patch.globalEnvironmentMode !== undefined) {
+        clearFocusIfEnvironmentMismatch(services);
+      }
+      return preferences;
     },
   );
 }

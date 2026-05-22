@@ -16,6 +16,7 @@ export interface SessionListFilters {
   instrumentClass?: InstrumentClass;
   search?: string;
   includeArchived?: boolean;
+  executionMode?: "paper_only" | "live_allowed";
 }
 
 export interface SessionSummaryView {
@@ -56,6 +57,7 @@ export class SessionListingService {
     const repoFilters: SessionFilters = {
       statuses: filters.status ? [filters.status] : undefined,
       includeArchived: filters.includeArchived,
+      executionMode: filters.executionMode,
     };
     const search = filters.search?.toLowerCase().trim() ?? "";
     const instrumentClass = filters.instrumentClass;

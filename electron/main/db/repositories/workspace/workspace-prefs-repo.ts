@@ -19,6 +19,8 @@ export class WorkspacePreferencesRepo {
     return {
       id: 1,
       globalIncludeArchived: row.globalIncludeArchived,
+      globalEnvironmentMode:
+        row.globalEnvironmentMode === "live" ? "live" : "paper",
       defaultSearchProviderId: row.defaultSearchProviderId,
       allocationEnforcementOverride:
         (row.allocationEnforcementOverride as WorkspacePreferences["allocationEnforcementOverride"]) ??
@@ -39,6 +41,7 @@ export class WorkspacePreferencesRepo {
       .update(workspacePreferences)
       .set({
         globalIncludeArchived: next.globalIncludeArchived,
+        globalEnvironmentMode: next.globalEnvironmentMode,
         defaultSearchProviderId: next.defaultSearchProviderId,
         allocationEnforcementOverride: next.allocationEnforcementOverride,
         defaultModelProviderKey: next.defaultModelProviderKey,
