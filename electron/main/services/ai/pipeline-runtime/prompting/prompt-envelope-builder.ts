@@ -77,16 +77,30 @@ function augmentMockTask(
   task: Record<string, unknown>,
   phase: PipelinePhase,
   sandboxMode: boolean,
+  mockScenarioKind?: MockScenarioKind | null,
 ): Record<string, unknown> {
-  if (!sandboxMode || phase !== "selector") return task;
-  const selectionInstructions =
-    typeof task.selectionInstructions === "string"
-      ? task.selectionInstructions
-      : "";
-  return {
-    ...task,
-    selectionInstructions: `${selectionInstructions}\n\nMock sandbox: treat tool results as authoritative evidence. Do not supplement with memory, assumed live prices, or external knowledge.`,
-  };
+  if (!sandboxMode) return task;
+
+  if (phase === "selector") {
+    const selectionInstructions =
+      typeof task.selectionInstructions === "string"
+        ? task.selectionInstructions
+        : "";
+    return {
+      ...task,
+      selectionInstructions: `${selectionInstructions}\n\nMock sandbox: treat tool results as authoritative evidence. Do not supplement with memory, assumed live prices, or external knowledge.`,
+    };
+  }
+
+  if (phase === "decision" && mockScenarioKind === "clean_breakout") {
+    return {
+      ...task,
+      entryTimingHint:
+        "Sandbox clean_breakout scenario: if review approved and quote is fresh, prefer enter_now unless a clear technical reason warrants waiting.",
+    };
+  }
+
+  return task;
 }
 
 /** Character counts vs RUNTIME_DEFAULTS — for tests and observability only; never mutates content. */
@@ -134,6 +148,7 @@ export function envelopeToMessages(
     envelope.userPayload.task as Record<string, unknown>,
     phase,
     sandboxMode,
+    mockScenarioKind,
   );
 
   const userContent = [

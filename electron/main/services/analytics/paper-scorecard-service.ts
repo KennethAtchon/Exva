@@ -1,5 +1,5 @@
 import type { Trade } from "@/lib/types";
-import type { MockScenarioKind } from "../broker/mock/mock-scenario-fixtures";
+import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";

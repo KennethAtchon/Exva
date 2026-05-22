@@ -225,17 +225,63 @@ export function substituteMockSymbol(text: string, symbol: string): string {
   return text.replaceAll("{symbol}", symbol.toUpperCase());
 }
 
-export function extractQuerySymbol(query: string): string | null {
-  const match = query.match(/\b[A-Z]{1,5}\b/);
-  return match?.[0] ?? null;
+const SYMBOL_NOISE = new Set([
+  "I",
+  "A",
+  "S",
+  "US",
+  "UK",
+  "EU",
+  "AI",
+  "IT",
+  "OR",
+  "AT",
+  "ON",
+  "IF",
+  "TV",
+  "CEO",
+  "IPO",
+  "ETF",
+]);
+
+export function extractQuerySymbol(
+  query: string,
+  knownSymbols?: string[],
+): string | null {
+  const upper = query.toUpperCase();
+  if (knownSymbols?.length) {
+    for (const sym of knownSymbols) {
+      if (new RegExp(`\\b${sym}\\b`).test(upper)) return sym;
+    }
+  }
+  const matches = upper.match(/\b[A-Z]{1,5}\b/g) ?? [];
+  for (const token of matches) {
+    if (token.length >= 2 && !SYMBOL_NOISE.has(token)) return token;
+  }
+  return null;
+}
+
+export function resolveMockSymbolForUrl(
+  url: string,
+  primarySymbols?: string[],
+): string {
+  const upper = url.toUpperCase();
+  if (primarySymbols?.length) {
+    for (const sym of primarySymbols) {
+      if (new RegExp(`\\b${sym}\\b`).test(upper)) return sym;
+    }
+    return primarySymbols[0]!;
+  }
+  return "TICKER";
 }
 
 export function filterMockWebSearch(
   items: MockWebSearchItem[],
   query: string,
   limit = 8,
+  knownSymbols?: string[],
 ): MockWebSearchItem[] {
-  const symbol = extractQuerySymbol(query.toUpperCase());
+  const symbol = extractQuerySymbol(query.toUpperCase(), knownSymbols);
   const tokens = query
     .toLowerCase()
     .split(/\W+/)

@@ -14,6 +14,7 @@ export function createMockSearchTool(deps: {
   cycleId?: string | null;
   tradeId?: string | null;
   mockWebSearchData: MockWebSearchItem[];
+  mockPrimarySymbols?: string[];
 }) {
   return tool({
     description: [
@@ -25,7 +26,12 @@ export function createMockSearchTool(deps: {
     execute: async (input: { query: string }) => {
       const startedAt = Date.now();
       const createdAt = new Date().toISOString();
-      const results = filterMockWebSearch(deps.mockWebSearchData, input.query);
+      const results = filterMockWebSearch(
+        deps.mockWebSearchData,
+        input.query,
+        8,
+        deps.mockPrimarySymbols,
+      );
       deps.apiCallLogRepo.insert({
         id: crypto.randomUUID(),
         session_id: deps.sessionId,

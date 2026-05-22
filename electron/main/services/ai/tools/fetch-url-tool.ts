@@ -2,6 +2,10 @@ import { tool } from "ai";
 import { z } from "zod";
 import { promises as dns } from "node:dns";
 import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
+import {
+  resolveMockSymbolForUrl,
+  substituteMockSymbol,
+} from "../../broker/mock/mock-discovery-fixtures";
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_CONTENT_CHARS = 8000;
@@ -138,6 +142,7 @@ export function createFetchUrlTool(deps: {
   maxDataSpendUsd?: number | null;
   isMockSession?: boolean;
   mockUrlContent?: Record<string, string>;
+  mockPrimarySymbols?: string[];
 }) {
   /**
    * Fetches the content of a given URL.
@@ -162,7 +167,11 @@ export function createFetchUrlTool(deps: {
       if (deps.isMockSession) {
         const mockContent = deps.mockUrlContent?.[url];
         if (mockContent) {
-          const content = mockContent.slice(0, MAX_CONTENT_CHARS);
+          const symbol = resolveMockSymbolForUrl(url, deps.mockPrimarySymbols);
+          const content = substituteMockSymbol(
+            mockContent.slice(0, MAX_CONTENT_CHARS),
+            symbol,
+          );
           deps.apiCallLogRepo.insert({
             id: crypto.randomUUID(),
             session_id: deps.sessionId,

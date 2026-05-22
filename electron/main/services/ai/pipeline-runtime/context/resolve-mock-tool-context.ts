@@ -21,6 +21,7 @@ export type MockToolContext = {
   mockTrendingData?: typeof MOCK_TRENDING_SYMBOLS;
   mockWebSearchData?: MockWebSearchItem[];
   mockUrlContent?: Record<string, string>;
+  mockPrimarySymbols?: string[];
 };
 
 export async function resolveMockToolContext(input: {
@@ -39,6 +40,7 @@ export async function resolveMockToolContext(input: {
       mockTrendingData: undefined,
       mockWebSearchData: undefined,
       mockUrlContent: undefined,
+      mockPrimarySymbols: undefined,
     };
   }
 
@@ -57,6 +59,7 @@ export async function resolveMockToolContext(input: {
       MOCK_TRENDING_SYMBOLS) as typeof MOCK_TRENDING_SYMBOLS,
     mockWebSearchData: fixtures.webSearch,
     mockUrlContent: fixtures.urlContent,
+    mockPrimarySymbols: fixtures.primarySymbols,
   };
 }
 

@@ -173,6 +173,27 @@ describe("strategy-prompt-context", () => {
     expect(userMessage).not.toContain("Discovery guidance:");
   });
 
+  it("nudges entry timer toward enter_now in clean_breakout sandbox", () => {
+    const context = baseContext();
+    const envelope = buildPromptEnvelope({
+      phase: "decision",
+      workerId: "entry-timer",
+      basePromptMarkdown: "# Entry timer",
+      task: { instrumentSymbol: "NVDA" },
+      strategyContext: context,
+      strategyContextRequest: TEST_STRATEGY_CONTEXT_REQUEST,
+      sandboxMode: true,
+      mockScenarioKind: "clean_breakout",
+    });
+
+    const messages = envelopeToMessages(envelope, context);
+    const userMessage = messages[1]?.content ?? "";
+
+    expect(userMessage).toContain("entryTimingHint");
+    expect(userMessage).toContain("prefer enter_now");
+    expect(messages[0]?.content).toContain("Sandbox Mode");
+  });
+
   it("renders worker-declared strategy facts and guidance only", () => {
     const context = baseContext();
     context.riskConfig.riskPresetId = "moderate";

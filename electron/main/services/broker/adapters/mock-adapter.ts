@@ -9,7 +9,7 @@ import type {
   MarketSnapshot,
   OrderStatus,
 } from "./broker-adapter";
-import type { MockScenarioKind } from "../mock/mock-scenario-fixtures";
+import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 
 export type MockScenarioBias = "bullish" | "bearish" | "sideways" | "volatile";
 

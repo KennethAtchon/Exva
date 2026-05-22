@@ -1,14 +1,4 @@
-export type MockScenarioKind =
-  | "clean_breakout"
-  | "failed_breakout"
-  | "sideways_chop"
-  | "gap_down_after_entry"
-  | "news_reversal"
-  | "stale_quote"
-  | "wide_spread"
-  | "partial_fill"
-  | "broker_reject"
-  | "rate_limit";
+import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 
 type RedditPost = {
   subreddit: string;

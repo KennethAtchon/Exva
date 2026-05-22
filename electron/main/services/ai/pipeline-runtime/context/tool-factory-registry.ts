@@ -59,6 +59,7 @@ export interface ToolBuildContext {
   mockTrendingData?: typeof MOCK_TRENDING_SYMBOLS;
   mockWebSearchData?: MockWebSearchItem[];
   mockUrlContent?: Record<string, string>;
+  mockPrimarySymbols?: string[];
   mockScenarioKind?: MockScenarioKind;
   isMockSession?: boolean;
 }
@@ -101,6 +102,7 @@ export async function buildToolSet(
         cycleId: ctx.cycleId,
         tradeId: ctx.tradeId ?? null,
         mockWebSearchData: ctx.mockWebSearchData,
+        mockPrimarySymbols: ctx.mockPrimarySymbols,
       });
     } else {
       if (!ctx.searchProviderId) {
@@ -131,6 +133,7 @@ export async function buildToolSet(
       maxDataSpendUsd: ctx.maxDataSpendUsd,
       isMockSession: ctx.isMockSession,
       mockUrlContent: ctx.mockUrlContent,
+      mockPrimarySymbols: ctx.mockPrimarySymbols,
     });
   }
 

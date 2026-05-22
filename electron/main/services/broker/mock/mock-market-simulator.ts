@@ -1,6 +1,6 @@
 import { MockBrokerAdapter, type MockScenario } from "../adapters/mock-adapter";
+import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import {
-  type MockScenarioKind,
   SCENARIO_NEWS,
   SCENARIO_REDDIT,
   SCENARIO_TRENDING,

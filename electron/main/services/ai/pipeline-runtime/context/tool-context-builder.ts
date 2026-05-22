@@ -57,6 +57,7 @@ export async function buildToolContext(
     mockTrendingData: mock.mockTrendingData,
     mockWebSearchData: mock.mockWebSearchData,
     mockUrlContent: mock.mockUrlContent,
+    mockPrimarySymbols: mock.mockPrimarySymbols,
     mockScenarioKind: mock.mockScenarioKind,
     isMockSession: mock.isMockSession,
   };
