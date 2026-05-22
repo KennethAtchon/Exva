@@ -1,6 +1,7 @@
 import type { AgentRole, ProviderType } from "@/lib/types";
 import type { PrepareStepFunction, ToolSet } from "ai";
 import type { z } from "zod";
+import type { ReasoningLevel } from "@electron/shared/ai/pipeline-phase";
 import type {
   RuntimeAgentMessage,
   RunTrace,
@@ -44,6 +45,7 @@ export interface AgentRunOptions<T = undefined> {
   spendLimitUsd: number;
   temperature?: number;
   maxTokens?: number;
+  reasoningLevel?: ReasoningLevel;
   abortSignal?: AbortSignal;
   schema?: z.ZodType<T>;
   terminalToolNames?: string[];

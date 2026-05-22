@@ -9,6 +9,7 @@ import type {
   ProviderAdapter,
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
+import { buildAnthropicReasoningOptions } from "./reasoning-options";
 import type { RunTrace } from "../ai-runtime/ai-runtime-types";
 
 function readUsage(
@@ -62,9 +63,14 @@ export class AnthropicAdapter implements ProviderAdapter {
   ): Promise<RunTrace<T>> {
     const { createAnthropic } = await import("@ai-sdk/anthropic");
     const client = createAnthropic({ apiKey: this.apiKey });
+    const anthropicOptions = buildAnthropicReasoningOptions(
+      opts.reasoningLevel,
+      Boolean(opts.tools),
+    );
     return executeRunAgent({
       model: client(opts.model),
       modelId: opts.model,
+      providerType: this.providerType,
       role: opts.role,
       workerId: opts.workerId,
       workerName: opts.workerName,
@@ -77,6 +83,10 @@ export class AnthropicAdapter implements ProviderAdapter {
       spendLimitUsd: opts.spendLimitUsd,
       temperature: opts.temperature,
       maxOutputTokens: opts.maxTokens,
+      reasoningLevel: opts.reasoningLevel,
+      providerOptions: anthropicOptions
+        ? { anthropic: anthropicOptions }
+        : undefined,
       abortSignal: opts.abortSignal,
       schema: opts.schema,
       terminalToolNames: opts.terminalToolNames,

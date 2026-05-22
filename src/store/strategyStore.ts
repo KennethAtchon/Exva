@@ -300,6 +300,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
           modelId: config.modelId,
           temperature: config.temperature,
           maxTokens: config.maxTokens,
+          reasoningLevel: config.reasoningLevel,
           promptSource: config.promptSource,
           promptMarkdown: config.promptMarkdown,
         });

@@ -248,6 +248,7 @@ export class SessionRepo {
             modelId: roleSeed.modelId,
             temperature: 0.7,
             maxTokens: 8192,
+            reasoningLevel: "off",
             promptSource: "default",
             promptMarkdown: "",
             updatedAt: now,

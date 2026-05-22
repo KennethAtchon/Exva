@@ -1,3 +1,4 @@
+import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import {
   generateText,
   hasToolCall,
@@ -12,6 +13,7 @@ import {
 } from "ai";
 import type { z } from "zod";
 import type { AgentRole } from "@/lib/types";
+import type { ReasoningLevel } from "@electron/shared/ai/pipeline-phase";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
 import { resolveRunCostUsd } from "../resolve-run-cost";
@@ -65,6 +67,8 @@ export interface RunAgentExecuteParams<T> {
   spendLimitUsd?: number;
   temperature?: number;
   maxOutputTokens?: number;
+  reasoningLevel?: ReasoningLevel;
+  providerOptions?: ProviderOptions;
   abortSignal?: AbortSignal;
   schema?: z.ZodType<T>;
   terminalToolNames?: string[];
@@ -243,6 +247,7 @@ export async function executeRunAgent<T = undefined>(
       providerType: params.providerType ?? null,
       ...agentLogContext(params),
       temperature: params.temperature ?? null,
+      reasoningLevel: params.reasoningLevel ?? null,
       hasTools: Boolean(params.tools),
       toolNames: params.tools ? Object.keys(params.tools) : [],
       hasSchema: Boolean(params.schema),
@@ -282,6 +287,7 @@ export async function executeRunAgent<T = undefined>(
     tools: params.tools,
     temperature: params.temperature,
     maxOutputTokens: params.maxOutputTokens,
+    ...(params.providerOptions ? { providerOptions: params.providerOptions } : {}),
     abortSignal: params.abortSignal,
     stopWhen,
     prepareStep: params.prepareStep,

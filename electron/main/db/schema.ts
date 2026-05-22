@@ -177,6 +177,7 @@ export const sessionAiPhases = sqliteTable(
     modelId: text("model_id").notNull().default(""),
     temperature: real("temperature").notNull().default(0.7),
     maxTokens: integer("max_tokens").notNull().default(8192),
+    reasoningLevel: text("reasoning_level").notNull().default("off"),
     promptSource: text("prompt_source").notNull().default("default"),
     promptMarkdown: text("prompt_markdown").notNull().default(""),
     updatedAt: text("updated_at").notNull(),

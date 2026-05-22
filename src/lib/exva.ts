@@ -223,6 +223,13 @@ export const api = {
     modelId?: string;
     temperature?: number;
     maxTokens?: number;
+    reasoningLevel?:
+      | "off"
+      | "auto"
+      | "low"
+      | "medium"
+      | "high"
+      | "max";
     promptSource?: "default" | "session_override";
     promptMarkdown?: string;
   }) => bridge().strategy.saveAiPhase(input),

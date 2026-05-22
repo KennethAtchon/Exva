@@ -8,6 +8,7 @@ import type {
   ProviderAdapter,
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
+import { buildOpenAiReasoningOptions } from "./reasoning-options";
 import type { RunTrace } from "../ai-runtime/ai-runtime-types";
 
 function readUsage(
@@ -39,9 +40,11 @@ export class OpenAiAdapter implements ProviderAdapter {
   ): Promise<RunTrace<T>> {
     const { createOpenAI } = await import("@ai-sdk/openai");
     const client = createOpenAI({ apiKey: this.apiKey });
+    const reasoningEffort = buildOpenAiReasoningOptions(opts.reasoningLevel);
     return executeRunAgent({
       model: client(opts.model),
       modelId: opts.model,
+      providerType: this.providerType,
       role: opts.role,
       workerId: opts.workerId,
       workerName: opts.workerName,
@@ -54,6 +57,10 @@ export class OpenAiAdapter implements ProviderAdapter {
       spendLimitUsd: opts.spendLimitUsd,
       temperature: opts.temperature,
       maxOutputTokens: opts.maxTokens,
+      reasoningLevel: opts.reasoningLevel,
+      providerOptions: reasoningEffort
+        ? { openai: { reasoningEffort } }
+        : undefined,
       abortSignal: opts.abortSignal,
       schema: opts.schema,
       terminalToolNames: opts.terminalToolNames,

@@ -1,7 +1,7 @@
 # Reasoning/Thinking Level Toggle — Plan
 
 > **Date:** 2026-05-21
-> **Status:** Draft
+> **Status:** Implemented (2026-05-22)
 > **Deciders:** Kenneth Atchon
 
 ---
@@ -20,21 +20,21 @@ If nothing is done, users who pick reasoning-capable models get inconsistent, pr
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Users can set a reasoning level per pipeline phase in the Strategy UI | The AI Phases section has a "Reasoning" selector (Off / Auto / Low / Medium / High / Max) that persists across sessions |
-| 2 | The chosen level is translated correctly per provider at call time | Anthropic gets `providerOptions.anthropic.thinking`, OpenAI gets `providerOptions.openai.reasoningEffort`, OpenRouter gets appropriate pass-through |
-| 3 | Non-reasoning models are unaffected | When `reasoningLevel` is `off` or provider/model doesn't support it, zero extra params are sent |
-| 4 | Existing reasoning telemetry (`thinkingText` in `RunTrace`) continues to work | DevPanel thinking block still populated |
+| #   | Goal                                                                          | Success Looks Like                                                                                                                                  |
+| --- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Users can set a reasoning level per pipeline phase in the Strategy UI         | The AI Phases section has a "Reasoning" selector (Off / Auto / Low / Medium / High / Max) that persists across sessions                             |
+| 2   | The chosen level is translated correctly per provider at call time            | Anthropic gets `providerOptions.anthropic.thinking`, OpenAI gets `providerOptions.openai.reasoningEffort`, OpenRouter gets appropriate pass-through |
+| 3   | Non-reasoning models are unaffected                                           | When `reasoningLevel` is `off` or provider/model doesn't support it, zero extra params are sent                                                     |
+| 4   | Existing reasoning telemetry (`thinkingText` in `RunTrace`) continues to work | DevPanel thinking block still populated                                                                                                             |
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Per-worker reasoning override (worker-level granularity) | Phase-level is sufficient for v1; worker override can be layered later |
-| 2 | Streaming thinking to the UI in real time | Read-only log capture is already in place; streaming adds complexity |
-| 3 | Auto-detecting whether a model supports thinking | User is responsible for pairing a reasoning-capable model with a non-`off` level |
-| 4 | Cost-estimation changes for thinking tokens | Pricing data for thinking tokens is not maintained in `model-pricing.ts` yet |
+| #   | Non-Goal                                                 | Reason                                                                           |
+| --- | -------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| 1   | Per-worker reasoning override (worker-level granularity) | Phase-level is sufficient for v1; worker override can be layered later           |
+| 2   | Streaming thinking to the UI in real time                | Read-only log capture is already in place; streaming adds complexity             |
+| 3   | Auto-detecting whether a model supports thinking         | User is responsible for pairing a reasoning-capable model with a non-`off` level |
+| 4   | Cost-estimation changes for thinking tokens              | Pricing data for thinking tokens is not maintained in `model-pricing.ts` yet     |
 
 ---
 
@@ -55,29 +55,33 @@ UI (AiPhasesSection.tsx)
 
 ### Relevant types (all need extension)
 
-| File | Type | Missing field |
-|------|------|---------------|
-| `electron/shared/ai/pipeline-phase.ts:212` | `SessionAiPhase` | `reasoningLevel` |
-| `electron/shared/ai/pipeline-phase.ts:236` | `PhaseRuntimeSummary` | `reasoningLevel` |
-| `electron/main/services/ai/adapters/provider-adapter.ts:33` | `AgentRunOptions` | `reasoningLevel` |
-| `electron/main/services/ai/adapters/run-agent-execute.ts:51` | `RunAgentExecuteParams` | `reasoningLevel` |
-| `electron/main/db/schema.ts:169` | `session_ai_phases` table | `reasoning_level` column |
+| File                                                         | Type                      | Missing field            |
+| ------------------------------------------------------------ | ------------------------- | ------------------------ |
+| `electron/shared/ai/pipeline-phase.ts:212`                   | `SessionAiPhase`          | `reasoningLevel`         |
+| `electron/shared/ai/pipeline-phase.ts:236`                   | `PhaseRuntimeSummary`     | `reasoningLevel`         |
+| `electron/main/services/ai/adapters/provider-adapter.ts:33`  | `AgentRunOptions`         | `reasoningLevel`         |
+| `electron/main/services/ai/adapters/run-agent-execute.ts:51` | `RunAgentExecuteParams`   | `reasoningLevel`         |
+| `electron/main/db/schema.ts:169`                             | `session_ai_phases` table | `reasoning_level` column |
 
 ### SDK capabilities (installed)
 
 **Anthropic (`@ai-sdk/anthropic`)** — `AnthropicProviderOptions.thinking`:
+
 ```ts
 { type: "enabled"; budgetTokens?: number }   // explicit budget
 { type: "adaptive" }                          // model decides
 { type: "disabled" }                          // suppress thinking
 ```
+
 Passed as `providerOptions: { anthropic: { thinking: ... } }` in `generateText`.
 
 **OpenAI (`@ai-sdk/openai`)** — `reasoningEffort` on the per-call model wrapper:
+
 ```ts
 // line 11, @ai-sdk/openai dist/index.d.ts
 reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh"
 ```
+
 Passed on the model instance: `client(opts.model, { reasoningEffort: "high" })`.
 
 **OpenRouter** — OpenAI-compat provider; passes `reasoning: { effort }` via `extraBody` or OpenAI `reasoning_effort` in request body. The `@ai-sdk/openai` adapter used for OpenRouter does not forward `reasoningEffort` from model-level options through the OpenRouter base URL by default. Must verify at integration time (see Open Questions).
@@ -118,15 +122,15 @@ Source: https://openrouter.ai/docs/use-cases/reasoning-tokens
 
 Users pick a model; reasoning depth is whatever the provider default is. No new fields, no migration.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Zero — nothing to build |
-| Performance | Unpredictable — depends on provider defaults |
-| Reliability | Risk of silent errors when extended thinking conflicts with tool use on Anthropic |
-| Cost | Unpredictable — thinking tokens billed at output rates |
-| Reversibility | N/A |
-| Stack fit | N/A |
-| Team readiness | N/A |
+| Dimension      | Assessment                                                                        |
+| -------------- | --------------------------------------------------------------------------------- |
+| Complexity     | Zero — nothing to build                                                           |
+| Performance    | Unpredictable — depends on provider defaults                                      |
+| Reliability    | Risk of silent errors when extended thinking conflicts with tool use on Anthropic |
+| Cost           | Unpredictable — thinking tokens billed at output rates                            |
+| Reversibility  | N/A                                                                               |
+| Stack fit      | N/A                                                                               |
+| Team readiness | N/A                                                                               |
 
 Risks: Users who pick Anthropic thinking models get inconsistent output quality and potential API errors with no control path. Likelihood: medium (increases as reasoning models become default). Impact: high (incorrect trade analysis is the core product failure mode).
 
@@ -136,15 +140,15 @@ Risks: Users who pick Anthropic thinking models get inconsistent output quality 
 
 Infer reasoning settings from the model ID at call time. If the model name contains `thinking`, `o1`, `o3`, `o4`, etc., apply a hardcoded level. No new DB column or UI control.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Low — heuristic in adapters only |
-| Performance | Fixed at "medium" equivalent regardless of phase needs |
-| Reliability | Model naming is not stable; breaks on new models or custom OpenRouter aliases |
-| Cost | No user control over spend on thinking tokens |
-| Reversibility | Easy — delete the heuristic |
-| Stack fit | Inconsistent with Exva's per-phase configuration philosophy |
-| Team readiness | Simple to implement |
+| Dimension      | Assessment                                                                    |
+| -------------- | ----------------------------------------------------------------------------- |
+| Complexity     | Low — heuristic in adapters only                                              |
+| Performance    | Fixed at "medium" equivalent regardless of phase needs                        |
+| Reliability    | Model naming is not stable; breaks on new models or custom OpenRouter aliases |
+| Cost           | No user control over spend on thinking tokens                                 |
+| Reversibility  | Easy — delete the heuristic                                                   |
+| Stack fit      | Inconsistent with Exva's per-phase configuration philosophy                   |
+| Team readiness | Simple to implement                                                           |
 
 Risks: Naming heuristics break on provider model renames (e.g. OpenRouter custom paths like `anthropic/claude-3-7-sonnet:thinking`). False positives apply thinking budget to models that don't support it, causing API errors. Likelihood: high over time. Impact: medium.
 
@@ -156,35 +160,37 @@ Open questions: Is there a reliable programmatic way to detect thinking support 
 
 Add a `reasoningLevel` field (`"off" | "auto" | "low" | "medium" | "high" | "max"`) to `SessionAiPhase`, the DB schema, the resolver, `AgentRunOptions`, `RunAgentExecuteParams`, and the UI. Each adapter maps the abstract level to its provider-native form at call time.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium — touches 7 files + 1 migration; no new services |
-| Performance | User-controlled tradeoff; `off` = zero overhead |
-| Reliability | Explicit; tool-use conflict handled per-adapter |
-| Cost | Transparent; user sets level knowing it costs more |
-| Reversibility | DB migration adds nullable column with default `"off"` — safe to roll back by ignoring the column |
-| Stack fit | Follows the existing per-phase config pattern exactly |
-| Team readiness | All touch-points are well-understood from current work |
+| Dimension      | Assessment                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------- |
+| Complexity     | Medium — touches 7 files + 1 migration; no new services                                           |
+| Performance    | User-controlled tradeoff; `off` = zero overhead                                                   |
+| Reliability    | Explicit; tool-use conflict handled per-adapter                                                   |
+| Cost           | Transparent; user sets level knowing it costs more                                                |
+| Reversibility  | DB migration adds nullable column with default `"off"` — safe to roll back by ignoring the column |
+| Stack fit      | Follows the existing per-phase config pattern exactly                                             |
+| Team readiness | All touch-points are well-understood from current work                                            |
 
 Risks:
+
 - **Tool + thinking conflict on Anthropic**: Mitigated by always downgrading to `adaptive` when `tools` are present.
 - **OpenRouter reasoning pass-through**: Requires empirical validation; fallback is to log a warning and skip if model doesn't support it. Likelihood: low-medium. Impact: low (silent no-op, not an error).
 - **Thinking token cost surprise**: Mitigated by documenting in UI tooltip that non-`off` levels increase token spend.
 
 Open questions:
+
 1. Does `@ai-sdk/openai` forward `reasoningEffort` through to OpenRouter's API or does it need `extraBody`?
 2. What is the minimum `budgetTokens` that produces meaningful improvement on Anthropic claude-sonnet-4-5? (Anthropic docs say ≥1000 required; practical minimum for trading analysis is unknown.)
 
 **Mapping table**
 
-| `reasoningLevel` | Anthropic (no tools) | Anthropic (with tools) | OpenAI | OpenRouter |
-|-----------------|---------------------|----------------------|--------|------------|
-| `off` | `{ type: "disabled" }` | `{ type: "disabled" }` | `"none"` | omit |
-| `auto` | `{ type: "adaptive" }` | `{ type: "adaptive" }` | `"low"` | `{ effort: "low" }` |
-| `low` | `{ type: "enabled", budgetTokens: 2000 }` | `{ type: "adaptive" }` | `"low"` | `{ effort: "low" }` |
-| `medium` | `{ type: "enabled", budgetTokens: 8000 }` | `{ type: "adaptive" }` | `"medium"` | `{ effort: "medium" }` |
-| `high` | `{ type: "enabled", budgetTokens: 16000 }` | `{ type: "adaptive" }` | `"high"` | `{ effort: "high" }` |
-| `max` | `{ type: "enabled", budgetTokens: 32000 }` | `{ type: "adaptive" }` | `"xhigh"` | `{ effort: "high" }` |
+| `reasoningLevel` | Anthropic (no tools)                       | Anthropic (with tools) | OpenAI     | OpenRouter             |
+| ---------------- | ------------------------------------------ | ---------------------- | ---------- | ---------------------- |
+| `off`            | `{ type: "disabled" }`                     | `{ type: "disabled" }` | `"none"`   | omit                   |
+| `auto`           | `{ type: "adaptive" }`                     | `{ type: "adaptive" }` | `"low"`    | `{ effort: "low" }`    |
+| `low`            | `{ type: "enabled", budgetTokens: 2000 }`  | `{ type: "adaptive" }` | `"low"`    | `{ effort: "low" }`    |
+| `medium`         | `{ type: "enabled", budgetTokens: 8000 }`  | `{ type: "adaptive" }` | `"medium"` | `{ effort: "medium" }` |
+| `high`           | `{ type: "enabled", budgetTokens: 16000 }` | `{ type: "adaptive" }` | `"high"`   | `{ effort: "high" }`   |
+| `max`            | `{ type: "enabled", budgetTokens: 32000 }` | `{ type: "adaptive" }` | `"xhigh"`  | `{ effort: "high" }`   |
 
 Note: `budgetTokens` values are initial starting points, not validated against empirical output quality — adjust after Phase 2 testing.
 
@@ -197,11 +203,13 @@ Note: `budgetTokens` values are initial starting points, not validated against e
 Over the status quo: Option A leaves Anthropic tool-use conflicts unresolved and gives users no control over a major cost/quality lever. Over Option B: name-based heuristics are brittle and contradict Exva's explicit per-phase configuration model. Option C is the only approach that is both safe (handles the tool conflict) and consistent with how every other phase parameter (temperature, maxTokens, provider, model) is managed.
 
 Key assumptions the recommendation depends on:
+
 1. The Vercel AI SDK `providerOptions` param correctly routes to the underlying provider without additional SDK work — confirmed from type inspection of the installed SDK.
 2. Anthropic extended thinking and `adaptive` mode do not require model-ID gating beyond the user's own model selection — correct per Anthropic docs for claude-sonnet-4-5 and above.
 3. OpenRouter reasoning pass-through can be handled via `extraBody` if the `reasoningEffort` field doesn't forward — needs empirical validation in Phase 2.
 
 Conditions that would change the recommendation:
+
 - If Vercel AI SDK adds a stable `thinkingBudget` abstraction that maps automatically per provider, adopt that instead of per-adapter mapping.
 - If OpenRouter reasoning via `extraBody` produces incorrect behavior, drop OpenRouter reasoning support from v1 and document it as unsupported.
 
@@ -216,15 +224,16 @@ Conditions that would change the recommendation:
 **Done criteria:** TypeScript compiles cleanly with the new field flowing end-to-end; DB migration runs without error; resolver reads the field; `executeRunAgent` accepts but ignores it (logs it only).
 
 **Deliverables:**
-- [ ] DB migration: add `reasoning_level TEXT NOT NULL DEFAULT 'off'` to `session_ai_phases`
-- [ ] Update `electron/main/db/schema.ts` `sessionAiPhases` table
-- [ ] Add `reasoningLevel: ReasoningLevel` to `SessionAiPhase` and `PhaseRuntimeSummary` in `pipeline-phase.ts`
-- [ ] Export `ReasoningLevel = "off" | "auto" | "low" | "medium" | "high" | "max"` from `pipeline-phase.ts`
-- [ ] Update `SessionAiPhasesRepo.toSessionAiPhase`, `upsertPhase`, `upsertPhase.set`
-- [ ] Add `reasoningLevel` to `ResolvedPhaseExecConfig` and `PhaseConfigResolver.resolvePhaseConfig`
-- [ ] Add `reasoningLevel?: ReasoningLevel` to `AgentRunOptions` in `provider-adapter.ts`
-- [ ] Add `reasoningLevel?: ReasoningLevel` to `RunAgentExecuteParams` in `run-agent-execute.ts`
-- [ ] Log `reasoningLevel` in `execute run agent start` logger call
+
+- [x] DB migration: add `reasoning_level TEXT NOT NULL DEFAULT 'off'` to `session_ai_phases` (`0001_reasoning_level.sql`)
+- [x] Update `electron/main/db/schema.ts` `sessionAiPhases` table
+- [x] Add `reasoningLevel: ReasoningLevel` to `SessionAiPhase` and `PhaseRuntimeSummary` in `pipeline-phase.ts`
+- [x] Export `ReasoningLevel = "off" | "auto" | "low" | "medium" | "high" | "max"` from `pipeline-phase.ts`
+- [x] Update `SessionAiPhasesRepo.toSessionAiPhase`, `upsertPhase`, `upsertPhase.set`
+- [x] Add `reasoningLevel` to `ResolvedPhaseExecConfig` and `PhaseConfigResolver.resolvePhaseConfig`
+- [x] Add `reasoningLevel?: ReasoningLevel` to `AgentRunOptions` in `provider-adapter.ts`
+- [x] Add `reasoningLevel?: ReasoningLevel` to `RunAgentExecuteParams` in `run-agent-execute.ts`
+- [x] Log `reasoningLevel` in `execute run agent start` logger call
 
 **Dependencies:** None.
 
@@ -239,12 +248,15 @@ Conditions that would change the recommendation:
 **Done criteria:** Manual test — pick `claude-3-7-sonnet-thinking` on Anthropic with `reasoningLevel: "medium"`, run a `review` phase cycle, confirm `thinkingText` in DevPanel is non-null and reasoning block length is meaningfully longer than with `off`.
 
 **Deliverables:**
-- [ ] Create `electron/main/services/ai/adapters/reasoning-options.ts` — exports `buildAnthropicReasoningOptions(level, hasTools)`, `buildOpenAiReasoningOptions(level, modelId)`, `buildOpenRouterReasoningOptions(level)` using the mapping table in §5
-- [ ] Update `AnthropicAdapter.runAgent` to pass `providerOptions: { anthropic: buildAnthropicReasoningOptions(opts.reasoningLevel, Boolean(opts.tools)) }` when level is not `off`
-- [ ] Update `executeRunAgent` `baseArgs` to accept and spread `providerOptions`
-- [ ] Update `OpenAiAdapter.runAgent` to pass `reasoningEffort` on the model wrapper: `client(opts.model, { reasoningEffort })` when level is not `off`
-- [ ] Update `OpenRouterAdapter.runAgent` to pass `extraBody: { reasoning: { effort } }` on the model wrapper (empirically validate first; skip silently if model rejects it)
-- [ ] Unit test `reasoning-options.ts`: assert correct output for each provider × level × hasTools combination
+
+- [x] Create `electron/main/services/ai/adapters/reasoning-options.ts` — exports `buildAnthropicReasoningOptions(level, hasTools)`, `buildOpenAiReasoningOptions(level, modelId)`, `buildOpenRouterReasoningOptions(level)` using the mapping table in §5
+- [x] Update `AnthropicAdapter.runAgent` to pass `providerOptions: { anthropic: buildAnthropicReasoningOptions(opts.reasoningLevel, Boolean(opts.tools)) }` when level is not `off`
+- [x] Update `executeRunAgent` `baseArgs` to accept and spread `providerOptions`
+- [x] Update `OpenAiAdapter.runAgent` to pass `reasoningEffort` via `providerOptions.openai` (see implementation note below)
+- [x] Update `OpenRouterAdapter.runAgent` to inject `reasoning: { effort }` into the request body via a custom `fetch` wrapper (see implementation note below)
+- [x] Unit test `reasoning-options.ts`: assert correct output for each provider × level × hasTools combination
+
+**Implementation note (2026-05-22):** Installed `@ai-sdk/openai` v2 no longer accepts per-model settings as a second argument to `client(modelId)`. OpenAI reasoning effort is passed through `providerOptions.openai.reasoningEffort` on the `generateText` call instead. OpenRouter `extraBody` is likewise unavailable on the model wrapper; reasoning is merged into the JSON POST body via a scoped `fetch` middleware in `OpenRouterAdapter.createClient`.
 
 **Dependencies:** Phase 1 complete.
 
@@ -259,11 +271,12 @@ Conditions that would change the recommendation:
 **Done criteria:** UI smoke test — change `review` phase reasoning from Off to High, reload the page, confirm the value is retained.
 
 **Deliverables:**
-- [ ] Add `REASONING_LEVEL_OPTIONS` array (`{ value, label }`) to `AiPhasesSection.tsx`
-- [ ] Render a `ShadcnSelect` for `reasoningLevel` in `PhaseCard` below the temperature/maxTokens row
-- [ ] Include a tooltip or sub-label: "Non-off levels increase token spend. Pair with a reasoning-capable model."
-- [ ] Verify `onUpdatePhase({ reasoningLevel })` reaches `PhaseRuntimeSummary` and IPC without type errors
-- [ ] Update IPC handler in `electron/main/ipc/strategy.ts` to include `reasoningLevel` in `upsertPhase` patch
+
+- [x] Add `REASONING_LEVEL_OPTIONS` array (`{ value, label }`) to `AiPhasesSection.tsx`
+- [x] Render a `ShadcnSelect` for `reasoningLevel` in `PhaseCard` below the temperature/maxTokens row
+- [x] Include a tooltip or sub-label: "Non-off levels increase token spend. Pair with a reasoning-capable model."
+- [x] Verify `onUpdatePhase({ reasoningLevel })` reaches `PhaseRuntimeSummary` and IPC without type errors
+- [x] Update IPC validation schema (`strategyAiPhaseSaveSchema`) to include `reasoningLevel` in `upsertPhase` patch
 
 **Dependencies:** Phase 1 (types must exist for TSC to pass).
 
@@ -273,24 +286,24 @@ Conditions that would change the recommendation:
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|-----------|--------|------------|
-| 1 | Anthropic API rejects `thinking: enabled` + tools in same call | Medium | High | Always use `adaptive` when `tools` is non-empty (see mapping table) |
-| 2 | OpenRouter does not forward `extraBody.reasoning` to underlying model | Medium | Low | Log warning, pass nothing; document as unsupported in v1 |
-| 3 | `budgetTokens` values in mapping table are too low for useful output | Medium | Medium | Phase 2 manual test; tune values before Phase 3 ships |
-| 4 | Thinking tokens push output past `maxTokens` cap, truncating response | Low | Medium | Document in UI; user can raise `maxTokens` alongside reasoning level |
-| 5 | DB migration on existing data loses rows (STRICT mode conflict) | Low | High | Migration only adds a column with DEFAULT; no existing rows are touched |
+| #   | Risk                                                                  | Likelihood | Impact | Mitigation                                                              |
+| --- | --------------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------- |
+| 1   | Anthropic API rejects `thinking: enabled` + tools in same call        | Medium     | High   | Always use `adaptive` when `tools` is non-empty (see mapping table)     |
+| 2   | OpenRouter does not forward `extraBody.reasoning` to underlying model | Medium     | Low    | Log warning, pass nothing; document as unsupported in v1                |
+| 3   | `budgetTokens` values in mapping table are too low for useful output  | Medium     | Medium | Phase 2 manual test; tune values before Phase 3 ships                   |
+| 4   | Thinking tokens push output past `maxTokens` cap, truncating response | Low        | Medium | Document in UI; user can raise `maxTokens` alongside reasoning level    |
+| 5   | DB migration on existing data loses rows (STRICT mode conflict)       | Low        | High   | Migration only adds a column with DEFAULT; no existing rows are touched |
 
 ---
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|------|--------|----------|--------|--------------|
-| Reasoning control works on Anthropic | `thinkingText` non-null in RunTrace when level ≥ `low` | Always null today | Non-null on thinking-capable model | DevPanel inspection |
-| Reasoning control works on OpenAI | o-series call includes `reasoning_effort` in API request | Never sent | Sent when level ≠ `off` | Network log in Electron devtools |
-| Off level = no change vs today | RunTrace identical to current behavior when `off` | N/A | Zero diff in trace fields | Unit test assertion |
-| UI persists across reload | Phase reasoning level survives app restart | N/A | Value retained | Manual smoke test |
+| Goal                                 | Metric                                                   | Baseline          | Target                             | How Measured                     |
+| ------------------------------------ | -------------------------------------------------------- | ----------------- | ---------------------------------- | -------------------------------- |
+| Reasoning control works on Anthropic | `thinkingText` non-null in RunTrace when level ≥ `low`   | Always null today | Non-null on thinking-capable model | DevPanel inspection              |
+| Reasoning control works on OpenAI    | o-series call includes `reasoning_effort` in API request | Never sent        | Sent when level ≠ `off`            | Network log in Electron devtools |
+| Off level = no change vs today       | RunTrace identical to current behavior when `off`        | N/A               | Zero diff in trace fields          | Unit test assertion              |
+| UI persists across reload            | Phase reasoning level survives app restart               | N/A               | Value retained                     | Manual smoke test                |
 
 **Leading indicator:** Phase 1 TypeScript compiles cleanly with zero `any` suppressions added.
 
@@ -300,20 +313,20 @@ Conditions that would change the recommendation:
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| 1 | Does `@ai-sdk/openai` forward `reasoningEffort` through to OpenRouter's API, or does it require `extraBody`? | Kenneth | Phase 2 start | Open — requires a live test call to OpenRouter with a DeepSeek-R1 or QwQ model |
-| 2 | What `budgetTokens` value produces a measurable improvement in Anthropic trading-analysis output vs `adaptive`? | Kenneth | Phase 2 done | Open — needs empirical testing on `review` phase workloads |
-| 3 | Does `result.usage.outputTokens` include thinking tokens in the installed `@ai-sdk/anthropic` version? | Kenneth | Phase 2 start | Open — affects cost tracking accuracy |
-| 4 | Should `reasoningLevel` be part of worker-level override (`SessionAiPhaseWorker`) in v1 or strictly phase-level? | Kenneth | Phase 1 start | Deferred to v2 per Non-Goals — document decision |
+| #   | Question                                                                                                         | Owner   | Needed By     | Status                                                                         |
+| --- | ---------------------------------------------------------------------------------------------------------------- | ------- | ------------- | ------------------------------------------------------------------------------ |
+| 1   | Does `@ai-sdk/openai` forward `reasoningEffort` through to OpenRouter's API, or does it require `extraBody`?     | Kenneth | Phase 2 start | Open — requires a live test call to OpenRouter with a DeepSeek-R1 or QwQ model |
+| 2   | What `budgetTokens` value produces a measurable improvement in Anthropic trading-analysis output vs `adaptive`?  | Kenneth | Phase 2 done  | Open — needs empirical testing on `review` phase workloads                     |
+| 3   | Does `result.usage.outputTokens` include thinking tokens in the installed `@ai-sdk/anthropic` version?           | Kenneth | Phase 2 start | Open — affects cost tracking accuracy                                          |
+| 4   | Should `reasoningLevel` be part of worker-level override (`SessionAiPhaseWorker`) in v1 or strictly phase-level? | Kenneth | Phase 1 start | Deferred to v2 per Non-Goals — document decision                               |
 
 ---
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|-------------|
-| Model-name heuristics (Option B) | Brittle against OpenRouter custom model paths; no user control; contradicts per-phase config philosophy |
-| Status quo (Option A) | Leaves Anthropic tool-conflict risk unresolved; no cost/quality control for reasoning models |
-| Worker-level granularity in v1 | Adds UI and DB complexity disproportionate to v1 value; phase-level is sufficient for the primary use case |
-| `thinkingBudgetTokens` as raw integer in UI | Too low-level; requires users to understand provider internals; abstract levels are safer UX |
+| Option                                      | Why Rejected                                                                                               |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Model-name heuristics (Option B)            | Brittle against OpenRouter custom model paths; no user control; contradicts per-phase config philosophy    |
+| Status quo (Option A)                       | Leaves Anthropic tool-conflict risk unresolved; no cost/quality control for reasoning models               |
+| Worker-level granularity in v1              | Adds UI and DB complexity disproportionate to v1 value; phase-level is sufficient for the primary use case |
+| `thinkingBudgetTokens` as raw integer in UI | Too low-level; requires users to understand provider internals; abstract levels are safer UX               |

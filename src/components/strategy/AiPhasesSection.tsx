@@ -9,6 +9,15 @@ import {
   type PipelinePhase,
 } from "../../../electron/shared/ai/pipeline-phase";
 
+const REASONING_LEVEL_OPTIONS = [
+  { value: "off", label: "Off" },
+  { value: "auto", label: "Auto" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "max", label: "Max" },
+] as const;
+
 const PHASE_LABELS: Record<PipelinePhase, string> = {
   selector: "Selector",
   technical: "Technical",
@@ -181,6 +190,24 @@ const PhaseCard = ({
               style={inputStyle}
               onChange={(e) => onUpdate({ maxTokens: Number(e.target.value) })}
             />
+          </div>
+        </div>
+        <div>
+          <div style={fieldLabelStyle}>Reasoning</div>
+          <ShadcnSelect
+            value={config.reasoningLevel ?? "off"}
+            onValueChange={(reasoningLevel) =>
+              onUpdate({
+                reasoningLevel: reasoningLevel as PhaseRuntimeSummary["reasoningLevel"],
+              })
+            }
+            options={[...REASONING_LEVEL_OPTIONS]}
+            placeholder="Off"
+            disabled={isLocked}
+          />
+          <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+            Non-off levels increase token spend. Pair with a reasoning-capable
+            model.
           </div>
         </div>
         <div

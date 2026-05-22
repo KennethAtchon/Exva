@@ -426,6 +426,9 @@ export const strategyAiPhaseSaveSchema = z.object({
   modelId: z.string().min(1).optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().positive().optional(),
+  reasoningLevel: z
+    .enum(["off", "auto", "low", "medium", "high", "max"])
+    .optional(),
   promptSource: z.enum(["default", "session_override"]).optional(),
   promptMarkdown: z.string().optional(),
 });

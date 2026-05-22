@@ -209,6 +209,19 @@ export const PHASE_DEFAULTS: Record<PipelinePhase, PhaseDefaultsConfig> = {
   },
 };
 
+export const REASONING_LEVELS = [
+  "off",
+  "auto",
+  "low",
+  "medium",
+  "high",
+  "max",
+] as const;
+
+export type ReasoningLevel = (typeof REASONING_LEVELS)[number];
+
+export const DEFAULT_REASONING_LEVEL: ReasoningLevel = "off";
+
 export interface SessionAiPhase {
   sessionId: string;
   phase: PipelinePhase;
@@ -216,6 +229,7 @@ export interface SessionAiPhase {
   modelId: string;
   temperature: number;
   maxTokens: number;
+  reasoningLevel: ReasoningLevel;
   promptSource: "default" | "session_override";
   promptMarkdown: string;
   updatedAt: string;
@@ -239,6 +253,7 @@ export interface PhaseRuntimeSummary {
   modelId: string;
   temperature: number;
   maxTokens: number;
+  reasoningLevel: ReasoningLevel;
   promptSource: "default" | "session_override";
   promptMarkdown: string;
   workerOverrides: SessionAiPhaseWorker[];

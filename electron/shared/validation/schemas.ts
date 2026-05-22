@@ -271,6 +271,17 @@ export const pipelinePhaseSchema = z.enum([
   "decision",
 ]);
 
+const REASONING_LEVELS = [
+  "off",
+  "auto",
+  "low",
+  "medium",
+  "high",
+  "max",
+] as const;
+
+export const reasoningLevelSchema = z.enum(REASONING_LEVELS);
+
 export const strategyAiPhaseSaveSchema = z.object({
   sessionId: z.string().min(1),
   phase: pipelinePhaseSchema,
@@ -278,6 +289,7 @@ export const strategyAiPhaseSaveSchema = z.object({
   modelId: z.string().min(1).optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().positive().optional(),
+  reasoningLevel: reasoningLevelSchema.optional(),
   promptSource: z.enum(["default", "session_override"]).optional(),
   promptMarkdown: z.string().optional(),
 });

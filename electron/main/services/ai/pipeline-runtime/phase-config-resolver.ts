@@ -1,5 +1,6 @@
 import type {
   PipelinePhase,
+  ReasoningLevel,
   WorkerDefinition,
   SessionAiPhaseWorker,
 } from "@electron/shared/ai/pipeline-phase";
@@ -19,6 +20,7 @@ export interface ResolvedPhaseExecConfig {
   modelId: string;
   temperature: number;
   maxTokens: number;
+  reasoningLevel: ReasoningLevel;
   promptSource: "default" | "session_override";
   promptMarkdown: string;
 }
@@ -40,6 +42,7 @@ export class PhaseConfigResolver {
       modelId: row?.modelId ?? "",
       temperature: row?.temperature ?? 0.7,
       maxTokens: row?.maxTokens ?? 8_192,
+      reasoningLevel: row?.reasoningLevel ?? "off",
       promptSource: row?.promptSource ?? "default",
       promptMarkdown: row?.promptMarkdown ?? "",
     };

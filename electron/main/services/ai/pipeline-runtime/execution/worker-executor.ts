@@ -223,6 +223,7 @@ export async function executeWorker<TOutput>(
         workerExecConfig.modelId,
         workerExecConfig.temperature,
       ),
+      reasoningLevel: workerExecConfig.reasoningLevel,
       taskKeys: Object.keys(task).sort(),
       engineResultKeys: Object.keys(engineResults).sort(),
     },
@@ -271,6 +272,7 @@ export async function executeWorker<TOutput>(
           ),
           maxTokens:
             resolvedConfig.caps.maxTokens ?? workerExecConfig.maxTokens,
+          reasoningLevel: workerExecConfig.reasoningLevel,
           abortSignal: signal,
           terminalToolNames: terminalToolName ? [terminalToolName] : undefined,
           prepareStep: opts.prepareStep,

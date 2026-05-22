@@ -9,6 +9,7 @@ import type {
   ProviderAdapter,
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
+import { buildOpenRouterReasoningOptions } from "./reasoning-options";
 import type { RunTrace } from "../ai-runtime/ai-runtime-types";
 
 function readUsage(
@@ -39,19 +40,36 @@ export class OpenRouterAdapter implements ProviderAdapter {
     private readonly baseUrl?: string,
   ) {}
 
-  private async createClient(): Promise<OpenAIProvider> {
+  private async createClient(
+    reasoning?: ReturnType<typeof buildOpenRouterReasoningOptions>,
+  ): Promise<OpenAIProvider> {
     const { createOpenAI } = await import("@ai-sdk/openai");
     const opts: OpenAIProviderSettings = {
       apiKey: this.apiKey,
       baseURL: this.baseUrl?.trim() || OpenRouterAdapter.DEFAULT_BASE_URL,
     };
+    if (reasoning) {
+      opts.fetch = async (url, init) => {
+        if (init?.body && typeof init.body === "string") {
+          try {
+            const body = JSON.parse(init.body) as Record<string, unknown>;
+            body.reasoning = reasoning;
+            return fetch(url, { ...init, body: JSON.stringify(body) });
+          } catch {
+            // Fall through to the default fetch if the body is not JSON.
+          }
+        }
+        return fetch(url, init);
+      };
+    }
     return createOpenAI(opts);
   }
 
   async runAgent<T = undefined>(
     opts: AgentRunOptions<T>,
   ): Promise<RunTrace<T>> {
-    const client = await this.createClient();
+    const reasoning = buildOpenRouterReasoningOptions(opts.reasoningLevel);
+    const client = await this.createClient(reasoning);
     return executeRunAgent({
       model: client.chat(opts.model),
       modelId: opts.model,
@@ -68,6 +86,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
       spendLimitUsd: opts.spendLimitUsd,
       temperature: opts.temperature,
       maxOutputTokens: opts.maxTokens,
+      reasoningLevel: opts.reasoningLevel,
       abortSignal: opts.abortSignal,
       schema: opts.schema,
       terminalToolNames: opts.terminalToolNames,
