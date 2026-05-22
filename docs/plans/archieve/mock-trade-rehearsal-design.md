@@ -13,14 +13,14 @@ Running a session against the mock broker today **does not tell you whether the 
 
 From the `hello.json` run:
 
-| What happened | Evidence |
-|---|---|
-| Mock market tools returned bullish synthetic data | `get_news` → `mock.local/news/bullish-*`; `get_ohlcv` → steady uptrend (~104 → 270 for NVDA) |
-| Discovery tools still hit the live internet | `search_web` → DuckDuckGo; `fetch_url` → real pages (SwingTradeBot, Seeking Alpha, etc.) |
-| Real search contradicted mock price data | NVDA query returned *"Breakdown Signals Further Downside Risk"* while mock OHLCV showed a clean breakout |
-| AI behaved conservatively (correctly) | Review/classifier/decision chain sees conflicting evidence → skip / low confidence |
-| User sees a “trade” but not a fill | `createTradeFromDecision` persists a row with `status: "rejected"` when `action === "skip"` |
-| Active trades list stays empty | `trades:list-active` returns `[]` throughout the log |
+| What happened                                     | Evidence                                                                                                 |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Mock market tools returned bullish synthetic data | `get_news` → `mock.local/news/bullish-*`; `get_ohlcv` → steady uptrend (~104 → 270 for NVDA)             |
+| Discovery tools still hit the live internet       | `search_web` → DuckDuckGo; `fetch_url` → real pages (SwingTradeBot, Seeking Alpha, etc.)                 |
+| Real search contradicted mock price data          | NVDA query returned _"Breakdown Signals Further Downside Risk"_ while mock OHLCV showed a clean breakout |
+| AI behaved conservatively (correctly)             | Review/classifier/decision chain sees conflicting evidence → skip / low confidence                       |
+| User sees a “trade” but not a fill                | `createTradeFromDecision` persists a row with `status: "rejected"` when `action === "skip"`              |
+| Active trades list stays empty                    | `trades:list-active` returns `[]` throughout the log                                                     |
 
 The mock framework is **half-isolated**. Price, OHLCV, news, Reddit, and trending are partially mocked, but **discovery still depends on live web search and page fetches**. The AI is asked to be evidence-driven, finds contradictory signals, and refuses to trade. That is rational behavior — not a broken decision engine.
 
@@ -47,12 +47,12 @@ Make mock/paper sessions a **closed-world rehearsal** where:
 
 ## 3. Non-Goals
 
-| Non-Goal | Why |
-|---|---|
+| Non-Goal                                       | Why                                                                                                |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Guarantee every strategy preset trades in mock | Some presets (e.g. strict catalyst + high wait threshold) should still skip in ambiguous scenarios |
-| Replace AI with hardcoded BUY | Deterministic override is optional CI tooling only, not default UX |
-| Historical market replay | Different system (backtest clock + data ingestion) |
-| Mock live broker adapters | Only `brokerType === "mock"` enters this framework |
+| Replace AI with hardcoded BUY                  | Deterministic override is optional CI tooling only, not default UX                                 |
+| Historical market replay                       | Different system (backtest clock + data ingestion)                                                 |
+| Mock live broker adapters                      | Only `brokerType === "mock"` enters this framework                                                 |
 
 ---
 
@@ -98,7 +98,7 @@ flowchart TB
   BROKER -->|open| TRADE
 ```
 
-**Core invariant violated today:** *All evidence channels a worker can reach must tell the same story in mock mode.*
+**Core invariant violated today:** _All evidence channels a worker can reach must tell the same story in mock mode._
 
 ---
 
@@ -109,15 +109,15 @@ Introduce a single runtime object resolved once per session (already partially e
 ```ts
 type MockSessionContext = {
   isMockSession: true;
-  scenarioKind: MockScenarioKind;           // e.g. "clean_breakout"
-  scenario: MockScenario;                   // bias, drift, broker faults
-  primarySymbols: string[];                 // symbols seeded for happy path
+  scenarioKind: MockScenarioKind; // e.g. "clean_breakout"
+  scenario: MockScenario; // bias, drift, broker faults
+  primarySymbols: string[]; // symbols seeded for happy path
   fixtures: {
     news: MockNewsItem[];
     reddit: RedditPost[];
     trending: TrendingSymbol[];
-    webSearch: MockSearchResult[];          // NEW
-    urlContent: Record<string, string>;     // NEW — keyed by mock.local URLs
+    webSearch: MockSearchResult[]; // NEW
+    urlContent: Record<string, string>; // NEW — keyed by mock.local URLs
   };
   getMockOhlcv: (symbol: string, timeframe?: string) => MockOhlcvBar[];
 };
@@ -137,7 +137,7 @@ type MockSessionContext = {
 ```ts
 interface BrokerAccount {
   // existing fields...
-  mockScenarioKind?: MockScenarioKind | null;  // only meaningful when brokerType === "mock"
+  mockScenarioKind?: MockScenarioKind | null; // only meaningful when brokerType === "mock"
 }
 ```
 
@@ -156,12 +156,12 @@ Store `mockScenarioKind` in session/trade metadata (already partially used by pa
 
 Today only market + Reddit/trending tools respect mock mode. **Discovery must be fully mocked.**
 
-| Tool | Mock behavior |
-|---|---|
-| `search_web` | Return `fixtures.webSearch` filtered by query tokens; never call DuckDuckGo when `isMockSession` |
-| `fetch_url` | If URL is `mock.local/*` or registered in `urlContent`, return fixture body; block outbound fetch for non-mock URLs in mock sessions (return explicit error: *"Live fetch disabled in mock session"*) |
-| `search_reddit` | Already mocked via `mockRedditData` — ensure `{symbol}` token replacement |
-| `get_trending_symbols` | Already mocked — prefer scenario trending list over generic defaults |
+| Tool                   | Mock behavior                                                                                                                                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search_web`           | Return `fixtures.webSearch` filtered by query tokens; never call DuckDuckGo when `isMockSession`                                                                                                      |
+| `fetch_url`            | If URL is `mock.local/*` or registered in `urlContent`, return fixture body; block outbound fetch for non-mock URLs in mock sessions (return explicit error: _"Live fetch disabled in mock session"_) |
+| `search_reddit`        | Already mocked via `mockRedditData` — ensure `{symbol}` token replacement                                                                                                                             |
+| `get_trending_symbols` | Already mocked — prefer scenario trending list over generic defaults                                                                                                                                  |
 
 **Fixture authoring rule:** For `clean_breakout`, every discovery result for primary symbols must read bullish and reference the same setup language as OHLCV/news (breakout, volume, continuation).
 
@@ -183,9 +183,9 @@ Matching `fetch_url` content for that URL: 2–3 paragraphs reinforcing the brea
 Extend `mock-scenario-fixtures.ts` with:
 
 ```ts
-SCENARIO_WEB_SEARCH: Record<MockScenarioKind, MockSearchResult[]>
-SCENARIO_URL_CONTENT: Record<MockScenarioKind, Record<string, string>>
-SCENARIO_PRIMARY_SYMBOLS: Record<MockScenarioKind, string[]>
+SCENARIO_WEB_SEARCH: Record<MockScenarioKind, MockSearchResult[]>;
+SCENARIO_URL_CONTENT: Record<MockScenarioKind, Record<string, string>>;
+SCENARIO_PRIMARY_SYMBOLS: Record<MockScenarioKind, string[]>;
 ```
 
 For `clean_breakout`, pin primary symbols (e.g. `NVDA`, `AMD`) so:
@@ -203,13 +203,14 @@ For `news_reversal` / `failed_breakout`, web fixtures must disagree with chart *
 
 ```markdown
 ## Sandbox Mode
+
 You are in Exva paper/mock mode. All tool data is synthetic but internally consistent.
 Evaluate it as real market evidence. Make a genuine trade/no-trade decision from the data.
 Do not skip solely because data is simulated. Do not mention sandbox status in analysis text.
 Scenario: clean_breakout (bullish continuation, tight spreads, fresh quotes).
 ```
 
-Also add one line to selector task text in mock mode: *"Use tool results as authoritative; do not supplement with memory or assumed live prices."*
+Also add one line to selector task text in mock mode: _"Use tool results as authoritative; do not supplement with memory or assumed live prices."_
 
 ### 5.5 Scenario-aware OHLCV shape for trade presets
 
@@ -231,7 +232,7 @@ This aligns technical workers with discovery/fundamental narrative.
 
 `aggregateTradeSignal` skips when entry timer returns `wait` or `skip`. In mock happy-path:
 
-- Entry timer worker prompt (mock only): *"When scenario is clean_breakout and review approves, prefer `enter_now` unless quote tool errored."*
+- Entry timer worker prompt (mock only): _"When scenario is clean_breakout and review approves, prefer `enter_now` unless quote tool errored."_
 - Optional session flag `mockRelaxedEntryTiming: true` (paper only) maps timer output to `enter_now` when review recommendation is `approve` and scenario expects `allowed`.
 
 Do **not** change production timer logic.
@@ -261,16 +262,16 @@ Selector discovers NVDA (mock discovery evidence)
 
 ## 7. Scenario Catalog (Expected Outcomes)
 
-| Scenario | Discovery + market narrative | Expected AI outcome | Expected execution |
-|---|---|---|---|
-| `clean_breakout` | All channels bullish, tight spread | BUY, high confidence | Open trade, positive exit potential |
-| `failed_breakout` | Chart failed at resistance | Skip or BUY then stop | Open → stop loss |
-| `sideways_chop` | Range-bound everywhere | Skip | No open trade |
-| `news_reversal` | Bullish chart, bearish news | Review skip | Rejected row |
-| `stale_quote` | Old timestamp on quote | Policy reject | No fill |
-| `wide_spread` | spreadPct above gate | Policy reject | No fill |
-| `broker_reject` | AI approves | Broker throws | Rejected after order attempt |
-| `partial_fill` | AI approves | Partial size filled | Open with reduced size |
+| Scenario          | Discovery + market narrative       | Expected AI outcome   | Expected execution                  |
+| ----------------- | ---------------------------------- | --------------------- | ----------------------------------- |
+| `clean_breakout`  | All channels bullish, tight spread | BUY, high confidence  | Open trade, positive exit potential |
+| `failed_breakout` | Chart failed at resistance         | Skip or BUY then stop | Open → stop loss                    |
+| `sideways_chop`   | Range-bound everywhere             | Skip                  | No open trade                       |
+| `news_reversal`   | Bullish chart, bearish news        | Review skip           | Rejected row                        |
+| `stale_quote`     | Old timestamp on quote             | Policy reject         | No fill                             |
+| `wide_spread`     | spreadPct above gate               | Policy reject         | No fill                             |
+| `broker_reject`   | AI approves                        | Broker throws         | Rejected after order attempt        |
+| `partial_fill`    | AI approves                        | Partial size filled   | Open with reduced size              |
 
 Use `SCENARIO_EXPECTED_OUTCOME` (already in `mock-market-simulator.ts`) for automated scorecard assertions.
 
@@ -323,7 +324,7 @@ Use `SCENARIO_EXPECTED_OUTCOME` (already in `mock-market-simulator.ts`) for auto
 When creating a mock broker in paper mode:
 
 - Scenario: **Clean breakout (happy path)**
-- Copy: *"Use this to verify the bot selects, decides, and fills a trade."*
+- Copy: _"Use this to verify the bot selects, decides, and fills a trade."_
 
 ### Advanced scenario picker
 
@@ -364,7 +365,7 @@ Use sparingly — it validates **execution plumbing**, not AI quality. Default u
 To test execution today without code changes:
 
 1. Create mock broker; accept default adapter (bullish bias).
-2. **Disable or remove workspace search provider** so selector cannot reach live web — *partial fix only*; scouts may fail tool requirements.
+2. **Disable or remove workspace search provider** so selector cannot reach live web — _partial fix only_; scouts may fail tool requirements.
 3. Use a strategy with lower wait threshold and catalyst not required.
 4. Manually pick instruments and reduce discovery breadth if session supports it.
 

@@ -50,4 +50,18 @@ describe("PipelineSpendTracker", () => {
     expect(tracker.canContinue()).toBe(false);
     expect(tracker.check()?.kind).toBe("pipeline");
   });
+
+  it("warn-only mode keeps workers running after cap exceeded", () => {
+    const tracker = new PipelineSpendTracker({
+      phaseSpendCapUsd: 0.1,
+      pipelineSpendCapUsd: null,
+      sessionSpendCapUsd: null,
+      sessionSpentBeforeRunUsd: 0,
+      warnOnly: true,
+    });
+    tracker.record(0.2);
+    expect(tracker.check()?.kind).toBe("phase");
+    expect(tracker.canContinue()).toBe(true);
+    expect(tracker.abortLogMessage()).toMatch(/aborting further workers/);
+  });
 });

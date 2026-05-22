@@ -84,7 +84,7 @@
   "agentRuns": [
     {
       "role": "decision",
-      "modelId": "claude-sonnet-4-6",
+      "modelId": "google/gemma-4-31b-it",
       "promptSummary": "decide whether to trade",
       "outputSummary": "{\"action\":\"buy\"}",
       "outputJson": "{\"symbol\":\"AAPL\",\"action\":\"buy\",\"executionStrategy\":\"breakout\",\"entryPrice\":187.42,\"confidence\":0.82,\"reasoning\":\"trend, catalyst, and review all align\"}",

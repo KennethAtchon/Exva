@@ -34,6 +34,30 @@ describe("mock discovery fixtures", () => {
     ).toBe("NVDA");
   });
 
+  it("falls back to knownSymbols for generic queries without ticker tokens", () => {
+    const known = SCENARIO_PRIMARY_SYMBOLS.clean_breakout;
+    const results = filterMockWebSearch(
+      SCENARIO_WEB_SEARCH.clean_breakout,
+      "strong breakout stocks today momentum continuation",
+      8,
+      known,
+    );
+
+    expect(extractQuerySymbol("strong breakout stocks today momentum", known)).toBeNull();
+    expect(results[0]?.title).toContain("NVDA");
+    expect(results.every((row) => !row.title.includes("TODAY"))).toBe(true);
+  });
+
+  it("matches explicit ticker in specific queries", () => {
+    expect(
+      extractQuerySymbol("NVDA stock breakout catalyst May 2026", [
+        "NVDA",
+        "AMD",
+        "PLTR",
+      ]),
+    ).toBe("NVDA");
+  });
+
   it("substitutes fetch_url page bodies using primary symbol fallback", () => {
     const url = "https://mock.local/search/clean_breakout/1";
     const raw = SCENARIO_URL_CONTENT.clean_breakout[url]!;

@@ -242,6 +242,74 @@ const SYMBOL_NOISE = new Set([
   "CEO",
   "IPO",
   "ETF",
+  "TODAY",
+  "APRIL",
+  "MAY",
+  "JUNE",
+  "JULY",
+  "AUG",
+  "SEPT",
+  "OCT",
+  "NOV",
+  "DEC",
+  "CRUDE",
+  "HIGH",
+  "LOW",
+  "OPEN",
+  "CLOSE",
+  "SWING",
+  "TRADE",
+  "STOCK",
+  "NEWS",
+  "BULL",
+  "BEAR",
+  "TREND",
+  "SCAN",
+  "SETUP",
+  "LONG",
+  "SHORT",
+  "BUY",
+  "SELL",
+  "HOLD",
+  "WEEK",
+  "YEAR",
+  "MONTH",
+  "DAILY",
+  "WATCH",
+  "LIST",
+  "TOP",
+  "BEST",
+  "HOT",
+  "NEW",
+  "OLD",
+  "BIG",
+  "GAP",
+  "RISK",
+  "MOVE",
+  "PLAY",
+  "IDEA",
+  "IDEAS",
+  "DATA",
+  "LIVE",
+  "PRE",
+  "POST",
+  "CALL",
+  "PUTS",
+  "CALLS",
+  "FOMO",
+  "RSI",
+  "MACD",
+  "EMA",
+  "SMA",
+  "ATH",
+  "ATL",
+  "EPS",
+  "PE",
+  "REV",
+  "GDP",
+  "FED",
+  "CPI",
+  "PMI",
 ]);
 
 export function extractQuerySymbol(
@@ -281,7 +349,10 @@ export function filterMockWebSearch(
   limit = 8,
   knownSymbols?: string[],
 ): MockWebSearchItem[] {
-  const symbol = extractQuerySymbol(query.toUpperCase(), knownSymbols);
+  const symbol =
+    extractQuerySymbol(query.toUpperCase(), knownSymbols) ??
+    knownSymbols?.[0] ??
+    null;
   const tokens = query
     .toLowerCase()
     .split(/\W+/)
@@ -306,7 +377,7 @@ export function filterMockWebSearch(
 
   return ranked.map((item) => ({
     ...item,
-    title: substituteMockSymbol(item.title, symbol ?? "TICKER"),
-    snippet: substituteMockSymbol(item.snippet, symbol ?? "TICKER"),
+    title: substituteMockSymbol(item.title, symbol ?? knownSymbols?.[0] ?? "TICKER"),
+    snippet: substituteMockSymbol(item.snippet, symbol ?? knownSymbols?.[0] ?? "TICKER"),
   }));
 }

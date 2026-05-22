@@ -66,8 +66,48 @@ export const DEFAULT_PIPELINE_CONFIG: PipelineConfig = {
   },
 };
 
+/** Raised caps for paper/mock rehearsal until provider-reported cost is trusted. */
+export const PAPER_MOCK_BUDGETS = {
+  totalSpendCapUsd: 25.0,
+  phases: {
+    selector: 5.0,
+    technical: 2.0,
+    fundamental: 2.0,
+    review: 1.0,
+    decision: 1.0,
+  },
+  workerCaps: {
+    selector: { spendLimitUsd: 3.0, maxSteps: 50 },
+    trade: { spendLimitUsd: 2.0, maxSteps: 50 },
+  },
+  sessionMaxAiSpendUsd: 50.0,
+} as const;
+
+export function isSandboxBudgetProfile(input: {
+  sandboxMode?: boolean;
+  isMockSession?: boolean;
+}): boolean {
+  return Boolean(input.sandboxMode || input.isMockSession);
+}
+
+export function resolveTotalSpendCapUsd(sandbox: boolean): number {
+  return sandbox
+    ? PAPER_MOCK_BUDGETS.totalSpendCapUsd
+    : DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd;
+}
+
 export function phaseSpendCapUsd(phase: PipelinePhase): number {
   return DEFAULT_PIPELINE_CONFIG.phases[phase].phaseSpendCapUsd;
+}
+
+export function resolvePhaseSpendCapUsd(
+  phase: PipelinePhase,
+  sandbox = false,
+): number {
+  if (sandbox) {
+    return PAPER_MOCK_BUDGETS.phases[phase];
+  }
+  return phaseSpendCapUsd(phase);
 }
 
 /** Shared read-only engine bindings for worker definitions. */

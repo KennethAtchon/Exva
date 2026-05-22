@@ -50,6 +50,7 @@ export function aggregateTradeSignal(
   review: ReviewSignal,
   classifier: SignalClassifierOutput | null,
   timer: EntryTimerOutput | null,
+  options?: { mockRelaxedEntryTiming?: boolean },
 ): TradeSignal {
   if (review.recommendation === "skip" || classifier == null) {
     return tradeSignalSchema.parse({
@@ -64,7 +65,14 @@ export function aggregateTradeSignal(
     });
   }
 
-  const timing = timer?.entryTiming ?? "unknown";
+  let timing = timer?.entryTiming ?? "unknown";
+  if (
+    options?.mockRelaxedEntryTiming &&
+    review.recommendation === "proceed" &&
+    timing === "wait"
+  ) {
+    timing = "now";
+  }
   const timingBlocksEntry = timing === "skip" || timing === "wait";
   const action = timingBlocksEntry ? "skip" : classifier.action;
 

@@ -265,6 +265,7 @@ export class PhasePlanInterpreter {
         hasAggregate: Boolean(aggregate),
         aggregateCostUsd: aggregate?.run.cost_usd ?? null,
         durationMs: Date.now() - phaseStartedAt,
+        ...summarizeSelectorDiagnostics(output),
       },
       "phase plan complete",
     );
@@ -317,4 +318,23 @@ function formatRejectedReasons(reasons: string[]): string {
 function formatRejectionReason(reason: unknown): string {
   if (reason instanceof Error) return reason.message;
   return String(reason);
+}
+
+function summarizeSelectorDiagnostics(output: unknown): Record<string, unknown> {
+  if (!output || typeof output !== "object") return {};
+  const diagnostics = (output as { diagnostics?: unknown }).diagnostics;
+  if (!diagnostics || typeof diagnostics !== "object") return {};
+  const row = diagnostics as {
+    acceptedCount?: number;
+    rejected?: Array<{ symbol?: string; reasons?: string[] }>;
+  };
+  return {
+    acceptedCount: row.acceptedCount ?? null,
+    rejectedCount: row.rejected?.length ?? null,
+    rejectionReasons:
+      row.rejected?.map((entry) => ({
+        symbol: entry.symbol ?? null,
+        reasons: entry.reasons ?? [],
+      })) ?? null,
+  };
 }

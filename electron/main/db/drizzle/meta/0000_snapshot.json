@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "75efc3e5-9576-4ecf-945b-2db5094b9e53",
+  "id": "a4159a81-e03d-4c05-a6c7-5fec005b2218",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_messages": {
@@ -543,6 +543,13 @@
         },
         "balance_cached_at": {
           "name": "balance_cached_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mock_scenario_kind": {
+          "name": "mock_scenario_kind",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -3198,6 +3205,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": false
+        },
+        "global_environment_mode": {
+          "name": "global_environment_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'paper'"
         },
         "default_search_provider_id": {
           "name": "default_search_provider_id",

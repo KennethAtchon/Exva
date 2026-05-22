@@ -112,8 +112,13 @@ export class AnthropicAdapter implements ProviderAdapter {
 
   async testConnection(): Promise<{ ok: boolean; error?: string }> {
     try {
+      const models = await this.listModels();
+      const model = models[0]?.id;
+      if (!model) {
+        return { ok: false, error: "No Anthropic models available" };
+      }
       await this.generateText({
-        model: "claude-haiku-4-5-20251001",
+        model,
         systemPrompt: "Reply with the single word: ok",
         userPrompt: "ping",
         temperature: 0,

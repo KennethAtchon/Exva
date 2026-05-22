@@ -43,6 +43,8 @@ export type RunTrace<T = undefined> = {
   inputTokens: number;
   outputTokens: number;
   durationMs: number;
+  costUsd: number;
+  costSource: "provider" | "estimated";
 };
 
 export interface AgentResult<T> {

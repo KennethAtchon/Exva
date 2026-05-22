@@ -24,7 +24,11 @@ import type { BrokerRoutingService } from "../../../broker/broker-routing-servic
 import type { BrokerRegistry } from "../../../broker/broker-registry";
 import { resolveSessionInstrumentClasses } from "../../../session/effective-instrument-classes";
 import { buildToolContext } from "../context/tool-context-builder";
-import { DEFAULT_PIPELINE_CONFIG } from "@electron/shared/ai/pipeline-config";
+import {
+  isSandboxBudgetProfile,
+  PAPER_MOCK_BUDGETS,
+  resolveTotalSpendCapUsd,
+} from "@electron/shared/ai/pipeline-config";
 import { PipelineSpendTracker } from "../execution/pipeline-spend-tracker";
 import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
 import {
@@ -268,42 +272,6 @@ export class PipelineRuntime {
       opts.sessionId,
     );
     const cycleKey = opts.cycleId ?? opts.sessionId;
-    const spendTracker = new PipelineSpendTracker({
-      phaseSpendCapUsd: this.deps.phaseConfigResolver.resolvePhaseSpendCapUsd(
-        opts.phase,
-      ),
-      pipelineSpendCapUsd: DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd,
-      sessionSpendCapUsd: strategyContext.riskConfig.maxAiSpendUsd,
-      sessionSpentBeforeRunUsd: this.deps.agentRunsRepo.dailyAiSpendUsd(
-        opts.sessionId,
-      ),
-      pipelineSpentBeforePhaseUsd: opts.cycleId
-        ? (this.cycleSpendUsd.get(cycleKey) ?? 0)
-        : 0,
-    });
-
-    logger.info(
-      {
-        sessionId: opts.sessionId,
-        phase: opts.phase,
-        cycleId: opts.cycleId ?? null,
-        tradeId: opts.tradeId ?? null,
-        phaseSpendCapUsd: this.deps.phaseConfigResolver.resolvePhaseSpendCapUsd(
-          opts.phase,
-        ),
-        pipelineSpendCapUsd: DEFAULT_PIPELINE_CONFIG.totalSpendCapUsd,
-        sessionSpendCapUsd: strategyContext.riskConfig.maxAiSpendUsd,
-        sessionSpentBeforeRunUsd: this.deps.agentRunsRepo.dailyAiSpendUsd(
-          opts.sessionId,
-        ),
-        pipelineSpentBeforePhaseUsd: opts.cycleId
-          ? (this.cycleSpendUsd.get(cycleKey) ?? 0)
-          : 0,
-        inputKeys: Object.keys(opts.input ?? {}).sort(),
-      },
-      "phase run start",
-    );
-
     const session = this.deps.sessionRepo.requireById(opts.sessionId);
     const instrumentClasses = resolveSessionInstrumentClasses(
       session,
@@ -321,6 +289,54 @@ export class PipelineRuntime {
       ...baseToolContext,
       instrumentClasses,
     };
+    const sandboxBudget = isSandboxBudgetProfile({
+      isMockSession: toolContext.isMockSession,
+    });
+    const sessionSpendCapUsd = sandboxBudget
+      ? Math.max(
+          strategyContext.riskConfig.maxAiSpendUsd,
+          PAPER_MOCK_BUDGETS.sessionMaxAiSpendUsd,
+        )
+      : strategyContext.riskConfig.maxAiSpendUsd;
+    const spendTracker = new PipelineSpendTracker({
+      phaseSpendCapUsd: this.deps.phaseConfigResolver.resolvePhaseSpendCapUsd(
+        opts.phase,
+        sandboxBudget,
+      ),
+      pipelineSpendCapUsd: resolveTotalSpendCapUsd(sandboxBudget),
+      sessionSpendCapUsd,
+      sessionSpentBeforeRunUsd: this.deps.agentRunsRepo.dailyAiSpendUsd(
+        opts.sessionId,
+      ),
+      pipelineSpentBeforePhaseUsd: opts.cycleId
+        ? (this.cycleSpendUsd.get(cycleKey) ?? 0)
+        : 0,
+      warnOnly: sandboxBudget,
+    });
+
+    logger.info(
+      {
+        sessionId: opts.sessionId,
+        phase: opts.phase,
+        cycleId: opts.cycleId ?? null,
+        tradeId: opts.tradeId ?? null,
+        sandboxBudget,
+        phaseSpendCapUsd: this.deps.phaseConfigResolver.resolvePhaseSpendCapUsd(
+          opts.phase,
+          sandboxBudget,
+        ),
+        pipelineSpendCapUsd: resolveTotalSpendCapUsd(sandboxBudget),
+        sessionSpendCapUsd,
+        sessionSpentBeforeRunUsd: this.deps.agentRunsRepo.dailyAiSpendUsd(
+          opts.sessionId,
+        ),
+        pipelineSpentBeforePhaseUsd: opts.cycleId
+          ? (this.cycleSpendUsd.get(cycleKey) ?? 0)
+          : 0,
+        inputKeys: Object.keys(opts.input ?? {}).sort(),
+      },
+      "phase run start",
+    );
 
     const executorDeps: WorkerExecutorDeps = {
       providerRegistry: this.deps.providerRegistry,
@@ -328,6 +344,7 @@ export class PipelineRuntime {
       promptLoader: this.deps.promptLoader,
       toolContext,
       strategyContext,
+      sandboxBudget,
     };
 
     const workerRunBase = {

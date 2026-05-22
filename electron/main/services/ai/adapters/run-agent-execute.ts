@@ -14,6 +14,10 @@ import type { z } from "zod";
 import type { AgentRole } from "@/lib/types";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
+import {
+  extractOpenRouterReportedCost,
+  resolveRunCostUsd,
+} from "../resolve-run-cost";
 import type {
   RuntimeAgentMessage,
   RunTrace,
@@ -349,7 +353,27 @@ export async function executeRunAgent<T = undefined>(
   const steps = buildStepTraces(result.steps, stepFinishTimes, started);
   const totalIn = result.totalUsage.inputTokens ?? 0;
   const totalOut = result.totalUsage.outputTokens ?? 0;
-  const totalCost = estimateCostUsd(params.modelId, totalIn, totalOut);
+  const providerReportedCost = extractOpenRouterReportedCost(
+    result.providerMetadata,
+  );
+  const { costUsd: totalCost, costSource } = resolveRunCostUsd({
+    modelId: params.modelId,
+    inputTokens: totalIn,
+    outputTokens: totalOut,
+    providerReportedCostUsd: providerReportedCost,
+  });
+  if (costSource === "estimated") {
+    logger.warn(
+      {
+        ...agentLogContext(params),
+        modelId: params.modelId,
+        costSource,
+        costUsd: totalCost,
+        providerType: params.providerType ?? null,
+      },
+      "agent run cost estimated from pricing table fallback",
+    );
+  }
   const spendExceeded =
     params.spendLimitUsd != null &&
     params.spendLimitUsd > 0 &&
@@ -400,6 +424,7 @@ export async function executeRunAgent<T = undefined>(
       outputTokens: totalOut,
       durationMs,
       totalCostUsd: totalCost,
+      costSource,
       spendExceeded,
       stepCapHit,
       responseText: result.text,
@@ -422,5 +447,7 @@ export async function executeRunAgent<T = undefined>(
     inputTokens: totalIn,
     outputTokens: totalOut,
     durationMs,
+    costUsd: totalCost,
+    costSource,
   };
 }

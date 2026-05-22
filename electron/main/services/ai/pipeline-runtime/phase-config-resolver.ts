@@ -7,7 +7,10 @@ import {
   RUNTIME_DEFAULTS as DEFAULTS,
   PHASE_DEFAULTS,
 } from "@electron/shared/ai/pipeline-phase";
-import { phaseSpendCapUsd as defaultPhaseSpendCapUsd } from "@electron/shared/ai/pipeline-config";
+import {
+  PAPER_MOCK_BUDGETS,
+  resolvePhaseSpendCapUsd as resolvePhaseSpendCapUsdForProfile,
+} from "@electron/shared/ai/pipeline-config";
 import type { ResolvedWorkerRuntimeConfig } from "./core/types";
 import type { SessionAiPhasesRepo } from "../../../db/repositories/sessions/session-ai-phases-repo";
 
@@ -67,21 +70,30 @@ export class PhaseConfigResolver {
     };
   }
 
-  resolvePhaseSpendCapUsd(phase: PipelinePhase): number {
-    return (
-      PHASE_DEFAULTS[phase].phaseSpendCapUsd ?? defaultPhaseSpendCapUsd(phase)
-    );
+  resolvePhaseSpendCapUsd(
+    phase: PipelinePhase,
+    sandbox = false,
+  ): number {
+    return resolvePhaseSpendCapUsdForProfile(phase, sandbox);
   }
 
   resolveWorkerRuntimeConfig(
     phase: PipelinePhase,
     worker: WorkerDefinition,
     workerOverride?: SessionAiPhaseWorker | null,
+    sandbox = false,
   ): ResolvedWorkerRuntimeConfig {
     const phaseDefaults = PHASE_DEFAULTS[phase];
+    const sandboxWorkerCaps =
+      sandbox && phase === "selector"
+        ? PAPER_MOCK_BUDGETS.workerCaps.selector
+        : sandbox
+          ? PAPER_MOCK_BUDGETS.workerCaps.trade
+          : null;
     const caps = {
       ...DEFAULTS.workerCaps,
       ...phaseDefaults.workerCaps,
+      ...sandboxWorkerCaps,
       ...worker.caps,
       ...(workerOverride?.maxSteps != null
         ? { maxSteps: workerOverride.maxSteps }

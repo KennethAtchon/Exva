@@ -158,7 +158,7 @@ describe("CycleReplayService.buildFixture", () => {
         trade_id: null,
         role: "technical" as const,
         provider_key: "anthropic",
-        model_id: "claude-sonnet-4-6",
+        model_id: "google/gemma-4-31b-it",
         messages_json: JSON.stringify([
           { role: "user", content: "analyze AAPL" },
         ]),
@@ -235,7 +235,7 @@ describe("CycleReplayService.buildFixture", () => {
         trade_id: null,
         role: "decision" as const,
         provider_key: "anthropic",
-        model_id: "claude-sonnet-4-6",
+        model_id: "google/gemma-4-31b-it",
         messages_json: JSON.stringify([{ role: "user", content: "decide" }]),
         thinking_json: null,
         tool_calls_json: null,
@@ -308,7 +308,7 @@ describe("CycleReplayService.buildFixture", () => {
         trade_id: null,
         role: "selector" as const,
         provider_key: "anthropic",
-        model_id: "claude-sonnet-4-6",
+        model_id: "google/gemma-4-31b-it",
         messages_json: JSON.stringify([
           { role: "user", content: "find setups" },
         ]),

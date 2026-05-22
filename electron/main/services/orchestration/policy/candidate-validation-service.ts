@@ -157,8 +157,11 @@ export class CandidateValidationService {
       );
     }
 
-    // CV-7: Rationale non-empty
-    if (!structuredEvidence?.summary?.trim()) {
+    // CV-7: Rationale non-empty when structured evidence is present
+    if (
+      structuredEvidence != null &&
+      !structuredEvidence.summary?.trim()
+    ) {
       reasons.push("Selector rationale is empty");
     }
 

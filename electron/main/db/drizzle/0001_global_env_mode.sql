@@ -1,1 +1,0 @@
-ALTER TABLE `workspace_preferences` ADD `global_environment_mode` text DEFAULT 'paper' NOT NULL;

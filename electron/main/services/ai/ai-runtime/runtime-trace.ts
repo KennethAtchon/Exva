@@ -17,7 +17,9 @@ export function toRunFromTrace(
     finish_reason: trace.finishReason,
     input_tokens: trace.inputTokens,
     output_tokens: trace.outputTokens,
-    cost_usd: estimateCostUsd(model, trace.inputTokens, trace.outputTokens),
+    cost_usd:
+      trace.costUsd ??
+      estimateCostUsd(model, trace.inputTokens, trace.outputTokens),
     output_text: trace.assistantText,
     duration_ms: trace.durationMs,
     created_at: new Date().toISOString(),

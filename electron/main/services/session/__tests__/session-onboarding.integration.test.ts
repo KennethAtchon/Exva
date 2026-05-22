@@ -324,24 +324,24 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     startedSessions,
     configureDefaultAiProvider() {
       providerAccounts.upsert({
-        id: "provider-anthropic",
-        name: "Anthropic",
+        id: "provider-openrouter",
+        name: "OpenRouter",
         category: "ai",
-        providerType: "anthropic",
-        secretRef: "provider:provider-anthropic",
+        providerType: "openrouter",
+        secretRef: "provider:provider-openrouter",
         metadataJson: null,
         isConfigured: true,
       });
       workspacePreferences.update({
-        defaultModelProviderKey: "provider-anthropic",
-        defaultModelModelId: "claude-sonnet-4-6",
+        defaultModelProviderKey: "provider-openrouter",
+        defaultModelModelId: "google/gemma-4-31b-it",
       });
       for (const session of sessions.list()) {
         for (const phase of sessionAiPhasesRepo.listBySession(session.id)) {
           sessionAiPhasesRepo.upsertPhase(session.id, {
             ...phase,
-            providerKey: "provider-anthropic",
-            modelId: "claude-sonnet-4-6",
+            providerKey: "provider-openrouter",
+            modelId: "google/gemma-4-31b-it",
           });
         }
       }

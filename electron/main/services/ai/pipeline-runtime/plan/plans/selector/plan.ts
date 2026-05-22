@@ -228,19 +228,20 @@ export const SELECTOR_PLAN: PhasePlan<SelectorPlanState, InstrumentSelection> =
       },
     ],
     async finalize(ctx, state, workerTraces) {
+      const withEvidence = state.verifiedCandidates.map((candidate) => ({
+        ...candidate,
+        selectorEvidence: buildSelectorEvidence(candidate),
+      }));
       const evaluation = new RiskFilter({
         sessionId: ctx.sessionId,
         instrumentClasses: ctx.instrumentClasses,
         strategyContext: ctx.strategyContext,
         brokerRouting: ctx.toolContext.brokerRouting,
-      }).evaluate(state.verifiedCandidates);
+      }).evaluate(withEvidence);
 
       const output = {
         ...buildInstrumentSelection(
-          evaluation.accepted.map((candidate) => ({
-            ...candidate,
-            selectorEvidence: buildSelectorEvidence(candidate),
-          })),
+          evaluation.accepted,
           ctx.strategyContext.riskConfig.maxConcurrentTrades,
         ),
         diagnostics: {

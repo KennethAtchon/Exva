@@ -77,6 +77,11 @@ describe("executeRunAgent logging", () => {
           text: longResponse,
           steps: [step],
           totalUsage: { inputTokens: 11, outputTokens: 7 },
+          providerMetadata: {
+            openrouter: {
+              usage: { cost: 0.00042, totalTokens: 18 },
+            },
+          },
           response: {
             messages: [{ role: "assistant", content: longResponse }],
           },
@@ -142,6 +147,8 @@ describe("executeRunAgent logging", () => {
       role: "selector",
       modelId: "google/gemma-4-31b-it",
       responseText: longResponse,
+      costSource: "provider",
+      totalCostUsd: 0.00042,
     });
     expect(completeEntry).not.toHaveProperty("responsePreview");
     expect(completeEntry.responseText).toHaveLength(900);

@@ -83,6 +83,7 @@ export interface WorkerExecutorDeps {
   promptLoader: PromptAssetLoader;
   toolContext: ToolBuildContext;
   strategyContext: SessionStrategyContext;
+  sandboxBudget?: boolean;
 }
 
 export interface WorkerRunOptions {
@@ -129,6 +130,7 @@ export async function executeWorker<TOutput>(
     phase,
     worker,
     workerExecConfig.workerOverride,
+    deps.sandboxBudget ?? false,
   );
 
   if (!workerExecConfig.providerKey || !workerExecConfig.modelId) {
@@ -393,6 +395,7 @@ export async function executeWorker<TOutput>(
       outputTokens: run.output_tokens,
       durationMs: run.duration_ms,
       costUsd: run.cost_usd,
+      costSource: trace.costSource,
       phaseSpentUsd: spendTracker?.phaseSpent ?? null,
       canContinueWorkers: spendTracker?.canContinue() ?? null,
     },

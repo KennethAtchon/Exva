@@ -74,12 +74,16 @@ export function registerPipelineEngines(): void {
       review: unknown;
       classifier: unknown;
       timer: unknown;
+      mockRelaxedEntryTiming?: boolean;
     }) =>
       aggregateTradeSignal(
         input.symbol,
         input.review as never,
         input.classifier as never,
         input.timer as never,
+        {
+          mockRelaxedEntryTiming: input.mockRelaxedEntryTiming,
+        },
       ),
   });
 

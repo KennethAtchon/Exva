@@ -36,8 +36,8 @@ describe("trade-autopsy-service", () => {
     const agentMessages = [
       {
         role: "technical",
-        provider_key: "provider-anthropic",
-        model_id: "claude-sonnet-4-6",
+        provider_key: "provider-openrouter",
+        model_id: "google/gemma-4-31b-it",
         output_json: null,
         messages_json: '[{"role":"assistant","content":"x"}]',
       },

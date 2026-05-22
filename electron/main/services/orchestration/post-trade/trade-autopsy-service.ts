@@ -4,7 +4,8 @@ import type { TradeAutopsiesRepo } from "../../../db/repositories/trades/trade-a
 import type { TradesRepo } from "../../../db/repositories/trades/trades-repo";
 import type { ProviderRegistry } from "../../ai/provider-registry";
 
-const AUTOPSY_MODEL_ID = "claude-haiku-4-5-20251001";
+const AUTOPSY_MODEL_ID = "google/gemma-4-31b-it";
+const AUTOPSY_PROVIDER_KEY = "provider-openrouter";
 
 export class TradeAutopsyService {
   constructor(
@@ -46,7 +47,7 @@ export class TradeAutopsyService {
   ): Promise<{ summary: string; modelId: string }> {
     const prompt = buildAutopsyPrompt(tradeId, messages, pnlUsd);
     const latest = messages[messages.length - 1];
-    const providerKey = latest?.provider_key ?? "provider-anthropic";
+    const providerKey = latest?.provider_key ?? AUTOPSY_PROVIDER_KEY;
     const modelId = latest?.model_id?.trim()
       ? latest.model_id
       : AUTOPSY_MODEL_ID;

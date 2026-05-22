@@ -12,6 +12,8 @@ export interface PipelineSpendTrackerOptions {
   sessionSpendCapUsd: number | null;
   sessionSpentBeforeRunUsd: number;
   pipelineSpentBeforePhaseUsd?: number;
+  /** When true, log cap exceed but allow workers to continue (paper/mock). */
+  warnOnly?: boolean;
 }
 
 /** Tracks cumulative AI spend for phase / pipeline-run / session caps. */
@@ -64,6 +66,7 @@ export class PipelineSpendTracker {
   }
 
   canContinue(): boolean {
+    if (this.options.warnOnly) return true;
     return this.check() === null;
   }
 

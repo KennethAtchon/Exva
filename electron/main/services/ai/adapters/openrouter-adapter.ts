@@ -143,7 +143,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
   async testConnection(): Promise<{ ok: boolean; error?: string }> {
     try {
       await this.generateText({
-        model: "openai/gpt-4o-mini",
+        model: "google/gemma-4-31b-it",
         systemPrompt: "Reply with the single word: ok",
         userPrompt: "ping",
         temperature: 0,

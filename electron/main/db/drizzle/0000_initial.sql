@@ -73,6 +73,7 @@ CREATE TABLE `broker_accounts` (
 	`balance_refresh_interval_min` integer DEFAULT 5 NOT NULL,
 	`balance_cache_usd` real,
 	`balance_cached_at` text,
+	`mock_scenario_kind` text,
 	`secret_ref` text NOT NULL,
 	`updated_at` text NOT NULL
 );
@@ -456,6 +457,7 @@ CREATE INDEX `idx_trades_instrument` ON `trades` (`instrument_symbol`,`broker_ac
 CREATE TABLE `workspace_preferences` (
 	`id` integer PRIMARY KEY DEFAULT 1 NOT NULL,
 	`global_include_archived` integer DEFAULT false NOT NULL,
+	`global_environment_mode` text DEFAULT 'paper' NOT NULL,
 	`default_search_provider_id` text,
 	`allocation_enforcement_override` text,
 	`default_model_provider_key` text DEFAULT '' NOT NULL,

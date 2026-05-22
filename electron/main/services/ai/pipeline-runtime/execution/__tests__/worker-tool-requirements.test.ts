@@ -32,6 +32,8 @@ function traceWithTools(tools: string[]): RunTrace {
     inputTokens: 1,
     outputTokens: 1,
     durationMs: 1,
+    costUsd: 0,
+    costSource: "estimated",
   };
 }
 

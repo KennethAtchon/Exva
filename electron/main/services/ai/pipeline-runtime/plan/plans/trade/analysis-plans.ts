@@ -135,11 +135,15 @@ export const DECISION_PLAN = createAggregatorPhasePlan<TradeSignal>({
   }),
   buildFinalizeTask: (ctx, workerPayload) => {
     const payload = workerPayload as { classifier: unknown; timer: unknown };
+    const mockRelaxedEntryTiming =
+      ctx.toolContext.isMockSession === true &&
+      ctx.toolContext.mockScenarioKind === "clean_breakout";
     return {
       symbol: ctx.input.instrumentSymbol as string,
       review: ctx.input.review,
       classifier: payload.classifier,
       timer: payload.timer,
+      mockRelaxedEntryTiming,
     };
   },
   finalizeBinding: ENGINE_BINDINGS.tradeSignalAggregatorFinalize,

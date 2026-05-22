@@ -87,4 +87,22 @@ describe("trade signal aggregator", () => {
     expect(signal.entryPrice).toBe(120.5);
     expect(signal.reasoning).toContain("Timing: now");
   });
+
+  it("maps timer wait to buy when mock relaxed entry timing is enabled", () => {
+    const signal = aggregateTradeSignal(
+      "NVDA",
+      reviewProceed,
+      {
+        executionStrategy: "breakout",
+        action: "buy",
+        confidence: 0.85,
+        reasoning: "Breakout setup",
+      },
+      { entryTiming: "wait", entryPrice: 118.25, rawSummary: "Wait for pullback" },
+      { mockRelaxedEntryTiming: true },
+    );
+
+    expect(signal.action).toBe("buy");
+    expect(signal.reasoning).toContain("Timing: now");
+  });
 });

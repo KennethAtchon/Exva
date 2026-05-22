@@ -69,11 +69,13 @@ export function assembleTrace(input: TraceAssemblyInput): AssembledTrace {
     finish_reason: input.trace.finishReason,
     input_tokens: input.trace.inputTokens,
     output_tokens: input.trace.outputTokens,
-    cost_usd: estimateCostUsd(
-      input.modelId,
-      input.trace.inputTokens,
-      input.trace.outputTokens,
-    ),
+    cost_usd:
+      input.trace.costUsd ??
+      estimateCostUsd(
+        input.modelId,
+        input.trace.inputTokens,
+        input.trace.outputTokens,
+      ),
     output_text: input.trace.assistantText,
     duration_ms: input.trace.durationMs,
     created_at: new Date().toISOString(),
