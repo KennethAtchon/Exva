@@ -14,10 +14,7 @@ import type { z } from "zod";
 import type { AgentRole } from "@/lib/types";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
-import {
-  extractOpenRouterReportedCost,
-  resolveRunCostUsd,
-} from "../resolve-run-cost";
+import { resolveRunCostUsd } from "../resolve-run-cost";
 import type {
   RuntimeAgentMessage,
   RunTrace,
@@ -353,14 +350,12 @@ export async function executeRunAgent<T = undefined>(
   const steps = buildStepTraces(result.steps, stepFinishTimes, started);
   const totalIn = result.totalUsage.inputTokens ?? 0;
   const totalOut = result.totalUsage.outputTokens ?? 0;
-  const providerReportedCost = extractOpenRouterReportedCost(
-    result.providerMetadata,
-  );
   const { costUsd: totalCost, costSource } = resolveRunCostUsd({
     modelId: params.modelId,
     inputTokens: totalIn,
     outputTokens: totalOut,
-    providerReportedCostUsd: providerReportedCost,
+    providerMetadata: result.providerMetadata,
+    providerType: params.providerType,
   });
   if (costSource === "estimated") {
     logger.warn(

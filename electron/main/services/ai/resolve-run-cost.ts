@@ -2,13 +2,7 @@ import { estimateCostUsd } from "./model-pricing";
 
 export type CostSource = "provider" | "estimated";
 
-export function extractOpenRouterReportedCost(
-  providerMetadata: unknown,
-): number | null {
-  if (!providerMetadata || typeof providerMetadata !== "object") return null;
-  const openrouter = (providerMetadata as Record<string, unknown>).openrouter;
-  if (!openrouter || typeof openrouter !== "object") return null;
-  const usage = (openrouter as Record<string, unknown>).usage;
+function readUsageCost(usage: unknown): number | null {
   if (!usage || typeof usage !== "object") return null;
   const cost = (usage as Record<string, unknown>).cost;
   return typeof cost === "number" && Number.isFinite(cost) && cost >= 0
@@ -16,19 +10,64 @@ export function extractOpenRouterReportedCost(
     : null;
 }
 
+export function extractOpenRouterReportedCost(
+  providerMetadata: unknown,
+): number | null {
+  if (!providerMetadata || typeof providerMetadata !== "object") return null;
+  const openrouter = (providerMetadata as Record<string, unknown>).openrouter;
+  if (!openrouter || typeof openrouter !== "object") return null;
+  return readUsageCost((openrouter as Record<string, unknown>).usage);
+}
+
+export function extractDirectProviderReportedCost(
+  providerMetadata: unknown,
+  providerType?: string,
+): number | null {
+  if (!providerMetadata || typeof providerMetadata !== "object") return null;
+  const meta = providerMetadata as Record<string, unknown>;
+
+  if (providerType) {
+    const providerBlock = meta[providerType];
+    if (providerBlock && typeof providerBlock === "object") {
+      const cost = readUsageCost(
+        (providerBlock as Record<string, unknown>).usage,
+      );
+      if (cost != null) return cost;
+    }
+  }
+
+  if (!meta.openrouter) {
+    return readUsageCost(meta.usage);
+  }
+
+  return null;
+}
+
+export function extractProviderReportedCost(
+  providerMetadata: unknown,
+  providerType?: string,
+): number | null {
+  return (
+    extractOpenRouterReportedCost(providerMetadata) ??
+    extractDirectProviderReportedCost(providerMetadata, providerType)
+  );
+}
+
 export function resolveRunCostUsd(input: {
   modelId: string;
   inputTokens: number;
   outputTokens: number;
   providerReportedCostUsd?: number | null;
+  providerMetadata?: unknown;
+  providerType?: string;
 }): { costUsd: number; costSource: CostSource } {
-  if (
-    input.providerReportedCostUsd != null &&
-    Number.isFinite(input.providerReportedCostUsd) &&
-    input.providerReportedCostUsd >= 0
-  ) {
+  const reported =
+    input.providerReportedCostUsd ??
+    extractProviderReportedCost(input.providerMetadata, input.providerType);
+
+  if (reported != null && Number.isFinite(reported) && reported >= 0) {
     return {
-      costUsd: Number(input.providerReportedCostUsd.toFixed(6)),
+      costUsd: Number(reported.toFixed(6)),
       costSource: "provider",
     };
   }

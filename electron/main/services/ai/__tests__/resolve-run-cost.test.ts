@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  extractDirectProviderReportedCost,
   extractOpenRouterReportedCost,
+  extractProviderReportedCost,
   resolveRunCostUsd,
 } from "../resolve-run-cost";
 
@@ -42,5 +44,53 @@ describe("resolveRunCostUsd", () => {
         },
       }),
     ).toBe(0.0015);
+  });
+
+  it("prefers OpenRouter cost over direct-provider metadata", () => {
+    expect(
+      extractProviderReportedCost(
+        {
+          openrouter: { usage: { cost: 0.002 } },
+          anthropic: { usage: { cost: 0.009 } },
+        },
+        "anthropic",
+      ),
+    ).toBe(0.002);
+  });
+
+  it("extracts direct-provider billed cost when OpenRouter metadata is absent", () => {
+    expect(
+      extractDirectProviderReportedCost(
+        {
+          anthropic: {
+            usage: {
+              cost: 0.0042,
+            },
+          },
+        },
+        "anthropic",
+      ),
+    ).toBe(0.0042);
+  });
+
+  it("resolves direct-provider cost through resolveRunCostUsd", () => {
+    const result = resolveRunCostUsd({
+      modelId: "claude-sonnet-4-20250514",
+      inputTokens: 10_000,
+      outputTokens: 500,
+      providerMetadata: {
+        anthropic: {
+          usage: {
+            cost: 0.0315,
+          },
+        },
+      },
+      providerType: "anthropic",
+    });
+
+    expect(result).toEqual({
+      costUsd: 0.0315,
+      costSource: "provider",
+    });
   });
 });

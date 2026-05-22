@@ -1,5 +1,4 @@
 import type { AgentMessage, AgentRole, AgentRun } from "@/lib/types";
-import { estimateCostUsd } from "../model-pricing";
 import type { RunTrace } from "./ai-runtime-types";
 
 export function toRunFromTrace(
@@ -17,9 +16,7 @@ export function toRunFromTrace(
     finish_reason: trace.finishReason,
     input_tokens: trace.inputTokens,
     output_tokens: trace.outputTokens,
-    cost_usd:
-      trace.costUsd ??
-      estimateCostUsd(model, trace.inputTokens, trace.outputTokens),
+    cost_usd: trace.costUsd,
     output_text: trace.assistantText,
     duration_ms: trace.durationMs,
     created_at: new Date().toISOString(),
