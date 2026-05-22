@@ -11,6 +11,7 @@ import {
 import { channels } from "@electron/shared/ipc/channels";
 import { AppError } from "@electron/shared/infra/errors";
 import type { AppServices } from "../services/app-services";
+import { assertSessionInWorkspaceEnvironment } from "./environment-guards";
 import { handle } from "./handle";
 
 export function registerStrategyHandlers(services: AppServices): void {
@@ -233,7 +234,10 @@ function resolveSessionId(
     typeof payload === "object" && payload !== null && "sessionId" in payload
       ? payload.sessionId
       : undefined;
-  return typeof sessionId === "string" && sessionId.length > 0
-    ? sessionId
-    : services.repos.session.getFocusedSessionId();
+  const resolved =
+    typeof sessionId === "string" && sessionId.length > 0
+      ? sessionId
+      : services.repos.session.getFocusedSessionId();
+  assertSessionInWorkspaceEnvironment(services, resolved);
+  return resolved;
 }

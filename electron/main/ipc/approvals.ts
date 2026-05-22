@@ -6,6 +6,7 @@ import type { ApprovalSummary } from "@/lib/types";
 import { sessionMatchesEnvironment } from "@electron/shared/domain/environment-mode";
 import type { AppServices } from "../services/app-services";
 import { resolveExecutionModeFilter } from "../services/workspace/environment-scope";
+import { assertSessionInWorkspaceEnvironment } from "./environment-guards";
 import { handle } from "./handle";
 
 export async function decideApproval(
@@ -17,6 +18,7 @@ export async function decideApproval(
   },
 ): Promise<{ status: "approved" | "rejected"; resolvedAt: string }> {
   const approval = services.repos.tradeApprovals.require(input.approvalId);
+  assertSessionInWorkspaceEnvironment(services, approval.sessionId);
   if (approval.status !== "pending") {
     throw new AppError("Approval is not pending", "VALIDATION_FAILED", {
       id: input.approvalId,

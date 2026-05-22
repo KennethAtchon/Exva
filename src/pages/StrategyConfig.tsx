@@ -71,6 +71,7 @@ export const StrategyConfig = ({
 }) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
+  const environmentMode = useWorkspaceStore((state) => state.environmentMode);
   const setViewMode = useWorkspaceStore((state) => state.setViewMode);
   const loadWorkspaceView = useWorkspaceStore(
     (state) => state.loadWorkspaceView,
@@ -90,6 +91,9 @@ export const StrategyConfig = ({
   const providers = useStrategyStore((state) => state.providers);
   const aiPhases = useStrategyStore((state) => state.aiPhases);
   const loadStrategy = useStrategyStore((state) => state.loadStrategy);
+  const resetForEnvironmentChange = useStrategyStore(
+    (state) => state.resetForEnvironmentChange,
+  );
   const loadGlobalPresets = useStrategyStore(
     (state) => state.loadGlobalPresets,
   );
@@ -115,9 +119,10 @@ export const StrategyConfig = ({
   >(null);
 
   useEffect(() => {
+    resetForEnvironmentChange();
     if (viewMode !== "session" || !focusedSessionId) return;
     void loadStrategy(focusedSessionId);
-  }, [focusedSessionId, loadStrategy, viewMode]);
+  }, [focusedSessionId, loadStrategy, resetForEnvironmentChange, viewMode, environmentMode]);
 
   const builtInGlobalPresets = globalPresets
     .filter((p) => p.isBuiltIn)

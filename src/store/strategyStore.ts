@@ -56,6 +56,7 @@ interface StrategyStoreState {
   isLocked: boolean;
   state: StrategyPageState;
   loadStrategy: (sessionId: string) => Promise<void>;
+  resetForEnvironmentChange: () => void;
   loadGlobalPresets: () => Promise<void>;
   updateResearchPosture: (patch: Partial<SessionResearchPosture>) => void;
   updateRules: (patch: Partial<SessionTradeRules>) => void;
@@ -120,6 +121,23 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
           : "editable",
     });
   },
+  resetForEnvironmentChange: () =>
+    set({
+      researchPosture: null,
+      rules: null,
+      riskConfig: null,
+      timeframe: null,
+      providers: [],
+      selectorSettings: null,
+      selectionMode: null,
+      defaultSearchProviderId: null,
+      aiPhases: [],
+      dirtyFields: new Set(),
+      strategyErrors: [],
+      isSaving: false,
+      isLocked: false,
+      state: "no_session",
+    }),
   loadGlobalPresets: async () => {
     const result = await api.listGlobalPresets();
     set({ globalPresets: result.presets });

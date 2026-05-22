@@ -7,12 +7,25 @@ import {
 } from "@/lib/schemas";
 import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../services/app-services";
+import {
+  assertSessionInWorkspaceEnvironment,
+  workspaceEnvironmentSessionIds,
+} from "./environment-guards";
 import { handle } from "./handle";
 
 export function registerEventHandlers(services: AppServices): void {
   handle(ipcMain, channels.events.list, async (payload) => {
-    const filters = eventFiltersSchema.parse(payload);
-    return services.repos.events.query(filters);
+    const filters = eventFiltersSchema.parse(payload) ?? {};
+    if (filters.sessionId) {
+      assertSessionInWorkspaceEnvironment(services, filters.sessionId);
+      return services.repos.events.query(filters);
+    }
+    const allowed = new Set(workspaceEnvironmentSessionIds(services));
+    return services.repos.events
+      .query(filters)
+      .filter(
+        (event) => !event.session_id || allowed.has(event.session_id),
+      );
   });
 
   handle(ipcMain, channels.events.getAgentTraces, async (payload) => {

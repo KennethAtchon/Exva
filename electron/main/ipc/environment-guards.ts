@@ -73,3 +73,35 @@ export function assertFocusedSessionMatchesWorkspace(
   }
   return sessionId;
 }
+
+export function assertSessionInWorkspaceEnvironment(
+  services: AppServices,
+  sessionId: string,
+): void {
+  const prefs = services.repos.workspacePreferences.get();
+  const session = services.repos.session.requireById(sessionId);
+  if (
+    !sessionMatchesEnvironment(
+      session.executionMode,
+      prefs.globalEnvironmentMode,
+    )
+  ) {
+    throw new AppError(
+      `Session "${session.name}" is not in the current ${prefs.globalEnvironmentMode} workspace environment.`,
+      "VALIDATION_FAILED",
+      {
+        sessionId,
+        sessionExecutionMode: session.executionMode,
+        globalEnvironmentMode: prefs.globalEnvironmentMode,
+      },
+    );
+  }
+}
+
+export function workspaceEnvironmentSessionIds(services: AppServices): string[] {
+  const prefs = services.repos.workspacePreferences.get();
+  const executionMode = executionModeForEnvironment(prefs.globalEnvironmentMode);
+  return services.repos.session
+    .list({ includeArchived: true, executionMode })
+    .map((session) => session.id);
+}

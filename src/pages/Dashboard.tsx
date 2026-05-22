@@ -488,8 +488,11 @@ export const Dashboard = () => {
     refreshApprovals();
   }, [environmentMode]);
 
-  useExvaEvent("agent_event", (ev) => {
-    setEvents((prev) => [ev, ...prev].slice(0, 100));
+  useExvaEvent("agent_event", () => {
+    api
+      .getEvents({ limit: 30 })
+      .then(setEvents)
+      .catch(() => {});
   });
 
   useExvaEvent("approval_required", () => refreshApprovals());

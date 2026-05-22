@@ -19,6 +19,7 @@ import { resolveExecutionModeFilter } from "../services/workspace/environment-sc
 import {
   assertExecutionModeMatchesWorkspace,
   assertFocusedSessionMatchesWorkspace,
+  assertSessionInWorkspaceEnvironment,
 } from "./environment-guards";
 import { handle } from "./handle";
 
@@ -39,9 +40,12 @@ export function registerSessionHandlers(services: AppServices): void {
     assertFocusedSessionMatchesWorkspace(services);
     return services.session.stop();
   });
-  handle(ipcMain, channels.session.getStatus, async () =>
-    services.session.getStatus(),
-  );
+  handle(ipcMain, channels.session.getStatus, async () => {
+    const focused = services.repos.session.getFocused();
+    if (!focused) return "idle" as const;
+    assertSessionInWorkspaceEnvironment(services, focused.id);
+    return services.session.getStatus(focused.id);
+  });
   handle(ipcMain, channels.session.getExecutionProgress, async (payload) => {
     const { sessionId } = sessionExecutionProgressSchema.parse(payload);
     const { cycleId, steps } =
@@ -180,6 +184,7 @@ export function registerSessionHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.session.archive, async (payload) => {
     const { id } = sessionArchiveSchema.parse(payload);
+    assertSessionInWorkspaceEnvironment(services, id);
     const session = services.repos.session.requireById(id);
     if (session.status === "active" || session.status === "paused") {
       throw new AppError(
@@ -197,18 +202,21 @@ export function registerSessionHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.session.duplicate, async (payload) => {
     const { sourceId, name } = sessionDuplicateInputSchema.parse(payload);
+    assertSessionInWorkspaceEnvironment(services, sourceId);
     const session = services.repos.session.duplicate(sourceId, { name });
     return { id: session.id, status: "draft" as const };
   });
 
   handle(ipcMain, channels.session.instrumentCacheGet, async (payload) => {
     const { sessionId } = sessionIdParamSchema.parse(payload);
+    assertSessionInWorkspaceEnvironment(services, sessionId);
     const session = services.repos.session.requireById(sessionId);
     return services.instrumentCacheService.getView(session);
   });
 
   handle(ipcMain, channels.session.instrumentCacheClear, async (payload) => {
     const { sessionId } = sessionIdParamSchema.parse(payload);
+    assertSessionInWorkspaceEnvironment(services, sessionId);
     const session = services.repos.session.requireById(sessionId);
     if (!isSessionEditable(session.status)) {
       throw new AppError(
@@ -223,6 +231,7 @@ export function registerSessionHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.session.getLiveReadiness, async (payload) => {
     const { sessionId } = sessionIdParamSchema.parse(payload);
+    assertSessionInWorkspaceEnvironment(services, sessionId);
     return services.liveReadiness.check(sessionId);
   });
 

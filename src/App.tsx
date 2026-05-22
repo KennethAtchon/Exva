@@ -104,7 +104,9 @@ export default function App() {
     void reloadTrades();
   }, [environmentMode, reloadStats, reloadTrades]);
 
-  useExvaEvent("stats_update", (payload) => setStats(payload));
+  useExvaEvent("stats_update", () => {
+    void reloadStats();
+  });
   useExvaEvent("trade_opened", () => {
     void reloadTrades();
   });

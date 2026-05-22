@@ -7,6 +7,7 @@ import {
 import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../services/app-services";
 import { resolveExecutionModeFilter } from "../services/workspace/environment-scope";
+import { assertSessionInWorkspaceEnvironment } from "./environment-guards";
 import { decideApproval } from "./approvals";
 import { handle } from "./handle";
 
@@ -44,8 +45,12 @@ export function registerTradeHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.trades.getDetail, async (payload) => {
     const { tradeId } = tradeIdSchema.parse(payload);
+    const trade = services.repos.trades.require(tradeId);
+    if (trade.sessionId) {
+      assertSessionInWorkspaceEnvironment(services, trade.sessionId);
+    }
     return {
-      trade: services.repos.trades.require(tradeId),
+      trade,
       runs: services.repos.agentRuns.listByTrade(tradeId),
       messages: services.repos.agentMessages.listByTrade(tradeId),
     };
@@ -54,6 +59,9 @@ export function registerTradeHandlers(services: AppServices): void {
   handle(ipcMain, channels.trades.forceClose, async (payload) => {
     const { tradeId } = tradeIdSchema.parse(payload);
     const trade = services.repos.trades.require(tradeId);
+    if (trade.sessionId) {
+      assertSessionInWorkspaceEnvironment(services, trade.sessionId);
+    }
     let pnl = 0;
     if (trade.broker_order_id && trade.brokerAccountId) {
       const result = await services.broker.closeOrder(

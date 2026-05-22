@@ -3,17 +3,18 @@ import { ipcMain } from "electron";
 import { sessionConfigSchema } from "@/lib/schemas";
 import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../services/app-services";
+import { assertFocusedSessionMatchesWorkspace } from "./environment-guards";
 import { handle } from "./handle";
 
 export function registerConfigHandlers(services: AppServices): void {
   handle(ipcMain, channels.config.getStrategy, async () => {
-    const sessionId = services.repos.session.getFocusedSessionId();
+    const sessionId = assertFocusedSessionMatchesWorkspace(services);
     return toLegacySessionConfig(services.strategyContext.get(sessionId));
   });
 
   handle(ipcMain, channels.config.saveStrategy, async (payload) => {
     const cfg = sessionConfigSchema.parse(payload);
-    const sessionId = services.repos.session.getFocusedSessionId();
+    const sessionId = assertFocusedSessionMatchesWorkspace(services);
     services.strategyContext.saveRiskConfig(sessionId, {
       maxPositionUsd: cfg.max_position_usd,
       stopLossPct: cfg.stop_loss_pct,
