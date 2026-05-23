@@ -1,6 +1,6 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
-import type { ToolBuildContext } from "../../worker-tools/tool-factory-registry";
-import type { PhasePlanServices } from "../../phases/services";
+import type { WorkerToolContext } from "../../worker-tools/worker-tool-factory";
+import type { AIPhaseServices } from "../../phases/services";
 
 export type InputBuilderId = string;
 
@@ -8,8 +8,8 @@ export interface InputBuilderContext {
   sessionId: string;
   session: WorkspaceSession;
   instrumentClasses: InstrumentClass[];
-  toolContext: ToolBuildContext;
-  services: PhasePlanServices;
+  toolContext: WorkerToolContext;
+  services: AIPhaseServices;
 }
 
 export interface InputBuilder {

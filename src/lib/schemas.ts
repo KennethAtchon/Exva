@@ -5,7 +5,7 @@ import {
   type RiskPresetId,
   type TimeframePresetId,
 } from "../../electron/shared/domain";
-import { selectorEvidenceSchema } from "../../electron/shared/ai/selector-pipeline-candidate";
+import { selectorEvidenceSchema } from "../../electron/shared/ai/selector-candidate";
 import { selectorDiagnosticsSchema } from "../../electron/shared/ai/selector-diagnostics";
 
 export const sessionStatusSchema = z.enum([

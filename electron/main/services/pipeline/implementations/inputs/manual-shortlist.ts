@@ -1,7 +1,7 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
 import type { InstrumentSelection } from "@/lib/schemas";
 import { AppError } from "@electron/shared/infra/errors";
-import type { PhasePlanRunContext } from "../../phases/types";
+import type { AIPhaseContext } from "../../phases/types";
 
 export function buildManualShortlistSelection(
   session: WorkspaceSession,
@@ -37,7 +37,7 @@ export function buildManualShortlistSelection(
   };
 }
 
-export function isManualSelectorMode(ctx: PhasePlanRunContext): boolean {
+export function isManualSelectorMode(ctx: AIPhaseContext): boolean {
   const selectorSettings = ctx.services.sessionSelectorSettingsRepo.get(
     ctx.sessionId,
   );

@@ -17,11 +17,11 @@ import {
   TECHNICAL_WORKERS_MOMENTUM_INDICATOR_PROMPT,
   TECHNICAL_WORKERS_VOLUME_PROFILE_PROMPT,
 } from "./worker-prompts";
-import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
-import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
-import { candidateOutputSchema } from "./implementations/selector/schemas";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
+import { candidateOutputSchema } from "./implementations/selector/selector-schemas";
 import {
   chartPatternOutputSchema,
   momentumOutputSchema,

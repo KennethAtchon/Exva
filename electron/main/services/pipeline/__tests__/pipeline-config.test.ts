@@ -4,7 +4,7 @@ import {
   DEFAULT_RISK_RULE_SET,
   DEFAULT_SCORING_WEIGHTS,
   phaseSpendCapUsd,
-} from "@electron/shared/ai/pipeline-config";
+} from "@electron/shared/ai/ai-phase-config";
 
 describe("pipeline-config", () => {
   it("exposes default scoring weights summing to 1", () => {

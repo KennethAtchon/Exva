@@ -1,6 +1,6 @@
 # Exva AI Runtime — Architecture Design Document
 
-> **Last updated:** 2026-05-22
+> **Last updated:** 2026-05-23
 > **Scope:** Main-process runtime from session start through trade close: session lifecycle, AI plan execution, selector/trade cycles, broker order placement, risk/order gates, approval handling, monitoring, persistence, events, and observability. Excludes renderer page design, broker adapter internals, and credential onboarding UX.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
 
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-Exva is a local-first Electron trading desktop app. The AI runtime lives entirely in the Electron main process and is owned per session by `SessionRuntimeManager`, which creates one `SessionRuntime` containing an `AgentOrchestrator` and a `TradeMonitor`. The current AI pipeline is plan-driven: `AiRuntime` delegates to `PipelineRuntime`, which runs a selector phase plan or the `default-trade-cycle` cycle plan using declarative stages, AI workers, engine stages, spend caps, and execution-step persistence. A trade cycle now includes candidate validation, technical analysis, fundamental analysis, review, decision, risk gate, broker allocation gate, broker order placement, and monitoring-step recording. Runtime state, traces, trades, approvals, capital reservations, events, and execution progress are persisted to SQLite; secrets stay in OS Keychain.
+Exva is a local-first Electron trading desktop app. The AI runtime lives entirely in the Electron main process and is owned per session by `SessionRuntimeManager`, which creates one `SessionRuntime` containing an `AgentOrchestrator` and a `TradeMonitor`. The current AI pipeline is plan-driven: `LLMRuntime` delegates to `PipelineRuntime`, which runs a selector phase plan or the `default-trade-cycle` cycle plan using declarative stages, AI workers, engine stages, spend caps, and execution-step persistence. A trade cycle now includes candidate validation, technical analysis, fundamental analysis, review, decision, risk gate, broker allocation gate, broker order placement, and monitoring-step recording. Runtime state, traces, trades, approvals, capital reservations, events, and execution progress are persisted to SQLite; secrets stay in OS Keychain.
 
 ---
 
@@ -61,11 +61,11 @@ graph TB
 | **SessionRuntime**        | In-memory lifecycle wrapper around one orchestrator and one monitor. Lifecycle commands are serialized with `PQueue({ concurrency: 1 })`.                                                                                      |
 | **AgentOrchestrator**     | Per-session trading loop in `electron/main/services/orchestration/cycle/agent-orchestrator.ts`. Enqueues selector and trade-cycle tasks, owns approval callbacks, step runners, and no-instrument retry timers.                |
 | **TradeMonitor**          | Per-session polling monitor in `orchestration/lifecycle/trade-monitor.ts`. Watches open trades, enforces exit rules, closes broker orders, releases capital, emits stats and trade-close events.                               |
-| **AiRuntime**             | Facade over `PipelineRuntime`. Exposes `runPlan`, `runCycle`, `runPhasePlan`, and effective pipeline config resolution.                                                                                                        |
+| **LLMRuntime**             | Facade over `PipelineRuntime`. Exposes `runPlan`, `runCycle`, `runAIPhase`, and effective pipeline config resolution.                                                                                                        |
 | **PipelineRuntime**       | Executes selector phase plans and trade cycle plans. Builds tool context, resolves session/worker config, applies spend caps, dispatches workers, and runs declarative engines.                                                |
-| **PhasePlan**             | Declarative AI phase plan. The selector is currently a phase plan with discovery and verification stages plus a cache policy.                                                                                                  |
-| **CyclePlan**             | Declarative multi-stage trade plan. `default-trade-cycle` runs candidate validation, technical, fundamental, review, decision, and risk/allocation engines.                                                                    |
-| **Worker**                | Atomic AI call definition with prompt asset, tools, engines, output mode/schema, terminal tool, and optional tool requirements. Executed by `executeWorker`.                                                                   |
+| **AIPhase**             | Declarative AI phase plan. The selector is currently a phase plan with discovery and verification stages plus a cache policy.                                                                                                  |
+| **InstrumentAnalysis**             | Declarative multi-stage trade plan. `default-trade-cycle` runs candidate validation, technical, fundamental, review, decision, and risk/allocation engines.                                                                    |
+| **Worker**                | Atomic AI call definition with prompt asset, tools, engines, output mode/schema, terminal tool, and optional tool requirements. Executed by `runAIWorker`.                                                                   |
 | **Engine**                | Deterministic stage binding registered in the engine registry, such as `candidate-validator`, `risk-gate`, `broker-allocation`, `order-policy`, and `exit-policy`.                                                             |
 | **Execution Step**        | Persisted stage progress row in `session_execution_steps`. Current stages: `selector`, `candidate_validation`, `technical`, `fundamental`, `review`, `decision`, `risk_gate`, `broker_order`, `monitoring`.                    |
 | **Agent Run / Message**   | AI trace persisted in `agent_runs` and `agent_messages`. Trade AI phases are inserted after the pending trade is created; selector stores an aggregate run/message.                                                            |
@@ -99,7 +99,7 @@ graph LR
         Runtime["SessionRuntime"]
         AO["AgentOrchestrator"]
         TM["TradeMonitor"]
-        AIR["AiRuntime / PipelineRuntime"]
+        AIR["LLMRuntime / PipelineRuntime"]
         Gates["Risk / Allocation / Policy Gates"]
         Broker["BrokerRegistry + BrokerRoutingService"]
         EB["EventBus"]
@@ -128,11 +128,11 @@ graph LR
 
 **Main components:**
 
-- `**createAppServices`** (`electron/main/services/app-services.ts`) is the composition root. It creates repositories, registries, `AiRuntime`, default engines/plans, `EventBus`, `SessionRuntimeManager`, session services, replay/autopsy/scorecard services, and starts the broker balance ticker.
+- `**createAppServices`** (`electron/main/services/app-services.ts`) is the composition root. It creates repositories, registries, `LLMRuntime`, default engines/plans, `EventBus`, `SessionRuntimeManager`, session services, replay/autopsy/scorecard services, and starts the broker balance ticker.
 - **IPC handlers** (`electron/main/ipc/*.ts`) are grouped by resource: dashboard, trades, approvals, sessions, strategy, workspace, templates, legacy config, accounts, broker accounts, events, replay, and developer tools.
 - `**SessionRuntimeManager`** builds per-session orchestrator dependencies and runtime instances. Boot rehydration starts previously `active` and `paused` sessions in paused runtime mode, so monitors are live but new intake stays off until resume.
 - `**AgentOrchestrator**` owns the queue for selector/trade work. Its queue concurrency is set from `max_concurrent_trades`, but session runtime state gates actual work through `EventBus.runtimeStatus(sessionId)`.
-- `**AiRuntime` / `PipelineRuntime**` own the current AI plan execution model. Static phase definitions still exist as metadata, but real execution is through registered phase/cycle plans and interpreters.
+- `**LLMRuntime` / `PipelineRuntime**` own the current AI plan execution model. Static phase definitions still exist as metadata, but real execution is through registered phase/cycle plans and interpreters.
 - `**TradeMonitor**` owns position lifecycle after order open. It polls per holding style and emits `trade_closed` when a position closes or is detected closed externally.
 - `**EventBus**` attaches BrowserWindows in `createMainWindow()` and emits both to renderer windows and in-process listeners.
 
@@ -266,8 +266,8 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant AO as AgentOrchestrator
-    participant ESR as ExecutionStepRunner
-    participant AI as AiRuntime.runPlan("selector")
+    participant ESR as TradingStepRunner
+    participant AI as LLMRuntime.runPlan("selector")
     participant PR as PipelineRuntime
     participant Plan as SELECTOR_PLAN
     participant Cache as session_instrument_cache
@@ -275,8 +275,8 @@ sequenceDiagram
 
     AO->>ESR: run stage selector
     ESR->>AI: runPlan("selector", sessionId, cycleId)
-    AI->>PR: runPhasePlan(selector)
-    PR->>Plan: PhasePlanInterpreter.run
+    AI->>PR: runAIPhase(selector)
+    PR->>Plan: AIPhaseRunner.run
     Plan->>Cache: read selector-instrument-cache fingerprint
     alt cache hit
         Cache-->>Plan: cached output
@@ -313,9 +313,9 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant AO as AgentOrchestrator
-    participant AI as AiRuntime.runPlan("default-trade-cycle")
-    participant ESR as ExecutionStepRunner
-    participant Plan as CyclePlanInterpreter
+    participant AI as LLMRuntime.runPlan("default-trade-cycle")
+    participant ESR as TradingStepRunner
+    participant Plan as InstrumentAnalysisRunner
     participant Gate as Engines
     participant DB as SQLite
     participant Broker as BrokerAdapter
@@ -328,7 +328,7 @@ sequenceDiagram
     Plan->>ESR: persist each stage status/retry
     AI->>Gate: execution-profile -> risk-gate -> broker-allocation
     Gate-->>AI: riskOrder + broker allocation result
-    AI-->>AO: TradePipelineResult
+    AI-->>AO: InstrumentAnalysisResult
     AO->>DB: insert pending trade + agent runs/messages
     alt decision action is skip
         AO->>DB: keep cycle complete, no order
@@ -466,19 +466,19 @@ sequenceDiagram
 ### 6.8 Worker Execution
 
 **Trigger:** A phase plan calls `runner.execute(worker, task)`.
-**Outcome:** One provider run trace is assembled into an `AgentResult`; aggregate or trade persistence happens outside the worker executor.
+**Outcome:** One provider run trace is assembled into an `LLMRunResult`; aggregate or trade persistence happens outside the worker executor.
 
 ```mermaid
 sequenceDiagram
     participant PR as PipelineRuntime
-    participant WE as executeWorker
-    participant PST as PipelineSpendTracker
-    participant PCR as PhaseConfigResolver
+    participant WE as runAIWorker
+    participant PST as AISpendTracker
+    participant PCR as AIPhaseConfigResolver
     participant PAL as PromptAssetLoader
     participant Tools as ToolFactoryRegistry
     participant Provider as ProviderAdapter
 
-    PR->>WE: executeWorker(worker, task, spendTracker)
+    PR->>WE: runAIWorker(worker, task, spendTracker)
     WE->>PST: canContinue()
     alt cap exceeded before call
         WE-->>PR: throw SPEND_CAP_EXCEEDED
@@ -494,12 +494,12 @@ sequenceDiagram
     WE->>WE: enforce worker tool requirements
     WE->>WE: assemble run + message trace
     WE->>PST: record cost
-    WE-->>PR: AgentResult
+    WE-->>PR: LLMRunResult
 ```
 
 
 
-**Current persistence boundary:** `executeWorker()` does not insert DB rows. Selector finalization persists one aggregate `agent_runs`/`agent_messages` row; trade cycles persist technical/fundamental/review/decision rows after the pending trade exists.
+**Current persistence boundary:** `runAIWorker()` does not insert DB rows. Selector finalization persists one aggregate `agent_runs`/`agent_messages` row; trade cycles persist technical/fundamental/review/decision rows after the pending trade exists.
 
 ---
 
@@ -547,7 +547,7 @@ Runtime modes are narrower: `starting`, `active`, `paused`, `stopping`. The moni
 
 ```mermaid
 graph TD
-    Worker["executeWorker"] --> Spend{"PipelineSpendTracker\nphase / pipeline / session"}
+    Worker["runAIWorker"] --> Spend{"AISpendTracker\nphase / pipeline / session"}
     Spend -->|ok| AI["Provider run"]
     AI --> Candidate["candidate-validator"]
     Candidate --> Decision["AI decision"]
@@ -726,8 +726,8 @@ graph TD
 | Runtime manager        | `electron/main/services/session/session-runtime-manager.ts`                           |
 | Runtime wrapper        | `electron/main/services/session/session-runtime.ts`                                   |
 | Orchestrator           | `electron/main/services/orchestration/cycle/agent-orchestrator.ts`                    |
-| Orchestrator context   | `electron/main/services/orchestration/cycle/orchestrator-context.ts`                  |
-| Step runner            | `electron/main/services/orchestration/cycle/execution-step-runner.ts`                 |
+| Orchestrator context   | `electron/main/services/orchestration/cycle/trading-cycle-context.ts`                  |
+| Step runner            | `electron/main/services/orchestration/cycle/trading-step-runner.ts`                 |
 | Selector orchestration | `electron/main/services/orchestration/cycle/selector/run-selector.ts`                 |
 | Trade cycle            | `electron/main/services/orchestration/cycle/trade/trade-cycle.ts`                     |
 | Trade pipeline bridge  | `electron/main/services/orchestration/cycle/trade/run-trade-pipeline.ts`              |
@@ -736,14 +736,14 @@ graph TD
 | Approval recheck       | `electron/main/services/orchestration/cycle/trade/approval-recheck.ts`                |
 | Trade monitor          | `electron/main/services/orchestration/lifecycle/trade-monitor.ts`                     |
 | AI runtime facade      | `electron/main/services/llm/runtime.ts`                                     |
-| Pipeline runtime       | `electron/main/services/llm/pipeline/core/pipeline-runtime.ts`                 |
-| Phase plan interpreter | `electron/main/services/llm/pipeline/phases/interpreter.ts`                |
-| Cycle plan interpreter | `electron/main/services/llm/pipeline/analysis/interpreter.ts`                |
-| Selector plan          | `electron/main/services/llm/pipeline/implementations/selector/plan.ts`              |
-| Trade cycle plan       | `electron/main/services/llm/pipeline/implementations/trade/default-cycle.ts`        |
-| Trade stages           | `electron/main/services/llm/pipeline/implementations/trade/default-cycle-stages.ts` |
-| Worker executor        | `electron/main/services/llm/pipeline/execution/worker-executor.ts`             |
-| Spend tracker          | `electron/main/services/llm/pipeline/execution/pipeline-spend-tracker.ts`      |
+| Pipeline runtime       | `electron/main/services/pipeline/core/pipeline-runtime.ts`                 |
+| Phase plan interpreter | `electron/main/services/pipeline/phases/interpreter.ts`                |
+| Cycle plan interpreter | `electron/main/services/pipeline/analysis/interpreter.ts`                |
+| Selector plan          | `electron/main/services/pipeline/implementations/selector/selector-analysis.ts`              |
+| Trade cycle plan       | `electron/main/services/pipeline/implementations/trade/default-analysis.ts`        |
+| Trade stages           | `electron/main/services/pipeline/implementations/trade/default-analysis-steps.ts` |
+| Worker executor        | `electron/main/services/pipeline/execution/worker-executor.ts`             |
+| Spend tracker          | `electron/main/services/pipeline/execution/ai-spend-tracker.ts`      |
 | Engine registry        | `electron/main/services/signal/registry/register-default-engines.ts`              |
 | Risk engine            | `electron/main/services/risk/risk-engine.ts`                                          |
 | Allocation gate        | `electron/main/services/risk/broker-allocation-gate.ts`                               |

@@ -1,31 +1,31 @@
-import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
-import type { PhasePlan } from "./types";
+import type { PipelinePhase } from "@electron/shared/ai/ai-phase";
+import type { AIPhase } from "./types";
 
-const PHASE_PLANS = new Map<PipelinePhase, PhasePlan<unknown, unknown>>();
+const PHASE_PLANS = new Map<PipelinePhase, AIPhase<unknown, unknown>>();
 
-export function registerPhasePlan<TState, TOutput>(
-  plan: PhasePlan<TState, TOutput>,
+export function registerAIPhase<TState, TOutput>(
+  plan: AIPhase<TState, TOutput>,
 ): void {
-  PHASE_PLANS.set(plan.phase, plan as PhasePlan<unknown, unknown>);
+  PHASE_PLANS.set(plan.phase, plan as AIPhase<unknown, unknown>);
 }
 
-export function getPhasePlan(
+export function getAIPhase(
   phase: PipelinePhase,
-): PhasePlan<unknown, unknown> | undefined {
+): AIPhase<unknown, unknown> | undefined {
   return PHASE_PLANS.get(phase);
 }
 
-export function requirePhasePlan(
+export function requireAIPhase(
   phase: PipelinePhase,
-): PhasePlan<unknown, unknown> {
-  const plan = getPhasePlan(phase);
+): AIPhase<unknown, unknown> {
+  const plan = getAIPhase(phase);
   if (!plan) throw new Error(`Phase plan '${phase}' is not registered`);
   return plan;
 }
 
-export function listPhasePlans(): Array<{
+export function listAIPhases(): Array<{
   phase: PipelinePhase;
-  plan: PhasePlan<unknown, unknown>;
+  plan: AIPhase<unknown, unknown>;
 }> {
   return [...PHASE_PLANS.entries()].map(([phase, plan]) => ({ phase, plan }));
 }

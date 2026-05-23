@@ -2,14 +2,14 @@ import type { ToolSet } from "ai";
 import type { z } from "zod";
 import type { ProviderAdapter } from "../../llm/adapters/provider-adapter";
 import type {
-  RuntimeAgentMessage,
-  RunTrace,
-} from "../../llm/ai-runtime-types";
+  LLMMessage,
+  LLMCallTrace,
+} from "../../llm/llm-types";
 
 export type HarnessConfig<T = undefined> = {
   provider: ProviderAdapter;
   model: string;
-  messages: RuntimeAgentMessage[];
+  messages: LLMMessage[];
   tools?: ToolSet;
   safetyCapSteps: number;
   spendLimitUsd: number;
@@ -22,7 +22,7 @@ export type HarnessConfig<T = undefined> = {
 
 export async function executeToolUseHarness<T = undefined>(
   config: HarnessConfig<T>,
-): Promise<RunTrace<T>> {
+): Promise<LLMCallTrace<T>> {
   return config.provider.runAgent<T>({
     model: config.model,
     messages: config.messages,

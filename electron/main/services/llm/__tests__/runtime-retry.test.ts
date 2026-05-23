@@ -3,18 +3,18 @@ import { describe, expect, it, vi } from "vitest";
 const warnSpy = vi.fn();
 const infoSpy = vi.fn();
 
-vi.mock("../../../infra/log", () => ({
+vi.mock("../../infra/log", () => ({
   createLogger: () => ({
     warn: warnSpy,
     info: infoSpy,
   }),
 }));
 
-describe("withProviderRetry", () => {
+describe("withLLMRetry", () => {
   it("surfaces nested provider error details, walks the cause chain, and tags the provider", async () => {
     warnSpy.mockReset();
     infoSpy.mockReset();
-    const { withProviderRetry } = await import("../runtime-retry");
+    const { withLLMRetry } = await import("../runtime-retry");
 
     const error = Object.assign(
       new Error(
@@ -32,7 +32,7 @@ describe("withProviderRetry", () => {
       },
     );
 
-    const promise = withProviderRetry(
+    const promise = withLLMRetry(
       async () => {
         throw error;
       },
@@ -61,7 +61,7 @@ describe("withProviderRetry", () => {
     });
 
     await expect(
-      withProviderRetry(
+      withLLMRetry(
         async () => {
           throw error;
         },
@@ -89,10 +89,10 @@ describe("withProviderRetry", () => {
   it("logs each retry attempt and recovers on the second try for transient errors", async () => {
     warnSpy.mockReset();
     infoSpy.mockReset();
-    const { withProviderRetry } = await import("../runtime-retry");
+    const { withLLMRetry } = await import("../runtime-retry");
 
     let calls = 0;
-    const result = await withProviderRetry(
+    const result = await withLLMRetry(
       async () => {
         calls += 1;
         if (calls === 1) {
@@ -130,10 +130,10 @@ describe("withProviderRetry", () => {
   it("treats timed out responses as retryable provider errors", async () => {
     warnSpy.mockReset();
     infoSpy.mockReset();
-    const { withProviderRetry } = await import("../runtime-retry");
+    const { withLLMRetry } = await import("../runtime-retry");
 
     let calls = 0;
-    const result = await withProviderRetry(async () => {
+    const result = await withLLMRetry(async () => {
       calls += 1;
       if (calls === 1) {
         throw new Error("AI request timed out");
@@ -153,10 +153,10 @@ describe("withProviderRetry", () => {
     vi.useFakeTimers();
     warnSpy.mockReset();
     infoSpy.mockReset();
-    const { withProviderRetry } = await import("../runtime-retry");
+    const { withLLMRetry } = await import("../runtime-retry");
 
     const signals: AbortSignal[] = [];
-    const promise = withProviderRetry(
+    const promise = withLLMRetry(
       (abortSignal) => {
         signals.push(abortSignal);
         return new Promise<string>(() => undefined);

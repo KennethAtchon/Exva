@@ -4,28 +4,25 @@ import {
   DEFAULT_OUTPUT_TOOL_NAME,
   type PipelinePhase,
   type WorkerDefinition,
-} from "@electron/shared/ai/pipeline-phase";
-import type { AgentResult } from "../../llm/ai-runtime-types";
+} from "@electron/shared/ai/ai-phase";
+import type { LLMRunResult } from "../../llm/llm-types";
 import type { ProviderRegistry } from "../../llm/provider-registry";
-import { withProviderRetry } from "../../llm/runtime-retry";
+import { withLLMRetry } from "../../llm/runtime-retry";
 import { assembleTrace } from "./trace-assembler";
-import type { WorkerOutputContract } from "../core/types";
-import { resolveStructuredWorkerOutput } from "./worker-structured-output";
+import type { AIWorkerOutputSchema } from "../core/types";
+import { parseWorkerOutput } from "./worker-structured-output";
 import {
-  buildToolSet,
-  DEFAULT_TERMINAL_TOOL_DESCRIPTION,
-  type TerminalOutputToolSpec,
-  type ToolBuildContext,
-} from "../worker-tools/tool-factory-registry";
-import type { PhaseConfigResolver } from "../phase-config-resolver";
-import {
-  envelopeToMessages,
-  buildPromptEnvelope,
-} from "../prompting/prompt-envelope-builder";
+  buildWorkerTools,
+  DEFAULT_SUBMIT_TOOL_DESCRIPTION,
+  type SubmitOutputToolSpec,
+  type WorkerToolContext,
+} from "../worker-tools/worker-tool-factory";
+import type { AIPhaseConfigResolver } from "../ai-phase-config-resolver";
+import { buildWorkerPrompt } from "../prompting/worker-prompt-builder";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { createLogger } from "../../infra/log";
-import type { PipelineSpendTracker } from "./pipeline-spend-tracker";
-import { runReadEngineContext } from "./engine-context-runner";
+import type { AISpendTracker } from "./ai-spend-tracker";
+import { injectEngineResults } from "./engine-prompt-injector";
 import { enforceWorkerToolRequirements, extractToolNamesUsed, summarizeWorkerToolCoverage } from "./worker-tool-requirements";
 
 const logger = createLogger("pipeline-runtime");
@@ -37,7 +34,7 @@ function workerNameFromPrompt(markdown: string): string | undefined {
 
 function workerLogContext(
   opts: Pick<
-    WorkerRunOptions,
+    AIWorkerRunOptions,
     "phase" | "sessionId" | "cycleId" | "tradeId" | "worker"
   >,
   workerName?: string,
@@ -76,15 +73,15 @@ function resolveTemperature(
   return configured;
 }
 
-export interface WorkerExecutorDeps {
+export interface AIWorkerRunnerDeps {
   providerRegistry: ProviderRegistry;
-  phaseConfigResolver: PhaseConfigResolver;
-  toolContext: ToolBuildContext;
+  phaseConfigResolver: AIPhaseConfigResolver;
+  toolContext: WorkerToolContext;
   strategyContext: SessionStrategyContext;
   sandboxBudget?: boolean;
 }
 
-export interface WorkerRunOptions {
+export interface AIWorkerRunOptions {
   phase: PipelinePhase;
   worker: WorkerDefinition;
   sessionId: string;
@@ -92,13 +89,13 @@ export interface WorkerRunOptions {
   tradeId?: string | null;
   task: Record<string, unknown>;
   prepareStep?: PrepareStepFunction<ToolSet>;
-  spendTracker?: PipelineSpendTracker;
+  spendTracker?: AISpendTracker;
 }
 
-export async function executeWorker<TOutput>(
-  deps: WorkerExecutorDeps,
-  opts: WorkerRunOptions,
-): Promise<AgentResult<TOutput>> {
+export async function runAIWorker<TOutput>(
+  deps: AIWorkerRunnerDeps,
+  opts: AIWorkerRunOptions,
+): Promise<LLMRunResult<TOutput>> {
   const { phase, worker, sessionId, cycleId, tradeId, task, spendTracker } =
     opts;
 
@@ -153,7 +150,7 @@ export async function executeWorker<TOutput>(
 
   const workerName = workerNameFromPrompt(promptMarkdown);
 
-  const engineResults = runReadEngineContext({
+  const engineResults = injectEngineResults({
     phase,
     sessionId,
     cycleId: cycleId ?? null,
@@ -162,7 +159,7 @@ export async function executeWorker<TOutput>(
     task,
   });
 
-  const envelope = buildPromptEnvelope({
+  const messages = buildWorkerPrompt({
     phase,
     workerId: worker.id,
     basePromptMarkdown: promptMarkdown,
@@ -174,20 +171,18 @@ export async function executeWorker<TOutput>(
     mockScenarioKind: deps.toolContext.mockScenarioKind,
   });
 
-  const messages = envelopeToMessages(envelope, deps.strategyContext);
-
-  const outputTool: TerminalOutputToolSpec | undefined =
+  const outputTool: SubmitOutputToolSpec | undefined =
     worker.outputSchema && resolvedConfig.output
       ? {
           name: worker.outputTool?.name ?? DEFAULT_OUTPUT_TOOL_NAME,
           description:
-            worker.outputTool?.description ?? DEFAULT_TERMINAL_TOOL_DESCRIPTION,
+            worker.outputTool?.description ?? DEFAULT_SUBMIT_TOOL_DESCRIPTION,
           schema: resolvedConfig.output.schema,
         }
       : undefined;
   const terminalToolName = outputTool?.name;
 
-  const tools = await buildToolSet(
+  const tools = await buildWorkerTools(
     resolvedConfig.tools,
     deps.toolContext,
     outputTool,
@@ -250,7 +245,7 @@ export async function executeWorker<TOutput>(
   );
 
   const runAgent = () =>
-    withProviderRetry(
+    withLLMRetry(
       (signal) =>
         adapter.runAgent({
           model: workerExecConfig.modelId,
@@ -292,10 +287,10 @@ export async function executeWorker<TOutput>(
 
   if (terminalToolName && resolvedConfig.output) {
     const outputContract =
-      resolvedConfig.output as WorkerOutputContract<TOutput>;
-    let resolution = resolveStructuredWorkerOutput<TOutput>(
+      resolvedConfig.output as AIWorkerOutputSchema<TOutput>;
+    let resolution = parseWorkerOutput<TOutput>(
       outputContract,
-      extractTerminalSubmission(trace, terminalToolName),
+      extractWorkerSubmission(trace, terminalToolName),
       false,
     );
     if ("needsRetry" in resolution) {
@@ -309,9 +304,9 @@ export async function executeWorker<TOutput>(
         "worker terminal output validation failed; retrying once",
       );
       trace = await runAgent();
-      resolution = resolveStructuredWorkerOutput<TOutput>(
+      resolution = parseWorkerOutput<TOutput>(
         outputContract,
-        extractTerminalSubmission(trace, terminalToolName),
+        extractWorkerSubmission(trace, terminalToolName),
         true,
       );
     }
@@ -389,7 +384,7 @@ export async function executeWorker<TOutput>(
         0,
       ),
       terminalToolSubmitted: terminalToolName
-        ? extractTerminalSubmission(trace, terminalToolName) != null
+        ? extractWorkerSubmission(trace, terminalToolName) != null
         : null,
       inputTokens: run.input_tokens,
       outputTokens: run.output_tokens,
@@ -425,7 +420,7 @@ export async function executeWorker<TOutput>(
  * structured submission. Returns the last submission if called more than once,
  * or undefined if the worker never called the terminal tool.
  */
-export function extractTerminalSubmission(
+export function extractWorkerSubmission(
   trace: {
     steps: Array<{
       toolCalls: Array<{ tool?: string; argsJson?: string }>;

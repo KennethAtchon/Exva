@@ -37,7 +37,7 @@ import type {
   TradeRulesPreset,
 } from "@electron/shared/domain";
 import type { GlobalStrategyPreset } from "@electron/shared/presets";
-import { DEFAULT_REASONING_LEVEL, PIPELINE_PHASES } from "@electron/shared/ai/pipeline-phase";
+import { DEFAULT_REASONING_LEVEL, PIPELINE_PHASES } from "@electron/shared/ai/ai-phase";
 import { toSessionConfig, toWorkspaceSession } from "../system/mappers";
 
 export interface SessionFilters {

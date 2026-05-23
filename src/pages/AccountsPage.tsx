@@ -23,7 +23,7 @@ import {
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
 import { api, type ProviderModelEntry } from "@/lib/exva";
-import { REASONING_LEVEL_OPTIONS } from "../../electron/shared/ai/pipeline-phase";
+import { REASONING_LEVEL_OPTIONS } from "../../electron/shared/ai/ai-phase";
 import type {
   BrokerRoutingDefault,
   InstrumentClass,

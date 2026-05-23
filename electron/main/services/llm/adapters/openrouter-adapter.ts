@@ -10,7 +10,7 @@ import type {
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
 import { buildOpenRouterReasoningOptions } from "./reasoning-options";
-import type { RunTrace } from "../ai-runtime-types";
+import type { LLMCallTrace } from "../llm-types";
 
 function readUsage(
   usage:
@@ -67,7 +67,7 @@ export class OpenRouterAdapter implements ProviderAdapter {
 
   async runAgent<T = undefined>(
     opts: AgentRunOptions<T>,
-  ): Promise<RunTrace<T>> {
+  ): Promise<LLMCallTrace<T>> {
     const reasoning = buildOpenRouterReasoningOptions(opts.reasoningLevel);
     const client = await this.createClient(reasoning);
     return executeRunAgent({

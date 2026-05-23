@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   technicalSignalSchema,
   type TechnicalSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 
 export const chartPatternOutputSchema = z.object({
   patternName: z

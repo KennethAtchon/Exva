@@ -1,15 +1,15 @@
 import type { ExecutionStage } from "@/lib/types";
-import type { StepResult } from "./execution-step-runner";
-import type { OrchestratorContext } from "./orchestrator-context";
+import type { TradingStepResult } from "./trading-step-runner";
+import type { TradingCycleContext } from "./trading-cycle-context";
 import type { CycleContext } from "./types";
 
 export type OrchestratorStepOutcome<T> =
   | { status: "ok"; value: T }
   | { status: "paused" }
-  | { status: "failed"; result: Extract<StepResult<T>, { ok: false }> };
+  | { status: "failed"; result: Extract<TradingStepResult<T>, { ok: false }> };
 
 export function enqueueCycleTask(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   cycleId: string,
   errorLabel: string,
   execute: () => Promise<void>,
@@ -27,14 +27,14 @@ export function enqueueCycleTask(
 }
 
 export async function runOrchestratorStep<T>(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   options: {
     cycleId: string;
     stage: ExecutionStage;
     run: () => Promise<T>;
     onRetry?: () => void;
     tradeId?: string | null;
-    onFailure?: (result: Extract<StepResult<T>, { ok: false }>) => void;
+    onFailure?: (result: Extract<TradingStepResult<T>, { ok: false }>) => void;
     recordFailure?: boolean;
   },
 ): Promise<OrchestratorStepOutcome<T>> {
@@ -74,7 +74,7 @@ export type PhaseCycleBusEvents = {
 
 /** Runs a single-step research/selector-style cycle with shared retry, pause, and bus events. */
 export async function runPhaseCycle<TContext extends CycleContext, TResult>(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   options: {
     context: TContext;
     stage: ExecutionStage;

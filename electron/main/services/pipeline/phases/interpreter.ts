@@ -1,41 +1,41 @@
 import { AppError } from "@electron/shared/infra/errors";
-import type { AgentResult } from "../../llm/ai-runtime-types";
-import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import type { LLMRunResult } from "../../llm/llm-types";
+import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { resolveSessionInstrumentClasses } from "../../session/effective-instrument-classes";
 import { getCachePolicy } from "../implementations/registry/cache-policy-registry";
 import { buildCompositeInput } from "../implementations/registry/input-builder-registry";
-import type { PhasePlanServices } from "./services";
+import type { AIPhaseServices } from "./services";
 import type {
-  PhasePlan,
-  PhasePlanRunContext,
-  PhasePlanRunResult,
-  PhasePlanWorkerTrace,
+  AIPhase,
+  AIPhaseContext,
+  AIPhaseResult,
+  AIWorkerTrace,
 } from "./types";
-import type { PipelineWorkerRunner } from "../core/types";
-import type { ToolBuildContext } from "../worker-tools/tool-factory-registry";
+import type { AIWorkerRunner } from "../core/types";
+import type { WorkerToolContext } from "../worker-tools/worker-tool-factory";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { WorkspaceSession } from "@/lib/types";
 import { createLogger } from "../../infra/log";
 
 const logger = createLogger("pipeline-runtime");
 
-export interface PhasePlanInterpreterRunInput {
-  plan: PhasePlan<unknown, unknown>;
+export interface AIPhaseRunInput {
+  plan: AIPhase<unknown, unknown>;
   sessionId: string;
   cycleId: string | null;
   tradeId: string | null;
   input: Record<string, unknown>;
   session: WorkspaceSession;
   strategyContext: SessionStrategyContext;
-  toolContext: ToolBuildContext;
-  services: PhasePlanServices;
-  runner: PipelineWorkerRunner;
+  toolContext: WorkerToolContext;
+  services: AIPhaseServices;
+  runner: AIWorkerRunner;
 }
 
-export class PhasePlanInterpreter {
+export class AIPhaseRunner {
   async run<TOutput>(
-    input: PhasePlanInterpreterRunInput,
-  ): Promise<PhasePlanRunResult<TOutput>> {
+    input: AIPhaseRunInput,
+  ): Promise<AIPhaseResult<TOutput>> {
     const phaseStartedAt = Date.now();
     logger.info(
       {
@@ -55,11 +55,11 @@ export class PhasePlanInterpreter {
       input.session,
       input.services,
     );
-    const toolContext: ToolBuildContext = {
+    const toolContext: WorkerToolContext = {
       ...input.toolContext,
       instrumentClasses,
     };
-    const ctx: PhasePlanRunContext = {
+    const ctx: AIPhaseContext = {
       phase: input.plan.phase,
       sessionId: input.sessionId,
       cycleId: input.cycleId,
@@ -131,7 +131,7 @@ export class PhasePlanInterpreter {
     }
 
     let state = await input.plan.initialState(ctx);
-    const workerTraces: PhasePlanWorkerTrace[] = [];
+    const workerTraces: AIWorkerTrace[] = [];
 
     for (const stage of input.plan.stages) {
       const workers = stage.resolveWorkers(ctx, state);
@@ -182,7 +182,7 @@ export class PhasePlanInterpreter {
             entry,
           ): entry is PromiseFulfilledResult<{
             worker: WorkerDefinition;
-            result: AgentResult<unknown>;
+            result: LLMRunResult<unknown>;
           }> => entry.status === "fulfilled",
         )
         .map((entry) => entry.value);
@@ -295,9 +295,9 @@ export class PhasePlanInterpreter {
     return {
       output,
       source: "ai_picker",
-      run: aggregate?.run as AgentResult<TOutput>["run"] | undefined,
+      run: aggregate?.run as LLMRunResult<TOutput>["run"] | undefined,
       message: aggregate?.message as
-        | AgentResult<TOutput>["message"]
+        | LLMRunResult<TOutput>["message"]
         | undefined,
       instrumentClasses,
     };

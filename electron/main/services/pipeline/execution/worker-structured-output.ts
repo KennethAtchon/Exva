@@ -1,16 +1,16 @@
-import type { WorkerOutputContract } from "../core/types";
+import type { AIWorkerOutputSchema } from "../core/types";
 
-export interface StructuredOutputAttempt<T> {
+export interface WorkerOutputAttempt<T> {
   output: T;
   parseFallback: boolean;
   retried: boolean;
 }
 
-export function resolveStructuredWorkerOutput<T>(
-  contract: WorkerOutputContract<T>,
+export function parseWorkerOutput<T>(
+  contract: AIWorkerOutputSchema<T>,
   structuredOutput: unknown | undefined,
   retried: boolean,
-): StructuredOutputAttempt<T> | { needsRetry: true; retried: boolean } {
+): WorkerOutputAttempt<T> | { needsRetry: true; retried: boolean } {
   const parsed =
     structuredOutput !== undefined
       ? contract.schema.safeParse(structuredOutput)

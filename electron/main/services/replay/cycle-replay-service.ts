@@ -14,9 +14,9 @@ import {
   type TechnicalSignal,
   type FundamentalSignal,
   type TradeSignal,
-} from "@electron/shared/ai/pipeline-signals";
-import type { PhaseTraceV1 } from "@electron/shared/ai/pipeline-observability";
-import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+} from "@electron/shared/ai/trade-signals";
+import type { AIPhaseTrace } from "@electron/shared/ai/ai-phase-trace";
+import type { PipelinePhase } from "@electron/shared/ai/ai-phase";
 import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
 import type { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
 import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
@@ -30,9 +30,9 @@ import type { PolicyGateResult } from "../orchestration/policy/order-policy-gate
 import { ExitPolicyEvaluator } from "../risk/exit-policy-evaluator";
 import type { ExitDecision } from "../risk/exit-policy-evaluator";
 import {
-  computeExecutionProfile,
+  computeTradeTradeExecutionProfile,
   priceLevelsFromProfile,
-} from "../signal/execution/execution-profile-engine";
+} from "../signal/execution/trade-execution-profile";
 
 export interface CycleFixture {
   version: 1;
@@ -68,7 +68,7 @@ export interface CycleFixture {
     review: ReviewSignal | null;
     decision: TradeSignal | null;
   };
-  phaseTraces: Partial<Record<PipelinePhase, PhaseTraceV1>>;
+  phaseTraces: Partial<Record<PipelinePhase, AIPhaseTrace>>;
   decision: {
     action: "trade" | "no_trade";
     side?: "BUY" | "SELL";
@@ -602,7 +602,7 @@ export class CycleReplayRunner {
       const instrumentClass =
         selectedInstruments.find((i) => i.symbol === tradeSignal.symbol)
           ?.instrumentClass ?? "stock";
-      const profile = computeExecutionProfile({
+      const profile = computeTradeTradeExecutionProfile({
         signal: tradeSignal,
         instrumentClass,
         maxPositionUsd: strategySnapshot.riskConfig.maxPositionUsd,
@@ -728,16 +728,16 @@ function parsePhaseOutput(
   return { phase: entry.phase, output: entry.schema.parse(parsed) };
 }
 
-function parsePhaseTrace(raw: string | null): PhaseTraceV1 | null {
+function parsePhaseTrace(raw: string | null): AIPhaseTrace | null {
   if (!raw) return null;
   const parsed = safeParseJson(raw);
   if (!parsed || typeof parsed !== "object") return null;
-  const trace = parsed as Partial<PhaseTraceV1>;
+  const trace = parsed as Partial<AIPhaseTrace>;
   if (trace.version !== 1) return null;
   if (typeof trace.phase !== "string") return null;
   if (!Array.isArray(trace.frontiers) || !Array.isArray(trace.workers))
     return null;
-  return trace as PhaseTraceV1;
+  return trace as AIPhaseTrace;
 }
 
 function validatePhaseOutputs(

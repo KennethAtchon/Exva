@@ -1,26 +1,26 @@
-import type { CyclePlan } from "./types";
+import type { InstrumentAnalysis } from "./types";
 
-const cyclePlans = new Map<string, CyclePlan<unknown>>();
+const cyclePlans = new Map<string, InstrumentAnalysis<unknown>>();
 
-export function registerCyclePlan<TState>(plan: CyclePlan<TState>): void {
+export function registerInstrumentAnalysis<TState>(plan: InstrumentAnalysis<TState>): void {
   if (cyclePlans.has(plan.id)) {
     throw new Error(`Cycle plan '${plan.id}' is already registered.`);
   }
-  cyclePlans.set(plan.id, plan as CyclePlan<unknown>);
+  cyclePlans.set(plan.id, plan as InstrumentAnalysis<unknown>);
 }
 
-export function getCyclePlan(id: string): CyclePlan<unknown> | undefined {
+export function getInstrumentAnalysis(id: string): InstrumentAnalysis<unknown> | undefined {
   return cyclePlans.get(id);
 }
 
-export function requireCyclePlan(id: string): CyclePlan<unknown> {
-  const plan = getCyclePlan(id);
+export function requireInstrumentAnalysis(id: string): InstrumentAnalysis<unknown> {
+  const plan = getInstrumentAnalysis(id);
   if (!plan) {
     throw new Error(`Cycle plan '${id}' is not registered.`);
   }
   return plan;
 }
 
-export function listCyclePlanIds(): string[] {
+export function listInstrumentAnalysisIds(): string[] {
   return [...cyclePlans.keys()];
 }

@@ -9,7 +9,7 @@ import type {
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
 import { buildOpenAiReasoningOptions } from "./reasoning-options";
-import type { RunTrace } from "../ai-runtime-types";
+import type { LLMCallTrace } from "../llm-types";
 
 function readUsage(
   usage:
@@ -37,7 +37,7 @@ export class OpenAiAdapter implements ProviderAdapter {
 
   async runAgent<T = undefined>(
     opts: AgentRunOptions<T>,
-  ): Promise<RunTrace<T>> {
+  ): Promise<LLMCallTrace<T>> {
     const { createOpenAI } = await import("@ai-sdk/openai");
     const client = createOpenAI({ apiKey: this.apiKey });
     const reasoningEffort = buildOpenAiReasoningOptions(opts.reasoningLevel);

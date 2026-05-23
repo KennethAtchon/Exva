@@ -7,9 +7,8 @@ import {
   prependStrategyContextToUserPrompt,
 } from "../strategy-prompt-context";
 import {
-  buildPromptEnvelope,
-  envelopeToMessages,
-} from "../prompt-envelope-builder";
+  buildWorkerPrompt,
+} from "../worker-prompt-builder";
 
 function baseContext(): SessionStrategyContext {
   const ts = "2026-05-05T00:00:00.000Z";
@@ -129,7 +128,7 @@ describe("strategy-prompt-context", () => {
     context.rules.ruleNotes = "y".repeat(800);
     context.rules.tradeRulesMarkdown = "z".repeat(800);
 
-    const envelope = buildPromptEnvelope({
+    const messages = buildWorkerPrompt({
       phase: "technical",
       workerId: "chart-pattern",
       basePromptMarkdown: "# Chart pattern",
@@ -137,8 +136,6 @@ describe("strategy-prompt-context", () => {
       strategyContext: context,
       strategyContextRequest: TEST_STRATEGY_CONTEXT_REQUEST,
     });
-
-    const messages = envelopeToMessages(envelope, context);
     const userMessage = messages[1]?.content ?? "";
 
     expect(userMessage).not.toContain("…");
@@ -153,7 +150,7 @@ describe("strategy-prompt-context", () => {
     context.riskConfig.riskPresetId = "moderate";
     context.timeframe.timeframePresetId = "swing";
 
-    const envelope = buildPromptEnvelope({
+    const messages = buildWorkerPrompt({
       phase: "selector",
       workerId: "web-scout",
       basePromptMarkdown: "# Web scout",
@@ -162,7 +159,6 @@ describe("strategy-prompt-context", () => {
       strategyContextRequest: TEST_STRATEGY_CONTEXT_REQUEST,
     });
 
-    const messages = envelopeToMessages(envelope, context);
     const userMessage = messages[1]?.content ?? "";
 
     expect(userMessage).toContain("<trusted_strategy_facts>");
@@ -177,7 +173,7 @@ describe("strategy-prompt-context", () => {
 
   it("nudges entry timer toward enter_now in clean_breakout sandbox", () => {
     const context = baseContext();
-    const envelope = buildPromptEnvelope({
+    const messages = buildWorkerPrompt({
       phase: "decision",
       workerId: "entry-timer",
       basePromptMarkdown: "# Entry timer",
@@ -188,7 +184,6 @@ describe("strategy-prompt-context", () => {
       mockScenarioKind: "clean_breakout",
     });
 
-    const messages = envelopeToMessages(envelope, context);
     const userMessage = messages[1]?.content ?? "";
 
     expect(userMessage).toContain("entryTimingHint");
@@ -201,7 +196,7 @@ describe("strategy-prompt-context", () => {
     context.riskConfig.riskPresetId = "moderate";
     context.timeframe.timeframePresetId = "swing";
 
-    const envelope = buildPromptEnvelope({
+    const messages = buildWorkerPrompt({
       phase: "selector",
       workerId: "liquidity-gate:AAPL",
       basePromptMarkdown: "# Liquidity gate",
@@ -214,7 +209,6 @@ describe("strategy-prompt-context", () => {
       },
     });
 
-    const messages = envelopeToMessages(envelope, context);
     const userMessage = messages[1]?.content ?? "";
 
     expect(userMessage).toContain("<trusted_strategy_facts>");

@@ -10,7 +10,7 @@ import type {
 } from "./provider-adapter";
 import { executeRunAgent } from "./run-agent-execute";
 import { buildAnthropicReasoningOptions } from "./reasoning-options";
-import type { RunTrace } from "../ai-runtime-types";
+import type { LLMCallTrace } from "../llm-types";
 
 function readUsage(
   usage:
@@ -60,7 +60,7 @@ export class AnthropicAdapter implements ProviderAdapter {
 
   async runAgent<T = undefined>(
     opts: AgentRunOptions<T>,
-  ): Promise<RunTrace<T>> {
+  ): Promise<LLMCallTrace<T>> {
     const { createAnthropic } = await import("@ai-sdk/anthropic");
     const client = createAnthropic({ apiKey: this.apiKey });
     const anthropicOptions = buildAnthropicReasoningOptions(

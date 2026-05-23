@@ -1,13 +1,13 @@
 import type { InstrumentClass, Trade } from "@/lib/types";
-import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
-import type { AgentResult } from "../../llm/ai-runtime-types";
+import type { SelectorEvidence } from "@electron/shared/ai/selector-candidate";
+import type { LLMRunResult } from "../../llm/llm-types";
 import type {
   TechnicalSignal,
   FundamentalSignal,
   ReviewSignal,
   TradeSignal,
-} from "@electron/shared/ai/pipeline-signals";
-import type { ToolStepTrace } from "../policy/candidate-validation-service";
+} from "@electron/shared/ai/trade-signals";
+import type { ToolLLMToolStepTrace } from "../policy/candidate-validation-service";
 
 export type ResolvedInstrument = {
   symbol: string;
@@ -16,13 +16,13 @@ export type ResolvedInstrument = {
   predictionOutcome?: "YES" | "NO" | null;
   instrumentMetadataJson?: string | null;
   selectorEvidence?: SelectorEvidence | null;
-  selectorTraces?: ToolStepTrace[];
+  selectorTraces?: ToolLLMToolStepTrace[];
 };
 
-export type AiTechnicalRun = AgentResult<TechnicalSignal>;
-export type AiFundamentalRun = AgentResult<FundamentalSignal>;
-export type AiReviewRun = AgentResult<ReviewSignal>;
-export type AiDecisionRun = AgentResult<TradeSignal>;
+export type AiTechnicalRun = LLMRunResult<TechnicalSignal>;
+export type AiFundamentalRun = LLMRunResult<FundamentalSignal>;
+export type AiReviewRun = LLMRunResult<ReviewSignal>;
+export type AiDecisionRun = LLMRunResult<TradeSignal>;
 
 export type AiPipelineResult = {
   technical: AiTechnicalRun;

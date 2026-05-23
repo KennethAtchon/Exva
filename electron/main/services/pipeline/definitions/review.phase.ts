@@ -2,14 +2,14 @@ import {
   REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT,
   REVIEW_WORKERS_RISK_ASSESSOR_PROMPT,
 } from "../worker-prompts";
-import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
-import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
+import type { PipelineDefinition } from "@electron/shared/ai/ai-phase";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import {
   reviewSignalSchema,
   type ReviewSignal,
   type TechnicalSignal,
   type FundamentalSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 import {
   conflictDetectorOutputSchema,
   riskAssessorOutputSchema,
@@ -53,7 +53,7 @@ const RISK_ASSESSOR_WORKER = {
   outputSchema: riskAssessorOutputSchema,
 };
 
-/** Registry metadata for review. Execution is driven by REVIEW_PLAN via PhasePlanInterpreter. */
+/** Registry metadata for review. Execution is driven by REVIEW_PLAN via AIPhaseRunner. */
 export const REVIEW_PHASE: PipelineDefinition<ReviewPhaseInput, ReviewSignal> =
   {
     phase: "review",

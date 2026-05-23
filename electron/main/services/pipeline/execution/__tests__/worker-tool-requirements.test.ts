@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AppError } from "@electron/shared/infra/errors";
-import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
-import type { RunTrace } from "../../../llm/ai-runtime-types";
+import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
+import type { LLMCallTrace } from "../../../llm/llm-types";
 import {
   enforceWorkerToolRequirements,
   extractToolNamesUsed,
@@ -11,7 +11,7 @@ import {
   SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
 } from "../../worker-prompts";
 
-function traceWithTools(tools: string[]): RunTrace {
+function traceWithTools(tools: string[]): LLMCallTrace {
   return {
     assistantText: "{}",
     messages: [],

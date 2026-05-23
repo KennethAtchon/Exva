@@ -3,7 +3,7 @@ import type {
   PipelinePhase,
   EngineId,
   EngineKind,
-} from "@electron/shared/ai/pipeline-phase";
+} from "@electron/shared/ai/ai-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { RiskEngine } from "../../risk/risk-engine";
 import type { CandidateValidationService } from "../../orchestration/policy/candidate-validation-service";
@@ -11,7 +11,7 @@ import type { OrderPolicyGate } from "../../orchestration/policy/order-policy-ga
 import type { BrokerAllocationGate } from "../../risk/broker-allocation-gate";
 import type { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 
-export interface EngineRunContext {
+export interface SignalEngineContext {
   sessionId: string;
   phase: PipelinePhase;
   cycleId: string | null;
@@ -25,12 +25,12 @@ export interface EngineRunContext {
   };
 }
 
-export interface EngineDefinition<TInput = unknown, TOutput = unknown> {
+export interface SignalEngineDefinition<TInput = unknown, TOutput = unknown> {
   id: EngineId;
   kind: EngineKind;
   inputSchema: z.ZodType<TInput>;
   outputSchema: z.ZodType<TOutput>;
-  run(input: TInput, ctx: EngineRunContext): Promise<TOutput> | TOutput;
+  run(input: TInput, ctx: SignalEngineContext): Promise<TOutput> | TOutput;
 }
 
-export type AnyEngineDefinition = EngineDefinition<unknown, unknown>;
+export type AnySignalEngine = SignalEngineDefinition<unknown, unknown>;

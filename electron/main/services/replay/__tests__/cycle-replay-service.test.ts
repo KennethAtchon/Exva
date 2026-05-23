@@ -1,19 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import type { ExecutionStrategyType } from "@electron/shared/ai/pipeline-signals";
+import type { ExecutionStrategyType } from "@electron/shared/ai/trade-signals";
 import type { StrategySnapshot } from "@/lib/types";
 import { CycleReplayRunner, CycleReplayService } from "../cycle-replay-service";
 import type { CycleFixture } from "../cycle-replay-service";
 import {
   assertCostBelowUsd,
-  assertExecutionProfile,
+  assertTradeExecutionProfile,
   assertSelectorSubmissionRate,
   assertSubmissionFires,
   assertTechnicalSignalHasField,
   assertTradeSignalAction,
   assertZeroAiAuthoredSizing,
-  expectedExecutionProfile,
+  expectedTradeExecutionProfile,
 } from "./cycle-replay-acceptance";
 
 const FIXTURES_DIR = path.join(
@@ -531,9 +531,9 @@ describe("CycleReplayRunner.replay", () => {
     const decision = fixture.phaseOutputs.decision;
     if (!decision) throw new Error("decision missing");
 
-    assertExecutionProfile(
+    assertTradeExecutionProfile(
       result,
-      expectedExecutionProfile({
+      expectedTradeExecutionProfile({
         strategy: decision.executionStrategy,
         instrumentClass: "stock",
         maxPositionUsd: fixture.strategySnapshot.riskConfig.maxPositionUsd,
@@ -588,9 +588,9 @@ describe("CycleReplayRunner.replay", () => {
         },
       };
       const result = runner.replay(replayFixture);
-      assertExecutionProfile(
+      assertTradeExecutionProfile(
         result,
-        expectedExecutionProfile({
+        expectedTradeExecutionProfile({
           strategy,
           instrumentClass,
           maxPositionUsd: fixture.strategySnapshot.riskConfig.maxPositionUsd,

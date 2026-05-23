@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPresetBehaviorGuidance } from "../preset-behavior-guidance";
+import { buildStrategyGuidance } from "../strategy-guidance";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { emptySessionAiSettings } from "@electron/shared/domain";
 
@@ -56,15 +56,15 @@ function minimalContext(
   } as unknown as SessionStrategyContext;
 }
 
-describe("buildPresetBehaviorGuidance", () => {
+describe("buildStrategyGuidance", () => {
   it("includes selector-phase guidance from built-in presets", () => {
-    const text = buildPresetBehaviorGuidance(minimalContext(), "selector");
+    const text = buildStrategyGuidance(minimalContext(), "selector");
     expect(text).toContain("Preset behavior guidance");
     expect(text.length).toBeGreaterThan(20);
   });
 
   it("returns empty when no preset guidance is configured", () => {
-    const text = buildPresetBehaviorGuidance(
+    const text = buildStrategyGuidance(
       minimalContext({
         researchPosture: {
           posturePresetId: "custom_unknown",
@@ -117,7 +117,7 @@ describe("buildPresetBehaviorGuidance", () => {
   });
 
   it("filters guidance sources and categories for worker requests", () => {
-    const text = buildPresetBehaviorGuidance(
+    const text = buildStrategyGuidance(
       minimalContext({
         riskConfig: {
           ...minimalContext().riskConfig,

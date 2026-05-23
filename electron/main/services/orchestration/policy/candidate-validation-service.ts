@@ -1,9 +1,9 @@
 import type { InstrumentClass } from "@/lib/types";
 import type { HoldingStyle, StrategySideBias } from "@electron/shared/domain";
-import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
+import type { SelectorEvidence } from "@electron/shared/ai/selector-candidate";
 import type { MarketSnapshot } from "../../broker/adapters/broker-adapter";
 
-export type ToolStepTrace = {
+export type ToolLLMToolStepTrace = {
   step: number;
   toolCalls: Array<{
     step: number;
@@ -25,7 +25,7 @@ export interface CandidateValidationInput {
   brokerRouteAvailable?: boolean;
   sideBias?: StrategySideBias;
   holdingStyle?: HoldingStyle;
-  selectorTrace: ToolStepTrace[];
+  selectorTrace: ToolLLMToolStepTrace[];
   quoteSnapshot: MarketSnapshot;
   now?: string;
 }

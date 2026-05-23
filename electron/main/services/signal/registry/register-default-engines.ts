@@ -4,8 +4,8 @@ import type { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 import type { RiskEngine } from "../../risk/risk-engine";
 import type { CandidateValidationService } from "../../orchestration/policy/candidate-validation-service";
 import type { OrderPolicyGate } from "../../orchestration/policy/order-policy-gate";
-import { registerEngine } from "./engine-registry";
-import { registerPipelineEngines } from "./register-pipeline-engines";
+import { registerSignalEngine } from "./signal-engine-registry";
+import { registerTradeSignalEngines } from "./register-trade-signal-engines";
 
 export function registerDefaultEngines(services: {
   riskEngine: RiskEngine;
@@ -14,9 +14,9 @@ export function registerDefaultEngines(services: {
   brokerAllocationGate: BrokerAllocationGate;
   exitPolicyEvaluator: ExitPolicyEvaluator;
 }): void {
-  registerPipelineEngines();
+  registerTradeSignalEngines();
 
-  registerEngine({
+  registerSignalEngine({
     id: "risk-summary",
     kind: "context",
     inputSchema: z.any(),
@@ -30,7 +30,7 @@ export function registerDefaultEngines(services: {
     }),
   });
 
-  registerEngine({
+  registerSignalEngine({
     id: "candidate-validator",
     kind: "validator",
     inputSchema: z.any(),
@@ -41,7 +41,7 @@ export function registerDefaultEngines(services: {
       ),
   });
 
-  registerEngine({
+  registerSignalEngine({
     id: "order-policy",
     kind: "policy",
     inputSchema: z.any(),
@@ -52,7 +52,7 @@ export function registerDefaultEngines(services: {
       ),
   });
 
-  registerEngine({
+  registerSignalEngine({
     id: "broker-allocation",
     kind: "policy",
     inputSchema: z.any(),
@@ -78,7 +78,7 @@ export function registerDefaultEngines(services: {
     }),
   });
 
-  registerEngine({
+  registerSignalEngine({
     id: "exit-policy",
     kind: "lifecycle",
     inputSchema: z.any(),
@@ -89,7 +89,7 @@ export function registerDefaultEngines(services: {
       ),
   });
 
-  registerEngine({
+  registerSignalEngine({
     id: "risk-gate",
     kind: "policy",
     inputSchema: z.any(),

@@ -36,7 +36,7 @@ Three sub-zones with strict boundaries:
 ```
 shared/
 ├── ai/              # Pipeline config types, phase enums, signal types (used by renderer for display)
-├── catalog/         # Instrument-related shared types (not domain logic)
+├── instruments/     # Instrument catalog types and resolution helpers (was catalog/)
 ├── domain/          # Core domain types: Session, Trade, Workspace, EnvironmentMode, MockScenario
 ├── infra/           # Shared infrastructure types
 ├── ipc/             # IPC channel names, endpoint constants, DTO shapes
@@ -83,20 +83,24 @@ ipc/
 ├── register.ts            # Registers all handlers at app start
 ├── handle.ts              # Typed ipcMain.handle wrapper
 ├── environment-guards.ts  # Guards that block handlers in wrong environment mode
-├── accounts.ts            # Provider account management
-├── approvals.ts           # Trade approval queue handlers
-├── broker-accounts.ts     # Broker account CRUD
-├── broker-account-helpers.ts
-├── config.ts              # Workspace config handlers
-├── dashboard.ts           # Dashboard stats/summary handlers
-├── developer.ts           # Dev tools handlers (DB reset, log inspection)
-├── events.ts              # Event stream handlers
-├── replay.ts              # Session replay handlers
-├── session.ts             # Session lifecycle handlers
-├── strategy.ts            # Strategy config handlers
-├── templates.ts           # Session template handlers
-├── trades.ts              # Trade query handlers
-└── workspace.ts           # Workspace preference handlers
+├── session/               # Session lifecycle, templates, replay
+│   ├── session.ts
+│   ├── templates.ts
+│   └── replay.ts
+├── trading/               # Trades, approvals, broker accounts
+│   ├── trades.ts
+│   ├── approvals.ts
+│   ├── broker-accounts.ts
+│   └── broker-account-helpers.ts
+├── workspace/             # Workspace prefs, strategy, provider accounts
+│   ├── workspace.ts
+│   ├── config.ts
+│   ├── strategy.ts
+│   └── accounts.ts
+└── system/                # Dashboard, events, developer tools
+    ├── dashboard.ts
+    ├── events.ts
+    └── developer.ts
 ```
 
 > **Why flat ipc/:** All IPC handlers live here. Each file = one domain boundary.
@@ -110,66 +114,91 @@ The real complexity. Broken into domain clusters:
 
 ---
 
-#### `services/llm/` — AI / LLM Layer
+#### `services/llm/` — Raw LLM Invocation
 
 ```
 services/llm/
-├── adapters/              # LLM provider adapters (normalize request/response)
-│   ├── anthropic-adapter.ts
-│   ├── openai-adapter.ts
-│   └── openrouter-adapter.ts
-│
-├── ai-runtime/            # Raw LLM invocation engine
-│   ├── runtime.ts         # Sends messages to model, handles streaming/retries
-│   ├── runtime-trace.ts   # Traces each LLM call for observability
-│   ├── runtime-retry.ts   # Retry logic for failed calls
-│   ├── tool-loop-guard.ts # Prevents infinite tool-call loops
-│   └── ai-runtime-types.ts
-│
-├── pipeline/      # Multi-phase AI analysis pipeline (the "brain")
-│   ├── core/              # Pipeline entry point and shared types
-│   ├── context/           # Builds session context injected into every prompt
-│   ├── definitions/       # Pipeline phase definitions (what runs in what order)
-│   ├── prompting/         # Prompt envelope builder, preset behavior guidance
-│   ├── prompts/           # Worker prompt files grouped by pipeline phase
-│   │   ├── selector-workers/    # Prompts for instrument selection phase
-│   │   ├── technical-workers/   # Prompts for technical analysis phase
-│   │   ├── fundamental-workers/ # Prompts for fundamental analysis phase
-│   │   ├── review-workers/      # Prompts for review/synthesis phase
-│   │   └── decision-workers/    # Prompts for trade decision phase
-│   ├── plan/              # Plan-based execution of multi-step pipelines
-│   │   ├── plans/         # Concrete plans: selector pipeline, trade pipeline
-│   │   ├── engine/        # Plan executor (runs steps, manages state)
-│   │   ├── phase/         # Phase coordinator
-│   │   ├── cycle/         # Per-cycle plan state
-│   │   ├── cache/         # Plan result caching
-│   │   ├── registry/      # Plan type registry
-│   │   ├── unified/       # Unified plan runner
-│   │   └── input-builders/ # Builds per-step input from session state
-│   └── execution/         # Executes a single pipeline worker call
-│
-├── engines/               # Signal processing and scoring (post-LLM logic)
-│   ├── aggregators/       # Merges outputs across workers: technical, fundamental, review, trade signal
-│   ├── selector/          # Scores and filters instrument candidates
-│   └── execution/         # Execution profile and prediction market engines
-│
-├── search/                # Web search provider abstraction
-│   ├── search-registry.ts
-│   ├── search-types.ts
-│   └── adapters/          # Brave, DuckDuckGo, Tavily, MCP adapters
-│
-└── tools/                 # LLM-callable tools (functions the AI can invoke)
-    ├── fetch-url-tool.ts
-    ├── market-tools.ts
-    ├── search-tool.ts
-    ├── search-reddit-tool.ts
-    └── trending-symbols-tool.ts
+├── runtime.ts             # Sends messages to model, handles streaming/retries
+├── runtime-trace.ts       # Traces each LLM call for observability
+├── runtime-retry.ts       # Retry logic for failed calls
+├── tool-loop-guard.ts     # Prevents infinite tool-call loops
+├── llm-types.ts
+├── model-pricing.ts       # Token/cost pricing tables
+├── provider-registry.ts   # Resolves provider account → adapter
+├── resolve-run-cost.ts    # Computes cost from trace + pricing
+├── index.ts               # LLMRuntime facade (delegates to PipelineRuntime)
+└── adapters/              # LLM provider adapters (normalize request/response)
+    ├── anthropic-adapter.ts
+    ├── openai-adapter.ts
+    ├── openrouter-adapter.ts
+    └── run-agent-execute.ts
 ```
 
-> **`ai-runtime/`** = how we talk to LLMs (one call, streaming, retry).  
-> **`pipeline/`** = what we say to them (multi-phase plan, prompt construction, phase sequencing).  
-> **`engines/`** = what we do with what they say (aggregation, scoring, filtering).  
-> These three concerns are distinct and should not blur.
+> **`llm/`** = how we talk to models (one call, streaming, retry, cost).  
+> **`pipeline/`** = what we say and in what order (multi-phase plans, workers, execution).  
+> **`signal/`** = what we do with model outputs (aggregation, scoring, policy engines).  
+> **`search/`** and **`tools/`** are siblings — search is provider infrastructure; tools are the LLM-callable surface.
+
+---
+
+#### `services/pipeline/` — Multi-Phase AI Analysis
+
+```
+services/pipeline/
+├── core/                  # PipelineRuntime entry point, registries, worker graph scheduling
+├── definitions/           # Pipeline phase definitions (what runs in what order)
+├── phases/                # AIPhase interpreter and types (selector is a phase plan)
+├── analysis/              # InstrumentAnalysis interpreter and types (trade cycle stages)
+├── implementations/       # Concrete plans, caches, input builders, registries
+│   ├── selector/          # Selector phase plan + schemas
+│   ├── trade/             # Default trade cycle + per-stage analysis plans
+│   ├── cache/             # Selector/trade result caching
+│   ├── inputs/            # Builds per-step input from session state
+│   └── registry/          # Registers default phase/cycle plans at boot
+├── execution/             # Worker executor, spend tracker, trace assembler, engine runner
+├── prompting/             # Prompt envelope builder, preset behavior guidance
+├── worker-prompts.ts      # Inlined worker prompt strings (was prompts/*.md)
+├── worker-tools/          # Tool factory registry and per-worker tool context
+├── ai-phase-config-resolver.ts
+├── effective-ai-phase-config.ts
+└── pipeline-discovery-config.ts
+```
+
+---
+
+#### `services/signal/` — Post-LLM Signal Processing
+
+```
+services/signal/
+├── aggregators/           # Merges worker outputs: technical, fundamental, review, trade signal
+├── scoring/               # Selector candidate scoring and filtering (was engines/selector/)
+├── execution/             # Execution profile and prediction market engines
+└── registry/              # Engine registry (candidate-validator, risk-gate, etc.)
+```
+
+---
+
+#### `services/search/` — Web Search Providers
+
+```
+services/search/
+├── search-registry.ts
+├── search-types.ts
+└── adapters/              # Brave, DuckDuckGo, Tavily, MCP adapters
+```
+
+---
+
+#### `services/tools/` — LLM-Callable Tools
+
+```
+services/tools/
+├── fetch-url-tool.ts
+├── market-tools.ts
+├── search-tool.ts
+├── search-reddit-tool.ts
+└── trending-symbols-tool.ts
+```
 
 ---
 
@@ -204,27 +233,42 @@ services/orchestration/
 ├── index.ts                  # Entry point — starts/stops the orchestration loop
 ├── cycle/                    # Per-cycle execution (runs on each tick)
 │   ├── agent-orchestrator.ts # Drives one instrument through the full AI pipeline
-│   ├── execution-step-runner.ts # Runs one step of the execution plan
-│   ├── market-hours-service.ts  # Checks if markets are open
-│   ├── orchestrator-context.ts  # Shared context passed through a cycle
-│   ├── orchestrator-step.ts     # Step type definitions
+│   ├── trading-step-runner.ts
+│   ├── market-hours-service.ts
+│   ├── trading-cycle-context.ts
+│   ├── orchestrator-step.ts
 │   ├── scheduling/           # Instrument queue and trade-closed event handling
-│   └── selector/             # Runs the instrument selector pipeline for this cycle
-│       └── run-selector.ts
+│   ├── selector/             # Runs the instrument selector pipeline
+│   └── trade/                # Runs the trade analysis cycle pipeline
 ├── lifecycle/                # Session start/stop lifecycle management
 │   ├── position-manager-service.ts
 │   └── trade-monitor.ts
-├── policy/                   # Pre-trade policy gates
-│   └── (capital limits, position limits, risk checks before order submission)
-├── post-trade/               # Post-trade processing
-│   └── trade-autopsy-service.ts  # Scores completed trades, writes scorecard
-└── replay/                   # Replays a historical session cycle for review
+└── policy/                   # Pre-trade policy gates
 ```
 
 > **`cycle/`** = what happens every tick.  
 > **`lifecycle/`** = what happens when a session starts or stops.  
-> **`policy/`** = guards that block a trade before it fires.  
-> **`post-trade/`** = what happens after a trade closes.
+> **`policy/`** = guards that block a trade before it fires.
+
+---
+
+#### `services/replay/` — Session Cycle Replay
+
+```
+services/replay/
+├── cycle-replay-service.ts   # Replays a historical session cycle for review
+└── __fixtures__/             # Deterministic replay fixtures for CI
+```
+
+---
+
+#### `services/analytics/` — Post-Trade Analytics
+
+```
+services/analytics/
+├── trade-autopsy-service.ts  # Scores completed trades, writes scorecard
+└── paper-scorecard-service.ts
+```
 
 ---
 
@@ -235,12 +279,13 @@ services/session/
 ├── session-service.ts              # Session CRUD and query
 ├── session-runtime-manager.ts      # Manages live session runtime state (running/stopped)
 ├── session-runtime.ts              # Runtime object for a single active session
-├── session-strategy-context-service.ts  # Resolves effective strategy config for a session
-├── session-types.ts                # Internal session type definitions
-├── template-service.ts             # Session templates CRUD
-├── listing-service.ts              # Lists sessions with filters
-├── write-service.ts                # Session write operations
-├── effective-instrument-classes.ts # Resolves which instrument classes apply to a session
+├── session-strategy-context-service.ts
+├── session-types.ts
+├── template-service.ts
+├── listing-service.ts
+├── write-service.ts
+├── effective-instrument-classes.ts
+├── environment-scope.ts            # Resolves active environment mode (live/paper/mock)
 └── preflight/                      # Pre-launch checks before a session can start
 ```
 
@@ -270,15 +315,6 @@ services/instrument/
 
 ---
 
-#### `services/analytics/` — Performance Analytics
-
-```
-services/analytics/
-└── paper-scorecard-service.ts     # Computes paper trading scorecards from trade history
-```
-
----
-
 #### `services/infra/` — Infrastructure Primitives
 
 ```
@@ -288,15 +324,6 @@ services/infra/
 ├── event-bus.ts            # In-process event pub/sub
 ├── notification-service.ts # Desktop notification delivery
 └── secrets-service.ts      # Reads secrets from OS keychain / env
-```
-
----
-
-#### `services/workspace/` — Workspace Preferences
-
-```
-services/workspace/
-└── environment-scope.ts    # Resolves active environment mode (live/paper/mock)
 ```
 
 ---
@@ -363,11 +390,15 @@ e2e/
 | Concern | Where it lives |
 |---------|---------------|
 | Talking to LLMs | `services/llm/` |
-| Building prompts & running multi-phase analysis | `services/llm/pipeline/` |
+| Building prompts & running multi-phase analysis | `services/pipeline/` |
 | Scoring/aggregating LLM outputs | `services/signal/` |
+| Web search providers | `services/search/` |
+| LLM-callable tools | `services/tools/` |
 | Talking to brokers | `services/broker/` |
 | Trading cycle loop | `services/orchestration/cycle/` |
 | Pre-trade risk gates | `services/orchestration/policy/` + `services/risk/` |
+| Post-trade analytics | `services/analytics/` |
+| Session replay | `services/replay/` |
 | Session state & lifecycle | `services/session/` |
 | DB access | `db/repositories/` |
 | IPC surface | `ipc/` |

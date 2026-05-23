@@ -1,10 +1,10 @@
 import { AppError } from "@electron/shared/infra/errors";
 import type { OrderRequest } from "../../../broker/adapters/broker-adapter";
 import type { Trade } from "@/lib/types";
-import type { TradeSignal } from "@electron/shared/ai/pipeline-signals";
-import { runEngineBinding } from "../../../pipeline/execution/engine-context-runner";
-import type { TradePipelineResult } from "../../../pipeline/analysis/types";
-import type { OrchestratorContext } from "../orchestrator-context";
+import type { TradeSignal } from "@electron/shared/ai/trade-signals";
+import { runEngineForWorker } from "../../../pipeline/execution/engine-prompt-injector";
+import type { InstrumentAnalysisResult } from "../../../pipeline/analysis/types";
+import type { TradingCycleContext } from "../trading-cycle-context";
 import type { TradeCycleContext } from "../types";
 import { waitForApproval } from "./approval-flow";
 import { buildOrderPolicyTask } from "./order-policy-task";
@@ -16,9 +16,9 @@ import {
 import { createTradeFromDecision } from "./trade-record-builder";
 
 export function persistPendingTradeFromPipeline(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   context: TradeCycleContext,
-  pipeline: TradePipelineResult,
+  pipeline: InstrumentAnalysisResult,
 ): Trade {
   const config = ctx.getSessionConfig();
   const { technical, fundamental, review, decision } =
@@ -47,7 +47,7 @@ export function persistPendingTradeFromPipeline(
 }
 
 export async function runApprovalAndCapital(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   context: TradeCycleContext,
   trade: Trade,
   decisionOutput: TradeSignal,
@@ -86,7 +86,7 @@ export async function runApprovalAndCapital(
 }
 
 export async function placeBrokerOrder(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   context: TradeCycleContext,
   trade: Trade,
   riskOrder: OrderRequest,
@@ -127,7 +127,7 @@ export async function placeBrokerOrder(
     ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
     config.max_api_spend_usd,
   );
-  const policyResult = runEngineBinding<{ allowed: boolean; reason?: string }>({
+  const policyResult = runEngineForWorker<{ allowed: boolean; reason?: string }>({
     phase: "decision",
     sessionId: ctx.sessionId,
     cycleId: context.cycleId,
@@ -180,7 +180,7 @@ export async function placeBrokerOrder(
 }
 
 export function finalizeOpenedTrade(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   context: TradeCycleContext,
   trade: Trade,
   brokerOrderId: string,

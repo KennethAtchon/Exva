@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  mergeCandidates,
-  type WorkingCandidate,
+  mergeDiscoveryCandidates,
+  type SelectorCandidate,
 } from "./selector-candidate-merger";
 
 function candidate(
   symbol: string,
-  overrides: Partial<WorkingCandidate> = {},
-): WorkingCandidate {
+  overrides: Partial<SelectorCandidate> = {},
+): SelectorCandidate {
   return {
     symbol,
     instrumentClass: "stock",
@@ -29,7 +29,7 @@ function candidate(
 
 describe("selector candidate merger", () => {
   it("dedupes by instrumentClass:symbol key and max-merges scores", () => {
-    const merged = mergeCandidates([
+    const merged = mergeDiscoveryCandidates([
       [
         candidate("NVDA", {
           hypeScore: 0.3,
@@ -57,7 +57,7 @@ describe("selector candidate merger", () => {
   });
 
   it("treats different instrument classes as separate candidates", () => {
-    const merged = mergeCandidates([
+    const merged = mergeDiscoveryCandidates([
       [candidate("BTC", { instrumentClass: "crypto" })],
       [candidate("BTC", { instrumentClass: "stock" })],
     ]);
@@ -66,7 +66,7 @@ describe("selector candidate merger", () => {
   });
 
   it("keeps first non-null display name and rationale", () => {
-    const merged = mergeCandidates([
+    const merged = mergeDiscoveryCandidates([
       [candidate("PLTR", { instrumentDisplayName: null, rationale: null })],
       [
         candidate("PLTR", {
@@ -81,7 +81,7 @@ describe("selector candidate merger", () => {
   });
 
   it("unions risk flags without duplicates", () => {
-    const merged = mergeCandidates([
+    const merged = mergeDiscoveryCandidates([
       [candidate("AMD", { riskFlags: ["low_liquidity", "sector_risk"] })],
       [candidate("AMD", { riskFlags: ["sector_risk", "high_spread"] })],
     ]);
@@ -93,7 +93,7 @@ describe("selector candidate merger", () => {
   });
 
   it("returns empty list for empty input", () => {
-    expect(mergeCandidates([])).toEqual([]);
-    expect(mergeCandidates([[]])).toEqual([]);
+    expect(mergeDiscoveryCandidates([])).toEqual([]);
+    expect(mergeDiscoveryCandidates([[]])).toEqual([]);
   });
 });

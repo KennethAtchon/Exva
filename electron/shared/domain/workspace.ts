@@ -1,4 +1,4 @@
-import type { ReasoningLevel } from "@electron/shared/ai/pipeline-phase";
+import type { ReasoningLevel } from "@electron/shared/ai/ai-phase";
 import type {
   AllocationEnforcement,
   BrokerMode,

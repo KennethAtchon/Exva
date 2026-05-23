@@ -1,7 +1,7 @@
-import type { OrchestratorContext } from "../orchestrator-context";
+import type { TradingCycleContext } from "../trading-cycle-context";
 
 export function attachTradeClosedListener(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   scheduleSelectorCycle: () => Promise<void>,
 ): void {
   if (ctx.unsubscribeTradeClosed) return;
@@ -32,7 +32,7 @@ export function attachTradeClosedListener(
   });
 }
 
-export function detachTradeClosedListener(ctx: OrchestratorContext): void {
+export function detachTradeClosedListener(ctx: TradingCycleContext): void {
   ctx.unsubscribeTradeClosed?.();
   ctx.unsubscribeTradeClosed = null;
 }

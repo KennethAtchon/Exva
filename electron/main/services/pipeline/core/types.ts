@@ -3,26 +3,26 @@ import type {
   EngineBinding,
   RuntimeDefaultsConfig,
   WorkerDefinition,
-} from "@electron/shared/ai/pipeline-phase";
+} from "@electron/shared/ai/ai-phase";
 import type { z } from "zod";
-import type { AgentResult } from "../../llm/ai-runtime-types";
-import type { ToolBuildContext } from "../worker-tools/tool-factory-registry";
+import type { LLMRunResult } from "../../llm/llm-types";
+import type { WorkerToolContext } from "../worker-tools/worker-tool-factory";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import type { PipelineSpendTracker } from "../execution/pipeline-spend-tracker";
+import type { AISpendTracker } from "../execution/ai-spend-tracker";
 
-export interface WorkerOutputContract<TOutput> {
+export interface AIWorkerOutputSchema<TOutput> {
   schema: z.ZodType<TOutput>;
   strict: true;
   onValidationFailure: "retry_once" | "fail_worker" | "substitute_empty";
 }
 
-export interface ResolvedWorkerRuntimeConfig {
+export interface WorkerExecConfig {
   retry: RuntimeDefaultsConfig["retry"];
   caps: RuntimeDefaultsConfig["workerCaps"];
   prompt: RuntimeDefaultsConfig["prompt"];
   tools: readonly ToolId[];
   engines: readonly EngineBinding[];
-  output: WorkerOutputContract<unknown> | null;
+  output: AIWorkerOutputSchema<unknown> | null;
   terminalToolNames: readonly string[];
 }
 
@@ -44,22 +44,22 @@ export interface PhaseRunResult<TOutput> {
 }
 
 /** Context passed into a phase's custom `run` handler. */
-export interface PipelineRunContext<TInput = Record<string, unknown>> {
+export interface AIPhaseRunContext<TInput = Record<string, unknown>> {
   input: TInput;
   sessionId: string;
   cycleId: string | null;
   tradeId: string | null;
-  toolContext: ToolBuildContext;
+  toolContext: WorkerToolContext;
   strategyContext: SessionStrategyContext;
-  spendTracker: PipelineSpendTracker;
+  spendTracker: AISpendTracker;
 }
 
 /** Execution capabilities injected by the pipeline-runtime into a phase's `run` handler. */
-export interface PipelineWorkerRunner {
+export interface AIWorkerRunner {
   execute<T>(
     worker: WorkerDefinition,
     task: Record<string, unknown>,
-  ): Promise<AgentResult<T>>;
+  ): Promise<LLMRunResult<T>>;
   executeGroup<T>(
     tasks: Array<() => Promise<T>>,
     concurrency: number,

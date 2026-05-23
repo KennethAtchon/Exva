@@ -8,7 +8,7 @@ import {
   PIPELINE_PHASES,
   REASONING_LEVEL_OPTIONS,
   type PipelinePhase,
-} from "../../../electron/shared/ai/pipeline-phase";
+} from "../../../electron/shared/ai/ai-phase";
 
 const PHASE_LABELS: Record<PipelinePhase, string> = {
   selector: "Selector",

@@ -1,19 +1,19 @@
-import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
-import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
+import type { PipelineDefinition } from "@electron/shared/ai/ai-phase";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import {
   fundamentalSignalSchema,
   type FundamentalSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 import { fundamentalWorkersForMode } from "../pipeline-discovery-config";
 
 export type FundamentalPhaseInput = {
   instrumentSymbol: string;
   selectorEvidence?:
-    | import("@electron/shared/ai/selector-pipeline-candidate").SelectorEvidence
+    | import("@electron/shared/ai/selector-candidate").SelectorEvidence
     | null;
 };
 
-/** Registry metadata for fundamental. Execution is driven by FUNDAMENTAL_PLAN via PhasePlanInterpreter. */
+/** Registry metadata for fundamental. Execution is driven by FUNDAMENTAL_PLAN via AIPhaseRunner. */
 export const FUNDAMENTAL_PHASE: PipelineDefinition<
   FundamentalPhaseInput,
   FundamentalSignal

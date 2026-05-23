@@ -1,13 +1,13 @@
 import type { InstrumentSelection } from "@/lib/schemas";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
 import { MarketHoursService } from "../market-hours-service";
-import type { OrchestratorContext } from "../orchestrator-context";
+import type { TradingCycleContext } from "../trading-cycle-context";
 import type { ResolvedInstrument } from "../types";
 
 const marketHours = new MarketHoursService();
 
 export async function runSelector(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   session: WorkspaceSession,
   config: SessionConfig,
   cycleId: string,
@@ -16,7 +16,7 @@ export async function runSelector(
     sessionId: session.id,
     cycleId,
     input: {},
-  })) as import("../../../pipeline/phases/types").PhasePlanRunResult<InstrumentSelection>;
+  })) as import("../../../pipeline/phases/types").AIPhaseResult<InstrumentSelection>;
 
   if (result.source === "ai_picker") {
     ctx.emitEvent(

@@ -31,7 +31,7 @@ import { TradeAutopsiesRepo } from "../db/repositories/trades/trade-autopsies-re
 import { TradeApprovalsRepo } from "../db/repositories/trades/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades/trades-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace/workspace-prefs-repo";
-import { AiRuntime } from "./llm/index";
+import { LLMRuntime } from "./llm/index";
 import {
   BrokerBalanceCacheService,
   BrokerBalanceTicker,
@@ -46,9 +46,9 @@ import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
 import { registerDefaultEngines } from "./signal/registry/register-default-engines";
-import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-pipeline-config";
-import { registerDefaultPhasePlans } from "./pipeline/implementations/registry/phase-plans";
-import { registerDefaultCyclePlans } from "./pipeline/implementations/registry/cycle-plans";
+import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-ai-phase-config";
+import { registerDefaultAIPhases } from "./pipeline/implementations/registry/register-phases";
+import { registerDefaultInstrumentAnalyses } from "./pipeline/implementations/registry/register-analyses";
 import { ProviderRegistry } from "./llm/provider-registry";
 import { SearchRegistry } from "./search/search-registry";
 import { SecretsService } from "./infra/secrets-service";
@@ -111,7 +111,7 @@ export interface AppServices {
     researchPosturePresets: ResearchPosturePresetsRepo;
     tradeRulePresets: TradeRulePresetsRepo;
   };
-  ai: AiRuntime;
+  ai: LLMRuntime;
   providerRegistry: ProviderRegistry;
   searchRegistry: SearchRegistry;
   brokerRegistry: BrokerRegistry;
@@ -246,7 +246,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionRepo: repos.session,
     instrumentNormalizer,
   };
-  const ai = new AiRuntime(
+  const ai = new LLMRuntime(
     providerRegistry,
     searchRegistry,
     repos.sessionAiPhases,
@@ -267,8 +267,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerAllocationGate,
     exitPolicyEvaluator,
   });
-  registerDefaultPhasePlans();
-  registerDefaultCyclePlans();
+  registerDefaultAIPhases();
+  registerDefaultInstrumentAnalyses();
   assertValidPipelineDefinitionCatalog();
   balanceTicker.start();
 

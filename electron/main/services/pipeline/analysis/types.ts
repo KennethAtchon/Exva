@@ -4,23 +4,23 @@ import type {
   SessionConfig,
   WorkspaceSession,
 } from "@/lib/types";
-import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import type { PipelinePhase } from "@electron/shared/ai/ai-phase";
 import type { StageFailurePolicy } from "../execution/input-builder-registry";
-import type { PhasePlanRunResult } from "../phases/types";
-import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
+import type { AIPhaseResult } from "../phases/types";
+import type { SelectorEvidence } from "@electron/shared/ai/selector-candidate";
 import type {
   FundamentalSignal,
   ReviewSignal,
   TechnicalSignal,
   TradeSignal,
-} from "@electron/shared/ai/pipeline-signals";
-import type { AgentResult } from "../../llm/ai-runtime-types";
+} from "@electron/shared/ai/trade-signals";
+import type { LLMRunResult } from "../../llm/llm-types";
 import type { OrderRequest } from "../../broker/adapters/broker-adapter";
-import type { ExecutionProfile } from "../../signal/execution/execution-profile-engine";
+import type { TradeExecutionProfile } from "../../signal/execution/trade-execution-profile";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import type { ToolBuildContext } from "../worker-tools/tool-factory-registry";
-import type { CyclePlanServices } from "./services";
-import type { ToolStepTrace } from "../../orchestration/policy/candidate-validation-service";
+import type { WorkerToolContext } from "../worker-tools/worker-tool-factory";
+import type { InstrumentAnalysisServices } from "./services";
+import type { ToolLLMToolStepTrace } from "../../orchestration/policy/candidate-validation-service";
 
 export type TradeCycleInstrument = {
   symbol: string;
@@ -29,7 +29,7 @@ export type TradeCycleInstrument = {
   predictionOutcome?: "YES" | "NO" | null;
   instrumentMetadataJson?: string | null;
   selectorEvidence?: SelectorEvidence | null;
-  selectorTraces?: ToolStepTrace[];
+  selectorTraces?: ToolLLMToolStepTrace[];
 };
 
 export type QuoteSnapshot = {
@@ -42,24 +42,24 @@ export type BrokerAllocationResult = {
   conflict: { ok: boolean; reason?: string };
 };
 
-export interface TradeCyclePlanState {
+export interface InstrumentAnalysisState {
   quoteSnapshot?: QuoteSnapshot;
-  technical?: AgentResult<TechnicalSignal>;
-  fundamental?: AgentResult<FundamentalSignal>;
-  review?: AgentResult<ReviewSignal>;
-  decision?: AgentResult<TradeSignal>;
-  executionProfile?: ExecutionProfile;
+  technical?: LLMRunResult<TechnicalSignal>;
+  fundamental?: LLMRunResult<FundamentalSignal>;
+  review?: LLMRunResult<ReviewSignal>;
+  decision?: LLMRunResult<TradeSignal>;
+  executionProfile?: TradeExecutionProfile;
   riskOrder?: OrderRequest;
   brokerAccountId?: string;
   brokerAllocation?: BrokerAllocationResult;
 }
 
-export interface TradePipelineResult {
-  state: TradeCyclePlanState;
+export interface InstrumentAnalysisResult {
+  state: InstrumentAnalysisState;
   totalAiCostUsd: number;
 }
 
-export interface CyclePlanRunContext {
+export interface InstrumentAnalysisContext {
   cyclePlanId: string;
   sessionId: string;
   cycleId: string;
@@ -69,46 +69,46 @@ export interface CyclePlanRunContext {
   sessionConfig: SessionConfig;
   instrumentClasses: InstrumentClass[];
   strategyContext: SessionStrategyContext;
-  toolContext: ToolBuildContext;
-  services: CyclePlanServices;
-  runPhasePlan: <TOutput>(
+  toolContext: WorkerToolContext;
+  services: InstrumentAnalysisServices;
+  runAIPhase: <TOutput>(
     phase: PipelinePhase,
     input: Record<string, unknown>,
-  ) => Promise<PhasePlanRunResult<TOutput>>;
+  ) => Promise<AIPhaseResult<TOutput>>;
 }
 
-export type CycleStepRunner = <T>(
+export type AnalysisStepRunner = <T>(
   stage: ExecutionStage,
   execute: () => Promise<T>,
 ) => Promise<T>;
 
-export interface CyclePlanStage<TState> {
+export interface AnalysisStep<TState> {
   id: string;
   executionStage?: ExecutionStage;
   required: boolean;
   failurePolicy?: StageFailurePolicy;
-  execute(ctx: CyclePlanRunContext, state: TState): Promise<TState>;
+  execute(ctx: InstrumentAnalysisContext, state: TState): Promise<TState>;
 }
 
-export interface CyclePlanInspectMetadata {
+export interface InstrumentAnalysisMetadata {
   stageIds: readonly string[];
   phaseStages: readonly PipelinePhase[];
   engineStages: readonly string[];
 }
 
-export interface CyclePlan<TState> {
+export interface InstrumentAnalysis<TState> {
   id: string;
-  initialState(ctx: CyclePlanRunContext, seed?: Partial<TState>): TState;
-  stages: readonly CyclePlanStage<TState>[];
-  inspect: CyclePlanInspectMetadata;
+  initialState(ctx: InstrumentAnalysisContext, seed?: Partial<TState>): TState;
+  stages: readonly AnalysisStep<TState>[];
+  inspect: InstrumentAnalysisMetadata;
 }
 
-export class CyclePausedError extends Error {
-  readonly name = "CyclePausedError";
+export class AnalysisPausedError extends Error {
+  readonly name = "AnalysisPausedError";
 }
 
-export class CycleStageFailedError extends Error {
-  readonly name = "CycleStageFailedError";
+export class AnalysisStepFailedError extends Error {
+  readonly name = "AnalysisStepFailedError";
 
   constructor(
     readonly stage: ExecutionStage,

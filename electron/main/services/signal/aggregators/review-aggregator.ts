@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   reviewSignalSchema,
   type ReviewSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 
 export const conflictDetectorOutputSchema = z.object({
   technicalFundamentalConflict: z

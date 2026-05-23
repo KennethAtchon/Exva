@@ -23,7 +23,7 @@ import {
   type StrategyGetResponse,
   type UserGlobalPresetRow,
 } from "@/lib/exva";
-import type { PipelinePhase } from "../../electron/shared/ai/pipeline-phase";
+import type { PipelinePhase } from "../../electron/shared/ai/ai-phase";
 import type {
   SessionResearchPosture,
   SessionRiskConfig,

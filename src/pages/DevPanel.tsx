@@ -12,8 +12,8 @@ import type {
   EventSourceType,
   LogLevel,
 } from "@/lib/types";
-import type { PhaseTraceV1, SessionSummary } from "@/lib/exva";
-import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
+import type { AIPhaseTrace, SessionSummary } from "@/lib/exva";
+import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-ai-phase-config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -206,8 +206,8 @@ function formatJsonPretty(s: string | null | undefined): string {
 
 function parsePhaseTrace(
   m: AgentMessage | null | undefined,
-): PhaseTraceV1 | null {
-  const p = parseJsonSafe(m?.tool_calls_json) as PhaseTraceV1 | null;
+): AIPhaseTrace | null {
+  const p = parseJsonSafe(m?.tool_calls_json) as AIPhaseTrace | null;
   if (!p || typeof p !== "object") return null;
   if (
     p.version !== 1 ||
@@ -1758,7 +1758,7 @@ const PhaseGraphTab = ({
 }) => {
   const traces = messages
     .map((m) => ({ m, t: parsePhaseTrace(m) }))
-    .filter((x): x is { m: AgentMessage; t: PhaseTraceV1 } => x.t != null);
+    .filter((x): x is { m: AgentMessage; t: AIPhaseTrace } => x.t != null);
   if (loading) return <EmptyState msg="Loading phase graph…" />;
   if (traces.length === 0)
     return <EmptyState msg="Phase graph metadata unavailable." />;

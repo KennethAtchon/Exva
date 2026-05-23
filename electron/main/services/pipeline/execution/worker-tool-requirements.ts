@@ -3,10 +3,10 @@ import type {
   PipelinePhase,
   WorkerDefinition,
   WorkerToolRequirement,
-} from "@electron/shared/ai/pipeline-phase";
-import type { RunTrace } from "../../llm/ai-runtime-types";
+} from "@electron/shared/ai/ai-phase";
+import type { LLMCallTrace } from "../../llm/llm-types";
 
-export function extractToolNamesUsed(trace: RunTrace<unknown>): Set<string> {
+export function extractToolNamesUsed(trace: LLMCallTrace<unknown>): Set<string> {
   return new Set(
     trace.steps.flatMap((step) => step.toolCalls.map((call) => call.tool)),
   );
@@ -15,7 +15,7 @@ export function extractToolNamesUsed(trace: RunTrace<unknown>): Set<string> {
 export function enforceWorkerToolRequirements(
   worker: WorkerDefinition,
   phase: PipelinePhase,
-  trace: RunTrace<unknown>,
+  trace: LLMCallTrace<unknown>,
 ): void {
   const requirement = worker.toolRequirements;
   if (!requirement) return;

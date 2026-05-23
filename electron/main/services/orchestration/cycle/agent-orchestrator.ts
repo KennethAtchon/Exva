@@ -1,6 +1,6 @@
 import type { ExecutionStage, SessionConfig } from "@/lib/types";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
-import { OrchestratorContext } from "./orchestrator-context";
+import { TradingCycleContext } from "./trading-cycle-context";
 import { runPhaseCycle } from "./orchestrator-step";
 import { handleResolvedInstruments } from "./scheduling/instrument-queue";
 import {
@@ -16,13 +16,13 @@ import type { ResolvedInstrument, SelectorCycleContext } from "./types";
 export type { ResolvedInstrument } from "./types";
 
 export class AgentOrchestrator {
-  private readonly ctx: OrchestratorContext;
+  private readonly ctx: TradingCycleContext;
 
   constructor(
     readonly sessionId: string,
     private readonly deps: OrchestratorDeps,
   ) {
-    this.ctx = new OrchestratorContext(sessionId, deps);
+    this.ctx = new TradingCycleContext(sessionId, deps);
   }
 
   async start(): Promise<void> {

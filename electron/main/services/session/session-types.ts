@@ -22,7 +22,7 @@ import type { TradeApprovalsRepo } from "../../db/repositories/trades/trade-appr
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
-import type { AiRuntime } from "../llm/index";
+import type { LLMRuntime } from "../llm/index";
 import type { ExecutionStage } from "@/lib/types";
 import type { BrokerRegistry } from "../broker/broker-registry";
 import type { InstrumentNormalizer } from "../broker/instrument-normalizer";
@@ -85,7 +85,7 @@ export interface OrchestratorDeps {
   brokerCapital: BrokerCapitalService;
   brokerAllocationGate: BrokerAllocationGate;
   instrumentNormalizer: InstrumentNormalizer;
-  ai: AiRuntime;
+  ai: LLMRuntime;
   riskEngine: RiskEngine;
   bus: EventBus;
   logger: Logger;

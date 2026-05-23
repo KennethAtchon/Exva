@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractTerminalSubmission } from "../worker-executor";
+import { extractWorkerSubmission } from "../worker-executor";
 
 function trace(calls: Array<{ tool?: string; argsJson?: string }>): {
   steps: Array<{ toolCalls: typeof calls }>;
@@ -7,9 +7,9 @@ function trace(calls: Array<{ tool?: string; argsJson?: string }>): {
   return { steps: [{ toolCalls: calls }] };
 }
 
-describe("extractTerminalSubmission", () => {
+describe("extractWorkerSubmission", () => {
   it("returns the parsed args of the terminal tool call", () => {
-    const result = extractTerminalSubmission(
+    const result = extractWorkerSubmission(
       trace([
         { tool: "search_web", argsJson: '{"query":"x"}' },
         { tool: "submit_result", argsJson: '{"score":0.5}' },
@@ -20,7 +20,7 @@ describe("extractTerminalSubmission", () => {
   });
 
   it("returns undefined when the terminal tool was never called", () => {
-    const result = extractTerminalSubmission(
+    const result = extractWorkerSubmission(
       trace([{ tool: "search_web", argsJson: '{"query":"x"}' }]),
       "submit_result",
     );
@@ -28,7 +28,7 @@ describe("extractTerminalSubmission", () => {
   });
 
   it("returns the last submission when called more than once", () => {
-    const result = extractTerminalSubmission(
+    const result = extractWorkerSubmission(
       trace([
         { tool: "submit_result", argsJson: '{"score":0.1}' },
         { tool: "submit_result", argsJson: '{"score":0.9}' },
@@ -39,7 +39,7 @@ describe("extractTerminalSubmission", () => {
   });
 
   it("falls back to the raw string when args are not valid JSON", () => {
-    const result = extractTerminalSubmission(
+    const result = extractWorkerSubmission(
       trace([{ tool: "submit_result", argsJson: "not json" }]),
       "submit_result",
     );

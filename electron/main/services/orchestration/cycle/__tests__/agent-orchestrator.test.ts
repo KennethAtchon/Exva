@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
 import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/instruments/session-instrument-classes";
-import { registerDefaultPhasePlans } from "../../../pipeline/implementations/registry/phase-plans";
+import { registerDefaultAIPhases } from "../../../pipeline/implementations/registry/register-phases";
 import { buildCompositeInput } from "../../../pipeline/implementations/registry/input-builder-registry";
 import { AgentOrchestrator } from "../agent-orchestrator";
 import * as runSelectorModule from "../selector/run-selector";
 
-registerDefaultPhasePlans();
+registerDefaultAIPhases();
 
 async function drainOrchestratorQueue(
   orchestrator: AgentOrchestrator,

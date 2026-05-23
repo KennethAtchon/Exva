@@ -6,9 +6,9 @@ import type {
   WorkspaceSession,
 } from "@/lib/types";
 import type { InstrumentSelection } from "@/lib/schemas";
-import type { PhasePlanServices } from "../../phases/services";
+import type { AIPhaseServices } from "../../phases/services";
 import type { CachePolicy } from "../registry/cache-policy-registry";
-import type { PhasePlanRunContext } from "../../phases/types";
+import type { AIPhaseContext } from "../../phases/types";
 import { resolveSessionInstrumentClasses } from "../../../session/effective-instrument-classes";
 
 export type SelectorDefinitionFingerprint = {
@@ -44,7 +44,7 @@ function stableStringify(value: unknown): string {
 function routingSnapshot(
   sessionId: string,
   instrumentClasses: InstrumentClass[],
-  brokerRouting: PhasePlanServices["brokerRouting"],
+  brokerRouting: AIPhaseServices["brokerRouting"],
 ): SelectorDefinitionFingerprint["routingSnapshot"] {
   const unique = [...new Set(instrumentClasses)].sort((a, b) =>
     a.localeCompare(b),
@@ -67,7 +67,7 @@ function routingSnapshot(
 export function buildSelectorDefinitionFingerprint(
   session: WorkspaceSession,
   services: Pick<
-    PhasePlanServices,
+    AIPhaseServices,
     | "sessionSelectorSettingsRepo"
     | "sessionAiPhasesRepo"
     | "workspacePreferencesRepo"
@@ -121,7 +121,7 @@ export function hashSelectorDefinition(
 
 export function selectorDefinitionFingerprint(
   session: WorkspaceSession,
-  services: PhasePlanServices,
+  services: AIPhaseServices,
 ): string {
   return hashSelectorDefinition(
     buildSelectorDefinitionFingerprint(session, services),
@@ -144,10 +144,10 @@ function cacheTtlMs(holdingStyle: string): number {
 export const SELECTOR_INSTRUMENT_CACHE_POLICY: CachePolicy<InstrumentSelection> =
   {
     id: "selector-instrument-cache",
-    fingerprint(ctx: PhasePlanRunContext) {
+    fingerprint(ctx: AIPhaseContext) {
       return selectorDefinitionFingerprint(ctx.session, ctx.services);
     },
-    read(ctx: PhasePlanRunContext, fingerprint: string) {
+    read(ctx: AIPhaseContext, fingerprint: string) {
       const cached = ctx.services.instrumentCacheRepo.get(ctx.sessionId);
       if (!cached) return null;
       const expired =
@@ -162,7 +162,7 @@ export const SELECTOR_INSTRUMENT_CACHE_POLICY: CachePolicy<InstrumentSelection> 
       return { instruments: parsed };
     },
     write(
-      ctx: PhasePlanRunContext,
+      ctx: AIPhaseContext,
       fingerprint: string,
       output: InstrumentSelection,
       meta: { agentRunId: string; cycleId: string },

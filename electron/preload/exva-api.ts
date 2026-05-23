@@ -220,7 +220,7 @@ export interface ExvaApi {
     }): Promise<{ savedAt: string }>;
     saveAiPhase(input: {
       sessionId: string;
-      phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
+      phase: import("@electron/shared/ai/ai-phase").PipelinePhase;
       providerKey?: string;
       modelId?: string;
       temperature?: number;
@@ -237,7 +237,7 @@ export interface ExvaApi {
     }): Promise<{ savedAt: string }>;
     saveAiPhaseWorker(input: {
       sessionId: string;
-      phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
+      phase: import("@electron/shared/ai/ai-phase").PipelinePhase;
       workerId: string;
       providerKey?: string | null;
       modelId?: string | null;
@@ -264,12 +264,12 @@ export interface ExvaApi {
     getWorkspaceDefaultModel(): Promise<{
       providerKey: string;
       modelId: string;
-      reasoningLevel: import("@electron/shared/ai/pipeline-phase").ReasoningLevel;
+      reasoningLevel: import("@electron/shared/ai/ai-phase").ReasoningLevel;
     }>;
     saveWorkspaceDefaultModel(input: {
       providerKey: string;
       modelId: string;
-      reasoningLevel?: import("@electron/shared/ai/pipeline-phase").ReasoningLevel;
+      reasoningLevel?: import("@electron/shared/ai/ai-phase").ReasoningLevel;
     }): Promise<{ savedAt: string }>;
   };
   config: {

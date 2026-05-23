@@ -1,9 +1,9 @@
 import type { InstrumentClass, Trade } from "@/lib/types";
-import type { TradeSignal } from "@electron/shared/ai/pipeline-signals";
-import type { OrchestratorContext } from "../orchestrator-context";
+import type { TradeSignal } from "@electron/shared/ai/trade-signals";
+import type { TradingCycleContext } from "../trading-cycle-context";
 
 export function waitForApproval(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   trade: Trade,
   instrumentClass: InstrumentClass,
   decisionOut: TradeSignal,
@@ -77,7 +77,7 @@ export function waitForApproval(
 }
 
 export function failRecheck(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   tradeId: string,
   approvalId: string,
   message: string,
@@ -89,7 +89,7 @@ export function failRecheck(
 }
 
 export function resolveApproval(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   tradeId: string,
   approved: boolean,
 ): boolean {
@@ -101,7 +101,7 @@ export function resolveApproval(
 }
 
 export function hasApprovalCallback(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   tradeId: string,
 ): boolean {
   return ctx.approvalCallbacks.has(tradeId);

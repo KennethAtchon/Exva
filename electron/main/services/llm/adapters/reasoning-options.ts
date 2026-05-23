@@ -1,4 +1,4 @@
-import type { ReasoningLevel } from "@electron/shared/ai/pipeline-phase";
+import type { ReasoningLevel } from "@electron/shared/ai/ai-phase";
 
 export type AnthropicThinkingOption =
   | { type: "enabled"; budgetTokens: number }

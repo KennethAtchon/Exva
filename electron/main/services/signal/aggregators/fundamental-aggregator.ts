@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   fundamentalSignalSchema,
   type FundamentalSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 
 export const earningsOutputSchema = z.object({
   earningsScore: z

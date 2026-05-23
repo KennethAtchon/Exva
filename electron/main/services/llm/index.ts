@@ -1,1 +1,1 @@
-export { AiRuntime } from "./runtime";
+export { LLMRuntime } from "./runtime";

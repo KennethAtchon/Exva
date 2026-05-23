@@ -3,9 +3,9 @@ export {
   type ResolvedInstrument,
 } from "./cycle/agent-orchestrator";
 export {
-  ExecutionStepRunner,
-  type StepResult,
-} from "./cycle/execution-step-runner";
+  TradingStepRunner,
+  type TradingStepResult,
+} from "./cycle/trading-step-runner";
 export {
   MarketHoursService,
   type BurstInstrument,
@@ -16,7 +16,7 @@ export {
 } from "../pipeline/implementations/cache/selector-instrument-cache";
 export {
   CandidateValidationService,
-  type ToolStepTrace,
+  type ToolLLMToolStepTrace,
 } from "./policy/candidate-validation-service";
 export { OrderPolicyGate } from "./policy/order-policy-gate";
 export { TradeMonitor } from "./lifecycle/trade-monitor";

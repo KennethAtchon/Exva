@@ -1,23 +1,23 @@
-import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
+import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { AppError } from "@electron/shared/infra/errors";
 
-export interface WorkerGraphNode<TOutput = unknown> {
+export interface AIWorkerNode<TOutput = unknown> {
   worker: WorkerDefinition<TOutput>;
   frontier: number;
 }
 
-export interface WorkerGraphScheduleResult<TOutput = unknown> {
-  ordered: WorkerGraphNode<TOutput>[];
+export interface AIWorkerSchedule<TOutput = unknown> {
+  ordered: AIWorkerNode<TOutput>[];
   maxConcurrency: number;
   schedulingMode: "flat_parallel" | "dependency_graph";
 }
 
-export function buildWorkerSchedule<TOutput = unknown>(
+export function scheduleWorkersByDependency<TOutput = unknown>(
   workers: readonly WorkerDefinition<TOutput>[],
   scheduling:
     | { mode: "flat_parallel" | "dependency_graph"; maxConcurrency: number }
     | undefined,
-): WorkerGraphScheduleResult<TOutput> {
+): AIWorkerSchedule<TOutput> {
   const mode = scheduling?.mode ?? "flat_parallel";
   const maxConcurrency =
     scheduling?.maxConcurrency ?? Math.max(1, workers.length);
@@ -56,20 +56,20 @@ export function buildWorkerSchedule<TOutput = unknown>(
   };
 }
 
-export async function executeByFrontier<T>(
-  scheduled: readonly WorkerGraphNode[],
+export async function runWorkerBatches<T>(
+  scheduled: readonly AIWorkerNode[],
   maxConcurrency: number,
-  runWorker: (node: WorkerGraphNode) => Promise<T>,
+  runWorker: (node: AIWorkerNode) => Promise<T>,
   shouldContinue?: () => boolean,
-): Promise<Array<{ node: WorkerGraphNode; result: T }>> {
-  const frontierMap = new Map<number, WorkerGraphNode[]>();
+): Promise<Array<{ node: AIWorkerNode; result: T }>> {
+  const frontierMap = new Map<number, AIWorkerNode[]>();
   for (const node of scheduled) {
     const current = frontierMap.get(node.frontier) ?? [];
     current.push(node);
     frontierMap.set(node.frontier, current);
   }
 
-  const out: Array<{ node: WorkerGraphNode; result: T }> = [];
+  const out: Array<{ node: AIWorkerNode; result: T }> = [];
 
   for (const frontier of [...frontierMap.keys()].sort((a, b) => a - b)) {
     if (shouldContinue && !shouldContinue()) break;

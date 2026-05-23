@@ -1,11 +1,11 @@
 import type { AgentMessage, AgentRole, AgentRun } from "@/lib/types";
-import type { RunTrace } from "./ai-runtime-types";
+import type { LLMCallTrace } from "./llm-types";
 
-export function toRunFromTrace(
+export function traceToRunRecord(
   agentType: AgentRole,
   model: string,
   providerKey: string,
-  trace: RunTrace<unknown>,
+  trace: LLMCallTrace<unknown>,
 ): AgentRun {
   return {
     id: crypto.randomUUID(),
@@ -23,14 +23,14 @@ export function toRunFromTrace(
   };
 }
 
-export function buildTraceMessage(input: {
+export function buildLLMTraceMessage(input: {
   run: AgentRun;
   role: AgentRole;
   config: { providerKey: string; modelId: string };
   sessionId: string;
   tradeId: string | null;
   cycleId?: string | null;
-  trace: RunTrace<unknown>;
+  trace: LLMCallTrace<unknown>;
   outputJson: string | null;
   outputSchemaName: string | null;
   strategySnapshotJson: string;

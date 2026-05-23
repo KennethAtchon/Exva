@@ -19,7 +19,7 @@ import type {
   WorkspacePreferences,
   WorkspaceViewMode,
 } from "@/lib/types";
-import type { PhaseRuntimeSummary } from "@electron/shared/ai/pipeline-phase";
+import type { PhaseRuntimeSummary } from "@electron/shared/ai/ai-phase";
 
 export interface SessionSummary {
   id: string;

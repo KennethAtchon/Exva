@@ -1,4 +1,4 @@
-import type { PhasePlanRunContext } from "../../phases/types";
+import type { AIPhaseContext } from "../../phases/types";
 
 export type CachePolicyId = string;
 
@@ -9,10 +9,10 @@ export interface CacheWriteMeta {
 
 export interface CachePolicy<TOutput = unknown> {
   id: CachePolicyId;
-  fingerprint(ctx: PhasePlanRunContext): string;
-  read(ctx: PhasePlanRunContext, fingerprint: string): TOutput | null;
+  fingerprint(ctx: AIPhaseContext): string;
+  read(ctx: AIPhaseContext, fingerprint: string): TOutput | null;
   write(
-    ctx: PhasePlanRunContext,
+    ctx: AIPhaseContext,
     fingerprint: string,
     output: TOutput,
     meta: CacheWriteMeta,

@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AgentResult } from "../../llm/ai-runtime-types";
-import type { TradePipelineResult } from "../../pipeline/analysis/types";
+import type { LLMRunResult } from "../../llm/llm-types";
+import type { InstrumentAnalysisResult } from "../../pipeline/analysis/types";
 import type {
   FundamentalSignal,
   ReviewSignal,
   TechnicalSignal,
   TradeSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 import type { Trade, WorkspaceSession } from "@/lib/types";
 import { MockMarketSimulator } from "../../broker/mock/mock-market-simulator";
 import { registerDefaultEngines } from "../../signal/registry/register-default-engines";
@@ -17,7 +17,7 @@ import { EventBus } from "../../infra/event-bus";
 import { createLogger } from "../../infra/log";
 import { OrderPolicyGate } from "../policy/order-policy-gate";
 import { CandidateValidationService } from "../policy/candidate-validation-service";
-import { OrchestratorContext } from "../cycle/orchestrator-context";
+import { TradingCycleContext } from "../cycle/trading-cycle-context";
 import { executeTradeCycle } from "../cycle/trade/trade-cycle";
 import * as runTradePipelineModule from "../cycle/trade/run-trade-pipeline";
 
@@ -40,7 +40,7 @@ describe("mock trade rehearsal integration", () => {
   it("mock broker clean_breakout completes a trade cycle with status open", async () => {
     const sessionId = "session-1";
     const harness = createHarness(sessionId);
-    const ctx = new OrchestratorContext(
+    const ctx = new TradingCycleContext(
       sessionId,
       harness.deps as unknown as import("../../session/session-types").OrchestratorDeps,
     );
@@ -237,7 +237,7 @@ function createHarness(sessionId: string) {
   };
 }
 
-function makeMockBuyPipeline(entryPrice: number): TradePipelineResult {
+function makeMockBuyPipeline(entryPrice: number): InstrumentAnalysisResult {
   const technical: TechnicalSignal = {
     symbol: "NVDA",
     trendDirection: "bullish",
@@ -288,10 +288,10 @@ function makeMockBuyPipeline(entryPrice: number): TradePipelineResult {
         price: entryPrice,
         timestamp: new Date().toISOString(),
       },
-      technical: makeStubAgentResult("technical", technical),
-      fundamental: makeStubAgentResult("fundamental", fundamental),
-      review: makeStubAgentResult("review", review),
-      decision: makeStubAgentResult("decision", decision),
+      technical: makeStubLLMRunResult("technical", technical),
+      fundamental: makeStubLLMRunResult("fundamental", fundamental),
+      review: makeStubLLMRunResult("review", review),
+      decision: makeStubLLMRunResult("decision", decision),
       riskOrder: {
         instrumentSymbol: "NVDA",
         instrumentType: "stock",
@@ -303,7 +303,7 @@ function makeMockBuyPipeline(entryPrice: number): TradePipelineResult {
   };
 }
 
-function makeStubAgentResult<T>(role: string, output: T): AgentResult<T> {
+function makeStubLLMRunResult<T>(role: string, output: T): LLMRunResult<T> {
   const now = new Date().toISOString();
   const runId = crypto.randomUUID();
   return {

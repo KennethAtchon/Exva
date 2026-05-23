@@ -1,38 +1,38 @@
 import { AppError } from "@electron/shared/infra/errors";
 import {
-  CyclePausedError,
-  CycleStageFailedError,
-  type CyclePlan,
-  type CyclePlanRunContext,
-  type CycleStepRunner,
-  type TradeCyclePlanState,
-  type TradePipelineResult,
+  AnalysisPausedError,
+  AnalysisStepFailedError,
+  type InstrumentAnalysis,
+  type InstrumentAnalysisContext,
+  type AnalysisStepRunner,
+  type InstrumentAnalysisState,
+  type InstrumentAnalysisResult,
 } from "./types";
-import type { CyclePlanServices } from "./services";
+import type { InstrumentAnalysisServices } from "./services";
 import { createLogger } from "../../infra/log";
 
 const logger = createLogger("pipeline-runtime");
 
-export interface CyclePlanInterpreterRunInput {
-  plan: CyclePlan<TradeCyclePlanState>;
+export interface InstrumentAnalysisRunInput {
+  plan: InstrumentAnalysis<InstrumentAnalysisState>;
   sessionId: string;
   cycleId: string;
   tradeId: string | null;
-  instrument: CyclePlanRunContext["instrument"];
-  sessionConfig: CyclePlanRunContext["sessionConfig"];
-  instrumentClasses: CyclePlanRunContext["instrumentClasses"];
-  session: CyclePlanRunContext["session"];
-  strategyContext: CyclePlanRunContext["strategyContext"];
-  toolContext: CyclePlanRunContext["toolContext"];
-  services: CyclePlanServices;
-  runPhasePlan: CyclePlanRunContext["runPhasePlan"];
-  runStep?: CycleStepRunner;
-  seedState?: Partial<TradeCyclePlanState>;
+  instrument: InstrumentAnalysisContext["instrument"];
+  sessionConfig: InstrumentAnalysisContext["sessionConfig"];
+  instrumentClasses: InstrumentAnalysisContext["instrumentClasses"];
+  session: InstrumentAnalysisContext["session"];
+  strategyContext: InstrumentAnalysisContext["strategyContext"];
+  toolContext: InstrumentAnalysisContext["toolContext"];
+  services: InstrumentAnalysisServices;
+  runAIPhase: InstrumentAnalysisContext["runAIPhase"];
+  runStep?: AnalysisStepRunner;
+  seedState?: Partial<InstrumentAnalysisState>;
   lastStageId?: string;
 }
 
-export class CyclePlanInterpreter {
-  async run(input: CyclePlanInterpreterRunInput): Promise<TradePipelineResult> {
+export class InstrumentAnalysisRunner {
+  async run(input: InstrumentAnalysisRunInput): Promise<InstrumentAnalysisResult> {
     const cycleStartedAt = Date.now();
     logger.info(
       {
@@ -48,7 +48,7 @@ export class CyclePlanInterpreter {
       "cycle plan start",
     );
 
-    const ctx: CyclePlanRunContext = {
+    const ctx: InstrumentAnalysisContext = {
       cyclePlanId: input.plan.id,
       sessionId: input.sessionId,
       cycleId: input.cycleId,
@@ -60,7 +60,7 @@ export class CyclePlanInterpreter {
       strategyContext: input.strategyContext,
       toolContext: input.toolContext,
       services: input.services,
-      runPhasePlan: input.runPhasePlan,
+      runAIPhase: input.runAIPhase,
     };
 
     let state = input.plan.initialState(ctx, input.seedState);
@@ -86,7 +86,7 @@ export class CyclePlanInterpreter {
           state = (await input.runStep(
             stage.executionStage,
             execute,
-          )) as TradeCyclePlanState;
+          )) as InstrumentAnalysisState;
         } else {
           state = await execute();
         }
@@ -143,7 +143,7 @@ export class CyclePlanInterpreter {
   }
 }
 
-function sumAiCost(state: TradeCyclePlanState): number {
+function sumAiCost(state: InstrumentAnalysisState): number {
   const runs = Object.values(state).filter(
     (v): v is { run: { cost_usd?: number } } =>
       typeof v === "object" && v !== null && "run" in v,
@@ -155,12 +155,12 @@ function sumAiCost(state: TradeCyclePlanState): number {
 
 function isCycleControlError(
   error: unknown,
-): error is CyclePausedError | CycleStageFailedError {
+): error is AnalysisPausedError | AnalysisStepFailedError {
   return (
     error instanceof Error &&
-    (error.name === "CyclePausedError" ||
-      error.name === "CycleStageFailedError")
+    (error.name === "AnalysisPausedError" ||
+      error.name === "AnalysisStepFailedError")
   );
 }
 
-export { CyclePausedError, CycleStageFailedError } from "./types";
+export { AnalysisPausedError, AnalysisStepFailedError } from "./types";

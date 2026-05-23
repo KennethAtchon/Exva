@@ -3,7 +3,7 @@ import { createLogger } from "../../infra/log";
 
 const logger = createLogger("pipeline-runtime");
 
-export async function runConcurrentGroup<T>(
+export async function runWorkersConcurrently<T>(
   tasks: Array<() => Promise<T>>,
   maxConcurrency: number,
   shouldContinue?: () => boolean,

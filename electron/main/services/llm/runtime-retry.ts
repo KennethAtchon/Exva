@@ -17,7 +17,7 @@ const RETRY_CONFIG: RetryConfig = {
 
 const MAX_PROVIDER_ATTEMPTS = RETRY_CONFIG.maxRetries + 1;
 
-export interface ProviderRetryContext {
+export interface LLMRetryContext {
   providerType?: string | null;
   modelId?: string | null;
   role?: string | null;
@@ -27,9 +27,9 @@ export interface ProviderRetryContext {
   cycleId?: string | null;
 }
 
-export async function withProviderRetry<T>(
+export async function withLLMRetry<T>(
   action: (abortSignal: AbortSignal) => Promise<T>,
-  ctx: ProviderRetryContext = {},
+  ctx: LLMRetryContext = {},
 ): Promise<T> {
   const startedAt = Date.now();
   let lastError: unknown;
@@ -161,7 +161,7 @@ function shouldRetry(error: unknown): boolean {
 function wrapProviderError(
   error: unknown,
   retryable: boolean,
-  ctx: ProviderRetryContext,
+  ctx: LLMRetryContext,
   attempts: number,
 ): AppError {
   if (error instanceof AppError) return error;

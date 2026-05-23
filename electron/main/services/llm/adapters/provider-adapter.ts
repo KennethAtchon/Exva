@@ -1,11 +1,11 @@
 import type { AgentRole, ProviderType } from "@/lib/types";
 import type { PrepareStepFunction, ToolSet } from "ai";
 import type { z } from "zod";
-import type { ReasoningLevel } from "@electron/shared/ai/pipeline-phase";
+import type { ReasoningLevel } from "@electron/shared/ai/ai-phase";
 import type {
-  RuntimeAgentMessage,
-  RunTrace,
-} from "../ai-runtime-types";
+  LLMMessage,
+  LLMCallTrace,
+} from "../llm-types";
 
 export interface GenerateTextOptions {
   model: string;
@@ -39,7 +39,7 @@ export interface AgentRunOptions<T = undefined> {
   sessionId?: string;
   cycleId?: string | null;
   tradeId?: string | null;
-  messages: RuntimeAgentMessage[];
+  messages: LLMMessage[];
   tools?: ToolSet;
   maxSteps: number;
   spendLimitUsd: number;
@@ -64,7 +64,7 @@ export interface ProviderAdapter {
   generateObject<T>(
     opts: GenerateObjectOptions<T>,
   ): Promise<GenerateObjectResult<T>>;
-  runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<RunTrace<T>>;
+  runAgent<T = undefined>(opts: AgentRunOptions<T>): Promise<LLMCallTrace<T>>;
   testConnection(): Promise<{ ok: boolean; error?: string }>;
   listModels(): Promise<ModelEntry[]>;
 }

@@ -3,7 +3,7 @@ import type {
   ExecutionStrategyType,
   TechnicalSignal,
   TradeSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 import type { ReplayResult } from "../cycle-replay-service";
 
 export function assertSubmissionFires(result: ReplayResult): void {
@@ -51,7 +51,7 @@ export function assertCostBelowUsd(result: ReplayResult, maxUsd: number): void {
   expect(result.scorecard.totalCostUsd).toBeLessThanOrEqual(maxUsd);
 }
 
-export function assertExecutionProfile(
+export function assertTradeExecutionProfile(
   result: ReplayResult,
   expected: {
     positionSizeUsd: number;
@@ -85,7 +85,7 @@ export function assertExecutionProfile(
   }
 }
 
-export function expectedExecutionProfile(args: {
+export function expectedTradeExecutionProfile(args: {
   strategy: ExecutionStrategyType;
   instrumentClass: "stock" | "crypto" | "futures" | "prediction_market";
   maxPositionUsd: number;

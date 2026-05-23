@@ -1,16 +1,16 @@
-import { runEngineBinding } from "./engine-context-runner";
+import { runEngineForWorker } from "./engine-prompt-injector";
 import type { EngineRunCtx, EngineStageConfig } from "./input-builder-registry";
-import { getEngineInputBuilder } from "./input-builder-registry";
-import type { TradeCyclePlanState } from "../analysis/types";
+import { getSignalEngineInputBuilder } from "./input-builder-registry";
+import type { InstrumentAnalysisState } from "../analysis/types";
 
 export async function runEngineStage(
   config: EngineStageConfig,
   ctx: EngineRunCtx,
-  state: TradeCyclePlanState,
-): Promise<TradeCyclePlanState> {
-  const builder = getEngineInputBuilder(config.inputBuilderId);
+  state: InstrumentAnalysisState,
+): Promise<InstrumentAnalysisState> {
+  const builder = getSignalEngineInputBuilder(config.inputBuilderId);
   const built = await Promise.resolve(builder.build({ planCtx: ctx, state }));
-  const output = runEngineBinding({
+  const output = runEngineForWorker({
     phase: config.bindingPhase,
     sessionId: ctx.sessionId,
     cycleId: ctx.cycleId,
@@ -26,8 +26,8 @@ export async function runEngineStage(
 export async function runEngineChainStage(
   engines: EngineStageConfig[],
   ctx: EngineRunCtx,
-  state: TradeCyclePlanState,
-): Promise<TradeCyclePlanState> {
+  state: InstrumentAnalysisState,
+): Promise<InstrumentAnalysisState> {
   let current = state;
   for (const engine of engines) {
     current = await runEngineStage(engine, ctx, current);

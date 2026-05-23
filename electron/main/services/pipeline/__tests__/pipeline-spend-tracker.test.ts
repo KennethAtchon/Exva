@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { PipelineSpendTracker } from "../execution/pipeline-spend-tracker";
+import { AISpendTracker } from "../execution/ai-spend-tracker";
 
-describe("PipelineSpendTracker", () => {
+describe("AISpendTracker", () => {
   it("allows spend below phase cap", () => {
-    const tracker = new PipelineSpendTracker({
+    const tracker = new AISpendTracker({
       phaseSpendCapUsd: 0.1,
       pipelineSpendCapUsd: null,
       sessionSpendCapUsd: null,
@@ -14,7 +14,7 @@ describe("PipelineSpendTracker", () => {
   });
 
   it("blocks when phase cap exceeded", () => {
-    const tracker = new PipelineSpendTracker({
+    const tracker = new AISpendTracker({
       phaseSpendCapUsd: 0.1,
       pipelineSpendCapUsd: null,
       sessionSpendCapUsd: null,
@@ -27,7 +27,7 @@ describe("PipelineSpendTracker", () => {
   });
 
   it("blocks when session cap exceeded including prior spend", () => {
-    const tracker = new PipelineSpendTracker({
+    const tracker = new AISpendTracker({
       phaseSpendCapUsd: 1,
       pipelineSpendCapUsd: null,
       sessionSpendCapUsd: 0.5,
@@ -39,7 +39,7 @@ describe("PipelineSpendTracker", () => {
   });
 
   it("blocks when pipeline run cap exceeded across phases", () => {
-    const tracker = new PipelineSpendTracker({
+    const tracker = new AISpendTracker({
       phaseSpendCapUsd: 1,
       pipelineSpendCapUsd: 0.5,
       sessionSpendCapUsd: null,
@@ -52,7 +52,7 @@ describe("PipelineSpendTracker", () => {
   });
 
   it("warn-only mode keeps workers running after cap exceeded", () => {
-    const tracker = new PipelineSpendTracker({
+    const tracker = new AISpendTracker({
       phaseSpendCapUsd: 0.1,
       pipelineSpendCapUsd: null,
       sessionSpendCapUsd: null,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWorkerSchedule } from "./worker-graph-scheduler";
+import { scheduleWorkersByDependency } from "./worker-graph-scheduler";
 
 const strategyContext = {
   fields: ["identity", "presetBehavior"],
@@ -8,7 +8,7 @@ const strategyContext = {
 
 describe("worker graph scheduler", () => {
   it("builds a flat schedule when no graph mode is requested", () => {
-    const schedule = buildWorkerSchedule(
+    const schedule = scheduleWorkersByDependency(
       [
         {
           id: "a",
@@ -33,7 +33,7 @@ describe("worker graph scheduler", () => {
   });
 
   it("assigns dependent workers to later frontiers", () => {
-    const schedule = buildWorkerSchedule(
+    const schedule = scheduleWorkersByDependency(
       [
         {
           id: "a",

@@ -3,16 +3,16 @@ import { AppError } from "@electron/shared/infra/errors";
 import type {
   PipelinePhase,
   WorkerDefinition,
-} from "@electron/shared/ai/pipeline-phase";
+} from "@electron/shared/ai/ai-phase";
 import {
-  executeWorker,
-  type WorkerExecutorDeps,
+  runAIWorker,
+  type AIWorkerRunnerDeps,
 } from "../execution/worker-executor";
-import { runConcurrentGroup } from "./concurrent-group-runner";
-import type { PipelineWorkerRunner } from "./types";
-import type { PhaseConfigResolver } from "../phase-config-resolver";
+import { runWorkersConcurrently } from "./concurrent-group-runner";
+import type { AIWorkerRunner } from "./types";
+import type { AIPhaseConfigResolver } from "../ai-phase-config-resolver";
 import type { ProviderRegistry } from "../../llm/provider-registry";
-import type { ToolBuildContext } from "../worker-tools/tool-factory-registry";
+import type { WorkerToolContext } from "../worker-tools/worker-tool-factory";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
 import type { SessionRepo } from "../../../db/repositories/sessions/session-repo";
 import type { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
@@ -22,31 +22,31 @@ import type { SearchRegistry } from "../../search";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import { resolveSessionInstrumentClasses } from "../../session/effective-instrument-classes";
-import { buildToolContext } from "../worker-tools/tool-context-builder";
+import { resolveWorkerToolContext } from "../worker-tools/worker-tool-resolver";
 import {
   isSandboxBudgetProfile,
   PAPER_MOCK_BUDGETS,
   resolveTotalSpendCapUsd,
-} from "@electron/shared/ai/pipeline-config";
-import { PipelineSpendTracker } from "../execution/pipeline-spend-tracker";
-import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
+} from "@electron/shared/ai/ai-phase-config";
+import { AISpendTracker } from "../execution/ai-spend-tracker";
+import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-ai-phase-config";
 import {
   assertValidEffectivePipelineConfig,
   DEFAULT_PIPELINE_ID,
   resolveEffectivePipelineConfig,
-} from "../effective-pipeline-config";
-import { PhasePlanInterpreter } from "../phases/interpreter";
-import { requirePhasePlan } from "../phases/registry";
-import type { PhasePlanServices } from "../phases/services";
-import { CyclePlanInterpreter } from "../analysis/interpreter";
-import { requireCyclePlan } from "../analysis/registry";
-import { requireUnifiedPlan } from "../implementations/registry/registry";
-import type { CyclePlanServices } from "../analysis/services";
+} from "../effective-ai-phase-config";
+import { AIPhaseRunner } from "../phases/interpreter";
+import { requireAIPhase } from "../phases/registry";
+import type { AIPhaseServices } from "../phases/services";
+import { InstrumentAnalysisRunner } from "../analysis/interpreter";
+import { requireInstrumentAnalysis } from "../analysis/registry";
+import { requireAnalysis } from "../implementations/registry/analysis-resolver";
+import type { InstrumentAnalysisServices } from "../analysis/services";
 import type {
-  CycleStepRunner,
+  AnalysisStepRunner,
   TradeCycleInstrument,
-  TradeCyclePlanState,
-  TradePipelineResult,
+  InstrumentAnalysisState,
+  InstrumentAnalysisResult,
 } from "../analysis/types";
 import type { SessionConfig } from "@/lib/types";
 import type { InstrumentClass } from "@/lib/types";
@@ -56,7 +56,7 @@ const logger = createLogger("pipeline-runtime");
 
 export interface PipelineRuntimeDeps {
   providerRegistry: ProviderRegistry;
-  phaseConfigResolver: PhaseConfigResolver;
+  phaseConfigResolver: AIPhaseConfigResolver;
   strategyContextService: SessionStrategyContextService | null;
   sessionRepo: SessionRepo;
   workspacePrefsRepo: WorkspacePreferencesRepo;
@@ -65,8 +65,8 @@ export interface PipelineRuntimeDeps {
   searchRegistry: SearchRegistry;
   brokerRouting?: BrokerRoutingService;
   brokerRegistry?: BrokerRegistry;
-  planServices?: PhasePlanServices | null;
-  cyclePlanServices?: CyclePlanServices | null;
+  planServices?: AIPhaseServices | null;
+  cyclePlanServices?: InstrumentAnalysisServices | null;
 }
 
 export interface RunPhaseOptions<TInput = Record<string, unknown>> {
@@ -75,15 +75,15 @@ export interface RunPhaseOptions<TInput = Record<string, unknown>> {
   input: TInput;
   cycleId?: string | null;
   tradeId?: string | null;
-  toolContext?: ToolBuildContext;
+  toolContext?: WorkerToolContext;
   prepareStep?: PrepareStepFunction<ToolSet>;
   terminalToolNames?: readonly string[];
 }
 
 export class PipelineRuntime {
   private readonly cycleSpendUsd = new Map<string, number>();
-  private readonly planInterpreter = new PhasePlanInterpreter();
-  private readonly cyclePlanInterpreter = new CyclePlanInterpreter();
+  private readonly planInterpreter = new AIPhaseRunner();
+  private readonly cycleAnalysisDispatcher = new InstrumentAnalysisRunner();
 
   constructor(private readonly deps: PipelineRuntimeDeps) {}
 
@@ -100,11 +100,11 @@ export class PipelineRuntime {
     }
   }
 
-  setPlanServices(planServices: PhasePlanServices): void {
+  setPlanServices(planServices: AIPhaseServices): void {
     this.deps.planServices = planServices;
   }
 
-  setCyclePlanServices(cyclePlanServices: CyclePlanServices): void {
+  setInstrumentAnalysisServices(cyclePlanServices: InstrumentAnalysisServices): void {
     this.deps.cyclePlanServices = cyclePlanServices;
   }
 
@@ -117,12 +117,12 @@ export class PipelineRuntime {
       instrument: TradeCycleInstrument;
       sessionConfig: SessionConfig;
       instrumentClasses: InstrumentClass[];
-      seedState?: Partial<TradeCyclePlanState>;
-      runStep?: CycleStepRunner;
+      seedState?: Partial<InstrumentAnalysisState>;
+      runStep?: AnalysisStepRunner;
       lastStageId?: string;
     },
-  ): Promise<TradePipelineResult> {
-    const plan = requireCyclePlan(cyclePlanId);
+  ): Promise<InstrumentAnalysisResult> {
+    const plan = requireInstrumentAnalysis(cyclePlanId);
     if (!this.deps.cyclePlanServices) {
       throw new AppError(
         `Cycle plan services are not configured for '${cyclePlanId}'.`,
@@ -133,7 +133,7 @@ export class PipelineRuntime {
     const strategyContext = this.requireStrategyContextService().get(
       opts.sessionId,
     );
-    const toolContext = await buildToolContext(this.deps, {
+    const toolContext = await resolveWorkerToolContext(this.deps, {
       sessionId: opts.sessionId,
       cycleId: opts.cycleId,
       tradeId: opts.tradeId ?? null,
@@ -141,8 +141,8 @@ export class PipelineRuntime {
     });
     const session = this.deps.sessionRepo.requireById(opts.sessionId);
 
-    return this.cyclePlanInterpreter.run({
-      plan: plan as import("../analysis/types").CyclePlan<TradeCyclePlanState>,
+    return this.cycleAnalysisDispatcher.run({
+      plan: plan as import("../analysis/types").InstrumentAnalysis<InstrumentAnalysisState>,
       sessionId: opts.sessionId,
       cycleId: opts.cycleId,
       tradeId: opts.tradeId ?? null,
@@ -156,8 +156,8 @@ export class PipelineRuntime {
       seedState: opts.seedState,
       runStep: opts.runStep,
       lastStageId: opts.lastStageId,
-      runPhasePlan: (phase, input) =>
-        this.runPhasePlan({
+      runAIPhase: (phase, input) =>
+        this.runAIPhase({
           phase,
           sessionId: opts.sessionId,
           input,
@@ -178,17 +178,17 @@ export class PipelineRuntime {
       sessionConfig?: SessionConfig;
       instrumentClasses?: InstrumentClass[];
       input?: Record<string, unknown>;
-      seedState?: Partial<TradeCyclePlanState>;
-      runStep?: CycleStepRunner;
+      seedState?: Partial<InstrumentAnalysisState>;
+      runStep?: AnalysisStepRunner;
       lastStageId?: string;
     },
   ): Promise<
-    | TradePipelineResult
-    | import("../phases/types").PhasePlanRunResult<unknown>
+    | InstrumentAnalysisResult
+    | import("../phases/types").AIPhaseResult<unknown>
   > {
-    const plan = requireUnifiedPlan(planId);
+    const plan = requireAnalysis(planId);
     if (plan.kind === "phase") {
-      return this.runPhasePlan({
+      return this.runAIPhase({
         phase: plan.id,
         sessionId: opts.sessionId,
         cycleId: opts.cycleId,
@@ -239,13 +239,13 @@ export class PipelineRuntime {
     return config;
   }
 
-  async buildToolContext(
+  async resolveWorkerToolContext(
     sessionId: string,
     cycleId: string | null,
     strategyContext = this.requireStrategyContextService().get(sessionId),
     tradeId: string | null = null,
-  ): Promise<ToolBuildContext> {
-    return buildToolContext(this.deps, {
+  ): Promise<WorkerToolContext> {
+    return resolveWorkerToolContext(this.deps, {
       sessionId,
       cycleId,
       tradeId,
@@ -253,10 +253,10 @@ export class PipelineRuntime {
     });
   }
 
-  async runPhasePlan<TOutput>(
+  async runAIPhase<TOutput>(
     opts: Omit<RunPhaseOptions, "input"> & { input?: Record<string, unknown> },
-  ): Promise<import("../phases/types").PhasePlanRunResult<TOutput>> {
-    const plan = requirePhasePlan(opts.phase);
+  ): Promise<import("../phases/types").AIPhaseResult<TOutput>> {
+    const plan = requireAIPhase(opts.phase);
     if (!this.deps.planServices) {
       throw new AppError(
         `Phase plan services are not configured for '${opts.phase}'.`,
@@ -275,13 +275,13 @@ export class PipelineRuntime {
     );
     const baseToolContext =
       opts.toolContext ??
-      (await buildToolContext(this.deps, {
+      (await resolveWorkerToolContext(this.deps, {
         sessionId: opts.sessionId,
         cycleId: opts.cycleId,
         tradeId: opts.tradeId,
         strategyContext,
       }));
-    const toolContext: ToolBuildContext = {
+    const toolContext: WorkerToolContext = {
       ...baseToolContext,
       instrumentClasses,
     };
@@ -294,7 +294,7 @@ export class PipelineRuntime {
           PAPER_MOCK_BUDGETS.sessionMaxAiSpendUsd,
         )
       : strategyContext.riskConfig.maxAiSpendUsd;
-    const spendTracker = new PipelineSpendTracker({
+    const spendTracker = new AISpendTracker({
       phaseSpendCapUsd: this.deps.phaseConfigResolver.resolvePhaseSpendCapUsd(
         opts.phase,
         sandboxBudget,
@@ -334,7 +334,7 @@ export class PipelineRuntime {
       "phase run start",
     );
 
-    const executorDeps: WorkerExecutorDeps = {
+    const executorDeps: AIWorkerRunnerDeps = {
       providerRegistry: this.deps.providerRegistry,
       phaseConfigResolver: this.deps.phaseConfigResolver,
       toolContext,
@@ -350,11 +350,11 @@ export class PipelineRuntime {
       spendTracker,
     };
 
-    const runner: PipelineWorkerRunner = {
+    const runner: AIWorkerRunner = {
       execute: <T>(worker: WorkerDefinition, task: Record<string, unknown>) =>
-        executeWorker<T>(executorDeps, { ...workerRunBase, worker, task }),
+        runAIWorker<T>(executorDeps, { ...workerRunBase, worker, task }),
       executeGroup: (tasks, concurrency) =>
-        runConcurrentGroup(tasks, concurrency, () =>
+        runWorkersConcurrently(tasks, concurrency, () =>
           spendTracker.canContinue(),
         ),
       canContinueWorkers: () => spendTracker.canContinue(),

@@ -2,10 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { emptySessionAiSettings } from "@electron/shared/domain";
 import {
-  buildPromptEnvelope,
-  envelopeToMessages,
-  measurePromptEnvelope,
-} from "../prompt-envelope-builder";
+  buildWorkerPrompt,
+  measureWorkerPrompt,
+} from "../worker-prompt-builder";
 import * as workerPrompts from "../../worker-prompts";
 
 const PROMPT_CASES: Array<{
@@ -244,7 +243,7 @@ describe("pipeline worker prompts", () => {
     });
 
     it(`${name} full envelope stays within runtime prompt limits`, () => {
-      const envelope = buildPromptEnvelope({
+      const messages = buildWorkerPrompt({
         phase,
         workerId,
         basePromptMarkdown: content,
@@ -260,8 +259,7 @@ describe("pipeline worker prompts", () => {
           },
         },
       });
-      const messages = envelopeToMessages(envelope, context);
-      const sizes = measurePromptEnvelope(messages);
+      const sizes = measureWorkerPrompt(messages);
 
       expect(sizes.exceedsSystem).toBe(false);
       expect(sizes.exceedsUser).toBe(false);
@@ -279,7 +277,7 @@ describe("global worker guidance", () => {
         updatedAt: "2026-05-05T00:00:00.000Z",
       },
     };
-    const envelope = buildPromptEnvelope({
+    const messages = buildWorkerPrompt({
       phase: "technical",
       workerId: "chart-pattern",
       basePromptMarkdown: "# Chart Pattern",
@@ -287,7 +285,6 @@ describe("global worker guidance", () => {
       strategyContext: context,
       strategyContextRequest: TEST_STRATEGY_CONTEXT_REQUEST,
     });
-    const messages = envelopeToMessages(envelope, context);
     const user = messages.find((message) => message.role === "user")?.content;
     expect(user).toContain("<session_worker_guidance>");
     expect(user).toContain("Prefer liquid large caps only.");

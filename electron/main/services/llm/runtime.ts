@@ -1,4 +1,4 @@
-import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import type { PipelinePhase } from "@electron/shared/ai/ai-phase";
 import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderRegistry } from "./provider-registry";
 import type { SearchRegistry } from "../search";
@@ -16,20 +16,20 @@ import type { BrokerRoutingService } from "../broker/broker-routing-service";
 import type { BrokerRegistry } from "../broker/broker-registry";
 import type { SessionStrategyContextService } from "../session/session-strategy-context-service";
 import { PipelineRuntime } from "../pipeline/core/pipeline-runtime";
-import { PhaseConfigResolver } from "../pipeline/phase-config-resolver";
-import type { PhasePlanRunResult } from "../pipeline/phases/types";
-import type { PhasePlanServices } from "../pipeline/phases/services";
-import type { CyclePlanServices } from "../pipeline/analysis/services";
+import { AIPhaseConfigResolver } from "../pipeline/ai-phase-config-resolver";
+import type { AIPhaseResult } from "../pipeline/phases/types";
+import type { AIPhaseServices } from "../pipeline/phases/services";
+import type { InstrumentAnalysisServices } from "../pipeline/analysis/services";
 import type {
-  CycleStepRunner,
+  AnalysisStepRunner,
   TradeCycleInstrument,
-  TradeCyclePlanState,
-  TradePipelineResult,
+  InstrumentAnalysisState,
+  InstrumentAnalysisResult,
 } from "../pipeline/analysis/types";
 import type { SessionConfig, InstrumentClass } from "@/lib/types";
-import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-pipeline-config";
+import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-ai-phase-config";
 
-export class AiRuntime {
+export class LLMRuntime {
   private readonly pipelineRuntime: PipelineRuntime;
 
   constructor(
@@ -44,19 +44,19 @@ export class AiRuntime {
     brokerRegistry?: BrokerRegistry,
     strategyContextService?: SessionStrategyContextService,
     planServices?:
-      | (Omit<PhasePlanServices, "strategyContextService" | "brokerRouting"> & {
+      | (Omit<AIPhaseServices, "strategyContextService" | "brokerRouting"> & {
           brokerRouting?: BrokerRoutingService;
         })
       | null,
     cyclePlanServices?:
-      | (Omit<CyclePlanServices, "strategyContextService" | "brokerRouting"> & {
+      | (Omit<InstrumentAnalysisServices, "strategyContextService" | "brokerRouting"> & {
           brokerRouting?: BrokerRoutingService;
         })
       | null,
   ) {
     this.pipelineRuntime = new PipelineRuntime({
       providerRegistry: registry,
-      phaseConfigResolver: new PhaseConfigResolver(aiPhasesRepo),
+      phaseConfigResolver: new AIPhaseConfigResolver(aiPhasesRepo),
       strategyContextService: strategyContextService ?? null,
       sessionRepo,
       workspacePrefsRepo,
@@ -84,7 +84,7 @@ export class AiRuntime {
       strategyContextService &&
       cyclePlanServices?.brokerRouting
     ) {
-      this.pipelineRuntime.setCyclePlanServices({
+      this.pipelineRuntime.setInstrumentAnalysisServices({
         ...cyclePlanServices,
         brokerRouting: cyclePlanServices.brokerRouting,
         strategyContextService,
@@ -115,18 +115,18 @@ export class AiRuntime {
     );
   }
 
-  async runPhasePlan<TOutput>(
+  async runAIPhase<TOutput>(
     phase: PipelinePhase,
     sessionId: string,
     cycleId: string,
     input: Record<string, unknown> = {},
-  ): Promise<PhasePlanRunResult<TOutput>> {
+  ): Promise<AIPhaseResult<TOutput>> {
     if (!sessionId)
       throw new AppError(
         "Session id is required for phase plan execution",
         "VALIDATION_FAILED",
       );
-    return this.pipelineRuntime.runPhasePlan<TOutput>({
+    return this.pipelineRuntime.runAIPhase<TOutput>({
       phase,
       sessionId,
       input,
@@ -143,11 +143,11 @@ export class AiRuntime {
       instrument: TradeCycleInstrument;
       sessionConfig: SessionConfig;
       instrumentClasses: InstrumentClass[];
-      seedState?: Partial<TradeCyclePlanState>;
-      runStep?: CycleStepRunner;
+      seedState?: Partial<InstrumentAnalysisState>;
+      runStep?: AnalysisStepRunner;
       lastStageId?: string;
     },
-  ): Promise<TradePipelineResult> {
+  ): Promise<InstrumentAnalysisResult> {
     if (!opts.sessionId)
       throw new AppError(
         "Session id is required for cycle execution",
@@ -166,11 +166,11 @@ export class AiRuntime {
       sessionConfig?: SessionConfig;
       instrumentClasses?: InstrumentClass[];
       input?: Record<string, unknown>;
-      seedState?: Partial<TradeCyclePlanState>;
-      runStep?: CycleStepRunner;
+      seedState?: Partial<InstrumentAnalysisState>;
+      runStep?: AnalysisStepRunner;
       lastStageId?: string;
     },
-  ): Promise<TradePipelineResult | PhasePlanRunResult<unknown>> {
+  ): Promise<InstrumentAnalysisResult | AIPhaseResult<unknown>> {
     if (!opts.sessionId)
       throw new AppError(
         "Session id is required for plan execution",

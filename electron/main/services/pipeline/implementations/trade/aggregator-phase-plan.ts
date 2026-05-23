@@ -2,36 +2,36 @@ import type {
   EngineBinding,
   PipelinePhase,
   WorkerDefinition,
-} from "@electron/shared/ai/pipeline-phase";
-import type { AgentResult } from "../../../llm/ai-runtime-types";
-import { runEngineBinding } from "../../execution/engine-context-runner";
+} from "@electron/shared/ai/ai-phase";
+import type { LLMRunResult } from "../../../llm/llm-types";
+import { runEngineForWorker } from "../../execution/engine-prompt-injector";
 import { assembleAggregateTrace } from "../../execution/trace-assembler";
-import type { PhasePlan, PhasePlanRunContext } from "../../phases/types";
+import type { AIPhase, AIPhaseContext } from "../../phases/types";
 
-type WorkerResult = { worker: WorkerDefinition; result: AgentResult<unknown> };
+type WorkerResult = { worker: WorkerDefinition; result: LLMRunResult<unknown> };
 
 type AggregatorPlanState = {
   workers: readonly WorkerDefinition[];
   workerResults: WorkerResult[];
 };
 
-export function createAggregatorPhasePlan<TOutput>(config: {
+export function createAggregatorAIPhase<TOutput>(config: {
   phase: PipelinePhase;
   outputSchemaName: string;
-  resolveWorkers: (ctx: PhasePlanRunContext) => readonly WorkerDefinition[];
-  buildTask: (ctx: PhasePlanRunContext) => Record<string, unknown>;
+  resolveWorkers: (ctx: AIPhaseContext) => readonly WorkerDefinition[];
+  buildTask: (ctx: AIPhaseContext) => Record<string, unknown>;
   concurrency: number;
   collectWorkerOutputs: (
     workers: readonly WorkerDefinition[],
     results: WorkerResult[],
   ) => unknown;
   buildFinalizeTask: (
-    ctx: PhasePlanRunContext,
+    ctx: AIPhaseContext,
     workerPayload: unknown,
   ) => Record<string, unknown>;
   finalizeBinding: EngineBinding;
   persistAggregate?: boolean;
-}): PhasePlan<AggregatorPlanState, TOutput> {
+}): AIPhase<AggregatorPlanState, TOutput> {
   return {
     phase: config.phase,
     entryModes: [],
@@ -58,7 +58,7 @@ export function createAggregatorPhasePlan<TOutput>(config: {
         state.workers,
         state.workerResults,
       );
-      const output = runEngineBinding<TOutput>({
+      const output = runEngineForWorker<TOutput>({
         phase: config.phase,
         sessionId: ctx.sessionId,
         cycleId: ctx.cycleId,

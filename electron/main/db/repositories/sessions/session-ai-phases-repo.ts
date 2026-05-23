@@ -4,7 +4,7 @@ import type {
   PipelinePhase,
   SessionAiPhase,
   SessionAiPhaseWorker,
-} from "@electron/shared/ai/pipeline-phase";
+} from "@electron/shared/ai/ai-phase";
 import { sessionAiPhases, sessionAiPhaseWorkers } from "../../schema";
 import type { DbClient } from "../../client";
 

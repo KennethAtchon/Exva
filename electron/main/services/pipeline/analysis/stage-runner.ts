@@ -1,14 +1,14 @@
 import { AppError } from "@electron/shared/infra/errors";
-import type { AgentResult } from "../../llm/ai-runtime-types";
+import type { LLMRunResult } from "../../llm/llm-types";
 import type { DeclarativeCycleStageConfig } from "../execution/input-builder-registry";
 import { runEngineChainStage, runEngineStage } from "../execution/stage-dispatch";
-import type { CyclePlanRunContext, TradeCyclePlanState } from "./types";
+import type { InstrumentAnalysisContext, InstrumentAnalysisState } from "./types";
 
-export async function runDeclarativeStage(
+export async function runAnalysisStep(
   config: DeclarativeCycleStageConfig,
-  ctx: CyclePlanRunContext,
-  state: TradeCyclePlanState,
-): Promise<TradeCyclePlanState> {
+  ctx: InstrumentAnalysisContext,
+  state: InstrumentAnalysisState,
+): Promise<InstrumentAnalysisState> {
   switch (config.kind) {
     case "engine":
       return runEngineStage(config.engine, ctx, state);
@@ -16,11 +16,11 @@ export async function runDeclarativeStage(
       if (config.skipIf?.(state)) return state;
       return runEngineChainStage(config.engines, ctx, state);
     case "phase": {
-      const result = await ctx.runPhasePlan(
+      const result = await ctx.runAIPhase(
         config.phase,
         config.buildInput(ctx, state),
       );
-      const agentResult = toAgentResult(result);
+      const agentResult = toLLMRunResult(result);
       if (config.phase !== "decision" && !hasSymbolOutput(agentResult.output)) {
         throw new AppError(
           `${config.phase} phase returned no signal.`,
@@ -34,11 +34,11 @@ export async function runDeclarativeStage(
   }
 }
 
-function toAgentResult<T>(result: {
+function toLLMRunResult<T>(result: {
   output: T;
-  run?: AgentResult<T>["run"];
-  message?: AgentResult<T>["message"];
-}): AgentResult<T> {
+  run?: LLMRunResult<T>["run"];
+  message?: LLMRunResult<T>["message"];
+}): LLMRunResult<T> {
   if (!result.run || !result.message) {
     throw new AppError(
       "Phase plan did not return agent run metadata.",
@@ -57,7 +57,7 @@ function hasSymbolOutput(output: unknown): boolean {
   );
 }
 
-export function buildCycleStageExecute(config: DeclarativeCycleStageConfig) {
-  return (ctx: CyclePlanRunContext, state: TradeCyclePlanState) =>
-    runDeclarativeStage(config, ctx, state);
+export function buildAnalysisStepExecute(config: DeclarativeCycleStageConfig) {
+  return (ctx: InstrumentAnalysisContext, state: InstrumentAnalysisState) =>
+    runAnalysisStep(config, ctx, state);
 }

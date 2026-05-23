@@ -1,5 +1,5 @@
 import { AppError } from "@electron/shared/infra/errors";
-import type { OrchestratorContext } from "../orchestrator-context";
+import type { TradingCycleContext } from "../trading-cycle-context";
 import { enqueueCycleTask, runOrchestratorStep } from "../orchestrator-step";
 import type { ResolvedInstrument, TradeCycleContext } from "../types";
 import {
@@ -15,7 +15,7 @@ import {
 } from "./run-trade-pipeline";
 
 function tradeCycleRetry(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   context: TradeCycleContext,
 ): () => void {
   return () =>
@@ -28,7 +28,7 @@ function tradeCycleRetry(
 }
 
 export async function executeTradeCycle(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   context: TradeCycleContext,
 ): Promise<void> {
   if (!ctx.runtimeIsActive()) return;
@@ -126,7 +126,7 @@ export async function executeTradeCycle(
 }
 
 export async function runTradeCycle(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   instrument: ResolvedInstrument,
 ): Promise<void> {
   await executeTradeCycle(ctx, {

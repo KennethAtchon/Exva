@@ -1,10 +1,10 @@
 import type { ApprovalRecheckInput } from "../../../session";
 import type {
   TradeCycleInstrument,
-  TradePipelineResult,
+  InstrumentAnalysisResult,
 } from "../../../pipeline/analysis/types";
-import { runEngineBinding } from "../../../pipeline/execution/engine-context-runner";
-import type { OrchestratorContext } from "../orchestrator-context";
+import { runEngineForWorker } from "../../../pipeline/execution/engine-prompt-injector";
+import type { TradingCycleContext } from "../trading-cycle-context";
 import { failRecheck } from "./approval-flow";
 import { buildOrderPolicyTask } from "./order-policy-task";
 import { placeRoutedOrder } from "./order-placer";
@@ -12,7 +12,7 @@ import { runPostDecisionGates } from "./post-decision-gates";
 import { buildTradeFromDecision } from "./trade-record-builder";
 
 export async function runApprovalRecheck(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   input: ApprovalRecheckInput,
 ): Promise<void> {
   if (!ctx.runtimeIsActive()) return;
@@ -41,7 +41,7 @@ export async function runApprovalRecheck(
     sessionConfig: config,
     instrumentClasses: ctx.getEffectiveInstrumentClasses(session),
     lastStageId: "decision",
-  })) as TradePipelineResult;
+  })) as InstrumentAnalysisResult;
 
   const { technical, fundamental, review, decision } = pipeline.state;
   if (!technical || !fundamental || !review || !decision) {
@@ -147,7 +147,7 @@ export async function runApprovalRecheck(
     );
     return;
   }
-  const recheckPolicy = runEngineBinding<{ allowed: boolean; reason?: string }>(
+  const recheckPolicy = runEngineForWorker<{ allowed: boolean; reason?: string }>(
     {
       phase: "decision",
       sessionId: ctx.sessionId,

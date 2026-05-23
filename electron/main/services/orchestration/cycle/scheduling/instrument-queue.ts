@@ -1,9 +1,9 @@
-import type { OrchestratorContext } from "../orchestrator-context";
+import type { TradingCycleContext } from "../trading-cycle-context";
 import type { ResolvedInstrument } from "../types";
 import { formatMinutesLabel } from "../utils";
 
 export function handleResolvedInstruments(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   instruments: ResolvedInstrument[],
   context: string,
   callbacks: {
@@ -35,7 +35,7 @@ export function handleResolvedInstruments(
 }
 
 function scheduleNoInstrumentRetry(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   scheduleSelectorCycle: () => Promise<void>,
   retryMs: number,
 ): void {
@@ -55,7 +55,7 @@ function scheduleNoInstrumentRetry(
 }
 
 function enqueueTradeCycles(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   enqueueTradeCycle: (instrument: ResolvedInstrument) => Promise<void>,
   instruments: ResolvedInstrument[],
 ): void {

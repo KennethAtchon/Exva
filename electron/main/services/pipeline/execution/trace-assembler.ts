@@ -1,11 +1,11 @@
 import type { AgentMessage, AgentRun } from "@/lib/types";
-import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
+import type { PipelinePhase } from "@electron/shared/ai/ai-phase";
 import type {
-  PhaseTraceV1,
+  AIPhaseTrace,
   PhaseTraceWorkerV1,
   PhaseTraceFrontierV1,
-} from "@electron/shared/ai/pipeline-observability";
-import type { RunTrace } from "../../llm/ai-runtime-types";
+} from "@electron/shared/ai/ai-phase-trace";
+import type { LLMCallTrace } from "../../llm/llm-types";
 import { buildStrategyPromptContext } from "../prompting/strategy-prompt-context";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 
@@ -17,7 +17,7 @@ export interface TraceAssemblyInput {
   cycleId: string | null;
   providerKey: string;
   modelId: string;
-  trace: RunTrace<unknown>;
+  trace: LLMCallTrace<unknown>;
   outputJson: string | null;
   outputSchemaName: string | null;
   strategyContext: SessionStrategyContext;
@@ -222,7 +222,7 @@ function buildPhaseTrace(input: {
   aggregateOutputSchemaName: string | null;
   aggregateOutputSummary: Record<string, unknown> | null;
   workers: ExecutedWorkerTraceInput[];
-}): PhaseTraceV1 {
+}): AIPhaseTrace {
   const frontierMap = new Map<number, ExecutedWorkerTraceInput[]>();
   for (const worker of input.workers) {
     const current = frontierMap.get(worker.frontier) ?? [];

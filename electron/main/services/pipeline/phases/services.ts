@@ -9,7 +9,7 @@ import type { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
 
-export interface PhasePlanServices {
+export interface AIPhaseServices {
   sessionSelectorSettingsRepo: SessionSelectorSettingsRepo;
   sessionAiPhasesRepo: SessionAiPhasesRepo;
   workspacePreferencesRepo: WorkspacePreferencesRepo;

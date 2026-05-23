@@ -1,14 +1,14 @@
 import type {
   PipelinePhase,
   PipelineDefinition,
-} from "@electron/shared/ai/pipeline-phase";
+} from "@electron/shared/ai/ai-phase";
 import { AppError } from "@electron/shared/infra/errors";
 import { SELECTOR_PHASE } from "../definitions/selector.phase";
 import { TECHNICAL_PHASE } from "../definitions/technical.phase";
 import { FUNDAMENTAL_PHASE } from "../definitions/fundamental.phase";
 import { REVIEW_PHASE } from "../definitions/review.phase";
 import { DECISION_PHASE } from "../definitions/decision.phase";
-import { SUPPORTED_TOOL_IDS } from "../worker-tools/tool-factory-registry";
+import { SUPPORTED_TOOL_IDS } from "../worker-tools/worker-tool-factory";
 
 const REGISTRY: Record<PipelinePhase, PipelineDefinition> = {
   selector: SELECTOR_PHASE as PipelineDefinition,

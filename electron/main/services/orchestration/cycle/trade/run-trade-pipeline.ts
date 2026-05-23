@@ -1,14 +1,14 @@
 import { AppError } from "@electron/shared/infra/errors";
-import type { AgentResult } from "../../../llm/ai-runtime-types";
-import type { TradePipelineResult } from "../../../pipeline/analysis/types";
-import { tradeCycleStageFailurePolicy } from "../../../pipeline/implementations/trade/default-cycle-stages";
-import type { OrchestratorContext } from "../orchestrator-context";
+import type { LLMRunResult } from "../../../llm/llm-types";
+import type { InstrumentAnalysisResult } from "../../../pipeline/analysis/types";
+import { tradeCycleStageFailurePolicy } from "../../../pipeline/implementations/trade/default-analysis-steps";
+import type { TradingCycleContext } from "../trading-cycle-context";
 import { runOrchestratorStep } from "../orchestrator-step";
 import type { TradeCycleContext } from "../types";
 import {
-  CyclePausedError,
-  CycleStageFailedError,
-  type TradeCyclePlanState,
+  AnalysisPausedError,
+  AnalysisStepFailedError,
+  type InstrumentAnalysisState,
 } from "../../../pipeline/analysis/types";
 
 const TRADE_PIPELINE_CONTEXT_STATE_KEYS = [
@@ -23,10 +23,10 @@ type TradePipelineContextStateKey =
   (typeof TRADE_PIPELINE_CONTEXT_STATE_KEYS)[number];
 
 export async function runTradePipeline(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   context: TradeCycleContext,
   onRetry: () => void,
-): Promise<TradePipelineResult | null> {
+): Promise<InstrumentAnalysisResult | null> {
   const config = ctx.getSessionConfig();
   const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
   const seedState = tradePipelineSeedFromContext(context);
@@ -63,19 +63,19 @@ export async function runTradePipeline(
           run: execute,
         });
 
-        if (step.status === "paused") throw new CyclePausedError();
+        if (step.status === "paused") throw new AnalysisPausedError();
         if (step.status === "failed")
-          throw new CycleStageFailedError(stage, step.result.errorMessage);
+          throw new AnalysisStepFailedError(stage, step.result.errorMessage);
         return step.value;
       },
     });
-    return result as TradePipelineResult;
+    return result as InstrumentAnalysisResult;
   } catch (error) {
-    if (error instanceof CyclePausedError) {
+    if (error instanceof AnalysisPausedError) {
       ctx.emitAbort();
       return null;
     }
-    if (error instanceof CycleStageFailedError) {
+    if (error instanceof AnalysisStepFailedError) {
       if (error.stage === "risk_gate" && context.trade) {
         ctx.deps.tradesRepo.updateStatus(context.trade.id, "rejected", 0);
       }
@@ -87,8 +87,8 @@ export async function runTradePipeline(
 
 function tradePipelineSeedFromContext(
   context: TradeCycleContext,
-): Partial<TradeCyclePlanState> {
-  const seedState: Partial<TradeCyclePlanState> = {};
+): Partial<InstrumentAnalysisState> {
+  const seedState: Partial<InstrumentAnalysisState> = {};
   const target = seedState as Record<TradePipelineContextStateKey, unknown>;
   for (const key of TRADE_PIPELINE_CONTEXT_STATE_KEYS) {
     const value = context[key];
@@ -101,7 +101,7 @@ function tradePipelineSeedFromContext(
 
 export function applyTradePipelineToContext(
   context: TradeCycleContext,
-  result: TradePipelineResult,
+  result: InstrumentAnalysisResult,
 ): void {
   const target = context as Record<TradePipelineContextStateKey, unknown>;
   const source = result.state as Record<TradePipelineContextStateKey, unknown>;
@@ -114,9 +114,9 @@ export function applyTradePipelineToContext(
 }
 
 export function persistTradeAiRuns(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   tradeId: string,
-  results: Array<AgentResult<unknown>>,
+  results: Array<LLMRunResult<unknown>>,
 ): void {
   for (const result of results) {
     ctx.deps.agentRunsRepo.insert({
@@ -132,7 +132,7 @@ export function persistTradeAiRuns(
   }
 }
 
-export function requirePipelineAiResults(result: TradePipelineResult) {
+export function requirePipelineAiResults(result: InstrumentAnalysisResult) {
   const { technical, fundamental, review, decision } = result.state;
   if (!technical || !fundamental || !review || !decision) {
     throw new AppError(

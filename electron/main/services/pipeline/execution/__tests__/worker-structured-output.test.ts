@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { resolveStructuredWorkerOutput } from "../worker-structured-output";
+import { parseWorkerOutput } from "../worker-structured-output";
 
 const schema = z.object({
   score: z.number().min(0).max(1).default(0),
   label: z.string().default(""),
 });
 
-describe("resolveStructuredWorkerOutput", () => {
+describe("parseWorkerOutput", () => {
   const contract = {
     schema,
     strict: true as const,
@@ -15,7 +15,7 @@ describe("resolveStructuredWorkerOutput", () => {
   };
 
   it("returns parsed output when validation succeeds", () => {
-    const result = resolveStructuredWorkerOutput(
+    const result = parseWorkerOutput(
       contract,
       { score: 0.8, label: "ok" },
       false,
@@ -28,7 +28,7 @@ describe("resolveStructuredWorkerOutput", () => {
   });
 
   it("requests one retry when validation fails", () => {
-    const result = resolveStructuredWorkerOutput(
+    const result = parseWorkerOutput(
       contract,
       { score: 2, label: "bad" },
       false,
@@ -37,7 +37,7 @@ describe("resolveStructuredWorkerOutput", () => {
   });
 
   it("substitutes zero dimension after retry exhaustion", () => {
-    const result = resolveStructuredWorkerOutput(
+    const result = parseWorkerOutput(
       contract,
       { score: 2, label: "bad" },
       true,

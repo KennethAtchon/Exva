@@ -1,9 +1,9 @@
 import type { InstrumentClass, Trade } from "@/lib/types";
 import type { OrderRequest } from "../../../broker/adapters/broker-adapter";
-import type { OrchestratorContext } from "../orchestrator-context";
+import type { TradingCycleContext } from "../trading-cycle-context";
 
 export async function placeRoutedOrder(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   trade: Trade,
   instrumentClass: InstrumentClass,
   riskOrder: OrderRequest,

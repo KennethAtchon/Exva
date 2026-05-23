@@ -1,6 +1,6 @@
-import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
+import type { Candidate } from "@electron/shared/ai/selector-candidate";
 
-export interface WorkingCandidate extends Candidate {
+export interface SelectorCandidate extends Candidate {
   selectorTraces: Array<{
     step: number;
     toolCalls: Array<{
@@ -12,10 +12,10 @@ export interface WorkingCandidate extends Candidate {
   }>;
 }
 
-export function mergeCandidates(
-  groups: WorkingCandidate[][],
-): WorkingCandidate[] {
-  const merged = new Map<string, WorkingCandidate>();
+export function mergeDiscoveryCandidates(
+  groups: SelectorCandidate[][],
+): SelectorCandidate[] {
+  const merged = new Map<string, SelectorCandidate>();
 
   for (const group of groups) {
     for (const candidate of group) {

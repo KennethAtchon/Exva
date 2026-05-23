@@ -1,11 +1,11 @@
-import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
+import type { Candidate } from "@electron/shared/ai/selector-candidate";
 import {
   DEFAULT_SCORING_WEIGHTS,
   type ScoringWeights,
-} from "@electron/shared/ai/pipeline-config";
+} from "@electron/shared/ai/ai-phase-config";
 
-export type { ScoringWeights } from "@electron/shared/ai/pipeline-config";
-export { DEFAULT_SCORING_WEIGHTS } from "@electron/shared/ai/pipeline-config";
+export type { ScoringWeights } from "@electron/shared/ai/ai-phase-config";
+export { DEFAULT_SCORING_WEIGHTS } from "@electron/shared/ai/ai-phase-config";
 
 export function scoreCandidate(
   candidate: Candidate,

@@ -13,16 +13,16 @@ import {
 } from "ai";
 import type { z } from "zod";
 import type { AgentRole } from "@/lib/types";
-import type { ReasoningLevel } from "@electron/shared/ai/pipeline-phase";
+import type { ReasoningLevel } from "@electron/shared/ai/ai-phase";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
 import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
 import { resolveRunCostUsd } from "../resolve-run-cost";
 import type {
-  RuntimeAgentMessage,
-  RunTrace,
-  StepTrace,
-  ToolCallRecord,
-} from "../ai-runtime-types";
+  LLMMessage,
+  LLMCallTrace,
+  LLMToolStepTrace,
+  LLMToolCall,
+} from "../llm-types";
 import { createLogger } from "../../infra/log";
 import {
   buildToolStepSignature,
@@ -61,7 +61,7 @@ export interface RunAgentExecuteParams<T> {
   sessionId?: string;
   cycleId?: string | null;
   tradeId?: string | null;
-  messages: RuntimeAgentMessage[];
+  messages: LLMMessage[];
   tools?: ToolSet;
   maxSteps: number;
   spendLimitUsd?: number;
@@ -75,12 +75,12 @@ export interface RunAgentExecuteParams<T> {
   prepareStep?: PrepareStepFunction<ToolSet>;
 }
 
-function splitSystem(messages: RuntimeAgentMessage[]): {
+function splitSystem(messages: LLMMessage[]): {
   system: string | undefined;
-  rest: RuntimeAgentMessage[];
+  rest: LLMMessage[];
 } {
   const sys: string[] = [];
-  const rest: RuntimeAgentMessage[] = [];
+  const rest: LLMMessage[] = [];
   for (const m of messages) {
     if (m.role === "system") sys.push(m.content);
     else rest.push(m);
@@ -88,7 +88,7 @@ function splitSystem(messages: RuntimeAgentMessage[]): {
   return { system: sys.length ? sys.join("\n\n") : undefined, rest };
 }
 
-function userPromptFrom(messages: RuntimeAgentMessage[]): string {
+function userPromptFrom(messages: LLMMessage[]): string {
   return messages.map((m) => `${m.role}: ${m.content}`).join("\n\n");
 }
 
@@ -177,18 +177,18 @@ function mapFinishReason(
   return "stop";
 }
 
-function buildStepTraces<TOOLS extends ToolSet>(
+function buildLLMToolStepTraces<TOOLS extends ToolSet>(
   sdkSteps: StepResult<TOOLS>[],
   stepFinishTimes: number[],
   startedAt: number,
-): StepTrace[] {
+): LLMToolStepTrace[] {
   return sdkSteps.map((st, i) => {
     const finishTime = stepFinishTimes[i];
     const prevTime =
       i === 0 ? startedAt : (stepFinishTimes[i - 1] ?? startedAt);
     const latencyMs =
       finishTime != null ? Math.max(0, finishTime - prevTime) : 0;
-    const toolCalls: ToolCallRecord[] = [];
+    const toolCalls: LLMToolCall[] = [];
     const resultsById = new Map<string, unknown>();
     for (const tr of st.toolResults) {
       resultsById.set(tr.toolCallId, "output" in tr ? tr.output : undefined);
@@ -219,8 +219,8 @@ function persistedMessages(
   system: string | undefined,
   userBlock: string,
   assistantText: string,
-): RuntimeAgentMessage[] {
-  const m: RuntimeAgentMessage[] = [];
+): LLMMessage[] {
+  const m: LLMMessage[] = [];
   if (system?.trim()) m.push({ role: "system", content: system.trim() });
   m.push({ role: "user", content: userBlock });
   m.push({ role: "assistant", content: assistantText });
@@ -229,7 +229,7 @@ function persistedMessages(
 
 export async function executeRunAgent<T = undefined>(
   params: RunAgentExecuteParams<T>,
-): Promise<RunTrace<T>> {
+): Promise<LLMCallTrace<T>> {
   const started = Date.now();
   const { system, rest } = splitSystem(params.messages);
   const prompt = userPromptFrom(rest);
@@ -291,7 +291,7 @@ export async function executeRunAgent<T = undefined>(
     abortSignal: params.abortSignal,
     stopWhen,
     prepareStep: params.prepareStep,
-    // Disable SDK-level retry so withProviderRetry owns the retry policy and
+    // Disable SDK-level retry so withLLMRetry owns the retry policy and
     // we don't lose the underlying provider error behind "Failed after N attempts".
     maxRetries: 0,
   } as const;
@@ -353,7 +353,7 @@ export async function executeRunAgent<T = undefined>(
   }
 
   const durationMs = Date.now() - started;
-  const steps = buildStepTraces(result.steps, stepFinishTimes, started);
+  const steps = buildLLMToolStepTraces(result.steps, stepFinishTimes, started);
   const totalIn = result.totalUsage.inputTokens ?? 0;
   const totalOut = result.totalUsage.outputTokens ?? 0;
   const { costUsd: totalCost, costSource } = resolveRunCostUsd({

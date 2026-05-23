@@ -2,13 +2,13 @@ import type { SessionConfig, Trade } from "@/lib/types";
 import type {
   ReviewSignal,
   TradeSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 import {
-  computeExecutionProfile,
+  computeTradeTradeExecutionProfile,
   priceLevelsFromProfile,
-} from "../../../signal/execution/execution-profile-engine";
+} from "../../../signal/execution/trade-execution-profile";
 import type { InstrumentClass } from "@/lib/types";
-import type { OrchestratorContext } from "../orchestrator-context";
+import type { TradingCycleContext } from "../trading-cycle-context";
 import type { ResolvedInstrument } from "../types";
 import { remapPredictionMetadataForOutcome } from "../utils";
 
@@ -32,7 +32,7 @@ export function resolvePredictionTradeFields(
 }
 
 export function executionFieldsForSignal(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   signal: TradeSignal,
   instrumentClass: InstrumentClass,
   config: SessionConfig,
@@ -57,7 +57,7 @@ export function executionFieldsForSignal(
   }
 
   const strategyCtx = ctx.deps.strategyContextService.get(ctx.sessionId);
-  const profile = computeExecutionProfile({
+  const profile = computeTradeTradeExecutionProfile({
     signal,
     instrumentClass,
     maxPositionUsd: config.max_position_usd,
@@ -87,7 +87,7 @@ export function executionFieldsForSignal(
 }
 
 export function buildTradeFromDecision(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   tradeId: string,
   instrument: ResolvedInstrument,
   config: SessionConfig,
@@ -136,7 +136,7 @@ export function buildTradeFromDecision(
 }
 
 export function createTradeFromDecision(
-  ctx: OrchestratorContext,
+  ctx: TradingCycleContext,
   instrument: ResolvedInstrument,
   config: SessionConfig,
   signal: TradeSignal,

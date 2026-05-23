@@ -13,7 +13,7 @@ import { channels } from "@electron/shared/ipc/channels";
 import {
   REASONING_LEVELS,
   type ReasoningLevel,
-} from "@electron/shared/ai/pipeline-phase";
+} from "@electron/shared/ai/ai-phase";
 import { AppError } from "@electron/shared/infra/errors";
 import type { AppServices } from "../../services/app-services";
 import { assertSessionInWorkspaceEnvironment } from "../environment-guards";

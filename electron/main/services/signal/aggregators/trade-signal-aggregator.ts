@@ -4,7 +4,7 @@ import {
   tradeSignalSchema,
   type ReviewSignal,
   type TradeSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 
 export const signalClassifierOutputSchema = z.object({
   executionStrategy: executionStrategySchema.describe(

@@ -1,5 +1,5 @@
 import type { InstrumentSelection } from "@/lib/schemas";
-import type { Candidate } from "@electron/shared/ai/selector-pipeline-candidate";
+import type { Candidate } from "@electron/shared/ai/selector-candidate";
 
 export function buildInstrumentSelection(
   candidates: Candidate[],

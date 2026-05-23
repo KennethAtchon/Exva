@@ -1,14 +1,14 @@
 import type {
   EngineKind,
   PipelinePhase,
-} from "@electron/shared/ai/pipeline-phase";
-import type { AgentResult } from "../../llm/ai-runtime-types";
-import type { CyclePlanRunContext, TradeCyclePlanState } from "../analysis/types";
+} from "@electron/shared/ai/ai-phase";
+import type { LLMRunResult } from "../../llm/llm-types";
+import type { InstrumentAnalysisContext, InstrumentAnalysisState } from "../analysis/types";
 
 export type EngineInputBuilderId = string;
 
 export type EngineRunCtx = Pick<
-  CyclePlanRunContext,
+  InstrumentAnalysisContext,
   | "sessionId"
   | "cycleId"
   | "tradeId"
@@ -21,7 +21,7 @@ export type EngineRunCtx = Pick<
 
 export interface EngineInputBuilderContext {
   planCtx: EngineRunCtx;
-  state: TradeCyclePlanState;
+  state: InstrumentAnalysisState;
 }
 
 export interface EngineInputBuilder {
@@ -30,14 +30,14 @@ export interface EngineInputBuilder {
     ctx: EngineInputBuilderContext,
   ): EngineInputBuildResult | Promise<EngineInputBuildResult>;
   applyOutput?(
-    state: TradeCyclePlanState,
+    state: InstrumentAnalysisState,
     output: unknown,
-  ): TradeCyclePlanState;
+  ): InstrumentAnalysisState;
 }
 
 export type EngineInputBuildResult = {
   task: unknown;
-  statePatch?: Partial<TradeCyclePlanState>;
+  statePatch?: Partial<InstrumentAnalysisState>;
 };
 
 const ENGINE_INPUT_BUILDERS = new Map<
@@ -45,11 +45,11 @@ const ENGINE_INPUT_BUILDERS = new Map<
   EngineInputBuilder
 >();
 
-export function registerEngineInputBuilder(builder: EngineInputBuilder): void {
+export function registerSignalEngineInputBuilder(builder: EngineInputBuilder): void {
   ENGINE_INPUT_BUILDERS.set(builder.id, builder);
 }
 
-export function getEngineInputBuilder(
+export function getSignalEngineInputBuilder(
   id: EngineInputBuilderId,
 ): EngineInputBuilder {
   const builder = ENGINE_INPUT_BUILDERS.get(id);
@@ -78,7 +78,7 @@ export type DeclarativeCycleStageConfig =
       id: string;
       kind: "engine-chain";
       engines: EngineStageConfig[];
-      skipIf?: (state: TradeCyclePlanState) => boolean;
+      skipIf?: (state: InstrumentAnalysisState) => boolean;
       executionStage?: import("@/lib/types").ExecutionStage;
       required: boolean;
       failurePolicy?: StageFailurePolicy;
@@ -91,13 +91,13 @@ export type DeclarativeCycleStageConfig =
       required: boolean;
       failurePolicy?: StageFailurePolicy;
       buildInput: (
-        ctx: CyclePlanRunContext,
-        state: TradeCyclePlanState,
+        ctx: InstrumentAnalysisContext,
+        state: InstrumentAnalysisState,
       ) => Record<string, unknown>;
       applyOutput: (
-        state: TradeCyclePlanState,
-        result: AgentResult<unknown>,
-      ) => TradeCyclePlanState;
+        state: InstrumentAnalysisState,
+        result: LLMRunResult<unknown>,
+      ) => InstrumentAnalysisState;
     };
 
 export type StageFailurePolicy = "warn" | "fail" | "reject_trade";

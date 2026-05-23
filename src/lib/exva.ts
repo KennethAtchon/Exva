@@ -34,8 +34,8 @@ import type {
   WorkspacePreferences,
   WorkspaceViewMode,
 } from "./types";
-import type { PhaseTraceV1 } from "@electron/shared/ai/pipeline-observability";
-import type { PhaseRuntimeSummary } from "@electron/shared/ai/pipeline-phase";
+import type { AIPhaseTrace } from "@electron/shared/ai/ai-phase-trace";
+import type { PhaseRuntimeSummary } from "@electron/shared/ai/ai-phase";
 import type {
   ExvaEventMap,
   ExvaEventName,
@@ -223,7 +223,7 @@ export const api = {
   }) => bridge().strategy.saveAiSettings(input),
   saveStrategyAiPhase: (input: {
     sessionId: string;
-    phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
+    phase: import("@electron/shared/ai/ai-phase").PipelinePhase;
     providerKey?: string;
     modelId?: string;
     temperature?: number;
@@ -240,7 +240,7 @@ export const api = {
   }) => bridge().strategy.saveAiPhase(input),
   saveStrategyAiPhaseWorker: (input: {
     sessionId: string;
-    phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;
+    phase: import("@electron/shared/ai/ai-phase").PipelinePhase;
     workerId: string;
     providerKey?: string | null;
     modelId?: string | null;
@@ -270,12 +270,12 @@ export const api = {
   getWorkspaceDefaultModel: (): Promise<{
     providerKey: string;
     modelId: string;
-    reasoningLevel: import("@electron/shared/ai/pipeline-phase").ReasoningLevel;
+    reasoningLevel: import("@electron/shared/ai/ai-phase").ReasoningLevel;
   }> => bridge().strategy.getWorkspaceDefaultModel(),
   saveWorkspaceDefaultModel: (input: {
     providerKey: string;
     modelId: string;
-    reasoningLevel?: import("@electron/shared/ai/pipeline-phase").ReasoningLevel;
+    reasoningLevel?: import("@electron/shared/ai/ai-phase").ReasoningLevel;
   }): Promise<{ savedAt: string }> =>
     bridge().strategy.saveWorkspaceDefaultModel(input),
 
@@ -403,4 +403,4 @@ export type {
   WorkspaceViewResponse,
 } from "@electron/shared/ipc/dto";
 export { hasExva };
-export type { PhaseTraceV1, PhaseRuntimeSummary };
+export type { AIPhaseTrace, PhaseRuntimeSummary };

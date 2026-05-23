@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { RiskFilter } from "./selector-risk-filter";
-import type { WorkingCandidate } from "./selector-candidate-merger";
-import { selectorEvidenceSchema } from "@electron/shared/ai/selector-pipeline-candidate";
+import { SelectorRiskFilter } from "./selector-risk-filter";
+import type { SelectorCandidate } from "./selector-candidate-merger";
+import { selectorEvidenceSchema } from "@electron/shared/ai/selector-candidate";
 
 const baseStrategyContext = {
   identity: { name: "Test", objective: "Breakout" },
@@ -47,8 +47,8 @@ function quoteTrace(symbol: string, price = 120) {
 }
 
 function candidate(
-  overrides: Partial<WorkingCandidate> = {},
-): WorkingCandidate {
+  overrides: Partial<SelectorCandidate> = {},
+): SelectorCandidate {
   return {
     symbol: "NVDA",
     instrumentClass: "stock",
@@ -68,7 +68,7 @@ function candidate(
   };
 }
 
-describe("RiskFilter", () => {
+describe("SelectorRiskFilter", () => {
   it("accepts candidate with rationale, quote trace, and symbol-specific search evidence", () => {
     const withEvidence = {
       ...candidate(),
@@ -85,7 +85,7 @@ describe("RiskFilter", () => {
       }),
     };
 
-    const result = new RiskFilter({
+    const result = new SelectorRiskFilter({
       sessionId: "session-1",
       instrumentClasses: ["stock"],
       strategyContext: baseStrategyContext,
@@ -100,7 +100,7 @@ describe("RiskFilter", () => {
       selectorEvidence: null,
     });
 
-    const result = new RiskFilter({
+    const result = new SelectorRiskFilter({
       sessionId: "session-1",
       instrumentClasses: ["stock"],
       strategyContext: baseStrategyContext,
@@ -112,7 +112,7 @@ describe("RiskFilter", () => {
   });
 
   it("rejects candidate with empty rationale even when traces exist", () => {
-    const result = new RiskFilter({
+    const result = new SelectorRiskFilter({
       sessionId: "session-1",
       instrumentClasses: ["stock"],
       strategyContext: baseStrategyContext,

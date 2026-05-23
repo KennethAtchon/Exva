@@ -1,4 +1,4 @@
-import type { ToolStepTrace } from "../../orchestration/policy/candidate-validation-service";
+import type { ToolLLMToolStepTrace } from "../../orchestration/policy/candidate-validation-service";
 import { CandidateValidationService } from "../../orchestration/policy/candidate-validation-service";
 import type { CandidateRejection } from "@electron/shared/ai/selector-diagnostics";
 import { collectCandidateToolNames } from "@electron/shared/ai/selector-diagnostics";
@@ -8,10 +8,10 @@ import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import {
   DEFAULT_RISK_RULE_SET,
   type RiskRuleSet,
-} from "@electron/shared/ai/pipeline-config";
-import type { WorkingCandidate } from "./selector-candidate-merger";
+} from "@electron/shared/ai/ai-phase-config";
+import type { SelectorCandidate } from "./selector-candidate-merger";
 
-export interface RiskFilterDeps {
+export interface SelectorSelectorRiskFilterDeps {
   sessionId: string;
   instrumentClasses: InstrumentClass[];
   strategyContext: SessionStrategyContext;
@@ -19,22 +19,22 @@ export interface RiskFilterDeps {
   riskRules?: RiskRuleSet;
 }
 
-export interface RiskFilterEvaluation {
-  accepted: WorkingCandidate[];
+export interface SelectorSelectorRiskFilterResult {
+  accepted: SelectorCandidate[];
   rejected: CandidateRejection[];
 }
 
-export class RiskFilter {
+export class SelectorRiskFilter {
   private readonly validator = new CandidateValidationService();
 
-  constructor(private readonly deps: RiskFilterDeps) {}
+  constructor(private readonly deps: SelectorSelectorRiskFilterDeps) {}
 
-  filter(candidates: WorkingCandidate[]): WorkingCandidate[] {
+  filter(candidates: SelectorCandidate[]): SelectorCandidate[] {
     return this.evaluate(candidates).accepted;
   }
 
-  evaluate(candidates: WorkingCandidate[]): RiskFilterEvaluation {
-    const accepted: WorkingCandidate[] = [];
+  evaluate(candidates: SelectorCandidate[]): SelectorSelectorRiskFilterResult {
+    const accepted: SelectorCandidate[] = [];
     const rejected: CandidateRejection[] = [];
 
     for (const candidate of candidates) {
@@ -57,7 +57,7 @@ export class RiskFilter {
     return { accepted, rejected };
   }
 
-  private collectRejectionReasons(candidate: WorkingCandidate): string[] {
+  private collectRejectionReasons(candidate: SelectorCandidate): string[] {
     const reasons: string[] = [];
 
     if (!this.deps.instrumentClasses.includes(candidate.instrumentClass)) {
@@ -107,7 +107,7 @@ export class RiskFilter {
       brokerRouteAvailable: true,
       sideBias: this.deps.strategyContext.rules.sideBias,
       holdingStyle: this.deps.strategyContext.timeframe.holdingStyle,
-      selectorTrace: candidate.selectorTraces as ToolStepTrace[],
+      selectorTrace: candidate.selectorTraces as ToolLLMToolStepTrace[],
       quoteSnapshot,
     });
 
@@ -120,7 +120,7 @@ export class RiskFilter {
 }
 
 function extractQuoteSnapshot(
-  traces: WorkingCandidate["selectorTraces"],
+  traces: SelectorCandidate["selectorTraces"],
 ): import("../../broker/adapters/broker-adapter").MarketSnapshot | null {
   for (const trace of traces) {
     for (const call of trace.toolCalls) {

@@ -1,7 +1,7 @@
 import type {
   StrategyContextField,
   WorkerStrategyContextRequest,
-} from "@electron/shared/ai/pipeline-phase";
+} from "@electron/shared/ai/ai-phase";
 import {
   buildTradeRulesMarkdown,
   buildStrategySnapshot,

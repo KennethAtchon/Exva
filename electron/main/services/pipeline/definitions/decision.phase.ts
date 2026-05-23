@@ -2,15 +2,15 @@ import {
   DECISION_WORKERS_ENTRY_TIMER_PROMPT,
   DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
 } from "../worker-prompts";
-import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
-import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
+import type { PipelineDefinition } from "@electron/shared/ai/ai-phase";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import {
   tradeSignalSchema,
   type TradeSignal,
   type TechnicalSignal,
   type FundamentalSignal,
   type ReviewSignal,
-} from "@electron/shared/ai/pipeline-signals";
+} from "@electron/shared/ai/trade-signals";
 import {
   entryTimerOutputSchema,
   signalClassifierOutputSchema,
@@ -55,7 +55,7 @@ const ENTRY_TIMER_WORKER = {
   outputSchema: entryTimerOutputSchema,
 };
 
-/** Registry metadata for decision. Execution is driven by DECISION_PLAN via PhasePlanInterpreter. */
+/** Registry metadata for decision. Execution is driven by DECISION_PLAN via AIPhaseRunner. */
 export const DECISION_PHASE: PipelineDefinition<
   DecisionPhaseInput,
   TradeSignal
