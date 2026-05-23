@@ -1,3 +1,4 @@
+import type { ReasoningLevel } from "@electron/shared/ai/pipeline-phase";
 import type {
   AllocationEnforcement,
   BrokerMode,
@@ -95,6 +96,7 @@ export interface WorkspacePreferences {
   allocationEnforcementOverride: AllocationEnforcement | null;
   defaultModelProviderKey: string;
   defaultModelModelId: string;
+  defaultModelReasoningLevel: ReasoningLevel;
   updatedAt: string;
 }
 

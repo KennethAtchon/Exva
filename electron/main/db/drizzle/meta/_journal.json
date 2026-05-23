@@ -15,6 +15,13 @@
       "when": 1779505523561,
       "tag": "0001_session_ai_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779505523562,
+      "tag": "0002_workspace_default_reasoning",
+      "breakpoints": true
     }
   ]
 }

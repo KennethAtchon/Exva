@@ -134,6 +134,8 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
     return;
   }
 
+  if (ctx.stopped) return;
+
   ctx.clearAttentionRequired();
   if (phase && options.busEvents?.complete !== false) {
     ctx.deps.bus.emit("research_phase_complete", {

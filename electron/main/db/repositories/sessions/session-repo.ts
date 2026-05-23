@@ -37,7 +37,7 @@ import type {
   TradeRulesPreset,
 } from "@electron/shared/domain";
 import type { GlobalStrategyPreset } from "@electron/shared/presets";
-import { PIPELINE_PHASES } from "@electron/shared/ai/pipeline-phase";
+import { DEFAULT_REASONING_LEVEL, PIPELINE_PHASES } from "@electron/shared/ai/pipeline-phase";
 import { toSessionConfig, toWorkspaceSession } from "../system/mappers";
 
 export interface SessionFilters {
@@ -257,7 +257,7 @@ export class SessionRepo {
             modelId: roleSeed.modelId,
             temperature: 0.7,
             maxTokens: 8192,
-            reasoningLevel: "off",
+            reasoningLevel: roleSeed.reasoningLevel,
             promptSource: "default",
             promptMarkdown: "",
             updatedAt: now,
@@ -269,11 +269,16 @@ export class SessionRepo {
     return this.requireById(sessionId);
   }
 
-  private getDefaultAiRoleSeed(): { providerKey: string; modelId: string } {
+  private getDefaultAiRoleSeed(): {
+    providerKey: string;
+    modelId: string;
+    reasoningLevel: typeof DEFAULT_REASONING_LEVEL;
+  } {
     const row = this.client.db
       .select({
         providerKey: workspacePreferences.defaultModelProviderKey,
         modelId: workspacePreferences.defaultModelModelId,
+        reasoningLevel: workspacePreferences.defaultModelReasoningLevel,
       })
       .from(workspacePreferences)
       .where(eq(workspacePreferences.id, 1))
@@ -282,6 +287,9 @@ export class SessionRepo {
     return {
       providerKey: row?.providerKey ?? "",
       modelId: row?.modelId ?? "",
+      reasoningLevel:
+        (row?.reasoningLevel as typeof DEFAULT_REASONING_LEVEL) ??
+        DEFAULT_REASONING_LEVEL,
     };
   }
 

@@ -10,6 +10,10 @@ import {
   strategyTimeframeConfigSaveSchema,
 } from "@electron/shared/validation/schemas";
 import { channels } from "@electron/shared/ipc/channels";
+import {
+  REASONING_LEVELS,
+  type ReasoningLevel,
+} from "@electron/shared/ai/pipeline-phase";
 import { AppError } from "@electron/shared/infra/errors";
 import type { AppServices } from "../services/app-services";
 import { assertSessionInWorkspaceEnvironment } from "./environment-guards";
@@ -168,6 +172,7 @@ export function registerStrategyHandlers(services: AppServices): void {
     return {
       providerKey: prefs.defaultModelProviderKey,
       modelId: prefs.defaultModelModelId,
+      reasoningLevel: prefs.defaultModelReasoningLevel,
     };
   });
 
@@ -175,9 +180,10 @@ export function registerStrategyHandlers(services: AppServices): void {
     ipcMain,
     channels.strategy.saveWorkspaceDefaultModel,
     async (payload) => {
-      const { providerKey, modelId } = payload as {
+      const { providerKey, modelId, reasoningLevel } = payload as {
         providerKey: string;
         modelId: string;
+        reasoningLevel?: ReasoningLevel;
       };
 
       if (!providerKey.trim()) {
@@ -223,14 +229,24 @@ export function registerStrategyHandlers(services: AppServices): void {
         );
       }
 
+      const resolvedReasoningLevel =
+        reasoningLevel &&
+        (REASONING_LEVELS as readonly string[]).includes(reasoningLevel)
+          ? reasoningLevel
+          : "off";
+
       services.repos.workspacePreferences.update({
         defaultModelProviderKey: providerKey,
         defaultModelModelId: modelId,
+        defaultModelReasoningLevel: resolvedReasoningLevel,
       });
       services.repos.sessionAiPhases.backfillMissingProviderModel({
         providerKey,
         modelId,
       });
+      services.repos.sessionAiPhases.backfillDefaultReasoningLevel(
+        resolvedReasoningLevel,
+      );
       return { savedAt: new Date().toISOString() };
     },
   );

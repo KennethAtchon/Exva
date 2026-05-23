@@ -11,6 +11,7 @@ export function handleResolvedInstruments(
     enqueueTradeCycle: (instrument: ResolvedInstrument) => Promise<void>;
   },
 ): void {
+  if (ctx.stopped) return;
   if (instruments.length === 0) {
     const retryMinutes = ctx.getNoInstrumentRetryMinutes();
     const retryMs = retryMinutes * 60 * 1000;
@@ -58,6 +59,7 @@ function enqueueTradeCycles(
   enqueueTradeCycle: (instrument: ResolvedInstrument) => Promise<void>,
   instruments: ResolvedInstrument[],
 ): void {
+  if (ctx.stopped) return;
   ctx.deps.logger.info(
     { sessionId: ctx.sessionId, instrumentCount: instruments.length },
     "enqueueing trade cycles",

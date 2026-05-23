@@ -44,6 +44,7 @@ describe("domain session helpers", () => {
     expect(canTransition("draft", "active")).toBe(true);
     expect(canTransition("active", "paused")).toBe(true);
     expect(canTransition("stopped", "archived")).toBe(true);
+    expect(canTransition("stopped", "active")).toBe(true);
   });
 
   it("locks active and paused sessions from edits", () => {

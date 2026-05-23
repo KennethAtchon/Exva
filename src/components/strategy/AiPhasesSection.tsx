@@ -6,17 +6,9 @@ import type { PhaseRuntimeSummary } from "@/lib/exva";
 import type { ProviderAccount } from "@/lib/types";
 import {
   PIPELINE_PHASES,
+  REASONING_LEVEL_OPTIONS,
   type PipelinePhase,
 } from "../../../electron/shared/ai/pipeline-phase";
-
-const REASONING_LEVEL_OPTIONS = [
-  { value: "off", label: "Off" },
-  { value: "auto", label: "Auto" },
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-  { value: "max", label: "Max" },
-] as const;
 
 const PHASE_LABELS: Record<PipelinePhase, string> = {
   selector: "Selector",

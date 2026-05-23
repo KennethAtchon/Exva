@@ -124,4 +124,29 @@ describe("SessionService.start", () => {
       }),
     );
   });
+
+  it("allows restarting a stopped session", async () => {
+    const insert = vi.fn();
+    const startSession = vi.fn(async () => ({}) as never);
+    const service = new SessionService({
+      sessionRepo: {
+        requireById: () => ({
+          id: "session-1",
+          status: "stopped",
+          executionMode: "paper_only",
+        }),
+        getStatus: () => "active",
+      },
+      eventsRepo: { insert },
+      runtimeManager: { startSession },
+      preflight: async () => ({ ok: true as const }),
+      orchestratorDeps: {} as never,
+      liveReadiness: {
+        check: async () => ({ readyToStart: true, checks: [] }),
+      },
+    } as never);
+
+    await expect(service.start("session-1")).resolves.toBe("active");
+    expect(startSession).toHaveBeenCalledWith("session-1");
+  });
 });

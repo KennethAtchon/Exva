@@ -24,6 +24,7 @@ export class OrchestratorContext {
   readonly cycleContexts = new Map<string, CycleContext>();
   readonly stepRunners = new Map<string, ExecutionStepRunner>();
 
+  stopped = false;
   unsubscribeTradeClosed: (() => void) | null = null;
   cycleRestartInFlight = false;
   started = false;
@@ -43,6 +44,7 @@ export class OrchestratorContext {
     task: () => Promise<void>,
     onError: (error: unknown) => void,
   ): void {
+    if (this.stopped) return;
     this.queue.add(task).catch(onError);
   }
 
@@ -107,6 +109,7 @@ export class OrchestratorContext {
   }
 
   setSessionStatus(status: WorkspaceSession["status"]): void {
+    if (this.stopped) return;
     const current = this.deps.sessionRepo.getStatus(this.sessionId);
     if (current === status) return;
     this.deps.sessionRepo.setStatus(status, this.sessionId);

@@ -270,10 +270,12 @@ export const api = {
   getWorkspaceDefaultModel: (): Promise<{
     providerKey: string;
     modelId: string;
+    reasoningLevel: import("@electron/shared/ai/pipeline-phase").ReasoningLevel;
   }> => bridge().strategy.getWorkspaceDefaultModel(),
   saveWorkspaceDefaultModel: (input: {
     providerKey: string;
     modelId: string;
+    reasoningLevel?: import("@electron/shared/ai/pipeline-phase").ReasoningLevel;
   }): Promise<{ savedAt: string }> =>
     bridge().strategy.saveWorkspaceDefaultModel(input),
 

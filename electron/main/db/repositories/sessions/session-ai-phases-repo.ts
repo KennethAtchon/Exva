@@ -139,6 +139,28 @@ export class SessionAiPhasesRepo {
     return updated;
   }
 
+  backfillDefaultReasoningLevel(reasoningLevel: SessionAiPhase["reasoningLevel"]): number {
+    if (reasoningLevel === "off") return 0;
+    const rows = this.client.db.select().from(sessionAiPhases).all();
+    let updated = 0;
+    this.client.db.transaction((tx) => {
+      for (const row of rows) {
+        if (row.reasoningLevel !== "off") continue;
+        tx.update(sessionAiPhases)
+          .set({ reasoningLevel })
+          .where(
+            and(
+              eq(sessionAiPhases.sessionId, row.sessionId),
+              eq(sessionAiPhases.phase, row.phase),
+            ),
+          )
+          .run();
+        updated += 1;
+      }
+    });
+    return updated;
+  }
+
   listWorkersBySession(sessionId: string): SessionAiPhaseWorker[] {
     const rows = this.client.db
       .select()

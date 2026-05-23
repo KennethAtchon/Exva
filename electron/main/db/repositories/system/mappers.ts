@@ -371,6 +371,10 @@ export function toWorkspacePreferences(row: Row): WorkspacePreferences {
       row.default_model_model_id != null
         ? String(row.default_model_model_id)
         : "",
+    defaultModelReasoningLevel:
+      row.default_model_reasoning_level != null
+        ? (String(row.default_model_reasoning_level) as WorkspacePreferences["defaultModelReasoningLevel"])
+        : "off",
     updatedAt: String(row.updated_at),
   };
 }

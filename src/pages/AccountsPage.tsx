@@ -23,6 +23,7 @@ import {
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
 import { api, type ProviderModelEntry } from "@/lib/exva";
+import { REASONING_LEVEL_OPTIONS } from "../../electron/shared/ai/pipeline-phase";
 import type {
   BrokerRoutingDefault,
   InstrumentClass,
@@ -177,6 +178,9 @@ export const AccountsPage = () => {
   );
   const [defaultModelProviderKey, setDefaultModelProviderKey] = useState("");
   const [defaultModelModelId, setDefaultModelModelId] = useState("");
+  const [defaultModelReasoningLevel, setDefaultModelReasoningLevel] = useState<
+    (typeof REASONING_LEVEL_OPTIONS)[number]["value"]
+  >("off");
   const [defaultModelModels, setDefaultModelModels] = useState<
     ProviderModelEntry[]
   >([]);
@@ -244,6 +248,9 @@ export const AccountsPage = () => {
     const modId = workspaceData.prefs.defaultModelModelId ?? "";
     setDefaultModelProviderKey(provKey);
     setDefaultModelModelId(modId);
+    setDefaultModelReasoningLevel(
+      workspaceData.prefs.defaultModelReasoningLevel ?? "off",
+    );
     if (provKey) {
       api
         .getStrategyProviderModels(provKey)
@@ -688,8 +695,8 @@ export const AccountsPage = () => {
                 Workspace default AI model
               </div>
               <div style={{ fontSize: 11, color: "var(--text3)" }}>
-                Auto-fills all AI phases on new sessions. Set once here, never
-                configure per-session.
+                Auto-fills provider, model, and reasoning on new sessions.
+                Phases still at Off are updated when you save here.
               </div>
               <ProviderModelPicker
                 providers={aiProviders}
@@ -715,6 +722,35 @@ export const AccountsPage = () => {
                 }}
                 onModelChange={(v) => setDefaultModelModelId(v)}
               />
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--text3)",
+                    marginBottom: 4,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  Reasoning
+                </div>
+                <ShadcnSelect
+                  value={defaultModelReasoningLevel}
+                  onValueChange={(value) =>
+                    setDefaultModelReasoningLevel(
+                      value as (typeof REASONING_LEVEL_OPTIONS)[number]["value"],
+                    )
+                  }
+                  options={[...REASONING_LEVEL_OPTIONS]}
+                  placeholder="Off"
+                  disabled={savingDefaultModel}
+                />
+                <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                  Non-off levels increase token spend. Pair with a
+                  reasoning-capable model. Override per phase in Strategy → AI
+                  Phases.
+                </div>
+              </div>
               <button
                 type="button"
                 disabled={
@@ -728,6 +764,7 @@ export const AccountsPage = () => {
                     await api.saveWorkspaceDefaultModel({
                       providerKey: defaultModelProviderKey,
                       modelId: defaultModelModelId,
+                      reasoningLevel: defaultModelReasoningLevel,
                     });
                     void refetchWorkspace();
                     setSavedDefaultModel(true);

@@ -264,10 +264,12 @@ export interface ExvaApi {
     getWorkspaceDefaultModel(): Promise<{
       providerKey: string;
       modelId: string;
+      reasoningLevel: import("@electron/shared/ai/pipeline-phase").ReasoningLevel;
     }>;
     saveWorkspaceDefaultModel(input: {
       providerKey: string;
       modelId: string;
+      reasoningLevel?: import("@electron/shared/ai/pipeline-phase").ReasoningLevel;
     }): Promise<{ savedAt: string }>;
   };
   config: {

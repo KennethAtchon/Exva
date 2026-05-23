@@ -188,6 +188,38 @@ describe("AgentOrchestrator", () => {
     expect(selectorFinished).toBe(true);
     await orchestrator.stop();
   });
+
+  it("does not enqueue follow-up work after stop while selector is in flight", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const deps = createDeps({ noInstrumentRetryMinutes: 5 });
+    const orchestrator = new AgentOrchestrator("session-1", deps as never);
+    const handleResolvedInstruments = vi.spyOn(
+      orchestrator as never as {
+        handleResolvedInstruments: (rows: unknown[], context: string) => void;
+      },
+      "handleResolvedInstruments",
+    );
+    vi.spyOn(
+      orchestrator as never as { getSessionConfig: () => SessionConfig },
+      "getSessionConfig",
+    ).mockReturnValue(baseConfig());
+    vi.spyOn(runSelectorModule, "runSelector").mockImplementation(async () => {
+      await gate;
+      return [{ symbol: "AAPL", instrumentClass: "stock" }];
+    });
+
+    await orchestrator.start();
+    const stopPromise = orchestrator.stop();
+    await new Promise((resolve) => setImmediate(resolve));
+    release();
+    await stopPromise;
+    await drainOrchestratorQueue(orchestrator);
+
+    expect(handleResolvedInstruments).not.toHaveBeenCalled();
+  });
 });
 
 describe("selector input builders", () => {

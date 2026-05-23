@@ -27,6 +27,9 @@ export class WorkspacePreferencesRepo {
         null,
       defaultModelProviderKey: row.defaultModelProviderKey ?? "",
       defaultModelModelId: row.defaultModelModelId ?? "",
+      defaultModelReasoningLevel:
+        (row.defaultModelReasoningLevel as WorkspacePreferences["defaultModelReasoningLevel"]) ??
+        "off",
       updatedAt: row.updatedAt,
     };
   }
@@ -46,6 +49,7 @@ export class WorkspacePreferencesRepo {
         allocationEnforcementOverride: next.allocationEnforcementOverride,
         defaultModelProviderKey: next.defaultModelProviderKey,
         defaultModelModelId: next.defaultModelModelId,
+        defaultModelReasoningLevel: next.defaultModelReasoningLevel,
         updatedAt: next.updatedAt,
       })
       .where(eq(workspacePreferences.id, 1))

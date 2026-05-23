@@ -220,6 +220,18 @@ export const REASONING_LEVELS = [
 
 export type ReasoningLevel = (typeof REASONING_LEVELS)[number];
 
+export const REASONING_LEVEL_OPTIONS: ReadonlyArray<{
+  value: ReasoningLevel;
+  label: string;
+}> = [
+  { value: "off", label: "Off" },
+  { value: "auto", label: "Auto" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "max", label: "Max" },
+];
+
 export const DEFAULT_REASONING_LEVEL: ReasoningLevel = "off";
 
 export interface SessionAiPhase {

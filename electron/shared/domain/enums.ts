@@ -354,7 +354,7 @@ const LEGAL_TRANSITIONS: Partial<Record<SessionStatus, SessionStatus[]>> = {
   active: ["attention_required", "paused", "stopped"],
   attention_required: ["active", "paused", "stopped"],
   paused: ["active", "stopped"],
-  stopped: ["idle", "archived"],
+  stopped: ["idle", "active", "archived"],
 };
 
 export function isSessionEditable(status: SessionStatus): boolean {

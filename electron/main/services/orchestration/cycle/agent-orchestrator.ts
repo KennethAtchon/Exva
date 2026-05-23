@@ -26,6 +26,7 @@ export class AgentOrchestrator {
   }
 
   async start(): Promise<void> {
+    this.ctx.stopped = false;
     if (this.ctx.started) {
       this.deps.logger.debug(
         { sessionId: this.sessionId },
@@ -122,6 +123,9 @@ export class AgentOrchestrator {
       },
       "orchestrator stopping",
     );
+    this.ctx.stopped = true;
+    this.ctx.started = false;
+    this.ctx.queue.pause();
     this.ctx.queue.clear();
     detachTradeClosedListener(this.ctx);
     this.ctx.clearNoInstrumentRetry();
@@ -130,6 +134,7 @@ export class AgentOrchestrator {
     this.ctx.disposeStepRunners();
     this.ctx.cycleContexts.clear();
     this.ctx.releaseApprovalsAndCapital();
+    await this.ctx.queue.onIdle();
     this.deps.logger.info(
       { sessionId: this.sessionId },
       "orchestrator stopped",

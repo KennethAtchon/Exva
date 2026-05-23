@@ -234,7 +234,7 @@ export async function executeRunAgent<T = undefined>(
   const { system, rest } = splitSystem(params.messages);
   const prompt = userPromptFrom(rest);
 
-  logger.debug(
+  logger.info(
     {
       ...agentLogContext(params),
       systemPrompt: system ?? null,

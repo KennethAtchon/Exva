@@ -335,6 +335,9 @@ export const workspacePreferences = sqliteTable("workspace_preferences", {
     .notNull()
     .default(""),
   defaultModelModelId: text("default_model_model_id").notNull().default(""),
+  defaultModelReasoningLevel: text("default_model_reasoning_level")
+    .notNull()
+    .default("off"),
   updatedAt: text("updated_at").notNull(),
 });
 
