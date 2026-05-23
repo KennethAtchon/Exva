@@ -2,7 +2,6 @@ import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import { AppError } from "@electron/shared/infra/errors";
 import type { ProviderRegistry } from "./provider-registry";
 import type { SearchRegistry } from "../search";
-import type { PromptAssetLoader } from "../pipeline/prompt-asset-loader";
 import type { SessionAiPhasesRepo } from "../../db/repositories/sessions/session-ai-phases-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
@@ -36,7 +35,6 @@ export class AiRuntime {
   constructor(
     registry: ProviderRegistry,
     searchRegistry: SearchRegistry,
-    promptLoader: PromptAssetLoader,
     aiPhasesRepo: SessionAiPhasesRepo,
     sessionRepo: SessionRepo,
     workspacePrefsRepo: WorkspacePreferencesRepo,
@@ -59,7 +57,6 @@ export class AiRuntime {
     this.pipelineRuntime = new PipelineRuntime({
       providerRegistry: registry,
       phaseConfigResolver: new PhaseConfigResolver(aiPhasesRepo),
-      promptLoader,
       strategyContextService: strategyContextService ?? null,
       sessionRepo,
       workspacePrefsRepo,

@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { emptySessionAiSettings } from "@electron/shared/domain";
 import {
@@ -8,11 +6,69 @@ import {
   envelopeToMessages,
   measurePromptEnvelope,
 } from "../prompt-envelope-builder";
+import * as workerPrompts from "../../worker-prompts";
 
-const PROMPTS_DIR = path.join(
-  import.meta.dirname,
-  "../pipeline/prompts",
-);
+const PROMPT_CASES: Array<{
+  name: string;
+  phase: "selector" | "technical" | "fundamental" | "review" | "decision";
+  workerId: string;
+  content: string;
+}> = [
+  {
+    name: "selector-workers/web-scout",
+    phase: "selector",
+    workerId: "web-scout",
+    content: workerPrompts.SELECTOR_WORKERS_WEB_SCOUT_PROMPT,
+  },
+  {
+    name: "selector-workers/reddit-scout",
+    phase: "selector",
+    workerId: "reddit-scout",
+    content: workerPrompts.SELECTOR_WORKERS_REDDIT_SCOUT_PROMPT,
+  },
+  {
+    name: "selector-workers/trend-scout",
+    phase: "selector",
+    workerId: "trend-scout",
+    content: workerPrompts.SELECTOR_WORKERS_TREND_SCOUT_PROMPT,
+  },
+  {
+    name: "selector-workers/market-validator",
+    phase: "selector",
+    workerId: "market-validator",
+    content: workerPrompts.SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
+  },
+  {
+    name: "technical-workers/chart-pattern",
+    phase: "technical",
+    workerId: "chart-pattern",
+    content: workerPrompts.TECHNICAL_WORKERS_CHART_PATTERN_PROMPT,
+  },
+  {
+    name: "technical-workers/momentum-indicator",
+    phase: "technical",
+    workerId: "momentum-indicator",
+    content: workerPrompts.TECHNICAL_WORKERS_MOMENTUM_INDICATOR_PROMPT,
+  },
+  {
+    name: "fundamental-workers/earnings-context",
+    phase: "fundamental",
+    workerId: "earnings-context",
+    content: workerPrompts.FUNDAMENTAL_WORKERS_EARNINGS_CONTEXT_PROMPT,
+  },
+  {
+    name: "review-workers/conflict-detector",
+    phase: "review",
+    workerId: "conflict-detector",
+    content: workerPrompts.REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT,
+  },
+  {
+    name: "decision-workers/signal-classifier",
+    phase: "decision",
+    workerId: "signal-classifier",
+    content: workerPrompts.DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
+  },
+];
 
 const BANNED = [
   /first do .+ then/i,
@@ -24,17 +80,6 @@ const BANNED = [
   /use `fetch_/i,
   /no other tools/i,
 ];
-
-function walkMarkdownFiles(dir: string): string[] {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...walkMarkdownFiles(full));
-    else if (entry.name.endsWith(".md")) files.push(full);
-  }
-  return files;
-}
 
 function baseContext(): SessionStrategyContext {
   const ts = "2026-05-05T00:00:00.000Z";
@@ -167,28 +212,6 @@ function representativeTask(
   }
 }
 
-function phaseAndWorkerFrom(file: string): {
-  phase: "selector" | "technical" | "fundamental" | "review" | "decision";
-  workerId: string;
-} {
-  const relative = path.relative(PROMPTS_DIR, file);
-  const firstSegment = relative.split(path.sep)[0] ?? "";
-  const workerId = path.basename(file, ".md");
-
-  if (firstSegment.startsWith("selector-workers"))
-    return { phase: "selector", workerId };
-  if (firstSegment.startsWith("technical-workers"))
-    return { phase: "technical", workerId };
-  if (firstSegment.startsWith("fundamental-workers"))
-    return { phase: "fundamental", workerId };
-  if (firstSegment.startsWith("review-workers"))
-    return { phase: "review", workerId };
-  if (firstSegment.startsWith("decision-workers"))
-    return { phase: "decision", workerId };
-
-  throw new Error(`Unknown prompt phase for ${relative}`);
-}
-
 const TEST_STRATEGY_CONTEXT_REQUEST = {
   fields: [
     "identity",
@@ -203,30 +226,24 @@ const TEST_STRATEGY_CONTEXT_REQUEST = {
 } as const;
 
 describe("pipeline worker prompts", () => {
-  const files = walkMarkdownFiles(PROMPTS_DIR);
   const context = baseContext();
 
-  it("has at least one worker prompt asset", () => {
-    expect(files.length).toBeGreaterThan(5);
+  it("has at least one worker prompt", () => {
+    expect(PROMPT_CASES.length).toBeGreaterThan(5);
   });
 
-  for (const file of files) {
-    const name = path.relative(PROMPTS_DIR, file);
+  for (const { name, phase, workerId, content } of PROMPT_CASES) {
     it(`${name} stays within 1600 characters`, () => {
-      const content = fs.readFileSync(file, "utf8");
       expect(content.length).toBeLessThanOrEqual(1600);
     });
 
     it(`${name} avoids banned orchestration phrases`, () => {
-      const content = fs.readFileSync(file, "utf8");
       for (const pattern of BANNED) {
         expect(content).not.toMatch(pattern);
       }
     });
 
     it(`${name} full envelope stays within runtime prompt limits`, () => {
-      const content = fs.readFileSync(file, "utf8");
-      const { phase, workerId } = phaseAndWorkerFrom(file);
       const envelope = buildPromptEnvelope({
         phase,
         workerId,

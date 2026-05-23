@@ -1,3 +1,7 @@
+import {
+  REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT,
+  REVIEW_WORKERS_RISK_ASSESSOR_PROMPT,
+} from "../worker-prompts";
 import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
 import {
@@ -31,7 +35,7 @@ export type ReviewPhaseInput = {
 
 const CONFLICT_DETECTOR_WORKER = {
   id: "conflict-detector",
-  promptAssetPath: "review-workers/conflict-detector",
+  prompt: REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT,
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
   strategyContext: REVIEW_STRATEGY_CONTEXT,
@@ -41,7 +45,7 @@ const CONFLICT_DETECTOR_WORKER = {
 
 const RISK_ASSESSOR_WORKER = {
   id: "risk-assessor",
-  promptAssetPath: "review-workers/risk-assessor",
+  prompt: REVIEW_WORKERS_RISK_ASSESSOR_PROMPT,
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
   strategyContext: REVIEW_STRATEGY_CONTEXT,

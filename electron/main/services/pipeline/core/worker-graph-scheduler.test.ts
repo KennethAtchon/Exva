@@ -12,14 +12,14 @@ describe("worker graph scheduler", () => {
       [
         {
           id: "a",
-          promptAssetPath: "a",
+          prompt: "a",
           tools: [],
           strategyContext,
           outputMode: "text",
         },
         {
           id: "b",
-          promptAssetPath: "b",
+          prompt: "b",
           tools: [],
           strategyContext,
           outputMode: "text",
@@ -37,21 +37,21 @@ describe("worker graph scheduler", () => {
       [
         {
           id: "a",
-          promptAssetPath: "a",
+          prompt: "a",
           tools: [],
           strategyContext,
           outputMode: "text",
         },
         {
           id: "b",
-          promptAssetPath: "b",
+          prompt: "b",
           tools: [],
           strategyContext,
           outputMode: "text",
         },
         {
           id: "c",
-          promptAssetPath: "c",
+          prompt: "c",
           tools: [],
           strategyContext,
           outputMode: "text",

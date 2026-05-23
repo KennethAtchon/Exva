@@ -1,3 +1,22 @@
+import {
+  FUNDAMENTAL_WORKERS_CATALYST_CONTEXT_PROMPT,
+  FUNDAMENTAL_WORKERS_EARNINGS_CONTEXT_PROMPT,
+  FUNDAMENTAL_WORKERS_EVENT_CATALYST_PROMPT,
+  FUNDAMENTAL_WORKERS_EVENT_RESOLUTION_PROMPT,
+  FUNDAMENTAL_WORKERS_EVENT_SENTIMENT_PROMPT,
+  FUNDAMENTAL_WORKERS_SENTIMENT_CONTEXT_PROMPT,
+  SELECTOR_WORKERS_EVENT_PREDICTION_SCOUT_PROMPT,
+  SELECTOR_WORKERS_EVENT_WEB_SCOUT_PROMPT,
+  SELECTOR_WORKERS_REDDIT_SCOUT_PROMPT,
+  SELECTOR_WORKERS_TREND_SCOUT_PROMPT,
+  SELECTOR_WORKERS_WEB_SCOUT_PROMPT,
+  TECHNICAL_WORKERS_CHART_PATTERN_PROMPT,
+  TECHNICAL_WORKERS_EVENT_IMPLIED_PROBABILITY_PROMPT,
+  TECHNICAL_WORKERS_EVENT_LIQUIDITY_PROMPT,
+  TECHNICAL_WORKERS_EVENT_PRICE_DRIFT_PROMPT,
+  TECHNICAL_WORKERS_MOMENTUM_INDICATOR_PROMPT,
+  TECHNICAL_WORKERS_VOLUME_PROFILE_PROMPT,
+} from "./worker-prompts";
 import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
@@ -52,7 +71,7 @@ const FUNDAMENTAL_STRATEGY_CONTEXT = {
 const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   {
     id: "web-scout",
-    promptAssetPath: "selector-workers/web-scout",
+    prompt: SELECTOR_WORKERS_WEB_SCOUT_PROMPT,
     tools: ["search_web", "fetch_url"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     toolRequirements: { requiredAll: ["search_web"], minToolCalls: 1 },
@@ -63,7 +82,7 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   },
   {
     id: "reddit-scout",
-    promptAssetPath: "selector-workers/reddit-scout",
+    prompt: SELECTOR_WORKERS_REDDIT_SCOUT_PROMPT,
     tools: ["search_reddit"],
     toolRequirements: { requiredAll: ["search_reddit"], minToolCalls: 1 },
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
@@ -73,7 +92,7 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   },
   {
     id: "trend-scout",
-    promptAssetPath: "selector-workers/trend-scout",
+    prompt: SELECTOR_WORKERS_TREND_SCOUT_PROMPT,
     tools: ["get_trending_symbols", "search_web"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     toolRequirements: {
@@ -90,7 +109,7 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
 const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   {
     id: "event-web-scout",
-    promptAssetPath: "selector-workers/event-web-scout",
+    prompt: SELECTOR_WORKERS_EVENT_WEB_SCOUT_PROMPT,
     tools: ["search_web", "fetch_url"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
@@ -100,7 +119,7 @@ const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   },
   {
     id: "event-prediction-scout",
-    promptAssetPath: "selector-workers/event-prediction-scout",
+    prompt: SELECTOR_WORKERS_EVENT_PREDICTION_SCOUT_PROMPT,
     tools: ["search_web", "get_trending_symbols"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
@@ -113,7 +132,7 @@ const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
 const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
   {
     id: "chart-pattern",
-    promptAssetPath: "technical-workers/chart-pattern",
+    prompt: TECHNICAL_WORKERS_CHART_PATTERN_PROMPT,
     tools: ["get_ohlcv"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
@@ -122,7 +141,7 @@ const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
   },
   {
     id: "momentum-indicator",
-    promptAssetPath: "technical-workers/momentum-indicator",
+    prompt: TECHNICAL_WORKERS_MOMENTUM_INDICATOR_PROMPT,
     tools: ["get_ohlcv", "get_quote"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
@@ -131,7 +150,7 @@ const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
   },
   {
     id: "volume-profile",
-    promptAssetPath: "technical-workers/volume-profile",
+    prompt: TECHNICAL_WORKERS_VOLUME_PROFILE_PROMPT,
     tools: ["get_ohlcv"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
@@ -143,7 +162,7 @@ const STANDARD_TECHNICAL: readonly WorkerDefinition[] = [
 const EVENT_TECHNICAL: readonly WorkerDefinition[] = [
   {
     id: "implied-probability",
-    promptAssetPath: "technical-workers/event-implied-probability",
+    prompt: TECHNICAL_WORKERS_EVENT_IMPLIED_PROBABILITY_PROMPT,
     tools: ["get_quote", "get_ohlcv"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",
@@ -151,7 +170,7 @@ const EVENT_TECHNICAL: readonly WorkerDefinition[] = [
   },
   {
     id: "price-drift",
-    promptAssetPath: "technical-workers/event-price-drift",
+    prompt: TECHNICAL_WORKERS_EVENT_PRICE_DRIFT_PROMPT,
     tools: ["get_ohlcv", "get_quote"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",
@@ -159,7 +178,7 @@ const EVENT_TECHNICAL: readonly WorkerDefinition[] = [
   },
   {
     id: "event-liquidity",
-    promptAssetPath: "technical-workers/event-liquidity",
+    prompt: TECHNICAL_WORKERS_EVENT_LIQUIDITY_PROMPT,
     tools: ["get_ohlcv", "get_quote"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",
@@ -170,7 +189,7 @@ const EVENT_TECHNICAL: readonly WorkerDefinition[] = [
 const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
   {
     id: "earnings-context",
-    promptAssetPath: "fundamental-workers/earnings-context",
+    prompt: FUNDAMENTAL_WORKERS_EARNINGS_CONTEXT_PROMPT,
     tools: ["get_news"],
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
@@ -179,7 +198,7 @@ const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
   },
   {
     id: "catalyst-context",
-    promptAssetPath: "fundamental-workers/catalyst-context",
+    prompt: FUNDAMENTAL_WORKERS_CATALYST_CONTEXT_PROMPT,
     tools: ["get_news", "search_web"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
@@ -189,7 +208,7 @@ const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
   },
   {
     id: "sentiment-context",
-    promptAssetPath: "fundamental-workers/sentiment-context",
+    prompt: FUNDAMENTAL_WORKERS_SENTIMENT_CONTEXT_PROMPT,
     tools: ["search_reddit", "search_web"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
@@ -202,7 +221,7 @@ const STANDARD_FUNDAMENTAL: readonly WorkerDefinition[] = [
 const EVENT_FUNDAMENTAL: readonly WorkerDefinition[] = [
   {
     id: "resolution-context",
-    promptAssetPath: "fundamental-workers/event-resolution",
+    prompt: FUNDAMENTAL_WORKERS_EVENT_RESOLUTION_PROMPT,
     tools: ["get_news", "search_web"],
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",
@@ -210,7 +229,7 @@ const EVENT_FUNDAMENTAL: readonly WorkerDefinition[] = [
   },
   {
     id: "event-catalyst",
-    promptAssetPath: "fundamental-workers/event-catalyst",
+    prompt: FUNDAMENTAL_WORKERS_EVENT_CATALYST_PROMPT,
     tools: ["get_news", "search_web", "fetch_url"],
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",
@@ -218,7 +237,7 @@ const EVENT_FUNDAMENTAL: readonly WorkerDefinition[] = [
   },
   {
     id: "event-sentiment",
-    promptAssetPath: "fundamental-workers/event-sentiment",
+    prompt: FUNDAMENTAL_WORKERS_EVENT_SENTIMENT_PROMPT,
     tools: ["search_web", "search_reddit"],
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",

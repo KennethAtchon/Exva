@@ -15,7 +15,7 @@ export interface EffectivePipelineConfigSourceEntry {
 export interface EffectiveWorkerConfig {
   phase: PipelinePhase;
   workerId: string;
-  promptAssetPath: string;
+  prompt: string;
   promptSource: "default" | "session_override";
   providerKey: string;
   modelId: string;

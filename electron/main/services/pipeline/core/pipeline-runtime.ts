@@ -12,7 +12,6 @@ import { runConcurrentGroup } from "./concurrent-group-runner";
 import type { PipelineWorkerRunner } from "./types";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
 import type { ProviderRegistry } from "../../llm/provider-registry";
-import type { PromptAssetLoader } from "../prompt-asset-loader";
 import type { ToolBuildContext } from "../worker-tools/tool-factory-registry";
 import type { SessionStrategyContextService } from "../../session/session-strategy-context-service";
 import type { SessionRepo } from "../../../db/repositories/sessions/session-repo";
@@ -58,7 +57,6 @@ const logger = createLogger("pipeline-runtime");
 export interface PipelineRuntimeDeps {
   providerRegistry: ProviderRegistry;
   phaseConfigResolver: PhaseConfigResolver;
-  promptLoader: PromptAssetLoader;
   strategyContextService: SessionStrategyContextService | null;
   sessionRepo: SessionRepo;
   workspacePrefsRepo: WorkspacePreferencesRepo;
@@ -237,9 +235,7 @@ export class PipelineRuntime {
     pipelineId = DEFAULT_PIPELINE_ID,
   ): EffectivePipelineConfig {
     const config = this.resolveEffectiveConfig(sessionId, pipelineId);
-    assertValidEffectivePipelineConfig(config, {
-      promptLoader: this.deps.promptLoader,
-    });
+    assertValidEffectivePipelineConfig(config);
     return config;
   }
 
@@ -341,7 +337,6 @@ export class PipelineRuntime {
     const executorDeps: WorkerExecutorDeps = {
       providerRegistry: this.deps.providerRegistry,
       phaseConfigResolver: this.deps.phaseConfigResolver,
-      promptLoader: this.deps.promptLoader,
       toolContext,
       strategyContext,
       sandboxBudget,

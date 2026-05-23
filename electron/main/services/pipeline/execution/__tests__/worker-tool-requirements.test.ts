@@ -6,6 +6,10 @@ import {
   enforceWorkerToolRequirements,
   extractToolNamesUsed,
 } from "../worker-tool-requirements";
+import {
+  SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
+  SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
+} from "../../worker-prompts";
 
 function traceWithTools(tools: string[]): RunTrace {
   return {
@@ -44,7 +48,7 @@ const testStrategyContext = {
 
 const marketValidator: WorkerDefinition = {
   id: "market-validator:NVDA",
-  promptAssetPath: "selector-workers/market-validator",
+  prompt: SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
   tools: ["get_quote", "get_ohlcv"],
   toolRequirements: {
     requiredAll: ["get_quote", "get_ohlcv"],
@@ -106,7 +110,7 @@ describe("worker-tool-requirements", () => {
   it("accepts catalyst-extractor when any evidence tool was called", () => {
     const worker: WorkerDefinition = {
       id: "catalyst-extractor:PLTR",
-      promptAssetPath: "selector-workers/catalyst-extractor",
+      prompt: SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
       tools: ["get_news", "search_web", "fetch_url"],
       toolRequirements: {
         requiredAny: ["get_news", "search_web", "fetch_url"],

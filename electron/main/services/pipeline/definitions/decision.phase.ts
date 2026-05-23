@@ -1,3 +1,7 @@
+import {
+  DECISION_WORKERS_ENTRY_TIMER_PROMPT,
+  DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
+} from "../worker-prompts";
 import type { PipelineDefinition } from "@electron/shared/ai/pipeline-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/pipeline-config";
 import {
@@ -33,7 +37,7 @@ export type DecisionPhaseInput = {
 
 const SIGNAL_CLASSIFIER_WORKER = {
   id: "signal-classifier",
-  promptAssetPath: "decision-workers/signal-classifier",
+  prompt: DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
   strategyContext: DECISION_STRATEGY_CONTEXT,
@@ -43,7 +47,7 @@ const SIGNAL_CLASSIFIER_WORKER = {
 
 const ENTRY_TIMER_WORKER = {
   id: "entry-timer",
-  promptAssetPath: "decision-workers/entry-timer",
+  prompt: DECISION_WORKERS_ENTRY_TIMER_PROMPT,
   tools: [] as const,
   engines: [ENGINE_BINDINGS.riskSummaryRead],
   strategyContext: DECISION_STRATEGY_CONTEXT,

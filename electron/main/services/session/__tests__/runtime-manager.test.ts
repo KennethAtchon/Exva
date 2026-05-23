@@ -25,7 +25,6 @@ import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/se
 import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session-ai-settings-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import { InstrumentCacheRepo } from "../../../db/repositories/market/instrument-cache-repo";
-import { PromptAssetLoader } from "../../pipeline/prompt-asset-loader";
 import { EventBus } from "../../infra/event-bus";
 import { createLogger } from "../../infra/log";
 import { SessionStrategyContextService } from "../session-strategy-context-service";

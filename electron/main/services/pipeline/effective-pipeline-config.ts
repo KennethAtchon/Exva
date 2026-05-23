@@ -11,7 +11,6 @@ import type {
 } from "@electron/shared/ai/effective-pipeline-config";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/infra/errors";
-import type { PromptAssetLoader } from "./prompt-asset-loader";
 import { requireEngine } from "../signal/registry/engine-registry";
 import { SUPPORTED_TOOL_IDS } from "./worker-tools/tool-factory-registry";
 import { listPipelineDefinitions } from "./core/pipeline-registry";
@@ -35,13 +34,9 @@ export interface ResolveEffectivePipelineConfigOptions {
   strategyContext?: SessionStrategyContext | null;
 }
 
-export interface ValidateEffectivePipelineConfigOptions {
-  promptLoader?: Pick<PromptAssetLoader, "load">;
-}
+export interface ValidateEffectivePipelineConfigOptions {}
 
-export interface ValidatePipelineDefinitionCatalogOptions {
-  promptLoader?: Pick<PromptAssetLoader, "load">;
-}
+export interface ValidatePipelineDefinitionCatalogOptions {}
 
 export function resolveEffectivePipelineConfig(
   opts: ResolveEffectivePipelineConfigOptions,
@@ -110,14 +105,10 @@ export function assertValidEffectivePipelineConfig(
         );
       }
 
-      if (opts.promptLoader && worker.promptSource === "default") {
-        try {
-          opts.promptLoader.load(worker.promptAssetPath);
-        } catch (error) {
-          errors.push(
-            `Worker '${worker.workerId}' in phase '${stage.id}' references missing prompt '${worker.promptAssetPath}': ${error instanceof Error ? error.message : String(error)}`,
-          );
-        }
+      if (worker.promptSource === "default" && !worker.prompt.trim()) {
+        errors.push(
+          `Worker '${worker.workerId}' in phase '${stage.id}' has an empty default prompt.`,
+        );
       }
     }
   }
@@ -177,14 +168,10 @@ export function assertValidPipelineDefinitionCatalog(
             binding,
           );
         }
-        if (opts.promptLoader) {
-          try {
-            opts.promptLoader.load(worker.promptAssetPath);
-          } catch (error) {
-            errors.push(
-              `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}' references missing prompt '${worker.promptAssetPath}': ${error instanceof Error ? error.message : String(error)}`,
-            );
-          }
+        if (!worker.prompt.trim()) {
+          errors.push(
+            `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}' has an empty prompt.`,
+          );
         }
       }
     }
@@ -277,7 +264,7 @@ function resolveEffectiveWorker(input: {
   return {
     phase: input.phase,
     workerId: input.worker.id,
-    promptAssetPath: input.worker.promptAssetPath,
+    prompt: input.worker.prompt,
     promptSource: workerExecConfig.promptSource,
     providerKey: workerExecConfig.providerKey,
     modelId: workerExecConfig.modelId,
@@ -383,9 +370,9 @@ function buildSourceMap(
           value: worker.modelId,
         },
         {
-          path: `stages.${stage.id}.workers.${worker.workerId}.promptAssetPath`,
+          path: `stages.${stage.id}.workers.${worker.workerId}.prompt`,
           source: "default" as const,
-          value: worker.promptAssetPath,
+          value: worker.prompt,
         },
         {
           path: `stages.${stage.id}.workers.${worker.workerId}.tools`,

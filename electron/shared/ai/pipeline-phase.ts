@@ -87,7 +87,7 @@ export interface WorkerOutputToolConfig {
 
 export interface WorkerDefinition<TPhaseOutput = unknown> {
   id: string;
-  promptAssetPath: string;
+  prompt: string;
   tools: readonly ToolId[];
   toolRequirements?: WorkerToolRequirement;
   strategyContext: WorkerStrategyContextRequest;

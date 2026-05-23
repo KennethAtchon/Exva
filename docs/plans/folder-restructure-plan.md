@@ -602,7 +602,7 @@ Done in three commits. The codebase will be broken between commits. That is expe
 | Commit | Scope | Status |
 |--------|-------|--------|
 | **A** | Folder moves (Changes 1–7, 9) + import path fixes | **Done** — `bun typecheck` passes |
-| **A** | Change 8 — inline prompts, delete `prompts/` | **Not started** |
+| **A** | Change 8 — inline prompts, delete `prompts/` | **Done** |
 | **A** | README files per folder | **Not started** |
 | **B** | Full symbol rename pass | **Not started** |
 | **C** | Tests, architecture docs, `folder-structure.md` | **Not started** |

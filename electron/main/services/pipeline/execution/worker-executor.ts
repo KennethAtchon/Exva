@@ -18,7 +18,6 @@ import {
   type ToolBuildContext,
 } from "../worker-tools/tool-factory-registry";
 import type { PhaseConfigResolver } from "../phase-config-resolver";
-import type { PromptAssetLoader } from "../prompt-asset-loader";
 import {
   envelopeToMessages,
   buildPromptEnvelope,
@@ -80,7 +79,6 @@ function resolveTemperature(
 export interface WorkerExecutorDeps {
   providerRegistry: ProviderRegistry;
   phaseConfigResolver: PhaseConfigResolver;
-  promptLoader: PromptAssetLoader;
   toolContext: ToolBuildContext;
   strategyContext: SessionStrategyContext;
   sandboxBudget?: boolean;
@@ -150,7 +148,7 @@ export async function executeWorker<TOutput>(
   ) {
     promptMarkdown = workerExecConfig.promptMarkdown.trim();
   } else {
-    promptMarkdown = deps.promptLoader.load(worker.promptAssetPath);
+    promptMarkdown = worker.prompt.trim();
   }
 
   const workerName = workerNameFromPrompt(promptMarkdown);
@@ -207,7 +205,7 @@ export async function executeWorker<TOutput>(
       providerType: adapter.providerType,
       model: workerExecConfig.modelId,
       promptSource: workerExecConfig.promptSource,
-      promptAssetPath: worker.promptAssetPath,
+      promptLength: promptMarkdown.length,
       configuredToolIds,
       registeredToolNames,
       terminalToolName: terminalToolName ?? null,

@@ -20,7 +20,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Prompt budget and denylist tests
-        run: bun run vitest run electron/main/services/ai/__tests__/pipeline-worker-prompts.test.ts
+        run: bun run vitest run electron/main/services/pipeline/prompting/__tests__/pipeline-worker-prompts.test.ts
 
       - name: Cycle replay acceptance suite
-        run: bun run vitest run electron/main/services/orchestration/replay/__tests__/cycle-replay-service.test.ts
+        run: bun run vitest run electron/main/services/replay/__tests__/cycle-replay-service.test.ts

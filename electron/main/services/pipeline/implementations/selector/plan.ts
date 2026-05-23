@@ -1,3 +1,8 @@
+import {
+  SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
+  SELECTOR_WORKERS_LIQUIDITY_GATE_PROMPT,
+  SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
+} from "../../worker-prompts";
 import { z } from "zod";
 import type { WorkerDefinition } from "@electron/shared/ai/pipeline-phase";
 import type { InstrumentSelection } from "@/lib/schemas";
@@ -65,7 +70,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
   return [
     {
       id: `market-validator:${candidate.symbol}`,
-      promptAssetPath: "selector-workers/market-validator",
+      prompt: SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
       tools: ["get_quote", "get_ohlcv"],
       toolRequirements: {
         requiredAll: ["get_quote", "get_ohlcv"],
@@ -77,7 +82,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
     },
     {
       id: `catalyst-extractor:${candidate.symbol}`,
-      promptAssetPath: "selector-workers/catalyst-extractor",
+      prompt: SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
       tools: ["get_news", "search_web", "fetch_url"],
       toolConfig: {
         search_web: { fallbackProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID },
@@ -92,7 +97,7 @@ function verificationWorkers(candidate: WorkingCandidate): WorkerDefinition[] {
     },
     {
       id: `liquidity-gate:${candidate.symbol}`,
-      promptAssetPath: "selector-workers/liquidity-gate",
+      prompt: SELECTOR_WORKERS_LIQUIDITY_GATE_PROMPT,
       tools: ["get_quote", "get_ohlcv"],
       toolRequirements: { requiredAll: ["get_quote"], minToolCalls: 1 },
       strategyContext: LIQUIDITY_GATE_STRATEGY_CONTEXT,

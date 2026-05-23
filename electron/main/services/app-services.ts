@@ -45,7 +45,6 @@ import { EventBus } from "./infra/event-bus";
 import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
-import { PromptAssetLoader } from "./pipeline/prompt-asset-loader";
 import { registerDefaultEngines } from "./signal/registry/register-default-engines";
 import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-pipeline-config";
 import { registerDefaultPhasePlans } from "./pipeline/implementations/registry/phase-plans";
@@ -124,7 +123,6 @@ export interface AppServices {
   capitalReservation: CapitalReservationService;
   eventBus: EventBus;
   notifications: NotificationService;
-  promptAssetLoader: PromptAssetLoader;
   runtimeManager: SessionRuntimeManager;
   risk: RiskEngine;
   secrets: SecretsService;
@@ -219,7 +217,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
   );
   const searchRegistry = new SearchRegistry(repos.providerAccounts, secrets);
   const notifications = new NotificationService(eventBus);
-  const promptAssetLoader = new PromptAssetLoader();
   const candidateValidation = new CandidateValidationService();
   const orderPolicyGate = new OrderPolicyGate();
   const exitPolicyEvaluator = new ExitPolicyEvaluator();
@@ -252,7 +249,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const ai = new AiRuntime(
     providerRegistry,
     searchRegistry,
-    promptAssetLoader,
     repos.sessionAiPhases,
     repos.session,
     repos.workspacePreferences,
@@ -273,7 +269,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   });
   registerDefaultPhasePlans();
   registerDefaultCyclePlans();
-  assertValidPipelineDefinitionCatalog({ promptLoader: promptAssetLoader });
+  assertValidPipelineDefinitionCatalog();
   balanceTicker.start();
 
   // reason: forward reference — createTradeMonitor closure reads runtimeManager before it's assigned below
@@ -426,7 +422,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     capitalReservation,
     eventBus,
     notifications,
-    promptAssetLoader,
     runtimeManager,
     risk,
     secrets,
