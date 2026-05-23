@@ -1,6 +1,6 @@
 # Exva AI Runtime — Architecture Design Document
 
-> **Last updated:** 2026-05-21
+> **Last updated:** 2026-05-22
 > **Scope:** Main-process runtime from session start through trade close: session lifecycle, AI plan execution, selector/trade cycles, broker order placement, risk/order gates, approval handling, monitoring, persistence, events, and observability. Excludes renderer page design, broker adapter internals, and credential onboarding UX.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
 
@@ -129,7 +129,7 @@ graph LR
 **Main components:**
 
 - `**createAppServices`** (`electron/main/services/app-services.ts`) is the composition root. It creates repositories, registries, `AiRuntime`, default engines/plans, `EventBus`, `SessionRuntimeManager`, session services, replay/autopsy/scorecard services, and starts the broker balance ticker.
-- **IPC handlers** (`electron/main/ipc/*.ts`) are grouped by resource: dashboard, trades, approvals, sessions, strategy, workspace, templates, accounts, events, replay, and developer tools.
+- **IPC handlers** (`electron/main/ipc/*.ts`) are grouped by resource: dashboard, trades, approvals, sessions, strategy, workspace, templates, legacy config, accounts, broker accounts, events, replay, and developer tools.
 - `**SessionRuntimeManager`** builds per-session orchestrator dependencies and runtime instances. Boot rehydration starts previously `active` and `paused` sessions in paused runtime mode, so monitors are live but new intake stays off until resume.
 - `**AgentOrchestrator**` owns the queue for selector/trade work. Its queue concurrency is set from `max_concurrent_trades`, but session runtime state gates actual work through `EventBus.runtimeStatus(sessionId)`.
 - `**AiRuntime` / `PipelineRuntime**` own the current AI plan execution model. Static phase definitions still exist as metadata, but real execution is through registered phase/cycle plans and interpreters.
@@ -152,6 +152,7 @@ erDiagram
     sessions ||--|| session_timeframe_config : configures
     sessions ||--|| session_research_posture : configures
     sessions ||--|| session_trade_rules : configures
+    sessions ||--|| session_ai_settings : configures
     sessions ||--o{ session_ai_phases : configures
     sessions ||--o{ session_ai_phase_workers : overrides
     sessions ||--o{ session_broker_assignments : allocates
@@ -172,6 +173,7 @@ erDiagram
 - `**session_execution_steps**` — one unique row per `(session_id, cycle_id, stage)`. Tracks `status`, `attempt`, `next_retry_at`, `last_error_code`, `last_error_message`, and `retryable`.
 - `**session_selector_settings**` — `ai_picker_enabled` and `no_instrument_retry_minutes`.
 - `**session_research_posture` / `session_trade_rules` / `session_risk_config` / `session_timeframe_config**` — split strategy context consumed by prompt-pack builders, engines, risk gates, monitor, and UI.
+- `**session_ai_settings**` — session-scoped worker guidance markdown injected into prompt assembly outside the per-phase provider/model config tables.
 - `**session_ai_phases` / `session_ai_phase_workers**` — per-phase provider/model/prompt config and per-worker overrides such as provider/model, max steps, spend limit, and prompt markdown.
 - `**provider_accounts**` — both AI and search providers. `category` differentiates `ai` and `search`; secrets are referenced by `secret_ref`, not stored inline.
 - `**broker_accounts**` — broker type, supported instrument classes, mode, allocation enforcement, balance cache, `secret_ref`.
@@ -300,6 +302,7 @@ sequenceDiagram
 - AI mode uses discovery workers selected by `selectorDiscoveryWorkersForMode(discoveryMode)`. Supported research discovery modes include `trend_scan`, `catalyst_scan`, `quality_watchlist`, `mean_reversion_scan`, `event_contract_scan`, and `custom`.
 - Verification workers are generated per candidate: `market-validator:<symbol>`, `catalyst-extractor:<symbol>`, and `liquidity-gate:<symbol>`.
 - The selector filters final instruments to effective session instrument classes and `maxConcurrentTrades`.
+- In `Search everything` mode, those effective instrument classes are derived from assigned broker coverage rather than only the manually selected class list.
 - If no instruments are selected, `noInstrumentRetryMinutes` from `session_selector_settings` controls the retry timer, defaulting to the runtime default.
 
 ### 6.4 Trade Cycle
@@ -592,6 +595,7 @@ graph LR
 | `trade_opened` / `trade_closed` / `trade_status_changed`                                               | Full `Trade` object.                                                   |
 | `agent_event`                                                                                          | Persisted `EventRow` including optional `cycleId`.                     |
 | `approval_required` / `approval_resolved`                                                              | Approval request/decision payloads.                                    |
+| `session_started` / `session_stopped` / `selector_run_completed`                                       | Legacy allowlisted runtime events still present in the IPC contract.   |
 | `session_status_changed`                                                                               | `{ sessionId, status }`.                                               |
 | `research_phase_started` / `research_phase_step` / `research_phase_complete` / `research_phase_failed` | Selector/research progress with `cycleId`.                             |
 | `step:started` / `step:succeeded` / `step:failed` / `step:retrying`                                    | Execution-step progress, attempts, retry schedule, error code/message. |
@@ -600,7 +604,7 @@ graph LR
 | `notification`                                                                                         | UI notification payload.                                               |
 
 
-Renderer-to-main is request/response through IPC handlers only. Event subscriptions are push-only and allowlisted by `mainToRendererEvents` in `electron/shared/ipc/channels.ts`.
+Renderer-to-main is request/response through IPC handlers only. Event subscriptions are push-only and allowlisted by `mainToRendererEvents` in `electron/shared/ipc/channels.ts`. Some legacy events remain allowlisted for compatibility even though the primary current runtime flow relies on session-status, research-phase, execution-step, trade, approval, balance, and notification events.
 
 ---
 
@@ -760,5 +764,4 @@ graph TD
 | Trade autopsy          | `electron/main/services/orchestration/post-trade/trade-autopsy-service.ts`            |
 | Paper scorecard        | `electron/main/services/analytics/paper-scorecard-service.ts`                         |
 | Live readiness         | `electron/main/services/risk/live-readiness-service.ts`                               |
-
 

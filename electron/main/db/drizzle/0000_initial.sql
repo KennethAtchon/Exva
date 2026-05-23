@@ -199,6 +199,13 @@ CREATE TABLE `session_ai_phases` (
 );
 --> statement-breakpoint
 CREATE INDEX `idx_session_ai_phases_session` ON `session_ai_phases` (`session_id`);--> statement-breakpoint
+CREATE TABLE `session_ai_settings` (
+	`session_id` text PRIMARY KEY NOT NULL,
+	`worker_guidance_markdown` text DEFAULT '' NOT NULL,
+	`updated_at` text NOT NULL,
+	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `session_broker_assignments` (
 	`session_id` text NOT NULL,
 	`broker_account_id` text NOT NULL,
@@ -463,6 +470,7 @@ CREATE TABLE `workspace_preferences` (
 	`allocation_enforcement_override` text,
 	`default_model_provider_key` text DEFAULT '' NOT NULL,
 	`default_model_model_id` text DEFAULT '' NOT NULL,
+	`default_model_reasoning_level` text DEFAULT 'off' NOT NULL,
 	`updated_at` text NOT NULL,
 	FOREIGN KEY (`default_search_provider_id`) REFERENCES `provider_accounts`(`id`) ON UPDATE no action ON DELETE set null
 );

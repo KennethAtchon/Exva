@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "82601d0f-26fb-4281-91bb-e2f8ab657f72",
+  "id": "7ca362dc-f677-4f02-8dc0-a08351ec3bc8",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_messages": {
@@ -1378,6 +1378,52 @@
           "name": "session_ai_phases_session_id_phase_pk"
         }
       },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "session_ai_settings": {
+      "name": "session_ai_settings",
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "worker_guidance_markdown": {
+          "name": "worker_guidance_markdown",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_ai_settings_session_id_sessions_id_fk": {
+          "name": "session_ai_settings_session_id_sessions_id_fk",
+          "tableFrom": "session_ai_settings",
+          "tableTo": "sessions",
+          "columnsFrom": [
+            "session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
@@ -3251,6 +3297,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "''"
+        },
+        "default_model_reasoning_level": {
+          "name": "default_model_reasoning_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'off'"
         },
         "updated_at": {
           "name": "updated_at",
