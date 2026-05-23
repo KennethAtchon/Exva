@@ -38,6 +38,7 @@ import {
   RESEARCH_DISCOVERY_MODES,
   RESEARCH_EVIDENCE_MODES,
   RESEARCH_FUNDAMENTAL_STRICTNESS,
+  type SessionAiSettings,
   type SessionResearchPosture,
   type SessionTradeRules,
   type SessionRiskConfig,
@@ -82,6 +83,7 @@ export const StrategyConfig = ({
   const rules = useStrategyStore((state) => state.rules);
   const riskConfig = useStrategyStore((state) => state.riskConfig);
   const timeframe = useStrategyStore((state) => state.timeframe);
+  const aiSettings = useStrategyStore((state) => state.aiSettings);
   const dirtyFields = useStrategyStore((state) => state.dirtyFields);
   const activeSection = useStrategyStore((state) => state.activeSection);
   const isSaving = useStrategyStore((state) => state.isSaving);
@@ -103,6 +105,7 @@ export const StrategyConfig = ({
   const updateRules = useStrategyStore((state) => state.updateRules);
   const updateRiskConfig = useStrategyStore((state) => state.updateRiskConfig);
   const updateTimeframe = useStrategyStore((state) => state.updateTimeframe);
+  const updateAiSettings = useStrategyStore((state) => state.updateAiSettings);
   const updateAiPhase = useStrategyStore((state) => state.updateAiPhase);
   const applyGlobalPreset = useStrategyStore(
     (state) => state.applyGlobalPreset,
@@ -200,7 +203,7 @@ export const StrategyConfig = ({
     );
   }
 
-  if (!researchPosture || !rules || !riskConfig || !timeframe) {
+  if (!researchPosture || !rules || !riskConfig || !timeframe || !aiSettings) {
     return (
       <PageShell>
         <div style={{ color: "var(--text3)" }}>Loading strategy...</div>
@@ -384,8 +387,10 @@ export const StrategyConfig = ({
                   {value === "style" && (
                     <StyleSection
                       researchPosture={researchPosture}
+                      aiSettings={aiSettings}
                       isLocked={isLocked}
                       updateResearchPosture={updateResearchPosture}
+                      updateAiSettings={updateAiSettings}
                       selectedStylePreset={selectedStylePreset}
                       stylePreview={stylePreview}
                     />
@@ -835,18 +840,51 @@ const presetBulletStyle = {
 
 const StyleSection = ({
   researchPosture,
+  aiSettings,
   isLocked,
   updateResearchPosture,
+  updateAiSettings,
   selectedStylePreset,
   stylePreview,
 }: {
   researchPosture: SessionResearchPosture;
+  aiSettings: SessionAiSettings;
   isLocked: boolean;
   updateResearchPosture: (patch: Partial<SessionResearchPosture>) => void;
+  updateAiSettings: (patch: Partial<SessionAiSettings>) => void;
   selectedStylePreset: ResearchPosturePreset;
   stylePreview: string;
 }) => (
   <>
+    <Card>
+      <SectionTitle>AI Instructions</SectionTitle>
+      <p
+        style={{
+          color: "var(--text3)",
+          fontSize: 12,
+          marginTop: 8,
+          marginBottom: 12,
+          lineHeight: 1.55,
+        }}
+      >
+        Optional guidance injected into every AI worker for this session.
+        Structured risk limits and position caps on the Risk tab remain
+        authoritative.
+      </p>
+      <Field label="Worker instructions">
+        <textarea
+          value={aiSettings.workerGuidanceMarkdown}
+          onChange={(event) =>
+            updateAiSettings({ workerGuidanceMarkdown: event.target.value })
+          }
+          disabled={isLocked}
+          rows={6}
+          placeholder="Example: Prefer liquid large caps. Reject stale catalysts. Keep rationales concise."
+          style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
+        />
+      </Field>
+    </Card>
+
     <Card>
       <SectionTitle>Research posture</SectionTitle>
       <div style={formGridStyle}>

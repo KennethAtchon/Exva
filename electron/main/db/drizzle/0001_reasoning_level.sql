@@ -1,1 +1,0 @@
-ALTER TABLE `session_ai_phases` ADD `reasoning_level` text DEFAULT 'off' NOT NULL;

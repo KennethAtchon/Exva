@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import { emptySessionAiSettings } from "@electron/shared/domain";
 import {
   buildStrategyPromptContext,
   buildWorkerStrategyPromptContext,
@@ -65,6 +66,7 @@ function baseContext(): SessionStrategyContext {
       timeframeNotes: "",
       updatedAt: "2026-05-05T00:00:00.000Z",
     },
+    aiSettings: emptySessionAiSettings("s1", "2026-05-05T00:00:00.000Z"),
   };
 }
 

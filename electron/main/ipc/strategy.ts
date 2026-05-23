@@ -6,6 +6,7 @@ import {
   strategyRiskConfigSaveSchema,
   strategyRulesSaveSchema,
   strategyResearchPostureSaveSchema,
+  strategyAiSettingsSaveSchema,
   strategyTimeframeConfigSaveSchema,
 } from "@electron/shared/validation/schemas";
 import { channels } from "@electron/shared/ipc/channels";
@@ -72,6 +73,15 @@ export function registerStrategyHandlers(services: AppServices): void {
     services.strategyContext.saveTimeframeConfig(
       resolveSessionId(services, input),
       input.timeframe,
+    );
+    return { savedAt: new Date().toISOString() };
+  });
+
+  handle(ipcMain, channels.strategy.saveAiSettings, async (payload) => {
+    const input = strategyAiSettingsSaveSchema.parse(payload);
+    services.strategyContext.saveAiSettings(
+      resolveSessionId(services, input),
+      input.aiSettings,
     );
     return { savedAt: new Date().toISOString() };
   });

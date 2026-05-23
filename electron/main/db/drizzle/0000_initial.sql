@@ -190,6 +190,7 @@ CREATE TABLE `session_ai_phases` (
 	`model_id` text DEFAULT '' NOT NULL,
 	`temperature` real DEFAULT 0.7 NOT NULL,
 	`max_tokens` integer DEFAULT 8192 NOT NULL,
+	`reasoning_level` text DEFAULT 'off' NOT NULL,
 	`prompt_source` text DEFAULT 'default' NOT NULL,
 	`prompt_markdown` text DEFAULT '' NOT NULL,
 	`updated_at` text NOT NULL,

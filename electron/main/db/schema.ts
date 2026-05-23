@@ -166,6 +166,14 @@ export const sessionResearchPosture = sqliteTable("session_research_posture", {
   updatedAt: text("updated_at").notNull(),
 });
 
+export const sessionAiSettings = sqliteTable("session_ai_settings", {
+  sessionId: text("session_id")
+    .primaryKey()
+    .references(() => sessions.id, { onDelete: "cascade" }),
+  workerGuidanceMarkdown: text("worker_guidance_markdown").notNull().default(""),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const sessionAiPhases = sqliteTable(
   "session_ai_phases",
   {

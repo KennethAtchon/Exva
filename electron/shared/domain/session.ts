@@ -21,6 +21,7 @@ import type {
 } from "./enums";
 
 const TRADE_RULES_MARKDOWN_MAX_CHARS = 1_200;
+export const WORKER_GUIDANCE_MARKDOWN_MAX_CHARS = 1_200;
 
 export interface SessionStrategy {
   sessionId: string;
@@ -97,11 +98,29 @@ export interface SessionTimeframeConfig {
   updatedAt: string;
 }
 
+export interface SessionAiSettings {
+  sessionId: string;
+  workerGuidanceMarkdown: string;
+  updatedAt: string;
+}
+
+export function emptySessionAiSettings(
+  sessionId: string,
+  updatedAt?: string,
+): SessionAiSettings {
+  return {
+    sessionId,
+    workerGuidanceMarkdown: "",
+    updatedAt: updatedAt ?? new Date().toISOString(),
+  };
+}
+
 export interface SessionStrategyContext {
   researchPosture: SessionResearchPosture;
   rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
+  aiSettings: SessionAiSettings;
 }
 
 export interface StrategySnapshot {
@@ -480,6 +499,14 @@ export function validateSessionStrategyContext(
   ) {
     throw new Error(
       `Trade rules markdown must stay under ${TRADE_RULES_MARKDOWN_MAX_CHARS} characters.`,
+    );
+  }
+  if (
+    context.aiSettings.workerGuidanceMarkdown.length >
+    WORKER_GUIDANCE_MARKDOWN_MAX_CHARS
+  ) {
+    throw new Error(
+      `AI worker instructions must stay under ${WORKER_GUIDANCE_MARKDOWN_MAX_CHARS} characters.`,
     );
   }
 }

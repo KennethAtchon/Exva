@@ -116,6 +116,9 @@ function createHarness(sessionId: string) {
           holdingStyle: "intraday_flat",
           maxHoldDays: 1,
         },
+        aiSettings: {
+          workerGuidanceMarkdown: "",
+        },
       }),
     },
     tradesRepo: {

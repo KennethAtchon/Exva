@@ -13,6 +13,7 @@ import type {
   SessionStrategy,
   SessionTradeRules,
   SessionResearchPosture,
+  SessionAiSettings,
   SessionTimeframeConfig,
   SessionTemplate,
   Trade,
@@ -207,6 +208,18 @@ export function toSessionResearchPosture(row: Row): SessionResearchPosture {
     fundamentalStrictness:
       row.fundamental_strictness as SessionResearchPosture["fundamentalStrictness"],
     postureNotes: row.posture_notes != null ? String(row.posture_notes) : "",
+    updatedAt: String(row.updated_at),
+  };
+}
+
+export function toSessionAiSettings(row: Row): SessionAiSettings {
+  row = normalizeRow(row);
+  return {
+    sessionId: String(row.session_id),
+    workerGuidanceMarkdown:
+      row.worker_guidance_markdown != null
+        ? String(row.worker_guidance_markdown)
+        : "",
     updatedAt: String(row.updated_at),
   };
 }

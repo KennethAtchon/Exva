@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import { emptySessionAiSettings } from "@electron/shared/domain";
 import {
   buildPromptEnvelope,
   envelopeToMessages,
@@ -90,6 +91,7 @@ function baseContext(): SessionStrategyContext {
       timeframeNotes: "",
       updatedAt: ts,
     },
+    aiSettings: emptySessionAiSettings("s1", ts),
   };
 }
 
@@ -248,4 +250,29 @@ describe("pipeline worker prompts", () => {
       expect(sizes.exceedsUser).toBe(false);
     });
   }
+});
+
+describe("global worker guidance", () => {
+  it("injects session_worker_guidance for every worker when configured", () => {
+    const context = {
+      ...baseContext(),
+      aiSettings: {
+        sessionId: "s1",
+        workerGuidanceMarkdown: "Prefer liquid large caps only.",
+        updatedAt: "2026-05-05T00:00:00.000Z",
+      },
+    };
+    const envelope = buildPromptEnvelope({
+      phase: "technical",
+      workerId: "chart-pattern",
+      basePromptMarkdown: "# Chart Pattern",
+      task: { instrumentSymbol: "AAPL" },
+      strategyContext: context,
+      strategyContextRequest: TEST_STRATEGY_CONTEXT_REQUEST,
+    });
+    const messages = envelopeToMessages(envelope, context);
+    const user = messages.find((message) => message.role === "user")?.content;
+    expect(user).toContain("<session_worker_guidance>");
+    expect(user).toContain("Prefer liquid large caps only.");
+  });
 });

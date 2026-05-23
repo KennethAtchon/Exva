@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildPresetBehaviorGuidance } from "../pipeline-runtime/prompting/preset-behavior-guidance";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import { emptySessionAiSettings } from "@electron/shared/domain";
 
 function minimalContext(
   overrides: Record<string, unknown> = {},
@@ -50,6 +51,7 @@ function minimalContext(
       maxHoldDays: 10,
       timeframeNotes: "",
     },
+    aiSettings: emptySessionAiSettings("s1"),
     ...overrides,
   } as unknown as SessionStrategyContext;
 }

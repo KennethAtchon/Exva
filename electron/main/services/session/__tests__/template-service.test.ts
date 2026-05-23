@@ -12,6 +12,7 @@ import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session
 import { SessionTemplatesRepo } from "../../../db/repositories/sessions/session-templates-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
 import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/session-research-posture-repo";
+import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session-ai-settings-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
 import { SessionTemplateService } from "../template-service";
@@ -93,6 +94,11 @@ describe("SessionTemplateService", () => {
             targetHoldDays: null,
             maxHoldDays: null,
             timeframeNotes: "",
+            updatedAt: new Date().toISOString(),
+          },
+          aiSettings: {
+            sessionId: "s1",
+            workerGuidanceMarkdown: "",
             updatedAt: new Date().toISOString(),
           },
         },
@@ -215,6 +221,7 @@ function createTemplateService(
       rulesRepo: new SessionTradeRulesRepo(db),
       riskRepo: new SessionRiskConfigRepo(db),
       timeframeRepo: new SessionTimeframeConfigRepo(db),
+      aiSettingsRepo: new SessionAiSettingsRepo(db),
       selectorSettingsRepo: new SessionSelectorSettingsRepo(db),
       providerAccountsRepo: new ProviderAccountsRepo(db),
       workspacePrefsRepo: new WorkspacePreferencesRepo(db),

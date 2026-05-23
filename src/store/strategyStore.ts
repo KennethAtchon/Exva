@@ -27,6 +27,7 @@ import type { PipelinePhase } from "../../electron/shared/ai/pipeline-phase";
 import type {
   SessionResearchPosture,
   SessionRiskConfig,
+  SessionAiSettings,
   SessionStrategyContext,
   SessionTradeRules,
   SessionTimeframeConfig,
@@ -40,6 +41,7 @@ interface StrategyStoreState {
   rules: SessionTradeRules | null;
   riskConfig: SessionRiskConfig | null;
   timeframe: SessionTimeframeConfig | null;
+  aiSettings: SessionAiSettings | null;
   providers: StrategyGetResponse["providers"];
   selectorSettings: StrategyGetResponse["selectorSettings"] | null;
   selectionMode: StrategyGetResponse["selectionMode"] | null;
@@ -62,6 +64,7 @@ interface StrategyStoreState {
   updateRules: (patch: Partial<SessionTradeRules>) => void;
   updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
   updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
+  updateAiSettings: (patch: Partial<SessionAiSettings>) => void;
   updateAiPhase: (
     phase: PipelinePhase,
     patch: Partial<PhaseRuntimeSummary>,
@@ -76,6 +79,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
   rules: null,
   riskConfig: null,
   timeframe: null,
+  aiSettings: null,
   providers: [],
   selectorSettings: null,
   selectionMode: null,
@@ -100,6 +104,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       rules: result.rules,
       riskConfig: result.riskConfig,
       timeframe: result.timeframe,
+      aiSettings: result.aiSettings,
       providers: result.providers,
       selectorSettings: result.selectorSettings,
       selectionMode: result.selectionMode,
@@ -127,6 +132,7 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       rules: null,
       riskConfig: null,
       timeframe: null,
+      aiSettings: null,
       providers: [],
       selectorSettings: null,
       selectionMode: null,
@@ -179,6 +185,17 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     for (const key of Object.keys(patch)) dirtyFields.add(`timeframe.${key}`);
     set({
       timeframe: { ...timeframe, ...patch },
+      dirtyFields,
+      strategyErrors: [],
+    });
+  },
+  updateAiSettings: (patch) => {
+    const aiSettings = get().aiSettings;
+    if (!aiSettings) return;
+    const dirtyFields = new Set(get().dirtyFields);
+    for (const key of Object.keys(patch)) dirtyFields.add(`aiSettings.${key}`);
+    set({
+      aiSettings: { ...aiSettings, ...patch },
       dirtyFields,
       strategyErrors: [],
     });
@@ -285,6 +302,12 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
         sessionId,
         timeframe: context.timeframe,
       });
+      if (get().dirtyFields.has("aiSettings.workerGuidanceMarkdown")) {
+        await api.saveStrategyAiSettings({
+          sessionId,
+          aiSettings: context.aiSettings,
+        });
+      }
       const dirtyAiPhases = [...get().dirtyFields]
         .filter((field) => field.startsWith("aiPhases."))
         .map((field) => field.split(".")[1] as PipelinePhase | undefined)
@@ -330,7 +353,8 @@ function currentContext(
     !state.researchPosture ||
     !state.rules ||
     !state.riskConfig ||
-    !state.timeframe
+    !state.timeframe ||
+    !state.aiSettings
   )
     return null;
   return {
@@ -338,5 +362,6 @@ function currentContext(
     rules: state.rules,
     riskConfig: state.riskConfig,
     timeframe: state.timeframe,
+    aiSettings: state.aiSettings,
   };
 }

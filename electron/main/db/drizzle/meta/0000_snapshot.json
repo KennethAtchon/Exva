@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a4159a81-e03d-4c05-a6c7-5fec005b2218",
+  "id": "82601d0f-26fb-4281-91bb-e2f8ab657f72",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_messages": {
@@ -1312,6 +1312,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": 8192
+        },
+        "reasoning_level": {
+          "name": "reasoning_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'off'"
         },
         "prompt_source": {
           "name": "prompt_source",

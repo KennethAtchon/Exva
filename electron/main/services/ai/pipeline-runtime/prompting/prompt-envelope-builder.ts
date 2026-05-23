@@ -2,6 +2,7 @@ import type { PipelinePhase } from "@electron/shared/ai/pipeline-phase";
 import type { WorkerStrategyContextRequest } from "@electron/shared/ai/pipeline-phase";
 import { RUNTIME_DEFAULTS } from "@electron/shared/ai/pipeline-phase";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import { WORKER_GUIDANCE_MARKDOWN_MAX_CHARS } from "@electron/shared/domain";
 import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import { MOCK_SCENARIO_LABELS } from "@electron/shared/domain/mock-scenario";
 import { buildWorkerStrategyPromptContext } from "../../strategy-prompt-context";
@@ -103,6 +104,16 @@ function augmentMockTask(
   return task;
 }
 
+function renderWorkerGuidanceBlock(markdown: string): string | null {
+  const trimmed = markdown.trim();
+  if (!trimmed) return null;
+  const content =
+    trimmed.length > WORKER_GUIDANCE_MARKDOWN_MAX_CHARS
+      ? `${trimmed.slice(0, WORKER_GUIDANCE_MARKDOWN_MAX_CHARS)}...`
+      : trimmed;
+  return `<session_worker_guidance>\n${content}\n</session_worker_guidance>`;
+}
+
 /** Character counts vs RUNTIME_DEFAULTS — for tests and observability only; never mutates content. */
 export function measurePromptEnvelope(
   messages: RuntimeAgentMessage[],
@@ -150,12 +161,16 @@ export function envelopeToMessages(
     sandboxMode,
     mockScenarioKind,
   );
+  const workerGuidance = renderWorkerGuidanceBlock(
+    strategyContext.aiSettings.workerGuidanceMarkdown,
+  );
 
   const userContent = [
     `<trusted_strategy_facts>\n${strategyPrompt}\n</trusted_strategy_facts>`,
     presetGuidance.trim()
       ? `<trusted_strategy_guidance>\n${presetGuidance}\n</trusted_strategy_guidance>`
       : null,
+    workerGuidance,
     Object.keys(envelope.userPayload.engineResults as Record<string, unknown>)
       .length > 0
       ? `<engine_results>\n${JSON.stringify(envelope.userPayload.engineResults, null, 2)}\n</engine_results>`
@@ -182,6 +197,7 @@ export function envelopeToMessages(
       workerId: envelope.userPayload.workerId,
       ...sizes,
       hasStrategyGuidance: presetGuidance.trim().length > 0,
+      hasWorkerGuidance: workerGuidance != null,
       hasEngineResults:
         Object.keys(envelope.userPayload.engineResults as Record<string, unknown>)
           .length > 0,

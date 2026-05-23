@@ -22,6 +22,7 @@ import { SessionSelectorSettingsRepo } from "../../../db/repositories/sessions/s
 import { SessionStrategiesRepo } from "../../../db/repositories/sessions/session-strategies-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
 import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/session-research-posture-repo";
+import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session-ai-settings-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import { InstrumentCacheRepo } from "../../../db/repositories/market/instrument-cache-repo";
 import { PromptAssetLoader } from "../../ai/prompt-asset-loader";
@@ -126,6 +127,7 @@ function createManager(
     rulesRepo: new SessionTradeRulesRepo(db),
     riskRepo: new SessionRiskConfigRepo(db),
     timeframeRepo: new SessionTimeframeConfigRepo(db),
+    aiSettingsRepo: new SessionAiSettingsRepo(db),
     selectorSettingsRepo: sessionSelectorSettingsRepo,
     providerAccountsRepo,
     workspacePrefsRepo: workspacePreferencesRepo,

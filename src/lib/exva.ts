@@ -26,6 +26,7 @@ import type {
   SessionTemplatePayload,
   SessionTimeframeConfig,
   SessionResearchPosture,
+  SessionAiSettings,
   Trade,
   TradeAutopsy,
   TradeDecisionPayload,
@@ -216,6 +217,10 @@ export const api = {
     sessionId: string;
     timeframe: Partial<SessionTimeframeConfig>;
   }) => bridge().strategy.saveTimeframeConfig(input),
+  saveStrategyAiSettings: (input: {
+    sessionId: string;
+    aiSettings: Partial<SessionAiSettings>;
+  }) => bridge().strategy.saveAiSettings(input),
   saveStrategyAiPhase: (input: {
     sessionId: string;
     phase: import("@electron/shared/ai/pipeline-phase").PipelinePhase;

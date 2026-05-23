@@ -19,6 +19,7 @@ import { SessionStrategiesRepo } from "../../../db/repositories/sessions/session
 import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
 import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/session-research-posture-repo";
+import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session-ai-settings-repo";
 import { StatsRepo } from "../../../db/repositories/system/stats-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trades/trade-approvals-repo";
 import { TradesRepo } from "../../../db/repositories/trades/trades-repo";
@@ -199,6 +200,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     rulesRepo: new SessionTradeRulesRepo(db),
     riskRepo: new SessionRiskConfigRepo(db),
     timeframeRepo: new SessionTimeframeConfigRepo(db),
+    aiSettingsRepo: new SessionAiSettingsRepo(db),
     selectorSettingsRepo: sessionSelectorSettings,
     providerAccountsRepo: providerAccounts,
     workspacePrefsRepo: workspacePreferences,

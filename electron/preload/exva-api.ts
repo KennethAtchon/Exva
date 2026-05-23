@@ -26,6 +26,7 @@ import type {
   SessionTemplatePayload,
   SessionTimeframeConfig,
   SessionResearchPosture,
+  SessionAiSettings,
   Trade,
   TradeAutopsy,
   TradeDecisionPayload,
@@ -212,6 +213,10 @@ export interface ExvaApi {
     saveTimeframeConfig(input: {
       sessionId: string;
       timeframe: Partial<SessionTimeframeConfig>;
+    }): Promise<{ savedAt: string }>;
+    saveAiSettings(input: {
+      sessionId: string;
+      aiSettings: Partial<SessionAiSettings>;
     }): Promise<{ savedAt: string }>;
     saveAiPhase(input: {
       sessionId: string;

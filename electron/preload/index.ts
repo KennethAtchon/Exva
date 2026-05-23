@@ -30,6 +30,7 @@ import {
   strategyRiskConfigSaveSchema,
   strategyRulesSaveSchema,
   strategyResearchPostureSaveSchema,
+  strategyAiSettingsSaveSchema,
   strategyTimeframeConfigSaveSchema,
   strategyAiPhaseSaveSchema,
   strategyAiPhaseWorkerSaveSchema,
@@ -150,6 +151,11 @@ const exva: ExvaApi = {
       invoke(
         channels.strategy.saveTimeframeConfig,
         strategyTimeframeConfigSaveSchema.parse(input),
+      ),
+    saveAiSettings: (input) =>
+      invoke(
+        channels.strategy.saveAiSettings,
+        strategyAiSettingsSaveSchema.parse(input),
       ),
     saveAiPhase: (input) =>
       invoke(

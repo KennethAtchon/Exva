@@ -10,6 +10,7 @@ import {
   researchPosturePresets,
   riskPresets,
   sessionAiPhases,
+  sessionAiSettings,
   sessionBrokerAssignments,
   sessionBrokerRoutingOverrides,
   sessionResearchPosture,
@@ -235,6 +236,14 @@ export class SessionRepo {
           sessionId,
           timeframePresetId: defaults.timeframePreset.id,
           ...defaults.timeframePreset.values,
+          updatedAt: now,
+        })
+        .run();
+
+      tx.insert(sessionAiSettings)
+        .values({
+          sessionId,
+          workerGuidanceMarkdown: "",
           updatedAt: now,
         })
         .run();
@@ -528,6 +537,21 @@ export class SessionRepo {
         tx.insert(sessionTimeframeConfig)
           .values({
             ...timeframe,
+            sessionId: newId,
+            updatedAt: now,
+          })
+          .run();
+      }
+
+      const aiSettings = tx
+        .select()
+        .from(sessionAiSettings)
+        .where(eq(sessionAiSettings.sessionId, sourceId))
+        .get();
+      if (aiSettings) {
+        tx.insert(sessionAiSettings)
+          .values({
+            ...aiSettings,
             sessionId: newId,
             updatedAt: now,
           })

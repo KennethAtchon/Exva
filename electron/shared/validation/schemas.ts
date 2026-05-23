@@ -258,6 +258,15 @@ export const strategyRiskConfigSaveSchema = z.object({
   riskConfig: sessionRiskConfigPayloadSchema.partial(),
 });
 
+export const sessionAiSettingsPayloadSchema = z.object({
+  workerGuidanceMarkdown: z.string().max(1200),
+});
+
+export const strategyAiSettingsSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  aiSettings: sessionAiSettingsPayloadSchema.partial(),
+});
+
 export const strategyTimeframeConfigSaveSchema = z.object({
   sessionId: z.string().min(1),
   timeframe: sessionTimeframeConfigPayloadSchema.partial(),
@@ -331,6 +340,10 @@ export const sessionTemplatePayloadSchema = z.object({
         updatedAt: z.string().min(1),
       }),
       timeframe: sessionTimeframeConfigPayloadSchema.extend({
+        sessionId: z.string().min(1),
+        updatedAt: z.string().min(1),
+      }),
+      aiSettings: sessionAiSettingsPayloadSchema.extend({
         sessionId: z.string().min(1),
         updatedAt: z.string().min(1),
       }),

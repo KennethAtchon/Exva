@@ -38,6 +38,8 @@ graph TB
     Main --> Brokers
 ```
 
+
+
 **Actors:**
 
 - **Renderer** — sandboxed React UI. It invokes allowlisted IPC methods through `window.exva` and subscribes to allowlisted runtime events. It does not access Node directly.
@@ -50,6 +52,7 @@ graph TB
 ---
 
 ## 3. Core Concepts & Glossary
+
 
 | Term                      | Current meaning                                                                                                                                                                                                                |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -74,6 +77,7 @@ graph TB
 | **BrokerAllocationGate**  | Checks session broker allocation and same-broker/same-symbol conflicts across sessions. Enforcement is `hard` or `warn`.                                                                                                       |
 | **OrderPolicyGate**       | Last pre-placement policy gate. Checks runtime pause state, side bias, quote freshness, price collar, spread, capital, broker support/market hours, idempotency, and exit contract.                                            |
 | **EventBus**              | In-process + renderer fan-out for allowlisted events. Stores runtime status in memory and sends event payloads to attached BrowserWindows.                                                                                     |
+
 
 ---
 
@@ -120,15 +124,17 @@ graph LR
     Services --> EB --> API
 ```
 
+
+
 **Main components:**
 
-- **`createAppServices`** (`electron/main/services/app-services.ts`) is the composition root. It creates repositories, registries, `AiRuntime`, default engines/plans, `EventBus`, `SessionRuntimeManager`, session services, replay/autopsy/scorecard services, and starts the broker balance ticker.
+- `**createAppServices`** (`electron/main/services/app-services.ts`) is the composition root. It creates repositories, registries, `AiRuntime`, default engines/plans, `EventBus`, `SessionRuntimeManager`, session services, replay/autopsy/scorecard services, and starts the broker balance ticker.
 - **IPC handlers** (`electron/main/ipc/*.ts`) are grouped by resource: dashboard, trades, approvals, sessions, strategy, workspace, templates, accounts, events, replay, and developer tools.
-- **`SessionRuntimeManager`** builds per-session orchestrator dependencies and runtime instances. Boot rehydration starts previously `active` and `paused` sessions in paused runtime mode, so monitors are live but new intake stays off until resume.
-- **`AgentOrchestrator`** owns the queue for selector/trade work. Its queue concurrency is set from `max_concurrent_trades`, but session runtime state gates actual work through `EventBus.runtimeStatus(sessionId)`.
-- **`AiRuntime` / `PipelineRuntime`** own the current AI plan execution model. Static phase definitions still exist as metadata, but real execution is through registered phase/cycle plans and interpreters.
-- **`TradeMonitor`** owns position lifecycle after order open. It polls per holding style and emits `trade_closed` when a position closes or is detected closed externally.
-- **`EventBus`** attaches BrowserWindows in `createMainWindow()` and emits both to renderer windows and in-process listeners.
+- `**SessionRuntimeManager`** builds per-session orchestrator dependencies and runtime instances. Boot rehydration starts previously `active` and `paused` sessions in paused runtime mode, so monitors are live but new intake stays off until resume.
+- `**AgentOrchestrator**` owns the queue for selector/trade work. Its queue concurrency is set from `max_concurrent_trades`, but session runtime state gates actual work through `EventBus.runtimeStatus(sessionId)`.
+- `**AiRuntime` / `PipelineRuntime**` own the current AI plan execution model. Static phase definitions still exist as metadata, but real execution is through registered phase/cycle plans and interpreters.
+- `**TradeMonitor**` owns position lifecycle after order open. It polls per holding style and emits `trade_closed` when a position closes or is detected closed externally.
+- `**EventBus**` attaches BrowserWindows in `createMainWindow()` and emits both to renderer windows and in-process listeners.
 
 ---
 
@@ -158,22 +164,24 @@ erDiagram
     broker_accounts ||--o{ session_broker_assignments : assigned
 ```
 
+
+
 **Key entities and fields:**
 
-- **`sessions`** — `id`, `name`, `objective`, `status`, `is_focused`, `selection_mode`, `instrument_classes`, `instrument_scope`, `default_search_provider_id`, `execution_mode`, `live_readiness_acknowledged_at`, timestamps.
-- **`session_execution_steps`** — one unique row per `(session_id, cycle_id, stage)`. Tracks `status`, `attempt`, `next_retry_at`, `last_error_code`, `last_error_message`, and `retryable`.
-- **`session_selector_settings`** — `ai_picker_enabled` and `no_instrument_retry_minutes`.
-- **`session_research_posture` / `session_trade_rules` / `session_risk_config` / `session_timeframe_config`** — split strategy context consumed by prompt-pack builders, engines, risk gates, monitor, and UI.
-- **`session_ai_phases` / `session_ai_phase_workers`** — per-phase provider/model/prompt config and per-worker overrides such as provider/model, max steps, spend limit, and prompt markdown.
-- **`provider_accounts`** — both AI and search providers. `category` differentiates `ai` and `search`; secrets are referenced by `secret_ref`, not stored inline.
-- **`broker_accounts`** — broker type, supported instrument classes, mode, allocation enforcement, balance cache, `secret_ref`.
-- **`trades`** — instrument symbol/display/type, prediction outcome/metadata, side, position size, entry/exit fields, broker account/order/client IDs, high-water mark, close snapshot, AI cost, confidence, and status.
-- **`agent_runs`** — `agent_type`, `provider_key`, `model`, token counts, cost, output text, finish reason, duration.
-- **`agent_messages`** — trace payloads: `messages_json`, `thinking_json`, `tool_calls_json`, `output_json`, schema name, `parse_fallback`, `strategy_snapshot_json`, optional `market_snapshot_json`, and optional `cycle_id`.
-- **`api_call_log`** — external AI/search call accounting: provider, endpoint, call type, credits/cost, latency, status, cache flag, optional session/trade/cycle.
-- **`events`** — persisted runtime log rows with `session_id`, `trade_id`, `cycle_id`, `level`, `agent_type`, `message`, `created_at`.
-- **`trade_approvals`** — pending/resolved approval state including broker account, instrument fields, proposed side/size, decision summary, status, timestamps, note.
-- **`capital_reservations`** — reservation amount, reason, status, optional approval/trade link, created/released timestamps.
+- `**sessions`** — `id`, `name`, `objective`, `status`, `is_focused`, `selection_mode`, `instrument_classes`, `instrument_scope`, `default_search_provider_id`, `execution_mode`, `live_readiness_acknowledged_at`, timestamps.
+- `**session_execution_steps**` — one unique row per `(session_id, cycle_id, stage)`. Tracks `status`, `attempt`, `next_retry_at`, `last_error_code`, `last_error_message`, and `retryable`.
+- `**session_selector_settings**` — `ai_picker_enabled` and `no_instrument_retry_minutes`.
+- `**session_research_posture` / `session_trade_rules` / `session_risk_config` / `session_timeframe_config**` — split strategy context consumed by prompt-pack builders, engines, risk gates, monitor, and UI.
+- `**session_ai_phases` / `session_ai_phase_workers**` — per-phase provider/model/prompt config and per-worker overrides such as provider/model, max steps, spend limit, and prompt markdown.
+- `**provider_accounts**` — both AI and search providers. `category` differentiates `ai` and `search`; secrets are referenced by `secret_ref`, not stored inline.
+- `**broker_accounts**` — broker type, supported instrument classes, mode, allocation enforcement, balance cache, `secret_ref`.
+- `**trades**` — instrument symbol/display/type, prediction outcome/metadata, side, position size, entry/exit fields, broker account/order/client IDs, high-water mark, close snapshot, AI cost, confidence, and status.
+- `**agent_runs**` — `agent_type`, `provider_key`, `model`, token counts, cost, output text, finish reason, duration.
+- `**agent_messages**` — trace payloads: `messages_json`, `thinking_json`, `tool_calls_json`, `output_json`, schema name, `parse_fallback`, `strategy_snapshot_json`, optional `market_snapshot_json`, and optional `cycle_id`.
+- `**api_call_log**` — external AI/search call accounting: provider, endpoint, call type, credits/cost, latency, status, cache flag, optional session/trade/cycle.
+- `**events**` — persisted runtime log rows with `session_id`, `trade_id`, `cycle_id`, `level`, `agent_type`, `message`, `created_at`.
+- `**trade_approvals**` — pending/resolved approval state including broker account, instrument fields, proposed side/size, decision summary, status, timestamps, note.
+- `**capital_reservations**` — reservation amount, reason, status, optional approval/trade link, created/released timestamps.
 
 ---
 
@@ -208,6 +216,8 @@ sequenceDiagram
     Win->>Win: attach EventBus, load renderer
 ```
 
+
+
 **Important behavior:** previously `active` sessions do not auto-resume new entries. They are demoted to `paused` and started with the monitor alive so existing positions remain watched.
 
 ### 6.2 Session Start / Resume
@@ -241,6 +251,8 @@ sequenceDiagram
     RT->>AO: start() or resume()
     AO->>AO: enqueue selector cycle
 ```
+
+
 
 **Failure paths:** live-readiness or preflight failures throw `AppError`, insert an `events` row, and leave the runtime unstarted. Resume from `attention_required` forces a fresh selector cycle because a previously failed selector is not auto-rescheduled.
 
@@ -279,6 +291,8 @@ sequenceDiagram
     ESR-->>AO: ResolvedInstrument[]
     AO->>EB: research_phase_complete
 ```
+
+
 
 **Current selector details:**
 
@@ -330,7 +344,10 @@ sequenceDiagram
     AO->>DB: upsert monitoring step succeeded
 ```
 
+
+
 **Trade cycle stages:**
+
 
 | Stage                  | Type                 | Failure behavior                                                                                                                         |
 | ---------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
@@ -342,6 +359,7 @@ sequenceDiagram
 | `risk_gate`            | engine chain         | Required; rejects the pending trade on failure but does not put the whole session into `attention_required`.                             |
 | `broker_order`         | broker side effect   | Required for opening. On failure the pending trade is marked `rejected`, reservation is released, and `trade_closed` is emitted.         |
 | `monitoring`           | persisted marker     | Written as succeeded after order open to show the session is waiting for close.                                                          |
+
 
 ### 6.5 Approval Handling
 
@@ -376,6 +394,8 @@ sequenceDiagram
         AO->>AO: place order only if fresh check passes
     end
 ```
+
+
 
 **Invariant:** approvals are persisted, but the live Promise callback is not. The safe recovery path is not blind resume: `runApprovalRecheck()` reruns the trade pipeline through decision, reruns post-decision gates, updates the pending trade/reservation amount, runs order policy, and then places the order.
 
@@ -416,6 +436,8 @@ sequenceDiagram
     end
 ```
 
+
+
 **Poll intervals:** `intraday_flat` = 5s, `multi_day_swing` = 60s, `weeks_position` and `custom` = 300s.
 
 ### 6.7 Cycle Restart After Close
@@ -435,6 +457,8 @@ sequenceDiagram
     AO->>AO: check session id, status closed, runtime active, no restart in flight
     AO->>Q: queue selector restart
 ```
+
+
 
 ### 6.8 Worker Execution
 
@@ -470,6 +494,8 @@ sequenceDiagram
     WE-->>PR: AgentResult
 ```
 
+
+
 **Current persistence boundary:** `executeWorker()` does not insert DB rows. Selector finalization persists one aggregate `agent_runs`/`agent_messages` row; trade cycles persist technical/fundamental/review/decision rows after the pending trade exists.
 
 ---
@@ -496,6 +522,9 @@ stateDiagram-v2
     stopped --> archived
 ```
 
+
+
+
 | Persisted state      | Meaning                                              | Runtime behavior                                                            |
 | -------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------- |
 | `draft`              | Created/configurable but not initialized for running | No runtime required.                                                        |
@@ -505,6 +534,7 @@ stateDiagram-v2
 | `attention_required` | Operator action required after failure/stale state   | Resume forces a fresh selector if needed.                                   |
 | `stopped`            | Fully stopped                                        | Runtime removed; monitor stopped.                                           |
 | `archived`           | Hidden from normal workspace views                   | Not runnable until restored by future UI behavior.                          |
+
 
 Runtime modes are narrower: `starting`, `active`, `paused`, `stopping`. The monitor intentionally runs in both `active` and `paused` modes to manage already-open positions.
 
@@ -525,6 +555,8 @@ graph TD
     Policy --> Order["Broker order"]
     Order --> Monitor["TradeMonitor"]
 ```
+
+
 
 **Guard order and behavior:**
 
@@ -550,7 +582,10 @@ graph LR
     Renderer["Renderer"] --> IPC["ipcRenderer.invoke"] --> Handlers["IPC handlers"]
 ```
 
+
+
 **Current main-to-renderer events:**
+
 
 | Event                                                                                                  | Payload summary                                                        |
 | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
@@ -563,6 +598,7 @@ graph LR
 | `broker_balance_updated`                                                                               | Broker balance cache update.                                           |
 | `stats_update`                                                                                         | Dashboard stats.                                                       |
 | `notification`                                                                                         | UI notification payload.                                               |
+
 
 Renderer-to-main is request/response through IPC handlers only. Event subscriptions are push-only and allowlisted by `mainToRendererEvents` in `electron/shared/ipc/channels.ts`.
 
@@ -579,6 +615,8 @@ flowchart LR
     Main --> DB["SQLite"]
     Main --> External["External AI/search/broker APIs"]
 ```
+
+
 
 **Current controls:**
 
@@ -605,11 +643,14 @@ graph TD
     DB[("SQLite")] --> Dev["Developer/Event/Replay UI"]
 ```
 
+
+
 **Observable signals:**
+
 
 | Signal                                 | Source                                                 |
 | -------------------------------------- | ------------------------------------------------------ |
-| Execution progress, retries, failures  | `session_execution_steps` + `step:*` events            |
+| Execution progress, retries, failures  | `session_execution_steps` + `step:`* events            |
 | AI prompts/messages/tool calls/outputs | `agent_messages`                                       |
 | AI cost/token/duration                 | `agent_runs`                                           |
 | External search/API usage              | `api_call_log`                                         |
@@ -617,6 +658,7 @@ graph TD
 | Trade lifecycle and capital locks      | `trades`, `trade_approvals`, `capital_reservations`    |
 | Broker balance changes                 | `broker_balance_updated`, broker account balance cache |
 | Debug bundles/replay                   | Developer IPC, replay IPC, `CycleReplayService`        |
+
 
 **Replay/autopsy/scorecard services:**
 
@@ -640,6 +682,7 @@ graph TD
 
 ## 13. Design Decisions & Trade-offs
 
+
 | Decision             | Chosen approach                                                   | Why                                                                                                            | Trade-off                                                            |
 | -------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | Runtime ownership    | One `SessionRuntime` per live session                             | Multiple sessions can run independently while sharing registries/repos                                         | Runtime callbacks and timers remain process-local.                   |
@@ -651,6 +694,7 @@ graph TD
 | Capital reservations | Persisted reservations with approval/order/position lifecycle     | Survives process restarts and prevents double-spend windows                                                    | Requires cleanup paths on every abort/failure.                       |
 | EventBus             | In-process + BrowserWindow fan-out                                | Simple live UI updates and orchestrator listeners                                                              | Not an external event stream; all windows receive allowed events.    |
 | Local-first storage  | SQLite + Keychain                                                 | Fits desktop single-user app and keeps secrets encrypted by OS                                                 | Not distributed or multi-machine.                                    |
+
 
 ---
 
@@ -667,6 +711,7 @@ graph TD
 ---
 
 ## 15. File Reference Map
+
 
 | Area                   | Current files                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------------- |
@@ -715,3 +760,5 @@ graph TD
 | Trade autopsy          | `electron/main/services/orchestration/post-trade/trade-autopsy-service.ts`            |
 | Paper scorecard        | `electron/main/services/analytics/paper-scorecard-service.ts`                         |
 | Live readiness         | `electron/main/services/risk/live-readiness-service.ts`                               |
+
+

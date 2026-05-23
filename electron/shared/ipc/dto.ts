@@ -8,6 +8,7 @@ import type {
   ProviderAccount,
   SelectionMode,
   SessionResearchPosture,
+  SessionAiSettings,
   SessionRiskConfig,
   SessionSelectorSettings,
   SessionStatus,
@@ -66,6 +67,7 @@ export interface StrategyGetResponse {
   rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
+  aiSettings: SessionAiSettings;
   selectorSettings: SessionSelectorSettings;
   providers: ProviderAccount[];
   sessionStatus: SessionStatus;

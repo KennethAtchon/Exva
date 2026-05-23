@@ -2,6 +2,7 @@ import type {
   ProviderAccount,
   SessionResearchPosture,
   SessionRiskConfig,
+  SessionAiSettings,
   SessionSelectorSettings,
   SessionStatus,
   SessionStrategyContext,
@@ -27,6 +28,7 @@ import type { SessionRiskConfigRepo } from "../../db/repositories/sessions/sessi
 import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
 import type { SessionTradeRulesRepo } from "../../db/repositories/sessions/session-trade-rules-repo";
 import type { SessionTimeframeConfigRepo } from "../../db/repositories/sessions/session-timeframe-config-repo";
+import type { SessionAiSettingsRepo } from "../../db/repositories/sessions/session-ai-settings-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 
 export interface StrategyPageData {
@@ -34,6 +36,7 @@ export interface StrategyPageData {
   rules: SessionTradeRules;
   riskConfig: SessionRiskConfig;
   timeframe: SessionTimeframeConfig;
+  aiSettings: SessionAiSettings;
   selectorSettings: SessionSelectorSettings;
   providers: ProviderAccount[];
   sessionStatus: SessionStatus;
@@ -53,6 +56,7 @@ export class SessionStrategyContextService {
       rulesRepo: SessionTradeRulesRepo;
       riskRepo: SessionRiskConfigRepo;
       timeframeRepo: SessionTimeframeConfigRepo;
+      aiSettingsRepo: SessionAiSettingsRepo;
       selectorSettingsRepo: SessionSelectorSettingsRepo;
       providerAccountsRepo: ProviderAccountsRepo;
       workspacePrefsRepo: WorkspacePreferencesRepo;
@@ -66,7 +70,12 @@ export class SessionStrategyContextService {
       rules: this.deps.rulesRepo.get(sessionId),
       riskConfig: this.deps.riskRepo.get(sessionId),
       timeframe: this.deps.timeframeRepo.get(sessionId),
+      aiSettings: this.deps.aiSettingsRepo.get(sessionId),
     };
+  }
+
+  getAiSettings(sessionId: string): SessionAiSettings {
+    return this.get(sessionId).aiSettings;
   }
 
   getResearchPosture(sessionId: string): SessionResearchPosture {
@@ -170,6 +179,20 @@ export class SessionStrategyContextService {
     };
     this.validate(next);
     return this.deps.timeframeRepo.upsert(sessionId, next.timeframe);
+  }
+
+  saveAiSettings(
+    sessionId: string,
+    patch: Partial<SessionAiSettings>,
+  ): SessionAiSettings {
+    this.assertEditable(sessionId);
+    const current = this.get(sessionId);
+    const next = {
+      ...current,
+      aiSettings: { ...current.aiSettings, ...patch, sessionId },
+    };
+    this.validate(next);
+    return this.deps.aiSettingsRepo.upsert(sessionId, next.aiSettings);
   }
 
   saveAiPhase(

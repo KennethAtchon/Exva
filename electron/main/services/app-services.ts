@@ -17,6 +17,7 @@ import { SessionStrategiesRepo } from "../db/repositories/sessions/session-strat
 import { SessionTemplatesRepo } from "../db/repositories/sessions/session-templates-repo";
 import { SessionTimeframeConfigRepo } from "../db/repositories/sessions/session-timeframe-config-repo";
 import { SessionResearchPostureRepo } from "../db/repositories/sessions/session-research-posture-repo";
+import { SessionAiSettingsRepo } from "../db/repositories/sessions/session-ai-settings-repo";
 import { SqliteSessionExecutionStepsRepo } from "../db/repositories/sessions/session-execution-steps-repo";
 import { SessionRepo } from "../db/repositories/sessions/session-repo";
 import { InstrumentCacheRepo } from "../db/repositories/market/instrument-cache-repo";
@@ -98,6 +99,7 @@ export interface AppServices {
     sessionTemplates: SessionTemplatesRepo;
     sessionTimeframeConfig: SessionTimeframeConfigRepo;
     sessionResearchPosture: SessionResearchPostureRepo;
+    sessionAiSettings: SessionAiSettingsRepo;
     stats: StatsRepo;
     tradeAutopsies: TradeAutopsiesRepo;
     tradeApprovals: TradeApprovalsRepo;
@@ -160,6 +162,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionTemplates: new SessionTemplatesRepo(db),
     sessionTimeframeConfig: new SessionTimeframeConfigRepo(db),
     sessionResearchPosture: new SessionResearchPostureRepo(db),
+    sessionAiSettings: new SessionAiSettingsRepo(db),
     stats: new StatsRepo(db),
     tradeAutopsies: new TradeAutopsiesRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
@@ -226,6 +229,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     rulesRepo: repos.sessionTradeRules,
     riskRepo: repos.sessionRiskConfig,
     timeframeRepo: repos.sessionTimeframeConfig,
+    aiSettingsRepo: repos.sessionAiSettings,
     selectorSettingsRepo: repos.sessionSelectorSettings,
     providerAccountsRepo: repos.providerAccounts,
     workspacePrefsRepo: repos.workspacePreferences,

@@ -411,6 +411,13 @@ export const strategyTimeframeConfigSaveSchema = z.object({
   }),
 });
 
+export const strategyAiSettingsSaveSchema = z.object({
+  sessionId: z.string().min(1),
+  aiSettings: z.object({
+    workerGuidanceMarkdown: z.string().max(1200).optional(),
+  }),
+});
+
 export const pipelinePhaseSchema = z.enum([
   "selector",
   "technical",
