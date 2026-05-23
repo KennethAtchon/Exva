@@ -3,7 +3,7 @@ import type { InstrumentCacheRepo } from "../../db/repositories/market/instrumen
 import {
   buildSelectorDefinitionFingerprint,
   hashSelectorDefinition,
-} from "../ai/pipeline-runtime/plan/cache/selector-instrument-cache";
+} from "../pipeline/implementations/cache/selector-instrument-cache";
 import type { OrchestratorDeps } from "../session/session-types";
 
 export type InstrumentCacheView = {

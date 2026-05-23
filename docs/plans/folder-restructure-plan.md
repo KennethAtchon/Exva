@@ -17,16 +17,16 @@ These are fixed in one complete pass, not incrementally.
 
 ---
 
-## Change 1: Split `services/ai/` — the biggest problem
+## Change 1: Split `services/llm/` — the biggest problem
 
-`services/ai/` is a bucket containing six distinct subsystems with no obvious relationship to each other. It gets split entirely.
+`services/llm/` is a bucket containing six distinct subsystems with no obvious relationship to each other. It gets split entirely.
 
 ### Current structure (the problem)
 
 ```
-services/ai/
+services/llm/
 ├── ai-runtime/        # raw LLM calls
-├── pipeline-runtime/  # multi-phase analysis pipeline
+├── pipeline/  # multi-phase analysis pipeline
 ├── engines/           # signal aggregation + scoring
 ├── adapters/          # model provider normalization
 ├── search/            # web search providers
@@ -37,8 +37,8 @@ services/ai/
 
 ```
 services/
-├── llm/               # was: ai/ai-runtime/ + ai/adapters/
-├── pipeline/          # was: ai/pipeline-runtime/
+├── llm/               # was: ai/llm/ + ai/adapters/
+├── pipeline/          # was: ai/pipeline/
 ├── signal/            # was: ai/engines/
 ├── search/            # was: ai/search/ — promoted, unchanged
 └── tools/             # was: ai/tools/ — promoted, unchanged
@@ -48,7 +48,7 @@ services/
 
 ## Change 2: `services/llm/` — LLM invocation layer
 
-**Was:** `services/ai/ai-runtime/` + `services/ai/adapters/`
+**Was:** `services/llm/` + `services/llm/adapters/`
 
 **What it owns:** One job — talk to an LLM API. Send messages, receive a response, handle retries, detect tool-call loops, record a trace.
 
@@ -267,7 +267,7 @@ A `PhasePlan` IS an AI phase — "plan" is the wrong word.
 
 ## Change 4: `services/signal/` — post-LLM signal processing
 
-**Was:** `services/ai/engines/`
+**Was:** `services/signal/`
 
 **What it owns:** Deterministic TypeScript logic that runs after AI workers — aggregates outputs, scores candidates, filters by risk, builds execution profiles. No AI calls.
 
@@ -351,8 +351,8 @@ services/orchestration/
 ├── lifecycle/         # unchanged — session start/stop
 └── policy/            # unchanged — pre-trade gates
 
-services/replay/       # PROMOTED from orchestration/replay/
-services/analytics/    # absorbs orchestration/post-trade/
+services/replay/       # PROMOTED from replay/
+services/analytics/    # absorbs analytics/
 ```
 
 `replay/` is offline analysis of historical sessions. It does not belong inside the live execution loop. Promoted to a top-level service.
@@ -468,7 +468,7 @@ Previously prompts were loaded from disk at runtime which required them to be bu
 
 | What | Change | Why |
 |------|--------|-----|
-| `electron/shared/catalog/` | Rename → `electron/shared/instruments/` | "catalog" doesn't communicate "instrument types" |
+| `electron/shared/instruments/` | Rename → `electron/shared/instruments/` | "catalog" doesn't communicate "instrument types" |
 | `services/workspace/` (1 file) | Dissolve — move `environment-scope.ts` into `services/session/` | One file is not a module |
 | `electron/prompts/` | Delete — build artifact, no longer needed after Change 8 | Prompts are now inline strings compiled into the bundle |
 
@@ -596,6 +596,18 @@ sequenceDiagram
 ## Execution
 
 Done in three commits. The codebase will be broken between commits. That is expected and acceptable.
+
+### Status (2026-05-23)
+
+| Commit | Scope | Status |
+|--------|-------|--------|
+| **A** | Folder moves (Changes 1–7, 9) + import path fixes | **Done** — `bun typecheck` passes |
+| **A** | Change 8 — inline prompts, delete `prompts/` | **Not started** |
+| **A** | README files per folder | **Not started** |
+| **B** | Full symbol rename pass | **Not started** |
+| **C** | Tests, architecture docs, `folder-structure.md` | **Not started** |
+
+Import path fix scripts live in `scripts/fix-restructure-imports-pass*.mjs` (pass 1–8). Safe to delete after Commit B.
 
 ### Commit A — Folder moves (Changes 1–8)
 
@@ -763,7 +775,7 @@ electron/
     └── services/
         ├── app-services.ts
         │
-        ├── llm/                                    # was: ai/ai-runtime/ + ai/adapters/
+        ├── llm/                                    # was: ai/llm/ + ai/adapters/
         │   ├── README.md                           # one job: talk to an LLM API. Send messages, get responses, retry, trace.
         │   ├── runtime.ts                          # was: ai-runtime/runtime.ts — class: LLMRuntime
         │   ├── runtime-retry.ts
@@ -780,7 +792,7 @@ electron/
         │       ├── openai-adapter.ts
         │       └── openrouter-adapter.ts
         │
-        ├── pipeline/                               # was: ai/pipeline-runtime/
+        ├── pipeline/                               # was: ai/pipeline/
         │   ├── README.md                           # drives multi-phase AI trade analysis: builds prompts, sequences phases, runs workers, tracks spend
         │   ├── core/
         │   │   ├── README.md                       # framework entry point and shared types — start here if you're new to the pipeline
@@ -864,26 +876,6 @@ electron/
         │   # prompt-asset-loader.ts DELETED (Change 8) — prompts inlined into definitions/
         │   # model-pricing.ts MOVED → llm/
         │
-        ├── signal/                                 # was: ai/engines/
-        │   ├── aggregators/
-        │   │   ├── technical-aggregator.ts
-        │   │   ├── fundamental-aggregator.ts
-        │   │   ├── review-aggregator.ts
-        │   │   └── trade-signal-aggregator.ts
-        │   ├── scoring/                            # was: engines/selector/
-        │   │   ├── selector-scoring-engine.ts
-        │   │   ├── selector-candidate-merger.ts
-        │   │   ├── selector-risk-filter.ts         # class: SelectorRiskFilter
-        │   │   ├── selector-submission-builder.ts
-        │   │   └── prediction-market-candidate-engine.ts
-        │   ├── execution/
-        │   │   └── trade-execution-profile.ts      # was: execution-profile-engine.ts
-        │   └── registry/
-        │       ├── signal-engine-registry.ts       # was: engine-registry.ts
-        │       ├── register-trade-signal-engines.ts # was: register-pipeline-engines.ts
-        │       ├── register-default-engines.ts
-        │       └── types.ts
-        │
         ├── search/                                 # was: ai/search/
         │   ├── README.md                           # abstracts web search providers behind one interface; workers call search_web and this picks the configured provider (Brave, Tavily, DuckDuckGo, MCP)
         │   ├── search-registry.ts
@@ -913,7 +905,7 @@ electron/
         │   │   ├── fundamental-aggregator.ts
         │   │   ├── review-aggregator.ts
         │   │   └── trade-signal-aggregator.ts
-        │   ├── scoring/                            # was: engines/selector/
+        │   ├── scoring/                            # was: signal/scoring/
         │   │   ├── README.md                       # scores, merges, and risk-filters instrument candidates produced by the selector phase
         │   │   ├── selector-scoring-engine.ts
         │   │   ├── selector-candidate-merger.ts
@@ -993,11 +985,11 @@ electron/
         │       ├── candidate-validation-service.ts
         │       └── order-policy-gate.ts
         │
-        ├── replay/                                 # was: orchestration/replay/
+        ├── replay/                                 # was: replay/
         │   ├── README.md                           # replays a historical session tick offline — re-runs the AI pipeline on saved state without placing real orders, used for review and debugging
         │   └── cycle-replay-service.ts
         │
-        ├── analytics/                              # absorbs orchestration/post-trade/
+        ├── analytics/                              # absorbs analytics/
         │   ├── README.md                           # post-trade analysis: scores completed trades, generates paper trading scorecards
         │   ├── paper-scorecard-service.ts
         │   └── trade-autopsy-service.ts            # was: post-trade/trade-autopsy-service.ts
@@ -1052,16 +1044,16 @@ electron/
 
 | Old path | Disposition |
 |----------|-------------|
-| `services/workspace/environment-scope.ts` | Moved → `services/session/environment-scope.ts` |
-| `services/ai/` (entire directory) | Split into `llm/`, `pipeline/`, `signal/`, `search/`, `tools/` |
-| `services/orchestration/replay/` | Promoted → `services/replay/` |
-| `services/orchestration/post-trade/` | Merged → `services/analytics/` |
-| `services/ai/tool-use-harness.ts` | Evaluate: move to `pipeline/execution/` or `tools/` |
-| `services/ai/strategy-prompt-context.ts` | Move → `pipeline/prompting/` |
-| `services/ai/provider-registry.ts` | Move → `llm/adapters/` |
-| `services/ai/resolve-run-cost.ts` | Move → `llm/` |
-| `services/ai/prompt-asset-loader.ts` | **Delete** — no longer needed after Change 8 (prompts inlined into definitions) |
-| `services/ai/model-pricing.ts` | Move → `llm/` |
+| `services/session/environment-scope.ts` | Moved → `services/session/environment-scope.ts` |
+| `services/llm/` (entire directory) | Split into `llm/`, `pipeline/`, `signal/`, `search/`, `tools/` |
+| `services/replay/` | Promoted → `services/replay/` |
+| `services/analytics/` | Merged → `services/analytics/` |
+| `services/pipeline/execution/tool-use-harness.ts` | Evaluate: move to `pipeline/execution/` or `tools/` |
+| `services/pipeline/prompting/strategy-prompt-context.ts` | Move → `pipeline/prompting/` |
+| `services/llm/provider-registry.ts` | Move → `llm/adapters/` |
+| `services/llm/resolve-run-cost.ts` | Move → `llm/` |
+| `services/pipeline/prompt-asset-loader.ts` | **Delete** — no longer needed after Change 8 (prompts inlined into definitions) |
+| `services/llm/model-pricing.ts` | Move → `llm/` |
 | `pipeline/prompts/` (entire folder, 25 .md files) | **Delete** — all prompt text inlined into `definitions/` files |
-| `electron/shared/catalog/` | Renamed → `electron/shared/instruments/` |
+| `electron/shared/instruments/` | Renamed → `electron/shared/instruments/` |
 | `services/workspace/` | Dissolved — one file, moved to `session/` |

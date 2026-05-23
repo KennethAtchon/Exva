@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
-import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/catalog/session-instrument-classes";
-import { registerDefaultPhasePlans } from "../../../ai/pipeline-runtime/plan/register/phase-plans";
-import { buildCompositeInput } from "../../../ai/pipeline-runtime/plan/registry/input-builder-registry";
+import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/instruments/session-instrument-classes";
+import { registerDefaultPhasePlans } from "../../../pipeline/implementations/registry/phase-plans";
+import { buildCompositeInput } from "../../../pipeline/implementations/registry/input-builder-registry";
 import { AgentOrchestrator } from "../agent-orchestrator";
 import * as runSelectorModule from "../selector/run-selector";
 

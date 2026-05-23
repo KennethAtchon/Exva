@@ -38,7 +38,7 @@ This breaks the product promise of AI-selected universe mode. The selector shoul
 
 ## 3. Background & Context
 
-The intended role/tool contract is already documented in `docs/plan/ai-harness-architecture.md`:
+The intended role/tool contract is already documented in `docs/implementations/ai-harness-architecture.md`:
 
 | Agent                 | Tools                                                                   | Safety cap | Budget limit | Execution model                                           |
 | --------------------- | ----------------------------------------------------------------------- | ---------- | ------------ | --------------------------------------------------------- |
@@ -48,7 +48,7 @@ The intended role/tool contract is already documented in `docs/plan/ai-harness-a
 | `reviewer`            | `search_web`                                                            | 8 steps    | $0.05/run    | Spot-check verification + synthesis                       |
 | `decision_maker`      | none                                                                    | 1 step     | $0.04/run    | Single-shot structured output                             |
 
-The code has a policy table that matches the documented default in `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`. The gap appears when policy is intersected with infrastructure in `harness-tools.ts`. `search_web` requires `searchProviderId`; `get_news` requires both broker wiring and `searchProviderId`; quote/OHLCV require broker wiring. In the failing run, broker wiring exists but `searchProviderId` is null, so the runtime attaches only quote/OHLCV plus `submit_candidates`.
+The code has a policy table that matches the documented default in `electron/main/services/llm/ai-runtime-types.ts`. The gap appears when policy is intersected with infrastructure in `harness-tools.ts`. `search_web` requires `searchProviderId`; `get_news` requires both broker wiring and `searchProviderId`; quote/OHLCV require broker wiring. In the failing run, broker wiring exists but `searchProviderId` is null, so the runtime attaches only quote/OHLCV plus `submit_candidates`.
 
 The selector prompt in `electron/prompts/instrument_selector.md` is also too permissive. It says `Use search_web only when current information is needed`, which lets the model decide search is optional. For full-universe discovery, search is not optional; it is the first phase. The prompt also says submit minimum 1 candidate, which encourages forcing a candidate even when the evidence says none fits.
 

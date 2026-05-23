@@ -51,9 +51,9 @@ The current runtime already routes selector through the new substrate, but the i
 
 | File                                                                       | Current responsibility                                                                     | Why it matters to Phase 2                                                      |
 | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `electron/main/services/ai/pipeline-runtime/definitions/selector.phase.ts` | Defines one `instrument-selector` worker with broad tools and terminal-tool output         | Current selector phase entrypoint to replace internally                        |
-| `electron/main/services/ai/ai-runtime/selector-runtime-control.ts`         | Discovery/verification/commit heuristics, submit forcing, and symbol extraction heuristics | Core old control layer that the new selector pipeline should obsolete          |
-| `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts`  | Special-cases selector terminal result via `parseInstrumentSelection()`                    | Shows selector still behaves differently from the target typed-worker pipeline |
+| `electron/main/services/llm/pipeline/definitions/selector.phase.ts` | Defines one `instrument-selector` worker with broad tools and terminal-tool output         | Current selector phase entrypoint to replace internally                        |
+| `electron/main/services/llm/selector-runtime-control.ts`         | Discovery/verification/commit heuristics, submit forcing, and symbol extraction heuristics | Core old control layer that the new selector pipeline should obsolete          |
+| `electron/main/services/llm/pipeline/execution/worker-executor.ts`  | Special-cases selector terminal result via `parseInstrumentSelection()`                    | Shows selector still behaves differently from the target typed-worker pipeline |
 | `electron/main/services/orchestration/agent-orchestrator.ts`               | Runs selector, then re-validates output with `validateSelectorOutput()`                    | Downstream filtering is compensating for weak upstream selector guarantees     |
 | `electron/main/services/orchestration/selector-definition-hash.ts`         | Includes selector settings in cache/input identity                                         | Must stay correct across the cutover                                           |
 
@@ -181,8 +181,8 @@ Deliverables completed:
 Deliverables completed:
 
 - `PipelineDefinition.run` hook added to `electron/shared/ai/pipeline-phase.ts` — replaces the planned `SelectorPipeline` class with a hook that keeps everything expressed through the definition.
-- `PipelineRunContext` and `PipelineWorkerRunner` interfaces added to `pipeline-runtime/core/types.ts`.
-- `pipeline-runtime/core/concurrent-group-runner.ts` — generic settled-concurrency runner (replaces `worker-group-runner.ts`).
+- `PipelineRunContext` and `PipelineWorkerRunner` interfaces added to `pipeline/core/types.ts`.
+- `pipeline/core/concurrent-group-runner.ts` — generic settled-concurrency runner (replaces `worker-group-runner.ts`).
 - `engines/selector-candidate-merger.ts` — dedup and score-max merge across discovery workers.
 - `engines/selector-scoring-engine.ts` — deterministic weighted scoring.
 - `engines/selector-risk-filter.ts` — instrument-class, score, rationale, broker-route, and CandidateValidationService checks.
@@ -249,7 +249,7 @@ Lagging indicators:
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Should selector traces be persisted as one aggregated `agent_run` or one synthetic discovery/verification sub-trace block?                                   | Ken   | Before Phase 2C | Resolved: one aggregated `agent_run` via `assembleAggregateTrace` with discovery at frontier 0 and verification at frontier 1                                                                                                                                                       |
 | 2   | Which orchestrator-side rejection rules should remain as defense-in-depth after selector risk filtering ships?                                               | Ken   | Before Phase 2C | Deferred to Phase 3 cleanup                                                                                                                                                                                                                                                         |
-| 3   | Does the selector pipeline live as a dedicated class outside `pipeline-runtime/definitions`, or as a phase definition with a custom aggregate/finalize path? | Ken   | Before Phase 2B | Resolved: `PipelineDefinition.run` hook in `selector.phase.ts`. Selector utilities live in `engines/selector-*`. No dedicated class or phase-specific folder. The hook approach generalizes to any future phase that needs multi-stage orchestration without creating a new folder. |
+| 3   | Does the selector pipeline live as a dedicated class outside `pipeline/definitions`, or as a phase definition with a custom aggregate/finalize path? | Ken   | Before Phase 2B | Resolved: `PipelineDefinition.run` hook in `selector.phase.ts`. Selector utilities live in `engines/selector-*`. No dedicated class or phase-specific folder. The hook approach generalizes to any future phase that needs multi-stage orchestration without creating a new folder. |
 
 ---
 

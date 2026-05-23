@@ -8,7 +8,7 @@
 
 The immediate failure is **not** an OpenRouter transport failure and it happens **before** Exva calls the configured OpenRouter/Gemma model. In Exva, `ai_selected_universe` sessions require a resolved **search provider account** at preflight time. The preflight check reads `session.defaultSearchProviderId ?? workspace.defaultSearchProviderId` and rejects startup when that resolves to `null` or to a non-configured account. This is implemented in `electron/main/services/session/preflight/selector-config-check.ts:12-29` and covered by `electron/main/services/session/preflight/selector-config-check.test.ts:11-22`.
 
-The architecture currently treats **AI providers** and **search providers** as different account categories. OpenRouter is supported only as an AI provider (`providerType: "openrouter"`, `category: "ai"`) through `OpenRouterAdapter`; search providers are a separate registry with only `brave` and `tavily` adapters today. See `src/components/accounts/AddAiProviderModal.tsx:65-71`, `electron/main/services/ai/adapters/openrouter-adapter.ts:24-136`, and `electron/main/services/ai/search/search-registry.ts:21-48`. Because of that split, an OpenRouter account cannot satisfy the selector's search-provider requirement in the current codebase.
+The architecture currently treats **AI providers** and **search providers** as different account categories. OpenRouter is supported only as an AI provider (`providerType: "openrouter"`, `category: "ai"`) through `OpenRouterAdapter`; search providers are a separate registry with only `brave` and `tavily` adapters today. See `src/components/accounts/AddAiProviderModal.tsx:65-71`, `electron/main/services/llm/adapters/openrouter-adapter.ts:24-136`, and `electron/main/services/search/search-registry.ts:21-48`. Because of that split, an OpenRouter account cannot satisfy the selector's search-provider requirement in the current codebase.
 
 The deeper product issue is UX: the session editor expects search providers to exist and lets the user pick one (`src/components/sessions/CreateEditSessionModal.tsx:223-236`), but the visible Accounts UI currently exposes only AI providers and broker accounts, not search-provider account creation (`src/pages/AccountsPage.tsx:212-390`, `393-467`). That makes the preflight error easy to hit and hard to resolve from the UI.
 
@@ -23,13 +23,13 @@ The deeper product issue is UX: the session editor expects search providers to e
 
 ### AI providers
 
-- OpenRouter is supported as an AI provider via `OpenRouterAdapter`, which uses OpenAI-compatible chat calls against `https://openrouter.ai/api/v1` by default. (`electron/main/services/ai/adapters/openrouter-adapter.ts:24-39`) OpenAI-compatible tool/function calling is a standard pattern in model APIs. ([OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling))
+- OpenRouter is supported as an AI provider via `OpenRouterAdapter`, which uses OpenAI-compatible chat calls against `https://openrouter.ai/api/v1` by default. (`electron/main/services/llm/adapters/openrouter-adapter.ts:24-39`) OpenAI-compatible tool/function calling is a standard pattern in model APIs. ([OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling))
 - The Add Provider modal only creates `category: "ai"` records for `anthropic`, `openai`, and `openrouter`. (`src/components/accounts/AddAiProviderModal.tsx:6-14`, `65-71`)
 
 ### Search providers
 
-- Search providers are loaded through `SearchRegistry`, not `ProviderRegistry`. `SearchRegistry` rejects any account that is not `category === "search"`. (`electron/main/services/ai/search/search-registry.ts:17-24`)
-- The only supported search adapter types today are `brave` and `tavily`. (`electron/main/services/ai/search/search-registry.ts:40-48`)
+- Search providers are loaded through `SearchRegistry`, not `ProviderRegistry`. `SearchRegistry` rejects any account that is not `category === "search"`. (`electron/main/services/search/search-registry.ts:17-24`)
+- The only supported search adapter types today are `brave` and `tavily`. (`electron/main/services/search/search-registry.ts:40-48`)
 - Provider account schema also models AI and search separately: `category` is `"ai" | "search"`, while `providerType` can be `anthropic | openai | openrouter | brave | tavily`. (`src/lib/schemas.ts:142-153`)
 
 ## Why This Feels Like "OpenRouter Search Is Broken"
@@ -39,7 +39,7 @@ From the user point of view, the selector is an AI workflow and OpenRouter/Gemma
 - model execution (`OpenRouterAdapter`, `ProviderRegistry`)
 - web/news search (`SearchRegistry`)
 
-That split is consistent with the existing architecture docs, which state that `search_web` and search-backed `get_news` use the session or workspace default search account, separate from the role's model provider. (`docs/plan/archieve/instrument-selector-discovery-remediation-plan.md:57-60`; `docs/plan/ai-harness-architecture.md` noted in that file)
+That split is consistent with the existing architecture docs, which state that `search_web` and search-backed `get_news` use the session or workspace default search account, separate from the role's model provider. (`docs/implementations/archieve/instrument-selector-discovery-remediation-plan.md:57-60`; `docs/implementations/ai-harness-architecture.md` noted in that file)
 
 So the current system behavior is internally consistent, but the UI and error messaging do not make the distinction obvious.
 
@@ -55,7 +55,7 @@ OpenAI's function-calling guidance recommends clear tool descriptions, strict sc
 
 ### Model/tool quality is a separate concern from this preflight failure
 
-Even after the search-provider issue is fixed, model quality and tool-use behavior still matter. The repo already tracks a specific risk that forced first-step tool choice may behave inconsistently with some OpenRouter models. (`docs/plan/archieve/instrument-selector-discovery-remediation-plan.md:175`, `368-369`) That means Gemma may still be a follow-on variable, but it is **not** the root cause of the current `SEARCH_PROVIDER_REQUIRED` error.
+Even after the search-provider issue is fixed, model quality and tool-use behavior still matter. The repo already tracks a specific risk that forced first-step tool choice may behave inconsistently with some OpenRouter models. (`docs/implementations/archieve/instrument-selector-discovery-remediation-plan.md:175`, `368-369`) That means Gemma may still be a follow-on variable, but it is **not** the root cause of the current `SEARCH_PROVIDER_REQUIRED` error.
 
 ## Options
 

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import {
   BUILT_IN_DUCKDUCKGO_PROVIDER_ID,
   buildBuiltInDuckDuckGoProviderAccount,
-} from "@electron/shared/catalog/search-providers";
+} from "@electron/shared/instruments/search-providers";
 import {
   builtInGlobalStrategyPresets,
   builtInRiskPresets,

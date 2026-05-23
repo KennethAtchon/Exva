@@ -16,7 +16,7 @@ export async function runSelector(
     sessionId: session.id,
     cycleId,
     input: {},
-  })) as import("../../../ai/pipeline-runtime/plan/phase/types").PhasePlanRunResult<InstrumentSelection>;
+  })) as import("../../../pipeline/phases/types").PhasePlanRunResult<InstrumentSelection>;
 
   if (result.source === "ai_picker") {
     ctx.emitEvent(

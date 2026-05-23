@@ -20,7 +20,7 @@ import {
   resolveBrokerInstrumentClasses,
   resolveEffectiveInstrumentClasses,
   SEARCH_EVERYTHING_SCOPE,
-} from "@electron/shared/catalog/session-instrument-classes";
+} from "@electron/shared/instruments/session-instrument-classes";
 
 interface Props {
   open: boolean;

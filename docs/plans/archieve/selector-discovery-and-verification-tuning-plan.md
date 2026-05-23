@@ -40,9 +40,9 @@ Current code shape:
 - `electron/prompts/instrument_selector.md` defines a minimal base role and delegates most behavior to session context; for this plan, selector behavior changes should preferentially land in AI role-profile surfaces rather than the prompt asset.
 - `electron/shared/ai/default-ai-role-profiles.ts` sets the selector objective, tool policy, and a method that explicitly says to fan out across discovery angles before narrowing.
 - `electron/shared/ai/ai-role-profile.ts` only exposes one selector-specific runtime knob today: `noInstrumentRetryMinutes`.
-- `electron/main/services/ai/prompt-pack-builder.ts` builds the final prompt, including `<trusted_session_context>`, `<tool_availability>`, and `<selector_output_contract>`.
-- `electron/main/services/ai/ai-runtime/runtime.ts` forces step 0 to call `search_web` when available, but after that leaves the tool loop mostly open-ended.
-- `electron/main/services/ai/adapters/run-agent-execute.ts` applies step caps, spend caps, terminal tool stop conditions, and a weak `loopFingerprintGuard()` that only detects three identical recent tool-call fingerprints.
+- `electron/main/services/llm/prompt-pack-builder.ts` builds the final prompt, including `<trusted_session_context>`, `<tool_availability>`, and `<selector_output_contract>`.
+- `electron/main/services/llm/runtime.ts` forces step 0 to call `search_web` when available, but after that leaves the tool loop mostly open-ended.
+- `electron/main/services/llm/adapters/run-agent-execute.ts` applies step caps, spend caps, terminal tool stop conditions, and a weak `loopFingerprintGuard()` that only detects three identical recent tool-call fingerprints.
 - `electron/main/services/orchestration/execution-step-runner.ts` retries selector-stage failures with exponential backoff, but retries do not currently change task shape or carry a narrowed retry context.
 - `electron/main/services/orchestration/agent-orchestrator.ts` caches successful selector output, but failed selector attempts are not reused as structured retry context.
 
@@ -50,7 +50,7 @@ Relevant current behavior from docs and code:
 
 - Selector step 0 is forced to `search_web` (`docs/architecture/ai-runtime-and-harness.md`, `runtime.ts`).
 - Selector tools include `search_web`, `search_reddit`, `get_trending_symbols`, `fetch_url`, `get_news`, `get_quote`, `get_ohlcv`, `submit_candidates`.
-- Harness caps are currently broad for every role: `maxSteps: 50`, `spendUsd: 1.0` in `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`.
+- Harness caps are currently broad for every role: `maxSteps: 50`, `spendUsd: 1.0` in `electron/main/services/llm/ai-runtime-types.ts`.
 - The selector parser already expects exactly one terminal action path: `submit_candidates` in `instrument-selection-parser.ts`.
 
 The practical failure shown in the review doc is not “tools unavailable.” It is “too much successful discovery without a strong definition of novelty, importance, or when to stop.”
@@ -207,7 +207,7 @@ Goal and done criteria: add enough observability to measure novelty, repetition,
 
 Deliverables:
 
-- Add selector-attempt summary logging in `electron/main/services/ai/adapters/run-agent-execute.ts` or adjacent selector helper code.
+- Add selector-attempt summary logging in `electron/main/services/llm/adapters/run-agent-execute.ts` or adjacent selector helper code.
 - Capture normalized search query fingerprints, source domains, seen symbols, repeated symbol verification counts, and no-new-info streaks.
 - Add regression tests around malformed/meta queries and repeated low-signal loops.
 
@@ -317,7 +317,7 @@ Goal and done criteria: discovery and verification remain in one agent, but each
 
 Deliverables:
 
-- Expand `prepareStep` usage in `electron/main/services/ai/ai-runtime/runtime.ts` from “force step 0 search_web” to a phase schedule:
+- Expand `prepareStep` usage in `electron/main/services/llm/runtime.ts` from “force step 0 search_web” to a phase schedule:
   - discovery window: `search_web`, `search_reddit`, `get_trending_symbols`, `fetch_url`
   - verification window: `get_quote`, `get_news`, `get_ohlcv`, `fetch_url`
   - commit window: `submit_candidates` (with broad discovery disabled unless no viable candidates remain)

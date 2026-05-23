@@ -1,17 +1,17 @@
 import type { AppServices } from "../services/app-services";
-import { registerAccountHandlers } from "./accounts";
-import { registerApprovalHandlers } from "./approvals";
-import { registerBrokerAccountHandlers } from "./broker-accounts";
-import { registerConfigHandlers } from "./config";
-import { registerDashboardHandlers } from "./dashboard";
-import { registerDeveloperHandlers } from "./developer";
-import { registerEventHandlers } from "./events";
-import { registerReplayHandlers } from "./replay";
-import { registerSessionHandlers } from "./session";
-import { registerStrategyHandlers } from "./strategy";
-import { registerTemplateHandlers } from "./templates";
-import { registerTradeHandlers } from "./trades";
-import { registerWorkspaceHandlers } from "./workspace";
+import { registerAccountHandlers } from "./workspace/accounts";
+import { registerApprovalHandlers } from "./trading/approvals";
+import { registerBrokerAccountHandlers } from "./trading/broker-accounts";
+import { registerConfigHandlers } from "./workspace/config";
+import { registerDashboardHandlers } from "./system/dashboard";
+import { registerDeveloperHandlers } from "./system/developer";
+import { registerEventHandlers } from "./system/events";
+import { registerReplayHandlers } from "./session/replay";
+import { registerSessionHandlers } from "./session/session";
+import { registerStrategyHandlers } from "./workspace/strategy";
+import { registerTemplateHandlers } from "./session/templates";
+import { registerTradeHandlers } from "./trading/trades";
+import { registerWorkspaceHandlers } from "./workspace/workspace";
 
 export function registerIpcHandlers(services: AppServices): void {
   registerDashboardHandlers(services);

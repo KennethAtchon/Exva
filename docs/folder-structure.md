@@ -110,10 +110,10 @@ The real complexity. Broken into domain clusters:
 
 ---
 
-#### `services/ai/` — AI / LLM Layer
+#### `services/llm/` — AI / LLM Layer
 
 ```
-services/ai/
+services/llm/
 ├── adapters/              # LLM provider adapters (normalize request/response)
 │   ├── anthropic-adapter.ts
 │   ├── openai-adapter.ts
@@ -126,7 +126,7 @@ services/ai/
 │   ├── tool-loop-guard.ts # Prevents infinite tool-call loops
 │   └── ai-runtime-types.ts
 │
-├── pipeline-runtime/      # Multi-phase AI analysis pipeline (the "brain")
+├── pipeline/      # Multi-phase AI analysis pipeline (the "brain")
 │   ├── core/              # Pipeline entry point and shared types
 │   ├── context/           # Builds session context injected into every prompt
 │   ├── definitions/       # Pipeline phase definitions (what runs in what order)
@@ -167,7 +167,7 @@ services/ai/
 ```
 
 > **`ai-runtime/`** = how we talk to LLMs (one call, streaming, retry).  
-> **`pipeline-runtime/`** = what we say to them (multi-phase plan, prompt construction, phase sequencing).  
+> **`pipeline/`** = what we say to them (multi-phase plan, prompt construction, phase sequencing).  
 > **`engines/`** = what we do with what they say (aggregation, scoring, filtering).  
 > These three concerns are distinct and should not blur.
 
@@ -362,9 +362,9 @@ e2e/
 
 | Concern | Where it lives |
 |---------|---------------|
-| Talking to LLMs | `services/ai/ai-runtime/` |
-| Building prompts & running multi-phase analysis | `services/ai/pipeline-runtime/` |
-| Scoring/aggregating LLM outputs | `services/ai/engines/` |
+| Talking to LLMs | `services/llm/` |
+| Building prompts & running multi-phase analysis | `services/llm/pipeline/` |
+| Scoring/aggregating LLM outputs | `services/signal/` |
 | Talking to brokers | `services/broker/` |
 | Trading cycle loop | `services/orchestration/cycle/` |
 | Pre-trade risk gates | `services/orchestration/policy/` + `services/risk/` |

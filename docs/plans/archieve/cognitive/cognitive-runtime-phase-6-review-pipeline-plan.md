@@ -42,7 +42,7 @@ Review is where the pipeline should explicitly reason about conflict, tail risk,
 
 | File                                                                     | Current responsibility                                     | Gap                                |
 | ------------------------------------------------------------------------ | ---------------------------------------------------------- | ---------------------------------- |
-| `electron/main/services/ai/pipeline-runtime/definitions/review.phase.ts` | One `reviewer` worker consuming strings                    | No typed review contract           |
+| `electron/main/services/llm/pipeline/definitions/review.phase.ts` | One `reviewer` worker consuming strings                    | No typed review contract           |
 | `electron/main/services/orchestration/agent-orchestrator.ts`             | Builds review input from technical/fundamental text blocks | Hard-coded prose coupling          |
 | `docs/design/cognitive-pipeline-rearchitecture-spec.md`                  | Defines target `ReviewSignal`                              | Migration target already specified |
 

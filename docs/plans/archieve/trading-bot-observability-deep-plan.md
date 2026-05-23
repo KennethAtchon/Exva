@@ -133,7 +133,7 @@ Session start → AgentOrchestrator.start()
 
 The `MockScenario` defaults to `{}` which resolves to `bias: "sideways"`. The `SCENARIO_DRIFT` table maps sideways to 0.0 daily drift. The RNG noise produces slightly negative moves on average given the seeded distribution.
 
-**File:** `electron/main/services/ai/tools/market-tools.ts`
+**File:** `electron/main/services/tools/market-tools.ts`
 
 `DEFAULT_MOCK_NEWS` is a module-level constant: 3 headlines, all neutral, returned identically for every symbol query.
 
@@ -356,7 +356,7 @@ With `trendPctPerDay: 0.006`, a $100 base price rises to ~$120 over 30 bars — 
 
 #### 9.1.2 Scenario-Aware Mock News
 
-**File:** `electron/main/services/ai/tools/market-tools.ts`
+**File:** `electron/main/services/tools/market-tools.ts`
 
 Replace the flat constant with a factory:
 
@@ -453,7 +453,7 @@ export function scenarioMockNews(
 export const DEFAULT_MOCK_NEWS = MOCK_NEWS_BY_SCENARIO.bullish;
 ```
 
-**File:** `electron/main/services/ai/ai-runtime/runtime.ts`
+**File:** `electron/main/services/llm/runtime.ts`
 
 Update `getMockContext()` to pass the mock adapter's scenario bias:
 
@@ -488,7 +488,7 @@ If scenario configurability per-session is needed later, it can be stored in `Wo
 
 ### 9.2 Phase 2: Logging — Role in Adapter Logs
 
-**File:** `electron/main/services/ai/adapters/run-agent-execute.ts`
+**File:** `electron/main/services/llm/adapters/run-agent-execute.ts`
 
 Add `role` to `RunAgentExecuteParams`:
 
@@ -538,7 +538,7 @@ logger.info(
 );
 ```
 
-**Files:** `electron/main/services/ai/adapters/anthropic-adapter.ts`, `openai-adapter.ts`, `openrouter-adapter.ts`
+**Files:** `electron/main/services/llm/adapters/anthropic-adapter.ts`, `openai-adapter.ts`, `openrouter-adapter.ts`
 
 Each adapter's `runAgent()` call passes `role` through to `executeRunAgent()`. The adapters receive `role` from `AiRuntime.runRole()` / `runDecisionRole()` / `runInstrumentSelector()` which already have access to `role`.
 
@@ -1210,17 +1210,17 @@ Both gates are correct. The problem is the data quality provided by mock, not th
 
 ```
 electron/main/services/broker/adapters/mock-adapter.ts         — Phase 1
-electron/main/services/ai/tools/market-tools.ts                — Phase 1
-electron/main/services/ai/ai-runtime/runtime.ts                — Phase 1
-electron/main/services/ai/adapters/run-agent-execute.ts        — Phase 2
-electron/main/services/ai/adapters/anthropic-adapter.ts        — Phase 2
-electron/main/services/ai/adapters/openai-adapter.ts           — Phase 2
-electron/main/services/ai/adapters/openrouter-adapter.ts       — Phase 2
+electron/main/services/tools/market-tools.ts                — Phase 1
+electron/main/services/llm/runtime.ts                — Phase 1
+electron/main/services/llm/adapters/run-agent-execute.ts        — Phase 2
+electron/main/services/llm/adapters/anthropic-adapter.ts        — Phase 2
+electron/main/services/llm/adapters/openai-adapter.ts           — Phase 2
+electron/main/services/llm/adapters/openrouter-adapter.ts       — Phase 2
 electron/main/services/orchestration/agent-orchestrator.ts     — Phase 3
 electron/main/db/repositories/agent-runs-repo.ts               — Phase 3
 electron/main/db/repositories/agent-messages-repo.ts           — Phase 3
 electron/main/ipc/trades.ts (or devtools.ts)                   — Phase 3
 src/pages/DevPanel.tsx                                         — Phase 3
 src/lib/exva.ts                                                — Phase 3
-electron/main/services/ai/tools/search-tool.ts                 — Phase 4
+electron/main/services/tools/search-tool.ts                 — Phase 4
 ```

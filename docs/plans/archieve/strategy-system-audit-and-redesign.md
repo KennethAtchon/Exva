@@ -52,7 +52,7 @@ If nothing changes: sessions take 5–10 minutes to configure from scratch, user
 
 ### Current System State
 
-**Prompt injection path** (`electron/main/services/ai/prompt-pack-builder.ts`):
+**Prompt injection path** (`electron/main/services/llm/prompt-pack-builder.ts`):
 
 ```
 renderSystemPrompt() produces:

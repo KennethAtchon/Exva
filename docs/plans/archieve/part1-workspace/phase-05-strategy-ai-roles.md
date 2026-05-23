@@ -3,7 +3,7 @@
 > Expand the Strategy page to manage both trading rules and per-agent AI behavior for the focused session.
 > Add edit-lock when session is active/paused.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 
 ## Goal
 

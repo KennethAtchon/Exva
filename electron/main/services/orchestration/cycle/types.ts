@@ -1,6 +1,6 @@
 import type { InstrumentClass, Trade } from "@/lib/types";
 import type { SelectorEvidence } from "@electron/shared/ai/selector-pipeline-candidate";
-import type { AgentResult } from "../../ai/ai-runtime/ai-runtime-types";
+import type { AgentResult } from "../../llm/ai-runtime-types";
 import type {
   TechnicalSignal,
   FundamentalSignal,

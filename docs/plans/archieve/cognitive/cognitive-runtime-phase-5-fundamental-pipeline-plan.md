@@ -42,7 +42,7 @@ That prevents deterministic review and decision logic from being built on top of
 
 | File                                                                          | Current responsibility                                | Gap                            |
 | ----------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------ |
-| `electron/main/services/ai/pipeline-runtime/definitions/fundamental.phase.ts` | One `analyst-fundamental` worker returning `{ text }` | No typed phase signal          |
+| `electron/main/services/llm/pipeline/definitions/fundamental.phase.ts` | One `analyst-fundamental` worker returning `{ text }` | No typed phase signal          |
 | `electron/main/services/orchestration/agent-orchestrator.ts`                  | Passes `fundamental.output.text` to later phases      | Hard free-text coupling        |
 | `docs/design/cognitive-pipeline-rearchitecture-spec.md`                       | Defines target `FundamentalSignal` fields             | Migration target already clear |
 

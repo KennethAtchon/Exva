@@ -2,8 +2,8 @@ import type { ApprovalRecheckInput } from "../../../session";
 import type {
   TradeCycleInstrument,
   TradePipelineResult,
-} from "../../../ai/pipeline-runtime/plan/cycle/types";
-import { runEngineBinding } from "../../../ai/pipeline-runtime/execution/engine-context-runner";
+} from "../../../pipeline/analysis/types";
+import { runEngineBinding } from "../../../pipeline/execution/engine-context-runner";
 import type { OrchestratorContext } from "../orchestrator-context";
 import { failRecheck } from "./approval-flow";
 import { buildOrderPolicyTask } from "./order-policy-task";

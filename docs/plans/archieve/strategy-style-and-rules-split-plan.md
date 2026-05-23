@@ -40,7 +40,7 @@ Current state in code:
 - `electron/shared/domain.ts` defines `SessionStrategyProfile` with `strategyType`, `sideBias`, `entryStyle`, `exitStyle`, `scalingMode`, `strategyBriefMarkdown`, and `customInstructions`.
 - `electron/shared/schemas.ts` mirrors that shape in `sessionStrategyProfilePayloadSchema`.
 - `electron/main/services/session/session-strategy-context-service.ts` returns `StrategyPageData` with no separate style object.
-- `electron/main/services/ai/strategy-prompt-context.ts` and `electron/shared/domain.ts:691-768` compress all strategy-facing semantics into one brief/snapshot.
+- `electron/main/services/pipeline/prompting/strategy-prompt-context.ts` and `electron/shared/domain.ts:691-768` compress all strategy-facing semantics into one brief/snapshot.
 
 This is why the current surface feels overloaded. The page is trying to express:
 

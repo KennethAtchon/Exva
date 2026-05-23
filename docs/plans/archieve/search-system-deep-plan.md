@@ -272,7 +272,7 @@ content: "...700 words of actual Reddit discussion including specific stock ment
 
 ### 7.1 New Tool: `fetch_url`
 
-**File:** `electron/main/services/ai/tools/fetch-url-tool.ts`
+**File:** `electron/main/services/tools/fetch-url-tool.ts`
 
 ```ts
 import { tool } from "ai";
@@ -451,7 +451,7 @@ Also add to `prompt-pack-builder.ts` safety rules section:
 
 ### 7.2 New Tool: `search_reddit`
 
-**File:** `electron/main/services/ai/tools/search-reddit-tool.ts`
+**File:** `electron/main/services/tools/search-reddit-tool.ts`
 
 Reddit's JSON API (`https://www.reddit.com/r/{sub}/search.json`) requires no authentication for public subreddits. Returns posts with title, selftext (body), score, and comment count.
 
@@ -633,7 +633,7 @@ export function createSearchRedditTool(deps: {
 
 ### 7.3 New Tool: `get_trending_symbols`
 
-**File:** `electron/main/services/ai/tools/trending-symbols-tool.ts`
+**File:** `electron/main/services/tools/trending-symbols-tool.ts`
 
 StockTwits provides a free unauthenticated endpoint: `https://api.stocktwits.com/api/2/trending/symbols.json`
 
@@ -712,7 +712,7 @@ export function createTrendingSymbolsTool() {
 
 ### 7.4 Tavily Adapter Rewrite
 
-**File:** `electron/main/services/ai/search/adapters/tavily-adapter.ts`
+**File:** `electron/main/services/search/adapters/tavily-adapter.ts`
 
 ```ts
 async search(query: string): Promise<SearchToolResult> {
@@ -745,7 +745,7 @@ This alone gives the AI 6000 chars of real page text per Tavily result — appro
 
 ### 7.5 Search Tool Description Rewrite
 
-**File:** `electron/main/services/ai/tools/search-tool.ts`
+**File:** `electron/main/services/tools/search-tool.ts`
 
 ```ts
 description: [
@@ -878,7 +878,7 @@ Each submitted instrument must have:
 
 ### 7.7 Harness Tool Registration
 
-**File:** `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`
+**File:** `electron/main/services/llm/ai-runtime-types.ts`
 
 Extend `RoleToolPolicy` and `HarnessToolAvailability`:
 
@@ -929,7 +929,7 @@ analyst_technical: {
 // reviewer, decision_maker, analyst_fundamental: no new tools
 ```
 
-**File:** `electron/main/services/ai/ai-runtime/harness-tools.ts`
+**File:** `electron/main/services/llm/harness-tools.ts`
 
 Update `deriveHarnessToolAvailability` to compute the three new availability flags:
 
@@ -987,7 +987,7 @@ Thread from `AiRuntime.runInstrumentSelector()` and `runRole()`.
 
 ### 7.8 Tool Policy Rendering Update
 
-**File:** `electron/main/services/ai/prompt-pack-builder.ts`, `renderToolPolicy()`
+**File:** `electron/main/services/llm/prompt-pack-builder.ts`, `renderToolPolicy()`
 
 Add policy lines for new tools:
 
@@ -1035,7 +1035,7 @@ private async getMockContext(sessionId: string) {
 }
 ```
 
-**File:** `electron/main/services/ai/tools/search-reddit-tool.ts`
+**File:** `electron/main/services/tools/search-reddit-tool.ts`
 
 Add an optional `mockPosts` dep. When provided, skip network call and return mock data.
 
@@ -1081,7 +1081,7 @@ export const MOCK_REDDIT_POSTS = [
 
 `fetch_url` is the highest-impact single change. Once the AI can read URL content, it gets immediate signal quality improvements even without the other new tools.
 
-- Create `electron/main/services/ai/tools/fetch-url-tool.ts` per §7.1
+- Create `electron/main/services/tools/fetch-url-tool.ts` per §7.1
 - Add `fetchUrl: boolean` to `HarnessToolAvailability` and `RoleToolPolicy` in `ai-runtime-types.ts`
 - Update `ROLE_TOOL_POLICY` (selector + technical analyst = true; others = false)
 - Update `deriveHarnessToolAvailability` in `harness-tools.ts`
@@ -1107,8 +1107,8 @@ export const MOCK_REDDIT_POSTS = [
 
 ### Phase 3 — `search_reddit` + `get_trending_symbols` (Est: 2-3h, Impact: High)
 
-- Create `electron/main/services/ai/tools/search-reddit-tool.ts` per §7.2
-- Create `electron/main/services/ai/tools/trending-symbols-tool.ts` per §7.3
+- Create `electron/main/services/tools/search-reddit-tool.ts` per §7.2
+- Create `electron/main/services/tools/trending-symbols-tool.ts` per §7.3
 - Add `MOCK_REDDIT_POSTS` and `MOCK_TRENDING` constants in respective tool files
 - Extend `getMockContext()` in `runtime.ts` to expose mock Reddit/trending data
 - Add `searchReddit` and `trendingSymbols` to `HarnessToolAvailability` and `RoleToolPolicy`
@@ -1398,22 +1398,22 @@ Neither alone is sufficient. A frontier model with the current tools is better b
 ## 13. File Map
 
 ```
-electron/main/services/ai/tools/
+electron/main/services/tools/
   fetch-url-tool.ts               ← NEW (Phase 1)
   search-reddit-tool.ts           ← NEW (Phase 3)
   trending-symbols-tool.ts        ← NEW (Phase 3)
   search-tool.ts                  ← description rewrite (Phase 2)
   market-tools.ts                 ← unchanged
 
-electron/main/services/ai/search/adapters/
+electron/main/services/search/adapters/
   tavily-adapter.ts               ← search_depth, content-primary, clamp 6000 (Phase 2)
 
-electron/main/services/ai/ai-runtime/
+electron/main/services/llm/
   ai-runtime-types.ts             ← HarnessToolAvailability + RoleToolPolicy + ROLE_TOOL_POLICY
   harness-tools.ts                ← buildHarnessToolSet + deriveHarnessToolAvailability
   runtime.ts                      ← getMockContext + thread apiCallLogRepo/instrumentClasses
 
-electron/main/services/ai/
+electron/main/services/llm/
   prompt-pack-builder.ts          ← renderToolPolicy + content safety rule
 
 electron/prompts/

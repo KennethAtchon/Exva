@@ -4,7 +4,7 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
   isBuiltInSearchProviderAccount,
   parseProviderMetadata,
-} from "@electron/shared/catalog/search-providers";
+} from "@electron/shared/instruments/search-providers";
 import {
   Badge,
   Card,

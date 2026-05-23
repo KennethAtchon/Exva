@@ -51,12 +51,12 @@ Source path:
 
 1. `electron/main/services/orchestration/cycle/agent-orchestrator.ts:25-43` starts the orchestrator and immediately runs the initial selector cycle.
 2. `electron/main/services/orchestration/cycle/selector/run-selector.ts:15-19` calls `ctx.deps.ai.runPlan("selector", ...)`.
-3. `electron/main/services/ai/pipeline-runtime/core/pipeline-runtime.ts:219-250` builds strategy context, tool context, and the worker executor.
-4. `electron/main/services/ai/pipeline-runtime/plan/phase/interpreter.ts:80-121` runs discovery and verification stages.
-5. `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts:80-147` defines discovery and verification stage behavior.
-6. `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts:104-149` builds tools and calls `adapter.runAgent(...)`.
-7. `electron/main/services/ai/adapters/run-agent-execute.ts:237-242` calls `generateText(...)` with `experimental_output: Output.object(...)` when a schema is present.
-8. `electron/main/services/ai/engines/selector/selector-risk-filter.ts:37-56` requires a quote snapshot and validates selector evidence before allowing a candidate.
+3. `electron/main/services/llm/pipeline/core/pipeline-runtime.ts:219-250` builds strategy context, tool context, and the worker executor.
+4. `electron/main/services/llm/pipeline/phases/interpreter.ts:80-121` runs discovery and verification stages.
+5. `electron/main/services/llm/pipeline/implementations/selector/plan.ts:80-147` defines discovery and verification stage behavior.
+6. `electron/main/services/llm/pipeline/execution/worker-executor.ts:104-149` builds tools and calls `adapter.runAgent(...)`.
+7. `electron/main/services/llm/adapters/run-agent-execute.ts:237-242` calls `generateText(...)` with `experimental_output: Output.object(...)` when a schema is present.
+8. `electron/main/services/signal/scoring/selector-risk-filter.ts:37-56` requires a quote snapshot and validates selector evidence before allowing a candidate.
 
 ## Findings
 
@@ -64,10 +64,10 @@ Source path:
 
 **Files:**
 
-- `electron/main/services/ai/adapters/run-agent-execute.ts:160-178`
-- `electron/main/services/ai/adapters/run-agent-execute.ts:237-242`
-- `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts:124-139`
-- `electron/main/services/ai/pipeline-runtime/phase-config-resolver.ts:83-85`
+- `electron/main/services/llm/adapters/run-agent-execute.ts:160-178`
+- `electron/main/services/llm/adapters/run-agent-execute.ts:237-242`
+- `electron/main/services/llm/pipeline/execution/worker-executor.ts:124-139`
+- `electron/main/services/llm/pipeline/phase-config-resolver.ts:83-85`
 
 **What:** Object-output workers with tools can finish after one text step because `executeRunAgent` only sets stop conditions for max steps, terminal tools, spend, and loop guard. It never requires a first tool call or required tool coverage. The default `terminalToolNames` is also always empty for worker runtime config. The newer runtime log shows discovery workers can call tools successfully, but verification workers still skip their required quote/news/OHLCV tools.
 
@@ -137,9 +137,9 @@ Implementation priority should start with verification workers. Discovery requir
 
 **Files:**
 
-- `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts:203-224`
-- `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts:227-239`
-- `electron/main/services/ai/engines/selector/selector-risk-filter.ts:37-39`
+- `electron/main/services/llm/pipeline/implementations/selector/plan.ts:203-224`
+- `electron/main/services/llm/pipeline/implementations/selector/plan.ts:227-239`
+- `electron/main/services/signal/scoring/selector-risk-filter.ts:37-39`
 - `electron/main/services/orchestration/policy/candidate-validation-service.ts:96-139`
 
 **What:** Verification results are merged even when they contain no tool trace. `RiskFilter` then extracts a quote snapshot from `selectorTraces`; if there is no `get_quote` result, it silently filters the candidate out.
@@ -161,7 +161,7 @@ This preserves safety while making the cause visible in DevPanel and logs.
 
 **Files:**
 
-- `electron/main/services/ai/tools/market-tools.ts:137-189`
+- `electron/main/services/tools/market-tools.ts:137-189`
 - `electron/main/services/broker/instrument-normalizer.ts:9-38`
 - `electron/main/services/broker/adapters/coinbase-advanced-trade-adapter.ts:122-125`
 
@@ -205,9 +205,9 @@ Example tool output:
 
 **Files:**
 
-- `electron/main/services/ai/pipeline-runtime/context/tool-context-builder.ts:35-59`
-- `electron/main/services/ai/pipeline-runtime/plan/phase/interpreter.ts:29-39`
-- `electron/main/services/ai/pipeline-runtime/plan/input-builders/selector-scope.ts:9-18`
+- `electron/main/services/llm/pipeline/worker-tools/tool-context-builder.ts:35-59`
+- `electron/main/services/llm/pipeline/phases/interpreter.ts:29-39`
+- `electron/main/services/llm/pipeline/implementations/inputs/selector-scope.ts:9-18`
 
 **What:** `PhasePlanInterpreter` resolves effective classes with `resolveSessionInstrumentClasses(...)`, but `buildToolContext` still sets `toolContext.instrumentClasses` from `session.instrumentClasses`. `SELECTOR_PLAN.buildTask` uses `ctx.toolContext.instrumentClasses` at `selector/plan.ts:87-91`, while input builders use `ctx.instrumentClasses`.
 
@@ -226,12 +226,12 @@ Concrete change:
 
 **Files:**
 
-- `electron/main/services/ai/pipeline-runtime/prompts/selector-workers/web-scout.md:1-21`
-- `electron/main/services/ai/pipeline-runtime/prompts/selector-workers/reddit-scout.md:1-7`
-- `electron/main/services/ai/pipeline-runtime/prompts/selector-workers/trend-scout.md:1-7`
-- `electron/main/services/ai/pipeline-runtime/prompts/selector-workers/market-validator.md:1-17`
-- `electron/main/services/ai/pipeline-runtime/prompts/selector-workers/liquidity-gate.md:1-16`
-- `electron/main/services/ai/pipeline-runtime/prompts/selector-workers/catalyst-extractor.md:1-16`
+- `electron/main/services/llm/pipeline/prompts/selector-workers/web-scout.md:1-21`
+- `electron/main/services/llm/pipeline/prompts/selector-workers/reddit-scout.md:1-7`
+- `electron/main/services/llm/pipeline/prompts/selector-workers/trend-scout.md:1-7`
+- `electron/main/services/llm/pipeline/prompts/selector-workers/market-validator.md:1-17`
+- `electron/main/services/llm/pipeline/prompts/selector-workers/liquidity-gate.md:1-16`
+- `electron/main/services/llm/pipeline/prompts/selector-workers/catalyst-extractor.md:1-16`
 
 **What:** The prompt assets say what JSON to return, but they do not make tool use an explicit step-by-step contract. They also do not define what to do with tool errors beyond “use low scores.”
 
@@ -257,9 +257,9 @@ Prompt changes are necessary but not sufficient. The runtime enforcement from fi
 
 **Files:**
 
-- `electron/main/services/ai/tools/trending-symbols-tool.ts:5-6`
-- `electron/main/services/ai/tools/search-reddit-tool.ts:9-10`
-- `electron/main/services/ai/tools/search-reddit-tool.ts:139-141`
+- `electron/main/services/tools/trending-symbols-tool.ts:5-6`
+- `electron/main/services/tools/search-reddit-tool.ts:9-10`
+- `electron/main/services/tools/search-reddit-tool.ts:139-141`
 
 **What:** `get_trending_symbols` only uses StockTwits. Reddit search defaults to stock-heavy subreddits and explicitly returns an error in live mode unless mock data is supplied. Crypto subreddits are only added when `instrumentClasses` includes `crypto`.
 
@@ -276,9 +276,9 @@ Prompt changes are necessary but not sufficient. The runtime enforcement from fi
 
 **Files:**
 
-- `electron/main/services/ai/pipeline-runtime/execution/trace-assembler.ts:101-177`
-- `electron/main/services/ai/pipeline-runtime/execution/trace-assembler.ts:220-253`
-- `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts:149-181`
+- `electron/main/services/llm/pipeline/execution/trace-assembler.ts:101-177`
+- `electron/main/services/llm/pipeline/execution/trace-assembler.ts:220-253`
+- `electron/main/services/llm/pipeline/implementations/selector/plan.ts:149-181`
 
 **What:** The aggregate trace summarizes workers and tool traces, but selector finalization only emits accepted output. Rejected candidates and their reason chain are not part of the user-facing phase output.
 
@@ -307,10 +307,10 @@ Persist this alongside the accepted `InstrumentSelection` so DevPanel can explai
 
 **Files:**
 
-- `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts:21-27`
-- `electron/main/services/ai/adapters/openrouter-adapter.ts:124-129`
-- `electron/main/services/ai/adapters/openai-adapter.ts:96-101`
-- `electron/main/services/ai/adapters/anthropic-adapter.ts:97-102`
+- `electron/main/services/llm/pipeline/execution/worker-executor.ts:21-27`
+- `electron/main/services/llm/adapters/openrouter-adapter.ts:124-129`
+- `electron/main/services/llm/adapters/openai-adapter.ts:96-101`
+- `electron/main/services/llm/adapters/anthropic-adapter.ts:97-102`
 
 **What:** Pipeline workers avoid temperature for model IDs containing `/`, which explains why selector logs show `temperature: null`. The warning in `docs/hello.json:81-82` likely comes from connection-test or non-pipeline generate-text paths that still pass `temperature: 0`.
 
@@ -350,7 +350,7 @@ Goal: prevent verification workers from succeeding without required tool evidenc
 2. Add requirements first to `market-validator:*`, `liquidity-gate:*`, and `catalyst-extractor:*` workers.
 3. Enforce requirements in `worker-executor.ts` after `trace` is returned.
 4. On failure, throw `AppError("VALIDATION_FAILED")` with details: worker id, required tools, used tools.
-5. Add tests in `electron/main/services/ai/pipeline-runtime/plan/plans/selector` or `worker-executor` covering direct JSON with no tool calls.
+5. Add tests in `electron/main/services/llm/pipeline/implementations/plans/selector` or `worker-executor` covering direct JSON with no tool calls.
 
 Success criteria:
 
@@ -433,13 +433,13 @@ Success criteria:
 | Area                    | Primary file                                                                                    | Change                                                                       |
 | ----------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | Tool contract config    | `electron/shared/ai/pipeline-phase` and `pipeline-discovery-config.ts`                          | Add per-worker required tool metadata.                                       |
-| Runtime enforcement     | `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts`                       | Fail workers that miss required tool calls.                                  |
-| Execution trace         | `electron/main/services/ai/adapters/run-agent-execute.ts`                                       | Keep current trace capture; optionally add a helper to summarize used tools. |
-| Selector finalization   | `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts`                        | Return accepted and rejected diagnostics.                                    |
-| Risk filtering          | `electron/main/services/ai/engines/selector/selector-risk-filter.ts`                            | Return reasoned evaluation instead of boolean-only filtering.                |
-| Market tools            | `electron/main/services/ai/tools/market-tools.ts`                                               | Normalize symbols before broker calls.                                       |
-| Tool context            | `electron/main/services/ai/pipeline-runtime/context/tool-context-builder.ts`                    | Use effective instrument classes.                                            |
-| Prompts                 | `electron/main/services/ai/pipeline-runtime/prompts/selector-workers/*.md`                      | Require concrete tool-call sequence.                                         |
+| Runtime enforcement     | `electron/main/services/llm/pipeline/execution/worker-executor.ts`                       | Fail workers that miss required tool calls.                                  |
+| Execution trace         | `electron/main/services/llm/adapters/run-agent-execute.ts`                                       | Keep current trace capture; optionally add a helper to summarize used tools. |
+| Selector finalization   | `electron/main/services/llm/pipeline/implementations/selector/plan.ts`                        | Return accepted and rejected diagnostics.                                    |
+| Risk filtering          | `electron/main/services/signal/scoring/selector-risk-filter.ts`                            | Return reasoned evaluation instead of boolean-only filtering.                |
+| Market tools            | `electron/main/services/tools/market-tools.ts`                                               | Normalize symbols before broker calls.                                       |
+| Tool context            | `electron/main/services/llm/pipeline/worker-tools/tool-context-builder.ts`                    | Use effective instrument classes.                                            |
+| Prompts                 | `electron/main/services/llm/pipeline/prompts/selector-workers/*.md`                      | Require concrete tool-call sequence.                                         |
 | Runtime start lifecycle | `electron/main/services/orchestration/cycle/agent-orchestrator.ts` and session runtime services | Do not block `session:start` on initial selector completion.                 |
 
 ## Verification Checklist
@@ -448,9 +448,9 @@ Run these after implementation:
 
 ```bash
 bun run typecheck
-bunx vitest electron/main/services/ai/__tests__/run-agent-execute.test.ts
-bunx vitest electron/main/services/ai/pipeline-runtime/core/worker-graph-scheduler.test.ts
-bunx vitest electron/main/services/ai/pipeline-runtime/plan/plans/selector --run
+bunx vitest electron/main/services/llm/__tests__/run-agent-execute.test.ts
+bunx vitest electron/main/services/llm/pipeline/core/worker-graph-scheduler.test.ts
+bunx vitest electron/main/services/llm/pipeline/implementations/plans/selector --run
 bunx vitest electron/main/services/orchestration/cycle/__tests__/run-selector.test.ts
 ```
 

@@ -44,7 +44,7 @@ This blocks the rest of the pipeline. Review cannot consume structured technical
 
 | File                                                                        | Current responsibility                                  | Gap                                                      |
 | --------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------- |
-| `electron/main/services/ai/pipeline-runtime/definitions/technical.phase.ts` | One worker, `{ text }` output                           | No typed technical schema                                |
+| `electron/main/services/llm/pipeline/definitions/technical.phase.ts` | One worker, `{ text }` output                           | No typed technical schema                                |
 | `electron/main/services/orchestration/agent-orchestrator.ts`                | Treats technical output as raw text                     | Downstream phases cannot consume structured evidence     |
 | `electron/shared/ai/pipeline-phase.ts`                                      | Already supports multi-worker/object output definitions | Runtime substrate exists; behavior still needs migration |
 

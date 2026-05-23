@@ -70,11 +70,11 @@ The current implementation also overweights AI reasoning relative to determinist
 | Runtime ownership   | `electron/main/services/session/session-runtime-manager.ts`, `session-runtime.ts`                                                                                | Creates one runtime per active/paused session, owns orchestrator and monitor, pauses active sessions on startup rehydration.                                                                                                                                                                       |
 | Orchestration       | `electron/main/services/orchestration/agent-orchestrator.ts`                                                                                                     | Selector, cache, AI pipeline, risk, approval, broker routing, order placement, cycle restart. Selector no-instrument retry currently fires after `NO_INSTRUMENT_RETRY_MS = 3 * 60 * 1000` (3 min); target behavior is a user-configurable retry interval that defaults to `5 * 60 * 1000` (5 min). |
 | Research burst      | `electron/main/services/orchestration/research-burst-service.ts`, `market-hours-service.ts`                                                                      | Resolves selected instruments then filters tradability via `MarketHoursService.filterTradable()`.                                                                                                                                                                                                  |
-| AI runtime          | `electron/main/services/ai/ai-runtime/runtime.ts`, `adapters/run-agent-execute.ts`, `harness-tools.ts`                                                           | Builds prompt packs/tools, calls provider adapters, stores traces, parses role outputs. Forces `search_web` as step 0 tool via `prepareStep` when search provider is available.                                                                                                                    |
-| Selector parser     | `electron/main/services/ai/ai-runtime/instrument-selection-parser.ts`                                                                                            | Parses selector terminal output. Three-level fallback: `resultJson` → `argsJson` → `trace.assistantText`.                                                                                                                                                                                          |
+| AI runtime          | `electron/main/services/llm/runtime.ts`, `adapters/run-agent-execute.ts`, `harness-tools.ts`                                                           | Builds prompt packs/tools, calls provider adapters, stores traces, parses role outputs. Forces `search_web` as step 0 tool via `prepareStep` when search provider is available.                                                                                                                    |
+| Selector parser     | `electron/main/services/llm/instrument-selection-parser.ts`                                                                                            | Parses selector terminal output. Three-level fallback: `resultJson` → `argsJson` → `trace.assistantText`.                                                                                                                                                                                          |
 | Risk                | `electron/main/services/risk/risk-engine.ts`, `capital-reservation-service.ts`                                                                                   | Session and order gating, shared pool reservations. Capital reservation only runs in the `humanApprovalRequired` path; no-approval sessions skip all reservation steps.                                                                                                                            |
 | Broker              | `electron/main/services/broker/broker-routing-service.ts`, `broker-registry.ts`, adapters                                                                        | Resolve account by session/instrument class and place/close/get status. Instrument conflict check is intra-session only (`checkInstrumentConflict(brokerAccountId, symbol, sessionId)`).                                                                                                           |
-| Mock data           | `electron/main/services/broker/adapters/mock-adapter.ts`, `electron/main/services/ai/tools/market-tools.ts`, `search-reddit-tool.ts`, `trending-symbols-tool.ts` | Synthetic OHLCV/quote/news/social/trending data. See Section 4.2 for detailed mock limitations.                                                                                                                                                                                                    |
+| Mock data           | `electron/main/services/broker/adapters/mock-adapter.ts`, `electron/main/services/tools/market-tools.ts`, `search-reddit-tool.ts`, `trending-symbols-tool.ts` | Synthetic OHLCV/quote/news/social/trending data. See Section 4.2 for detailed mock limitations.                                                                                                                                                                                                    |
 | Strategy/presets    | `electron/shared/domain.ts`, `electron/shared/presets.ts`, `electron/main/services/session/session-strategy-context-service.ts`                                  | Research style, trade rules, risk profile, timeframe, prompt context.                                                                                                                                                                                                                              |
 | Post-trade analysis | `electron/main/services/orchestration/trade-autopsy-service.ts`                                                                                                  | AI-generated trade summaries using `claude-haiku-4-5-20251001` against persisted agent messages and final PnL.                                                                                                                                                                                     |
 
@@ -129,7 +129,7 @@ The flow is structurally correct for a local autonomous agent. The main weakness
 
 `docs/hello.json` shows `submit_candidates` called at step 6 with two instruments in `toolArgs`, then `toolResult: null`, then `parseInstrumentSelection()` throws because it parsed `tc.resultJson` only.
 
-Fix applied in `electron/main/services/ai/ai-runtime/instrument-selection-parser.ts`: the parser now tries three sources in order for each `submit_candidates` call:
+Fix applied in `electron/main/services/llm/instrument-selection-parser.ts`: the parser now tries three sources in order for each `submit_candidates` call:
 
 1. `tc.resultJson` — standard provider output
 2. `tc.argsJson` — terminal tool args when result is null (the `docs/hello.json` case)
@@ -653,7 +653,7 @@ Verification commands:
 
 ```bash
 bun run typecheck
-bunx vitest electron/main/services/ai/ai-runtime/__tests__/instrument-selection-parser.test.ts
+bunx vitest electron/main/services/llm/__tests__/instrument-selection-parser.test.ts
 bunx vitest electron/main/services/orchestration/  # new suite per phase
 ```
 
@@ -708,8 +708,8 @@ bunx vitest electron/main/services/orchestration/  # new suite per phase
 
 Changed files:
 
-- `electron/main/services/ai/ai-runtime/instrument-selection-parser.ts`
-- `electron/main/services/ai/ai-runtime/__tests__/instrument-selection-parser.test.ts`
+- `electron/main/services/llm/instrument-selection-parser.ts`
+- `electron/main/services/llm/__tests__/instrument-selection-parser.test.ts`
 
 Fix summary:
 

@@ -4,7 +4,7 @@
 > **Status:** Draft
 > **Deciders:** Kenneth Atchon
 > **Implements:** `docs/engineering/CODING_GUIDELINES.md`
-> **Related:** `docs/plan/ai-harness-architecture.md`, `docs/plan/trading-strategy-configuration.md`
+> **Related:** `docs/implementations/ai-harness-architecture.md`, `docs/implementations/trading-strategy-configuration.md`
 
 ---
 
@@ -47,7 +47,7 @@ This must be fixed before expanding strategy injection further. If the current p
 
 ### 3.1 Strategy Context Builder Exists But Is Too Primitive
 
-Current file: `electron/main/services/ai/strategy-prompt-context.ts`
+Current file: `electron/main/services/pipeline/prompting/strategy-prompt-context.ts`
 
 `buildStrategyPromptContext()` constructs a `StrategySnapshot` and renders a short Markdown block with `## Session strategy`, `## Session risk`, and `## Session trading horizon`. This is a useful foundation, but it only lists values. It does not tell the model how to interpret authority, what conflicts to resolve, what risk controls are hard limits, how timeframe should affect analysis, or how tool results relate to session context.
 
@@ -66,7 +66,7 @@ The prompt is mechanically prepended to arbitrary user text. There is no explici
 
 ### 3.2 `marketMarkdown` Is A Phantom Contract
 
-Current files: `electron/main/services/ai/ai-runtime/runtime.ts`, `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`
+Current files: `electron/main/services/llm/runtime.ts`, `electron/main/services/llm/ai-runtime-types.ts`
 
 `AiRuntime.runAnalyst()` has this branch:
 
@@ -124,7 +124,7 @@ The same issue exists across roles:
 
 ### 3.4 Tool Policy Is Centralized But Not Reflected In Prompts
 
-Current file: `electron/main/services/ai/ai-runtime/role-tools.ts`
+Current file: `electron/main/services/llm/role-tools.ts`
 
 `ROLE_TOOL_POLICY` is a good start:
 
@@ -444,7 +444,7 @@ The written model is simple: prompt pack creation owns what the model sees; runt
 Add a focused builder under the AI service boundary:
 
 ```ts
-// electron/main/services/ai/prompt-pack-builder.ts
+// electron/main/services/llm/prompt-pack-builder.ts
 export interface AgentTaskPrompt {
   instrumentSymbol?: string;
   instrumentDisplayName?: string | null;
@@ -795,7 +795,7 @@ Role-specific additions:
 
 **Deliverables:**
 
-- `electron/main/services/ai/prompt-pack-builder.ts`
+- `electron/main/services/llm/prompt-pack-builder.ts`
 - `renderStrategyContextMarkdown()` with role-aware guidance.
 - `renderSystemPrompt()` that combines base role prompt, tool policy, and safety rules.
 - `renderUserPrompt()` that separates trusted session context, market context, and task.
@@ -808,7 +808,7 @@ Role-specific additions:
 
 **Implementation notes:**
 
-- Added `electron/main/services/ai/prompt-pack-builder.ts` with `AgentPromptPackBuilder`, `RuntimeRiskPolicy`, role-aware strategy context rendering, system prompt augmentation, tool-policy rendering, and separated `<trusted_session_context>`, `<trusted_market_context>`, and `<task>` user blocks.
+- Added `electron/main/services/llm/prompt-pack-builder.ts` with `AgentPromptPackBuilder`, `RuntimeRiskPolicy`, role-aware strategy context rendering, system prompt augmentation, tool-policy rendering, and separated `<trusted_session_context>`, `<trusted_market_context>`, and `<task>` user blocks.
 - Migrated `AiRuntime.runInstrumentSelector()`, `runRole()`, and `runDecisionRole()` to source messages and snapshots from prompt packs.
 - Left `prependStrategyContextToUserPrompt()` exported for existing compatibility/tests, but no runtime AI path uses it.
 
@@ -906,7 +906,7 @@ Role-specific additions:
 
 - `bun run typecheck` passes.
 - `bun run lint` passes.
-- Targeted prompt/risk tests pass: `bunx vitest run electron/main/services/ai/__tests__/prompt-pack-builder.test.ts electron/main/services/ai/__tests__/strategy-prompt-context.test.ts electron/main/services/risk/__tests__/risk-engine.test.ts`.
+- Targeted prompt/risk tests pass: `bunx vitest run electron/main/services/llm/__tests__/prompt-pack-builder.test.ts electron/main/services/llm/__tests__/strategy-prompt-context.test.ts electron/main/services/risk/__tests__/risk-engine.test.ts`.
 - Full `bun run test` is blocked by the local `better-sqlite3` native module ABI mismatch (`NODE_MODULE_VERSION 130` compiled module vs `137` required runtime) in DB-backed tests. Non-DB prompt/risk tests pass.
 
 ---

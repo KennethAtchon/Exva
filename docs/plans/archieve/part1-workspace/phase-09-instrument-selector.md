@@ -5,7 +5,7 @@
 > Add the `instrument_selector` AI role.
 > Enable sessions to use an AI-driven universe selection flow instead of a fixed manual shortlist.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 
 ## Prerequisites
 
@@ -334,7 +334,7 @@ You select a universe of trading instruments based on the user's screening crite
 | Modify | `electron/main/db/schema.ts` — add `session_instrument_cache` table                              |
 | Modify | `electron/main/db/migrations.ts` — add table DDL                                                 |
 | Create | `electron/main/db/repositories/instrument-cache-repo.ts`                                         |
-| Modify | `electron/main/services/ai/ai-runtime.ts` — add `runInstrumentSelector()`                        |
+| Modify | `electron/main/services/llm/ai-runtime.ts` — add `runInstrumentSelector()`                        |
 | Modify | `electron/main/services/agent-orchestrator.ts` — add `resolveInstruments()` + definition hashing |
 | Modify | `electron/main/services/session/session-service.ts` — add selector preflight                     |
 | Modify | `electron/main/ipc/session.ts` — add instrument cache IPC handlers                               |

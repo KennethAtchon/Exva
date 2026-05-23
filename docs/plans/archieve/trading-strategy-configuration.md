@@ -57,8 +57,8 @@ This must be fixed now because the harness plan depends on a canonical strategy 
 - `electron/shared/domain.ts`
 - `electron/main/db/schema.ts`
 - `electron/main/db/repositories/session-strategies-repo.ts`
-- `electron/main/services/ai/strategy-prompt-context.ts`
-- `electron/main/services/ai/ai-runtime.ts`
+- `electron/main/services/pipeline/prompting/strategy-prompt-context.ts`
+- `electron/main/services/llm/ai-runtime.ts`
 - `electron/main/services/orchestration/agent-orchestrator.ts`
 
 **Constraint from the existing codebase**
@@ -67,7 +67,7 @@ The current runtime, risk engine, and session creation flow still read from `ses
 
 **Cross-plan contract with the harness**
 
-This plan and `docs/plan/ai-harness-architecture.md` share these canonical decisions:
+This plan and `docs/implementations/ai-harness-architecture.md` share these canonical decisions:
 
 1. The post-migration analyst role names are `analyst_technical` and `analyst_fundamental`.
 2. `instrument_selector` remains the code/DB key, but the UI label becomes **Universe Researcher**.

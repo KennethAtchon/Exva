@@ -5,7 +5,7 @@
 > **Implementation note:** The `SelectorPipeline` class approach described in sections 5 and 6 was superseded by the `PipelineDefinition.run` hook (see Phase 2 cutover plan). The end semantics are identical; the folder structure and class hierarchy are not used.
 > **Feature area:** AI Runtime, Phase Orchestration, Run Management, Full Trading Pipeline
 > **Audience:** Engineering
-> **Depends on:** `AgentOrchestrator` (electron/main/services/orchestration/agent-orchestrator.ts), `AiRuntime` (electron/main/services/ai/ai-runtime/runtime.ts), current `session_ai_roles` DB schema (abstracted as phase config in this design), broker routing, search registry, prompt asset loader
+> **Depends on:** `AgentOrchestrator` (electron/main/services/orchestration/agent-orchestrator.ts), `AiRuntime` (electron/main/services/llm/runtime.ts), current `session_ai_roles` DB schema (abstracted as phase config in this design), broker routing, search registry, prompt asset loader
 > **Replaces:** `AiRuntime.runInstrumentSelector` (runtime.ts:171-284), `AiRuntime.runAnalyst`, `AiRuntime.runReviewer`, `AiRuntime.runDecisionMaker`, and `selector-runtime-control.ts` (385 lines) — the full agent loop is replaced
 > **Does NOT replace:** `AiRuntime.runRole` base infrastructure, `withProviderRetry`, `spendGuardUsd`, `executeRunAgent`, provider/search adapters, or any broker/DB layer
 
@@ -640,7 +640,7 @@ export type Candidate = z.infer<typeof candidateSchema>;
 ### 16.4 ScoringEngine (selector stage)
 
 ```ts
-// electron/main/services/ai/selector-pipeline/scoring-engine.ts
+// electron/main/services/llm/selector-pipeline/scoring-engine.ts
 export function scoreCandidate(c: Candidate, w: ScoringWeights): number {
   const totalWeight = w.hype + w.volume + w.catalyst + w.liquidity;
   if (totalWeight === 0) return 0;
@@ -676,7 +676,7 @@ export const DEFAULT_SCORING_WEIGHTS: ScoringWeights = {
 The model is **never asked to call `submit_candidates`** in the new pipeline:
 
 ```ts
-// electron/main/services/ai/selector-pipeline/submission-builder.ts
+// electron/main/services/llm/selector-pipeline/submission-builder.ts
 export function build(
   candidates: Candidate[],
   maxCount: number,
@@ -1029,7 +1029,7 @@ No tools available. No trade decision. Return JSON only.
 ### 16.12 MCP web search adapter
 
 ```ts
-// electron/main/services/ai/search/adapters/mcp-adapter.ts
+// electron/main/services/search/adapters/mcp-adapter.ts
 import { createMCPClient } from "@ai-sdk/mcp";
 import type { SearchAdapter, SearchToolResult } from "../search-types";
 

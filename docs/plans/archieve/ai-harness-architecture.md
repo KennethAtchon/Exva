@@ -51,14 +51,14 @@ This matters now because the strategy plan introduces methodology-based analysts
 ## 3. Background & Context
 
 **What the harness owns:**
-Prompt assembly, structured context injection, tool registration, execution bounds, retries, output validation, logging, and orchestration. Primary files: `electron/main/services/ai/ai-runtime/runtime.ts`, `electron/main/services/ai/ai-runtime/harness-tools.ts`, `electron/main/services/orchestration/agent-orchestrator.ts`, `electron/main/db/`.
+Prompt assembly, structured context injection, tool registration, execution bounds, retries, output validation, logging, and orchestration. Primary files: `electron/main/services/llm/runtime.ts`, `electron/main/services/llm/harness-tools.ts`, `electron/main/services/orchestration/agent-orchestrator.ts`, `electron/main/db/`.
 
 **Related files:**
 
-- `electron/main/services/ai/adapters/provider-adapter.ts`
-- `electron/main/services/ai/ai-runtime/runtime.ts`
-- `electron/main/services/ai/ai-runtime/harness-tools.ts`
-- `electron/main/services/ai/strategy-prompt-context.ts`
+- `electron/main/services/llm/adapters/provider-adapter.ts`
+- `electron/main/services/llm/runtime.ts`
+- `electron/main/services/llm/harness-tools.ts`
+- `electron/main/services/pipeline/prompting/strategy-prompt-context.ts`
 - `electron/main/services/orchestration/agent-orchestrator.ts`
 - `electron/main/services/orchestration/trade-monitor.ts`
 - `electron/main/db/schema.ts`
@@ -88,7 +88,7 @@ Each role uses a differentiated execution model. Tools are role-specific. The mo
 | `reviewer`            | `search_web`                                                            | 8 steps    | $0.05/run    | Spot-check verification + synthesis                       |
 | `decision_maker`      | none                                                                    | 1 step     | $0.04/run    | Single-shot structured output (no tool loop)              |
 
-Listed tools are **policy defaults** from `ROLE_TOOL_POLICY` in `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`. At runtime, `deriveHarnessToolAvailability` and `buildHarnessToolSet` (`harness-tools.ts`) intersect policy with infrastructure: a configured **search provider** is required for `search_web` and `get_news`; **broker routing + broker registry** on `AiRuntime` is required for quote/OHLCV/news market tools. The system prompt’s “Tool Policy For This Run” section reflects **effective** tools only (same predicates as the registered `ToolSet`).
+Listed tools are **policy defaults** from `ROLE_TOOL_POLICY` in `electron/main/services/llm/ai-runtime-types.ts`. At runtime, `deriveHarnessToolAvailability` and `buildHarnessToolSet` (`harness-tools.ts`) intersect policy with infrastructure: a configured **search provider** is required for `search_web` and `get_news`; **broker routing + broker registry** on `AiRuntime` is required for quote/OHLCV/news market tools. The system prompt’s “Tool Policy For This Run” section reflects **effective** tools only (same predicates as the registered `ToolSet`).
 
 ---
 
@@ -420,7 +420,7 @@ Single `runAgent()` path for both text and structured-output roles. Schema prese
 
 #### Cost estimation
 
-Per-model pricing table keyed by model ID prefix. Never hardcoded to a single model's rates. Maintained in `electron/main/services/ai/model-pricing.ts`:
+Per-model pricing table keyed by model ID prefix. Never hardcoded to a single model's rates. Maintained in `electron/main/services/llm/model-pricing.ts`:
 
 ```ts
 const MODEL_PRICING: Array<{
@@ -468,13 +468,13 @@ CREATE TABLE agent_messages (
 
 #### Deliverables
 
-- `electron/main/services/ai/adapters/provider-adapter.ts` — new `runAgent()` contract
-- `electron/main/services/ai/adapters/anthropic-adapter.ts` — implement `runAgent()` with `onStepFinish`, `stopWhen`
-- `electron/main/services/ai/adapters/openai-adapter.ts` — same
-- `electron/main/services/ai/adapters/openrouter-adapter.ts` — same
-- `electron/main/services/ai/ai-runtime-types.ts` — `RunTrace`, `StepTrace`, `ToolCallRecord`, `AgentMessage`
-- `electron/main/services/ai/model-pricing.ts` — per-model cost table
-- `electron/main/services/ai/ai-runtime/runtime.ts` — unified tool assembly via `harness-tools.ts`; `decision_maker` uses structured output with no tools in `runDecisionRole`
+- `electron/main/services/llm/adapters/provider-adapter.ts` — new `runAgent()` contract
+- `electron/main/services/llm/adapters/anthropic-adapter.ts` — implement `runAgent()` with `onStepFinish`, `stopWhen`
+- `electron/main/services/llm/adapters/openai-adapter.ts` — same
+- `electron/main/services/llm/adapters/openrouter-adapter.ts` — same
+- `electron/main/services/llm/ai-runtime-types.ts` — `RunTrace`, `StepTrace`, `ToolCallRecord`, `AgentMessage`
+- `electron/main/services/llm/model-pricing.ts` — per-model cost table
+- `electron/main/services/llm/runtime.ts` — unified tool assembly via `harness-tools.ts`; `decision_maker` uses structured output with no tools in `runDecisionRole`
 - `electron/main/db/schema.ts` + migrations DDL — `provider_key`, `finish_reason` on `agent_runs`; `agent_messages` with `cycle_id`
 - `electron/main/db/repositories/agent-messages-repo.ts`
 - `TradeDetail.tsx` — message trace viewer
@@ -630,7 +630,7 @@ Harness applies: `stopWhen: [stepCountIs(safetyCapSteps), spendGuard(spendLimitU
 
 #### `get_quote`, `get_ohlcv`, `get_news` tool contracts
 
-These tools are attached **only** for `instrument_selector` in today’s harness (analyst roles get `get_news` when policy + infra allow; they do not get quote/OHLCV). Implementations live in `electron/main/services/ai/tools/market-tools.ts`: they resolve a **broker account** by instrument class and call `BrokerRegistry` adapters; OHLCV is synthetic-from-snapshot in this build; `get_news` issues a **search** query via the configured search provider (same backend family as `search_web`), not a dedicated news REST API.
+These tools are attached **only** for `instrument_selector` in today’s harness (analyst roles get `get_news` when policy + infra allow; they do not get quote/OHLCV). Implementations live in `electron/main/services/tools/market-tools.ts`: they resolve a **broker account** by instrument class and call `BrokerRegistry` adapters; OHLCV is synthetic-from-snapshot in this build; `get_news` issues a **search** query via the configured search provider (same backend family as `search_web`), not a dedicated news REST API.
 
 ```ts
 // Behavioral summary (see market-tools.ts for exact schemas)
@@ -641,9 +641,9 @@ get_news: search-backed headlines query for symbol
 
 #### Deliverables
 
-- `electron/main/services/ai/tool-use-harness.ts`
-- `electron/main/services/ai/tools/market-tools.ts` — `get_quote`, `get_ohlcv`, `get_news`
-- `electron/main/services/ai/tools/search-tool.ts` — `search_web` with cache + sanitization + retry
+- `electron/main/services/pipeline/execution/tool-use-harness.ts`
+- `electron/main/services/tools/market-tools.ts` — `get_quote`, `get_ohlcv`, `get_news`
+- `electron/main/services/tools/search-tool.ts` — `search_web` with cache + sanitization + retry
 - `electron/main/services/orchestration/research-burst-service.ts`
 - `electron/main/services/orchestration/market-hours-service.ts`
 - `electron/main/db/schema.ts` + migration — `cycle_id`, `research_briefs_json`, `research_generated_at` on `session_instrument_cache`

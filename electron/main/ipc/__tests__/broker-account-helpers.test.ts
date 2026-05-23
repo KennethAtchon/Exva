@@ -3,7 +3,7 @@ import {
   serializeBrokerCredentials,
   supportedInstrumentClassesFor,
   tempBrokerAccount,
-} from "../broker-account-helpers";
+} from "../trading/broker-account-helpers";
 
 describe("broker-account-helpers", () => {
   it("maps broker types to the instrument classes they support", () => {

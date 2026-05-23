@@ -5,7 +5,7 @@
 > Replace single Alpaca singleton with a multi-broker account model.
 > Use workspace routing defaults with optional per-session overrides.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 
 ## Current State
 

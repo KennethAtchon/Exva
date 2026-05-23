@@ -3,7 +3,7 @@
 > Systematic find-and-replace across the entire codebase.
 > Pure rename — no behavioral changes.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 
 ## Goal
 

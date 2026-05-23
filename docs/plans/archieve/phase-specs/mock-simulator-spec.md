@@ -9,8 +9,8 @@
 >   **Files to modify:**
 > - `electron/main/services/broker/adapters/mock-adapter.ts` (fix PnL, add bid/ask, add timeframe param)
 > - `electron/main/services/broker/adapters/broker-adapter.ts` (expand `MarketSnapshot`)
-> - `electron/main/services/ai/tools/market-tools.ts` (add `timeframe` param to `get_ohlcv`)
-> - `electron/main/services/ai/tools/search-reddit-tool.ts` (live mode guard)
+> - `electron/main/services/tools/market-tools.ts` (add `timeframe` param to `get_ohlcv`)
+> - `electron/main/services/tools/search-reddit-tool.ts` (live mode guard)
 
 ---
 

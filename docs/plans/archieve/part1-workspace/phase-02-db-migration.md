@@ -3,7 +3,7 @@
 > Replace the two singleton tables (`session_config`, `session_state`) with the full session-family schema.
 > Wipe existing local DB — no migration compatibility required.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 
 ## Goal
 

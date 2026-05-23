@@ -3,7 +3,7 @@
 > Split the flat `electron/main/services/` directory into domain subfolders.
 > Pure structural refactor — no behavioral changes.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 >
 > **Note:** This phase amends earlier phase outputs. Per `CODING_GUIDELINES.md` §1.1–§1.2, broker adapters live under `services/broker/adapters/`, not at top-level `electron/main/broker/`. The directory structure below reflects that.
 
@@ -145,8 +145,8 @@ No domain subfolder imports from `agent-orchestrator` or `ipc/`.
 | `services/ai-sdk-service.ts`                | deleted in Phase 7                                            |
 | `services/risk-engine.ts`                   | `services/risk/risk-engine.ts`                                |
 | `services/session-service.ts`               | `services/session/session-service.ts`                         |
-| `services/prompt-asset-loader.ts`           | `services/ai/prompt-asset-loader.ts`                          |
-| `services/provider-model-catalog.ts`        | `services/ai/provider-model-catalog.ts`                       |
+| `services/prompt-asset-loader.ts`           | `services/pipeline/prompt-asset-loader.ts`                          |
+| `services/provider-model-catalog.ts`        | `services/llm/provider-model-catalog.ts`                       |
 | `broker/broker-adapter.ts`                  | `services/broker/adapters/broker-adapter.ts`                  |
 | `broker/alpaca-adapter.ts`                  | `services/broker/adapters/alpaca-adapter.ts`                  |
 | `broker/coinbase-advanced-trade-adapter.ts` | `services/broker/adapters/coinbase-advanced-trade-adapter.ts` |
@@ -169,9 +169,9 @@ Cross-cutting and integration live in subfolders:
 The wiring file stays at root but imports from subdirectories:
 
 ```typescript
-import { AiRuntime } from "./ai/ai-runtime";
-import { ProviderRegistry } from "./ai/provider-registry";
-import { PromptAssetLoader } from "./ai/prompt-asset-loader";
+import { AiRuntime } from "./llm/ai-runtime";
+import { ProviderRegistry } from "./llm/provider-registry";
+import { PromptAssetLoader } from "./pipeline/prompt-asset-loader";
 import { BrokerRegistry, BrokerRoutingService } from "./broker";
 import { EventBus } from "./infra/event-bus";
 import { createLogger } from "./infra/log";

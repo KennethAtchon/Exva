@@ -260,11 +260,11 @@ If the pre-placement quote fetch throws or returns invalid data, reject with `VA
 
 #### Problem
 
-`electron/main/services/ai/tools/market-tools.ts` still uses a bearish backward drift in `buildSyntheticBars()`.
+`electron/main/services/tools/market-tools.ts` still uses a bearish backward drift in `buildSyntheticBars()`.
 
 #### Files to modify
 
-- `electron/main/services/ai/tools/market-tools.ts`
+- `electron/main/services/tools/market-tools.ts`
 - add or extend `market-tools.test.ts`
 
 #### Implementation
@@ -440,7 +440,7 @@ Required flow:
 
 #### Tests to add or update
 
-- `electron/main/services/ai/ai-runtime/__tests__/instrument-selection-parser.test.ts`
+- `electron/main/services/llm/__tests__/instrument-selection-parser.test.ts`
   Add explicit assistant-text fallback coverage.
 - `electron/main/services/orchestration/__tests__/execution-step-runner.test.ts`
   Add monitoring-stage handoff assertions if helper logic is added around it.
@@ -460,7 +460,7 @@ Required flow:
 
 ```bash
 bun run typecheck
-bunx vitest electron/main/services/ai/ai-runtime/__tests__/instrument-selection-parser.test.ts
+bunx vitest electron/main/services/llm/__tests__/instrument-selection-parser.test.ts
 bunx vitest electron/main/services/orchestration/
 bunx vitest electron/main/services/risk/
 bunx vitest electron/main/services/analytics/

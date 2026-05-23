@@ -227,7 +227,7 @@ Static `PipelineDefinition` objects for each phase. These list the workers (with
 
 **Key files:**
 
-- `electron/main/services/ai/pipeline-runtime/core/pipeline-runtime.ts`
+- `electron/main/services/llm/pipeline/core/pipeline-runtime.ts`
 
 **Inputs:** `runCycle(cyclePlanId, opts)`, `runPhasePlan(opts)`, `runPlan(planId, opts)`
 
@@ -247,10 +247,10 @@ Static `PipelineDefinition` objects for each phase. These list the workers (with
 
 **Key files:**
 
-- `electron/main/services/ai/pipeline-runtime/plan/cycle/types.ts`
-- `electron/main/services/ai/pipeline-runtime/plan/cycle/interpreter.ts`
-- `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle.ts`
-- `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle-stages.ts`
+- `electron/main/services/llm/pipeline/analysis/types.ts`
+- `electron/main/services/llm/pipeline/analysis/interpreter.ts`
+- `electron/main/services/llm/pipeline/implementations/trade/default-cycle.ts`
+- `electron/main/services/llm/pipeline/implementations/trade/default-cycle-stages.ts`
 
 **Inputs:** `CyclePlanInterpreterRunInput` — the plan, instrument, session context, and optional `seedState` for partial replays.
 
@@ -270,10 +270,10 @@ Static `PipelineDefinition` objects for each phase. These list the workers (with
 
 **Key files:**
 
-- `electron/main/services/ai/pipeline-runtime/plan/phase/types.ts`
-- `electron/main/services/ai/pipeline-runtime/plan/phase/interpreter.ts`
-- `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts`
-- `electron/main/services/ai/pipeline-runtime/plan/plans/trade/analysis-plans.ts`
+- `electron/main/services/llm/pipeline/phases/types.ts`
+- `electron/main/services/llm/pipeline/phases/interpreter.ts`
+- `electron/main/services/llm/pipeline/implementations/selector/plan.ts`
+- `electron/main/services/llm/pipeline/implementations/trade/analysis-plans.ts`
 
 **Inputs:** `PhasePlanInterpreterRunInput` — the plan, session context, input data, and `PipelineWorkerRunner`.
 
@@ -293,7 +293,7 @@ Static `PipelineDefinition` objects for each phase. These list the workers (with
 
 **Key files:**
 
-- `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts`
+- `electron/main/services/llm/pipeline/execution/worker-executor.ts`
 
 **Inputs:** `WorkerExecutorDeps` (registries, configs) + `WorkerRunOptions` (phase, worker def, task, spend tracker)
 
@@ -313,7 +313,7 @@ Static `PipelineDefinition` objects for each phase. These list the workers (with
 
 **Key files:**
 
-- `electron/main/services/ai/pipeline-runtime/prompting/prompt-envelope-builder.ts`
+- `electron/main/services/llm/pipeline/prompting/prompt-envelope-builder.ts`
 
 **Inputs:** Worker markdown, task object, strategy context, engine results, sandbox mode flag.
 
@@ -343,7 +343,7 @@ Static `PipelineDefinition` objects for each phase. These list the workers (with
 
 **Key files:**
 
-- `electron/main/services/ai/pipeline-runtime/execution/pipeline-spend-tracker.ts`
+- `electron/main/services/llm/pipeline/execution/pipeline-spend-tracker.ts`
 
 **Cap hierarchy:** Session cap is checked first, then pipeline cap, then phase cap. In `warnOnly` mode, `canContinue()` always returns `true`.
 
@@ -355,8 +355,8 @@ Static `PipelineDefinition` objects for each phase. These list the workers (with
 
 **Key files:**
 
-- `electron/main/services/ai/pipeline-runtime/context/tool-factory-registry.ts`
-- `electron/main/services/ai/pipeline-runtime/context/tool-context-builder.ts`
+- `electron/main/services/llm/pipeline/worker-tools/tool-factory-registry.ts`
+- `electron/main/services/llm/pipeline/worker-tools/tool-context-builder.ts`
 
 **Supported tool IDs:** `search_web`, `fetch_url`, `search_reddit`, `get_trending_symbols`, `get_quote`, `get_ohlcv`, `get_news`
 
@@ -374,8 +374,8 @@ Static `PipelineDefinition` objects for each phase. These list the workers (with
 
 **Key files:**
 
-- `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts`
-- `electron/main/services/ai/pipeline-runtime/plan/plans/selector/schemas.ts`
+- `electron/main/services/llm/pipeline/implementations/selector/plan.ts`
+- `electron/main/services/llm/pipeline/implementations/selector/schemas.ts`
 
 **Stages:**
 
@@ -392,8 +392,8 @@ Static `PipelineDefinition` objects for each phase. These list the workers (with
 
 **Key files:**
 
-- `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle-stages.ts`
-- `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle.ts`
+- `electron/main/services/llm/pipeline/implementations/trade/default-cycle-stages.ts`
+- `electron/main/services/llm/pipeline/implementations/trade/default-cycle.ts`
 
 **Stages in order:**
 
@@ -771,36 +771,36 @@ graph TD
 
 | Area                      | Key Files                                                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Top-level runtime         | `electron/main/services/ai/pipeline-runtime/core/pipeline-runtime.ts`                                                     |
-| Core types                | `electron/main/services/ai/pipeline-runtime/core/types.ts`                                                                |
-| Phase registry            | `electron/main/services/ai/pipeline-runtime/core/pipeline-registry.ts`                                                    |
-| Worker graph scheduling   | `electron/main/services/ai/pipeline-runtime/core/worker-graph-scheduler.ts`                                               |
-| Concurrent group runner   | `electron/main/services/ai/pipeline-runtime/core/concurrent-group-runner.ts`                                              |
-| Phase definitions         | `electron/main/services/ai/pipeline-runtime/definitions/`                                                                 |
-| Cycle plan interpreter    | `electron/main/services/ai/pipeline-runtime/plan/cycle/interpreter.ts`                                                    |
-| Cycle plan types          | `electron/main/services/ai/pipeline-runtime/plan/cycle/types.ts`                                                          |
-| Default trade cycle       | `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle.ts`                                            |
-| Default cycle stages      | `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle-stages.ts`                                     |
-| Phase plan interpreter    | `electron/main/services/ai/pipeline-runtime/plan/phase/interpreter.ts`                                                    |
-| Phase plan types          | `electron/main/services/ai/pipeline-runtime/plan/phase/types.ts`                                                          |
-| Selector plan             | `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts`                                                  |
-| Trade analysis plans      | `electron/main/services/ai/pipeline-runtime/plan/plans/trade/analysis-plans.ts`                                           |
-| Worker executor           | `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts`                                                 |
-| Spend tracker             | `electron/main/services/ai/pipeline-runtime/execution/pipeline-spend-tracker.ts`                                          |
-| Trace assembler           | `electron/main/services/ai/pipeline-runtime/execution/trace-assembler.ts`                                                 |
-| Engine context runner     | `electron/main/services/ai/pipeline-runtime/execution/engine-context-runner.ts`                                           |
-| Prompt envelope builder   | `electron/main/services/ai/pipeline-runtime/prompting/prompt-envelope-builder.ts`                                         |
-| Tool factory registry     | `electron/main/services/ai/pipeline-runtime/context/tool-factory-registry.ts`                                             |
-| Tool context builder      | `electron/main/services/ai/pipeline-runtime/context/tool-context-builder.ts`                                              |
-| Phase config resolver     | `electron/main/services/ai/pipeline-runtime/phase-config-resolver.ts`                                                     |
-| Discovery config          | `electron/main/services/ai/pipeline-runtime/pipeline-discovery-config.ts`                                                 |
-| Effective pipeline config | `electron/main/services/ai/pipeline-runtime/effective-pipeline-config.ts`                                                 |
-| Worker prompts (markdown) | `electron/main/services/ai/pipeline-runtime/prompts/`                                                                     |
-| Plan registries           | `electron/main/services/ai/pipeline-runtime/plan/phase/registry.ts`, `plan/cycle/registry.ts`, `plan/unified/registry.ts` |
-| Cache policy              | `electron/main/services/ai/pipeline-runtime/plan/registry/cache-policy-registry.ts`                                       |
-| Input builders            | `electron/main/services/ai/pipeline-runtime/plan/input-builders/`                                                         |
-| Aggregator engines        | `electron/main/services/ai/engines/aggregators/`                                                                          |
-| Engine registry           | `electron/main/services/ai/engines/registry/engine-registry.ts`                                                           |
+| Top-level runtime         | `electron/main/services/llm/pipeline/core/pipeline-runtime.ts`                                                     |
+| Core types                | `electron/main/services/llm/pipeline/core/types.ts`                                                                |
+| Phase registry            | `electron/main/services/llm/pipeline/core/pipeline-registry.ts`                                                    |
+| Worker graph scheduling   | `electron/main/services/llm/pipeline/core/worker-graph-scheduler.ts`                                               |
+| Concurrent group runner   | `electron/main/services/llm/pipeline/core/concurrent-group-runner.ts`                                              |
+| Phase definitions         | `electron/main/services/llm/pipeline/definitions/`                                                                 |
+| Cycle plan interpreter    | `electron/main/services/llm/pipeline/analysis/interpreter.ts`                                                    |
+| Cycle plan types          | `electron/main/services/llm/pipeline/analysis/types.ts`                                                          |
+| Default trade cycle       | `electron/main/services/llm/pipeline/implementations/trade/default-cycle.ts`                                            |
+| Default cycle stages      | `electron/main/services/llm/pipeline/implementations/trade/default-cycle-stages.ts`                                     |
+| Phase plan interpreter    | `electron/main/services/llm/pipeline/phases/interpreter.ts`                                                    |
+| Phase plan types          | `electron/main/services/llm/pipeline/phases/types.ts`                                                          |
+| Selector plan             | `electron/main/services/llm/pipeline/implementations/selector/plan.ts`                                                  |
+| Trade analysis plans      | `electron/main/services/llm/pipeline/implementations/trade/analysis-plans.ts`                                           |
+| Worker executor           | `electron/main/services/llm/pipeline/execution/worker-executor.ts`                                                 |
+| Spend tracker             | `electron/main/services/llm/pipeline/execution/pipeline-spend-tracker.ts`                                          |
+| Trace assembler           | `electron/main/services/llm/pipeline/execution/trace-assembler.ts`                                                 |
+| Engine context runner     | `electron/main/services/llm/pipeline/execution/engine-context-runner.ts`                                           |
+| Prompt envelope builder   | `electron/main/services/llm/pipeline/prompting/prompt-envelope-builder.ts`                                         |
+| Tool factory registry     | `electron/main/services/llm/pipeline/worker-tools/tool-factory-registry.ts`                                             |
+| Tool context builder      | `electron/main/services/llm/pipeline/worker-tools/tool-context-builder.ts`                                              |
+| Phase config resolver     | `electron/main/services/llm/pipeline/phase-config-resolver.ts`                                                     |
+| Discovery config          | `electron/main/services/llm/pipeline/pipeline-discovery-config.ts`                                                 |
+| Effective pipeline config | `electron/main/services/llm/pipeline/effective-pipeline-config.ts`                                                 |
+| Worker prompts (markdown) | `electron/main/services/llm/pipeline/prompts/`                                                                     |
+| Plan registries           | `electron/main/services/llm/pipeline/phases/registry.ts`, `plan/cycle/registry.ts`, `plan/unified/registry.ts` |
+| Cache policy              | `electron/main/services/llm/pipeline/implementations/registry/cache-policy-registry.ts`                                       |
+| Input builders            | `electron/main/services/llm/pipeline/implementations/inputs/`                                                         |
+| Aggregator engines        | `electron/main/services/signal/aggregators/`                                                                          |
+| Engine registry           | `electron/main/services/signal/registry/engine-registry.ts`                                                           |
 
 ---
 

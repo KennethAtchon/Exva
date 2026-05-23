@@ -1,11 +1,11 @@
-import type { CyclePlanServices } from "../../../ai/pipeline-runtime/plan/cycle/services";
-import type { EngineRunCtx } from "../../../ai/pipeline-runtime/plan/engine/input-builder-registry";
+import type { CyclePlanServices } from "../../../pipeline/analysis/services";
+import type { EngineRunCtx } from "../../../pipeline/execution/input-builder-registry";
 import type {
   TradeCycleInstrument,
   TradeCyclePlanState,
-} from "../../../ai/pipeline-runtime/plan/cycle/types";
-import { runEngineChainStage } from "../../../ai/pipeline-runtime/plan/engine/stage-dispatch";
-import { DEFAULT_TRADE_CYCLE_STAGES } from "../../../ai/pipeline-runtime/plan/plans/trade/default-cycle-stages";
+} from "../../../pipeline/analysis/types";
+import { runEngineChainStage } from "../../../pipeline/execution/stage-dispatch";
+import { DEFAULT_TRADE_CYCLE_STAGES } from "../../../pipeline/implementations/trade/default-cycle-stages";
 import type { OrchestratorContext } from "../orchestrator-context";
 
 const riskGateStage = DEFAULT_TRADE_CYCLE_STAGES.find(

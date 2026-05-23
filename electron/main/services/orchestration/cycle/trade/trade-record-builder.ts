@@ -6,7 +6,7 @@ import type {
 import {
   computeExecutionProfile,
   priceLevelsFromProfile,
-} from "../../../ai/engines/execution/execution-profile-engine";
+} from "../../../signal/execution/execution-profile-engine";
 import type { InstrumentClass } from "@/lib/types";
 import type { OrchestratorContext } from "../orchestrator-context";
 import type { ResolvedInstrument } from "../types";

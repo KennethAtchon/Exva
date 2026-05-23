@@ -735,16 +735,16 @@ graph TD
 | Approval flow          | `electron/main/services/orchestration/cycle/trade/approval-flow.ts`                   |
 | Approval recheck       | `electron/main/services/orchestration/cycle/trade/approval-recheck.ts`                |
 | Trade monitor          | `electron/main/services/orchestration/lifecycle/trade-monitor.ts`                     |
-| AI runtime facade      | `electron/main/services/ai/ai-runtime/runtime.ts`                                     |
-| Pipeline runtime       | `electron/main/services/ai/pipeline-runtime/core/pipeline-runtime.ts`                 |
-| Phase plan interpreter | `electron/main/services/ai/pipeline-runtime/plan/phase/interpreter.ts`                |
-| Cycle plan interpreter | `electron/main/services/ai/pipeline-runtime/plan/cycle/interpreter.ts`                |
-| Selector plan          | `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts`              |
-| Trade cycle plan       | `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle.ts`        |
-| Trade stages           | `electron/main/services/ai/pipeline-runtime/plan/plans/trade/default-cycle-stages.ts` |
-| Worker executor        | `electron/main/services/ai/pipeline-runtime/execution/worker-executor.ts`             |
-| Spend tracker          | `electron/main/services/ai/pipeline-runtime/execution/pipeline-spend-tracker.ts`      |
-| Engine registry        | `electron/main/services/ai/engines/registry/register-default-engines.ts`              |
+| AI runtime facade      | `electron/main/services/llm/runtime.ts`                                     |
+| Pipeline runtime       | `electron/main/services/llm/pipeline/core/pipeline-runtime.ts`                 |
+| Phase plan interpreter | `electron/main/services/llm/pipeline/phases/interpreter.ts`                |
+| Cycle plan interpreter | `electron/main/services/llm/pipeline/analysis/interpreter.ts`                |
+| Selector plan          | `electron/main/services/llm/pipeline/implementations/selector/plan.ts`              |
+| Trade cycle plan       | `electron/main/services/llm/pipeline/implementations/trade/default-cycle.ts`        |
+| Trade stages           | `electron/main/services/llm/pipeline/implementations/trade/default-cycle-stages.ts` |
+| Worker executor        | `electron/main/services/llm/pipeline/execution/worker-executor.ts`             |
+| Spend tracker          | `electron/main/services/llm/pipeline/execution/pipeline-spend-tracker.ts`      |
+| Engine registry        | `electron/main/services/signal/registry/register-default-engines.ts`              |
 | Risk engine            | `electron/main/services/risk/risk-engine.ts`                                          |
 | Allocation gate        | `electron/main/services/risk/broker-allocation-gate.ts`                               |
 | Capital reservations   | `electron/main/services/risk/capital-reservation-service.ts`                          |
@@ -755,13 +755,13 @@ graph TD
 | IPC handlers           | `electron/main/ipc/`                                                                  |
 | DB schema              | `electron/main/db/schema.ts`                                                          |
 | DB client              | `electron/main/db/client.ts`                                                          |
-| Provider registry      | `electron/main/services/ai/provider-registry.ts`                                      |
-| Search registry        | `electron/main/services/ai/search/search-registry.ts`                                 |
+| Provider registry      | `electron/main/services/llm/provider-registry.ts`                                      |
+| Search registry        | `electron/main/services/search/search-registry.ts`                                 |
 | Broker registry        | `electron/main/services/broker/broker-registry.ts`                                    |
 | Broker routing         | `electron/main/services/broker/broker-routing-service.ts`                             |
 | Strategy context       | `electron/main/services/session/session-strategy-context-service.ts`                  |
-| Cycle replay           | `electron/main/services/orchestration/replay/cycle-replay-service.ts`                 |
-| Trade autopsy          | `electron/main/services/orchestration/post-trade/trade-autopsy-service.ts`            |
+| Cycle replay           | `electron/main/services/replay/cycle-replay-service.ts`                 |
+| Trade autopsy          | `electron/main/services/analytics/trade-autopsy-service.ts`            |
 | Paper scorecard        | `electron/main/services/analytics/paper-scorecard-service.ts`                         |
 | Live readiness         | `electron/main/services/risk/live-readiness-service.ts`                               |
 

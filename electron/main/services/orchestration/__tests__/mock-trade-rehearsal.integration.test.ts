@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AgentResult } from "../../ai/ai-runtime/ai-runtime-types";
-import type { TradePipelineResult } from "../../ai/pipeline-runtime/plan/cycle/types";
+import type { AgentResult } from "../../llm/ai-runtime-types";
+import type { TradePipelineResult } from "../../pipeline/analysis/types";
 import type {
   FundamentalSignal,
   ReviewSignal,
   TechnicalSignal,
   TradeSignal,
 } from "@electron/shared/ai/pipeline-signals";
-import type { Trade } from "@/lib/types";
+import type { Trade, WorkspaceSession } from "@/lib/types";
 import { MockMarketSimulator } from "../../broker/mock/mock-market-simulator";
-import { registerDefaultEngines } from "../../ai/engines/registry/register-default-engines";
+import { registerDefaultEngines } from "../../signal/registry/register-default-engines";
 import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 import { RiskEngine } from "../../risk/risk-engine";
 import { BrokerAllocationGate } from "../../risk/broker-allocation-gate";
@@ -40,7 +40,10 @@ describe("mock trade rehearsal integration", () => {
   it("mock broker clean_breakout completes a trade cycle with status open", async () => {
     const sessionId = "session-1";
     const harness = createHarness(sessionId);
-    const ctx = new OrchestratorContext(sessionId, harness.deps);
+    const ctx = new OrchestratorContext(
+      sessionId,
+      harness.deps as unknown as import("../../session/session-types").OrchestratorDeps,
+    );
     const cycleId = crypto.randomUUID();
     const quote = await harness.mockAdapter.getMarketSnapshot("NVDA");
 
@@ -54,7 +57,6 @@ describe("mock trade rehearsal integration", () => {
       instrument: {
         symbol: "NVDA",
         instrumentClass: "stock",
-        rationale: "multi-factor breakout with catalyst support",
       },
     });
 

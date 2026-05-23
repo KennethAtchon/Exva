@@ -3,7 +3,7 @@
 > Add the execution model that makes multi-session support real.
 > This phase defines runtime ownership, lifecycle, restart behavior, and cross-session reservation rules before any later UI or schema work depends on them.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 
 ## Goal
 

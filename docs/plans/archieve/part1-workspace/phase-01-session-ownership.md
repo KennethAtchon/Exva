@@ -3,7 +3,7 @@
 > Establish the canonical domain types and invariant rules that every subsequent phase builds on.
 > No DB writes. No UI changes. Pure TypeScript types + documented rules.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 
 ## Goal
 

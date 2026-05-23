@@ -106,7 +106,7 @@ Then generate or derive:
 | `orchestration/cycle/trade/approval-recheck.ts`                                 | Builds order-policy task manually after recheck |
 | `orchestration/cycle/trade/order-placer.ts`                                     | Places routed broker order                      |
 | `orchestration/policy/order-policy-gate.ts`                                     | Policy evaluator                                |
-| `ai/pipeline-runtime/plan/engine-input-builders/trade-engine-input-builders.ts` | Engine input builders for plan stages           |
+| `ai/pipeline/implementations/inputs/trade-engine-input-builders.ts` | Engine input builders for plan stages           |
 
 **Problem:** The existing pipeline simplification removed duplicated risk/allocation gates from approval recheck, but `approval-recheck.ts` still manually constructs the order-policy task with `existingOrderCheck`, `sessionIsPaused`, `decisionRiskInput`, exit policy, side bias, and broker support. This is a smaller but still meaningful fork from normal order placement.
 
@@ -222,7 +222,7 @@ The backend validates the full `SessionStrategyContext`, writes related tables i
 | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `src/components/sessions/CreateEditSessionModal.tsx`    | UI draft state, broker filtering, search-everything behavior, coverage warnings |
 | `services/session/write-service.ts`                     | Backend validation and normalization                                            |
-| `electron/shared/catalog/session-instrument-classes.ts` | Shared class derivation helpers                                                 |
+| `electron/shared/instruments/session-instrument-classes.ts` | Shared class derivation helpers                                                 |
 
 **Problem:** The session modal and backend already share `resolveEffectiveInstrumentClasses()`, but the broader draft lifecycle is still duplicated: broker mode pruning, selected broker ID normalization, search-everything state, effective classes, coverage warnings, required search provider checks, and override filtering.
 
@@ -284,7 +284,7 @@ The IPC file becomes a set of `handle(ipcMain, channel, service.method)` calls.
 
 ### O9. Cycle Replay Service Split
 
-**File observed:** `electron/main/services/orchestration/replay/cycle-replay-service.ts`
+**File observed:** `electron/main/services/replay/cycle-replay-service.ts`
 
 **Problem:** `CycleReplayService` is 668 lines and owns at least four responsibilities: building fixtures from stored messages, loading/saving fixture files, replaying policy/exit/scorecard logic, and validating fixture shape. The existing pipeline plan also called out a latent fixture-loader field mismatch around `phaseOutputs` vs `phases`, which is exactly the kind of bug a split validator would make harder to hide.
 
@@ -414,4 +414,4 @@ The safest first slice is small and measurable:
 
 This delivers immediate cleanup, proves the IPC approach on a low-risk group, and avoids destabilizing orchestration while the pipeline changes are still fresh.
 
-**Verification:** `bun run typecheck`; `bunx vitest run electron/main/services/ai/pipeline-runtime/plan/__tests__/default-trade-cycle.test.ts`
+**Verification:** `bun run typecheck`; `bunx vitest run electron/main/services/llm/pipeline/implementations/__tests__/default-trade-cycle.test.ts`

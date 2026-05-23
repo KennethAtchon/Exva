@@ -36,7 +36,7 @@ The forcing function is the selector pipeline's need for reliable, role-specific
 
 ## 3. Background & Context
 
-Strategy prompt assembly is split across three main paths. `electron/main/services/ai/strategy-prompt-context.ts` builds full session strategy context for non-worker prompts and worker-specific strategy facts for pipeline workers. `electron/main/services/ai/pipeline-runtime/prompting/prompt-envelope-builder.ts` wraps worker output into `<trusted_strategy_facts>` and `<trusted_strategy_guidance>` before the JSON task payload. `electron/main/services/ai/pipeline-runtime/prompting/preset-behavior-guidance.ts` resolves global, posture, rules, risk, and timeframe presets, then merges `shared` plus phase-specific `aiGuidance` blocks filtered by each worker's required context.
+Strategy prompt assembly is split across three main paths. `electron/main/services/pipeline/prompting/strategy-prompt-context.ts` builds full session strategy context for non-worker prompts and worker-specific strategy facts for pipeline workers. `electron/main/services/llm/pipeline/prompting/prompt-envelope-builder.ts` wraps worker output into `<trusted_strategy_facts>` and `<trusted_strategy_guidance>` before the JSON task payload. `electron/main/services/llm/pipeline/prompting/preset-behavior-guidance.ts` resolves global, posture, rules, risk, and timeframe presets, then merges `shared` plus phase-specific `aiGuidance` blocks filtered by each worker's required context.
 
 There is already a partial semantic layer in `electron/shared/presets/global-strategy.json`. For example, `trend_momentum` has `aiGuidance.shared.objective`, `whatToLookFor`, and `howToEvaluate`. That is the right primitive, but it is incomplete as a system: workers cannot ask for only the relevant slices, the current worker strategy context still emits enum-heavy lines, and the preset guidance renderer is phase-scoped rather than worker-scoped.
 
@@ -307,7 +307,7 @@ Done criteria: Tests fail if workers lose required strategy meaning, receive unr
 
 Deliverables:
 
-- Extend `electron/main/services/ai/__tests__/strategy-prompt-context.test.ts` for worker-specific requests.
+- Extend `electron/main/services/llm/__tests__/strategy-prompt-context.test.ts` for worker-specific requests.
 - Extend `pipeline-worker-prompts.test.ts` to assert prompt envelopes include required semantic concepts by worker type.
 - Add snapshot tests for rendered guidance for each built-in global strategy.
 - Re-run a selector cycle and compare `docs/hello.json` logs: verification workers should show narrower context than discovery workers.

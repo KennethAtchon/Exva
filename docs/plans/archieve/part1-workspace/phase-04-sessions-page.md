@@ -3,7 +3,7 @@
 > Add the Sessions page, focused-session selection, session templates modal, and global workspace mode.
 > Dashboard and Trades gain session-filtered vs. aggregate query modes.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 
 ## Goal
 

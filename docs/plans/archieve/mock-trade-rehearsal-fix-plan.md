@@ -71,7 +71,7 @@ flowchart TB
 
 There are two rejection points that both push `"Selector rationale is empty"`. The first is a direct check in `RiskFilter.collectRejectionReasons()` itself:
 
-**File:** `electron/main/services/ai/engines/selector/selector-risk-filter.ts`
+**File:** `electron/main/services/signal/scoring/selector-risk-filter.ts`
 
 ```ts
 // First gate — checks candidate.rationale directly (line 77)
@@ -146,7 +146,7 @@ Fixture text uses `{symbol}` placeholders substituted at runtime. `extractQueryS
 
 ### P3 — Entry timer can still force skip (latent, once P0 fixed)
 
-**File:** `electron/main/services/ai/engines/aggregators/trade-signal-aggregator.ts`
+**File:** `electron/main/services/signal/aggregators/trade-signal-aggregator.ts`
 
 `wait` from entry-timer → `action: "skip"`. Prompt hint exists for `clean_breakout` but LLM may still return `wait`. Optional `mockRelaxedEntryTiming` from original design not implemented.
 
@@ -189,7 +189,7 @@ const evaluation = riskFilter.evaluate(withEvidence);
 
 Option B: Fix CV-7 in `CandidateValidationService` to skip the summary check when `structuredEvidence` is `null`, relying instead on the trace-based CV-6 checks and the direct `candidate.rationale` check already in `RiskFilter.collectRejectionReasons` (line 77).
 
-**Files:** `electron/main/services/ai/pipeline-runtime/plan/plans/selector/plan.ts`, optionally `electron/main/services/orchestration/policy/candidate-validation-service.ts`
+**Files:** `electron/main/services/llm/pipeline/implementations/selector/plan.ts`, optionally `electron/main/services/orchestration/policy/candidate-validation-service.ts`
 
 **Tests:**
 

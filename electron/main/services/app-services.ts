@@ -31,7 +31,7 @@ import { TradeAutopsiesRepo } from "../db/repositories/trades/trade-autopsies-re
 import { TradeApprovalsRepo } from "../db/repositories/trades/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades/trades-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace/workspace-prefs-repo";
-import { AiRuntime } from "./ai/ai-runtime/index";
+import { AiRuntime } from "./llm/index";
 import {
   BrokerBalanceCacheService,
   BrokerBalanceTicker,
@@ -45,13 +45,13 @@ import { EventBus } from "./infra/event-bus";
 import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
-import { PromptAssetLoader } from "./ai/prompt-asset-loader";
-import { registerDefaultEngines } from "./ai/engines/registry/register-default-engines";
-import { assertValidPipelineDefinitionCatalog } from "./ai/pipeline-runtime/effective-pipeline-config";
-import { registerDefaultPhasePlans } from "./ai/pipeline-runtime/plan/register/phase-plans";
-import { registerDefaultCyclePlans } from "./ai/pipeline-runtime/plan/register/cycle-plans";
-import { ProviderRegistry } from "./ai/provider-registry";
-import { SearchRegistry } from "./ai/search/search-registry";
+import { PromptAssetLoader } from "./pipeline/prompt-asset-loader";
+import { registerDefaultEngines } from "./signal/registry/register-default-engines";
+import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-pipeline-config";
+import { registerDefaultPhasePlans } from "./pipeline/implementations/registry/phase-plans";
+import { registerDefaultCyclePlans } from "./pipeline/implementations/registry/cycle-plans";
+import { ProviderRegistry } from "./llm/provider-registry";
+import { SearchRegistry } from "./search/search-registry";
 import { SecretsService } from "./infra/secrets-service";
 import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
 import type { OrchestratorDeps, SessionRuntimeManagerDeps } from "./session";
@@ -63,8 +63,8 @@ import { SessionListingService } from "./session/listing-service";
 import { SessionTemplateService } from "./session/template-service";
 import { SessionWriteService } from "./session/write-service";
 import { TradeMonitor } from "./orchestration/lifecycle/trade-monitor";
-import { TradeAutopsyService } from "./orchestration/post-trade/trade-autopsy-service";
-import { CycleReplayService } from "./orchestration/replay/cycle-replay-service";
+import { TradeAutopsyService } from "./analytics/trade-autopsy-service";
+import { CycleReplayService } from "./replay/cycle-replay-service";
 import { InstrumentCacheService } from "./instrument";
 import {
   BrokerAllocationGate,

@@ -2,7 +2,7 @@
 
 > **Status:** Authoritative. Every phase must follow these rules.
 > **Reference rule:** Every phase document and every PR description must include the line
-> `Implements: docs/plan/CODING_GUIDELINES.md` and call out any deliberate deviation.
+> `Implements: docs/implementations/CODING_GUIDELINES.md` and call out any deliberate deviation.
 > If the rule conflicts with a phase doc, the rule wins; raise the conflict in `docs/reviews/`.
 
 ---
@@ -75,7 +75,7 @@ The phases in this plan produce three big services. Each follows the pattern.
 #### Example A — `ai/` (Phase 7 + 9)
 
 ```
-electron/main/services/ai/
+electron/main/services/llm/
 ├── index.ts                          export { AiRuntime, ProviderRegistry, ... }
 ├── ai-runtime.ts                     class AiRuntime — runRole, runDecisionRole, runInstrumentSelector
 ├── ai-runtime-types.ts               GenerateTextOptions, GenerateResult, AgentResult<T>
@@ -518,7 +518,7 @@ Each phase document must contain:
 4. **IPC Contracts** — full request/response shapes for new channels.
 5. **Sequence Diagrams** — for any flow that crosses two or more layers.
 6. **Acceptance Criteria** — concrete, testable, no hand-waving.
-7. **Implements: docs/plan/CODING_GUIDELINES.md** — explicit reference line near the top.
+7. **Implements: docs/implementations/CODING_GUIDELINES.md** — explicit reference line near the top.
 
 If a phase deviates from this guideline, the deviation is documented inline with reason + scope + rollback plan.
 
@@ -527,5 +527,5 @@ If a phase deviates from this guideline, the deviation is documented inline with
 ## 19. PR Discipline
 
 - One phase per branch. Sub-PRs allowed within a phase but never spanning phases.
-- PR description includes: phase number, acceptance-criteria checklist (copied from phase doc), and the `Implements: docs/plan/CODING_GUIDELINES.md` line.
+- PR description includes: phase number, acceptance-criteria checklist (copied from phase doc), and the `Implements: docs/implementations/CODING_GUIDELINES.md` line.
 - Merge gate: typecheck pass + lint pass + tests pass + acceptance criteria checked + at least one self-review pass against this guideline.

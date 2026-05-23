@@ -1,7 +1,7 @@
 import { AppError } from "@electron/shared/infra/errors";
-import type { AgentResult } from "../../../ai/ai-runtime/ai-runtime-types";
-import type { TradePipelineResult } from "../../../ai/pipeline-runtime/plan/cycle/types";
-import { tradeCycleStageFailurePolicy } from "../../../ai/pipeline-runtime/plan/plans/trade/default-cycle-stages";
+import type { AgentResult } from "../../../llm/ai-runtime-types";
+import type { TradePipelineResult } from "../../../pipeline/analysis/types";
+import { tradeCycleStageFailurePolicy } from "../../../pipeline/implementations/trade/default-cycle-stages";
 import type { OrchestratorContext } from "../orchestrator-context";
 import { runOrchestratorStep } from "../orchestrator-step";
 import type { TradeCycleContext } from "../types";
@@ -9,7 +9,7 @@ import {
   CyclePausedError,
   CycleStageFailedError,
   type TradeCyclePlanState,
-} from "../../../ai/pipeline-runtime/plan/cycle/types";
+} from "../../../pipeline/analysis/types";
 
 const TRADE_PIPELINE_CONTEXT_STATE_KEYS = [
   "technical",

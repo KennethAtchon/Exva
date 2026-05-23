@@ -121,11 +121,11 @@ Key files:
 | File                                                      | Purpose                                                                       |
 | --------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `electron/main/services/broker/adapters/mock-adapter.ts`  | Mock broker: price, order, positions                                          |
-| `electron/main/services/ai/tools/market-tools.ts`         | Harness tool implementations; `buildSyntheticBars()` lives here               |
-| `electron/main/services/ai/ai-runtime/harness-tools.ts`   | Assembles `ToolSet` from availability flags; calls `createMarketTools`        |
-| `electron/main/services/ai/prompt-pack-builder.ts`        | Builds system + user prompts; `renderSystemPrompt()` has no sandbox awareness |
-| `electron/main/services/ai/ai-runtime/runtime.ts`         | `AiRuntime` — calls `buildPromptPack`, then `adapter.runAgent()`              |
-| `electron/main/services/ai/ai-runtime/runtime-prompt.ts`  | Resolves prompt asset per role                                                |
+| `electron/main/services/tools/market-tools.ts`         | Harness tool implementations; `buildSyntheticBars()` lives here               |
+| `electron/main/services/llm/harness-tools.ts`   | Assembles `ToolSet` from availability flags; calls `createMarketTools`        |
+| `electron/main/services/llm/prompt-pack-builder.ts`        | Builds system + user prompts; `renderSystemPrompt()` has no sandbox awareness |
+| `electron/main/services/llm/runtime.ts`         | `AiRuntime` — calls `buildPromptPack`, then `adapter.runAgent()`              |
+| `electron/main/services/llm/runtime-prompt.ts`  | Resolves prompt asset per role                                                |
 | `electron/main/services/broker/broker-registry.ts`        | Returns `BrokerAdapter` by account ID                                         |
 | `electron/main/services/broker/broker-routing-service.ts` | Maps session + instrument class → broker account ID                           |
 
@@ -371,10 +371,10 @@ No new modules. Changes are contained to:
 
 ```
 electron/main/services/broker/adapters/mock-adapter.ts
-electron/main/services/ai/tools/market-tools.ts
-electron/main/services/ai/ai-runtime/harness-tools.ts
-electron/main/services/ai/prompt-pack-builder.ts
-electron/main/services/ai/ai-runtime/runtime.ts
+electron/main/services/tools/market-tools.ts
+electron/main/services/llm/harness-tools.ts
+electron/main/services/llm/prompt-pack-builder.ts
+electron/main/services/llm/runtime.ts
 ```
 
 Optional: a shared type file for `MockScenario` and `MockNewsResult` if they need to be referenced from multiple modules.
@@ -699,22 +699,22 @@ electron/main/services/broker/adapters/mock-adapter.ts
   - Add seededNormal() helper
   - Add symbolSeed() helper (extracted from priceFor)
 
-electron/main/services/ai/tools/market-tools.ts
+electron/main/services/tools/market-tools.ts
   - Add getMockOhlcv? and mockNewsData? to createMarketTools deps
   - get_ohlcv: short-circuit to getMockOhlcv if present
   - get_news: short-circuit to mockNewsData if present
   - Export MockNewsItem interface (or import from shared types)
   - Remove or deprecate buildSyntheticBars() (keep as fallback if getMockOhlcv absent)
 
-electron/main/services/ai/ai-runtime/harness-tools.ts
+electron/main/services/llm/harness-tools.ts
   - Add getMockOhlcv? and mockNewsData? to buildHarnessToolSet input
   - Forward both to createMarketTools call
 
-electron/main/services/ai/prompt-pack-builder.ts
+electron/main/services/llm/prompt-pack-builder.ts
   - Add sandboxMode?: boolean to build() input and renderSystemPrompt input
   - Inject sandbox block conditionally in renderSystemPrompt
 
-electron/main/services/ai/ai-runtime/runtime.ts
+electron/main/services/llm/runtime.ts
   - Add isMockSession(sessionId): Promise<boolean>
   - Add resolveMockAdapter(sessionId): Promise<MockBrokerAdapter | null>
   - Update buildPromptPack to be async; await isMockSession; pass sandboxMode
@@ -959,11 +959,11 @@ Trend is upward, volatility is visible, candle bodies vary, volume is non-null.
 ### D. Referenced files
 
 - `electron/main/services/broker/adapters/mock-adapter.ts`
-- `electron/main/services/ai/tools/market-tools.ts`
-- `electron/main/services/ai/ai-runtime/harness-tools.ts`
-- `electron/main/services/ai/prompt-pack-builder.ts`
-- `electron/main/services/ai/ai-runtime/runtime.ts`
-- `electron/main/services/ai/ai-runtime/runtime-prompt.ts`
+- `electron/main/services/tools/market-tools.ts`
+- `electron/main/services/llm/harness-tools.ts`
+- `electron/main/services/llm/prompt-pack-builder.ts`
+- `electron/main/services/llm/runtime.ts`
+- `electron/main/services/llm/runtime-prompt.ts`
 - `electron/main/services/broker/broker-registry.ts`
 - `electron/main/services/broker/broker-routing-service.ts`
 - `electron/main/services/orchestration/agent-orchestrator.ts`

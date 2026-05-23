@@ -9,7 +9,7 @@
 
 ## 1. Problem Statement
 
-The current AI runtime is structurally expensive to change. `AiRuntime` owns four role-specific entrypoints, each with different prompt assembly, tool wiring, parsing, and persistence behavior: `runAnalyst`, `runReviewer`, `runDecisionMaker`, and `runInstrumentSelector` in `electron/main/services/ai/ai-runtime/runtime.ts`. `AgentOrchestrator.runAiPipeline` in `electron/main/services/orchestration/agent-orchestrator.ts` then hardcodes the execution order and calls those functions one by one. Adding a new AI worker or changing phase composition means editing runtime methods, orchestrator control flow, tool policy maps, role profiles, and often parsing logic. That is the opposite of the desired operating model.
+The current AI runtime is structurally expensive to change. `AiRuntime` owns four role-specific entrypoints, each with different prompt assembly, tool wiring, parsing, and persistence behavior: `runAnalyst`, `runReviewer`, `runDecisionMaker`, and `runInstrumentSelector` in `electron/main/services/llm/runtime.ts`. `AgentOrchestrator.runAiPipeline` in `electron/main/services/orchestration/agent-orchestrator.ts` then hardcodes the execution order and calls those functions one by one. Adding a new AI worker or changing phase composition means editing runtime methods, orchestrator control flow, tool policy maps, role profiles, and often parsing logic. That is the opposite of the desired operating model.
 
 This hurts Exva in four concrete ways. First, the selector post-mortem showed that workflow behavior hidden in prompt prose and loop heuristics is fragile. Second, the runtime duplicates role behavior across `ROLE_TOOL_POLICY` in `ai-runtime-types.ts`, `harnessToolAvailabilityForRole` in `harness-tools.ts`, prompt rendering in `prompt-pack-builder.ts`, and persisted role/profile tables keyed by `AgentRole`. Third, reusable code such as risk logic, ranking, validation, and future position-sizing logic is not modeled as a first-class runtime dependency that any worker can bind to. Fourth, the current architecture makes the cost of experimentation too high: if adding one new AI agent means writing a new function, a new switch branch, and new orchestration glue, the system will keep accreting bespoke paths.
 
@@ -92,11 +92,11 @@ Today, orchestration is serialized in `AgentOrchestrator`, but execution semanti
 
 | File                                                            | Current responsibility                                 | Why it matters to Phase 1                                       |
 | --------------------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------- |
-| `electron/main/services/ai/ai-runtime/runtime.ts`               | Role-specific runtime methods and prompt/tool assembly | Primary code being decomposed                                   |
+| `electron/main/services/llm/runtime.ts`               | Role-specific runtime methods and prompt/tool assembly | Primary code being decomposed                                   |
 | `electron/main/services/orchestration/agent-orchestrator.ts`    | Hardcoded phase sequence and role-based calls          | Must stop calling per-role methods                              |
-| `electron/main/services/ai/ai-runtime/ai-runtime-types.ts`      | Harness caps and role tool policy                      | Needs replacement with phase/worker config                      |
-| `electron/main/services/ai/ai-runtime/harness-tools.ts`         | Tool availability derivation and toolset building      | Good substrate, but needs registry-driven input                 |
-| `electron/main/services/ai/prompt-pack-builder.ts`              | Prompt pack generation from role and strategy context  | Must be replaced or sharply reduced by prompt-envelope building |
+| `electron/main/services/llm/ai-runtime-types.ts`      | Harness caps and role tool policy                      | Needs replacement with phase/worker config                      |
+| `electron/main/services/llm/harness-tools.ts`         | Tool availability derivation and toolset building      | Good substrate, but needs registry-driven input                 |
+| `electron/main/services/llm/prompt-pack-builder.ts`              | Prompt pack generation from role and strategy context  | Must be replaced or sharply reduced by prompt-envelope building |
 | `electron/main/db/schema.ts`                                    | Current role-keyed AI config storage                   | Must be replaced by phase/pipeline config storage               |
 | `electron/main/db/repositories/session-ai-roles-repo.ts`        | Reads model/provider/prompt config by role             | Old pattern to delete                                           |
 | `electron/main/db/repositories/session-ai-role-profile-repo.ts` | Reads profile JSON by role                             | Old pattern to delete                                           |
@@ -109,9 +109,9 @@ The runtime refactor is not complete if these adjacent role-keyed or prompt-bloa
 | Surface                                       | Current file(s)                                                                                   | Required action                                                                                                        |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Orchestrator type aliases and direct AI calls | `electron/main/services/orchestration/agent-orchestrator.ts`                                      | Delete `runAnalyst` / `runReviewer` / `runDecisionMaker` / `runInstrumentSelector` call sites and related type aliases |
-| Old parser split by role                      | `electron/main/services/ai/ai-runtime/instrument-selection-parser.ts`, `decision-parse.ts`        | Fold into pipeline output/finalizer model or replace with phase-specific output handlers                               |
-| Old prompt resolution helpers                 | `electron/main/services/ai/ai-runtime/runtime-prompt.ts`, `prompt-asset-loader.ts`                | Replace role-specific prompt lookup with worker prompt lookup                                                          |
-| Old trace shape builders                      | `electron/main/services/ai/ai-runtime/runtime-trace.ts`                                           | Rework around phase/worker trace assembly rather than role runs                                                        |
+| Old parser split by role                      | `electron/main/services/llm/instrument-selection-parser.ts`, `decision-parse.ts`        | Fold into pipeline output/finalizer model or replace with phase-specific output handlers                               |
+| Old prompt resolution helpers                 | `electron/main/services/llm/runtime-prompt.ts`, `prompt-asset-loader.ts`                | Replace role-specific prompt lookup with worker prompt lookup                                                          |
+| Old trace shape builders                      | `electron/main/services/llm/runtime-trace.ts`                                           | Rework around phase/worker trace assembly rather than role runs                                                        |
 | Session AI role/profile shared types          | `electron/shared/domain/session.ts`, `electron/shared/domain/workspace.ts`                        | Replace `SessionAiRole` / `SessionAiRoleProfile` with phase/pipeline config types                                      |
 | Validation schemas for AI role payloads       | `electron/shared/validation/schemas.ts`, `src/lib/schemas.ts`                                     | Replace role-keyed request/response schemas with phase/pipeline config schemas                                         |
 | Preload/API surface                           | `electron/preload/exva-api.ts`, `src/lib/exva.ts`                                                 | Replace `aiRoles` / `aiRoleProfiles` APIs with phase config APIs                                                       |
@@ -128,12 +128,12 @@ The deeper scan confirms that runtime control is currently spread across unrelat
 
 | Concern                                               | Current location                                                                                                      | Why this is a problem                                                                        |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| Per-role max steps / spend limits                     | `electron/main/services/ai/ai-runtime/ai-runtime-types.ts` `ROLE_HARNESS_CAPS`                                        | Hidden role-level caps; not visible from a worker or phase definition                        |
+| Per-role max steps / spend limits                     | `electron/main/services/llm/ai-runtime-types.ts` `ROLE_HARNESS_CAPS`                                        | Hidden role-level caps; not visible from a worker or phase definition                        |
 | Step retry backoff / retry count                      | `electron/main/services/orchestration/execution-step-runner.ts` constants `STEP_RETRY_BACKOFF_MS`, `MAX_STEP_RETRIES` | Retry policy is hardcoded in orchestration code instead of runtime config                    |
-| Selector discovery / verification budgets             | `electron/shared/ai/ai-role-profile.ts` and `electron/main/services/ai/ai-runtime/selector-runtime-control.ts`        | Phase behavior is split between profile JSON and procedural logic                            |
+| Selector discovery / verification budgets             | `electron/shared/ai/ai-role-profile.ts` and `electron/main/services/llm/selector-runtime-control.ts`        | Phase behavior is split between profile JSON and procedural logic                            |
 | Search/fetch data spend limits                        | `prompt-pack-builder.ts`, `runtime.ts`, `search-tool.ts`, `fetch-url-tool.ts`                                         | Limits are threaded through multiple layers and surfaced in prompts as prose                 |
-| Strategy/risk context prompt shaping                  | `electron/main/services/ai/strategy-prompt-context.ts`                                                                | Large authoritative prompt block instead of structured pipeline payload                      |
-| Runtime authority / tool manuals / availability prose | `electron/main/services/ai/prompt-instructions.json` and `prompt-pack-builder.ts`                                     | Dynamic execution detail is duplicated into prompts instead of staying in code               |
+| Strategy/risk context prompt shaping                  | `electron/main/services/pipeline/prompting/strategy-prompt-context.ts`                                                                | Large authoritative prompt block instead of structured pipeline payload                      |
+| Runtime authority / tool manuals / availability prose | `electron/main/services/llm/prompt-instructions.json` and `prompt-pack-builder.ts`                                     | Dynamic execution detail is duplicated into prompts instead of staying in code               |
 | Decision sizing path                                  | `agent-orchestrator.ts` `resolvePositionSizeUsd()`                                                                    | Deterministic execution logic is buried in orchestrator code instead of modeled as an engine |
 | Exit policy logic                                     | `electron/main/services/risk/exit-policy-evaluator.ts`                                                                | Engine-like behavior exists, but is not exposed as a composable runtime component            |
 | Candidate validation / order policy gates             | `candidate-validation-service.ts`, `order-policy-gate.ts`, `broker-allocation-gate.ts`                                | These are effectively engines/policies today, but not represented as first-class bindings    |
@@ -203,12 +203,12 @@ The refactor is incomplete if those surfaces remain in the main path after Phase
 
 At minimum, the Phase 1 cutover should delete or fully replace these legacy implementation surfaces from the main path:
 
-- `electron/main/services/ai/ai-runtime/runtime.ts` role-specific methods: `runAnalyst`, `runReviewer`, `runDecisionMaker`, `runInstrumentSelector`, `runRole`, `runDecisionRole`
-- `electron/main/services/ai/ai-runtime/ai-runtime-types.ts` role-keyed caps/policy maps: `ROLE_HARNESS_CAPS`, `ROLE_TOOL_POLICY`
-- `electron/main/services/ai/ai-runtime/runtime-prompt.ts`
-- `electron/main/services/ai/prompt-pack-builder.ts`
-- `electron/main/services/ai/strategy-prompt-context.ts`
-- `electron/main/services/ai/prompt-instructions.json`
+- `electron/main/services/llm/runtime.ts` role-specific methods: `runAnalyst`, `runReviewer`, `runDecisionMaker`, `runInstrumentSelector`, `runRole`, `runDecisionRole`
+- `electron/main/services/llm/ai-runtime-types.ts` role-keyed caps/policy maps: `ROLE_HARNESS_CAPS`, `ROLE_TOOL_POLICY`
+- `electron/main/services/llm/runtime-prompt.ts`
+- `electron/main/services/llm/prompt-pack-builder.ts`
+- `electron/main/services/pipeline/prompting/strategy-prompt-context.ts`
+- `electron/main/services/llm/prompt-instructions.json`
 - `electron/main/db/schema.ts` entries for `session_ai_roles` and `session_ai_role_profile`
 - `electron/main/db/repositories/mappers.ts` role-keyed AI config mappers
 - `electron/main/db/repositories/session-ai-roles-repo.ts`
@@ -1068,7 +1068,7 @@ electron/shared/ai/
   pipeline-mapping.ts
   pipeline-observability.ts              # PhaseTraceV1, frontier/worker trace types
 
-electron/main/services/ai/pipeline-runtime/
+electron/main/services/llm/pipeline/
   pipeline-runtime.ts
   pipeline-registry.ts
     phase-config-resolver.ts

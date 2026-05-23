@@ -13,7 +13,7 @@ export {
 export {
   buildSelectorDefinitionFingerprint,
   hashSelectorDefinition,
-} from "../ai/pipeline-runtime/plan/cache/selector-instrument-cache";
+} from "../pipeline/implementations/cache/selector-instrument-cache";
 export {
   CandidateValidationService,
   type ToolStepTrace,
@@ -24,6 +24,6 @@ export { PositionManagerService } from "./lifecycle/position-manager-service";
 export {
   CycleReplayService,
   CycleReplayRunner,
-} from "./replay/cycle-replay-service";
-export type { CycleFixture, ReplayResult } from "./replay/cycle-replay-service";
-export { TradeAutopsyService } from "./post-trade/trade-autopsy-service";
+} from "../replay/cycle-replay-service";
+export type { CycleFixture, ReplayResult } from "../replay/cycle-replay-service";
+export { TradeAutopsyService } from "../analytics/trade-autopsy-service";

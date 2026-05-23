@@ -3,7 +3,7 @@
 > Replace hardcoded Anthropic dependency in `AiSdkService` with a multi-provider adapter.
 > Move inline system prompt strings to versioned Markdown files.
 >
-> Implements: docs/plan/CODING_GUIDELINES.md
+> Implements: docs/implementations/CODING_GUIDELINES.md
 
 ## Current State
 
@@ -29,7 +29,7 @@
 
 ## Provider Adapter Interface
 
-File: `electron/main/services/ai/provider-adapter.ts`
+File: `electron/main/services/llm/provider-adapter.ts`
 
 ```typescript
 export interface GenerateTextOptions {
@@ -67,7 +67,7 @@ export interface ProviderAdapter {
 
 ## Concrete Adapters
 
-### `AnthropicAdapter` — `electron/main/services/ai/adapters/anthropic-adapter.ts` (P0.3 fix)
+### `AnthropicAdapter` — `electron/main/services/llm/adapters/anthropic-adapter.ts` (P0.3 fix)
 
 The Vercel AI SDK exports `createAnthropic`, not `anthropic.createClient`. Corrected:
 
@@ -141,7 +141,7 @@ export class AnthropicAdapter implements ProviderAdapter {
 }
 ```
 
-### `OpenAiAdapter` — `electron/main/services/ai/adapters/openai-adapter.ts` (P0.3 fix)
+### `OpenAiAdapter` — `electron/main/services/llm/adapters/openai-adapter.ts` (P0.3 fix)
 
 Uses `createOpenAI` from `@ai-sdk/openai`:
 
@@ -151,7 +151,7 @@ const client = createOpenAI({ apiKey: this.apiKey });
 // then client(opts.model) per generateText/generateObject pattern above
 ```
 
-### `OpenRouterAdapter` — `electron/main/services/ai/adapters/openrouter-adapter.ts`
+### `OpenRouterAdapter` — `electron/main/services/llm/adapters/openrouter-adapter.ts`
 
 OpenAI-compatible endpoint. Takes `baseUrl` in addition to API key:
 
@@ -166,7 +166,7 @@ OpenRouter-compatible providers do not have a uniform `/models` endpoint we can 
 
 ## Provider Registry
 
-File: `electron/main/services/ai/provider-registry.ts`
+File: `electron/main/services/llm/provider-registry.ts`
 
 ```typescript
 export class ProviderRegistry {
@@ -226,7 +226,7 @@ export class ProviderRegistry {
 
 ## Session timeframe block (injected into user prompts)
 
-Add a small pure helper (e.g. `electron/main/services/ai/strategy-prompt-context.ts` or next to orchestrator):
+Add a small pure helper (e.g. `electron/main/services/pipeline/prompting/strategy-prompt-context.ts` or next to orchestrator):
 
 ```typescript
 import type { SessionStrategy } from "../../../shared/domain";
@@ -251,7 +251,7 @@ export function buildStrategyTimeframeContext(s: SessionStrategy): string {
 
 ## AI Runtime (replaces `AiSdkService`)
 
-File: `electron/main/services/ai/ai-runtime.ts`
+File: `electron/main/services/llm/ai-runtime.ts`
 
 ```typescript
 export class AiRuntime {
@@ -436,7 +436,7 @@ if (config.webSearchEnabled && !searchProviderId) {
 Search adapters mirror the AI provider pattern. Files:
 
 ```
-electron/main/services/ai/search/
+electron/main/services/search/
 ├── index.ts
 ├── search-registry.ts
 ├── search-types.ts                        SearchQuery, SearchResults
@@ -545,23 +545,23 @@ The same policy applies to broker adapter calls in Phase 8 with one difference: 
 
 | Action | File                                                                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------ |
-| Create | `electron/main/services/ai/strategy-prompt-context.ts` — `buildStrategyTimeframeContext`               |
-| Create | `electron/main/services/ai/index.ts`                                                                   |
-| Create | `electron/main/services/ai/adapters/provider-adapter.ts`                                               |
-| Create | `electron/main/services/ai/adapters/anthropic-adapter.ts`                                              |
-| Create | `electron/main/services/ai/adapters/openai-adapter.ts`                                                 |
-| Create | `electron/main/services/ai/adapters/openrouter-adapter.ts`                                             |
-| Create | `electron/main/services/ai/provider-registry.ts`                                                       |
-| Create | `electron/main/services/ai/ai-runtime.ts`                                                              |
-| Create | `electron/main/services/ai/ai-runtime-types.ts`                                                        |
-| Create | `electron/main/services/ai/ai-runtime-schemas.ts`                                                      |
-| Create | `electron/main/services/ai/search/index.ts` (P1.4)                                                     |
-| Create | `electron/main/services/ai/search/search-registry.ts`                                                  |
-| Create | `electron/main/services/ai/search/search-types.ts`                                                     |
-| Create | `electron/main/services/ai/search/adapters/search-adapter.ts`                                          |
-| Create | `electron/main/services/ai/search/adapters/brave-adapter.ts`                                           |
-| Create | `electron/main/services/ai/search/adapters/tavily-adapter.ts`                                          |
-| Modify | `electron/main/services/ai/prompt-asset-loader.ts` — add version()                                     |
+| Create | `electron/main/services/pipeline/prompting/strategy-prompt-context.ts` — `buildStrategyTimeframeContext`               |
+| Create | `electron/main/services/llm/index.ts`                                                                   |
+| Create | `electron/main/services/llm/adapters/provider-adapter.ts`                                               |
+| Create | `electron/main/services/llm/adapters/anthropic-adapter.ts`                                              |
+| Create | `electron/main/services/llm/adapters/openai-adapter.ts`                                                 |
+| Create | `electron/main/services/llm/adapters/openrouter-adapter.ts`                                             |
+| Create | `electron/main/services/llm/provider-registry.ts`                                                       |
+| Create | `electron/main/services/llm/ai-runtime.ts`                                                              |
+| Create | `electron/main/services/llm/ai-runtime-types.ts`                                                        |
+| Create | `electron/main/services/llm/ai-runtime-schemas.ts`                                                      |
+| Create | `electron/main/services/search/index.ts` (P1.4)                                                     |
+| Create | `electron/main/services/search/search-registry.ts`                                                  |
+| Create | `electron/main/services/search/search-types.ts`                                                     |
+| Create | `electron/main/services/search/adapters/search-adapter.ts`                                          |
+| Create | `electron/main/services/search/adapters/brave-adapter.ts`                                           |
+| Create | `electron/main/services/search/adapters/tavily-adapter.ts`                                          |
+| Modify | `electron/main/services/pipeline/prompt-asset-loader.ts` — add version()                                     |
 | Create | `electron/prompts/researcher_bull.md`                                                                  |
 | Create | `electron/prompts/researcher_bear.md`                                                                  |
 | Create | `electron/prompts/reviewer.md`                                                                         |

@@ -59,8 +59,8 @@ UI (AiPhasesSection.tsx)
 | ------------------------------------------------------------ | ------------------------- | ------------------------ |
 | `electron/shared/ai/pipeline-phase.ts:212`                   | `SessionAiPhase`          | `reasoningLevel`         |
 | `electron/shared/ai/pipeline-phase.ts:236`                   | `PhaseRuntimeSummary`     | `reasoningLevel`         |
-| `electron/main/services/ai/adapters/provider-adapter.ts:33`  | `AgentRunOptions`         | `reasoningLevel`         |
-| `electron/main/services/ai/adapters/run-agent-execute.ts:51` | `RunAgentExecuteParams`   | `reasoningLevel`         |
+| `electron/main/services/llm/adapters/provider-adapter.ts:33`  | `AgentRunOptions`         | `reasoningLevel`         |
+| `electron/main/services/llm/adapters/run-agent-execute.ts:51` | `RunAgentExecuteParams`   | `reasoningLevel`         |
 | `electron/main/db/schema.ts:169`                             | `session_ai_phases` table | `reasoning_level` column |
 
 ### SDK capabilities (installed)
@@ -249,7 +249,7 @@ Conditions that would change the recommendation:
 
 **Deliverables:**
 
-- [x] Create `electron/main/services/ai/adapters/reasoning-options.ts` — exports `buildAnthropicReasoningOptions(level, hasTools)`, `buildOpenAiReasoningOptions(level, modelId)`, `buildOpenRouterReasoningOptions(level)` using the mapping table in §5
+- [x] Create `electron/main/services/llm/adapters/reasoning-options.ts` — exports `buildAnthropicReasoningOptions(level, hasTools)`, `buildOpenAiReasoningOptions(level, modelId)`, `buildOpenRouterReasoningOptions(level)` using the mapping table in §5
 - [x] Update `AnthropicAdapter.runAgent` to pass `providerOptions: { anthropic: buildAnthropicReasoningOptions(opts.reasoningLevel, Boolean(opts.tools)) }` when level is not `off`
 - [x] Update `executeRunAgent` `baseArgs` to accept and spread `providerOptions`
 - [x] Update `OpenAiAdapter.runAgent` to pass `reasoningEffort` via `providerOptions.openai` (see implementation note below)
