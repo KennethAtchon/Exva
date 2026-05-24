@@ -3,8 +3,8 @@ import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import { AppError } from "@electron/shared/infra/errors";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
+import type { ResearchDiscoveryMode } from "@electron/shared/domain";
 import type { LLMRunResult } from "../../llm/llm-types";
-import type { SelectorCandidate } from "../../signal/scoring/selector-candidate-merger";
 import type { AIPhase } from "../phases/types";
 import {
   SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
@@ -22,6 +22,7 @@ import {
   parseWorkerToolTrace,
   scoreSelectorCandidates,
   summarizeSelectorOutput,
+  type SelectorCandidate,
 } from "./selector.helpers";
 import { candidateOutputSchema, verificationOutputSchema } from "./selector.schemas";
 
@@ -141,8 +142,8 @@ const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   },
 ];
 
-export function selectorDiscoveryWorkersForMode(
-  discoveryMode: string,
+function selectorDiscoveryWorkersForMode(
+  discoveryMode: ResearchDiscoveryMode,
 ): readonly WorkerDefinition[] {
   return discoveryMode === "event_contract_scan"
     ? EVENT_SELECTOR_DISCOVERY
@@ -199,7 +200,9 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
     "prediction-market-candidates",
   ],
   entryEngineIds: ["manual-shortlist"],
+  catalog: { outputMode: "tool_terminal" },
   finalizeEngineIds: ["selector-risk-filter", "selector-submission-builder"],
+  resolveWorkersForMode: selectorDiscoveryWorkersForMode,
   summarize: summarizeSelectorOutput,
   initialState(ctx) {
     const selectionInstructions = ctx.input.selectionInstructions;

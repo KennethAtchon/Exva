@@ -81,3 +81,12 @@ export function resolveEngine<T extends Engine>(
   }
   return engine as T;
 }
+
+/**
+ * Clears all registered engines. Intended for test isolation only.
+ * Do NOT call this in production code — engines are registered once at boot
+ * via engines/index.ts and must remain for the lifetime of the process.
+ */
+export function clearEngineRegistry(): void {
+  ENGINES.clear();
+}

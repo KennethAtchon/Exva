@@ -4,7 +4,10 @@ import type {
   WorkerDefinition,
 } from "@electron/shared/ai/ai-phase";
 import type { LLMRunResult } from "../../llm/llm-types";
-import type { SessionStrategyContext } from "@electron/shared/domain";
+import type {
+  ResearchDiscoveryMode,
+  SessionStrategyContext,
+} from "@electron/shared/domain";
 import type { WorkerToolContext } from "../worker-tools/worker-tool-factory";
 import type { AIWorkerRunner } from "../core/types";
 import type { AIPhaseServices } from "./services";
@@ -73,6 +76,32 @@ export interface AIPhase<TState, TOutput> {
    * outputSchemaNameForPhase switch in the interpreter.
    */
   outputSchemaName?: string;
+  /**
+   * Resolves the workers for a given discovery mode. Used by the effective
+   * config layer and catalog to determine workers without needing a full
+   * AIPhaseContext. Phases without mode-variant workers may ignore the
+   * discoveryMode parameter. Required if the phase participates in the
+   * phase catalog (i.e., all five standard phases).
+   */
+  resolveWorkersForMode?(
+    discoveryMode: ResearchDiscoveryMode,
+  ): readonly WorkerDefinition[];
+  /**
+   * Static metadata for the PipelineDefinition catalog (renderer + effective
+   * config layer). When set, the phase catalog derives the PipelineDefinition
+   * from this field rather than requiring a separate PHASE_METADATA entry.
+   *
+   * - `outputMode` and `outputSchema` are forwarded to PipelineDefinition.
+   * - `engines` are the EngineBinding[] for the legacy pipeline layer (distinct
+   *   from finalizeEngineIds which target the new engine registry).
+   * - `traceMode` defaults to "aggregate_workers" when omitted.
+   */
+  catalog?: {
+    outputMode: "text" | "object" | "tool_terminal";
+    outputSchema?: import("zod").ZodType<unknown>;
+    engines?: readonly import("@electron/shared/ai/ai-phase").EngineBinding[];
+    traceMode?: "single_phase_run" | "aggregate_workers";
+  };
   /**
    * Optional function that extracts structured diagnostic fields from phase
    * output for inclusion in the "phase plan complete" log entry. Return {}

@@ -1,10 +1,13 @@
 import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import {
+  reviewSignalSchema,
   type ReviewSignal,
   type TechnicalSignal,
   type FundamentalSignal,
 } from "@electron/shared/ai/trade-signals";
+// Self-registers the review-aggregator finalizer engine when this module loads.
+import "../engines/finalizer/review-aggregator";
 import { signalForWorkerPrompt } from "@electron/shared/ai/worker-prompt-payload";
 import {
   conflictDetectorOutputSchema,
@@ -37,7 +40,7 @@ const REVIEW_STRATEGY_CONTEXT = {
   maxGuidanceItems: 2,
 } as const;
 
-export const REVIEW_WORKERS: readonly WorkerDefinition[] = [
+const REVIEW_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "conflict-detector",
     prompt: REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT,
@@ -62,6 +65,12 @@ export const REVIEW_PHASE: AIPhase<AggregatorPlanState, ReviewSignal> = {
   phase: "review",
   outputSchemaName: "reviewSignal",
   persistAggregate: false,
+  catalog: {
+    outputMode: "object",
+    outputSchema: reviewSignalSchema,
+    engines: [ENGINE_BINDINGS.reviewAggregatorFinalize],
+  },
+  resolveWorkersForMode: () => REVIEW_WORKERS,
   finalizeEngineIds: ["review-aggregator"],
   initialState: (): AggregatorPlanState => ({}),
   stages: [

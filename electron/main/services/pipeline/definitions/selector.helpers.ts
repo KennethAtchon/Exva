@@ -16,6 +16,7 @@ import {
   mergeDiscoveryCandidates,
   type SelectorCandidate,
 } from "../../signal/scoring/selector-candidate-merger";
+export type { SelectorCandidate };
 import { scoreCandidate } from "../../signal/scoring/selector-scoring-engine";
 import { verificationOutputSchema } from "./selector.schemas";
 import type { z } from "zod";

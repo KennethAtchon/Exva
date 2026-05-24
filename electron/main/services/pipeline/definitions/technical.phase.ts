@@ -1,6 +1,11 @@
 import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
-import type { TechnicalSignal } from "@electron/shared/ai/trade-signals";
+import {
+  technicalSignalSchema,
+  type TechnicalSignal,
+} from "@electron/shared/ai/trade-signals";
+// Self-registers the technical-aggregator finalizer engine when this module loads.
+import "../engines/finalizer/technical-aggregator";
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
 import {
   chartPatternOutputSchema,
@@ -96,7 +101,7 @@ const EVENT_TECHNICAL_WORKERS: readonly WorkerDefinition[] = [
   },
 ];
 
-export function technicalWorkersForMode(
+function technicalWorkersForMode(
   discoveryMode: ResearchDiscoveryMode,
 ): readonly WorkerDefinition[] {
   return discoveryMode === "event_contract_scan"
@@ -108,6 +113,12 @@ export const TECHNICAL_PHASE: AIPhase<AggregatorPlanState, TechnicalSignal> = {
   phase: "technical",
   outputSchemaName: "technicalSignal",
   persistAggregate: false,
+  catalog: {
+    outputMode: "object",
+    outputSchema: technicalSignalSchema,
+    engines: [ENGINE_BINDINGS.technicalAggregatorFinalize],
+  },
+  resolveWorkersForMode: technicalWorkersForMode,
   finalizeEngineIds: ["technical-aggregator"],
   initialState: (): AggregatorPlanState => ({}),
   stages: [

@@ -1,6 +1,11 @@
 import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
-import type { FundamentalSignal } from "@electron/shared/ai/trade-signals";
+import {
+  fundamentalSignalSchema,
+  type FundamentalSignal,
+} from "@electron/shared/ai/trade-signals";
+// Self-registers the fundamental-aggregator finalizer engine when this module loads.
+import "../engines/finalizer/fundamental-aggregator";
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
 import {
@@ -97,7 +102,7 @@ const EVENT_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   },
 ];
 
-export function fundamentalWorkersForMode(
+function fundamentalWorkersForMode(
   discoveryMode: ResearchDiscoveryMode,
 ): readonly WorkerDefinition[] {
   return discoveryMode === "event_contract_scan"
@@ -112,6 +117,12 @@ export const FUNDAMENTAL_PHASE: AIPhase<
   phase: "fundamental",
   outputSchemaName: "fundamentalSignal",
   persistAggregate: false,
+  catalog: {
+    outputMode: "object",
+    outputSchema: fundamentalSignalSchema,
+    engines: [ENGINE_BINDINGS.fundamentalAggregatorFinalize],
+  },
+  resolveWorkersForMode: fundamentalWorkersForMode,
   finalizeEngineIds: ["fundamental-aggregator"],
   initialState: (): AggregatorPlanState => ({}),
   stages: [

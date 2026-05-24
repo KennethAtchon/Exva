@@ -1,21 +1,12 @@
+// Register all engines before phases. Selector input/entry/cache engines live
+// in engines/; aggregator finalizer engines self-register via their phase files.
 import "../engines";
 import { registerAIPhase } from "../phases/registry";
 import { resolveEngine } from "../engines/registry";
 import { registerUnifiedPlanRef } from "../implementations/registry/analysis-resolver";
-import { DECISION_PHASE } from "./decision.phase";
-import { FUNDAMENTAL_PHASE } from "./fundamental.phase";
-import { REVIEW_PHASE } from "./review.phase";
-import { SELECTOR_PHASE } from "./selector.phase";
-import { TECHNICAL_PHASE } from "./technical.phase";
-import type { AIPhase } from "../phases/types";
+import { ALL_PHASES } from "./all-phases";
 
-export const ALL_PHASES = [
-  SELECTOR_PHASE,
-  TECHNICAL_PHASE,
-  FUNDAMENTAL_PHASE,
-  REVIEW_PHASE,
-  DECISION_PHASE,
-] as const satisfies readonly AIPhase<unknown, unknown>[];
+export { ALL_PHASES } from "./all-phases";
 
 export function registerAllPhases(): void {
   for (const phase of ALL_PHASES) {

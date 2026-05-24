@@ -18,8 +18,30 @@ const LOG_PREFIX = "exva-";
 const LOG_SUFFIX = ".log";
 const LOG_RETENTION_DAYS = 7;
 
-function toIsoDateUtc(value: Date): string {
-  return value.toISOString().slice(0, 10);
+function toLocalDateString(value: Date): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function startOfLocalDayMs(value: Date): number {
+  return new Date(
+    value.getFullYear(),
+    value.getMonth(),
+    value.getDate(),
+  ).getTime();
+}
+
+function parseLocalDateString(dateString: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateString);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const ms = new Date(year, month - 1, day).getTime();
+  return Number.isNaN(ms) ? null : ms;
 }
 
 function resolveLogDir(): string {
@@ -29,14 +51,9 @@ function resolveLogDir(): string {
 
 function pruneOldLogFiles(logDir: string, retentionDays: number): void {
   const entries = fs.readdirSync(logDir, { withFileTypes: true });
-  const today = new Date();
-  const todayStartUtcMs = Date.UTC(
-    today.getUTCFullYear(),
-    today.getUTCMonth(),
-    today.getUTCDate(),
-  );
-  const cutoffUtcMs =
-    todayStartUtcMs - (retentionDays - 1) * 24 * 60 * 60 * 1000;
+  const todayStartLocalMs = startOfLocalDayMs(new Date());
+  const cutoffLocalMs =
+    todayStartLocalMs - (retentionDays - 1) * 24 * 60 * 60 * 1000;
 
   for (const entry of entries) {
     if (!entry.isFile()) continue;
@@ -45,9 +62,9 @@ function pruneOldLogFiles(logDir: string, retentionDays: number): void {
     ).exec(entry.name);
     if (!match) continue;
 
-    const fileDateUtcMs = Date.parse(`${match[1]}T00:00:00.000Z`);
-    if (Number.isNaN(fileDateUtcMs)) continue;
-    if (fileDateUtcMs < cutoffUtcMs) {
+    const fileDateLocalMs = parseLocalDateString(match[1]);
+    if (fileDateLocalMs === null) continue;
+    if (fileDateLocalMs < cutoffLocalMs) {
       fs.rmSync(path.join(logDir, entry.name), { force: true });
     }
   }
@@ -60,7 +77,7 @@ function createBaseLogger(): Logger {
 
   const logFilePath = path.join(
     logDir,
-    `${LOG_PREFIX}${toIsoDateUtc(new Date())}${LOG_SUFFIX}`,
+    `${LOG_PREFIX}${toLocalDateString(new Date())}${LOG_SUFFIX}`,
   );
   const streams = pino.multistream([
     { stream: process.stdout, level: env.logLevel },

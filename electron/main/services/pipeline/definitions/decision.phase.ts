@@ -1,11 +1,14 @@
 import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import {
+  tradeSignalSchema,
   type TradeSignal,
   type TechnicalSignal,
   type FundamentalSignal,
   type ReviewSignal,
 } from "@electron/shared/ai/trade-signals";
+// Self-registers the trade-signal-aggregator finalizer engine when this module loads.
+import "../engines/finalizer/trade-signal-aggregator";
 import { signalForWorkerPrompt } from "@electron/shared/ai/worker-prompt-payload";
 import {
   entryTimerOutputSchema,
@@ -39,7 +42,7 @@ const DECISION_STRATEGY_CONTEXT = {
   maxGuidanceItems: 2,
 } as const;
 
-export const DECISION_WORKERS: readonly WorkerDefinition[] = [
+const DECISION_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "signal-classifier",
     prompt: DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
@@ -64,6 +67,12 @@ export const DECISION_PHASE: AIPhase<AggregatorPlanState, TradeSignal> = {
   phase: "decision",
   outputSchemaName: "tradeSignal",
   persistAggregate: false,
+  catalog: {
+    outputMode: "object",
+    outputSchema: tradeSignalSchema,
+    engines: [ENGINE_BINDINGS.tradeSignalAggregatorFinalize],
+  },
+  resolveWorkersForMode: () => DECISION_WORKERS,
   finalizeEngineIds: ["trade-signal-aggregator"],
   initialState: (): AggregatorPlanState => ({}),
   stages: [
