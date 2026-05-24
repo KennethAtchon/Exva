@@ -1,12 +1,26 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
 import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/instruments/session-instrument-classes";
-import { registerDefaultAIPhases } from "../../../pipeline/implementations/registry/register-phases";
-import { buildCompositeInput } from "../../../pipeline/implementations/registry/input-builder-registry";
+import { registerAllPhases } from "../../../pipeline/definitions";
+import { resolveEngine, type InputEngine } from "../../../pipeline/engines/registry";
 import { AgentOrchestrator } from "../agent-orchestrator";
 import * as runSelectorModule from "../selector/run-selector";
 
-registerDefaultAIPhases();
+registerAllPhases();
+
+async function buildCompositeInput(
+  builderIds: readonly string[],
+  ctx: Parameters<InputEngine["build"]>[0],
+): Promise<string> {
+  const sections: string[] = [];
+  for (const builderId of builderIds) {
+    const section = await resolveEngine<InputEngine>(builderId, "input").build(
+      ctx,
+    );
+    if (section) sections.push(section);
+  }
+  return sections.filter(Boolean).join("\n\n");
+}
 
 async function drainOrchestratorQueue(
   orchestrator: AgentOrchestrator,

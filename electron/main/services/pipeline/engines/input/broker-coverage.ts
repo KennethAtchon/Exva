@@ -1,11 +1,10 @@
 import type { InstrumentClass } from "@/lib/types";
-import type {
-  InputBuilder,
-  InputBuilderContext,
-} from "../registry/input-builder-registry";
+import { registerEngine, type InputEngine } from "../registry";
+import type { AIPhaseContext } from "../../phases/types";
 
-export const brokerCoverageInputBuilder: InputBuilder = {
+const brokerCoverageInputEngine: InputEngine = {
   id: "broker-coverage",
+  kind: "input",
   build(ctx) {
     return Promise.resolve(
       renderBrokerCoverageInstructions(ctx, ctx.instrumentClasses),
@@ -14,7 +13,7 @@ export const brokerCoverageInputBuilder: InputBuilder = {
 };
 
 function renderBrokerCoverageInstructions(
-  ctx: InputBuilderContext,
+  ctx: AIPhaseContext,
   instrumentClasses: InstrumentClass[],
 ): string {
   const assignedBrokerIds =
@@ -64,3 +63,5 @@ function renderBrokerCoverageInstructions(
   );
   return lines.join("\n");
 }
+
+registerEngine(brokerCoverageInputEngine);

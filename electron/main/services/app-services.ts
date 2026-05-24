@@ -47,7 +47,7 @@ import { NotificationService } from "./infra/notification-service";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
 import { registerDefaultEngines } from "./signal/registry/register-default-engines";
 import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-ai-phase-config";
-import { registerDefaultAIPhases } from "./pipeline/implementations/registry/register-phases";
+import { registerAllPhases } from "./pipeline/definitions";
 import { registerDefaultInstrumentAnalyses } from "./pipeline/implementations/registry/register-analyses";
 import { ProviderRegistry } from "./llm/provider-registry";
 import { SearchRegistry } from "./search/search-registry";
@@ -267,7 +267,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerAllocationGate,
     exitPolicyEvaluator,
   });
-  registerDefaultAIPhases();
+  registerAllPhases();
   registerDefaultInstrumentAnalyses();
   assertValidPipelineDefinitionCatalog();
   balanceTicker.start();

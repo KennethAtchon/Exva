@@ -35,7 +35,7 @@ Selector's complexity was externalised into 8+ files across 6 folders instead of
 | `filterOutput()` | `definitions/selector.phase.ts` (optional function) |
 | `SelectorRiskFilter.evaluate()` call in `finalize()` | `engines/finalizer/selector-risk-filter.ts` (adapter over `signal/scoring/selector-risk-filter.ts`) |
 | `buildInstrumentSelection()` call in `finalize()` | `engines/finalizer/selector-submission-builder.ts` (adapter over `signal/scoring/selector-submission-builder.ts`) |
-| `buildSelectorEvidence()` call in `finalize()` | Moves into `engines/finalizer/selector-risk-filter.ts` (pre-processes candidates before filter evaluates) |
+| `buildSelectorEvidence()` call in `finalize()` | Moves into `engines/finalizer/selector-risk-filter.ts` as a local helper (currently a private function in `selector-analysis.ts`, not exported from `signal/`) |
 | `isManualSelectorMode` / `buildManualShortlistSelection` in `entryModes` | `engines/entry-mode/manual-shortlist.ts` |
 | `mergeDiscoveryCandidates()` in discovery `applyResults()` | Stays as direct call inside the stage definition in `definitions/selector.phase.ts` — `applyResults()` is stage-local, exempt from engine registry |
 | `scoreSelectorCandidates()` helper | Moves to `definitions/selector.phase.ts` as a local function or imports from `signal/scoring/selector-scoring-engine.ts` |
@@ -145,8 +145,8 @@ import type { SelectorPlanState } from "./selector.schemas";
 import {
   candidateOutputSchema,
   verificationOutputSchema,
-  STANDARD_DISCOVERY_WORKERS,
-  EVENT_DISCOVERY_WORKERS,
+  STANDARD_SELECTOR_DISCOVERY,
+  EVENT_SELECTOR_DISCOVERY,
 } from "./selector.schemas";
 import {
   mergeDiscoveryCandidates,
@@ -204,8 +204,8 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       frontier: 0,
       resolveWorkers: (ctx) =>
         ctx.strategyContext.researchPosture.discoveryMode === "event_contract_scan"
-          ? EVENT_DISCOVERY_WORKERS
-          : STANDARD_DISCOVERY_WORKERS,
+          ? EVENT_SELECTOR_DISCOVERY
+          : STANDARD_SELECTOR_DISCOVERY,
       buildTask: (ctx) => ({
         selectionInstructions: ctx.input.selectionInstructions,
         instrumentClasses: ctx.instrumentClasses,
@@ -225,7 +225,7 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       id: "verification",
       frontier: 1,
       resolveWorkers: (_ctx, state) =>
-        state.candidatesForVerification.flatMap(verificationWorkersForCandidate),
+        state.candidatesForVerification.flatMap(verificationWorkers),
       buildTask: (_ctx, state, worker) => {
         const symbol = worker.id.split(":")[1] ?? "";
         const candidate = state.candidatesForVerification.find(c => c.symbol === symbol);
@@ -261,25 +261,30 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
 import { registerEngine } from "../registry";
 import type { FinalizerEngine } from "../types";
 import { SelectorRiskFilter } from "../../../signal/scoring/selector-risk-filter";
-import { buildSelectorEvidence } from "../../../signal/scoring/selector-risk-filter"; // or separate helper
-import type { SelectorPlanState } from "../../definitions/selector.schemas";
+import type { SelectorCandidate, SelectorPlanState } from "../../definitions/selector.schemas";
+
+// Moved from selector-analysis.ts — not exported from signal/
+function buildSelectorEvidence(candidate: SelectorCandidate): SelectorEvidence { ... }
 
 registerEngine<FinalizerEngine<SelectorPlanState>>({
   id: "selector-risk-filter",
   kind: "finalizer",
   async run(ctx, state) {
-    // buildSelectorEvidence was previously called inside finalize() before the filter
     const withEvidence = state.verifiedCandidates.map(c => ({
       ...c,
       selectorEvidence: buildSelectorEvidence(c),
     }));
-    return new SelectorRiskFilter({
+    const evaluation = new SelectorRiskFilter({
       sessionId: ctx.sessionId,
       instrumentClasses: ctx.instrumentClasses,
       strategyContext: ctx.strategyContext,
       brokerRouting: ctx.toolContext.brokerRouting,
     }).evaluate(withEvidence);
-    // returns { accepted, rejected } — fed as state to selector-submission-builder
+    return {
+      ...evaluation,
+      discoveredCount: state.candidatesForVerification.length,
+      verifiedCount: state.verifiedCandidates.length,
+    };
   },
 });
 ```
@@ -293,16 +298,18 @@ import { buildInstrumentSelection } from "../../../signal/scoring/selector-submi
 registerEngine<FinalizerEngine>({
   id: "selector-submission-builder",
   kind: "finalizer",
-  async run(ctx, evaluationResult) {
+  async run(ctx, evaluationResult, workerResults) {
     const output = {
       ...buildInstrumentSelection(
         evaluationResult.accepted,
         ctx.strategyContext.riskConfig.maxConcurrentTrades,
       ),
       diagnostics: {
+        discoveredCount: evaluationResult.discoveredCount,
+        verifiedCount: evaluationResult.verifiedCount,
         acceptedCount: evaluationResult.accepted.length,
         rejected: evaluationResult.rejected,
-        // workerToolCoverage is assembled by AIPhaseRunner using workerResults
+        workerToolCoverage: buildWorkerToolCoverage(workerResults), // moved from selector-analysis.ts
       },
     };
     return output; // TOutput — InstrumentSelection

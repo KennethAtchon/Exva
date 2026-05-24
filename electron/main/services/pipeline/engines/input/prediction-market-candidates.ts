@@ -1,8 +1,9 @@
 import { fetchPredictionMarketCandidates } from "../../../signal/scoring/prediction-market-candidate-engine";
-import type { InputBuilder } from "../registry/input-builder-registry";
+import { registerEngine, type InputEngine } from "../registry";
 
-export const predictionMarketCandidatesInputBuilder: InputBuilder = {
+const predictionMarketCandidatesInputEngine: InputEngine = {
   id: "prediction-market-candidates",
+  kind: "input",
   async build(ctx) {
     if (!ctx.instrumentClasses.includes("prediction_market")) {
       return null;
@@ -21,3 +22,5 @@ export const predictionMarketCandidatesInputBuilder: InputBuilder = {
       .join("\n")}`;
   },
 };
+
+registerEngine(predictionMarketCandidatesInputEngine);

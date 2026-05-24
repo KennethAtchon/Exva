@@ -18,11 +18,13 @@ Direct calls. Hardcoded in the selector execution path. Adding another step mean
 **Right:**
 ```ts
 // In selector.phase.ts:
-finalizeEngineIds: ["candidate-merger", "selector-scoring", "selector-risk-filter", "selector-submission-builder"]
+finalizeEngineIds: ["selector-risk-filter", "selector-submission-builder"]
 
-// In engines/finalizer/selector-scoring.ts:
+// mergeDiscoveryCandidates / scoreSelectorCandidates run inside stage applyResults() — not finalizers
+
+// In engines/finalizer/selector-risk-filter.ts:
 registerEngine({
-  id: "selector-scoring",
+  id: "selector-risk-filter",
   kind: "finalizer",
   run(ctx, state) { ... }
 });
@@ -205,14 +207,16 @@ Already implemented as `ENGINE_BINDINGS` in `ai-phase-config.ts`. These are engi
 ```
 [domain]-[action]
 
-broker-coverage         ← domain: broker, action: coverage
-selector-scope          ← domain: selector, action: scope
-manual-shortlist        ← domain: manual, action: shortlist
+broker-coverage           ← domain: broker, action: coverage
+selector-scope            ← domain: selector, action: scope
+manual-shortlist          ← domain: manual, action: shortlist
 selector-instrument-cache ← domain: selector-instrument, action: cache
-candidate-merger        ← domain: candidate, action: merger
-selector-scoring        ← domain: selector, action: scoring
-selector-risk-filter    ← domain: selector-risk, action: filter
+selector-risk-filter      ← domain: selector-risk, action: filter
+selector-submission-builder ← domain: selector-submission, action: builder
+technical-aggregator      ← domain: technical, action: aggregator
 ```
+
+Stage-local utilities (`mergeDiscoveryCandidates`, `scoreSelectorCandidates`) are **not** registered engines — they stay as direct calls inside `applyResults()`.
 
 IDs are lowercase kebab-case. They don't need to include the engine kind (the registry enforces kind at resolution time).
 
@@ -227,8 +231,10 @@ Minimal structure — implement, register, done. Engine files are adapters: they
 import { registerEngine } from "../registry";
 import type { FinalizerEngine } from "../types";
 import { SelectorRiskFilter } from "../../../signal/scoring/selector-risk-filter";
-import { buildSelectorEvidence } from "../../../signal/scoring/selector-risk-filter";
 import type { SelectorPlanState } from "../../definitions/selector.schemas";
+
+// buildSelectorEvidence() moves here from selector-analysis.ts — it is not exported from signal/
+function buildSelectorEvidence(candidate: SelectorCandidate): SelectorEvidence { ... }
 
 registerEngine<FinalizerEngine<SelectorPlanState>>({
   id: "selector-risk-filter",
@@ -238,12 +244,18 @@ registerEngine<FinalizerEngine<SelectorPlanState>>({
       ...c,
       selectorEvidence: buildSelectorEvidence(c),
     }));
-    return new SelectorRiskFilter({
+    const evaluation = new SelectorRiskFilter({
       sessionId: ctx.sessionId,
       instrumentClasses: ctx.instrumentClasses,
       strategyContext: ctx.strategyContext,
       brokerRouting: ctx.toolContext.brokerRouting,
     }).evaluate(withEvidence);
+    // Pass counts forward — submission-builder no longer receives full SelectorPlanState
+    return {
+      ...evaluation,
+      discoveredCount: state.candidatesForVerification.length,
+      verifiedCount: state.verifiedCandidates.length,
+    };
   },
 });
 ```

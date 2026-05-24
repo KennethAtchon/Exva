@@ -15,11 +15,7 @@ import { requireEngine } from "../signal/registry/signal-engine-registry";
 import { SUPPORTED_TOOL_IDS } from "./worker-tools/worker-tool-factory";
 import { listPipelineDefinitions } from "./core/pipeline-registry";
 import type { AIPhaseConfigResolver } from "./ai-phase-config-resolver";
-import {
-  fundamentalWorkersForMode,
-  selectorDiscoveryWorkersForMode,
-  technicalWorkersForMode,
-} from "./pipeline-discovery-config";
+import { resolvePhaseWorkers } from "./definitions/phase-catalog";
 import { getAIPhase } from "./phases/registry";
 import { resolveEffectivePlanStages } from "./implementations/registry/analysis-resolver";
 
@@ -228,8 +224,8 @@ function resolveEffectiveStage(input: {
     phaseSpendCapUsd: input.phaseConfigResolver.resolvePhaseSpendCapUsd(
       input.phase,
     ),
-    inputBuilders: plan?.inspect.inputBuilderIds,
-    cachePolicy: plan?.inspect.cachePolicyId,
+    inputBuilders: plan?.inputEngineIds,
+    cachePolicy: plan?.cacheEngineId,
     engines: input.definition.engines ?? [],
     workers: workers.map((worker) =>
       resolveEffectiveWorker({
@@ -286,14 +282,10 @@ function resolveEffectiveWorker(input: {
 
 function workersForEffectiveStage(
   phase: PipelinePhase,
-  definition: PipelineDefinition,
+  _definition: PipelineDefinition,
   discoveryMode: SessionStrategyContext["researchPosture"]["discoveryMode"],
 ): readonly WorkerDefinition[] {
-  if (phase === "selector")
-    return selectorDiscoveryWorkersForMode(discoveryMode);
-  if (phase === "technical") return technicalWorkersForMode(discoveryMode);
-  if (phase === "fundamental") return fundamentalWorkersForMode(discoveryMode);
-  return definition.workers;
+  return resolvePhaseWorkers(phase, discoveryMode);
 }
 
 function variantKeyForPhase(

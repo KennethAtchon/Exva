@@ -1,0 +1,11 @@
+import "./input/selector-scope";
+import "./input/broker-coverage";
+import "./input/prediction-market-candidates";
+import "./entry-mode/manual-shortlist";
+import "./cache/selector-instrument-cache";
+import "./finalizer/selector-risk-filter";
+import "./finalizer/selector-submission-builder";
+import "./finalizer/technical-aggregator";
+import "./finalizer/fundamental-aggregator";
+import "./finalizer/review-aggregator";
+import "./finalizer/trade-signal-aggregator";

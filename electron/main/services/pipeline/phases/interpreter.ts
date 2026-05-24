@@ -2,8 +2,15 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { LLMRunResult } from "../../llm/llm-types";
 import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { resolveSessionInstrumentClasses } from "../../session/effective-instrument-classes";
-import { getCachePolicy } from "../implementations/registry/cache-policy-registry";
-import { buildCompositeInput } from "../implementations/registry/input-builder-registry";
+import {
+  resolveEngine,
+  type CacheEngine,
+  type EntryModeEngine,
+  type FinalizerEngine,
+  type InputEngine,
+  type PhaseWorkerResult,
+} from "../engines/registry";
+import { assembleAggregateTrace } from "../execution/trace-assembler";
 import type { AIPhaseServices } from "./services";
 import type {
   AIPhase,
@@ -45,8 +52,8 @@ export class AIPhaseRunner {
         tradeId: input.tradeId,
         stageCount: input.plan.stages.length,
         inputKeys: Object.keys(input.input).sort(),
-        cachePolicyId: input.plan.cachePolicyId ?? null,
-        entryModeCount: input.plan.entryModes.length,
+        cacheEngineId: input.plan.cacheEngineId ?? null,
+        entryModeCount: input.plan.entryEngineIds?.length ?? 0,
       },
       "phase plan start",
     );
@@ -73,18 +80,48 @@ export class AIPhaseRunner {
       input: { ...input.input },
     };
 
-    if (input.plan.cachePolicyId) {
-      const policy = getCachePolicy(input.plan.cachePolicyId);
-      const fingerprint = policy.fingerprint(ctx);
-      const cached = policy.read(ctx, fingerprint);
+    for (const entryEngineId of input.plan.entryEngineIds ?? []) {
+      const entryEngine = resolveEngine<EntryModeEngine>(
+        entryEngineId,
+        "entry_mode",
+      );
+      if (!(await entryEngine.matches(ctx))) continue;
+      logger.info(
+        {
+          sessionId: input.sessionId,
+          phase: input.plan.phase,
+          cycleId: input.cycleId,
+          entryEngineId,
+        },
+        "phase plan entry mode matched",
+      );
+      const output = await entryEngine.resolve(ctx);
+      return {
+        output: (input.plan.filterOutput?.(output as never, ctx) ??
+          output) as TOutput,
+        source:
+          entryEngineId === "manual-shortlist" ||
+          entryEngineId === "manual_shortlist"
+            ? "manual_shortlist"
+            : "phase",
+        instrumentClasses,
+      };
+    }
+
+    let cacheFingerprint: string | null = null;
+    let cacheEngine: CacheEngine | null = null;
+    if (input.plan.cacheEngineId) {
+      cacheEngine = resolveEngine<CacheEngine>(input.plan.cacheEngineId, "cache");
+      cacheFingerprint = cacheEngine.fingerprint(ctx);
+      const cached = cacheEngine.read(ctx, cacheFingerprint);
       if (cached) {
         logger.info(
           {
             sessionId: input.sessionId,
             phase: input.plan.phase,
             cycleId: input.cycleId,
-            cachePolicyId: input.plan.cachePolicyId,
-            fingerprint,
+            cacheEngineId: input.plan.cacheEngineId,
+            fingerprint: cacheFingerprint,
           },
           "phase plan cache hit",
         );
@@ -96,42 +133,23 @@ export class AIPhaseRunner {
       }
     }
 
-    for (const entryMode of input.plan.entryModes) {
-      if (!entryMode.matches(ctx)) continue;
-      logger.info(
-        {
-          sessionId: input.sessionId,
-          phase: input.plan.phase,
-          cycleId: input.cycleId,
-          entryModeId: entryMode.id,
-        },
-        "phase plan entry mode matched",
-      );
-      const output = await entryMode.resolveOutput(ctx);
-      return {
-        output: (input.plan.filterOutput?.(output as never, ctx) ??
-          output) as TOutput,
-        source:
-          entryMode.id === "manual_shortlist" ? "manual_shortlist" : "phase",
-        instrumentClasses,
-      };
+    if (input.plan.inputEngineIds?.length) {
+      const sections: string[] = [];
+      for (const inputEngineId of input.plan.inputEngineIds) {
+        const section = await resolveEngine<InputEngine>(
+          inputEngineId,
+          "input",
+        ).build(ctx);
+        if (section) sections.push(section);
+      }
+      ctx.input.selectionInstructions = sections.join("\n\n");
     }
 
-    if (input.plan.inputBuilderIds?.length) {
-      ctx.input.selectionInstructions = await buildCompositeInput(
-        input.plan.inputBuilderIds,
-        {
-          sessionId: ctx.sessionId,
-          session: ctx.session,
-          instrumentClasses,
-          toolContext: ctx.toolContext,
-          services: ctx.services,
-        },
-      );
-    }
-
-    let state = await input.plan.initialState(ctx);
+    let state = input.plan.initialState
+      ? await input.plan.initialState(ctx)
+      : ({} as unknown);
     const workerTraces: AIWorkerTrace[] = [];
+    const workerResults: PhaseWorkerResult[] = [];
 
     for (const stage of input.plan.stages) {
       const workers = stage.resolveWorkers(ctx, state);
@@ -230,6 +248,7 @@ export class AIPhaseRunner {
       }
 
       for (const { worker, result } of results) {
+        workerResults.push({ worker, result });
         workerTraces.push({
           workerId: worker.id,
           frontier: stage.frontier,
@@ -248,10 +267,18 @@ export class AIPhaseRunner {
       state = stage.applyResults(ctx, state, results);
     }
 
-    const finalized = await input.plan.finalize(ctx, state, workerTraces);
+    const finalized = await finalizePhaseOutput(
+      input.plan,
+      ctx,
+      state,
+      workerTraces,
+      workerResults,
+    );
     const output = (input.plan.filterOutput?.(finalized.output, ctx) ??
       finalized.output) as TOutput;
-    const aggregate = finalized.aggregate;
+    const aggregate =
+      finalized.aggregate ??
+      assemblePhaseAggregate(input.plan, ctx, output, workerTraces);
 
     logger.info(
       {
@@ -283,10 +310,8 @@ export class AIPhaseRunner {
       });
     }
 
-    if (input.plan.cachePolicyId && aggregate && hasNonEmptyOutput(output)) {
-      const policy = getCachePolicy(input.plan.cachePolicyId);
-      const fingerprint = policy.fingerprint(ctx);
-      policy.write(ctx, fingerprint, output, {
+    if (cacheEngine && cacheFingerprint && aggregate && hasNonEmptyOutput(output)) {
+      cacheEngine.write(ctx, cacheFingerprint, output, {
         agentRunId: aggregate.run.id,
         cycleId: ctx.cycleId ?? ctx.sessionId,
       });
@@ -302,6 +327,72 @@ export class AIPhaseRunner {
       instrumentClasses,
     };
   }
+}
+
+async function finalizePhaseOutput<TOutput>(
+  plan: AIPhase<unknown, TOutput>,
+  ctx: AIPhaseContext,
+  state: unknown,
+  workerTraces: AIWorkerTrace[],
+  workerResults: PhaseWorkerResult[],
+): Promise<{
+  output: TOutput;
+  aggregate?: {
+    run: LLMRunResult<TOutput>["run"];
+    message: LLMRunResult<TOutput>["message"];
+  };
+}> {
+  if (plan.finalizeEngineIds?.length) {
+    let current: unknown = state;
+    for (const finalizerEngineId of plan.finalizeEngineIds) {
+      current = await resolveEngine<FinalizerEngine>(
+        finalizerEngineId,
+        "finalizer",
+      ).run(ctx, current, workerResults);
+    }
+    return { output: current as TOutput };
+  }
+
+  throw new AppError(
+    `Phase '${plan.phase}' has no finalizer engines configured.`,
+    "VALIDATION_FAILED",
+  );
+}
+
+function assemblePhaseAggregate<TOutput>(
+  plan: AIPhase<unknown, TOutput>,
+  ctx: AIPhaseContext,
+  output: TOutput,
+  workerTraces: AIWorkerTrace[],
+): {
+  run: LLMRunResult<TOutput>["run"];
+  message: LLMRunResult<TOutput>["message"];
+} {
+  const aggregate = assembleAggregateTrace({
+    phase: plan.phase,
+    sessionId: ctx.sessionId,
+    tradeId: ctx.tradeId,
+    cycleId: ctx.cycleId,
+    providerKey: workerTraces[0]?.run.provider_key ?? "unknown",
+    modelId: workerTraces[0]?.run.model ?? "unknown",
+    strategyContext: ctx.strategyContext,
+    schedulingMode: plan.stages.length > 1 ? "dependency_graph" : "flat_parallel",
+    maxConcurrency: Math.max(...plan.stages.map((stage) => stage.concurrency), 1),
+    output,
+    outputSchemaName: outputSchemaNameForPhase(plan.phase),
+    marketSnapshotJson:
+      plan.phase === "selector" ? JSON.stringify(summarizeSelectorDiagnostics(output)) : undefined,
+    workers: workerTraces,
+  });
+  return { run: aggregate.run, message: aggregate.message };
+}
+
+function outputSchemaNameForPhase(phase: AIPhaseContext["phase"]): string {
+  if (phase === "selector") return "instrumentSelection";
+  if (phase === "technical") return "technicalSignal";
+  if (phase === "fundamental") return "fundamentalSignal";
+  if (phase === "review") return "reviewSignal";
+  return "tradeSignal";
 }
 
 function hasNonEmptyOutput(output: unknown): boolean {

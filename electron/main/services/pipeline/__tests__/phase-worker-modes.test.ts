@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-import {
-  fundamentalWorkersForMode,
-  selectorDiscoveryWorkersForMode,
-  technicalWorkersForMode,
-} from "../pipeline-discovery-config";
+import { fundamentalWorkersForMode } from "../definitions/fundamental.phase";
+import { selectorDiscoveryWorkersForMode } from "../definitions/selector.phase";
+import { technicalWorkersForMode } from "../definitions/technical.phase";
 
-describe("pipeline-discovery-config", () => {
+describe("phase worker discovery modes", () => {
   it("uses standard selector scouts by default", () => {
     const workers = selectorDiscoveryWorkersForMode("trend_scan");
     expect(workers.map((w) => w.id)).toEqual([

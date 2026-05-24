@@ -1,30 +1,54 @@
 # Definition-First Pipeline Refactor
 
-> **Status:** Draft — 2026-05-23
+> **Status:** Phase 2 implemented — 2026-05-24
 > **Goal:** Replace the scattered, file-per-concern pipeline with a two-layer system: an engine registry the framework owns, and phase definitions that are pure config referencing engine IDs.
+
+---
+
+## Current State
+
+Phases 1 and 2 are implemented. The framework has the new phase-engine registry, and selector is fully migrated to a definition-first `AIPhase` with registered input, entry-mode, cache, and finalizer engines.
+
+Implemented now:
+
+- `electron/main/services/pipeline/engines/registry.ts` defines `registerEngine()` / `resolveEngine()` and the `input`, `entry_mode`, `cache`, and `finalizer` engine contracts.
+- `AIPhase` now declares `inputEngineIds`, `entryEngineIds`, `cacheEngineId`, and `finalizeEngineIds` instead of `inputBuilderIds`, inline `entryModes`, `cachePolicyId`, and `inspect` metadata.
+- `AIPhaseRunner` resolves entry engines before cache, then input engines, worker stages, finalizer engines, output filtering, aggregate trace assembly, aggregate persistence, and cache write.
+- Existing input builders and cache policies are bridged into the engine registry by their legacy registries so the app remains runnable during migration.
+- `manual-shortlist` is registered as an entry-mode engine during startup.
+- `definitions/index.ts` registers the migrated selector phase.
+- `definitions/selector.phase.ts` is the executable selector phase definition.
+- Selector-specific input builders, manual shortlist handling, selector cache, and finalization adapters live under `pipeline/engines/`.
+
+Still transitional:
+
+- Technical, fundamental, review, and decision executable phase objects still live under `implementations/trade` until Phases 3-4 move them into `definitions/`.
+- `AIPhase.finalize?` remains as a temporary fallback for unmigrated trade phases. The runner prefers `finalizeEngineIds`; if none are configured, it calls legacy `finalize?`.
+- `implementations/registry/input-builder-registry.ts` and `cache-policy-registry.ts` still exist as compatibility registries, but selector no longer registers through them.
+- `definitions/selector.phase.ts` also exports `SELECTOR_PIPELINE_DEFINITION` as a temporary metadata bridge for the shared `PipelineDefinition` catalog.
 
 ---
 
 ## The Three Layers
 
 ```
-phases/          ← Runtime. Already exists. Runs phases: fans out workers, collects outputs,
-                   finalizes, handles cache. The interpreter.ts in this folder is the main
-                   execution engine. UNCHANGED by this refactor except to resolve engine IDs
-                   from the phase definition instead of calling separate registries.
+phases/          ← Runtime. Runs phases: entry engines, cache engines, input engines,
+                   worker stages, finalizer engines, output filtering, aggregate traces,
+                   persistence, and cache writes. During migration it also supports a
+                   legacy finalize? fallback for unmigrated phases.
 
-definitions/     ← Config. Already exists as dead stubs. This refactor makes them real:
-                   AIPhase<> objects with engine ID references and worker declarations.
-                   Zero business logic. Zero direct imports from signal/ or scoring/.
+definitions/     ← Target config home. Today it still mostly contains static
+                   PipelineDefinition<> files plus an empty ALL_PHASES manifest stub.
+                   Phases 2-4 move executable AIPhase<> objects here.
 
-engines/         ← Business logic. New folder. Organized by kind. No phase owns an engine.
-                   Referenced by ID only. signal/scoring/ and signal/aggregators/ files
-                   STAY IN PLACE — engine files here are thin adapters that import from them.
+engines/         ← Phase-level business logic registry. Selector input, entry-mode,
+                   cache, and finalizer engines are implemented here. Later phases
+                   add trade-phase finalizer engines.
 ```
 
 **Do not confuse `phases/` with where definitions live.** `phases/` is the runtime — it runs phases. `definitions/` is where phase configs live. These two folders exist for different reasons and are not interchangeable.
 
-A phase definition never imports business logic directly. It declares which engine IDs to invoke. The runtime resolves and calls them. Adding new logic = register a new engine, add its ID to a phase config. The execution path never changes.
+Target state: a phase definition never imports phase-level business logic directly. It declares which engine IDs to invoke. The runtime resolves and calls them. Adding new logic = register a new engine, add its ID to a phase config. The execution path never changes.
 
 ---
 
@@ -47,3 +71,5 @@ A phase definition never imports business logic directly. It declares which engi
 > Stage `applyResults()` is exempt — it's stage-local state transformation, not a phase-level hook.
 
 No `if (phase === "selector")`. No `if (isManualSelectorMode)`. No `scoreCandidate()` called from inside `finalize()`. All of that lives in `engines/` and is invoked by the framework when it sees the ID in the phase config.
+
+During the migration window, legacy phase files may still contain `finalize?` implementations. Do not add new logic to those fallback finalizers; move new phase-level behavior into an engine instead.

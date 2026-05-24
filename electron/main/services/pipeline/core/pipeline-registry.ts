@@ -3,20 +3,13 @@ import type {
   PipelineDefinition,
 } from "@electron/shared/ai/ai-phase";
 import { AppError } from "@electron/shared/infra/errors";
-import { SELECTOR_PHASE } from "../definitions/selector.phase";
-import { TECHNICAL_PHASE } from "../definitions/technical.phase";
-import { FUNDAMENTAL_PHASE } from "../definitions/fundamental.phase";
-import { REVIEW_PHASE } from "../definitions/review.phase";
-import { DECISION_PHASE } from "../definitions/decision.phase";
+import {
+  getPhaseCatalog,
+  listPhaseCatalog,
+} from "../definitions/phase-catalog";
 import { SUPPORTED_TOOL_IDS } from "../worker-tools/worker-tool-factory";
 
-const REGISTRY: Record<PipelinePhase, PipelineDefinition> = {
-  selector: SELECTOR_PHASE as PipelineDefinition,
-  technical: TECHNICAL_PHASE as PipelineDefinition,
-  fundamental: FUNDAMENTAL_PHASE as PipelineDefinition,
-  review: REVIEW_PHASE as PipelineDefinition,
-  decision: DECISION_PHASE as PipelineDefinition,
-};
+export { getPhaseCatalog as getPipelineDefinition, listPhaseCatalog as listPipelineDefinitions };
 
 const SUPPORTED_TOOL_ID_SET = new Set<string>(SUPPORTED_TOOL_IDS);
 
@@ -117,22 +110,6 @@ function validatePipelineDefinition(
   for (const workerId of workerIds) dfs(workerId);
 }
 
-for (const phase of Object.keys(REGISTRY) as PipelinePhase[]) {
-  validatePipelineDefinition(phase, REGISTRY[phase]);
-}
-
-export function getPipelineDefinition(
-  phase: PipelinePhase,
-): PipelineDefinition {
-  return REGISTRY[phase];
-}
-
-export function listPipelineDefinitions(): Array<{
-  phase: PipelinePhase;
-  definition: PipelineDefinition;
-}> {
-  return (Object.keys(REGISTRY) as PipelinePhase[]).map((phase) => ({
-    phase,
-    definition: REGISTRY[phase],
-  }));
+for (const { phase, definition } of listPhaseCatalog()) {
+  validatePipelineDefinition(phase, definition);
 }

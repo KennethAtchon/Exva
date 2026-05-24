@@ -35,6 +35,8 @@ The runtime (`phases/interpreter.ts`) reads a definition (`definitions/`), resol
 
 **Why this order?** Entry modes are checked first because they short-circuit everything — no point reading cache or building expensive inputs if the phase is going to return a manual shortlist. Cache is checked before input build because a cache hit also skips everything. Input is only built when stages will actually run.
 
+**Behavior change from today:** `AIPhaseRunner` currently checks cache before entry modes. This refactor reverses that so manual shortlist and other entry modes cannot be bypassed by a stale cache hit.
+
 A definition file contains no `if` statements, no direct function calls to business logic, no imports from `signal/`, `scoring/`, or any non-type concern.
 
 ---
@@ -169,22 +171,20 @@ These utility functions (`mergeDiscoveryCandidates`, `scoreSelectorCandidates`) 
 
 ## Engine Registry
 
-The engine registry is the single source of truth for all business logic the framework can invoke. Lives at `engines/registry.ts`. Replaces `cache-policy-registry.ts` and `input-builder-registry.ts` (both deleted after migration).
+The engine registry is the single source of truth for **phase-level** business logic the framework can invoke. Lives at `engines/registry.ts`. Replaces `cache-policy-registry.ts` and `input-builder-registry.ts` (both deleted after migration).
+
+Worker-level engines (`kind: "context"`, `"policy"`, `"validator"`, `"transformer"`) remain in `services/signal/registry/` and are referenced via `ENGINE_BINDINGS` on workers — they are **not** part of this registry.
 
 ```ts
-export type EngineKind =
+export type PhaseEngineKind =
   | "input"        // builds context string for worker prompts
   | "entry_mode"   // short-circuit condition + output resolver
   | "cache"        // fingerprint, read, write
-  | "finalizer"    // post-stage processing, output assembly
-  | "context"      // worker-level context injection (existing ENGINE_BINDINGS)
-  | "policy"       // existing
-  | "validator"    // existing
-  | "transformer"; // existing
+  | "finalizer";   // post-stage processing, output assembly
 
 export interface Engine {
   id: string;
-  kind: EngineKind;
+  kind: PhaseEngineKind;
 }
 
 const REGISTRY = new Map<string, Engine>();
@@ -193,7 +193,7 @@ export function registerEngine(engine: Engine): void {
   REGISTRY.set(engine.id, engine);
 }
 
-export function resolveEngine<T extends Engine>(id: string, kind: EngineKind): T {
+export function resolveEngine<T extends Engine>(id: string, kind: PhaseEngineKind): T {
   const engine = REGISTRY.get(id);
   if (!engine) throw new Error(`Engine '${id}' is not registered`);
   if (engine.kind !== kind) throw new Error(`Engine '${id}' is kind '${engine.kind}', expected '${kind}'`);
@@ -278,11 +278,11 @@ export interface FinalizerEngine<TState = unknown, TOutput = unknown> extends En
 }
 ```
 
-**Order matters.** For selector: `selector-risk-filter` must run before `selector-submission-builder` (risk filter evaluates candidates; submission builder builds output from accepted candidates).
+**Order matters.** For selector: `selector-risk-filter` must run before `selector-submission-builder` (risk filter evaluates candidates; submission builder builds output from accepted candidates). When chaining finalizers, pass any fields the next engine needs — e.g. risk-filter returns `{ accepted, rejected, discoveredCount, verifiedCount }` so submission-builder can populate diagnostics without access to the original `SelectorPlanState`.
 
 **Finalizer engines may make LLM calls.** For technical/fundamental/review/decision, the aggregator finalizer engines call `runEngineForWorker()` internally (with `ENGINE_BINDINGS.*AggregatorFinalize`). This is an LLM call — `run()` is async and may be slow. The phase definition doesn't care; it just declares the engine ID.
 
-`assembleAggregateTrace()` is a framework concern called by `AIPhaseRunner` after all finalizer engines complete. Finalizer engines do not call it directly.
+`assembleAggregateTrace()` and aggregate persistence are framework concerns called by `AIPhaseRunner` after all finalizer engines complete (today this logic lives inside each phase's `finalize()`). Finalizer engines return phase output only; they do not call `assembleAggregateTrace()` directly.
 
 ---
 
@@ -309,8 +309,9 @@ For any phase, the runtime executes in this fixed sequence:
 6. Run finalizer engines (in finalizeEngineIds order)
    → state threads through; last engine produces TOutput
 7. Apply filterOutput() if defined
-8. Write cache engine output (if cacheEngineId set and output is non-empty)
-9. Return phase result
+8. Assemble aggregate trace + persist (if persistAggregate !== false)
+9. Write cache engine output (if cacheEngineId set and output is non-empty)
+10. Return phase result
 ```
 
 No phase can change this order. No phase injects logic between these steps. If a phase needs something between steps, it registers an engine of the appropriate kind.
@@ -337,8 +338,6 @@ engines/
     fundamental-aggregator.ts         ← same pattern
     review-aggregator.ts              ← same pattern
     trade-signal-aggregator.ts        ← same pattern
-  context/
-    risk-summary.ts               ← existing ENGINE_BINDINGS (already correct pattern)
   index.ts                        ← imports all engine files at boot
 
 definitions/
@@ -376,7 +375,7 @@ import "./finalizer/technical-aggregator";
 import "./finalizer/fundamental-aggregator";
 import "./finalizer/review-aggregator";
 import "./finalizer/trade-signal-aggregator";
-import "./context/risk-summary";
+// Worker-level context engines (ENGINE_BINDINGS) register via services/signal/registry/ — not here
 ```
 
 ```ts

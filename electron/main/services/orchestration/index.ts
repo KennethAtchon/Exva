@@ -13,7 +13,7 @@ export {
 export {
   buildSelectorDefinitionFingerprint,
   hashSelectorDefinition,
-} from "../pipeline/implementations/cache/selector-instrument-cache";
+} from "../pipeline/engines/cache/selector-instrument-cache";
 export {
   CandidateValidationService,
   type ToolLLMToolStepTrace,

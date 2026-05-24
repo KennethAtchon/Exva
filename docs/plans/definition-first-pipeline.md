@@ -1,7 +1,7 @@
 # Definition-First Pipeline Architecture — Plan
 
 > **Date:** 2026-05-23
-> **Status:** Draft
+> **Status:** Complete (Phases 1–4 implemented)
 > **Deciders:** Kenneth
 
 ---
@@ -29,7 +29,7 @@ The fix must address both problems together. The framework needs a well-defined 
 | 3   | New business logic never touches the execution path | Adding a new capability = register an engine + add its ID to a definition. The runtime never changes. No new `if` clauses.                       |
 | 4   | Uniform phase layout across all five phases         | Every phase follows the same directory and file structure; no phase has special folders or special-case files                                    |
 | 5   | Single source of truth per phase                    | Every question about a phase (workers, inputs, entry modes, engines, cache) is answered by reading one file                                      |
-| 6   | Adding a new phase is a single-file operation       | Create `definitions/[name].phase.ts` + add one line to `definitions/index.ts`. Nothing else.                                                     |
+| 6   | Adding a new phase is a 1–2 file operation       | Create `definitions/[name].phase.ts` (+ optional `[name].schemas.ts`) and add one line to `definitions/index.ts`. Nothing else. |
 
 **Non-Goals**
 
@@ -180,8 +180,8 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       frontier: 0,
       resolveWorkers: (ctx) =>
         ctx.strategyContext.researchPosture.discoveryMode === "event_contract_scan"
-          ? EVENT_DISCOVERY_WORKERS
-          : STANDARD_DISCOVERY_WORKERS,
+          ? EVENT_SELECTOR_DISCOVERY
+          : STANDARD_SELECTOR_DISCOVERY,
       buildTask: (ctx) => ({
         selectionInstructions: ctx.input.selectionInstructions,
         instrumentClasses: ctx.instrumentClasses,
@@ -201,7 +201,7 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       id: "verification",
       frontier: 1,
       resolveWorkers: (_ctx, state) =>
-        state.candidatesForVerification.flatMap(verificationWorkersForCandidate),
+        state.candidatesForVerification.flatMap(verificationWorkers),
       buildTask: (_ctx, state, worker) => {
         const symbol = worker.id.split(":")[1] ?? "";
         const candidate = state.candidatesForVerification.find(c => c.symbol === symbol);
@@ -234,8 +234,11 @@ Note: `candidate-merger` and `selector-scoring` are NOT in `finalizeEngineIds`. 
 
 ```ts
 // engines/finalizer/selector-risk-filter.ts
-import { SelectorRiskFilter } from "../../signal/scoring/selector-risk-filter";
-import { buildSelectorEvidence } from "../selector-evidence";
+import { SelectorRiskFilter } from "../../../signal/scoring/selector-risk-filter";
+import type { SelectorCandidate, SelectorPlanState } from "../../definitions/selector.schemas";
+
+function buildSelectorEvidence(candidate: SelectorCandidate): SelectorEvidence { ... } // moved from selector-analysis.ts
+
 registerEngine<FinalizerEngine>({
   id: "selector-risk-filter",
   kind: "finalizer",
@@ -361,9 +364,10 @@ pipeline/
       fundamental-aggregator.ts
       review-aggregator.ts
       trade-signal-aggregator.ts
-    context/
-      risk-summary.ts               ← existing ENGINE_BINDINGS (already correct pattern)
     index.ts                        ← imports all engine files (side-effect: self-register)
+
+  # Worker-level context engines (ENGINE_BINDINGS.riskSummaryRead, etc.) stay in
+  # services/signal/registry/ — NOT moved into pipeline/engines/
 
   core/                             ← Scheduling machinery. Unchanged.
     concurrent-group-runner.ts
@@ -467,14 +471,18 @@ See `docs/plans/definition-first-pipeline/implementation-order.md` for the phase
 
 ### Phase 1: Establish the system — type contract and engine registry
 
+**Status:** Implemented on 2026-05-23.
+
+**Implementation note:** Phase 1 keeps a temporary optional `finalize?` fallback on `AIPhase` while existing phases are still migrated. The runtime prefers `finalizeEngineIds` when present and uses the fallback only for legacy phase definitions that have not reached Phases 2-4 yet. This keeps the system runnable between independently shippable phases; the fallback should be removed when Phase 4 completes.
+
 **Goal:** The `AIPhase` type is updated with engine ID fields. The `engines/` directory exists with `registry.ts`. The `definitions/` folder has a manifest. No phase files move yet.
 
 **Done criteria:**
 
 - `AIPhase` type updated: `inputBuilderIds` → `inputEngineIds`, `cachePolicyId` → `cacheEngineId`, `entryModes` → `entryEngineIds`, `finalize()` → `finalizeEngineIds`, `inspect` removed
 - `engines/registry.ts` exists with `registerEngine` / `resolveEngine` supporting `kind: "input" | "entry_mode" | "cache" | "finalizer"`
-- `phases/interpreter.ts` updated to resolve engine IDs from definition (graceful no-op for empty arrays)
-- `analysis-resolver.ts` updated to read `inputEngineIds`, `cacheEngineId` directly (removes `inspect` dependency)
+- `phases/interpreter.ts` updated to resolve engine IDs from definition (graceful no-op for empty arrays). **Execution order changes:** entry modes run before cache (today cache runs first — manual shortlist can be skipped on cache hit). Target order: entry → cache → input → stages → finalizers → `filterOutput` → cache write. `assembleAggregateTrace()` and aggregate persistence move from per-phase `finalize()` into `AIPhaseRunner` after finalizers complete.
+- `analysis-resolver.ts` updated to read `inputEngineIds`, `cacheEngineId`, and `finalizeEngineIds` directly (removes `inspect` dependency)
 - `definitions/index.ts` manifest stub exists
 - Existing `cache-policy-registry.ts` and `input-builder-registry.ts` bridge to new `engines/registry.ts` OR are replaced immediately
 
@@ -485,6 +493,10 @@ See `docs/plans/definition-first-pipeline/implementation-order.md` for the phase
 ---
 
 ### Phase 2: Migrate selector — proves the engine registry pattern end-to-end
+
+**Status:** Implemented on 2026-05-24.
+
+**Implementation note:** `definitions/selector.phase.ts` now exports the executable `SELECTOR_PHASE` `AIPhase` and a temporary `SELECTOR_PIPELINE_DEFINITION` metadata bridge for `core/pipeline-registry.ts`. The bridge preserves the existing shared `PipelineDefinition` catalog used by effective config/developer tooling while selector execution moves to the definition-first `AIPhase` shape. User-visible selector behavior is unchanged.
 
 **Goal:** Selector is fully migrated to `definitions/`. Every direct call in selector's phase-level hooks becomes a registered engine. `definitions/selector.phase.ts` is pure config.
 
@@ -511,6 +523,8 @@ See `docs/plans/definition-first-pipeline/implementation-order.md` for the phase
 
 ### Phase 3: Migrate technical and fundamental — eliminate the factory
 
+**Status:** Implemented on 2026-05-23.
+
 **Goal:** `pipeline-discovery-config.ts` is deleted. `createAggregatorAIPhase()` factory is eliminated for technical and fundamental. Both phases are raw `AIPhase` definitions with inline worker arrays.
 
 **Done criteria:**
@@ -529,6 +543,10 @@ See `docs/plans/definition-first-pipeline/implementation-order.md` for the phase
 ---
 
 ### Phase 4: Migrate review and decision
+
+**Status:** Implemented on 2026-05-23.
+
+**Implementation note:** The temporary `AIPhase.finalize?` legacy fallback was removed from `phases/types.ts` and `phases/interpreter.ts` once all five phases registered finalizer engines. Boot is now manifest-driven via `definitions/index.ts` (`registerAllPhases()`).
 
 **Goal:** All five phases live in `definitions/` as real `AIPhase` configs. `implementations/trade/` is stripped of phase definitions. Factory is eliminated.
 
@@ -595,7 +613,7 @@ Lagging indicators (Phase 4 done — system complete):
 
 | #   | Question                                                                                                                              | Owner   | Needed By      | Status                                                                   |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------- | ------------------------------------------------------------------------ |
-| 1   | Does finalizer state thread as `TState | TOutput` per engine call, or does the last engine always produce `TOutput`?                  | Kenneth | Phase 1        | Open — define interface contract before writing any finalizer engine     |
+| 1   | Does finalizer state thread as `TState | TOutput` per engine call, or does the last engine always produce `TOutput`?                  | Kenneth | Phase 1        | **Recommended:** each engine receives the previous engine's return value as `state`; the first receives post-stage `TState`; the last produces `TOutput`. For selector, `selector-risk-filter` must pass through `discoveredCount` / `verifiedCount` so `selector-submission-builder` can build diagnostics. |
 | 2   | Should `initialState()` become optional with a default of `() => ({} as TState)`, or stay required?                                  | Kenneth | Phase 1        | Open — optional with default is cleaner; need to confirm no phase relies on validation inside initialState |
 | 3   | Does anything outside `selector-analysis.ts` import `isManualSelectorMode` or `buildManualShortlistSelection`?                       | Kenneth | Before Phase 2 | Open — run `grep -r "manual-shortlist\|isManualSelectorMode\|buildManualShortlistSelection" --include="*.ts"` |
 | 4   | Does anything outside `phase-analyses.ts` and `selector-analysis.ts` call `selectorDiscoveryWorkersForMode`, `technicalWorkersForMode`, or `fundamentalWorkersForMode`? | Kenneth | Before Phase 3 | Open — run `grep -r "pipeline-discovery-config" --include="*.ts"` |

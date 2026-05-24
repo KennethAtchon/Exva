@@ -57,41 +57,17 @@ export interface AIWorkerBatch<TState> {
   ): TState;
 }
 
-export interface AIPhaseEntryMode {
-  id: string;
-  matches(ctx: AIPhaseContext): boolean;
-  resolveOutput(ctx: AIPhaseContext): unknown | Promise<unknown>;
-}
-
-export interface AIPhaseMetadata {
-  inputBuilderIds: readonly string[];
-  cachePolicyId?: string;
-  stageIds: readonly string[];
-  finalizerEngineIds: readonly string[];
-}
-
 export interface AIPhase<TState, TOutput> {
   phase: PipelinePhase;
-  cachePolicyId?: string;
-  inputBuilderIds?: readonly string[];
+  cacheEngineId?: string;
+  inputEngineIds?: readonly string[];
+  entryEngineIds?: readonly string[];
+  finalizeEngineIds?: readonly string[];
   /** When false, aggregate trace is returned but not persisted (trade cycle persists on trade insert). */
   persistAggregate?: boolean;
-  entryModes: readonly AIPhaseEntryMode[];
-  initialState(ctx: AIPhaseContext): TState | Promise<TState>;
+  initialState?(ctx: AIPhaseContext): TState | Promise<TState>;
   stages: readonly AIWorkerBatch<TState>[];
-  finalize(
-    ctx: AIPhaseContext,
-    state: TState,
-    workerTraces: AIWorkerTrace[],
-  ): Promise<{
-    output: TOutput;
-    aggregate?: {
-      run: LLMRunResult<TOutput>["run"];
-      message: LLMRunResult<TOutput>["message"];
-    };
-  }>;
   filterOutput?(output: TOutput, ctx: AIPhaseContext): TOutput;
-  inspect: AIPhaseMetadata;
 }
 
 export interface AIPhaseResult<TOutput> {

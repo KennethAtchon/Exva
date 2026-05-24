@@ -57,9 +57,9 @@ export function inspectAnalysis(
     return {
       id: plan.id,
       kind: "phase",
-      stageIds: plan.plan.inspect.stageIds,
-      inputBuilderIds: plan.plan.inspect.inputBuilderIds,
-      engineStages: plan.plan.inspect.finalizerEngineIds,
+      stageIds: plan.plan.stages.map((stage) => stage.id),
+      inputBuilderIds: plan.plan.inputEngineIds,
+      engineStages: plan.plan.finalizeEngineIds ?? [],
     };
   }
   return {

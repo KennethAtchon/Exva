@@ -13,8 +13,8 @@ Defines the default trade analysis for one selected instrument. After the select
 - The `risk_gate` engine chain is skipped when the decision action is `skip`. Otherwise it runs `trade-execution-profile`, `risk-gate`, and `broker-allocation` in order.
 - `tradeCycleStageFailurePolicy()` exposes the declared failure policy for orchestration code.
 - `tradeCycleInspectMetadata()` produces inspect metadata used by config and developer tooling.
-- `phase-analyses.ts` registers executable AI phases for `technical`, `fundamental`, `review`, and `decision`.
-- `aggregator-phase-plan.ts` contains `createAggregatorAIPhase()`, a helper for phases that run parallel workers and then use one deterministic aggregator engine to produce the final phase signal.
+- `phase-analyses.ts` still registers executable AI phases for `technical`, `fundamental`, `review`, and `decision` until Phases 3-4 move them into `definitions/`.
+- `aggregator-phase-plan.ts` still contains `createAggregatorAIPhase()`, a helper for phases that run parallel workers and then use one aggregator call to produce the final phase signal. It now emits the Phase 1 engine-ID fields, but still relies on the temporary legacy `finalize?` fallback until finalizer engines are added.
 - Aggregate traces for trade phases are returned to the instrument analysis, but `persistAggregate: false` prevents duplicate persistence because trade insertion owns the final audit path.
 
 ## Flow

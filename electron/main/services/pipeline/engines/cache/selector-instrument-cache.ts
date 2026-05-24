@@ -7,7 +7,7 @@ import type {
 } from "@/lib/types";
 import type { InstrumentSelection } from "@/lib/schemas";
 import type { AIPhaseServices } from "../../phases/services";
-import type { CachePolicy } from "../registry/cache-policy-registry";
+import { registerEngine, type CacheEngine } from "../registry";
 import type { AIPhaseContext } from "../../phases/types";
 import { resolveSessionInstrumentClasses } from "../../../session/effective-instrument-classes";
 
@@ -141,9 +141,10 @@ function cacheTtlMs(holdingStyle: string): number {
   }
 }
 
-export const SELECTOR_INSTRUMENT_CACHE_POLICY: CachePolicy<InstrumentSelection> =
+export const SELECTOR_INSTRUMENT_CACHE_ENGINE: CacheEngine<InstrumentSelection> =
   {
     id: "selector-instrument-cache",
+    kind: "cache",
     fingerprint(ctx: AIPhaseContext) {
       return selectorDefinitionFingerprint(ctx.session, ctx.services);
     },
@@ -191,4 +192,6 @@ export const SELECTOR_INSTRUMENT_CACHE_POLICY: CachePolicy<InstrumentSelection> 
         ).toISOString(),
       });
     },
-  } satisfies CachePolicy<InstrumentSelection>;
+  } satisfies CacheEngine<InstrumentSelection>;
+
+registerEngine(SELECTOR_INSTRUMENT_CACHE_ENGINE);

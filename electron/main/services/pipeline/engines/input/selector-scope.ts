@@ -1,8 +1,9 @@
 import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/instruments/session-instrument-classes";
-import type { InputBuilder } from "../registry/input-builder-registry";
+import { registerEngine, type InputEngine } from "../registry";
 
-export const selectorScopeInputBuilder: InputBuilder = {
+const selectorScopeInputEngine: InputEngine = {
   id: "selector-scope",
+  kind: "input",
   build(ctx) {
     const { session, instrumentClasses } = ctx;
 
@@ -22,3 +23,5 @@ export const selectorScopeInputBuilder: InputBuilder = {
     return Promise.resolve(session.instrumentScope);
   },
 };
+
+registerEngine(selectorScopeInputEngine);

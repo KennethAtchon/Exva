@@ -2,6 +2,7 @@ import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
 import type { InstrumentSelection } from "@/lib/schemas";
 import { AppError } from "@electron/shared/infra/errors";
 import type { AIPhaseContext } from "../../phases/types";
+import { registerEngine, type EntryModeEngine } from "../registry";
 
 export function buildManualShortlistSelection(
   session: WorkspaceSession,
@@ -46,6 +47,20 @@ export function isManualSelectorMode(ctx: AIPhaseContext): boolean {
     !selectorSettings.aiPickerEnabled
   );
 }
+
+const manualShortlistEntryEngine: EntryModeEngine = {
+  id: "manual-shortlist",
+  kind: "entry_mode",
+  matches: isManualSelectorMode,
+  resolve(ctx) {
+    return buildManualShortlistSelection(
+      ctx.session,
+      ctx.strategyContext.riskConfig.maxConcurrentTrades,
+    );
+  },
+};
+
+registerEngine(manualShortlistEntryEngine);
 
 function inferInstrumentClass(
   symbol: string,

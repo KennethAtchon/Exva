@@ -177,12 +177,17 @@ Same structure as technical. Worker arrays inline. Single stage. `finalizeEngine
 ```ts
 // definitions/review.phase.ts
 
+type AggregatorPlanState = {
+  workers: readonly WorkerDefinition[];
+  workerResults: WorkerResult[];
+};
+
 const REVIEW_WORKERS: readonly WorkerDefinition[] = [
   { id: "conflict-detector", ... },
   { id: "risk-assessor", ... },
 ];
 
-export const REVIEW_PHASE: AIPhase<TechnicalAggregatorState, ReviewSignal> = {
+export const REVIEW_PHASE: AIPhase<AggregatorPlanState, ReviewSignal> = {
   phase: "review",
   persistAggregate: false,
   finalizeEngineIds: ["review-aggregator"],
@@ -229,12 +234,17 @@ This gets passed as part of the `buildFinalizeTask` payload. After migration thi
 ```ts
 // definitions/decision.phase.ts
 
+type AggregatorPlanState = {
+  workers: readonly WorkerDefinition[];
+  workerResults: WorkerResult[];
+};
+
 const DECISION_WORKERS: readonly WorkerDefinition[] = [
   { id: "signal-classifier", ... },
   { id: "entry-timer", ... },
 ];
 
-export const DECISION_PHASE: AIPhase<TechnicalAggregatorState, TradeSignal> = {
+export const DECISION_PHASE: AIPhase<AggregatorPlanState, TradeSignal> = {
   phase: "decision",
   persistAggregate: false,
   finalizeEngineIds: ["trade-signal-aggregator"],
