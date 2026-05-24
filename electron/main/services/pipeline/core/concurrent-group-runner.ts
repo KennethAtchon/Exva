@@ -56,6 +56,22 @@ export async function runWorkersConcurrently<T>(
       ),
     );
     results.push(...batchResults);
+    const batchRejected = batchResults.filter(
+      (entry): entry is PromiseRejectedResult<T> =>
+        entry.status === "rejected",
+    );
+    if (batchRejected.length > 0) {
+      logger.warn(
+        {
+          batchIndex: Math.floor(index / Math.max(1, maxConcurrency)),
+          rejectedCount: batchRejected.length,
+          rejectionMessages: batchRejected
+            .map((entry) => formatWorkerRejection(entry.reason))
+            .slice(0, 5),
+        },
+        "worker group batch had rejected workers",
+      );
+    }
     logger.info(
       {
         batchIndex: Math.floor(index / Math.max(1, maxConcurrency)),
@@ -84,4 +100,9 @@ export async function runWorkersConcurrently<T>(
     "worker group dispatch complete",
   );
   return results;
+}
+
+function formatWorkerRejection(reason: unknown): string {
+  if (reason instanceof Error) return reason.message;
+  return String(reason);
 }

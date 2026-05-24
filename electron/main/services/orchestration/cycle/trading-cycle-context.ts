@@ -153,6 +153,25 @@ export class TradingCycleContext {
       agent_type: agentType,
       message,
     });
+    const logFn =
+      level === "ERROR"
+        ? this.deps.logger.error.bind(this.deps.logger)
+        : level === "WARN"
+          ? this.deps.logger.warn.bind(this.deps.logger)
+          : level === "DEBUG"
+            ? this.deps.logger.debug.bind(this.deps.logger)
+            : this.deps.logger.info.bind(this.deps.logger);
+    logFn(
+      {
+        sessionId: this.sessionId,
+        tradeId,
+        cycleId,
+        agentType,
+        eventId: event.id,
+        eventLevel: level,
+      },
+      message,
+    );
     this.deps.bus.emit("agent_event", event);
   }
 

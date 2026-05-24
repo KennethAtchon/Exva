@@ -11,10 +11,43 @@ export function handleResolvedInstruments(
     enqueueTradeCycle: (instrument: ResolvedInstrument) => Promise<void>;
   },
 ): void {
-  if (ctx.stopped) return;
+  const { logger } = ctx.deps;
+
+  if (ctx.stopped) {
+    logger.info(
+      {
+        sessionId: ctx.sessionId,
+        instrumentCount: instruments.length,
+        context,
+      },
+      "orchestrator handoff skipped: runtime stopped",
+    );
+    return;
+  }
+
+  logger.info(
+    {
+      sessionId: ctx.sessionId,
+      instrumentCount: instruments.length,
+      symbols: instruments.map((row) => row.symbol),
+      context,
+    },
+    "orchestrator selector handoff received",
+  );
+
   if (instruments.length === 0) {
     const retryMinutes = ctx.getNoInstrumentRetryMinutes();
     const retryMs = retryMinutes * 60 * 1000;
+    logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        context,
+        retryMinutes,
+        retryAt: new Date(Date.now() + retryMs).toISOString(),
+        blockReason: "no_tradable_instruments_after_selector",
+      },
+      "orchestrator blocked: no tradable instruments; scheduling selector retry",
+    );
     ctx.emitEvent(
       "INFO",
       null,
@@ -24,6 +57,7 @@ export function handleResolvedInstruments(
     scheduleNoInstrumentRetry(ctx, callbacks.scheduleSelectorCycle, retryMs);
     return;
   }
+
   ctx.clearNoInstrumentRetry();
   ctx.emitEvent(
     "INFO",
@@ -39,10 +73,34 @@ function scheduleNoInstrumentRetry(
   scheduleSelectorCycle: () => Promise<void>,
   retryMs: number,
 ): void {
-  if (ctx.noInstrumentRetryTimer) return;
+  if (ctx.noInstrumentRetryTimer) {
+    ctx.deps.logger.info(
+      { sessionId: ctx.sessionId },
+      "orchestrator no-instrument retry already scheduled; skipping duplicate",
+    );
+    return;
+  }
+  ctx.deps.logger.info(
+    {
+      sessionId: ctx.sessionId,
+      retryMs,
+      retryAt: new Date(Date.now() + retryMs).toISOString(),
+    },
+    "orchestrator no-instrument retry timer scheduled",
+  );
   ctx.noInstrumentRetryTimer = setTimeout(() => {
     ctx.noInstrumentRetryTimer = null;
-    if (!ctx.runtimeIsActive()) return;
+    ctx.deps.logger.info(
+      { sessionId: ctx.sessionId },
+      "orchestrator no-instrument retry timer fired",
+    );
+    if (!ctx.runtimeIsActive()) {
+      ctx.deps.logger.info(
+        { sessionId: ctx.sessionId },
+        "orchestrator no-instrument retry skipped: runtime not active",
+      );
+      return;
+    }
     ctx.enqueueTask(scheduleSelectorCycle, (error) => {
       ctx.emitEvent(
         "ERROR",
@@ -59,10 +117,23 @@ function enqueueTradeCycles(
   enqueueTradeCycle: (instrument: ResolvedInstrument) => Promise<void>,
   instruments: ResolvedInstrument[],
 ): void {
-  if (ctx.stopped) return;
+  if (ctx.stopped) {
+    ctx.deps.logger.info(
+      {
+        sessionId: ctx.sessionId,
+        instrumentCount: instruments.length,
+      },
+      "orchestrator trade cycle enqueue skipped: runtime stopped",
+    );
+    return;
+  }
   ctx.deps.logger.info(
-    { sessionId: ctx.sessionId, instrumentCount: instruments.length },
-    "enqueueing trade cycles",
+    {
+      sessionId: ctx.sessionId,
+      instrumentCount: instruments.length,
+      symbols: instruments.map((row) => row.symbol),
+    },
+    "orchestrator enqueueing trade cycles",
   );
   for (const instrument of instruments) {
     ctx.enqueueTask(

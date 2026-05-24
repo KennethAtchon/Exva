@@ -8,23 +8,58 @@ export type BurstInstrument = {
   instrumentMetadataJson?: string | null;
 };
 
+export type TradabilityExclusion = {
+  symbol: string;
+  instrumentClass: InstrumentClass;
+  reason: string;
+};
+
+export type TradabilityPartition = {
+  tradable: BurstInstrument[];
+  excluded: TradabilityExclusion[];
+};
+
 export class MarketHoursService {
   filterTradable(instruments: BurstInstrument[]): BurstInstrument[] {
-    const now = new Date();
-    return instruments.filter((instrument) =>
-      this.isTradableNow(instrument, now),
-    );
+    return this.partitionByTradability(instruments).tradable;
   }
 
-  private isTradableNow(instrument: BurstInstrument, now: Date): boolean {
+  partitionByTradability(
+    instruments: BurstInstrument[],
+    now = new Date(),
+  ): TradabilityPartition {
+    const tradable: BurstInstrument[] = [];
+    const excluded: TradabilityExclusion[] = [];
+    for (const instrument of instruments) {
+      const reason = this.exclusionReason(instrument, now);
+      if (reason) {
+        excluded.push({
+          symbol: instrument.symbol,
+          instrumentClass: instrument.instrumentClass,
+          reason,
+        });
+      } else {
+        tradable.push(instrument);
+      }
+    }
+    return { tradable, excluded };
+  }
+
+  private exclusionReason(
+    instrument: BurstInstrument,
+    now: Date,
+  ): string | null {
     if (
       instrument.instrumentClass === "crypto" ||
       instrument.instrumentClass === "prediction_market"
     ) {
-      return true;
+      return null;
     }
     const day = now.getUTCDay();
     const isWeekend = day === 0 || day === 6;
-    return !isWeekend;
+    if (isWeekend) {
+      return "weekend_utc_market_closed";
+    }
+    return null;
   }
 }

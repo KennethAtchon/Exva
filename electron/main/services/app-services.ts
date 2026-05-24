@@ -42,6 +42,7 @@ import {
   InstrumentNormalizer,
 } from "./broker";
 import { EventBus } from "./infra/event-bus";
+import { attachEventBusObserver } from "./infra/event-bus-observer";
 import { createLogger } from "./infra/log";
 import { NotificationService } from "./infra/notification-service";
 import { AgentOrchestrator } from "./orchestration/cycle/agent-orchestrator";
@@ -204,6 +205,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const broker = new BrokerService(brokerRegistry);
 
   const eventBus = new EventBus();
+  attachEventBusObserver(eventBus, logger);
   const balanceTicker = new BrokerBalanceTicker(
     repos.brokerAccounts,
     brokerBalanceCache,

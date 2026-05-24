@@ -394,7 +394,7 @@ export async function runAIWorker<TOutput>(
       phaseSpentUsd: spendTracker?.phaseSpent ?? null,
       canContinueWorkers: spendTracker?.canContinue() ?? null,
     },
-    "worker complete",
+    "worker complete; stage batch may still be waiting for sibling workers",
   );
 
   spendTracker?.record(run.cost_usd);

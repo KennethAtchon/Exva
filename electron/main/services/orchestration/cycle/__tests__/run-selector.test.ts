@@ -23,6 +23,7 @@ describe("runSelector", () => {
           }),
         },
         bus: { emit: vi.fn() },
+        logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
       },
       emitEvent: vi.fn(),
     };
@@ -53,6 +54,7 @@ describe("runSelector", () => {
           }),
         },
         bus: { emit: vi.fn() },
+        logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
       },
       emitEvent: vi.fn(),
     };

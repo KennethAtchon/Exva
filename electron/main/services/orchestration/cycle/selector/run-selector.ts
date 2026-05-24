@@ -12,27 +12,34 @@ export async function runSelector(
   config: SessionConfig,
   cycleId: string,
 ): Promise<ResolvedInstrument[]> {
+  const { logger } = ctx.deps;
+
+  logger.info(
+    {
+      sessionId: ctx.sessionId,
+      cycleId,
+      maxConcurrentTrades: config.max_concurrent_trades,
+    },
+    "selector orchestrator step starting pipeline run",
+  );
+
   const result = (await ctx.deps.ai.runPlan("selector", {
     sessionId: session.id,
     cycleId,
     input: {},
   })) as import("../../../pipeline/phases/types").AIPhaseResult<InstrumentSelection>;
 
-  if (result.source === "ai_picker") {
-    ctx.emitEvent(
-      "INFO",
-      null,
-      "[stage:selector] starting discovery and verification workers",
-      "orchestrator",
-      cycleId,
-    );
-    ctx.deps.bus.emit("research_phase_step", {
+  logger.info(
+    {
       sessionId: ctx.sessionId,
-      phase: "selector",
       cycleId,
-      message: "[stage:selector] starting workers",
-    });
-  }
+      source: result.source,
+      pipelineInstrumentCount: result.output.instruments.length,
+      acceptedCount: result.output.diagnostics?.acceptedCount ?? null,
+      rejectedCount: result.output.diagnostics?.rejected?.length ?? null,
+    },
+    "selector pipeline run complete",
+  );
 
   const instruments: ResolvedInstrument[] = result.output.instruments.map(
     (row) => ({
@@ -45,11 +52,28 @@ export async function runSelector(
     }),
   );
 
-  if (result.source === "ai_picker" && instruments.length > 0) {
+  const capped = instruments.slice(0, config.max_concurrent_trades);
+  if (capped.length < instruments.length) {
+    logger.info(
+      {
+        sessionId: ctx.sessionId,
+        cycleId,
+        beforeCap: instruments.length,
+        afterCap: capped.length,
+        maxConcurrentTrades: config.max_concurrent_trades,
+        droppedSymbols: instruments
+          .slice(config.max_concurrent_trades)
+          .map((row) => row.symbol),
+      },
+      "selector capped instrument list to max concurrent trades",
+    );
+  }
+
+  if (result.source === "ai_picker") {
     ctx.emitEvent(
       "INFO",
       null,
-      `[stage:selector] submission count=${instruments.length}`,
+      `[stage:selector] pipeline complete; ${capped.length} instrument(s) accepted`,
       "orchestrator",
       cycleId,
     );
@@ -57,14 +81,30 @@ export async function runSelector(
       sessionId: ctx.sessionId,
       phase: "selector",
       cycleId,
-      message: `Selector chose ${instruments.length} instruments`,
+      message: `[stage:selector] pipeline complete; ${capped.length} instrument(s) accepted`,
+    });
+  }
+
+  if (result.source === "ai_picker" && capped.length > 0) {
+    ctx.emitEvent(
+      "INFO",
+      null,
+      `[stage:selector] submission count=${capped.length}`,
+      "orchestrator",
+      cycleId,
+    );
+    ctx.deps.bus.emit("research_phase_step", {
+      sessionId: ctx.sessionId,
+      phase: "selector",
+      cycleId,
+      message: `Selector chose ${capped.length} instruments`,
     });
   }
 
   const diagnostics = result.output.diagnostics;
   if (
     result.source === "ai_picker" &&
-    instruments.length === 0 &&
+    capped.length === 0 &&
     diagnostics &&
     diagnostics.rejected.length > 0
   ) {
@@ -87,7 +127,50 @@ export async function runSelector(
     });
   }
 
-  return marketHours.filterTradable(
-    instruments.slice(0, config.max_concurrent_trades),
-  );
+  const { tradable, excluded } = marketHours.partitionByTradability(capped);
+  if (excluded.length > 0) {
+    logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        cycleId,
+        beforeFilterCount: capped.length,
+        afterFilterCount: tradable.length,
+        excluded,
+        keptSymbols: tradable.map((row) => row.symbol),
+      },
+      "selector market-hours filter excluded instruments; orchestrator handoff may be blocked",
+    );
+    ctx.emitEvent(
+      "WARN",
+      null,
+      `[stage:selector] ${excluded.length} instrument(s) excluded by market-hours filter (${excluded.map((row) => `${row.symbol}:${row.reason}`).join(", ")})`,
+      "orchestrator",
+      cycleId,
+    );
+  }
+
+  if (tradable.length === 0 && capped.length > 0) {
+    logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        cycleId,
+        pipelineAcceptedCount: capped.length,
+        blockReason: "all_instruments_filtered_by_market_hours",
+        excluded,
+      },
+      "selector returning no tradable instruments; trade cycles will not be enqueued",
+    );
+  } else if (tradable.length > 0) {
+    logger.info(
+      {
+        sessionId: ctx.sessionId,
+        cycleId,
+        tradableCount: tradable.length,
+        symbols: tradable.map((row) => row.symbol),
+      },
+      "selector returning tradable instruments for orchestrator handoff",
+    );
+  }
+
+  return tradable;
 }

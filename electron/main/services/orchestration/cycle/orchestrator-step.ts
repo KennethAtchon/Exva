@@ -2,6 +2,9 @@ import type { ExecutionStage } from "@/lib/types";
 import type { TradingStepResult } from "./trading-step-runner";
 import type { TradingCycleContext } from "./trading-cycle-context";
 import type { CycleContext } from "./types";
+import { createLogger } from "../../infra/log";
+
+const logger = createLogger("orchestrator-step");
 
 export type OrchestratorStepOutcome<T> =
   | { status: "ok"; value: T }
@@ -115,9 +118,26 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
     recordFailure: false,
   });
 
-  if (outcome.status === "paused") return;
+  if (outcome.status === "paused") {
+    logger.info(
+      { sessionId: ctx.sessionId, cycleId: options.context.cycleId, stage: options.stage },
+      "orchestrator step paused after completion",
+    );
+    return;
+  }
 
   if (outcome.status === "failed") {
+    logger.warn(
+      {
+        sessionId: ctx.sessionId,
+        cycleId: options.context.cycleId,
+        stage: options.stage,
+        errorCode: outcome.result.errorCode,
+        errorMessage: outcome.result.errorMessage,
+        retryable: outcome.result.retryable,
+      },
+      "orchestrator step failed",
+    );
     ctx.handleStepFailure(
       options.stage,
       options.context.cycleId,
@@ -134,15 +154,36 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
     return;
   }
 
-  if (ctx.stopped) return;
+  if (ctx.stopped) {
+    logger.info(
+      {
+        sessionId: ctx.sessionId,
+        cycleId: options.context.cycleId,
+        stage: options.stage,
+      },
+      "orchestrator step success ignored: runtime stopped before handoff",
+    );
+    return;
+  }
 
   ctx.clearAttentionRequired();
   if (phase && options.busEvents?.complete !== false) {
+    const completePayload = options.completePayload(outcome.value);
+    logger.info(
+      {
+        sessionId: ctx.sessionId,
+        cycleId: options.context.cycleId,
+        stage: options.stage,
+        phase,
+        ...completePayload,
+      },
+      "orchestrator step succeeded; emitting phase complete",
+    );
     ctx.deps.bus.emit("research_phase_complete", {
       sessionId: ctx.sessionId,
       phase,
       cycleId: options.context.cycleId,
-      ...options.completePayload(outcome.value),
+      ...completePayload,
     } as {
       sessionId: string;
       phase: string;

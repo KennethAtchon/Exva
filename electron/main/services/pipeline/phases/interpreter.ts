@@ -178,6 +178,7 @@ export class AIPhaseRunner {
           concurrency: stage.concurrency,
           minSuccessfulWorkers: stage.minSuccessfulWorkers ?? null,
           toleratePartialFailure: stage.toleratePartialFailure,
+          note: "stage completes only after all workers in this batch finish",
         },
         "phase stage start",
       );
@@ -223,9 +224,16 @@ export class AIPhaseRunner {
               !results.some(({ worker }) => worker.id === workerId),
           ),
           rejectedCount: rejectedReasons.length,
+          rejectedReasons: rejectedReasons.slice(0, 5),
           durationMs: Date.now() - stageStartedAt,
+          nextStageId:
+            input.plan.stages[
+              input.plan.stages.findIndex((s) => s.id === stage.id) + 1
+            ]?.id ?? "finalize",
         },
-        "phase stage complete",
+        results.length === workers.length
+          ? "phase stage complete"
+          : "phase stage complete (awaited remaining workers in batch)",
       );
 
       if (
@@ -271,6 +279,15 @@ export class AIPhaseRunner {
       state,
       workerTraces,
       workerResults,
+    );
+    logger.info(
+      {
+        sessionId: input.sessionId,
+        phase: input.plan.phase,
+        cycleId: input.cycleId,
+        finalizerEngineIds: input.plan.finalizeEngineIds ?? [],
+      },
+      "phase finalizers complete",
     );
     const output = (input.plan.filterOutput?.(finalized.output, ctx) ??
       finalized.output) as TOutput;
