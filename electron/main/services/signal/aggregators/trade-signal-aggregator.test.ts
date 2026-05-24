@@ -105,4 +105,22 @@ describe("trade signal aggregator", () => {
     expect(signal.action).toBe("buy");
     expect(signal.reasoning).toContain("Timing: now");
   });
+
+  it("forces skip when confidence is below wait-for-open threshold", () => {
+    const signal = aggregateTradeSignal(
+      "NVDA",
+      reviewProceed,
+      {
+        executionStrategy: "breakout",
+        action: "buy",
+        confidence: 0.65,
+        reasoning: "Moderate setup",
+      },
+      { entryTiming: "now", entryPrice: null, rawSummary: "Enter now" },
+      { waitForOpenThreshold: 0.8 },
+    );
+
+    expect(signal.action).toBe("skip");
+    expect(signal.reasoning).toContain("wait-for-open threshold");
+  });
 });

@@ -50,7 +50,10 @@ export function aggregateTradeSignal(
   review: ReviewSignal,
   classifier: SignalClassifierOutput | null,
   timer: EntryTimerOutput | null,
-  options?: { mockRelaxedEntryTiming?: boolean },
+  options?: {
+    mockRelaxedEntryTiming?: boolean;
+    waitForOpenThreshold?: number;
+  },
 ): TradeSignal {
   if (review.recommendation === "skip" || classifier == null) {
     return tradeSignalSchema.parse({
@@ -74,7 +77,18 @@ export function aggregateTradeSignal(
     timing = "now";
   }
   const timingBlocksEntry = timing === "skip" || timing === "wait";
-  const action = timingBlocksEntry ? "skip" : classifier.action;
+  let action = timingBlocksEntry ? "skip" : classifier.action;
+  let reasoning = `${classifier.reasoning} Timing: ${timing}.`;
+
+  const waitForOpenThreshold = options?.waitForOpenThreshold;
+  if (
+    action !== "skip" &&
+    waitForOpenThreshold != null &&
+    classifier.confidence < waitForOpenThreshold
+  ) {
+    action = "skip";
+    reasoning = `Confidence ${classifier.confidence} is below wait-for-open threshold ${waitForOpenThreshold}. ${reasoning}`;
+  }
 
   const entryPrice = timer?.entryPrice ?? null;
 
@@ -84,6 +98,6 @@ export function aggregateTradeSignal(
     executionStrategy: classifier.executionStrategy,
     entryPrice,
     confidence: classifier.confidence,
-    reasoning: `${classifier.reasoning} Timing: ${timing}.`,
+    reasoning,
   });
 }

@@ -30,6 +30,7 @@ export class TradingCycleContext {
   started = false;
   pauseAfterStep = false;
   noInstrumentRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  scheduleSelectorCycle: ((label: string) => Promise<void>) | null = null;
 
   constructor(
     readonly sessionId: string,

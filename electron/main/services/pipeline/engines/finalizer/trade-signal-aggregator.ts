@@ -32,6 +32,7 @@ const tradeSignalAggregatorEngine: FinalizerEngine<
         classifier: pickWorkerOutput(workerResults, signalClassifierOutputSchema),
         timer: pickWorkerOutput(workerResults, entryTimerOutputSchema),
         mockRelaxedEntryTiming,
+        waitForOpenThreshold: ctx.strategyContext.riskConfig.waitForOpenThreshold,
       },
     });
   },

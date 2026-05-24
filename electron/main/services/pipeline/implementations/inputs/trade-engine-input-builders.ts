@@ -1,5 +1,30 @@
 import { AppError } from "@electron/shared/infra/errors";
+import {
+  isWaitForOpenRejection,
+} from "../../../risk/risk-engine";
+import type { InstrumentAnalysisState } from "../../analysis/types";
 import type { EngineInputBuilder } from "../../execution/input-builder-registry";
+
+function applyRiskGateNoTrade(
+  state: InstrumentAnalysisState,
+  reason: string,
+): InstrumentAnalysisState {
+  const decision = state.decision;
+  if (!decision) return state;
+  return {
+    ...state,
+    riskOrder: undefined,
+    brokerAllocation: undefined,
+    decision: {
+      ...decision,
+      output: {
+        ...decision.output,
+        action: "skip",
+        reasoning: reason,
+      },
+    },
+  };
+}
 
 export const candidateValidationInputBuilder: EngineInputBuilder = {
   id: "candidate-validation",
@@ -133,6 +158,12 @@ export const riskGateInputBuilder: EngineInputBuilder = {
       value?: typeof state.riskOrder;
     };
     if (!risk.allowed || !risk.value) {
+      if (isWaitForOpenRejection(risk.reason)) {
+        return applyRiskGateNoTrade(
+          state,
+          risk.reason ?? "Decision confidence is below wait-for-open threshold",
+        );
+      }
       throw new AppError(
         risk.reason ?? "Trade rejected by risk engine",
         "VALIDATION_FAILED",

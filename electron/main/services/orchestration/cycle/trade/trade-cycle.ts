@@ -1,6 +1,7 @@
 import { AppError } from "@electron/shared/infra/errors";
 import type { TradingCycleContext } from "../trading-cycle-context";
 import { enqueueCycleTask, runOrchestratorStep } from "../orchestrator-step";
+import { scheduleCycleRefillIfIdle } from "../scheduling/cycle-refill";
 import type { ResolvedInstrument, TradeCycleContext } from "../types";
 import {
   finalizeOpenedTrade,
@@ -25,6 +26,14 @@ function tradeCycleRetry(
       "Scheduled trade-step retry failed",
       () => executeTradeCycle(ctx, context),
     );
+}
+
+function finishWithoutOpenPosition(
+  ctx: TradingCycleContext,
+  label: string,
+): void {
+  if (!ctx.scheduleSelectorCycle) return;
+  scheduleCycleRefillIfIdle(ctx, ctx.scheduleSelectorCycle, label);
 }
 
 export async function executeTradeCycle(
@@ -55,13 +64,19 @@ export async function executeTradeCycle(
 
   if (decision.output.action === "skip") {
     ctx.clearAttentionRequired();
+    const isConfidenceNoTrade = decision.output.reasoning.includes(
+      "wait-for-open threshold",
+    );
     ctx.emitEvent(
-      "INFO",
+      isConfidenceNoTrade ? "WARN" : "INFO",
       trade.id,
-      `No trade decision for ${trade.instrumentSymbol}; cycle complete.`,
+      isConfidenceNoTrade
+        ? `No trade for ${trade.instrumentSymbol}: ${decision.output.reasoning}`
+        : `No trade decision for ${trade.instrumentSymbol}; cycle complete.`,
       "orchestrator",
       context.cycleId,
     );
+    finishWithoutOpenPosition(ctx, "No-trade cycle complete");
     return;
   }
 
@@ -94,7 +109,10 @@ export async function executeTradeCycle(
 
   const { approved, approvalId: approvalIdForCapital } =
     await runApprovalAndCapital(ctx, context, trade, decision.output);
-  if (!approved) return;
+  if (!approved) {
+    finishWithoutOpenPosition(ctx, "Trade not approved");
+    return;
+  }
 
   const brokerStep = await runOrchestratorStep(ctx, {
     cycleId: context.cycleId,
@@ -112,6 +130,7 @@ export async function executeTradeCycle(
     }
     ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
     ctx.deps.bus.emit("trade_closed", ctx.deps.tradesRepo.require(trade.id));
+    finishWithoutOpenPosition(ctx, "Broker order failed");
     return;
   }
 

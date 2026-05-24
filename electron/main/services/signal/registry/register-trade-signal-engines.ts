@@ -75,6 +75,7 @@ export function registerTradeSignalEngines(): void {
       classifier: unknown;
       timer: unknown;
       mockRelaxedEntryTiming?: boolean;
+      waitForOpenThreshold?: number;
     }) =>
       aggregateTradeSignal(
         input.symbol,
@@ -83,6 +84,7 @@ export function registerTradeSignalEngines(): void {
         input.timer as never,
         {
           mockRelaxedEntryTiming: input.mockRelaxedEntryTiming,
+          waitForOpenThreshold: input.waitForOpenThreshold,
         },
       ),
   });

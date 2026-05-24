@@ -30,6 +30,9 @@ export async function runEngineChainStage(
 ): Promise<InstrumentAnalysisState> {
   let current = state;
   for (const engine of engines) {
+    if (current.decision?.output.action === "skip") {
+      return current;
+    }
     current = await runEngineStage(engine, ctx, current);
   }
   return current;

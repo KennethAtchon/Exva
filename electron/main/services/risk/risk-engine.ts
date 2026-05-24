@@ -5,6 +5,13 @@ import { createLogger } from "../infra/log";
 
 const logger = createLogger("risk-engine");
 
+export const WAIT_FOR_OPEN_REJECTION_REASON =
+  "Decision confidence is below wait-for-open threshold";
+
+export function isWaitForOpenRejection(reason?: string): boolean {
+  return reason === WAIT_FOR_OPEN_REJECTION_REASON;
+}
+
 export interface RiskResult<T = undefined> {
   allowed: boolean;
   reason?: string;
@@ -147,7 +154,7 @@ export class RiskEngine {
       );
       return {
         allowed: false,
-        reason: "Decision confidence is below wait-for-open threshold",
+        reason: WAIT_FOR_OPEN_REJECTION_REASON,
       };
     }
     logger.debug(
