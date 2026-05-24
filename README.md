@@ -1,43 +1,82 @@
 # Exva
 
-Local-only autonomous trading desktop app. Electron + React/TypeScript + SQLite.
-See [`docs/System_Design.md`](./docs/System_Design.md) for architecture, [`docs/USAGE.md`](./docs/USAGE.md) for how to run, [`docs/CHECKLIST.md`](./docs/CHECKLIST.md) for build status.
+Local-first autonomous trading desktop app built with Electron, React, TypeScript, and SQLite. The renderer stays sandboxed, the main process owns all broker/search/LLM work, and secrets stay in the OS keychain.
 
-## What's here
+## What It Does
 
-- `src/` — React/TypeScript frontend. Typed Electron wrapper in `src/lib/exva.ts`.
-- `electron/` — Electron main/preload code: IPC, services, broker adapters, SQLite, keychain, risk, sessions, and AI orchestration.
+- Manages multiple trading sessions with their own strategy, risk, broker assignments, and AI settings.
+- Runs a structured AI pipeline: selector -> technical -> fundamental -> review -> decision.
+- Applies deterministic validation, risk, allocation, and order-policy gates before any order is sent.
+- Persists runs, traces, approvals, trades, and replay data locally for observability and debugging.
 
-## Run
+## Repo Map
 
-Prereqs: Bun 1.3+ and platform build tools for Electron native modules.
+- `src/` - React renderer UI, Zustand stores, TanStack Query, typed client wrapper.
+- `electron/main/` - IPC handlers, services, runtime lifecycle, broker/search/LLM integrations, SQLite access.
+- `electron/preload/` - typed `window.exva` bridge.
+- `electron/shared/` - contracts shared by main and renderer.
+- `docs/` - architecture docs, usage guides, plans, reviews, and engineering notes.
+
+## Runtime Shape
+
+```mermaid
+flowchart LR
+    UI[Renderer UI] --> PRELOAD[Preload bridge]
+    PRELOAD --> IPC[IPC handlers]
+    IPC --> SRM[SessionRuntimeManager]
+    SRM --> ORCH[AgentOrchestrator]
+    ORCH --> PIPE[PipelineRuntime]
+    PIPE --> LLM[LLMRuntime]
+    PIPE --> SIGNAL[Signal engines]
+    ORCH --> RISK[Risk and policy gates]
+    ORCH --> BROKER[Broker services]
+    PIPE --> DB[(SQLite)]
+    BROKER --> DB
+    LLM --> PROVIDERS[LLM providers]
+    BROKER --> EXTERNAL[Broker APIs]
+```
+
+## Quick Start
+
+Prereqs: Bun `1.3.11+`, native build tooling for Electron modules, and a machine that can build `better-sqlite3`.
 
 ```bash
 bun install
-bun run start        # starts Electron Forge + Vite
+bun run start
 ```
 
-To produce a packaged app, run `bun run package`. To create platform installers, run `bun run make`.
+Useful commands:
 
-## Implementation status
+- `bun run start` - launch the Electron app.
+- `bun run dev:debug` - launch with debug logging.
+- `bun run typecheck` - TypeScript check.
+- `bun run test` - Vitest suite.
+- `bun run lint` - ESLint.
+- `bun run check` - typecheck + lint + format check + tests.
+- `bun run package` - package the app.
+- `bun run make` - build platform installers.
+- `bun run db:reset` - reset the local dev database.
+- `bun run logs:clear` - clear local app logs under `~/.exva/logs`.
 
-| Area                        | Status                                                  |
-| --------------------------- | ------------------------------------------------------- |
-| UI (all 7 pages)            | complete, wired to Electron IPC via typed `api.*`       |
-| Electron IPC surface        | dashboard, trades, session, config, accounts, events    |
-| SQLite schema + migrations  | ported to Electron main with Drizzle schema definitions |
-| Session state machine       | persisted locally with start/pause/stop                 |
-| Risk engine                 | local TypeScript preflight and decision checks          |
-| Keychain                    | API keys and broker secrets via `keytar`                |
-| Broker adapters             | mock default plus isolated Alpaca REST adapter          |
-| AI runtime                  | Vercel AI SDK wrapper with direct Anthropic provider    |
-| Orchestrator / monitor loop | TypeScript service sequence wired with event emission   |
+## Important Docs
 
-Search the repo for `TODO` to find every pending piece.
+- `docs/USAGE.md` - day-to-day local usage.
+- `docs/folder-structure.md` - annotated codebase map after the folder restructure.
+- `docs/architecture/electron.md` - Electron process boundaries and app wiring.
+- `docs/architecture/ai-runtime.md` - end-to-end trading runtime.
+- `docs/architecture/pipeline-runtime.md` - pipeline internals.
+- `docs/engineering/README.md` - engineering docs index.
 
-## Architecture notes
+## Current Architecture Notes
 
-- **IPC boundary**: frontend never touches the DB, keychain, or external APIs directly. Everything flows through the preload-exposed `window.exva` API. See `src/lib/exva.ts`.
-- **Live updates**: the Electron main process emits `stats_update`, `agent_event`, `trade_opened`, and `trade_closed` events. Frontend subscribes via `useExvaEvent`. It also polls stats every 5s as a fallback.
-- **Secrets**: only ever in the OS keychain through `keytar`. SQLite never stores keys.
-- **Browser dev**: `bun run dev:renderer` launches Vite in a browser. The typed wrapper falls back to mock data so the UI still renders.
+- The renderer never talks to SQLite, brokers, search providers, or LLM providers directly.
+- Session runtimes are owned in the main process by `SessionRuntimeManager`.
+- The LLM layer (`electron/main/services/llm/`) is separate from the pipeline layer (`electron/main/services/pipeline/`).
+- Worker prompts are bundled in code via `electron/main/services/pipeline/worker-prompts.ts`; prompt assembly happens in `pipeline/prompting/worker-prompt-builder.ts`.
+- Replays and analytics are separate services, not bolted onto the live orchestration loop.
+
+## Development Notes
+
+- Bun is the package manager for this repo. Do not reintroduce npm or pnpm lockfiles.
+- Logs are written to stdout and local daily files; see `docs/engineering/logging-guide.md`.
+- If you are tracing runtime behavior, start with `docs/engineering/debugging-guide.md` and the Dev Panel flows.

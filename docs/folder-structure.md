@@ -126,7 +126,7 @@ services/llm/
 ├── model-pricing.ts       # Token/cost pricing tables
 ├── provider-registry.ts   # Resolves provider account → adapter
 ├── resolve-run-cost.ts    # Computes cost from trace + pricing
-├── index.ts               # LLMRuntime facade (delegates to PipelineRuntime)
+├── index.ts               # LLMRuntime export barrel
 └── adapters/              # LLM provider adapters (normalize request/response)
     ├── anthropic-adapter.ts
     ├── openai-adapter.ts
@@ -135,7 +135,7 @@ services/llm/
 ```
 
 > **`llm/`** = how we talk to models (one call, streaming, retry, cost).  
-> **`pipeline/`** = what we say and in what order (multi-phase plans, workers, execution).  
+> **`pipeline/`** = what we say and in what order (multi-phase analysis, workers, execution).  
 > **`signal/`** = what we do with model outputs (aggregation, scoring, policy engines).  
 > **`search/`** and **`tools/`** are siblings — search is provider infrastructure; tools are the LLM-callable surface.
 
@@ -145,19 +145,19 @@ services/llm/
 
 ```
 services/pipeline/
-├── core/                  # PipelineRuntime entry point, registries, worker graph scheduling
-├── definitions/           # Pipeline phase definitions (what runs in what order)
-├── phases/                # AIPhase interpreter and types (selector is a phase plan)
-├── analysis/              # InstrumentAnalysis interpreter and types (trade cycle stages)
-├── implementations/       # Concrete plans, caches, input builders, registries
-│   ├── selector/          # Selector phase plan + schemas
-│   ├── trade/             # Default trade cycle + per-stage analysis plans
-│   ├── cache/             # Selector/trade result caching
-│   ├── inputs/            # Builds per-step input from session state
-│   └── registry/          # Registers default phase/cycle plans at boot
-├── execution/             # Worker executor, spend tracker, trace assembler, engine runner
-├── prompting/             # Prompt envelope builder, preset behavior guidance
-├── worker-prompts.ts      # Inlined worker prompt strings (was prompts/*.md)
+├── core/                  # PipelineRuntime entry point, shared registries, worker graph scheduling
+├── definitions/           # Static phase definitions: workers, schemas, finalize engine bindings
+├── phases/                # AIPhase interpreter and types
+├── analysis/              # InstrumentAnalysis interpreter and types
+├── implementations/       # Trading-specific selector/trade wiring, cache, inputs, registry
+│   ├── selector/          # Selector AIPhase implementation + schemas
+│   ├── trade/             # Default trade InstrumentAnalysis and stage wiring
+│   ├── cache/             # Selector cache policy
+│   ├── inputs/            # Builds deterministic engine inputs from session/runtime state
+│   └── registry/          # Registers default analyses, phases, and builders at boot
+├── execution/             # Worker executor, spend tracker, trace assembly, tool harness, stage dispatch
+├── prompting/             # Worker message assembly and strategy-context rendering
+├── worker-prompts.ts      # Bundled worker prompt constants used by phase and selector worker definitions
 ├── worker-tools/          # Tool factory registry and per-worker tool context
 ├── ai-phase-config-resolver.ts
 ├── effective-ai-phase-config.ts
@@ -171,9 +171,9 @@ services/pipeline/
 ```
 services/signal/
 ├── aggregators/           # Merges worker outputs: technical, fundamental, review, trade signal
-├── scoring/               # Selector candidate scoring and filtering (was engines/selector/)
-├── execution/             # Execution profile and prediction market engines
-└── registry/              # Engine registry (candidate-validator, risk-gate, etc.)
+├── scoring/               # Selector candidate scoring, merging, and filtering
+├── execution/             # Execution-profile calculation from decision + risk inputs
+└── registry/              # Deterministic signal-engine registry
 ```
 
 ---
@@ -365,11 +365,11 @@ src/
 
 ```
 docs/
-├── architecture/       # How subsystems work (ai-runtime, pipeline-runtime, electron)
+├── architecture/       # How subsystems work (AI runtime, pipeline runtime, Electron)
 ├── design/             # Product and design specs
 ├── engineering/        # Coding guidelines, debugging guide, logging guide
 ├── plans/              # Active implementation plans
-│   └── archieve/       # Completed/obsolete plans
+│   └── archieve/       # Historical plans kept for reference
 ├── reviews/            # Code review artifacts
 └── specs/              # Feature specs
 ```

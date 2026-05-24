@@ -1,5 +1,5 @@
-// Auto-generated from pipeline/prompts/ — do not edit by hand.
-// Re-run: node scripts/inline-worker-prompts.mjs
+// Bundled worker prompt constants used by pipeline worker definitions.
+// Keep this file aligned with the active worker set and prompt contracts.
 
 export const DECISION_WORKERS_ENTRY_TIMER_PROMPT = `# Entry timer
 
