@@ -6,8 +6,8 @@ import type {
   InstrumentClass,
 } from "@/lib/types";
 import {
+  DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
   DEFAULT_MOCK_SCENARIO_KIND,
-  isMockScenarioKind,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
 import { asc, eq } from "drizzle-orm";
@@ -70,6 +70,9 @@ export class BrokerAccountsRepo {
         ),
         mode: input.mode,
         mockScenarioKind,
+        balanceCacheUsd:
+          input.brokerType === "mock" ? DEFAULT_MOCK_ACCOUNT_BALANCE_USD : null,
+        balanceCachedAt: input.brokerType === "mock" ? now : null,
         secretRef: input.secretRef,
         updatedAt: now,
       })

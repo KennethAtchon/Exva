@@ -47,6 +47,7 @@ export interface WorkerToolContext {
   tradeId?: string | null;
   searchProviderId: string | null;
   instrumentClasses: InstrumentClass[];
+  focusInstrumentClass?: InstrumentClass | null;
   apiCallLogRepo: ApiCallLogRepo;
   searchRegistry: SearchRegistry;
   brokerRouting?: BrokerRoutingService;
@@ -143,7 +144,9 @@ export async function buildWorkerTools(
       apiCallLogRepo: ctx.apiCallLogRepo,
       cycleId: ctx.cycleId,
       instrumentClasses: ctx.instrumentClasses,
+      focusInstrumentClass: ctx.focusInstrumentClass,
       mockPosts: ctx.mockRedditData,
+      mockPrimarySymbols: ctx.mockPrimarySymbols,
       isMockSession: ctx.isMockSession,
     });
   }

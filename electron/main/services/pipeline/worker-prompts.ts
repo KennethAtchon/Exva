@@ -177,10 +177,11 @@ Find up to 3 concrete trade candidates from trending sources that fit the sessio
 
 ## Required Process
 
-1. Call \`get_trending_symbols\` to discover current trending symbols.
-2. Optionally call \`search_web\` for additional context on promising symbols.
-3. Do not invent symbols without tool-backed evidence.
-4. Do not submit your result until \`get_trending_symbols\` has been called.
+1. If the session instructions are focused on stocks, call \`get_trending_symbols\` to discover current trending symbols.
+2. If the session instructions focus crypto, futures, or prediction markets, skip stock-only trend feeds and use \`search_web\` for class-appropriate discovery instead.
+3. Optionally call \`search_web\` for additional context on promising symbols.
+4. Do not invent symbols without tool-backed evidence.
+5. Do not submit your result until you have called at least one discovery tool that matches the focused instrument class.
 
 Only include symbols with concrete current evidence. When finished, call the \`submit_result\` tool with your candidates; its schema defines every field.`;
 

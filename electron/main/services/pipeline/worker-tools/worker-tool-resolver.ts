@@ -8,6 +8,7 @@ import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { WorkerToolContext } from "./worker-tool-factory";
 import { resolveSearchProviderId } from "./resolve-search-provider";
 import { resolveMockToolContext } from "./resolve-mock-tool-context";
+import { parseSearchEverythingFocusInstrumentClass } from "@electron/shared/instruments/session-instrument-classes";
 
 export interface WorkerToolResolverDeps {
   sessionRepo: SessionRepo;
@@ -33,8 +34,12 @@ export async function resolveWorkerToolContext(
     input.sessionId,
   );
   const session = deps.sessionRepo.requireById(input.sessionId);
+  const focusInstrumentClass = parseSearchEverythingFocusInstrumentClass(
+    session.instrumentScope,
+  );
   const mock = await resolveMockToolContext({
     sessionId: input.sessionId,
+    focusInstrumentClass,
     brokerRouting: deps.brokerRouting,
     brokerRegistry: deps.brokerRegistry,
   });
@@ -45,6 +50,7 @@ export async function resolveWorkerToolContext(
     tradeId: input.tradeId ?? null,
     searchProviderId,
     instrumentClasses: session.instrumentClasses,
+    focusInstrumentClass,
     apiCallLogRepo: deps.apiCallLogRepo,
     searchRegistry: deps.searchRegistry,
     brokerRouting: deps.brokerRouting,

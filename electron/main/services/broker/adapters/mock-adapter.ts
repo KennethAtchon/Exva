@@ -9,7 +9,10 @@ import type {
   MarketSnapshot,
   OrderStatus,
 } from "./broker-adapter";
-import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
+import {
+  DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
+  type MockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
 
 export type MockScenarioBias = "bullish" | "bearish" | "sideways" | "volatile";
 
@@ -129,12 +132,12 @@ export class MockBrokerAdapter implements BrokerAdapter {
     return {
       ok: true,
       message: "Mock broker connected",
-      account_balance: 100000,
+      account_balance: DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
     };
   }
 
   async getAccountBalance(): Promise<number> {
-    return 100000;
+    return DEFAULT_MOCK_ACCOUNT_BALANCE_USD;
   }
 
   async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {

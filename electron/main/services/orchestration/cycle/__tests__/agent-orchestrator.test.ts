@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
-import { SEARCH_EVERYTHING_SCOPE } from "@electron/shared/instruments/session-instrument-classes";
+import { buildSearchEverythingScope } from "@electron/shared/instruments/session-instrument-classes";
 import { registerAllPhases } from "../../../pipeline/definitions";
 import { resolveEngine, type InputEngine } from "../../../pipeline/engines/registry";
 import { AgentOrchestrator } from "../agent-orchestrator";
@@ -242,7 +242,7 @@ describe("selector input builders", () => {
       noInstrumentRetryMinutes: 5,
       session: {
         selectionMode: "ai_selected_universe",
-        instrumentScope: SEARCH_EVERYTHING_SCOPE,
+        instrumentScope: buildSearchEverythingScope("crypto"),
         instrumentClasses: ["stock"],
       },
       assignedBrokers: [
@@ -258,9 +258,13 @@ describe("selector input builders", () => {
     const instructions = await buildCompositeInput(
       ["selector-scope", "broker-coverage"],
       {
+        phase: "selector",
         sessionId: session.id,
+        cycleId: null,
+        tradeId: null,
         session,
         instrumentClasses: ["crypto"],
+        strategyContext: deps.strategyContextService.get() as never,
         toolContext: {
           sessionId: session.id,
           cycleId: null,
@@ -274,11 +278,14 @@ describe("selector input builders", () => {
           brokerAccountsRepo: deps.brokerAccountsRepo,
           brokerRouting: { resolveAdapter: vi.fn() },
         } as never,
+        runner: {} as never,
+        input: {},
       },
     );
 
     expect(instructions).toContain("Selector mode: full-universe discovery.");
     expect(instructions).toContain("broker-backed classes: crypto");
+    expect(instructions).toContain("Focus discovery on crypto.");
     expect(instructions).toContain(
       "enumerate all serious candidate instruments",
     );

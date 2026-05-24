@@ -19,6 +19,12 @@ const CRYPTO_SUBREDDITS = [
   "ethfinance",
   "CryptoCurrency",
 ];
+const FUTURES_SUBREDDITS = ["FuturesTrading", "Daytrading", "Trading"];
+const PREDICTION_MARKET_SUBREDDITS = [
+  "Polymarket",
+  "PredictionMarkets",
+  "Economics",
+];
 
 type RedditSort = "relevance" | "hot" | "top" | "new";
 type RedditTimeFilter = "hour" | "day" | "week";
@@ -66,7 +72,13 @@ export const MOCK_REDDIT_POSTS = [
 
 function defaultSubredditsForInstrumentClasses(
   instrumentClasses?: InstrumentClass[],
+  focusInstrumentClass?: InstrumentClass | null,
 ): string[] {
+  if (focusInstrumentClass === "crypto") return CRYPTO_SUBREDDITS;
+  if (focusInstrumentClass === "futures") return FUTURES_SUBREDDITS;
+  if (focusInstrumentClass === "prediction_market") {
+    return PREDICTION_MARKET_SUBREDDITS;
+  }
   if (!instrumentClasses?.includes("crypto")) return DEFAULT_SUBREDDITS;
   return [...DEFAULT_SUBREDDITS, ...CRYPTO_SUBREDDITS];
 }
@@ -117,11 +129,14 @@ export function createSearchRedditTool(deps: {
   apiCallLogRepo: ApiCallLogRepo;
   cycleId?: string | null;
   instrumentClasses?: InstrumentClass[];
+  focusInstrumentClass?: InstrumentClass | null;
   mockPosts?: typeof MOCK_REDDIT_POSTS;
+  mockPrimarySymbols?: string[];
   isMockSession?: boolean;
 }) {
   const defaultSubs = defaultSubredditsForInstrumentClasses(
     deps.instrumentClasses,
+    deps.focusInstrumentClass,
   );
 
   return tool({
@@ -191,7 +206,9 @@ export function createSearchRedditTool(deps: {
             }))
         ).map((post) => {
           const symbol =
-            validation.sanitized.match(/\b[A-Z]{1,5}\b/)?.[0] ?? null;
+            validation.sanitized.match(/\b[A-Z]{1,5}\b/)?.[0] ??
+            deps.mockPrimarySymbols?.[0] ??
+            null;
           if (!symbol) return post;
           return {
             ...post,

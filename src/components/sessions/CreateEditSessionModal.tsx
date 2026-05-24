@@ -16,10 +16,11 @@ import {
   Switch,
 } from "@/components/ui";
 import {
+  buildSearchEverythingScope,
   isSearchEverythingEnabled,
+  parseSearchEverythingFocusInstrumentClass,
   resolveBrokerInstrumentClasses,
   resolveEffectiveInstrumentClasses,
-  SEARCH_EVERYTHING_SCOPE,
 } from "@electron/shared/instruments/session-instrument-classes";
 
 interface Props {
@@ -217,13 +218,9 @@ export const CreateEditSessionModal = ({
     searchProviders.find(
       (provider) => provider.id === workspaceDefaultSearchProviderId,
     )?.name ?? null;
-  const totalAllocatedUsd = useMemo(
-    () =>
-      form.brokerAssignments.reduce(
-        (sum, assignment) => sum + assignment.allocatedUsd,
-        0,
-      ),
-    [form.brokerAssignments],
+  const searchEverythingFocusInstrumentClass = useMemo(
+    () => parseSearchEverythingFocusInstrumentClass(form.instrumentScope),
+    [form.instrumentScope],
   );
 
   useEffect(() => {
@@ -250,6 +247,20 @@ export const CreateEditSessionModal = ({
       instrumentClasses: brokerDrivenInstrumentClasses,
     }));
   }, [brokerDrivenInstrumentClasses, form.instrumentClasses, searchEverything]);
+
+  useEffect(() => {
+    if (!searchEverythingFocusInstrumentClass) return;
+    if (effectiveInstrumentClasses.includes(searchEverythingFocusInstrumentClass)) {
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      instrumentScope: buildSearchEverythingScope(),
+    }));
+  }, [
+    effectiveInstrumentClasses,
+    searchEverythingFocusInstrumentClass,
+  ]);
 
   if (!open) return null;
 
@@ -430,7 +441,7 @@ export const CreateEditSessionModal = ({
                           setForm({
                             ...form,
                             instrumentClasses: brokerDrivenInstrumentClasses,
-                            instrumentScope: SEARCH_EVERYTHING_SCOPE,
+                            instrumentScope: buildSearchEverythingScope(),
                             selectorSettings: { aiPickerEnabled: true },
                           });
                           return;
@@ -475,6 +486,37 @@ export const CreateEditSessionModal = ({
                       </span>
                     </span>
                   </label>
+                ) : null}
+                {searchEverything && effectiveInstrumentClasses.length > 1 ? (
+                  <Field label="Research focus">
+                    <ShadcnSelect
+                      value={searchEverythingFocusInstrumentClass ?? "__all__"}
+                      onValueChange={(value) =>
+                        setForm({
+                          ...form,
+                          instrumentScope: buildSearchEverythingScope(
+                            value === "__all__"
+                              ? null
+                              : (value as InstrumentClass),
+                          ),
+                        })
+                      }
+                      options={[
+                        {
+                          value: "__all__",
+                          label: "All enabled classes",
+                        },
+                        ...effectiveInstrumentClasses.map((instrumentClass) => ({
+                          value: instrumentClass,
+                          label: `Focus ${formatInstrumentClass(instrumentClass)}`,
+                        })),
+                      ]}
+                    />
+                    <div style={inlineHintStyle}>
+                      Keeps the broader broker-backed universe available, but
+                      tells the selector which class to prioritize first.
+                    </div>
+                  </Field>
                 ) : null}
                 <Field label="Instrument classes">
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -525,6 +567,9 @@ export const CreateEditSessionModal = ({
                             .map(formatInstrumentClass)
                             .join(", ")
                         : "Select at least one broker account to derive tradable classes."}
+                      {searchEverythingFocusInstrumentClass
+                        ? ` Focus: ${formatInstrumentClass(searchEverythingFocusInstrumentClass)}.`
+                        : ""}
                     </div>
                   ) : null}
                 </Field>

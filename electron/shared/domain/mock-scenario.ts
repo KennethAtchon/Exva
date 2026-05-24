@@ -14,6 +14,7 @@ export const MOCK_SCENARIO_KINDS = [
 export type MockScenarioKind = (typeof MOCK_SCENARIO_KINDS)[number];
 
 export const DEFAULT_MOCK_SCENARIO_KIND: MockScenarioKind = "clean_breakout";
+export const DEFAULT_MOCK_ACCOUNT_BALANCE_USD = 100000;
 
 export function isMockScenarioKind(value: string): value is MockScenarioKind {
   return (MOCK_SCENARIO_KINDS as readonly string[]).includes(value);
