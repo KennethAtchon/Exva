@@ -6,7 +6,7 @@ import {
   sentimentOutputSchema,
 } from "../../../signal/aggregators/fundamental-aggregator";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
-import type { AggregatorPlanState } from "../../definitions/fundamental.phase";
+import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";
 import { pickWorkerOutput } from "../worker-output";
 
@@ -16,11 +16,11 @@ const fundamentalAggregatorEngine: FinalizerEngine<
 > = {
   id: "fundamental-aggregator",
   kind: "finalizer",
-  async run(ctx, state) {
+  async run(ctx, _state, workerResults) {
     const workerPayload = {
-      earnings: pickWorkerOutput(state.workerResults, earningsOutputSchema),
-      catalyst: pickWorkerOutput(state.workerResults, catalystOutputSchema),
-      sentiment: pickWorkerOutput(state.workerResults, sentimentOutputSchema),
+      earnings: pickWorkerOutput(workerResults, earningsOutputSchema),
+      catalyst: pickWorkerOutput(workerResults, catalystOutputSchema),
+      sentiment: pickWorkerOutput(workerResults, sentimentOutputSchema),
     };
     return runEngineForWorker<FundamentalSignal>({
       phase: "fundamental",

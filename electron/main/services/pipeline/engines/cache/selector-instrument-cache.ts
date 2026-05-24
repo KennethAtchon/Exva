@@ -192,6 +192,9 @@ export const SELECTOR_INSTRUMENT_CACHE_ENGINE: CacheEngine<InstrumentSelection> 
         ).toISOString(),
       });
     },
+    shouldWrite(output: InstrumentSelection): boolean {
+      return Array.isArray(output.instruments) && output.instruments.length > 0;
+    },
   } satisfies CacheEngine<InstrumentSelection>;
 
 registerEngine(SELECTOR_INSTRUMENT_CACHE_ENGINE);

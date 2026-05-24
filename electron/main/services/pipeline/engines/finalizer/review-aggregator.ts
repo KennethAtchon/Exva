@@ -5,7 +5,7 @@ import {
   riskAssessorOutputSchema,
 } from "../../../signal/aggregators/review-aggregator";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
-import type { AggregatorPlanState } from "../../definitions/review.phase";
+import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";
 import { pickWorkerOutput } from "../worker-output";
 
@@ -15,16 +15,13 @@ const reviewAggregatorEngine: FinalizerEngine<
 > = {
   id: "review-aggregator",
   kind: "finalizer",
-  async run(ctx, state) {
+  async run(ctx, _state, workerResults) {
     const workerPayload = {
       conflictDetector: pickWorkerOutput(
-        state.workerResults,
+        workerResults,
         conflictDetectorOutputSchema,
       ),
-      riskAssessor: pickWorkerOutput(
-        state.workerResults,
-        riskAssessorOutputSchema,
-      ),
+      riskAssessor: pickWorkerOutput(workerResults, riskAssessorOutputSchema),
     };
     return runEngineForWorker<ReviewSignal>({
       phase: "review",

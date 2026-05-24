@@ -3,7 +3,6 @@ import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import type { FundamentalSignal } from "@electron/shared/ai/trade-signals";
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
-import type { LLMRunResult } from "../../llm/llm-types";
 import {
   catalystOutputSchema,
   earningsOutputSchema,
@@ -18,13 +17,9 @@ import {
   FUNDAMENTAL_WORKERS_EVENT_SENTIMENT_PROMPT,
   FUNDAMENTAL_WORKERS_SENTIMENT_CONTEXT_PROMPT,
 } from "../worker-prompts";
+import type { AggregatorPlanState } from "./aggregator.types";
 
-type WorkerResult = { worker: WorkerDefinition; result: LLMRunResult<unknown> };
-
-export type AggregatorPlanState = {
-  workers: readonly WorkerDefinition[];
-  workerResults: WorkerResult[];
-};
+export type { AggregatorPlanState };
 
 export type FundamentalPhaseInput = {
   instrumentSymbol: string;
@@ -102,14 +97,10 @@ const EVENT_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   },
 ];
 
-function isEventContractScan(discoveryMode: ResearchDiscoveryMode): boolean {
-  return discoveryMode === "event_contract_scan";
-}
-
 export function fundamentalWorkersForMode(
   discoveryMode: ResearchDiscoveryMode,
 ): readonly WorkerDefinition[] {
-  return isEventContractScan(discoveryMode)
+  return discoveryMode === "event_contract_scan"
     ? EVENT_FUNDAMENTAL_WORKERS
     : STANDARD_FUNDAMENTAL_WORKERS;
 }
@@ -119,9 +110,10 @@ export const FUNDAMENTAL_PHASE: AIPhase<
   FundamentalSignal
 > = {
   phase: "fundamental",
+  outputSchemaName: "fundamentalSignal",
   persistAggregate: false,
   finalizeEngineIds: ["fundamental-aggregator"],
-  initialState: () => ({ workers: [], workerResults: [] }),
+  initialState: (): AggregatorPlanState => ({}),
   stages: [
     {
       id: "workers",
@@ -141,13 +133,10 @@ export const FUNDAMENTAL_PHASE: AIPhase<
       },
       concurrency: 3,
       toleratePartialFailure: false,
-      applyResults(ctx, _state, results) {
-        return {
-          workers: fundamentalWorkersForMode(
-            ctx.strategyContext.researchPosture.discoveryMode,
-          ),
-          workerResults: results,
-        };
+      applyResults(_ctx, state) {
+        // Worker results flow through the FinalizerEngine.run workerResults param.
+        // No accumulation needed in state.
+        return state;
       },
     },
   ],

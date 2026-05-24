@@ -7,7 +7,6 @@ import {
   type ReviewSignal,
 } from "@electron/shared/ai/trade-signals";
 import { signalForWorkerPrompt } from "@electron/shared/ai/worker-prompt-payload";
-import type { LLMRunResult } from "../../llm/llm-types";
 import {
   entryTimerOutputSchema,
   signalClassifierOutputSchema,
@@ -17,13 +16,9 @@ import {
   DECISION_WORKERS_ENTRY_TIMER_PROMPT,
   DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
 } from "../worker-prompts";
+import type { AggregatorPlanState } from "./aggregator.types";
 
-type WorkerResult = { worker: WorkerDefinition; result: LLMRunResult<unknown> };
-
-export type AggregatorPlanState = {
-  workers: readonly WorkerDefinition[];
-  workerResults: WorkerResult[];
-};
+export type { AggregatorPlanState };
 
 export type DecisionPhaseInput = {
   instrumentSymbol: string;
@@ -67,9 +62,10 @@ export const DECISION_WORKERS: readonly WorkerDefinition[] = [
 
 export const DECISION_PHASE: AIPhase<AggregatorPlanState, TradeSignal> = {
   phase: "decision",
+  outputSchemaName: "tradeSignal",
   persistAggregate: false,
   finalizeEngineIds: ["trade-signal-aggregator"],
-  initialState: () => ({ workers: [], workerResults: [] }),
+  initialState: (): AggregatorPlanState => ({}),
   stages: [
     {
       id: "workers",
@@ -91,8 +87,11 @@ export const DECISION_PHASE: AIPhase<AggregatorPlanState, TradeSignal> = {
       },
       concurrency: 2,
       toleratePartialFailure: false,
-      applyResults(_ctx, _state, results) {
-        return { workers: DECISION_WORKERS, workerResults: results };
+      applyResults(_ctx, state) {
+        // Worker results flow through the FinalizerEngine.run workerResults param.
+        // Mock scenario logic (isMockSession / mockScenarioKind) is handled in
+        // engines/finalizer/trade-signal-aggregator.ts where ctx.toolContext is available.
+        return state;
       },
     },
   ],

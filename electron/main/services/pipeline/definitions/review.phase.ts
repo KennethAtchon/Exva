@@ -6,7 +6,6 @@ import {
   type FundamentalSignal,
 } from "@electron/shared/ai/trade-signals";
 import { signalForWorkerPrompt } from "@electron/shared/ai/worker-prompt-payload";
-import type { LLMRunResult } from "../../llm/llm-types";
 import {
   conflictDetectorOutputSchema,
   riskAssessorOutputSchema,
@@ -16,13 +15,9 @@ import {
   REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT,
   REVIEW_WORKERS_RISK_ASSESSOR_PROMPT,
 } from "../worker-prompts";
+import type { AggregatorPlanState } from "./aggregator.types";
 
-type WorkerResult = { worker: WorkerDefinition; result: LLMRunResult<unknown> };
-
-export type AggregatorPlanState = {
-  workers: readonly WorkerDefinition[];
-  workerResults: WorkerResult[];
-};
+export type { AggregatorPlanState };
 
 export type ReviewPhaseInput = {
   instrumentSymbol: string;
@@ -65,9 +60,10 @@ export const REVIEW_WORKERS: readonly WorkerDefinition[] = [
 
 export const REVIEW_PHASE: AIPhase<AggregatorPlanState, ReviewSignal> = {
   phase: "review",
+  outputSchemaName: "reviewSignal",
   persistAggregate: false,
   finalizeEngineIds: ["review-aggregator"],
-  initialState: () => ({ workers: [], workerResults: [] }),
+  initialState: (): AggregatorPlanState => ({}),
   stages: [
     {
       id: "workers",
@@ -86,8 +82,10 @@ export const REVIEW_PHASE: AIPhase<AggregatorPlanState, ReviewSignal> = {
       },
       concurrency: 2,
       toleratePartialFailure: false,
-      applyResults(_ctx, _state, results) {
-        return { workers: REVIEW_WORKERS, workerResults: results };
+      applyResults(_ctx, state) {
+        // Worker results flow through the FinalizerEngine.run workerResults param.
+        // No accumulation needed in state.
+        return state;
       },
     },
   ],

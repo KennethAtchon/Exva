@@ -1,15 +1,10 @@
 import type { InstrumentSelection } from "@/lib/schemas";
 import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
-import { DEFAULT_SCORING_WEIGHTS, ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
+import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import { AppError } from "@electron/shared/infra/errors";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
-import { z } from "zod";
 import type { LLMRunResult } from "../../llm/llm-types";
-import {
-  mergeDiscoveryCandidates,
-  type SelectorCandidate,
-} from "../../signal/scoring/selector-candidate-merger";
-import { scoreCandidate } from "../../signal/scoring/selector-scoring-engine";
+import type { SelectorCandidate } from "../../signal/scoring/selector-candidate-merger";
 import type { AIPhase } from "../phases/types";
 import {
   SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
@@ -21,10 +16,16 @@ import {
   SELECTOR_WORKERS_TREND_SCOUT_PROMPT,
   SELECTOR_WORKERS_WEB_SCOUT_PROMPT,
 } from "../worker-prompts";
+import {
+  applyDiscoveryResults,
+  applyVerificationResults,
+  parseWorkerToolTrace,
+  scoreSelectorCandidates,
+  summarizeSelectorOutput,
+} from "./selector.helpers";
 import { candidateOutputSchema, verificationOutputSchema } from "./selector.schemas";
 
-type DiscoveryOutput = z.infer<typeof candidateOutputSchema>;
-type VerificationOutput = z.infer<typeof verificationOutputSchema>;
+type VerificationOutput = import("zod").infer<typeof verificationOutputSchema>;
 
 export type SelectorPhaseInput = {
   selectionInstructions?: string;
@@ -189,6 +190,8 @@ function verificationWorkers(candidate: SelectorCandidate): WorkerDefinition[] {
 
 export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
   phase: "selector",
+  outputSchemaName: "instrumentSelection",
+  inputKey: "selectionInstructions",
   cacheEngineId: "selector-instrument-cache",
   inputEngineIds: [
     "selector-scope",
@@ -197,6 +200,7 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
   ],
   entryEngineIds: ["manual-shortlist"],
   finalizeEngineIds: ["selector-risk-filter", "selector-submission-builder"],
+  summarize: summarizeSelectorOutput,
   initialState(ctx) {
     const selectionInstructions = ctx.input.selectionInstructions;
     if (
@@ -237,21 +241,8 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       toleratePartialFailure: true,
       minSuccessfulWorkers: 1,
       applyResults(_ctx, state, results) {
-        const merged = mergeDiscoveryCandidates(
-          results.map(({ worker, result }) =>
-            (result.output as DiscoveryOutput).candidates.map(
-              (candidate): SelectorCandidate => ({
-                ...candidate,
-                finalScore: null,
-                source: [...candidate.source, worker.id],
-                selectorEvidence: null,
-                selectorTraces: parseWorkerToolTrace(
-                  result.message.tool_calls_json,
-                ),
-              }),
-            ),
-          ),
-        );
+        // applyResults is stage-local — direct utility calls are fine here.
+        const merged = applyDiscoveryResults(results);
         const prelim = scoreSelectorCandidates(merged);
         return {
           ...state,
@@ -310,91 +301,3 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
     };
   },
 };
-
-function applyVerificationResults(
-  candidates: SelectorCandidate[],
-  results: Array<{
-    worker: WorkerDefinition;
-    result: LLMRunResult<VerificationOutput>;
-  }>,
-): SelectorCandidate[] {
-  const merged = new Map(
-    candidates.map((c) => [`${c.instrumentClass}:${c.symbol}`, { ...c }]),
-  );
-  for (const { worker, result } of results) {
-    const key = `${result.output.candidate.instrumentClass}:${result.output.candidate.symbol}`;
-    const candidate = merged.get(key);
-    if (!candidate) continue;
-    candidate.instrumentDisplayName =
-      candidate.instrumentDisplayName ??
-      result.output.candidate.instrumentDisplayName ??
-      null;
-    candidate.volumeScore = maxNullable(
-      candidate.volumeScore,
-      result.output.candidate.volumeScore ?? null,
-    );
-    candidate.liquidityScore = maxNullable(
-      candidate.liquidityScore,
-      result.output.candidate.liquidityScore ?? null,
-    );
-    candidate.catalystScore = maxNullable(
-      candidate.catalystScore,
-      result.output.candidate.catalystScore ?? null,
-    );
-    candidate.catalystSummary =
-      candidate.catalystSummary ??
-      result.output.candidate.catalystSummary ??
-      null;
-    candidate.rationale =
-      candidate.rationale ?? result.output.candidate.rationale ?? null;
-    candidate.selectorTraces.push(
-      ...parseWorkerToolTrace(result.message.tool_calls_json),
-    );
-    const baseWorkerId = worker.id.split(":")[0] ?? worker.id;
-    if (!candidate.source.includes(baseWorkerId)) {
-      candidate.source.push(baseWorkerId);
-    }
-  }
-  return [...merged.values()];
-}
-
-function parseWorkerToolTrace(
-  raw: string | null,
-): SelectorCandidate["selectorTraces"] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw) as Array<{
-      step: number;
-      toolCalls?: Array<{
-        step: number;
-        tool: string;
-        argsJson: string;
-        resultJson: string;
-      }>;
-    }>;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((step) => ({
-      step: step.step,
-      toolCalls: step.toolCalls ?? [],
-    }));
-  } catch {
-    return [];
-  }
-}
-
-function maxNullable(a: number | null, b: number | null): number | null {
-  if (a == null) return b;
-  if (b == null) return a;
-  return Math.max(a, b);
-}
-
-function scoreSelectorCandidates(
-  candidates: SelectorCandidate[],
-): SelectorCandidate[] {
-  return candidates
-    .map((c) => ({
-      ...c,
-      finalScore: scoreCandidate(c, DEFAULT_SCORING_WEIGHTS),
-    }))
-    .sort((a, b) => (b.finalScore ?? 0) - (a.finalScore ?? 0));
-}

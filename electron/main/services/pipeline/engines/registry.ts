@@ -1,6 +1,6 @@
 import type { LLMRunResult } from "../../llm/llm-types";
 import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
-import type { AIPhaseContext } from "../phases/types";
+import type { AIPhaseContext, AIPhaseSource } from "../phases/types";
 
 export type PhaseEngineKind = "input" | "entry_mode" | "cache" | "finalizer";
 
@@ -16,6 +16,11 @@ export interface InputEngine extends Engine {
 
 export interface EntryModeEngine extends Engine {
   kind: "entry_mode";
+  /**
+   * The AIPhaseSource value reported in AIPhaseResult when this entry mode
+   * short-circuits execution. Defaults to "phase" if not set.
+   */
+  source?: AIPhaseSource;
   matches(ctx: AIPhaseContext): boolean | Promise<boolean>;
   resolve(ctx: AIPhaseContext): unknown | Promise<unknown>;
 }
@@ -35,6 +40,11 @@ export interface CacheEngine<TOutput = unknown> extends Engine {
     output: TOutput,
     meta: CacheWriteMeta,
   ): void;
+  /**
+   * Optional guard called before write. Return false to skip the cache write
+   * (e.g., output is empty or invalid). Defaults to always writing if absent.
+   */
+  shouldWrite?(output: TOutput): boolean;
 }
 
 export type PhaseWorkerResult = {

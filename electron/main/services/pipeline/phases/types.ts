@@ -61,8 +61,24 @@ export interface AIPhase<TState, TOutput> {
   phase: PipelinePhase;
   cacheEngineId?: string;
   inputEngineIds?: readonly string[];
+  /**
+   * The ctx.input key that concatenated input engine sections are written to.
+   * Required when inputEngineIds is set. Defaults to "selectionInstructions".
+   */
+  inputKey?: string;
   entryEngineIds?: readonly string[];
   finalizeEngineIds?: readonly string[];
+  /**
+   * Schema name written to the aggregate trace. Replaces the hardcoded
+   * outputSchemaNameForPhase switch in the interpreter.
+   */
+  outputSchemaName?: string;
+  /**
+   * Optional function that extracts structured diagnostic fields from phase
+   * output for inclusion in the "phase plan complete" log entry. Return {}
+   * to include nothing extra.
+   */
+  summarize?(output: unknown): Record<string, unknown>;
   /** When false, aggregate trace is returned but not persisted (trade cycle persists on trade insert). */
   persistAggregate?: boolean;
   initialState?(ctx: AIPhaseContext): TState | Promise<TState>;

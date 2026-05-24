@@ -5,7 +5,7 @@ import {
   signalClassifierOutputSchema,
 } from "../../../signal/aggregators/trade-signal-aggregator";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
-import type { AggregatorPlanState } from "../../definitions/decision.phase";
+import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";
 import { pickWorkerOutput } from "../worker-output";
 
@@ -15,7 +15,7 @@ const tradeSignalAggregatorEngine: FinalizerEngine<
 > = {
   id: "trade-signal-aggregator",
   kind: "finalizer",
-  async run(ctx, state) {
+  async run(ctx, _state, workerResults) {
     const mockRelaxedEntryTiming =
       ctx.toolContext.isMockSession === true &&
       ctx.toolContext.mockScenarioKind === "clean_breakout";
@@ -29,11 +29,8 @@ const tradeSignalAggregatorEngine: FinalizerEngine<
       task: {
         symbol: ctx.input.instrumentSymbol as string,
         review: ctx.input.review,
-        classifier: pickWorkerOutput(
-          state.workerResults,
-          signalClassifierOutputSchema,
-        ),
-        timer: pickWorkerOutput(state.workerResults, entryTimerOutputSchema),
+        classifier: pickWorkerOutput(workerResults, signalClassifierOutputSchema),
+        timer: pickWorkerOutput(workerResults, entryTimerOutputSchema),
         mockRelaxedEntryTiming,
       },
     });

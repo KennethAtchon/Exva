@@ -2,7 +2,6 @@ import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import type { TechnicalSignal } from "@electron/shared/ai/trade-signals";
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
-import type { LLMRunResult } from "../../llm/llm-types";
 import {
   chartPatternOutputSchema,
   momentumOutputSchema,
@@ -17,13 +16,9 @@ import {
   TECHNICAL_WORKERS_MOMENTUM_INDICATOR_PROMPT,
   TECHNICAL_WORKERS_VOLUME_PROFILE_PROMPT,
 } from "../worker-prompts";
+import type { AggregatorPlanState } from "./aggregator.types";
 
-type WorkerResult = { worker: WorkerDefinition; result: LLMRunResult<unknown> };
-
-export type AggregatorPlanState = {
-  workers: readonly WorkerDefinition[];
-  workerResults: WorkerResult[];
-};
+export type { AggregatorPlanState };
 
 export type TechnicalPhaseInput = {
   instrumentSymbol: string;
@@ -101,23 +96,20 @@ const EVENT_TECHNICAL_WORKERS: readonly WorkerDefinition[] = [
   },
 ];
 
-function isEventContractScan(discoveryMode: ResearchDiscoveryMode): boolean {
-  return discoveryMode === "event_contract_scan";
-}
-
 export function technicalWorkersForMode(
   discoveryMode: ResearchDiscoveryMode,
 ): readonly WorkerDefinition[] {
-  return isEventContractScan(discoveryMode)
+  return discoveryMode === "event_contract_scan"
     ? EVENT_TECHNICAL_WORKERS
     : STANDARD_TECHNICAL_WORKERS;
 }
 
 export const TECHNICAL_PHASE: AIPhase<AggregatorPlanState, TechnicalSignal> = {
   phase: "technical",
+  outputSchemaName: "technicalSignal",
   persistAggregate: false,
   finalizeEngineIds: ["technical-aggregator"],
-  initialState: () => ({ workers: [], workerResults: [] }),
+  initialState: (): AggregatorPlanState => ({}),
   stages: [
     {
       id: "workers",
@@ -137,13 +129,10 @@ export const TECHNICAL_PHASE: AIPhase<AggregatorPlanState, TechnicalSignal> = {
       },
       concurrency: 3,
       toleratePartialFailure: false,
-      applyResults(ctx, _state, results) {
-        return {
-          workers: technicalWorkersForMode(
-            ctx.strategyContext.researchPosture.discoveryMode,
-          ),
-          workerResults: results,
-        };
+      applyResults(_ctx, state) {
+        // Worker results flow through the FinalizerEngine.run workerResults param.
+        // No accumulation needed in state.
+        return state;
       },
     },
   ],

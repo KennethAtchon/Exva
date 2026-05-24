@@ -51,6 +51,7 @@ export function isManualSelectorMode(ctx: AIPhaseContext): boolean {
 const manualShortlistEntryEngine: EntryModeEngine = {
   id: "manual-shortlist",
   kind: "entry_mode",
+  source: "manual_shortlist",
   matches: isManualSelectorMode,
   resolve(ctx) {
     return buildManualShortlistSelection(

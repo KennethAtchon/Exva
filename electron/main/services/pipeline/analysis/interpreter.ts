@@ -11,7 +11,7 @@ import {
 import type { InstrumentAnalysisServices } from "./services";
 import { createLogger } from "../../infra/log";
 
-const logger = createLogger("pipeline-runtime");
+const logger = createLogger("pipeline-cycle-runtime");
 
 export interface InstrumentAnalysisRunInput {
   plan: InstrumentAnalysis<InstrumentAnalysisState>;

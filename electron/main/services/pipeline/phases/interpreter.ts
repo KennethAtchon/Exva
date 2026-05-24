@@ -24,7 +24,7 @@ import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { WorkspaceSession } from "@/lib/types";
 import { createLogger } from "../../infra/log";
 
-const logger = createLogger("pipeline-runtime");
+const logger = createLogger("pipeline-phase-runtime");
 
 export interface AIPhaseRunInput {
   plan: AIPhase<unknown, unknown>;
@@ -99,11 +99,8 @@ export class AIPhaseRunner {
       return {
         output: (input.plan.filterOutput?.(output as never, ctx) ??
           output) as TOutput,
-        source:
-          entryEngineId === "manual-shortlist" ||
-          entryEngineId === "manual_shortlist"
-            ? "manual_shortlist"
-            : "phase",
+        // Entry engine declares its own source; defaults to "phase" if unset.
+        source: entryEngine.source ?? "phase",
         instrumentClasses,
       };
     }
@@ -134,6 +131,7 @@ export class AIPhaseRunner {
     }
 
     if (input.plan.inputEngineIds?.length) {
+      const inputKey = input.plan.inputKey ?? "selectionInstructions";
       const sections: string[] = [];
       for (const inputEngineId of input.plan.inputEngineIds) {
         const section = await resolveEngine<InputEngine>(
@@ -142,7 +140,7 @@ export class AIPhaseRunner {
         ).build(ctx);
         if (section) sections.push(section);
       }
-      ctx.input.selectionInstructions = sections.join("\n\n");
+      ctx.input[inputKey] = sections.join("\n\n");
     }
 
     let state = input.plan.initialState
@@ -292,7 +290,7 @@ export class AIPhaseRunner {
         hasAggregate: Boolean(aggregate),
         aggregateCostUsd: aggregate?.run.cost_usd ?? null,
         durationMs: Date.now() - phaseStartedAt,
-        ...summarizeSelectorDiagnostics(output),
+        ...(input.plan.summarize?.(output) ?? {}),
       },
       "phase plan complete",
     );
@@ -310,7 +308,12 @@ export class AIPhaseRunner {
       });
     }
 
-    if (cacheEngine && cacheFingerprint && aggregate && hasNonEmptyOutput(output)) {
+    if (
+      cacheEngine &&
+      cacheFingerprint &&
+      aggregate &&
+      (cacheEngine.shouldWrite ? cacheEngine.shouldWrite(output) : output != null)
+    ) {
       cacheEngine.write(ctx, cacheFingerprint, output, {
         agentRunId: aggregate.run.id,
         cycleId: ctx.cycleId ?? ctx.sessionId,
@@ -368,6 +371,7 @@ function assemblePhaseAggregate<TOutput>(
   run: LLMRunResult<TOutput>["run"];
   message: LLMRunResult<TOutput>["message"];
 } {
+  const diagnostics = plan.summarize?.(output);
   const aggregate = assembleAggregateTrace({
     phase: plan.phase,
     sessionId: ctx.sessionId,
@@ -379,26 +383,14 @@ function assemblePhaseAggregate<TOutput>(
     schedulingMode: plan.stages.length > 1 ? "dependency_graph" : "flat_parallel",
     maxConcurrency: Math.max(...plan.stages.map((stage) => stage.concurrency), 1),
     output,
-    outputSchemaName: outputSchemaNameForPhase(plan.phase),
+    outputSchemaName: plan.outputSchemaName ?? plan.phase,
     marketSnapshotJson:
-      plan.phase === "selector" ? JSON.stringify(summarizeSelectorDiagnostics(output)) : undefined,
+      diagnostics && Object.keys(diagnostics).length > 0
+        ? JSON.stringify(diagnostics)
+        : undefined,
     workers: workerTraces,
   });
   return { run: aggregate.run, message: aggregate.message };
-}
-
-function outputSchemaNameForPhase(phase: AIPhaseContext["phase"]): string {
-  if (phase === "selector") return "instrumentSelection";
-  if (phase === "technical") return "technicalSignal";
-  if (phase === "fundamental") return "fundamentalSignal";
-  if (phase === "review") return "reviewSignal";
-  return "tradeSignal";
-}
-
-function hasNonEmptyOutput(output: unknown): boolean {
-  if (!output || typeof output !== "object") return false;
-  const instruments = (output as { instruments?: unknown[] }).instruments;
-  return Array.isArray(instruments) && instruments.length > 0;
 }
 
 function formatRejectedReasons(reasons: string[]): string {
@@ -411,21 +403,3 @@ function formatRejectionReason(reason: unknown): string {
   return String(reason);
 }
 
-function summarizeSelectorDiagnostics(output: unknown): Record<string, unknown> {
-  if (!output || typeof output !== "object") return {};
-  const diagnostics = (output as { diagnostics?: unknown }).diagnostics;
-  if (!diagnostics || typeof diagnostics !== "object") return {};
-  const row = diagnostics as {
-    acceptedCount?: number;
-    rejected?: Array<{ symbol?: string; reasons?: string[] }>;
-  };
-  return {
-    acceptedCount: row.acceptedCount ?? null,
-    rejectedCount: row.rejected?.length ?? null,
-    rejectionReasons:
-      row.rejected?.map((entry) => ({
-        symbol: entry.symbol ?? null,
-        reasons: entry.reasons ?? [],
-      })) ?? null,
-  };
-}

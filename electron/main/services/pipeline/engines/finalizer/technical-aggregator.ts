@@ -6,7 +6,7 @@ import {
   volumeOutputSchema,
 } from "../../../signal/aggregators/technical-aggregator";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
-import type { AggregatorPlanState } from "../../definitions/technical.phase";
+import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";
 import { pickWorkerOutput } from "../worker-output";
 
@@ -16,14 +16,11 @@ const technicalAggregatorEngine: FinalizerEngine<
 > = {
   id: "technical-aggregator",
   kind: "finalizer",
-  async run(ctx, state) {
+  async run(ctx, _state, workerResults) {
     const workerPayload = {
-      chartPattern: pickWorkerOutput(
-        state.workerResults,
-        chartPatternOutputSchema,
-      ),
-      momentum: pickWorkerOutput(state.workerResults, momentumOutputSchema),
-      volume: pickWorkerOutput(state.workerResults, volumeOutputSchema),
+      chartPattern: pickWorkerOutput(workerResults, chartPatternOutputSchema),
+      momentum: pickWorkerOutput(workerResults, momentumOutputSchema),
+      volume: pickWorkerOutput(workerResults, volumeOutputSchema),
     };
     return runEngineForWorker<TechnicalSignal>({
       phase: "technical",
