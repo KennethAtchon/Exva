@@ -1,25 +1,42 @@
 # signal
 
-Deterministic logic that runs around or after AI work. It merges worker outputs, scores selector candidates, computes execution profiles, and hosts engine definitions the pipeline can call without touching an LLM.
+This folder is where Exva turns model-written evidence into deterministic trading signals and execution inputs. AI workers can describe what they see, but this code performs the repeatable merging, scoring, filtering, and profile calculation that should not depend on another LLM call.
 
-## Technical
+## How it works
 
-- `aggregators/` merge worker JSON into phase signals.
-- `scoring/` ranks and filters selector candidates.
-- `execution/` computes trade execution profiles from decision and risk inputs.
-- `registry/` registers `SignalEngineDefinition` bindings for deterministic pipeline steps.
+- `aggregators/` merges multiple worker outputs into typed phase signals. Technical, fundamental, review, and final trade-signal phases each have deterministic aggregation rules and shared schemas.
+- `scoring/` processes selector candidates before full trade analysis. It deduplicates candidates across discovery batches, computes weighted scores, applies risk filters, builds the final instrument-selection payload, and can fetch prediction-market candidates from a discovery-capable broker adapter.
+- `execution/` turns an approved `TradeSignal` plus risk/session settings into a `TradeExecutionProfile`, including side, position size, order type, limit price, stop-loss percent, and take-profit percent.
+- `registry/` registers deterministic engines by id so pipeline definitions can reference them declaratively. The pipeline can then call `technical-aggregator`, `selector-submission-builder`, `trade-execution-profile`, or other engines without importing concrete functions directly.
+- Signal code should be deterministic and local. It can read input state, run pure calculations, invoke injected policy/risk services through registered engines, or use broker discovery where explicitly wired, but it should not prompt an LLM or make provider-model calls.
+- Signal code is downstream from worker execution. It assumes AI workers have already produced schema-shaped JSON, and its job is to normalize, combine, score, reject, or reshape that data into the next pipeline state.
+- Errors here are meaningful because they indicate invalid pipeline state or impossible execution input. For example, execution-profile calculation throws when asked to compute an order profile for a `skip` signal.
 
 ## Flow
 
 ```mermaid
-flowchart LR
-    WORKERS[Worker outputs] --> AGG[Aggregators]
-    AGG --> SIGNALS[Phase signals]
-    SIGNALS --> SCORE[Scoring and filtering]
-    SIGNALS --> EXEC[Execution profile]
-    REG[Registry] --> PIPE[Pipeline runtime]
+flowchart TD
+    Workers[AI worker outputs] --> Aggregators[signal/aggregators]
+    Aggregators --> PhaseSignals[Typed phase signals]
+
+    Discovery[Selector discovery candidates] --> Scoring[signal/scoring]
+    Scoring --> Selected[InstrumentSelection]
+
+    PhaseSignals --> TradeSignal[Final TradeSignal]
+    TradeSignal --> Execution[signal/execution]
+    Execution --> Profile[TradeExecutionProfile]
+
+    Registry[signal/registry] --> Aggregators
+    Registry --> Scoring
+    Registry --> Execution
+    Pipeline[Pipeline definitions] --> Registry
 ```
 
 ## Terms
 
-- **SignalEngine** — deterministic function injected into worker prompts or run as analysis steps.
+- **Signal** - Typed, normalized output used by later pipeline steps. Examples include `TechnicalSignal`, `FundamentalSignal`, `ReviewSignal`, and `TradeSignal`.
+- **Signal engine** - Registered deterministic function that the pipeline can call by id.
+- **Aggregator** - Function that merges one phase's worker outputs into a single signal.
+- **Selector candidate** - Instrument proposed during discovery before it has survived scoring and risk filtering.
+- **Execution profile** - Deterministic order-shape output derived from a non-skip trade decision and risk configuration.
+- **Deterministic step** - Pipeline step whose output should be reproducible from the same inputs without calling an LLM.
