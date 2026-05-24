@@ -6,6 +6,7 @@ import { SelectorRiskFilter } from "../../../signal/scoring/selector-risk-filter
 import type { SelectorCandidate } from "../../../signal/scoring/selector-candidate-merger";
 import { registerEngine, type FinalizerEngine } from "../registry";
 import type { SelectorPlanState } from "../../definitions/selector.phase";
+import type { FailureHistoryEntry } from "../../../orchestration/cycle/runtime-outcome";
 
 export type SelectorRiskFilterFinalizerResult = ReturnType<
   SelectorRiskFilter["evaluate"]
@@ -58,11 +59,15 @@ const selectorRiskFilterEngine: FinalizerEngine<
       ...candidate,
       selectorEvidence: buildSelectorEvidence(candidate),
     }));
+    const failureHistory = ((ctx.input.failureHistory as FailureHistoryEntry[] | undefined) ?? []).filter(
+      (entry) => entry.instrumentSymbol != null,
+    );
     const evaluation = new SelectorRiskFilter({
       sessionId: ctx.sessionId,
       instrumentClasses: ctx.instrumentClasses,
       strategyContext: ctx.strategyContext,
       brokerRouting: ctx.toolContext.brokerRouting,
+      failureHistory,
     }).evaluate(withEvidence);
 
     return {

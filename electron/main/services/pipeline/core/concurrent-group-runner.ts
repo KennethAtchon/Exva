@@ -57,8 +57,7 @@ export async function runWorkersConcurrently<T>(
     );
     results.push(...batchResults);
     const batchRejected = batchResults.filter(
-      (entry): entry is PromiseRejectedResult<T> =>
-        entry.status === "rejected",
+      (entry): entry is PromiseRejectedResult => entry.status === "rejected",
     );
     if (batchRejected.length > 0) {
       logger.warn(

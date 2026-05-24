@@ -16,6 +16,15 @@ import {
   SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX,
   SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MIN,
 } from "./types";
+import {
+  outcomeLevel,
+  type FailureHistoryEntry,
+  type FailureHistoryReasonCategory,
+  type OrchestrationOutcome,
+} from "./runtime-outcome";
+
+const FAILURE_HISTORY_WINDOW_MS = 60 * 60 * 1000;
+const MAX_CONSECUTIVE_HARD_FAILURES = 3;
 
 export class TradingCycleContext {
   readonly queue = new PQueue({ concurrency: 1 });
@@ -23,6 +32,7 @@ export class TradingCycleContext {
   readonly pendingApprovalIds = new Map<string, string>();
   readonly cycleContexts = new Map<string, CycleContext>();
   readonly stepRunners = new Map<string, TradingStepRunner>();
+  readonly failureHistory: FailureHistoryEntry[] = [];
 
   stopped = false;
   unsubscribeTradeClosed: (() => void) | null = null;
@@ -31,6 +41,7 @@ export class TradingCycleContext {
   pauseAfterStep = false;
   noInstrumentRetryTimer: ReturnType<typeof setTimeout> | null = null;
   scheduleSelectorCycle: ((label: string) => Promise<void>) | null = null;
+  consecutiveHardFailures = 0;
 
   constructor(
     readonly sessionId: string,
@@ -55,7 +66,7 @@ export class TradingCycleContext {
     );
   }
 
-  getNoInstrumentRetryMinutes(): number {
+  getFailureRetryMinutes(): number {
     const configured = this.deps.sessionSelectorSettingsRepo.get(
       this.sessionId,
     ).noInstrumentRetryMinutes;
@@ -65,6 +76,10 @@ export class TradingCycleContext {
       configured <= SELECTOR_NO_INSTRUMENT_RETRY_MINUTES_MAX
       ? configured
       : DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES;
+  }
+
+  getNoInstrumentRetryMinutes(): number {
+    return this.getFailureRetryMinutes();
   }
 
   getStepRunner(cycleId: string): TradingStepRunner {
@@ -85,20 +100,49 @@ export class TradingCycleContext {
     result: Extract<TradingStepResult<unknown>, { ok: false }>,
     tradeId: string | null = null,
   ): void {
+    const level = result.level ?? outcomeLevel(result.outcome, result.retryable);
     this.emitEvent(
-      "ERROR",
+      level,
       tradeId,
       `${stage} failed: ${result.errorMessage}`,
       "orchestrator",
       cycleId,
     );
-    if (
-      !result.retryable &&
-      stage !== "risk_gate" &&
-      stage !== "broker_order"
-    ) {
+
+    this.recordFailure({
+      cycleId,
+      stage,
+      outcome: result.outcome,
+      level,
+      code: result.errorCode,
+      message: `${stage} failed: ${result.errorMessage}`,
+      reasonCategory: result.reasonCategory,
+    });
+
+    if (result.outcome === "operator_required" || result.outcome === "bug") {
+      this.clearNoInstrumentRetry();
+      this.consecutiveHardFailures = 0;
       this.setSessionStatus("attention_required");
+      return;
     }
+
+    if (result.outcome === "transient") {
+      this.consecutiveHardFailures += 1;
+      if (this.consecutiveHardFailures >= MAX_CONSECUTIVE_HARD_FAILURES) {
+        this.clearNoInstrumentRetry();
+        this.emitEvent(
+          "ERROR",
+          tradeId,
+          `Session paused after ${this.consecutiveHardFailures} consecutive hard failures. Resume after investigating the runtime errors.`,
+          "orchestrator",
+          cycleId,
+        );
+        this.setSessionStatus("attention_required");
+      }
+      return;
+    }
+
+    this.consecutiveHardFailures = 0;
   }
 
   clearAttentionRequired(): void {
@@ -207,6 +251,77 @@ export class TradingCycleContext {
     if (!this.noInstrumentRetryTimer) return;
     clearTimeout(this.noInstrumentRetryTimer);
     this.noInstrumentRetryTimer = null;
+  }
+
+  resetHardFailureStreak(): void {
+    this.consecutiveHardFailures = 0;
+  }
+
+  getFailureHistory(): FailureHistoryEntry[] {
+    this.pruneFailureHistory();
+    return [...this.failureHistory];
+  }
+
+  getFailureHistoryForInstrument(symbol: string): FailureHistoryEntry[] {
+    const normalized = symbol.trim().toUpperCase();
+    return this.getFailureHistory().filter(
+      (entry) => entry.instrumentSymbol?.trim().toUpperCase() === normalized,
+    );
+  }
+
+  getNearestRetryAt(): string | null {
+    const retryTimes = this.getFailureHistory()
+      .map((entry) => entry.retryAt)
+      .filter((value): value is string => Boolean(value))
+      .sort((a, b) => Date.parse(a) - Date.parse(b));
+    return retryTimes[0] ?? null;
+  }
+
+  recordFailure(input: {
+    cycleId: string;
+    stage: ExecutionStage | "trade_cycle" | "selector_cycle";
+    outcome: OrchestrationOutcome;
+    level: "WARN" | "ERROR";
+    code: string | null;
+    message: string;
+    reasonCategory: FailureHistoryReasonCategory;
+  }): void {
+    this.pruneFailureHistory();
+    const cycleContext = this.cycleContexts.get(input.cycleId);
+    const instrument = cycleContext?.kind === "trade" ? cycleContext.instrument : null;
+    const occurredAt = new Date().toISOString();
+    const retryAt =
+      input.outcome === "no_trade" || input.outcome === "transient"
+        ? new Date(
+            Date.now() + this.getFailureRetryMinutes() * 60 * 1000,
+          ).toISOString()
+        : null;
+
+    this.failureHistory.push({
+      occurredAt,
+      expiresAt: new Date(
+        Date.parse(occurredAt) + FAILURE_HISTORY_WINDOW_MS,
+      ).toISOString(),
+      retryAt,
+      cycleId: input.cycleId,
+      instrumentSymbol: instrument?.symbol ?? null,
+      instrumentClass: instrument?.instrumentClass ?? null,
+      stage: input.stage,
+      outcome: input.outcome,
+      level: input.level,
+      code: input.code,
+      message: input.message,
+      reasonCategory: input.reasonCategory,
+    });
+    this.pruneFailureHistory();
+  }
+
+  private pruneFailureHistory(): void {
+    const now = Date.now();
+    const kept = this.failureHistory.filter(
+      (entry) => Date.parse(entry.expiresAt) > now,
+    );
+    this.failureHistory.splice(0, this.failureHistory.length, ...kept);
   }
 
   disposeStepRunners(): void {

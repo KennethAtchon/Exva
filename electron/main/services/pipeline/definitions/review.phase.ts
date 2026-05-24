@@ -14,6 +14,7 @@ import {
   riskAssessorOutputSchema,
 } from "../../signal/aggregators/review-aggregator";
 import type { AIPhase } from "../phases/types";
+import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
 import {
   REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT,
   REVIEW_WORKERS_RISK_ASSESSOR_PROMPT,
@@ -26,6 +27,7 @@ export type ReviewPhaseInput = {
   instrumentSymbol: string;
   technical: TechnicalSignal;
   fundamental: FundamentalSignal;
+  recentFailureHistory?: FailureHistoryEntry[];
 };
 
 const REVIEW_STRATEGY_CONTEXT = {
@@ -87,6 +89,7 @@ export const REVIEW_PHASE: AIPhase<AggregatorPlanState, ReviewSignal> = {
           fundamentalSignal: JSON.stringify(
             signalForWorkerPrompt(ctx.input.fundamental as FundamentalSignal),
           ),
+          recentFailureHistory: ctx.input.recentFailureHistory ?? [],
         };
       },
       concurrency: 2,

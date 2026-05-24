@@ -14,6 +14,7 @@ import {
   sentimentOutputSchema,
 } from "../../signal/aggregators/fundamental-aggregator";
 import type { AIPhase } from "../phases/types";
+import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
 import {
   FUNDAMENTAL_WORKERS_CATALYST_CONTEXT_PROMPT,
   FUNDAMENTAL_WORKERS_EARNINGS_CONTEXT_PROMPT,
@@ -31,6 +32,7 @@ export type FundamentalPhaseInput = {
   selectorEvidence?:
     | import("@electron/shared/ai/selector-candidate").SelectorEvidence
     | null;
+  recentFailureHistory?: FailureHistoryEntry[];
 };
 
 const SEARCH_WEB_TOOL_CONFIG = {
@@ -140,6 +142,7 @@ export const FUNDAMENTAL_PHASE: AIPhase<
         return {
           instrumentSymbol: ctx.input.instrumentSymbol,
           selectorEvidence: ctx.input.selectorEvidence ?? null,
+          recentFailureHistory: ctx.input.recentFailureHistory ?? [],
         };
       },
       concurrency: 3,

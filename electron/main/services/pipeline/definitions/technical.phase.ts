@@ -13,6 +13,7 @@ import {
   volumeOutputSchema,
 } from "../../signal/aggregators/technical-aggregator";
 import type { AIPhase } from "../phases/types";
+import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
 import {
   TECHNICAL_WORKERS_CHART_PATTERN_PROMPT,
   TECHNICAL_WORKERS_EVENT_IMPLIED_PROBABILITY_PROMPT,
@@ -30,6 +31,7 @@ export type TechnicalPhaseInput = {
   selectorEvidence?:
     | import("@electron/shared/ai/selector-candidate").SelectorEvidence
     | null;
+  recentFailureHistory?: FailureHistoryEntry[];
 };
 
 const TECHNICAL_STRATEGY_CONTEXT = {
@@ -136,6 +138,7 @@ export const TECHNICAL_PHASE: AIPhase<AggregatorPlanState, TechnicalSignal> = {
         return {
           instrumentSymbol: ctx.input.instrumentSymbol,
           selectorEvidence: ctx.input.selectorEvidence ?? null,
+          recentFailureHistory: ctx.input.recentFailureHistory ?? [],
         };
       },
       concurrency: 3,

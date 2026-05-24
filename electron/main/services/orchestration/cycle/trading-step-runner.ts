@@ -4,12 +4,28 @@ import { AppError, type AppErrorCode } from "@electron/shared/infra/errors";
 import type { SessionExecutionStepsRepo } from "../../../db/repositories/sessions/session-execution-steps-repo";
 import type { EventBus } from "../../infra/event-bus";
 import type { Logger } from "../../infra/log";
+import {
+  isFailureHistoryReasonCategory,
+  isOrchestrationOutcome,
+  outcomeLevel,
+  type FailureHistoryLevel,
+  type FailureHistoryReasonCategory,
+  type OrchestrationOutcome,
+} from "./runtime-outcome";
 
 export type { ExecutionStage, ExecutionStepState } from "@/lib/types";
 
 export type TradingStepResult<T> =
   | { ok: true; value: T }
-  | { ok: false; retryable: boolean; errorCode: string; errorMessage: string };
+  | {
+      ok: false;
+      retryable: boolean;
+      errorCode: string;
+      errorMessage: string;
+      outcome: OrchestrationOutcome;
+      level: FailureHistoryLevel;
+      reasonCategory: FailureHistoryReasonCategory;
+    };
 
 export interface TradingStepRunnerDeps {
   stepsRepo: SessionExecutionStepsRepo;
@@ -31,6 +47,24 @@ export interface TradingStepRunOptions {
 const STEP_RETRY_BACKOFF_MS = RUNTIME_DEFAULTS.retry.stepBackoffMs;
 const MAX_STEP_RETRIES = STEP_RETRY_BACKOFF_MS.length;
 const MAX_STEP_ATTEMPTS = MAX_STEP_RETRIES + 1;
+
+const OPERATOR_REQUIRED_CODES = new Set<AppErrorCode>([
+  "LOCKED",
+  "MISSING_SECRET",
+  "NO_BROKER",
+  "PROVIDER_NOT_CONFIGURED",
+  "SEARCH_PROVIDER_REQUIRED",
+  "SPEND_CAP_EXCEEDED",
+  "UNSUPPORTED_INSTRUMENT",
+]);
+
+const NO_TRADE_CODES = new Set<AppErrorCode>(["INSTRUMENT_CONFLICT"]);
+
+const SESSION_CAPACITY_CODES = new Set<AppErrorCode>([
+  "BROKER_ALLOCATION_EXCEEDED",
+  "BROKER_SESSION_CAP_EXCEEDED",
+  "CAPITAL_POOL_EXCEEDED",
+]);
 
 export class TradingStepRunner {
   private readonly retryTimers = new Map<
@@ -172,6 +206,9 @@ export class TradingStepRunner {
         retryable: retryAllowed,
         errorCode: classified.errorCode,
         errorMessage: classified.errorMessage,
+        outcome: classified.outcome,
+        level: outcomeLevel(classified.outcome, retryAllowed),
+        reasonCategory: classified.reasonCategory,
       };
     }
   }
@@ -188,30 +225,32 @@ function classifyStepError(error: unknown): {
   retryable: boolean;
   errorCode: string;
   errorMessage: string;
+  outcome: OrchestrationOutcome;
+  reasonCategory: FailureHistoryReasonCategory;
 } {
   if (error instanceof AppError) {
-    if (
-      ["VALIDATION_FAILED", "PROVIDER_NOT_CONFIGURED", "LOCKED"].includes(
-        error.code,
-      )
-    ) {
-      return {
-        retryable: false,
-        errorCode: error.code,
-        errorMessage: error.message,
-      };
-    }
+    const details = error.details as Record<string, unknown> | undefined;
+    const outcome = isOrchestrationOutcome(details?.outcome)
+      ? details.outcome
+      : defaultOutcomeForAppError(error.code, details?.retryable === true);
+    const reasonCategory = isFailureHistoryReasonCategory(details?.reasonCategory)
+      ? details.reasonCategory
+      : defaultReasonCategory(error.code, outcome);
     if (error.details?.retryable === true) {
       return {
         retryable: true,
         errorCode: error.code,
         errorMessage: error.message,
+        outcome,
+        reasonCategory,
       };
     }
     return {
       retryable: false,
       errorCode: error.code,
       errorMessage: error.message,
+      outcome,
+      reasonCategory,
     };
   }
 
@@ -226,6 +265,8 @@ function classifyStepError(error: unknown): {
       errorCode: `HTTP_${httpStatus}`,
       errorMessage:
         error instanceof Error ? error.message : `HTTP ${httpStatus}`,
+      outcome: "transient",
+      reasonCategory: "provider_transient",
     };
   }
 
@@ -235,6 +276,8 @@ function classifyStepError(error: unknown): {
       retryable: true,
       errorCode: "TRANSIENT_ERROR",
       errorMessage: message,
+      outcome: "transient",
+      reasonCategory: "provider_transient",
     };
   }
 
@@ -242,7 +285,43 @@ function classifyStepError(error: unknown): {
     retryable: false,
     errorCode: inferUnknownCode(error),
     errorMessage: message,
+    outcome: "bug",
+    reasonCategory: "unexpected_bug",
   };
+}
+
+function defaultOutcomeForAppError(
+  code: AppErrorCode,
+  retryable: boolean,
+): OrchestrationOutcome {
+  if (retryable) return "transient";
+  if (OPERATOR_REQUIRED_CODES.has(code)) return "operator_required";
+  if (SESSION_CAPACITY_CODES.has(code)) return "session_capacity";
+  if (NO_TRADE_CODES.has(code)) return "no_trade";
+  if (
+    code === "PROVIDER_UNREACHABLE" ||
+    code === "BROKER_UNREACHABLE" ||
+    code === "BROKER_ERROR" ||
+    code === "VALIDATION_FAILED"
+  ) {
+    return "transient";
+  }
+  return "bug";
+}
+
+function defaultReasonCategory(
+  code: AppErrorCode,
+  outcome: OrchestrationOutcome,
+): FailureHistoryReasonCategory {
+  if (code === "SPEND_CAP_EXCEEDED") return "session_spend_limit";
+  if (code === "INSTRUMENT_CONFLICT") return "broker_allocation";
+  if (SESSION_CAPACITY_CODES.has(code)) return "session_capacity";
+  if (code === "PROVIDER_UNREACHABLE" || code === "BROKER_UNREACHABLE") {
+    return "provider_transient";
+  }
+  if (outcome === "transient") return "unexpected_bug";
+  if (outcome === "no_trade") return "risk_gate";
+  return "unexpected_bug";
 }
 
 function readHttpStatus(error: unknown): number | null {

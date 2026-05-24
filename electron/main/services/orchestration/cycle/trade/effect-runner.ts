@@ -6,6 +6,7 @@ import { runEngineForWorker } from "../../../pipeline/execution/engine-prompt-in
 import type { InstrumentAnalysisResult } from "../../../pipeline/analysis/types";
 import type { TradingCycleContext } from "../trading-cycle-context";
 import type { TradeCycleContext } from "../types";
+import { createOutcomeError } from "../runtime-outcome";
 import { waitForApproval } from "./approval-flow";
 import { buildOrderPolicyTask } from "./order-policy-task";
 import { placeRoutedOrder } from "./order-placer";
@@ -111,9 +112,14 @@ export async function placeBrokerOrder(
     const snap = await adapter.getMarketSnapshot(wireSymbol);
     placementQuote = { price: snap.price, timestamp: snap.timestamp };
   } catch (err) {
-    throw new AppError(
+    throw createOutcomeError(
       `Pre-placement quote fetch failed: ${err instanceof Error ? err.message : String(err)}`,
-      "VALIDATION_FAILED",
+      "BROKER_UNREACHABLE",
+      {
+        outcome: "transient",
+        reasonCategory: "provider_transient",
+        retryable: true,
+      },
     );
   }
 
@@ -127,7 +133,11 @@ export async function placeBrokerOrder(
     ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
     config.max_api_spend_usd,
   );
-  const policyResult = runEngineForWorker<{ allowed: boolean; reason?: string }>({
+  const policyResult = runEngineForWorker<{
+    allowed: boolean;
+    reason?: string;
+    gatesFailed?: string[];
+  }>({
     phase: "decision",
     sessionId: ctx.sessionId,
     cycleId: context.cycleId,
@@ -154,9 +164,9 @@ export async function placeBrokerOrder(
     }) as unknown as Record<string, unknown>,
   });
   if (!policyResult.allowed) {
-    throw new AppError(
+    throw createOrderPolicyError(
       policyResult.reason ?? "Order blocked by policy gate",
-      "VALIDATION_FAILED",
+      policyResult.gatesFailed ?? [],
     );
   }
 
@@ -171,9 +181,13 @@ export async function placeBrokerOrder(
     clientOrderId,
   );
   if (!placed) {
-    throw new AppError(
+    throw createOutcomeError(
       "Instrument conflict or broker routing blocked order placement.",
       "VALIDATION_FAILED",
+      {
+        outcome: "no_trade",
+        reasonCategory: "broker_allocation",
+      },
     );
   }
   return placed;
@@ -200,6 +214,7 @@ export function finalizeOpenedTrade(
   }
   ctx.deps.capitalReservation.convertOrderToPosition(trade.id);
   ctx.clearAttentionRequired();
+  ctx.resetHardFailureStreak();
   ctx.emitEvent(
     "INFO",
     trade.id,
@@ -228,4 +243,34 @@ export function finalizeOpenedTrade(
     "orchestrator",
     context.cycleId,
   );
+}
+
+function createOrderPolicyError(message: string, gatesFailed: string[]): AppError {
+  if (
+    gatesFailed.includes("capital") ||
+    gatesFailed.includes("strategy") ||
+    gatesFailed.includes("data_freshness") ||
+    gatesFailed.includes("price_collar") ||
+    gatesFailed.includes("spread") ||
+    gatesFailed.includes("exit_contract") ||
+    gatesFailed.includes("broker") ||
+    gatesFailed.includes("idempotency")
+  ) {
+    return createOutcomeError(message, "VALIDATION_FAILED", {
+      outcome: "no_trade",
+      reasonCategory: "risk_gate",
+    });
+  }
+
+  if (gatesFailed.includes("runtime")) {
+    return createOutcomeError(message, "LOCKED", {
+      outcome: "operator_required",
+      reasonCategory: "unexpected_bug",
+    });
+  }
+
+  return createOutcomeError(message, "VALIDATION_FAILED", {
+    outcome: "no_trade",
+    reasonCategory: "broker_reject",
+  });
 }

@@ -48,7 +48,7 @@ describe("mock trade rehearsal integration", () => {
     const quote = await harness.mockAdapter.getMarketSnapshot("NVDA");
 
     vi.spyOn(runTradePipelineModule, "runTradePipeline").mockResolvedValue(
-      makeMockBuyPipeline(quote.price),
+      { status: "ok", result: makeMockBuyPipeline(quote.price) },
     );
 
     await executeTradeCycle(ctx, {

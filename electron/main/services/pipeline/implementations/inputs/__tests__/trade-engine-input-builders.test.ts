@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AppError } from "@electron/shared/infra/errors";
 import { WAIT_FOR_OPEN_REJECTION_REASON } from "../../../../risk/risk-engine";
 import { riskGateInputBuilder } from "../trade-engine-input-builders";
 import type { InstrumentAnalysisState } from "../../../analysis/types";
@@ -18,6 +19,7 @@ function baseState(): InstrumentAnalysisState {
       message: {} as never,
     },
     executionProfile: {
+      orderType: "market",
       side: "BUY",
       positionSizeUsd: 500,
       limitPrice: null,
@@ -42,13 +44,36 @@ describe("riskGateInputBuilder.applyOutput", () => {
     expect(next?.brokerAllocation).toBeUndefined();
   });
 
-  it("still throws for other risk rejections", () => {
-    expect(() =>
+  it("maps concurrent-trade cap to a session-capacity outcome", () => {
+    try {
       riskGateInputBuilder.applyOutput?.(baseState(), {
         allowed: false,
-        reason: "Max concurrent trades reached",
-      }),
-    ).toThrow("Max concurrent trades reached");
+        reason: "Maximum concurrent trades reached",
+      });
+      throw new Error("expected risk gate to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).details).toMatchObject({
+        outcome: "session_capacity",
+        reasonCategory: "session_capacity",
+      });
+    }
+  });
+
+  it("maps spend guardrails to operator-required outcomes", () => {
+    try {
+      riskGateInputBuilder.applyOutput?.(baseState(), {
+        allowed: false,
+        reason: "Daily API budget reached",
+      });
+      throw new Error("expected risk gate to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).details).toMatchObject({
+        outcome: "operator_required",
+        reasonCategory: "session_spend_limit",
+      });
+    }
   });
 
   it("stores the risk order when allowed", () => {

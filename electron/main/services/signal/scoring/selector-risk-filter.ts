@@ -10,6 +10,7 @@ import {
   type RiskRuleSet,
 } from "@electron/shared/ai/ai-phase-config";
 import type { SelectorCandidate } from "./selector-candidate-merger";
+import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
 
 export interface SelectorSelectorRiskFilterDeps {
   sessionId: string;
@@ -17,6 +18,7 @@ export interface SelectorSelectorRiskFilterDeps {
   strategyContext: SessionStrategyContext;
   brokerRouting?: BrokerRoutingService;
   riskRules?: RiskRuleSet;
+  failureHistory?: FailureHistoryEntry[];
 }
 
 export interface SelectorSelectorRiskFilterResult {
@@ -76,6 +78,17 @@ export class SelectorRiskFilter {
 
     if (!candidate.rationale?.trim()) {
       reasons.push("Selector rationale is empty");
+    }
+
+    const recentFailure = this.deps.failureHistory?.find(
+      (entry) =>
+        entry.instrumentSymbol === candidate.symbol &&
+        entry.instrumentClass === candidate.instrumentClass,
+    );
+    if (recentFailure?.retryAt && Date.parse(recentFailure.retryAt) > Date.now()) {
+      reasons.push(
+        `Recent ${recentFailure.outcome} at ${recentFailure.stage}; retry after ${recentFailure.retryAt}`,
+      );
     }
 
     if (this.deps.brokerRouting) {

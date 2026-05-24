@@ -1,6 +1,7 @@
 import type { TradingCycleContext } from "../trading-cycle-context";
 import type { ResolvedInstrument } from "../types";
 import { formatMinutesLabel } from "../utils";
+import { scheduleCycleRefillAfterDelayIfIdle } from "./cycle-refill";
 
 export function handleResolvedInstruments(
   ctx: TradingCycleContext,
@@ -36,7 +37,7 @@ export function handleResolvedInstruments(
   );
 
   if (instruments.length === 0) {
-    const retryMinutes = ctx.getNoInstrumentRetryMinutes();
+    const retryMinutes = ctx.getFailureRetryMinutes();
     const retryMs = retryMinutes * 60 * 1000;
     logger.warn(
       {
@@ -54,7 +55,21 @@ export function handleResolvedInstruments(
       `${context}; no tradable instruments were selected. Re-evaluating in ${formatMinutesLabel(retryMinutes)}.`,
       "orchestrator",
     );
-    scheduleNoInstrumentRetry(ctx, callbacks.scheduleSelectorCycle, retryMs);
+    ctx.recordFailure({
+      cycleId: ctx.sessionId,
+      stage: "selector_cycle",
+      outcome: "no_trade",
+      level: "WARN",
+      code: null,
+      message: `${context}; no tradable instruments were selected.`,
+      reasonCategory: "model_no_trade",
+    });
+    scheduleCycleRefillAfterDelayIfIdle(
+      ctx,
+      callbacks.scheduleSelectorCycle,
+      "Scheduled selector retry complete",
+      retryMs,
+    );
     return;
   }
 
@@ -66,50 +81,6 @@ export function handleResolvedInstruments(
     "orchestrator",
   );
   enqueueTradeCycles(ctx, callbacks.enqueueTradeCycle, instruments);
-}
-
-function scheduleNoInstrumentRetry(
-  ctx: TradingCycleContext,
-  scheduleSelectorCycle: () => Promise<void>,
-  retryMs: number,
-): void {
-  if (ctx.noInstrumentRetryTimer) {
-    ctx.deps.logger.info(
-      { sessionId: ctx.sessionId },
-      "orchestrator no-instrument retry already scheduled; skipping duplicate",
-    );
-    return;
-  }
-  ctx.deps.logger.info(
-    {
-      sessionId: ctx.sessionId,
-      retryMs,
-      retryAt: new Date(Date.now() + retryMs).toISOString(),
-    },
-    "orchestrator no-instrument retry timer scheduled",
-  );
-  ctx.noInstrumentRetryTimer = setTimeout(() => {
-    ctx.noInstrumentRetryTimer = null;
-    ctx.deps.logger.info(
-      { sessionId: ctx.sessionId },
-      "orchestrator no-instrument retry timer fired",
-    );
-    if (!ctx.runtimeIsActive()) {
-      ctx.deps.logger.info(
-        { sessionId: ctx.sessionId },
-        "orchestrator no-instrument retry skipped: runtime not active",
-      );
-      return;
-    }
-    ctx.enqueueTask(scheduleSelectorCycle, (error) => {
-      ctx.emitEvent(
-        "ERROR",
-        null,
-        `Scheduled selector retry failed: ${error instanceof Error ? error.message : String(error)}`,
-        "orchestrator",
-      );
-    });
-  }, retryMs);
 }
 
 function enqueueTradeCycles(

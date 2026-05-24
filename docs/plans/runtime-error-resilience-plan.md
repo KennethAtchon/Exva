@@ -1,10 +1,26 @@
 # Runtime Error Resilience Plan
 
 > **Date:** 2026-05-24  
-> **Status:** Draft  
+> **Status:** Partially implemented - Phase 1 complete; backend slices of Phase 2 and Phase 4 landed on 2026-05-24; frontend Phase 3 remains pending.  
 > **Goal:** Every runtime ERROR is visible to the operator when it happens, but errors must not crash the Electron process or permanently stall an active session. Expected per-instrument rejections should surface as WARN, be remembered as short-term `failureHistory`, and inform the next selector pass instead of being forgotten. **Session-level spend and PnL guardrails** (API budget, daily loss, profit target) are intentional capital stops — they must pause new intake and require explicit operator **Resume**, not auto-retry.
 
 ---
+
+## 0. Implementation status (2026-05-24)
+
+Implemented in code:
+
+- Trade/selector cycles now use one generalized delayed selector-retry path for no-instrument, no-trade, and exhausted transient failures, which closes the silent-stall path after `runTradePipeline()` returns without an open position.
+- `TradingCycleContext` now owns a 1-hour in-memory `failureHistory` window with automatic pruning, per-instrument lookup, and nearest retry-time lookup.
+- Runtime policy rejections now carry explicit orchestration outcomes (`no_trade`, `session_capacity`, `operator_required`, `transient`) through `AppError.details`, and step handling only moves the session to `attention_required` for `operator_required`, `bug`, or repeated hard transient failures.
+- Selector discovery/verification tasks and trade-analysis worker tasks now receive recent failure context plus retry timing in structured task payloads.
+- `step:failed` log mirroring now uses `error` for terminal failures and `warn` for retrying failures.
+
+Still pending from this document:
+
+- Phase 3 frontend visibility work (global toast/banner, Sessions page failure surfaces, TopNav attention badge).
+- Persisting execution-step `outcome` to the DB / DevPanel filters.
+- Explicit `maxDataSpendUsd` operator-required guardrail wiring.
 
 ## 1. Problem statement
 

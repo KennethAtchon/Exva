@@ -21,6 +21,8 @@ import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { WorkerToolContext } from "../worker-tools/worker-tool-factory";
 import type { InstrumentAnalysisServices } from "./services";
 import type { ToolLLMToolStepTrace } from "../../orchestration/policy/candidate-validation-service";
+import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
+import type { TradingStepResult } from "../../orchestration/cycle/trading-step-runner";
 
 export type TradeCycleInstrument = {
   symbol: string;
@@ -30,6 +32,7 @@ export type TradeCycleInstrument = {
   instrumentMetadataJson?: string | null;
   selectorEvidence?: SelectorEvidence | null;
   selectorTraces?: ToolLLMToolStepTrace[];
+  recentFailureHistory?: FailureHistoryEntry[];
 };
 
 export type QuoteSnapshot = {
@@ -112,8 +115,8 @@ export class AnalysisStepFailedError extends Error {
 
   constructor(
     readonly stage: ExecutionStage,
-    readonly errorMessage: string,
+    readonly result: Extract<TradingStepResult<unknown>, { ok: false }>,
   ) {
-    super(`${stage} failed: ${errorMessage}`);
+    super(`${stage} failed: ${result.errorMessage}`);
   }
 }

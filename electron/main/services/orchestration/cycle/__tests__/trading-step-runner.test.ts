@@ -51,6 +51,9 @@ describe("TradingStepRunner", () => {
       retryable: true,
       errorCode: "HTTP_503",
       errorMessage: "provider unavailable",
+      outcome: "transient",
+      level: "WARN",
+      reasonCategory: "provider_transient",
     });
     expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({
       status: "retrying",
@@ -75,6 +78,9 @@ describe("TradingStepRunner", () => {
       retryable: false,
       errorCode: "VALIDATION_FAILED",
       errorMessage: "bad decision",
+      outcome: "transient",
+      level: "ERROR",
+      reasonCategory: "unexpected_bug",
     });
     expect(repo.get(sessionId, "cycle-1", "decision")).toMatchObject({
       status: "failed",
@@ -107,6 +113,9 @@ describe("TradingStepRunner", () => {
       errorCode: "PROVIDER_UNREACHABLE",
       errorMessage:
         "Provider unreachable: Failed after 3 attempts. Last error: Provider returned error",
+      outcome: "transient",
+      level: "WARN",
+      reasonCategory: "provider_transient",
     });
     expect(repo.get(sessionId, "cycle-1", "selector")).toMatchObject({
       status: "retrying",
@@ -136,6 +145,9 @@ describe("TradingStepRunner", () => {
       retryable: false,
       errorCode: "HTTP_503",
       errorMessage: "timeout",
+      outcome: "transient",
+      level: "ERROR",
+      reasonCategory: "provider_transient",
     });
     expect(repo.get(sessionId, "cycle-1", "broker_order")).toMatchObject({
       status: "failed",

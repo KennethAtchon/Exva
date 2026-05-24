@@ -26,7 +26,10 @@ export async function runSelector(
   const result = (await ctx.deps.ai.runPlan("selector", {
     sessionId: session.id,
     cycleId,
-    input: {},
+    input: {
+      failureHistory: ctx.getFailureHistory(),
+      nextEligibleRetryAt: ctx.getNearestRetryAt(),
+    },
   })) as import("../../../pipeline/phases/types").AIPhaseResult<InstrumentSelection>;
 
   logger.info(
@@ -49,6 +52,7 @@ export async function runSelector(
       predictionOutcome: row.predictionOutcome ?? null,
       instrumentMetadataJson: row.instrumentMetadataJson ?? null,
       selectorEvidence: row.selectorEvidence ?? null,
+      recentFailureHistory: ctx.getFailureHistoryForInstrument(row.symbol),
     }),
   );
 

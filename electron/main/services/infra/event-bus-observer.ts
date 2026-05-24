@@ -87,10 +87,10 @@ export function attachEventBusObserver(
   });
 
   observe("step:failed", (payload) => {
-    scopeLogger.warn(
-      { eventName: "step:failed", ...payload },
-      "execution step failed",
-    );
+    const logFn = payload.retryable
+      ? scopeLogger.warn.bind(scopeLogger)
+      : scopeLogger.error.bind(scopeLogger);
+    logFn({ eventName: "step:failed", ...payload }, "execution step failed");
   });
 
   observe("step:retrying", (payload) => {
@@ -143,7 +143,7 @@ export function attachEventBusObserver(
     scopeLogger.info(
       {
         eventName: "approval_required",
-        tradeId: payload.tradeId,
+        tradeId: payload.trade_id,
         symbol: payload.instrumentSymbol,
       },
       "trade approval required",

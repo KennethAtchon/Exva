@@ -26,7 +26,18 @@ export async function runTradePipeline(
   ctx: TradingCycleContext,
   context: TradeCycleContext,
   onRetry: () => void,
-): Promise<InstrumentAnalysisResult | null> {
+): Promise<
+  | { status: "ok"; result: InstrumentAnalysisResult }
+  | { status: "paused" }
+  | {
+      status: "failed";
+      stage: import("@/lib/types").ExecutionStage;
+      result: Extract<
+        import("../trading-step-runner").TradingStepResult<unknown>,
+        { ok: false }
+      >;
+    }
+> {
   const config = ctx.getSessionConfig();
   const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
   const seedState = tradePipelineSeedFromContext(context);
@@ -65,21 +76,21 @@ export async function runTradePipeline(
 
         if (step.status === "paused") throw new AnalysisPausedError();
         if (step.status === "failed")
-          throw new AnalysisStepFailedError(stage, step.result.errorMessage);
+          throw new AnalysisStepFailedError(stage, step.result);
         return step.value;
       },
     });
-    return result as InstrumentAnalysisResult;
+    return { status: "ok", result: result as InstrumentAnalysisResult };
   } catch (error) {
     if (error instanceof AnalysisPausedError) {
       ctx.emitAbort();
-      return null;
+      return { status: "paused" };
     }
     if (error instanceof AnalysisStepFailedError) {
       if (error.stage === "risk_gate" && context.trade) {
         ctx.deps.tradesRepo.updateStatus(context.trade.id, "rejected", 0);
       }
-      return null;
+      return { status: "failed", stage: error.stage, result: error.result };
     }
     throw error;
   }

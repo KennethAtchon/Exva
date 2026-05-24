@@ -3,6 +3,7 @@ import type { TradingStepResult } from "./trading-step-runner";
 import type { TradingCycleContext } from "./trading-cycle-context";
 import type { CycleContext } from "./types";
 import { createLogger } from "../../infra/log";
+import { scheduleCycleRefillAfterDelayIfIdle } from "./scheduling/cycle-refill";
 
 const logger = createLogger("orchestrator-step");
 
@@ -143,6 +144,19 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
       options.context.cycleId,
       outcome.result,
     );
+    if (
+      options.stage === "selector" &&
+      outcome.result.outcome !== "operator_required" &&
+      outcome.result.outcome !== "bug" &&
+      outcome.result.outcome !== "session_capacity"
+    ) {
+      scheduleCycleRefillAfterDelayIfIdle(
+        ctx,
+        () => options.retryCycle(),
+        "Scheduled selector retry complete",
+        ctx.getFailureRetryMinutes() * 60 * 1000,
+      );
+    }
     if (phase && options.busEvents?.failed !== false) {
       ctx.deps.bus.emit("research_phase_failed", {
         sessionId: ctx.sessionId,
@@ -167,6 +181,7 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
   }
 
   ctx.clearAttentionRequired();
+  ctx.resetHardFailureStreak();
   if (phase && options.busEvents?.complete !== false) {
     const completePayload = options.completePayload(outcome.value);
     logger.info(

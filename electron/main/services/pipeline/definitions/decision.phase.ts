@@ -15,6 +15,7 @@ import {
   signalClassifierOutputSchema,
 } from "../../signal/aggregators/trade-signal-aggregator";
 import type { AIPhase } from "../phases/types";
+import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
 import {
   DECISION_WORKERS_ENTRY_TIMER_PROMPT,
   DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
@@ -28,6 +29,7 @@ export type DecisionPhaseInput = {
   technical: TechnicalSignal;
   fundamental: FundamentalSignal;
   review: ReviewSignal;
+  recentFailureHistory?: FailureHistoryEntry[];
 };
 
 const DECISION_STRATEGY_CONTEXT = {
@@ -92,6 +94,7 @@ export const DECISION_PHASE: AIPhase<AggregatorPlanState, TradeSignal> = {
           reviewSignal: JSON.stringify(
             signalForWorkerPrompt(ctx.input.review as ReviewSignal),
           ),
+          recentFailureHistory: ctx.input.recentFailureHistory ?? [],
         };
       },
       concurrency: 2,

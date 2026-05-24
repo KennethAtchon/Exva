@@ -6,6 +6,7 @@ import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/se
 import type { ResearchDiscoveryMode } from "@electron/shared/domain";
 import type { LLMRunResult } from "../../llm/llm-types";
 import type { AIPhase } from "../phases/types";
+import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
 import {
   SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
   SELECTOR_WORKERS_EVENT_PREDICTION_SCOUT_PROMPT,
@@ -30,6 +31,8 @@ type VerificationOutput = import("zod").infer<typeof verificationOutputSchema>;
 
 export type SelectorPhaseInput = {
   selectionInstructions?: string;
+  failureHistory?: FailureHistoryEntry[];
+  nextEligibleRetryAt?: string | null;
 };
 
 export type SelectorPlanState = {
@@ -238,6 +241,8 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
           selectionInstructions: ctx.input.selectionInstructions,
           instrumentClasses: ctx.instrumentClasses,
           discoveryMode: ctx.strategyContext.researchPosture.discoveryMode,
+          failureHistory: ctx.input.failureHistory ?? [],
+          nextEligibleRetryAt: ctx.input.nextEligibleRetryAt ?? null,
         };
       },
       concurrency: 3,
@@ -275,6 +280,11 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
             instrumentDisplayName: candidate?.instrumentDisplayName,
             rationale: candidate?.rationale,
           },
+          failureHistory:
+            ((_ctx.input.failureHistory as FailureHistoryEntry[] | undefined) ?? []).filter(
+              (entry) => entry.instrumentSymbol === candidate?.symbol,
+            ),
+          nextEligibleRetryAt: _ctx.input.nextEligibleRetryAt ?? null,
         };
       },
       concurrency: 4,

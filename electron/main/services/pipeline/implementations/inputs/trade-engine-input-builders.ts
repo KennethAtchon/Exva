@@ -4,6 +4,7 @@ import {
 } from "../../../risk/risk-engine";
 import type { InstrumentAnalysisState } from "../../analysis/types";
 import type { EngineInputBuilder } from "../../execution/input-builder-registry";
+import { createOutcomeError } from "../../../orchestration/cycle/runtime-outcome";
 
 function applyRiskGateNoTrade(
   state: InstrumentAnalysisState,
@@ -164,10 +165,7 @@ export const riskGateInputBuilder: EngineInputBuilder = {
           risk.reason ?? "Decision confidence is below wait-for-open threshold",
         );
       }
-      throw new AppError(
-        risk.reason ?? "Trade rejected by risk engine",
-        "VALIDATION_FAILED",
-      );
+      throw classifyRiskGateError(risk.reason ?? "Trade rejected by risk engine");
     }
     return { ...state, riskOrder: risk.value };
   },
@@ -201,16 +199,24 @@ export const brokerAllocationInputBuilder: EngineInputBuilder = {
     const brokerAccountId = (output as { brokerAccountId?: string })
       .brokerAccountId;
     if (!brokerAllocation?.allocation.ok) {
-      throw new AppError(
+      throw createOutcomeError(
         brokerAllocation?.allocation.reason ??
           "Broker allocation rejected order",
         "VALIDATION_FAILED",
+        {
+          outcome: "session_capacity",
+          reasonCategory: "session_capacity",
+        },
       );
     }
     if (!brokerAllocation.conflict.ok) {
-      throw new AppError(
+      throw createOutcomeError(
         brokerAllocation.conflict.reason ?? "Instrument conflict blocked order",
         "VALIDATION_FAILED",
+        {
+          outcome: "no_trade",
+          reasonCategory: "broker_allocation",
+        },
       );
     }
     return {
@@ -227,3 +233,28 @@ export const TRADE_ENGINE_INPUT_BUILDERS = [
   riskGateInputBuilder,
   brokerAllocationInputBuilder,
 ] as const;
+
+function classifyRiskGateError(reason: string) {
+  if (reason === "Maximum concurrent trades reached") {
+    return createOutcomeError(reason, "VALIDATION_FAILED", {
+      outcome: "session_capacity",
+      reasonCategory: "session_capacity",
+    });
+  }
+  if (reason === "Daily API budget reached") {
+    return createOutcomeError(reason, "SPEND_CAP_EXCEEDED", {
+      outcome: "operator_required",
+      reasonCategory: "session_spend_limit",
+    });
+  }
+  if (reason === "Daily loss limit reached" || reason === "Profit target reached") {
+    return createOutcomeError(reason, "SPEND_CAP_EXCEEDED", {
+      outcome: "operator_required",
+      reasonCategory: "session_pnl_limit",
+    });
+  }
+  return createOutcomeError(reason, "VALIDATION_FAILED", {
+    outcome: "no_trade",
+    reasonCategory: "risk_gate",
+  });
+}

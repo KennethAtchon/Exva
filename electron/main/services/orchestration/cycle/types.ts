@@ -8,6 +8,7 @@ import type {
   TradeSignal,
 } from "@electron/shared/ai/trade-signals";
 import type { ToolLLMToolStepTrace } from "../policy/candidate-validation-service";
+import type { FailureHistoryEntry } from "./runtime-outcome";
 
 export type ResolvedInstrument = {
   symbol: string;
@@ -17,6 +18,7 @@ export type ResolvedInstrument = {
   instrumentMetadataJson?: string | null;
   selectorEvidence?: SelectorEvidence | null;
   selectorTraces?: ToolLLMToolStepTrace[];
+  recentFailureHistory?: FailureHistoryEntry[];
 };
 
 export type AiTechnicalRun = LLMRunResult<TechnicalSignal>;

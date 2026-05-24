@@ -40,6 +40,7 @@ export const DEFAULT_TRADE_CYCLE_STAGES: readonly DeclarativeCycleStageConfig[] 
       buildInput: (ctx) => ({
         instrumentSymbol: ctx.instrument.symbol,
         selectorEvidence: ctx.instrument.selectorEvidence ?? null,
+        recentFailureHistory: ctx.instrument.recentFailureHistory ?? [],
       }),
       applyOutput: (state, result) => ({
         ...state,
@@ -55,6 +56,7 @@ export const DEFAULT_TRADE_CYCLE_STAGES: readonly DeclarativeCycleStageConfig[] 
       buildInput: (ctx) => ({
         instrumentSymbol: ctx.instrument.symbol,
         selectorEvidence: ctx.instrument.selectorEvidence ?? null,
+        recentFailureHistory: ctx.instrument.recentFailureHistory ?? [],
       }),
       applyOutput: (state, result) => ({
         ...state,
@@ -71,6 +73,7 @@ export const DEFAULT_TRADE_CYCLE_STAGES: readonly DeclarativeCycleStageConfig[] 
         instrumentSymbol: ctx.instrument.symbol,
         technical: state.technical!.output,
         fundamental: state.fundamental!.output,
+        recentFailureHistory: ctx.instrument.recentFailureHistory ?? [],
       }),
       applyOutput: (state, result) => ({
         ...state,
@@ -88,6 +91,7 @@ export const DEFAULT_TRADE_CYCLE_STAGES: readonly DeclarativeCycleStageConfig[] 
         technical: state.technical!.output,
         fundamental: state.fundamental!.output,
         review: state.review!.output,
+        recentFailureHistory: ctx.instrument.recentFailureHistory ?? [],
       }),
       applyOutput: (state, result) => ({
         ...state,
