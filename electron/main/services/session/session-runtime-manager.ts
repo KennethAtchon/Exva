@@ -85,6 +85,9 @@ export class SessionRuntimeManager {
     const runtime = this.requireRuntime(sessionId);
     this.deps.bus.setRuntimeStatus(sessionId, "paused");
     this.deps.sessionRepo.setStatus("paused", sessionId);
+    // Emit immediately so the renderer and other consumers see the change
+    // without waiting for the next polling cycle.
+    this.deps.bus.emit("session_status_changed", { sessionId, status: "paused" });
     await runtime.pause();
     this.deps.logger.info({ sessionId }, "runtime paused");
   }
@@ -96,6 +99,7 @@ export class SessionRuntimeManager {
       this.runtimes.get(sessionId) ?? (await this.startSession(sessionId));
     this.deps.bus.setRuntimeStatus(sessionId, "active");
     this.deps.sessionRepo.setStatus("active", sessionId);
+    this.deps.bus.emit("session_status_changed", { sessionId, status: "active" });
     await runtime.resume();
     if (priorStatus === "attention_required") {
       // A failed selector cycle does not auto-reschedule, so an idempotent
@@ -116,8 +120,10 @@ export class SessionRuntimeManager {
     try {
       await runtime.stop();
       this.deps.sessionRepo.setStatus("stopped", sessionId);
+      this.deps.bus.emit("session_status_changed", { sessionId, status: "stopped" });
     } catch (error) {
       this.deps.sessionRepo.setStatus("attention_required", sessionId);
+      this.deps.bus.emit("session_status_changed", { sessionId, status: "attention_required" });
       throw error;
     } finally {
       this.runtimes.delete(sessionId);

@@ -67,10 +67,58 @@ describe("mock trade rehearsal integration", () => {
     expect(trades[0]?.instrumentSymbol).toBe("NVDA");
     expect(trades[0]?.opened_at).not.toBeNull();
   });
+
+  it("mock broker clean_breakout: confidence gate does not ERROR when confidence is below threshold", async () => {
+    const sessionId = "session-confidence-gate";
+    const harness = createHarness(sessionId, { waitForOpenThreshold: 0.8 });
+    const ctx = new TradingCycleContext(
+      sessionId,
+      harness.deps as unknown as import("../../session/session-types").OrchestratorDeps,
+    );
+    const cycleId = crypto.randomUUID();
+    const quote = await harness.mockAdapter.getMarketSnapshot("NVDA");
+
+    vi.spyOn(runTradePipelineModule, "runTradePipeline").mockResolvedValue({
+      status: "ok",
+      result: makeMockBuyPipeline(quote.price, {
+        action: "skip",
+        confidence: 0.65,
+        reasoning:
+          "Confidence 0.65 is below wait-for-open threshold 0.8. Moderate setup Timing: now.",
+      }),
+    });
+
+    await executeTradeCycle(ctx, {
+      kind: "trade",
+      cycleId,
+      instrument: {
+        symbol: "NVDA",
+        instrumentClass: "stock",
+      },
+    });
+
+    const trades = harness.listTrades();
+    expect(trades).toHaveLength(1);
+    expect(trades[0]?.status).toBe("rejected");
+    expect(trades[0]?.opened_at).toBeNull();
+
+    const failures = ctx.getFailureHistory();
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.outcome).toBe("no_trade");
+    expect(failures[0]?.level).toBe("WARN");
+    expect(failures[0]?.reasonCategory).toBe("risk_gate");
+
+    const errorEvents = harness.listEvents().filter((event) => event.level === "ERROR");
+    expect(errorEvents).toHaveLength(0);
+  });
 });
 
-function createHarness(sessionId: string) {
+function createHarness(
+  sessionId: string,
+  options?: { waitForOpenThreshold?: number },
+) {
   const trades = new Map<string, Trade>();
+  const events: Array<{ level: string; message: string }> = [];
   const eventBus = new EventBus();
   eventBus.setRuntimeStatus(sessionId, "active");
   const mockAdapter = MockMarketSimulator.createAdapter("clean_breakout");
@@ -111,7 +159,7 @@ function createHarness(sessionId: string) {
           takeProfitPct: 10,
           kellyFraction: 0.6,
           maxExposureUsd: null,
-          waitForOpenThreshold: 0,
+          waitForOpenThreshold: options?.waitForOpenThreshold ?? 0.8,
           humanApprovalRequired: false,
         },
         timeframe: {
@@ -170,7 +218,12 @@ function createHarness(sessionId: string) {
     tradeApprovalsRepo: {} as never,
     agentRunsRepo: { insert: vi.fn() },
     agentMessagesRepo: { insert: vi.fn() },
-    eventsRepo: { insert: vi.fn((event) => event) },
+    eventsRepo: {
+      insert: vi.fn((event) => {
+        events.push({ level: event.level, message: event.message });
+        return event;
+      }),
+    },
     statsRepo: {
       dashboardStats: () => ({
         daily_api_spend: 0,
@@ -234,10 +287,14 @@ function createHarness(sessionId: string) {
     deps,
     mockAdapter,
     listTrades: () => [...trades.values()],
+    listEvents: () => [...events],
   };
 }
 
-function makeMockBuyPipeline(entryPrice: number): InstrumentAnalysisResult {
+function makeMockBuyPipeline(
+  entryPrice: number,
+  decisionOverrides?: Partial<TradeSignal>,
+): InstrumentAnalysisResult {
   const technical: TechnicalSignal = {
     symbol: "NVDA",
     trendDirection: "bullish",
@@ -280,6 +337,7 @@ function makeMockBuyPipeline(entryPrice: number): InstrumentAnalysisResult {
     entryPrice,
     confidence: 0.82,
     reasoning: "trend, catalyst, and review all align",
+    ...decisionOverrides,
   };
 
   return {

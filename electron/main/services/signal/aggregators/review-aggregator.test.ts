@@ -115,4 +115,76 @@ describe("review aggregator", () => {
     );
     expect(signal.recommendation).toBe("reduce_size");
   });
+
+  it("caps reduce_size to proceed for clean_breakout mock when momentum fallback artifact is present", () => {
+    const signal = aggregateReviewSignal(
+      "ETH",
+      {
+        conflictDetector: {
+          technicalFundamentalConflict: 0.5,
+          conflictExplanation: "Neutral momentum vs bullish pattern",
+          rawSummary: "Mixed technical stack",
+        },
+        riskAssessor: {
+          tailRisks: [],
+          overallRisk: "low",
+          rawSummary: "Low risk",
+        },
+      },
+      {
+        mockOverride: "clean_breakout",
+        momentumFallbackArtifact: true,
+      },
+    );
+
+    expect(signal.recommendation).toBe("proceed");
+  });
+
+  it("does not override reduce_size without momentum fallback artifact", () => {
+    const signal = aggregateReviewSignal(
+      "ETH",
+      {
+        conflictDetector: {
+          technicalFundamentalConflict: 0.5,
+          conflictExplanation: "Neutral momentum vs bullish pattern",
+          rawSummary: "Mixed technical stack",
+        },
+        riskAssessor: {
+          tailRisks: [],
+          overallRisk: "low",
+          rawSummary: "Low risk",
+        },
+      },
+      {
+        mockOverride: "clean_breakout",
+        momentumFallbackArtifact: false,
+      },
+    );
+
+    expect(signal.recommendation).toBe("reduce_size");
+  });
+
+  it("does not override skip for clean_breakout mock even with momentum fallback artifact", () => {
+    const signal = aggregateReviewSignal(
+      "ETH",
+      {
+        conflictDetector: {
+          technicalFundamentalConflict: 0.8,
+          conflictExplanation: "Strong conflict",
+          rawSummary: "Conflict",
+        },
+        riskAssessor: {
+          tailRisks: ["gap risk"],
+          overallRisk: "high",
+          rawSummary: "High risk",
+        },
+      },
+      {
+        mockOverride: "clean_breakout",
+        momentumFallbackArtifact: true,
+      },
+    );
+
+    expect(signal.recommendation).toBe("skip");
+  });
 });

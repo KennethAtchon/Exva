@@ -41,6 +41,7 @@ export default function App() {
     null,
   );
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [sessionActionPending, setSessionActionPending] = useState(false);
   const [liveReadinessSession, setLiveReadinessSession] =
     useState<SessionSummary | null>(null);
   const [liveReadinessReport, setLiveReadinessReport] =
@@ -135,6 +136,8 @@ export default function App() {
   const handleSession = async (
     action: "start" | "pause" | "resume" | "stop",
   ) => {
+    if (sessionActionPending) return;
+    setSessionActionPending(true);
     setLoadError(null);
     try {
       if (action === "start" || action === "resume") {
@@ -163,6 +166,8 @@ export default function App() {
       setLoadError(
         error instanceof Error ? error.message : "Session action failed.",
       );
+    } finally {
+      setSessionActionPending(false);
     }
   };
 
@@ -238,6 +243,7 @@ export default function App() {
         }}
         sessionStatus={status}
         onSessionAction={handleSession}
+        sessionActionPending={sessionActionPending}
         stats={stats}
       />
       {loadError && (

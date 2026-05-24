@@ -20,6 +20,7 @@ import {
 import type { AIPhaseConfigResolver } from "../ai-phase-config-resolver";
 import { buildWorkerPrompt } from "../prompting/worker-prompt-builder";
 import type { SessionStrategyContext } from "@electron/shared/domain";
+import { MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER } from "@electron/shared/domain/mock-scenario";
 import { createLogger } from "../../infra/log";
 import type { AISpendTracker } from "./ai-spend-tracker";
 import { assertSessionDataSpendAvailable } from "../../tools/data-spend-guard";
@@ -342,6 +343,29 @@ export async function runAIWorker<TOutput>(
         },
         "worker terminal output substituted empty dimension after validation failure",
       );
+
+      if (
+        deps.toolContext.isMockSession &&
+        deps.toolContext.mockScenarioKind === "clean_breakout" &&
+        worker.id === "momentum-indicator"
+      ) {
+        output = {
+          ...resolution.output,
+          trendDirection: "bullish",
+          trendStrength: 0.85,
+          momentumScore: 0.8,
+          rawSummary: MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER,
+        } as TOutput;
+        logger.warn(
+          {
+            ...logCtx(),
+            worker: worker.id,
+            scenario: deps.toolContext.mockScenarioKind,
+          },
+          "mock clean_breakout: substituted bullish momentum fallback after parse failure",
+        );
+        parseFallback = true;
+      }
     }
   } else {
     output = { text: trace.assistantText } as TOutput;

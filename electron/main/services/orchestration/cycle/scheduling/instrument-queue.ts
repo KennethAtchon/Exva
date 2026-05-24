@@ -99,6 +99,20 @@ function enqueueTradeCycles(
     );
     return;
   }
+
+  // If the runtime was paused while the selector cycle was in-flight, discard
+  // the results rather than queuing them behind a paused queue. A fresh
+  // selector cycle will run when the session is resumed.
+  if (!ctx.runtimeIsActive()) {
+    ctx.deps.logger.info(
+      {
+        sessionId: ctx.sessionId,
+        instrumentCount: instruments.length,
+      },
+      "orchestrator trade cycle enqueue skipped: runtime paused",
+    );
+    return;
+  }
   ctx.deps.logger.info(
     {
       sessionId: ctx.sessionId,

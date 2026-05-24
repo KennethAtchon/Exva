@@ -49,6 +49,7 @@ interface Props {
   onNavigateToAttentionSessions?: () => void;
   sessionStatus: SessionStatus;
   onSessionAction: (a: "start" | "pause" | "resume" | "stop") => void;
+  sessionActionPending?: boolean;
   stats: DashboardStats | null;
 }
 
@@ -58,6 +59,7 @@ export const TopNav = ({
   onNavigateToAttentionSessions,
   sessionStatus,
   onSessionAction,
+  sessionActionPending = false,
   stats,
 }: Props) => {
   const viewMode = useWorkspaceStore((state) => state.viewMode);
@@ -84,7 +86,9 @@ export const TopNav = ({
       })
       .catch(() => {
         setAttentionCount(0);
-        setFocusedSession(null);
+        // Don't clear focusedSession on transient IPC error — preserving the
+        // last known value prevents sessionControlsDisabled from locking all
+        // buttons until the next successful poll.
       });
   }, [focusedSessionId]);
 
@@ -111,7 +115,7 @@ export const TopNav = ({
       environmentMode,
     );
   const sessionControlsDisabled =
-    !focusedInCurrentEnvironment || viewMode === "global";
+    !focusedInCurrentEnvironment || viewMode === "global" || sessionActionPending;
 
   const ss = SESSION_STATUS[sessionStatus];
   const isRunning = sessionStatus === "active" || sessionStatus === "paused";
@@ -294,9 +298,10 @@ export const TopNav = ({
           <Button
             variant="ghost"
             style={s.btnPause}
+            disabled={sessionActionPending}
             onClick={() => onSessionAction("pause")}
           >
-            ⏸ Pause
+            {sessionActionPending ? "⏸ Pausing…" : "⏸ Pause"}
           </Button>
         )}
         {isRunning && !sessionControlsDisabled && (

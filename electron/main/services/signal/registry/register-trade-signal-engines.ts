@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import { registerSignalEngine } from "./signal-engine-registry";
 import { aggregateTechnicalSignal } from "../aggregators/technical-aggregator";
 import { aggregateFundamentalSignal } from "../aggregators/fundamental-aggregator";
@@ -60,8 +61,16 @@ export function registerTradeSignalEngines(): void {
     kind: "transformer",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input: { symbol: string; workers: unknown }) =>
-      aggregateReviewSignal(input.symbol, input.workers as never),
+    run: (input: {
+      symbol: string;
+      workers: unknown;
+      mockOverride?: MockScenarioKind;
+      momentumFallbackArtifact?: boolean;
+    }) =>
+      aggregateReviewSignal(input.symbol, input.workers as never, {
+        mockOverride: input.mockOverride,
+        momentumFallbackArtifact: input.momentumFallbackArtifact,
+      }),
   });
 
   registerSignalEngine({

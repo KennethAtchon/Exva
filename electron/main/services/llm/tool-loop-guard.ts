@@ -30,11 +30,14 @@ export function canonicalizeToolInput(
     return extractDomain(url) ?? url;
   }
 
-  if (
-    toolName === "get_quote" ||
-    toolName === "get_news" ||
-    toolName === "get_ohlcv"
-  ) {
+  if (toolName === "get_ohlcv") {
+    const symbol = normalizeSymbol(readStringField(input, "symbol"));
+    const timeframe = readStringField(input, "timeframe") ?? "";
+    const instrumentClass = readStringField(input, "instrumentClass") ?? "";
+    return `${symbol ?? "?"}:${instrumentClass}:${timeframe}`;
+  }
+
+  if (toolName === "get_quote" || toolName === "get_news") {
     return (
       normalizeSymbol(readStringField(input, "symbol")) ?? JSON.stringify(input)
     );

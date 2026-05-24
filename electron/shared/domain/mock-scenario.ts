@@ -16,6 +16,10 @@ export type MockScenarioKind = (typeof MOCK_SCENARIO_KINDS)[number];
 export const DEFAULT_MOCK_SCENARIO_KIND: MockScenarioKind = "clean_breakout";
 export const DEFAULT_MOCK_ACCOUNT_BALANCE_USD = 100000;
 
+/** Set in momentum-indicator parse fallback (mock clean_breakout only). */
+export const MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER =
+  "[mock clean_breakout fallback: bullish substituted after parse failure]";
+
 export function isMockScenarioKind(value: string): value is MockScenarioKind {
   return (MOCK_SCENARIO_KINDS as readonly string[]).includes(value);
 }

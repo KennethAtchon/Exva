@@ -19,6 +19,11 @@ const tradeSignalAggregatorEngine: FinalizerEngine<
     const mockRelaxedEntryTiming =
       ctx.toolContext.isMockSession === true &&
       ctx.toolContext.mockScenarioKind === "clean_breakout";
+
+    const effectiveWaitForOpenThreshold = mockRelaxedEntryTiming
+      ? Math.min(0.6, ctx.strategyContext.riskConfig.waitForOpenThreshold)
+      : ctx.strategyContext.riskConfig.waitForOpenThreshold;
+
     return runEngineForWorker<TradeSignal>({
       phase: "decision",
       sessionId: ctx.sessionId,
@@ -32,7 +37,7 @@ const tradeSignalAggregatorEngine: FinalizerEngine<
         classifier: pickWorkerOutput(workerResults, signalClassifierOutputSchema),
         timer: pickWorkerOutput(workerResults, entryTimerOutputSchema),
         mockRelaxedEntryTiming,
-        waitForOpenThreshold: ctx.strategyContext.riskConfig.waitForOpenThreshold,
+        waitForOpenThreshold: effectiveWaitForOpenThreshold,
       },
     });
   },
