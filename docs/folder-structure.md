@@ -1,7 +1,7 @@
 # Project Folder Structure
 
 > **Purpose:** Annotated map of the current Exva codebase: what each folder owns, what should not live there, and where to start when changing a subsystem.
-> **Last updated:** 2026-05-23
+> **Last updated:** 2026-05-24
 
 ---
 
@@ -14,12 +14,21 @@ Exva/
 ├── docs/                     # Architecture docs, specs, plans, reviews, engineering guides
 ├── e2e/                      # Playwright smoke/end-to-end tests
 ├── scripts/                  # Local dev scripts such as DB reset
+├── .github/workflows/        # CI workflow definitions
+├── README.md                 # Project overview and dev setup
+├── index.html                # Renderer HTML shell for Vite
 ├── drizzle.config.ts         # Drizzle migration config
 ├── forge.config.ts           # Electron Forge package/make config
-├── vite.*.config.ts          # Vite configs for main, preload, renderer, and shared build paths
+├── vite.config.ts            # Base Vite config
+├── vite.main.config.ts       # Vite config for main process
+├── vite.preload.config.ts    # Vite config for preload script
+├── vite.renderer.config.ts   # Vite config for renderer
 ├── vitest.config.ts          # Unit/integration test config
 ├── playwright.config.ts      # E2E test config
+├── tsconfig.json             # Renderer/shared TypeScript config
+├── tsconfig.node.json        # Node/main-process TypeScript config
 ├── eslint.config.js          # ESLint flat config
+├── postcss.config.js         # PostCSS config for Tailwind
 ├── components.json           # shadcn/ui registry config
 ├── tailwind.config.js        # Tailwind renderer config
 ├── bunfig.toml               # Bun runtime config
@@ -38,7 +47,9 @@ Exva/
 electron/
 ├── main/                     # Privileged Node/Electron process
 ├── preload/                  # Sandboxed bridge exposed to renderer as window.exva
-└── shared/                   # Main/renderer shared types, constants, schemas, IPC names
+├── shared/                   # Main/renderer shared types, constants, schemas, IPC names
+├── types/                    # Ambient TypeScript declarations and global augmentations
+└── prompts/                  # Empty legacy directory; worker prompt text lives in pipeline/worker-prompts.ts
 ```
 
 Boundaries:
@@ -48,6 +59,27 @@ Boundaries:
 | `electron/main/` | DB, repositories, services, IPC handlers, broker/search/AI adapters, runtime lifecycle | React components or direct renderer state |
 | `electron/preload/` | Typed `contextBridge` API and event subscription wrappers | Business logic, secrets, DB access |
 | `electron/shared/` | Cross-process contracts and pure shared constants/types | Main-process services, filesystem access, Electron APIs |
+| `electron/types/` | Global/window type shims and third-party module augmentations | Runtime logic or imports with side effects |
+
+---
+
+## `electron/preload/` - Renderer Bridge
+
+```
+electron/preload/
+├── exva-api.ts               # Typed contextBridge API surface exposed as window.exva
+└── index.ts                  # Preload entry point
+```
+
+---
+
+## `electron/types/` - Ambient Declarations
+
+```
+electron/types/
+├── global.d.ts               # Window/global augmentations
+└── ai-sdk-openai.d.ts        # AI SDK type shims
+```
 
 ---
 
@@ -62,6 +94,7 @@ electron/shared/
 ├── ipc/                      # IPC channel names, endpoint constants, DTOs
 ├── presets/                  # Built-in preset JSON and preset index exports
 ├── validation/               # Shared Zod schemas
+├── __tests__/                # Shared contract tests
 └── domain.ts                 # Domain barrel export
 ```
 
@@ -85,6 +118,15 @@ The main process is the source of truth for privileged state and side effects. R
 
 ---
 
+## `electron/main/config/` - Environment Config
+
+```
+electron/main/config/
+└── env.ts                    # Main-process environment variable loading and validation
+```
+
+---
+
 ## `electron/main/db/` - Database Layer
 
 ```
@@ -93,6 +135,7 @@ electron/main/db/
 ├── client.ts                 # better-sqlite3 client creation, WAL, migrations
 ├── migrations.ts             # Migration runner / migration list
 ├── migrations-folder.ts      # Migration folder resolution
+├── migrations.test.ts        # Migration runner tests
 ├── seed.ts                   # Seed data for new DBs
 ├── test-helpers.ts           # DB test helper utilities
 ├── drizzle/                  # Generated SQL migration files and metadata
@@ -118,6 +161,7 @@ electron/main/ipc/
 ├── register.ts               # Registers every handler at app startup
 ├── handle.ts                 # Typed ipcMain.handle wrapper
 ├── environment-guards.ts     # Blocks handlers in incompatible environment modes
+├── __tests__/                # IPC helper/handler tests
 ├── session/
 │   ├── session.ts            # Session lifecycle, list/detail/progress controls
 │   ├── templates.ts          # Session template APIs
@@ -164,6 +208,8 @@ electron/main/services/
 
 This is the busiest part of the codebase. Folder boundaries matter because the app has many concepts named similarly. In current naming: `llm/` talks to model providers, `pipeline/` decides what AI work runs, `signal/` processes outputs deterministically, and `orchestration/` decides when live trading work happens.
 
+Subsections below use the shorthand `services/...`; the full path is always `electron/main/services/...`.
+
 ---
 
 ## `services/llm/` - LLM Boundary
@@ -203,21 +249,36 @@ services/pipeline/
 ├── worker-prompts.ts                 # Compiled prompt constants used by worker definitions
 ├── ai-phase-config-resolver.ts       # Session/phase/worker config resolver
 ├── effective-ai-phase-config.ts      # Effective pipeline config validation/resolution
-├── pipeline-discovery-config.ts      # Discovery-mode worker selection
 ├── core/
 │   ├── README.md
 │   ├── pipeline-runtime.ts           # PipelineRuntime entry point
 │   ├── pipeline-registry.ts          # Static definition catalog validation
 │   ├── concurrent-group-runner.ts    # Concurrency-limited worker groups
 │   ├── worker-graph-scheduler.ts     # Dependency graph batching helper
+│   ├── worker-graph-scheduler.test.ts
 │   └── types.ts
 ├── definitions/
 │   ├── README.md
-│   ├── selector.phase.ts             # Static metadata for selector
+│   ├── index.ts                      # Boot: registerAllPhases
+│   ├── phase-catalog.ts              # Phase catalog metadata
+│   ├── all-phases.ts
+│   ├── aggregator.types.ts
+│   ├── selector.phase.ts             # Selector AIPhase definition, helpers, schemas
+│   ├── selector.helpers.ts
+│   ├── selector.schemas.ts
 │   ├── technical.phase.ts
 │   ├── fundamental.phase.ts
 │   ├── review.phase.ts
 │   └── decision.phase.ts
+├── engines/
+│   ├── README.md
+│   ├── index.ts                      # Side-effect registration of shared selector engines
+│   ├── registry.ts                   # registerEngine/resolveEngine/clearEngineRegistry
+│   ├── worker-output.ts              # Worker output contracts for engine finalizers
+│   ├── input/                        # Selector input engines (scope, broker coverage, PM candidates)
+│   ├── entry-mode/                   # Entry-mode short-circuits (manual shortlist)
+│   ├── cache/                        # Selector instrument cache policy
+│   └── finalizer/                    # Phase finalizers delegating to signal/ aggregators/scoring
 ├── phases/
 │   ├── README.md
 │   ├── types.ts                      # AIPhase contracts
@@ -238,8 +299,11 @@ services/pipeline/
 │   ├── trace-assembler.ts            # Worker/aggregate trace assembly
 │   ├── engine-prompt-injector.ts     # Read-mode engine result injection
 │   ├── input-builder-registry.ts     # Deterministic engine input builders
+│   ├── stage-dispatch.ts             # Analysis-step dispatch adapter
+│   ├── tool-use-harness.ts           # Required tool-use enforcement harness
 │   ├── worker-structured-output.ts   # Terminal tool output parsing/validation
-│   └── worker-tool-requirements.ts   # Required tool-use enforcement
+│   ├── worker-tool-requirements.ts   # Required tool-use policy helpers
+│   └── __tests__/
 ├── prompting/
 │   ├── README.md
 │   ├── worker-prompt-builder.ts      # System/user LLM message assembly
@@ -253,14 +317,13 @@ services/pipeline/
 │   └── resolve-search-provider.ts
 └── implementations/
     ├── README.md
-    ├── selector/                     # Selector AIPhase implementation and schemas
-    ├── trade/                        # Default trade InstrumentAnalysis and phase plans
-    ├── inputs/                       # Selector/engine input builders
-    ├── cache/                        # Selector cache policy
-    └── registry/                     # Registers phases, analyses, builders, cache policy, dispatcher
+    ├── trade/                        # Default trade InstrumentAnalysis and analysis steps
+    ├── inputs/                       # Trade signal-engine input builders
+    ├── registry/                     # Instrument analysis registration and resolver wiring
+    └── __tests__/
 ```
 
-There is no runtime `prompts/` folder anymore. Worker prompt text is compiled into TypeScript through `worker-prompts.ts` and assigned directly to `WorkerDefinition.prompt`.
+Worker prompt text is compiled into TypeScript through `worker-prompts.ts` and assigned directly to `WorkerDefinition.prompt`. Phase definitions live in `definitions/`; phase-level engines (input, entry-mode, cache, finalizer) live in `engines/` and delegate deterministic finalizer work to `services/signal/`.
 
 ---
 
@@ -330,7 +393,9 @@ services/tools/
 ├── market-tools.ts           # get_quote, get_ohlcv, get_news
 ├── search-tool.ts            # search_web
 ├── search-reddit-tool.ts     # search_reddit
-└── trending-symbols-tool.ts  # get_trending_symbols
+├── trending-symbols-tool.ts  # get_trending_symbols
+├── data-spend-guard.ts       # Tool-call spend guardrails for data-fetching tools
+└── __tests__/
 ```
 
 These are the callable tool implementations. They should stay provider/broker-aware but not decide which worker gets which tool; that belongs to `pipeline/worker-tools` and worker definitions.
@@ -378,6 +443,7 @@ services/broker/
 services/orchestration/
 ├── README.md
 ├── index.ts
+├── __tests__/                # Cross-cycle integration tests (e.g. mock trade rehearsal)
 ├── cycle/
 │   ├── README.md
 │   ├── agent-orchestrator.ts
@@ -413,7 +479,9 @@ services/orchestration/
 └── policy/
     ├── README.md
     ├── candidate-validation-service.ts
-    └── order-policy-gate.ts
+    ├── order-policy-gate.ts
+    ├── outcome-classifier.ts     # Classifies policy/order outcomes for downstream handling
+    └── __tests__/
 ```
 
 Use this split when navigating runtime bugs: `cycle/` is live intake per selector/trade cycle, `lifecycle/` is session/open-position lifecycle, and `policy/` is deterministic pre-order gating.
@@ -500,6 +568,7 @@ Owns post-trade analysis and paper-scorecard summaries, not live order placement
 services/replay/
 ├── README.md
 ├── cycle-replay-service.ts
+├── __fixtures__/             # Saved cycle replay JSON fixtures
 └── __tests__/
 ```
 
@@ -514,7 +583,7 @@ services/instrument/
 └── instrument-cache-service.ts
 ```
 
-Owns instrument metadata/cache lookup. Selector result caching lives separately in `services/pipeline/implementations/cache/` and the market repository.
+Owns instrument metadata/cache lookup. Selector result caching lives separately in `services/pipeline/engines/cache/` and the market repository.
 
 ---
 
@@ -522,6 +591,8 @@ Owns instrument metadata/cache lookup. Selector result caching lives separately 
 
 ```
 src/
+├── App.tsx                   # Root React component and route shell
+├── main.tsx                  # Renderer entry point
 ├── pages/                    # Route-level pages: Dashboard, Sessions, Trades, Strategy, DevPanel, etc.
 ├── components/
 │   ├── accounts/             # Provider account UI
@@ -544,12 +615,16 @@ Renderer code should call `window.exva` wrappers and stores. It should not impor
 
 ```
 docs/
+├── folder-structure.md       # This map
+├── TODO.md                   # Engineering todo scratchpad
+├── USAGE.md                  # Documentation usage guide
 ├── architecture/             # Architecture docs and architecture template
 ├── design/                   # Product/design specs and templates
 ├── engineering/              # Coding, debugging, and logging guides
-├── plans/                    # Active implementation plans
-│   ├── archieve/             # Historical plans kept for reference (name is currently spelled this way)
-│   └── phase-specs/          # Detailed phase/spec implementation notes
+├── plans/                    # Implementation plans
+│   ├── index.md              # Plans index
+│   └── archieve/             # Historical plans kept for reference (name is currently spelled this way)
+│       └── phase-specs/      # Detailed phase/spec implementation notes
 ├── reviews/                  # Review artifacts and audits
 └── specs/                    # Feature specs
 ```
@@ -573,6 +648,7 @@ e2e/
 |---------|----------------|
 | Electron startup/window security | `electron/main/index.ts`, `electron/main/window.ts` |
 | IPC surface | `electron/main/ipc/`, `electron/shared/ipc/`, `electron/preload/` |
+| Ambient/global TypeScript declarations | `electron/types/` |
 | DB schema and repositories | `electron/main/db/` |
 | App composition root | `electron/main/services/app-services.ts` |
 | Session lifecycle and runtime ownership | `electron/main/services/session/` |
@@ -581,6 +657,7 @@ e2e/
 | Pre-order policy gates | `electron/main/services/orchestration/policy/`, `electron/main/services/risk/` |
 | AI provider calls and normalized traces | `electron/main/services/llm/` |
 | AI analysis sequencing, prompts, workers, tools | `electron/main/services/pipeline/` |
+| Phase-level engine registry (input, cache, finalizers) | `electron/main/services/pipeline/engines/` |
 | Deterministic output processing | `electron/main/services/signal/` |
 | LLM-callable tool implementations | `electron/main/services/tools/` |
 | Search provider adapters | `electron/main/services/search/` |
