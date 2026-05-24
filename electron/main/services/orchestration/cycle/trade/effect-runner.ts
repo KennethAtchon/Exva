@@ -6,6 +6,7 @@ import { runEngineForWorker } from "../../../pipeline/execution/engine-prompt-in
 import type { InstrumentAnalysisResult } from "../../../pipeline/analysis/types";
 import type { TradingCycleContext } from "../trading-cycle-context";
 import type { TradeCycleContext } from "../types";
+import { createOrderPolicyError } from "../../policy/outcome-classifier";
 import { createOutcomeError } from "../runtime-outcome";
 import { waitForApproval } from "./approval-flow";
 import { buildOrderPolicyTask } from "./order-policy-task";
@@ -234,6 +235,7 @@ export function finalizeOpenedTrade(
     nextRetryAt: null,
     lastErrorCode: null,
     lastErrorMessage: null,
+    outcome: null,
     retryable: false,
   });
   ctx.emitEvent(
@@ -243,34 +245,4 @@ export function finalizeOpenedTrade(
     "orchestrator",
     context.cycleId,
   );
-}
-
-function createOrderPolicyError(message: string, gatesFailed: string[]): AppError {
-  if (
-    gatesFailed.includes("capital") ||
-    gatesFailed.includes("strategy") ||
-    gatesFailed.includes("data_freshness") ||
-    gatesFailed.includes("price_collar") ||
-    gatesFailed.includes("spread") ||
-    gatesFailed.includes("exit_contract") ||
-    gatesFailed.includes("broker") ||
-    gatesFailed.includes("idempotency")
-  ) {
-    return createOutcomeError(message, "VALIDATION_FAILED", {
-      outcome: "no_trade",
-      reasonCategory: "risk_gate",
-    });
-  }
-
-  if (gatesFailed.includes("runtime")) {
-    return createOutcomeError(message, "LOCKED", {
-      outcome: "operator_required",
-      reasonCategory: "unexpected_bug",
-    });
-  }
-
-  return createOutcomeError(message, "VALIDATION_FAILED", {
-    outcome: "no_trade",
-    reasonCategory: "broker_reject",
-  });
 }

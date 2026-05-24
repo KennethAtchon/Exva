@@ -22,6 +22,8 @@ import { buildWorkerPrompt } from "../prompting/worker-prompt-builder";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { createLogger } from "../../infra/log";
 import type { AISpendTracker } from "./ai-spend-tracker";
+import { assertSessionDataSpendAvailable } from "../../tools/data-spend-guard";
+import { createOutcomeError } from "../../orchestration/cycle/runtime-outcome";
 import { injectEngineResults } from "./engine-prompt-injector";
 import { enforceWorkerToolRequirements, extractToolNamesUsed, summarizeWorkerToolCoverage } from "./worker-tool-requirements";
 
@@ -99,6 +101,14 @@ export async function runAIWorker<TOutput>(
   const { phase, worker, sessionId, cycleId, tradeId, task, spendTracker } =
     opts;
 
+  assertSessionDataSpendAvailable({
+    sessionId: deps.toolContext.sessionId,
+    apiCallLogRepo: deps.toolContext.apiCallLogRepo,
+    maxDataSpendUsd:
+      deps.toolContext.maxDataSpendUsd ??
+      deps.toolContext.strategyContext.riskConfig.maxDataSpendUsd,
+  });
+
   if (spendTracker && !spendTracker.canContinue()) {
     const abortMessage = spendTracker.abortLogMessage();
     if (abortMessage)
@@ -110,9 +120,13 @@ export async function runAIWorker<TOutput>(
         },
         abortMessage,
       );
-    throw new AppError(
+    throw createOutcomeError(
       abortMessage ?? "Pipeline spend cap exceeded; worker aborted.",
       "SPEND_CAP_EXCEEDED",
+      {
+        outcome: "operator_required",
+        reasonCategory: "session_spend_limit",
+      },
     );
   }
 

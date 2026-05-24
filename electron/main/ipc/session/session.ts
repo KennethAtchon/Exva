@@ -58,6 +58,7 @@ export function registerSessionHandlers(services: AppServices): void {
         nextRetryAt: step.nextRetryAt,
         lastErrorCode: step.lastErrorCode,
         lastErrorMessage: step.lastErrorMessage,
+        outcome: step.outcome,
         retryable: step.retryable,
         updatedAt: step.updatedAt,
       })),

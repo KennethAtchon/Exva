@@ -41,7 +41,11 @@ describe("RiskEngine", () => {
         brokerConnected: false,
         aiKeyAvailable: true,
       }),
-    ).toEqual({ allowed: false, reason: "Broker is not connected" });
+    ).toEqual({
+      allowed: false,
+      reason: "Broker is not connected",
+      gateType: "broker_disconnected",
+    });
 
     expect(
       engine.preflightSession({
@@ -53,6 +57,7 @@ describe("RiskEngine", () => {
     ).toEqual({
       allowed: false,
       reason: "Anthropic API key is not configured",
+      gateType: "ai_key_missing",
     });
   });
 
@@ -106,7 +111,11 @@ describe("RiskEngine", () => {
           sizeUsd: 100,
         },
       }),
-    ).toEqual({ allowed: false, reason: "Maximum concurrent trades reached" });
+    ).toEqual({
+      allowed: false,
+      reason: "Maximum concurrent trades reached",
+      gateType: "concurrent_cap",
+    });
 
     expect(
       engine.validateDecision({
@@ -123,6 +132,7 @@ describe("RiskEngine", () => {
     ).toEqual({
       allowed: false,
       reason: "Decision confidence is below wait-for-open threshold",
+      gateType: "confidence",
     });
   });
 
@@ -143,6 +153,7 @@ describe("RiskEngine", () => {
     ).toEqual({
       allowed: false,
       reason: "Decision confidence is below wait-for-open threshold",
+      gateType: "confidence",
     });
 
     expect(

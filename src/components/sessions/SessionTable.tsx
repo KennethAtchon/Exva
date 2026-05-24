@@ -15,6 +15,7 @@ export const SessionTable = ({
   busySessionId,
   focusedSessionAiReady,
   progressBySessionId,
+  researchFailuresBySessionId,
   onFocus,
   onEdit,
   onOpen,
@@ -30,6 +31,10 @@ export const SessionTable = ({
   busySessionId?: string | null;
   focusedSessionAiReady?: boolean | null;
   progressBySessionId?: Record<string, SessionProgressState>;
+  researchFailuresBySessionId?: Record<
+    string,
+    { phase: string; error: string; at: string }
+  >;
   onFocus: (id: string) => void;
   onEdit: (session: SessionSummary) => void;
   onOpen: (session: SessionSummary) => void;
@@ -166,6 +171,19 @@ export const SessionTable = ({
               onViewTrace={onViewTrace ?? (() => undefined)}
               onPauseAfterStep={onPauseAfterStep ?? (() => undefined)}
             />
+            {researchFailuresBySessionId?.[session.id] ? (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 11,
+                  color: "#fca5a5",
+                  lineHeight: 1.4,
+                }}
+              >
+                Research phase failed ({researchFailuresBySessionId[session.id].phase}):{" "}
+                {researchFailuresBySessionId[session.id].error}
+              </div>
+            ) : null}
 
             {/* Meta strip */}
             <div style={metaGridStyle}>
@@ -361,6 +379,8 @@ function statusVariant(
       return "success";
     case "paused":
       return "warn";
+    case "attention_required":
+      return "danger";
     case "archived":
       return "danger";
     case "stopped":

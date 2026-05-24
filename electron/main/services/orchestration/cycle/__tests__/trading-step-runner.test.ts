@@ -212,6 +212,7 @@ describe("TradingStepRunner", () => {
       nextRetryAt: null,
       lastErrorCode: null,
       lastErrorMessage: null,
+      outcome: null,
       retryable: false,
     });
     const fn = vi.fn(async () => "should not run");

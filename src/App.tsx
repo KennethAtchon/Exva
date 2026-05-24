@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { RuntimeEventToast } from "./components/RuntimeEventToast";
 import { TopNav, type PageKey } from "./components/TopNav";
 import { LiveReadinessModal } from "./components/sessions/LiveReadinessModal";
 import { Dashboard } from "./pages/Dashboard";
@@ -17,6 +18,7 @@ import { api, type SessionSummary } from "./lib/exva";
 import { executionModeForEnvironment } from "./lib/environment-mode";
 import { useExvaEvent } from "./hooks/useExvaEvent";
 import { usePolling } from "./hooks/usePolling";
+import type { SessionStatus } from "@/lib/types";
 
 interface LiveReadinessReport {
   readyToStart: boolean;
@@ -32,6 +34,9 @@ interface LiveReadinessReport {
 
 export default function App() {
   const [page, setPage] = useState<PageKey>("dashboard");
+  const [sessionsStatusFilter, setSessionsStatusFilter] = useState<
+    SessionStatus | "all"
+  >("all");
   const [devPanelFocus, setDevPanelFocus] = useState<DevPanelFocus | null>(
     null,
   );
@@ -113,6 +118,9 @@ export default function App() {
   useExvaEvent("trade_closed", () => {
     void reloadTrades();
   });
+  useExvaEvent("session_status_changed", () => {
+    void reloadStats();
+  });
 
   usePolling(
     async () => {
@@ -165,6 +173,8 @@ export default function App() {
       case "sessions":
         return (
           <SessionsPage
+            initialStatusFilter={sessionsStatusFilter}
+            onInitialStatusFilterApplied={() => setSessionsStatusFilter("all")}
             onGoToStrategy={() => setPage("strategy")}
             onGoToAccounts={() => setPage("accounts")}
             onViewTrace={(sessionId, cycleId, stage) => {
@@ -219,6 +229,12 @@ export default function App() {
         onNavigate={(p) => {
           setPage(p);
           setSelected(null);
+          if (p !== "sessions") setSessionsStatusFilter("all");
+        }}
+        onNavigateToAttentionSessions={() => {
+          setSessionsStatusFilter("attention_required");
+          setPage("sessions");
+          setSelected(null);
         }}
         sessionStatus={status}
         onSessionAction={handleSession}
@@ -248,6 +264,7 @@ export default function App() {
       >
         {pageEl()}
       </div>
+      <RuntimeEventToast />
       {selectedId && (
         <TradeDetail tradeId={selectedId} onClose={() => setSelected(null)} />
       )}

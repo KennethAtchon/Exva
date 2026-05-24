@@ -56,7 +56,8 @@ export function handleResolvedInstruments(
       "orchestrator",
     );
     ctx.recordFailure({
-      cycleId: ctx.sessionId,
+      // Synthetic selector-cycle id — no trade cycle exists when the selector returns zero instruments.
+      cycleId: crypto.randomUUID(),
       stage: "selector_cycle",
       outcome: "no_trade",
       level: "WARN",

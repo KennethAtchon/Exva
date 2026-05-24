@@ -60,6 +60,23 @@ describe("riskGateInputBuilder.applyOutput", () => {
     }
   });
 
+  it("maps spend guardrails to operator-required outcomes via gateType", () => {
+    try {
+      riskGateInputBuilder.applyOutput?.(baseState(), {
+        allowed: false,
+        reason: "Daily API budget reached",
+        gateType: "api_budget",
+      });
+      throw new Error("expected risk gate to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      expect((error as AppError).details).toMatchObject({
+        outcome: "operator_required",
+        reasonCategory: "session_spend_limit",
+      });
+    }
+  });
+
   it("maps spend guardrails to operator-required outcomes", () => {
     try {
       riskGateInputBuilder.applyOutput?.(baseState(), {

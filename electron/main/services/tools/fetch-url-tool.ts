@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { promises as dns } from "node:dns";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
+import { assertSessionDataSpendAvailable } from "./data-spend-guard";
 import {
   resolveMockSymbolForUrl,
   substituteMockSymbol,
@@ -212,16 +213,11 @@ export function createFetchUrlTool(deps: {
         };
       }
 
-      if (
-        deps.maxDataSpendUsd != null &&
-        deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >=
-          deps.maxDataSpendUsd
-      ) {
-        return {
-          error:
-            "Session max data spend reached; fetch blocked by runtime policy.",
-        };
-      }
+      assertSessionDataSpendAvailable({
+        sessionId: deps.sessionId,
+        apiCallLogRepo: deps.apiCallLogRepo,
+        maxDataSpendUsd: deps.maxDataSpendUsd,
+      });
 
       try {
         const controller = new AbortController();

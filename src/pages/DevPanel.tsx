@@ -1367,6 +1367,11 @@ const ExecutionTab = ({
                 {step.lastErrorMessage}
               </div>
             )}
+            {step.outcome && (
+              <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 4 }}>
+                outcome: {step.outcome}
+              </div>
+            )}
             {step.nextRetryAt && (
               <div style={{ ...S.mono9, color: "#ffb733", marginTop: 2 }}>
                 retry at {fmt.time(step.nextRetryAt)}

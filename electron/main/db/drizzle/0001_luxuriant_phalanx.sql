@@ -1,0 +1,1 @@
+ALTER TABLE `session_execution_steps` ADD `outcome` text;

@@ -57,6 +57,7 @@ export interface ExecutionStepState {
   nextRetryAt: string | null;
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
+  outcome: string | null;
   retryable: boolean;
   createdAt: string;
   updatedAt: string;

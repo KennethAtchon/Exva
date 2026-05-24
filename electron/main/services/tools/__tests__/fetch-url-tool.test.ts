@@ -99,6 +99,22 @@ describe("fetch-url-tool", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1); // never followed the redirect
   });
 
+  it("throws when session data spend cap is reached", async () => {
+    apiCallLogRepo.dailyDataSpendUsd.mockReturnValue(5);
+    const tool = createFetchUrlTool({
+      sessionId: "s1",
+      apiCallLogRepo: apiCallLogRepo as never,
+      maxDataSpendUsd: 5,
+    }) as unknown as FetchUrlExecutor;
+
+    await expect(
+      tool.execute({ url: "https://example.com/article" }),
+    ).rejects.toMatchObject({
+      code: "SPEND_CAP_EXCEEDED",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("blocks IPv6 loopback hostnames", async () => {
     const tool = createFetchUrlTool({
       sessionId: "s1",

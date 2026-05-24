@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useState } from "react";
 import type { DashboardStats, SessionStatus } from "@/lib/types";
 import { Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
@@ -7,6 +7,7 @@ import { api } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { sessionMatchesEnvironment } from "@/lib/environment-mode";
 import type { SessionSummary } from "@/lib/exva";
+import { useExvaEvent } from "@/hooks/useExvaEvent";
 
 export type PageKey =
   | "dashboard"
@@ -45,6 +46,7 @@ const SESSION_STATUS: Record<
 interface Props {
   activePage: PageKey;
   onNavigate: (p: PageKey) => void;
+  onNavigateToAttentionSessions?: () => void;
   sessionStatus: SessionStatus;
   onSessionAction: (a: "start" | "pause" | "resume" | "stop") => void;
   stats: DashboardStats | null;
@@ -53,6 +55,7 @@ interface Props {
 export const TopNav = ({
   activePage,
   onNavigate,
+  onNavigateToAttentionSessions,
   sessionStatus,
   onSessionAction,
   stats,
@@ -64,21 +67,42 @@ export const TopNav = ({
   const [focusedSession, setFocusedSession] = useState<SessionSummary | null>(
     null,
   );
+  const [attentionCount, setAttentionCount] = useState(0);
+
+  const refreshAttentionCount = useCallback(() => {
+    api
+      .listSessions({ includeArchived: false })
+      .then((res) => {
+        setAttentionCount(
+          res.sessions.filter((s) => s.status === "attention_required").length,
+        );
+        if (focusedSessionId) {
+          const found =
+            res.sessions.find((s) => s.id === focusedSessionId) ?? null;
+          setFocusedSession(found);
+        }
+      })
+      .catch(() => {
+        setAttentionCount(0);
+        setFocusedSession(null);
+      });
+  }, [focusedSessionId]);
 
   useEffect(() => {
     if (!focusedSessionId) {
       setFocusedSession(null);
+      refreshAttentionCount();
       return;
     }
-    api
-      .listSessions({ includeArchived: false })
-      .then((res) => {
-        const found =
-          res.sessions.find((s) => s.id === focusedSessionId) ?? null;
-        setFocusedSession(found);
-      })
-      .catch(() => setFocusedSession(null));
-  }, [focusedSessionId, environmentMode]);
+    refreshAttentionCount();
+  }, [focusedSessionId, environmentMode, refreshAttentionCount]);
+
+  useExvaEvent("session_status_changed", () => {
+    refreshAttentionCount();
+  });
+  useExvaEvent("stats_update", () => {
+    refreshAttentionCount();
+  });
 
   const focusedInCurrentEnvironment =
     focusedSession != null &&
@@ -125,6 +149,7 @@ export const TopNav = ({
         {NAV_ITEMS.map((item) => {
           const active = activePage === item.id;
           const isStrategy = item.id === "strategy";
+          const isSessions = item.id === "sessions";
           return (
             <Button
               key={item.id}
@@ -142,6 +167,18 @@ export const TopNav = ({
               }
             >
               {item.label}
+              {isSessions && attentionCount > 0 && (
+                <span
+                  style={s.attentionBadgeStyle}
+                  title={`${attentionCount} session(s) need attention`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onNavigateToAttentionSessions?.();
+                  }}
+                >
+                  {attentionCount}
+                </span>
+              )}
               {isStrategy && needsStrategyConfig && (
                 <span
                   style={s.strategyDot}
@@ -240,10 +277,17 @@ export const TopNav = ({
                   : undefined
             }
             onClick={() =>
-              onSessionAction(sessionStatus === "paused" ? "resume" : "start")
+              onSessionAction(
+                sessionStatus === "paused" || sessionStatus === "attention_required"
+                  ? "resume"
+                  : "start",
+              )
             }
           >
-            ▶ {sessionStatus === "paused" ? "Resume" : "Start"}
+            ▶{" "}
+            {sessionStatus === "paused" || sessionStatus === "attention_required"
+              ? "Resume"
+              : "Start"}
           </Button>
         )}
         {sessionStatus === "active" && !sessionControlsDisabled && (
@@ -332,6 +376,21 @@ const s: Record<string, CSSProperties> = {
     background: "oklch(0.65 0.14 240)",
     display: "inline-block",
     flexShrink: 0,
+  },
+  attentionBadgeStyle: {
+    minWidth: 18,
+    height: 18,
+    padding: "0 5px",
+    borderRadius: 999,
+    background: "rgba(251,113,133,0.18)",
+    border: "1px solid rgba(251,113,133,0.35)",
+    color: "#fb7185",
+    fontSize: 10,
+    fontWeight: 700,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "var(--font-mono)",
   },
   session: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
   liveEnvPill: {

@@ -5,8 +5,9 @@ import type { SessionExecutionStepsRepo } from "../../../db/repositories/session
 import type { EventBus } from "../../infra/event-bus";
 import type { Logger } from "../../infra/log";
 import {
-  isFailureHistoryReasonCategory,
-  isOrchestrationOutcome,
+  classifyAppError,
+} from "../policy/outcome-classifier";
+import {
   outcomeLevel,
   type FailureHistoryLevel,
   type FailureHistoryReasonCategory,
@@ -47,24 +48,6 @@ export interface TradingStepRunOptions {
 const STEP_RETRY_BACKOFF_MS = RUNTIME_DEFAULTS.retry.stepBackoffMs;
 const MAX_STEP_RETRIES = STEP_RETRY_BACKOFF_MS.length;
 const MAX_STEP_ATTEMPTS = MAX_STEP_RETRIES + 1;
-
-const OPERATOR_REQUIRED_CODES = new Set<AppErrorCode>([
-  "LOCKED",
-  "MISSING_SECRET",
-  "NO_BROKER",
-  "PROVIDER_NOT_CONFIGURED",
-  "SEARCH_PROVIDER_REQUIRED",
-  "SPEND_CAP_EXCEEDED",
-  "UNSUPPORTED_INSTRUMENT",
-]);
-
-const NO_TRADE_CODES = new Set<AppErrorCode>(["INSTRUMENT_CONFLICT"]);
-
-const SESSION_CAPACITY_CODES = new Set<AppErrorCode>([
-  "BROKER_ALLOCATION_EXCEEDED",
-  "BROKER_SESSION_CAP_EXCEEDED",
-  "CAPITAL_POOL_EXCEEDED",
-]);
 
 export class TradingStepRunner {
   private readonly retryTimers = new Map<
@@ -112,6 +95,7 @@ export class TradingStepRunner {
       nextRetryAt: null,
       lastErrorCode: null,
       lastErrorMessage: null,
+      outcome: null,
       retryable: false,
     });
     this.deps.bus.emit("step:started", {
@@ -134,6 +118,7 @@ export class TradingStepRunner {
         nextRetryAt: null,
         lastErrorCode: null,
         lastErrorMessage: null,
+        outcome: null,
         retryable: false,
       });
       this.deps.bus.emit("step:succeeded", {
@@ -159,6 +144,7 @@ export class TradingStepRunner {
         nextRetryAt,
         lastErrorCode: classified.errorCode,
         lastErrorMessage: classified.errorMessage,
+        outcome: classified.outcome,
         retryable: retryAllowed,
       });
 
@@ -229,29 +215,11 @@ function classifyStepError(error: unknown): {
   reasonCategory: FailureHistoryReasonCategory;
 } {
   if (error instanceof AppError) {
-    const details = error.details as Record<string, unknown> | undefined;
-    const outcome = isOrchestrationOutcome(details?.outcome)
-      ? details.outcome
-      : defaultOutcomeForAppError(error.code, details?.retryable === true);
-    const reasonCategory = isFailureHistoryReasonCategory(details?.reasonCategory)
-      ? details.reasonCategory
-      : defaultReasonCategory(error.code, outcome);
+    const classified = classifyAppError(error);
     if (error.details?.retryable === true) {
-      return {
-        retryable: true,
-        errorCode: error.code,
-        errorMessage: error.message,
-        outcome,
-        reasonCategory,
-      };
+      return { ...classified, retryable: true };
     }
-    return {
-      retryable: false,
-      errorCode: error.code,
-      errorMessage: error.message,
-      outcome,
-      reasonCategory,
-    };
+    return { ...classified, retryable: false };
   }
 
   const httpStatus = readHttpStatus(error);
@@ -288,40 +256,6 @@ function classifyStepError(error: unknown): {
     outcome: "bug",
     reasonCategory: "unexpected_bug",
   };
-}
-
-function defaultOutcomeForAppError(
-  code: AppErrorCode,
-  retryable: boolean,
-): OrchestrationOutcome {
-  if (retryable) return "transient";
-  if (OPERATOR_REQUIRED_CODES.has(code)) return "operator_required";
-  if (SESSION_CAPACITY_CODES.has(code)) return "session_capacity";
-  if (NO_TRADE_CODES.has(code)) return "no_trade";
-  if (
-    code === "PROVIDER_UNREACHABLE" ||
-    code === "BROKER_UNREACHABLE" ||
-    code === "BROKER_ERROR" ||
-    code === "VALIDATION_FAILED"
-  ) {
-    return "transient";
-  }
-  return "bug";
-}
-
-function defaultReasonCategory(
-  code: AppErrorCode,
-  outcome: OrchestrationOutcome,
-): FailureHistoryReasonCategory {
-  if (code === "SPEND_CAP_EXCEEDED") return "session_spend_limit";
-  if (code === "INSTRUMENT_CONFLICT") return "broker_allocation";
-  if (SESSION_CAPACITY_CODES.has(code)) return "session_capacity";
-  if (code === "PROVIDER_UNREACHABLE" || code === "BROKER_UNREACHABLE") {
-    return "provider_transient";
-  }
-  if (outcome === "transient") return "unexpected_bug";
-  if (outcome === "no_trade") return "risk_gate";
-  return "unexpected_bug";
 }
 
 function readHttpStatus(error: unknown): number | null {

@@ -12,9 +12,20 @@ export function isWaitForOpenRejection(reason?: string): boolean {
   return reason === WAIT_FOR_OPEN_REJECTION_REASON;
 }
 
+export type RiskGateType =
+  | "api_budget"
+  | "daily_loss"
+  | "profit_target"
+  | "concurrent_cap"
+  | "position_size"
+  | "confidence"
+  | "broker_disconnected"
+  | "ai_key_missing";
+
 export interface RiskResult<T = undefined> {
   allowed: boolean;
   reason?: string;
+  gateType?: RiskGateType;
   value?: T;
 }
 
@@ -71,11 +82,19 @@ export class RiskEngine {
   preflightSession(input: SessionPreflight): RiskResult {
     if (!input.brokerConnected) {
       logger.warn({ brokerConnected: false }, "risk preflight denied");
-      return { allowed: false, reason: "Broker is not connected" };
+      return {
+        allowed: false,
+        reason: "Broker is not connected",
+        gateType: "broker_disconnected",
+      };
     }
     if (!input.aiKeyAvailable) {
       logger.warn({ aiKeyAvailable: false }, "risk preflight denied");
-      return { allowed: false, reason: "Anthropic API key is not configured" };
+      return {
+        allowed: false,
+        reason: "Anthropic API key is not configured",
+        gateType: "ai_key_missing",
+      };
     }
     const result = this.checkStats(input.config, input.stats);
     logger.info(
@@ -92,7 +111,11 @@ export class RiskEngine {
         { reason: statsResult.reason ?? null },
         "risk decision denied by stats",
       );
-      return { allowed: false, reason: statsResult.reason };
+      return {
+        allowed: false,
+        reason: statsResult.reason,
+        gateType: statsResult.gateType,
+      };
     }
     if (input.order.sizeUsd <= 0) {
       logger.warn(
@@ -102,6 +125,7 @@ export class RiskEngine {
       return {
         allowed: false,
         reason: "Position size must be greater than zero",
+        gateType: "position_size",
       };
     }
     if (input.stats.open_trades >= input.config.max_concurrent_trades) {
@@ -112,7 +136,11 @@ export class RiskEngine {
         },
         "risk decision denied due to concurrent trade cap",
       );
-      return { allowed: false, reason: "Maximum concurrent trades reached" };
+      return {
+        allowed: false,
+        reason: "Maximum concurrent trades reached",
+        gateType: "concurrent_cap",
+      };
     }
     if (input.order.sizeUsd > input.config.max_position_usd) {
       const reduced = {
@@ -155,6 +183,7 @@ export class RiskEngine {
       return {
         allowed: false,
         reason: WAIT_FOR_OPEN_REJECTION_REASON,
+        gateType: "confidence",
       };
     }
     logger.debug(
@@ -178,13 +207,25 @@ export class RiskEngine {
 
   private checkStats(config: SessionConfig, stats: DashboardStats): RiskResult {
     if (stats.daily_api_spend >= config.max_api_spend_usd) {
-      return { allowed: false, reason: "Daily API budget reached" };
+      return {
+        allowed: false,
+        reason: "Daily API budget reached",
+        gateType: "api_budget",
+      };
     }
     if (stats.daily_pnl_usd <= -Math.abs(config.daily_loss_limit_usd)) {
-      return { allowed: false, reason: "Daily loss limit reached" };
+      return {
+        allowed: false,
+        reason: "Daily loss limit reached",
+        gateType: "daily_loss",
+      };
     }
     if (stats.daily_pnl_usd >= config.profit_target_usd) {
-      return { allowed: false, reason: "Profit target reached" };
+      return {
+        allowed: false,
+        reason: "Profit target reached",
+        gateType: "profit_target",
+      };
     }
     return { allowed: true };
   }

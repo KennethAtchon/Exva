@@ -34,10 +34,14 @@ interface LiveReadinessReport {
 }
 
 export const SessionsPage = ({
+  initialStatusFilter = "all",
+  onInitialStatusFilterApplied,
   onGoToStrategy,
   onGoToAccounts,
   onViewTrace,
 }: {
+  initialStatusFilter?: SessionStatus | "all";
+  onInitialStatusFilterApplied?: () => void;
   onGoToStrategy?: () => void;
   onGoToAccounts?: () => void;
   onViewTrace?: (sessionId: string, cycleId: string, stage: string) => void;
@@ -73,6 +77,8 @@ export const SessionsPage = ({
   const [progressBySessionId, setProgressBySessionId] = useState<
     Record<string, SessionProgressState>
   >({});
+  const [researchFailuresBySessionId, setResearchFailuresBySessionId] =
+    useState<Record<string, { phase: string; error: string; at: string }>>({});
   const aiReady = useWorkspaceStore((state) => state.focusedSessionAiReady);
   const checkAiReady = useWorkspaceStore((state) => state.checkAiReady);
   const environmentMode = useWorkspaceStore((state) => state.environmentMode);
@@ -93,6 +99,12 @@ export const SessionsPage = ({
   };
 
   const unsubsRef = useRef<Array<() => void>>([]);
+
+  useEffect(() => {
+    if (initialStatusFilter === "all") return;
+    setStatusFilter(initialStatusFilter);
+    onInitialStatusFilterApplied?.();
+  }, [initialStatusFilter, onInitialStatusFilterApplied]);
 
   useEffect(() => {
     const stepEvents = [
@@ -116,6 +128,34 @@ export const SessionsPage = ({
     return () => {
       for (const unsub of unsubsRef.current) unsub();
       unsubsRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const cleanup: Array<() => void> = [];
+
+    void listenEvent("research_phase_failed", (payload) => {
+      const data = payload as {
+        sessionId: string;
+        phase: string;
+        error: string;
+      };
+      if (cancelled) return;
+      setResearchFailuresBySessionId((prev) => ({
+        ...prev,
+        [data.sessionId]: {
+          phase: data.phase,
+          error: data.error,
+          at: new Date().toISOString(),
+        },
+      }));
+      void refreshProgress(data.sessionId);
+    }).then((unsub) => cleanup.push(unsub));
+
+    return () => {
+      cancelled = true;
+      for (const unsub of cleanup) unsub();
     };
   }, []);
 
@@ -492,6 +532,7 @@ export const SessionsPage = ({
               { value: "draft", label: "Draft" },
               { value: "idle", label: "Idle" },
               { value: "active", label: "Active" },
+              { value: "attention_required", label: "Needs attention" },
               { value: "paused", label: "Paused" },
               { value: "stopped", label: "Stopped" },
               { value: "archived", label: "Archived" },
@@ -556,6 +597,7 @@ export const SessionsPage = ({
             busySessionId={actionSessionId}
             focusedSessionAiReady={aiReady}
             progressBySessionId={progressBySessionId}
+            researchFailuresBySessionId={researchFailuresBySessionId}
             onRetryStep={async (sessionId, cycleId, stage) => {
               try {
                 await api.retrySessionStep({ sessionId, cycleId, stage });
@@ -733,6 +775,8 @@ function statusVariant(
       return "success";
     case "paused":
       return "warn";
+    case "attention_required":
+      return "danger";
     case "archived":
       return "danger";
     case "stopped":

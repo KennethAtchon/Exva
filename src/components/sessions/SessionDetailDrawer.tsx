@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getSearchProviderDisplayName } from "@electron/shared/instruments/search-providers";
 import { Badge } from "@/components/custom-ui";
-import { api, type SessionSummary } from "@/lib/exva";
+import { api, listenEvent, type SessionSummary } from "@/lib/exva";
 import type {
   EventRow,
   InstrumentClass,
@@ -9,6 +9,11 @@ import type {
   SessionTemplatePayload,
 } from "@/lib/types";
 import { Button, Dialog, DialogContent } from "@/components/ui";
+import {
+  SessionExecutionProgress,
+  deriveProgress,
+  type SessionProgressState,
+} from "./SessionExecutionProgress";
 
 type InstrumentCacheView = {
   instruments: Array<{ symbol: string; instrumentClass: string }> | null;
@@ -32,6 +37,61 @@ export const SessionDetailDrawer = ({
   const [cacheLoading, setCacheLoading] = useState(false);
   const [cacheAction, setCacheAction] = useState<string | null>(null);
   const [providers, setProviders] = useState<ProviderAccount[]>([]);
+  const [executionProgress, setExecutionProgress] =
+    useState<SessionProgressState | null>(null);
+  const [researchFailure, setResearchFailure] = useState<string | null>(null);
+
+  const refreshExecutionProgress = async (sessionId: string) => {
+    try {
+      const result = await api.getSessionExecutionProgress(sessionId);
+      if (!result.cycleId) {
+        setExecutionProgress(null);
+        return;
+      }
+      setExecutionProgress(
+        deriveProgress(result.steps, result.cycleId, null) ?? null,
+      );
+    } catch {
+      setExecutionProgress(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!session) return;
+    void refreshExecutionProgress(session.id);
+    let cancelled = false;
+    const cleanup: Array<() => void> = [];
+    const events = [
+      "step:started",
+      "step:succeeded",
+      "step:failed",
+      "step:retrying",
+      "research_phase_failed",
+    ] as const;
+
+    void (async () => {
+      for (const eventName of events) {
+        const unsub = await listenEvent(eventName, (payload) => {
+          const data = payload as { sessionId?: string; phase?: string; error?: string };
+          if (cancelled || data.sessionId !== session.id) return;
+          if (eventName === "research_phase_failed") {
+            setResearchFailure(
+              `${data.phase ?? "research"} failed: ${data.error ?? "unknown error"}`,
+            );
+          }
+          void refreshExecutionProgress(session.id);
+        });
+        cleanup.push(unsub);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      for (const unsub of cleanup) unsub();
+      setExecutionProgress(null);
+      setResearchFailure(null);
+    };
+  }, [session]);
 
   useEffect(() => {
     if (!session) return;
@@ -350,6 +410,34 @@ export const SessionDetailDrawer = ({
               </div>
             </Section>
 
+            {(executionProgress || researchFailure) && (
+              <Section title="Execution Progress">
+                {executionProgress ? (
+                  <SessionExecutionProgress
+                    sessionId={session.id}
+                    progress={executionProgress}
+                    onRetry={() => undefined}
+                    onViewTrace={() => undefined}
+                    onPauseAfterStep={() => undefined}
+                  />
+                ) : (
+                  <span style={mutedStyle}>No active execution cycle.</span>
+                )}
+                {researchFailure ? (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: "#fca5a5",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {researchFailure}
+                  </div>
+                ) : null}
+              </Section>
+            )}
+
             <Section title="Session Summary">
               <div
                 style={{
@@ -488,6 +576,8 @@ function statusVariant(
       return "success";
     case "paused":
       return "warn";
+    case "attention_required":
+      return "danger";
     case "archived":
       return "danger";
     case "stopped":

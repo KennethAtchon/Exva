@@ -116,6 +116,7 @@ export function toExecutionStepState(row: Row): ExecutionStepState {
     nextRetryAt: nullableString(row.next_retry_at),
     lastErrorCode: nullableString(row.last_error_code),
     lastErrorMessage: nullableString(row.last_error_message),
+    outcome: nullableString(row.outcome),
     retryable: Boolean(row.retryable),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),

@@ -1,10 +1,12 @@
 import { AppError } from "@electron/shared/infra/errors";
 import {
   isWaitForOpenRejection,
+  type RiskGateType,
 } from "../../../risk/risk-engine";
 import type { InstrumentAnalysisState } from "../../analysis/types";
 import type { EngineInputBuilder } from "../../execution/input-builder-registry";
 import { createOutcomeError } from "../../../orchestration/cycle/runtime-outcome";
+import { classifyRiskGateRejection } from "../../../orchestration/policy/outcome-classifier";
 
 function applyRiskGateNoTrade(
   state: InstrumentAnalysisState,
@@ -156,6 +158,7 @@ export const riskGateInputBuilder: EngineInputBuilder = {
     const risk = output as {
       allowed: boolean;
       reason?: string;
+      gateType?: string;
       value?: typeof state.riskOrder;
     };
     if (!risk.allowed || !risk.value) {
@@ -165,7 +168,10 @@ export const riskGateInputBuilder: EngineInputBuilder = {
           risk.reason ?? "Decision confidence is below wait-for-open threshold",
         );
       }
-      throw classifyRiskGateError(risk.reason ?? "Trade rejected by risk engine");
+      throw classifyRiskGateRejection({
+        reason: risk.reason,
+        gateType: risk.gateType as RiskGateType | undefined,
+      });
     }
     return { ...state, riskOrder: risk.value };
   },
@@ -233,28 +239,3 @@ export const TRADE_ENGINE_INPUT_BUILDERS = [
   riskGateInputBuilder,
   brokerAllocationInputBuilder,
 ] as const;
-
-function classifyRiskGateError(reason: string) {
-  if (reason === "Maximum concurrent trades reached") {
-    return createOutcomeError(reason, "VALIDATION_FAILED", {
-      outcome: "session_capacity",
-      reasonCategory: "session_capacity",
-    });
-  }
-  if (reason === "Daily API budget reached") {
-    return createOutcomeError(reason, "SPEND_CAP_EXCEEDED", {
-      outcome: "operator_required",
-      reasonCategory: "session_spend_limit",
-    });
-  }
-  if (reason === "Daily loss limit reached" || reason === "Profit target reached") {
-    return createOutcomeError(reason, "SPEND_CAP_EXCEEDED", {
-      outcome: "operator_required",
-      reasonCategory: "session_pnl_limit",
-    });
-  }
-  return createOutcomeError(reason, "VALIDATION_FAILED", {
-    outcome: "no_trade",
-    reasonCategory: "risk_gate",
-  });
-}

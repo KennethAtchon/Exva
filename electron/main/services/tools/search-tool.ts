@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { SearchRegistry } from "../search";
 import { validateDiscoveryQuery } from "../search/sanitize-search-query";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
+import { assertSessionDataSpendAvailable } from "./data-spend-guard";
 import {
   filterMockWebSearch,
   type MockWebSearchItem,
@@ -85,16 +86,11 @@ export async function createSearchTool(deps: {
     execute: async (input: { query: string }) => {
       const startedAt = Date.now();
       const createdAt = new Date().toISOString();
-      if (
-        deps.maxDataSpendUsd != null &&
-        deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >=
-          deps.maxDataSpendUsd
-      ) {
-        return {
-          error:
-            "Session max data spend reached; search blocked by runtime policy.",
-        };
-      }
+      assertSessionDataSpendAvailable({
+        sessionId: deps.sessionId,
+        apiCallLogRepo: deps.apiCallLogRepo,
+        maxDataSpendUsd: deps.maxDataSpendUsd,
+      });
       const validation = validateDiscoveryQuery(input.query);
       if (!validation.ok) {
         return { error: `Search blocked by query guard: ${validation.reason}` };

@@ -101,6 +101,7 @@ export interface SessionExecutionProgressResponse {
     nextRetryAt: string | null;
     lastErrorCode: string | null;
     lastErrorMessage: string | null;
+    outcome: string | null;
     retryable: boolean;
   }>;
   cycleId: string | null;

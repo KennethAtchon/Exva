@@ -88,6 +88,7 @@ export const sessionExecutionSteps = sqliteTable(
     nextRetryAt: text("next_retry_at"),
     lastErrorCode: text("last_error_code"),
     lastErrorMessage: text("last_error_message"),
+    outcome: text("outcome"),
     retryable: integer("retryable", { mode: "boolean" })
       .notNull()
       .default(false),
