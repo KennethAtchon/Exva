@@ -17,7 +17,16 @@ Runs Exva's AI analysis pipeline. It can run one AI phase by itself, or run one 
 - `definitions/` is the executable phase home: one `AIPhase` per phase, plus `phase-catalog.ts` for static metadata used by effective-config tooling.
 - `implementations/` is the trade-cycle instrument analysis layer: `default-trade-cycle` sequence, signal-engine input builders, and analysis registration.
 - `worker-prompts.ts` is the bundled prompt text source for phase workers.
-- Deterministic signal engines are part of the pipeline contract. Some run before a worker to enrich prompt context; others run after AI output to aggregate signals, build execution profiles, or gate trades.
+- Deterministic signal engines are part of the pipeline contract. Worker-level `ENGINE_BINDINGS` enrich prompts before a worker call; phase finalizer engines in `engines/finalizer/` aggregate worker output; instrument-analysis engine steps run risk/allocation gates after the decision phase.
+
+## Boot
+
+At app startup (`app-services.ts`):
+
+1. `registerDefaultEngines()` — signal engines for risk, validation, policy gates
+2. `registerAllPhases()` — registers all five `AIPhase` objects from `definitions/`
+3. `registerDefaultInstrumentAnalyses()` — registers `default-trade-cycle`
+4. `assertValidPipelineDefinitionCatalog()` — validates workers, tools, and engine bindings
 
 ## Flow
 
@@ -63,4 +72,5 @@ sequenceDiagram
 - **PipelineRuntime** - composition root that injects repos, provider registries, search/broker dependencies, strategy context, spend tracking, and tool context into the runners.
 - **Phase engine** - registered phase-level hook under `pipeline/engines`: input context, entry mode, cache, or finalizer.
 - **Signal engine** - deterministic code under `services/signal/` that reads task input and returns typed results without calling an LLM. Worker-level `ENGINE_BINDINGS` remain separate from the new phase-engine registry.
+- **ResearchDiscoveryMode** - session strategy field (`trend_scan` or `event_contract_scan`) that selects worker sets via each phase's `resolveWorkersForMode`.
 - **Cycle id** - current runtime identifier for one trading-loop tick. Some code still uses `cycle` naming because the trading loop owns the outer tick.

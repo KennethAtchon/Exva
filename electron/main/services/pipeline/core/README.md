@@ -9,9 +9,8 @@ This is the front door and shared plumbing for the pipeline. It wires dependenci
 - `PipelineRuntime.runCycle()` resolves the registered instrument analysis, prepares a shared tool context, and passes a callback that lets analysis steps run AI phases.
 - `PipelineRuntime.runPlan()` is a compatibility dispatcher. It accepts either a phase id or an instrument-analysis id and calls the appropriate runtime method.
 - `PipelineRuntime.resolveEffectiveConfig()` and `assertValidEffectiveConfig()` expose effective AI phase config checks before launch.
-- `pipeline-registry.ts` validates static `PipelineDefinition` objects at module load. It catches mismatched ids, missing schemas, duplicate workers, unknown tools, unknown dependencies, and dependency cycles.
-- `worker-graph-scheduler.ts` supports two scheduling modes: `flat_parallel` for all workers at once and `dependency_graph` for workers grouped by dependency frontier.
-- `runWorkerBatches()` runs dependency frontiers in order and slices each frontier by max concurrency.
+- `pipeline-registry.ts` re-exports `getPhaseCatalog` and `listPhaseCatalog` from `definitions/phase-catalog.ts` as `getPipelineDefinition` and `listPipelineDefinitions`. It validates static `PipelineDefinition` objects at module load: mismatched ids, missing schemas, duplicate workers, unknown tools, unknown dependencies, and dependency cycles.
+- `worker-graph-scheduler.ts` supports scheduling by `WorkerDefinition.dependsOn` frontiers. Runtime phase execution uses explicit `AIWorkerBatch` stages instead; the scheduler supports catalog metadata and effective-config scheduling mode derivation.
 - `concurrent-group-runner.ts` uses `p-queue` to run async worker tasks with bounded concurrency and logs batch start/finish counts.
 - `types.ts` contains the runtime-facing contracts for worker output schemas, resolved worker execution config, phase run context, and the `AIWorkerRunner` interface passed into phase implementations.
 - This folder should stay framework-only. It can know about pipeline concepts and dependency injection, but trading-specific selector or trade behavior belongs under `implementations/`.

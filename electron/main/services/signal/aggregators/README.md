@@ -12,6 +12,7 @@ Aggregators take the separate JSON outputs from parallel AI workers and collapse
 - Aggregators parse their output through shared trade-signal schemas from `@electron/shared/ai/trade-signals`, so invalid merged state fails immediately instead of drifting through the pipeline.
 - Raw worker summaries are preserved by concatenating labeled summary fragments such as `Momentum: ...`, `Catalyst: ...`, or `Risk: ...`. The resulting signal keeps enough context for audit/debugging without preserving every worker detail.
 - Aggregators do not call providers, brokers, search, or the database. They should remain pure transformations of already-collected worker output and current phase state.
+- Trade-phase aggregators are invoked by phase finalizer engines in `pipeline/engines/finalizer/` (e.g. `technical-aggregator.ts` calls `aggregateTechnicalSignal` from this folder). The signal registry also registers transformer engines with the same ids for legacy `ENGINE_BINDINGS` and effective-config metadata.
 
 ## Flow
 

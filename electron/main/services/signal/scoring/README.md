@@ -13,6 +13,7 @@ This folder is the deterministic filter between raw selector discovery and full 
 - `prediction-market-candidate-engine.ts` asks the broker routing service for a prediction-market adapter that supports market discovery, fetches Polymarket-style rows, validates condition/question/token data, emits YES and NO token candidates, scores them by liquidity, category, and resolution time, and returns the top 20.
 - Prediction-market candidates use symbols in the `pm:<conditionId>` format and put token ids, category, liquidity, resolution time, and slug into `instrumentMetadataJson`.
 - Scoring code does not run AI workers. It consumes selector output and service-provided market discovery data, then returns deterministic candidate lists or selection payloads.
+- Selector scoring/filtering/submission functions are invoked from two places: stage-local logic in `definitions/selector.phase.ts` (`applyResults`, `scoreSelectorCandidates`) and phase finalizer engines in `pipeline/engines/finalizer/` (`selector-risk-filter`, `selector-submission-builder`). The prediction-market input engine in `pipeline/engines/input/prediction-market-candidates.ts` calls `fetchPredictionMarketCandidates` from this folder.
 
 ## Flow
 

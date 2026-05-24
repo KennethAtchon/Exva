@@ -12,7 +12,8 @@ Runs one selected instrument through the full trade-analysis sequence. It takes 
 - The runner builds a context with the selected instrument, session config, effective instrument classes, strategy context, worker tool context, services, and a `runAIPhase` callback supplied by `PipelineRuntime`.
 - State starts from `initialState(ctx, seedState)`. The seed is used by callers that need to resume or test a partial analysis.
 - Steps run sequentially. There is no worker-level concurrency here; concurrency lives inside the individual AI phases.
-- A step may call an AI phase (`technical`, `fundamental`, `review`, `decision`) or a deterministic signal engine chain (`candidate_validation`, `risk_gate`).
+- AI steps call `ctx.runAIPhase(phase, input)`, which loads the registered `AIPhase` from `phases/registry.ts` (populated by `definitions/index.ts`) and runs it through `AIPhaseRunner`.
+- Engine steps call deterministic signal engines through `stage-runner.ts` and `execution/stage-dispatch.ts` (`candidate_validation`, `risk_gate` chain).
 - Required steps abort the full analysis when they throw. Optional steps can fail without stopping the analysis unless the thrown error is a control error.
 - `runStep` lets the outer orchestration layer wrap each logical execution stage for progress tracking, retry handling, pause-after-step behavior, and failure persistence.
 - `lastStageId` allows a caller to stop after a named step, which is useful for debugging or controlled partial execution.

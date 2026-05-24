@@ -18,10 +18,12 @@ import { REVIEW_PHASE } from "./review.phase";
 import { SELECTOR_PHASE } from "./selector.phase";
 import { TECHNICAL_PHASE } from "./technical.phase";
 
-export const ALL_PHASES = [
+// Typed as readonly AIPhase<unknown, unknown>[] (not a specific tuple) so callers
+// can iterate and pass elements to generic functions without union inference issues.
+export const ALL_PHASES: readonly AIPhase<unknown, unknown>[] = [
   SELECTOR_PHASE,
   TECHNICAL_PHASE,
   FUNDAMENTAL_PHASE,
   REVIEW_PHASE,
   DECISION_PHASE,
-] as const satisfies readonly AIPhase<unknown, unknown>[];
+];

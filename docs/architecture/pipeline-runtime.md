@@ -3,13 +3,15 @@
 > **Last updated:** 2026-05-23
 > **Scope:** Main-process AI pipeline execution: registered analyses, AI phases, worker definitions, prompt assembly, tool construction, spend tracking, signal aggregation, selector caching, and trace persistence. Excludes session lifecycle, renderer UI, broker order placement, and trade monitoring except where those systems call the pipeline.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
-> **Related docs:** `docs/architecture/ai-runtime.md`, `docs/folder-structure.md`
+> **Related docs:** `docs/architecture/ai-runtime.md`, `docs/folder-structure.md`, `electron/main/services/pipeline/README.md`
 
 ---
 
 ## 1. Executive Summary
 
-The pipeline runtime is the main-process subsystem that turns a session plus an instrument into AI analysis output. `LLMRuntime` in `electron/main/services/llm/runtime.ts` is the public facade, but the actual analysis work is delegated to `PipelineRuntime` in `electron/main/services/pipeline/core/pipeline-runtime.ts`. The runtime has two execution shapes: an `AIPhase` runs one phase such as selector, technical, fundamental, review, or decision; an `InstrumentAnalysis` runs a full ordered trade analysis over one selected instrument. Worker prompts are now compiled inline through `worker.prompt` and `electron/main/services/pipeline/worker-prompts.ts`, not loaded from a runtime `prompts/` asset folder.
+The pipeline runtime is the main-process subsystem that turns a session plus an instrument into AI analysis output. `LLMRuntime` in `electron/main/services/llm/runtime.ts` is the public facade, but the actual analysis work is delegated to `PipelineRuntime` in `electron/main/services/pipeline/core/pipeline-runtime.ts`. The runtime has two execution shapes: an `AIPhase` runs one phase such as selector, technical, fundamental, review, or decision; an `InstrumentAnalysis` runs a full ordered trade analysis over one selected instrument.
+
+Phase behavior is **definition-first**: five executable `AIPhase` objects live in `definitions/*.phase.ts`, registered at boot via `registerAllPhases()` from `definitions/all-phases.ts`. Each phase declares worker batches, engine IDs, and optional hooks; `AIPhaseRunner` in `phases/interpreter.ts` is generic glue that resolves phase engines from `engines/registry.ts`. Static metadata for the renderer and effective-config layer is derived from the same `AIPhase` objects through `definitions/phase-catalog.ts`. Worker prompts are compiled inline through `worker.prompt` and `electron/main/services/pipeline/worker-prompts.ts`, not loaded from a runtime `prompts/` asset folder.
 
 ---
 
@@ -23,6 +25,8 @@ graph TB
         Pipeline["PipelineRuntime\nservices/pipeline/core/pipeline-runtime.ts"]
         PhaseRunner["AIPhaseRunner\nservices/pipeline/phases/interpreter.ts"]
         AnalysisRunner["InstrumentAnalysisRunner\nservices/pipeline/analysis/interpreter.ts"]
+        Definitions["Phase definitions\nservices/pipeline/definitions/"]
+        PhaseEngines["Phase engines\nservices/pipeline/engines/"]
         Worker["runAIWorker\nservices/pipeline/execution/worker-executor.ts"]
         Signals["Signal engines\nservices/signal/**"]
         Tools["Worker tools\nservices/tools/**"]
@@ -39,6 +43,8 @@ graph TB
     Pipeline --> PhaseRunner
     Pipeline --> AnalysisRunner
     AnalysisRunner --> PhaseRunner
+    PhaseRunner --> Definitions
+    PhaseRunner --> PhaseEngines
     PhaseRunner --> Worker
     Worker --> AI
     Worker --> Tools
@@ -65,16 +71,19 @@ graph TB
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PipelineRuntime`          | Top-level executor for phase and instrument-analysis runs. It builds strategy/tool/spend context and delegates to the right interpreter.                                                          |
 | `LLMRuntime`               | Main-process facade that validates session ids and exposes `runAIPhase`, `runCycle`, `runPlan`, and effective config helpers.                                                                     |
-| `AIPhase`                  | Runtime definition for one analysis phase. It owns entry modes, input builders, worker batches, finalization, optional cache policy, and aggregate persistence.                                   |
-| `InstrumentAnalysis`       | Runtime definition for a full ordered analysis of one instrument. The default trade analysis runs candidate validation, technical, fundamental, review, decision, then risk/allocation engines.   |
+| `AIPhase`                  | Executable phase definition in `definitions/*.phase.ts`. Owns `stages` (worker batches), engine IDs, `resolveWorkersForMode`, `catalog`, and optional hooks (`summarize`, `filterOutput`, `persistAggregate`). |
+| `AIWorkerBatch`            | One concurrent worker group within a phase: `resolveWorkers`, `buildTask`, `applyResults`, concurrency, and partial-failure policy. Selector uses two batches (discovery → verification); trade phases use one. |
+| `Phase engine`             | Registered hook in `pipeline/engines/` referenced by engine ID on an `AIPhase`. Kinds: `input`, `entry_mode`, `cache`, `finalizer`. Distinct from signal `ENGINE_BINDINGS` used for per-worker deterministic enrichment. |
+| `InstrumentAnalysis`       | Runtime definition for a full ordered analysis of one instrument. The default `default-trade-cycle` plan runs candidate validation, technical, fundamental, review, decision, then risk/allocation engines.   |
 | `WorkerDefinition`         | Static description of one model call: id, inline prompt string, allowed tools, strategy-context request, optional terminal output schema, and tool requirements.                                  |
-| `AIPhaseRunner`            | Interpreter for one `AIPhase`. It checks cache, resolves entry modes, builds composite input, runs worker stages, finalizes output, persists aggregate traces, and writes selector cache entries. |
+| `AIPhaseRunner`            | Generic interpreter for one `AIPhase`. Resolves entry/cache/input/finalizer engines, runs worker batches, assembles aggregate traces, and writes selector cache entries. |
 | `InstrumentAnalysisRunner` | Interpreter for one `InstrumentAnalysis`. It walks analysis steps sequentially and can wrap each step with the orchestration `TradingStepRunner`.                                                 |
+| `ResearchDiscoveryMode`    | Session strategy field (`trend_scan` or `event_contract_scan`) that selects worker sets via each phase's `resolveWorkersForMode`. Catalog metadata defaults to `trend_scan`; runtime uses the session's actual mode. |
 | `AISpendTracker`           | Per-phase tracker that enforces phase, pipeline, and session spend caps. Sandbox/mock sessions use warn-only budget behavior.                                                                     |
 | `WorkerToolContext`        | Runtime dependency bag used to build callable tools: session id, cycle id, search provider, broker routing, mock data, instrument classes, and API-call logging.                                  |
 | `Signal engine`            | Deterministic TypeScript logic in `services/signal/` used for aggregation, selector scoring/filtering, execution-profile calculation, and registry lookup. It does not call an LLM.               |
 | `Terminal output tool`     | Runtime-created submit tool, usually `submit_result`, whose Zod schema validates structured worker output.                                                                                        |
-| `Selector cache`           | `session_instrument_cache` entry managed by `selector-instrument-cache`; only non-empty selector outputs are cached.                                                                              |
+| `Selector cache`           | `session_instrument_cache` entry managed by the `selector-instrument-cache` phase engine; only non-empty selector outputs are cached.                                                                              |
 
 
 ---
@@ -94,16 +103,17 @@ graph LR
         Resolver["implementations/registry/analysis-resolver"]
         PhaseRunner["phases/AIPhaseRunner"]
         AnalysisRunner["analysis/InstrumentAnalysisRunner"]
+        Definitions["definitions/*.phase.ts"]
+        PhaseCatalog["definitions/phase-catalog.ts"]
+        PhaseEngines["engines/registry"]
         WorkerExecutor["execution/runAIWorker"]
         Prompt["prompting/buildWorkerPrompt"]
         ToolCtx["worker-tools/resolveWorkerToolContext"]
         ToolFactory["worker-tools/buildWorkerTools"]
     end
-    subgraph Implementations["Trading-specific implementations"]
-        Selector["implementations/selector"]
+    subgraph Implementations["Trade-cycle wiring"]
         Trade["implementations/trade"]
         Inputs["implementations/inputs"]
-        Cache["implementations/cache"]
     end
     subgraph External["Boundaries"]
         Providers["ProviderAdapter.runAgent"]
@@ -119,17 +129,15 @@ graph LR
     PR --> PhaseRunner
     PR --> AnalysisRunner
     AnalysisRunner --> PhaseRunner
-    PhaseRunner --> Selector
-    PhaseRunner --> Trade
-    PhaseRunner --> Inputs
-    PhaseRunner --> Cache
+    PhaseRunner --> Definitions
+    PhaseRunner --> PhaseEngines
     PhaseRunner --> WorkerExecutor
+    PhaseCatalog --> Definitions
     WorkerExecutor --> Prompt
     WorkerExecutor --> ToolFactory
     PR --> ToolCtx
     WorkerExecutor --> Providers
     ToolFactory --> Tools
-    Selector --> Signals
     Trade --> Signals
     WorkerExecutor --> DB
     PhaseRunner --> DB
@@ -144,14 +152,55 @@ graph LR
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | Runtime facade                  | Public API, session-id validation, effective config helpers                                                                                               | `electron/main/services/llm/runtime.ts`                              |
 | Pipeline runtime                | Strategy context, session lookup, tool context, spend tracker, interpreter dispatch                                                                       | `electron/main/services/pipeline/core/pipeline-runtime.ts`           |
-| AI phase interpreter            | Cache check, entry modes, input builders, worker stage execution, aggregate trace/cache writes                                                            | `electron/main/services/pipeline/phases/interpreter.ts`              |
+| Phase definitions               | Executable `AIPhase` objects, canonical phase list, boot registration                                                                                       | `electron/main/services/pipeline/definitions/`                       |
+| Phase catalog                   | Derives `PipelineDefinition` metadata from `ALL_PHASES` for renderer and validation                                                                     | `electron/main/services/pipeline/definitions/phase-catalog.ts`       |
+| Phase engine registry           | Input, entry-mode, cache, and finalizer engines resolved by ID                                                                                          | `electron/main/services/pipeline/engines/`                           |
+| AI phase interpreter            | Generic entry → cache → input → worker batches → finalizers → aggregate trace/cache writes                                                                | `electron/main/services/pipeline/phases/interpreter.ts`              |
 | Instrument analysis interpreter | Sequential trade-analysis step execution and optional `runStep` wrapper                                                                                   | `electron/main/services/pipeline/analysis/interpreter.ts`            |
 | Worker executor                 | Provider/model resolution, prompt construction, tool construction, provider call, output validation, trace assembly                                       | `electron/main/services/pipeline/execution/worker-executor.ts`       |
 | Prompt builder                  | System/user message assembly from inline prompt, trusted strategy facts, strategy guidance, worker guidance, engine results, task JSON, and sandbox block | `electron/main/services/pipeline/prompting/worker-prompt-builder.ts` |
 | Worker tools                    | Runtime creation of `search_web`, `fetch_url`, `search_reddit`, `get_trending_symbols`, `get_quote`, `get_ohlcv`, `get_news`, and terminal submit tools   | `electron/main/services/pipeline/worker-tools/`                      |
-| Trading implementations         | Selector phase, default trade analysis, cache policy, input builders, registration                                                                        | `electron/main/services/pipeline/implementations/`                   |
+| Trade-cycle wiring              | `default-trade-cycle` plan, declarative stage table, trade-engine input builders, analysis registration                                                   | `electron/main/services/pipeline/implementations/trade/`, `implementations/inputs/` |
 | Signal processing               | Deterministic aggregation, scoring, risk filtering, execution profiles, signal registry                                                                   | `electron/main/services/signal/`                                     |
 
+
+---
+
+## 4.1 Definition-First Phase Model
+
+All five AI phases are executable `AIPhase` objects registered at boot from `definitions/all-phases.ts`:
+
+| Phase | Definition file | Worker stages | Phase engines |
+| ----- | --------------- | ------------- | ------------- |
+| `selector` | `definitions/selector.phase.ts` | `discovery` (frontier 0) → `verification` (frontier 1) | input (3), entry (`manual-shortlist`), cache, finalizer (2) |
+| `technical` | `definitions/technical.phase.ts` | single `workers` stage | finalizer (`technical-aggregator`) |
+| `fundamental` | `definitions/fundamental.phase.ts` | single `workers` stage | finalizer (`fundamental-aggregator`) |
+| `review` | `definitions/review.phase.ts` | single `workers` stage | finalizer (`review-aggregator`) |
+| `decision` | `definitions/decision.phase.ts` | single `workers` stage | finalizer (`trade-signal-aggregator`) |
+
+Boot sequence in `app-services.ts`:
+
+1. `registerDefaultEngines()` — deterministic signal engines (risk, candidate validation, policy gates)
+2. `registerAllPhases()` — imports `engines/` as a side effect, registers each `AIPhase`, and registers unified plan refs for `analysis-resolver.ts`
+3. `registerDefaultInstrumentAnalyses()` — registers `default-trade-cycle`
+4. `assertValidPipelineDefinitionCatalog()` — validates workers, tools, and engine bindings across discovery modes
+
+Each phase definition file that owns a finalizer engine self-registers it via a side-effect import (e.g. `technical.phase.ts` imports `engines/finalizer/technical-aggregator`). Selector shared engines (input, entry, cache, selector finalizers) register centrally in `engines/index.ts` to avoid circular imports.
+
+`AIPhaseRunner` execution order for every phase:
+
+1. **Entry engines** — first `matches()` wins; short-circuits the phase (e.g. manual shortlist)
+2. **Cache engine** — fingerprint + read on hit
+3. **Input engines** — append text to `ctx.input[inputKey]`
+4. **`initialState()`** — seed mutable phase state
+5. **Worker batches** — sequential stages, concurrent workers within each batch
+6. **Finalizer engines** — sequential; last return value is phase output
+7. **`filterOutput()`** — post-process (selector caps by instrument class)
+8. **Aggregate trace + cache write**
+
+Static `PipelineDefinition` metadata is derived from the same `AIPhase` objects through `phase-catalog.ts`. Both catalog and runtime call each phase's `resolveWorkersForMode(discoveryMode)`, so tooling and execution always agree on worker sets.
+
+`validatePhaseEngines()` in `definitions/index.ts` can verify that every engine ID on every phase is registered, but boot currently relies on `assertValidPipelineDefinitionCatalog()` plus eager module-load validation in `core/pipeline-registry.ts` instead.
 
 ---
 
@@ -183,7 +232,7 @@ erDiagram
 | `session_execution_steps`  | Written by orchestration around pipeline stages; not owned by `PipelineRuntime`, but `InstrumentAnalysisRunner` accepts the wrapper that drives it. |
 
 
-Worker-level traces are assembled by `assembleTrace()` in `pipeline/execution/trace-assembler.ts`. Aggregate phase traces are assembled by `assembleAggregateTrace()` and usually persisted by `AIPhaseRunner`, except the trade-analysis phases set `persistAggregate: false` so trade-cycle persistence can happen after the pending trade exists.
+Worker-level traces are assembled by `assembleTrace()` in `pipeline/execution/trace-assembler.ts`. Aggregate phase traces are assembled by `assembleAggregateTrace()` and usually persisted by `AIPhaseRunner`, except trade-analysis phases set `persistAggregate: false` so trade-cycle persistence can happen after the pending trade exists. Selector uses `persistAggregate: true` (default).
 
 ---
 
@@ -210,9 +259,10 @@ sequenceDiagram
     PR->>Runner: run(InstrumentAnalysis, context)
     Runner->>Signal: candidate_validation engine
     Runner->>Phase: technical phase
+    Phase->>Phase: entry engines -> cache -> input engines
     Phase->>Worker: run technical workers concurrently
     Worker-->>Phase: typed worker outputs + traces
-    Phase->>Signal: technical aggregator finalize
+    Phase->>Phase: finalizer engines (e.g. technical-aggregator)
     Phase-->>Runner: TechnicalSignal
     Runner->>Phase: fundamental phase
     Phase-->>Runner: FundamentalSignal
@@ -233,11 +283,11 @@ sequenceDiagram
 **Step-by-step:**
 
 1. `LLMRuntime.runPlan()` validates `sessionId` and delegates to `PipelineRuntime.runPlan()`.
-2. `PipelineRuntime` resolves the registered analysis by id through `implementations/registry/analysis-resolver.ts`.
+2. `PipelineRuntime` resolves the registered plan by id through `implementations/registry/analysis-resolver.ts` (phase IDs and instrument-analysis IDs share one lookup).
 3. For full trade analysis, `PipelineRuntime.runCycle()` loads the `WorkspaceSession`, strategy context, and `WorkerToolContext` once and passes a shared `runAIPhase` callback into `InstrumentAnalysisRunner`.
 4. `InstrumentAnalysisRunner` starts from `plan.initialState(ctx, seedState)` and runs the steps built from `DEFAULT_TRADE_CYCLE_STAGES` in `implementations/trade/default-analysis-steps.ts`.
 5. Steps with `executionStage` are wrapped by the caller-provided `runStep` function, which lets orchestration persist retry/progress state in `session_execution_steps`.
-6. AI steps call back to `PipelineRuntime.runAIPhase()`. Engine steps call deterministic signal-engine bindings through `analysis/stage-runner.ts` and `execution/input-builder-registry.ts`.
+6. AI steps call back to `PipelineRuntime.runAIPhase()`, which loads the registered `AIPhase` from `phases/registry.ts` and runs it through `AIPhaseRunner`. Engine steps call deterministic signal-engine bindings through `analysis/stage-runner.ts` and `execution/input-builder-registry.ts`.
 7. The final result is the accumulated `InstrumentAnalysisState` plus `totalAiCostUsd`, calculated from run records stored in the state.
 
 **Failure behavior:** required analysis steps rethrow failures. Optional steps log and continue unless the error is a control error such as `AnalysisPausedError` or `AnalysisStepFailedError`. `risk_gate` is skipped when the decision action is `skip`.
@@ -257,20 +307,21 @@ sequenceDiagram
     participant Scoring as Selector scoring/filtering
     participant DB as SQLite
 
-    PR->>Phase: run SELECTOR_PLAN
-    Phase->>Cache: read fingerprint
+    PR->>Phase: run SELECTOR_PHASE from phases/registry
+    Phase->>Phase: entry engine (manual-shortlist)?
+    Phase->>Cache: selector-instrument-cache read
     alt cache hit
         Cache-->>Phase: cached InstrumentSelection
-    else manual shortlist
-        Phase-->>PR: buildManualShortlistSelection()
+    else manual shortlist matched
+        Phase-->>PR: entry engine output (source: manual_shortlist)
     else AI-selected universe
-        Phase->>Inputs: selector-scope + broker-coverage + prediction-market-candidates
+        Phase->>Phase: input engines (scope, broker-coverage, prediction-market-candidates)
         Phase->>Worker: discovery workers, concurrency 3
         Worker-->>Phase: candidate outputs
-        Phase->>Scoring: mergeDiscoveryCandidates + scoreCandidate
-        Phase->>Worker: verification workers, concurrency 4
+        Phase->>Phase: applyResults -> score top candidates
+        Phase->>Worker: verification workers per candidate, concurrency 4
         Worker-->>Phase: verification outputs
-        Phase->>Scoring: SelectorRiskFilter + buildInstrumentSelection
+        Phase->>Phase: finalizer engines (selector-risk-filter, selector-submission-builder)
         Phase->>DB: persist aggregate AgentRun/AgentMessage
         Phase->>Cache: write non-empty output
     end
@@ -279,14 +330,27 @@ sequenceDiagram
 
 
 
-Selector details are implemented in `pipeline/implementations/selector/selector-analysis.ts`:
+Selector details are defined in `pipeline/definitions/selector.phase.ts`:
 
-- `inputBuilderIds` are `selector-scope`, `broker-coverage`, and `prediction-market-candidates`.
-- `manual_shortlist` bypasses AI and returns configured instruments.
-- Discovery workers come from `selectorDiscoveryWorkersForMode(ctx.strategyContext.researchPosture.discoveryMode)`.
-- Verification creates three workers per candidate: `market-validator:<symbol>`, `catalyst-extractor:<symbol>`, and `liquidity-gate:<symbol>`.
-- The final output is filtered to effective session instrument classes and `maxConcurrentTrades`.
-- Cache writes only happen when an aggregate trace exists and the selection has at least one instrument.
+- `inputEngineIds`: `selector-scope`, `broker-coverage`, `prediction-market-candidates` (registered in `engines/input/`)
+- `entryEngineIds`: `manual-shortlist` — matches when session uses manual shortlist or disables AI picker (`source: "manual_shortlist"`)
+- `cacheEngineId`: `selector-instrument-cache` — writes only when output has non-empty instruments (`shouldWrite` guard)
+- Discovery workers come from `selectorDiscoveryWorkersForMode(ctx.strategyContext.researchPosture.discoveryMode)`; `trend_scan` uses web/reddit/trend scouts, `event_contract_scan` uses event scouts
+- Verification creates three workers per candidate: `market-validator:<symbol>`, `catalyst-extractor:<symbol>`, and `liquidity-gate:<symbol>`
+- `finalizeEngineIds`: `selector-risk-filter` then `selector-submission-builder`
+- `filterOutput()` caps results to effective session instrument classes and `maxConcurrentTrades`
+- Cache writes only happen when an aggregate trace exists and the selection has at least one instrument
+
+**Worker concurrency and failure policy by phase:**
+
+| Phase / stage | Concurrency | Partial failure |
+| ------------- | ----------- | --------------- |
+| Selector discovery | 3 | tolerated (`minSuccessfulWorkers: 1`) |
+| Selector verification | 4 | tolerated (`minSuccessfulWorkers: 1`) |
+| Technical / fundamental | 3 | strict (all must succeed) |
+| Review / decision | 2 | strict |
+
+Trade phases (`technical`, `fundamental`, `review`, `decision`) swap worker sets when `discoveryMode === "event_contract_scan"`. Review and decision worker sets are mode-invariant today.
 
 ### 6.3 Single Worker Execution
 
@@ -343,14 +407,15 @@ stateDiagram-v2
     [*] --> ResolvePlan
     ResolvePlan --> PhaseRun: plan.kind = phase
     ResolvePlan --> AnalysisRun: plan.kind = instrument_analysis
-    PhaseRun --> CacheCheck
+    PhaseRun --> EntryCheck
+    EntryCheck --> ReturnEntryMode: entry engine matches
+    EntryCheck --> CacheCheck: no entry match
     CacheCheck --> ReturnCached: cache hit
-    CacheCheck --> EntryModeCheck: cache miss
-    EntryModeCheck --> ReturnEntryMode: manual shortlist
-    EntryModeCheck --> BuildInput: no entry mode
+    CacheCheck --> BuildInput: cache miss
     BuildInput --> RunWorkerStages
     RunWorkerStages --> FinalizePhase
-    FinalizePhase --> PersistAggregate
+    FinalizePhase --> FilterOutput
+    FilterOutput --> PersistAggregate
     PersistAggregate --> WriteCache
     WriteCache --> [*]
     AnalysisRun --> InitialState
@@ -372,6 +437,7 @@ stateDiagram-v2
 | ------------------------------------------ | ------------------------------------------------------------------- | ------------------------------------------------- |
 | `session_ai_phases`                        | Phase provider/model/temperature/max tokens/reasoning/prompt config | `AIPhaseConfigResolver.resolvePhaseConfig()`      |
 | `session_ai_phase_workers`                 | Per-worker provider/model/caps/prompt override                      | `AIPhaseConfigResolver.resolveWorkerExecConfig()` |
+| `ALL_PHASES` + `phase-catalog.ts`          | Canonical phase list; derived worker metadata per discovery mode    | `resolvePhaseWorkers()`, `getPhaseCatalog()`      |
 | `PHASE_DEFAULTS`                           | Default phase spend caps and worker caps                            | `electron/shared/ai/ai-phase.ts`                  |
 | `DEFAULT_PIPELINE_CONFIG`                  | Total pipeline spend cap                                            | `electron/shared/ai/ai-phase-config.ts`           |
 | `strategyContext.riskConfig.maxAiSpendUsd` | Session daily AI spend cap                                          | `PipelineRuntime.runAIPhase()`                    |
@@ -442,6 +508,7 @@ Debug checklist:
 
 | Decision                        | Chosen approach                                                                  | Rationale                                                                                                     | Trade-off                                                                               |
 | ------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Definition-first phases         | Executable `AIPhase` objects + phase engine registry                             | Phase behavior is data; `AIPhaseRunner` stays generic; catalog and runtime share `resolveWorkersForMode`    | Two engine systems (phase engines vs signal `ENGINE_BINDINGS`); dual metadata shapes.   |
 | Split LLM and pipeline services | `services/llm` owns provider calls; `services/pipeline` owns analysis sequencing | Keeps provider normalization separate from trading-analysis orchestration                                     | `LLMRuntime` is now a facade name that can look broader than raw LLM calls.             |
 | Two interpreters                | `AIPhaseRunner` and `InstrumentAnalysisRunner`                                   | Phase execution has worker batches/finalization/cache; instrument analysis has sequential heterogeneous steps | More concepts to learn.                                                                 |
 | Inline worker prompts           | `WorkerDefinition.prompt` and `worker-prompts.ts`                                | One compiled source of truth; no runtime prompt asset packaging                                               | Definition files and prompt constants are larger.                                       |
@@ -456,11 +523,14 @@ Debug checklist:
 ## 12. Known Limitations
 
 - `cycleSpendUsd` is not durable across process restarts.
-- Technical and fundamental phases currently run serially inside `InstrumentAnalysisRunner`, even though their inputs are independent.
+- `InstrumentAnalysisRunner` runs trade-cycle stages sequentially; technical and fundamental phases execute one after another even though their inputs are independent within a single instrument analysis.
+- `validatePhaseEngines()` exists but is not called at boot; engine ID mismatches are caught lazily at first phase execution unless caught by catalog validation.
+- Other `ResearchDiscoveryMode` values (`catalyst_scan`, `quality_watchlist`, `mean_reversion_scan`) fall through to the standard `trend_scan` worker sets in current phase definitions.
 - Prompt-size limits are observational; `measureWorkerPrompt()` logs warnings but does not truncate.
 - Some method names still use older words such as `runCycle` and internal `stage` fields because those names are still present in code contracts.
 - Individual selector worker traces are represented inside the aggregate selector trace instead of every selector worker being a separate top-level persisted run visible as a trade-scoped row.
 - Worker-level model overrides are supported by the DB/runtime but are not fully exposed as a polished UI for every worker.
+- `worker-graph-scheduler.ts` supports `WorkerDefinition.dependsOn` for static catalog metadata; runtime execution uses explicit `AIWorkerBatch` stages instead.
 
 ---
 
@@ -473,24 +543,26 @@ Debug checklist:
 | Provider registry                     | `electron/main/services/llm/provider-registry.ts`                                                       |
 | Provider adapters                     | `electron/main/services/llm/adapters/`                                                                  |
 | Pipeline runtime                      | `electron/main/services/pipeline/core/pipeline-runtime.ts`                                              |
+| Pipeline definition catalog           | `electron/main/services/pipeline/core/pipeline-registry.ts`                                             |
 | Concurrent runner                     | `electron/main/services/pipeline/core/concurrent-group-runner.ts`                                       |
 | Worker graph scheduler                | `electron/main/services/pipeline/core/worker-graph-scheduler.ts`                                        |
-| Static phase metadata                 | `electron/main/services/pipeline/definitions/`                                                          |
+| Phase definitions                     | `electron/main/services/pipeline/definitions/all-phases.ts`, `definitions/*.phase.ts`, `definitions/index.ts` |
+| Phase catalog                         | `electron/main/services/pipeline/definitions/phase-catalog.ts`                                          |
+| Phase engine registry                 | `electron/main/services/pipeline/engines/registry.ts`, `engines/index.ts`, `engines/**`               |
 | AI phase types/interpreter            | `electron/main/services/pipeline/phases/types.ts`, `interpreter.ts`, `registry.ts`                      |
 | Instrument analysis types/interpreter | `electron/main/services/pipeline/analysis/types.ts`, `interpreter.ts`, `stage-runner.ts`, `registry.ts` |
 | Worker execution                      | `electron/main/services/pipeline/execution/worker-executor.ts`                                          |
 | Spend tracking                        | `electron/main/services/pipeline/execution/ai-spend-tracker.ts`                                         |
 | Trace assembly                        | `electron/main/services/pipeline/execution/trace-assembler.ts`                                          |
 | Engine prompt injection               | `electron/main/services/pipeline/execution/engine-prompt-injector.ts`                                   |
+| Effective config / catalog validation | `electron/main/services/pipeline/effective-ai-phase-config.ts`                                          |
 | Prompt builder                        | `electron/main/services/pipeline/prompting/worker-prompt-builder.ts`                                    |
 | Strategy guidance                     | `electron/main/services/pipeline/prompting/strategy-guidance.ts`                                        |
 | Worker prompts                        | `electron/main/services/pipeline/worker-prompts.ts`                                                     |
 | Worker tools                          | `electron/main/services/pipeline/worker-tools/`                                                         |
-| Selector implementation               | `electron/main/services/pipeline/implementations/selector/`                                             |
-| Trade implementation                  | `electron/main/services/pipeline/implementations/trade/`                                                |
-| Input builders                        | `electron/main/services/pipeline/implementations/inputs/`                                               |
-| Cache policy                          | `electron/main/services/pipeline/implementations/cache/selector-instrument-cache.ts`                    |
-| Analysis registry/dispatcher          | `electron/main/services/pipeline/implementations/registry/`                                             |
+| Trade-cycle wiring                    | `electron/main/services/pipeline/implementations/trade/`                                              |
+| Trade-engine input builders           | `electron/main/services/pipeline/implementations/inputs/trade-engine-input-builders.ts`               |
+| Analysis registry/dispatcher          | `electron/main/services/pipeline/implementations/registry/`                                           |
 | Signal aggregators                    | `electron/main/services/signal/aggregators/`                                                            |
 | Signal scoring                        | `electron/main/services/signal/scoring/`                                                                |
 | Signal engine registry                | `electron/main/services/signal/registry/`                                                               |

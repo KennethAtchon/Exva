@@ -5,10 +5,10 @@ Resolves plan ids to either an executable AI phase or a full instrument analysis
 ## How it works
 
 - `register-analyses.ts` registers deterministic signal-engine input builders and the `default-trade-cycle` instrument analysis.
-- `analysis-resolver.ts` resolves an id to either a phase definition or an instrument analysis. `PipelineRuntime.runPlan()` uses this for direct phase runs and full analysis runs.
+- `analysis-resolver.ts` resolves an id to either a phase definition or an instrument analysis. Phase IDs are registered as unified plan refs by `definitions/index.ts` so `runPlan("selector")` and `runPlan("default-trade-cycle")` share one lookup. `PipelineRuntime.runPlan()` uses this resolver.
 - `analysis-kinds.ts` defines union types used by the resolver and dispatcher.
 - `analysis-dispatcher.ts` runs either `AIPhaseRunner` or `InstrumentAnalysisRunner` based on resolved kind.
-- Phase registration moved to `definitions/index.ts`. Phase engines self-register from `engines/index.ts`.
+- Phase registration lives in `definitions/index.ts` (`registerAllPhases()`). Phase engines register from `engines/index.ts` and side-effect imports in phase definition files.
 
 ## Flow
 
@@ -25,5 +25,5 @@ flowchart TD
 
 ## Terms
 
-- **unified analysis id** - id accepted by the compatibility resolver, whether it points to a single phase or a full instrument analysis.
+- **unified plan ref** - phase id registered alongside instrument analyses so `analysis-resolver.ts` can look up either kind by string id.
 - **phase-engine registry** - lookup table in `pipeline/engines/registry.ts` used by `AIPhaseRunner` to resolve phase-level hooks by ID and kind.

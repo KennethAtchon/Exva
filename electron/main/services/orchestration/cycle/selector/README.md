@@ -10,7 +10,7 @@ Triggers the selector analysis inside the live runtime. It takes the selector re
 - If AI selection returns only rejected candidates, the diagnostics are summarized into a warning event. The message includes up to five rejected symbols and their first rejection reason.
 - The final list is capped to `config.max_concurrent_trades` before scheduling, so selector output cannot overfill the session queue.
 - `MarketHoursService.filterTradable` then removes instruments that are not tradable now. Crypto and prediction markets pass through at all times; stock/futures candidates are blocked on UTC weekends.
-- This folder does not validate deep candidate evidence itself. Deterministic candidate validation lives under `orchestration/policy`, and selector implementation/cache logic lives in the AI pipeline folders.
+- This folder does not validate deep candidate evidence itself. Deterministic candidate validation lives under `orchestration/policy`, and selector phase definition/cache logic lives in `pipeline/definitions/selector.phase.ts` and `pipeline/engines/`.
 
 ## Flow
 

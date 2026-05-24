@@ -1,14 +1,14 @@
 # Exva AI Runtime - Architecture Design Document
 
 > **Last updated:** 2026-05-23
-> **Scope:** Main-process runtime from session start through selector/trade analysis, approval, broker placement, monitoring, persistence, events, and observability. Includes how the runtime calls the LLM/pipeline layer. Excludes renderer component design and broker-adapter implementation details.
+> **Scope:** Main-process runtime from session start through selector/trade analysis, approval, broker placement, monitoring, persistence, events, and observability. Includes how the runtime calls the LLM/pipeline layer (see also `docs/architecture/pipeline-runtime.md` for pipeline internals). Excludes renderer component design and broker-adapter implementation details.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
 
 ---
 
 ## 1. Executive Summary
 
-Exva is a local-first Electron trading app whose autonomous runtime runs inside the Electron main process. A running session is owned by `SessionRuntimeManager`, which creates one `SessionRuntime` containing an `AgentOrchestrator` for new trade intake and a `TradeMonitor` for open-position management. AI analysis is delegated through `LLMRuntime` into `PipelineRuntime`, where registered `AIPhase` and `InstrumentAnalysis` definitions drive selector and trade-analysis execution. Durable state lives in SQLite; provider/broker/search secrets stay in the OS Keychain; runtime progress is observable through events, execution-step rows, agent traces, API-call logs, and Pino log files.
+Exva is a local-first Electron trading app whose autonomous runtime runs inside the Electron main process. A running session is owned by `SessionRuntimeManager`, which creates one `SessionRuntime` containing an `AgentOrchestrator` for new trade intake and a `TradeMonitor` for open-position management. AI analysis is delegated through `LLMRuntime` into `PipelineRuntime`, where five executable `AIPhase` objects in `pipeline/definitions/` and the `default-trade-cycle` `InstrumentAnalysis` drive selector and trade-analysis execution. Phase behavior is data-driven: each `AIPhase` declares worker batches and engine IDs; `AIPhaseRunner` resolves input, entry-mode, cache, and finalizer engines from `pipeline/engines/`. Durable state lives in SQLite; provider/broker/search secrets stay in the OS Keychain; runtime progress is observable through events, execution-step rows, agent traces, API-call logs, and Pino log files.
 
 ---
 
@@ -52,9 +52,10 @@ The renderer is sandboxed and talks to the main process through the typed preloa
 | `AgentOrchestrator` | Per-session trading loop in `services/orchestration/cycle/agent-orchestrator.ts`. Runs selector cycles, queues trade cycles, handles no-instrument retry timers, and resolves approval callbacks. |
 | `TradeMonitor` | Per-session monitor in `services/orchestration/lifecycle/trade-monitor.ts` that watches open trades and closes them through exit policy or broker status. |
 | `LLMRuntime` | AI facade in `services/llm/runtime.ts`. Validates session ids and delegates `runPlan`, `runCycle`, and `runAIPhase` to `PipelineRuntime`. |
-| `PipelineRuntime` | Analysis executor in `services/pipeline/core/pipeline-runtime.ts`. Builds strategy/tool/spend context and runs registered phases or instrument analyses. |
-| `AIPhase` | One AI analysis phase: selector, technical, fundamental, review, or decision. It can run workers, entry modes, cache policies, and finalizers. |
-| `InstrumentAnalysis` | Full analysis for one selected instrument. The default analysis sequences candidate validation, AI phases, and risk/allocation engines. |
+| `PipelineRuntime` | Analysis executor in `services/pipeline/core/pipeline-runtime.ts`. Builds strategy/tool/spend context and dispatches to `AIPhaseRunner` or `InstrumentAnalysisRunner`. |
+| `AIPhase` | Executable definition of one AI phase in `pipeline/definitions/*.phase.ts`. Declares worker batches, engine IDs (input, entry, cache, finalizer), and optional hooks such as `resolveWorkersForMode` and `summarize`. |
+| `Phase engine` | Registered hook in `pipeline/engines/` resolved by engine ID from an `AIPhase`. Kinds: `input`, `entry_mode`, `cache`, `finalizer`. |
+| `InstrumentAnalysis` | Full analysis for one selected instrument. The default `default-trade-cycle` plan sequences candidate validation, AI phases, and risk/allocation engines via `default-analysis-steps.ts`. |
 | `TradingStepRunner` | Orchestration wrapper that persists stage progress/retries to `session_execution_steps` and classifies retryable failures. |
 | `RiskEngine` | Deterministic guard for spend, P&L, concurrent trades, position size, prediction exposure, and confidence thresholds. |
 | `OrderPolicyGate` | Final pre-order gate for runtime state, side bias, quote freshness, price/spread/capital/broker/idempotency/exit-policy checks. |
@@ -115,7 +116,7 @@ graph LR
 | Runtime wrapper | Starts monitor and orchestrator in the right active/paused mode | `electron/main/services/session/session-runtime.ts` |
 | Orchestrator | Runs selector, schedules trade cycles, handles approvals, queues no-instrument retries, emits progress events | `electron/main/services/orchestration/cycle/agent-orchestrator.ts` |
 | Pipeline bridge | Calls `LLMRuntime.runPlan("selector")` and `runPlan("default-trade-cycle")` from orchestration | `electron/main/services/orchestration/cycle/selector/`, `cycle/trade/` |
-| Pipeline runtime | Executes registered analyses and phases | `electron/main/services/llm/`, `electron/main/services/pipeline/` |
+| Pipeline runtime | Executes registered analyses and definition-first phases | `electron/main/services/llm/`, `electron/main/services/pipeline/` |
 | Deterministic gates | Candidate validation, risk, broker allocation, order policy, exit policy | `electron/main/services/orchestration/policy/`, `electron/main/services/risk/`, `electron/main/services/signal/` |
 | Monitoring | Polls open trades, checks exit rules, closes positions, updates stats | `electron/main/services/orchestration/lifecycle/trade-monitor.ts` |
 | Observability | Events, execution steps, agent traces, API call log, Pino files | `events`, `session_execution_steps`, `agent_runs`, `agent_messages`, `api_call_log` |
@@ -186,7 +187,7 @@ sequenceDiagram
     App->>DB: open DB, enable WAL, run migrations
     App->>App: create repos, registries, services
     App->>Registry: registerDefaultEngines()
-    App->>Registry: registerDefaultAIPhases()
+    App->>Registry: registerAllPhases()
     App->>Registry: registerDefaultInstrumentAnalyses()
     App->>Registry: assertValidPipelineDefinitionCatalog()
     App->>App: balanceTicker.start()
@@ -257,7 +258,7 @@ sequenceDiagram
     alt cache hit or manual shortlist
         Pipeline-->>Selector: InstrumentSelection
     else AI-selected universe
-        Pipeline->>Pipeline: discovery workers -> verification workers -> risk filter
+        Pipeline->>Pipeline: entry/cache/input engines -> discovery workers -> verification workers -> finalizer engines
         Pipeline->>Cache: write non-empty selection
     end
     Selector-->>Step: resolved instruments
@@ -265,7 +266,7 @@ sequenceDiagram
     Orch->>Bus: research_phase_complete or research_phase_failed
 ```
 
-Selector behavior depends on session mode. Manual shortlist bypasses AI. AI-selected universe uses effective instrument classes, broker coverage, discovery mode, search tools, and selector risk filtering. If no instruments are returned, `session_selector_settings.noInstrumentRetryMinutes` controls the retry delay.
+Selector behavior is defined in `pipeline/definitions/selector.phase.ts`. The `manual-shortlist` entry engine short-circuits when the session uses manual shortlist or disables the AI picker. Otherwise the phase runs input engines (scope, broker coverage, prediction-market candidates), discovery workers, per-candidate verification workers, and finalizer engines (`selector-risk-filter`, `selector-submission-builder`). Worker sets vary by `researchPosture.discoveryMode` (`trend_scan` vs `event_contract_scan`). If no instruments are returned, `session_selector_settings.noInstrumentRetryMinutes` controls the retry delay.
 
 ### 6.4 Trade Cycle
 
@@ -531,6 +532,7 @@ Primary debugging surfaces:
 | Per-session runtime ownership | One `SessionRuntime` per running/paused session | Supports concurrent sessions while isolating orchestrator/monitor state | In-memory callbacks and timers are process-local. |
 | Startup rehydration | Prior active sessions become paused monitor-only runtimes | Protects open positions without opening stale new trades | User must explicitly resume intake. |
 | AI pipeline delegation | `LLMRuntime` facade delegates to `PipelineRuntime` | Keeps orchestration out of prompt/worker/signal details | Naming can be confusing because `LLMRuntime` does more than raw provider calls. |
+| Definition-first phases | Executable `AIPhase` objects + phase engine registry | Phase behavior lives in `definitions/` and `engines/`; `AIPhaseRunner` is generic glue | Two engine systems (phase engines vs signal `ENGINE_BINDINGS`) and dual metadata (`AIPhase` + derived `PipelineDefinition`). |
 | Approval recovery | Fresh AI/gate recheck before stale approved order placement | Avoids placing orders from old context after callback loss | Costs extra AI/API calls. |
 | Execution progress | Persisted step rows plus `step:*` events | Makes retries and failures visible/recoverable | Requires consistent `cycleId` propagation. |
 | Local-first storage | SQLite plus Keychain | Fits a single-user desktop app and avoids hosted infrastructure | Not distributed or multi-machine. |
@@ -573,10 +575,12 @@ Primary debugging surfaces:
 | LLM facade | `electron/main/services/llm/runtime.ts` |
 | Provider registry/adapters | `electron/main/services/llm/provider-registry.ts`, `electron/main/services/llm/adapters/` |
 | Pipeline runtime | `electron/main/services/pipeline/core/pipeline-runtime.ts` |
+| Phase definitions | `electron/main/services/pipeline/definitions/` (`all-phases.ts`, `*.phase.ts`, `phase-catalog.ts`) |
+| Phase engine registry | `electron/main/services/pipeline/engines/` |
 | AI phase interpreter | `electron/main/services/pipeline/phases/interpreter.ts` |
 | Instrument analysis interpreter | `electron/main/services/pipeline/analysis/interpreter.ts` |
-| Selector implementation | `electron/main/services/pipeline/implementations/selector/selector-analysis.ts` |
-| Trade analysis implementation | `electron/main/services/pipeline/implementations/trade/` |
+| Trade analysis plan | `electron/main/services/pipeline/implementations/trade/` |
+| Analysis resolver | `electron/main/services/pipeline/implementations/registry/analysis-resolver.ts` |
 | Worker executor | `electron/main/services/pipeline/execution/worker-executor.ts` |
 | Signal engines | `electron/main/services/signal/` |
 | Risk engine | `electron/main/services/risk/risk-engine.ts` |

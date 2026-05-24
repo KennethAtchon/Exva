@@ -1,6 +1,8 @@
 # signal/registry
 
-The registry lets pipeline definitions refer to deterministic signal work by id instead of importing concrete functions. Startup registers the built-in engines once, and later pipeline steps can require an engine such as `technical-aggregator`, `risk-gate`, or `trade-execution-profile` by name.
+The registry lets pipeline code refer to deterministic signal work by id instead of importing concrete functions. Startup registers the built-in engines once; instrument-analysis engine steps and worker-level `ENGINE_BINDINGS` look up engines such as `candidate-validator`, `risk-gate`, or `trade-execution-profile` by name.
+
+Phase finalizer engines in `pipeline/engines/finalizer/` are a separate layer. They wrap aggregators/scoring functions from this folder for the definition-first `AIPhaseRunner` path. Both registries coexist: signal registry for direct engine dispatch, phase engine registry for orchestration hooks on `AIPhase`.
 
 ## How it works
 
