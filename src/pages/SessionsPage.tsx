@@ -86,7 +86,6 @@ export const SessionsPage = ({
   const [researchFailuresBySessionId, setResearchFailuresBySessionId] =
     useState<Record<string, { phase: string; error: string; at: string }>>({});
   const aiReady = useWorkspaceStore((state) => state.focusedSessionAiReady);
-  const checkAiReady = useWorkspaceStore((state) => state.checkAiReady);
   const environmentMode = useWorkspaceStore((state) => state.environmentMode);
   const [liveReadinessSession, setLiveReadinessSession] =
     useState<SessionSummary | null>(null);
@@ -259,10 +258,6 @@ export const SessionsPage = ({
   useEffect(() => {
     void load();
   }, [load]);
-
-  useEffect(() => {
-    if (focusedSessionId) void checkAiReady(focusedSessionId);
-  }, [focusedSessionId, checkAiReady]);
 
   const focusedSession = useMemo(
     () => sessions.find((session) => session.id === focusedSessionId) ?? null,
@@ -530,7 +525,7 @@ export const SessionsPage = ({
               ) : null}
               {focusedSession?.status === "monitoring_only" ? (
                 <div style={drainBannerStyle}>
-                  Stopping when flat — managing {focusedSession.openTradeCount}{" "}
+                  Stopping when flat: managing {focusedSession.openTradeCount}{" "}
                   open trade
                   {focusedSession.openTradeCount === 1 ? "" : "s"}. Session
                   stops automatically once flat.
@@ -588,8 +583,8 @@ export const SessionsPage = ({
               focusedSession.openTradeCount > 0 ? (
                 <div style={orphanWarningStyle}>
                   Stopped with {focusedSession.openTradeCount} open trade
-                  {focusedSession.openTradeCount === 1 ? "" : "s"} — no
-                  automated exits will fire. Restart to resume monitoring.
+                  {focusedSession.openTradeCount === 1 ? "" : "s"}, no automated
+                  exits will fire. Restart to resume monitoring.
                 </div>
               ) : null}
             </div>
@@ -687,9 +682,7 @@ export const SessionsPage = ({
           </div>
         </div>
 
-        {loading ? (
-          <div style={emptyStateStyle}>Loading sessions...</div>
-        ) : null}
+        {loading ? <div style={emptyStateStyle}>Loading sessions…</div> : null}
         {!loading && sessions.length === 0 ? (
           <div style={emptyStateStyle}>
             No sessions matched the current filters.

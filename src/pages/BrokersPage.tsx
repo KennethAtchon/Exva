@@ -175,7 +175,7 @@ export const BrokersPage = ({
       {error ? <div style={errorBannerStyle}>{error}</div> : null}
 
       {loading && visibleBrokers.length === 0 ? (
-        <div style={emptyStateStyle}>Loading broker balances...</div>
+        <div style={emptyStateStyle}>Loading broker balances…</div>
       ) : null}
       {!loading && visibleBrokers.length === 0 ? (
         <div style={emptyStateStyle}>

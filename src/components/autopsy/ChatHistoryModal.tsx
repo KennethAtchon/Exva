@@ -210,7 +210,7 @@ function PromptBlock({
           fontSize: 12,
           color: "var(--text3)",
           fontFamily: "var(--font-mono)",
-          letterSpacing: "0.1em",
+          letterSpacing: "0.05em",
           fontWeight: 700,
           marginBottom: 6,
         }}

@@ -262,7 +262,7 @@ export const SessionDetailDrawer = ({
                 style={{
                   margin: 0,
                   fontSize: 17,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "var(--text1)",
                   letterSpacing: "-0.01em",
                 }}
@@ -338,7 +338,7 @@ export const SessionDetailDrawer = ({
                         </div>
                         {!instrumentCache.definitionHashMatches ? (
                           <Badge variant="warn">
-                            Definition changed — next start recomputes universe
+                            Definition changed: next start recomputes universe
                           </Badge>
                         ) : null}
                         <div

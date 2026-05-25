@@ -101,7 +101,7 @@ export function RuntimeEventToast() {
                 style={{
                   fontSize: 12,
                   fontWeight: 700,
-                  letterSpacing: "0.06em",
+                  letterSpacing: "0.05em",
                   color: isError ? "#fca5a5" : isInfo ? "#93c5fd" : "#fcd34d",
                   marginBottom: 4,
                   fontFamily: "var(--font-mono)",

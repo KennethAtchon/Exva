@@ -53,14 +53,14 @@ const ModelCombobox = ({
                 ? selected.label
                 : value || "Select a model"}
           </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
         <Command>
           <CommandInput placeholder="Search models…" />
           <CommandList id={listId}>
-            <CommandEmpty className="px-3 py-3 text-[12px] text-[var(--text3)]">
+            <CommandEmpty className="p-3 text-[12px] text-[var(--text3)]">
               No models found.
             </CommandEmpty>
             <CommandGroup>

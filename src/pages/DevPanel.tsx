@@ -476,7 +476,7 @@ const ScopeRail = ({
             ...S.mono9,
             fontWeight: 800,
             color: "var(--text3)",
-            letterSpacing: "0.16em",
+            letterSpacing: "0.05em",
           }}
         >
           SCOPE
@@ -1940,7 +1940,7 @@ const InspectorPanel = ({
               color: tab === t.id ? "var(--text1)" : "var(--text3)",
               ...S.mono9,
               fontWeight: 700,
-              letterSpacing: "0.06em",
+              letterSpacing: "0.05em",
               cursor: "pointer",
               transition: "color 0.1s, border-color 0.1s",
             }}
@@ -2074,7 +2074,7 @@ const DebugCaptureModal = ({
             style={{
               ...S.mono9,
               fontWeight: 800,
-              letterSpacing: "0.12em",
+              letterSpacing: "0.05em",
               color: "var(--text1)",
             }}
           >
@@ -2386,7 +2386,7 @@ const ExportResultDrawer = ({
       display: "flex",
       flexDirection: "column",
       gap: 10,
-      zIndex: 500,
+      zIndex: 20,
       boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
     }}
   >
@@ -2498,7 +2498,7 @@ const ToastContainer = ({
       display: "flex",
       flexDirection: "column",
       gap: 6,
-      zIndex: 600,
+      zIndex: 30,
       pointerEvents: "none",
     }}
   >
@@ -2656,6 +2656,8 @@ export const DevPanel = ({
 
   const { toasts, show: showToast } = useToasts();
   const focusAppliedRef = useRef(false);
+  const onFocusConsumedRef = useRef(onFocusConsumed);
+  onFocusConsumedRef.current = onFocusConsumed;
   const qc = useQueryClient();
 
   // Debounce search
@@ -2702,8 +2704,8 @@ export const DevPanel = ({
       setActiveScope({ type: "session", id: sess.id, label: sess.name });
       setSearch(focus.cycleId);
     }
-    onFocusConsumed?.();
-  }, [focus, sessions, onFocusConsumed]);
+    onFocusConsumedRef.current?.();
+  }, [focus, sessions]);
 
   // Load developer settings
   useEffect(() => {

@@ -280,7 +280,7 @@ export const CreateEditSessionModal = ({
               style={{
                 margin: 0,
                 fontSize: 17,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text1)",
                 letterSpacing: "-0.01em",
               }}

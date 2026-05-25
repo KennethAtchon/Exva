@@ -87,7 +87,7 @@ export const CostBreakdownPage = () => {
         <h1
           style={{
             fontSize: 22,
-            fontWeight: 700,
+            fontWeight: 600,
             color: "var(--text1)",
             margin: 0,
           }}

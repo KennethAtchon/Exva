@@ -388,7 +388,7 @@ export const AccountsPage = () => {
           <h1
             style={{
               fontSize: 22,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text1)",
               margin: 0,
             }}
@@ -396,7 +396,7 @@ export const AccountsPage = () => {
             Accounts
           </h1>
           <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>
-            API keys stored in OS keychain — never written to disk or logs
+            API keys stored in OS keychain, never written to disk or logs
           </p>
         </div>
         <div style={envToggleStyle}>
@@ -839,7 +839,7 @@ export const AccountsPage = () => {
                   Broker accounts
                 </div>
                 <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                  Multi-broker routing — keys in OS keychain
+                  Multi-broker routing: keys in OS keychain
                 </div>
               </div>
             </div>
@@ -1553,7 +1553,7 @@ export const AccountsPage = () => {
                     </span>
                     <span style={{ fontSize: 13, color: "var(--text3)" }}>
                       {" "}
-                      — {v}
+                      : {v}
                     </span>
                   </div>
                 </div>

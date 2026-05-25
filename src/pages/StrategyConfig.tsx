@@ -240,7 +240,7 @@ export const StrategyConfig = ({
   if (!researchPosture || !rules || !riskConfig || !timeframe || !aiSettings) {
     return (
       <PageShell>
-        <div style={{ color: "var(--text3)" }}>Loading strategy...</div>
+        <div style={{ color: "var(--text3)" }}>Loading strategy…</div>
       </PageShell>
     );
   }

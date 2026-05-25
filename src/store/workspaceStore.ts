@@ -26,8 +26,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   preferences: null,
   environmentMode: "paper",
   focusedSessionAiReady: null,
-  setViewMode: (viewMode, focusedSessionId = null) =>
-    set({ viewMode, focusedSessionId, focusedSessionAiReady: null }),
+  setViewMode: (viewMode, focusedSessionId = null) => {
+    set({ viewMode, focusedSessionId, focusedSessionAiReady: null });
+    if (focusedSessionId) void get().checkAiReady(focusedSessionId);
+  },
   setPreferences: (preferences) => set({ preferences }),
   setEnvironmentMode: async (mode) => {
     const previousMode = get().environmentMode;

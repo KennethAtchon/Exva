@@ -116,7 +116,7 @@ export const PageShell = ({ children }: { children: ReactNode }) => (
 );
 
 export const SectionTitle = ({ children }: { children: ReactNode }) => (
-  <h2 className="m-0 text-[12px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+  <h2 className="m-0 text-[12px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
     {children}
   </h2>
 );

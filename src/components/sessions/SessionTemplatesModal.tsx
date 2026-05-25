@@ -318,7 +318,7 @@ export const SessionTemplatesModal = ({
 
           <div style={{ display: "grid", gap: 10 }}>
             {loading ? (
-              <div style={emptyStateStyle}>Loading templates...</div>
+              <div style={emptyStateStyle}>Loading templates…</div>
             ) : null}
             {!loading && templates.length === 0 ? (
               <div style={emptyStateStyle}>

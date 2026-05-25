@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/custom-ui";
 import {
   Button,
@@ -119,7 +119,7 @@ export const ApprovalDetailModal = ({
           </p>
         )}
 
-        {renderSessionHorizon(summary.sessionHorizon)}
+        <SessionHorizonSection value={summary.sessionHorizon} />
 
         <div
           style={{
@@ -236,7 +236,7 @@ export const ApprovalDetailModal = ({
   );
 };
 
-function renderSessionHorizon(value: unknown): ReactNode {
+function SessionHorizonSection({ value }: { value: unknown }) {
   if (!value || typeof value !== "object") return null;
   const h = value as Record<string, unknown>;
   const tf =

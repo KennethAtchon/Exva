@@ -199,8 +199,7 @@ export const SessionTable = ({
             ) : null}
             {isDraining ? (
               <div style={drainBannerStyle}>
-                Stopping when flat — managing {session.openTradeCount} open
-                trade
+                Stopping when flat: managing {session.openTradeCount} open trade
                 {session.openTradeCount === 1 ? "" : "s"}. Session stops
                 automatically once flat.
               </div>
@@ -208,7 +207,7 @@ export const SessionTable = ({
             {showOrphanWarning ? (
               <div style={orphanWarningStyle}>
                 Stopped with {session.openTradeCount} open trade
-                {session.openTradeCount === 1 ? "" : "s"} — no automated exits
+                {session.openTradeCount === 1 ? "" : "s"}, no automated exits
                 will fire. Restart to resume monitoring.
               </div>
             ) : null}
