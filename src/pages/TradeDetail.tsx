@@ -237,9 +237,11 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
 export const TradeDetail = ({
   tradeId,
   onClose,
+  onViewAutopsy,
 }: {
   tradeId: string;
   onClose: () => void;
+  onViewAutopsy?: (tradeId: string) => void;
 }) => {
   const queryClient = useQueryClient();
   const [closing, setClosing] = useState(false);
@@ -296,6 +298,24 @@ export const TradeDetail = ({
                 {trade.status}
               </Badge>
             </div>
+            {!isOpen && onViewAutopsy && (
+              <button
+                onClick={() => onViewAutopsy(tradeId)}
+                style={{
+                  padding: "5px 11px",
+                  borderRadius: 6,
+                  border: "1px solid var(--border)",
+                  background: "transparent",
+                  color: "var(--text3)",
+                  fontSize: 11,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-mono)",
+                  flexShrink: 0,
+                }}
+              >
+                ⚕ Autopsy
+              </button>
+            )}
           </div>
 
           <div

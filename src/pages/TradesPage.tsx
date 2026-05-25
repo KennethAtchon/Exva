@@ -11,7 +11,11 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 
 type Filter = "all" | "open" | "closed";
 
-export const TradesPage = () => {
+export const TradesPage = ({
+  onViewAutopsy,
+}: {
+  onViewAutopsy?: (tradeId: string) => void;
+} = {}) => {
   const [filter, setFilter] = useState<Filter>("all");
   const [symbolContains, setSymbolContains] = useState("");
   const [instrumentType, setInstrumentType] = useState<"" | InstrumentClass>(
@@ -298,8 +302,8 @@ export const TradesPage = () => {
               display: "grid",
               gridTemplateColumns:
                 viewMode === "global"
-                  ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px"
-                  : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
+                  ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
+                  : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px",
               padding: "10px 20px 8px",
               fontSize: 10,
               color: "var(--text3)",
@@ -307,7 +311,7 @@ export const TradesPage = () => {
               letterSpacing: "0.07em",
               fontWeight: 600,
               borderBottom: "1px solid var(--border)",
-              minWidth: 780,
+              minWidth: 860,
             }}
           >
             {[
@@ -322,6 +326,7 @@ export const TradesPage = () => {
               "Conf",
               "Status",
               "Time",
+              "",
             ].map((h) => (
               <span key={h}>{h}</span>
             ))}
@@ -339,8 +344,8 @@ export const TradesPage = () => {
                   display: "grid",
                   gridTemplateColumns:
                     viewMode === "global"
-                      ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px"
-                      : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px",
+                      ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
+                      : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px",
                   padding: "11px 20px",
                   alignItems: "center",
                   cursor: "pointer",
@@ -348,7 +353,7 @@ export const TradesPage = () => {
                   background:
                     t.id === selectedId ? "var(--surface2)" : "transparent",
                   transition: "background 0.1s",
-                  minWidth: 780,
+                  minWidth: 860,
                 }}
               >
                 {viewMode === "global" && (
@@ -478,6 +483,29 @@ export const TradesPage = () => {
                 >
                   {t.opened_at ? fmt.time(t.opened_at) : "—"}
                 </span>
+                {!isOpen && onViewAutopsy && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewAutopsy(t.id);
+                    }}
+                    style={{
+                      padding: "3px 8px",
+                      borderRadius: 5,
+                      border: "1px solid var(--border)",
+                      background: "transparent",
+                      color: "var(--text3)",
+                      fontSize: 10,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-mono)",
+                      letterSpacing: "0.03em",
+                      whiteSpace: "nowrap",
+                    }}
+                    title="View autopsy"
+                  >
+                    ⚕ Autopsy
+                  </button>
+                )}
               </div>
             );
           })}

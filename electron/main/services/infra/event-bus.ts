@@ -78,6 +78,12 @@ export interface ExvaEventMap {
   };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
+  andon_cord_fired: {
+    lessonId: string;
+    lessonText: string;
+    recurrenceCount: number;
+    sessionId: string;
+  };
 }
 
 export class EventBus {

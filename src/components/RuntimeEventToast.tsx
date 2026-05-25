@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import type { CSSProperties } from "react";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
+import type { AndonCordPayload } from "@/lib/autopsy-types";
 import type { EventRow, Trade } from "@/lib/types";
 import { Button } from "@/components/ui";
 import { fmt } from "@/lib/formatters";
@@ -10,6 +11,7 @@ interface ToastItem {
   level: "ERROR" | "WARN" | "INFO";
   message: string;
   sessionId?: string | null;
+  persistent?: boolean;
 }
 
 const MAX_TOASTS = 5;
@@ -30,7 +32,9 @@ export function RuntimeEventToast() {
   const pushToast = useCallback(
     (item: ToastItem) => {
       setToasts((prev) => [item, ...prev].slice(0, MAX_TOASTS));
-      window.setTimeout(() => dismiss(item.id), AUTO_DISMISS_MS);
+      if (!item.persistent) {
+        window.setTimeout(() => dismiss(item.id), AUTO_DISMISS_MS);
+      }
     },
     [dismiss],
   );
@@ -55,6 +59,16 @@ export function RuntimeEventToast() {
       level: "INFO",
       message: `${trade.instrumentSymbol} ${formatExitReason(trade.exit_reason)} — ${pnl}`,
       sessionId: trade.sessionId,
+    });
+  });
+
+  useExvaEvent("andon_cord_fired", (payload: AndonCordPayload) => {
+    pushToast({
+      id: `andon-${payload.lessonId}-${payload.recurrenceCount}`,
+      level: "WARN",
+      message: `Andon Cord — ${payload.lessonText}. This issue has recurred ${payload.recurrenceCount} times without resolution. Review required.`,
+      sessionId: payload.sessionId,
+      persistent: true,
     });
   });
 

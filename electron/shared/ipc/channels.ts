@@ -8,6 +8,14 @@ export const channels = {
     getDetail: "trades:get-detail",
     forceClose: "trades:force-close",
     approve: "trades:approve",
+    autopsy: {
+      summarize: "trades:autopsy:summarize",
+      list: "trades:autopsy:list",
+      export: "trades:autopsy:export",
+      listLessons: "trades:autopsy:list-lessons",
+      addLesson: "trades:autopsy:add-lesson",
+      updateLesson: "trades:autopsy:update-lesson",
+    },
   },
   session: {
     start: "session:start",
@@ -141,6 +149,7 @@ export const mainToRendererEvents = [
   "broker_balance_updated",
   "stats_update",
   "notification",
+  "andon_cord_fired",
 ] as const;
 
 export type ExvaEventName = (typeof mainToRendererEvents)[number];

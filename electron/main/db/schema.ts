@@ -562,11 +562,50 @@ export const tradeAutopsies = sqliteTable(
       .references(() => sessions.id, { onDelete: "cascade" }),
     modelId: text("model_id").notNull(),
     summary: text("summary").notNull(),
+    summaryStructuredJson: text("summary_structured_json")
+      .notNull()
+      .default("{}"),
+    phaseTracesJson: text("phase_traces_json").notNull().default("[]"),
+    qualityGrade: text("quality_grade"),
+    qualityScore: real("quality_score"),
+    isFallback: integer("is_fallback", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: text("created_at").notNull(),
     createdBy: text("created_by").notNull().default("user"),
   },
   (table) => ({
     tradeIdIdx: index("idx_trade_autopsies_trade").on(table.tradeId),
+  }),
+);
+
+export const autopsyLessons = sqliteTable(
+  "autopsy_lessons",
+  {
+    id: text("id").primaryKey(),
+    autopsyId: text("autopsy_id")
+      .notNull()
+      .references(() => tradeAutopsies.id, { onDelete: "cascade" }),
+    tradeId: text("trade_id")
+      .notNull()
+      .references(() => trades.id, { onDelete: "cascade" }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    lesson: text("lesson").notNull(),
+    severity: text("severity").notNull().default("medium"),
+    category: text("category").notNull().default("strategy"),
+    proposedFix: text("proposed_fix").notNull().default(""),
+    status: text("status").notNull().default("pending"),
+    recurrenceCount: integer("recurrence_count").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    validatedAt: text("validated_at"),
+  },
+  (table) => ({
+    autopsyIdx: index("idx_autopsy_lessons_autopsy").on(table.autopsyId),
+    sessionIdx: index("idx_autopsy_lessons_session").on(table.sessionId),
+    statusIdx: index("idx_autopsy_lessons_status").on(table.status),
   }),
 );
 

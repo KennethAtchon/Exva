@@ -46,6 +46,14 @@ import type {
   UserGlobalPresetRow,
   WorkspaceViewResponse,
 } from "@electron/shared/ipc/dto";
+import type {
+  AddLessonInput,
+  AutopsyLesson,
+  ExportFormat,
+  ExportResult,
+  TradeAutopsyRecord,
+  UpdateLessonInput,
+} from "@electron/shared/domain/autopsy";
 
 const hasExva =
   typeof window !== "undefined" &&
@@ -378,6 +386,22 @@ export const api = {
     cycleId?: string | null;
     tradeId?: string | null;
   }): Promise<ApiCallLogEntry[]> => bridge().events.getApiCallLog(filters),
+
+  summarizeTradeAutopsy: (tradeId: string): Promise<TradeAutopsyRecord> =>
+    bridge().autopsy.summarize(tradeId),
+  listTradeAutopsies: (tradeId: string): Promise<TradeAutopsyRecord[]> =>
+    bridge().autopsy.list(tradeId),
+  listAutopsyLessons: (autopsyId: string): Promise<AutopsyLesson[]> =>
+    bridge().autopsy.listLessons(autopsyId),
+  addAutopsyLesson: (input: AddLessonInput): Promise<AutopsyLesson> =>
+    bridge().autopsy.addLesson(input),
+  updateAutopsyLesson: (
+    input: UpdateLessonInput,
+  ): Promise<{ ok: true }> => bridge().autopsy.updateLesson(input),
+  exportTradeAutopsy: (
+    autopsyId: string,
+    format: ExportFormat,
+  ): Promise<ExportResult> => bridge().autopsy.export(autopsyId, format),
 };
 
 export async function listenEvent<K extends ExvaEventName>(

@@ -67,6 +67,19 @@ const exva: ExvaApi = {
         approveTradeSchema.parse({ tradeId, approved }),
       ),
   },
+  autopsy: {
+    summarize: (tradeId) =>
+      invoke(channels.trades.autopsy.summarize, tradeIdSchema.parse({ tradeId })),
+    list: (tradeId) =>
+      invoke(channels.trades.autopsy.list, tradeIdSchema.parse({ tradeId })),
+    listLessons: (autopsyId) =>
+      invoke(channels.trades.autopsy.listLessons, { autopsyId }),
+    addLesson: (input) => invoke(channels.trades.autopsy.addLesson, input),
+    updateLesson: (input) =>
+      invoke(channels.trades.autopsy.updateLesson, input),
+    export: (autopsyId, format) =>
+      invoke(channels.trades.autopsy.export, { autopsyId, format }),
+  },
   session: {
     start: () => invoke(channels.session.start),
     pause: () => invoke(channels.session.pause),

@@ -11,11 +11,13 @@ import { registerSessionHandlers } from "./session/session";
 import { registerStrategyHandlers } from "./workspace/strategy";
 import { registerTemplateHandlers } from "./session/templates";
 import { registerTradeHandlers } from "./trading/trades";
+import { registerAutopsyHandlers } from "./trading/autopsy";
 import { registerWorkspaceHandlers } from "./workspace/workspace";
 
 export function registerIpcHandlers(services: AppServices): void {
   registerDashboardHandlers(services);
   registerTradeHandlers(services);
+  registerAutopsyHandlers(services);
   registerApprovalHandlers(services);
   registerSessionHandlers(services);
   registerStrategyHandlers(services);

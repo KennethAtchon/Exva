@@ -40,6 +40,7 @@ The Autopsy system is an institutional-grade post-trade intelligence and continu
 ## 3. Scope
 
 **In scope:**
+
 - Per-trade autopsy generation using a multi-phase LLM pipeline
 - Structured autopsy schema (not just free-text summary)
 - Full raw model chat history viewer — every prompt and response the autopsy AI received
@@ -51,6 +52,7 @@ The Autopsy system is an institutional-grade post-trade intelligence and continu
 - Autopsy history list per trade (multiple autopsies over time are retained)
 
 **Out of scope:**
+
 - Session-level or cross-session autopsy (per-trade only in this version)
 - Behavioral heatmaps across many trades (separate analytics feature)
 - Real-time autopsy during an open trade
@@ -180,35 +182,39 @@ Autopsy Page (full viewport, scrollable)
 
 #### Element Inventory
 
-| Element | Type | Label / Content | State | Action on Interact |
-|---------|------|----------------|-------|-------------------|
-| Back button | Button | "← Back" | — | `router.back()` or navigate to `/trades/[tradeId]` |
-| Generate Autopsy | Button | "Generate Autopsy" / "Generating…" / "Regenerate" | Disabled during generation | Calls `api.summarizeTradeAutopsy(tradeId)`, shows spinner, invalidates query |
-| View Chat History | Button | "View Chat History" | Hidden when no autopsies | Opens Chat History Modal |
-| Export dropdown | Button + Popover | "↓ Export" | Hidden when no autopsies | Opens 3-item popover |
-| Export → Markdown | Popover item | "Markdown (.md)" | — | Calls export IPC, file save dialog |
-| Export → JSON | Popover item | "JSON (.json)" | — | Calls export IPC, file save dialog |
-| Export → PDF | Popover item | "PDF (.pdf)" | — | Calls `webContents.printToPDF` via IPC, file save dialog |
-| Version chip | Button | "v1 · May 20" | Active = filled bg | Sets `selectedAutopsyId` in local state |
-| Section card toggle (▼) | Button | Section name | Toggles open/closed | Updates local `openSections` Set |
-| Add Lesson | Button | "+ Add Lesson" | — | Opens inline lesson creation form in sidebar |
-| Lesson status chip | Button | Status label | — | Opens status picker popover |
-| Lesson expand | Click on text | — | 2-line truncated by default | Expands to full lesson + proposed fix |
+
+| Element                 | Type             | Label / Content                                   | State                       | Action on Interact                                                           |
+| ----------------------- | ---------------- | ------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
+| Back button             | Button           | "← Back"                                          | —                           | `router.back()` or navigate to `/trades/[tradeId]`                           |
+| Generate Autopsy        | Button           | "Generate Autopsy" / "Generating…" / "Regenerate" | Disabled during generation  | Calls `api.summarizeTradeAutopsy(tradeId)`, shows spinner, invalidates query |
+| View Chat History       | Button           | "View Chat History"                               | Hidden when no autopsies    | Opens Chat History Modal                                                     |
+| Export dropdown         | Button + Popover | "↓ Export"                                        | Hidden when no autopsies    | Opens 3-item popover                                                         |
+| Export → Markdown       | Popover item     | "Markdown (.md)"                                  | —                           | Calls export IPC, file save dialog                                           |
+| Export → JSON           | Popover item     | "JSON (.json)"                                    | —                           | Calls export IPC, file save dialog                                           |
+| Export → PDF            | Popover item     | "PDF (.pdf)"                                      | —                           | Calls `webContents.printToPDF` via IPC, file save dialog                     |
+| Version chip            | Button           | "v1 · May 20"                                     | Active = filled bg          | Sets `selectedAutopsyId` in local state                                      |
+| Section card toggle (▼) | Button           | Section name                                      | Toggles open/closed         | Updates local `openSections` Set                                             |
+| Add Lesson              | Button           | "+ Add Lesson"                                    | —                           | Opens inline lesson creation form in sidebar                                 |
+| Lesson status chip      | Button           | Status label                                      | —                           | Opens status picker popover                                                  |
+| Lesson expand           | Click on text    | —                                                 | 2-line truncated by default | Expands to full lesson + proposed fix                                        |
+
 
 ---
 
 #### Page States
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Trade is open | `trade.status === "open"` | Full-page message: "Autopsy is only available for closed trades." |
-| No autopsy | `autopsies.length === 0` | Centered empty state with Generate button |
-| Generating | `autopsyLoading === true` | Header button shows "Generating…" + spinner; empty state persists until done |
-| Generation failed | `autopsyError !== null` | Toast: "Generation failed: [message]. Retry?" + button resets |
-| Has autopsy, 1 version | `autopsies.length === 1` | No version selector; autopsy content rendered |
-| Has autopsy, N versions | `autopsies.length > 1` | Version chip row above content; latest selected by default |
-| Fallback autopsy | `autopsy.is_fallback === true` | Yellow banner above content |
-| No agent messages | `agentMessages.length === 0` | Yellow banner above content |
+
+| State                   | Condition                      | What the User Sees                                                           |
+| ----------------------- | ------------------------------ | ---------------------------------------------------------------------------- |
+| Trade is open           | `trade.status === "open"`      | Full-page message: "Autopsy is only available for closed trades."            |
+| No autopsy              | `autopsies.length === 0`       | Centered empty state with Generate button                                    |
+| Generating              | `autopsyLoading === true`      | Header button shows "Generating…" + spinner; empty state persists until done |
+| Generation failed       | `autopsyError !== null`        | Toast: "Generation failed: [message]. Retry?" + button resets                |
+| Has autopsy, 1 version  | `autopsies.length === 1`       | No version selector; autopsy content rendered                                |
+| Has autopsy, N versions | `autopsies.length > 1`         | Version chip row above content; latest selected by default                   |
+| Fallback autopsy        | `autopsy.is_fallback === true` | Yellow banner above content                                                  |
+| No agent messages       | `agentMessages.length === 0`   | Yellow banner above content                                                  |
+
 
 ---
 
@@ -252,12 +258,14 @@ Modal (max-w-[700px], h-[88vh], scrollable)
 
 **States:**
 
-| State | Condition | What the User Sees |
-|-------|-----------|-------------------|
-| Loading | Query in flight | Skeleton rows for 3 phases |
-| No phases | `phase_traces` is empty | "Chat history not available for this autopsy." |
-| Phase collapsed | Default | Only header row visible |
-| Phase expanded | User clicked | Full prompt/response content visible |
+
+| State           | Condition               | What the User Sees                             |
+| --------------- | ----------------------- | ---------------------------------------------- |
+| Loading         | Query in flight         | Skeleton rows for 3 phases                     |
+| No phases       | `phase_traces` is empty | "Chat history not available for this autopsy." |
+| Phase collapsed | Default                 | Only header row visible                        |
+| Phase expanded  | User clicked            | Full prompt/response content visible           |
+
 
 ---
 
@@ -270,6 +278,7 @@ Modal (max-w-[700px], h-[88vh], scrollable)
 **Behavior per format:**
 
 **Markdown export:**
+
 - Calls `ipcRenderer.invoke('trades:autopsy:export', { autopsyId, format: 'markdown' })`
 - Main process serializes the autopsy to a structured Markdown document (see section 6 for schema)
 - Opens native `dialog.showSaveDialog` with default filename: `autopsy-[symbol]-[YYYY-MM-DD].md`
@@ -277,12 +286,14 @@ Modal (max-w-[700px], h-[88vh], scrollable)
 - Shows success toast: "Autopsy exported to [filename]"
 
 **JSON export:**
+
 - Same IPC call with `format: 'json'`
 - Serializes the full structured autopsy including `phase_traces`, `lessons`, all fields
 - Default filename: `autopsy-[symbol]-[YYYY-MM-DD].json`
 - Same save dialog flow
 
 **PDF export:**
+
 - Calls `ipcRenderer.invoke('trades:autopsy:export', { autopsyId, format: 'pdf' })`
 - Main process renders the autopsy to an off-screen HTML string using the same Markdown
 - Calls `BrowserWindow.webContents.printToPDF({ margins: { type: 'custom', top: 0.5, right: 0.5, bottom: 0.5, left: 0.5 }, printBackground: true })`
@@ -313,7 +324,10 @@ flowchart TD
     I --> J[Full page: grade banner, sections, sidebar with lessons]
 ```
 
+
+
 **Happy path:**
+
 1. User lands on the autopsy page. Empty state shown with "Generate Autopsy" button.
 2. They click it. Button changes to "Generating…" with spinner.
 3. Main process runs multi-phase autopsy pipeline (see section 7). Each phase calls the LLM sequentially.
@@ -322,6 +336,7 @@ flowchart TD
 6. Lessons extracted by the synthesis phase are inserted into `autopsy_lessons`.
 
 **Deviations:**
+
 - **If any non-synthesis phase fails:** Continue with remaining phases. Mark the failed phase as `"error"` in `phase_traces`. Synthesis still runs with available data.
 - **If the synthesis phase fails:** Fall back to `fallbackSummary()` behavior. Set `is_fallback = true`. Yellow banner shown on page.
 - **If no `agent_messages` exist:** Yellow banner: "No AI reasoning trace found. Autopsy will be based on trade metadata only."
@@ -345,6 +360,8 @@ flowchart TD
     G -->|Export Chat History| J[Save JSON to disk]
 ```
 
+
+
 ---
 
 ### 5.3 Export Autopsy
@@ -363,6 +380,8 @@ flowchart TD
     G --> I[Toast: Autopsy exported to filename]
     G -->|Error| J[Toast: Export failed — error message]
 ```
+
+
 
 ---
 
@@ -387,6 +406,8 @@ flowchart TD
     L -->|No| N[Lesson stays recurring]
 ```
 
+
+
 ---
 
 ## 6. Data & Field Mapping
@@ -395,16 +416,18 @@ flowchart TD
 
 **Schema changes required:**
 
-| Table | Change | Column Name | Type | Default | Nullable |
-|-------|--------|------------|------|---------|----------|
-| `trade_autopsies` | Add column | `summary_structured_json` | `text` | `'{}'` | No |
-| `trade_autopsies` | Add column | `phase_traces_json` | `text` | `'[]'` | No |
-| `trade_autopsies` | Add column | `quality_grade` | `text` | `null` | Yes |
-| `trade_autopsies` | Add column | `quality_score` | `real` | `null` | Yes |
-| `trade_autopsies` | Add column | `is_fallback` | `integer` (boolean) | `0` | No |
-| `trade_autopsies` | Rename | `summary` → keep for fallback text | — | — | — |
 
-**`summary_structured_json` shape:**
+| Table             | Change     | Column Name                        | Type                | Default | Nullable |
+| ----------------- | ---------- | ---------------------------------- | ------------------- | ------- | -------- |
+| `trade_autopsies` | Add column | `summary_structured_json`          | `text`              | `'{}'`  | No       |
+| `trade_autopsies` | Add column | `phase_traces_json`                | `text`              | `'[]'`  | No       |
+| `trade_autopsies` | Add column | `quality_grade`                    | `text`              | `null`  | Yes      |
+| `trade_autopsies` | Add column | `quality_score`                    | `real`              | `null`  | Yes      |
+| `trade_autopsies` | Add column | `is_fallback`                      | `integer` (boolean) | `0`     | No       |
+| `trade_autopsies` | Rename     | `summary` → keep for fallback text | —                   | —       | —        |
+
+
+`**summary_structured_json` shape:**
 
 ```typescript
 interface AutopsyStructured {
@@ -440,7 +463,7 @@ interface AutopsyStructured {
 }
 ```
 
-**`phase_traces_json` shape:**
+`**phase_traces_json` shape:**
 
 ```typescript
 interface PhaseTrace {
@@ -465,21 +488,23 @@ interface PhaseTrace {
 
 **Schema changes required (new table):**
 
-| Column | Type | Default | Nullable | Notes |
-|--------|------|---------|----------|-------|
-| `id` | `text` PK | — | No | UUID |
-| `autopsy_id` | `text` FK → `trade_autopsies.id` | — | No | cascade delete |
-| `trade_id` | `text` FK → `trades.id` | — | No | cascade delete |
-| `session_id` | `text` FK → `sessions.id` | — | No | cascade delete |
-| `lesson` | `text` | — | No | The lesson text |
-| `severity` | `text` | `'medium'` | No | `'low' \| 'medium' \| 'high' \| 'critical'` |
-| `category` | `text` | `'strategy'` | No | `'strategy' \| 'execution' \| 'behavioral' \| 'risk' \| 'system'` |
-| `proposed_fix` | `text` | `''` | No | Concrete proposed change |
-| `status` | `text` | `'pending'` | No | `'pending' \| 'implemented' \| 'validated' \| 'recurring' \| 'dismissed'` |
-| `recurrence_count` | `integer` | `0` | No | Times this lesson's pattern recurred |
-| `created_at` | `text` | — | No | ISO timestamp |
-| `updated_at` | `text` | — | No | ISO timestamp |
-| `validated_at` | `text` | — | Yes | Set when validated by future autopsy |
+
+| Column             | Type                             | Default      | Nullable | Notes                                                                 |
+| ------------------ | -------------------------------- | ------------ | -------- | --------------------------------------------------------------------- |
+| `id`               | `text` PK                        | —            | No       | UUID                                                                  |
+| `autopsy_id`       | `text` FK → `trade_autopsies.id` | —            | No       | cascade delete                                                        |
+| `trade_id`         | `text` FK → `trades.id`          | —            | No       | cascade delete                                                        |
+| `session_id`       | `text` FK → `sessions.id`        | —            | No       | cascade delete                                                        |
+| `lesson`           | `text`                           | —            | No       | The lesson text                                                       |
+| `severity`         | `text`                           | `'medium'`   | No       | `'low' | 'medium' | 'high' | 'critical'`                              |
+| `category`         | `text`                           | `'strategy'` | No       | `'strategy' | 'execution' | 'behavioral' | 'risk' | 'system'`         |
+| `proposed_fix`     | `text`                           | `''`         | No       | Concrete proposed change                                              |
+| `status`           | `text`                           | `'pending'`  | No       | `'pending' | 'implemented' | 'validated' | 'recurring' | 'dismissed'` |
+| `recurrence_count` | `integer`                        | `0`          | No       | Times this lesson's pattern recurred                                  |
+| `created_at`       | `text`                           | —            | No       | ISO timestamp                                                         |
+| `updated_at`       | `text`                           | —            | No       | ISO timestamp                                                         |
+| `validated_at`     | `text`                           | —            | Yes      | Set when validated by future autopsy                                  |
+
 
 ---
 
@@ -561,34 +586,42 @@ The `TradeAutopsyService.summarize()` method is replaced by a multi-phase pipeli
 
 ### Phase Definitions
 
-| Phase | Model Input | Focus | Max Tokens |
-|-------|------------|-------|-----------|
-| `thesis` | Trade metadata + strategy snapshot + agent decision message | Was the trade thesis logically valid? | 600 |
-| `execution` | Trade metrics (entry_price, stop, take_profit, pnl, position_size, hold_duration) | Was the trade executed well? | 500 |
-| `behavioral` | Full agent messages transcript (no truncation) | Were there behavioral failure patterns? | 600 |
-| `market_context` | market_snapshot_json from agent messages + trade timestamps | What were market conditions? Was this a good time to trade? | 500 |
-| `synthesis` | All four phase outputs concatenated | Grade the trade, extract lessons, write executive summary | 1200 |
+
+| Phase            | Model Input                                                                       | Focus                                                       | Max Tokens |
+| ---------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------- | ---------- |
+| `thesis`         | Trade metadata + strategy snapshot + agent decision message                       | Was the trade thesis logically valid?                       | 600        |
+| `execution`      | Trade metrics (entry_price, stop, take_profit, pnl, position_size, hold_duration) | Was the trade executed well?                                | 500        |
+| `behavioral`     | Full agent messages transcript (no truncation)                                    | Were there behavioral failure patterns?                     | 600        |
+| `market_context` | market_snapshot_json from agent messages + trade timestamps                       | What were market conditions? Was this a good time to trade? | 500        |
+| `synthesis`      | All four phase outputs concatenated                                               | Grade the trade, extract lessons, write executive summary   | 1200       |
+
 
 ### Phase System Prompts
 
 **thesis phase:**
+
 > "You are reviewing whether an AI trading agent's thesis was logically valid. Focus only on reasoning quality — not on outcome. A bad thesis that wins is still a bad thesis. A good thesis that loses to noise is still good. Answer with JSON matching the ThesisReview schema."
 
 **execution phase:**
+
 > "You are reviewing trade execution mechanics. Assess entry timing, position sizing relative to conviction, and exit management. Do not comment on the thesis. Answer with JSON matching the ExecutionQuality schema."
 
 **behavioral phase:**
+
 > "You are a trading psychologist reviewing an AI agent's message transcript for behavioral failure patterns (FOMO, revenge, overconfidence, panic exit, rule violation, stop movement, etc.). List only patterns that have clear textual evidence in the transcript. Answer with JSON matching BehavioralFlags schema."
 
 **market_context phase:**
+
 > "You are a market analyst. Based on the market snapshot provided, describe the regime, volatility conditions, and whether these conditions were suitable for the stated strategy. Answer with JSON matching MarketContext schema."
 
 **synthesis phase:**
+
 > "You are a senior prop-firm mentor reviewing a trade autopsy. You have been given four specialist analyses. Your job: write a concise executive summary, assign a letter grade (A+ through F) and numeric score (0–100), list what worked, what failed, the root cause of failure (if any), and 1–3 actionable process improvements. Extract 0–3 structured lessons. Answer with JSON matching AutopsySynthesis schema."
 
 ### Prompt Construction
 
 **Thesis phase user prompt:**
+
 ```
 Trade: [symbol] [side] | P&L: [pnl_usd] | Confidence: [confidence_score]
 Strategy: [strategy]
@@ -601,6 +634,7 @@ Was the thesis logically valid given these inputs?
 ```
 
 **Execution phase user prompt:**
+
 ```
 Trade: [symbol] [side]
 Entry: [entry_price] | Stop Loss: [stop_loss_price] | Take Profit: [take_profit_price]
@@ -612,6 +646,7 @@ Assess the execution mechanics only.
 ```
 
 **Behavioral phase user prompt:**
+
 ```
 Full agent transcript for this trade ([N] messages):
 
@@ -626,6 +661,7 @@ Identify behavioral failure patterns. Only cite patterns with direct textual evi
 ```
 
 **Market context phase user prompt:**
+
 ```
 Trade opened: [opened_at] | Closed: [closed_at]
 Symbol: [symbol] | Strategy timeframe: [primaryTradingTimeframe]
@@ -637,6 +673,7 @@ Describe market conditions and suitability for this trade.
 ```
 
 **Synthesis phase user prompt:**
+
 ```
 THESIS REVIEW:
 [thesis phase output]
@@ -666,6 +703,7 @@ Trade outcome: [symbol] [side] | P&L: [pnl_usd] ([pnl_pct]%) | Grade this trade.
 **Request:** `{ tradeId: string }`
 
 **Response:**
+
 ```typescript
 // 200 OK
 {
@@ -711,6 +749,7 @@ Trade outcome: [symbol] [side] | P&L: [pnl_usd] ([pnl_pct]%) | Grade this trade.
 **When called:** User selects format from Export dropdown.
 
 **Request:**
+
 ```typescript
 {
   autopsyId: string;
@@ -719,6 +758,7 @@ Trade outcome: [symbol] [side] | P&L: [pnl_usd] ([pnl_pct]%) | Grade this trade.
 ```
 
 **Response:**
+
 ```typescript
 // 200 OK
 { path: string; filename: string; }
@@ -741,6 +781,7 @@ Trade outcome: [symbol] [side] | P&L: [pnl_usd] ([pnl_pct]%) | Grade this trade.
 **When called:** User changes lesson status chip or edits lesson inline.
 
 **Request:**
+
 ```typescript
 {
   lessonId: string;
@@ -751,6 +792,7 @@ Trade outcome: [symbol] [side] | P&L: [pnl_usd] ([pnl_pct]%) | Grade this trade.
 ```
 
 **Response:**
+
 ```typescript
 // 200 OK
 { ok: true }
@@ -766,6 +808,7 @@ Trade outcome: [symbol] [side] | P&L: [pnl_usd] ([pnl_pct]%) | Grade this trade.
 **Purpose:** Manually add a lesson to an autopsy.
 
 **Request:**
+
 ```typescript
 {
   autopsyId: string;
@@ -779,6 +822,7 @@ Trade outcome: [symbol] [side] | P&L: [pnl_usd] ([pnl_pct]%) | Grade this trade.
 ```
 
 **Response:**
+
 ```typescript
 // 200 OK — returns created lesson
 { id: string; /* full lesson object */ }
@@ -795,13 +839,14 @@ When a new autopsy is generated for a trade in session X, the `TradeAutopsyServi
 1. Load all `autopsy_lessons` for session X where `status IN ('pending', 'implemented')`.
 2. For each lesson, check if the `behavioral_flags` or `what_failed` fields of the new autopsy contain the same pattern (keyword match + semantic similarity via LLM if available).
 3. If a match is found:
-   - Increment `recurrence_count` on the lesson.
-   - If `recurrence_count >= 2` and `status !== 'validated'`, set `status = 'recurring'`.
+  - Increment `recurrence_count` on the lesson.
+  - If `recurrence_count >= 2` and `status !== 'validated'`, set `status = 'recurring'`.
 4. If no match found for a lesson with `status = 'implemented'` across the last 5 trades in the session, set `status = 'validated'`.
 
 **Andon Cord:**
 
 If any lesson has `severity IN ('high', 'critical')` AND `status = 'recurring'` AND `recurrence_count >= 3`:
+
 - Emit `andon_cord_fired` event via EventBus.
 - Show persistent toast: "⚠ Andon Cord — [lesson text]. This issue has recurred [N] times without resolution. Review required." with a "Dismiss" button.
 - The toast does NOT auto-dismiss (unlike normal 8s dismiss timer).
@@ -811,78 +856,85 @@ If any lesson has `severity IN ('high', 'critical')` AND `status = 'recurring'` 
 
 ## 10. Error States & Edge Cases
 
-| Scenario | Trigger | What the User Sees | What the System Does |
-|----------|---------|-------------------|---------------------|
-| Trade has no agent messages | `agent_messages.length === 0` | Yellow banner: "No AI reasoning trace found. Autopsy will be metadata-only." | Behavioral and thesis phases run with reduced input; market_context and execution still run normally |
-| Phase LLM call fails | Network error, 5xx, timeout | Phase marked as `error` in `phase_traces_json`. Synthesis runs with partial data. | Log the error, continue pipeline |
-| All phases fail | All LLM calls fail | Yellow fallback banner. Summary is fallback text. | `is_fallback = true`, plain summary from `fallbackSummary()` |
-| Export — save dialog cancelled | User hits Cancel | No-op, no toast | Return `{ cancelled: true }` |
-| Export — file write error | Disk full, permission denied | Toast: "Export failed: [error message]" | Log error, return `{ error }` |
-| PDF export not supported | Electron context unavailable | Toast: "PDF export requires the desktop app." | Disable PDF option (grey it out) if `window.electron` not available |
-| Lesson status update fails | Network / IPC error | Toast: "Failed to update lesson status. Try again." | Revert optimistic UI update |
-| Andon cord fires | `recurrence_count >= 3` on high/critical lesson | Persistent toast with warning icon, no auto-dismiss | Emit event, insert `andon_cord_fired` event record into `events` table |
-| Chat history — no phase traces | Autopsy generated before this feature | Message: "Chat history not available for autopsies generated before [version date]." | Check `phase_traces_json === '[]'` |
-| Regenerate with existing autopsy | User clicks "Regenerate" | Existing autopsies are retained. New autopsy added as new version. | No overwrite — always insert new record |
+
+| Scenario                         | Trigger                                         | What the User Sees                                                                   | What the System Does                                                                                 |
+| -------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Trade has no agent messages      | `agent_messages.length === 0`                   | Yellow banner: "No AI reasoning trace found. Autopsy will be metadata-only."         | Behavioral and thesis phases run with reduced input; market_context and execution still run normally |
+| Phase LLM call fails             | Network error, 5xx, timeout                     | Phase marked as `error` in `phase_traces_json`. Synthesis runs with partial data.    | Log the error, continue pipeline                                                                     |
+| All phases fail                  | All LLM calls fail                              | Yellow fallback banner. Summary is fallback text.                                    | `is_fallback = true`, plain summary from `fallbackSummary()`                                         |
+| Export — save dialog cancelled   | User hits Cancel                                | No-op, no toast                                                                      | Return `{ cancelled: true }`                                                                         |
+| Export — file write error        | Disk full, permission denied                    | Toast: "Export failed: [error message]"                                              | Log error, return `{ error }`                                                                        |
+| PDF export not supported         | Electron context unavailable                    | Toast: "PDF export requires the desktop app."                                        | Disable PDF option (grey it out) if `window.electron` not available                                  |
+| Lesson status update fails       | Network / IPC error                             | Toast: "Failed to update lesson status. Try again."                                  | Revert optimistic UI update                                                                          |
+| Andon cord fires                 | `recurrence_count >= 3` on high/critical lesson | Persistent toast with warning icon, no auto-dismiss                                  | Emit event, insert `andon_cord_fired` event record into `events` table                               |
+| Chat history — no phase traces   | Autopsy generated before this feature           | Message: "Chat history not available for autopsies generated before [version date]." | Check `phase_traces_json === '[]'`                                                                   |
+| Regenerate with existing autopsy | User clicks "Regenerate"                        | Existing autopsies are retained. New autopsy added as new version.                   | No overwrite — always insert new record                                                              |
+
 
 ---
 
 ## 11. Copy & Labels
 
-| Location | String | Notes |
-|----------|--------|-------|
-| Back button (autopsy page) | "← Back" | — |
-| Generate button (no autopsies) | "Generate Autopsy" | — |
-| Generate button (has autopsies) | "Regenerate" | — |
-| Generate button (loading) | "Generating…" | Spinner icon before text |
-| View Chat History button | "View Chat History" | — |
-| Open-trade guard message | "Autopsy is only available for closed trades." | Full-page state |
-| Export button | "↓ Export" | Dropdown arrow character |
-| Export item: Markdown | "Markdown (.md)" | — |
-| Export item: JSON | "JSON (.json)" | — |
-| Export item: PDF | "PDF (.pdf)" | — |
-| Empty autopsy state | "No autopsy generated yet." | — |
-| Empty autopsy subtext | "Generate an autopsy to get structured analysis of this trade." | — |
-| Fallback banner | "LLM unavailable — this autopsy used fallback summarization." | Yellow background |
-| No agent messages banner | "No AI reasoning trace found for this trade. Autopsy will be based on trade metadata only." | Yellow background |
-| Lessons section title | "LESSONS" | Uppercase, var(--text3) |
-| Add lesson button | "+ Add Lesson" | — |
-| No lessons text | "No lessons extracted." | var(--text3) |
-| Lesson status: pending | "Pending" | Default chip |
-| Lesson status: implemented | "Implemented" | Blue chip |
-| Lesson status: validated | "Validated" | Green chip |
-| Lesson status: recurring | "Recurring" | Amber chip |
-| Lesson status: dismissed | "Dismissed" | Muted chip |
-| Grade chip: A+ | "A+" | Green (#34d399) |
-| Grade chip: A | "A" | Green (#34d399) |
-| Grade chip: B | "B" | Blue (#60a5fa) |
-| Grade chip: C | "C" | Amber (#fbbf24) |
-| Grade chip: D | "D" | Orange (#f97316) |
-| Grade chip: F | "F" | Red (#f87171) |
-| Andon cord toast | "⚠ Andon Cord — [lesson text]. This issue has recurred [N] times without resolution. Review required." | Persistent, no auto-dismiss |
-| Chat history modal title | "Autopsy Chat History" | — |
-| Chat history copy button | "Copy All (JSON)" | — |
-| Chat history export button | "Export Chat History" | — |
-| Export success toast | "Autopsy exported to [filename]" | — |
-| Export fail toast | "Export failed: [error]" | — |
-| Clipboard copy success toast | "Copied to clipboard." | Auto-dismiss 3s |
-| Section: Thesis Review | "Thesis Review" | — |
-| Section: Execution Quality | "Execution Quality" | — |
-| Section: Behavioral Flags | "Behavioral Flags" | — |
-| Section: Market Context | "Market Context" | — |
-| Section: What Worked | "What Worked" | — |
-| Section: What Failed | "What Failed" | — |
-| Section: Root Cause | "Root Cause" | — |
+
+| Location                        | String                                                                                                 | Notes                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------- |
+| Back button (autopsy page)      | "← Back"                                                                                               | —                           |
+| Generate button (no autopsies)  | "Generate Autopsy"                                                                                     | —                           |
+| Generate button (has autopsies) | "Regenerate"                                                                                           | —                           |
+| Generate button (loading)       | "Generating…"                                                                                          | Spinner icon before text    |
+| View Chat History button        | "View Chat History"                                                                                    | —                           |
+| Open-trade guard message        | "Autopsy is only available for closed trades."                                                         | Full-page state             |
+| Export button                   | "↓ Export"                                                                                             | Dropdown arrow character    |
+| Export item: Markdown           | "Markdown (.md)"                                                                                       | —                           |
+| Export item: JSON               | "JSON (.json)"                                                                                         | —                           |
+| Export item: PDF                | "PDF (.pdf)"                                                                                           | —                           |
+| Empty autopsy state             | "No autopsy generated yet."                                                                            | —                           |
+| Empty autopsy subtext           | "Generate an autopsy to get structured analysis of this trade."                                        | —                           |
+| Fallback banner                 | "LLM unavailable — this autopsy used fallback summarization."                                          | Yellow background           |
+| No agent messages banner        | "No AI reasoning trace found for this trade. Autopsy will be based on trade metadata only."            | Yellow background           |
+| Lessons section title           | "LESSONS"                                                                                              | Uppercase, var(--text3)     |
+| Add lesson button               | "+ Add Lesson"                                                                                         | —                           |
+| No lessons text                 | "No lessons extracted."                                                                                | var(--text3)                |
+| Lesson status: pending          | "Pending"                                                                                              | Default chip                |
+| Lesson status: implemented      | "Implemented"                                                                                          | Blue chip                   |
+| Lesson status: validated        | "Validated"                                                                                            | Green chip                  |
+| Lesson status: recurring        | "Recurring"                                                                                            | Amber chip                  |
+| Lesson status: dismissed        | "Dismissed"                                                                                            | Muted chip                  |
+| Grade chip: A+                  | "A+"                                                                                                   | Green (#34d399)             |
+| Grade chip: A                   | "A"                                                                                                    | Green (#34d399)             |
+| Grade chip: B                   | "B"                                                                                                    | Blue (#60a5fa)              |
+| Grade chip: C                   | "C"                                                                                                    | Amber (#fbbf24)             |
+| Grade chip: D                   | "D"                                                                                                    | Orange (#f97316)            |
+| Grade chip: F                   | "F"                                                                                                    | Red (#f87171)               |
+| Andon cord toast                | "⚠ Andon Cord — [lesson text]. This issue has recurred [N] times without resolution. Review required." | Persistent, no auto-dismiss |
+| Chat history modal title        | "Autopsy Chat History"                                                                                 | —                           |
+| Chat history copy button        | "Copy All (JSON)"                                                                                      | —                           |
+| Chat history export button      | "Export Chat History"                                                                                  | —                           |
+| Export success toast            | "Autopsy exported to [filename]"                                                                       | —                           |
+| Export fail toast               | "Export failed: [error]"                                                                               | —                           |
+| Clipboard copy success toast    | "Copied to clipboard."                                                                                 | Auto-dismiss 3s             |
+| Section: Thesis Review          | "Thesis Review"                                                                                        | —                           |
+| Section: Execution Quality      | "Execution Quality"                                                                                    | —                           |
+| Section: Behavioral Flags       | "Behavioral Flags"                                                                                     | —                           |
+| Section: Market Context         | "Market Context"                                                                                       | —                           |
+| Section: What Worked            | "What Worked"                                                                                          | —                           |
+| Section: What Failed            | "What Failed"                                                                                          | —                           |
+| Section: Root Cause             | "Root Cause"                                                                                           | —                           |
+
 
 ---
 
 ## 12. Open Questions
 
-| # | Question | Impact if Unresolved | Owner |
-|---|----------|---------------------|-------|
-| 1 | Which LLM provider/model runs each phase? Currently `google/gemma-4-31b-it` via `openrouter`. Should each phase use the session's configured model, or a fixed autopsy model? | Determines `buildAutopsyPrompt` provider resolution logic | — |
-| 2 | Should the structured JSON fields (`summary_structured_json`, `phase_traces_json`) be added as new columns or should the existing `summary` column be repurposed? | Schema migration approach | — |
-| 3 | What is the Andon Cord action in v1 — notification only, or should it also set `session.status = 'attention_required'`? The spec says notification only; confirm this is correct. | Severity of the feature | — |
-| 4 | Lesson validation uses keyword matching + optional LLM semantic check. Confirm: run the semantic similarity check via LLM on every new autopsy generation, or keyword-only for v1? | Accuracy of validation vs cost | — |
-| 5 | PDF export uses `webContents.printToPDF`. This requires a visible or off-screen `BrowserWindow` to render into. Confirm the approach: render the autopsy HTML in a hidden window, or use a PDF generation library like `pdfkit`? | Implementation complexity | — |
-| 6 | Should "Regenerate" be available for open trades (to generate a partial autopsy mid-trade)? The spec says no — confirm. | Feature scope | — |
-| 7 | Where does the lesson validator run — as part of `summarize()` on every new autopsy, or as a separate scheduled job? | Architecture of `TradeAutopsyService` | — |
+
+| #   | Question                                                                                                                                                                                                                         | Impact if Unresolved                                      | Owner |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----- |
+| 1   | Which LLM provider/model runs each phase? Currently `google/gemma-4-31b-it` via `openrouter`. Should each phase use the session's configured model, or a fixed autopsy model?                                                    | Determines `buildAutopsyPrompt` provider resolution logic | —     |
+| 2   | Should the structured JSON fields (`summary_structured_json`, `phase_traces_json`) be added as new columns or should the existing `summary` column be repurposed?                                                                | Schema migration approach                                 | —     |
+| 3   | What is the Andon Cord action in v1 — notification only, or should it also set `session.status = 'attention_required'`? The spec says notification only; confirm this is correct.                                                | Severity of the feature                                   | —     |
+| 4   | Lesson validation uses keyword matching + optional LLM semantic check. Confirm: run the semantic similarity check via LLM on every new autopsy generation, or keyword-only for v1?                                               | Accuracy of validation vs cost                            | —     |
+| 5   | PDF export uses `webContents.printToPDF`. This requires a visible or off-screen `BrowserWindow` to render into. Confirm the approach: render the autopsy HTML in a hidden window, or use a PDF generation library like `pdfkit`? | Implementation complexity                                 | —     |
+| 6   | Should "Regenerate" be available for open trades (to generate a partial autopsy mid-trade)? The spec says no — confirm.                                                                                                          | Feature scope                                             | —     |
+| 7   | Where does the lesson validator run — as part of `summarize()` on every new autopsy, or as a separate scheduled job?                                                                                                             | Architecture of `TradeAutopsyService`                     | —     |
+
+

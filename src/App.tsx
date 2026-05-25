@@ -7,6 +7,7 @@ import { BrokersPage } from "./pages/BrokersPage";
 import { SessionsPage } from "./pages/SessionsPage";
 import { TradesPage } from "./pages/TradesPage";
 import { TradeDetail } from "./pages/TradeDetail";
+import { AutopsyPage } from "./pages/AutopsyPage";
 import { StrategyConfig } from "./pages/StrategyConfig";
 import { CostBreakdownPage } from "./pages/CostBreakdown";
 import { DevPanel, type DevPanelFocus } from "./pages/DevPanel";
@@ -46,6 +47,7 @@ export default function App() {
     useState<SessionSummary | null>(null);
   const [liveReadinessReport, setLiveReadinessReport] =
     useState<LiveReadinessReport | null>(null);
+  const [autopsyTradeId, setAutopsyTradeId] = useState<string | null>(null);
   const status = useSessionStore((s) => s.status);
   const setStatus = useSessionStore((s) => s.setStatus);
   const stats = useSessionStore((s) => s.stats);
@@ -212,7 +214,11 @@ export default function App() {
           />
         );
       case "trades":
-        return <TradesPage />;
+        return (
+          <TradesPage
+            onViewAutopsy={(tradeId) => setAutopsyTradeId(tradeId)}
+          />
+        );
       case "strategy":
         return <StrategyConfig onGoToSessions={() => setPage("sessions")} />;
       case "costs":
@@ -285,7 +291,21 @@ export default function App() {
       </div>
       <RuntimeEventToast />
       {selectedId && (
-        <TradeDetail tradeId={selectedId} onClose={() => setSelected(null)} />
+        <TradeDetail
+          tradeId={selectedId}
+          onClose={() => setSelected(null)}
+          onViewAutopsy={(tradeId) => {
+            setAutopsyTradeId(tradeId);
+            setSelected(null);
+          }}
+        />
+      )}
+      {autopsyTradeId && (
+        <AutopsyPage
+          tradeId={autopsyTradeId}
+          trade={null}
+          onClose={() => setAutopsyTradeId(null)}
+        />
       )}
       {liveReadinessSession && liveReadinessReport ? (
         <LiveReadinessModal

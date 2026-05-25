@@ -44,6 +44,14 @@ import type {
   UserGlobalPresetRow,
   WorkspaceViewResponse,
 } from "@electron/shared/ipc/dto";
+import type {
+  AddLessonInput,
+  AutopsyLesson,
+  ExportFormat,
+  ExportResult,
+  TradeAutopsyRecord,
+  UpdateLessonInput,
+} from "@electron/shared/domain/autopsy";
 
 export interface ExvaApi {
   dashboard: {
@@ -72,6 +80,14 @@ export interface ExvaApi {
     getDetail(tradeId: string): Promise<TradeDetail>;
     forceClose(tradeId: string): Promise<void>;
     approve(tradeId: string, approved: boolean): Promise<void>;
+  };
+  autopsy: {
+    summarize(tradeId: string): Promise<TradeAutopsyRecord>;
+    list(tradeId: string): Promise<TradeAutopsyRecord[]>;
+    listLessons(autopsyId: string): Promise<AutopsyLesson[]>;
+    addLesson(input: AddLessonInput): Promise<AutopsyLesson>;
+    updateLesson(input: UpdateLessonInput): Promise<{ ok: true }>;
+    export(autopsyId: string, format: ExportFormat): Promise<ExportResult>;
   };
   session: {
     start(): Promise<SessionStatus>;
