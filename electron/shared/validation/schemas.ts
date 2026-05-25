@@ -6,18 +6,18 @@ import {
   type TimeframePresetId,
 } from "../domain";
 
-export const instrumentClassSchema = z.enum([
+const instrumentClassSchema = z.enum([
   "stock",
   "crypto",
   "futures",
   "prediction_market",
 ]);
-export const selectionModeSchema = z.enum([
+const selectionModeSchema = z.enum([
   "manual_shortlist",
   "ai_selected_universe",
 ]);
-export const executionModeSchema = z.enum(["paper_only", "live_allowed"]);
-export const sessionStatusSchema = z.enum([
+const executionModeSchema = z.enum(["paper_only", "live_allowed"]);
+const sessionStatusSchema = z.enum([
   "draft",
   "idle",
   "active",
@@ -27,14 +27,14 @@ export const sessionStatusSchema = z.enum([
   "stopped",
   "archived",
 ]);
-export const researchDepthSchema = z.enum(["light", "balanced", "deep"]);
-export const strategyProfileSchema = z.enum([
+const researchDepthSchema = z.enum(["light", "balanced", "deep"]);
+const strategyProfileSchema = z.enum([
   "passive_income",
   "growth",
   "conservative",
   "custom",
 ]);
-export const researchPosturePresetIdSchema = z.enum([
+const researchPosturePresetIdSchema = z.enum([
   "trend_hunt",
   "catalyst_momentum",
   "institutional_quality",
@@ -42,7 +42,7 @@ export const researchPosturePresetIdSchema = z.enum([
   "prediction_event_edge",
   "custom",
 ]);
-export const researchDiscoveryModeSchema = z.enum([
+const researchDiscoveryModeSchema = z.enum([
   "trend_scan",
   "catalyst_scan",
   "quality_watchlist",
@@ -50,25 +50,25 @@ export const researchDiscoveryModeSchema = z.enum([
   "event_contract_scan",
   "custom",
 ]);
-export const researchEvidenceModeSchema = z.enum([
+const researchEvidenceModeSchema = z.enum([
   "narrative_first",
   "price_action_first",
   "confirmation_first",
   "probability_edge",
   "balanced",
 ]);
-export const researchCatalystModeSchema = z.enum([
+const researchCatalystModeSchema = z.enum([
   "required",
   "preferred",
   "not_required",
 ]);
-export const researchFundamentalStrictnessSchema = z.enum([
+const researchFundamentalStrictnessSchema = z.enum([
   "sanity_check",
   "balanced",
   "deep_confirmation",
   "not_applicable",
 ]);
-export const tradeRulesPresetIdSchema = z.enum([
+const tradeRulesPresetIdSchema = z.enum([
   "breakout_long",
   "pullback_trend",
   "event_entry",
@@ -76,7 +76,7 @@ export const tradeRulesPresetIdSchema = z.enum([
   "probability_edge",
   "custom",
 ]);
-export const setupTypeSchema = z.enum([
+const setupTypeSchema = z.enum([
   "breakout",
   "pullback_trend",
   "event_entry",
@@ -84,14 +84,14 @@ export const setupTypeSchema = z.enum([
   "probability_edge",
   "custom",
 ]);
-export const strategySideBiasSchema = z.enum([
+const strategySideBiasSchema = z.enum([
   "long_only",
   "short_only",
   "both",
   "market_neutral",
   "n_a",
 ]);
-export const strategyEntryStyleSchema = z.enum([
+const strategyEntryStyleSchema = z.enum([
   "breakout",
   "pullback",
   "reversal",
@@ -99,7 +99,7 @@ export const strategyEntryStyleSchema = z.enum([
   "event",
   "probability_edge",
 ]);
-export const strategyExitStyleSchema = z.enum([
+const strategyExitStyleSchema = z.enum([
   "fixed_pct",
   "trailing_atr",
   "partial_exits",
@@ -107,19 +107,19 @@ export const strategyExitStyleSchema = z.enum([
   "thesis_based",
   "market_resolution",
 ]);
-export const strategyScalingModeSchema = z.enum([
+const strategyScalingModeSchema = z.enum([
   "single_entry",
   "scale_in_2",
   "scale_in_3",
   "scale_out_partial",
 ]);
-export const stopLossTypeSchema = z.enum([
+const stopLossTypeSchema = z.enum([
   "fixed_pct",
   "trailing_atr",
   "broker_native_trailing",
   "none",
 ]);
-export const tradingTimeframeSchema = z.enum([
+const tradingTimeframeSchema = z.enum([
   "1m",
   "5m",
   "15m",
@@ -129,13 +129,13 @@ export const tradingTimeframeSchema = z.enum([
   "1d",
   "1w",
 ]);
-export const holdingStyleSchema = z.enum([
+const holdingStyleSchema = z.enum([
   "intraday_flat",
   "multi_day_swing",
   "weeks_position",
   "custom",
 ]);
-export const executionStageSchema = z.enum([
+const executionStageSchema = z.enum([
   "selector",
   "candidate_validation",
   "technical",
@@ -146,7 +146,7 @@ export const executionStageSchema = z.enum([
   "broker_order",
   "monitoring",
 ]);
-export const brokerAssignmentSchema = z.object({
+const brokerAssignmentSchema = z.object({
   brokerAccountId: z.string().min(1),
   allocatedUsd: z.number().nonnegative(),
 });
@@ -166,7 +166,7 @@ export const sessionCreateInputSchema = z.object({
     .optional(),
 });
 
-export const sessionStrategyPayloadSchema = z.object({
+const sessionStrategyPayloadSchema = z.object({
   strategyProfile: strategyProfileSchema,
   maxPositionUsd: z.number().nonnegative(),
   stopLossPct: z.number().nonnegative(),
@@ -190,7 +190,7 @@ export const sessionStrategyPayloadSchema = z.object({
   timeframeNotes: z.string().optional().default(""),
 });
 
-export const sessionResearchPosturePayloadSchema = z.object({
+const sessionResearchPosturePayloadSchema = z.object({
   posturePresetId: researchPosturePresetIdSchema,
   discoveryMode: researchDiscoveryModeSchema,
   evidenceMode: researchEvidenceModeSchema,
@@ -199,7 +199,7 @@ export const sessionResearchPosturePayloadSchema = z.object({
   postureNotes: z.string(),
 });
 
-export const sessionTradeRulesPayloadSchema = z.object({
+const sessionTradeRulesPayloadSchema = z.object({
   rulesPresetId: tradeRulesPresetIdSchema,
   setupType: setupTypeSchema,
   sideBias: strategySideBiasSchema,
@@ -210,7 +210,7 @@ export const sessionTradeRulesPayloadSchema = z.object({
   ruleNotes: z.string(),
 });
 
-export const sessionRiskConfigPayloadSchema = z.object({
+const sessionRiskConfigPayloadSchema = z.object({
   riskPresetId: z
     .enum(RISK_PRESET_IDS as [RiskPresetId, ...RiskPresetId[]])
     .optional()
@@ -232,7 +232,7 @@ export const sessionRiskConfigPayloadSchema = z.object({
   humanApprovalRequired: z.boolean(),
 });
 
-export const sessionTimeframeConfigPayloadSchema = z.object({
+const sessionTimeframeConfigPayloadSchema = z.object({
   timeframePresetId: z
     .enum(TIMEFRAME_PRESET_IDS as [TimeframePresetId, ...TimeframePresetId[]])
     .optional()
@@ -259,7 +259,7 @@ export const strategyRiskConfigSaveSchema = z.object({
   riskConfig: sessionRiskConfigPayloadSchema.partial(),
 });
 
-export const sessionAiSettingsPayloadSchema = z.object({
+const sessionAiSettingsPayloadSchema = z.object({
   workerGuidanceMarkdown: z.string().max(1200),
 });
 
@@ -273,7 +273,7 @@ export const strategyTimeframeConfigSaveSchema = z.object({
   timeframe: sessionTimeframeConfigPayloadSchema.partial(),
 });
 
-export const pipelinePhaseSchema = z.enum([
+const pipelinePhaseSchema = z.enum([
   "selector",
   "technical",
   "fundamental",
@@ -290,7 +290,7 @@ const REASONING_LEVELS = [
   "max",
 ] as const;
 
-export const reasoningLevelSchema = z.enum(REASONING_LEVELS);
+const reasoningLevelSchema = z.enum(REASONING_LEVELS);
 
 export const strategyAiPhaseSaveSchema = z.object({
   sessionId: z.string().min(1),

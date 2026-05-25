@@ -29,7 +29,7 @@ function applyRiskGateNoTrade(
   };
 }
 
-export const candidateValidationInputBuilder: EngineInputBuilder = {
+const candidateValidationInputBuilder: EngineInputBuilder = {
   id: "candidate-validation",
   async build({ planCtx: ctx }) {
     const { adapter } = await ctx.services.brokerRouting.resolveAdapter(
@@ -74,7 +74,7 @@ export const candidateValidationInputBuilder: EngineInputBuilder = {
   },
 };
 
-export const executionProfileInputBuilder: EngineInputBuilder = {
+const executionProfileInputBuilder: EngineInputBuilder = {
   id: "execution-profile",
   build({ planCtx: ctx, state }) {
     const decision = state.decision;
@@ -177,7 +177,7 @@ export const riskGateInputBuilder: EngineInputBuilder = {
   },
 };
 
-export const brokerAllocationInputBuilder: EngineInputBuilder = {
+const brokerAllocationInputBuilder: EngineInputBuilder = {
   id: "broker-allocation",
   build({ planCtx: ctx, state }) {
     const riskOrder = state.riskOrder;

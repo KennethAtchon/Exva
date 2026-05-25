@@ -87,7 +87,8 @@ async function handleCommand(
             break;
           case "runApprovalRecheck":
             await orchestrator.runApprovalRecheck(
-              envelope.args[0] as import("../services/session/session-types").ApprovalRecheckInput,
+              envelope
+                .args[0] as import("../services/session/session-types").ApprovalRecheckInput,
             );
             result = undefined;
             break;
@@ -98,7 +99,9 @@ async function handleCommand(
             );
             break;
           case "hasApprovalCallback":
-            result = orchestrator.hasApprovalCallback(envelope.args[0] as string);
+            result = orchestrator.hasApprovalCallback(
+              envelope.args[0] as string,
+            );
             break;
           default:
             throw new Error(`Unknown orchestrator method: ${envelope.method}`);
@@ -126,7 +129,7 @@ async function handleCommand(
   }
 }
 
-process.parentPort?.on("message", (event: MessageEvent<unknown>) => {
+process.parentPort?.on("message", (event: MessageEvent) => {
   const message = event.data;
   if (!message || typeof message !== "object") return;
 

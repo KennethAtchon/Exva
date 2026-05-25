@@ -26,8 +26,8 @@ export type EngineKind =
   | "transformer"
   | "execution"
   | "lifecycle";
-export type PipelineFinalizerId = string;
-export type WorkerInputBuilderId = string;
+type PipelineFinalizerId = string;
+type WorkerInputBuilderId = string;
 
 export interface EngineBinding {
   engine: EngineId;
@@ -36,9 +36,7 @@ export interface EngineBinding {
   config?: Record<string, unknown>;
 }
 
-export type AggregateStrategy<TOutput> = (
-  results: Array<Partial<TOutput>>,
-) => TOutput;
+type AggregateStrategy<TOutput> = (results: Array<Partial<TOutput>>) => TOutput;
 
 export type WorkerToolRequirement = {
   requiredAny?: readonly string[];
@@ -78,7 +76,7 @@ export type WorkerOutputMode = "text" | "tool_result";
 export const DEFAULT_OUTPUT_TOOL_NAME = "submit_result";
 
 /** Per-worker configuration of the terminal output tool. */
-export interface WorkerOutputToolConfig {
+interface WorkerOutputToolConfig {
   /** Tool name surfaced to the model. Defaults to `submit_result`. */
   name?: string;
   /** Description surfaced to the model for the terminal tool. */

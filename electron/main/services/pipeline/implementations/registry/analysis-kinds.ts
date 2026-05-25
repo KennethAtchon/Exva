@@ -1,8 +1,10 @@
-import type { EffectivePlanStageConfig } from "@electron/shared/ai/effective-ai-phase-config";
-import type { InstrumentAnalysis, InstrumentAnalysisState } from "../../analysis/types";
+import type {
+  InstrumentAnalysis,
+  InstrumentAnalysisState,
+} from "../../analysis/types";
 import type { AIPhase } from "../../phases/types";
 
-export type AnalysisKind = "phase" | "cycle";
+type AnalysisKind = "phase" | "cycle";
 
 export type AnyAnalysisDefinition =
   | {
@@ -10,7 +12,11 @@ export type AnyAnalysisDefinition =
       id: import("@electron/shared/ai/ai-phase").PipelinePhase;
       plan: AIPhase<unknown, unknown>;
     }
-  | { kind: "cycle"; id: string; plan: InstrumentAnalysis<InstrumentAnalysisState> };
+  | {
+      kind: "cycle";
+      id: string;
+      plan: InstrumentAnalysis<InstrumentAnalysisState>;
+    };
 
 export interface AnalysisInspectMetadata {
   id: string;
@@ -20,5 +26,3 @@ export interface AnalysisInspectMetadata {
   engineStages?: readonly string[];
   inputBuilderIds?: readonly string[];
 }
-
-export type { EffectivePlanStageConfig };

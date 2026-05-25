@@ -110,7 +110,7 @@ export type PreflightResult =
       details?: Record<string, unknown>;
     };
 
-export interface SessionRuntime {
+interface SessionRuntime {
   sessionId: string;
   status: SessionRuntimeStatus;
   orchestrator: SessionOrchestrator;
@@ -170,9 +170,7 @@ export interface SessionLifecycleDeps {
   ) => Promise<PreflightResult>;
   orchestratorDeps: OrchestratorDeps;
   liveReadiness: {
-    check(
-      sessionId: string,
-    ): Promise<{
+    check(sessionId: string): Promise<{
       readyToStart: boolean;
       checks: { name: string; passed: boolean }[];
     }>;

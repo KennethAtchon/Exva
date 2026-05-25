@@ -12,14 +12,11 @@ import type {
   CostBreakdown,
   DashboardStats,
   ExecutionStage,
-  ExecutionStepStatus,
   ExecutionMode,
   EventRow,
   InstrumentClass,
   ProviderAccount,
-  SelectionMode,
   SessionRiskConfig,
-  SessionSelectorSettings,
   SessionTradeRules,
   SessionStrategy,
   SessionStatus,
@@ -28,7 +25,6 @@ import type {
   SessionResearchPosture,
   SessionAiSettings,
   Trade,
-  TradeDecisionPayload,
   TradeDetail,
   WorkspacePreferences,
   WorkspaceViewMode,
@@ -171,7 +167,9 @@ export const api = {
     maxSessions?: number;
     allocationEnforcement?: "hard" | "warn";
     balanceRefreshIntervalMin?: number;
-    mockScenarioKind?: import("@electron/shared/domain/mock-scenario").MockScenarioKind | null;
+    mockScenarioKind?:
+      | import("@electron/shared/domain/mock-scenario").MockScenarioKind
+      | null;
   }) => bridge().brokerAccounts.updateSettings(input),
 
   listTemplates: (filters?: {
@@ -232,13 +230,7 @@ export const api = {
     modelId?: string;
     temperature?: number;
     maxTokens?: number;
-    reasoningLevel?:
-      | "off"
-      | "auto"
-      | "low"
-      | "medium"
-      | "high"
-      | "max";
+    reasoningLevel?: "off" | "auto" | "low" | "medium" | "high" | "max";
     promptSource?: "default" | "session_override";
     promptMarkdown?: string;
   }) => bridge().strategy.saveAiPhase(input),
@@ -395,9 +387,8 @@ export const api = {
     bridge().autopsy.listLessons(autopsyId),
   addAutopsyLesson: (input: AddLessonInput): Promise<AutopsyLesson> =>
     bridge().autopsy.addLesson(input),
-  updateAutopsyLesson: (
-    input: UpdateLessonInput,
-  ): Promise<{ ok: true }> => bridge().autopsy.updateLesson(input),
+  updateAutopsyLesson: (input: UpdateLessonInput): Promise<{ ok: true }> =>
+    bridge().autopsy.updateLesson(input),
   exportTradeAutopsy: (
     autopsyId: string,
     format: ExportFormat,
@@ -422,5 +413,4 @@ export type {
   UserGlobalPresetRow,
   WorkspaceViewResponse,
 } from "@electron/shared/ipc/dto";
-export { hasExva };
 export type { AIPhaseTrace, PhaseRuntimeSummary };

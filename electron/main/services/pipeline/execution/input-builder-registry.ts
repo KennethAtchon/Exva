@@ -1,9 +1,9 @@
-import type {
-  EngineKind,
-  PipelinePhase,
-} from "@electron/shared/ai/ai-phase";
+import type { EngineKind, PipelinePhase } from "@electron/shared/ai/ai-phase";
 import type { LLMRunResult } from "../../llm/llm-types";
-import type { InstrumentAnalysisContext, InstrumentAnalysisState } from "../analysis/types";
+import type {
+  InstrumentAnalysisContext,
+  InstrumentAnalysisState,
+} from "../analysis/types";
 
 export type EngineInputBuilderId = string;
 
@@ -19,7 +19,7 @@ export type EngineRunCtx = Pick<
   | "services"
 >;
 
-export interface EngineInputBuilderContext {
+interface EngineInputBuilderContext {
   planCtx: EngineRunCtx;
   state: InstrumentAnalysisState;
 }
@@ -35,7 +35,7 @@ export interface EngineInputBuilder {
   ): InstrumentAnalysisState;
 }
 
-export type EngineInputBuildResult = {
+type EngineInputBuildResult = {
   task: unknown;
   statePatch?: Partial<InstrumentAnalysisState>;
 };
@@ -45,7 +45,9 @@ const ENGINE_INPUT_BUILDERS = new Map<
   EngineInputBuilder
 >();
 
-export function registerSignalEngineInputBuilder(builder: EngineInputBuilder): void {
+export function registerSignalEngineInputBuilder(
+  builder: EngineInputBuilder,
+): void {
   ENGINE_INPUT_BUILDERS.set(builder.id, builder);
 }
 

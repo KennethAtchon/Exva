@@ -52,7 +52,7 @@ interface GlobalPresetCardProps {
   onDelete?: () => void;
 }
 
-export function GlobalPresetCard({
+function GlobalPresetCard({
   preset,
   isApplied,
   isBuiltIn,

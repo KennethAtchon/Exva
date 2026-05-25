@@ -13,7 +13,7 @@ export async function invokeOrchestratorDep(
   if (!scope || !method) {
     throw new Error(`Invalid orchestrator RPC path: ${path}`);
   }
-  const target = deps[scope as keyof OrchestratorDeps] as
+  const target = deps[scope as keyof OrchestratorDeps] as unknown as
     | Record<string, (...params: unknown[]) => unknown>
     | undefined;
   const fn = target?.[method];
@@ -81,9 +81,7 @@ export class WorkerRuntimeRpcClient {
   >();
   private rpcId = 0;
 
-  constructor(
-    private readonly post: (message: RuntimeWorkerMessage) => void,
-  ) {}
+  constructor(private readonly post: (message: RuntimeWorkerMessage) => void) {}
 
   handle(message: RuntimeWorkerMessage): void {
     if (message.type !== "rpc_response") return;
@@ -170,18 +168,38 @@ export class WorkerLogger {
   ) {}
 
   debug(meta: Record<string, unknown>, message: string): void {
-    this.post({ type: "log", level: "debug", message, meta: { ...meta, sessionId: this.sessionId } });
+    this.post({
+      type: "log",
+      level: "debug",
+      message,
+      meta: { ...meta, sessionId: this.sessionId },
+    });
   }
 
   info(meta: Record<string, unknown>, message: string): void {
-    this.post({ type: "log", level: "info", message, meta: { ...meta, sessionId: this.sessionId } });
+    this.post({
+      type: "log",
+      level: "info",
+      message,
+      meta: { ...meta, sessionId: this.sessionId },
+    });
   }
 
   warn(meta: Record<string, unknown>, message: string): void {
-    this.post({ type: "log", level: "warn", message, meta: { ...meta, sessionId: this.sessionId } });
+    this.post({
+      type: "log",
+      level: "warn",
+      message,
+      meta: { ...meta, sessionId: this.sessionId },
+    });
   }
 
   error(meta: Record<string, unknown>, message: string): void {
-    this.post({ type: "log", level: "error", message, meta: { ...meta, sessionId: this.sessionId } });
+    this.post({
+      type: "log",
+      level: "error",
+      message,
+      meta: { ...meta, sessionId: this.sessionId },
+    });
   }
 }

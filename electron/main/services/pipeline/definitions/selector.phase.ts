@@ -20,20 +20,16 @@ import {
 import {
   applyDiscoveryResults,
   applyVerificationResults,
-  parseWorkerToolTrace,
   scoreSelectorCandidates,
   summarizeSelectorOutput,
   type SelectorCandidate,
 } from "./selector.helpers";
-import { candidateOutputSchema, verificationOutputSchema } from "./selector.schemas";
+import {
+  candidateOutputSchema,
+  verificationOutputSchema,
+} from "./selector.schemas";
 
 type VerificationOutput = import("zod").infer<typeof verificationOutputSchema>;
-
-export type SelectorPhaseInput = {
-  selectionInstructions?: string;
-  failureHistory?: FailureHistoryEntry[];
-  nextEligibleRetryAt?: string | null;
-};
 
 export type SelectorPlanState = {
   selectionInstructions: string;
@@ -280,10 +276,10 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
             instrumentDisplayName: candidate?.instrumentDisplayName,
             rationale: candidate?.rationale,
           },
-          failureHistory:
-            ((_ctx.input.failureHistory as FailureHistoryEntry[] | undefined) ?? []).filter(
-              (entry) => entry.instrumentSymbol === candidate?.symbol,
-            ),
+          failureHistory: (
+            (_ctx.input.failureHistory as FailureHistoryEntry[] | undefined) ??
+            []
+          ).filter((entry) => entry.instrumentSymbol === candidate?.symbol),
           nextEligibleRetryAt: _ctx.input.nextEligibleRetryAt ?? null,
         };
       },

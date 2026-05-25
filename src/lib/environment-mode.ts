@@ -1,5 +1,4 @@
 export {
-  brokerModeForEnvironment,
   executionModeForEnvironment,
   sessionMatchesEnvironment,
   type GlobalEnvironmentMode,

@@ -41,7 +41,7 @@ export interface AIPhaseContext {
   input: Record<string, unknown>;
 }
 
-export interface AIWorkerBatch<TState> {
+interface AIWorkerBatch<TState> {
   id: string;
   frontier: number;
   resolveWorkers(ctx: AIPhaseContext, state: TState): WorkerDefinition[];

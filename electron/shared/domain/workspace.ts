@@ -28,7 +28,7 @@ export interface WorkspaceSession {
   updatedAt: string;
 }
 
-export interface BrokerAssignment {
+interface BrokerAssignment {
   brokerAccountId: string;
   allocatedUsd: number;
 }

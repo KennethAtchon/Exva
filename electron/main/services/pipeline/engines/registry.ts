@@ -25,7 +25,7 @@ export interface EntryModeEngine extends Engine {
   resolve(ctx: AIPhaseContext): unknown | Promise<unknown>;
 }
 
-export interface CacheWriteMeta {
+interface CacheWriteMeta {
   agentRunId: string;
   cycleId: string;
 }
@@ -52,8 +52,10 @@ export type PhaseWorkerResult = {
   result: LLMRunResult<unknown>;
 };
 
-export interface FinalizerEngine<TState = unknown, TOutput = unknown>
-  extends Engine {
+export interface FinalizerEngine<
+  TState = unknown,
+  TOutput = unknown,
+> extends Engine {
   kind: "finalizer";
   run(
     ctx: AIPhaseContext,
@@ -80,13 +82,4 @@ export function resolveEngine<T extends Engine>(
     );
   }
   return engine as T;
-}
-
-/**
- * Clears all registered engines. Intended for test isolation only.
- * Do NOT call this in production code — engines are registered once at boot
- * via engines/index.ts and must remain for the lifetime of the process.
- */
-export function clearEngineRegistry(): void {
-  ENGINES.clear();
 }

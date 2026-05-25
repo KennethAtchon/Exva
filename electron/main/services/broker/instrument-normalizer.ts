@@ -1,11 +1,6 @@
 import type { InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 
-export type CanonicalInstrument = {
-  symbol: string;
-  instrumentClass: InstrumentClass;
-};
-
 const CRYPTO_ALIASES: Record<string, string> = {
   BITCOIN: "BTC",
   BTC: "BTC",

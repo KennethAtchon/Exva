@@ -21,10 +21,10 @@ export type ResolvedInstrument = {
   recentFailureHistory?: FailureHistoryEntry[];
 };
 
-export type AiTechnicalRun = LLMRunResult<TechnicalSignal>;
-export type AiFundamentalRun = LLMRunResult<FundamentalSignal>;
-export type AiReviewRun = LLMRunResult<ReviewSignal>;
-export type AiDecisionRun = LLMRunResult<TradeSignal>;
+type AiTechnicalRun = LLMRunResult<TechnicalSignal>;
+type AiFundamentalRun = LLMRunResult<FundamentalSignal>;
+type AiReviewRun = LLMRunResult<ReviewSignal>;
+type AiDecisionRun = LLMRunResult<TradeSignal>;
 
 export type AiPipelineResult = {
   technical: AiTechnicalRun;
@@ -32,8 +32,6 @@ export type AiPipelineResult = {
   review: AiReviewRun;
   decision: AiDecisionRun;
 };
-
-export type PredictionToken = { outcome?: unknown; token_id?: unknown };
 
 export type SelectorCycleContext = {
   kind: "selector";

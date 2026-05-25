@@ -22,9 +22,7 @@ export const conflictDetectorOutputSchema = z.object({
     .describe("One-sentence explanation of the conflict, or null."),
   rawSummary: z.string().default("").describe("One-sentence observation."),
 });
-export type ConflictDetectorOutput = z.infer<
-  typeof conflictDetectorOutputSchema
->;
+type ConflictDetectorOutput = z.infer<typeof conflictDetectorOutputSchema>;
 
 export const riskAssessorOutputSchema = z.object({
   tailRisks: z
@@ -42,7 +40,7 @@ export const riskAssessorOutputSchema = z.object({
     ),
   rawSummary: z.string().default("").describe("One-sentence observation."),
 });
-export type RiskAssessorOutput = z.infer<typeof riskAssessorOutputSchema>;
+type RiskAssessorOutput = z.infer<typeof riskAssessorOutputSchema>;
 
 export interface ReviewWorkerOutputs {
   conflictDetector?: ConflictDetectorOutput | null;

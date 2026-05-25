@@ -18,7 +18,6 @@ import type {
   SessionTemplate,
   Trade,
   TradeApproval,
-  WorkspacePreferences,
   WorkspaceSession,
 } from "@/lib/types";
 import { isHoldingStyle, isTradingTimeframe } from "@electron/shared/domain";
@@ -354,34 +353,6 @@ export function toSessionBrokerRoutingOverride(
     instrumentClass:
       row.instrument_class as SessionBrokerRoutingOverride["instrumentClass"],
     brokerAccountId: String(row.broker_account_id),
-  };
-}
-
-export function toWorkspacePreferences(row: Row): WorkspacePreferences {
-  row = normalizeRow(row);
-  return {
-    id: 1,
-    globalIncludeArchived: Boolean(row.global_include_archived),
-    globalEnvironmentMode:
-      row.global_environment_mode === "live" ? "live" : "paper",
-    defaultSearchProviderId: nullableString(row.default_search_provider_id),
-    allocationEnforcementOverride:
-      (nullableString(
-        row.allocation_enforcement_override,
-      ) as WorkspacePreferences["allocationEnforcementOverride"]) ?? null,
-    defaultModelProviderKey:
-      row.default_model_provider_key != null
-        ? String(row.default_model_provider_key)
-        : "",
-    defaultModelModelId:
-      row.default_model_model_id != null
-        ? String(row.default_model_model_id)
-        : "",
-    defaultModelReasoningLevel:
-      row.default_model_reasoning_level != null
-        ? (String(row.default_model_reasoning_level) as WorkspacePreferences["defaultModelReasoningLevel"])
-        : "off",
-    updatedAt: String(row.updated_at),
   };
 }
 

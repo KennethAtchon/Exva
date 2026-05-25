@@ -36,7 +36,7 @@ export const chartPatternOutputSchema = z.object({
     .default("")
     .describe("One-to-two sentence observation."),
 });
-export type ChartPatternOutput = z.infer<typeof chartPatternOutputSchema>;
+type ChartPatternOutput = z.infer<typeof chartPatternOutputSchema>;
 
 export const momentumOutputSchema = z.object({
   trendDirection: z
@@ -65,7 +65,7 @@ export const momentumOutputSchema = z.object({
     .default("")
     .describe("One-to-two sentence observation."),
 });
-export type MomentumOutput = z.infer<typeof momentumOutputSchema>;
+type MomentumOutput = z.infer<typeof momentumOutputSchema>;
 
 export const volumeOutputSchema = z.object({
   volumeScore: z
@@ -89,7 +89,7 @@ export const volumeOutputSchema = z.object({
     .default("")
     .describe("One-to-two sentence observation."),
 });
-export type VolumeOutput = z.infer<typeof volumeOutputSchema>;
+type VolumeOutput = z.infer<typeof volumeOutputSchema>;
 
 export interface TechnicalWorkerOutputs {
   chartPattern?: ChartPatternOutput | null;

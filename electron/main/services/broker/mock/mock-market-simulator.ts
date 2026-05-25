@@ -74,23 +74,6 @@ const SCENARIO_CONFIG: Record<MockScenarioKind, MockScenario> = {
   },
 };
 
-/** Expected policy outcome per scenario kind, for test assertions. */
-export const SCENARIO_EXPECTED_OUTCOME: Record<
-  MockScenarioKind,
-  "allowed" | "rejected"
-> = {
-  clean_breakout: "allowed",
-  failed_breakout: "allowed",
-  sideways_chop: "allowed",
-  gap_down_after_entry: "allowed",
-  news_reversal: "allowed",
-  stale_quote: "rejected",
-  wide_spread: "rejected",
-  partial_fill: "allowed",
-  broker_reject: "rejected",
-  rate_limit: "rejected",
-};
-
 export const MockMarketSimulator = {
   createAdapter(kind: MockScenarioKind): MockBrokerAdapter {
     return new MockBrokerAdapter(SCENARIO_CONFIG[kind]);

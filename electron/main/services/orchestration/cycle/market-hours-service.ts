@@ -8,7 +8,7 @@ export type BurstInstrument = {
   instrumentMetadataJson?: string | null;
 };
 
-export type TradabilityExclusion = {
+type TradabilityExclusion = {
   symbol: string;
   instrumentClass: InstrumentClass;
   reason: string;

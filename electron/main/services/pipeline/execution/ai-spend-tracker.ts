@@ -1,4 +1,4 @@
-export type SpendCapLevel = "phase" | "pipeline" | "session";
+type SpendCapLevel = "phase" | "pipeline" | "session";
 
 export interface SpendCapExceededError {
   kind: SpendCapLevel;

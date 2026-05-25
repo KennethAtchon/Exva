@@ -7,10 +7,7 @@ import type { SessionRepo } from "../../../db/repositories/sessions/session-repo
 import type { CapitalReservationService } from "../../risk/capital-reservation-service";
 import type { HoldingStyle, InstrumentClass } from "@/lib/types";
 import type { InstrumentNormalizer } from "../../broker/instrument-normalizer";
-import {
-  ExitPolicyEvaluator,
-  type ExitReason,
-} from "../../risk/exit-policy-evaluator";
+import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   intraday_flat: 5_000,
@@ -267,6 +264,3 @@ function readResolutionTime(raw: string | null | undefined): Date | null {
     return null;
   }
 }
-
-// Re-export for callers that need the ExitReason type
-export type { ExitReason };

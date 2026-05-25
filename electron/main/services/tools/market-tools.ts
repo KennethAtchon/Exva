@@ -59,7 +59,7 @@ const NEUTRAL_MOCK_NEWS: MockNewsItem[] = [
   },
 ];
 
-export const MOCK_NEWS_BY_SCENARIO: Record<MockScenarioBias, MockNewsItem[]> = {
+const MOCK_NEWS_BY_SCENARIO: Record<MockScenarioBias, MockNewsItem[]> = {
   bullish: [
     {
       title: "{symbol} shows continued breakout momentum on rising volume",
@@ -137,8 +137,6 @@ export function scenarioMockNews(
 ): MockNewsItem[] {
   return MOCK_NEWS_BY_SCENARIO[bias].map((item) => ({ ...item }));
 }
-
-export const DEFAULT_MOCK_NEWS: MockNewsItem[] = scenarioMockNews("bullish");
 
 export type MarketToolsInclude = {
   quote: boolean;

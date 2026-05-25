@@ -1,7 +1,7 @@
 import type { EffectivePlanStageConfig } from "@electron/shared/ai/effective-ai-phase-config";
 import type { PipelinePhase } from "@electron/shared/ai/ai-phase";
-import { getInstrumentAnalysis, listInstrumentAnalysisIds } from "../../analysis/registry";
-import { getAIPhase, listAIPhases } from "../../phases/registry";
+import { getInstrumentAnalysis } from "../../analysis/registry";
+import { getAIPhase } from "../../phases/registry";
 import type {
   AnyAnalysisDefinition,
   AnalysisInspectMetadata,
@@ -13,9 +13,7 @@ export function registerUnifiedPlanRef(id: string): void {
   UNIFIED_PLAN_IDS.add(id);
 }
 
-export function resolveAnalysis(
-  id: string,
-): AnyAnalysisDefinition | undefined {
+function resolveAnalysis(id: string): AnyAnalysisDefinition | undefined {
   const phasePlan = getAIPhase(id as PipelinePhase);
   if (phasePlan) {
     return { kind: "phase", id: id as PipelinePhase, plan: phasePlan };
@@ -39,18 +37,7 @@ export function requireAnalysis(id: string): AnyAnalysisDefinition {
   return plan;
 }
 
-export function listAnalysisIds(): string[] {
-  const ids = new Set<string>([
-    ...listAIPhases().map(({ phase }) => phase),
-    ...listInstrumentAnalysisIds(),
-    ...UNIFIED_PLAN_IDS,
-  ]);
-  return [...ids].sort();
-}
-
-export function inspectAnalysis(
-  id: string,
-): AnalysisInspectMetadata | undefined {
+function inspectAnalysis(id: string): AnalysisInspectMetadata | undefined {
   const plan = resolveAnalysis(id);
   if (!plan) return undefined;
   if (plan.kind === "phase") {
@@ -78,7 +65,8 @@ export function resolveEffectivePlanStages(
   if (!plan) return [];
 
   if (plan.kind === "phase") {
-    const inspected = inspectAnalysis(planId)!;
+    const inspected = inspectAnalysis(planId);
+    if (!inspected) return [];
     return inspected.stageIds.map((stageId) => ({
       id: stageId,
       kind: "phase" as const,

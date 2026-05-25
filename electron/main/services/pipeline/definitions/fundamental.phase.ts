@@ -14,7 +14,6 @@ import {
   sentimentOutputSchema,
 } from "../../signal/aggregators/fundamental-aggregator";
 import type { AIPhase } from "../phases/types";
-import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
 import {
   FUNDAMENTAL_WORKERS_CATALYST_CONTEXT_PROMPT,
   FUNDAMENTAL_WORKERS_EARNINGS_CONTEXT_PROMPT,
@@ -26,14 +25,6 @@ import {
 import type { AggregatorPlanState } from "./aggregator.types";
 
 export type { AggregatorPlanState };
-
-export type FundamentalPhaseInput = {
-  instrumentSymbol: string;
-  selectorEvidence?:
-    | import("@electron/shared/ai/selector-candidate").SelectorEvidence
-    | null;
-  recentFailureHistory?: FailureHistoryEntry[];
-};
 
 const SEARCH_WEB_TOOL_CONFIG = {
   search_web: { fallbackProviderId: BUILT_IN_DUCKDUCKGO_PROVIDER_ID },

@@ -3,13 +3,10 @@ import type {
   PipelineDefinition,
 } from "@electron/shared/ai/ai-phase";
 import { AppError } from "@electron/shared/infra/errors";
-import {
-  getPhaseCatalog,
-  listPhaseCatalog,
-} from "../definitions/phase-catalog";
+import { listPhaseCatalog } from "../definitions/phase-catalog";
 import { SUPPORTED_TOOL_IDS } from "../worker-tools/worker-tool-factory";
 
-export { getPhaseCatalog as getPipelineDefinition, listPhaseCatalog as listPipelineDefinitions };
+export { listPhaseCatalog as listPipelineDefinitions };
 
 const SUPPORTED_TOOL_ID_SET = new Set<string>(SUPPORTED_TOOL_IDS);
 

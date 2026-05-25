@@ -1,6 +1,6 @@
 import type { ReasoningLevel } from "@electron/shared/ai/ai-phase";
 
-export type AnthropicThinkingOption =
+type AnthropicThinkingOption =
   | { type: "enabled"; budgetTokens: number }
   | { type: "adaptive" }
   | { type: "disabled" };
@@ -17,7 +17,7 @@ export type OpenAiReasoningEffort =
   | "high"
   | "xhigh";
 
-export type OpenRouterReasoningEffort = "low" | "medium" | "high";
+type OpenRouterReasoningEffort = "low" | "medium" | "high";
 
 export type OpenRouterReasoningOptions = {
   effort: OpenRouterReasoningEffort;

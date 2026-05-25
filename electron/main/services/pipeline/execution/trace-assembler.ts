@@ -30,7 +30,7 @@ export interface AssembledTrace {
   message: AgentMessage;
 }
 
-export interface ExecutedWorkerTraceInput {
+interface ExecutedWorkerTraceInput {
   workerId: string;
   frontier: number;
   dependsOn: string[];

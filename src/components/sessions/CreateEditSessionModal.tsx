@@ -43,7 +43,7 @@ export const CreateEditSessionModal = ({
   onSubmit,
 }: Props) => {
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
-  const [form, setForm] = useState<SessionCreateInput>(defaultInput());
+  const [form, setForm] = useState<SessionCreateInput>(() => defaultInput());
   const [searchEverything, setSearchEverything] = useState(false);
   const [searchEverythingSnapshot, setSearchEverythingSnapshot] = useState<{
     instrumentClasses: InstrumentClass[];
@@ -95,7 +95,10 @@ export const CreateEditSessionModal = ({
       .catch((seedError: Error) => {
         if (cancelled) return;
         setError(seedError.message);
-        setForm({ ...summaryToInput(initialSession), executionMode: envExecMode });
+        setForm({
+          ...summaryToInput(initialSession),
+          executionMode: envExecMode,
+        });
       })
       .finally(() => {
         if (!cancelled) setLoadingSeed(false);
@@ -250,17 +253,16 @@ export const CreateEditSessionModal = ({
 
   useEffect(() => {
     if (!searchEverythingFocusInstrumentClass) return;
-    if (effectiveInstrumentClasses.includes(searchEverythingFocusInstrumentClass)) {
+    if (
+      effectiveInstrumentClasses.includes(searchEverythingFocusInstrumentClass)
+    ) {
       return;
     }
     setForm((current) => ({
       ...current,
       instrumentScope: buildSearchEverythingScope(),
     }));
-  }, [
-    effectiveInstrumentClasses,
-    searchEverythingFocusInstrumentClass,
-  ]);
+  }, [effectiveInstrumentClasses, searchEverythingFocusInstrumentClass]);
 
   if (!open) return null;
 
@@ -312,7 +314,10 @@ export const CreateEditSessionModal = ({
                     <input
                       value={form.name}
                       onChange={(event) =>
-                        setForm({ ...form, name: event.target.value })
+                        setForm((prev) => ({
+                          ...prev,
+                          name: event.target.value,
+                        }))
                       }
                       placeholder="Income Engine"
                       style={inputStyle}
@@ -323,7 +328,10 @@ export const CreateEditSessionModal = ({
                   <textarea
                     value={form.objective}
                     onChange={(event) =>
-                      setForm({ ...form, objective: event.target.value })
+                      setForm((prev) => ({
+                        ...prev,
+                        objective: event.target.value,
+                      }))
                     }
                     rows={4}
                     style={textareaStyle}
@@ -350,22 +358,25 @@ export const CreateEditSessionModal = ({
                           searchEverything
                         ) {
                           setSearchEverything(false);
-                          setForm({
-                            ...form,
+                          setForm((prev) => ({
+                            ...prev,
                             selectionMode: nextMode,
                             instrumentScope:
                               searchEverythingSnapshot?.instrumentScope ??
-                              form.instrumentScope,
+                              prev.instrumentScope,
                             selectorSettings: {
                               aiPickerEnabled:
                                 searchEverythingSnapshot?.aiPickerEnabled ??
-                                form.selectorSettings.aiPickerEnabled,
+                                prev.selectorSettings.aiPickerEnabled,
                             },
-                          });
+                          }));
                           setSearchEverythingSnapshot(null);
                           return;
                         }
-                        setForm({ ...form, selectionMode: nextMode });
+                        setForm((prev) => ({
+                          ...prev,
+                          selectionMode: nextMode,
+                        }));
                       }}
                       options={[
                         {
@@ -385,11 +396,11 @@ export const CreateEditSessionModal = ({
                         form.defaultSearchProviderId ?? "__workspace_default__"
                       }
                       onValueChange={(value) =>
-                        setForm({
-                          ...form,
+                        setForm((prev) => ({
+                          ...prev,
                           defaultSearchProviderId:
                             value === "__workspace_default__" ? null : value,
-                        })
+                        }))
                       }
                       options={[
                         {
@@ -438,20 +449,20 @@ export const CreateEditSessionModal = ({
                             aiPickerEnabled:
                               form.selectorSettings.aiPickerEnabled,
                           });
-                          setForm({
-                            ...form,
+                          setForm((prev) => ({
+                            ...prev,
                             instrumentClasses: brokerDrivenInstrumentClasses,
                             instrumentScope: buildSearchEverythingScope(),
                             selectorSettings: { aiPickerEnabled: true },
-                          });
+                          }));
                           return;
                         }
 
-                        setForm({
-                          ...form,
+                        setForm((prev) => ({
+                          ...prev,
                           instrumentClasses:
                             searchEverythingSnapshot?.instrumentClasses ??
-                            form.instrumentClasses,
+                            prev.instrumentClasses,
                           instrumentScope:
                             searchEverythingSnapshot?.instrumentScope ??
                             "SPY,QQQ",
@@ -459,7 +470,7 @@ export const CreateEditSessionModal = ({
                             aiPickerEnabled:
                               searchEverythingSnapshot?.aiPickerEnabled ?? true,
                           },
-                        });
+                        }));
                         setSearchEverythingSnapshot(null);
                       }}
                     />
@@ -492,24 +503,26 @@ export const CreateEditSessionModal = ({
                     <ShadcnSelect
                       value={searchEverythingFocusInstrumentClass ?? "__all__"}
                       onValueChange={(value) =>
-                        setForm({
-                          ...form,
+                        setForm((prev) => ({
+                          ...prev,
                           instrumentScope: buildSearchEverythingScope(
                             value === "__all__"
                               ? null
                               : (value as InstrumentClass),
                           ),
-                        })
+                        }))
                       }
                       options={[
                         {
                           value: "__all__",
                           label: "All enabled classes",
                         },
-                        ...effectiveInstrumentClasses.map((instrumentClass) => ({
-                          value: instrumentClass,
-                          label: `Focus ${formatInstrumentClass(instrumentClass)}`,
-                        })),
+                        ...effectiveInstrumentClasses.map(
+                          (instrumentClass) => ({
+                            value: instrumentClass,
+                            label: `Focus ${formatInstrumentClass(instrumentClass)}`,
+                          }),
+                        ),
                       ]}
                     />
                     <div style={inlineHintStyle}>
@@ -544,14 +557,14 @@ export const CreateEditSessionModal = ({
                             checked={checked}
                             disabled={searchEverything}
                             onCheckedChange={(nextChecked) =>
-                              setForm({
-                                ...form,
+                              setForm((prev) => ({
+                                ...prev,
                                 instrumentClasses: toggleInstrumentClass(
-                                  form.instrumentClasses,
+                                  prev.instrumentClasses,
                                   instrumentClass,
                                   nextChecked === true,
                                 ),
-                              })
+                              }))
                             }
                           />
                           {formatInstrumentClass(instrumentClass)}
@@ -577,7 +590,10 @@ export const CreateEditSessionModal = ({
                   <textarea
                     value={form.instrumentScope}
                     onChange={(event) =>
-                      setForm({ ...form, instrumentScope: event.target.value })
+                      setForm((prev) => ({
+                        ...prev,
+                        instrumentScope: event.target.value,
+                      }))
                     }
                     placeholder="SPY\nQQQ\nNVDA"
                     rows={4}
@@ -590,10 +606,10 @@ export const CreateEditSessionModal = ({
                     checked={form.selectorSettings.aiPickerEnabled}
                     disabled={searchEverything}
                     onCheckedChange={(checked) =>
-                      setForm({
-                        ...form,
+                      setForm((prev) => ({
+                        ...prev,
                         selectorSettings: { aiPickerEnabled: checked },
-                      })
+                      }))
                     }
                   />
                   <span>
@@ -628,153 +644,153 @@ export const CreateEditSessionModal = ({
                 caption="Pick broker accounts for this session."
               />
               <Field label="Broker accounts">
-                  <div style={brokerPickerStyle}>
-                    {loadingBrokers ? (
-                      <div style={inlineHintStyle}>
-                        Loading broker accounts...
-                      </div>
-                    ) : visibleBrokers.length === 0 ? (
-                      <div style={inlineHintStyle}>
-                        No {brokerMode} broker accounts found. Add one in
-                        Accounts.
-                      </div>
-                    ) : (
-                      visibleBrokers.map((broker) => {
-                        const checked = assignedBrokerIdSet.has(broker.id);
+                <div style={brokerPickerStyle}>
+                  {loadingBrokers ? (
+                    <div style={inlineHintStyle}>
+                      Loading broker accounts...
+                    </div>
+                  ) : visibleBrokers.length === 0 ? (
+                    <div style={inlineHintStyle}>
+                      No {brokerMode} broker accounts found. Add one in
+                      Accounts.
+                    </div>
+                  ) : (
+                    visibleBrokers.map((broker) => {
+                      const checked = assignedBrokerIdSet.has(broker.id);
+                      return (
+                        <label key={broker.id} style={brokerRowStyle}>
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(nextChecked) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                brokerAssignments: toggleBrokerAssignment(
+                                  prev.brokerAssignments,
+                                  broker.id,
+                                  nextChecked === true,
+                                ),
+                              }))
+                            }
+                          />
+                          <span>
+                            <span
+                              style={{
+                                display: "block",
+                                color: "var(--text1)",
+                                fontSize: 12,
+                                fontWeight: 600,
+                              }}
+                            >
+                              {broker.name}
+                            </span>
+                            <span
+                              style={{
+                                display: "block",
+                                marginTop: 1,
+                                color: "var(--text3)",
+                                fontSize: 11,
+                              }}
+                            >
+                              {broker.id} · {broker.brokerType}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                  {visibleBrokers.length > 0 ? (
+                    <button
+                      type="button"
+                      style={selectAllButtonStyle}
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          brokerAssignments: mergeUniqueBrokerAssignments(
+                            prev.brokerAssignments,
+                            visibleBrokers.map((broker) => broker.id),
+                          ),
+                        }))
+                      }
+                    >
+                      Select all {brokerMode} brokers
+                    </button>
+                  ) : null}
+                  {assignedActiveModeBrokers.length > 0 ? (
+                    <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+                      {assignedActiveModeBrokers.map((broker) => {
+                        const assignment = form.brokerAssignments.find(
+                          (entry) => entry.brokerAccountId === broker.id,
+                        );
+                        if (!assignment) return null;
                         return (
-                          <label key={broker.id} style={brokerRowStyle}>
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(nextChecked) =>
-                                setForm({
-                                  ...form,
-                                  brokerAssignments: toggleBrokerAssignment(
-                                    form.brokerAssignments,
-                                    broker.id,
-                                    nextChecked === true,
-                                  ),
-                                })
-                              }
-                            />
-                            <span>
-                              <span
+                          <div key={broker.id} style={allocationRowStyle}>
+                            <div style={{ minWidth: 0 }}>
+                              <div
                                 style={{
-                                  display: "block",
                                   color: "var(--text1)",
                                   fontSize: 12,
                                   fontWeight: 600,
                                 }}
                               >
                                 {broker.name}
-                              </span>
-                              <span
+                              </div>
+                              <div
                                 style={{
-                                  display: "block",
-                                  marginTop: 1,
                                   color: "var(--text3)",
                                   fontSize: 11,
+                                  marginTop: 2,
                                 }}
                               >
-                                {broker.id} · {broker.brokerType}
-                              </span>
-                            </span>
-                          </label>
-                        );
-                      })
-                    )}
-                    {visibleBrokers.length > 0 ? (
-                      <button
-                        type="button"
-                        style={selectAllButtonStyle}
-                        onClick={() =>
-                          setForm({
-                            ...form,
-                            brokerAssignments: mergeUniqueBrokerAssignments(
-                              form.brokerAssignments,
-                              visibleBrokers.map((broker) => broker.id),
-                            ),
-                          })
-                        }
-                      >
-                        Select all {brokerMode} brokers
-                      </button>
-                    ) : null}
-                    {assignedActiveModeBrokers.length > 0 ? (
-                      <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
-                        {assignedActiveModeBrokers.map((broker) => {
-                          const assignment = form.brokerAssignments.find(
-                            (entry) => entry.brokerAccountId === broker.id,
-                          );
-                          if (!assignment) return null;
-                          return (
-                            <div key={broker.id} style={allocationRowStyle}>
-                              <div style={{ minWidth: 0 }}>
-                                <div
-                                  style={{
-                                    color: "var(--text1)",
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  {broker.name}
-                                </div>
-                                <div
-                                  style={{
-                                    color: "var(--text3)",
-                                    fontSize: 11,
-                                    marginTop: 2,
-                                  }}
-                                >
-                                  Balance:{" "}
-                                  {broker.balanceCacheUsd != null
-                                    ? `$${broker.balanceCacheUsd.toLocaleString()}`
-                                    : "—"}
-                                  {" · "}
-                                  Free:{" "}
-                                  {broker.freeCapitalUsd != null
-                                    ? `$${broker.freeCapitalUsd.toLocaleString()}`
-                                    : "—"}
-                                </div>
+                                Balance:{" "}
+                                {broker.balanceCacheUsd != null
+                                  ? `$${broker.balanceCacheUsd.toLocaleString()}`
+                                  : "—"}
+                                {" · "}
+                                Free:{" "}
+                                {broker.freeCapitalUsd != null
+                                  ? `$${broker.freeCapitalUsd.toLocaleString()}`
+                                  : "—"}
                               </div>
-                              <input
-                                type="number"
-                                min={0}
-                                value={String(assignment.allocatedUsd)}
-                                onChange={(event) =>
-                                  setForm({
-                                    ...form,
-                                    brokerAssignments: updateBrokerAllocation(
-                                      form.brokerAssignments,
-                                      broker.id,
-                                      Number(event.target.value) ||
-                                        (broker.balanceCacheUsd != null
-                                          ? broker.balanceCacheUsd / 10
-                                          : 0),
-                                    ),
-                                  })
-                                }
-                                style={{ ...inputStyle, width: 140 }}
-                              />
                             </div>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    {uncoveredInstrumentClasses.length > 0 ? (
-                      <div style={warningTextStyle}>
-                        No selected broker can trade:{" "}
-                        {uncoveredInstrumentClasses
-                          .map(formatInstrumentClass)
-                          .join(", ")}
-                        .
-                      </div>
-                    ) : (
-                      <div style={successTextStyle}>
-                        Coverage looks good for selected instrument classes.
-                      </div>
-                    )}
-                  </div>
-                </Field>
+                            <input
+                              type="number"
+                              min={0}
+                              value={String(assignment.allocatedUsd)}
+                              onChange={(event) =>
+                                setForm((prev) => ({
+                                  ...prev,
+                                  brokerAssignments: updateBrokerAllocation(
+                                    prev.brokerAssignments,
+                                    broker.id,
+                                    Number(event.target.value) ||
+                                      (broker.balanceCacheUsd != null
+                                        ? broker.balanceCacheUsd / 10
+                                        : 0),
+                                  ),
+                                }))
+                              }
+                              style={{ ...inputStyle, width: 140 }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {uncoveredInstrumentClasses.length > 0 ? (
+                    <div style={warningTextStyle}>
+                      No selected broker can trade:{" "}
+                      {uncoveredInstrumentClasses
+                        .map(formatInstrumentClass)
+                        .join(", ")}
+                      .
+                    </div>
+                  ) : (
+                    <div style={successTextStyle}>
+                      Coverage looks good for selected instrument classes.
+                    </div>
+                  )}
+                </div>
+              </Field>
             </section>
           </div>
 

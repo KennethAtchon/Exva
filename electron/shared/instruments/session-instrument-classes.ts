@@ -11,7 +11,7 @@ const INSTRUMENT_CLASS_ORDER: InstrumentClass[] = [
   "prediction_market",
 ];
 
-export function normalizeInstrumentClasses(
+function normalizeInstrumentClasses(
   classes: readonly InstrumentClass[],
 ): InstrumentClass[] {
   const enabled = new Set(classes);

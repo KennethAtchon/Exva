@@ -4,7 +4,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { AIPhaseContext } from "../../phases/types";
 import { registerEngine, type EntryModeEngine } from "../registry";
 
-export function buildManualShortlistSelection(
+function buildManualShortlistSelection(
   session: WorkspaceSession,
   maxConcurrentTrades: number,
 ): InstrumentSelection {
@@ -38,7 +38,7 @@ export function buildManualShortlistSelection(
   };
 }
 
-export function isManualSelectorMode(ctx: AIPhaseContext): boolean {
+function isManualSelectorMode(ctx: AIPhaseContext): boolean {
   const selectorSettings = ctx.services.sessionSelectorSettingsRepo.get(
     ctx.sessionId,
   );

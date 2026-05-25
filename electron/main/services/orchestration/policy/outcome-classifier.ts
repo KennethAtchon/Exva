@@ -45,7 +45,7 @@ export function defaultOutcomeForAppError(
   return "bug";
 }
 
-export function defaultReasonCategory(
+function defaultReasonCategory(
   code: AppErrorCode,
   outcome: OrchestrationOutcome,
 ): FailureHistoryReasonCategory {
@@ -149,7 +149,9 @@ export function createOrderPolicyError(
   });
 }
 
-function inferRiskGateTypeFromReason(reason?: string): RiskGateType | undefined {
+function inferRiskGateTypeFromReason(
+  reason?: string,
+): RiskGateType | undefined {
   switch (reason) {
     case "Maximum concurrent trades reached":
       return "concurrent_cap";

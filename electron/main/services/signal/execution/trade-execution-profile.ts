@@ -4,7 +4,7 @@ import type {
 } from "@electron/shared/ai/trade-signals";
 import type { InstrumentClass } from "@/lib/types";
 
-export interface ExecutionRiskConfig {
+interface ExecutionRiskConfig {
   stopLossPct: number | null;
   takeProfitPct: number | null;
   kellyFraction: number;

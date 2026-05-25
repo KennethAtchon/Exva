@@ -1,4 +1,3 @@
-import { z } from "zod";
 import {
   isMarketDiscoveryAdapter,
   type PolymarketMarketRow,
@@ -117,20 +116,6 @@ export async function fetchPredictionMarketCandidates(
       }),
     );
 }
-
-export const predictionMarketCandidateInputSchema = z.object({
-  sessionId: z.string().min(1),
-});
-
-export const predictionMarketCandidateOutputSchema = z.array(
-  z.object({
-    symbol: z.string(),
-    instrumentClass: z.literal("prediction_market"),
-    instrumentDisplayName: z.string().optional(),
-    predictionOutcome: z.enum(["YES", "NO"]).nullable().optional(),
-    instrumentMetadataJson: z.string().nullable().optional(),
-  }),
-);
 
 function predictionResolutionScore(resolutionTime: string): number {
   const ms = new Date(resolutionTime).getTime() - Date.now();

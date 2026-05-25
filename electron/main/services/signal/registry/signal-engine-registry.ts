@@ -7,7 +7,7 @@ export function registerSignalEngine(definition: AnySignalEngine): void {
   ENGINE_REGISTRY.set(definition.id, definition);
 }
 
-export function getSignalEngine(id: EngineId): AnySignalEngine | undefined {
+function getSignalEngine(id: EngineId): AnySignalEngine | undefined {
   return ENGINE_REGISTRY.get(id);
 }
 

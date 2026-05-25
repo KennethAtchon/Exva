@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
 import { sessions } from "../../db/schema";
 
-export interface LiveReadinessCheck {
+interface LiveReadinessCheck {
   name: string;
   passed: boolean;
   requiresAck: boolean;

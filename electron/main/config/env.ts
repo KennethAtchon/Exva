@@ -24,7 +24,7 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
 });
 
-export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
+function loadEnv(source: NodeJS.ProcessEnv = process.env) {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {
     throw new Error(
@@ -47,5 +47,3 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
 }
 
 export const env = loadEnv();
-
-export type Env = typeof env;

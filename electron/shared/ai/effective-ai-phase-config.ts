@@ -4,9 +4,9 @@ import type {
   WorkerOutputMode,
 } from "./ai-phase";
 
-export type PipelineConfigSource = "default" | "db" | "session" | "derived";
+type PipelineConfigSource = "default" | "db" | "session" | "derived";
 
-export interface EffectivePipelineConfigSourceEntry {
+interface EffectivePipelineConfigSourceEntry {
   path: string;
   source: PipelineConfigSource;
   value: unknown;
@@ -59,7 +59,7 @@ export interface EffectiveStageConfig {
   workers: EffectiveWorkerConfig[];
 }
 
-export interface EffectiveBudgetConfig {
+interface EffectiveBudgetConfig {
   totalSpendCapUsd: number;
   phases: Record<PipelinePhase, { phaseSpendCapUsd: number }>;
 }

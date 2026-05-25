@@ -8,24 +8,7 @@ import {
 import { selectorEvidenceSchema } from "../../electron/shared/ai/selector-candidate";
 import { selectorDiagnosticsSchema } from "../../electron/shared/ai/selector-diagnostics";
 
-export const sessionStatusSchema = z.enum([
-  "draft",
-  "idle",
-  "active",
-  "paused",
-  "stopped",
-  "archived",
-]);
-export const tradeSideSchema = z.enum(["BUY", "SELL"]);
-export const tradeStatusSchema = z.enum([
-  "pending",
-  "open",
-  "closed",
-  "cancelled",
-  "failed",
-  "rejected",
-]);
-export const agentTypeSchema = z.enum([
+const agentTypeSchema = z.enum([
   "technical",
   "fundamental",
   "review",
@@ -38,8 +21,8 @@ export const agentTypeSchema = z.enum([
   "broker",
   "capital",
 ]);
-export const logLevelSchema = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]);
-export const instrumentClassSchema = z.enum([
+const logLevelSchema = z.enum(["DEBUG", "INFO", "WARN", "ERROR"]);
+const instrumentClassSchema = z.enum([
   "stock",
   "crypto",
   "futures",
@@ -117,28 +100,6 @@ export const instrumentSelectionSchema = z.object({
 
 export type InstrumentSelection = z.infer<typeof instrumentSelectionSchema>;
 
-/**
- * Provider-safe schema for tool input (no transforms/effects in JSON schema export).
- * Runtime normalization is applied after tool execution.
- */
-export const instrumentSelectionToolInputSchema = z.object({
-  instruments: z.array(instrumentSelectionCandidateInputSchema).max(50),
-});
-
-export const tradeDecisionSchema = z.object({
-  action: z.enum(["trade", "no_trade"]),
-  side: tradeSideSchema.optional(),
-  instrumentSymbol: z.string().min(1),
-  instrumentDisplayName: z.string().optional(),
-  outcome: z.enum(["YES", "NO"]).optional(),
-  estimatedProb: z.number().min(0).max(1).optional(),
-  impliedProb: z.number().min(0).max(1).optional(),
-  edgePctPts: z.number().optional(),
-  instrumentMetadataJson: z.string().optional(),
-  confidence: z.number().min(0).max(1),
-  reasoning: z.string().min(1),
-});
-
 export const tradeIdSchema = z.object({ tradeId: z.string().min(1) });
 export const cycleIdSchema = z.object({ cycleId: z.string().min(1) });
 export const apiCallLogFiltersSchema = z.object({
@@ -197,7 +158,7 @@ export const providerAccountDeleteSchema = z.object({
   id: z.string().min(1),
 });
 
-export const brokerTypeSchema = z.enum([
+const brokerTypeSchema = z.enum([
   "alpaca",
   "coinbase_advanced_trade",
   "tradovate",
@@ -418,7 +379,7 @@ export const strategyAiSettingsSaveSchema = z.object({
   }),
 });
 
-export const pipelinePhaseSchema = z.enum([
+const pipelinePhaseSchema = z.enum([
   "selector",
   "technical",
   "fundamental",

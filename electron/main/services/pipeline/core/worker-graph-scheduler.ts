@@ -1,7 +1,7 @@
 import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { AppError } from "@electron/shared/infra/errors";
 
-export interface AIWorkerNode<TOutput = unknown> {
+interface AIWorkerNode<TOutput = unknown> {
   worker: WorkerDefinition<TOutput>;
   frontier: number;
 }

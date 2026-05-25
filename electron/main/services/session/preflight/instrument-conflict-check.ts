@@ -4,7 +4,7 @@ import type { OrchestratorDeps, PreflightStepFailure } from "../session-types";
 type StepResult = { ok: true } | PreflightStepFailure;
 
 /** Matches plan: newline- or comma-separated manual shortlist symbols. */
-export function parseInstrumentScopeSymbols(scope: string): string[] {
+function parseInstrumentScopeSymbols(scope: string): string[] {
   return scope
     .split(/[\n,]+/)
     .map((symbol) => symbol.trim().toUpperCase())

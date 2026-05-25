@@ -35,12 +35,12 @@ export type TradeCycleInstrument = {
   recentFailureHistory?: FailureHistoryEntry[];
 };
 
-export type QuoteSnapshot = {
+type QuoteSnapshot = {
   price: number;
   timestamp: string;
 };
 
-export type BrokerAllocationResult = {
+type BrokerAllocationResult = {
   allocation: { ok: boolean; reason?: string; warning?: string };
   conflict: { ok: boolean; reason?: string };
 };
@@ -85,7 +85,7 @@ export type AnalysisStepRunner = <T>(
   execute: () => Promise<T>,
 ) => Promise<T>;
 
-export interface AnalysisStep<TState> {
+interface AnalysisStep<TState> {
   id: string;
   executionStage?: ExecutionStage;
   required: boolean;
@@ -93,7 +93,7 @@ export interface AnalysisStep<TState> {
   execute(ctx: InstrumentAnalysisContext, state: TState): Promise<TState>;
 }
 
-export interface InstrumentAnalysisMetadata {
+interface InstrumentAnalysisMetadata {
   stageIds: readonly string[];
   phaseStages: readonly PipelinePhase[];
   engineStages: readonly string[];

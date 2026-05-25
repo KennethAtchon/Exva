@@ -66,7 +66,10 @@ const REASON_CATEGORIES: FailureHistoryReasonCategory[] = [
 export function isOrchestrationOutcome(
   value: unknown,
 ): value is OrchestrationOutcome {
-  return typeof value === "string" && OUTCOMES.includes(value as OrchestrationOutcome);
+  return (
+    typeof value === "string" &&
+    OUTCOMES.includes(value as OrchestrationOutcome)
+  );
 }
 
 export function isFailureHistoryReasonCategory(
@@ -91,7 +94,7 @@ export function outcomeLevel(
   return "ERROR";
 }
 
-export function buildRuntimeOutcomeDetails(
+function buildRuntimeOutcomeDetails(
   details: RuntimeOutcomeDetails,
 ): RuntimeOutcomeDetails {
   return {

@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { EventSourceType, LogLevel } from "@/lib/types";
+import type { EventSourceType } from "@/lib/types";
 import { Badge as UIBadge, Card as UICard, Separator } from "@/components/ui";
 import {
   Select,
@@ -107,16 +107,6 @@ export const AgentLabel = ({ type }: { type: EventSourceType }) => {
       {meta.label}
     </Badge>
   );
-};
-
-export const LevelDot = ({ level }: { level: LogLevel }) => {
-  const colorByLevel: Record<LogLevel, string> = {
-    DEBUG: "#374151",
-    INFO: "#60a5fa",
-    WARN: "#fbbf24",
-    ERROR: "#f87171",
-  };
-  return <Dot color={colorByLevel[level] ?? "#374151"} size={6} />;
 };
 
 export const PageShell = ({ children }: { children: ReactNode }) => (

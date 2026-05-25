@@ -3,7 +3,7 @@
  * Longest matching prefix wins. OpenRouter models use provider-reported cost
  * when available; this table is fallback-only for non-OR routes.
  */
-export const MODEL_PRICING_USD_PER_1M: Array<{
+const MODEL_PRICING_USD_PER_1M: Array<{
   prefix: string;
   inputPer1M: number;
   outputPer1M: number;

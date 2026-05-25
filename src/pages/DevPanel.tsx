@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AgentLabel, Dot, PageShell } from "@/components/custom-ui";
+import { AgentLabel, Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
-import { useSessionStore } from "@/store/sessionStore";
 import type {
   AgentMessage,
   AgentRun,
@@ -53,31 +52,6 @@ interface ExtAgentRun extends AgentRun {
   cycle_id?: string | null;
 }
 
-interface DeveloperSettings {
-  defaultEventMinLevel: LogLevel;
-  defaultTimeWindowMinutes: TimeWindow;
-  defaultSourceFilters: string[];
-  includePromptsInExports: boolean;
-  includeToolPayloadsInExports: boolean;
-}
-
-interface ActiveOverride {
-  id: string;
-  scopeType: string;
-  scopeId: string | null;
-  mainLogLevel: string;
-  eventMinLevel: LogLevel;
-  expiresAt: string | null;
-  createdAt: string;
-}
-
-interface DeveloperSettingsResponse {
-  settings: DeveloperSettings;
-  effectiveLogLevel: string;
-  activeOverrides: ActiveOverride[];
-  logDirectory: string;
-}
-
 interface ScopeDiagnostics {
   scopeLabel: string;
   session?: SessionSummary | null;
@@ -102,6 +76,10 @@ interface ExportBundleResult {
   includedSections: string[];
   redactionCount: number;
   warnings: string[];
+}
+
+function developerApi() {
+  return window.exva?.developer;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -198,12 +176,6 @@ function parseJsonSafe(s: string | null | undefined): unknown {
   }
 }
 
-function formatJsonPretty(s: string | null | undefined): string {
-  const p = parseJsonSafe(s);
-  if (p === null) return s ?? "";
-  return JSON.stringify(p, null, 2);
-}
-
 function parsePhaseTrace(
   m: AgentMessage | null | undefined,
 ): AIPhaseTrace | null {
@@ -268,7 +240,7 @@ const CopyBtn = ({
         fontWeight: 700,
         color: copied ? "#00e5a0" : "var(--text3)",
         cursor: "pointer",
-        transition: "all 0.15s",
+        transition: "background 0.15s, border-color 0.15s, color 0.15s",
       }}
     >
       {copied ? "copied!" : label}
@@ -319,9 +291,9 @@ const SkeletonRow = () => (
       borderBottom: "1px solid rgba(255,255,255,0.025)",
     }}
   >
-    {[48, 40, 80, 200].map((w, i) => (
+    {[48, 40, 80, 200].map((w) => (
       <div
-        key={i}
+        key={w}
         style={{
           width: w,
           height: 8,
@@ -354,69 +326,6 @@ const Spinner = () => (
   </svg>
 );
 
-const JsonBlock = ({
-  data,
-  label,
-}: {
-  data: string | null | undefined;
-  label: string;
-}) => {
-  const [expanded, setExpanded] = useState(false);
-  if (!data) return null;
-  const pretty = formatJsonPretty(data);
-  const truncated = pretty.length > 3000 && !expanded;
-  return (
-    <div style={{ marginTop: 8 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 4,
-        }}
-      >
-        <span style={S.label}>{label}</span>
-        <div style={{ display: "flex", gap: 5 }}>
-          <CopyBtn text={pretty} />
-          {pretty.length > 3000 && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              style={{
-                background: "none",
-                border: "none",
-                ...S.mono9,
-                color: "var(--text3)",
-                cursor: "pointer",
-              }}
-            >
-              {expanded
-                ? "collapse"
-                : `+${((pretty.length - 3000) / 1000).toFixed(1)}k`}
-            </button>
-          )}
-        </div>
-      </div>
-      <pre
-        style={{
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
-          borderRadius: 6,
-          padding: "8px 10px",
-          ...S.mono9,
-          color: "var(--text2)",
-          lineHeight: 1.6,
-          maxHeight: expanded ? "none" : 180,
-          overflow: expanded ? "auto" : "hidden",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-all",
-        }}
-      >
-        {truncated ? pretty.slice(0, 3000) + "\n…" : pretty}
-      </pre>
-    </div>
-  );
-};
-
 const CollapsibleText = ({
   text,
   collapseAt = 700,
@@ -426,7 +335,7 @@ const CollapsibleText = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   if (!text)
-    return <span style={{ ...S.mono9, color: "var(--text3)" }}>—</span>;
+    return <span style={{ ...S.mono9, color: "var(--text3)" }}>n/a</span>;
   const needs = text.length > collapseAt;
   return (
     <div>
@@ -464,6 +373,69 @@ const CollapsibleText = ({
 
 // ─── Scope Rail ───────────────────────────────────────────────────────────────
 
+const ScopeRailItem = ({
+  scope,
+  label,
+  subLabel,
+  status,
+  icon,
+  activeScope,
+  onScopeChange,
+}: {
+  scope: ActiveScope;
+  label: string;
+  subLabel?: string;
+  status?: string;
+  icon?: string;
+  activeScope: ActiveScope;
+  onScopeChange: (scope: ActiveScope) => void;
+}) => {
+  const isActive =
+    activeScope.type === scope.type && activeScope.id === scope.id;
+  const c = isActive ? "var(--accent)" : "transparent";
+  return (
+    <button
+      type="button"
+      onClick={() => onScopeChange(scope)}
+      style={{
+        width: "100%",
+        padding: "7px 12px 7px 14px",
+        border: "none",
+        borderLeft: `2px solid ${c}`,
+        background: isActive ? "rgba(77,166,255,0.07)" : "transparent",
+        cursor: "pointer",
+        transition: "background 0.1s, border-color 0.1s",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        textAlign: "left",
+      }}
+    >
+      {icon && <span style={{ fontSize: 12, opacity: 0.5 }}>{icon}</span>}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            ...S.mono10,
+            color: isActive ? "var(--text1)" : "var(--text2)",
+            fontWeight: isActive ? 700 : 400,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </div>
+        {subLabel && (
+          <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 1 }}>
+            {subLabel}
+          </div>
+        )}
+      </div>
+      {status && <StatusChip status={status} />}
+    </button>
+  );
+};
+
 const ScopeRail = ({
   activeScope,
   onScopeChange,
@@ -479,61 +451,6 @@ const ScopeRail = ({
   const others = sessions.filter(
     (s) => s.id !== focusedSessionId && s.status !== "archived",
   );
-
-  const RailItem = ({
-    scope,
-    label,
-    subLabel,
-    status,
-    icon,
-  }: {
-    scope: ActiveScope;
-    label: string;
-    subLabel?: string;
-    status?: string;
-    icon?: string;
-  }) => {
-    const isActive =
-      activeScope.type === scope.type && activeScope.id === scope.id;
-    const c = isActive ? "var(--accent)" : "transparent";
-    return (
-      <div
-        onClick={() => onScopeChange(scope)}
-        style={{
-          padding: "7px 12px 7px 14px",
-          borderLeft: `2px solid ${c}`,
-          background: isActive ? "rgba(77,166,255,0.07)" : "transparent",
-          cursor: "pointer",
-          transition: "all 0.1s",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        {icon && <span style={{ fontSize: 10, opacity: 0.5 }}>{icon}</span>}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              ...S.mono10,
-              color: isActive ? "var(--text1)" : "var(--text2)",
-              fontWeight: isActive ? 700 : 400,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {label}
-          </div>
-          {subLabel && (
-            <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 1 }}>
-              {subLabel}
-            </div>
-          )}
-        </div>
-        {status && <StatusChip status={status} />}
-      </div>
-    );
-  };
 
   return (
     <div
@@ -566,15 +483,23 @@ const ScopeRail = ({
         </div>
       </div>
 
-      <RailItem scope={{ type: "global" }} label="Global workspace" icon="◈" />
+      <ScopeRailItem
+        scope={{ type: "global" }}
+        label="Global workspace"
+        icon="◈"
+        activeScope={activeScope}
+        onScopeChange={onScopeChange}
+      />
 
       <div style={S.sectionTitle}>Session</div>
       {focused ? (
-        <RailItem
+        <ScopeRailItem
           scope={{ type: "session", id: focused.id, label: focused.name }}
           label={focused.name}
           subLabel="focused"
           status={focused.status}
+          activeScope={activeScope}
+          onScopeChange={onScopeChange}
         />
       ) : (
         <div style={{ padding: "6px 14px", ...S.mono9, color: "var(--text3)" }}>
@@ -586,11 +511,13 @@ const ScopeRail = ({
         <>
           <div style={S.sectionTitle}>Active sessions</div>
           {others.slice(0, 6).map((s) => (
-            <RailItem
+            <ScopeRailItem
               key={s.id}
               scope={{ type: "session", id: s.id, label: s.name }}
               label={s.name}
               status={s.status}
+              activeScope={activeScope}
+              onScopeChange={onScopeChange}
             />
           ))}
         </>
@@ -607,6 +534,44 @@ const ScopeRail = ({
 };
 
 // ─── Action Strip ─────────────────────────────────────────────────────────────
+
+const StripBtn = ({
+  label,
+  disabled,
+  loading,
+  onClick,
+  color = "var(--text3)",
+}: {
+  label: string;
+  disabled: boolean;
+  loading: boolean;
+  onClick: () => void;
+  color?: string;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled || loading}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 5,
+      padding: "5px 10px",
+      background: disabled ? "transparent" : `${color}14`,
+      border: `1px solid ${disabled ? "var(--border)" : color + "44"}`,
+      borderRadius: 5,
+      cursor: disabled ? "default" : "pointer",
+      ...S.mono9,
+      fontWeight: 700,
+      color: disabled ? "var(--text3)" : color,
+      opacity: disabled ? 0.4 : 1,
+      transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
+    }}
+  >
+    {loading && <Spinner />}
+    {label}
+  </button>
+);
 
 const ActionStrip = ({
   diagnostics,
@@ -647,9 +612,10 @@ const ActionStrip = ({
     mutationFn: async () => {
       if (!retryableStep || !diagnostics?.session?.id || !progress?.cycleId)
         return;
+      const cycleId = progress.cycleId;
       return api.retrySessionStep({
         sessionId: diagnostics.session.id,
-        cycleId: progress.cycleId!,
+        cycleId,
         stage: retryableStep.stage,
       });
     },
@@ -661,6 +627,7 @@ const ActionStrip = ({
       if (!diagnostics?.session?.id) return;
       return api.pauseSessionAfterCurrentStep(diagnostics.session.id);
     },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-diagnostics"] }),
   });
 
   const clearMutation = useMutation({
@@ -671,9 +638,10 @@ const ActionStrip = ({
         !progress?.cycleId
       )
         return;
+      const cycleId = progress.cycleId;
       return api.clearFailedSessionStep({
         sessionId: diagnostics.session.id,
-        cycleId: progress.cycleId!,
+        cycleId,
         stage: failedNonRetryable.stage,
       });
     },
@@ -685,43 +653,6 @@ const ActionStrip = ({
   const canClear = !!failedNonRetryable && !!sess;
   const canPause = sess?.status === "active";
   const isSessionScope = activeScope.type === "session";
-
-  const StripBtn = ({
-    label,
-    disabled,
-    loading,
-    onClick,
-    color = "var(--text3)",
-  }: {
-    label: string;
-    disabled: boolean;
-    loading: boolean;
-    onClick: () => void;
-    color?: string;
-  }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled || loading}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "5px 10px",
-        background: disabled ? "transparent" : `${color}14`,
-        border: `1px solid ${disabled ? "var(--border)" : color + "44"}`,
-        borderRadius: 5,
-        cursor: disabled ? "default" : "pointer",
-        ...S.mono9,
-        fontWeight: 700,
-        color: disabled ? "var(--text3)" : color,
-        opacity: disabled ? 0.4 : 1,
-        transition: "all 0.12s",
-      }}
-    >
-      {loading && <Spinner />}
-      {label}
-    </button>
-  );
 
   return (
     <div
@@ -747,9 +678,9 @@ const ActionStrip = ({
         {/* Status cards */}
         {diagnosticsLoading ? (
           <div style={{ display: "flex", gap: 6 }}>
-            {[80, 60, 100].map((w, i) => (
+            {[80, 60, 100].map((w) => (
               <div
-                key={i}
+                key={w}
                 style={{
                   width: w,
                   height: 24,
@@ -783,7 +714,7 @@ const ActionStrip = ({
             )}
           </>
         ) : (
-          <span style={{ ...S.mono9, color: "var(--text3)" }}>—</span>
+          <span style={{ ...S.mono9, color: "var(--text3)" }}>n/a</span>
         )}
 
         <div
@@ -1008,7 +939,6 @@ const EventTimeline = ({
   loading,
   hasMore,
   onLoadMore,
-  queryMs,
 }: {
   events: ExtEventRow[];
   filtered: ExtEventRow[];
@@ -1019,7 +949,6 @@ const EventTimeline = ({
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
-  queryMs?: number;
 }) => {
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -1062,12 +991,18 @@ const EventTimeline = ({
             ...S.mono10,
             color: "var(--text1)",
             outline: "none",
+            boxShadow: "0 0 0 0 transparent",
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.boxShadow = "0 0 0 0 transparent";
           }}
         />
         {loading && <Spinner />}
         <span style={{ ...S.mono9, color: "var(--text3)", flexShrink: 0 }}>
           {filtered.length}/{events.length}
-          {queryMs != null && <> · {queryMs}ms</>}
         </span>
       </div>
 
@@ -1097,10 +1032,13 @@ const EventTimeline = ({
           const lc = LEVEL_COLOR[ev.level];
           const rc = ROLE_COLOR[ev.agent_type ?? ""] ?? "var(--text3)";
           return (
-            <div
+            <button
+              type="button"
               key={ev.id}
               onClick={() => onSelect(ev.id)}
               style={{
+                width: "100%",
+                border: "none",
                 display: "grid",
                 gridTemplateColumns: "50px 44px 110px 1fr",
                 padding: "7px 14px",
@@ -1111,6 +1049,7 @@ const EventTimeline = ({
                 transition: "background 0.08s",
                 alignItems: "baseline",
                 gap: 0,
+                textAlign: "left",
               }}
             >
               <span style={{ ...S.mono9, color: "var(--text3)" }}>
@@ -1172,7 +1111,7 @@ const EventTimeline = ({
                 </span>
                 {ev.message}
               </span>
-            </div>
+            </button>
           );
         })}
 
@@ -1611,15 +1550,20 @@ const RunCard = ({ run, accent }: { run: ExtAgentRun; accent: string }) => {
         borderLeft: `2px solid ${accent}`,
       }}
     >
-      <div
+      <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
         style={{
+          width: "100%",
           padding: "8px 10px",
           background: "var(--surface2)",
           display: "flex",
           alignItems: "center",
           gap: 6,
           cursor: "pointer",
+          border: "none",
+          textAlign: "left",
         }}
       >
         <AgentLabel type={run.agent_type as EventSourceType} />
@@ -1658,7 +1602,7 @@ const RunCard = ({ run, accent }: { run: ExtAgentRun; accent: string }) => {
             {open ? "▲" : "▼"}
           </span>
         </div>
-      </div>
+      </button>
       {open && (
         <div
           style={{
@@ -1672,84 +1616,6 @@ const RunCard = ({ run, accent }: { run: ExtAgentRun; accent: string }) => {
           />
         </div>
       )}
-    </div>
-  );
-};
-
-const TraceTab = ({
-  messages,
-  loading,
-}: {
-  messages: AgentMessage[];
-  loading: boolean;
-}) => {
-  if (loading) return <EmptyState msg="Loading message trace…" />;
-  if (messages.length === 0)
-    return <EmptyState msg="No message trace recorded." />;
-  return (
-    <div
-      style={{
-        padding: "12px 14px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-      }}
-    >
-      {messages.map((m) => {
-        const c = ROLE_COLOR[m.role] ?? "var(--text3)";
-        return (
-          <div
-            key={m.id}
-            style={{
-              border: "1px solid var(--border)",
-              borderRadius: 7,
-              overflow: "hidden",
-              borderLeft: `2px solid ${c}`,
-            }}
-          >
-            <div
-              style={{
-                padding: "7px 10px",
-                background: "var(--surface2)",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <AgentLabel type={m.role as EventSourceType} />
-              <span style={{ ...S.mono9, color: "var(--text3)" }}>
-                {m.provider_key} · {m.model_id}
-              </span>
-              {m.output_schema_name && (
-                <span style={{ ...S.mono9, color: "#4da6ff" }}>
-                  {m.output_schema_name}
-                </span>
-              )}
-              {m.parse_fallback && (
-                <span
-                  style={{
-                    ...S.mono9,
-                    color: "#ffb733",
-                    background: "rgba(255,183,51,0.1)",
-                    padding: "1px 4px",
-                    borderRadius: 3,
-                  }}
-                >
-                  parse fallback
-                </span>
-              )}
-              <div style={{ marginLeft: "auto" }}>
-                <CopyBtn text={JSON.stringify(m, null, 2)} />
-              </div>
-            </div>
-            <div style={{ padding: "10px 12px", background: "var(--bg)" }}>
-              <JsonBlock data={m.output_json} label="output" />
-              <JsonBlock data={m.tool_calls_json} label="tool calls" />
-              <JsonBlock data={m.thinking_json} label="thinking" />
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 };
@@ -1884,12 +1750,16 @@ const ExternalCallsTab = ({
 }) => {
   const { data: calls = [], isLoading } = useQuery({
     queryKey: ["api-calls", sessionId, cycleId, tradeId],
-    queryFn: () =>
-      api.getApiCallLog({
-        sessionId: sessionId!,
+    queryFn: () => {
+      if (!sessionId) {
+        throw new Error("sessionId is required for API call log");
+      }
+      return api.getApiCallLog({
+        sessionId,
         cycleId: cycleId ?? null,
         tradeId: tradeId ?? null,
-      }),
+      });
+    },
     enabled: !!sessionId,
   });
   if (!sessionId)
@@ -2117,6 +1987,7 @@ const DebugCaptureModal = ({
   onClose: () => void;
   onStarted: (overrideId: string, expiresAt: string | null) => void;
 }) => {
+  const qc = useQueryClient();
   const [duration, setDuration] = useState<5 | 15 | 30 | null>(15);
   const [untilStopped, setUntilStopped] = useState(false);
   const [mainLevel, setMainLevel] = useState<PinoLevel>("debug");
@@ -2126,25 +1997,34 @@ const DebugCaptureModal = ({
   const [traceConfirm, setTraceConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   const mutation = useMutation({
     mutationFn: async () => {
       if (mainLevel === "trace" && !traceConfirm)
         throw new Error("Trace logging requires confirmation.");
-      return (window as any).exva?.developer?.setLogLevel({
+      const developer = developerApi();
+      if (!developer) {
+        throw new Error("Developer API unavailable.");
+      }
+      return developer.setLogLevel({
         scopeType: activeScope.type,
         scopeId: activeScope.id,
         mainLogLevel: mainLevel,
         eventMinLevel: eventLevel,
         durationMinutes: untilStopped ? undefined : (duration ?? 15),
         untilStopped,
-      }) as Promise<{
-        overrideId: string;
-        effectiveLogLevel: string;
-        expiresAt: string | null;
-      }>;
+      });
     },
     onSuccess: (res) => {
       if (res) onStarted(res.overrideId, res.expiresAt);
+      qc.invalidateQueries({ queryKey: ["scope-diagnostics"] });
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -2171,10 +2051,11 @@ const DebugCaptureModal = ({
 
   return (
     <div
+      role="presentation"
       style={OVERLAY}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div style={MODAL}>
+      <div style={MODAL} role="dialog" aria-modal="true">
         <div
           style={{
             display: "flex",
@@ -2547,15 +2428,15 @@ const ExportResultDrawer = ({
       {result.redactionCount} field{result.redactionCount !== 1 ? "s" : ""}{" "}
       redacted · {(result.sizeBytes / 1024).toFixed(0)} KB
     </div>
-    {result.warnings.map((w, i) => (
-      <div key={i} style={{ ...S.mono9, color: "#ffb733" }}>
+    {result.warnings.map((w) => (
+      <div key={w} style={{ ...S.mono9, color: "#ffb733" }}>
         {w}
       </div>
     ))}
     <div style={{ display: "flex", gap: 6 }}>
       <button
         onClick={() =>
-          (window as any).exva?.developer?.openPath({
+          developerApi()?.openPath({
             kind: "debugBundle",
             path: result.path,
           })
@@ -2693,7 +2574,7 @@ const DataRow = ({
     <span
       style={{
         ...(mono ? S.mono9 : {}),
-        fontSize: 10,
+        fontSize: 12,
         color: "var(--text2)",
         textAlign: "right",
         wordBreak: "break-all",
@@ -2744,7 +2625,6 @@ export const DevPanel = ({
   const [events, setEvents] = useState<ExtEventRow[]>([]);
   const [eventCursor, setEventCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  const [queryMs, setQueryMs] = useState<number | undefined>(undefined);
 
   // Inspector state
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -2770,7 +2650,6 @@ export const DevPanel = ({
 
   const { toasts, show: showToast } = useToasts();
   const focusAppliedRef = useRef(false);
-  const stats = useSessionStore((s) => s.stats);
   const qc = useQueryClient();
 
   // Debounce search
@@ -2788,7 +2667,10 @@ export const DevPanel = ({
     queryFn: () => api.listSessions({ includeAllEnvironments: true }),
     refetchInterval: 8000,
   });
-  const sessions = sessionOverview?.sessions ?? [];
+  const sessions = useMemo(
+    () => sessionOverview?.sessions ?? [],
+    [sessionOverview?.sessions],
+  );
   const focusedSessionId = sessionOverview?.focusedSessionId ?? null;
 
   // Auto-set focused session as default scope when data arrives
@@ -2821,11 +2703,11 @@ export const DevPanel = ({
   useEffect(() => {
     (async () => {
       try {
-        const res = (await (window as any).exva?.developer?.getSettings()) as
-          | DeveloperSettingsResponse
-          | undefined;
+        const res = await developerApi()?.getSettings();
         if (res) setEffectiveLogLevel(res.effectiveLogLevel);
-      } catch {}
+      } catch {
+        /* developer settings unavailable outside Electron host */
+      }
     })();
   }, []);
 
@@ -2834,12 +2716,12 @@ export const DevPanel = ({
     useQuery<ScopeDiagnostics>({
       queryKey: ["scope-diagnostics", activeScope.type, activeScope.id],
       queryFn: async () => {
-        const res = await (window as any).exva?.developer?.getScopeDiagnostics({
+        const res = await developerApi()?.getScopeDiagnostics({
           scope: { type: activeScope.type, id: activeScope.id },
         });
         return res as ScopeDiagnostics;
       },
-      enabled: !!(window as any).exva?.developer,
+      enabled: !!developerApi(),
       refetchInterval: 5000,
     });
 
@@ -2860,10 +2742,12 @@ export const DevPanel = ({
         setEventCursor(
           fetched.length > 0 ? fetched[fetched.length - 1].id : null,
         );
-      } catch {}
+      } catch {
+        /* event stream fetch failed; keep existing rows */
+      }
     },
-    [activeScope, minLevel, debouncedSearch, timeWindow],
-  ); // eslint-disable-line
+    [activeScope, minLevel, debouncedSearch],
+  );
 
   useEffect(() => {
     setEvents([]);
@@ -2907,12 +2791,17 @@ export const DevPanel = ({
 
   const { data: selRuns = [], isLoading: runsLoading } = useQuery({
     queryKey: ["inspector-runs", inspectorTradeId, inspectorCycleId],
-    queryFn: () =>
-      inspectorTradeId
-        ? (api.getAgentTraces(inspectorTradeId) as Promise<ExtAgentRun[]>)
-        : (api.getAgentTracesByCycle(inspectorCycleId!) as Promise<
-            ExtAgentRun[]
-          >),
+    queryFn: () => {
+      if (inspectorTradeId) {
+        return api.getAgentTraces(inspectorTradeId) as Promise<ExtAgentRun[]>;
+      }
+      if (inspectorCycleId) {
+        return api.getAgentTracesByCycle(inspectorCycleId) as Promise<
+          ExtAgentRun[]
+        >;
+      }
+      return Promise.resolve([] as ExtAgentRun[]);
+    },
     enabled: !!(inspectorTradeId || inspectorCycleId),
   });
 
@@ -2923,7 +2812,10 @@ export const DevPanel = ({
         const d = await api.getTradeDetail(inspectorTradeId);
         return d.messages ?? [];
       }
-      return api.getMessagesByCycle(inspectorCycleId!);
+      if (inspectorCycleId) {
+        return api.getMessagesByCycle(inspectorCycleId);
+      }
+      return [];
     },
     enabled: !!(inspectorTradeId || inspectorCycleId),
   });
@@ -2967,7 +2859,11 @@ export const DevPanel = ({
   const handleSetLogLevel = async (level: PinoLevel) => {
     setLogLevelLoading(true);
     try {
-      await (window as any).exva?.developer?.setLogLevel({
+      const developer = developerApi();
+      if (!developer) {
+        throw new Error("Developer API unavailable.");
+      }
+      await developer.setLogLevel({
         scopeType: "global",
         mainLogLevel: level,
         eventMinLevel: minLevel,
@@ -2989,12 +2885,16 @@ export const DevPanel = ({
   const handleExport = async () => {
     setExportLoading(true);
     try {
-      const res = (await (window as any).exva?.developer?.exportDebugBundle({
+      const developer = developerApi();
+      if (!developer) {
+        throw new Error("Developer API unavailable.");
+      }
+      const res = await developer.exportDebugBundle({
         scope: { type: activeScope.type, id: activeScope.id },
         includePrompts: false,
         includeToolPayloads: true,
         timeWindowMinutes: timeWindow,
-      })) as ExportBundleResult | undefined;
+      });
       if (res) {
         setExportResult(res);
         if (res.sizeBytes > 25 * 1024 * 1024) {
@@ -3144,7 +3044,7 @@ export const DevPanel = ({
             <HeaderBtn
               label="Open Logs Folder"
               onClick={() =>
-                (window as any).exva?.developer?.openPath({
+                developerApi()?.openPath({
                   kind: "logsDirectory",
                 })
               }
@@ -3199,7 +3099,6 @@ export const DevPanel = ({
               loading={false}
               hasMore={hasMore}
               onLoadMore={() => loadEvents(eventCursor)}
-              queryMs={queryMs}
             />
           </div>
 
@@ -3239,11 +3138,6 @@ export const DevPanel = ({
           <span style={{ ...S.mono9, color: "var(--text3)" }}>
             {filtered.length} events
           </span>
-          {queryMs != null && (
-            <span style={{ ...S.mono9, color: "var(--text3)" }}>
-              {queryMs}ms
-            </span>
-          )}
           <span
             style={{ ...S.mono9, color: "var(--text3)", marginLeft: "auto" }}
           >
@@ -3308,7 +3202,7 @@ const HeaderBtn = ({
       color,
       cursor: disabled ? "default" : "pointer",
       opacity: disabled ? 0.4 : 1,
-      transition: "all 0.12s",
+      transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
     }}
   >
     {loading && <Spinner />}

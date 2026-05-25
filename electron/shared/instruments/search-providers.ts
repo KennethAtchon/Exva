@@ -7,13 +7,7 @@ export interface ProviderMetadata {
 }
 
 export const BUILT_IN_DUCKDUCKGO_PROVIDER_ID = "builtin-search-duckduckgo";
-export const BUILT_IN_DUCKDUCKGO_SECRET_REF = "builtin-search-duckduckgo";
-
-export function isBuiltInSearchProviderId(
-  id: string | null | undefined,
-): boolean {
-  return id === BUILT_IN_DUCKDUCKGO_PROVIDER_ID;
-}
+const BUILT_IN_DUCKDUCKGO_SECRET_REF = "builtin-search-duckduckgo";
 
 export function isBuiltInSearchProviderAccount(
   account: Pick<ProviderAccount, "id" | "providerType" | "category">,

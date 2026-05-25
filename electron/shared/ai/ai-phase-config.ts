@@ -24,26 +24,17 @@ export const DEFAULT_RISK_RULE_SET: RiskRuleSet = {
   minFinalScore: 0.15,
 };
 
-export interface PhaseSpendConfig {
+interface PhaseSpendConfig {
   phaseSpendCapUsd: number;
 }
 
-export interface WorkerToolBinding {
+interface WorkerToolBinding {
   /** Fallback search provider when the session primary adapter errors (e.g. MCP 5xx). */
   fallbackProviderId?: string;
 }
 
 export interface WorkerToolConfig {
   search_web?: WorkerToolBinding;
-}
-
-export interface WorkerConfig {
-  id: string;
-  toolConfig?: WorkerToolConfig;
-}
-
-export interface PhaseConfig extends PhaseSpendConfig {
-  phase: PipelinePhase;
 }
 
 export interface PipelineConfig {

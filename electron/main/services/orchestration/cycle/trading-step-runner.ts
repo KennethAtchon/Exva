@@ -4,9 +4,7 @@ import { AppError, type AppErrorCode } from "@electron/shared/infra/errors";
 import type { SessionExecutionStepsRepo } from "../../../db/repositories/sessions/session-execution-steps-repo";
 import type { EventBus } from "../../infra/event-bus";
 import type { Logger } from "../../infra/log";
-import {
-  classifyAppError,
-} from "../policy/outcome-classifier";
+import { classifyAppError } from "../policy/outcome-classifier";
 import {
   outcomeLevel,
   type FailureHistoryLevel,
@@ -34,7 +32,7 @@ export interface TradingStepRunnerDeps {
   logger: Logger;
 }
 
-export interface StepRetrySchedule {
+interface StepRetrySchedule {
   stage: ExecutionStage;
   attempt: number;
   nextRetryAt: string;

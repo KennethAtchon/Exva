@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import type { ProviderAccount } from "@/lib/types";
 import type { ProviderModelEntry } from "@/lib/exva";
 
-export const ModelCombobox = ({
+const ModelCombobox = ({
   value,
   onChange,
   options,

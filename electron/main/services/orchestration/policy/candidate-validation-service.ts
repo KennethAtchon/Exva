@@ -30,7 +30,7 @@ export interface CandidateValidationInput {
   now?: string;
 }
 
-export interface CandidateEvidenceEntry {
+interface CandidateEvidenceEntry {
   source: "get_news" | "search_web" | "get_quote" | "fetch_url";
   symbolMatched: boolean;
   publishedAt?: string;
@@ -158,10 +158,7 @@ export class CandidateValidationService {
     }
 
     // CV-7: Rationale non-empty when structured evidence is present
-    if (
-      structuredEvidence != null &&
-      !structuredEvidence.summary?.trim()
-    ) {
+    if (structuredEvidence != null && !structuredEvidence.summary?.trim()) {
       reasons.push("Selector rationale is empty");
     }
 

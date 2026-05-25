@@ -17,21 +17,58 @@ import {
 } from "@/lib/autopsy-types";
 import type { Trade } from "@/lib/types";
 
+function ClientDateTime({ iso }: { iso: string }) {
+  const [text, setText] = useState<string | null>(null);
+
+  useEffect(() => {
+    setText(
+      new Date(iso).toLocaleString("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    );
+  }, [iso]);
+
+  return <span>{text ?? iso.slice(0, 10)}</span>;
+}
+
 // ---------------------------------------------------------------------------
 // Grade styling
 // ---------------------------------------------------------------------------
 
-const GRADE_STYLE: Record<
-  string,
-  { color: string; glow: string; bg: string }
-> = {
-  "A+": { color: "#34d399", glow: "rgba(52,211,153,0.25)", bg: "rgba(52,211,153,0.08)" },
-  A: { color: "#34d399", glow: "rgba(52,211,153,0.2)", bg: "rgba(52,211,153,0.06)" },
-  B: { color: "#60a5fa", glow: "rgba(96,165,250,0.2)", bg: "rgba(96,165,250,0.06)" },
-  C: { color: "#fbbf24", glow: "rgba(251,191,36,0.2)", bg: "rgba(251,191,36,0.06)" },
-  D: { color: "#f97316", glow: "rgba(249,115,22,0.2)", bg: "rgba(249,115,22,0.06)" },
-  F: { color: "#f87171", glow: "rgba(248,113,113,0.2)", bg: "rgba(248,113,113,0.06)" },
-};
+const GRADE_STYLE: Record<string, { color: string; glow: string; bg: string }> =
+  {
+    "A+": {
+      color: "#34d399",
+      glow: "rgba(52,211,153,0.25)",
+      bg: "rgba(52,211,153,0.08)",
+    },
+    A: {
+      color: "#34d399",
+      glow: "rgba(52,211,153,0.2)",
+      bg: "rgba(52,211,153,0.06)",
+    },
+    B: {
+      color: "#60a5fa",
+      glow: "rgba(96,165,250,0.2)",
+      bg: "rgba(96,165,250,0.06)",
+    },
+    C: {
+      color: "#fbbf24",
+      glow: "rgba(251,191,36,0.2)",
+      bg: "rgba(251,191,36,0.06)",
+    },
+    D: {
+      color: "#f97316",
+      glow: "rgba(249,115,22,0.2)",
+      bg: "rgba(249,115,22,0.06)",
+    },
+    F: {
+      color: "#f87171",
+      glow: "rgba(248,113,113,0.2)",
+      bg: "rgba(248,113,113,0.06)",
+    },
+  };
 
 // ---------------------------------------------------------------------------
 // Collapsible section card
@@ -48,7 +85,7 @@ function SectionCard({
   defaultOpen?: boolean;
   accent?: string;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(() => defaultOpen ?? false);
 
   return (
     <div
@@ -168,7 +205,14 @@ function FieldRow({
       >
         {label}
       </span>
-      <div style={{ flex: 1, fontSize: 13, color: "var(--text1)", lineHeight: 1.5 }}>
+      <div
+        style={{
+          flex: 1,
+          fontSize: 13,
+          color: "var(--text1)",
+          lineHeight: 1.5,
+        }}
+      >
         {children}
       </div>
     </div>
@@ -275,7 +319,7 @@ function GradeBanner({
               fontFamily: "var(--font-mono)",
             }}
           >
-            {new Date(autopsy.createdAt).toLocaleString()}
+            <ClientDateTime iso={autopsy.createdAt} />
           </span>
           <span style={{ color: "var(--text3)", fontSize: 12 }}>·</span>
           <span
@@ -335,7 +379,8 @@ function LegacySummaryCard({ autopsy }: { autopsy: TradeAutopsyRecord }) {
           marginBottom: 12,
         }}
       >
-        {autopsy.modelId} · {new Date(autopsy.createdAt).toLocaleString()} · grade {autopsy.qualityGrade ?? "N/A"}
+        {autopsy.modelId} · <ClientDateTime iso={autopsy.createdAt} /> · grade{" "}
+        {autopsy.qualityGrade ?? "N/A"}
       </div>
       <p
         style={{
@@ -369,10 +414,7 @@ function VersionSelector({
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
       {autopsies.map((a, i) => {
         const active = a.id === selected;
-        const date = new Date(a.createdAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
+        const date = a.createdAt.slice(0, 10);
         return (
           <button
             key={a.id}
@@ -390,7 +432,9 @@ function VersionSelector({
           >
             v{autopsies.length - i} · {date}
             {active && (
-              <span style={{ marginLeft: 6, opacity: 0.7, fontSize: 9 }}>●</span>
+              <span style={{ marginLeft: 6, opacity: 0.7, fontSize: 9 }}>
+                ●
+              </span>
             )}
           </button>
         );
@@ -457,16 +501,34 @@ function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
     <SectionCard title="Thesis Review" accent="#60a5fa">
       <FieldRow label="Valid Thesis">
         <Chip
-          label={d.valid === true ? "Yes" : d.valid === false ? "No" : "Uncertain"}
-          color={d.valid === true ? "#34d399" : d.valid === false ? "#f87171" : "#fbbf24"}
-          bg={d.valid === true ? "rgba(52,211,153,0.12)" : d.valid === false ? "rgba(248,113,113,0.12)" : "rgba(251,191,36,0.12)"}
+          label={
+            d.valid === true ? "Yes" : d.valid === false ? "No" : "Uncertain"
+          }
+          color={
+            d.valid === true
+              ? "#34d399"
+              : d.valid === false
+                ? "#f87171"
+                : "#fbbf24"
+          }
+          bg={
+            d.valid === true
+              ? "rgba(52,211,153,0.12)"
+              : d.valid === false
+                ? "rgba(248,113,113,0.12)"
+                : "rgba(251,191,36,0.12)"
+          }
         />
       </FieldRow>
       <FieldRow label="Confirm. Bias">
         <Chip
           label={d.confirmatoryBias ? "Detected" : "None"}
           color={d.confirmatoryBias ? "#fbbf24" : "#34d399"}
-          bg={d.confirmatoryBias ? "rgba(251,191,36,0.12)" : "rgba(52,211,153,0.12)"}
+          bg={
+            d.confirmatoryBias
+              ? "rgba(251,191,36,0.12)"
+              : "rgba(52,211,153,0.12)"
+          }
         />
       </FieldRow>
       <FieldRow label="Analysis">
@@ -477,10 +539,15 @@ function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
       {d.ignoredCounterSignals.length > 0 && (
         <FieldRow label="Ignored Signals">
           <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
-            {d.ignoredCounterSignals.map((s, i) => (
+            {d.ignoredCounterSignals.map((s) => (
               <li
-                key={i}
-                style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6, marginBottom: 3 }}
+                key={s}
+                style={{
+                  fontSize: 12,
+                  color: "var(--text2)",
+                  lineHeight: 1.6,
+                  marginBottom: 3,
+                }}
               >
                 {s}
               </li>
@@ -536,7 +603,11 @@ function ExecutionCard({ d }: { d: AutopsyStructured["executionQuality"] }) {
   );
 }
 
-function BehavioralCard({ flags }: { flags: AutopsyStructured["behavioralFlags"] }) {
+function BehavioralCard({
+  flags,
+}: {
+  flags: AutopsyStructured["behavioralFlags"];
+}) {
   const sevColor: Record<string, string> = {
     low: "var(--text3)",
     medium: "#60a5fa",
@@ -552,9 +623,9 @@ function BehavioralCard({ flags }: { flags: AutopsyStructured["behavioralFlags"]
         </span>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {flags.map((f, i) => (
+          {flags.map((f) => (
             <div
-              key={i}
+              key={`${f.flag}-${f.severity}-${f.description}`}
               style={{
                 padding: "10px 12px",
                 borderRadius: 7,
@@ -586,7 +657,13 @@ function BehavioralCard({ flags }: { flags: AutopsyStructured["behavioralFlags"]
                   {f.severity}
                 </span>
               </div>
-              <span style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.55 }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--text2)",
+                  lineHeight: 1.55,
+                }}
+              >
                 {f.description}
               </span>
             </div>
@@ -665,9 +742,9 @@ function WhatWorkedFailedCard({
             ✓ What Worked
           </div>
           <ul style={{ margin: 0, padding: "0 0 0 14px" }}>
-            {worked.map((w, i) => (
+            {worked.map((w) => (
               <li
-                key={i}
+                key={w}
                 style={{
                   fontSize: 12,
                   color: "var(--text2)",
@@ -694,9 +771,9 @@ function WhatWorkedFailedCard({
             ✗ What Failed
           </div>
           <ul style={{ margin: 0, padding: "0 0 0 14px" }}>
-            {failed.map((f, i) => (
+            {failed.map((f) => (
               <li
-                key={i}
+                key={f}
                 style={{
                   fontSize: 12,
                   color: "var(--text2)",
@@ -735,14 +812,14 @@ function ProcessImprovementsCard({ items }: { items: string[] }) {
   return (
     <SectionCard title="Process Improvements">
       <ol style={{ margin: 0, padding: "0 0 0 18px" }}>
-        {items.map((item, i) => (
+        {items.map((item) => (
           <li
-            key={i}
+            key={item}
             style={{
               fontSize: 13,
               color: "var(--text2)",
               lineHeight: 1.65,
-              marginBottom: i < items.length - 1 ? 10 : 0,
+              marginBottom: 10,
             }}
           >
             {item}
@@ -777,8 +854,14 @@ function TradeMetaCard({ trade }: { trade: Trade | null }) {
     ["Status", trade.status],
     ["Strategy", trade.strategy],
     ["Entry", trade.entry_price != null ? fmt.usd(trade.entry_price) : "—"],
-    ["Stop", trade.stop_loss_price != null ? fmt.usd(trade.stop_loss_price) : "—"],
-    ["Target", trade.take_profit_price != null ? fmt.usd(trade.take_profit_price) : "—"],
+    [
+      "Stop",
+      trade.stop_loss_price != null ? fmt.usd(trade.stop_loss_price) : "—",
+    ],
+    [
+      "Target",
+      trade.take_profit_price != null ? fmt.usd(trade.take_profit_price) : "—",
+    ],
     ["Size", fmt.usd(trade.position_size_usd, 0)],
   ];
 
@@ -804,7 +887,14 @@ function TradeMetaCard({ trade }: { trade: Trade | null }) {
       >
         Trade Details
       </div>
-      <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div
+        style={{
+          padding: "12px 14px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
         {rows.map(([k, v]) => (
           <div
             key={k}
@@ -866,16 +956,23 @@ function ExportDropdown({
 
   return (
     <div style={{ position: "relative" }}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        style={actionBtnStyle}
-      >
+      <button onClick={() => setOpen((o) => !o)} style={actionBtnStyle}>
         ↓ Export
       </button>
       {open && (
         <>
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 49 }}
+          <button
+            type="button"
+            aria-label="Close export menu"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 49,
+              border: "none",
+              padding: 0,
+              background: "transparent",
+              cursor: "default",
+            }}
             onClick={() => setOpen(false)}
           />
           <div
@@ -939,7 +1036,9 @@ export function AutopsyPage({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [selectedAutopsyId, setSelectedAutopsyId] = useState<string | null>(null);
+  const [selectedAutopsyId, setSelectedAutopsyId] = useState<string | null>(
+    null,
+  );
   const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
   const [exportToast, setExportToast] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -1027,7 +1126,9 @@ export function AutopsyPage({
     : null;
 
   // Phase count
-  const phaseCount = autopsy ? parsePhaseTracesJson(autopsy.phaseTracesJson).length : 0;
+  const phaseCount = autopsy
+    ? parsePhaseTracesJson(autopsy.phaseTracesJson).length
+    : 0;
 
   const isTradeOpen = resolvedTrade?.status === "open";
   const hasAutopsies = autopsies.length > 0;
@@ -1160,21 +1261,29 @@ export function AutopsyPage({
             >
               Autopsy is only available for closed trades.
             </div>
-            <div
-              style={{ fontSize: 13, color: "var(--text3)", marginTop: 6 }}
-            >
+            <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 6 }}>
               Close this position first to generate an autopsy.
             </div>
           </div>
         ) : (
           <div style={columnsStyle}>
             {/* MAIN COLUMN */}
-            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 14,
+              }}
+            >
               {/* Warnings */}
               {exportToast && (
                 <WarningBanner message={exportToast} tone="success" />
               )}
-              {exportError && <WarningBanner message={exportError} tone="error" />}
+              {exportError && (
+                <WarningBanner message={exportError} tone="error" />
+              )}
               {autopsy?.isFallback && (
                 <WarningBanner message="LLM unavailable — this autopsy used fallback summarization." />
               )}
@@ -1194,7 +1303,9 @@ export function AutopsyPage({
               {/* Empty state */}
               {!autopsiesLoading && autopsies.length === 0 && (
                 <div style={emptyStateStyle}>
-                  <div style={{ fontSize: 40, marginBottom: 14, opacity: 0.25 }}>
+                  <div
+                    style={{ fontSize: 40, marginBottom: 14, opacity: 0.25 }}
+                  >
                     ⚕
                   </div>
                   <div
@@ -1214,7 +1325,8 @@ export function AutopsyPage({
                       marginBottom: 20,
                     }}
                   >
-                    Generate an autopsy to get structured analysis of this trade.
+                    Generate an autopsy to get structured analysis of this
+                    trade.
                   </div>
                   <button
                     disabled={isGenerating}
@@ -1262,7 +1374,9 @@ export function AutopsyPage({
                   )}
                 </>
               )}
-              {autopsy && !structured && <LegacySummaryCard autopsy={autopsy} />}
+              {autopsy && !structured && (
+                <LegacySummaryCard autopsy={autopsy} />
+              )}
             </div>
 
             {/* RIGHT SIDEBAR */}

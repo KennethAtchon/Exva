@@ -2,7 +2,7 @@ import type { InstrumentClass } from "@/lib/types";
 import type { HoldingStyle } from "@electron/shared/domain";
 import type { DecisionRiskInput } from "../../risk/risk-engine";
 
-export type PolicyGateName =
+type PolicyGateName =
   | "runtime"
   | "strategy"
   | "data_freshness"

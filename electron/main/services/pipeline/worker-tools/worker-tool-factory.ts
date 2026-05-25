@@ -5,7 +5,10 @@ import { AppError } from "@electron/shared/infra/errors";
 import type { InstrumentClass } from "@/lib/types";
 import type { ApiCallLogRepo } from "../../../db/repositories/system/api-call-log-repo";
 import type { SearchRegistry } from "../../search";
-import { createSearchTool, createMockSearchTool } from "../../tools/search-tool";
+import {
+  createSearchTool,
+  createMockSearchTool,
+} from "../../tools/search-tool";
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
@@ -64,16 +67,6 @@ export interface WorkerToolContext {
   mockScenarioKind?: MockScenarioKind;
   isMockSession?: boolean;
 }
-
-export type WorkerToolAvailability = {
-  searchWeb: boolean;
-  fetchUrl: boolean;
-  searchReddit: boolean;
-  trendingSymbols: boolean;
-  getNews: boolean;
-  getQuote: boolean;
-  getOhlcv: boolean;
-};
 
 export async function buildWorkerTools(
   toolIds: readonly ToolId[],

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const candidateRejectionSchema = z.object({
+const candidateRejectionSchema = z.object({
   symbol: z.string(),
   instrumentClass: z.enum(["stock", "crypto", "futures", "prediction_market"]),
   finalScore: z.number().nullable(),
@@ -10,7 +10,7 @@ export const candidateRejectionSchema = z.object({
 });
 export type CandidateRejection = z.infer<typeof candidateRejectionSchema>;
 
-export const workerToolCoverageSchema = z.object({
+const workerToolCoverageSchema = z.object({
   workerId: z.string(),
   requiredTools: z.array(z.string()),
   usedTools: z.array(z.string()),
@@ -24,9 +24,8 @@ export const selectorDiagnosticsSchema = z.object({
   rejected: z.array(candidateRejectionSchema),
   workerToolCoverage: z.array(workerToolCoverageSchema).optional(),
 });
-export type SelectorDiagnostics = z.infer<typeof selectorDiagnosticsSchema>;
 
-export function extractToolNamesFromTraces(
+function extractToolNamesFromTraces(
   traces: Array<{ toolCalls: Array<{ tool: string }> }>,
 ): string[] {
   return [

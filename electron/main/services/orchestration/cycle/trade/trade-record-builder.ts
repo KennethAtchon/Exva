@@ -12,7 +12,7 @@ import type { TradingCycleContext } from "../trading-cycle-context";
 import type { ResolvedInstrument } from "../types";
 import { remapPredictionMetadataForOutcome } from "../utils";
 
-export function resolvePredictionTradeFields(
+function resolvePredictionTradeFields(
   instrument: ResolvedInstrument,
 ): Pick<
   Trade,
@@ -31,7 +31,7 @@ export function resolvePredictionTradeFields(
   return { instrumentDisplayName, predictionOutcome, instrumentMetadataJson };
 }
 
-export function executionFieldsForSignal(
+function executionFieldsForSignal(
   ctx: TradingCycleContext,
   signal: TradeSignal,
   instrumentClass: InstrumentClass,

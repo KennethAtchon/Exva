@@ -19,7 +19,7 @@ export const earningsOutputSchema = z.object({
     .default("")
     .describe("One-to-two sentence observation."),
 });
-export type EarningsOutput = z.infer<typeof earningsOutputSchema>;
+type EarningsOutput = z.infer<typeof earningsOutputSchema>;
 
 export const catalystOutputSchema = z.object({
   catalystType: z
@@ -71,7 +71,7 @@ export const catalystOutputSchema = z.object({
     .default("")
     .describe("One-to-two sentence observation."),
 });
-export type CatalystOutput = z.infer<typeof catalystOutputSchema>;
+type CatalystOutput = z.infer<typeof catalystOutputSchema>;
 
 export const sentimentOutputSchema = z.object({
   sentimentScore: z
@@ -88,7 +88,7 @@ export const sentimentOutputSchema = z.object({
     .default("")
     .describe("One-to-two sentence observation."),
 });
-export type SentimentOutput = z.infer<typeof sentimentOutputSchema>;
+type SentimentOutput = z.infer<typeof sentimentOutputSchema>;
 
 export interface FundamentalWorkerOutputs {
   earnings?: EarningsOutput | null;

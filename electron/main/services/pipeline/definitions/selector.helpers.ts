@@ -23,7 +23,9 @@ import type { z } from "zod";
 
 type VerificationOutput = z.infer<typeof verificationOutputSchema>;
 
-export function parseWorkerToolTrace(raw: string | null): SelectorCandidate["selectorTraces"] {
+export function parseWorkerToolTrace(
+  raw: string | null,
+): SelectorCandidate["selectorTraces"] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw) as Array<{
@@ -45,7 +47,7 @@ export function parseWorkerToolTrace(raw: string | null): SelectorCandidate["sel
   }
 }
 
-export function maxNullable(a: number | null, b: number | null): number | null {
+function maxNullable(a: number | null, b: number | null): number | null {
   if (a == null) return b;
   if (b == null) return a;
   return Math.max(a, b);

@@ -25,7 +25,7 @@ export interface SignalEngineContext {
   };
 }
 
-export interface SignalEngineDefinition<TInput = unknown, TOutput = unknown> {
+interface SignalEngineDefinition<TInput = unknown, TOutput = unknown> {
   id: EngineId;
   kind: EngineKind;
   inputSchema: z.ZodType<TInput>;

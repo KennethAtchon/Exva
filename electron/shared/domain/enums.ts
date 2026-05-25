@@ -218,15 +218,6 @@ export type AgentRunFinishReason =
   | "timeout"
   | "error";
 
-export const RESEARCH_POSTURE_PRESET_IDS: readonly ResearchPosturePresetId[] = [
-  "trend_hunt",
-  "catalyst_momentum",
-  "institutional_quality",
-  "mean_reversion_dislocation",
-  "prediction_event_edge",
-  "custom",
-];
-
 export const RESEARCH_DISCOVERY_MODES: readonly ResearchDiscoveryMode[] = [
   "trend_scan",
   "catalyst_scan",

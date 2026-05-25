@@ -53,11 +53,7 @@ export interface AutopsyStructured {
   };
   executionQuality: {
     entryTiming: "early" | "good" | "late" | "unknown";
-    sizingAdequacy:
-      | "oversized"
-      | "appropriate"
-      | "undersized"
-      | "unknown";
+    sizingAdequacy: "oversized" | "appropriate" | "undersized" | "unknown";
     exitManagement: string;
     slippage: string | null;
   };
@@ -67,12 +63,7 @@ export interface AutopsyStructured {
     severity: LessonSeverity;
   }>;
   marketContext: {
-    regime:
-      | "trending"
-      | "ranging"
-      | "volatile"
-      | "low_liquidity"
-      | "unknown";
+    regime: "trending" | "ranging" | "volatile" | "low_liquidity" | "unknown";
     macro: string;
     volatility: string;
     suitability: "good_conditions" | "neutral" | "poor_conditions";
@@ -143,8 +134,14 @@ export interface AndonCordPayload {
   sessionId: string;
 }
 
-export const phaseTraceSchema = z.object({
-  phase: z.enum(["thesis", "execution", "behavioral", "market_context", "synthesis"]),
+const phaseTraceSchema = z.object({
+  phase: z.enum([
+    "thesis",
+    "execution",
+    "behavioral",
+    "market_context",
+    "synthesis",
+  ]),
   modelId: z.string(),
   providerKey: z.string(),
   systemPrompt: z.string(),
@@ -158,7 +155,7 @@ export const phaseTraceSchema = z.object({
   error: z.string().nullable(),
 });
 
-export const autopsyStructuredSchema = z.object({
+const autopsyStructuredSchema = z.object({
   executiveSummary: z.string(),
   thesisReview: z.object({
     valid: z.boolean().nullable(),

@@ -15,7 +15,6 @@ import {
   signalClassifierOutputSchema,
 } from "../../signal/aggregators/trade-signal-aggregator";
 import type { AIPhase } from "../phases/types";
-import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
 import {
   DECISION_WORKERS_ENTRY_TIMER_PROMPT,
   DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
@@ -23,14 +22,6 @@ import {
 import type { AggregatorPlanState } from "./aggregator.types";
 
 export type { AggregatorPlanState };
-
-export type DecisionPhaseInput = {
-  instrumentSymbol: string;
-  technical: TechnicalSignal;
-  fundamental: FundamentalSignal;
-  review: ReviewSignal;
-  recentFailureHistory?: FailureHistoryEntry[];
-};
 
 const DECISION_STRATEGY_CONTEXT = {
   fields: [
