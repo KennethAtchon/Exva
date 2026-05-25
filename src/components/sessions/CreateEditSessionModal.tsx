@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import type {
@@ -33,6 +33,22 @@ interface Props {
   onSubmit: (input: SessionCreateInput, sessionId?: string) => Promise<void>;
 }
 
+const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
+
+type ModalDataState = {
+  form: SessionCreateInput;
+  brokerAccounts: BrokerAccountWithState[];
+  searchProviderState: {
+    providers: ProviderAccount[];
+    workspaceDefaultSearchProviderId: string | null;
+  };
+};
+
+type ModalReqState = {
+  saving: boolean;
+  error: string | null;
+};
+
 export const CreateEditSessionModal = ({
   open,
   initialSession,
@@ -43,27 +59,29 @@ export const CreateEditSessionModal = ({
   onSubmit,
 }: Props) => {
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
-  const [form, setForm] = useState<SessionCreateInput>(() => defaultInput());
+  const [data, dispatchData] = useReducer(mergeReducer<ModalDataState>, {
+    form: defaultInput(),
+    brokerAccounts: [],
+    searchProviderState: {
+      providers: [],
+      workspaceDefaultSearchProviderId: null,
+    },
+  });
+  const [req, dispatchReq] = useReducer(mergeReducer<ModalReqState>, {
+    saving: false,
+    error: null,
+  });
   const searchEverythingSnapshotRef = useRef<{
     instrumentClasses: InstrumentClass[];
     instrumentScope: string;
     aiPickerEnabled: boolean;
   } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [brokerAccounts, setBrokerAccounts] = useState<
-    BrokerAccountWithState[]
-  >([]);
-  const [searchProviderState, setSearchProviderState] = useState<{
-    providers: ProviderAccount[];
-    workspaceDefaultSearchProviderId: string | null;
-  }>({ providers: [], workspaceDefaultSearchProviderId: null });
-  const [error, setError] = useState<string | null>(null);
   const applyInitializedForm = (
     nextForm: SessionCreateInput,
     nextError: string | null = null,
   ) => {
-    setError(nextError);
-    setForm(nextForm);
+    dispatchReq({ error: nextError });
+    dispatchData({ form: nextForm });
   };
 
   useEffect(() => {
@@ -121,11 +139,11 @@ export const CreateEditSessionModal = ({
       .listBrokerAccountState()
       .then((response) => {
         if (cancelled) return;
-        setBrokerAccounts(response);
+        dispatchData({ brokerAccounts: response });
       })
       .catch(() => {
         if (cancelled) return;
-        setBrokerAccounts([]);
+        dispatchData({ brokerAccounts: [] });
       });
 
     return () => {
@@ -139,20 +157,24 @@ export const CreateEditSessionModal = ({
     void Promise.all([api.listProviders(), api.getWorkspaceView()])
       .then(([providerResponse, workspaceView]) => {
         if (cancelled) return;
-        setSearchProviderState({
-          providers: providerResponse.providers.filter(
-            (provider) =>
-              provider.category === "search" && provider.isConfigured,
-          ),
-          workspaceDefaultSearchProviderId:
-            workspaceView.preferences.defaultSearchProviderId,
+        dispatchData({
+          searchProviderState: {
+            providers: providerResponse.providers.filter(
+              (provider) =>
+                provider.category === "search" && provider.isConfigured,
+            ),
+            workspaceDefaultSearchProviderId:
+              workspaceView.preferences.defaultSearchProviderId,
+          },
         });
       })
       .catch(() => {
         if (cancelled) return;
-        setSearchProviderState({
-          providers: [],
-          workspaceDefaultSearchProviderId: null,
+        dispatchData({
+          searchProviderState: {
+            providers: [],
+            workspaceDefaultSearchProviderId: null,
+          },
         });
       });
 
@@ -160,6 +182,8 @@ export const CreateEditSessionModal = ({
       cancelled = true;
     };
   }, [open]);
+
+  const { form, brokerAccounts, searchProviderState } = data;
 
   const assignedBrokerIds = useMemo(
     () =>
@@ -225,6 +249,12 @@ export const CreateEditSessionModal = ({
   );
   const searchEverything = isSearchEverythingInput(form);
 
+  const setForm = (
+    updater: (prev: SessionCreateInput) => SessionCreateInput,
+  ) => {
+    dispatchData({ form: updater(form) });
+  };
+
   useEffect(() => {
     if (brokerAccounts.length === 0) return;
     const brokerIdsByMode = new Set(visibleBrokers.map((broker) => broker.id));
@@ -232,7 +262,7 @@ export const CreateEditSessionModal = ({
       brokerIdsByMode.has(assignment.brokerAccountId),
     );
     if (nextAssignments.length === form.brokerAssignments.length) return;
-    setForm((current) => ({ ...current, brokerAssignments: nextAssignments }));
+    dispatchData({ form: { ...form, brokerAssignments: nextAssignments } });
   }, [brokerAccounts, brokerById, form.brokerAssignments, visibleBrokers]);
 
   useEffect(() => {
@@ -244,10 +274,9 @@ export const CreateEditSessionModal = ({
       )
     )
       return;
-    setForm((current) => ({
-      ...current,
-      instrumentClasses: brokerDrivenInstrumentClasses,
-    }));
+    dispatchData({
+      form: { ...form, instrumentClasses: brokerDrivenInstrumentClasses },
+    });
   }, [brokerDrivenInstrumentClasses, form.instrumentClasses, searchEverything]);
 
   useEffect(() => {
@@ -257,10 +286,9 @@ export const CreateEditSessionModal = ({
     ) {
       return;
     }
-    setForm((current) => ({
-      ...current,
-      instrumentScope: buildSearchEverythingScope(),
-    }));
+    dispatchData({
+      form: { ...form, instrumentScope: buildSearchEverythingScope() },
+    });
   }, [effectiveInstrumentClasses, searchEverythingFocusInstrumentClass]);
 
   if (!open) return null;
@@ -299,7 +327,7 @@ export const CreateEditSessionModal = ({
               {templateWarnings.join(", ")}
             </div>
           ) : null}
-          {error ? <div style={errorBannerStyle}>{error}</div> : null}
+          {req.error ? <div style={errorBannerStyle}>{req.error}</div> : null}
 
           <div style={{ display: "grid", gap: 16 }}>
             <section style={sectionStyle}>
@@ -810,8 +838,7 @@ export const CreateEditSessionModal = ({
               </Button>
               <Button
                 onClick={async () => {
-                  setSaving(true);
-                  setError(null);
+                  dispatchReq({ saving: true, error: null });
                   try {
                     await onSubmit(
                       {
@@ -826,24 +853,25 @@ export const CreateEditSessionModal = ({
                     );
                     onClose();
                   } catch (submitError) {
-                    setError(
-                      submitError instanceof Error
-                        ? submitError.message
-                        : "Failed to save session.",
-                    );
+                    dispatchReq({
+                      error:
+                        submitError instanceof Error
+                          ? submitError.message
+                          : "Failed to save session.",
+                    });
                   } finally {
-                    setSaving(false);
+                    dispatchReq({ saving: false });
                   }
                 }}
                 className="bg-[var(--accent)] text-white"
                 disabled={
-                  saving ||
+                  req.saving ||
                   !isValid ||
                   !hasBrokerCoverage ||
                   requiresSearchProviderSetup
                 }
               >
-                {saving
+                {req.saving
                   ? "Saving..."
                   : initialSession
                     ? "Save Session"

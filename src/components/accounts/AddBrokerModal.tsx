@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import React, { useReducer, type CSSProperties, type Reducer } from "react";
 import type { InstrumentClass } from "@/lib/types";
 import {
   DEFAULT_MOCK_SCENARIO_KIND,
@@ -18,11 +18,198 @@ import {
   Input,
 } from "@/components/ui";
 
+type BrokerType =
+  | "alpaca"
+  | "coinbase_advanced_trade"
+  | "tradovate"
+  | "polymarket"
+  | "mock";
+
+interface FormState {
+  brokerType: BrokerType;
+  mockScenarioKind: MockScenarioKind;
+  name: string;
+  apiKey: string;
+  secretKey: string;
+  passphrase: string;
+  username: string;
+  password: string;
+  privateKey: string;
+  funderAddress: string;
+}
+
+interface ReqState {
+  testing: boolean;
+  saving: boolean;
+  testOk: boolean | null;
+  message: string | null;
+}
+
+function mergeReducer<S>(state: S, update: Partial<S>): S {
+  return { ...state, ...update };
+}
+
 const labelStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 500,
   color: "var(--text2)",
   marginBottom: 6,
+};
+
+const inputClass =
+  "h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]";
+
+const CredentialFields = ({
+  brokerType,
+  form,
+  dispatch,
+}: {
+  brokerType: BrokerType;
+  form: FormState;
+  dispatch: React.Dispatch<Partial<FormState>>;
+}) => {
+  const {
+    apiKey,
+    secretKey,
+    passphrase,
+    username,
+    password,
+    privateKey,
+    funderAddress,
+  } = form;
+
+  if (brokerType === "alpaca") {
+    return (
+      <>
+        <div style={{ marginBottom: 12 }}>
+          <div style={labelStyle}>API key ID</div>
+          <Input
+            className={inputClass}
+            value={apiKey}
+            onChange={(e) => dispatch({ apiKey: e.target.value })}
+            type="password"
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={labelStyle}>Secret key</div>
+          <Input
+            className={inputClass}
+            value={secretKey}
+            onChange={(e) => dispatch({ secretKey: e.target.value })}
+            type="password"
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (brokerType === "coinbase_advanced_trade") {
+    return (
+      <>
+        <div style={{ marginBottom: 12 }}>
+          <div style={labelStyle}>API key</div>
+          <Input
+            className={inputClass}
+            value={apiKey}
+            onChange={(e) => dispatch({ apiKey: e.target.value })}
+            type="password"
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={labelStyle}>API secret (CDP EC private key, PEM)</div>
+          <Input
+            className={inputClass}
+            value={secretKey}
+            onChange={(e) => dispatch({ secretKey: e.target.value })}
+            type="password"
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={labelStyle}>Passphrase (if required)</div>
+          <Input
+            className={inputClass}
+            value={passphrase}
+            onChange={(e) => dispatch({ passphrase: e.target.value })}
+            type="password"
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (brokerType === "tradovate") {
+    return (
+      <>
+        <div style={{ marginBottom: 12 }}>
+          <div style={labelStyle}>Username</div>
+          <Input
+            className={inputClass}
+            value={username}
+            onChange={(e) => dispatch({ username: e.target.value })}
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={labelStyle}>Password</div>
+          <Input
+            className={inputClass}
+            value={password}
+            onChange={(e) => dispatch({ password: e.target.value })}
+            type="password"
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (brokerType === "polymarket") {
+    return (
+      <>
+        <div style={{ marginBottom: 12 }}>
+          <div style={labelStyle}>Polygon private key</div>
+          <Input
+            className={inputClass}
+            value={privateKey}
+            onChange={(e) => dispatch({ privateKey: e.target.value })}
+            type="password"
+          />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={labelStyle}>Polymarket funder/profile address</div>
+          <Input
+            className={inputClass}
+            value={funderAddress}
+            onChange={(e) => dispatch({ funderAddress: e.target.value })}
+          />
+        </div>
+      </>
+    );
+  }
+
+  return null;
+};
+
+const TestResult = ({
+  message,
+  testOk,
+}: {
+  message: string | null;
+  testOk: boolean | null;
+}) => {
+  if (!message) return null;
+  return (
+    <div
+      style={{
+        marginBottom: 12,
+        padding: "8px 10px",
+        borderRadius: 8,
+        fontSize: 12,
+        background: testOk ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)",
+        color: testOk ? "#34d399" : "#f87171",
+      }}
+    >
+      {message}
+    </div>
+  );
 };
 
 export const AddBrokerModal = ({
@@ -35,24 +222,43 @@ export const AddBrokerModal = ({
   onSaved: () => void | Promise<void>;
 }) => {
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
-  const [brokerType, setBrokerType] = useState<
-    "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock"
-  >("mock");
-  const [mockScenarioKind, setMockScenarioKind] = useState<MockScenarioKind>(
-    DEFAULT_MOCK_SCENARIO_KIND,
+
+  const [form, dispatchForm] = useReducer<
+    Reducer<FormState, Partial<FormState>>
+  >(mergeReducer, {
+    brokerType: "mock",
+    mockScenarioKind: DEFAULT_MOCK_SCENARIO_KIND,
+    name: "",
+    apiKey: "",
+    secretKey: "",
+    passphrase: "",
+    username: "",
+    password: "",
+    privateKey: "",
+    funderAddress: "",
+  });
+  const [req, dispatchReq] = useReducer<Reducer<ReqState, Partial<ReqState>>>(
+    mergeReducer,
+    {
+      testing: false,
+      saving: false,
+      testOk: null,
+      message: null,
+    },
   );
-  const [name, setName] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [secretKey, setSecretKey] = useState("");
-  const [passphrase, setPassphrase] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [privateKey, setPrivateKey] = useState("");
-  const [funderAddress, setFunderAddress] = useState("");
-  const [testing, setTesting] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [testOk, setTestOk] = useState<boolean | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const {
+    brokerType,
+    mockScenarioKind,
+    name,
+    apiKey,
+    secretKey,
+    passphrase,
+    username,
+    password,
+    privateKey,
+    funderAddress,
+  } = form;
+  const { testing, saving, testOk, message } = req;
 
   if (!open) return null;
 
@@ -72,27 +278,26 @@ export const AddBrokerModal = ({
   };
 
   const runTest = async () => {
-    setTesting(true);
-    setMessage(null);
+    dispatchReq({ testing: true, message: null });
     try {
       const result = await api.testBrokerCredentials({
         brokerType,
         mode: environmentMode,
         credentials: credentials(),
       });
-      setTestOk(result.ok);
-      setMessage(result.message);
+      dispatchReq({ testOk: result.ok, message: result.message });
     } catch (e) {
-      setTestOk(false);
-      setMessage(e instanceof Error ? e.message : "Test failed");
+      dispatchReq({
+        testOk: false,
+        message: e instanceof Error ? e.message : "Test failed",
+      });
     } finally {
-      setTesting(false);
+      dispatchReq({ testing: false });
     }
   };
 
   const save = async () => {
-    setSaving(true);
-    setMessage(null);
+    dispatchReq({ saving: true, message: null });
     try {
       const result = await api.registerBrokerAccount({
         brokerType,
@@ -102,24 +307,26 @@ export const AddBrokerModal = ({
         ...(brokerType === "mock" ? { mockScenarioKind } : {}),
       });
       if (!result.ok) {
-        setMessage(result.message);
+        dispatchReq({ message: result.message });
         return;
       }
       await onSaved();
       onClose();
-      setName("");
-      setApiKey("");
-      setSecretKey("");
-      setPassphrase("");
-      setUsername("");
-      setPassword("");
-      setPrivateKey("");
-      setFunderAddress("");
-      setTestOk(null);
+      dispatchForm({
+        name: "",
+        apiKey: "",
+        secretKey: "",
+        passphrase: "",
+        username: "",
+        password: "",
+        privateKey: "",
+        funderAddress: "",
+      });
+      dispatchReq({ testOk: null });
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Save failed");
+      dispatchReq({ message: e instanceof Error ? e.message : "Save failed" });
     } finally {
-      setSaving(false);
+      dispatchReq({ saving: false });
     }
   };
 
@@ -153,9 +360,8 @@ export const AddBrokerModal = ({
             value={brokerType}
             onValueChange={(value) => {
               const next = value as typeof brokerType;
-              setBrokerType(next);
-              setTestOk(null);
-              setMessage(null);
+              dispatchForm({ brokerType: next });
+              dispatchReq({ testOk: null, message: null });
             }}
             options={[
               { value: "mock", label: "Mock (dev — all instrument classes)" },
@@ -182,7 +388,7 @@ export const AddBrokerModal = ({
             <ShadcnSelect
               value={mockScenarioKind}
               onValueChange={(value) =>
-                setMockScenarioKind(value as MockScenarioKind)
+                dispatchForm({ mockScenarioKind: value as MockScenarioKind })
               }
               options={MOCK_SCENARIO_KINDS.map((kind) => ({
                 value: kind,
@@ -201,126 +407,18 @@ export const AddBrokerModal = ({
           <Input
             className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => dispatchForm({ name: e.target.value })}
             placeholder="e.g. Main Alpaca"
           />
         </div>
 
-        {brokerType === "alpaca" && (
-          <>
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>API key ID</div>
-              <Input
-                className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                type="password"
-              />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>Secret key</div>
-              <Input
-                className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
-                value={secretKey}
-                onChange={(e) => setSecretKey(e.target.value)}
-                type="password"
-              />
-            </div>
-          </>
-        )}
+        <CredentialFields
+          brokerType={brokerType}
+          form={form}
+          dispatch={dispatchForm}
+        />
 
-        {brokerType === "coinbase_advanced_trade" && (
-          <>
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>API key</div>
-              <Input
-                className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                type="password"
-              />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>API secret (CDP EC private key, PEM)</div>
-              <Input
-                className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
-                value={secretKey}
-                onChange={(e) => setSecretKey(e.target.value)}
-                type="password"
-              />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>Passphrase (if required)</div>
-              <Input
-                className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
-                value={passphrase}
-                onChange={(e) => setPassphrase(e.target.value)}
-                type="password"
-              />
-            </div>
-          </>
-        )}
-
-        {brokerType === "tradovate" && (
-          <>
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>Username</div>
-              <Input
-                className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>Password</div>
-              <Input
-                className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-              />
-            </div>
-          </>
-        )}
-
-        {brokerType === "polymarket" && (
-          <>
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>Polygon private key</div>
-              <Input
-                className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
-                value={privateKey}
-                onChange={(e) => setPrivateKey(e.target.value)}
-                type="password"
-              />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <div style={labelStyle}>Polymarket funder/profile address</div>
-              <Input
-                className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
-                value={funderAddress}
-                onChange={(e) => setFunderAddress(e.target.value)}
-              />
-            </div>
-          </>
-        )}
-
-        {message && (
-          <div
-            style={{
-              marginBottom: 12,
-              padding: "8px 10px",
-              borderRadius: 8,
-              fontSize: 12,
-              background: testOk
-                ? "rgba(52,211,153,0.1)"
-                : "rgba(248,113,113,0.1)",
-              color: testOk ? "#34d399" : "#f87171",
-            }}
-          >
-            {message}
-          </div>
-        )}
+        <TestResult message={message} testOk={testOk} />
 
         <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
           <Button

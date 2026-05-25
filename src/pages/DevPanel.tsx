@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type Reducer,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
@@ -11,7 +19,11 @@ import type {
   EventSourceType,
   LogLevel,
 } from "@/lib/types";
-import type { AIPhaseTrace, SessionSummary } from "@/lib/exva";
+import type {
+  AIPhaseTrace,
+  SessionSummary,
+  SessionExecutionProgressResponse,
+} from "@/lib/exva";
 import type { EffectivePipelineConfig } from "@electron/shared/ai/effective-ai-phase-config";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -56,7 +68,7 @@ interface ScopeDiagnostics {
   scopeLabel: string;
   session?: SessionSummary | null;
   activeCycleId?: string | null;
-  executionProgress?: import("@/lib/exva").SessionExecutionProgressResponse;
+  executionProgress?: SessionExecutionProgressResponse;
   pipelineConfig?: EffectivePipelineConfig | null;
   pipelineConfigError?: string | null;
   counts: {
@@ -77,6 +89,8 @@ interface ExportBundleResult {
   redactionCount: number;
   warnings: string[];
 }
+
+const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
 
 function developerApi() {
   return window.exva?.developer;
@@ -159,6 +173,244 @@ const S = {
     color: "var(--text3)",
     padding: "10px 12px 4px",
   },
+  // CopyBtn base (dynamic: background, border, color)
+  copyBtnBase: {
+    borderRadius: 4,
+    padding: "2px 7px",
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.08em",
+    fontWeight: 700,
+    cursor: "pointer",
+    transition: "background 0.15s, border-color 0.15s, color 0.15s",
+  } as const,
+  // StatusChip base (dynamic: background, border, color)
+  statusChipBase: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 5,
+    padding: "2px 7px",
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.08em",
+    fontWeight: 700,
+  } as const,
+  // ScopeItem button base (dynamic: borderLeft, background)
+  scopeItemBtn: {
+    width: "100%",
+    padding: "7px 12px 7px 14px",
+    border: "none",
+    cursor: "pointer",
+    transition: "background 0.1s, border-color 0.1s",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    textAlign: "left" as const,
+  } as const,
+  // StripBtn base (dynamic: background, border, cursor, color, opacity)
+  stripBtnBase: {
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "5px 10px",
+    borderRadius: 5,
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.08em",
+    fontWeight: 700,
+    transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
+  } as const,
+  // EventTimeline outer container (all static)
+  eventTimelineOuter: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column" as const,
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: 10,
+    overflow: "hidden",
+    minWidth: 0,
+  } as const,
+  // EventRow button base (dynamic: background, borderLeft)
+  eventRowBtnBase: {
+    width: "100%",
+    border: "none",
+    display: "grid",
+    gridTemplateColumns: "50px 44px 110px 1fr",
+    padding: "7px 14px",
+    cursor: "pointer",
+    borderBottom: "1px solid rgba(255,255,255,0.022)",
+    transition: "background 0.08s",
+    alignItems: "baseline",
+    gap: 0,
+    textAlign: "left" as const,
+  } as const,
+  // Pre block (config / raw tabs) with maxHeight
+  preBlockWithMax: {
+    background: "var(--bg)",
+    border: "1px solid var(--border)",
+    borderRadius: 7,
+    padding: "10px 12px",
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.08em",
+    color: "var(--text2)",
+    lineHeight: 1.65,
+    overflowX: "auto" as const,
+    whiteSpace: "pre-wrap" as const,
+    maxHeight: 420,
+  } as const,
+  // Pre block (raw tab) without maxHeight
+  preBlock: {
+    background: "var(--bg)",
+    border: "1px solid var(--border)",
+    borderRadius: 7,
+    padding: "10px 12px",
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.08em",
+    color: "var(--text2)",
+    lineHeight: 1.65,
+    overflowX: "auto" as const,
+    whiteSpace: "pre-wrap" as const,
+  } as const,
+  // RunCard header button (all static)
+  runCardHeaderBtn: {
+    width: "100%",
+    padding: "8px 10px",
+    background: "var(--surface2)",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    cursor: "pointer",
+    border: "none",
+    textAlign: "left" as const,
+  } as const,
+  // InspectorPanel tab button base (dynamic: borderBottom, color)
+  inspectorTabBtnBase: {
+    padding: "8px 12px",
+    border: "none",
+    whiteSpace: "nowrap" as const,
+    background: "transparent",
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.05em",
+    fontWeight: 700,
+    cursor: "pointer",
+    transition: "color 0.1s, border-color 0.1s",
+  } as const,
+  // DebugCapture confirm button base (dynamic: opacity)
+  debugCaptureBtnBase: {
+    padding: "7px 16px",
+    background: "rgba(77,166,255,0.18)",
+    border: "1px solid #4da6ff44",
+    borderRadius: 6,
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.08em",
+    fontWeight: 700,
+    color: "#4da6ff",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  } as const,
+  // Toggle track button base (dynamic: background)
+  toggleTrackBase: {
+    width: 36,
+    height: 18,
+    borderRadius: 9,
+    border: "none",
+    cursor: "pointer",
+    position: "relative" as const,
+    transition: "background 0.2s",
+  } as const,
+  // Toggle thumb base (dynamic: left, background)
+  toggleThumbBase: {
+    position: "absolute" as const,
+    top: 2,
+    width: 14,
+    height: 14,
+    borderRadius: "50%",
+    transition: "left 0.2s",
+  } as const,
+  // ExportResultDrawer container (all static)
+  exportDrawer: {
+    position: "fixed" as const,
+    bottom: 20,
+    right: 20,
+    width: 360,
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: 10,
+    padding: "16px 18px",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 10,
+    zIndex: 20,
+    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+  } as const,
+  // Shared action button in ExportResultDrawer (all static)
+  exportActionBtn: {
+    flex: 1,
+    padding: "6px 0",
+    background: "var(--surface3)",
+    border: "1px solid var(--border)",
+    borderRadius: 5,
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.08em",
+    fontWeight: 700,
+    color: "var(--text2)",
+    cursor: "pointer",
+  } as const,
+  // ToastContainer outer (all static)
+  toastContainer: {
+    position: "fixed" as const,
+    bottom: 20,
+    left: "50%",
+    transform: "translateX(-50%)",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 6,
+    zIndex: 30,
+    pointerEvents: "none" as const,
+  } as const,
+  // Stream health badge base (dynamic: color, background, border)
+  streamBadgeBase: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 4,
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.08em",
+    borderRadius: 5,
+    padding: "3px 8px",
+  } as const,
+  // HeaderBtn base (dynamic: background, border, color, cursor, opacity)
+  headerBtnBase: {
+    display: "flex",
+    alignItems: "center",
+    gap: 5,
+    padding: "5px 10px",
+    borderRadius: 6,
+    fontFamily: "var(--font-mono)",
+    fontSize: 12,
+    letterSpacing: "0.08em",
+    fontWeight: 700,
+    transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
+  } as const,
+  searchInput: {
+    flex: 1,
+    background: "var(--bg)",
+    border: "1px solid var(--border)",
+    borderRadius: 5,
+    padding: "5px 10px",
+    color: "var(--text1)",
+    outline: "none",
+    boxShadow: "0 0 0 0 transparent",
+  } as const,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -232,15 +484,10 @@ const CopyBtn = ({
         setTimeout(() => setCopied(false), 1500);
       }}
       style={{
+        ...S.copyBtnBase,
         background: copied ? "rgba(0,229,160,0.12)" : "var(--surface3)",
         border: `1px solid ${copied ? "#00e5a040" : "var(--border)"}`,
-        borderRadius: 4,
-        padding: "2px 7px",
-        ...S.mono9,
-        fontWeight: 700,
         color: copied ? "#00e5a0" : "var(--text3)",
-        cursor: "pointer",
-        transition: "background 0.15s, border-color 0.15s, color 0.15s",
       }}
     >
       {copied ? "copied!" : label}
@@ -262,15 +509,9 @@ const StatusChip = ({ status }: { status: string }) => {
   return (
     <span
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
+        ...S.statusChipBase,
         background: `${c}18`,
         border: `1px solid ${c}44`,
-        borderRadius: 5,
-        padding: "2px 7px",
-        ...S.mono9,
-        fontWeight: 700,
         color: c,
       }}
     >
@@ -398,17 +639,9 @@ const ScopeRailItem = ({
       type="button"
       onClick={() => onScopeChange(scope)}
       style={{
-        width: "100%",
-        padding: "7px 12px 7px 14px",
-        border: "none",
+        ...S.scopeItemBtn,
         borderLeft: `2px solid ${c}`,
         background: isActive ? "rgba(77,166,255,0.07)" : "transparent",
-        cursor: "pointer",
-        transition: "background 0.1s, border-color 0.1s",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        textAlign: "left",
       }}
     >
       {icon && <span style={{ fontSize: 12, opacity: 0.5 }}>{icon}</span>}
@@ -553,19 +786,12 @@ const StripBtn = ({
     onClick={onClick}
     disabled={disabled || loading}
     style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 5,
-      padding: "5px 10px",
+      ...S.stripBtnBase,
       background: disabled ? "transparent" : `${color}14`,
       border: `1px solid ${disabled ? "var(--border)" : color + "44"}`,
-      borderRadius: 5,
       cursor: disabled ? "default" : "pointer",
-      ...S.mono9,
-      fontWeight: 700,
       color: disabled ? "var(--text3)" : color,
       opacity: disabled ? 0.4 : 1,
-      transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
     }}
   >
     {loading && <Spinner />}
@@ -605,49 +831,6 @@ const ActionStrip = ({
     progress?.steps.filter((s) => s.status === "failed") ?? [];
   const retryableStep = failedSteps.find((s) => s.retryable) ?? null;
   const failedNonRetryable = failedSteps.find((s) => !s.retryable) ?? null;
-
-  const qc = useQueryClient();
-
-  const retryMutation = useMutation({
-    mutationFn: async () => {
-      if (!retryableStep || !diagnostics?.session?.id || !progress?.cycleId)
-        return;
-      const cycleId = progress.cycleId;
-      return api.retrySessionStep({
-        sessionId: diagnostics.session.id,
-        cycleId,
-        stage: retryableStep.stage,
-      });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-diagnostics"] }),
-  });
-
-  const pauseMutation = useMutation({
-    mutationFn: async () => {
-      if (!diagnostics?.session?.id) return;
-      return api.pauseSessionAfterCurrentStep(diagnostics.session.id);
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-diagnostics"] }),
-  });
-
-  const clearMutation = useMutation({
-    mutationFn: async () => {
-      if (
-        !failedNonRetryable ||
-        !diagnostics?.session?.id ||
-        !progress?.cycleId
-      )
-        return;
-      const cycleId = progress.cycleId;
-      return api.clearFailedSessionStep({
-        sessionId: diagnostics.session.id,
-        cycleId,
-        stage: failedNonRetryable.stage,
-      });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-diagnostics"] }),
-  });
-
   const sess = diagnostics?.session;
   const canRetry = !!retryableStep && !!sess;
   const canClear = !!failedNonRetryable && !!sess;
@@ -865,40 +1048,114 @@ const ActionStrip = ({
         </div>
 
         {isSessionScope && (
-          <>
-            <div
-              style={{
-                width: 1,
-                height: 20,
-                background: "var(--border)",
-                margin: "0 2px",
-              }}
-            />
-            <StripBtn
-              label="Retry Failed Step"
-              disabled={!canRetry}
-              loading={retryMutation.isPending}
-              onClick={() => retryMutation.mutate()}
-              color="#00e5a0"
-            />
-            <StripBtn
-              label="Pause After Step"
-              disabled={!canPause}
-              loading={pauseMutation.isPending}
-              onClick={() => pauseMutation.mutate()}
-              color="#ffb733"
-            />
-            <StripBtn
-              label="Clear Failed"
-              disabled={!canClear}
-              loading={clearMutation.isPending}
-              onClick={() => clearMutation.mutate()}
-              color="#ff4757"
-            />
-          </>
+          <LifecycleButtons
+            diagnostics={diagnostics}
+            retryableStep={retryableStep}
+            failedNonRetryable={failedNonRetryable}
+            canRetry={canRetry}
+            canPause={canPause}
+            canClear={canClear}
+          />
         )}
       </div>
     </div>
+  );
+};
+
+// ─── Lifecycle Buttons ────────────────────────────────────────────────────────
+
+type ExecutionStep = SessionExecutionProgressResponse["steps"][number];
+
+const LifecycleButtons = ({
+  diagnostics,
+  retryableStep,
+  failedNonRetryable,
+  canRetry,
+  canPause,
+  canClear,
+}: {
+  diagnostics: ScopeDiagnostics | null;
+  retryableStep: ExecutionStep | null;
+  failedNonRetryable: ExecutionStep | null;
+  canRetry: boolean;
+  canPause: boolean;
+  canClear: boolean;
+}) => {
+  const qc = useQueryClient();
+  const progress = diagnostics?.executionProgress;
+
+  const retryMutation = useMutation({
+    mutationFn: async () => {
+      if (!retryableStep || !diagnostics?.session?.id || !progress?.cycleId)
+        return;
+      const cycleId = progress.cycleId;
+      return api.retrySessionStep({
+        sessionId: diagnostics.session.id,
+        cycleId,
+        stage: retryableStep.stage,
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-diagnostics"] }),
+  });
+
+  const pauseMutation = useMutation({
+    mutationFn: async () => {
+      if (!diagnostics?.session?.id) return;
+      return api.pauseSessionAfterCurrentStep(diagnostics.session.id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-diagnostics"] }),
+  });
+
+  const clearMutation = useMutation({
+    mutationFn: async () => {
+      if (
+        !failedNonRetryable ||
+        !diagnostics?.session?.id ||
+        !progress?.cycleId
+      )
+        return;
+      const cycleId = progress.cycleId;
+      return api.clearFailedSessionStep({
+        sessionId: diagnostics.session.id,
+        cycleId,
+        stage: failedNonRetryable.stage,
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["scope-diagnostics"] }),
+  });
+
+  return (
+    <>
+      <div
+        style={{
+          width: 1,
+          height: 20,
+          background: "var(--border)",
+          margin: "0 2px",
+        }}
+      />
+      <StripBtn
+        label="Retry Failed Step"
+        disabled={!canRetry}
+        loading={retryMutation.isPending}
+        onClick={() => retryMutation.mutate()}
+        color="#00e5a0"
+      />
+      <StripBtn
+        label="Pause After Step"
+        disabled={!canPause}
+        loading={pauseMutation.isPending}
+        onClick={() => pauseMutation.mutate()}
+        color="#ffb733"
+      />
+      <StripBtn
+        label="Clear Failed"
+        disabled={!canClear}
+        loading={clearMutation.isPending}
+        onClick={() => clearMutation.mutate()}
+        color="#ff4757"
+      />
+    </>
   );
 };
 
@@ -953,18 +1210,7 @@ const EventTimeline = ({
   const searchRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 10,
-        overflow: "hidden",
-        minWidth: 0,
-      }}
-    >
+    <div style={S.eventTimelineOuter}>
       {/* Search bar */}
       <div
         style={{
@@ -982,17 +1228,7 @@ const EventTimeline = ({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search message, id, symbol, provider, error…"
-          style={{
-            flex: 1,
-            background: "var(--bg)",
-            border: "1px solid var(--border)",
-            borderRadius: 5,
-            padding: "5px 10px",
-            ...S.mono10,
-            color: "var(--text1)",
-            outline: "none",
-            boxShadow: "0 0 0 0 transparent",
-          }}
+          style={{ ...S.searchInput, ...S.mono10 }}
           onFocus={(e) => {
             e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent)";
           }}
@@ -1037,19 +1273,9 @@ const EventTimeline = ({
               key={ev.id}
               onClick={() => onSelect(ev.id)}
               style={{
-                width: "100%",
-                border: "none",
-                display: "grid",
-                gridTemplateColumns: "50px 44px 110px 1fr",
-                padding: "7px 14px",
-                cursor: "pointer",
+                ...S.eventRowBtnBase,
                 background: sel ? "var(--surface2)" : "transparent",
-                borderBottom: "1px solid rgba(255,255,255,0.022)",
                 borderLeft: `2px solid ${sel ? lc : lc + "44"}`,
-                transition: "background 0.08s",
-                alignItems: "baseline",
-                gap: 0,
-                textAlign: "left",
               }}
             >
               <span style={{ ...S.mono9, color: "var(--text3)" }}>
@@ -1451,22 +1677,7 @@ const PipelineConfigTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           <span style={S.label}>resolved config</span>
           <CopyBtn text={pretty} label="copy config" />
         </div>
-        <pre
-          style={{
-            background: "var(--bg)",
-            border: "1px solid var(--border)",
-            borderRadius: 7,
-            padding: "10px 12px",
-            ...S.mono9,
-            color: "var(--text2)",
-            lineHeight: 1.65,
-            overflowX: "auto",
-            whiteSpace: "pre-wrap",
-            maxHeight: 420,
-          }}
-        >
-          {pretty}
-        </pre>
+        <pre style={S.preBlockWithMax}>{pretty}</pre>
       </div>
     </div>
   );
@@ -1554,17 +1765,7 @@ const RunCard = ({ run, accent }: { run: ExtAgentRun; accent: string }) => {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        style={{
-          width: "100%",
-          padding: "8px 10px",
-          background: "var(--surface2)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          cursor: "pointer",
-          border: "none",
-          textAlign: "left",
-        }}
+        style={S.runCardHeaderBtn}
       >
         <AgentLabel type={run.agent_type as EventSourceType} />
         <span style={{ ...S.mono9, color: "var(--text3)" }}>
@@ -1855,21 +2056,7 @@ const RawTab = ({ ev }: { ev: ExtEventRow }) => {
       >
         <CopyBtn text={pretty} label="copy raw" />
       </div>
-      <pre
-        style={{
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
-          borderRadius: 7,
-          padding: "10px 12px",
-          ...S.mono9,
-          color: "var(--text2)",
-          lineHeight: 1.65,
-          overflowX: "auto",
-          whiteSpace: "pre-wrap",
-        }}
-      >
-        {pretty}
-      </pre>
+      <pre style={S.preBlock}>{pretty}</pre>
     </div>
   );
 };
@@ -1932,17 +2119,9 @@ const InspectorPanel = ({
             key={t.id}
             onClick={() => setTab(t.id)}
             style={{
-              padding: "8px 12px",
-              border: "none",
-              whiteSpace: "nowrap",
-              background: "transparent",
+              ...S.inspectorTabBtnBase,
               borderBottom: `2px solid ${tab === t.id ? "var(--accent)" : "transparent"}`,
               color: tab === t.id ? "var(--text1)" : "var(--text3)",
-              ...S.mono9,
-              fontWeight: 700,
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-              transition: "color 0.1s, border-color 0.1s",
             }}
           >
             {t.label}
@@ -1985,6 +2164,179 @@ const InspectorPanel = ({
 
 // ─── Debug Capture Modal ──────────────────────────────────────────────────────
 
+const captureFormReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
+
+const CaptureFormFields = ({
+  form,
+  dispatchForm,
+}: {
+  form: CaptureFormState;
+  dispatchForm: (u: Partial<CaptureFormState>) => void;
+}) => (
+  <>
+    {/* Duration */}
+    <FieldGroup label="Duration">
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {([5, 15, 30] as const).map((d) => (
+          <button
+            key={d}
+            onClick={() => dispatchForm({ duration: d, untilStopped: false })}
+            style={{
+              padding: "5px 12px",
+              borderRadius: 5,
+              cursor: "pointer",
+              background:
+                form.duration === d && !form.untilStopped
+                  ? "rgba(77,166,255,0.18)"
+                  : "var(--surface3)",
+              border: `1px solid ${form.duration === d && !form.untilStopped ? "#4da6ff44" : "var(--border)"}`,
+              ...S.mono9,
+              fontWeight: 700,
+              color:
+                form.duration === d && !form.untilStopped
+                  ? "#4da6ff"
+                  : "var(--text2)",
+            }}
+          >
+            {d}m
+          </button>
+        ))}
+        <button
+          onClick={() => dispatchForm({ untilStopped: true, duration: null })}
+          style={{
+            padding: "5px 12px",
+            borderRadius: 5,
+            cursor: "pointer",
+            background: form.untilStopped
+              ? "rgba(255,183,51,0.18)"
+              : "var(--surface3)",
+            border: `1px solid ${form.untilStopped ? "#ffb73344" : "var(--border)"}`,
+            ...S.mono9,
+            fontWeight: 700,
+            color: form.untilStopped ? "#ffb733" : "var(--text2)",
+          }}
+        >
+          Until stopped
+        </button>
+      </div>
+    </FieldGroup>
+
+    {/* Main log level */}
+    <FieldGroup label="Main log level">
+      <select
+        value={form.mainLevel}
+        onChange={(e) =>
+          dispatchForm({ mainLevel: e.target.value as PinoLevel })
+        }
+        style={{
+          background: "var(--bg)",
+          border: "1px solid var(--border)",
+          borderRadius: 5,
+          padding: "5px 8px",
+          ...S.mono10,
+          color: "var(--text1)",
+          width: "100%",
+        }}
+      >
+        {LOG_LEVELS.map((l) => (
+          <option key={l} value={l}>
+            {l}
+          </option>
+        ))}
+      </select>
+      {form.mainLevel === "trace" && !form.traceConfirm && (
+        <div style={{ marginTop: 6 }}>
+          <div style={{ ...S.mono9, color: "#ffb733", marginBottom: 4 }}>
+            Trace logs can include large payload metadata and may slow the app.
+          </div>
+          <button
+            onClick={() => dispatchForm({ traceConfirm: true })}
+            style={{
+              padding: "4px 10px",
+              background: "rgba(255,183,51,0.12)",
+              border: "1px solid #ffb73344",
+              borderRadius: 4,
+              ...S.mono9,
+              fontWeight: 700,
+              color: "#ffb733",
+              cursor: "pointer",
+            }}
+          >
+            Confirm trace level
+          </button>
+        </div>
+      )}
+    </FieldGroup>
+
+    {/* Event min level */}
+    <FieldGroup label="Event min level">
+      <div
+        style={{
+          display: "flex",
+          background: "var(--bg)",
+          border: "1px solid var(--border)",
+          borderRadius: 5,
+          overflow: "hidden",
+        }}
+      >
+        {LEVELS.map((l) => (
+          <button
+            key={l}
+            onClick={() => dispatchForm({ eventLevel: l })}
+            style={{
+              flex: 1,
+              padding: "5px 4px",
+              border: "none",
+              background: form.eventLevel === l ? LEVEL_BG[l] : "transparent",
+              ...S.mono9,
+              fontWeight: 700,
+              color: form.eventLevel === l ? LEVEL_COLOR[l] : "var(--text3)",
+              cursor: "pointer",
+            }}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+    </FieldGroup>
+
+    {/* Toggles */}
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <Toggle
+        label="Include prompt messages"
+        checked={form.includePrompts}
+        onChange={(v) => dispatchForm({ includePrompts: v })}
+      />
+      <Toggle
+        label="Include tool payloads"
+        checked={form.includeTools}
+        onChange={(v) => dispatchForm({ includeTools: v })}
+      />
+    </div>
+
+    {/* Safety note */}
+    <div style={{ ...S.mono9, color: "var(--text3)", lineHeight: 1.5 }}>
+      Secrets are redacted before export. API keys and authorization headers are
+      never shown.
+    </div>
+
+    {form.error && (
+      <div style={{ ...S.mono9, color: "#ff4757" }}>{form.error}</div>
+    )}
+  </>
+);
+
+type CaptureFormState = {
+  duration: 5 | 15 | 30 | null;
+  untilStopped: boolean;
+  mainLevel: PinoLevel;
+  eventLevel: LogLevel;
+  includePrompts: boolean;
+  includeTools: boolean;
+  traceConfirm: boolean;
+  error: string | null;
+};
+
 const DebugCaptureModal = ({
   activeScope,
   onClose,
@@ -1995,14 +2347,19 @@ const DebugCaptureModal = ({
   onStarted: (overrideId: string, expiresAt: string | null) => void;
 }) => {
   const qc = useQueryClient();
-  const [duration, setDuration] = useState<5 | 15 | 30 | null>(15);
-  const [untilStopped, setUntilStopped] = useState(false);
-  const [mainLevel, setMainLevel] = useState<PinoLevel>("debug");
-  const [eventLevel, setEventLevel] = useState<LogLevel>("DEBUG");
-  const [includePrompts, setIncludePrompts] = useState(false);
-  const [includeTools, setIncludeTools] = useState(true);
-  const [traceConfirm, setTraceConfirm] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [form, dispatchForm] = useReducer(
+    captureFormReducer<CaptureFormState>,
+    {
+      duration: 15,
+      untilStopped: false,
+      mainLevel: "debug",
+      eventLevel: "DEBUG",
+      includePrompts: false,
+      includeTools: true,
+      traceConfirm: false,
+      error: null,
+    },
+  );
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -2014,7 +2371,7 @@ const DebugCaptureModal = ({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (mainLevel === "trace" && !traceConfirm)
+      if (form.mainLevel === "trace" && !form.traceConfirm)
         throw new Error("Trace logging requires confirmation.");
       const developer = developerApi();
       if (!developer) {
@@ -2023,17 +2380,17 @@ const DebugCaptureModal = ({
       return developer.setLogLevel({
         scopeType: activeScope.type,
         scopeId: activeScope.id,
-        mainLogLevel: mainLevel,
-        eventMinLevel: eventLevel,
-        durationMinutes: untilStopped ? undefined : (duration ?? 15),
-        untilStopped,
+        mainLogLevel: form.mainLevel,
+        eventMinLevel: form.eventLevel,
+        durationMinutes: form.untilStopped ? undefined : (form.duration ?? 15),
+        untilStopped: form.untilStopped,
       });
     },
     onSuccess: (res) => {
       if (res) onStarted(res.overrideId, res.expiresAt);
       qc.invalidateQueries({ queryKey: ["scope-diagnostics"] });
     },
-    onError: (err: Error) => setError(err.message),
+    onError: (err: Error) => dispatchForm({ error: err.message }),
   });
 
   const OVERLAY: React.CSSProperties = {
@@ -2107,157 +2464,7 @@ const DebugCaptureModal = ({
           Scope: {activeScope.label ?? activeScope.type}
         </div>
 
-        {/* Duration */}
-        <FieldGroup label="Duration">
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {([5, 15, 30] as const).map((d) => (
-              <button
-                key={d}
-                onClick={() => {
-                  setDuration(d);
-                  setUntilStopped(false);
-                }}
-                style={{
-                  padding: "5px 12px",
-                  borderRadius: 5,
-                  cursor: "pointer",
-                  background:
-                    duration === d && !untilStopped
-                      ? "rgba(77,166,255,0.18)"
-                      : "var(--surface3)",
-                  border: `1px solid ${duration === d && !untilStopped ? "#4da6ff44" : "var(--border)"}`,
-                  ...S.mono9,
-                  fontWeight: 700,
-                  color:
-                    duration === d && !untilStopped
-                      ? "#4da6ff"
-                      : "var(--text2)",
-                }}
-              >
-                {d}m
-              </button>
-            ))}
-            <button
-              onClick={() => {
-                setUntilStopped(true);
-                setDuration(null);
-              }}
-              style={{
-                padding: "5px 12px",
-                borderRadius: 5,
-                cursor: "pointer",
-                background: untilStopped
-                  ? "rgba(255,183,51,0.18)"
-                  : "var(--surface3)",
-                border: `1px solid ${untilStopped ? "#ffb73344" : "var(--border)"}`,
-                ...S.mono9,
-                fontWeight: 700,
-                color: untilStopped ? "#ffb733" : "var(--text2)",
-              }}
-            >
-              Until stopped
-            </button>
-          </div>
-        </FieldGroup>
-
-        {/* Verbosity */}
-        <FieldGroup label="Main log level">
-          <select
-            value={mainLevel}
-            onChange={(e) => setMainLevel(e.target.value as PinoLevel)}
-            style={{
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
-              borderRadius: 5,
-              padding: "5px 8px",
-              ...S.mono10,
-              color: "var(--text1)",
-              width: "100%",
-            }}
-          >
-            {LOG_LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-          {mainLevel === "trace" && !traceConfirm && (
-            <div style={{ marginTop: 6 }}>
-              <div style={{ ...S.mono9, color: "#ffb733", marginBottom: 4 }}>
-                Trace logs can include large payload metadata and may slow the
-                app.
-              </div>
-              <button
-                onClick={() => setTraceConfirm(true)}
-                style={{
-                  padding: "4px 10px",
-                  background: "rgba(255,183,51,0.12)",
-                  border: "1px solid #ffb73344",
-                  borderRadius: 4,
-                  ...S.mono9,
-                  fontWeight: 700,
-                  color: "#ffb733",
-                  cursor: "pointer",
-                }}
-              >
-                Confirm trace level
-              </button>
-            </div>
-          )}
-        </FieldGroup>
-
-        <FieldGroup label="Event min level">
-          <div
-            style={{
-              display: "flex",
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
-              borderRadius: 5,
-              overflow: "hidden",
-            }}
-          >
-            {LEVELS.map((l) => (
-              <button
-                key={l}
-                onClick={() => setEventLevel(l)}
-                style={{
-                  flex: 1,
-                  padding: "5px 4px",
-                  border: "none",
-                  background: eventLevel === l ? LEVEL_BG[l] : "transparent",
-                  ...S.mono9,
-                  fontWeight: 700,
-                  color: eventLevel === l ? LEVEL_COLOR[l] : "var(--text3)",
-                  cursor: "pointer",
-                }}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-        </FieldGroup>
-
-        {/* Toggles */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <Toggle
-            label="Include prompt messages"
-            checked={includePrompts}
-            onChange={setIncludePrompts}
-          />
-          <Toggle
-            label="Include tool payloads"
-            checked={includeTools}
-            onChange={setIncludeTools}
-          />
-        </div>
-
-        {/* Safety note */}
-        <div style={{ ...S.mono9, color: "var(--text3)", lineHeight: 1.5 }}>
-          Secrets are redacted before export. API keys and authorization headers
-          are never shown.
-        </div>
-
-        {error && <div style={{ ...S.mono9, color: "#ff4757" }}>{error}</div>}
+        <CaptureFormFields form={form} dispatchForm={dispatchForm} />
 
         {/* Actions */}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -2279,21 +2486,12 @@ const DebugCaptureModal = ({
           <button
             onClick={() => mutation.mutate()}
             disabled={
-              mutation.isPending || (mainLevel === "trace" && !traceConfirm)
+              mutation.isPending ||
+              (form.mainLevel === "trace" && !form.traceConfirm)
             }
             style={{
-              padding: "7px 16px",
-              background: "rgba(77,166,255,0.18)",
-              border: "1px solid #4da6ff44",
-              borderRadius: 6,
-              ...S.mono9,
-              fontWeight: 700,
-              color: "#4da6ff",
-              cursor: "pointer",
+              ...S.debugCaptureBtnBase,
               opacity: mutation.isPending ? 0.7 : 1,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
             }}
           >
             {mutation.isPending && <Spinner />}
@@ -2338,26 +2536,15 @@ const Toggle = ({
     <button
       onClick={() => onChange(!checked)}
       style={{
-        width: 36,
-        height: 18,
-        borderRadius: 9,
-        border: "none",
-        cursor: "pointer",
+        ...S.toggleTrackBase,
         background: checked ? "var(--accent)" : "var(--surface3)",
-        position: "relative",
-        transition: "background 0.2s",
       }}
     >
       <div
         style={{
-          position: "absolute",
-          top: 2,
+          ...S.toggleThumbBase,
           left: checked ? 18 : 2,
-          width: 14,
-          height: 14,
-          borderRadius: "50%",
           background: checked ? "#fff" : "var(--text3)",
-          transition: "left 0.2s",
         }}
       />
     </button>
@@ -2373,23 +2560,7 @@ const ExportResultDrawer = ({
   result: ExportBundleResult;
   onClose: () => void;
 }) => (
-  <div
-    style={{
-      position: "fixed",
-      bottom: 20,
-      right: 20,
-      width: 360,
-      background: "var(--surface)",
-      border: "1px solid var(--border)",
-      borderRadius: 10,
-      padding: "16px 18px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 10,
-      zIndex: 20,
-      boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-    }}
-  >
+  <div style={S.exportDrawer}>
     <div
       style={{
         display: "flex",
@@ -2448,34 +2619,11 @@ const ExportResultDrawer = ({
             path: result.path,
           })
         }
-        style={{
-          flex: 1,
-          padding: "6px 0",
-          background: "var(--surface3)",
-          border: "1px solid var(--border)",
-          borderRadius: 5,
-          ...S.mono9,
-          fontWeight: 700,
-          color: "var(--text2)",
-          cursor: "pointer",
-        }}
+        style={S.exportActionBtn}
       >
         Reveal in Finder
       </button>
-      <button
-        onClick={() => copyText(result.path)}
-        style={{
-          flex: 1,
-          padding: "6px 0",
-          background: "var(--surface3)",
-          border: "1px solid var(--border)",
-          borderRadius: 5,
-          ...S.mono9,
-          fontWeight: 700,
-          color: "var(--text2)",
-          cursor: "pointer",
-        }}
-      >
+      <button onClick={() => copyText(result.path)} style={S.exportActionBtn}>
         Copy Path
       </button>
     </div>
@@ -2489,19 +2637,7 @@ const ToastContainer = ({
 }: {
   toasts: Array<{ id: string; msg: string; kind: "ok" | "err" }>;
 }) => (
-  <div
-    style={{
-      position: "fixed",
-      bottom: 20,
-      left: "50%",
-      transform: "translateX(-50%)",
-      display: "flex",
-      flexDirection: "column",
-      gap: 6,
-      zIndex: 30,
-      pointerEvents: "none",
-    }}
-  >
+  <div style={S.toastContainer}>
     {toasts.map((t) => (
       <div
         key={t.id}
@@ -2615,44 +2751,69 @@ export const DevPanel = ({
   focus?: DevPanelFocus | null;
   onFocusConsumed?: () => void;
 }) => {
-  // Scope state
-  const [activeScope, setActiveScope] = useState<ActiveScope>({
-    type: "global",
-  });
+  type FilterState = {
+    timeWindow: TimeWindow;
+    minLevel: LogLevel;
+    sourceFilters: string[];
+    search: string;
+    debouncedSearch: string;
+  };
+  type DevDataState = {
+    events: ExtEventRow[];
+    hasMore: boolean;
+    selectedId: string | null;
+    streamHealthy: boolean;
+  };
+  type UiState = {
+    activeScope: ActiveScope;
+    showCapture: boolean;
+    captureActive: { overrideId: string; expiresAt: string | null } | null;
+    exportResult: ExportBundleResult | null;
+    exportLoading: boolean;
+    effectiveLogLevel: string;
+    logLevelLoading: boolean;
+  };
 
   // Filter state
-  const [timeWindow, setTimeWindow] = useState<TimeWindow>(60);
-  const [minLevel, setMinLevel] = useState<LogLevel>("DEBUG");
-  const [sourceFilters, setSourceFilters] = useState<string[]>([]);
-  const [search, setSearch] = useState("");
+  const [filterState, dispatchFilter] = useReducer<
+    Reducer<FilterState, Partial<FilterState>>
+  >(mergeReducer, {
+    timeWindow: 60,
+    minLevel: "DEBUG",
+    sourceFilters: [],
+    search: "",
+    debouncedSearch: "",
+  });
   const searchRef = useRef<string>("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  // Events state
-  const [events, setEvents] = useState<ExtEventRow[]>([]);
-  const [hasMore, setHasMore] = useState(false);
+  // Data/stream state
+  const [dataState, dispatchData] = useReducer<
+    Reducer<DevDataState, Partial<DevDataState>>
+  >(mergeReducer, {
+    events: [],
+    hasMore: false,
+    selectedId: null,
+    streamHealthy: true,
+  });
+  // Ref for functional-update patterns on events
+  const dataStateRef = useRef(dataState);
+  dataStateRef.current = dataState;
 
-  // Inspector state
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  // Stream health
-  const [streamHealthy, setStreamHealthy] = useState(true);
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // UI state
-  const [showCapture, setShowCapture] = useState(false);
-  const [captureActive, setCaptureActive] = useState<{
-    overrideId: string;
-    expiresAt: string | null;
-  } | null>(null);
-  const [exportResult, setExportResult] = useState<ExportBundleResult | null>(
-    null,
+  const [uiState, dispatchUi] = useReducer<Reducer<UiState, Partial<UiState>>>(
+    mergeReducer,
+    {
+      activeScope: { type: "global" },
+      showCapture: false,
+      captureActive: null,
+      exportResult: null,
+      exportLoading: false,
+      effectiveLogLevel: "info",
+      logLevelLoading: false,
+    },
   );
-  const [exportLoading, setExportLoading] = useState(false);
-
-  // Developer settings state (for log level display)
-  const [effectiveLogLevel, setEffectiveLogLevel] = useState("info");
-  const [logLevelLoading, setLogLevelLoading] = useState(false);
 
   const { toasts, show: showToast } = useToasts();
   const focusAppliedRef = useRef(false);
@@ -2662,12 +2823,13 @@ export const DevPanel = ({
 
   // Debounce search
   useEffect(() => {
-    searchRef.current = search;
+    searchRef.current = filterState.search;
     const t = setTimeout(() => {
-      if (searchRef.current === search) setDebouncedSearch(search);
+      if (searchRef.current === filterState.search)
+        dispatchFilter({ debouncedSearch: filterState.search });
     }, 250);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [filterState.search]);
 
   // Sessions list
   const { data: sessionOverview } = useQuery({
@@ -2683,13 +2845,15 @@ export const DevPanel = ({
 
   // Auto-set focused session as default scope when data arrives
   useEffect(() => {
-    if (focusedSessionId && activeScope.type === "global") {
+    if (focusedSessionId && uiState.activeScope.type === "global") {
       const focused = sessions.find((s) => s.id === focusedSessionId);
       if (focused) {
-        setActiveScope({
-          type: "session",
-          id: focused.id,
-          label: focused.name,
+        dispatchUi({
+          activeScope: {
+            type: "session",
+            id: focused.id,
+            label: focused.name,
+          },
         });
       }
     }
@@ -2701,8 +2865,10 @@ export const DevPanel = ({
     focusAppliedRef.current = true;
     const sess = sessions.find((s) => s.id === focus.sessionId);
     if (sess) {
-      setActiveScope({ type: "session", id: sess.id, label: sess.name });
-      setSearch(focus.cycleId);
+      dispatchUi({
+        activeScope: { type: "session", id: sess.id, label: sess.name },
+      });
+      dispatchFilter({ search: focus.cycleId });
     }
     onFocusConsumedRef.current?.();
   }, [focus, sessions]);
@@ -2712,7 +2878,7 @@ export const DevPanel = ({
     (async () => {
       try {
         const res = await developerApi()?.getSettings();
-        if (res) setEffectiveLogLevel(res.effectiveLogLevel);
+        if (res) dispatchUi({ effectiveLogLevel: res.effectiveLogLevel });
       } catch {
         /* developer settings unavailable outside Electron host */
       }
@@ -2722,10 +2888,14 @@ export const DevPanel = ({
   // Scope diagnostics
   const { data: diagnostics, isLoading: diagnosticsLoading } =
     useQuery<ScopeDiagnostics>({
-      queryKey: ["scope-diagnostics", activeScope.type, activeScope.id],
+      queryKey: [
+        "scope-diagnostics",
+        uiState.activeScope.type,
+        uiState.activeScope.id,
+      ],
       queryFn: async () => {
         const res = await developerApi()?.getScopeDiagnostics({
-          scope: { type: activeScope.type, id: activeScope.id },
+          scope: { type: uiState.activeScope.type, id: uiState.activeScope.id },
         });
         return res as ScopeDiagnostics;
       },
@@ -2738,32 +2908,41 @@ export const DevPanel = ({
     async (cursor?: string | null) => {
       try {
         const sessionId =
-          activeScope.type === "session" ? activeScope.id : undefined;
+          uiState.activeScope.type === "session"
+            ? uiState.activeScope.id
+            : undefined;
         const fetched = (await api.getEvents({
           sessionId,
-          minLevel,
-          search: debouncedSearch || undefined,
+          minLevel: filterState.minLevel,
+          search: filterState.debouncedSearch || undefined,
           limit: 200,
         })) as ExtEventRow[];
-        setEvents(cursor ? (prev) => [...prev, ...fetched] : fetched);
-        setHasMore(fetched.length === 200);
+        dispatchData({
+          events: cursor
+            ? [...dataStateRef.current.events, ...fetched]
+            : fetched,
+          hasMore: fetched.length === 200,
+        });
       } catch {
         /* event stream fetch failed; keep existing rows */
       }
     },
-    [activeScope, minLevel, debouncedSearch],
+    [uiState.activeScope, filterState.minLevel, filterState.debouncedSearch],
   );
 
   useEffect(() => {
-    setEvents([]);
+    dispatchData({ events: [] });
     void loadEvents(null);
   }, [loadEvents]);
 
   // Stream health watchdog
   const resetStreamTimer = useCallback(() => {
-    setStreamHealthy(true);
+    dispatchData({ streamHealthy: true });
     if (streamTimerRef.current) clearTimeout(streamTimerRef.current);
-    streamTimerRef.current = setTimeout(() => setStreamHealthy(false), 15_000);
+    streamTimerRef.current = setTimeout(
+      () => dispatchData({ streamHealthy: false }),
+      15_000,
+    );
   }, []);
 
   useEffect(() => {
@@ -2776,17 +2955,21 @@ export const DevPanel = ({
   useExvaEvent("agent_event", (ev) => {
     const extEv = ev as ExtEventRow;
     const scopeMatch =
-      activeScope.type === "global" ||
-      (activeScope.type === "session" && extEv.session_id === activeScope.id);
+      uiState.activeScope.type === "global" ||
+      (uiState.activeScope.type === "session" &&
+        extEv.session_id === uiState.activeScope.id);
     if (scopeMatch) {
-      setEvents((prev) => [extEv, ...prev].slice(0, 500));
+      dispatchData({
+        events: [extEv, ...dataStateRef.current.events].slice(0, 500),
+      });
     }
     resetStreamTimer();
   });
 
   // Inspector data
-  const sel = selectedId
-    ? ((events.find((e) => e.id === selectedId) ?? null) as ExtEventRow | null)
+  const sel = dataState.selectedId
+    ? ((dataState.events.find((e) => e.id === dataState.selectedId) ??
+        null) as ExtEventRow | null)
     : null;
   const inspectorTradeId = sel?.trade_id ?? null;
   const inspectorCycleId = sel?.cycle_id ?? null;
@@ -2824,19 +3007,21 @@ export const DevPanel = ({
 
   // Filtered events (client-side for UI filtering while server loads)
   const filtered = useMemo(() => {
-    let list = events;
-    if (LEVELS.indexOf(minLevel) > 0) {
+    let list = dataState.events;
+    if (LEVELS.indexOf(filterState.minLevel) > 0) {
       list = list.filter(
-        (ev) => LEVELS.indexOf(ev.level) >= LEVELS.indexOf(minLevel),
+        (ev) =>
+          LEVELS.indexOf(ev.level) >= LEVELS.indexOf(filterState.minLevel),
       );
     }
-    if (sourceFilters.length > 0) {
+    if (filterState.sourceFilters.length > 0) {
       list = list.filter(
-        (ev) => !ev.agent_type || sourceFilters.includes(ev.agent_type),
+        (ev) =>
+          !ev.agent_type || filterState.sourceFilters.includes(ev.agent_type),
       );
     }
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
+    if (filterState.debouncedSearch) {
+      const q = filterState.debouncedSearch.toLowerCase();
       list = list.filter(
         (ev) =>
           ev.message.toLowerCase().includes(q) ||
@@ -2846,20 +3031,24 @@ export const DevPanel = ({
       );
     }
     return list;
-  }, [events, minLevel, sourceFilters, debouncedSearch]);
+  }, [
+    dataState.events,
+    filterState.minLevel,
+    filterState.sourceFilters,
+    filterState.debouncedSearch,
+  ]);
 
   // Handle scope change
   const handleScopeChange = (scope: ActiveScope) => {
-    setActiveScope(scope);
-    setSelectedId(null);
-    setSearch("");
-    setDebouncedSearch("");
+    dispatchUi({ activeScope: scope });
+    dispatchData({ selectedId: null });
+    dispatchFilter({ search: "", debouncedSearch: "" });
     qc.invalidateQueries({ queryKey: ["scope-diagnostics"] });
   };
 
   // Log level change
   const handleSetLogLevel = async (level: PinoLevel) => {
-    setLogLevelLoading(true);
+    dispatchUi({ logLevelLoading: true });
     try {
       const developer = developerApi();
       if (!developer) {
@@ -2868,10 +3057,10 @@ export const DevPanel = ({
       await developer.setLogLevel({
         scopeType: "global",
         mainLogLevel: level,
-        eventMinLevel: minLevel,
+        eventMinLevel: filterState.minLevel,
         untilStopped: true,
       });
-      setEffectiveLogLevel(level);
+      dispatchUi({ effectiveLogLevel: level });
       showToast(`Log level set to ${level}`);
     } catch (err) {
       showToast(
@@ -2879,26 +3068,26 @@ export const DevPanel = ({
         "err",
       );
     } finally {
-      setLogLevelLoading(false);
+      dispatchUi({ logLevelLoading: false });
     }
   };
 
   // Export bundle
   const handleExport = async () => {
-    setExportLoading(true);
+    dispatchUi({ exportLoading: true });
     try {
       const developer = developerApi();
       if (!developer) {
         throw new Error("Developer API unavailable.");
       }
       const res = await developer.exportDebugBundle({
-        scope: { type: activeScope.type, id: activeScope.id },
+        scope: { type: uiState.activeScope.type, id: uiState.activeScope.id },
         includePrompts: false,
         includeToolPayloads: true,
-        timeWindowMinutes: timeWindow,
+        timeWindowMinutes: filterState.timeWindow,
       });
       if (res) {
-        setExportResult(res);
+        dispatchUi({ exportResult: res });
         if (res.sizeBytes > 25 * 1024 * 1024) {
           showToast(
             "Bundle is large (>25 MB). Consider narrowing scope.",
@@ -2912,21 +3101,21 @@ export const DevPanel = ({
         "err",
       );
     } finally {
-      setExportLoading(false);
+      dispatchUi({ exportLoading: false });
     }
   };
 
   // Build scope label
   const scopeLabel =
-    activeScope.type === "global"
+    uiState.activeScope.type === "global"
       ? "Global workspace"
-      : `${activeScope.type.charAt(0).toUpperCase() + activeScope.type.slice(1)}: ${activeScope.label ?? activeScope.id ?? ""}`;
+      : `${uiState.activeScope.type.charAt(0).toUpperCase() + uiState.activeScope.type.slice(1)}: ${uiState.activeScope.label ?? uiState.activeScope.id ?? ""}`;
 
   return (
     <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
       {/* Scope Rail */}
       <ScopeRail
-        activeScope={activeScope}
+        activeScope={uiState.activeScope}
         onScopeChange={handleScopeChange}
         sessions={sessions}
         focusedSessionId={focusedSessionId}
@@ -2972,18 +3161,13 @@ export const DevPanel = ({
 
           {/* Stream health badge */}
           <div style={{ marginLeft: 8 }}>
-            {streamHealthy ? (
+            {dataState.streamHealthy ? (
               <span
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  ...S.mono9,
+                  ...S.streamBadgeBase,
                   color: "#00e5a0",
                   background: "rgba(0,229,160,0.1)",
                   border: "1px solid #00e5a030",
-                  borderRadius: 5,
-                  padding: "3px 8px",
                 }}
               >
                 <Dot color="#00e5a0" pulse size={4} /> Live
@@ -2991,15 +3175,10 @@ export const DevPanel = ({
             ) : (
               <span
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  ...S.mono9,
+                  ...S.streamBadgeBase,
                   color: "#ffb733",
                   background: "rgba(255,183,51,0.1)",
                   border: "1px solid #ffb73330",
-                  borderRadius: 5,
-                  padding: "3px 8px",
                 }}
               >
                 <Dot color="#ffb733" pulse size={4} /> Delayed · polling
@@ -3007,24 +3186,19 @@ export const DevPanel = ({
             )}
           </div>
 
-          {captureActive && (
+          {uiState.captureActive && (
             <span
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                ...S.mono9,
+                ...S.streamBadgeBase,
                 color: "#c084fc",
                 background: "rgba(192,132,252,0.1)",
                 border: "1px solid #c084fc30",
-                borderRadius: 5,
-                padding: "3px 8px",
               }}
             >
               <Dot color="#c084fc" pulse size={4} />
               Capture active
-              {captureActive.expiresAt
-                ? ` · ends ${fmt.time(captureActive.expiresAt)}`
+              {uiState.captureActive.expiresAt
+                ? ` · ends ${fmt.time(uiState.captureActive.expiresAt)}`
                 : ""}
             </span>
           )}
@@ -3032,14 +3206,14 @@ export const DevPanel = ({
           <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
             <HeaderBtn
               label="Capture Debug Window"
-              disabled={!!captureActive}
-              onClick={() => setShowCapture(true)}
+              disabled={!!uiState.captureActive}
+              onClick={() => dispatchUi({ showCapture: true })}
               color="#c084fc"
             />
             <HeaderBtn
               label="Export Debug Bundle"
-              disabled={exportLoading}
-              loading={exportLoading}
+              disabled={uiState.exportLoading}
+              loading={uiState.exportLoading}
               onClick={handleExport}
               color="#4da6ff"
             />
@@ -3059,16 +3233,16 @@ export const DevPanel = ({
         <ActionStrip
           diagnostics={diagnostics ?? null}
           diagnosticsLoading={diagnosticsLoading}
-          timeWindow={timeWindow}
-          setTimeWindow={setTimeWindow}
-          minLevel={minLevel}
-          setMinLevel={setMinLevel}
-          sourceFilters={sourceFilters}
-          setSourceFilters={setSourceFilters}
-          effectiveLogLevel={effectiveLogLevel}
+          timeWindow={filterState.timeWindow}
+          setTimeWindow={(v) => dispatchFilter({ timeWindow: v })}
+          minLevel={filterState.minLevel}
+          setMinLevel={(v) => dispatchFilter({ minLevel: v })}
+          sourceFilters={filterState.sourceFilters}
+          setSourceFilters={(v) => dispatchFilter({ sourceFilters: v })}
+          effectiveLogLevel={uiState.effectiveLogLevel}
           onSetLogLevel={handleSetLogLevel}
-          logLevelLoading={logLevelLoading}
-          activeScope={activeScope}
+          logLevelLoading={uiState.logLevelLoading}
+          activeScope={uiState.activeScope}
         />
 
         {/* Main split */}
@@ -3092,17 +3266,23 @@ export const DevPanel = ({
             }}
           >
             <EventTimeline
-              events={events}
+              events={dataState.events}
               filtered={filtered}
-              selectedId={selectedId}
-              onSelect={(id) => setSelectedId(id === selectedId ? null : id)}
-              search={search}
-              setSearch={setSearch}
+              selectedId={dataState.selectedId}
+              onSelect={(id) =>
+                dispatchData({
+                  selectedId: id === dataState.selectedId ? null : id,
+                })
+              }
+              search={filterState.search}
+              setSearch={(s) => dispatchFilter({ search: s })}
               loading={false}
-              hasMore={hasMore}
+              hasMore={dataState.hasMore}
               onLoadMore={() =>
                 loadEvents(
-                  events.length > 0 ? events[events.length - 1].id : null,
+                  dataState.events.length > 0
+                    ? dataState.events[dataState.events.length - 1].id
+                    : null,
                 )
               }
             />
@@ -3124,7 +3304,7 @@ export const DevPanel = ({
               runsLoading={runsLoading}
               messagesLoading={messagesLoading}
               diagnostics={diagnostics ?? null}
-              activeScope={activeScope}
+              activeScope={uiState.activeScope}
             />
           </div>
         </div>
@@ -3153,22 +3333,24 @@ export const DevPanel = ({
       </div>
 
       {/* Modals */}
-      {showCapture && (
+      {uiState.showCapture && (
         <DebugCaptureModal
-          activeScope={activeScope}
-          onClose={() => setShowCapture(false)}
+          activeScope={uiState.activeScope}
+          onClose={() => dispatchUi({ showCapture: false })}
           onStarted={(overrideId, expiresAt) => {
-            setShowCapture(false);
-            setCaptureActive({ overrideId, expiresAt });
+            dispatchUi({
+              showCapture: false,
+              captureActive: { overrideId, expiresAt },
+            });
             showToast("Debug capture started.");
           }}
         />
       )}
 
-      {exportResult && (
+      {uiState.exportResult && (
         <ExportResultDrawer
-          result={exportResult}
-          onClose={() => setExportResult(null)}
+          result={uiState.exportResult}
+          onClose={() => dispatchUi({ exportResult: null })}
         />
       )}
 
@@ -3196,19 +3378,12 @@ const HeaderBtn = ({
     onClick={onClick}
     disabled={disabled || loading}
     style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 5,
-      padding: "5px 10px",
+      ...S.headerBtnBase,
       background: `${color}10`,
       border: `1px solid ${color}30`,
-      borderRadius: 6,
-      ...S.mono9,
-      fontWeight: 700,
       color,
       cursor: disabled ? "default" : "pointer",
       opacity: disabled ? 0.4 : 1,
-      transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
     }}
   >
     {loading && <Spinner />}

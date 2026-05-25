@@ -598,19 +598,7 @@ export const Dashboard = () => {
           <TradesPanel />
         </Card>
 
-        <Card
-          style={{
-            flex: "0 1 320px",
-            width: "clamp(280px, 32vw, 340px)",
-            maxWidth: "100%",
-            minWidth: 0,
-            minHeight: 0,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            padding: "20px 0 0",
-          }}
-        >
+        <Card style={ds.autopsySidebar}>
           <div
             style={{
               display: "flex",
@@ -778,5 +766,16 @@ const ds: Record<string, CSSProperties> = {
     fontFamily: "var(--font-mono)",
     fontSize: 13,
     color: "var(--text2)",
+  },
+  autopsySidebar: {
+    flex: "0 1 320px",
+    width: "clamp(280px, 32vw, 340px)",
+    maxWidth: "100%",
+    minWidth: 0,
+    minHeight: 0,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+    padding: "20px 0 0",
   },
 };

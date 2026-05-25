@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useReducer, useState } from "react";
 import type {
   ResearchPosturePresetId,
   RiskPresetId,
@@ -445,6 +445,16 @@ interface CreateEditGlobalPresetModalProps {
   onClose: () => void;
 }
 
+const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
+
+type PresetFormState = {
+  name: string;
+  posturePresetId: ResearchPosturePresetId;
+  rulesPresetId: TradeRulesPresetId;
+  riskPresetId: RiskPresetId;
+  timeframePresetId: TimeframePresetId;
+};
+
 export function CreateEditGlobalPresetModal({
   open,
   initial,
@@ -452,31 +462,26 @@ export function CreateEditGlobalPresetModal({
   onClose,
 }: CreateEditGlobalPresetModalProps) {
   const isEdit = Boolean(initial?.name);
-  const [name, setName] = useState(initial?.name ?? "");
-  const [posturePresetId, setPosturePresetId] =
-    useState<ResearchPosturePresetId>(initial?.posturePresetId ?? "trend_hunt");
-  const [rulesPresetId, setRulesPresetId] = useState<TradeRulesPresetId>(
-    initial?.rulesPresetId ?? "breakout_long",
-  );
-  const [riskPresetId, setRiskPresetId] = useState<RiskPresetId>(
-    initial?.riskPresetId ?? "moderate",
-  );
-  const [timeframePresetId, setTimeframePresetId] = useState<TimeframePresetId>(
-    initial?.timeframePresetId ?? "swing",
-  );
+  const [form, dispatchForm] = useReducer(mergeReducer<PresetFormState>, {
+    name: initial?.name ?? "",
+    posturePresetId: initial?.posturePresetId ?? "trend_hunt",
+    rulesPresetId: initial?.rulesPresetId ?? "breakout_long",
+    riskPresetId: initial?.riskPresetId ?? "moderate",
+    timeframePresetId: initial?.timeframePresetId ?? "swing",
+  });
 
   if (!open) return null;
 
-  const canSave = name.trim().length > 0;
+  const canSave = form.name.trim().length > 0;
 
   const handleSave = () => {
     if (!canSave) return;
     onSave({
-      name: name.trim(),
-      posturePresetId,
-      rulesPresetId,
-      riskPresetId,
-      timeframePresetId,
+      name: form.name.trim(),
+      posturePresetId: form.posturePresetId,
+      rulesPresetId: form.rulesPresetId,
+      riskPresetId: form.riskPresetId,
+      timeframePresetId: form.timeframePresetId,
     });
   };
 
@@ -519,8 +524,8 @@ export function CreateEditGlobalPresetModal({
         <div style={{ display: "grid", gap: 14 }}>
           <ModalField label="Preset name">
             <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={form.name}
+              onChange={(e) => dispatchForm({ name: e.target.value })}
               placeholder="e.g. My Swing Setup"
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSave();
@@ -530,9 +535,9 @@ export function CreateEditGlobalPresetModal({
           </ModalField>
           <ModalField label="Style (posture)">
             <ShadcnSelect
-              value={posturePresetId}
+              value={form.posturePresetId}
               onValueChange={(v) =>
-                setPosturePresetId(v as ResearchPosturePresetId)
+                dispatchForm({ posturePresetId: v as ResearchPosturePresetId })
               }
               options={RESEARCH_POSTURE_PRESETS.map((p) => ({
                 value: p.id,
@@ -542,8 +547,10 @@ export function CreateEditGlobalPresetModal({
           </ModalField>
           <ModalField label="Rules">
             <ShadcnSelect
-              value={rulesPresetId}
-              onValueChange={(v) => setRulesPresetId(v as TradeRulesPresetId)}
+              value={form.rulesPresetId}
+              onValueChange={(v) =>
+                dispatchForm({ rulesPresetId: v as TradeRulesPresetId })
+              }
               options={TRADE_RULE_PRESETS.map((p) => ({
                 value: p.id,
                 label: p.label,
@@ -552,8 +559,10 @@ export function CreateEditGlobalPresetModal({
           </ModalField>
           <ModalField label="Risk">
             <ShadcnSelect
-              value={riskPresetId}
-              onValueChange={(v) => setRiskPresetId(v as RiskPresetId)}
+              value={form.riskPresetId}
+              onValueChange={(v) =>
+                dispatchForm({ riskPresetId: v as RiskPresetId })
+              }
               options={RISK_PRESETS.map((p) => ({
                 value: p.id,
                 label: p.label,
@@ -562,9 +571,9 @@ export function CreateEditGlobalPresetModal({
           </ModalField>
           <ModalField label="Timeframe">
             <ShadcnSelect
-              value={timeframePresetId}
+              value={form.timeframePresetId}
               onValueChange={(v) =>
-                setTimeframePresetId(v as TimeframePresetId)
+                dispatchForm({ timeframePresetId: v as TimeframePresetId })
               }
               options={TIMEFRAME_PRESETS.map((p) => ({
                 value: p.id,
@@ -583,13 +592,9 @@ export function CreateEditGlobalPresetModal({
             onClick={handleSave}
             disabled={!canSave}
             style={{
-              padding: "9px 20px",
-              borderRadius: 8,
-              border: "none",
+              ...saveBtnBaseStyle,
               background: canSave ? "var(--accent)" : "var(--surface3)",
               color: canSave ? "#fff" : "var(--text3)",
-              fontSize: 13,
-              fontWeight: 700,
               cursor: canSave ? "pointer" : "not-allowed",
             }}
           >
@@ -707,6 +712,15 @@ const cancelBtnStyle: React.CSSProperties = {
   color: "var(--text2)",
   fontSize: 13,
   fontWeight: 600,
+  cursor: "pointer",
+};
+
+const saveBtnBaseStyle: React.CSSProperties = {
+  padding: "9px 20px",
+  borderRadius: 8,
+  border: "none",
+  fontSize: 13,
+  fontWeight: 700,
   cursor: "pointer",
 };
 

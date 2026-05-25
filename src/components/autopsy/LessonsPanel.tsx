@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useReducer, useState, type Reducer } from "react";
 import type {
   AutopsyLesson,
   LessonCategory,
@@ -86,6 +86,42 @@ const statusPillButtonStyle = {
   letterSpacing: "0.04em",
 } as const;
 
+const statusPickerContainerStyle = {
+  position: "absolute" as const,
+  top: "calc(100% + 4px)",
+  right: 0,
+  zIndex: 50,
+  background: "var(--surface3)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  padding: 4,
+  minWidth: 140,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+} as const;
+
+const statusPickerButtonStyle = {
+  display: "flex" as const,
+  alignItems: "center",
+  gap: 8,
+  width: "100%",
+  padding: "7px 10px",
+  borderRadius: 6,
+  border: "none",
+  cursor: "pointer",
+  textAlign: "left" as const,
+} as const;
+
+const addLessonButtonStyle = {
+  padding: "3px 9px",
+  borderRadius: 5,
+  border: "1px solid var(--border)",
+  background: "transparent",
+  color: "var(--text2)",
+  fontSize: 12,
+  cursor: "pointer",
+  opacity: 1,
+} as const;
+
 // ---------------------------------------------------------------------------
 // Components
 // ---------------------------------------------------------------------------
@@ -100,20 +136,7 @@ function StatusPicker({
   onClose: () => void;
 }) {
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: "calc(100% + 4px)",
-        right: 0,
-        zIndex: 50,
-        background: "var(--surface3)",
-        border: "1px solid var(--border)",
-        borderRadius: 8,
-        padding: 4,
-        minWidth: 140,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-      }}
-    >
+    <div style={statusPickerContainerStyle}>
       {STATUS_ORDER.map((s) => {
         const st = STATUS_STYLE[s];
         return (
@@ -124,16 +147,8 @@ function StatusPicker({
               onClose();
             }}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              width: "100%",
-              padding: "7px 10px",
-              borderRadius: 6,
-              border: "none",
+              ...statusPickerButtonStyle,
               background: s === current ? "var(--surface2)" : "transparent",
-              cursor: "pointer",
-              textAlign: "left",
             }}
           >
             <span
@@ -360,6 +375,36 @@ function LessonRow({
 // LessonsPanel
 // ---------------------------------------------------------------------------
 
+interface LessonFormState {
+  lesson: string;
+  severity: LessonSeverity;
+  category: LessonCategory;
+  proposedFix: string;
+  error: string | null;
+}
+
+interface LessonUiState {
+  adding: boolean;
+  submitting: boolean;
+}
+
+function mergeReducer<S>(state: S, update: Partial<S>): S {
+  return { ...state, ...update };
+}
+
+const formInit: LessonFormState = {
+  lesson: "",
+  severity: "medium",
+  category: "strategy",
+  proposedFix: "",
+  error: null,
+};
+
+const uiInit: LessonUiState = {
+  adding: false,
+  submitting: false,
+};
+
 export function LessonsPanel({
   lessons,
   onStatusChange,
@@ -374,30 +419,27 @@ export function LessonsPanel({
     proposedFix: string;
   }) => Promise<void> | void;
 }) {
-  const [adding, setAdding] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [lesson, setLesson] = useState("");
-  const [severity, setSeverity] = useState<LessonSeverity>("medium");
-  const [category, setCategory] = useState<LessonCategory>("strategy");
-  const [proposedFix, setProposedFix] = useState("");
+  const [form, dispatchForm] = useReducer<
+    Reducer<LessonFormState, Partial<LessonFormState>>
+  >(mergeReducer, formInit);
+  const [ui, dispatchUi] = useReducer<
+    Reducer<LessonUiState, Partial<LessonUiState>>
+  >(mergeReducer, uiInit);
+  const { lesson, severity, category, proposedFix, error } = form;
+  const { adding, submitting } = ui;
 
   const resetForm = () => {
-    setLesson("");
-    setSeverity("medium");
-    setCategory("strategy");
-    setProposedFix("");
-    setError(null);
+    dispatchForm(formInit);
   };
 
   const submitLesson = async () => {
     if (!onAddLesson) return;
     if (!lesson.trim()) {
-      setError("Lesson text is required.");
+      dispatchForm({ error: "Lesson text is required." });
       return;
     }
-    setSubmitting(true);
-    setError(null);
+    dispatchUi({ submitting: true });
+    dispatchForm({ error: null });
     try {
       await onAddLesson({
         lesson: lesson.trim(),
@@ -406,11 +448,11 @@ export function LessonsPanel({
         proposedFix: proposedFix.trim(),
       });
       resetForm();
-      setAdding(false);
+      dispatchUi({ adding: false });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      dispatchForm({ error: err instanceof Error ? err.message : String(err) });
     } finally {
-      setSubmitting(false);
+      dispatchUi({ submitting: false });
     }
   };
 
@@ -446,19 +488,12 @@ export function LessonsPanel({
         </span>
         <button
           onClick={() => {
-            setAdding((open) => {
-              const next = !open;
-              if (!next) resetForm();
-              return next;
-            });
+            const next = !adding;
+            if (!next) resetForm();
+            dispatchUi({ adding: next });
           }}
           style={{
-            padding: "3px 9px",
-            borderRadius: 5,
-            border: "1px solid var(--border)",
-            background: "transparent",
-            color: "var(--text2)",
-            fontSize: 12,
+            ...addLessonButtonStyle,
             cursor: onAddLesson ? "pointer" : "not-allowed",
             opacity: onAddLesson ? 1 : 0.55,
           }}
@@ -481,7 +516,7 @@ export function LessonsPanel({
         >
           <textarea
             value={lesson}
-            onChange={(e) => setLesson(e.target.value)}
+            onChange={(e) => dispatchForm({ lesson: e.target.value })}
             placeholder="Add the lesson to track"
             rows={3}
             style={inputStyle}
@@ -491,7 +526,9 @@ export function LessonsPanel({
           >
             <select
               value={severity}
-              onChange={(e) => setSeverity(e.target.value as LessonSeverity)}
+              onChange={(e) =>
+                dispatchForm({ severity: e.target.value as LessonSeverity })
+              }
               style={inputStyle}
             >
               {LESSON_SEVERITIES.map((value) => (
@@ -502,7 +539,9 @@ export function LessonsPanel({
             </select>
             <select
               value={category}
-              onChange={(e) => setCategory(e.target.value as LessonCategory)}
+              onChange={(e) =>
+                dispatchForm({ category: e.target.value as LessonCategory })
+              }
               style={inputStyle}
             >
               {LESSON_CATEGORIES.map((value) => (
@@ -514,7 +553,7 @@ export function LessonsPanel({
           </div>
           <textarea
             value={proposedFix}
-            onChange={(e) => setProposedFix(e.target.value)}
+            onChange={(e) => dispatchForm({ proposedFix: e.target.value })}
             placeholder="Optional proposed fix"
             rows={2}
             style={inputStyle}
@@ -528,7 +567,7 @@ export function LessonsPanel({
             <button
               onClick={() => {
                 resetForm();
-                setAdding(false);
+                dispatchUi({ adding: false });
               }}
               style={secondaryButtonStyle}
               disabled={submitting}

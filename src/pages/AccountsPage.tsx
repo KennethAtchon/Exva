@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
@@ -87,17 +87,7 @@ const InputField = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      style={{
-        background: "var(--surface2)",
-        border: "1px solid var(--border)",
-        borderRadius: 9,
-        padding: "10px 14px",
-        color: "var(--text1)",
-        fontSize: 13,
-        fontFamily: mono ? "var(--font-mono)" : "var(--font-sans)",
-        letterSpacing: mono ? "0.04em" : "normal",
-        transition: "border-color 0.15s",
-      }}
+      style={inputFieldInputStyle(mono)}
     />
   </div>
 );
@@ -154,38 +144,114 @@ export const AccountsPage = () => {
     await setEnvironmentMode(next);
   };
 
-  const [testing, setTesting] = useState(false);
-  const [status, setStatus] = useState<{
-    broker: boolean;
-    ai: boolean;
-    search: boolean;
-  }>({ broker: false, ai: false, search: false });
-  const [brokerModalOpen, setBrokerModalOpen] = useState(false);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
-  const [editingProviderId, setEditingProviderId] = useState<string | null>(
-    null,
+  const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
+
+  type ReqState = {
+    testing: boolean;
+    status: { broker: boolean; ai: boolean; search: boolean };
+    rowSavingId: string | null;
+  };
+  const [req, setReq] = useReducer(mergeReducer<ReqState>, {
+    testing: false,
+    status: { broker: false, ai: false, search: false },
+    rowSavingId: null,
+  });
+  const { testing, status, rowSavingId } = req;
+  const setTesting = (testing: boolean) => setReq({ testing });
+  const setStatus = (
+    update:
+      | ReqState["status"]
+      | ((prev: ReqState["status"]) => ReqState["status"]),
+  ) =>
+    setReq({
+      status: typeof update === "function" ? update(req.status) : update,
+    });
+  const setRowSavingId = (rowSavingId: string | null) =>
+    setReq({ rowSavingId });
+
+  type ModalState = {
+    brokerModalOpen: boolean;
+    aiModalOpen: boolean;
+    searchModalOpen: boolean;
+    editingProviderId: string | null;
+    editApiKey: string;
+    editBaseUrl: string;
+  };
+  const [modal, setModal] = useReducer(mergeReducer<ModalState>, {
+    brokerModalOpen: false,
+    aiModalOpen: false,
+    searchModalOpen: false,
+    editingProviderId: null,
+    editApiKey: "",
+    editBaseUrl: "",
+  });
+  const {
+    brokerModalOpen,
+    aiModalOpen,
+    searchModalOpen,
+    editingProviderId,
+    editApiKey,
+    editBaseUrl,
+  } = modal;
+  const setBrokerModalOpen = (brokerModalOpen: boolean) =>
+    setModal({ brokerModalOpen });
+  const setAiModalOpen = (aiModalOpen: boolean) => setModal({ aiModalOpen });
+  const setSearchModalOpen = (searchModalOpen: boolean) =>
+    setModal({ searchModalOpen });
+  const setEditApiKey = (editApiKey: string) => setModal({ editApiKey });
+  const setEditBaseUrl = (editBaseUrl: string) => setModal({ editBaseUrl });
+
+  type DefaultModelState = {
+    providerKey: string;
+    modelId: string;
+    reasoningLevel: (typeof REASONING_LEVEL_OPTIONS)[number]["value"];
+    models: ProviderModelEntry[];
+    modelsLoading: boolean;
+    saving: boolean;
+    saved: boolean;
+  };
+  const [defaultModel, setDefaultModel] = useReducer(
+    mergeReducer<DefaultModelState>,
+    {
+      providerKey: "",
+      modelId: "",
+      reasoningLevel: "off",
+      models: [],
+      modelsLoading: false,
+      saving: false,
+      saved: false,
+    },
   );
-  const [editApiKey, setEditApiKey] = useState("");
-  const [editBaseUrl, setEditBaseUrl] = useState("");
-  const [rowSavingId, setRowSavingId] = useState<string | null>(null);
+  const {
+    providerKey: defaultModelProviderKey,
+    modelId: defaultModelModelId,
+    reasoningLevel: defaultModelReasoningLevel,
+    models: defaultModelModels,
+    modelsLoading: defaultModelModelsLoading,
+    saving: savingDefaultModel,
+    saved: savedDefaultModel,
+  } = defaultModel;
+  const setDefaultModelProviderKey = (providerKey: string) =>
+    setDefaultModel({ providerKey });
+  const setDefaultModelModelId = (modelId: string) =>
+    setDefaultModel({ modelId });
+  const setDefaultModelReasoningLevel = (
+    reasoningLevel: (typeof REASONING_LEVEL_OPTIONS)[number]["value"],
+  ) => setDefaultModel({ reasoningLevel });
+  const setDefaultModelModels = (models: ProviderModelEntry[]) =>
+    setDefaultModel({ models });
+  const setDefaultModelModelsLoading = (modelsLoading: boolean) =>
+    setDefaultModel({ modelsLoading });
+  const setSavingDefaultModel = (saving: boolean) =>
+    setDefaultModel({ saving });
+  const setSavedDefaultModel = (saved: boolean) => setDefaultModel({ saved });
+
   const [routingDraft, setRoutingDraft] = useState<
     Partial<Record<InstrumentClass, string>>
   >({});
   const [prefsDraft, setPrefsDraft] = useState<WorkspacePreferences | null>(
     null,
   );
-  const [defaultModelProviderKey, setDefaultModelProviderKey] = useState("");
-  const [defaultModelModelId, setDefaultModelModelId] = useState("");
-  const [defaultModelReasoningLevel, setDefaultModelReasoningLevel] =
-    useState<(typeof REASONING_LEVEL_OPTIONS)[number]["value"]>("off");
-  const [defaultModelModels, setDefaultModelModels] = useState<
-    ProviderModelEntry[]
-  >([]);
-  const [defaultModelModelsLoading, setDefaultModelModelsLoading] =
-    useState(false);
-  const [savingDefaultModel, setSavingDefaultModel] = useState(false);
-  const [savedDefaultModel, setSavedDefaultModel] = useState(false);
   const applyWorkspaceDrafts = useCallback(
     (workspace: NonNullable<typeof workspaceData>) => {
       const provKey = workspace.prefs.defaultModelProviderKey ?? "";
@@ -315,16 +381,16 @@ export const AccountsPage = () => {
   };
 
   const beginEditProviderKey = (p: ProviderAccount) => {
-    setEditingProviderId(p.id);
-    setEditApiKey("");
     const metadata = parseProviderMetadata(p.metadataJson);
-    setEditBaseUrl(metadata.baseUrl ?? "");
+    setModal({
+      editingProviderId: p.id,
+      editApiKey: "",
+      editBaseUrl: metadata.baseUrl ?? "",
+    });
   };
 
   const cancelEditProviderKey = () => {
-    setEditingProviderId(null);
-    setEditApiKey("");
-    setEditBaseUrl("");
+    setModal({ editingProviderId: null, editApiKey: "", editBaseUrl: "" });
   };
 
   const saveEditedProviderKey = async (p: ProviderAccount) => {
@@ -634,17 +700,7 @@ export const AccountsPage = () => {
                             type="button"
                             disabled={rowSavingId === p.id}
                             onClick={() => void saveEditedProviderKey(p)}
-                            style={{
-                              fontSize: 12,
-                              padding: "8px 12px",
-                              borderRadius: 8,
-                              border: "none",
-                              background: "var(--accent)",
-                              color: "#fff",
-                              fontWeight: 600,
-                              cursor: rowSavingId === p.id ? "wait" : "pointer",
-                              opacity: rowSavingId === p.id ? 0.85 : 1,
-                            }}
+                            style={saveKeychainBtnStyle(rowSavingId === p.id)}
                           >
                             {rowSavingId === p.id
                               ? "Saving…"
@@ -676,17 +732,7 @@ export const AccountsPage = () => {
             <button
               type="button"
               onClick={() => setAiModalOpen(true)}
-              style={{
-                marginTop: 12,
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: 9,
-                border: "1px dashed var(--border)",
-                background: "transparent",
-                color: "var(--text2)",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
+              style={addProviderBtnStyle}
             >
               + Add AI provider
             </button>
@@ -786,28 +832,11 @@ export const AccountsPage = () => {
                     setSavingDefaultModel(false);
                   }
                 }}
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  borderRadius: 9,
-                  border: "none",
-                  background: "var(--accent)",
-                  color: "#fff",
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor:
-                    savingDefaultModel ||
+                style={saveDefaultModelBtnStyle(
+                  savingDefaultModel ||
                     !defaultModelProviderKey ||
-                    !defaultModelModelId
-                      ? "not-allowed"
-                      : "pointer",
-                  opacity:
-                    savingDefaultModel ||
-                    !defaultModelProviderKey ||
-                    !defaultModelModelId
-                      ? 0.7
-                      : 1,
-                }}
+                    !defaultModelModelId,
+                )}
               >
                 {savingDefaultModel
                   ? "Saving..."
@@ -850,19 +879,7 @@ export const AccountsPage = () => {
                 </div>
               )}
               {brokers.map((b) => (
-                <div
-                  key={b.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    padding: "10px 12px",
-                    borderRadius: 9,
-                    border: "1px solid var(--border)",
-                    background: "var(--surface2)",
-                  }}
-                >
+                <div key={b.id} style={brokerRowStyle}>
                   <div>
                     <div
                       style={{
@@ -950,17 +967,7 @@ export const AccountsPage = () => {
             <button
               type="button"
               onClick={() => setBrokerModalOpen(true)}
-              style={{
-                marginTop: 12,
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: 9,
-                border: "1px dashed var(--border)",
-                background: "transparent",
-                color: "var(--text2)",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
+              style={addProviderBtnStyle}
             >
               + Add broker account
             </button>
@@ -1045,18 +1052,7 @@ export const AccountsPage = () => {
                 await api.saveBrokerRoutingDefaults(rows);
                 void refetchWorkspace();
               }}
-              style={{
-                marginTop: 8,
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: 9,
-                border: "none",
-                background: "var(--accent)",
-                color: "#fff",
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: "pointer",
-              }}
+              style={accentActionBtnStyle}
             >
               Save routing defaults
             </button>
@@ -1121,18 +1117,7 @@ export const AccountsPage = () => {
                     });
                     void refetchWorkspace();
                   }}
-                  style={{
-                    marginTop: 12,
-                    width: "100%",
-                    padding: "10px 14px",
-                    borderRadius: 9,
-                    border: "none",
-                    background: "var(--accent)",
-                    color: "#fff",
-                    fontWeight: 600,
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
+                  style={saveOverrideBtnStyle}
                 >
                   Save override
                 </button>
@@ -1384,17 +1369,7 @@ export const AccountsPage = () => {
                             type="button"
                             disabled={rowSavingId === p.id}
                             onClick={() => void saveEditedProviderKey(p)}
-                            style={{
-                              fontSize: 12,
-                              padding: "8px 12px",
-                              borderRadius: 8,
-                              border: "none",
-                              background: "var(--accent)",
-                              color: "#fff",
-                              fontWeight: 600,
-                              cursor: rowSavingId === p.id ? "wait" : "pointer",
-                              opacity: rowSavingId === p.id ? 0.85 : 1,
-                            }}
+                            style={saveKeychainBtnStyle(rowSavingId === p.id)}
                           >
                             {rowSavingId === p.id
                               ? "Saving…"
@@ -1463,17 +1438,7 @@ export const AccountsPage = () => {
                   });
                   void refetchWorkspace();
                 }}
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  borderRadius: 9,
-                  border: "none",
-                  background: "var(--accent)",
-                  color: "#fff",
-                  fontWeight: 600,
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
+                style={saveSearchSettingsBtnStyle}
               >
                 Save search settings
               </button>
@@ -1481,17 +1446,7 @@ export const AccountsPage = () => {
             <button
               type="button"
               onClick={() => setSearchModalOpen(true)}
-              style={{
-                marginTop: 12,
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: 9,
-                border: "1px dashed var(--border)",
-                background: "transparent",
-                color: "var(--text2)",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
+              style={addProviderBtnStyle}
             >
               + Add search provider
             </button>
@@ -1565,18 +1520,7 @@ export const AccountsPage = () => {
             type="button"
             onClick={() => void testAllConnections()}
             disabled={testing}
-            style={{
-              width: "100%",
-              padding: "11px 20px",
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              color: "var(--text2)",
-              fontSize: 13,
-              cursor: "pointer",
-              fontFamily: "var(--font-sans)",
-              fontWeight: 500,
-            }}
+            style={testAllConnectionsBtnStyle}
           >
             {testing ? "Testing…" : "Test all connections"}
           </button>
@@ -1604,6 +1548,106 @@ export const AccountsPage = () => {
     </PageShell>
   );
 };
+
+const inputFieldInputStyle = (mono?: boolean) =>
+  ({
+    background: "var(--surface2)",
+    border: "1px solid var(--border)",
+    borderRadius: 9,
+    padding: "10px 14px",
+    color: "var(--text1)",
+    fontSize: 13,
+    fontFamily: mono ? "var(--font-mono)" : "var(--font-sans)",
+    letterSpacing: mono ? "0.04em" : "normal",
+    transition: "border-color 0.15s",
+  }) as const;
+
+const saveKeychainBtnStyle = (isSaving: boolean) =>
+  ({
+    fontSize: 12,
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: "none",
+    background: "var(--accent)",
+    color: "#fff",
+    fontWeight: 600,
+    cursor: isSaving ? "wait" : "pointer",
+    opacity: isSaving ? 0.85 : 1,
+  }) as const;
+
+const addProviderBtnStyle = {
+  marginTop: 12,
+  width: "100%",
+  padding: "10px 14px",
+  borderRadius: 9,
+  border: "1px dashed var(--border)",
+  background: "transparent",
+  color: "var(--text2)",
+  fontSize: 13,
+  cursor: "pointer",
+} as const;
+
+const saveDefaultModelBtnStyle = (disabled: boolean) =>
+  ({
+    width: "100%",
+    padding: "10px 14px",
+    borderRadius: 9,
+    border: "none",
+    background: "var(--accent)",
+    color: "#fff",
+    fontWeight: 600,
+    fontSize: 13,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.7 : 1,
+  }) as const;
+
+const brokerRowStyle = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  padding: "10px 12px",
+  borderRadius: 9,
+  border: "1px solid var(--border)",
+  background: "var(--surface2)",
+} as const;
+
+const accentActionBtnBase = {
+  width: "100%",
+  padding: "10px 14px",
+  borderRadius: 9,
+  border: "none",
+  background: "var(--accent)",
+  color: "#fff",
+  fontWeight: 600,
+  fontSize: 13,
+  cursor: "pointer",
+} as const;
+
+const accentActionBtnStyle = {
+  ...accentActionBtnBase,
+  marginTop: 8,
+} as const;
+
+const saveOverrideBtnStyle = {
+  ...accentActionBtnBase,
+  marginTop: 12,
+} as const;
+
+const saveSearchSettingsBtnStyle = accentActionBtnBase;
+
+const testAllConnectionsBtnStyle = {
+  width: "100%",
+  padding: "11px 20px",
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: 10,
+  color: "var(--text2)",
+  fontSize: 13,
+  cursor: "pointer",
+  fontFamily: "var(--font-sans)",
+  fontWeight: 500,
+} as const;
 
 const envToggleStyle = {
   display: "grid",

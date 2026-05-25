@@ -51,46 +51,319 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
   }
 }
 
-const filterTabButtonStyle = {
-  padding: "5px 14px",
-  fontSize: 12,
-  borderRadius: 7,
-  cursor: "pointer",
-  fontFamily: "var(--font-sans)",
-} as const;
+// ---------------------------------------------------------------------------
+// Trade type (minimal shape from store)
+// ---------------------------------------------------------------------------
 
-const tradeTableHeaderStyle = {
-  display: "grid",
-  padding: "10px 20px 8px",
-  fontSize: 12,
-  color: "var(--text3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.07em",
-  fontWeight: 600,
-  borderBottom: "1px solid var(--border)",
-} as const;
+type Trade = {
+  id: string;
+  status: string;
+  sessionName?: string | null;
+  sessionId?: string | null;
+  instrumentSymbol: string;
+  instrumentDisplayName?: string | null;
+  predictionOutcome?: string | null;
+  side: string;
+  position_size_usd?: number | null;
+  entry_price?: number | null;
+  current_price?: number | null;
+  unrealized_pnl?: number | null;
+  final_pnl_usd?: number | null;
+  ai_cost_usd?: number | null;
+  confidence_score?: number | null;
+  opened_at?: string | null;
+};
 
-const tradeRowStyle = {
-  display: "grid",
-  padding: "11px 20px",
-  alignItems: "center",
-  cursor: "pointer",
-  borderBottom: "1px solid var(--border)",
-  transition: "background 0.1s",
-} as const;
+// ---------------------------------------------------------------------------
+// TradeFilters
+// ---------------------------------------------------------------------------
 
-const autopsyButtonStyle = {
-  padding: "3px 8px",
-  borderRadius: 5,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text3)",
-  fontSize: 12,
-  cursor: "pointer",
-  fontFamily: "var(--font-mono)",
-  letterSpacing: "0.03em",
-  whiteSpace: "nowrap" as const,
-} as const;
+const TradeFilters = ({
+  filterState,
+  viewMode,
+  sessionOptions,
+  dispatch,
+}: {
+  filterState: FilterState;
+  viewMode: string;
+  sessionOptions: { id: string; name: string }[];
+  dispatch: (action: FilterAction) => void;
+}) => {
+  const { symbolContains, instrumentType, brokerAccountId, sessionFilterId } =
+    filterState;
+  return (
+    <Card
+      style={{
+        padding: "14px 18px",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 10,
+        alignItems: "flex-end",
+      }}
+    >
+      <div style={filterLabelStyle}>
+        Symbol
+        <input
+          value={symbolContains}
+          onChange={(e) =>
+            dispatch({
+              type: "setSymbolContains",
+              symbolContains: e.target.value,
+            })
+          }
+          placeholder="e.g. AAPL"
+          style={filterInputStyle}
+        />
+      </div>
+      <div style={filterLabelStyle}>
+        Class
+        <ShadcnSelect
+          value={instrumentType}
+          onValueChange={(value) =>
+            dispatch({
+              type: "setInstrumentType",
+              instrumentType: value as "" | InstrumentClass,
+            })
+          }
+          className="min-w-[120px]"
+          options={[
+            { value: "", label: "Any" },
+            { value: "stock", label: "Stock" },
+            { value: "crypto", label: "Crypto" },
+            { value: "futures", label: "Futures" },
+          ]}
+        />
+      </div>
+      <div style={filterLabelStyle}>
+        Broker account id
+        <input
+          value={brokerAccountId}
+          onChange={(e) =>
+            dispatch({
+              type: "setBrokerAccountId",
+              brokerAccountId: e.target.value,
+            })
+          }
+          placeholder="UUID"
+          style={filterInputStyle}
+        />
+      </div>
+      {viewMode === "global" ? (
+        <div style={filterLabelStyle}>
+          Session
+          <ShadcnSelect
+            value={sessionFilterId}
+            onValueChange={(value) =>
+              dispatch({
+                type: "setSessionFilterId",
+                sessionFilterId: value,
+              })
+            }
+            className="min-w-[180px]"
+            options={[
+              { value: "", label: "All sessions" },
+              ...sessionOptions.map((session) => ({
+                value: session.id,
+                label: session.name,
+              })),
+            ]}
+          />
+        </div>
+      ) : null}
+    </Card>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// TradeRow
+// ---------------------------------------------------------------------------
+
+const TradeRow = ({
+  trade,
+  isSelected,
+  viewMode,
+  onSelect,
+  onViewAutopsy,
+}: {
+  trade: Trade;
+  isSelected: boolean;
+  viewMode: string;
+  onSelect: (id: string) => void;
+  onViewAutopsy?: (id: string) => void;
+}) => {
+  const isOpen = trade.status === "open";
+  const pnl = (isOpen ? trade.unrealized_pnl : trade.final_pnl_usd) ?? null;
+  const pos = pnl != null && pnl >= 0;
+  const sessionLabel = trade.sessionName ?? trade.sessionId ?? "—";
+  const gridCols =
+    viewMode === "global"
+      ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
+      : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px";
+
+  return (
+    <div
+      key={trade.id}
+      onClick={() => onSelect(trade.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(trade.id);
+        }
+      }}
+      style={{
+        ...tradeRowStyle,
+        gridTemplateColumns: gridCols,
+        background: isSelected ? "var(--surface2)" : "transparent",
+        minWidth: 860,
+      }}
+    >
+      {viewMode === "global" && (
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--text3)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={sessionLabel}
+        >
+          {sessionLabel}
+        </span>
+      )}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 14,
+            fontWeight: 700,
+            color: "var(--text1)",
+          }}
+        >
+          {trade.instrumentSymbol}
+        </span>
+        {trade.instrumentDisplayName ? (
+          <span
+            style={{
+              fontSize: 12,
+              color: "var(--text3)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {trade.instrumentDisplayName}
+          </span>
+        ) : null}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        {trade.predictionOutcome ? (
+          <Badge variant="purple" size="sm">
+            {trade.predictionOutcome}
+          </Badge>
+        ) : null}
+        <Badge variant={trade.side === "BUY" ? "success" : "danger"} size="sm">
+          {trade.side}
+        </Badge>
+      </div>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 12,
+          color: "var(--text2)",
+        }}
+      >
+        {trade.position_size_usd != null
+          ? fmt.usd(trade.position_size_usd, 0)
+          : "—"}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 12,
+          color: "var(--text2)",
+        }}
+      >
+        {trade.entry_price != null ? fmt.usd(trade.entry_price) : "—"}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 12,
+          color: "var(--text2)",
+        }}
+      >
+        {isOpen && trade.current_price != null
+          ? fmt.usd(trade.current_price)
+          : "—"}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 12,
+          color: pos ? "#34d399" : "#f87171",
+          fontWeight: 600,
+        }}
+      >
+        {pnl != null ? fmt.pnl(pnl) : "—"}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 12,
+          color: "var(--text3)",
+        }}
+      >
+        {trade.ai_cost_usd != null ? fmt.usd(trade.ai_cost_usd, 3) : "—"}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 12,
+          color: "var(--text2)",
+        }}
+      >
+        {trade.confidence_score != null
+          ? `${Math.round(trade.confidence_score * 100)}%`
+          : "—"}
+      </span>
+      <Badge variant={isOpen ? "success" : "default"} size="sm">
+        {trade.status}
+      </Badge>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: 12,
+          color: "var(--text3)",
+        }}
+      >
+        {trade.opened_at ? fmt.time(trade.opened_at) : "—"}
+      </span>
+      {!isOpen && onViewAutopsy && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewAutopsy(trade.id);
+          }}
+          style={autopsyButtonStyle}
+          title="View autopsy"
+        >
+          ⚕ Autopsy
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// TradesPage
+// ---------------------------------------------------------------------------
 
 export const TradesPage = ({
   onViewAutopsy,
@@ -179,6 +452,11 @@ export const TradesPage = ({
   const wins = closed.filter((t) => (t.final_pnl_usd ?? 0) > 0);
   const realPnl = closed.reduce((s, t) => s + (t.final_pnl_usd ?? 0), 0);
 
+  const gridCols =
+    viewMode === "global"
+      ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
+      : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px";
+
   return (
     <PageShell>
       <div>
@@ -238,85 +516,12 @@ export const TradesPage = ({
         )}
       </div>
 
-      <Card
-        style={{
-          padding: "14px 18px",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 10,
-          alignItems: "flex-end",
-        }}
-      >
-        <div style={filterLabelStyle}>
-          Symbol
-          <input
-            value={symbolContains}
-            onChange={(e) =>
-              dispatchFilter({
-                type: "setSymbolContains",
-                symbolContains: e.target.value,
-              })
-            }
-            placeholder="e.g. AAPL"
-            style={filterInputStyle}
-          />
-        </div>
-        <div style={filterLabelStyle}>
-          Class
-          <ShadcnSelect
-            value={instrumentType}
-            onValueChange={(value) =>
-              dispatchFilter({
-                type: "setInstrumentType",
-                instrumentType: value as "" | InstrumentClass,
-              })
-            }
-            className="min-w-[120px]"
-            options={[
-              { value: "", label: "Any" },
-              { value: "stock", label: "Stock" },
-              { value: "crypto", label: "Crypto" },
-              { value: "futures", label: "Futures" },
-            ]}
-          />
-        </div>
-        <div style={filterLabelStyle}>
-          Broker account id
-          <input
-            value={brokerAccountId}
-            onChange={(e) =>
-              dispatchFilter({
-                type: "setBrokerAccountId",
-                brokerAccountId: e.target.value,
-              })
-            }
-            placeholder="UUID"
-            style={filterInputStyle}
-          />
-        </div>
-        {viewMode === "global" ? (
-          <div style={filterLabelStyle}>
-            Session
-            <ShadcnSelect
-              value={sessionFilterId}
-              onValueChange={(value) =>
-                dispatchFilter({
-                  type: "setSessionFilterId",
-                  sessionFilterId: value,
-                })
-              }
-              className="min-w-[180px]"
-              options={[
-                { value: "", label: "All sessions" },
-                ...sessionOptions.map((session) => ({
-                  value: session.id,
-                  label: session.name,
-                })),
-              ]}
-            />
-          </div>
-        ) : null}
-      </Card>
+      <TradeFilters
+        filterState={filterState}
+        viewMode={viewMode}
+        sessionOptions={sessionOptions}
+        dispatch={dispatchFilter}
+      />
 
       <div style={{ display: "flex", gap: 14 }}>
         {[
@@ -396,10 +601,7 @@ export const TradesPage = ({
           <div
             style={{
               ...tradeTableHeaderStyle,
-              gridTemplateColumns:
-                viewMode === "global"
-                  ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
-                  : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px",
+              gridTemplateColumns: gridCols,
               minWidth: 860,
             }}
           >
@@ -420,181 +622,62 @@ export const TradesPage = ({
               <span key={h}>{h}</span>
             ))}
           </div>
-          {trades.map((t) => {
-            const isOpen = t.status === "open";
-            const pnl = (isOpen ? t.unrealized_pnl : t.final_pnl_usd) ?? null;
-            const pos = pnl != null && pnl >= 0;
-            const sessionLabel = t.sessionName ?? t.sessionId ?? "—";
-            return (
-              <div
-                key={t.id}
-                onClick={() => setSelected(t.id === selectedId ? null : t.id)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setSelected(t.id === selectedId ? null : t.id);
-                  }
-                }}
-                style={{
-                  ...tradeRowStyle,
-                  gridTemplateColumns:
-                    viewMode === "global"
-                      ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
-                      : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px",
-                  background:
-                    t.id === selectedId ? "var(--surface2)" : "transparent",
-                  minWidth: 860,
-                }}
-              >
-                {viewMode === "global" && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: "var(--text3)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                    title={sessionLabel}
-                  >
-                    {sessionLabel}
-                  </span>
-                )}
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    minWidth: 0,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: "var(--text1)",
-                    }}
-                  >
-                    {t.instrumentSymbol}
-                  </span>
-                  {t.instrumentDisplayName ? (
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text3)",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {t.instrumentDisplayName}
-                    </span>
-                  ) : null}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {t.predictionOutcome ? (
-                    <Badge variant="purple" size="sm">
-                      {t.predictionOutcome}
-                    </Badge>
-                  ) : null}
-                  <Badge
-                    variant={t.side === "BUY" ? "success" : "danger"}
-                    size="sm"
-                  >
-                    {t.side}
-                  </Badge>
-                </div>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--text2)",
-                  }}
-                >
-                  {fmt.usd(t.position_size_usd, 0)}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--text2)",
-                  }}
-                >
-                  {t.entry_price != null ? fmt.usd(t.entry_price) : "—"}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--text2)",
-                  }}
-                >
-                  {isOpen && t.current_price != null
-                    ? fmt.usd(t.current_price)
-                    : "—"}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: pos ? "#34d399" : "#f87171",
-                    fontWeight: 600,
-                  }}
-                >
-                  {pnl != null ? fmt.pnl(pnl) : "—"}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--text3)",
-                  }}
-                >
-                  {fmt.usd(t.ai_cost_usd, 3)}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--text2)",
-                  }}
-                >
-                  {t.confidence_score != null
-                    ? `${Math.round(t.confidence_score * 100)}%`
-                    : "—"}
-                </span>
-                <Badge variant={isOpen ? "success" : "default"} size="sm">
-                  {t.status}
-                </Badge>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--text3)",
-                  }}
-                >
-                  {t.opened_at ? fmt.time(t.opened_at) : "—"}
-                </span>
-                {!isOpen && onViewAutopsy && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewAutopsy(t.id);
-                    }}
-                    style={autopsyButtonStyle}
-                    title="View autopsy"
-                  >
-                    ⚕ Autopsy
-                  </button>
-                )}
-              </div>
-            );
-          })}
+          {trades.map((t) => (
+            <TradeRow
+              key={t.id}
+              trade={t}
+              isSelected={t.id === selectedId}
+              viewMode={viewMode}
+              onSelect={(id) => setSelected(id === selectedId ? null : id)}
+              onViewAutopsy={onViewAutopsy}
+            />
+          ))}
         </div>
       </Card>
     </PageShell>
   );
 };
+
+const filterTabButtonStyle = {
+  padding: "5px 14px",
+  fontSize: 12,
+  borderRadius: 7,
+  cursor: "pointer",
+  fontFamily: "var(--font-sans)",
+} as const;
+
+const tradeTableHeaderStyle = {
+  display: "grid",
+  padding: "10px 20px 8px",
+  fontSize: 12,
+  color: "var(--text3)",
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+  fontWeight: 600,
+  borderBottom: "1px solid var(--border)",
+} as const;
+
+const tradeRowStyle = {
+  display: "grid",
+  padding: "11px 20px",
+  alignItems: "center",
+  cursor: "pointer",
+  borderBottom: "1px solid var(--border)",
+  transition: "background 0.1s",
+} as const;
+
+const autopsyButtonStyle = {
+  padding: "3px 8px",
+  borderRadius: 5,
+  border: "1px solid var(--border)",
+  background: "transparent",
+  color: "var(--text3)",
+  fontSize: 12,
+  cursor: "pointer",
+  fontFamily: "var(--font-mono)",
+  letterSpacing: "0.03em",
+  whiteSpace: "nowrap" as const,
+} as const;
 
 const filterLabelStyle = {
   display: "flex",

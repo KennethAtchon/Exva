@@ -23,6 +23,7 @@ import {
 } from "@/components/strategy/GlobalPresetComponents";
 import { api } from "@/lib/exva";
 import { useSessionStore } from "@/store/sessionStore";
+import type { SessionStatus } from "@/lib/types";
 import { useStrategyStore } from "@/store/strategyStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
@@ -64,6 +65,214 @@ const TABS = [
 ];
 
 type SectionId = "style" | "rules" | "risk" | "timeframe" | "ai";
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+const LockedWarning = ({
+  sessionStatus,
+  focusedSessionId,
+  focusedOpenTradeCount,
+  setSessionStatus,
+  loadStrategy,
+}: {
+  sessionStatus: SessionStatus;
+  focusedSessionId: string;
+  focusedOpenTradeCount: number;
+  setSessionStatus: (status: SessionStatus) => void;
+  loadStrategy: (id: string) => Promise<void>;
+}) => (
+  <div style={warningStyle}>
+    <div>
+      {sessionStatus === "monitoring_only"
+        ? "Session is stopping when flat — open positions remain managed until the last trade closes."
+        : "Stop this session before editing its strategy or AI configuration."}
+      {sessionStatus !== "monitoring_only" && focusedOpenTradeCount > 0
+        ? " Open positions are active — use Stop when flat to drain safely, or Force stop to edit anyway."
+        : null}
+    </div>
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {(sessionStatus === "active" || sessionStatus === "paused") &&
+      focusedOpenTradeCount > 0 ? (
+        <button
+          onClick={async () => {
+            const next = await api.stopSession();
+            setSessionStatus(next);
+            await loadStrategy(focusedSessionId);
+          }}
+          style={warningDrainButtonStyle}
+          title="Stops new research immediately and completes shutdown once all open trades close."
+        >
+          Stop when flat
+        </button>
+      ) : null}
+      {sessionStatus === "monitoring_only" || focusedOpenTradeCount > 0 ? (
+        <button
+          onClick={async () => {
+            if (
+              !window.confirm(
+                "Force stop will end automated exit management for open positions. Continue?",
+              )
+            ) {
+              return;
+            }
+            const next = await api.forceStopSession();
+            setSessionStatus(next);
+            await loadStrategy(focusedSessionId);
+          }}
+          style={warningForceStopButtonStyle}
+        >
+          Force Stop Session
+        </button>
+      ) : (
+        <button
+          onClick={async () => {
+            const next = await api.stopSession();
+            setSessionStatus(next);
+            await loadStrategy(focusedSessionId);
+          }}
+          style={warningButtonStyle}
+        >
+          Stop Session
+        </button>
+      )}
+    </div>
+  </div>
+);
+
+const StrategyHeader = ({
+  activeView,
+  setActiveView,
+  hasDirty,
+  isSaving,
+  isLocked,
+  focusedSessionId,
+  saveAll,
+}: {
+  activeView: "presets" | "customize";
+  setActiveView: (view: "presets" | "customize") => void;
+  hasDirty: boolean;
+  isSaving: boolean;
+  isLocked: boolean;
+  focusedSessionId: string;
+  saveAll: (id: string) => Promise<void>;
+}) => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    }}
+  >
+    <div>
+      <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>
+        Strategy
+      </h1>
+      <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
+        Separate research posture, trade rules, risk limits, timeframe, phase
+        operating briefs, and AI phase model/prompt settings for the focused
+        session.
+      </p>
+    </div>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={viewToggleContainerStyle}>
+        <button
+          type="button"
+          onClick={() => setActiveView("presets")}
+          style={
+            activeView === "presets"
+              ? viewToggleActiveStyle
+              : viewToggleInactiveStyle
+          }
+        >
+          Presets
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveView("customize")}
+          style={
+            activeView === "customize"
+              ? viewToggleActiveStyle
+              : viewToggleInactiveStyle
+          }
+        >
+          Customize
+        </button>
+      </div>
+      <button
+        onClick={() => void saveAll(focusedSessionId)}
+        disabled={!hasDirty || isSaving || isLocked}
+        style={{
+          padding: "9px 18px",
+          borderRadius: 9,
+          border: "none",
+          background:
+            !hasDirty || isLocked ? "var(--surface3)" : "var(--accent)",
+          color: !hasDirty || isLocked ? "var(--text3)" : "#fff",
+          cursor: !hasDirty || isLocked ? "not-allowed" : "pointer",
+          fontWeight: 700,
+        }}
+      >
+        {isSaving ? "Saving..." : "Save Changes"}
+      </button>
+    </div>
+  </div>
+);
+
+const PresetPanel = ({
+  builtInGlobalPresets,
+  userGlobalPresets,
+  researchPosture,
+  rules,
+  riskConfig,
+  timeframe,
+  isLocked,
+  applyGlobalPreset,
+  loadGlobalPresets,
+  setCreateModalOpen,
+  setEditingPreset,
+}: {
+  builtInGlobalPresets: GlobalStrategyPreset[];
+  userGlobalPresets: UserGlobalPresetRow[];
+  researchPosture: SessionResearchPosture;
+  rules: SessionTradeRules;
+  riskConfig: SessionRiskConfig;
+  timeframe: SessionTimeframeConfig;
+  isLocked: boolean;
+  applyGlobalPreset: (preset: GlobalStrategyPreset) => void;
+  loadGlobalPresets: () => Promise<void>;
+  setCreateModalOpen: (open: boolean) => void;
+  setEditingPreset: (
+    preset: (UserGlobalPresetInput & { id: string }) | null,
+  ) => void;
+}) => (
+  <GlobalPresetGrid
+    builtInPresets={builtInGlobalPresets}
+    userPresets={userGlobalPresets}
+    currentPosturePresetId={researchPosture.posturePresetId}
+    currentRulesPresetId={rules.rulesPresetId}
+    currentRiskPresetId={riskConfig.riskPresetId ?? "custom"}
+    currentTimeframePresetId={timeframe.timeframePresetId ?? "custom"}
+    disabled={isLocked}
+    onApply={(preset) => applyGlobalPreset(preset)}
+    onCreatePreset={() => setCreateModalOpen(true)}
+    onEditPreset={(p) => {
+      const j = JSON.parse(p.presetJson) as Partial<UserGlobalPresetInput>;
+      setEditingPreset({
+        id: p.id,
+        name: p.name,
+        posturePresetId: j.posturePresetId ?? "custom",
+        rulesPresetId: j.rulesPresetId ?? "custom",
+        riskPresetId: j.riskPresetId ?? "custom",
+        timeframePresetId: j.timeframePresetId ?? "custom",
+      });
+    }}
+    onDeletePreset={async (id) => {
+      if (!window.confirm("Delete this preset?")) return;
+      await api.deleteGlobalPreset({ id });
+      await loadGlobalPresets();
+    }}
+  />
+);
 
 export const StrategyConfig = ({
   onGoToSessions,
@@ -282,157 +491,40 @@ export const StrategyConfig = ({
       )}
 
       {isLocked && (
-        <div style={warningStyle}>
-          <div>
-            {sessionStatus === "monitoring_only"
-              ? "Session is stopping when flat — open positions remain managed until the last trade closes."
-              : "Stop this session before editing its strategy or AI configuration."}
-            {sessionStatus !== "monitoring_only" && focusedOpenTradeCount > 0
-              ? " Open positions are active — use Stop when flat to drain safely, or Force stop to edit anyway."
-              : null}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {(sessionStatus === "active" || sessionStatus === "paused") &&
-            focusedOpenTradeCount > 0 ? (
-              <button
-                onClick={async () => {
-                  const next = await api.stopSession();
-                  setSessionStatus(next);
-                  await loadStrategy(focusedSessionId);
-                }}
-                style={warningDrainButtonStyle}
-                title="Stops new research immediately and completes shutdown once all open trades close."
-              >
-                Stop when flat
-              </button>
-            ) : null}
-            {sessionStatus === "monitoring_only" ||
-            focusedOpenTradeCount > 0 ? (
-              <button
-                onClick={async () => {
-                  if (
-                    !window.confirm(
-                      "Force stop will end automated exit management for open positions. Continue?",
-                    )
-                  ) {
-                    return;
-                  }
-                  const next = await api.forceStopSession();
-                  setSessionStatus(next);
-                  await loadStrategy(focusedSessionId);
-                }}
-                style={warningForceStopButtonStyle}
-              >
-                Force Stop Session
-              </button>
-            ) : (
-              <button
-                onClick={async () => {
-                  const next = await api.stopSession();
-                  setSessionStatus(next);
-                  await loadStrategy(focusedSessionId);
-                }}
-                style={warningButtonStyle}
-              >
-                Stop Session
-              </button>
-            )}
-          </div>
-        </div>
+        <LockedWarning
+          sessionStatus={sessionStatus}
+          focusedSessionId={focusedSessionId}
+          focusedOpenTradeCount={focusedOpenTradeCount}
+          setSessionStatus={setSessionStatus}
+          loadStrategy={loadStrategy}
+        />
       )}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>
-            Strategy
-          </h1>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
-            Separate research posture, trade rules, risk limits, timeframe,
-            phase operating briefs, and AI phase model/prompt settings for the
-            focused session.
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={viewToggleContainerStyle}>
-            <button
-              type="button"
-              onClick={() => setActiveView("presets")}
-              style={
-                activeView === "presets"
-                  ? viewToggleActiveStyle
-                  : viewToggleInactiveStyle
-              }
-            >
-              Presets
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView("customize")}
-              style={
-                activeView === "customize"
-                  ? viewToggleActiveStyle
-                  : viewToggleInactiveStyle
-              }
-            >
-              Customize
-            </button>
-          </div>
-          <button
-            onClick={() => void saveAll(focusedSessionId)}
-            disabled={!hasDirty || isSaving || isLocked}
-            style={{
-              padding: "9px 18px",
-              borderRadius: 9,
-              border: "none",
-              background:
-                !hasDirty || isLocked ? "var(--surface3)" : "var(--accent)",
-              color: !hasDirty || isLocked ? "var(--text3)" : "#fff",
-              cursor: !hasDirty || isLocked ? "not-allowed" : "pointer",
-              fontWeight: 700,
-            }}
-          >
-            {isSaving ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
-      </div>
+      <StrategyHeader
+        activeView={activeView}
+        setActiveView={setActiveView}
+        hasDirty={hasDirty}
+        isSaving={isSaving}
+        isLocked={isLocked}
+        focusedSessionId={focusedSessionId}
+        saveAll={saveAll}
+      />
 
       <ActiveGlobalPresetIndicator preset={activeGlobalPreset} />
 
       {activeView === "presets" && (
-        <GlobalPresetGrid
-          builtInPresets={builtInGlobalPresets}
-          userPresets={userGlobalPresets}
-          currentPosturePresetId={researchPosture.posturePresetId}
-          currentRulesPresetId={rules.rulesPresetId}
-          currentRiskPresetId={riskConfig.riskPresetId ?? "custom"}
-          currentTimeframePresetId={timeframe.timeframePresetId ?? "custom"}
-          disabled={isLocked}
-          onApply={(preset) => applyGlobalPreset(preset)}
-          onCreatePreset={() => setCreateModalOpen(true)}
-          onEditPreset={(p) => {
-            const j = JSON.parse(
-              p.presetJson,
-            ) as Partial<UserGlobalPresetInput>;
-            setEditingPreset({
-              id: p.id,
-              name: p.name,
-              posturePresetId: j.posturePresetId ?? "custom",
-              rulesPresetId: j.rulesPresetId ?? "custom",
-              riskPresetId: j.riskPresetId ?? "custom",
-              timeframePresetId: j.timeframePresetId ?? "custom",
-            });
-          }}
-          onDeletePreset={async (id) => {
-            if (!window.confirm("Delete this preset?")) return;
-            await api.deleteGlobalPreset({ id });
-            await loadGlobalPresets();
-          }}
+        <PresetPanel
+          builtInGlobalPresets={builtInGlobalPresets}
+          userGlobalPresets={userGlobalPresets}
+          researchPosture={researchPosture}
+          rules={rules}
+          riskConfig={riskConfig}
+          timeframe={timeframe}
+          isLocked={isLocked}
+          applyGlobalPreset={applyGlobalPreset}
+          loadGlobalPresets={loadGlobalPresets}
+          setCreateModalOpen={setCreateModalOpen}
+          setEditingPreset={setEditingPreset}
         />
       )}
 
@@ -715,27 +807,25 @@ function labelize(value: string): string {
 
 const Step = ({ n, text }: { n: number; text: string }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-    <div
-      style={{
-        width: 22,
-        height: 22,
-        borderRadius: "50%",
-        background: "var(--surface3)",
-        border: "1px solid var(--border)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 12,
-        fontWeight: 700,
-        color: "var(--text2)",
-        flexShrink: 0,
-      }}
-    >
-      {n}
-    </div>
+    <div style={stepBadgeStyle}>{n}</div>
     <span style={{ color: "var(--text2)", fontSize: 13 }}>{text}</span>
   </div>
 );
+
+const stepBadgeStyle = {
+  width: 22,
+  height: 22,
+  borderRadius: "50%",
+  background: "var(--surface3)",
+  border: "1px solid var(--border)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 12,
+  fontWeight: 700,
+  color: "var(--text2)",
+  flexShrink: 0,
+} as const;
 
 const emptyStateStyle = {
   display: "flex",

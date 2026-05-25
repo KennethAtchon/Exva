@@ -16,6 +16,394 @@ const FORCE_STOP_CONFIRM_MESSAGE =
 const STOP_WHEN_FLAT_TITLE =
   "Stops new research immediately and completes shutdown once all open trades close.";
 
+// ---------------------------------------------------------------------------
+// SessionControls — lifecycle action button group within each card
+// ---------------------------------------------------------------------------
+
+const SessionControls = ({
+  session,
+  busy,
+  aiBlocked,
+  hasOpenTrades,
+  onFocus,
+  onEdit,
+  onDuplicate,
+  onSaveTemplate,
+  onArchive,
+  onLifecycle,
+}: {
+  session: SessionSummary;
+  busy: boolean;
+  aiBlocked: boolean;
+  hasOpenTrades: boolean;
+  onFocus: (id: string) => void;
+  onEdit: (session: SessionSummary) => void;
+  onDuplicate: (session: SessionSummary) => void;
+  onSaveTemplate: (session: SessionSummary) => void;
+  onArchive: (id: string) => void;
+  onLifecycle: (session: SessionSummary, action: LifecycleAction) => void;
+}) => {
+  const locked =
+    session.status === "active" ||
+    session.status === "paused" ||
+    session.status === "monitoring_only";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        flexWrap: "wrap",
+        marginTop: 14,
+        borderTop: "1px solid var(--border)",
+        paddingTop: 12,
+      }}
+    >
+      <Button
+        onClick={() => onFocus(session.id)}
+        variant="outline"
+        style={{
+          ...actionButtonStyle,
+          ...(session.isFocused ? focusedButtonStyle : {}),
+        }}
+        disabled={busy || session.isFocused}
+      >
+        {session.isFocused ? "Focused" : "Focus"}
+      </Button>
+      <Button
+        onClick={() => onEdit(session)}
+        variant="outline"
+        style={actionButtonStyle}
+        disabled={busy || locked}
+      >
+        Edit
+      </Button>
+      <Button
+        onClick={() => onDuplicate(session)}
+        variant="outline"
+        style={actionButtonStyle}
+        disabled={busy}
+      >
+        Duplicate
+      </Button>
+      <Button
+        onClick={() => onSaveTemplate(session)}
+        variant="outline"
+        style={actionButtonStyle}
+        disabled={busy}
+      >
+        Save Template
+      </Button>
+      <div style={{ flex: 1 }} />
+      {session.status === "draft" ||
+      session.status === "idle" ||
+      session.status === "stopped" ? (
+        <Button
+          onClick={() => onLifecycle(session, "start")}
+          variant="ghost"
+          style={{
+            ...primaryActionButtonStyle,
+            ...(aiBlocked ? blockedStyle : {}),
+          }}
+          disabled={busy || aiBlocked}
+          title={
+            aiBlocked
+              ? "AI providers not connected — configure in Strategy tab"
+              : undefined
+          }
+        >
+          Start
+        </Button>
+      ) : null}
+      {session.status === "active" ? (
+        <Button
+          onClick={() => onLifecycle(session, "pause")}
+          variant="outline"
+          style={actionButtonStyle}
+          disabled={busy}
+          title="Pause stops new research but keeps exits managed."
+        >
+          Pause
+        </Button>
+      ) : null}
+      {session.status === "paused" ? (
+        <Button
+          onClick={() => onLifecycle(session, "resume")}
+          variant="ghost"
+          style={primaryActionButtonStyle}
+          disabled={busy}
+        >
+          Resume
+        </Button>
+      ) : null}
+      {(session.status === "active" || session.status === "paused") &&
+      !hasOpenTrades ? (
+        <Button
+          onClick={() => onLifecycle(session, "stop")}
+          variant="ghost"
+          style={dangerButtonStyle}
+          disabled={busy}
+        >
+          Stop
+        </Button>
+      ) : null}
+      {(session.status === "active" || session.status === "paused") &&
+      hasOpenTrades ? (
+        <Button
+          onClick={() => onLifecycle(session, "stop")}
+          variant="ghost"
+          style={stopWhenFlatButtonStyle}
+          disabled={busy}
+          title={STOP_WHEN_FLAT_TITLE}
+        >
+          Stop when flat
+        </Button>
+      ) : null}
+      {(session.status === "active" ||
+        session.status === "paused" ||
+        session.status === "monitoring_only") &&
+      hasOpenTrades ? (
+        <Button
+          onClick={() => {
+            if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) return;
+            onLifecycle(session, "forceStop");
+          }}
+          variant="ghost"
+          style={forceStopButtonStyle}
+          disabled={busy}
+          title="Force stop ends automated exit management for open positions."
+        >
+          Force stop (loses trade management)
+        </Button>
+      ) : null}
+      <Button
+        onClick={() => onArchive(session.id)}
+        variant="outline"
+        style={actionButtonStyle}
+        disabled={busy || locked}
+      >
+        Archive
+      </Button>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// SessionCard — single session article
+// ---------------------------------------------------------------------------
+
+const SessionCard = ({
+  session,
+  busySessionId,
+  focusedSessionAiReady,
+  progressBySessionId,
+  researchFailuresBySessionId,
+  onFocus,
+  onEdit,
+  onOpen,
+  onDuplicate,
+  onArchive,
+  onSaveTemplate,
+  onLifecycle,
+  onRetryStep,
+  onViewTrace,
+  onPauseAfterStep,
+}: {
+  session: SessionSummary;
+  busySessionId?: string | null;
+  focusedSessionAiReady?: boolean | null;
+  progressBySessionId?: Record<string, SessionProgressState>;
+  researchFailuresBySessionId?: Record<
+    string,
+    { phase: string; error: string; at: string }
+  >;
+  onFocus: (id: string) => void;
+  onEdit: (session: SessionSummary) => void;
+  onOpen: (session: SessionSummary) => void;
+  onDuplicate: (session: SessionSummary) => void;
+  onArchive: (id: string) => void;
+  onSaveTemplate: (session: SessionSummary) => void;
+  onLifecycle: (session: SessionSummary, action: LifecycleAction) => void;
+  onRetryStep?: (
+    sessionId: string,
+    cycleId: string,
+    stage: ExecutionStage,
+  ) => void;
+  onViewTrace?: (
+    sessionId: string,
+    cycleId: string,
+    stage: ExecutionStage,
+  ) => void;
+  onPauseAfterStep?: (sessionId: string) => void;
+}) => {
+  const busy = busySessionId === session.id;
+  const aiBlocked = session.isFocused && focusedSessionAiReady === false;
+  const hasOpenTrades = session.openTradeCount > 0;
+  const isDraining = session.status === "monitoring_only";
+  const showOrphanWarning =
+    session.status === "stopped" && session.openTradeCount > 0;
+
+  return (
+    <article
+      style={{
+        border: `1px solid ${session.isFocused ? "rgba(96,165,250,0.30)" : "var(--border)"}`,
+        borderRadius: 16,
+        padding: "16px 18px",
+        background: session.isFocused
+          ? "linear-gradient(135deg, rgba(96,165,250,0.07) 0%, rgba(13,18,25,0.97) 60%)"
+          : "rgba(13,18,25,0.97)",
+        boxShadow: session.isFocused
+          ? "0 0 0 1px rgba(96,165,250,0.08) inset, 0 8px 24px rgba(2,6,23,0.24)"
+          : "none",
+      }}
+    >
+      {/* Top row: name+objective | metrics+chips */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 220px",
+          gap: 16,
+          alignItems: "start",
+        }}
+      >
+        {/* Left: clickable name + objective */}
+        <button
+          type="button"
+          onClick={() => onOpen(session)}
+          style={titleButtonStyle}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              flexWrap: "wrap",
+              minWidth: 0,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "var(--text1)",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {session.name}
+            </span>
+            {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
+            <Badge variant={statusVariant(session.status)}>
+              {formatSessionStatusLabel(session.status)}
+            </Badge>
+          </div>
+          <div style={objectiveStyle}>{session.objective}</div>
+        </button>
+
+        {/* Right: metrics + chips */}
+        <div style={{ display: "grid", gap: 8 }}>
+          <div style={metricStripStyle}>
+            <Metric
+              label="uptime"
+              value={session.uptimeMin > 0 ? `${session.uptimeMin}m` : "—"}
+            />
+            <Metric label="trades" value={String(session.openTradeCount)} />
+            <Metric label="brokers" value={String(session.brokerCount)} />
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 5,
+              flexWrap: "wrap",
+              justifyContent: "flex-end",
+            }}
+          >
+            {session.instrumentClasses.map((ic) => (
+              <span key={ic} style={chipStyle}>
+                {formatInstrumentClass(ic)}
+              </span>
+            ))}
+            <span style={{ ...chipStyle, color: "var(--text3)" }}>
+              {session.selectionMode === "ai_selected_universe"
+                ? "AI"
+                : "Manual"}
+            </span>
+            <span style={{ ...chipStyle, color: "var(--text3)" }}>
+              {session.executionMode === "live_allowed" ? "Live" : "Paper"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Execution progress strip */}
+      <SessionExecutionProgress
+        sessionId={session.id}
+        progress={progressBySessionId?.[session.id] ?? null}
+        onRetry={onRetryStep ?? (() => undefined)}
+        onViewTrace={onViewTrace ?? (() => undefined)}
+        onPauseAfterStep={onPauseAfterStep ?? (() => undefined)}
+      />
+      {researchFailuresBySessionId?.[session.id] ? (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 12,
+            color: "#fca5a5",
+            lineHeight: 1.4,
+          }}
+        >
+          Research phase failed ({researchFailuresBySessionId[session.id].phase}
+          ): {researchFailuresBySessionId[session.id].error}
+        </div>
+      ) : null}
+      {isDraining ? (
+        <div style={drainBannerStyle}>
+          Stopping when flat: managing {session.openTradeCount} open trade
+          {session.openTradeCount === 1 ? "" : "s"}. Session stops automatically
+          once flat.
+        </div>
+      ) : null}
+      {showOrphanWarning ? (
+        <div style={orphanWarningStyle}>
+          Stopped with {session.openTradeCount} open trade
+          {session.openTradeCount === 1 ? "" : "s"}, no automated exits will
+          fire. Restart to resume monitoring.
+        </div>
+      ) : null}
+
+      {/* Meta strip */}
+      <div style={metaGridStyle}>
+        <MetaBlock label="Scope" value={session.instrumentScope} />
+        <MetaBlock
+          label="Allocated"
+          value={`$${session.totalAllocatedUsd.toLocaleString()}`}
+        />
+        <MetaBlock
+          label="Search"
+          value={getSearchProviderDisplayName(session.defaultSearchProviderId)}
+        />
+        <MetaBlock label="Updated" value={formatTimestamp(session.updatedAt)} />
+      </div>
+
+      <SessionControls
+        session={session}
+        busy={busy}
+        aiBlocked={aiBlocked}
+        hasOpenTrades={hasOpenTrades}
+        onFocus={onFocus}
+        onEdit={onEdit}
+        onDuplicate={onDuplicate}
+        onSaveTemplate={onSaveTemplate}
+        onArchive={onArchive}
+        onLifecycle={onLifecycle}
+      />
+    </article>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// SessionTable
+// ---------------------------------------------------------------------------
+
 export const SessionTable = ({
   sessions,
   busySessionId,
@@ -62,315 +450,26 @@ export const SessionTable = ({
 }) => {
   return (
     <div style={{ display: "grid", gap: 10 }}>
-      {sessions.map((session) => {
-        const locked =
-          session.status === "active" ||
-          session.status === "paused" ||
-          session.status === "monitoring_only";
-        const busy = busySessionId === session.id;
-        const aiBlocked = session.isFocused && focusedSessionAiReady === false;
-        const hasOpenTrades = session.openTradeCount > 0;
-        const isDraining = session.status === "monitoring_only";
-        const showOrphanWarning =
-          session.status === "stopped" && session.openTradeCount > 0;
-
-        return (
-          <article
-            key={session.id}
-            style={{
-              border: `1px solid ${session.isFocused ? "rgba(96,165,250,0.30)" : "var(--border)"}`,
-              borderRadius: 16,
-              padding: "16px 18px",
-              background: session.isFocused
-                ? "linear-gradient(135deg, rgba(96,165,250,0.07) 0%, rgba(13,18,25,0.97) 60%)"
-                : "rgba(13,18,25,0.97)",
-              boxShadow: session.isFocused
-                ? "0 0 0 1px rgba(96,165,250,0.08) inset, 0 8px 24px rgba(2,6,23,0.24)"
-                : "none",
-            }}
-          >
-            {/* Top row: name+objective | metrics+chips */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 220px",
-                gap: 16,
-                alignItems: "start",
-              }}
-            >
-              {/* Left: clickable name + objective */}
-              <button
-                type="button"
-                onClick={() => onOpen(session)}
-                style={titleButtonStyle}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 7,
-                    flexWrap: "wrap",
-                    minWidth: 0,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 15,
-                      fontWeight: 700,
-                      color: "var(--text1)",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    {session.name}
-                  </span>
-                  {session.isFocused ? (
-                    <Badge variant="blue">focused</Badge>
-                  ) : null}
-                  <Badge variant={statusVariant(session.status)}>
-                    {formatSessionStatusLabel(session.status)}
-                  </Badge>
-                </div>
-                <div style={objectiveStyle}>{session.objective}</div>
-              </button>
-
-              {/* Right: metrics + chips */}
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={metricStripStyle}>
-                  <Metric
-                    label="uptime"
-                    value={
-                      session.uptimeMin > 0 ? `${session.uptimeMin}m` : "—"
-                    }
-                  />
-                  <Metric
-                    label="trades"
-                    value={String(session.openTradeCount)}
-                  />
-                  <Metric label="brokers" value={String(session.brokerCount)} />
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 5,
-                    flexWrap: "wrap",
-                    justifyContent: "flex-end",
-                  }}
-                >
-                  {session.instrumentClasses.map((ic) => (
-                    <span key={ic} style={chipStyle}>
-                      {formatInstrumentClass(ic)}
-                    </span>
-                  ))}
-                  <span style={{ ...chipStyle, color: "var(--text3)" }}>
-                    {session.selectionMode === "ai_selected_universe"
-                      ? "AI"
-                      : "Manual"}
-                  </span>
-                  <span style={{ ...chipStyle, color: "var(--text3)" }}>
-                    {session.executionMode === "live_allowed"
-                      ? "Live"
-                      : "Paper"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Execution progress strip */}
-            <SessionExecutionProgress
-              sessionId={session.id}
-              progress={progressBySessionId?.[session.id] ?? null}
-              onRetry={onRetryStep ?? (() => undefined)}
-              onViewTrace={onViewTrace ?? (() => undefined)}
-              onPauseAfterStep={onPauseAfterStep ?? (() => undefined)}
-            />
-            {researchFailuresBySessionId?.[session.id] ? (
-              <div
-                style={{
-                  marginTop: 8,
-                  fontSize: 12,
-                  color: "#fca5a5",
-                  lineHeight: 1.4,
-                }}
-              >
-                Research phase failed (
-                {researchFailuresBySessionId[session.id].phase}):{" "}
-                {researchFailuresBySessionId[session.id].error}
-              </div>
-            ) : null}
-            {isDraining ? (
-              <div style={drainBannerStyle}>
-                Stopping when flat: managing {session.openTradeCount} open trade
-                {session.openTradeCount === 1 ? "" : "s"}. Session stops
-                automatically once flat.
-              </div>
-            ) : null}
-            {showOrphanWarning ? (
-              <div style={orphanWarningStyle}>
-                Stopped with {session.openTradeCount} open trade
-                {session.openTradeCount === 1 ? "" : "s"}, no automated exits
-                will fire. Restart to resume monitoring.
-              </div>
-            ) : null}
-
-            {/* Meta strip */}
-            <div style={metaGridStyle}>
-              <MetaBlock label="Scope" value={session.instrumentScope} />
-              <MetaBlock
-                label="Allocated"
-                value={`$${session.totalAllocatedUsd.toLocaleString()}`}
-              />
-              <MetaBlock
-                label="Search"
-                value={getSearchProviderDisplayName(
-                  session.defaultSearchProviderId,
-                )}
-              />
-              <MetaBlock
-                label="Updated"
-                value={formatTimestamp(session.updatedAt)}
-              />
-            </div>
-
-            {/* Action buttons */}
-            <div
-              style={{
-                display: "flex",
-                gap: 6,
-                flexWrap: "wrap",
-                marginTop: 14,
-                borderTop: "1px solid var(--border)",
-                paddingTop: 12,
-              }}
-            >
-              <Button
-                onClick={() => onFocus(session.id)}
-                variant="outline"
-                style={{
-                  ...actionButtonStyle,
-                  ...(session.isFocused ? focusedButtonStyle : {}),
-                }}
-                disabled={busy || session.isFocused}
-              >
-                {session.isFocused ? "Focused" : "Focus"}
-              </Button>
-              <Button
-                onClick={() => onEdit(session)}
-                variant="outline"
-                style={actionButtonStyle}
-                disabled={busy || locked}
-              >
-                Edit
-              </Button>
-              <Button
-                onClick={() => onDuplicate(session)}
-                variant="outline"
-                style={actionButtonStyle}
-                disabled={busy}
-              >
-                Duplicate
-              </Button>
-              <Button
-                onClick={() => onSaveTemplate(session)}
-                variant="outline"
-                style={actionButtonStyle}
-                disabled={busy}
-              >
-                Save Template
-              </Button>
-              <div style={{ flex: 1 }} />
-              {session.status === "draft" ||
-              session.status === "idle" ||
-              session.status === "stopped" ? (
-                <Button
-                  onClick={() => onLifecycle(session, "start")}
-                  variant="ghost"
-                  style={{
-                    ...primaryActionButtonStyle,
-                    ...(aiBlocked ? blockedStyle : {}),
-                  }}
-                  disabled={busy || aiBlocked}
-                  title={
-                    aiBlocked
-                      ? "AI providers not connected — configure in Strategy tab"
-                      : undefined
-                  }
-                >
-                  Start
-                </Button>
-              ) : null}
-              {session.status === "active" ? (
-                <Button
-                  onClick={() => onLifecycle(session, "pause")}
-                  variant="outline"
-                  style={actionButtonStyle}
-                  disabled={busy}
-                  title="Pause stops new research but keeps exits managed."
-                >
-                  Pause
-                </Button>
-              ) : null}
-              {session.status === "paused" ? (
-                <Button
-                  onClick={() => onLifecycle(session, "resume")}
-                  variant="ghost"
-                  style={primaryActionButtonStyle}
-                  disabled={busy}
-                >
-                  Resume
-                </Button>
-              ) : null}
-              {(session.status === "active" || session.status === "paused") &&
-              !hasOpenTrades ? (
-                <Button
-                  onClick={() => onLifecycle(session, "stop")}
-                  variant="ghost"
-                  style={dangerButtonStyle}
-                  disabled={busy}
-                >
-                  Stop
-                </Button>
-              ) : null}
-              {(session.status === "active" || session.status === "paused") &&
-              hasOpenTrades ? (
-                <Button
-                  onClick={() => onLifecycle(session, "stop")}
-                  variant="ghost"
-                  style={stopWhenFlatButtonStyle}
-                  disabled={busy}
-                  title={STOP_WHEN_FLAT_TITLE}
-                >
-                  Stop when flat
-                </Button>
-              ) : null}
-              {(session.status === "active" ||
-                session.status === "paused" ||
-                session.status === "monitoring_only") &&
-              hasOpenTrades ? (
-                <Button
-                  onClick={() => {
-                    if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) return;
-                    onLifecycle(session, "forceStop");
-                  }}
-                  variant="ghost"
-                  style={forceStopButtonStyle}
-                  disabled={busy}
-                  title="Force stop ends automated exit management for open positions."
-                >
-                  Force stop (loses trade management)
-                </Button>
-              ) : null}
-              <Button
-                onClick={() => onArchive(session.id)}
-                variant="outline"
-                style={actionButtonStyle}
-                disabled={busy || locked}
-              >
-                Archive
-              </Button>
-            </div>
-          </article>
-        );
-      })}
+      {sessions.map((session) => (
+        <SessionCard
+          key={session.id}
+          session={session}
+          busySessionId={busySessionId}
+          focusedSessionAiReady={focusedSessionAiReady}
+          progressBySessionId={progressBySessionId}
+          researchFailuresBySessionId={researchFailuresBySessionId}
+          onFocus={onFocus}
+          onEdit={onEdit}
+          onOpen={onOpen}
+          onDuplicate={onDuplicate}
+          onArchive={onArchive}
+          onSaveTemplate={onSaveTemplate}
+          onLifecycle={onLifecycle}
+          onRetryStep={onRetryStep}
+          onViewTrace={onViewTrace}
+          onPauseAfterStep={onPauseAfterStep}
+        />
+      ))}
     </div>
   );
 };

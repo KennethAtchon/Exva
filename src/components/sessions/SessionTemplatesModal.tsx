@@ -14,6 +14,144 @@ type TemplateListItem = {
   updatedAt: string;
 };
 
+// ---------------------------------------------------------------------------
+// TemplateSearchBar
+// ---------------------------------------------------------------------------
+
+const TemplateSearchBar = ({
+  search,
+  instrumentClass,
+  onSearchChange,
+  onInstrumentClassChange,
+}: {
+  search: string;
+  instrumentClass: InstrumentClass | "all";
+  onSearchChange: (value: string) => void;
+  onInstrumentClassChange: (value: InstrumentClass | "all") => void;
+}) => (
+  <div style={toolbarStyle}>
+    <Input
+      value={search}
+      onChange={(event) => onSearchChange(event.target.value)}
+      placeholder="Search templates"
+      className="h-10 flex-1 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
+    />
+    <ShadcnSelect
+      value={instrumentClass}
+      onValueChange={(value) =>
+        onInstrumentClassChange(value as InstrumentClass | "all")
+      }
+      className="w-[180px]"
+      options={[
+        { value: "all", label: "All instruments" },
+        { value: "stock", label: "Stocks" },
+        { value: "crypto", label: "Crypto" },
+        { value: "futures", label: "Futures" },
+      ]}
+    />
+  </div>
+);
+
+// ---------------------------------------------------------------------------
+// TemplateCard
+// ---------------------------------------------------------------------------
+
+const TemplateCard = ({
+  template,
+  onUse,
+  onDelete,
+}: {
+  template: TemplateListItem;
+  onUse: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}) => (
+  <div style={templateCardStyle}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 14,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 15,
+              color: "var(--text1)",
+              fontWeight: 700,
+            }}
+          >
+            {template.name}
+          </div>
+          {template.instrumentClasses.map((value) => (
+            <span key={value} style={chipStyle}>
+              {formatInstrumentClass(value)}
+            </span>
+          ))}
+        </div>
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 13,
+            color: "var(--text2)",
+            lineHeight: 1.5,
+          }}
+        >
+          {template.description ?? "No description provided."}
+        </div>
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 12,
+            color: "var(--text3)",
+          }}
+        >
+          Source:{" "}
+          {template.sourceSessionName ??
+            template.sourceSessionId ??
+            "Manual template"}{" "}
+          · Updated {formatTimestamp(template.updatedAt)}
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+        }}
+      >
+        <Button
+          onClick={() => onUse(template.id)}
+          className="bg-[var(--accent)] text-white"
+        >
+          Use Template
+        </Button>
+        <Button
+          onClick={() => onDelete(template.id)}
+          variant="outline"
+          className="border-border bg-[var(--surface2)] text-[var(--text2)]"
+        >
+          Delete
+        </Button>
+      </div>
+    </div>
+  </div>
+);
+
+// ---------------------------------------------------------------------------
+// SessionTemplatesModal
+// ---------------------------------------------------------------------------
+
 export const SessionTemplatesModal = ({
   open,
   sourceSession,
@@ -133,6 +271,42 @@ export const SessionTemplatesModal = ({
     if (!open) return;
     dispatch({ type: "hydrateFromSource", sourceSession });
   }, [open, sourceSession]);
+
+  const handleUseTemplate = async (templateId: string) => {
+    dispatch({ type: "setError", error: null });
+    try {
+      const result = await api.useTemplate(templateId);
+      onUseTemplate(payloadToInput(result.payload), result.clearedFields);
+      onClose();
+    } catch (useError) {
+      dispatch({
+        type: "setError",
+        error:
+          useError instanceof Error
+            ? useError.message
+            : "Failed to apply template.",
+      });
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    dispatch({ type: "setError", error: null });
+    try {
+      await api.deleteTemplate(templateId);
+      dispatch({
+        type: "setTemplates",
+        templates: templates.filter((entry) => entry.id !== templateId),
+      });
+    } catch (deleteError) {
+      dispatch({
+        type: "setError",
+        error:
+          deleteError instanceof Error
+            ? deleteError.message
+            : "Failed to delete template.",
+      });
+    }
+  };
 
   if (!open) return null;
 
@@ -289,32 +463,16 @@ export const SessionTemplatesModal = ({
             </div>
           </div>
 
-          <div style={toolbarStyle}>
-            <Input
-              value={search}
-              onChange={(event) =>
-                dispatch({ type: "setSearch", search: event.target.value })
-              }
-              placeholder="Search templates"
-              className="h-10 flex-1 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
-            />
-            <ShadcnSelect
-              value={instrumentClass}
-              onValueChange={(value) =>
-                dispatch({
-                  type: "setInstrumentClass",
-                  instrumentClass: value as InstrumentClass | "all",
-                })
-              }
-              className="w-[180px]"
-              options={[
-                { value: "all", label: "All instruments" },
-                { value: "stock", label: "Stocks" },
-                { value: "crypto", label: "Crypto" },
-                { value: "futures", label: "Futures" },
-              ]}
-            />
-          </div>
+          <TemplateSearchBar
+            search={search}
+            instrumentClass={instrumentClass}
+            onSearchChange={(value) =>
+              dispatch({ type: "setSearch", search: value })
+            }
+            onInstrumentClassChange={(value) =>
+              dispatch({ type: "setInstrumentClass", instrumentClass: value })
+            }
+          />
 
           <div style={{ display: "grid", gap: 10 }}>
             {loading ? (
@@ -327,124 +485,12 @@ export const SessionTemplatesModal = ({
             ) : null}
             {!loading
               ? templates.map((template) => (
-                  <div key={template.id} style={templateCardStyle}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        gap: 14,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: 15,
-                              color: "var(--text1)",
-                              fontWeight: 700,
-                            }}
-                          >
-                            {template.name}
-                          </div>
-                          {template.instrumentClasses.map((value) => (
-                            <span key={value} style={chipStyle}>
-                              {formatInstrumentClass(value)}
-                            </span>
-                          ))}
-                        </div>
-                        <div
-                          style={{
-                            marginTop: 8,
-                            fontSize: 13,
-                            color: "var(--text2)",
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          {template.description ?? "No description provided."}
-                        </div>
-                        <div
-                          style={{
-                            marginTop: 10,
-                            fontSize: 12,
-                            color: "var(--text3)",
-                          }}
-                        >
-                          Source:{" "}
-                          {template.sourceSessionName ??
-                            template.sourceSessionId ??
-                            "Manual template"}{" "}
-                          · Updated {formatTimestamp(template.updatedAt)}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 8,
-                          alignItems: "flex-start",
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <Button
-                          onClick={async () => {
-                            dispatch({ type: "setError", error: null });
-                            try {
-                              const result = await api.useTemplate(template.id);
-                              onUseTemplate(
-                                payloadToInput(result.payload),
-                                result.clearedFields,
-                              );
-                              onClose();
-                            } catch (useError) {
-                              dispatch({
-                                type: "setError",
-                                error:
-                                  useError instanceof Error
-                                    ? useError.message
-                                    : "Failed to apply template.",
-                              });
-                            }
-                          }}
-                          className="bg-[var(--accent)] text-white"
-                        >
-                          Use Template
-                        </Button>
-                        <Button
-                          onClick={async () => {
-                            dispatch({ type: "setError", error: null });
-                            try {
-                              await api.deleteTemplate(template.id);
-                              dispatch({
-                                type: "setTemplates",
-                                templates: templates.filter(
-                                  (entry) => entry.id !== template.id,
-                                ),
-                              });
-                            } catch (deleteError) {
-                              dispatch({
-                                type: "setError",
-                                error:
-                                  deleteError instanceof Error
-                                    ? deleteError.message
-                                    : "Failed to delete template.",
-                              });
-                            }
-                          }}
-                          variant="outline"
-                          className="border-border bg-[var(--surface2)] text-[var(--text2)]"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+                  <TemplateCard
+                    key={template.id}
+                    template={template}
+                    onUse={handleUseTemplate}
+                    onDelete={handleDeleteTemplate}
+                  />
                 ))
               : null}
           </div>

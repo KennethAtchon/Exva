@@ -20,6 +20,187 @@ type InstrumentCacheView = {
   definitionHashMatches: boolean;
 };
 
+// ---------------------------------------------------------------------------
+// SessionInfoGrid — metadata sections (Task Definition, Execution Setup, Risk Limits)
+// ---------------------------------------------------------------------------
+
+const SessionInfoGrid = ({
+  session,
+  payload,
+  loading,
+  instrumentCache,
+  cacheLoading,
+  cacheAction,
+  onClearCache,
+}: {
+  session: SessionSummary;
+  payload: SessionTemplatePayload | null;
+  loading: boolean;
+  instrumentCache: InstrumentCacheView | null;
+  cacheLoading: boolean;
+  cacheAction: string | null;
+  onClearCache: () => void;
+}) => (
+  <>
+    <Section title="Task Definition">
+      <Row label="Instrument scope" value={session.instrumentScope} />
+      <Row
+        label="Selection mode"
+        value={
+          session.selectionMode === "ai_selected_universe"
+            ? "AI selected universe"
+            : "Manual shortlist"
+        }
+      />
+      <Row
+        label="Search provider"
+        value={getSearchProviderDisplayName(session.defaultSearchProviderId)}
+      />
+      <Row
+        label="AI picker"
+        value={
+          payload?.selectorSettings.aiPickerEnabled ? "Enabled" : "Disabled"
+        }
+      />
+      {session.selectionMode === "ai_selected_universe" ? (
+        <div style={{ marginTop: 4 }}>
+          <div style={rowLabelStyle}>Last AI universe selection</div>
+          <div style={{ marginTop: 6 }}>
+            {cacheLoading ? (
+              <span style={mutedStyle}>Loading cache…</span>
+            ) : instrumentCache?.instruments?.length ? (
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "var(--text2)" }}>
+                  {instrumentCache.selectedAt
+                    ? `Selected ${formatTimestamp(instrumentCache.selectedAt)}`
+                    : "—"}
+                </div>
+                {!instrumentCache.definitionHashMatches ? (
+                  <Badge variant="warn">
+                    Definition changed: next start recomputes universe
+                  </Badge>
+                ) : null}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {instrumentCache.instruments.map((row) => (
+                    <span
+                      key={`${row.symbol}-${row.instrumentClass}`}
+                      style={cacheChipStyle}
+                    >
+                      {row.symbol} · {row.instrumentClass}
+                    </span>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  onClick={onClearCache}
+                  disabled={
+                    session.status === "active" || session.status === "paused"
+                  }
+                  variant="outline"
+                  className="self-start border-border bg-[var(--surface2)] text-xs text-[var(--text2)]"
+                >
+                  Re-run selector on next start
+                </Button>
+                {cacheAction ? (
+                  <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                    {cacheAction}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <span style={mutedStyle}>
+                No cached selection yet (selector runs when you start with AI
+                picker on).
+              </span>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </Section>
+
+    <Section title="Execution Setup">
+      <Row
+        label="Execution mode"
+        value={
+          session.executionMode === "live_allowed"
+            ? "Live allowed"
+            : "Paper only"
+        }
+      />
+      <Row
+        label="Assigned brokers"
+        value={
+          payload?.brokerAssignments.length
+            ? payload.brokerAssignments
+                .map(
+                  (entry) =>
+                    `${entry.brokerAccountId} ($${entry.allocatedUsd.toLocaleString()})`,
+                )
+                .join(", ")
+            : "None assigned"
+        }
+      />
+      <Row
+        label="Routing overrides"
+        value={formatOverrides(payload?.brokerOverridesByInstrumentClass)}
+      />
+      <Row
+        label="Instrument classes"
+        value={session.instrumentClasses.map(formatInstrumentClass).join(", ")}
+      />
+    </Section>
+
+    <Section title="Risk Limits">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 12,
+        }}
+      >
+        <StatBlock
+          label="Total allocated"
+          value={`$${session.totalAllocatedUsd.toLocaleString()}`}
+        />
+        <StatBlock
+          label="Max position"
+          value={
+            payload
+              ? `$${payload.strategy.maxPositionUsd.toLocaleString()}`
+              : loading
+                ? "…"
+                : "—"
+          }
+        />
+        <StatBlock
+          label="Stop / target"
+          value={
+            payload
+              ? `${payload.strategy.stopLossPct}% / ${payload.strategy.takeProfitPct}%`
+              : loading
+                ? "…"
+                : "—"
+          }
+        />
+        <StatBlock
+          label="Daily loss / profit"
+          value={
+            payload
+              ? `$${payload.strategy.dailyLossLimitUsd.toLocaleString()} / $${payload.strategy.profitTargetUsd.toLocaleString()}`
+              : loading
+                ? "…"
+                : "—"
+          }
+        />
+      </div>
+    </Section>
+  </>
+);
+
+// ---------------------------------------------------------------------------
+// SessionDetailDrawer
+// ---------------------------------------------------------------------------
+
 export const SessionDetailDrawer = ({
   session,
   onClose,
@@ -236,6 +417,32 @@ export const SessionDetailDrawer = ({
     };
   }, [session]);
 
+  const handleClearCache = async () => {
+    if (!session) return;
+    if (session.status === "active" || session.status === "paused") {
+      dispatch({
+        type: "setCacheAction",
+        cacheAction: "Stop the session before clearing the selector cache.",
+      });
+      return;
+    }
+    dispatch({ type: "setCacheAction", cacheAction: null });
+    try {
+      await api.clearSessionInstrumentCache(session.id);
+      const next = await api.getSessionInstrumentCache(session.id);
+      dispatch({ type: "cacheLoadSuccess", instrumentCache: next });
+      dispatch({
+        type: "setCacheAction",
+        cacheAction: "Cache cleared. Selector will run on next session start.",
+      });
+    } catch (err) {
+      dispatch({
+        type: "setCacheAction",
+        cacheAction: err instanceof Error ? err.message : "Clear failed",
+      });
+    }
+  };
+
   if (!session) return null;
 
   return (
@@ -299,209 +506,15 @@ export const SessionDetailDrawer = ({
               paddingRight: 4,
             }}
           >
-            <Section title="Task Definition">
-              <Row label="Instrument scope" value={session.instrumentScope} />
-              <Row
-                label="Selection mode"
-                value={
-                  session.selectionMode === "ai_selected_universe"
-                    ? "AI selected universe"
-                    : "Manual shortlist"
-                }
-              />
-              <Row
-                label="Search provider"
-                value={getSearchProviderDisplayName(
-                  session.defaultSearchProviderId,
-                )}
-              />
-              <Row
-                label="AI picker"
-                value={
-                  payload?.selectorSettings.aiPickerEnabled
-                    ? "Enabled"
-                    : "Disabled"
-                }
-              />
-              {session.selectionMode === "ai_selected_universe" ? (
-                <div style={{ marginTop: 4 }}>
-                  <div style={rowLabelStyle}>Last AI universe selection</div>
-                  <div style={{ marginTop: 6 }}>
-                    {cacheLoading ? (
-                      <span style={mutedStyle}>Loading cache…</span>
-                    ) : instrumentCache?.instruments?.length ? (
-                      <div style={{ display: "grid", gap: 8 }}>
-                        <div style={{ fontSize: 12, color: "var(--text2)" }}>
-                          {instrumentCache.selectedAt
-                            ? `Selected ${formatTimestamp(instrumentCache.selectedAt)}`
-                            : "—"}
-                        </div>
-                        {!instrumentCache.definitionHashMatches ? (
-                          <Badge variant="warn">
-                            Definition changed: next start recomputes universe
-                          </Badge>
-                        ) : null}
-                        <div
-                          style={{ display: "flex", flexWrap: "wrap", gap: 4 }}
-                        >
-                          {instrumentCache.instruments.map((row) => (
-                            <span
-                              key={`${row.symbol}-${row.instrumentClass}`}
-                              style={cacheChipStyle}
-                            >
-                              {row.symbol} · {row.instrumentClass}
-                            </span>
-                          ))}
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={async () => {
-                            if (!session) return;
-                            if (
-                              session.status === "active" ||
-                              session.status === "paused"
-                            ) {
-                              dispatch({
-                                type: "setCacheAction",
-                                cacheAction:
-                                  "Stop the session before clearing the selector cache.",
-                              });
-                              return;
-                            }
-                            dispatch({
-                              type: "setCacheAction",
-                              cacheAction: null,
-                            });
-                            try {
-                              await api.clearSessionInstrumentCache(session.id);
-                              const next = await api.getSessionInstrumentCache(
-                                session.id,
-                              );
-                              dispatch({
-                                type: "cacheLoadSuccess",
-                                instrumentCache: next,
-                              });
-                              dispatch({
-                                type: "setCacheAction",
-                                cacheAction:
-                                  "Cache cleared. Selector will run on next session start.",
-                              });
-                            } catch (err) {
-                              dispatch({
-                                type: "setCacheAction",
-                                cacheAction:
-                                  err instanceof Error
-                                    ? err.message
-                                    : "Clear failed",
-                              });
-                            }
-                          }}
-                          disabled={
-                            session.status === "active" ||
-                            session.status === "paused"
-                          }
-                          variant="outline"
-                          className="self-start border-border bg-[var(--surface2)] text-xs text-[var(--text2)]"
-                        >
-                          Re-run selector on next start
-                        </Button>
-                        {cacheAction ? (
-                          <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                            {cacheAction}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span style={mutedStyle}>
-                        No cached selection yet (selector runs when you start
-                        with AI picker on).
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-            </Section>
-
-            <Section title="Execution Setup">
-              <Row
-                label="Execution mode"
-                value={
-                  session.executionMode === "live_allowed"
-                    ? "Live allowed"
-                    : "Paper only"
-                }
-              />
-              <Row
-                label="Assigned brokers"
-                value={
-                  payload?.brokerAssignments.length
-                    ? payload.brokerAssignments
-                        .map(
-                          (entry) =>
-                            `${entry.brokerAccountId} ($${entry.allocatedUsd.toLocaleString()})`,
-                        )
-                        .join(", ")
-                    : "None assigned"
-                }
-              />
-              <Row
-                label="Routing overrides"
-                value={formatOverrides(
-                  payload?.brokerOverridesByInstrumentClass,
-                )}
-              />
-              <Row
-                label="Instrument classes"
-                value={session.instrumentClasses
-                  .map(formatInstrumentClass)
-                  .join(", ")}
-              />
-            </Section>
-
-            <Section title="Risk Limits">
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12,
-                }}
-              >
-                <StatBlock
-                  label="Total allocated"
-                  value={`$${session.totalAllocatedUsd.toLocaleString()}`}
-                />
-                <StatBlock
-                  label="Max position"
-                  value={
-                    payload
-                      ? `$${payload.strategy.maxPositionUsd.toLocaleString()}`
-                      : loading
-                        ? "…"
-                        : "—"
-                  }
-                />
-                <StatBlock
-                  label="Stop / target"
-                  value={
-                    payload
-                      ? `${payload.strategy.stopLossPct}% / ${payload.strategy.takeProfitPct}%`
-                      : loading
-                        ? "…"
-                        : "—"
-                  }
-                />
-                <StatBlock
-                  label="Daily loss / profit"
-                  value={
-                    payload
-                      ? `$${payload.strategy.dailyLossLimitUsd.toLocaleString()} / $${payload.strategy.profitTargetUsd.toLocaleString()}`
-                      : loading
-                        ? "…"
-                        : "—"
-                  }
-                />
-              </div>
-            </Section>
+            <SessionInfoGrid
+              session={session}
+              payload={payload}
+              loading={loading}
+              instrumentCache={instrumentCache}
+              cacheLoading={cacheLoading}
+              cacheAction={cacheAction}
+              onClearCache={() => void handleClearCache()}
+            />
 
             {(executionProgress || researchFailure) && (
               <Section title="Execution Progress">

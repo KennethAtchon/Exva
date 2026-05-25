@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type Reducer,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+} from "react";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
 import { Button, Checkbox } from "@/components/ui";
 import {
@@ -18,6 +25,8 @@ import {
   type SessionProgressState,
 } from "@/components/sessions/SessionExecutionProgress";
 import { useWorkspaceStore } from "@/store/workspaceStore";
+
+const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
 
 type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
 
@@ -39,6 +48,215 @@ interface LiveReadinessReport {
   acknowledgedAt: string | null;
 }
 
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+const SessionFilters = ({
+  search,
+  statusFilter,
+  instrumentFilter,
+  includeArchived,
+  onSearchChange,
+  onStatusChange,
+  onInstrumentChange,
+  onIncludeArchivedChange,
+}: {
+  search: string;
+  statusFilter: SessionStatus | "all";
+  instrumentFilter: InstrumentClass | "all";
+  includeArchived: boolean;
+  onSearchChange: (value: string) => void;
+  onStatusChange: (value: SessionStatus | "all") => void;
+  onInstrumentChange: (value: InstrumentClass | "all") => void;
+  onIncludeArchivedChange: (checked: boolean) => Promise<void>;
+}) => (
+  <div style={toolbarStyle}>
+    <input
+      value={search}
+      onChange={(event) => onSearchChange(event.target.value)}
+      placeholder="Search by name or objective"
+      style={{ ...inputStyle, flex: 1 }}
+    />
+    <ShadcnSelect
+      value={statusFilter}
+      onValueChange={(value) => onStatusChange(value as SessionStatus | "all")}
+      className="w-[180px]"
+      options={[
+        { value: "all", label: "All statuses" },
+        { value: "draft", label: "Draft" },
+        { value: "idle", label: "Idle" },
+        { value: "active", label: "Active" },
+        { value: "attention_required", label: "Needs attention" },
+        { value: "paused", label: "Paused" },
+        { value: "monitoring_only", label: "Stopping when flat" },
+        { value: "stopped", label: "Stopped" },
+        { value: "archived", label: "Archived" },
+      ]}
+    />
+    <ShadcnSelect
+      value={instrumentFilter}
+      onValueChange={(value) =>
+        onInstrumentChange(value as InstrumentClass | "all")
+      }
+      className="w-[180px]"
+      options={[
+        { value: "all", label: "All instruments" },
+        { value: "stock", label: "Stocks" },
+        { value: "crypto", label: "Crypto" },
+        { value: "futures", label: "Futures" },
+      ]}
+    />
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        color: "var(--text2)",
+        fontSize: 12,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <Checkbox
+        checked={includeArchived}
+        onCheckedChange={(checked) =>
+          void onIncludeArchivedChange(checked === true)
+        }
+      />
+      Include archived
+    </div>
+  </div>
+);
+
+const SessionFocusPanel = ({
+  focusedSession,
+  actionSessionId,
+  aiReady,
+  onGoToStrategy,
+  onLifecycleAction,
+}: {
+  focusedSession: SessionSummary | null;
+  actionSessionId: string | null;
+  aiReady: boolean | null | undefined;
+  onGoToStrategy?: () => void;
+  onLifecycleAction: (session: SessionSummary, action: LifecycleAction) => void;
+}) => {
+  if (!focusedSession) return null;
+  const { status, openTradeCount } = focusedSession;
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        flexWrap: "wrap",
+        justifyContent: "flex-end",
+      }}
+    >
+      {status === "draft" || status === "idle" || status === "stopped" ? (
+        <Button
+          variant="ghost"
+          onClick={() => onLifecycleAction(focusedSession, "start")}
+          style={{
+            ...primaryButtonStyle,
+            ...(aiReady === false ? disabledStartStyle : {}),
+          }}
+          disabled={actionSessionId === focusedSession.id || aiReady === false}
+          title={
+            aiReady === false
+              ? "AI providers not connected — configure in Strategy tab before starting"
+              : undefined
+          }
+        >
+          Start
+        </Button>
+      ) : null}
+      {status === "active" ? (
+        <Button
+          variant="outline"
+          onClick={() => onLifecycleAction(focusedSession, "pause")}
+          style={secondaryButtonStyle}
+          disabled={actionSessionId === focusedSession.id}
+          title="Pause stops new research but keeps exits managed."
+        >
+          Pause
+        </Button>
+      ) : null}
+      {status === "paused" ? (
+        <Button
+          variant="ghost"
+          onClick={() => onLifecycleAction(focusedSession, "resume")}
+          style={primaryButtonStyle}
+          disabled={actionSessionId === focusedSession.id}
+        >
+          Resume
+        </Button>
+      ) : null}
+      {status === "monitoring_only" ? (
+        <div style={drainBannerStyle}>
+          Stopping when flat: managing {openTradeCount} open trade
+          {openTradeCount === 1 ? "" : "s"}. Session stops automatically once
+          flat.
+        </div>
+      ) : null}
+      {(status === "active" || status === "paused") && openTradeCount === 0 ? (
+        <Button
+          variant="ghost"
+          onClick={() => onLifecycleAction(focusedSession, "stop")}
+          style={dangerButtonStyle}
+          disabled={actionSessionId === focusedSession.id}
+        >
+          Stop
+        </Button>
+      ) : null}
+      {(status === "active" || status === "paused") && openTradeCount > 0 ? (
+        <Button
+          variant="ghost"
+          onClick={() => onLifecycleAction(focusedSession, "stop")}
+          style={stopWhenFlatButtonStyle}
+          disabled={actionSessionId === focusedSession.id}
+          title={STOP_WHEN_FLAT_TITLE}
+        >
+          Stop when flat
+        </Button>
+      ) : null}
+      {(status === "active" ||
+        status === "paused" ||
+        status === "monitoring_only") &&
+      openTradeCount > 0 ? (
+        <Button
+          variant="ghost"
+          onClick={() => onLifecycleAction(focusedSession, "forceStop")}
+          style={forceStopButtonStyle}
+          disabled={actionSessionId === focusedSession.id}
+          title="Force stop ends automated exit management for open positions."
+        >
+          Force stop (loses trade management)
+        </Button>
+      ) : null}
+      {status === "stopped" && openTradeCount > 0 ? (
+        <div style={orphanWarningStyle}>
+          Stopped with {openTradeCount} open trade
+          {openTradeCount === 1 ? "" : "s"}, no automated exits will fire.
+          Restart to resume monitoring.
+        </div>
+      ) : null}
+      {(status === "draft" || status === "idle" || status === "stopped") &&
+      onGoToStrategy ? (
+        <div style={strategyNudgeBannerStyle}>
+          <span style={{ color: "var(--text2)", fontSize: 12 }}>
+            Configure AI phases, risk limits, and strategy before starting.
+          </span>
+          <button
+            type="button"
+            onClick={onGoToStrategy}
+            style={strategyNudgeButtonStyle}
+          >
+            Open Strategy →
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 export const SessionsPage = ({
   initialStatusFilter = "all",
   onInitialStatusFilterApplied,
@@ -59,46 +277,84 @@ export const SessionsPage = ({
     (state) => state.loadWorkspaceView,
   );
 
-  const [sessions, setSessions] = useState<SessionSummary[]>([]);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<SessionStatus | "all">(
-    "all",
+  type FiltersState = {
+    search: string;
+    statusFilter: SessionStatus | "all";
+    instrumentFilter: InstrumentClass | "all";
+  };
+  type DataState = {
+    sessions: SessionSummary[];
+    loading: boolean;
+    error: string | null;
+    actionSessionId: string | null;
+    progressBySessionId: Record<string, SessionProgressState>;
+    researchFailuresBySessionId: Record<
+      string,
+      { phase: string; error: string; at: string }
+    >;
+  };
+  type UiState = {
+    detail: SessionSummary | null;
+    editing: SessionSummary | null;
+    modalOpen: boolean;
+    templatesOpen: boolean;
+    templateInput: SessionCreateInput | null;
+    templateWarnings: string[];
+    templateSourceSession: SessionSummary | null;
+    liveReadinessSession: SessionSummary | null;
+    liveReadinessReport: LiveReadinessReport | null;
+  };
+
+  const [filters, dispatchFilters] = useReducer<
+    Reducer<FiltersState, Partial<FiltersState>>
+  >(mergeReducer, {
+    search: "",
+    statusFilter: "all",
+    instrumentFilter: "all",
+  });
+
+  const [data, dispatchData] = useReducer<
+    Reducer<DataState, Partial<DataState>>
+  >(mergeReducer, {
+    sessions: [],
+    loading: false,
+    error: null,
+    actionSessionId: null,
+    progressBySessionId: {},
+    researchFailuresBySessionId: {},
+  });
+
+  const [ui, dispatchUi] = useReducer<Reducer<UiState, Partial<UiState>>>(
+    mergeReducer,
+    {
+      detail: null,
+      editing: null,
+      modalOpen: false,
+      templatesOpen: false,
+      templateInput: null,
+      templateWarnings: [],
+      templateSourceSession: null,
+      liveReadinessSession: null,
+      liveReadinessReport: null,
+    },
   );
-  const [instrumentFilter, setInstrumentFilter] = useState<
-    InstrumentClass | "all"
-  >("all");
-  const [detail, setDetail] = useState<SessionSummary | null>(null);
-  const [editing, setEditing] = useState<SessionSummary | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [templateInput, setTemplateInput] = useState<SessionCreateInput | null>(
-    null,
-  );
-  const [templateWarnings, setTemplateWarnings] = useState<string[]>([]);
-  const [templateSourceSession, setTemplateSourceSession] =
-    useState<SessionSummary | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [actionSessionId, setActionSessionId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [progressBySessionId, setProgressBySessionId] = useState<
-    Record<string, SessionProgressState>
-  >({});
-  const [researchFailuresBySessionId, setResearchFailuresBySessionId] =
-    useState<Record<string, { phase: string; error: string; at: string }>>({});
+
+  // Ref so refreshProgress (useCallback with no data dep) can read latest data
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
   const aiReady = useWorkspaceStore((state) => state.focusedSessionAiReady);
   const environmentMode = useWorkspaceStore((state) => state.environmentMode);
-  const [liveReadinessSession, setLiveReadinessSession] =
-    useState<SessionSummary | null>(null);
-  const [liveReadinessReport, setLiveReadinessReport] =
-    useState<LiveReadinessReport | null>(null);
   const refreshProgress = useCallback(async (sessionId: string) => {
     try {
       const result = await api.getSessionExecutionProgress(sessionId);
       if (!result.cycleId) {
-        setProgressBySessionId((prev) => {
-          return Object.fromEntries(
-            Object.entries(prev).filter(([key]) => key !== sessionId),
-          ) as Record<string, SessionProgressState>;
+        dispatchData({
+          progressBySessionId: Object.fromEntries(
+            Object.entries(dataRef.current.progressBySessionId).filter(
+              ([key]) => key !== sessionId,
+            ),
+          ) as Record<string, SessionProgressState>,
         });
         return;
       }
@@ -110,33 +366,42 @@ export const SessionsPage = ({
         result.monitoringActive,
       );
       if (!state) {
-        setProgressBySessionId((prev) => {
-          return Object.fromEntries(
-            Object.entries(prev).filter(([key]) => key !== sessionId),
-          ) as Record<string, SessionProgressState>;
+        dispatchData({
+          progressBySessionId: Object.fromEntries(
+            Object.entries(dataRef.current.progressBySessionId).filter(
+              ([key]) => key !== sessionId,
+            ),
+          ) as Record<string, SessionProgressState>,
         });
         return;
       }
-      setProgressBySessionId((prev) => ({ ...prev, [sessionId]: state }));
+      dispatchData({
+        progressBySessionId: {
+          ...dataRef.current.progressBySessionId,
+          [sessionId]: state,
+        },
+      });
     } catch {
       // silently ignore
     }
   }, []);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    dispatchData({ loading: true, error: null });
     try {
       const result = await api.listSessions({
-        search: search.trim() || undefined,
-        status: statusFilter === "all" ? undefined : statusFilter,
+        search: filters.search.trim() || undefined,
+        status:
+          filters.statusFilter === "all" ? undefined : filters.statusFilter,
         instrumentClass:
-          instrumentFilter === "all" ? undefined : instrumentFilter,
+          filters.instrumentFilter === "all"
+            ? undefined
+            : filters.instrumentFilter,
         includeArchived: preferences?.globalIncludeArchived,
         executionMode:
           environmentMode === "live" ? "live_allowed" : "paper_only",
       });
-      setSessions(result.sessions);
+      dispatchData({ sessions: result.sessions });
       await loadWorkspaceView();
       // Seed progress for sessions that may have active execution
       await Promise.all(
@@ -152,29 +417,30 @@ export const SessionsPage = ({
         }, []),
       );
     } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Failed to load sessions.",
-      );
+      dispatchData({
+        error:
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load sessions.",
+      });
     } finally {
-      setLoading(false);
+      dispatchData({ loading: false });
     }
   }, [
     environmentMode,
-    instrumentFilter,
+    filters.instrumentFilter,
+    filters.search,
+    filters.statusFilter,
     loadWorkspaceView,
     preferences?.globalIncludeArchived,
     refreshProgress,
-    search,
-    statusFilter,
   ]);
 
   const unsubsRef = useRef<Array<() => void>>([]);
 
   useEffect(() => {
     if (initialStatusFilter === "all") return;
-    setStatusFilter(initialStatusFilter);
+    dispatchFilters({ statusFilter: initialStatusFilter });
     onInitialStatusFilterApplied?.();
   }, [initialStatusFilter, onInitialStatusFilterApplied]);
 
@@ -232,21 +498,23 @@ export const SessionsPage = ({
     const cleanup: Array<() => void> = [];
 
     void listenEvent("research_phase_failed", (payload) => {
-      const data = payload as {
+      const evt = payload as {
         sessionId: string;
         phase: string;
         error: string;
       };
       if (cancelled) return;
-      setResearchFailuresBySessionId((prev) => ({
-        ...prev,
-        [data.sessionId]: {
-          phase: data.phase,
-          error: data.error,
-          at: new Date().toISOString(),
+      dispatchData({
+        researchFailuresBySessionId: {
+          ...dataRef.current.researchFailuresBySessionId,
+          [evt.sessionId]: {
+            phase: evt.phase,
+            error: evt.error,
+            at: new Date().toISOString(),
+          },
         },
-      }));
-      void refreshProgress(data.sessionId);
+      });
+      void refreshProgress(evt.sessionId);
     }).then((unsub) => cleanup.push(unsub));
 
     return () => {
@@ -260,28 +528,29 @@ export const SessionsPage = ({
   }, [load]);
 
   const focusedSession = useMemo(
-    () => sessions.find((session) => session.id === focusedSessionId) ?? null,
-    [sessions, focusedSessionId],
+    () =>
+      data.sessions.find((session) => session.id === focusedSessionId) ?? null,
+    [data.sessions, focusedSessionId],
   );
   const activeCount = useMemo(
-    () => sessions.filter((session) => session.status === "active").length,
-    [sessions],
+    () => data.sessions.filter((session) => session.status === "active").length,
+    [data.sessions],
   );
   const pausedCount = useMemo(
-    () => sessions.filter((session) => session.status === "paused").length,
-    [sessions],
+    () => data.sessions.filter((session) => session.status === "paused").length,
+    [data.sessions],
   );
   const openTrades = useMemo(
-    () => sessions.reduce((sum, session) => sum + session.openTradeCount, 0),
-    [sessions],
+    () =>
+      data.sessions.reduce((sum, session) => sum + session.openTradeCount, 0),
+    [data.sessions],
   );
 
   async function runLifecycleAction(
     session: SessionSummary,
     action: LifecycleAction,
   ) {
-    setActionSessionId(session.id);
-    setError(null);
+    dispatchData({ actionSessionId: session.id, error: null });
     try {
       if (!session.isFocused) {
         await api.focusSession(session.id);
@@ -289,9 +558,11 @@ export const SessionsPage = ({
       if (action === "start" && session.executionMode === "live_allowed") {
         const readiness = await api.getLiveReadiness(session.id);
         if (!readiness.readyToStart || !readiness.acknowledgedAt) {
-          setLiveReadinessReport(readiness);
-          setLiveReadinessSession(session);
-          setActionSessionId(null);
+          dispatchUi({
+            liveReadinessReport: readiness,
+            liveReadinessSession: session,
+          });
+          dispatchData({ actionSessionId: null });
           return;
         }
       }
@@ -301,20 +572,21 @@ export const SessionsPage = ({
       if (action === "stop") await api.stopSession();
       if (action === "forceStop") {
         if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) {
-          setActionSessionId(null);
+          dispatchData({ actionSessionId: null });
           return;
         }
         await api.forceStopSession();
       }
       await load();
     } catch (actionError) {
-      setError(
-        actionError instanceof Error
-          ? actionError.message
-          : "Session action failed.",
-      );
+      dispatchData({
+        error:
+          actionError instanceof Error
+            ? actionError.message
+            : "Session action failed.",
+      });
     } finally {
-      setActionSessionId(null);
+      dispatchData({ actionSessionId: null });
     }
   }
 
@@ -356,8 +628,10 @@ export const SessionsPage = ({
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Button
             onClick={() => {
-              setTemplateSourceSession(focusedSession);
-              setTemplatesOpen(true);
+              dispatchUi({
+                templateSourceSession: focusedSession,
+                templatesOpen: true,
+              });
             }}
             variant="outline"
             style={secondaryButtonStyle}
@@ -366,22 +640,23 @@ export const SessionsPage = ({
           </Button>
           <Button
             onClick={async () => {
-              setError(null);
+              dispatchData({ error: null });
               try {
                 await api.goGlobal();
                 await load();
               } catch (goGlobalError) {
-                setError(
-                  goGlobalError instanceof Error
-                    ? goGlobalError.message
-                    : "Failed to switch to global mode.",
-                );
+                dispatchData({
+                  error:
+                    goGlobalError instanceof Error
+                      ? goGlobalError.message
+                      : "Failed to switch to global mode.",
+                });
               }
             }}
             variant="outline"
             style={secondaryButtonStyle}
             disabled={
-              sessions.filter((session) => session.status !== "archived")
+              data.sessions.filter((session) => session.status !== "archived")
                 .length === 0 || viewMode === "global"
             }
           >
@@ -389,10 +664,12 @@ export const SessionsPage = ({
           </Button>
           <Button
             onClick={() => {
-              setEditing(null);
-              setTemplateInput(null);
-              setTemplateWarnings([]);
-              setModalOpen(true);
+              dispatchUi({
+                editing: null,
+                templateInput: null,
+                templateWarnings: [],
+                modalOpen: true,
+              });
             }}
             variant="ghost"
             style={primaryButtonStyle}
@@ -402,7 +679,7 @@ export const SessionsPage = ({
         </div>
       </div>
 
-      {error ? <div style={errorBannerStyle}>{error}</div> : null}
+      {data.error ? <div style={errorBannerStyle}>{data.error}</div> : null}
 
       <Card accent style={{ padding: 0 }}>
         <div style={contextHeroStyle}>
@@ -460,330 +737,155 @@ export const SessionsPage = ({
 
           <div style={{ display: "grid", gap: 12, minWidth: 280 }}>
             <div style={contextMetricsStyle}>
-              <ContextMetric label="sessions" value={String(sessions.length)} />
+              <ContextMetric
+                label="sessions"
+                value={String(data.sessions.length)}
+              />
               <ContextMetric label="active" value={String(activeCount)} />
               <ContextMetric label="paused" value={String(pausedCount)} />
               <ContextMetric label="open trades" value={String(openTrades)} />
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
-              }}
-            >
-              {focusedSession &&
-              (focusedSession.status === "draft" ||
-                focusedSession.status === "idle" ||
-                focusedSession.status === "stopped") ? (
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    void runLifecycleAction(focusedSession, "start")
-                  }
-                  style={{
-                    ...primaryButtonStyle,
-                    ...(aiReady === false ? disabledStartStyle : {}),
-                  }}
-                  disabled={
-                    actionSessionId === focusedSession.id || aiReady === false
-                  }
-                  title={
-                    aiReady === false
-                      ? "AI providers not connected — configure in Strategy tab before starting"
-                      : undefined
-                  }
-                >
-                  Start
-                </Button>
-              ) : null}
-              {focusedSession?.status === "active" ? (
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    void runLifecycleAction(focusedSession, "pause")
-                  }
-                  style={secondaryButtonStyle}
-                  disabled={actionSessionId === focusedSession.id}
-                  title="Pause stops new research but keeps exits managed."
-                >
-                  Pause
-                </Button>
-              ) : null}
-              {focusedSession?.status === "paused" ? (
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    void runLifecycleAction(focusedSession, "resume")
-                  }
-                  style={primaryButtonStyle}
-                  disabled={actionSessionId === focusedSession.id}
-                >
-                  Resume
-                </Button>
-              ) : null}
-              {focusedSession?.status === "monitoring_only" ? (
-                <div style={drainBannerStyle}>
-                  Stopping when flat: managing {focusedSession.openTradeCount}{" "}
-                  open trade
-                  {focusedSession.openTradeCount === 1 ? "" : "s"}. Session
-                  stops automatically once flat.
-                </div>
-              ) : null}
-              {focusedSession &&
-              (focusedSession.status === "active" ||
-                focusedSession.status === "paused") &&
-              focusedSession.openTradeCount === 0 ? (
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    void runLifecycleAction(focusedSession, "stop")
-                  }
-                  style={dangerButtonStyle}
-                  disabled={actionSessionId === focusedSession.id}
-                >
-                  Stop
-                </Button>
-              ) : null}
-              {focusedSession &&
-              (focusedSession.status === "active" ||
-                focusedSession.status === "paused") &&
-              focusedSession.openTradeCount > 0 ? (
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    void runLifecycleAction(focusedSession, "stop")
-                  }
-                  style={stopWhenFlatButtonStyle}
-                  disabled={actionSessionId === focusedSession.id}
-                  title={STOP_WHEN_FLAT_TITLE}
-                >
-                  Stop when flat
-                </Button>
-              ) : null}
-              {focusedSession &&
-              (focusedSession.status === "active" ||
-                focusedSession.status === "paused" ||
-                focusedSession.status === "monitoring_only") &&
-              focusedSession.openTradeCount > 0 ? (
-                <Button
-                  variant="ghost"
-                  onClick={() =>
-                    void runLifecycleAction(focusedSession, "forceStop")
-                  }
-                  style={forceStopButtonStyle}
-                  disabled={actionSessionId === focusedSession.id}
-                  title="Force stop ends automated exit management for open positions."
-                >
-                  Force stop (loses trade management)
-                </Button>
-              ) : null}
-              {focusedSession?.status === "stopped" &&
-              focusedSession.openTradeCount > 0 ? (
-                <div style={orphanWarningStyle}>
-                  Stopped with {focusedSession.openTradeCount} open trade
-                  {focusedSession.openTradeCount === 1 ? "" : "s"}, no automated
-                  exits will fire. Restart to resume monitoring.
-                </div>
-              ) : null}
-            </div>
-            {focusedSession &&
-            (focusedSession.status === "draft" ||
-              focusedSession.status === "idle" ||
-              focusedSession.status === "stopped") &&
-            onGoToStrategy ? (
-              <div style={strategyNudgeBannerStyle}>
-                <span style={{ color: "var(--text2)", fontSize: 12 }}>
-                  Configure AI phases, risk limits, and strategy before
-                  starting.
-                </span>
-                <button
-                  type="button"
-                  onClick={onGoToStrategy}
-                  style={strategyNudgeButtonStyle}
-                >
-                  Open Strategy →
-                </button>
-              </div>
-            ) : null}
+            <SessionFocusPanel
+              focusedSession={focusedSession}
+              actionSessionId={data.actionSessionId}
+              aiReady={aiReady}
+              onGoToStrategy={onGoToStrategy}
+              onLifecycleAction={(session, action) =>
+                void runLifecycleAction(session, action)
+              }
+            />
           </div>
         </div>
       </Card>
 
       <Card>
-        <div style={toolbarStyle}>
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name or objective"
-            style={{ ...inputStyle, flex: 1 }}
-          />
-          <ShadcnSelect
-            value={statusFilter}
-            onValueChange={(value) =>
-              setStatusFilter(value as SessionStatus | "all")
-            }
-            className="w-[180px]"
-            options={[
-              { value: "all", label: "All statuses" },
-              { value: "draft", label: "Draft" },
-              { value: "idle", label: "Idle" },
-              { value: "active", label: "Active" },
-              { value: "attention_required", label: "Needs attention" },
-              { value: "paused", label: "Paused" },
-              { value: "monitoring_only", label: "Stopping when flat" },
-              { value: "stopped", label: "Stopped" },
-              { value: "archived", label: "Archived" },
-            ]}
-          />
-          <ShadcnSelect
-            value={instrumentFilter}
-            onValueChange={(value) =>
-              setInstrumentFilter(value as InstrumentClass | "all")
-            }
-            className="w-[180px]"
-            options={[
-              { value: "all", label: "All instruments" },
-              { value: "stock", label: "Stocks" },
-              { value: "crypto", label: "Crypto" },
-              { value: "futures", label: "Futures" },
-            ]}
-          />
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              color: "var(--text2)",
-              fontSize: 12,
-              whiteSpace: "nowrap",
-            }}
-          >
-            <Checkbox
-              checked={preferences?.globalIncludeArchived ?? false}
-              onCheckedChange={async (checked) => {
-                setError(null);
-                try {
-                  await api.patchWorkspacePreferences({
-                    globalIncludeArchived: checked === true,
-                  });
-                  await loadWorkspaceView();
-                } catch (prefsError) {
-                  setError(
-                    prefsError instanceof Error
-                      ? prefsError.message
-                      : "Failed to update workspace preferences.",
-                  );
-                }
-              }}
-            />
-            Include archived
-          </div>
-        </div>
+        <SessionFilters
+          search={filters.search}
+          statusFilter={filters.statusFilter}
+          instrumentFilter={filters.instrumentFilter}
+          includeArchived={preferences?.globalIncludeArchived ?? false}
+          onSearchChange={(value) => dispatchFilters({ search: value })}
+          onStatusChange={(value) => dispatchFilters({ statusFilter: value })}
+          onInstrumentChange={(value) =>
+            dispatchFilters({ instrumentFilter: value })
+          }
+          onIncludeArchivedChange={async () => {
+            dispatchData({ error: null });
+            await loadWorkspaceView();
+          }}
+        />
 
-        {loading ? <div style={emptyStateStyle}>Loading sessions…</div> : null}
-        {!loading && sessions.length === 0 ? (
+        {data.loading ? (
+          <div style={emptyStateStyle}>Loading sessions…</div>
+        ) : null}
+        {!data.loading && data.sessions.length === 0 ? (
           <div style={emptyStateStyle}>
             No sessions matched the current filters.
           </div>
         ) : null}
-        {!loading && sessions.length > 0 ? (
+        {!data.loading && data.sessions.length > 0 ? (
           <SessionTable
-            sessions={sessions}
-            busySessionId={actionSessionId}
+            sessions={data.sessions}
+            busySessionId={data.actionSessionId}
             focusedSessionAiReady={aiReady}
-            progressBySessionId={progressBySessionId}
-            researchFailuresBySessionId={researchFailuresBySessionId}
+            progressBySessionId={data.progressBySessionId}
+            researchFailuresBySessionId={data.researchFailuresBySessionId}
             onRetryStep={async (sessionId, cycleId, stage) => {
               try {
                 await api.retrySessionStep({ sessionId, cycleId, stage });
                 void refreshProgress(sessionId);
               } catch (retryError) {
-                setError(
-                  retryError instanceof Error
-                    ? retryError.message
-                    : "Retry failed.",
-                );
+                dispatchData({
+                  error:
+                    retryError instanceof Error
+                      ? retryError.message
+                      : "Retry failed.",
+                });
               }
             }}
             onViewTrace={(sessionId, cycleId, stage) => {
               if (onViewTrace) {
                 onViewTrace(sessionId, cycleId, stage);
               } else {
-                const match = sessions.find((s) => s.id === sessionId);
-                if (match) setDetail(match);
+                const match = data.sessions.find((s) => s.id === sessionId);
+                if (match) dispatchUi({ detail: match });
               }
             }}
             onPauseAfterStep={async (sessionId) => {
               try {
-                if (!sessions.find((s) => s.id === sessionId)?.isFocused) {
+                if (!data.sessions.find((s) => s.id === sessionId)?.isFocused) {
                   await api.focusSession(sessionId);
                 }
                 await api.pauseSessionAfterCurrentStep(sessionId);
               } catch (pauseError) {
-                setError(
-                  pauseError instanceof Error
-                    ? pauseError.message
-                    : "Pause after step failed.",
-                );
+                dispatchData({
+                  error:
+                    pauseError instanceof Error
+                      ? pauseError.message
+                      : "Pause after step failed.",
+                });
               }
             }}
             onFocus={async (id) => {
-              setError(null);
+              dispatchData({ error: null });
               try {
                 await api.focusSession(id);
                 await load();
               } catch (focusError) {
-                setError(
-                  focusError instanceof Error
-                    ? focusError.message
-                    : "Failed to focus session.",
-                );
+                dispatchData({
+                  error:
+                    focusError instanceof Error
+                      ? focusError.message
+                      : "Failed to focus session.",
+                });
               }
             }}
             onEdit={(session) => {
-              setEditing(session);
-              setTemplateInput(null);
-              setTemplateWarnings([]);
-              setModalOpen(true);
+              dispatchUi({
+                editing: session,
+                templateInput: null,
+                templateWarnings: [],
+                modalOpen: true,
+              });
             }}
-            onOpen={(session) => setDetail(session)}
+            onOpen={(session) => dispatchUi({ detail: session })}
             onDuplicate={async (session) => {
-              setActionSessionId(session.id);
-              setError(null);
+              dispatchData({ actionSessionId: session.id, error: null });
               try {
                 await api.duplicateSession(session.id, `${session.name} Copy`);
                 await load();
               } catch (duplicateError) {
-                setError(
-                  duplicateError instanceof Error
-                    ? duplicateError.message
-                    : "Failed to duplicate session.",
-                );
+                dispatchData({
+                  error:
+                    duplicateError instanceof Error
+                      ? duplicateError.message
+                      : "Failed to duplicate session.",
+                });
               } finally {
-                setActionSessionId(null);
+                dispatchData({ actionSessionId: null });
               }
             }}
             onArchive={async (id) => {
-              setActionSessionId(id);
-              setError(null);
+              dispatchData({ actionSessionId: id, error: null });
               try {
                 await api.archiveSession(id);
                 await load();
               } catch (archiveError) {
-                setError(
-                  archiveError instanceof Error
-                    ? archiveError.message
-                    : "Failed to archive session.",
-                );
+                dispatchData({
+                  error:
+                    archiveError instanceof Error
+                      ? archiveError.message
+                      : "Failed to archive session.",
+                });
               } finally {
-                setActionSessionId(null);
+                dispatchData({ actionSessionId: null });
               }
             }}
             onSaveTemplate={(session) => {
-              setTemplateSourceSession(session);
-              setTemplatesOpen(true);
+              dispatchUi({
+                templateSourceSession: session,
+                templatesOpen: true,
+              });
             }}
             onLifecycle={(session, action) => {
               void runLifecycleAction(session, action);
@@ -793,12 +895,12 @@ export const SessionsPage = ({
       </Card>
 
       <CreateEditSessionModal
-        open={modalOpen}
-        initialSession={editing}
-        templateInput={templateInput}
-        templateWarnings={templateWarnings}
+        open={ui.modalOpen}
+        initialSession={ui.editing}
+        templateInput={ui.templateInput}
+        templateWarnings={ui.templateWarnings}
         onOpenAccounts={onGoToAccounts}
-        onClose={() => setModalOpen(false)}
+        onClose={() => dispatchUi({ modalOpen: false })}
         onSubmit={async (input, sessionId) => {
           if (sessionId) {
             await api.updateSession(sessionId, input);
@@ -809,32 +911,43 @@ export const SessionsPage = ({
         }}
       />
       <SessionTemplatesModal
-        open={templatesOpen}
-        sourceSession={templateSourceSession}
-        onClose={() => setTemplatesOpen(false)}
+        open={ui.templatesOpen}
+        sourceSession={ui.templateSourceSession}
+        onClose={() => dispatchUi({ templatesOpen: false })}
         onUseTemplate={(input, clearedFields) => {
-          setTemplateInput(input);
-          setTemplateWarnings(clearedFields);
-          setEditing(null);
-          setModalOpen(true);
+          dispatchUi({
+            templateInput: input,
+            templateWarnings: clearedFields,
+            editing: null,
+            modalOpen: true,
+          });
         }}
       />
-      {liveReadinessSession && liveReadinessReport ? (
+      {ui.liveReadinessSession && ui.liveReadinessReport ? (
         <LiveReadinessModal
-          sessionId={liveReadinessSession.id}
-          report={liveReadinessReport}
+          sessionId={ui.liveReadinessSession.id}
+          report={ui.liveReadinessReport}
           onAcknowledged={async () => {
-            setLiveReadinessReport(null);
-            setLiveReadinessSession(null);
-            await runLifecycleAction(liveReadinessSession, "start");
+            const sess = ui.liveReadinessSession;
+            if (!sess) return;
+            dispatchUi({
+              liveReadinessReport: null,
+              liveReadinessSession: null,
+            });
+            await runLifecycleAction(sess, "start");
           }}
           onCancel={() => {
-            setLiveReadinessReport(null);
-            setLiveReadinessSession(null);
+            dispatchUi({
+              liveReadinessReport: null,
+              liveReadinessSession: null,
+            });
           }}
         />
       ) : null}
-      <SessionDetailDrawer session={detail} onClose={() => setDetail(null)} />
+      <SessionDetailDrawer
+        session={ui.detail}
+        onClose={() => dispatchUi({ detail: null })}
+      />
     </PageShell>
   );
 };

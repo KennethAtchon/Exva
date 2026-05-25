@@ -60,6 +60,258 @@ interface Props {
   stats: DashboardStats | null;
 }
 
+const NavItems = ({
+  activePage,
+  onNavigate,
+  onNavigateToAttentionSessions,
+  attentionCount,
+  needsStrategyConfig,
+  isGlobal,
+  sessionName,
+}: {
+  activePage: PageKey;
+  onNavigate: (p: PageKey) => void;
+  onNavigateToAttentionSessions?: () => void;
+  attentionCount: number;
+  needsStrategyConfig: boolean;
+  isGlobal: boolean;
+  sessionName: string;
+}) => (
+  <nav style={s.nav}>
+    {NAV_ITEMS.map((item) => {
+      const active = activePage === item.id;
+      const isStrategy = item.id === "strategy";
+      const isSessions = item.id === "sessions";
+      return (
+        <Button
+          key={item.id}
+          onClick={() => onNavigate(item.id)}
+          variant="ghost"
+          style={{
+            ...s.navItem,
+            ...(active ? s.navItemActive : {}),
+            ...(isStrategy && needsStrategyConfig ? s.navItemHint : {}),
+          }}
+          title={
+            isStrategy && !isGlobal
+              ? `Configure AI phases, risk limits, and strategy for "${sessionName}"`
+              : undefined
+          }
+        >
+          {item.label}
+          {isSessions && attentionCount > 0 && (
+            <span
+              style={s.attentionBadgeStyle}
+              title={`${attentionCount} session(s) need attention`}
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation();
+                onNavigateToAttentionSessions?.();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onNavigateToAttentionSessions?.();
+                }
+              }}
+            >
+              {attentionCount}
+            </span>
+          )}
+          {isStrategy && needsStrategyConfig && (
+            <span
+              style={s.strategyDot}
+              title="This session has unconfigured strategy settings"
+            />
+          )}
+          {active && <div style={s.navUnderline} />}
+        </Button>
+      );
+    })}
+  </nav>
+);
+
+const NavStatus = ({
+  environmentMode,
+  stats,
+  sessionStatus,
+  isGlobal,
+  sessionName,
+  ss,
+  aiReady,
+  sessionControlsDisabled,
+  sessionActionPending,
+  isRunning,
+  isDraining,
+  hasOpenTrades,
+  onSessionAction,
+}: {
+  environmentMode: "live" | "paper";
+  stats: DashboardStats | null;
+  sessionStatus: SessionStatus;
+  isGlobal: boolean;
+  sessionName: string;
+  ss: { label: string; dot: string; pulse: boolean };
+  aiReady: boolean | null | undefined;
+  sessionControlsDisabled: boolean;
+  sessionActionPending: boolean;
+  isRunning: boolean;
+  isDraining: boolean;
+  hasOpenTrades: boolean;
+  onSessionAction: (
+    a: "start" | "pause" | "resume" | "stop" | "forceStop",
+  ) => void;
+}) => {
+  const isMonitorAlive = isRunning || isDraining;
+  const stopWhenFlatTitle =
+    "Stops new research immediately and completes shutdown once all open trades close.";
+  return (
+    <div style={s.session}>
+      <div
+        style={environmentMode === "live" ? s.liveEnvPill : s.paperEnvPill}
+        title={
+          environmentMode === "live"
+            ? "Live trading mode — real broker connection"
+            : "Paper trading mode — no real orders"
+        }
+      >
+        <Dot
+          color={environmentMode === "live" ? "#34d399" : "#fbbf24"}
+          pulse={environmentMode === "live"}
+          size={7}
+        />
+        <span
+          style={{
+            fontSize: 12,
+            color: environmentMode === "live" ? "#34d399" : "#fbbf24",
+            fontWeight: 500,
+          }}
+        >
+          {environmentMode === "live" ? "Live" : "Paper"}
+        </span>
+      </div>
+
+      {stats && sessionStatus === "active" && (
+        <div style={s.liveStats}>
+          <span style={s.liveStatVal}>{fmt.pnl(stats.daily_pnl_usd)}</span>
+          <span style={s.liveStatSep}>·</span>
+          <span style={s.liveStatLabel}>
+            {fmt.uptime(stats.session_uptime_min)}
+          </span>
+        </div>
+      )}
+
+      {isGlobal ? (
+        <div
+          style={s.globalPill}
+          title="No session focused — viewing global workspace. Go to Sessions to focus a session."
+        >
+          <span
+            style={{ fontSize: 12, color: "var(--text3)", fontWeight: 500 }}
+          >
+            Global
+          </span>
+        </div>
+      ) : (
+        <div
+          style={s.statusPill}
+          title={`Focused session: "${sessionName}" — status: ${ss.label}`}
+        >
+          <Dot color={ss.dot} pulse={ss.pulse} size={7} />
+          <span style={s.sessionLabel}>{sessionName}</span>
+          <span style={s.sessionStatus}>{ss.label}</span>
+        </div>
+      )}
+
+      {!isGlobal &&
+        sessionStatus !== "active" &&
+        sessionStatus !== "monitoring_only" && (
+          <Button
+            style={{
+              ...s.btnStart,
+              ...(aiReady === false || sessionControlsDisabled
+                ? {
+                    opacity: 0.4,
+                    cursor: "not-allowed",
+                    background: "var(--surface3)",
+                    color: "var(--text3)",
+                  }
+                : {}),
+            }}
+            variant="ghost"
+            disabled={aiReady === false || sessionControlsDisabled}
+            title={
+              sessionControlsDisabled
+                ? "Focused session is not in the current workspace environment"
+                : aiReady === false
+                  ? "AI providers not connected — configure in Strategy tab"
+                  : undefined
+            }
+            onClick={() =>
+              onSessionAction(
+                sessionStatus === "paused" ||
+                  sessionStatus === "attention_required"
+                  ? "resume"
+                  : "start",
+              )
+            }
+          >
+            ▶{" "}
+            {sessionStatus === "paused" ||
+            sessionStatus === "attention_required"
+              ? "Resume"
+              : "Start"}
+          </Button>
+        )}
+      {sessionStatus === "active" && !sessionControlsDisabled && (
+        <Button
+          variant="ghost"
+          style={s.btnPause}
+          disabled={sessionActionPending}
+          onClick={() => onSessionAction("pause")}
+          title="Pause stops new research but keeps exits managed."
+        >
+          {sessionActionPending ? "⏸ Pausing…" : "⏸ Pause"}
+        </Button>
+      )}
+      {isRunning && !sessionControlsDisabled && !hasOpenTrades ? (
+        <Button
+          variant="ghost"
+          style={s.btnStop}
+          disabled={sessionActionPending}
+          onClick={() => onSessionAction("stop")}
+        >
+          ■
+        </Button>
+      ) : null}
+      {isRunning && !sessionControlsDisabled && hasOpenTrades ? (
+        <Button
+          variant="ghost"
+          style={s.btnStopWhenFlat}
+          disabled={sessionActionPending}
+          title={stopWhenFlatTitle}
+          onClick={() => onSessionAction("stop")}
+        >
+          {sessionActionPending ? "Stopping…" : "Stop when flat"}
+        </Button>
+      ) : null}
+      {isMonitorAlive && !sessionControlsDisabled && hasOpenTrades ? (
+        <Button
+          variant="ghost"
+          style={s.btnForceStop}
+          disabled={sessionActionPending}
+          title="Force stop ends automated exit management for open positions."
+          onClick={() => onSessionAction("forceStop")}
+        >
+          Force stop
+        </Button>
+      ) : null}
+    </div>
+  );
+};
+
 export const TopNav = ({
   activePage,
   onNavigate,
@@ -126,11 +378,8 @@ export const TopNav = ({
   const ss = SESSION_STATUS[sessionStatus];
   const isRunning = sessionStatus === "active" || sessionStatus === "paused";
   const isDraining = sessionStatus === "monitoring_only";
-  const isMonitorAlive = isRunning || isDraining;
   const openTradeCount = focusedSession?.openTradeCount ?? 0;
   const hasOpenTrades = openTradeCount > 0;
-  const stopWhenFlatTitle =
-    "Stops new research immediately and completes shutdown once all open trades close.";
   const isGlobal =
     viewMode === "global" || !focusedSessionId || !focusedInCurrentEnvironment;
   const sessionName = focusedInCurrentEnvironment
@@ -161,206 +410,33 @@ export const TopNav = ({
         <span style={s.logoText}>exva</span>
       </div>
 
-      <nav style={s.nav}>
-        {NAV_ITEMS.map((item) => {
-          const active = activePage === item.id;
-          const isStrategy = item.id === "strategy";
-          const isSessions = item.id === "sessions";
-          return (
-            <Button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              variant="ghost"
-              style={{
-                ...s.navItem,
-                ...(active ? s.navItemActive : {}),
-                ...(isStrategy && needsStrategyConfig ? s.navItemHint : {}),
-              }}
-              title={
-                isStrategy && !isGlobal
-                  ? `Configure AI phases, risk limits, and strategy for "${sessionName}"`
-                  : undefined
-              }
-            >
-              {item.label}
-              {isSessions && attentionCount > 0 && (
-                <span
-                  style={s.attentionBadgeStyle}
-                  title={`${attentionCount} session(s) need attention`}
-                  role="button"
-                  tabIndex={0}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onNavigateToAttentionSessions?.();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onNavigateToAttentionSessions?.();
-                    }
-                  }}
-                >
-                  {attentionCount}
-                </span>
-              )}
-              {isStrategy && needsStrategyConfig && (
-                <span
-                  style={s.strategyDot}
-                  title="This session has unconfigured strategy settings"
-                />
-              )}
-              {active && <div style={s.navUnderline} />}
-            </Button>
-          );
-        })}
-      </nav>
+      <NavItems
+        activePage={activePage}
+        onNavigate={onNavigate}
+        onNavigateToAttentionSessions={onNavigateToAttentionSessions}
+        attentionCount={attentionCount}
+        needsStrategyConfig={needsStrategyConfig}
+        isGlobal={isGlobal}
+        sessionName={sessionName}
+      />
 
       <div style={{ flex: 1 }} />
 
-      <div style={s.session}>
-        {/* Data source indicator */}
-        <div
-          style={environmentMode === "live" ? s.liveEnvPill : s.paperEnvPill}
-          title={
-            environmentMode === "live"
-              ? "Live trading mode — real broker connection"
-              : "Paper trading mode — no real orders"
-          }
-        >
-          <Dot
-            color={environmentMode === "live" ? "#34d399" : "#fbbf24"}
-            pulse={environmentMode === "live"}
-            size={7}
-          />
-          <span
-            style={{
-              fontSize: 12,
-              color: environmentMode === "live" ? "#34d399" : "#fbbf24",
-              fontWeight: 500,
-            }}
-          >
-            {environmentMode === "live" ? "Live" : "Paper"}
-          </span>
-        </div>
-
-        {stats && sessionStatus === "active" && (
-          <div style={s.liveStats}>
-            <span style={s.liveStatVal}>{fmt.pnl(stats.daily_pnl_usd)}</span>
-            <span style={s.liveStatSep}>·</span>
-            <span style={s.liveStatLabel}>
-              {fmt.uptime(stats.session_uptime_min)}
-            </span>
-          </div>
-        )}
-
-        {/* Session context pill */}
-        {isGlobal ? (
-          <div
-            style={s.globalPill}
-            title="No session focused — viewing global workspace. Go to Sessions to focus a session."
-          >
-            <span
-              style={{ fontSize: 12, color: "var(--text3)", fontWeight: 500 }}
-            >
-              Global
-            </span>
-          </div>
-        ) : (
-          <div
-            style={s.statusPill}
-            title={`Focused session: "${sessionName}" — status: ${ss.label}`}
-          >
-            <Dot color={ss.dot} pulse={ss.pulse} size={7} />
-            <span style={s.sessionLabel}>{sessionName}</span>
-            <span style={s.sessionStatus}>{ss.label}</span>
-          </div>
-        )}
-
-        {!isGlobal &&
-          sessionStatus !== "active" &&
-          sessionStatus !== "monitoring_only" && (
-            <Button
-              style={{
-                ...s.btnStart,
-                ...(aiReady === false || sessionControlsDisabled
-                  ? {
-                      opacity: 0.4,
-                      cursor: "not-allowed",
-                      background: "var(--surface3)",
-                      color: "var(--text3)",
-                    }
-                  : {}),
-              }}
-              variant="ghost"
-              disabled={aiReady === false || sessionControlsDisabled}
-              title={
-                sessionControlsDisabled
-                  ? "Focused session is not in the current workspace environment"
-                  : aiReady === false
-                    ? "AI providers not connected — configure in Strategy tab"
-                    : undefined
-              }
-              onClick={() =>
-                onSessionAction(
-                  sessionStatus === "paused" ||
-                    sessionStatus === "attention_required"
-                    ? "resume"
-                    : "start",
-                )
-              }
-            >
-              ▶{" "}
-              {sessionStatus === "paused" ||
-              sessionStatus === "attention_required"
-                ? "Resume"
-                : "Start"}
-            </Button>
-          )}
-        {sessionStatus === "active" && !sessionControlsDisabled && (
-          <Button
-            variant="ghost"
-            style={s.btnPause}
-            disabled={sessionActionPending}
-            onClick={() => onSessionAction("pause")}
-            title="Pause stops new research but keeps exits managed."
-          >
-            {sessionActionPending ? "⏸ Pausing…" : "⏸ Pause"}
-          </Button>
-        )}
-        {isRunning && !sessionControlsDisabled && !hasOpenTrades ? (
-          <Button
-            variant="ghost"
-            style={s.btnStop}
-            disabled={sessionActionPending}
-            onClick={() => onSessionAction("stop")}
-          >
-            ■
-          </Button>
-        ) : null}
-        {isRunning && !sessionControlsDisabled && hasOpenTrades ? (
-          <Button
-            variant="ghost"
-            style={s.btnStopWhenFlat}
-            disabled={sessionActionPending}
-            title={stopWhenFlatTitle}
-            onClick={() => onSessionAction("stop")}
-          >
-            {sessionActionPending ? "Stopping…" : "Stop when flat"}
-          </Button>
-        ) : null}
-        {isMonitorAlive && !sessionControlsDisabled && hasOpenTrades ? (
-          <Button
-            variant="ghost"
-            style={s.btnForceStop}
-            disabled={sessionActionPending}
-            title="Force stop ends automated exit management for open positions."
-            onClick={() => onSessionAction("forceStop")}
-          >
-            Force stop
-          </Button>
-        ) : null}
-      </div>
+      <NavStatus
+        environmentMode={environmentMode}
+        stats={stats}
+        sessionStatus={sessionStatus}
+        isGlobal={isGlobal}
+        sessionName={sessionName}
+        ss={ss}
+        aiReady={aiReady}
+        sessionControlsDisabled={sessionControlsDisabled}
+        sessionActionPending={sessionActionPending}
+        isRunning={isRunning}
+        isDraining={isDraining}
+        hasOpenTrades={hasOpenTrades}
+        onSessionAction={onSessionAction}
+      />
     </header>
   );
 };

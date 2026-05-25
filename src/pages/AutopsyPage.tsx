@@ -99,16 +99,8 @@ function SectionCard({
       <button
         onClick={() => setOpen((o) => !o)}
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          padding: "13px 16px",
-          border: "none",
-          background: "transparent",
-          cursor: "pointer",
+          ...collapsibleBtnBaseStyle,
           borderLeft: accent ? `3px solid ${accent}` : "3px solid transparent",
-          textAlign: "left",
         }}
       >
         <span
@@ -156,14 +148,9 @@ function Chip({
   return (
     <span
       style={{
-        display: "inline-block",
-        padding: "3px 8px",
-        borderRadius: 4,
+        ...chipBaseStyle,
         background: bg ?? "var(--surface3)",
         color: color ?? "var(--text2)",
-        fontSize: 12,
-        fontFamily: "var(--font-mono)",
-        fontWeight: 600,
       }}
     >
       {label}
@@ -191,20 +178,7 @@ function FieldRow({
         marginBottom: 10,
       }}
     >
-      <span
-        style={{
-          fontSize: 12,
-          color: "var(--text3)",
-          fontWeight: 700,
-          letterSpacing: "0.07em",
-          textTransform: "uppercase",
-          minWidth: 110,
-          flexShrink: 0,
-          paddingTop: 2,
-        }}
-      >
-        {label}
-      </span>
+      <span style={fieldLabelStyle}>{label}</span>
       <div
         style={{
           flex: 1,
@@ -254,15 +228,9 @@ function GradeBanner({
       {/* Grade chip */}
       <div
         style={{
-          flexShrink: 0,
-          width: 72,
-          height: 72,
-          borderRadius: 10,
+          ...gradeChipBaseStyle,
           background: `radial-gradient(circle at center, ${gs.glow} 0%, transparent 70%)`,
           border: `2px solid ${gs.color}44`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
         }}
       >
         <span
@@ -420,14 +388,10 @@ function VersionSelector({
             key={a.id}
             onClick={() => onSelect(a.id)}
             style={{
-              padding: "5px 12px",
-              borderRadius: 6,
+              ...versionBtnBaseStyle,
               border: `1px solid ${active ? "rgba(96,165,250,0.5)" : "var(--border)"}`,
               background: active ? "rgba(96,165,250,0.12)" : "transparent",
               color: active ? "#60a5fa" : "var(--text3)",
-              fontSize: 12,
-              fontFamily: "var(--font-mono)",
-              cursor: "pointer",
             }}
           >
             v{autopsies.length - i} · {date}
@@ -975,20 +939,7 @@ function ExportDropdown({
             }}
             onClick={() => setOpen(false)}
           />
-          <div
-            style={{
-              position: "absolute",
-              top: "calc(100% + 4px)",
-              right: 0,
-              zIndex: 50,
-              background: "var(--surface3)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: 4,
-              minWidth: 160,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-            }}
-          >
+          <div style={exportDropdownStyle}>
             {[
               { label: "Markdown (.md)", format: "markdown" },
               { label: "JSON (.json)", format: "json" },
@@ -999,18 +950,7 @@ function ExportDropdown({
                 onClick={() => {
                   void handleExport(format as ExportFormat);
                 }}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: 5,
-                  border: "none",
-                  background: "transparent",
-                  color: "var(--text1)",
-                  fontSize: 12,
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
+                style={exportOptionBtnStyle}
               >
                 {label}
               </button>
@@ -1331,17 +1271,7 @@ export function AutopsyPage({
                   <button
                     disabled={isGenerating}
                     onClick={() => generateMutation.mutate()}
-                    style={{
-                      padding: "10px 24px",
-                      borderRadius: 8,
-                      border: "1px solid rgba(96,165,250,0.4)",
-                      background: "rgba(96,165,250,0.15)",
-                      color: "#60a5fa",
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: "var(--font-sans)",
-                    }}
+                    style={generateBtnStyle}
                   >
                     {isGenerating ? "Generating…" : "Generate Autopsy"}
                   </button>
@@ -1380,20 +1310,7 @@ export function AutopsyPage({
             </div>
 
             {/* RIGHT SIDEBAR */}
-            <div
-              style={{
-                width: 300,
-                flexShrink: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-                position: "sticky",
-                top: 58,
-                alignSelf: "flex-start",
-                maxHeight: "calc(100vh - 74px)",
-                overflowY: "auto",
-              }}
-            >
+            <div style={rightSidebarStyle}>
               <TradeMetaCard trade={resolvedTrade} />
               <LessonsPanel
                 lessons={lessons}
@@ -1504,4 +1421,105 @@ const emptyStateStyle: CSSProperties = {
   borderRadius: 10,
   border: "1px dashed var(--border)",
   padding: 40,
+};
+
+const collapsibleBtnBaseStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  width: "100%",
+  padding: "13px 16px",
+  border: "none",
+  background: "transparent",
+  cursor: "pointer",
+  textAlign: "left",
+};
+
+const chipBaseStyle: CSSProperties = {
+  display: "inline-block",
+  padding: "3px 8px",
+  borderRadius: 4,
+  fontSize: 12,
+  fontFamily: "var(--font-mono)",
+  fontWeight: 600,
+};
+
+const fieldLabelStyle: CSSProperties = {
+  fontSize: 12,
+  color: "var(--text3)",
+  fontWeight: 700,
+  letterSpacing: "0.07em",
+  textTransform: "uppercase",
+  minWidth: 110,
+  flexShrink: 0,
+  paddingTop: 2,
+};
+
+const gradeChipBaseStyle: CSSProperties = {
+  flexShrink: 0,
+  width: 72,
+  height: 72,
+  borderRadius: 10,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const versionBtnBaseStyle: CSSProperties = {
+  padding: "5px 12px",
+  borderRadius: 6,
+  fontSize: 12,
+  fontFamily: "var(--font-mono)",
+  cursor: "pointer",
+};
+
+const exportDropdownStyle: CSSProperties = {
+  position: "absolute",
+  top: "calc(100% + 4px)",
+  right: 0,
+  zIndex: 50,
+  background: "var(--surface3)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  padding: 4,
+  minWidth: 160,
+  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+};
+
+const exportOptionBtnStyle: CSSProperties = {
+  display: "block",
+  width: "100%",
+  padding: "8px 12px",
+  borderRadius: 5,
+  border: "none",
+  background: "transparent",
+  color: "var(--text1)",
+  fontSize: 12,
+  cursor: "pointer",
+  textAlign: "left",
+};
+
+const generateBtnStyle: CSSProperties = {
+  padding: "10px 24px",
+  borderRadius: 8,
+  border: "1px solid rgba(96,165,250,0.4)",
+  background: "rgba(96,165,250,0.15)",
+  color: "#60a5fa",
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: "pointer",
+  fontFamily: "var(--font-sans)",
+};
+
+const rightSidebarStyle: CSSProperties = {
+  width: 300,
+  flexShrink: 0,
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  position: "sticky",
+  top: 58,
+  alignSelf: "flex-start",
+  maxHeight: "calc(100vh - 74px)",
+  overflowY: "auto",
 };

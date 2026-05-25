@@ -19,6 +19,17 @@ const labelStyle: CSSProperties = {
   marginBottom: 6,
 };
 
+const hintBoxStyle: CSSProperties = {
+  marginBottom: 16,
+  padding: "10px 12px",
+  background: "rgba(96,165,250,0.06)",
+  border: "1px solid rgba(96,165,250,0.15)",
+  borderRadius: 9,
+  fontSize: 12,
+  color: "var(--text3)",
+  lineHeight: 1.45,
+};
+
 const DEFAULT_NAMES: Record<SearchProviderType, string> = {
   brave: "Brave Search",
   tavily: "Tavily Search",
@@ -199,18 +210,7 @@ export const AddSearchProviderModal = ({
           />
         </div>
 
-        <div
-          style={{
-            marginBottom: 16,
-            padding: "10px 12px",
-            background: "rgba(96,165,250,0.06)",
-            border: "1px solid rgba(96,165,250,0.15)",
-            borderRadius: 9,
-            fontSize: 12,
-            color: "var(--text3)",
-            lineHeight: 1.45,
-          }}
-        >
+        <div style={hintBoxStyle}>
           Optional providers let you override the built-in default for sessions
           that need a specific backend.
         </div>
