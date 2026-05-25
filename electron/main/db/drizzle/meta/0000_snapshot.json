@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d293700b-e410-4064-93db-931acf55e417",
+  "id": "0cd7bd5f-7ab3-4e99-80b4-a95d5debbab5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_messages": {
@@ -1645,6 +1645,13 @@
         },
         "last_error_message": {
           "name": "last_error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "outcome": {
+          "name": "outcome",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

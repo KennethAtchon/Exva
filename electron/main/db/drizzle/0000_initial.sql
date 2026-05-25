@@ -237,6 +237,7 @@ CREATE TABLE `session_execution_steps` (
 	`next_retry_at` text,
 	`last_error_code` text,
 	`last_error_message` text,
+	`outcome` text,
 	`retryable` integer DEFAULT false NOT NULL,
 	`created_at` text NOT NULL,
 	`updated_at` text NOT NULL,
