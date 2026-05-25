@@ -110,16 +110,6 @@ export interface ApiCallLogEntry {
   created_at: string;
 }
 
-export interface TradeAutopsy {
-  id: string;
-  trade_id: string;
-  session_id: string;
-  model_id: string;
-  summary: string;
-  created_at: string;
-  created_by: string;
-}
-
 export interface AgentMessage {
   id: string;
   agent_run_id: string;

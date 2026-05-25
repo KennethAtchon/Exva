@@ -28,7 +28,6 @@ import type {
   SessionResearchPosture,
   SessionAiSettings,
   Trade,
-  TradeAutopsy,
   TradeDecisionPayload,
   TradeDetail,
   WorkspacePreferences,
@@ -97,10 +96,6 @@ export const api = {
     bridge().trades.getDetail(tradeId),
   forceCloseTrade: (tradeId: string): Promise<void> =>
     bridge().trades.forceClose(tradeId),
-  summarizeTradeAutopsy: (tradeId: string): Promise<TradeAutopsy> =>
-    bridge().trades.summarizeAutopsy(tradeId),
-  listTradeAutopsies: (tradeId: string): Promise<TradeAutopsy[]> =>
-    bridge().trades.listAutopsies(tradeId),
   approveTrade: async (tradeId: string, approved: boolean): Promise<void> => {
     await bridge().trades.approve(tradeId, approved);
   },

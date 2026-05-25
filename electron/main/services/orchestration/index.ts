@@ -26,4 +26,3 @@ export {
   CycleReplayRunner,
 } from "../replay/cycle-replay-service";
 export type { CycleFixture, ReplayResult } from "../replay/cycle-replay-service";
-export { TradeAutopsyService } from "../analytics/trade-autopsy-service";

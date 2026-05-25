@@ -8,8 +8,6 @@ export const channels = {
     getDetail: "trades:get-detail",
     forceClose: "trades:force-close",
     approve: "trades:approve",
-    summarizeAutopsy: "trades:autopsy:summarize",
-    listAutopsies: "trades:autopsy:list",
   },
   session: {
     start: "session:start",

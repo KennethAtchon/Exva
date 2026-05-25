@@ -242,18 +242,12 @@ export const TradeDetail = ({
   onClose: () => void;
 }) => {
   const queryClient = useQueryClient();
-  const [autopsyLoading, setAutopsyLoading] = useState(false);
   const [closing, setClosing] = useState(false);
 
   const { data: detail } = useQuery({
     queryKey: ["trade-detail", tradeId],
     queryFn: () => api.getTradeDetail(tradeId),
   });
-  const { data: autopsies = [], refetch: refetchAutopsies } = useQuery({
-    queryKey: ["trade-autopsies", tradeId],
-    queryFn: () => api.listTradeAutopsies(tradeId),
-  });
-
   const trade = detail?.trade ?? null;
   const runs = detail?.runs ?? [];
   const messages = detail?.messages ?? [];
@@ -268,16 +262,6 @@ export const TradeDetail = ({
       onClose();
     } finally {
       setClosing(false);
-    }
-  };
-
-  const handleGenerateAutopsy = async () => {
-    setAutopsyLoading(true);
-    try {
-      await api.summarizeTradeAutopsy(tradeId);
-      void refetchAutopsies();
-    } finally {
-      setAutopsyLoading(false);
     }
   };
 
@@ -629,80 +613,6 @@ export const TradeDetail = ({
                     )}
                   </span>
                 </div>
-              </div>
-            )}
-
-            {!isOpen && (
-              <div
-                style={{
-                  padding: "0 24px 20px",
-                  borderTop: "1px solid var(--border)",
-                  paddingTop: 20,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 10,
-                  }}
-                >
-                  <div style={ts.secTitle}>Trade autopsy</div>
-                  <button
-                    onClick={handleGenerateAutopsy}
-                    disabled={autopsyLoading}
-                    style={{
-                      padding: "6px 10px",
-                      fontSize: 11,
-                      borderRadius: 8,
-                      border: "1px solid var(--border)",
-                      background: "var(--surface2)",
-                      color: "var(--text2)",
-                    }}
-                  >
-                    {autopsyLoading ? "Generating…" : "Generate autopsy"}
-                  </button>
-                </div>
-                {autopsies.length === 0 ? (
-                  <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                    No autopsy yet.
-                  </div>
-                ) : (
-                  autopsies.map((a) => (
-                    <div
-                      key={a.id}
-                      style={{
-                        border: "1px solid var(--border)",
-                        borderRadius: 10,
-                        padding: "10px 12px",
-                        background: "var(--surface2)",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: 10,
-                          color: "var(--text3)",
-                          marginBottom: 6,
-                        }}
-                      >
-                        {a.model_id} · {fmt.time(a.created_at)}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--text2)",
-                          lineHeight: 1.6,
-                          whiteSpace: "pre-wrap",
-                        }}
-                      >
-                        {a.summary}
-                      </div>
-                    </div>
-                  ))
-                )}
               </div>
             )}
 

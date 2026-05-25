@@ -28,7 +28,6 @@ import { TimeframePresetsRepo } from "../db/repositories/presets/timeframe-prese
 import { ResearchPosturePresetsRepo } from "../db/repositories/presets/research-posture-presets-repo";
 import { TradeRulePresetsRepo } from "../db/repositories/presets/trade-rule-presets-repo";
 import { StatsRepo } from "../db/repositories/system/stats-repo";
-import { TradeAutopsiesRepo } from "../db/repositories/trades/trade-autopsies-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trades/trade-approvals-repo";
 import { TradesRepo } from "../db/repositories/trades/trades-repo";
 import { WorkspacePreferencesRepo } from "../db/repositories/workspace/workspace-prefs-repo";
@@ -66,7 +65,6 @@ import { SessionListingService } from "./session/listing-service";
 import { SessionTemplateService } from "./session/template-service";
 import { SessionWriteService } from "./session/write-service";
 import { TradeMonitor } from "./orchestration/lifecycle/trade-monitor";
-import { TradeAutopsyService } from "./analytics/trade-autopsy-service";
 import { CycleReplayService } from "./replay/cycle-replay-service";
 import { InstrumentCacheService } from "./instrument";
 import {
@@ -104,7 +102,6 @@ export interface AppServices {
     sessionResearchPosture: SessionResearchPostureRepo;
     sessionAiSettings: SessionAiSettingsRepo;
     stats: StatsRepo;
-    tradeAutopsies: TradeAutopsiesRepo;
     tradeApprovals: TradeApprovalsRepo;
     trades: TradesRepo;
     workspacePreferences: WorkspacePreferencesRepo;
@@ -135,7 +132,6 @@ export interface AppServices {
   strategyContext: SessionStrategyContextService;
   sessionTemplates: SessionTemplateService;
   sessionWrites: SessionWriteService;
-  tradeAutopsy: TradeAutopsyService;
   cycleReplay: CycleReplayService;
   paperScorecard: PaperScorecardService;
   liveReadiness: LiveReadinessService;
@@ -166,7 +162,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionResearchPosture: new SessionResearchPostureRepo(db),
     sessionAiSettings: new SessionAiSettingsRepo(db),
     stats: new StatsRepo(db),
-    tradeAutopsies: new TradeAutopsiesRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
     trades: new TradesRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),
@@ -398,13 +393,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     liveReadiness,
   });
 
-  const tradeAutopsy = new TradeAutopsyService(
-    repos.trades,
-    repos.agentMessages,
-    repos.tradeAutopsies,
-    providerRegistry,
-  );
-
   const cycleReplay = new CycleReplayService({
     agentMessages: repos.agentMessages,
     trades: repos.trades,
@@ -445,7 +433,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     strategyContext,
     sessionTemplates,
     sessionWrites,
-    tradeAutopsy,
     cycleReplay,
     paperScorecard,
     liveReadiness,

@@ -28,7 +28,6 @@ import type {
   SessionResearchPosture,
   SessionAiSettings,
   Trade,
-  TradeAutopsy,
   TradeDecisionPayload,
   TradeDetail,
   WorkspacePreferences,
@@ -73,8 +72,6 @@ export interface ExvaApi {
     getDetail(tradeId: string): Promise<TradeDetail>;
     forceClose(tradeId: string): Promise<void>;
     approve(tradeId: string, approved: boolean): Promise<void>;
-    summarizeAutopsy(tradeId: string): Promise<TradeAutopsy>;
-    listAutopsies(tradeId: string): Promise<TradeAutopsy[]>;
   };
   session: {
     start(): Promise<SessionStatus>;

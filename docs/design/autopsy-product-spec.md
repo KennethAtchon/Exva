@@ -3,7 +3,7 @@
 > **Date:** 2026-05-24
 > **Status:** Draft
 > **Feature area:** Analytics / Post-Trade Intelligence
-> **Depends on:** Trade execution pipeline, `agent_messages` table, `agent_runs` table, `trades` table, LLM provider registry, IPC channel layer
+> **Depends on:** Trade execution pipeline, `agent_messages` table, `agent_runs` table, `trades` table, LLM provider registry, IPC channel layer, Router
 
 ---
 
@@ -47,7 +47,7 @@ The Autopsy system is an institutional-grade post-trade intelligence and continu
 - Lesson creation and tracking from autopsy findings
 - Lesson validation in subsequent autopsies ("was this fixed?")
 - Andon Cord: threshold-based escalation when recurring failures go unresolved
-- Enhanced autopsy UI on the TradeDetail drawer (replacing the current minimal card)
+- Dedicated full-page autopsy view per trade at `/trades/[tradeId]/autopsy` — no drawer integration
 - Autopsy history list per trade (multiple autopsies over time are retained)
 
 **Out of scope:**
@@ -63,92 +63,152 @@ The Autopsy system is an institutional-grade post-trade intelligence and continu
 
 ---
 
-### 4.1 TradeDetail Drawer — Autopsy Section (Enhanced)
+### 4.1 Autopsy Page (Full Page)
 
-**Route / location:** `TradeDetail` drawer, "Trade autopsy" section. Already exists at bottom of closed-trade view. Replacing the current minimal card.
+**Route / location:** `/trades/[tradeId]/autopsy`
 
-**When it appears:** When `trade.status !== "open"`. The section is always visible for closed trades, even before an autopsy is generated.
+**When it appears:** User navigates directly to this route. Navigation entry points: trades list row action, any "View Autopsy" link placed elsewhere in the app. The TradeDetail drawer is not used for autopsy — this page is the sole home for all autopsy functionality.
 
-**Layout:**
+**Access guard:** If `trade.status === "open"`, show full-page empty state: "Autopsy is only available for closed trades." No generate button.
+
+---
+
+#### Page Layout
 
 ```
-TradeDetail Drawer (480px wide panel, scrollable body)
-├── [existing header, hero, order details, position bar, message traces, agent runs]
+Autopsy Page (full viewport, scrollable)
 │
-└── Trade Autopsy Section
-    ├── Section Header Row
-    │   ├── Label: "TRADE AUTOPSY" (uppercase, var(--text3), 11px)
-    │   ├── Status Chip: "No autopsy" | "1 autopsy" | "N autopsies" (text, var(--text3))
-    │   └── Action Buttons (right-aligned, flex gap-8)
-    │       ├── "View Chat History" button — opens Chat History Modal (shown if ≥1 autopsy exists)
-    │       ├── Export dropdown button "↓ Export" — shows [Markdown, JSON, PDF] (shown if ≥1 autopsy exists)
-    │       └── "Generate Autopsy" button (primary) | "Regenerate" (secondary if autopsies exist)
-    │
-    ├── [Empty state if no autopsies]
-    │   └── Text: "No autopsy generated yet." + subtext: "Generate an autopsy to get structured analysis of this trade."
-    │
-    └── [If autopsies exist — show latest by default]
-        ├── Autopsy Version Selector (if multiple autopsies)
-        │   └── Row of version chips: "v1 · May 20" | "v2 · May 24 ●" (● = current)
-        │
-        ├── Autopsy Card
-        │   ├── Meta row: model_id · timestamp · phase count chip
-        │   ├── Trade Quality Score Banner
-        │   │   └── Grade chip (A+ / A / B / C / D / F) + score label + color
-        │   │
-        │   ├── Executive Summary (always visible, collapsible sections below)
-        │   │   └── 2–4 sentence overview paragraph
-        │   │
-        │   ├── Collapsible Sections (each has ▼ toggle, default collapsed except Summary)
-        │   │   ├── "Thesis Review" — was the trade thesis valid?
-        │   │   ├── "Execution Quality" — entry timing, sizing, exit management
-        │   │   ├── "Behavioral Flags" — hesitation, FOMO, rule violations (if any)
-        │   │   ├── "Market Context" — regime, volatility, macro conditions at time of trade
-        │   │   ├── "What Worked" — bullet list
-        │   │   ├── "What Failed" — bullet list
-        │   │   └── "Root Cause" — structured failure breakdown (if losing trade)
-        │   │
-        │   └── Lessons Panel
-        │       ├── Header: "LESSONS" (uppercase) + "+ Add Lesson" button
-        │       ├── [If no lessons] Text: "No lessons extracted."
-        │       └── [Lesson rows]
-        │           ├── Severity chip (High / Medium / Low)
-        │           ├── Lesson text (truncated to 2 lines, expand on click)
-        │           ├── Status chip (Pending / Implemented / Validated / Recurring)
-        │           └── Category chip (Strategy / Execution / Behavioral / Risk)
+├── Page Header (sticky, border-bottom, var(--surface1) bg)
+│   ├── LEFT: ← Back button (returns to previous route / TradeDetail)
+│   ├── CENTER: "[SYMBOL] [SIDE]" · [status chip] · "P&L: [+/-$X.XX]"
+│   └── RIGHT: Action bar
+│       ├── "View Chat History" button (shown if ≥1 autopsy)
+│       ├── "↓ Export" dropdown button (shown if ≥1 autopsy)
+│       └── "Generate Autopsy" (primary) | "Regenerate" (secondary) | "Generating…" (loading)
+│
+├── Page Body (max-w-[1280px], mx-auto, px-6, py-6)
+│   ├── LEFT: Warning Banners (full-width, above columns)
+│   │   ├── [If is_fallback] Yellow banner: "LLM unavailable — this autopsy used fallback summarization."
+│   │   └── [If no agent messages] Yellow banner: "No AI reasoning trace found. Autopsy will be based on trade metadata only."
+│   │
+│   ├── Version Selector Row (if ≥2 autopsies exist, shown above columns)
+│   │   └── Chip row: "v1 · May 20" | "v2 · May 24 ●" (● = current)
+│   │
+│   └── Two-column layout (gap-6)
+│       │
+│       ├── MAIN COLUMN (flex-1, min-w-0)
+│       │   │
+│       │   ├── [Empty state — no autopsies]
+│       │   │   ├── Illustration / icon
+│       │   │   ├── "No autopsy generated yet."
+│       │   │   ├── Subtext: "Generate an autopsy to get structured analysis of this trade."
+│       │   │   └── "Generate Autopsy" button (large, centered)
+│       │   │
+│       │   └── [Autopsy content — if autopsy exists]
+│       │       │
+│       │       ├── Grade Banner Card
+│       │       │   ├── Grade chip (A+ / A / B / C / D / F, large, color-coded)
+│       │       │   ├── Score: "[score]/100"
+│       │       │   ├── Meta: "[model_id] · [timestamp] · [N phases]"
+│       │       │   └── Executive Summary paragraph (2–4 sentences, always visible)
+│       │       │
+│       │       └── Section Cards (stacked vertically, each collapsible with ▼ toggle)
+│       │           ├── "Thesis Review"
+│       │           │   ├── Valid thesis: Yes / No / Uncertain
+│       │           │   ├── Confirmatory bias: Yes / No
+│       │           │   ├── Ignored counter-signals: [list]
+│       │           │   └── Analysis paragraph
+│       │           │
+│       │           ├── "Execution Quality"
+│       │           │   ├── Entry timing chip
+│       │           │   ├── Sizing chip
+│       │           │   ├── Exit management text
+│       │           │   └── Slippage (if any)
+│       │           │
+│       │           ├── "Behavioral Flags"
+│       │           │   └── [Each flag: flag type chip + severity + description]
+│       │           │   └── [If none: "No behavioral flags detected."]
+│       │           │
+│       │           ├── "Market Context"
+│       │           │   ├── Regime chip + Suitability chip
+│       │           │   └── Macro text, volatility text
+│       │           │
+│       │           ├── "What Worked / What Failed" (two-column inside card)
+│       │           │   ├── LEFT: ✓ What Worked (bullet list, green)
+│       │           │   └── RIGHT: ✗ What Failed (bullet list, red)
+│       │           │
+│       │           └── "Root Cause" (only shown if rootCause !== null)
+│       │               └── Root cause text block
+│       │
+│       └── RIGHT SIDEBAR (w-[300px], shrink-0, sticky top-[header height])
+│           │
+│           ├── Trade Meta Card
+│           │   ├── Symbol · Side chip · Status chip
+│           │   ├── Strategy name
+│           │   ├── Entry: [entry_price]
+│           │   ├── Stop Loss: [stop_loss_price]
+│           │   ├── Take Profit: [take_profit_price]
+│           │   ├── Position size: [position_size_usd]
+│           │   ├── Hold duration: [Xh Ym]
+│           │   └── Session: [session_name] (linked)
+│           │
+│           └── Lessons Panel Card
+│               ├── Header: "LESSONS" + "+ Add Lesson" button
+│               ├── [If no lessons] "No lessons extracted."
+│               └── [Lesson rows — stacked]
+│                   ├── Severity chip (High / Medium / Low / Critical)
+│                   ├── Category chip (Strategy / Execution / Behavioral / Risk / System)
+│                   ├── Lesson text (2-line truncation, expand on click)
+│                   ├── Proposed fix (collapsed, expand on click)
+│                   └── Status chip (Pending / Implemented / Validated / Recurring / Dismissed)
+│
+└── Chat History Modal (overlay, triggered from header button — see 4.2)
 ```
 
-**Layout rules:**
-- Section is the last item in the scrollable drawer body
-- "Generate Autopsy" is disabled and shows tooltip "Trade must be closed to generate autopsy" if trade is open (defensive — section shouldn't render for open trades, but guard anyway)
-- All collapsible sections remember their open/closed state in component state (not persisted across drawer closes)
-- Export dropdown is a simple popover, not a full dropdown menu component — 3 items with icons
+---
 
-**Element inventory:**
+#### Layout Rules
+
+- Header is sticky; body scrolls beneath it.
+- Sidebar is sticky within the page body — it does not scroll with the main column.
+- On viewports narrower than 900px, sidebar collapses below the main column (single column stacked).
+- Section cards default to **expanded** (unlike the old drawer section which defaulted collapsed) — full page has space to show content.
+- "Process Improvements" section is appended at the bottom of the main column as a numbered list card, below Root Cause.
+- The What Worked / What Failed card uses a two-column internal grid on desktop; collapses to stacked on narrow viewport.
+
+---
+
+#### Element Inventory
 
 | Element | Type | Label / Content | State | Action on Interact |
 |---------|------|----------------|-------|-------------------|
+| Back button | Button | "← Back" | — | `router.back()` or navigate to `/trades/[tradeId]` |
 | Generate Autopsy | Button | "Generate Autopsy" / "Generating…" / "Regenerate" | Disabled during generation | Calls `api.summarizeTradeAutopsy(tradeId)`, shows spinner, invalidates query |
-| View Chat History | Button | "View Chat History" | Hidden when no autopsies exist | Opens Chat History Modal |
-| Export dropdown | Button + Popover | "↓ Export" | Hidden when no autopsies exist | Opens 3-item popover |
-| Export → Markdown | Popover item | "Markdown (.md)" | — | Calls export handler, triggers file save dialog |
-| Export → JSON | Popover item | "JSON (.json)" | — | Calls export handler, triggers file save dialog |
-| Export → PDF | Popover item | "PDF (.pdf)" | — | Calls `webContents.printToPDF` via IPC, triggers file save dialog |
-| Version chip | Button | "v1 · May 20" | Active chip has filled background | Sets `selectedAutopsyId` in local state |
-| Section toggle (▼) | Button | Phase name | Toggles open/closed | Updates local `openSections` Set state |
-| Add Lesson | Button | "+ Add Lesson" | — | Opens inline lesson creation form |
-| Lesson status chip | Button | "Pending" / "Implemented" / "Validated" / "Recurring" | — | Opens status picker popover |
+| View Chat History | Button | "View Chat History" | Hidden when no autopsies | Opens Chat History Modal |
+| Export dropdown | Button + Popover | "↓ Export" | Hidden when no autopsies | Opens 3-item popover |
+| Export → Markdown | Popover item | "Markdown (.md)" | — | Calls export IPC, file save dialog |
+| Export → JSON | Popover item | "JSON (.json)" | — | Calls export IPC, file save dialog |
+| Export → PDF | Popover item | "PDF (.pdf)" | — | Calls `webContents.printToPDF` via IPC, file save dialog |
+| Version chip | Button | "v1 · May 20" | Active = filled bg | Sets `selectedAutopsyId` in local state |
+| Section card toggle (▼) | Button | Section name | Toggles open/closed | Updates local `openSections` Set |
+| Add Lesson | Button | "+ Add Lesson" | — | Opens inline lesson creation form in sidebar |
+| Lesson status chip | Button | Status label | — | Opens status picker popover |
+| Lesson expand | Click on text | — | 2-line truncated by default | Expands to full lesson + proposed fix |
 
-**States:**
+---
+
+#### Page States
 
 | State | Condition | What the User Sees |
 |-------|-----------|-------------------|
-| No autopsy | `autopsies.length === 0` | Empty state text + Generate button |
-| Generating | `autopsyLoading === true` | Generate button shows "Generating…", spinner, button disabled |
-| Generation failed | `autopsyError !== null` | Error text below button: "Generation failed: [message]. Retry?" |
-| Has autopsy, 1 version | `autopsies.length === 1` | Single autopsy card, no version selector |
-| Has autopsy, N versions | `autopsies.length > 1` | Version chip row above card, latest selected by default |
-| Fallback autopsy | `autopsy.is_fallback === true` | Yellow banner: "LLM unavailable — this autopsy used fallback summarization." |
+| Trade is open | `trade.status === "open"` | Full-page message: "Autopsy is only available for closed trades." |
+| No autopsy | `autopsies.length === 0` | Centered empty state with Generate button |
+| Generating | `autopsyLoading === true` | Header button shows "Generating…" + spinner; empty state persists until done |
+| Generation failed | `autopsyError !== null` | Toast: "Generation failed: [message]. Retry?" + button resets |
+| Has autopsy, 1 version | `autopsies.length === 1` | No version selector; autopsy content rendered |
+| Has autopsy, N versions | `autopsies.length > 1` | Version chip row above content; latest selected by default |
+| Fallback autopsy | `autopsy.is_fallback === true` | Yellow banner above content |
+| No agent messages | `agentMessages.length === 0` | Yellow banner above content |
 
 ---
 
@@ -235,36 +295,36 @@ Modal (max-w-[700px], h-[88vh], scrollable)
 
 ### 5.1 Generate First Autopsy
 
-**Entry point:** User opens TradeDetail drawer for a closed trade. No autopsy exists.
+**Entry point:** User navigates to `/trades/[tradeId]/autopsy` for a closed trade. No autopsy exists.
 
-**Exit point:** Autopsy card visible in drawer with structured analysis.
+**Exit point:** Autopsy page shows full structured analysis.
 
 ```mermaid
 flowchart TD
-    A[Open TradeDetail drawer, closed trade] --> B[See empty autopsy section]
+    A[Navigate to /trades/tradeId/autopsy] --> B[See empty state: No autopsy generated yet]
     B --> C[Click Generate Autopsy]
     C --> D[Button: Generating…, spinner]
     D --> E{LLM pipeline runs multi-phase}
     E -->|Success| F[Autopsy inserted to DB]
-    E -->|Partial failure| G[Fallback autopsy with is_fallback=true]
-    E -->|Total failure| H[Error toast shown, button resets]
-    F --> I[Query invalidated, card appears]
+    E -->|Partial failure| G[Fallback autopsy — is_fallback=true]
+    E -->|Total failure| H[Error toast, button resets]
+    F --> I[Query invalidated — page renders content]
     G --> I
-    I --> J[Autopsy card with score, sections, lessons]
+    I --> J[Full page: grade banner, sections, sidebar with lessons]
 ```
 
 **Happy path:**
-1. User sees empty autopsy section with "Generate Autopsy" button.
-2. They click it. Button changes to "Generating…" with spinner. All other autopsy controls are hidden.
-3. Main process runs multi-phase autopsy pipeline (see section 7 for pipeline detail). Each phase calls the LLM sequentially.
+1. User lands on the autopsy page. Empty state shown with "Generate Autopsy" button.
+2. They click it. Button changes to "Generating…" with spinner.
+3. Main process runs multi-phase autopsy pipeline (see section 7). Each phase calls the LLM sequentially.
 4. On completion, the result is inserted into `trade_autopsies` with full structured JSON in `summary_structured_json`. A `created_at` timestamp and `model_id` (from synthesis phase) are stored.
-5. The renderer query (`trade-autopsies` query key) is invalidated. The card appears.
+5. The page query is invalidated. Full autopsy content renders.
 6. Lessons extracted by the synthesis phase are inserted into `autopsy_lessons`.
 
 **Deviations:**
-- **If any non-synthesis phase fails:** Continue with remaining phases. Mark the failed phase as `"error"` in `phase_traces`. The synthesis still runs with available data.
-- **If the synthesis phase fails:** Fall back to `fallbackSummary()` behavior. Set `is_fallback = true`. Show yellow banner.
-- **If no `agent_messages` exist for this trade:** Show inline notice: "No AI reasoning trace found for this trade. Autopsy will be based on trade metadata only."
+- **If any non-synthesis phase fails:** Continue with remaining phases. Mark the failed phase as `"error"` in `phase_traces`. Synthesis still runs with available data.
+- **If the synthesis phase fails:** Fall back to `fallbackSummary()` behavior. Set `is_fallback = true`. Yellow banner shown on page.
+- **If no `agent_messages` exist:** Yellow banner: "No AI reasoning trace found. Autopsy will be based on trade metadata only."
 
 ---
 
@@ -770,10 +830,12 @@ If any lesson has `severity IN ('high', 'critical')` AND `status = 'recurring'` 
 
 | Location | String | Notes |
 |----------|--------|-------|
+| Back button (autopsy page) | "← Back" | — |
 | Generate button (no autopsies) | "Generate Autopsy" | — |
 | Generate button (has autopsies) | "Regenerate" | — |
 | Generate button (loading) | "Generating…" | Spinner icon before text |
 | View Chat History button | "View Chat History" | — |
+| Open-trade guard message | "Autopsy is only available for closed trades." | Full-page state |
 | Export button | "↓ Export" | Dropdown arrow character |
 | Export item: Markdown | "Markdown (.md)" | — |
 | Export item: JSON | "JSON (.json)" | — |
