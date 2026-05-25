@@ -14,6 +14,34 @@ type TemplateListItem = {
   updatedAt: string;
 };
 
+type TemplateModalState = {
+  templates: TemplateListItem[];
+  templateName: string;
+  templateDescription: string;
+  search: string;
+  instrumentClass: InstrumentClass | "all";
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+};
+
+type TemplateModalAction =
+  | { type: "setSearch"; search: string }
+  | { type: "setInstrumentClass"; instrumentClass: InstrumentClass | "all" }
+  | { type: "setTemplateName"; templateName: string }
+  | { type: "setTemplateDescription"; templateDescription: string }
+  | { type: "loadStart" }
+  | { type: "loadSuccess"; templates: TemplateListItem[] }
+  | { type: "loadError"; error: string }
+  | { type: "saveStart" }
+  | { type: "saveEnd" }
+  | { type: "setError"; error: string | null }
+  | { type: "setTemplates"; templates: TemplateListItem[] }
+  | {
+      type: "hydrateFromSource";
+      sourceSession: SessionSummary | null;
+    };
+
 // ---------------------------------------------------------------------------
 // TemplateSearchBar
 // ---------------------------------------------------------------------------
@@ -163,34 +191,7 @@ export const SessionTemplatesModal = ({
   onClose: () => void;
   onUseTemplate: (input: SessionCreateInput, clearedFields: string[]) => void;
 }) => {
-  type State = {
-    templates: TemplateListItem[];
-    templateName: string;
-    templateDescription: string;
-    search: string;
-    instrumentClass: InstrumentClass | "all";
-    loading: boolean;
-    saving: boolean;
-    error: string | null;
-  };
-  type Action =
-    | { type: "setSearch"; search: string }
-    | { type: "setInstrumentClass"; instrumentClass: InstrumentClass | "all" }
-    | { type: "setTemplateName"; templateName: string }
-    | { type: "setTemplateDescription"; templateDescription: string }
-    | { type: "loadStart" }
-    | { type: "loadSuccess"; templates: TemplateListItem[] }
-    | { type: "loadError"; error: string }
-    | { type: "saveStart" }
-    | { type: "saveEnd" }
-    | { type: "setError"; error: string | null }
-    | { type: "setTemplates"; templates: TemplateListItem[] }
-    | {
-        type: "hydrateFromSource";
-        sourceSession: SessionSummary | null;
-      };
-
-  const initialState: State = {
+  const initialState: TemplateModalState = {
     templates: [],
     templateName: "",
     templateDescription: "",
@@ -201,7 +202,10 @@ export const SessionTemplatesModal = ({
     error: null,
   };
 
-  function reducer(state: State, action: Action): State {
+  function reducer(
+    state: TemplateModalState,
+    action: TemplateModalAction,
+  ): TemplateModalState {
     switch (action.type) {
       case "setSearch":
         return { ...state, search: action.search };
@@ -310,195 +314,240 @@ export const SessionTemplatesModal = ({
 
   if (!open) return null;
 
-  return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-auto rounded-[20px] border-border bg-transparent p-0 sm:max-w-[920px]">
-        <div style={panelStyle}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 18,
-            }}
-          >
-            <div>
-              <h2 style={{ margin: 0, fontSize: 20 }}>Session Templates</h2>
-              <div
-                style={{ marginTop: 6, color: "var(--text3)", fontSize: 13 }}
-              >
-                Capture a full session payload or seed a new one from saved
-                structure.
-              </div>
+  return renderSessionTemplatesModalView({
+    open,
+    onClose,
+    error,
+    sourceSession,
+    templateName,
+    templateDescription,
+    dispatch,
+    saving,
+    templates,
+    search,
+    instrumentClass,
+    loading,
+    handleUseTemplate,
+    handleDeleteTemplate,
+  });
+};
+
+const renderSessionTemplatesModalView = ({
+  open,
+  onClose,
+  error,
+  sourceSession,
+  templateName,
+  templateDescription,
+  dispatch,
+  saving,
+  templates,
+  search,
+  instrumentClass,
+  loading,
+  handleUseTemplate,
+  handleDeleteTemplate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  error: string | null;
+  sourceSession: SessionSummary | null;
+  templateName: string;
+  templateDescription: string;
+  dispatch: (action: TemplateModalAction) => void;
+  saving: boolean;
+  templates: TemplateListItem[];
+  search: string;
+  instrumentClass: InstrumentClass | "all";
+  loading: boolean;
+  handleUseTemplate: (templateId: string) => Promise<void>;
+  handleDeleteTemplate: (templateId: string) => Promise<void>;
+}) => (
+  <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+    <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-auto rounded-[20px] border-border bg-transparent p-0 sm:max-w-[920px]">
+      <div style={panelStyle}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 18,
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: 20 }}>Session Templates</h2>
+            <div style={{ marginTop: 6, color: "var(--text3)", fontSize: 13 }}>
+              Capture a full session payload or seed a new one from saved
+              structure.
             </div>
-          </div>
-
-          {error ? <div style={errorBannerStyle}>{error}</div> : null}
-
-          <div style={heroCardStyle}>
-            <div>
-              <div
-                style={{
-                  fontSize: 12,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "var(--text3)",
-                }}
-              >
-                Save session as template
-              </div>
-              <div
-                style={{
-                  marginTop: 8,
-                  color: "var(--text1)",
-                  fontSize: 16,
-                  fontWeight: 700,
-                }}
-              >
-                {sourceSession?.name ?? "Choose a session from the table first"}
-              </div>
-              <div
-                style={{
-                  marginTop: 6,
-                  color: "var(--text2)",
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                }}
-              >
-                {sourceSession?.objective ??
-                  "Use the page-level Templates button to manage existing templates, or use a row action to save a specific session."}
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gap: 10 }}>
-              <Input
-                value={templateName}
-                onChange={(event) =>
-                  dispatch({
-                    type: "setTemplateName",
-                    templateName: event.target.value,
-                  })
-                }
-                placeholder="Template name"
-                className="h-10 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
-              />
-              <textarea
-                value={templateDescription}
-                onChange={(event) =>
-                  dispatch({
-                    type: "setTemplateDescription",
-                    templateDescription: event.target.value,
-                  })
-                }
-                placeholder="What this template is for"
-                rows={3}
-                style={textareaStyle}
-              />
-              <Button
-                onClick={async () => {
-                  if (!sourceSession || !templateName.trim()) return;
-                  dispatch({ type: "saveStart" });
-                  try {
-                    const payload = await api.buildTemplatePayloadFromSession(
-                      sourceSession.id,
-                    );
-                    const created = await api.createTemplate({
-                      name: templateName.trim(),
-                      description: templateDescription.trim() || undefined,
-                      sourceSessionId: sourceSession.id,
-                      payload,
-                    });
-                    const nextTemplate = {
-                      id: created.id,
-                      name: templateName.trim(),
-                      description: templateDescription.trim() || null,
-                      sourceSessionId: sourceSession.id,
-                      sourceSessionName: sourceSession.name,
-                      instrumentClasses: payload.identity.instrumentClasses,
-                      updatedAt: created.updatedAt,
-                    };
-                    const nextTemplates = (() => {
-                      const next = [
-                        nextTemplate,
-                        ...templates.filter(
-                          (template) => template.id !== created.id,
-                        ),
-                      ];
-                      return next.filter((template) => {
-                        const matchesSearch =
-                          !search.trim() ||
-                          template.name
-                            .toLowerCase()
-                            .includes(search.trim().toLowerCase()) ||
-                          template.description
-                            ?.toLowerCase()
-                            .includes(search.trim().toLowerCase());
-                        const matchesInstrument =
-                          instrumentClass === "all" ||
-                          template.instrumentClasses.includes(instrumentClass);
-                        return matchesSearch && matchesInstrument;
-                      });
-                    })();
-                    dispatch({
-                      type: "setTemplates",
-                      templates: nextTemplates,
-                    });
-                  } catch (saveError) {
-                    dispatch({
-                      type: "setError",
-                      error:
-                        saveError instanceof Error
-                          ? saveError.message
-                          : "Failed to save template.",
-                    });
-                  } finally {
-                    dispatch({ type: "saveEnd" });
-                  }
-                }}
-                className="bg-[var(--accent)] text-white"
-                disabled={saving || !sourceSession || !templateName.trim()}
-              >
-                {saving ? "Saving Template..." : "Save Full Session Payload"}
-              </Button>
-            </div>
-          </div>
-
-          <TemplateSearchBar
-            search={search}
-            instrumentClass={instrumentClass}
-            onSearchChange={(value) =>
-              dispatch({ type: "setSearch", search: value })
-            }
-            onInstrumentClassChange={(value) =>
-              dispatch({ type: "setInstrumentClass", instrumentClass: value })
-            }
-          />
-
-          <div style={{ display: "grid", gap: 10 }}>
-            {loading ? (
-              <div style={emptyStateStyle}>Loading templates…</div>
-            ) : null}
-            {!loading && templates.length === 0 ? (
-              <div style={emptyStateStyle}>
-                No templates matched the current filters.
-              </div>
-            ) : null}
-            {!loading
-              ? templates.map((template) => (
-                  <TemplateCard
-                    key={template.id}
-                    template={template}
-                    onUse={handleUseTemplate}
-                    onDelete={handleDeleteTemplate}
-                  />
-                ))
-              : null}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
+
+        {error ? <div style={errorBannerStyle}>{error}</div> : null}
+
+        <div style={heroCardStyle}>
+          <div>
+            <div
+              style={{
+                fontSize: 12,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: "var(--text3)",
+              }}
+            >
+              Save session as template
+            </div>
+            <div
+              style={{
+                marginTop: 8,
+                color: "var(--text1)",
+                fontSize: 16,
+                fontWeight: 700,
+              }}
+            >
+              {sourceSession?.name ?? "Choose a session from the table first"}
+            </div>
+            <div
+              style={{
+                marginTop: 6,
+                color: "var(--text2)",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              {sourceSession?.objective ??
+                "Use the page-level Templates button to manage existing templates, or use a row action to save a specific session."}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 10 }}>
+            <Input
+              value={templateName}
+              onChange={(event) =>
+                dispatch({
+                  type: "setTemplateName",
+                  templateName: event.target.value,
+                })
+              }
+              placeholder="Template name"
+              className="h-10 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
+            />
+            <textarea
+              value={templateDescription}
+              onChange={(event) =>
+                dispatch({
+                  type: "setTemplateDescription",
+                  templateDescription: event.target.value,
+                })
+              }
+              placeholder="What this template is for"
+              rows={3}
+              style={textareaStyle}
+            />
+            <Button
+              onClick={async () => {
+                if (!sourceSession || !templateName.trim()) return;
+                dispatch({ type: "saveStart" });
+                try {
+                  const payload = await api.buildTemplatePayloadFromSession(
+                    sourceSession.id,
+                  );
+                  const created = await api.createTemplate({
+                    name: templateName.trim(),
+                    description: templateDescription.trim() || undefined,
+                    sourceSessionId: sourceSession.id,
+                    payload,
+                  });
+                  const nextTemplate = {
+                    id: created.id,
+                    name: templateName.trim(),
+                    description: templateDescription.trim() || null,
+                    sourceSessionId: sourceSession.id,
+                    sourceSessionName: sourceSession.name,
+                    instrumentClasses: payload.identity.instrumentClasses,
+                    updatedAt: created.updatedAt,
+                  };
+                  const nextTemplates = (() => {
+                    const next = [
+                      nextTemplate,
+                      ...templates.filter(
+                        (template) => template.id !== created.id,
+                      ),
+                    ];
+                    return next.filter((template) => {
+                      const matchesSearch =
+                        !search.trim() ||
+                        template.name
+                          .toLowerCase()
+                          .includes(search.trim().toLowerCase()) ||
+                        template.description
+                          ?.toLowerCase()
+                          .includes(search.trim().toLowerCase());
+                      const matchesInstrument =
+                        instrumentClass === "all" ||
+                        template.instrumentClasses.includes(instrumentClass);
+                      return matchesSearch && matchesInstrument;
+                    });
+                  })();
+                  dispatch({
+                    type: "setTemplates",
+                    templates: nextTemplates,
+                  });
+                } catch (saveError) {
+                  dispatch({
+                    type: "setError",
+                    error:
+                      saveError instanceof Error
+                        ? saveError.message
+                        : "Failed to save template.",
+                  });
+                } finally {
+                  dispatch({ type: "saveEnd" });
+                }
+              }}
+              className="bg-[var(--accent)] text-white"
+              disabled={saving || !sourceSession || !templateName.trim()}
+            >
+              {saving ? "Saving Template..." : "Save Full Session Payload"}
+            </Button>
+          </div>
+        </div>
+
+        <TemplateSearchBar
+          search={search}
+          instrumentClass={instrumentClass}
+          onSearchChange={(value) =>
+            dispatch({ type: "setSearch", search: value })
+          }
+          onInstrumentClassChange={(value) =>
+            dispatch({ type: "setInstrumentClass", instrumentClass: value })
+          }
+        />
+
+        <div style={{ display: "grid", gap: 10 }}>
+          {loading ? (
+            <div style={emptyStateStyle}>Loading templates…</div>
+          ) : null}
+          {!loading && templates.length === 0 ? (
+            <div style={emptyStateStyle}>
+              No templates matched the current filters.
+            </div>
+          ) : null}
+          {!loading
+            ? templates.map((template) => (
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  onUse={handleUseTemplate}
+                  onDelete={handleDeleteTemplate}
+                />
+              ))
+            : null}
+        </div>
+      </div>
+    </DialogContent>
+  </Dialog>
+);
 
 function payloadToInput(payload: SessionTemplatePayload): SessionCreateInput {
   return {

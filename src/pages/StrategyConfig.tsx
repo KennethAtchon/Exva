@@ -471,185 +471,326 @@ export const StrategyConfig = ({
     riskPresetId: riskConfig.riskPresetId ?? "custom",
     timeframePresetId: timeframe.timeframePresetId ?? "custom",
   });
-  return (
-    <PageShell>
-      <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
+  return renderStrategyConfigMainView({
+    loadWorkspaceView,
+    setViewMode,
+    strategyErrors,
+    isLocked,
+    sessionStatus,
+    focusedSessionId,
+    focusedOpenTradeCount,
+    setSessionStatus,
+    loadStrategy,
+    activeView,
+    setActiveView,
+    hasDirty,
+    isSaving,
+    saveAll,
+    activeGlobalPreset,
+    builtInGlobalPresets,
+    userGlobalPresets,
+    researchPosture,
+    rules,
+    riskConfig,
+    timeframe,
+    applyGlobalPreset,
+    loadGlobalPresets,
+    setCreateModalOpen,
+    setEditingPreset,
+    activeSection,
+    setActiveSection,
+    aiSettings,
+    updateResearchPosture,
+    updateAiSettings,
+    selectedStylePreset,
+    stylePreview,
+    updateRules,
+    selectedRulesPreset,
+    rulesPreview,
+    updateRiskConfig,
+    updateTimeframe,
+    aiPhases,
+    providers,
+    updateAiPhase,
+    createModalOpen,
+    editingPreset,
+  });
+};
 
-      {strategyErrors.length > 0 && (
+type StrategyConfigMainViewArgs = {
+  loadWorkspaceView: () => Promise<void>;
+  setViewMode: (
+    mode: "session" | "global",
+    focusedSessionId?: string | null,
+  ) => void;
+  strategyErrors: string[];
+  isLocked: boolean;
+  sessionStatus: SessionStatus;
+  focusedSessionId: string;
+  focusedOpenTradeCount: number;
+  setSessionStatus: (status: SessionStatus) => void;
+  loadStrategy: (id: string) => Promise<void>;
+  activeView: "presets" | "customize";
+  setActiveView: (view: "presets" | "customize") => void;
+  hasDirty: boolean;
+  isSaving: boolean;
+  saveAll: (sessionId: string) => Promise<void>;
+  activeGlobalPreset: {
+    preset: GlobalStrategyPreset;
+    source: "built_in" | "user";
+  } | null;
+  builtInGlobalPresets: GlobalStrategyPreset[];
+  userGlobalPresets: UserGlobalPresetRow[];
+  researchPosture: SessionResearchPosture;
+  rules: SessionTradeRules;
+  riskConfig: SessionRiskConfig;
+  timeframe: SessionTimeframeConfig;
+  applyGlobalPreset: (preset: GlobalStrategyPreset) => void;
+  loadGlobalPresets: () => Promise<void>;
+  setCreateModalOpen: (open: boolean) => void;
+  setEditingPreset: (
+    preset: (UserGlobalPresetInput & { id: string }) | null,
+  ) => void;
+  activeSection: SectionId;
+  setActiveSection: (section: SectionId) => void;
+  aiSettings: SessionAiSettings;
+  updateResearchPosture: (patch: Partial<SessionResearchPosture>) => void;
+  updateAiSettings: (patch: Partial<SessionAiSettings>) => void;
+  selectedStylePreset: ResearchPosturePreset;
+  stylePreview: string;
+  updateRules: (patch: Partial<SessionTradeRules>) => void;
+  selectedRulesPreset: TradeRulesPreset;
+  rulesPreview: string;
+  updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
+  updateTimeframe: (patch: Partial<SessionTimeframeConfig>) => void;
+  aiPhases: ReturnType<typeof useStrategyStore.getState>["aiPhases"];
+  providers: ReturnType<typeof useStrategyStore.getState>["providers"];
+  updateAiPhase: ReturnType<typeof useStrategyStore.getState>["updateAiPhase"];
+  createModalOpen: boolean;
+  editingPreset: (UserGlobalPresetInput & { id: string }) | null;
+};
+
+const renderStrategyConfigMainView = ({
+  loadWorkspaceView,
+  setViewMode,
+  strategyErrors,
+  isLocked,
+  sessionStatus,
+  focusedSessionId,
+  focusedOpenTradeCount,
+  setSessionStatus,
+  loadStrategy,
+  activeView,
+  setActiveView,
+  hasDirty,
+  isSaving,
+  saveAll,
+  activeGlobalPreset,
+  builtInGlobalPresets,
+  userGlobalPresets,
+  researchPosture,
+  rules,
+  riskConfig,
+  timeframe,
+  applyGlobalPreset,
+  loadGlobalPresets,
+  setCreateModalOpen,
+  setEditingPreset,
+  activeSection,
+  setActiveSection,
+  aiSettings,
+  updateResearchPosture,
+  updateAiSettings,
+  selectedStylePreset,
+  stylePreview,
+  updateRules,
+  selectedRulesPreset,
+  rulesPreview,
+  updateRiskConfig,
+  updateTimeframe,
+  aiPhases,
+  providers,
+  updateAiPhase,
+  createModalOpen,
+  editingPreset,
+}: StrategyConfigMainViewArgs) => (
+  <PageShell>
+    <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
+
+    {strategyErrors.length > 0 && (
+      <div
+        style={{
+          ...warningStyle,
+          marginBottom: 12,
+          borderColor: "rgba(248,113,113,0.28)",
+          color: "#fca5a5",
+        }}
+      >
+        {strategyErrors.map((message) => (
+          <div key={message}>{message}</div>
+        ))}
+      </div>
+    )}
+
+    {isLocked && (
+      <LockedWarning
+        sessionStatus={sessionStatus}
+        focusedSessionId={focusedSessionId}
+        focusedOpenTradeCount={focusedOpenTradeCount}
+        setSessionStatus={setSessionStatus}
+        loadStrategy={loadStrategy}
+      />
+    )}
+
+    <StrategyHeader
+      activeView={activeView}
+      setActiveView={setActiveView}
+      hasDirty={hasDirty}
+      isSaving={isSaving}
+      isLocked={isLocked}
+      focusedSessionId={focusedSessionId}
+      saveAll={saveAll}
+    />
+
+    <ActiveGlobalPresetIndicator preset={activeGlobalPreset} />
+
+    {activeView === "presets" && (
+      <PresetPanel
+        builtInGlobalPresets={builtInGlobalPresets}
+        userGlobalPresets={userGlobalPresets}
+        researchPosture={researchPosture}
+        rules={rules}
+        riskConfig={riskConfig}
+        timeframe={timeframe}
+        isLocked={isLocked}
+        applyGlobalPreset={applyGlobalPreset}
+        loadGlobalPresets={loadGlobalPresets}
+        setCreateModalOpen={setCreateModalOpen}
+        setEditingPreset={setEditingPreset}
+      />
+    )}
+
+    {activeView === "customize" && (
+      <Tabs
+        value={activeSection}
+        onValueChange={(v) => setActiveSection(v as SectionId)}
+      >
+        <TabsList>
+          {TABS.map(([value, label]) => (
+            <TabsTrigger key={value} value={value}>
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
         <div
           style={{
-            ...warningStyle,
-            marginBottom: 12,
-            borderColor: "rgba(248,113,113,0.28)",
-            color: "#fca5a5",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            gap: 16,
+            marginTop: 16,
           }}
         >
-          {strategyErrors.map((message) => (
-            <div key={message}>{message}</div>
-          ))}
-        </div>
-      )}
-
-      {isLocked && (
-        <LockedWarning
-          sessionStatus={sessionStatus}
-          focusedSessionId={focusedSessionId}
-          focusedOpenTradeCount={focusedOpenTradeCount}
-          setSessionStatus={setSessionStatus}
-          loadStrategy={loadStrategy}
-        />
-      )}
-
-      <StrategyHeader
-        activeView={activeView}
-        setActiveView={setActiveView}
-        hasDirty={hasDirty}
-        isSaving={isSaving}
-        isLocked={isLocked}
-        focusedSessionId={focusedSessionId}
-        saveAll={saveAll}
-      />
-
-      <ActiveGlobalPresetIndicator preset={activeGlobalPreset} />
-
-      {activeView === "presets" && (
-        <PresetPanel
-          builtInGlobalPresets={builtInGlobalPresets}
-          userGlobalPresets={userGlobalPresets}
-          researchPosture={researchPosture}
-          rules={rules}
-          riskConfig={riskConfig}
-          timeframe={timeframe}
-          isLocked={isLocked}
-          applyGlobalPreset={applyGlobalPreset}
-          loadGlobalPresets={loadGlobalPresets}
-          setCreateModalOpen={setCreateModalOpen}
-          setEditingPreset={setEditingPreset}
-        />
-      )}
-
-      {activeView === "customize" && (
-        <Tabs
-          value={activeSection}
-          onValueChange={(v) => setActiveSection(v as SectionId)}
-        >
-          <TabsList>
-            {TABS.map(([value, label]) => (
-              <TabsTrigger key={value} value={value}>
-                {label}
-              </TabsTrigger>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {TABS.map(([value]) => (
+              <TabsContent key={value} value={value}>
+                {value === "style" && (
+                  <StyleSection
+                    researchPosture={researchPosture}
+                    aiSettings={aiSettings}
+                    isLocked={isLocked}
+                    updateResearchPosture={updateResearchPosture}
+                    updateAiSettings={updateAiSettings}
+                    selectedStylePreset={selectedStylePreset}
+                    stylePreview={stylePreview}
+                  />
+                )}
+                {value === "rules" && (
+                  <RulesSection
+                    rules={rules}
+                    isLocked={isLocked}
+                    updateRules={updateRules}
+                    selectedRulesPreset={selectedRulesPreset}
+                    rulesPreview={rulesPreview}
+                  />
+                )}
+                {value === "risk" && (
+                  <RiskSection
+                    riskConfig={riskConfig}
+                    isLocked={isLocked}
+                    updateRiskConfig={updateRiskConfig}
+                  />
+                )}
+                {value === "timeframe" && (
+                  <TimeframeSection
+                    timeframe={timeframe}
+                    isLocked={isLocked}
+                    updateTimeframe={updateTimeframe}
+                  />
+                )}
+                {value === "ai" && (
+                  <AiPhasesSection
+                    aiPhases={aiPhases}
+                    providers={providers}
+                    isLocked={isLocked}
+                    onUpdatePhase={updateAiPhase}
+                  />
+                )}
+              </TabsContent>
             ))}
-          </TabsList>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-              gap: 16,
-              marginTop: 16,
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {TABS.map(([value]) => (
-                <TabsContent key={value} value={value}>
-                  {value === "style" && (
-                    <StyleSection
-                      researchPosture={researchPosture}
-                      aiSettings={aiSettings}
-                      isLocked={isLocked}
-                      updateResearchPosture={updateResearchPosture}
-                      updateAiSettings={updateAiSettings}
-                      selectedStylePreset={selectedStylePreset}
-                      stylePreview={stylePreview}
-                    />
-                  )}
-                  {value === "rules" && (
-                    <RulesSection
-                      rules={rules}
-                      isLocked={isLocked}
-                      updateRules={updateRules}
-                      selectedRulesPreset={selectedRulesPreset}
-                      rulesPreview={rulesPreview}
-                    />
-                  )}
-                  {value === "risk" && (
-                    <RiskSection
-                      riskConfig={riskConfig}
-                      isLocked={isLocked}
-                      updateRiskConfig={updateRiskConfig}
-                    />
-                  )}
-                  {value === "timeframe" && (
-                    <TimeframeSection
-                      timeframe={timeframe}
-                      isLocked={isLocked}
-                      updateTimeframe={updateTimeframe}
-                    />
-                  )}
-                  {value === "ai" && (
-                    <AiPhasesSection
-                      aiPhases={aiPhases}
-                      providers={providers}
-                      isLocked={isLocked}
-                      onUpdatePhase={updateAiPhase}
-                    />
-                  )}
-                </TabsContent>
-              ))}
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <CostSummaryCard riskConfig={riskConfig} />
-            </div>
           </div>
-        </Tabs>
-      )}
 
-      <CreateEditGlobalPresetModal
-        open={createModalOpen}
-        onSave={async (input) => {
-          await api.createGlobalPreset({
-            name: input.name,
-            preset: {
-              description: "",
-              summaryBullets: [],
-              posturePresetId: input.posturePresetId,
-              rulesPresetId: input.rulesPresetId,
-              riskPresetId: input.riskPresetId,
-              timeframePresetId: input.timeframePresetId,
-            },
-          });
-          await loadGlobalPresets();
-          setCreateModalOpen(false);
-        }}
-        onClose={() => setCreateModalOpen(false)}
-      />
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <CostSummaryCard riskConfig={riskConfig} />
+          </div>
+        </div>
+      </Tabs>
+    )}
 
-      <CreateEditGlobalPresetModal
-        open={!!editingPreset}
-        initial={editingPreset ?? undefined}
-        onSave={async (input) => {
-          if (!editingPreset) return;
-          await api.updateGlobalPreset({
-            id: editingPreset.id,
-            name: input.name,
-            preset: {
-              description: "",
-              summaryBullets: [],
-              posturePresetId: input.posturePresetId,
-              rulesPresetId: input.rulesPresetId,
-              riskPresetId: input.riskPresetId,
-              timeframePresetId: input.timeframePresetId,
-            },
-          });
-          await loadGlobalPresets();
-          setEditingPreset(null);
-        }}
-        onClose={() => setEditingPreset(null)}
-      />
-    </PageShell>
-  );
-};
+    <CreateEditGlobalPresetModal
+      open={createModalOpen}
+      onSave={async (input) => {
+        await api.createGlobalPreset({
+          name: input.name,
+          preset: {
+            description: "",
+            summaryBullets: [],
+            posturePresetId: input.posturePresetId,
+            rulesPresetId: input.rulesPresetId,
+            riskPresetId: input.riskPresetId,
+            timeframePresetId: input.timeframePresetId,
+          },
+        });
+        await loadGlobalPresets();
+        setCreateModalOpen(false);
+      }}
+      onClose={() => setCreateModalOpen(false)}
+    />
+
+    <CreateEditGlobalPresetModal
+      open={!!editingPreset}
+      initial={editingPreset ?? undefined}
+      onSave={async (input) => {
+        if (!editingPreset) return;
+        await api.updateGlobalPreset({
+          id: editingPreset.id,
+          name: input.name,
+          preset: {
+            description: "",
+            summaryBullets: [],
+            posturePresetId: input.posturePresetId,
+            rulesPresetId: input.rulesPresetId,
+            riskPresetId: input.riskPresetId,
+            timeframePresetId: input.timeframePresetId,
+          },
+        });
+        await loadGlobalPresets();
+        setEditingPreset(null);
+      }}
+      onClose={() => setEditingPreset(null)}
+    />
+  </PageShell>
+);
 
 const Header = ({
   loadWorkspaceView,

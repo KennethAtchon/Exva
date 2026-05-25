@@ -269,100 +269,134 @@ export default function App() {
     }
   };
 
-  return (
-    <div style={appRootStyle}>
-      <TopNav
-        activePage={ui.page}
-        onNavigate={(p) => {
-          dispatchUi({
-            page: p,
-            sessionsStatusFilter:
-              p !== "sessions" ? "all" : ui.sessionsStatusFilter,
-          });
-          setSelected(null);
-        }}
-        onNavigateToAttentionSessions={() => {
-          dispatchUi({
-            sessionsStatusFilter: "attention_required",
-            page: "sessions",
-          });
-          setSelected(null);
-        }}
-        sessionStatus={status}
-        onSessionAction={handleSession}
-        sessionActionPending={ui.sessionActionPending}
-        stats={stats}
-      />
-      {ui.loadError && (
-        <div
-          style={{
-            padding: "10px 28px",
-            borderBottom: "1px solid rgba(248,113,113,0.18)",
-            background: "rgba(248,113,113,0.08)",
-            color: "#fca5a5",
-            fontSize: 12,
-            fontFamily: "var(--font-mono)",
-          }}
-        >
-          {ui.loadError}
-        </div>
-      )}
+  return renderAppShell({
+    ui,
+    dispatchUi,
+    setSelected,
+    status,
+    handleSession,
+    stats,
+    selectedId,
+    pageEl,
+    setStatus,
+  });
+}
+
+const renderAppShell = ({
+  ui,
+  dispatchUi,
+  setSelected,
+  status,
+  handleSession,
+  stats,
+  selectedId,
+  pageEl,
+  setStatus,
+}: {
+  ui: AppUiState;
+  dispatchUi: (patch: Partial<AppUiState>) => void;
+  setSelected: (id: string | null) => void;
+  status: SessionStatus;
+  handleSession: (
+    action: "start" | "pause" | "resume" | "stop" | "forceStop",
+  ) => Promise<void>;
+  stats: ReturnType<typeof useSessionStore.getState>["stats"];
+  selectedId: string | null;
+  pageEl: () => JSX.Element;
+  setStatus: ReturnType<typeof useSessionStore.getState>["setStatus"];
+}) => (
+  <div style={appRootStyle}>
+    <TopNav
+      activePage={ui.page}
+      onNavigate={(p) => {
+        dispatchUi({
+          page: p,
+          sessionsStatusFilter:
+            p !== "sessions" ? "all" : ui.sessionsStatusFilter,
+        });
+        setSelected(null);
+      }}
+      onNavigateToAttentionSessions={() => {
+        dispatchUi({
+          sessionsStatusFilter: "attention_required",
+          page: "sessions",
+        });
+        setSelected(null);
+      }}
+      sessionStatus={status}
+      onSessionAction={handleSession}
+      sessionActionPending={ui.sessionActionPending}
+      stats={stats}
+    />
+    {ui.loadError && (
       <div
         style={{
-          flex: 1,
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
+          padding: "10px 28px",
+          borderBottom: "1px solid rgba(248,113,113,0.18)",
+          background: "rgba(248,113,113,0.08)",
+          color: "#fca5a5",
+          fontSize: 12,
+          fontFamily: "var(--font-mono)",
         }}
       >
-        {pageEl()}
+        {ui.loadError}
       </div>
-      <RuntimeEventToast />
-      {selectedId && (
-        <TradeDetail
-          tradeId={selectedId}
-          onClose={() => setSelected(null)}
-          onViewAutopsy={(tradeId) => {
-            dispatchUi({ autopsyTradeId: tradeId });
-            setSelected(null);
-          }}
-        />
-      )}
-      {ui.autopsyTradeId && (
-        <AutopsyPage
-          tradeId={ui.autopsyTradeId}
-          trade={null}
-          onClose={() => dispatchUi({ autopsyTradeId: null })}
-        />
-      )}
-      {ui.liveReadinessSession && ui.liveReadinessReport ? (
-        <LiveReadinessModal
-          sessionId={ui.liveReadinessSession.id}
-          report={ui.liveReadinessReport}
-          onAcknowledged={async () => {
-            dispatchUi({
-              liveReadinessReport: null,
-              liveReadinessSession: null,
-            });
-            try {
-              setStatus(await api.startSession());
-            } catch (error) {
-              dispatchUi({
-                loadError:
-                  error instanceof Error
-                    ? error.message
-                    : "Failed to start session.",
-              });
-            }
-          }}
-          onCancel={() => {
-            dispatchUi({
-              liveReadinessReport: null,
-              liveReadinessSession: null,
-            });
-          }}
-        />
-      ) : null}
+    )}
+    <div
+      style={{
+        flex: 1,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {pageEl()}
     </div>
-  );
-}
+    <RuntimeEventToast />
+    {selectedId && (
+      <TradeDetail
+        tradeId={selectedId}
+        onClose={() => setSelected(null)}
+        onViewAutopsy={(tradeId) => {
+          dispatchUi({ autopsyTradeId: tradeId });
+          setSelected(null);
+        }}
+      />
+    )}
+    {ui.autopsyTradeId && (
+      <AutopsyPage
+        tradeId={ui.autopsyTradeId}
+        trade={null}
+        onClose={() => dispatchUi({ autopsyTradeId: null })}
+      />
+    )}
+    {ui.liveReadinessSession && ui.liveReadinessReport ? (
+      <LiveReadinessModal
+        sessionId={ui.liveReadinessSession.id}
+        report={ui.liveReadinessReport}
+        onAcknowledged={async () => {
+          dispatchUi({
+            liveReadinessReport: null,
+            liveReadinessSession: null,
+          });
+          try {
+            setStatus(await api.startSession());
+          } catch (error) {
+            dispatchUi({
+              loadError:
+                error instanceof Error
+                  ? error.message
+                  : "Failed to start session.",
+            });
+          }
+        }}
+        onCancel={() => {
+          dispatchUi({
+            liveReadinessReport: null,
+            liveReadinessSession: null,
+          });
+        }}
+      />
+    ) : null}
+  </div>
+);
