@@ -138,15 +138,23 @@ export const tradeAutopsies = sqliteTable(
   "trade_autopsies",
   {
     id: text("id").primaryKey(),
-    tradeId: text("trade_id").notNull().references(() => trades.id, { onDelete: "cascade" }),
-    sessionId: text("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
+    tradeId: text("trade_id")
+      .notNull()
+      .references(() => trades.id, { onDelete: "cascade" }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
     modelId: text("model_id").notNull(),
     summary: text("summary").notNull(),
-    summaryStructuredJson: text("summary_structured_json").notNull().default("{}"),
+    summaryStructuredJson: text("summary_structured_json")
+      .notNull()
+      .default("{}"),
     phaseTracesJson: text("phase_traces_json").notNull().default("[]"),
     qualityGrade: text("quality_grade"),
     qualityScore: real("quality_score"),
-    isFallback: integer("is_fallback", { mode: "boolean" }).notNull().default(false),
+    isFallback: integer("is_fallback", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: text("created_at").notNull(),
     createdBy: text("created_by").notNull().default("user"),
   },
@@ -160,9 +168,15 @@ export const autopsyLessons = sqliteTable(
   "autopsy_lessons",
   {
     id: text("id").primaryKey(),
-    autopsyId: text("autopsy_id").notNull().references(() => tradeAutopsies.id, { onDelete: "cascade" }),
-    tradeId: text("trade_id").notNull().references(() => trades.id, { onDelete: "cascade" }),
-    sessionId: text("session_id").notNull().references(() => sessions.id, { onDelete: "cascade" }),
+    autopsyId: text("autopsy_id")
+      .notNull()
+      .references(() => tradeAutopsies.id, { onDelete: "cascade" }),
+    tradeId: text("trade_id")
+      .notNull()
+      .references(() => trades.id, { onDelete: "cascade" }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
     lesson: text("lesson").notNull(),
     severity: text("severity").notNull().default("medium"),
     category: text("category").notNull().default("strategy"),
@@ -238,9 +252,9 @@ erDiagram
 export class TradeAutopsiesRepo {
   constructor(private readonly client: DbClient) {}
 
-  listByTrade(tradeId: string): TradeAutopsyRecord[]
-  findLatest(tradeId: string): TradeAutopsyRecord | null
-  insert(record: TradeAutopsyRecord): void
+  listByTrade(tradeId: string): TradeAutopsyRecord[];
+  findLatest(tradeId: string): TradeAutopsyRecord | null;
+  insert(record: TradeAutopsyRecord): void;
   // No update — autopsies are immutable; regenerate = new insert
 }
 ```
@@ -253,12 +267,25 @@ export class TradeAutopsiesRepo {
 export class AutopsyLessonsRepo {
   constructor(private readonly client: DbClient) {}
 
-  listByAutopsy(autopsyId: string): AutopsyLesson[]
-  listBySession(sessionId: string, statuses?: LessonStatus[]): AutopsyLesson[]
-  insert(lesson: AutopsyLesson): void
-  update(id: string, patch: Partial<Pick<AutopsyLesson, 'status' | 'lesson' | 'proposedFix' | 'recurrenceCount' | 'validatedAt' | 'updatedAt'>>): void
-  find(id: string): AutopsyLesson | null
-  require(id: string): AutopsyLesson  // throws AppError NOT_FOUND
+  listByAutopsy(autopsyId: string): AutopsyLesson[];
+  listBySession(sessionId: string, statuses?: LessonStatus[]): AutopsyLesson[];
+  insert(lesson: AutopsyLesson): void;
+  update(
+    id: string,
+    patch: Partial<
+      Pick<
+        AutopsyLesson,
+        | "status"
+        | "lesson"
+        | "proposedFix"
+        | "recurrenceCount"
+        | "validatedAt"
+        | "updatedAt"
+      >
+    >,
+  ): void;
+  find(id: string): AutopsyLesson | null;
+  require(id: string): AutopsyLesson; // throws AppError NOT_FOUND
 }
 ```
 
@@ -286,34 +313,34 @@ export class TradeAutopsyService {
    * Run the 5-phase autopsy pipeline for a closed trade.
    * Inserts autopsy + lessons. Returns the created record.
    */
-  async summarize(tradeId: string): Promise<TradeAutopsyRecord>
+  async summarize(tradeId: string): Promise<TradeAutopsyRecord>;
 
   /**
    * List all autopsies for a trade, newest first.
    */
-  listByTrade(tradeId: string): TradeAutopsyRecord[]
+  listByTrade(tradeId: string): TradeAutopsyRecord[];
 
   /**
    * List lessons for an autopsy.
    */
-  listLessons(autopsyId: string): AutopsyLesson[]
+  listLessons(autopsyId: string): AutopsyLesson[];
 
   /**
    * Update a lesson's status, text, or proposed fix.
    */
-  updateLesson(lessonId: string, patch: LessonPatch): void
+  updateLesson(lessonId: string, patch: LessonPatch): void;
 
   /**
    * Manually add a lesson to an existing autopsy.
    */
-  addLesson(input: AddLessonInput): AutopsyLesson
+  addLesson(input: AddLessonInput): AutopsyLesson;
 
   /**
    * Run the lesson validation pass for a session after a new autopsy.
    * Checks prior pending/implemented lessons for recurrence.
    * Fires andon_cord_fired event if threshold met.
    */
-  validateLessons(sessionId: string, newAutopsyId: string): void
+  validateLessons(sessionId: string, newAutopsyId: string): void;
 }
 ```
 
@@ -382,13 +409,15 @@ private async runPhase(
 export class AutopsyExportService {
   async export(
     autopsyId: string,
-    format: 'markdown' | 'json' | 'pdf',
+    format: "markdown" | "json" | "pdf",
     autopsyRecord: TradeAutopsyRecord,
     lessons: AutopsyLesson[],
     trade: Trade,
     sessionName: string,
-    webContents: WebContents,  // for PDF only
-  ): Promise<{ path: string; filename: string } | { cancelled: true } | { error: string }>
+    webContents: WebContents, // for PDF only
+  ): Promise<
+    { path: string; filename: string } | { cancelled: true } | { error: string }
+  >;
 }
 ```
 
@@ -597,6 +626,7 @@ AutopsyPage  [src/pages/AutopsyPage.tsx]
 ```
 
 **Navigation entry points** (how user gets to AutopsyPage):
+
 1. `TradesPage` row action → `setSelectedAutopsyTradeId(tradeId)` prop callback
 2. `TradeDetail` (existing drawer) → "View Autopsy" button → same callback
 
@@ -711,7 +741,7 @@ repos: {
   // ... existing ...
   tradeAutopsies: TradeAutopsiesRepo;
   autopsyLessons: AutopsyLessonsRepo;
-};
+}
 tradeAutopsy: TradeAutopsyService;
 autopsyExport: AutopsyExportService;
 
@@ -738,10 +768,25 @@ const autopsyExport = new AutopsyExportService();
 ```typescript
 // electron/shared/domain/autopsy.ts (new file — shared between main and renderer)
 
-export type PhaseKind = "thesis" | "execution" | "behavioral" | "market_context" | "synthesis";
-export type LessonStatus = "pending" | "implemented" | "validated" | "recurring" | "dismissed";
+export type PhaseKind =
+  | "thesis"
+  | "execution"
+  | "behavioral"
+  | "market_context"
+  | "synthesis";
+export type LessonStatus =
+  | "pending"
+  | "implemented"
+  | "validated"
+  | "recurring"
+  | "dismissed";
 export type LessonSeverity = "low" | "medium" | "high" | "critical";
-export type LessonCategory = "strategy" | "execution" | "behavioral" | "risk" | "system";
+export type LessonCategory =
+  | "strategy"
+  | "execution"
+  | "behavioral"
+  | "risk"
+  | "system";
 export type ExportFormat = "markdown" | "json" | "pdf";
 export type QualityGrade = "A+" | "A" | "B" | "C" | "D" | "F";
 
@@ -798,8 +843,8 @@ export interface TradeAutopsyRecord {
   sessionId: string;
   modelId: string;
   summary: string;
-  summaryStructuredJson: string;  // serialized AutopsyStructured
-  phaseTracesJson: string;        // serialized PhaseTrace[]
+  summaryStructuredJson: string; // serialized AutopsyStructured
+  phaseTracesJson: string; // serialized PhaseTrace[]
   qualityGrade: string | null;
   qualityScore: number | null;
   isFallback: boolean;
@@ -833,29 +878,29 @@ export type ExportResult =
 
 ## 11. Trade-offs
 
-| Decision | Chosen | Traded Away | Revisit When |
-|----------|--------|-------------|--------------|
-| No React Router | Page-overlay pattern (same as TradeDetail) | Clean URL navigation, browser back/forward | If app grows to need real URL routing |
-| LLM calls direct via ProviderRegistry | Simple, decoupled from pipeline system | Reuse of retry/rate-limit logic in LLMRuntime | If autopsy needs streaming or phase-level retry |
-| Keyword match for lesson validator | Fast, zero cost, deterministic | Semantic accuracy (FOMO described differently won't match) | When false-negative rate is confirmed to be a problem |
-| No autopsy model config in v1 | Uses workspace default model | Per-phase model selection | When cost/quality of default model is evaluated |
-| PDF via hidden BrowserWindow | Leverages Electron built-in | Heavier than pdfkit, requires BrowserWindow lifecycle | If PDF export is buggy or slow on large autopsies |
-| Autopsies are immutable | Regenerate = new insert, old retained | Simpler logic, history preserved | Never — this is intentional per spec |
+| Decision                              | Chosen                                     | Traded Away                                                | Revisit When                                          |
+| ------------------------------------- | ------------------------------------------ | ---------------------------------------------------------- | ----------------------------------------------------- |
+| No React Router                       | Page-overlay pattern (same as TradeDetail) | Clean URL navigation, browser back/forward                 | If app grows to need real URL routing                 |
+| LLM calls direct via ProviderRegistry | Simple, decoupled from pipeline system     | Reuse of retry/rate-limit logic in LLMRuntime              | If autopsy needs streaming or phase-level retry       |
+| Keyword match for lesson validator    | Fast, zero cost, deterministic             | Semantic accuracy (FOMO described differently won't match) | When false-negative rate is confirmed to be a problem |
+| No autopsy model config in v1         | Uses workspace default model               | Per-phase model selection                                  | When cost/quality of default model is evaluated       |
+| PDF via hidden BrowserWindow          | Leverages Electron built-in                | Heavier than pdfkit, requires BrowserWindow lifecycle      | If PDF export is buggy or slow on large autopsies     |
+| Autopsies are immutable               | Regenerate = new insert, old retained      | Simpler logic, history preserved                           | Never — this is intentional per spec                  |
 
 ---
 
 ## 12. Failure Mode Analysis
 
-| Component | Failure | User Impact | Detection | Recovery |
-|-----------|---------|-------------|-----------|----------|
-| Phase LLM call (non-synthesis) | Network error, timeout | Phase trace shows error. Synthesis runs with partial data. | PhaseTrace.error !== null | Continue pipeline — already handled in runPhase() |
-| Synthesis phase fails | LLM error or JSON parse fail | Yellow fallback banner. Plain text summary. | is_fallback = true | fallbackSummary() generates basic text from trade metadata |
-| Export save dialog cancel | User clicks Cancel | No-op | cancelled: true | Return { cancelled: true }, renderer no-ops |
-| Export file write error | Disk full, no permission | Toast: "Export failed: [msg]" | Caught in fs.writeFileSync | Retry prompt to user |
-| PDF hidden window crash | BrowserWindow fails to load | Toast: "Export failed" | Electron window-all-closed | Catch + close window + return error |
-| Lesson update IPC error | Network/IPC fail | Toast: "Failed to update lesson status." | Renderer catches IPC error | Optimistic update reverted in UI |
-| Andon cord fires | recurrenceCount >= 3, high/critical | Persistent toast, no auto-dismiss | EventBus event | User must manually dismiss |
-| Migration: existing autopsies | Old rows have '{}' structured JSON | Chat history shows "not available", grade shows N/A | is_fallback default = 0, structured = '{}' | Pre-existing rows are display-degraded but don't break |
+| Component                      | Failure                             | User Impact                                                | Detection                                  | Recovery                                                   |
+| ------------------------------ | ----------------------------------- | ---------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
+| Phase LLM call (non-synthesis) | Network error, timeout              | Phase trace shows error. Synthesis runs with partial data. | PhaseTrace.error !== null                  | Continue pipeline — already handled in runPhase()          |
+| Synthesis phase fails          | LLM error or JSON parse fail        | Yellow fallback banner. Plain text summary.                | is_fallback = true                         | fallbackSummary() generates basic text from trade metadata |
+| Export save dialog cancel      | User clicks Cancel                  | No-op                                                      | cancelled: true                            | Return { cancelled: true }, renderer no-ops                |
+| Export file write error        | Disk full, no permission            | Toast: "Export failed: [msg]"                              | Caught in fs.writeFileSync                 | Retry prompt to user                                       |
+| PDF hidden window crash        | BrowserWindow fails to load         | Toast: "Export failed"                                     | Electron window-all-closed                 | Catch + close window + return error                        |
+| Lesson update IPC error        | Network/IPC fail                    | Toast: "Failed to update lesson status."                   | Renderer catches IPC error                 | Optimistic update reverted in UI                           |
+| Andon cord fires               | recurrenceCount >= 3, high/critical | Persistent toast, no auto-dismiss                          | EventBus event                             | User must manually dismiss                                 |
+| Migration: existing autopsies  | Old rows have '{}' structured JSON  | Chat history shows "not available", grade shows N/A        | is_fallback default = 0, structured = '{}' | Pre-existing rows are display-degraded but don't break     |
 
 ---
 
@@ -864,6 +909,7 @@ export type ExportResult =
 Execute in this order. Each phase is independently deployable.
 
 ### Phase 1 — DB Layer (no UI risk)
+
 1. [x] Write `electron/main/db/drizzle/0001_autopsy_enhancement.sql`
 2. [x] Update `meta/_journal.json` to add the `0001` entry
 3. [x] Update `electron/main/db/schema.ts` — extend `tradeAutopsies`, add `autopsyLessons`
@@ -872,16 +918,19 @@ Execute in this order. Each phase is independently deployable.
 6. [ ] Run `bun run drizzle-kit generate` to verify schema matches SQL
 
 ### Phase 2 — Shared Types
+
 7. [x] Write `electron/shared/domain/autopsy.ts` with all interfaces
 8. [x] Export from appropriate barrel files (`src/lib/autopsy-types.ts` re-exports)
 
 ### Phase 3 — Service Layer
+
 9. [x] Write `TradeAutopsyService` with `summarize()` (5-phase pipeline)
 10. [x] Write `AutopsyExportService` — Markdown, JSON, and PDF
 11. [x] Wire both into `AppServices` (`app-services.ts`)
 12. [x] Write unit tests for `validateLessons()` with mock lesson/autopsy data
 
 ### Phase 4 — IPC Layer
+
 13. [x] Add channels to `channels.ts`
 14. [x] Write `electron/main/ipc/trading/autopsy.ts`
 15. [x] Add `registerAutopsyHandlers(services)` to `register.ts`
@@ -890,6 +939,7 @@ Execute in this order. Each phase is independently deployable.
 18. [x] Add `"andon_cord_fired"` to `mainToRendererEvents`
 
 ### Phase 5 — Real LLM Phase Implementation
+
 19. [x] Implement the 5 prompt-builder functions in the service
 20. [x] Implement `runPhase()` using `ProviderRegistry.generateText()` (plan said `.chat()`; actual adapter API is `generateText`)
 21. [x] Implement synthesis JSON parsing + fallback
@@ -897,6 +947,7 @@ Execute in this order. Each phase is independently deployable.
 23. [ ] Manual test: generate autopsy on a real closed trade
 
 ### Phase 6 — Frontend
+
 24. [x] Add `selectedAutopsyTradeId` state to `App.tsx` (as `autopsyTradeId`)
 25. [x] Wire navigation from `TradesPage` and `TradeDetail`
 26. [x] Write `AutopsyPage` component (empty state + grade banner + sections)
@@ -905,14 +956,17 @@ Execute in this order. Each phase is independently deployable.
 29. [x] Wire `ExportDropdown` → `api.autopsy.export`
 
 ### Phase 7 — Andon Cord
+
 30. [x] Add `andon_cord_fired` handler to `RuntimeEventToast.tsx` — persistent toast
 31. [ ] Test end-to-end: inject a recurring lesson manually, trigger validator
 
 ### Phase 8 — PDF Export
+
 32. [x] Implement `AutopsyExportService.exportPdf()` with hidden BrowserWindow
 33. [x] Add PDF item to `ExportDropdown`
 
 ### Post-Implementation Contract Fixes — 2026-05-25
+
 34. [x] Exclude lessons created by the current autopsy from the recurrence validator
 35. [x] Safely degrade pre-migration autopsies with invalid/empty structured JSON in renderer + export paths
 36. [x] Fix PDF export timeout code to use main-process timers instead of `window.*`
@@ -924,15 +978,15 @@ Execute in this order. Each phase is independently deployable.
 
 ## 14. Open Questions Resolved
 
-| Q# | Resolution |
-|----|-----------|
-| Q1 — Which model per phase? | Use `workspacePreferences.defaultModelId`. If null, fall back to `openrouter` with `google/gemma-4-31b-it`. All phases use same model in v1. |
-| Q2 — New columns or repurpose? | New columns with defaults. `summary` column stays for backwards compat and fallback. |
-| Q3 — Andon cord action? | Notification only in v1. No session lock. Spec confirmed. |
-| Q4 — Lesson validation: LLM or keyword? | Keyword-only for v1. Stub function for LLM path with `// TODO` comment. |
-| Q5 — PDF approach? | Hidden offscreen `BrowserWindow`. Simpler than pdfkit; already available in Electron. |
-| Q6 — Regenerate for open trades? | No. Guard in IPC handler: `trade.status !== 'closed'` → 400 error. |
-| Q7 — Where does validator run? | Inside `summarize()` at the end. Not a scheduled job. Every new autopsy triggers it. |
+| Q#                                      | Resolution                                                                                                                                   |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Q1 — Which model per phase?             | Use `workspacePreferences.defaultModelId`. If null, fall back to `openrouter` with `google/gemma-4-31b-it`. All phases use same model in v1. |
+| Q2 — New columns or repurpose?          | New columns with defaults. `summary` column stays for backwards compat and fallback.                                                         |
+| Q3 — Andon cord action?                 | Notification only in v1. No session lock. Spec confirmed.                                                                                    |
+| Q4 — Lesson validation: LLM or keyword? | Keyword-only for v1. Stub function for LLM path with `// TODO` comment.                                                                      |
+| Q5 — PDF approach?                      | Hidden offscreen `BrowserWindow`. Simpler than pdfkit; already available in Electron.                                                        |
+| Q6 — Regenerate for open trades?        | No. Guard in IPC handler: `trade.status !== 'closed'` → 400 error.                                                                           |
+| Q7 — Where does validator run?          | Inside `summarize()` at the end. Not a scheduled job. Every new autopsy triggers it.                                                         |
 
 ---
 

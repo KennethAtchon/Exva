@@ -10,7 +10,6 @@ Owns what happens when a session starts, pauses, stops, or keeps watching open p
 - For normal instruments, the monitor updates the high-water mark before evaluating exits. It uses adapter OHLCV when available for ATR trailing stops and falls back to fixed stops/take-profit/max-hold when bars are unavailable.
 - When an exit is triggered, `closeTradeAtBroker` calls the broker adapter, stores an optional close snapshot, marks the trade closed, releases capital, and emits `trade_closed`.
 - If a broker close fails, the trade stays open and the next tick can retry. The monitor does not silently mark a trade closed without broker confirmation.
-- `position-manager-service.ts` is a simpler lifecycle helper that performs daily checks for max-hold and prediction-market exposure, closing older positions through the broker when needed.
 - `trade_closed` events are important beyond lifecycle: scheduling listens for them to restart selector research and fill freed capacity.
 
 ## Flow

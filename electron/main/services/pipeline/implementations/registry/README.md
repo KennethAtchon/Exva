@@ -5,9 +5,8 @@ Resolves plan ids to either an executable AI phase or a full instrument analysis
 ## How it works
 
 - `register-analyses.ts` registers deterministic signal-engine input builders and the `default-trade-cycle` instrument analysis.
-- `analysis-resolver.ts` resolves an id to either a phase definition or an instrument analysis. Phase IDs are registered as unified plan refs by `definitions/index.ts` so `runPlan("selector")` and `runPlan("default-trade-cycle")` share one lookup. `PipelineRuntime.runPlan()` uses this resolver.
-- `analysis-kinds.ts` defines union types used by the resolver and dispatcher.
-- `analysis-dispatcher.ts` runs either `AIPhaseRunner` or `InstrumentAnalysisRunner` based on resolved kind.
+- `analysis-resolver.ts` resolves an id to either a phase definition or an instrument analysis. Phase IDs are registered as unified plan refs by `definitions/index.ts` so `runPlan("selector")` and `runPlan("default-trade-cycle")` share one lookup. `PipelineRuntime.runPlan()` uses this resolver to call either `AIPhaseRunner` or `InstrumentAnalysisRunner` directly.
+- `analysis-kinds.ts` defines union types used by the resolver.
 - Phase registration lives in `definitions/index.ts` (`registerAllPhases()`). Phase engines register from `engines/index.ts` and side-effect imports in phase definition files.
 
 ## Flow

@@ -14,7 +14,6 @@ Runs the low-level execution work inside the pipeline. This folder is where one 
 - `input-builder-registry.ts` registers deterministic signal-engine input builders used by instrument-analysis engine steps.
 - `stage-dispatch.ts` runs one deterministic engine or a chain of engines and applies state patches from the selected input builder.
 - `worker-structured-output.ts` and its tests cover strict schema validation for worker terminal output.
-- `tool-use-harness.ts` is a thin provider test harness for tool-call experiments and schema-backed provider invocation.
 - This folder should not decide which phase or trade-analysis steps exist. It only executes the work requested by `phases/` and `analysis/`.
 
 ## Flow

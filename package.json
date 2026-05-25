@@ -28,6 +28,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "prepare": "husky",
+    "doctor": "react-doctor",
     "logs:clear": "rm -f \"$HOME/.exva/logs\"/*.log",
     "clean": "rm -rf node_modules && rm -rf dist && rm -rf .vite"
   },

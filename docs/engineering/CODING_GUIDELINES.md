@@ -92,8 +92,8 @@ electron/main/services/llm/
 ├── search/                           sub-domain — search providers (Phase 7)
 │   ├── index.ts
 │   ├── search-registry.ts
+│   ├── search-types.ts               interface SearchAdapter
 │   └── adapters/
-│       ├── search-adapter.ts         interface
 │       ├── brave-adapter.ts
 │       └── tavily-adapter.ts
 └── __tests__/

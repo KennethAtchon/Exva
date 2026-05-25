@@ -26,13 +26,6 @@ type AiFundamentalRun = LLMRunResult<FundamentalSignal>;
 type AiReviewRun = LLMRunResult<ReviewSignal>;
 type AiDecisionRun = LLMRunResult<TradeSignal>;
 
-export type AiPipelineResult = {
-  technical: AiTechnicalRun;
-  fundamental: AiFundamentalRun;
-  review: AiReviewRun;
-  decision: AiDecisionRun;
-};
-
 export type SelectorCycleContext = {
   kind: "selector";
   cycleId: string;

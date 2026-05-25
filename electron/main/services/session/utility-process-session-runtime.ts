@@ -1,7 +1,5 @@
 import type { UtilityProcess } from "electron";
-import { serializeError } from "@electron/shared/infra/errors";
 import type { ExecutionStage } from "@/lib/types";
-import type { EventBus } from "../infra/event-bus";
 import type { Logger } from "../infra/log";
 import { MainRuntimeRpcBridge } from "./runtime-rpc-bridge";
 import type {
@@ -24,13 +22,13 @@ type PendingCommand = {
 
 export class RemoteOrchestrator implements SessionOrchestrator {
   constructor(
-    private readonly send: (
-      command: RuntimeWorkerCommand,
-    ) => Promise<unknown>,
+    private readonly send: (command: RuntimeWorkerCommand) => Promise<unknown>,
   ) {}
 
   async start(): Promise<void> {
-    throw new Error("Remote orchestrator start is handled by runtime.initialize()");
+    throw new Error(
+      "Remote orchestrator start is handled by runtime.initialize()",
+    );
   }
 
   async pause(): Promise<void> {
@@ -38,7 +36,9 @@ export class RemoteOrchestrator implements SessionOrchestrator {
   }
 
   async resume(): Promise<void> {
-    throw new Error("Remote orchestrator resume is handled by runtime.resume()");
+    throw new Error(
+      "Remote orchestrator resume is handled by runtime.resume()",
+    );
   }
 
   async stop(): Promise<void> {
@@ -219,17 +219,19 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
         this.pendingCommands.delete(message.requestId);
         return;
       case "command_error":
-        this.pendingCommands.get(message.requestId)?.reject(
-          new Error(message.error.message),
-        );
+        this.pendingCommands
+          .get(message.requestId)
+          ?.reject(new Error(message.error.message));
         this.pendingCommands.delete(message.requestId);
-        this.pendingOrchestrator.get(message.requestId)?.reject(
-          new Error(message.error.message),
-        );
+        this.pendingOrchestrator
+          .get(message.requestId)
+          ?.reject(new Error(message.error.message));
         this.pendingOrchestrator.delete(message.requestId);
         return;
       case "orchestrator_result":
-        this.pendingOrchestrator.get(message.requestId)?.resolve(message.result);
+        this.pendingOrchestrator
+          .get(message.requestId)
+          ?.resolve(message.result);
         this.pendingOrchestrator.delete(message.requestId);
         return;
       case "pong":
@@ -282,7 +284,10 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
           reject,
         });
       }
-      this.child.postMessage({ ...command, requestId } satisfies RuntimeWorkerCommandEnvelope);
+      this.child.postMessage({
+        ...command,
+        requestId,
+      } satisfies RuntimeWorkerCommandEnvelope);
     });
   }
 
@@ -314,8 +319,4 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
     }
     this.pendingOrchestrator.clear();
   }
-}
-
-export function serializeWorkerCommandError(error: unknown) {
-  return serializeError(error);
 }

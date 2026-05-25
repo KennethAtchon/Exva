@@ -1,10 +1,7 @@
 import type { InstrumentClass } from "@/lib/types";
 import type { StopLossType } from "@electron/shared/domain";
 
-export type ExitReason =
-  | "stop_loss_fixed"
-  | "stop_loss_trailing_atr"
-  | "take_profit";
+type ExitReason = "stop_loss_fixed" | "stop_loss_trailing_atr" | "take_profit";
 
 export interface ExitDecision {
   shouldExit: boolean;

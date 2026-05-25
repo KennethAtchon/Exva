@@ -55,39 +55,3 @@ export function scheduleWorkersByDependency<TOutput = unknown>(
     schedulingMode: mode,
   };
 }
-
-export async function runWorkerBatches<T>(
-  scheduled: readonly AIWorkerNode[],
-  maxConcurrency: number,
-  runWorker: (node: AIWorkerNode) => Promise<T>,
-  shouldContinue?: () => boolean,
-): Promise<Array<{ node: AIWorkerNode; result: T }>> {
-  const frontierMap = new Map<number, AIWorkerNode[]>();
-  for (const node of scheduled) {
-    const current = frontierMap.get(node.frontier) ?? [];
-    current.push(node);
-    frontierMap.set(node.frontier, current);
-  }
-
-  const out: Array<{ node: AIWorkerNode; result: T }> = [];
-
-  for (const frontier of [...frontierMap.keys()].sort((a, b) => a - b)) {
-    if (shouldContinue && !shouldContinue()) break;
-    const nodes = frontierMap.get(frontier) ?? [];
-    for (
-      let index = 0;
-      index < nodes.length;
-      index += Math.max(1, maxConcurrency)
-    ) {
-      if (shouldContinue && !shouldContinue()) break;
-      const batch = nodes.slice(index, index + Math.max(1, maxConcurrency));
-      const results = await Promise.all(
-        batch.map(async (node) => ({ node, result: await runWorker(node) })),
-      );
-      out.push(...results);
-      if (shouldContinue && !shouldContinue()) break;
-    }
-  }
-
-  return out;
-}

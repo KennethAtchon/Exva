@@ -8,7 +8,7 @@ Executable phase configuration. Each phase is one `AIPhase` object plus optional
 - `all-phases.ts` exports `ALL_PHASES`, the canonical ordered list. It has no engine side effects — safe for catalog, tests, and iteration without triggering registration.
 - `selector.schemas.ts` and `selector.helpers.ts` hold selector worker zod schemas and stage-local merge/score logic.
 - `aggregator.types.ts` defines `AggregatorPlanState` (empty state object) used by trade phases.
-- `index.ts` is the boot manifest: imports `engines/` as a side effect, then `registerAllPhases()` registers each phase and unified plan refs for `analysis-resolver.ts`. Also exports `validatePhaseEngines()` for optional startup validation.
+- `index.ts` is the boot manifest: imports `engines/` as a side effect, then `registerAllPhases()` registers each phase and unified plan refs for `analysis-resolver.ts`.
 - `phase-catalog.ts` derives static `PipelineDefinition` metadata for effective-config validation and developer tooling. It calls each phase's `resolveWorkersForMode()` — the same function runtime stages use — so catalog and execution always agree on workers.
 - Each phase declares `resolveWorkersForMode(discoveryMode)` for worker sets that vary by `trend_scan` vs `event_contract_scan`. Review and decision worker sets are mode-invariant today.
 - Phase-level business logic lives in `pipeline/engines/` and is referenced by engine ID from the phase file. Stage-local logic (e.g. selector `applyResults()`) stays in the phase file or co-located helpers.

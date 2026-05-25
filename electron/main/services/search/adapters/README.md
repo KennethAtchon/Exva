@@ -4,7 +4,7 @@ These adapters are the concrete web-search backends behind Exva's normalized sea
 
 ## How it works
 
-- `search-adapter.ts` re-exports the shared `SearchAdapter` and `SearchToolResult` types from `search-types.ts` so callers inside this folder can import the provider contract locally.
+- Adapters import the shared `SearchAdapter` and `SearchToolResult` types from `../search-types.ts`.
 - `brave-adapter.ts` calls Brave Web Search with `X-Subscription-Token`, retries only `429` responses with short backoff, joins the title and description into a snippet, preserves Brave age/page-age as `publishedDate`, and charges `creditsUsed: 1`.
 - `tavily-adapter.ts` POSTs to Tavily with `search_depth: "advanced"`, `max_results: 7`, no answer, and no raw content. It retries `429` responses and caps long result content before returning normalized snippets.
 - `duckduckgo-adapter.ts` fetches DuckDuckGo's HTML endpoint without an API key, parses result blocks from HTML, decodes common HTML entities, unwraps `uddg` redirect URLs, returns up to five results, and reports `creditsUsed: 0`.

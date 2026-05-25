@@ -22,10 +22,3 @@ export function requireAIPhase(
   if (!plan) throw new Error(`Phase plan '${phase}' is not registered`);
   return plan;
 }
-
-export function listAIPhases(): Array<{
-  phase: PipelinePhase;
-  plan: AIPhase<unknown, unknown>;
-}> {
-  return [...PHASE_PLANS.entries()].map(([phase, plan]) => ({ phase, plan }));
-}

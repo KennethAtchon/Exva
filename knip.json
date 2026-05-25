@@ -1,0 +1,37 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "index.html",
+    "src/main.tsx",
+    "electron/main/index.ts",
+    "electron/preload/index.ts",
+    "electron/main/workers/session-runtime-worker.ts",
+    "forge.config.ts",
+    "vite.config.ts",
+    "vite.*.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "drizzle.config.ts",
+    "eslint.config.js",
+    "postcss.config.js",
+    "tailwind.config.js",
+    "scripts/**/*.ts",
+    "e2e/**/*.ts",
+    "electron/**/*.test.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "electron/**/*.{ts,tsx}", "scripts/**/*.ts"],
+  "ignore": ["src/components/ui/**"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": [
+    "bufferutil",
+    "utf-8-validate",
+    "electron-squirrel-startup",
+    "protobufjs",
+    "@electron-forge/maker-deb",
+    "@electron-forge/maker-rpm",
+    "@electron-forge/maker-squirrel",
+    "@electron-forge/maker-zip",
+    "@electron-forge/plugin-auto-unpack-natives",
+    "@electron-forge/plugin-vite"
+  ]
+}

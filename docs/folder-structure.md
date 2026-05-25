@@ -54,12 +54,12 @@ electron/
 
 Boundaries:
 
-| Folder | Owns | Must not own |
-|--------|------|--------------|
-| `electron/main/` | DB, repositories, services, IPC handlers, broker/search/AI adapters, runtime lifecycle | React components or direct renderer state |
-| `electron/preload/` | Typed `contextBridge` API and event subscription wrappers | Business logic, secrets, DB access |
-| `electron/shared/` | Cross-process contracts and pure shared constants/types | Main-process services, filesystem access, Electron APIs |
-| `electron/types/` | Global/window type shims and third-party module augmentations | Runtime logic or imports with side effects |
+| Folder              | Owns                                                                                   | Must not own                                            |
+| ------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `electron/main/`    | DB, repositories, services, IPC handlers, broker/search/AI adapters, runtime lifecycle | React components or direct renderer state               |
+| `electron/preload/` | Typed `contextBridge` API and event subscription wrappers                              | Business logic, secrets, DB access                      |
+| `electron/shared/`  | Cross-process contracts and pure shared constants/types                                | Main-process services, filesystem access, Electron APIs |
+| `electron/types/`   | Global/window type shims and third-party module augmentations                          | Runtime logic or imports with side effects              |
 
 ---
 
@@ -220,7 +220,6 @@ services/llm/
 ├── runtime.ts                # LLMRuntime facade over PipelineRuntime
 ├── provider-registry.ts      # provider_accounts + Keychain -> concrete ProviderAdapter
 ├── runtime-retry.ts          # Provider retry/timeout/error wrapping
-├── runtime-trace.ts          # LLMCallTrace -> AgentRun/AgentMessage helpers
 ├── tool-loop-guard.ts        # Detects repeated tool-call loops
 ├── llm-types.ts              # Normalized message/trace/run result types
 ├── model-pricing.ts          # Fallback token pricing
@@ -300,7 +299,6 @@ services/pipeline/
 │   ├── engine-prompt-injector.ts     # Read-mode engine result injection
 │   ├── input-builder-registry.ts     # Deterministic engine input builders
 │   ├── stage-dispatch.ts             # Analysis-step dispatch adapter
-│   ├── tool-use-harness.ts           # Required tool-use enforcement harness
 │   ├── worker-structured-output.ts   # Terminal tool output parsing/validation
 │   ├── worker-tool-requirements.ts   # Required tool-use policy helpers
 │   └── __tests__/
@@ -373,7 +371,6 @@ services/search/
 ├── sanitize-search-query.test.ts
 └── adapters/
     ├── README.md
-    ├── search-adapter.ts
     ├── brave-adapter.ts
     ├── duckduckgo-adapter.ts
     ├── mcp-adapter.ts
@@ -442,7 +439,6 @@ services/broker/
 ```
 services/orchestration/
 ├── README.md
-├── index.ts
 ├── __tests__/                # Cross-cycle integration tests (e.g. mock trade rehearsal)
 ├── cycle/
 │   ├── README.md
@@ -474,7 +470,6 @@ services/orchestration/
 │       └── trade-record-builder.ts
 ├── lifecycle/
 │   ├── README.md
-│   ├── position-manager-service.ts
 │   └── trade-monitor.ts
 └── policy/
     ├── README.md
@@ -644,25 +639,25 @@ e2e/
 
 ## Key Separations Of Concern
 
-| Concern | Where it lives |
-|---------|----------------|
-| Electron startup/window security | `electron/main/index.ts`, `electron/main/window.ts` |
-| IPC surface | `electron/main/ipc/`, `electron/shared/ipc/`, `electron/preload/` |
-| Ambient/global TypeScript declarations | `electron/types/` |
-| DB schema and repositories | `electron/main/db/` |
-| App composition root | `electron/main/services/app-services.ts` |
-| Session lifecycle and runtime ownership | `electron/main/services/session/` |
-| Live trading loop | `electron/main/services/orchestration/cycle/` |
-| Trade monitoring | `electron/main/services/orchestration/lifecycle/` |
-| Pre-order policy gates | `electron/main/services/orchestration/policy/`, `electron/main/services/risk/` |
-| AI provider calls and normalized traces | `electron/main/services/llm/` |
-| AI analysis sequencing, prompts, workers, tools | `electron/main/services/pipeline/` |
-| Phase-level engine registry (input, cache, finalizers) | `electron/main/services/pipeline/engines/` |
-| Deterministic output processing | `electron/main/services/signal/` |
-| LLM-callable tool implementations | `electron/main/services/tools/` |
-| Search provider adapters | `electron/main/services/search/` |
-| Broker adapters/routing/capital/balances | `electron/main/services/broker/` |
-| Replay/debug reconstruction | `electron/main/services/replay/` |
-| Post-trade analytics | `electron/main/services/analytics/` |
-| Shared main/renderer contracts | `electron/shared/` |
-| Renderer UI | `src/` |
+| Concern                                                | Where it lives                                                                 |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Electron startup/window security                       | `electron/main/index.ts`, `electron/main/window.ts`                            |
+| IPC surface                                            | `electron/main/ipc/`, `electron/shared/ipc/`, `electron/preload/`              |
+| Ambient/global TypeScript declarations                 | `electron/types/`                                                              |
+| DB schema and repositories                             | `electron/main/db/`                                                            |
+| App composition root                                   | `electron/main/services/app-services.ts`                                       |
+| Session lifecycle and runtime ownership                | `electron/main/services/session/`                                              |
+| Live trading loop                                      | `electron/main/services/orchestration/cycle/`                                  |
+| Trade monitoring                                       | `electron/main/services/orchestration/lifecycle/`                              |
+| Pre-order policy gates                                 | `electron/main/services/orchestration/policy/`, `electron/main/services/risk/` |
+| AI provider calls and normalized traces                | `electron/main/services/llm/`                                                  |
+| AI analysis sequencing, prompts, workers, tools        | `electron/main/services/pipeline/`                                             |
+| Phase-level engine registry (input, cache, finalizers) | `electron/main/services/pipeline/engines/`                                     |
+| Deterministic output processing                        | `electron/main/services/signal/`                                               |
+| LLM-callable tool implementations                      | `electron/main/services/tools/`                                                |
+| Search provider adapters                               | `electron/main/services/search/`                                               |
+| Broker adapters/routing/capital/balances               | `electron/main/services/broker/`                                               |
+| Replay/debug reconstruction                            | `electron/main/services/replay/`                                               |
+| Post-trade analytics                                   | `electron/main/services/analytics/`                                            |
+| Shared main/renderer contracts                         | `electron/shared/`                                                             |
+| Renderer UI                                            | `src/`                                                                         |

@@ -1,7 +1,5 @@
-import type { ExecutionStage } from "@/lib/types";
 import type { ExvaEventName } from "@electron/shared/ipc/channels";
 import type { SerializedAppError } from "@electron/shared/infra/errors";
-import type { ApprovalRecheckInput } from "./session-types";
 
 export type RuntimeInitialStatus = "active" | "paused" | "monitoring_only";
 
@@ -42,14 +40,24 @@ export type RuntimeWorkerMessage =
       result: unknown;
     }
   | { type: "rpc_request"; id: number; path: string; args: unknown[] }
-  | { type: "rpc_response"; id: number; result?: unknown; error?: SerializedAppError }
+  | {
+      type: "rpc_response";
+      id: number;
+      result?: unknown;
+      error?: SerializedAppError;
+    }
   | { type: "event"; name: ExvaEventName; payload: unknown }
   | {
       type: "runtime_status";
       sessionId: string;
       status: "active" | "paused" | "stopping" | null;
     }
-  | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string; meta?: Record<string, unknown> };
+  | {
+      type: "log";
+      level: "debug" | "info" | "warn" | "error";
+      message: string;
+      meta?: Record<string, unknown>;
+    };
 
 export type RuntimeHostInitMessage = {
   type: "host_init";
@@ -57,21 +65,3 @@ export type RuntimeHostInitMessage = {
 };
 
 export type RuntimeHostMessage = RuntimeHostInitMessage | RuntimeWorkerCommand;
-
-export interface RetryStepResult {
-  ok: true;
-}
-
-export interface RetryStepFailure {
-  ok: false;
-  reason: string;
-}
-
-export type OrchestratorRemoteArgs = {
-  restartFromAttention: [];
-  pauseAfterCurrentStep: [];
-  retryStep: [cycleId: string, stage: ExecutionStage];
-  runApprovalRecheck: [ApprovalRecheckInput];
-  resolveApproval: [tradeId: string, approved: boolean];
-  hasApprovalCallback: [tradeId: string];
-};
