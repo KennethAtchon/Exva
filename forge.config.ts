@@ -28,6 +28,11 @@ const config: ForgeConfig = {
           target: "main",
         },
         {
+          entry: "electron/main/workers/session-runtime-worker.ts",
+          config: "vite.worker.config.ts",
+          target: "main",
+        },
+        {
           entry: "electron/preload/index.ts",
           config: "vite.preload.config.ts",
           target: "preload",

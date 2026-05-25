@@ -11,6 +11,11 @@ export {
 } from "./session-trade-state";
 export { SessionStartupRecoveryService } from "./session-startup-recovery-service";
 export { ShutdownCoordinator } from "./shutdown-coordinator";
+export {
+  createOrchestratorDeps,
+  InProcessSessionRuntimeHost,
+  type SessionRuntimeHost,
+} from "./session-runtime-host";
 export type {
   ApprovalRecheckInput,
   OrchestratorDeps,

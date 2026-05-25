@@ -1,5 +1,6 @@
 import type { ExecutionStage, SessionConfig } from "@/lib/types";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
+import { canScheduleSelector } from "../../session/session-trade-state";
 import { TradingCycleContext } from "./trading-cycle-context";
 import { runPhaseCycle } from "./orchestrator-step";
 import { handleResolvedInstruments } from "./scheduling/instrument-queue";
@@ -207,6 +208,9 @@ export class AgentOrchestrator {
   private async executeSelectorCycle(
     context: SelectorCycleContext,
   ): Promise<void> {
+    if (!canScheduleSelector(this.ctx)) {
+      return;
+    }
     return runPhaseCycle(this.ctx, {
       context,
       stage: "selector",

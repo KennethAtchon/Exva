@@ -20,9 +20,17 @@ export class SessionRuntime {
   ) {}
 
   async initialize(
-    initialStatus: Extract<SessionRuntimeStatus, "active" | "paused">,
+    initialStatus:
+      | Extract<SessionRuntimeStatus, "active" | "paused">
+      | "monitoring_only",
   ): Promise<void> {
     await this.lifecycle.add(async () => {
+      if (initialStatus === "monitoring_only") {
+        this.status = "paused";
+        this.tradeMonitor.start();
+        await this.orchestrator.stop();
+        return;
+      }
       this.status = initialStatus === "active" ? "active" : "paused";
       // Trade monitor runs in BOTH active and paused modes — it watches open
       // positions for exits regardless of whether new intake is allowed.
@@ -42,6 +50,18 @@ export class SessionRuntime {
       // intake-paused: orchestrator stops opening new cycles, but the
       // trade monitor keeps watching open positions for stop/take-profit/exit.
       await this.orchestrator.pause();
+    });
+  }
+
+  /**
+   * Drain-to-stop: halt orchestrator intake immediately while the trade monitor
+   * keeps managing open positions until the session is fully stopped.
+   */
+  async drainStop(): Promise<void> {
+    await this.lifecycle.add(async () => {
+      if (this.status === "stopping") return;
+      this.status = "paused";
+      await this.orchestrator.stop();
     });
   }
 

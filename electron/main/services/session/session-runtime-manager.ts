@@ -1,24 +1,37 @@
-import type { ExecutionStage } from "@/lib/types";
+import type { ExecutionStage, Trade } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
-import { SessionRuntime } from "./session-runtime";
+import {
+  InProcessSessionRuntimeHost,
+  type SessionRuntimeHost,
+} from "./session-runtime-host";
 import {
   SessionStartupRecoveryService,
   type SessionStartupRecoveryDeps,
 } from "./session-startup-recovery-service";
+import { countOpenTrades } from "./session-trade-state";
 import type {
   ApprovalRecheckInput,
-  OrchestratorDeps,
+  ManagedSessionRuntime,
   SessionRuntimeManagerDeps,
 } from "./session-types";
 
 export class SessionRuntimeManager {
-  private readonly runtimes = new Map<string, SessionRuntime>();
+  private readonly runtimes = new Map<string, ManagedSessionRuntime>();
   private readonly startupRecovery: SessionStartupRecoveryService;
+  private readonly runtimeHost: SessionRuntimeHost;
 
-  constructor(private readonly deps: SessionRuntimeManagerDeps) {
+  constructor(
+    private readonly deps: SessionRuntimeManagerDeps,
+    runtimeHost?: SessionRuntimeHost,
+  ) {
+    this.runtimeHost =
+      runtimeHost ?? new InProcessSessionRuntimeHost(this.deps);
     this.startupRecovery = new SessionStartupRecoveryService(
       this.recoveryDeps(),
     );
+    this.deps.bus.on("trade_closed", (trade) => {
+      void this.handleTradeClosedForDrain(trade);
+    });
   }
 
   private recoveryDeps(): SessionStartupRecoveryDeps {
@@ -35,7 +48,7 @@ export class SessionRuntimeManager {
     };
   }
 
-  async startSession(sessionId: string): Promise<SessionRuntime> {
+  async startSession(sessionId: string): Promise<ManagedSessionRuntime> {
     const existing = this.runtimes.get(sessionId);
     if (existing) {
       this.deps.logger.debug({ sessionId }, "runtime already active");
@@ -45,55 +58,25 @@ export class SessionRuntimeManager {
     this.deps.logger.info({ sessionId }, "starting runtime");
 
     const session = this.deps.sessionRepo.requireById(sessionId);
-    const orchestratorDeps: OrchestratorDeps = {
-      sessionRepo: this.deps.sessionRepo,
-      sessionStrategiesRepo: this.deps.sessionStrategiesRepo,
-      strategyContextService: this.deps.strategyContextService,
-      tradesRepo: this.deps.tradesRepo,
-      tradeApprovalsRepo: this.deps.tradeApprovalsRepo,
-      agentRunsRepo: this.deps.agentRunsRepo,
-      agentMessagesRepo: this.deps.agentMessagesRepo,
-      eventsRepo: this.deps.eventsRepo,
-      statsRepo: this.deps.statsRepo,
-      sessionAiPhasesRepo: this.deps.sessionAiPhasesRepo,
-      sessionSelectorSettingsRepo: this.deps.sessionSelectorSettingsRepo,
-      sessionExecutionStepsRepo: this.deps.sessionExecutionStepsRepo,
-      providerAccountsRepo: this.deps.providerAccountsRepo,
-      workspacePreferencesRepo: this.deps.workspacePreferencesRepo,
-      capitalReservationsRepo: this.deps.capitalReservationsRepo,
-      capitalReservation: this.deps.capitalReservation,
-      brokerRoutingRepo: this.deps.brokerRoutingRepo,
-      sessionBrokerAssignmentsRepo: this.deps.sessionBrokerAssignmentsRepo,
-      brokerAccountsRepo: this.deps.brokerAccountsRepo,
-      brokerRegistry: this.deps.brokerRegistry,
-      brokerRouting: this.deps.brokerRouting,
-      brokerBalanceCache: this.deps.brokerBalanceCache,
-      brokerCapital: this.deps.brokerCapital,
-      brokerAllocationGate: this.deps.brokerAllocationGate,
-      instrumentNormalizer: this.deps.instrumentNormalizer,
-      instrumentCacheRepo: this.deps.instrumentCacheRepo,
-      ai: this.deps.ai,
-      riskEngine: this.deps.riskEngine,
-      bus: this.deps.bus,
-      logger: this.deps.logger,
-    };
-
-    const runtime = new SessionRuntime(
-      sessionId,
-      this.deps.createOrchestrator(sessionId, orchestratorDeps),
-      this.deps.createTradeMonitor(sessionId),
-    );
+    const runtime = await this.runtimeHost.createRuntime(sessionId);
 
     this.runtimes.set(sessionId, runtime);
-    const runtimeStatus = session.status === "paused" ? "paused" : "active";
-    this.deps.bus.setRuntimeStatus(sessionId, runtimeStatus);
-    if (session.status !== runtimeStatus) {
-      this.deps.sessionRepo.setStatus(runtimeStatus, sessionId);
+    const initStatus = this.resolveInitialRuntimeStatus(session.status);
+    this.deps.bus.setRuntimeStatus(
+      sessionId,
+      initStatus === "monitoring_only" ? "paused" : initStatus,
+    );
+    if (
+      session.status !== initStatus &&
+      session.status !== "monitoring_only" &&
+      initStatus !== "monitoring_only"
+    ) {
+      this.deps.sessionRepo.setStatus(initStatus, sessionId);
     }
 
     try {
-      await runtime.initialize(runtimeStatus);
-      this.deps.logger.info({ sessionId, runtimeStatus }, "runtime started");
+      await runtime.initialize(initStatus);
+      this.deps.logger.info({ sessionId, initStatus }, "runtime started");
       return runtime;
     } catch (error) {
       this.runtimes.delete(sessionId);
@@ -147,7 +130,11 @@ export class SessionRuntimeManager {
     const runtime = this.requireRuntime(sessionId);
     this.deps.bus.setRuntimeStatus(sessionId, "stopping");
     try {
-      await runtime.stop();
+      if (runtime.shutdown) {
+        await runtime.shutdown();
+      } else {
+        await runtime.stop();
+      }
       this.deps.sessionRepo.setStatus("stopped", sessionId);
       this.deps.bus.emit("session_status_changed", { sessionId, status: "stopped" });
     } catch (error) {
@@ -161,12 +148,41 @@ export class SessionRuntimeManager {
     this.deps.logger.info({ sessionId }, "runtime stopped");
   }
 
-  get(sessionId: string): SessionRuntime | null {
+  async drainSession(sessionId: string): Promise<void> {
+    this.deps.logger.info({ sessionId }, "draining session to stop when flat");
+    const runtime = this.requireRuntime(sessionId);
+    this.deps.bus.setRuntimeStatus(sessionId, "paused");
+    this.deps.sessionRepo.setStatus("monitoring_only", sessionId);
+    this.deps.bus.emit("session_status_changed", {
+      sessionId,
+      status: "monitoring_only",
+    });
+    await runtime.drainStop();
+    this.deps.logger.info({ sessionId }, "session drain started");
+  }
+
+  async completeDrainStop(sessionId: string): Promise<void> {
+    if (this.deps.sessionRepo.getStatus(sessionId) !== "monitoring_only") {
+      return;
+    }
+    const openTradeCount = countOpenTrades(this.deps.tradesRepo, sessionId);
+    if (openTradeCount > 0) {
+      return;
+    }
+    this.deps.logger.info({ sessionId }, "completing drain stop");
+    await this.stopSession(sessionId);
+  }
+
+  get(sessionId: string): ManagedSessionRuntime | null {
     return this.runtimes.get(sessionId) ?? null;
   }
 
-  listActive(): SessionRuntime[] {
+  listActive(): ManagedSessionRuntime[] {
     return [...this.runtimes.values()];
+  }
+
+  async shutdownAll(): Promise<void> {
+    await this.runtimeHost.shutdownAll?.();
   }
 
   /**
@@ -177,6 +193,8 @@ export class SessionRuntimeManager {
    *     trade monitor IS started so open positions remain managed (stops/take-profit
    *     can still fire). Operator must explicitly Resume to re-enable new intake.
    *   - Previously `paused` sessions are rehydrated in paused mode unchanged.
+   *   - Previously `monitoring_only` sessions stay in drain mode: orchestrator
+   *     remains stopped while the trade monitor keeps managing open positions.
    *
    * Rationale: between process death and restart, market state and broker state may
    * have changed in ways the strategy did not see. Auto-resuming new entries from
@@ -222,7 +240,25 @@ export class SessionRuntimeManager {
     return runtime.orchestrator.retryStep(cycleId, stage);
   }
 
-  private requireRuntime(sessionId: string): SessionRuntime {
+  private resolveInitialRuntimeStatus(
+    status: ReturnType<SessionRuntimeManagerDeps["sessionRepo"]["getStatus"]>,
+  ): "active" | "paused" | "monitoring_only" {
+    if (status === "paused") return "paused";
+    if (status === "monitoring_only") return "monitoring_only";
+    return "active";
+  }
+
+  private async handleTradeClosedForDrain(trade: Trade): Promise<void> {
+    if (trade.status !== "closed" || !trade.sessionId) return;
+    if (this.deps.sessionRepo.getStatus(trade.sessionId) !== "monitoring_only") {
+      return;
+    }
+    const openTradeCount = countOpenTrades(this.deps.tradesRepo, trade.sessionId);
+    if (openTradeCount > 0) return;
+    await this.completeDrainStop(trade.sessionId);
+  }
+
+  private requireRuntime(sessionId: string): ManagedSessionRuntime {
     const runtime = this.runtimes.get(sessionId);
     if (!runtime) {
       throw new AppError(

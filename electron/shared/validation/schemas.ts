@@ -23,6 +23,7 @@ export const sessionStatusSchema = z.enum([
   "active",
   "attention_required",
   "paused",
+  "monitoring_only",
   "stopped",
   "archived",
 ]);

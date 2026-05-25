@@ -6,28 +6,34 @@ const emptyTradesRepo = {
 };
 
 describe("SessionService stop guards", () => {
-  it("blocks normal stop when open trades remain", async () => {
+  it("drains to monitoring_only when open trades remain", async () => {
+    const drainSession = vi.fn(async () => undefined);
+    const insert = vi.fn();
     const service = new SessionService({
       sessionRepo: {
         requireById: () => ({
           id: "session-1",
           status: "active",
         }),
-        getStatus: () => "active",
+        getStatus: () => "monitoring_only",
         getFocusedSessionId: () => "session-1",
       },
       tradesRepo: {
         listOpenAndPending: () => [{ id: "trade-1", status: "open" }],
       },
-      eventsRepo: { insert: vi.fn() },
+      eventsRepo: { insert },
       runtimeManager: {
+        drainSession,
         stopSession: vi.fn(async () => undefined),
       },
     } as never);
 
-    await expect(service.stop("session-1")).rejects.toEqual(
+    await expect(service.stop("session-1")).resolves.toBe("monitoring_only");
+    expect(drainSession).toHaveBeenCalledWith("session-1");
+    expect(insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        code: "OPEN_TRADES_BLOCK_STOP",
+        level: "INFO",
+        message: expect.stringContaining("stop automatically when flat"),
       }),
     );
   });

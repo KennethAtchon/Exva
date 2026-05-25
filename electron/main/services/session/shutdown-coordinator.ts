@@ -31,6 +31,8 @@ export class ShutdownCoordinator {
       }
     }
 
+    await this.runtimeManager.shutdownAll?.();
+
     this.closeDb();
     this.logger.info("graceful shutdown complete");
   }

@@ -8,6 +8,9 @@ export function attachTradeClosedListener(
   if (ctx.unsubscribeTradeClosed) return;
   ctx.unsubscribeTradeClosed = ctx.deps.bus.on("trade_closed", (trade) => {
     if (trade.sessionId !== ctx.sessionId || trade.status !== "closed") return;
+    if (ctx.deps.sessionRepo.getStatus(ctx.sessionId) === "monitoring_only") {
+      return;
+    }
     if (!ctx.runtimeIsActive()) return;
     if (ctx.cycleRestartInFlight) return;
 

@@ -43,8 +43,15 @@ describe("domain session helpers", () => {
     expect(canTransition("draft", "idle")).toBe(true);
     expect(canTransition("draft", "active")).toBe(true);
     expect(canTransition("active", "paused")).toBe(true);
+    expect(canTransition("active", "monitoring_only")).toBe(true);
+    expect(canTransition("paused", "monitoring_only")).toBe(true);
+    expect(canTransition("monitoring_only", "stopped")).toBe(true);
     expect(canTransition("stopped", "archived")).toBe(true);
     expect(canTransition("stopped", "active")).toBe(true);
+  });
+
+  it("rejects resume from monitoring_only drain state", () => {
+    expect(canTransition("monitoring_only", "active")).toBe(false);
   });
 
   it("locks active and paused sessions from edits", () => {
@@ -53,6 +60,7 @@ describe("domain session helpers", () => {
     expect(isSessionEditable("stopped")).toBe(true);
     expect(isSessionEditable("active")).toBe(false);
     expect(isSessionEditable("paused")).toBe(false);
+    expect(isSessionEditable("monitoring_only")).toBe(false);
     expect(isSessionEditable("archived")).toBe(false);
   });
 

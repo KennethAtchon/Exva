@@ -119,9 +119,13 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
       strategyErrors: [],
       isSaving: false,
       isLocked:
-        result.sessionStatus === "active" || result.sessionStatus === "paused",
+        result.sessionStatus === "active" ||
+        result.sessionStatus === "paused" ||
+        result.sessionStatus === "monitoring_only",
       state:
-        result.sessionStatus === "active" || result.sessionStatus === "paused"
+        result.sessionStatus === "active" ||
+        result.sessionStatus === "paused" ||
+        result.sessionStatus === "monitoring_only"
           ? "locked"
           : "editable",
     });

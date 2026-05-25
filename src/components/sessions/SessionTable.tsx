@@ -13,6 +13,9 @@ type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
 const FORCE_STOP_CONFIRM_MESSAGE =
   "Force stop will end automated exit management for open positions. Continue?";
 
+const STOP_WHEN_FLAT_TITLE =
+  "Stops new research immediately and completes shutdown once all open trades close.";
+
 export const SessionTable = ({
   sessions,
   busySessionId,
@@ -61,10 +64,13 @@ export const SessionTable = ({
     <div style={{ display: "grid", gap: 10 }}>
       {sessions.map((session) => {
         const locked =
-          session.status === "active" || session.status === "paused";
+          session.status === "active" ||
+          session.status === "paused" ||
+          session.status === "monitoring_only";
         const busy = busySessionId === session.id;
         const aiBlocked = session.isFocused && focusedSessionAiReady === false;
         const hasOpenTrades = session.openTradeCount > 0;
+        const isDraining = session.status === "monitoring_only";
         const showOrphanWarning =
           session.status === "stopped" && session.openTradeCount > 0;
 
@@ -121,7 +127,7 @@ export const SessionTable = ({
                     <Badge variant="blue">focused</Badge>
                   ) : null}
                   <Badge variant={statusVariant(session.status)}>
-                    {session.status}
+                    {formatSessionStatusLabel(session.status)}
                   </Badge>
                 </div>
                 <div style={objectiveStyle}>{session.objective}</div>
@@ -188,6 +194,13 @@ export const SessionTable = ({
               >
                 Research phase failed ({researchFailuresBySessionId[session.id].phase}):{" "}
                 {researchFailuresBySessionId[session.id].error}
+              </div>
+            ) : null}
+            {isDraining ? (
+              <div style={drainBannerStyle}>
+                Stopping when flat — managing {session.openTradeCount} open trade
+                {session.openTradeCount === 1 ? "" : "s"}. Session stops
+                automatically once flat.
               </div>
             ) : null}
             {showOrphanWarning ? (
@@ -319,6 +332,20 @@ export const SessionTable = ({
               {(session.status === "active" || session.status === "paused") &&
               hasOpenTrades ? (
                 <Button
+                  onClick={() => onLifecycle(session, "stop")}
+                  variant="ghost"
+                  style={stopWhenFlatButtonStyle}
+                  disabled={busy}
+                  title={STOP_WHEN_FLAT_TITLE}
+                >
+                  Stop when flat
+                </Button>
+              ) : null}
+              {(session.status === "active" ||
+                session.status === "paused" ||
+                session.status === "monitoring_only") &&
+              hasOpenTrades ? (
+                <Button
                   onClick={() => {
                     if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) return;
                     onLifecycle(session, "forceStop");
@@ -401,6 +428,14 @@ const MetaBlock = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+function formatSessionStatusLabel(
+  status: SessionSummary["status"],
+): string {
+  if (status === "monitoring_only") return "Stopping when flat";
+  if (status === "attention_required") return "Needs attention";
+  return status;
+}
+
 function statusVariant(
   status: SessionSummary["status"],
 ): "default" | "success" | "warn" | "danger" | "purple" {
@@ -408,6 +443,8 @@ function statusVariant(
     case "active":
       return "success";
     case "paused":
+      return "warn";
+    case "monitoring_only":
       return "warn";
     case "attention_required":
       return "danger";
@@ -524,6 +561,25 @@ const forceStopButtonStyle = {
   border: "1px solid rgba(239,68,68,0.55)",
   background: "rgba(127,29,29,0.28)",
   color: "#fecaca",
+} as const;
+
+const stopWhenFlatButtonStyle = {
+  ...actionButtonStyle,
+  border: "1px solid rgba(251,146,60,0.35)",
+  background: "rgba(249,115,22,0.14)",
+  color: "#fdba74",
+  fontWeight: 600,
+} as const;
+
+const drainBannerStyle = {
+  marginTop: 8,
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid rgba(251,146,60,0.35)",
+  background: "rgba(249,115,22,0.12)",
+  color: "#fdba74",
+  fontSize: 12,
+  lineHeight: 1.45,
 } as const;
 
 const orphanWarningStyle = {

@@ -78,6 +78,7 @@ export const StrategyConfig = ({
     (state) => state.loadWorkspaceView,
   );
   const setSessionStatus = useSessionStore((state) => state.setStatus);
+  const sessionStatus = useSessionStore((state) => state.status);
 
   const researchPosture = useStrategyStore((state) => state.researchPosture);
   const rules = useStrategyStore((state) => state.rules);
@@ -267,41 +268,60 @@ export const StrategyConfig = ({
       {isLocked && (
         <div style={warningStyle}>
           <div>
-            Stop this session before editing its strategy or AI configuration.
-            {focusedOpenTradeCount > 0
-              ? " Open positions are active — use Pause to keep exits managed, or Force stop to edit anyway."
+            {sessionStatus === "monitoring_only"
+              ? "Session is stopping when flat — open positions remain managed until the last trade closes."
+              : "Stop this session before editing its strategy or AI configuration."}
+            {sessionStatus !== "monitoring_only" && focusedOpenTradeCount > 0
+              ? " Open positions are active — use Stop when flat to drain safely, or Force stop to edit anyway."
               : null}
           </div>
-          {focusedOpenTradeCount > 0 ? (
-            <button
-              onClick={async () => {
-                if (
-                  !window.confirm(
-                    "Force stop will end automated exit management for open positions. Continue?",
-                  )
-                ) {
-                  return;
-                }
-                const next = await api.forceStopSession();
-                setSessionStatus(next);
-                await loadStrategy(focusedSessionId);
-              }}
-              style={warningForceStopButtonStyle}
-            >
-              Force Stop Session
-            </button>
-          ) : (
-            <button
-              onClick={async () => {
-                const next = await api.stopSession();
-                setSessionStatus(next);
-                await loadStrategy(focusedSessionId);
-              }}
-              style={warningButtonStyle}
-            >
-              Stop Session
-            </button>
-          )}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(sessionStatus === "active" || sessionStatus === "paused") &&
+            focusedOpenTradeCount > 0 ? (
+              <button
+                onClick={async () => {
+                  const next = await api.stopSession();
+                  setSessionStatus(next);
+                  await loadStrategy(focusedSessionId);
+                }}
+                style={warningDrainButtonStyle}
+                title="Stops new research immediately and completes shutdown once all open trades close."
+              >
+                Stop when flat
+              </button>
+            ) : null}
+            {sessionStatus === "monitoring_only" ||
+            focusedOpenTradeCount > 0 ? (
+              <button
+                onClick={async () => {
+                  if (
+                    !window.confirm(
+                      "Force stop will end automated exit management for open positions. Continue?",
+                    )
+                  ) {
+                    return;
+                  }
+                  const next = await api.forceStopSession();
+                  setSessionStatus(next);
+                  await loadStrategy(focusedSessionId);
+                }}
+                style={warningForceStopButtonStyle}
+              >
+                Force Stop Session
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  const next = await api.stopSession();
+                  setSessionStatus(next);
+                  await loadStrategy(focusedSessionId);
+                }}
+                style={warningButtonStyle}
+              >
+                Stop Session
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -793,6 +813,12 @@ const warningButtonStyle = {
   background: "rgba(251,191,36,0.14)",
   color: "#fbbf24",
   cursor: "pointer",
+} as const;
+const warningDrainButtonStyle = {
+  ...warningButtonStyle,
+  border: "1px solid rgba(251,146,60,0.35)",
+  background: "rgba(249,115,22,0.14)",
+  color: "#fdba74",
 } as const;
 const warningForceStopButtonStyle = {
   ...warningButtonStyle,

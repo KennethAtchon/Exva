@@ -101,11 +101,15 @@ export class SessionService {
     const session = this.deps.sessionRepo.requireById(sessionId);
     const openTradeCount = countOpenTrades(this.deps.tradesRepo, sessionId);
     if (openTradeCount > 0) {
-      throw new AppError(
-        `Cannot stop while ${openTradeCount} open trade(s) remain. Pause to keep automated exit management active.`,
-        "OPEN_TRADES_BLOCK_STOP",
-        { openTradeCount },
+      this.assertTransition(session.status, "monitoring_only");
+      await this.deps.runtimeManager.drainSession(sessionId);
+      this.emitSessionEvent(
+        sessionId,
+        "INFO",
+        `Stop requested with ${openTradeCount} open trade(s); session will stop automatically when flat.`,
+        "session",
       );
+      return this.getStatus(sessionId);
     }
     this.assertTransition(session.status, "stopped");
     await this.deps.runtimeManager.stopSession(sessionId);

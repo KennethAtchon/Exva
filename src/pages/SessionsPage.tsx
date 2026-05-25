@@ -24,6 +24,9 @@ type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
 const FORCE_STOP_CONFIRM_MESSAGE =
   "Force stop will end automated exit management for open positions. Continue?";
 
+const STOP_WHEN_FLAT_TITLE =
+  "Stops new research immediately and completes shutdown once all open trades close.";
+
 interface LiveReadinessReport {
   readyToStart: boolean;
   allChecksPassed: boolean;
@@ -222,7 +225,7 @@ export const SessionsPage = ({
       await loadWorkspaceView();
       // Seed progress for sessions that may have active execution
       for (const session of result.sessions) {
-        if (session.status === "active" || session.status === "paused") {
+        if (session.status === "active" || session.status === "paused" || session.status === "monitoring_only") {
           void refreshProgress(session.id);
         }
       }
@@ -436,7 +439,7 @@ export const SessionsPage = ({
               </Badge>
               {focusedSession ? (
                 <Badge variant={statusVariant(focusedSession.status)}>
-                  {focusedSession.status}
+                  {formatSessionStatusLabel(focusedSession.status)}
                 </Badge>
               ) : null}
             </div>
@@ -529,6 +532,14 @@ export const SessionsPage = ({
                   Resume
                 </Button>
               ) : null}
+              {focusedSession?.status === "monitoring_only" ? (
+                <div style={drainBannerStyle}>
+                  Stopping when flat — managing{" "}
+                  {focusedSession.openTradeCount} open trade
+                  {focusedSession.openTradeCount === 1 ? "" : "s"}. Session
+                  stops automatically once flat.
+                </div>
+              ) : null}
               {focusedSession &&
               (focusedSession.status === "active" ||
                 focusedSession.status === "paused") &&
@@ -547,6 +558,23 @@ export const SessionsPage = ({
               {focusedSession &&
               (focusedSession.status === "active" ||
                 focusedSession.status === "paused") &&
+              focusedSession.openTradeCount > 0 ? (
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    void runLifecycleAction(focusedSession, "stop")
+                  }
+                  style={stopWhenFlatButtonStyle}
+                  disabled={actionSessionId === focusedSession.id}
+                  title={STOP_WHEN_FLAT_TITLE}
+                >
+                  Stop when flat
+                </Button>
+              ) : null}
+              {focusedSession &&
+              (focusedSession.status === "active" ||
+                focusedSession.status === "paused" ||
+                focusedSession.status === "monitoring_only") &&
               focusedSession.openTradeCount > 0 ? (
                 <Button
                   variant="ghost"
@@ -613,6 +641,7 @@ export const SessionsPage = ({
               { value: "active", label: "Active" },
               { value: "attention_required", label: "Needs attention" },
               { value: "paused", label: "Paused" },
+              { value: "monitoring_only", label: "Stopping when flat" },
               { value: "stopped", label: "Stopped" },
               { value: "archived", label: "Archived" },
             ]}
@@ -846,6 +875,12 @@ const ContextMetric = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+function formatSessionStatusLabel(status: SessionStatus): string {
+  if (status === "monitoring_only") return "Stopping when flat";
+  if (status === "attention_required") return "Needs attention";
+  return status;
+}
+
 function statusVariant(
   status: SessionStatus,
 ): "default" | "success" | "warn" | "danger" | "purple" {
@@ -853,6 +888,8 @@ function statusVariant(
     case "active":
       return "success";
     case "paused":
+      return "warn";
+    case "monitoring_only":
       return "warn";
     case "attention_required":
       return "danger";
@@ -933,6 +970,26 @@ const forceStopButtonStyle = {
   border: "1px solid rgba(239,68,68,0.55)",
   background: "rgba(127,29,29,0.28)",
   color: "#fecaca",
+} as const;
+const stopWhenFlatButtonStyle = {
+  padding: "10px 13px",
+  borderRadius: 10,
+  border: "1px solid rgba(251,146,60,0.35)",
+  background: "rgba(249,115,22,0.14)",
+  color: "#fdba74",
+  cursor: "pointer",
+  fontWeight: 600,
+} as const;
+const drainBannerStyle = {
+  width: "100%",
+  marginTop: 8,
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid rgba(251,146,60,0.35)",
+  background: "rgba(249,115,22,0.12)",
+  color: "#fdba74",
+  fontSize: 12,
+  lineHeight: 1.45,
 } as const;
 const orphanWarningStyle = {
   width: "100%",

@@ -10,6 +10,7 @@ export type SessionStatus =
   | "active"
   | "attention_required"
   | "paused"
+  | "monitoring_only"
   | "stopped"
   | "archived";
 /**
@@ -352,9 +353,10 @@ export function isHoldingStyle(value: unknown): value is HoldingStyle {
 const LEGAL_TRANSITIONS: Partial<Record<SessionStatus, SessionStatus[]>> = {
   draft: ["idle", "active", "archived"],
   idle: ["active", "archived"],
-  active: ["attention_required", "paused", "stopped"],
-  attention_required: ["active", "paused", "stopped"],
-  paused: ["active", "stopped"],
+  active: ["attention_required", "paused", "monitoring_only", "stopped"],
+  attention_required: ["active", "paused", "monitoring_only", "stopped"],
+  paused: ["active", "monitoring_only", "stopped"],
+  monitoring_only: ["stopped"],
   stopped: ["idle", "active", "archived"],
 };
 

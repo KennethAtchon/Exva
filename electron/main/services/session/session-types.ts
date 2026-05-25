@@ -116,10 +116,20 @@ export interface SessionRuntime {
   orchestrator: SessionOrchestrator;
   tradeMonitor: RuntimeTradeMonitor;
   startedAt: string;
+  uptimeMin(): number;
+  initialize(
+    initialStatus:
+      | Extract<SessionRuntimeStatus, "active" | "paused">
+      | "monitoring_only",
+  ): Promise<void>;
   pause(): Promise<void>;
   resume(): Promise<void>;
+  drainStop(): Promise<void>;
   stop(): Promise<void>;
+  shutdown?(): Promise<void>;
 }
+
+export type ManagedSessionRuntime = SessionRuntime;
 
 export interface ApprovalRecheckInput {
   sessionId: string;
@@ -149,6 +159,8 @@ export interface SessionLifecycleDeps {
     startSession(sessionId: string): Promise<SessionRuntime>;
     pauseSession(sessionId: string): Promise<void>;
     resumeSession(sessionId: string): Promise<void>;
+    drainSession(sessionId: string): Promise<void>;
+    completeDrainStop(sessionId: string): Promise<void>;
     stopSession(sessionId: string): Promise<void>;
     get(sessionId: string): SessionRuntime | null;
   };

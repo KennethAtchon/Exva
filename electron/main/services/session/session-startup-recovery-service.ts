@@ -23,7 +23,7 @@ export interface SessionStartupRecoveryDeps {
 
 export interface RecoverableSession {
   sessionId: string;
-  priorStatus: "active" | "paused" | "stopped";
+  priorStatus: "active" | "paused" | "stopped" | "monitoring_only";
   demoteToPaused: boolean;
   safetyRecovery: boolean;
 }
@@ -47,6 +47,17 @@ export class SessionStartupRecoveryService {
       recoverable.push({
         sessionId: session.id,
         priorStatus: "paused",
+        demoteToPaused: false,
+        safetyRecovery: false,
+      });
+    }
+
+    for (const session of this.deps.sessionRepo.listByStatuses([
+      "monitoring_only",
+    ])) {
+      recoverable.push({
+        sessionId: session.id,
+        priorStatus: "monitoring_only",
         demoteToPaused: false,
         safetyRecovery: false,
       });

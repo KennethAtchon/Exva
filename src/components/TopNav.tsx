@@ -38,6 +38,11 @@ const SESSION_STATUS: Record<
   active: { label: "Active", dot: "#34d399", pulse: true },
   attention_required: { label: "Needs Attention", dot: "#fb7185", pulse: true },
   paused: { label: "Paused", dot: "#fbbf24", pulse: false },
+  monitoring_only: {
+    label: "Stopping when flat",
+    dot: "#fb923c",
+    pulse: true,
+  },
   stopped: { label: "Stopped", dot: "#f87171", pulse: false },
   idle: { label: "Idle", dot: "#556068", pulse: false },
   archived: { label: "Archived", dot: "#64748b", pulse: false },
@@ -119,8 +124,12 @@ export const TopNav = ({
 
   const ss = SESSION_STATUS[sessionStatus];
   const isRunning = sessionStatus === "active" || sessionStatus === "paused";
+  const isDraining = sessionStatus === "monitoring_only";
+  const isMonitorAlive = isRunning || isDraining;
   const openTradeCount = focusedSession?.openTradeCount ?? 0;
   const hasOpenTrades = openTradeCount > 0;
+  const stopWhenFlatTitle =
+    "Stops new research immediately and completes shutdown once all open trades close.";
   const isGlobal =
     viewMode === "global" || !focusedSessionId || !focusedInCurrentEnvironment;
   const sessionName = focusedInCurrentEnvironment
@@ -260,7 +269,9 @@ export const TopNav = ({
           </div>
         )}
 
-        {!isGlobal && sessionStatus !== "active" && (
+        {!isGlobal &&
+          sessionStatus !== "active" &&
+          sessionStatus !== "monitoring_only" && (
           <Button
             style={{
               ...s.btnStart,
@@ -318,6 +329,17 @@ export const TopNav = ({
           </Button>
         ) : null}
         {isRunning && !sessionControlsDisabled && hasOpenTrades ? (
+          <Button
+            variant="ghost"
+            style={s.btnStopWhenFlat}
+            disabled={sessionActionPending}
+            title={stopWhenFlatTitle}
+            onClick={() => onSessionAction("stop")}
+          >
+            {sessionActionPending ? "Stopping…" : "Stop when flat"}
+          </Button>
+        ) : null}
+        {isMonitorAlive && !sessionControlsDisabled && hasOpenTrades ? (
           <Button
             variant="ghost"
             style={s.btnForceStop}
@@ -537,6 +559,18 @@ const s: Record<string, CSSProperties> = {
     fontSize: 12,
     cursor: "pointer",
     fontFamily: "var(--font-mono)",
+  },
+  btnStopWhenFlat: {
+    padding: "6px 10px",
+    background: "rgba(251,146,60,0.12)",
+    border: "1px solid rgba(251,146,60,0.35)",
+    borderRadius: 8,
+    color: "#fdba74",
+    fontSize: 11,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "var(--font-mono)",
+    whiteSpace: "nowrap",
   },
   btnForceStop: {
     padding: "6px 10px",

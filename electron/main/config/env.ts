@@ -18,6 +18,10 @@ const envSchema = z.object({
     .optional()
     .transform((value) => value === "true"),
   EXVA_PROMPTS_DIR_OVERRIDE: z.string().optional(),
+  EXVA_UTILITY_PROCESS_RUNTIMES: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
 });
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
@@ -38,6 +42,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env) {
     dbRebuildFromScratch: parsed.data.EXVA_DB_REBUILD_FROM_SCRATCH ?? false,
     devBypassKeychain: parsed.data.EXVA_DEV_BYPASS_KEYCHAIN ?? false,
     promptsDirOverride: parsed.data.EXVA_PROMPTS_DIR_OVERRIDE,
+    utilityProcessRuntimes: parsed.data.EXVA_UTILITY_PROCESS_RUNTIMES ?? false,
   });
 }
 

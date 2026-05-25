@@ -1,4 +1,5 @@
 import type { App } from "electron";
+import { env } from "../config/env";
 import { createDbClient } from "@main/db/client";
 import { AgentRunsRepo } from "../db/repositories/agents/agent-runs-repo";
 import { AgentMessagesRepo } from "../db/repositories/agents/agent-messages-repo";
@@ -54,6 +55,8 @@ import { ProviderRegistry } from "./llm/provider-registry";
 import { SearchRegistry } from "./search/search-registry";
 import { SecretsService } from "./infra/secrets-service";
 import { runPreflight, SessionRuntimeManager, SessionService } from "./session";
+import { InProcessSessionRuntimeHost } from "./session/session-runtime-host";
+import { UtilityProcessSessionRuntimeHost } from "./session/utility-process-runtime-host";
 import type { OrchestratorDeps, SessionRuntimeManagerDeps } from "./session";
 import { SessionStrategyContextService } from "./session/session-strategy-context-service";
 import { CandidateValidationService } from "./orchestration/policy/candidate-validation-service";
@@ -330,7 +333,16 @@ export async function createAppServices(app: App): Promise<AppServices> {
         instrumentNormalizer,
       ),
   };
-  runtimeManager = new SessionRuntimeManager(runtimeManagerDeps);
+  runtimeManager = new SessionRuntimeManager(
+    runtimeManagerDeps,
+    env.utilityProcessRuntimes
+      ? new UtilityProcessSessionRuntimeHost(
+          runtimeManagerDeps,
+          eventBus,
+          logger,
+        )
+      : new InProcessSessionRuntimeHost(runtimeManagerDeps),
+  );
 
   const instrumentCacheService = new InstrumentCacheService(
     repos.instrumentCache,

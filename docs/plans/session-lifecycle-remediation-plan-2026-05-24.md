@@ -1,7 +1,7 @@
 # Session Lifecycle Remediation Plan
 
 > **Date:** 2026-05-24
-> **Status:** Implemented (Phases 0–3 on 2026-05-24; Phases 4–5 deferred)
+> **Status:** Implemented (Phases 0–5 on 2026-05-24)
 > **Source review:** [UX Review: Session Lifecycle](../reviews/ux-review-session-lifecycle-2026-05-24.md)
 > **Deciders:** Exva runtime owner, session/orchestration owner, renderer owner
 
@@ -412,11 +412,11 @@ Rollback plan: revert the new visual treatment while keeping `trade_closed` refr
 
 ### Phase 4: Optional drain-to-stop workflow
 
-**Status:** Deferred (Pause + Force stop shipped in Phase 1)
+**Status:** Implemented 2026-05-24
 
 Goal: offer a one-click “stop when flat” path for operators who want Stop to mean “halt new intake now, complete stop once all trades close” without using Pause manually.
 
-Done criteria: if implemented, Stop-with-open-trades can transition through an explicit drain state rather than only Pause or Force stop.
+Done criteria: Stop-with-open-trades transitions through an explicit drain state rather than only Pause or Force stop.
 
 Deliverables:
 
@@ -435,7 +435,7 @@ Rollback plan: remove drain-to-stop UI and keep Phase 1 contract (Pause + Force 
 
 ### Phase 5: Per-session runtime isolation
 
-**Status:** Deferred (lifecycle contracts must stabilize first)
+**Status:** Implemented 2026-05-24 (opt-in via `EXVA_UTILITY_PROCESS_RUNTIMES=true`; in-process host remains default for tests/dev)
 
 Goal: ensure one runtime crash, OOM, or fatal error does not kill all other sessions.
 
@@ -477,6 +477,14 @@ Shipped in Phases 0–3:
 Deviation from plan text:
 
 - Broker reconciliation treats only `OrderStatus.status === "closed"` as terminal because the adapter contract does not expose a separate `cancelled` state.
+
+Continuation (2026-05-24):
+
+- Fixed TopNav resume path to call `api.resumeSession()` instead of `api.startSession()`
+- Added `canScheduleSelector` gate inside `AgentOrchestrator.executeSelectorCycle()` for defense in depth
+- Added regression tests: `trade-closed-handler.test.ts`, `session-startup-recovery.test.ts`, `shutdown-coordinator.test.ts`
+- Phase 4: `monitoring_only` persisted status, drain-to-stop in `SessionService.stop()` / `SessionRuntimeManager.drainSession()`, UI “Stop when flat” / amber drain banners
+- Phase 5: `SessionRuntimeHost` abstraction, `UtilityProcessSessionRuntimeHost`, worker entry `electron/main/workers/session-runtime-worker.ts`, RPC bridge (`runtime-rpc-bridge.ts`), Forge/Vite worker bundle (`vite.worker.config.ts`), env flag `EXVA_UTILITY_PROCESS_RUNTIMES`
 
 ## 8. Risk Register
 

@@ -156,7 +156,11 @@ export default function App() {
             return;
           }
         }
-        setStatus(await api.startSession());
+        setStatus(
+          action === "start"
+            ? await api.startSession()
+            : await api.resumeSession(),
+        );
       } else if (action === "pause") {
         setStatus(await api.pauseSession());
       } else if (action === "stop") {
