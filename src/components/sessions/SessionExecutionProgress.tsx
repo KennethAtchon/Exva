@@ -15,6 +15,8 @@ export interface SessionProgressState {
   lastErrorCode: string | null;
   lastErrorMessage: string | null;
   cycleIdShort: string;
+  isHoldingPosition: boolean;
+  openTradeCount: number;
 }
 
 type StatusChipTone = {
@@ -48,13 +50,15 @@ const STAGE_META: Record<
   decision: { label: "Making decision", progressPct: 78 },
   risk_gate: { label: "Risk checks", progressPct: 88 },
   broker_order: { label: "Broker execution", progressPct: 96 },
-  monitoring: { label: "Monitoring position", progressPct: 100 },
+  monitoring: { label: "Monitoring position", progressPct: 96 },
 };
 
 export function deriveProgress(
   steps: SessionExecutionProgressResponse["steps"],
   cycleId: string,
   activeRoleLabel: string | null = null,
+  openTradeCount = 0,
+  monitoringActive = false,
 ): SessionProgressState | null {
   if (steps.length === 0) return null;
 
@@ -74,26 +78,35 @@ export function deriveProgress(
     (s) => s.status === "succeeded" || s.status === "skipped",
   );
   const hasMonitoring =
-    allSucceeded && steps.some((s) => s.stage === "monitoring");
+    monitoringActive ||
+    (allSucceeded && steps.some((s) => s.stage === "monitoring"));
 
   if (!activeStep && !hasMonitoring) return null;
+  if (hasMonitoring && openTradeCount === 0 && !monitoringActive) {
+    return null;
+  }
 
   const stage = hasMonitoring || !activeStep ? "monitoring" : activeStep.stage;
   const status = hasMonitoring || !activeStep ? "succeeded" : activeStep.status;
+  const isHoldingPosition = hasMonitoring && openTradeCount > 0;
   const meta = STAGE_META[stage];
 
   return {
     cycleId,
     activeStage: stage,
     activeStatus: status as ExecutionStepStatus,
-    progressPct: meta.progressPct,
-    stageLabel: meta.label,
+    progressPct: isHoldingPosition ? 96 : meta.progressPct,
+    stageLabel: isHoldingPosition
+      ? `Holding position (${openTradeCount}) — waiting for exit`
+      : meta.label,
     activeRoleLabel: status === "running" ? activeRoleLabel : null,
     retryable: activeStep?.retryable ?? false,
     nextRetryAt: activeStep?.nextRetryAt ?? null,
     lastErrorCode: activeStep?.lastErrorCode ?? null,
     lastErrorMessage: activeStep?.lastErrorMessage ?? null,
     cycleIdShort: cycleId.slice(0, 8),
+    isHoldingPosition,
+    openTradeCount,
   };
 }
 
@@ -151,6 +164,7 @@ export const SessionExecutionProgress = ({
     lastErrorMessage,
     cycleId,
     cycleIdShort,
+    isHoldingPosition,
   } = progress;
   const isFailed = activeStatus === "failed";
   const isRetrying = activeStatus === "retrying";
@@ -163,6 +177,7 @@ export const SessionExecutionProgress = ({
     isFailed,
     retryable,
     countdown,
+    isHoldingPosition,
   });
   const detailMessageColor = isRetrying
     ? "rgba(147,197,253,0.9)"
@@ -170,18 +185,24 @@ export const SessionExecutionProgress = ({
 
   return (
     <div style={wrapperStyle}>
-      {/* Progress bar */}
       <div style={trackStyle}>
         <div
           style={{
             ...fillStyle,
-            width: `${progressPct}%`,
+            width: isHoldingPosition ? "66%" : `${progressPct}%`,
             transition: isRunning ? "width 0.6s ease" : "none",
+            ...(isHoldingPosition
+              ? {
+                  background:
+                    "linear-gradient(90deg, rgba(251,191,36,0.35), rgba(251,191,36,0.75), rgba(251,191,36,0.35))",
+                  backgroundSize: "200% 100%",
+                  animation: "exva-holding-pulse 2.4s ease-in-out infinite",
+                }
+              : {}),
           }}
         />
       </div>
 
-      {/* Info row */}
       <div style={infoRowStyle}>
         <div
           style={{
@@ -268,7 +289,7 @@ export const SessionExecutionProgress = ({
               type="button"
               style={pauseToggleStyle}
               onClick={() => onPauseAfterStep(sessionId)}
-              title="Pause execution after current step completes"
+              title="Pause stops new research but keeps exits managed."
             >
               <span style={pauseDotStyle} />
               Pause after step
@@ -391,12 +412,23 @@ function resolveStatusChip({
   isFailed,
   retryable,
   countdown,
+  isHoldingPosition,
 }: {
   isRetrying: boolean;
   isFailed: boolean;
   retryable: boolean;
   countdown: number;
+  isHoldingPosition: boolean;
 }): StatusChipTone | null {
+  if (isHoldingPosition) {
+    return {
+      label: "Holding",
+      color: "#fcd34d",
+      border: "rgba(251,191,36,0.35)",
+      background: "rgba(251,191,36,0.14)",
+    };
+  }
+
   if (isRetrying) {
     return {
       label: `Retrying in ${countdown}s`,

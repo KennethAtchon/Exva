@@ -117,6 +117,7 @@ export const StrategyConfig = ({
     "presets",
   );
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [focusedOpenTradeCount, setFocusedOpenTradeCount] = useState(0);
   const [editingPreset, setEditingPreset] = useState<
     (UserGlobalPresetInput & { id: string }) | null
   >(null);
@@ -126,6 +127,22 @@ export const StrategyConfig = ({
     if (viewMode !== "session" || !focusedSessionId) return;
     void loadStrategy(focusedSessionId);
   }, [focusedSessionId, loadStrategy, resetForEnvironmentChange, viewMode, environmentMode]);
+
+  useEffect(() => {
+    if (viewMode !== "session" || !focusedSessionId) {
+      setFocusedOpenTradeCount(0);
+      return;
+    }
+    void api
+      .listSessions({ includeArchived: false })
+      .then((result) => {
+        const focused = result.sessions.find(
+          (session) => session.id === focusedSessionId,
+        );
+        setFocusedOpenTradeCount(focused?.openTradeCount ?? 0);
+      })
+      .catch(() => setFocusedOpenTradeCount(0));
+  }, [focusedSessionId, viewMode, environmentMode]);
 
   const builtInGlobalPresets = globalPresets
     .filter((p) => p.isBuiltIn)
@@ -251,17 +268,40 @@ export const StrategyConfig = ({
         <div style={warningStyle}>
           <div>
             Stop this session before editing its strategy or AI configuration.
+            {focusedOpenTradeCount > 0
+              ? " Open positions are active — use Pause to keep exits managed, or Force stop to edit anyway."
+              : null}
           </div>
-          <button
-            onClick={async () => {
-              const next = await api.stopSession();
-              setSessionStatus(next);
-              await loadStrategy(focusedSessionId);
-            }}
-            style={warningButtonStyle}
-          >
-            Stop Session
-          </button>
+          {focusedOpenTradeCount > 0 ? (
+            <button
+              onClick={async () => {
+                if (
+                  !window.confirm(
+                    "Force stop will end automated exit management for open positions. Continue?",
+                  )
+                ) {
+                  return;
+                }
+                const next = await api.forceStopSession();
+                setSessionStatus(next);
+                await loadStrategy(focusedSessionId);
+              }}
+              style={warningForceStopButtonStyle}
+            >
+              Force Stop Session
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                const next = await api.stopSession();
+                setSessionStatus(next);
+                await loadStrategy(focusedSessionId);
+              }}
+              style={warningButtonStyle}
+            >
+              Stop Session
+            </button>
+          )}
         </div>
       )}
 
@@ -753,6 +793,12 @@ const warningButtonStyle = {
   background: "rgba(251,191,36,0.14)",
   color: "#fbbf24",
   cursor: "pointer",
+} as const;
+const warningForceStopButtonStyle = {
+  ...warningButtonStyle,
+  border: "1px solid rgba(239,68,68,0.55)",
+  background: "rgba(127,29,29,0.28)",
+  color: "#fecaca",
 } as const;
 const activeGlobalPresetStyle = {
   display: "flex",

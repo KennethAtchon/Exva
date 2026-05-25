@@ -1,6 +1,7 @@
 import type { SessionStatus } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import { canTransition } from "@electron/shared/domain";
+import { countOpenTrades } from "./session-trade-state";
 import type { SessionLifecycleDeps } from "./session-types";
 
 export interface PortfolioValueResult {
@@ -98,9 +99,37 @@ export class SessionService {
     sessionId = this.deps.sessionRepo.getFocusedSessionId(),
   ): Promise<SessionStatus> {
     const session = this.deps.sessionRepo.requireById(sessionId);
+    const openTradeCount = countOpenTrades(this.deps.tradesRepo, sessionId);
+    if (openTradeCount > 0) {
+      throw new AppError(
+        `Cannot stop while ${openTradeCount} open trade(s) remain. Pause to keep automated exit management active.`,
+        "OPEN_TRADES_BLOCK_STOP",
+        { openTradeCount },
+      );
+    }
     this.assertTransition(session.status, "stopped");
     await this.deps.runtimeManager.stopSession(sessionId);
     this.emitSessionEvent(sessionId, "INFO", "Session stopped.", "session");
+    return this.getStatus(sessionId);
+  }
+
+  async forceStop(
+    sessionId = this.deps.sessionRepo.getFocusedSessionId(),
+  ): Promise<SessionStatus> {
+    const session = this.deps.sessionRepo.requireById(sessionId);
+    const openTradeCount = countOpenTrades(this.deps.tradesRepo, sessionId);
+    this.assertTransition(session.status, "stopped");
+    await this.deps.runtimeManager.stopSession(sessionId);
+    const message =
+      openTradeCount > 0
+        ? `Session force-stopped with ${openTradeCount} open trade(s); automated exits are no longer managed.`
+        : "Session stopped.";
+    this.emitSessionEvent(
+      sessionId,
+      openTradeCount > 0 ? "WARN" : "INFO",
+      message,
+      "session",
+    );
     return this.getStatus(sessionId);
   }
 

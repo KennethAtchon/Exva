@@ -48,7 +48,7 @@ interface Props {
   onNavigate: (p: PageKey) => void;
   onNavigateToAttentionSessions?: () => void;
   sessionStatus: SessionStatus;
-  onSessionAction: (a: "start" | "pause" | "resume" | "stop") => void;
+  onSessionAction: (a: "start" | "pause" | "resume" | "stop" | "forceStop") => void;
   sessionActionPending?: boolean;
   stats: DashboardStats | null;
 }
@@ -119,6 +119,8 @@ export const TopNav = ({
 
   const ss = SESSION_STATUS[sessionStatus];
   const isRunning = sessionStatus === "active" || sessionStatus === "paused";
+  const openTradeCount = focusedSession?.openTradeCount ?? 0;
+  const hasOpenTrades = openTradeCount > 0;
   const isGlobal =
     viewMode === "global" || !focusedSessionId || !focusedInCurrentEnvironment;
   const sessionName = focusedInCurrentEnvironment
@@ -300,19 +302,32 @@ export const TopNav = ({
             style={s.btnPause}
             disabled={sessionActionPending}
             onClick={() => onSessionAction("pause")}
+            title="Pause stops new research but keeps exits managed."
           >
             {sessionActionPending ? "⏸ Pausing…" : "⏸ Pause"}
           </Button>
         )}
-        {isRunning && !sessionControlsDisabled && (
+        {isRunning && !sessionControlsDisabled && !hasOpenTrades ? (
           <Button
             variant="ghost"
             style={s.btnStop}
+            disabled={sessionActionPending}
             onClick={() => onSessionAction("stop")}
           >
             ■
           </Button>
-        )}
+        ) : null}
+        {isRunning && !sessionControlsDisabled && hasOpenTrades ? (
+          <Button
+            variant="ghost"
+            style={s.btnForceStop}
+            disabled={sessionActionPending}
+            title="Force stop ends automated exit management for open positions."
+            onClick={() => onSessionAction("forceStop")}
+          >
+            Force stop
+          </Button>
+        ) : null}
       </div>
     </header>
   );
@@ -520,6 +535,17 @@ const s: Record<string, CSSProperties> = {
     borderRadius: 8,
     color: "#f87171",
     fontSize: 12,
+    cursor: "pointer",
+    fontFamily: "var(--font-mono)",
+  },
+  btnForceStop: {
+    padding: "6px 10px",
+    background: "rgba(127,29,29,0.28)",
+    border: "1px solid rgba(239,68,68,0.55)",
+    borderRadius: 8,
+    color: "#fecaca",
+    fontSize: 11,
+    fontWeight: 700,
     cursor: "pointer",
     fontFamily: "var(--font-mono)",
   },

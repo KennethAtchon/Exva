@@ -9,6 +9,7 @@ import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messa
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRoutingRepo } from "../../db/repositories/brokers/broker-routing-repo";
 import type { CapitalReservationsRepo } from "../../db/repositories/trades/capital-reservations-repo";
+import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { EventsRepo } from "../../db/repositories/system/events-repo";
 import type { ProviderAccountsRepo } from "../../db/repositories/workspace/provider-accounts-repo";
 import type { SessionAiPhasesRepo } from "../../db/repositories/sessions/session-ai-phases-repo";
@@ -19,7 +20,6 @@ import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions
 import type { SessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
 import type { StatsRepo } from "../../db/repositories/system/stats-repo";
 import type { TradeApprovalsRepo } from "../../db/repositories/trades/trade-approvals-repo";
-import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import type { LLMRuntime } from "../llm/index";
@@ -138,6 +138,7 @@ export interface SessionRuntimeManagerDeps extends OrchestratorDeps {
 
 export interface SessionLifecycleDeps {
   sessionRepo: SessionRepo;
+  tradesRepo: TradesRepo;
   eventsRepo: EventsRepo;
   sessionBrokerAssignmentsRepo?: SessionBrokerAssignmentsRepo;
   brokerRegistry?: BrokerRegistry;

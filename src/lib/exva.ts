@@ -109,6 +109,7 @@ export const api = {
   pauseSession: (): Promise<SessionStatus> => bridge().session.pause(),
   resumeSession: (): Promise<SessionStatus> => bridge().session.resume(),
   stopSession: (): Promise<SessionStatus> => bridge().session.stop(),
+  forceStopSession: (): Promise<SessionStatus> => bridge().session.forceStop(),
   getSessionExecutionProgress: (
     sessionId: string,
   ): Promise<SessionExecutionProgressResponse> =>

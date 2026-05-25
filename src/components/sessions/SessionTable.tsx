@@ -8,7 +8,10 @@ import {
   type SessionProgressState,
 } from "./SessionExecutionProgress";
 
-type LifecycleAction = "start" | "pause" | "resume" | "stop";
+type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
+
+const FORCE_STOP_CONFIRM_MESSAGE =
+  "Force stop will end automated exit management for open positions. Continue?";
 
 export const SessionTable = ({
   sessions,
@@ -61,6 +64,9 @@ export const SessionTable = ({
           session.status === "active" || session.status === "paused";
         const busy = busySessionId === session.id;
         const aiBlocked = session.isFocused && focusedSessionAiReady === false;
+        const hasOpenTrades = session.openTradeCount > 0;
+        const showOrphanWarning =
+          session.status === "stopped" && session.openTradeCount > 0;
 
         return (
           <article
@@ -184,6 +190,13 @@ export const SessionTable = ({
                 {researchFailuresBySessionId[session.id].error}
               </div>
             ) : null}
+            {showOrphanWarning ? (
+              <div style={orphanWarningStyle}>
+                Stopped with {session.openTradeCount} open trade
+                {session.openTradeCount === 1 ? "" : "s"} — no automated exits
+                will fire. Restart to resume monitoring.
+              </div>
+            ) : null}
 
             {/* Meta strip */}
             <div style={metaGridStyle}>
@@ -277,6 +290,7 @@ export const SessionTable = ({
                   variant="outline"
                   style={actionButtonStyle}
                   disabled={busy}
+                  title="Pause stops new research but keeps exits managed."
                 >
                   Pause
                 </Button>
@@ -291,7 +305,8 @@ export const SessionTable = ({
                   Resume
                 </Button>
               ) : null}
-              {session.status === "active" || session.status === "paused" ? (
+              {(session.status === "active" || session.status === "paused") &&
+              !hasOpenTrades ? (
                 <Button
                   onClick={() => onLifecycle(session, "stop")}
                   variant="ghost"
@@ -299,6 +314,21 @@ export const SessionTable = ({
                   disabled={busy}
                 >
                   Stop
+                </Button>
+              ) : null}
+              {(session.status === "active" || session.status === "paused") &&
+              hasOpenTrades ? (
+                <Button
+                  onClick={() => {
+                    if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) return;
+                    onLifecycle(session, "forceStop");
+                  }}
+                  variant="ghost"
+                  style={forceStopButtonStyle}
+                  disabled={busy}
+                  title="Force stop ends automated exit management for open positions."
+                >
+                  Force stop (loses trade management)
                 </Button>
               ) : null}
               <Button
@@ -487,6 +517,24 @@ const dangerButtonStyle = {
   ...actionButtonStyle,
   border: "1px solid rgba(248,113,113,0.32)",
   color: "#fca5a5",
+} as const;
+
+const forceStopButtonStyle = {
+  ...dangerButtonStyle,
+  border: "1px solid rgba(239,68,68,0.55)",
+  background: "rgba(127,29,29,0.28)",
+  color: "#fecaca",
+} as const;
+
+const orphanWarningStyle = {
+  marginTop: 8,
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid rgba(251,146,60,0.35)",
+  background: "rgba(249,115,22,0.12)",
+  color: "#fdba74",
+  fontSize: 12,
+  lineHeight: 1.45,
 } as const;
 
 const blockedStyle = {

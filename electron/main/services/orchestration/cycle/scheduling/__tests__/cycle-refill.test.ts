@@ -15,7 +15,7 @@ describe("scheduleCycleRefillIfIdle", () => {
     expect(ctx.cycleRestartInFlight).toBe(false);
   });
 
-  it("does not queue a selector cycle when trade capacity is full", async () => {
+  it("does not queue a selector cycle while open trades remain", async () => {
     const scheduleSelectorCycle = vi.fn(async () => undefined);
     const ctx = createContext({ openTradeCount: 3, maxConcurrentTrades: 3 });
 

@@ -15,6 +15,7 @@ import {
 } from "@electron/shared/validation/schemas";
 import { sessionMatchesEnvironment } from "@electron/shared/domain/environment-mode";
 import type { AppServices } from "../../services/app-services";
+import { countOpenTrades } from "../../services/session/session-trade-state";
 import { resolveExecutionModeFilter } from "../../services/session/environment-scope";
 import {
   assertExecutionModeMatchesWorkspace,
@@ -40,6 +41,10 @@ export function registerSessionHandlers(services: AppServices): void {
     assertFocusedSessionMatchesWorkspace(services);
     return services.session.stop();
   });
+  handle(ipcMain, channels.session.forceStop, async () => {
+    assertFocusedSessionMatchesWorkspace(services);
+    return services.session.forceStop();
+  });
   handle(ipcMain, channels.session.getStatus, async () => {
     const focused = services.repos.session.getFocused();
     if (!focused) return "idle" as const;
@@ -50,6 +55,14 @@ export function registerSessionHandlers(services: AppServices): void {
     const { sessionId } = sessionExecutionProgressSchema.parse(payload);
     const { cycleId, steps } =
       services.repos.sessionExecutionSteps.getLatestCycleState(sessionId);
+    const openTradeCount = countOpenTrades(services.repos.trades, sessionId);
+    const monitoringStep = steps.find((step) => step.stage === "monitoring");
+    const monitoringActive =
+      openTradeCount > 0 &&
+      steps.every(
+        (step) => step.status === "succeeded" || step.status === "skipped",
+      ) &&
+      monitoringStep?.status === "succeeded";
     return {
       steps: steps.map((step) => ({
         stage: step.stage,
@@ -63,6 +76,8 @@ export function registerSessionHandlers(services: AppServices): void {
         updatedAt: step.updatedAt,
       })),
       cycleId,
+      openTradeCount,
+      monitoringActive,
     };
   });
   handle(ipcMain, channels.session.retryStep, async (payload) => {

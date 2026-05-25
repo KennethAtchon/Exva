@@ -79,6 +79,7 @@ const exva: ExvaApi = {
     pause: () => invoke(channels.session.pause),
     resume: () => invoke(channels.session.resume),
     stop: () => invoke(channels.session.stop),
+    forceStop: () => invoke(channels.session.forceStop),
     getStatus: () => invoke(channels.session.getStatus),
     getExecutionProgress: (sessionId) =>
       invoke(

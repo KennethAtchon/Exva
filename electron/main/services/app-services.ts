@@ -347,6 +347,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
 
   const session = new SessionService({
     sessionRepo: repos.session,
+    tradesRepo: repos.trades,
     eventsRepo: repos.events,
     sessionBrokerAssignmentsRepo: repos.sessionBrokerAssignments,
     brokerRegistry,

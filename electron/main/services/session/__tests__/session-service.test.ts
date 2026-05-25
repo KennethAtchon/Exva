@@ -1,6 +1,87 @@
 import { describe, expect, it, vi } from "vitest";
 import { SessionService } from "../session-service";
 
+const emptyTradesRepo = {
+  listOpenAndPending: () => [],
+};
+
+describe("SessionService stop guards", () => {
+  it("blocks normal stop when open trades remain", async () => {
+    const service = new SessionService({
+      sessionRepo: {
+        requireById: () => ({
+          id: "session-1",
+          status: "active",
+        }),
+        getStatus: () => "active",
+        getFocusedSessionId: () => "session-1",
+      },
+      tradesRepo: {
+        listOpenAndPending: () => [{ id: "trade-1", status: "open" }],
+      },
+      eventsRepo: { insert: vi.fn() },
+      runtimeManager: {
+        stopSession: vi.fn(async () => undefined),
+      },
+    } as never);
+
+    await expect(service.stop("session-1")).rejects.toEqual(
+      expect.objectContaining({
+        code: "OPEN_TRADES_BLOCK_STOP",
+      }),
+    );
+  });
+
+  it("allows force stop while open trades remain", async () => {
+    const stopSession = vi.fn(async () => undefined);
+    const insert = vi.fn();
+    const service = new SessionService({
+      sessionRepo: {
+        requireById: () => ({
+          id: "session-1",
+          status: "active",
+        }),
+        getStatus: () => "stopped",
+        getFocusedSessionId: () => "session-1",
+      },
+      tradesRepo: {
+        listOpenAndPending: () => [{ id: "trade-1", status: "open" }],
+      },
+      eventsRepo: { insert },
+      runtimeManager: { stopSession },
+    } as never);
+
+    await expect(service.forceStop("session-1")).resolves.toBe("stopped");
+    expect(stopSession).toHaveBeenCalledWith("session-1");
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: "WARN",
+        message: expect.stringContaining("force-stopped"),
+      }),
+    );
+  });
+
+  it("allows normal stop when no open trades remain", async () => {
+    const stopSession = vi.fn(async () => undefined);
+    const service = new SessionService({
+      sessionRepo: {
+        requireById: () => ({
+          id: "session-1",
+          status: "active",
+        }),
+        getStatus: () => "stopped",
+        getFocusedSessionId: () => "session-1",
+      },
+      tradesRepo: emptyTradesRepo,
+      eventsRepo: { insert: vi.fn() },
+      runtimeManager: { stopSession },
+    } as never);
+
+    await expect(service.stop("session-1")).resolves.toBe("stopped");
+    expect(stopSession).toHaveBeenCalledWith("session-1");
+  });
+});
+
 describe("SessionService.getPortfolioValue", () => {
   it("ignores mock broker balances and falls back when no truthful broker balance exists", async () => {
     const service = new SessionService({
@@ -8,6 +89,7 @@ describe("SessionService.getPortfolioValue", () => {
         getFocused: () => ({ id: "session-1" }),
         requireById: () => ({ id: "session-1" }),
       },
+      tradesRepo: emptyTradesRepo,
       sessionBrokerAssignmentsRepo: {
         listBrokerAccountIds: () => ["mock-broker"],
       },
@@ -53,6 +135,7 @@ describe("SessionService.start", () => {
         }),
         getStatus: () => "active",
       },
+      tradesRepo: emptyTradesRepo,
       eventsRepo: { insert },
       runtimeManager: {
         startSession: async () => ({}) as never,
@@ -92,6 +175,7 @@ describe("SessionService.start", () => {
           executionMode: "paper_only",
         }),
       },
+      tradesRepo: emptyTradesRepo,
       eventsRepo: { insert },
       runtimeManager: {
         startSession: async () => {
@@ -137,6 +221,7 @@ describe("SessionService.start", () => {
         }),
         getStatus: () => "active",
       },
+      tradesRepo: emptyTradesRepo,
       eventsRepo: { insert },
       runtimeManager: { startSession },
       preflight: async () => ({ ok: true as const }),

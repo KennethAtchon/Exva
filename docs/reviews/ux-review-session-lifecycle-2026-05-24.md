@@ -27,6 +27,7 @@ The system has several interlocking failures across the trade lifecycle. There i
 **Severity:** `State-corrupting` — open trades lose their exit management (trailing stops, take-profit, max-hold enforcement) until the session is restarted.
 
 **Fix direction:** Either:
+
 - Disable the Stop button when `openTradeCount > 0` and explain why ("Pause keeps your positions managed. Stop is for when no trades are open."), or
 - Add a "monitoring-only" state that the stop transitions through: `active → monitoring_only` (orchestrator stopped, monitor alive) → `stopped` (once all trades close).
 - At minimum: stop should warn the user that `N open trades will lose automated management`.
@@ -85,6 +86,7 @@ If anything triggers resume on an `attention_required` session with no runtime, 
 **Severity:** `Flow-breaking` — the terminal user action (Stop) causes the opposite behavior (new runtime + new loop).
 
 **Fix direction:** Two structural fixes required:
+
 1. `trade-closed-handler.ts` must use `ctx.enqueueTask` (which checks `ctx.stopped`) rather than `ctx.queue.add()` directly.
 2. `resumeSession` must not call `startSession` for sessions with no runtime. If the runtime doesn't exist, throw — don't silently create one.
 
@@ -95,6 +97,7 @@ If anything triggers resume on an `attention_required` session with no runtime, 
 **What the user wants to do:** See appropriate controls based on what the session is actually doing.
 
 **What the app does instead:** When a session is in the monitoring phase (stage = `"monitoring"`, trades open, waiting for broker results), both "Pause" and "Stop" are available. The UI doesn't distinguish between:
+
 - **Pause** — stops new cycles, keeps monitor alive (correct during monitoring)
 - **Stop** — kills everything including the monitor (dangerous during monitoring)
 
@@ -103,6 +106,7 @@ If anything triggers resume on an `attention_required` session with no runtime, 
 **Severity:** `Confusing` — the user picks the wrong control because the UI doesn't signal the difference.
 
 **Fix direction:** During the monitoring stage:
+
 - Surface "Pause after step" more prominently (or auto-transition to monitoring-only mode)
 - Disable or rename Stop to "Force stop (loses trade management)" with a confirmation modal when `openTradeCount > 0`
 
@@ -125,51 +129,61 @@ If anything triggers resume on an `attention_required` session with no runtime, 
 ## Rules the App Should Enforce (But Doesn't)
 
 **Rule: No selector while any trade is open.**
+
 - Why: The selector starts a new AI analysis → new entry candidates → new positions → compound exposure while prior positions are still unresolved.
 - What enforces it now: Nothing. `hasOpenTradeCapacity()` is capacity-based, not closure-based.
 - What should enforce it: A single `hasAnyOpenTrade(sessionId)` check in `trade-closed-handler.ts`, `cycle-refill.ts`, and any other selector entry point. This must be the first gate, before capacity is evaluated.
 
 **Rule: Stop must not kill the trade monitor while positions are open.**
+
 - Why: The monitor is the only automated exit mechanism. Killing it means stops and take-profits can't fire.
 - What enforces it now: Nothing. Stop always kills the monitor.
 - What should enforce it: Block Stop when trades are open, or add a monitoring-only state that survives to zero open trades before completing the stop.
 
 **Rule: `trade_closed` must only restart the selector when ALL trades are closed.**
+
 - Why: Restarting after one of many closures runs new AI cycles on top of live open positions.
 - What enforces it now: Nothing. Handler fires on any individual closure.
 - What should enforce it: `trade-closed-handler.ts` checks `remaining open trades === 0` before scheduling.
 
 **Rule: `ctx.queue.add()` in the trade-closed listener must respect `ctx.stopped`.**
+
 - Why: Direct queue access bypasses the `enqueueTask` stop guard, enabling the race where Stop triggers a new loop.
 - What enforces it now: `runtimeIsActive()` bus check only — has a window between event delivery and status propagation.
 - What should enforce it: Replace `ctx.queue.add()` in `trade-closed-handler.ts` with `ctx.enqueueTask()`.
 
 **Rule: `resumeSession` must not silently create a new runtime.**
+
 - Why: If resume finds no runtime for an existing session, creating one is an implicit restart with no preflight, no live readiness check, no user intent.
 - What enforces it now: Nothing. `runtimes.get(sessionId) ?? startSession()` is the current behavior.
 - What should enforce it: If no runtime exists and the session isn't in `draft`/`idle`/`stopped`, throw `SESSION_NOT_ACTIVE`.
 
 **Rule: Startup must reconcile all open DB trades against broker state before the first monitor tick.**
+
 - Why: Broker-side fills (stop-loss, take-profit, cancellations) that occurred during app downtime are invisible to the DB until explicitly checked. The first monitor tick may be minutes away for swing/position sessions.
 - What enforces it now: Nothing. `rehydrateFromDb` starts sessions and lets the normal interval timer fire the first tick.
 - What should enforce it: A dedicated startup reconciliation pass in `rehydrateFromDb` that calls `adapter.getOrderStatus(broker_order_id)` for every trade in `"open"` DB state, reconciles closes, and only then starts the normal monitor loop.
 
 **Rule: `"stopped"` sessions with open trades must be included in startup rehydration.**
+
 - Why: A session stopped while trades were open (whether by user action or crash) has live positions at the broker with no monitor. The next restart must pick these up.
 - What enforces it now: Nothing. `listByStatuses(["active", "paused"])` excludes stopped sessions.
 - What should enforce it: `rehydrateFromDb` should also include sessions where `status === "stopped" AND openTradeCount > 0`, starting them in monitoring-only mode.
 
 **Rule: App quit must stop all session runtimes before closing the DB.**
+
 - Why: `before-quit` currently only closes the SQLite file. Every active runtime is abandoned — steps stay `"running"`, capital stays reserved, in-flight AI calls are billed for nothing.
 - What enforces it now: Nothing. `services?.db.sqlite.close()` is the entire teardown.
 - What should enforce it: `before-quit` / `will-quit` must call `stopSession()` on all active runtimes before closing the DB. On next startup, any step still in `"running"` state must be marked `"failed"` with code `"process_killed"` before the runtime restarts.
 
 **Rule: Each session runtime must be isolated from other session runtimes.**
+
 - Why: All runtimes share the Electron main process. A crash or OOM in one session kills all other sessions and their trade monitors.
 - What enforces it now: Nothing. Everything runs on the same Node.js event loop.
 - What should enforce it: Session runtimes should run in Node.js worker threads or child processes — independent memory, independent crash boundary, independently restartable.
 
 **Rule: The first monitor tick must fire immediately on start, not after the first interval.**
+
 - Why: `setInterval` delays the first tick by the full poll interval. For position-style sessions this is 5 minutes. During that window after crash/restart, no exits can fire.
 - What enforces it now: Nothing. `start()` does `setInterval(() => void this.tick(), pollMs)` with no leading tick.
 - What should enforce it: `start()` should call `void this.tick()` immediately before registering the interval.
@@ -184,7 +198,7 @@ If anything triggers resume on an `attention_required` session with no runtime, 
 
 **What the app does instead — gap by gap:**
 
-**`rehydrateFromDb` only picks up `"active"` and `"paused"` sessions.** Sessions in `"stopped"` state with open trades (bug from section 1 above) are never rehydrated. Their trades remain in `"open"` DB state permanently — not managed before the crash, not managed after.
+`**rehydrateFromDb` only picks up `"active"` and `"paused"` sessions.** Sessions in `"stopped"` state with open trades (bug from section 1 above) are never rehydrated. Their trades remain in `"open"` DB state permanently — not managed before the crash, not managed after.
 
 **No immediate catch-up tick on monitor start.** `TradeMonitor.start()` schedules a `setInterval` but does not run a tick immediately. The first tick fires after the full poll interval: 5 seconds for intraday, 60 seconds for swing, 5 minutes for position/custom styles. During that window after restart, positions sit unmanaged. For a swing or position style session, that's a full minute of no exit enforcement after the app comes back up.
 
@@ -197,6 +211,7 @@ If anything triggers resume on an `attention_required` session with no runtime, 
 **Severity:** `State-corrupting` — open positions can accumulate unrealized losses during the restart window with no exit enforcement, and broker-side events during downtime are not reconciled.
 
 **Fix direction:**
+
 - Add a startup reconciliation pass in `rehydrateFromDb` that immediately checks all open DB trades against broker order status before starting the normal monitor loop. For each trade marked `"open"` in DB: call `adapter.getOrderStatus(broker_order_id)` and reconcile — close it in DB if the broker already filled/cancelled it.
 - Run one immediate tick in `TradeMonitor.start()` on first start (not restart via `setInterval`): `void this.tick(); this.timer = setInterval(...)`.
 - Include `"stopped"` sessions with `openTradeCount > 0` in the rehydration list, starting them in a monitoring-only mode.
@@ -238,7 +253,7 @@ The user discovers their trade closed by: noticing the open trade count dropped,
 
 **What the user wants to do:** See the session card update when a trade closes and the monitoring phase ends.
 
-**What the app does instead:** `SessionsPage` updates `progressBySessionId` in response to `step:started`, `step:succeeded`, `step:failed`, and `step:retrying` events. The monitoring stage is set when `broker_order` succeeds — that's the last real step event. When the trade monitor closes a trade (via `TradeMonitor.tick`), it does not go through the `TradingStepRunner` and does not emit any `step:*` event. It emits `trade_closed` directly.
+**What the app does instead:** `SessionsPage` updates `progressBySessionId` in response to `step:started`, `step:succeeded`, `step:failed`, and `step:retrying` events. The monitoring stage is set when `broker_order` succeeds — that's the last real step event. When the trade monitor closes a trade (via `TradeMonitor.tick`), it does not go through the `TradingStepRunner` and does not emit any `step:`* event. It emits `trade_closed` directly.
 
 The session table listens for `trade_closed` and calls `reloadTrades`, which updates trade counts. But `progressBySessionId` is not refreshed. The progress bar stays at "Monitoring position / 100%" even after the trade closes and the position is gone.
 
@@ -246,7 +261,7 @@ The session table listens for `trade_closed` and calls `reloadTrades`, which upd
 
 **Severity:** `Confusing` — stale progress state means users cannot trust the progress bar as a real-time signal.
 
-**Fix direction:** Subscribe to `trade_closed` in `SessionsPage` and call `refreshProgress(sessionId)` when it fires — same pattern as the `step:*` events. Alternatively, clear `progressBySessionId[sessionId]` on `trade_closed` so the monitoring stage chip disappears, which is the correct state: no active cycle, waiting for the next selector run.
+**Fix direction:** Subscribe to `trade_closed` in `SessionsPage` and call `refreshProgress(sessionId)` when it fires — same pattern as the `step:`* events. Alternatively, clear `progressBySessionId[sessionId]` on `trade_closed` so the monitoring stage chip disappears, which is the correct state: no active cycle, waiting for the next selector run.
 
 ---
 
@@ -274,7 +289,7 @@ The specific damage from a graceless quit:
 
 **Retry timers and no-instrument retry delays are lost.** `ctx.noInstrumentRetryTimer` is a `setTimeout` — purely in-memory. On restart, the orchestrator has no knowledge that it was scheduled to retry in 3 minutes. It either starts fresh (new selector cycle immediately) or stays idle until the user manually resumes.
 
-**`pendingApprovalIds` and `approvalCallbacks` are lost.** Human-approval trades that were in the approval queue are abandoned with no record. The approval UI may show them as pending but the callback that would resolve them no longer exists.
+`**pendingApprovalIds` and `approvalCallbacks` are lost.** Human-approval trades that were in the approval queue are abandoned with no record. The approval UI may show them as pending but the callback that would resolve them no longer exists.
 
 **Why it's wrong:** The user quits the app expecting it to clean up. Instead, DB has stale `"running"` steps that are never resolved, capital is locked until manual intervention, and the progress UI on next startup shows phantom in-progress work.
 
@@ -335,7 +350,7 @@ This also makes graceful termination (callout #10) straightforward: on `before-q
 
 **The `runtimeIsActive()` bus check intent is right.** Setting bus status to `"stopping"` before entering `orchestrator.stop()` means most in-flight event handlers see "not active" before cleanup runs. The gap is specifically in `ctx.queue.add()` bypassing this guard.
 
-**`queue.onIdle()` before declaring stop complete.** Waiting for the queue to drain before marking the session stopped prevents mid-step termination. The design intent is correct; the failure is tasks arriving after `clear()` making `onIdle()` block.
+`**queue.onIdle()` before declaring stop complete.** Waiting for the queue to drain before marking the session stopped prevents mid-step termination. The design intent is correct; the failure is tasks arriving after `clear()` making `onIdle()` block.
 
 **Rehydration demotes active → paused.** On app restart, sessions that were `active` are demoted to `paused` instead of auto-resumed. The monitor still starts so open positions remain managed. This is the right conservative default.
 
@@ -344,6 +359,7 @@ This also makes graceful termination (callout #10) straightforward: on `before-q
 ## Priority Order
 
 **Fix first — flow-breaking / state-corrupting:**
+
 1. `trade-closed-handler.ts`: use `ctx.enqueueTask` instead of `ctx.queue.add` — closes the race that triggers a new loop on stop
 2. `trade-closed-handler.ts` + `cycle-refill.ts`: add `openTrades.length === 0` check before scheduling any selector cycle
 3. Stop with open trades: block the action or warn prominently + preserve monitor lifecycle

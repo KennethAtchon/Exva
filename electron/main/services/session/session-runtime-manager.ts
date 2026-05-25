@@ -1,6 +1,10 @@
 import type { ExecutionStage } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import { SessionRuntime } from "./session-runtime";
+import {
+  SessionStartupRecoveryService,
+  type SessionStartupRecoveryDeps,
+} from "./session-startup-recovery-service";
 import type {
   ApprovalRecheckInput,
   OrchestratorDeps,
@@ -9,8 +13,27 @@ import type {
 
 export class SessionRuntimeManager {
   private readonly runtimes = new Map<string, SessionRuntime>();
+  private readonly startupRecovery: SessionStartupRecoveryService;
 
-  constructor(private readonly deps: SessionRuntimeManagerDeps) {}
+  constructor(private readonly deps: SessionRuntimeManagerDeps) {
+    this.startupRecovery = new SessionStartupRecoveryService(
+      this.recoveryDeps(),
+    );
+  }
+
+  private recoveryDeps(): SessionStartupRecoveryDeps {
+    return {
+      sessionRepo: this.deps.sessionRepo,
+      tradesRepo: this.deps.tradesRepo,
+      tradeApprovalsRepo: this.deps.tradeApprovalsRepo,
+      sessionExecutionStepsRepo: this.deps.sessionExecutionStepsRepo,
+      capitalReservationsRepo: this.deps.capitalReservationsRepo,
+      capitalReservation: this.deps.capitalReservation,
+      brokerRegistry: this.deps.brokerRegistry,
+      eventsRepo: this.deps.eventsRepo,
+      logger: this.deps.logger,
+    };
+  }
 
   async startSession(sessionId: string): Promise<SessionRuntime> {
     const existing = this.runtimes.get(sessionId);
@@ -95,8 +118,14 @@ export class SessionRuntimeManager {
   async resumeSession(sessionId: string): Promise<void> {
     this.deps.logger.info({ sessionId }, "resuming runtime");
     const priorStatus = this.deps.sessionRepo.getStatus(sessionId);
-    const runtime =
-      this.runtimes.get(sessionId) ?? (await this.startSession(sessionId));
+    const runtime = this.runtimes.get(sessionId);
+    if (!runtime) {
+      throw new AppError(
+        `Runtime for session ${sessionId} is not active`,
+        "SESSION_NOT_ACTIVE",
+        { sessionId },
+      );
+    }
     this.deps.bus.setRuntimeStatus(sessionId, "active");
     this.deps.sessionRepo.setStatus("active", sessionId);
     this.deps.bus.emit("session_status_changed", { sessionId, status: "active" });
@@ -155,23 +184,17 @@ export class SessionRuntimeManager {
    * live-monitor is the safe intersection.
    */
   async rehydrateFromDb(): Promise<void> {
-    const sessions = this.deps.sessionRepo.listByStatuses(["active", "paused"]);
+    const recoverable = this.startupRecovery.collectRecoverableSessions();
     this.deps.logger.info(
-      { sessionCount: sessions.length },
+      { sessionCount: recoverable.length },
       "rehydrating runtimes from db",
     );
-    for (const session of sessions) {
-      if (session.status === "active") {
-        this.deps.logger.warn(
-          { sessionId: session.id },
-          "startup rehydration: demoting previously-active session to paused (monitor stays live for open positions)",
-        );
-        this.deps.sessionRepo.setStatus("paused", session.id);
-      }
-      await this.startSession(session.id);
+    for (const entry of recoverable) {
+      await this.startupRecovery.recoverSession(entry.sessionId, entry);
+      await this.startSession(entry.sessionId);
     }
     this.deps.logger.info(
-      { sessionCount: sessions.length },
+      { sessionCount: recoverable.length },
       "runtime rehydration complete",
     );
   }

@@ -19,7 +19,10 @@ import {
 } from "@/components/sessions/SessionExecutionProgress";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
-type LifecycleAction = "start" | "pause" | "resume" | "stop";
+type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
+
+const FORCE_STOP_CONFIRM_MESSAGE =
+  "Force stop will end automated exit management for open positions. Continue?";
 
 interface LiveReadinessReport {
   readyToStart: boolean;
@@ -89,9 +92,29 @@ export const SessionsPage = ({
   const refreshProgress = async (sessionId: string) => {
     try {
       const result = await api.getSessionExecutionProgress(sessionId);
-      if (!result.cycleId) return;
-      const state = deriveProgress(result.steps, result.cycleId, null);
-      if (!state) return;
+      if (!result.cycleId) {
+        setProgressBySessionId((prev) => {
+          const next = { ...prev };
+          delete next[sessionId];
+          return next;
+        });
+        return;
+      }
+      const state = deriveProgress(
+        result.steps,
+        result.cycleId,
+        null,
+        result.openTradeCount,
+        result.monitoringActive,
+      );
+      if (!state) {
+        setProgressBySessionId((prev) => {
+          const next = { ...prev };
+          delete next[sessionId];
+          return next;
+        });
+        return;
+      }
       setProgressBySessionId((prev) => ({ ...prev, [sessionId]: state }));
     } catch {
       // silently ignore
@@ -128,6 +151,29 @@ export const SessionsPage = ({
     return () => {
       for (const unsub of unsubsRef.current) unsub();
       unsubsRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const cleanup: Array<() => void> = [];
+
+    void listenEvent("trade_opened", (payload) => {
+      const data = payload as { sessionId?: string };
+      if (cancelled || !data.sessionId) return;
+      void refreshProgress(data.sessionId);
+    }).then((unsub) => cleanup.push(unsub));
+
+    void listenEvent("trade_closed", (payload) => {
+      const data = payload as { sessionId?: string };
+      if (cancelled || !data.sessionId) return;
+      void refreshProgress(data.sessionId);
+      void load();
+    }).then((unsub) => cleanup.push(unsub));
+
+    return () => {
+      cancelled = true;
+      for (const unsub of cleanup) unsub();
     };
   }, []);
 
@@ -259,6 +305,13 @@ export const SessionsPage = ({
       if (action === "pause") await api.pauseSession();
       if (action === "resume") await api.resumeSession();
       if (action === "stop") await api.stopSession();
+      if (action === "forceStop") {
+        if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) {
+          setActionSessionId(null);
+          return;
+        }
+        await api.forceStopSession();
+      }
       await load();
     } catch (actionError) {
       setError(
@@ -459,6 +512,7 @@ export const SessionsPage = ({
                   }
                   style={secondaryButtonStyle}
                   disabled={actionSessionId === focusedSession.id}
+                  title="Pause stops new research but keeps exits managed."
                 >
                   Pause
                 </Button>
@@ -477,7 +531,8 @@ export const SessionsPage = ({
               ) : null}
               {focusedSession &&
               (focusedSession.status === "active" ||
-                focusedSession.status === "paused") ? (
+                focusedSession.status === "paused") &&
+              focusedSession.openTradeCount === 0 ? (
                 <Button
                   variant="ghost"
                   onClick={() =>
@@ -488,6 +543,30 @@ export const SessionsPage = ({
                 >
                   Stop
                 </Button>
+              ) : null}
+              {focusedSession &&
+              (focusedSession.status === "active" ||
+                focusedSession.status === "paused") &&
+              focusedSession.openTradeCount > 0 ? (
+                <Button
+                  variant="ghost"
+                  onClick={() =>
+                    void runLifecycleAction(focusedSession, "forceStop")
+                  }
+                  style={forceStopButtonStyle}
+                  disabled={actionSessionId === focusedSession.id}
+                  title="Force stop ends automated exit management for open positions."
+                >
+                  Force stop (loses trade management)
+                </Button>
+              ) : null}
+              {focusedSession?.status === "stopped" &&
+              focusedSession.openTradeCount > 0 ? (
+                <div style={orphanWarningStyle}>
+                  Stopped with {focusedSession.openTradeCount} open trade
+                  {focusedSession.openTradeCount === 1 ? "" : "s"} — no automated
+                  exits will fire. Restart to resume monitoring.
+                </div>
               ) : null}
             </div>
             {focusedSession &&
@@ -848,6 +927,23 @@ const dangerButtonStyle = {
   background: "rgba(127,29,29,0.16)",
   color: "#fca5a5",
   cursor: "pointer",
+} as const;
+const forceStopButtonStyle = {
+  ...dangerButtonStyle,
+  border: "1px solid rgba(239,68,68,0.55)",
+  background: "rgba(127,29,29,0.28)",
+  color: "#fecaca",
+} as const;
+const orphanWarningStyle = {
+  width: "100%",
+  marginTop: 8,
+  padding: "10px 12px",
+  borderRadius: 8,
+  border: "1px solid rgba(251,146,60,0.35)",
+  background: "rgba(249,115,22,0.12)",
+  color: "#fdba74",
+  fontSize: 12,
+  lineHeight: 1.45,
 } as const;
 const disabledStartStyle = {
   opacity: 0.45,

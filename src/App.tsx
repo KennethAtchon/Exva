@@ -134,7 +134,7 @@ export default function App() {
   );
 
   const handleSession = async (
-    action: "start" | "pause" | "resume" | "stop",
+    action: "start" | "pause" | "resume" | "stop" | "forceStop",
   ) => {
     if (sessionActionPending) return;
     setSessionActionPending(true);
@@ -161,6 +161,15 @@ export default function App() {
         setStatus(await api.pauseSession());
       } else if (action === "stop") {
         setStatus(await api.stopSession());
+      } else if (action === "forceStop") {
+        if (
+          !window.confirm(
+            "Force stop will end automated exit management for open positions. Continue?",
+          )
+        ) {
+          return;
+        }
+        setStatus(await api.forceStopSession());
       }
     } catch (error) {
       setLoadError(

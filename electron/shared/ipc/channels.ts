@@ -16,6 +16,7 @@ export const channels = {
     pause: "session:pause",
     resume: "session:resume",
     stop: "session:stop",
+    forceStop: "session:force-stop",
     getStatus: "session:get-status",
     getExecutionProgress: "session:get-execution-progress",
     retryStep: "session:retry-step",

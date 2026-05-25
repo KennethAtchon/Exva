@@ -3,10 +3,12 @@ import { app, BrowserWindow } from "electron";
 import { registerIpcHandlers } from "./ipc/register";
 import { createLogger } from "./services/infra/log";
 import { createAppServices, type AppServices } from "./services/app-services";
+import { ShutdownCoordinator } from "./services/session/shutdown-coordinator";
 import { createMainWindow } from "./window";
 import { env } from "./config/env";
 
 let services: AppServices | null = null;
+let shutdownCoordinator: ShutdownCoordinator | null = null;
 const logger = createLogger("main");
 
 app.disableHardwareAcceleration();
@@ -25,6 +27,11 @@ app.whenReady().then(async () => {
       "starting Exva main process",
     );
     services = await createAppServices(app);
+    shutdownCoordinator = new ShutdownCoordinator(
+      services.runtimeManager,
+      logger,
+      () => services?.db.sqlite.close(),
+    );
     logger.info("app services initialized");
     await seedBrokerAllocations(services);
     logger.info("broker allocation seed pass complete");
@@ -51,8 +58,12 @@ app.on("window-all-closed", () => {
   app.quit();
 });
 
-app.on("before-quit", () => {
-  services?.db.sqlite.close();
+app.on("will-quit", (event) => {
+  if (!shutdownCoordinator || !services) return;
+  event.preventDefault();
+  void shutdownCoordinator.shutdown().finally(() => {
+    app.exit(0);
+  });
 });
 
 async function seedBrokerAllocations(services: AppServices): Promise<void> {

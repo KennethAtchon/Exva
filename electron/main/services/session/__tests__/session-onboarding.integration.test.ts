@@ -303,6 +303,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     sessionAiPhasesRepo,
     session: new SessionService({
       sessionRepo: sessions,
+      tradesRepo: orchestratorDeps.tradesRepo,
       eventsRepo: events,
       sessionBrokerAssignmentsRepo: sessionBrokerAssignments,
       brokerRegistry: brokerRegistry as never,

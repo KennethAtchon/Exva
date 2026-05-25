@@ -81,6 +81,7 @@ export interface ExvaApi {
     pause(): Promise<SessionStatus>;
     resume(): Promise<SessionStatus>;
     stop(): Promise<SessionStatus>;
+    forceStop(): Promise<SessionStatus>;
     getStatus(): Promise<SessionStatus>;
     getExecutionProgress(
       sessionId: string,

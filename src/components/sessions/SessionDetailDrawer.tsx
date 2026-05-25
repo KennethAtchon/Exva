@@ -49,7 +49,13 @@ export const SessionDetailDrawer = ({
         return;
       }
       setExecutionProgress(
-        deriveProgress(result.steps, result.cycleId, null) ?? null,
+        deriveProgress(
+          result.steps,
+          result.cycleId,
+          null,
+          result.openTradeCount,
+          result.monitoringActive,
+        ) ?? null,
       );
     } catch {
       setExecutionProgress(null);

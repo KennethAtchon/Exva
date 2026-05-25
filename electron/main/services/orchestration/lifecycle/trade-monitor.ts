@@ -42,6 +42,7 @@ export class TradeMonitor {
   start(): void {
     if (this.timer) return;
     this.pollIntervalMs = this.resolvePollIntervalMs();
+    void this.tick();
     this.timer = setInterval(() => {
       void this.tick();
     }, this.pollIntervalMs);

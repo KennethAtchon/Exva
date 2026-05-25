@@ -105,6 +105,8 @@ export interface SessionExecutionProgressResponse {
     retryable: boolean;
   }>;
   cycleId: string | null;
+  openTradeCount: number;
+  monitoringActive: boolean;
 }
 
 export type ExvaEventMap = {
