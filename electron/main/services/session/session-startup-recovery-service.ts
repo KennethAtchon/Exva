@@ -23,10 +23,17 @@ export interface SessionStartupRecoveryDeps {
 
 export interface RecoverableSession {
   sessionId: string;
-  priorStatus: "active" | "paused" | "stopped" | "monitoring_only";
+  priorStatus:
+    | "active"
+    | "paused"
+    | "stopped"
+    | "monitoring_only"
+    | "attention_required";
   demoteToPaused: boolean;
   safetyRecovery: boolean;
 }
+
+const BROKER_RECONCILE_TIMEOUT_MS = 10_000;
 
 export class SessionStartupRecoveryService {
   constructor(private readonly deps: SessionStartupRecoveryDeps) {}
@@ -69,6 +76,19 @@ export class SessionStartupRecoveryService {
       recoverable.push({
         sessionId: session.id,
         priorStatus: "stopped",
+        demoteToPaused: true,
+        safetyRecovery: true,
+      });
+    }
+
+    for (const session of this.deps.sessionRepo.listByStatuses([
+      "attention_required",
+    ])) {
+      const openTradeCount = countOpenTrades(this.deps.tradesRepo, session.id);
+      if (openTradeCount === 0) continue;
+      recoverable.push({
+        sessionId: session.id,
+        priorStatus: "attention_required",
         demoteToPaused: true,
         safetyRecovery: true,
       });
@@ -141,7 +161,11 @@ export class SessionStartupRecoveryService {
 
       try {
         const adapter = await this.deps.brokerRegistry.get(trade.brokerAccountId);
-        const status = await adapter.getOrderStatus(trade.broker_order_id);
+        const status = await withTimeout(
+          adapter.getOrderStatus(trade.broker_order_id),
+          BROKER_RECONCILE_TIMEOUT_MS,
+          `Broker order status timed out after ${BROKER_RECONCILE_TIMEOUT_MS}ms`,
+        );
         if (status.status === "closed") {
           this.deps.tradesRepo.updateStatus(
             trade.id,
@@ -258,5 +282,24 @@ export class SessionStartupRecoveryService {
     }
 
     return released;
+  }
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }

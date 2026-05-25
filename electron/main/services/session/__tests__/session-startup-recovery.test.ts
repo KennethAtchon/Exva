@@ -92,12 +92,91 @@ describe("SessionStartupRecoveryService", () => {
       safetyRecovery: false,
     });
   });
+
+  it("includes attention_required sessions that still have open trades", () => {
+    const service = createService({
+      sessionsByStatus: {
+        active: [],
+        paused: [],
+        stopped: [],
+        attention_required: [{ id: "attention-open", openTradeCount: 1 }],
+      },
+    });
+
+    const recoverable = service.collectRecoverableSessions();
+    expect(recoverable).toContainEqual({
+      sessionId: "attention-open",
+      priorStatus: "attention_required",
+      demoteToPaused: true,
+      safetyRecovery: true,
+    });
+  });
+
+  it("skips attention_required sessions with no open trades", () => {
+    const service = createService({
+      sessionsByStatus: {
+        active: [],
+        paused: [],
+        stopped: [],
+        attention_required: [{ id: "attention-flat", openTradeCount: 0 }],
+      },
+    });
+
+    const recoverable = service.collectRecoverableSessions();
+    expect(recoverable.map((entry) => entry.sessionId)).not.toContain(
+      "attention-flat",
+    );
+  });
+
+  it("records a warning when broker reconciliation times out", async () => {
+    const insert = vi.fn();
+    const getOrderStatus = vi.fn(
+      () =>
+        new Promise<{ status: string }>(() => {
+          /* never resolves */
+        }),
+    );
+    const service = createService({
+      sessionsByStatus: { active: [], paused: [], stopped: [] },
+      openTrades: [
+        {
+          id: "trade-1",
+          status: "open",
+          instrumentSymbol: "AAPL",
+          broker_order_id: "order-1",
+          brokerAccountId: "broker-1",
+        },
+      ],
+      brokerRegistry: { get: vi.fn(async () => ({ getOrderStatus })) },
+      eventsRepo: { insert },
+    });
+
+    vi.useFakeTimers();
+    const reconcilePromise = service.reconcileOpenTrades("session-1");
+    await vi.advanceTimersByTimeAsync(10_001);
+    const result = await reconcilePromise;
+    vi.useRealTimers();
+
+    expect(result.reconciled).toBe(0);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatch(/timed out/i);
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: "WARN",
+        message: expect.stringMatching(/timed out/i),
+      }),
+    );
+  });
 });
 
 function createService(input: {
   sessionsByStatus: Partial<
     Record<
-      "active" | "paused" | "stopped" | "monitoring_only",
+      | "active"
+      | "paused"
+      | "stopped"
+      | "monitoring_only"
+      | "attention_required",
       Array<{ id: string; openTradeCount?: number }>
     >
   >;
@@ -112,12 +191,20 @@ function createService(input: {
   };
   sessionExecutionStepsRepo?: { upsert: ReturnType<typeof vi.fn> };
   activeReservations?: Array<{ approvalId: string | null; tradeId: string | null }>;
-  openTrades?: Array<{ id: string; status: string }>;
+  openTrades?: Array<{
+    id: string;
+    status: string;
+    instrumentSymbol?: string;
+    broker_order_id?: string;
+    brokerAccountId?: string;
+  }>;
   pendingApprovals?: Array<{ id: string; sessionId: string }>;
   capitalReservation?: {
     releaseByApproval: ReturnType<typeof vi.fn>;
     releaseOnFailure: ReturnType<typeof vi.fn>;
   };
+  brokerRegistry?: { get: ReturnType<typeof vi.fn> };
+  eventsRepo?: { insert: ReturnType<typeof vi.fn> };
 }) {
   const openTradeCounts = new Map<string, number>();
   for (const group of Object.values(input.sessionsByStatus)) {
@@ -129,7 +216,13 @@ function createService(input: {
   return new SessionStartupRecoveryService({
     sessionRepo: {
       listByStatuses: (
-        statuses: Array<"active" | "paused" | "stopped" | "monitoring_only">,
+        statuses: Array<
+          | "active"
+          | "paused"
+          | "stopped"
+          | "monitoring_only"
+          | "attention_required"
+        >,
       ) =>
         statuses.flatMap((status) =>
           (input.sessionsByStatus[status] ?? []).map((session) => ({
@@ -169,10 +262,10 @@ function createService(input: {
       releaseOnFailure:
         input.capitalReservation?.releaseOnFailure ?? vi.fn(),
     },
-    brokerRegistry: {
+    brokerRegistry: input.brokerRegistry ?? {
       get: vi.fn(),
     },
-    eventsRepo: {
+    eventsRepo: input.eventsRepo ?? {
       insert: vi.fn(),
     },
     logger: {

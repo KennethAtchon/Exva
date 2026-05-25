@@ -121,6 +121,9 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
     }
   >();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private shutDown = false;
+  private disposed = false;
+  private readonly onDispose?: () => void;
 
   private constructor(
     readonly sessionId: string,
@@ -128,7 +131,9 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
     private readonly bridge: MainRuntimeRpcBridge,
     private readonly logger: Logger,
     startedAt: string,
+    onDispose?: () => void,
   ) {
+    this.onDispose = onDispose;
     this.startedAtValue = startedAt;
     this.orchestrator = new RemoteOrchestrator((command) =>
       this.sendCommand(command),
@@ -141,6 +146,7 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
     child: UtilityProcess;
     bridge: MainRuntimeRpcBridge;
     logger: Logger;
+    onDispose?: () => void;
   }): Promise<UtilityProcessSessionRuntime> {
     const runtime = new UtilityProcessSessionRuntime(
       input.sessionId,
@@ -148,6 +154,7 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
       input.bridge,
       input.logger,
       new Date().toISOString(),
+      input.onDispose,
     );
     await runtime.waitForReady();
     return runtime;
@@ -190,6 +197,8 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
   }
 
   async shutdown(): Promise<void> {
+    if (this.shutDown) return;
+    this.shutDown = true;
     try {
       await this.sendCommand({ type: "shutdown" });
     } catch {
@@ -289,10 +298,13 @@ export class UtilityProcessSessionRuntime implements ManagedSessionRuntime {
   }
 
   private dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
+    this.onDispose?.();
     for (const pending of this.pendingCommands.values()) {
       pending.reject(new Error("Utility process runtime disposed"));
     }

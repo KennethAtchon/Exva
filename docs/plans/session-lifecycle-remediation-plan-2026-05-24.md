@@ -13,25 +13,25 @@ Exva's session lifecycle currently violates the operator's hard rule that no sel
 
 **Goals**
 
-| # | Goal | Success Looks Like |
-|---|------|--------------------|
-| 1 | Enforce the hard invariant: no selector while any trade is open | Every selector entry point checks the same open-trade gate before scheduling work |
-| 2 | Make Stop safe during monitoring | Normal Stop is unavailable while trades are open; Pause remains the safe control; any intentional override requires explicit Force stop confirmation |
-| 3 | Make startup recovery broker-truthful | On restart, open DB trades are reconciled against broker status before normal monitoring resumes |
-| 4 | Make shutdown and restart state-consistent | Quit paths stop runtimes cleanly when possible, and stale `running` steps are repaired on next startup |
-| 5 | Make monitoring state legible in the UI | Users can distinguish holding/open-position state from cycle-complete state at a glance |
-| 6 | Surface trade outcomes and unsafe states clearly | Trade closes show a toast, and stopped sessions with orphaned trades show a persistent warning |
-| 7 | Create a clean seam for future runtime isolation | Session runtimes can later move behind a coordinator/process boundary without redoing lifecycle rules |
+| #   | Goal                                                            | Success Looks Like                                                                                                                                   |
+| --- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Enforce the hard invariant: no selector while any trade is open | Every selector entry point checks the same open-trade gate before scheduling work                                                                    |
+| 2   | Make Stop safe during monitoring                                | Normal Stop is unavailable while trades are open; Pause remains the safe control; any intentional override requires explicit Force stop confirmation |
+| 3   | Make startup recovery broker-truthful                           | On restart, open DB trades are reconciled against broker status before normal monitoring resumes                                                     |
+| 4   | Make shutdown and restart state-consistent                      | Quit paths stop runtimes cleanly when possible, and stale `running` steps are repaired on next startup                                               |
+| 5   | Make monitoring state legible in the UI                         | Users can distinguish holding/open-position state from cycle-complete state at a glance                                                              |
+| 6   | Surface trade outcomes and unsafe states clearly                | Trade closes show a toast, and stopped sessions with orphaned trades show a persistent warning                                                       |
+| 7   | Create a clean seam for future runtime isolation                | Session runtimes can later move behind a coordinator/process boundary without redoing lifecycle rules                                                |
 
 **Non-Goals**
 
-| # | Non-Goal | Reason |
-|---|----------|--------|
-| 1 | Reworking trading strategy, risk policy, or selector prompts | The review is about lifecycle correctness, not trade logic quality |
-| 2 | Replacing the DB layer or repo pattern | Not required to fix the invariant and recovery bugs |
-| 3 | Shipping full process isolation in the same pass as correctness fixes | Too much blast radius before lifecycle contracts are stable |
-| 4 | Introducing cloud services or remote orchestration | Exva remains a local-first desktop app |
-| 5 | Adding a new persisted `monitoring_only` session status in the first pass | Existing `paused` semantics already represent “monitor alive, no new intake”; drain-to-stop can ship later if operators need one-click “stop when flat” (see Phase 4) |
+| #   | Non-Goal                                                                  | Reason                                                                                                                                                                |
+| --- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Reworking trading strategy, risk policy, or selector prompts              | The review is about lifecycle correctness, not trade logic quality                                                                                                    |
+| 2   | Replacing the DB layer or repo pattern                                    | Not required to fix the invariant and recovery bugs                                                                                                                   |
+| 3   | Shipping full process isolation in the same pass as correctness fixes     | Too much blast radius before lifecycle contracts are stable                                                                                                           |
+| 4   | Introducing cloud services or remote orchestration                        | Exva remains a local-first desktop app                                                                                                                                |
+| 5   | Adding a new persisted `monitoring_only` session status in the first pass | Existing `paused` semantics already represent “monitor alive, no new intake”; drain-to-stop can ship later if operators need one-click “stop when flat” (see Phase 4) |
 
 ## 3. Background & Context
 
@@ -88,42 +88,42 @@ This plan assumes the following current operating envelope:
 
 ### Review coverage matrix
 
-| Review point | Planned change |
-|--------------|----------------|
-| 1. Stop while monitoring kills trade monitor | Block normal Stop when open trades exist; keep Pause as the safe monitoring control; offer separate Force stop with confirmation; show orphan warning after any forced/legacy stop |
-| 2. Selector restarts when any one trade closes | Add shared `hasAnyOpenTrade(sessionId)` gate before every selector scheduling path |
-| 3. Stop race spawns new AI loop | Replace direct `ctx.queue.add()` with `ctx.enqueueTask()` and remove `resumeSession()` fallback-to-start behavior |
-| 4. Wrong controls during monitoring | Surface Pause (including “Pause after step”) as the primary monitoring control; hide normal Stop; expose Force stop with confirmation when `openTradeCount > 0` |
-| 5. No feedback when stop leaves orphaned trades | Show persistent session-card warning when `status === stopped && openTradeCount > 0`, including restart guidance |
-| 6. Crash/kill recovery is partial | Add startup recovery service, immediate tick, stopped-with-open-trades rehydration, and capital reservation audit |
-| 7. Monitoring looks done | Replace 100% completion treatment with a distinct holding state keyed off real open-trade count |
-| 8. Trade close is silent | Add `trade_closed` toast with instrument, exit reason, and realized P&L |
-| 9. Progress stays stale after trade close | Make progress API aware of `openTradeCount` and refresh progress on trade-open/trade-close events |
-| 10. App quit does not stop runtimes | Add async shutdown coordinator that stops all runtimes before DB close; repair stale steps, capital, and in-memory orchestrator state on next startup |
-| 11. Main-process runtime has no isolation | Phase 5: move one session runtime per Electron utility process (review’s worker/child-process requirement, refined after research) |
+| Review point                                    | Planned change                                                                                                                                                                     |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Stop while monitoring kills trade monitor    | Block normal Stop when open trades exist; keep Pause as the safe monitoring control; offer separate Force stop with confirmation; show orphan warning after any forced/legacy stop |
+| 2. Selector restarts when any one trade closes  | Add shared `hasAnyOpenTrade(sessionId)` gate before every selector scheduling path                                                                                                 |
+| 3. Stop race spawns new AI loop                 | Replace direct `ctx.queue.add()` with `ctx.enqueueTask()` and remove `resumeSession()` fallback-to-start behavior                                                                  |
+| 4. Wrong controls during monitoring             | Surface Pause (including “Pause after step”) as the primary monitoring control; hide normal Stop; expose Force stop with confirmation when `openTradeCount > 0`                    |
+| 5. No feedback when stop leaves orphaned trades | Show persistent session-card warning when `status === stopped && openTradeCount > 0`, including restart guidance                                                                   |
+| 6. Crash/kill recovery is partial               | Add startup recovery service, immediate tick, stopped-with-open-trades rehydration, and capital reservation audit                                                                  |
+| 7. Monitoring looks done                        | Replace 100% completion treatment with a distinct holding state keyed off real open-trade count                                                                                    |
+| 8. Trade close is silent                        | Add `trade_closed` toast with instrument, exit reason, and realized P&L                                                                                                            |
+| 9. Progress stays stale after trade close       | Make progress API aware of `openTradeCount` and refresh progress on trade-open/trade-close events                                                                                  |
+| 10. App quit does not stop runtimes             | Add async shutdown coordinator that stops all runtimes before DB close; repair stale steps, capital, and in-memory orchestrator state on next startup                              |
+| 11. Main-process runtime has no isolation       | Phase 5: move one session runtime per Electron utility process (review’s worker/child-process requirement, refined after research)                                                 |
 
 ### UX review priority mapping
 
 The review’s priority order is preserved in phase sequencing. Flow-breaking and state-corrupting fixes ship before UI polish; isolation stays last.
 
-| UX review priority | Severity | Plan phase |
-|--------------------|----------|------------|
-| 1. `enqueueTask` instead of `queue.add` | Flow-breaking | Phase 1 |
-| 2. Full-close gate before selector restart | Flow-breaking | Phase 1 |
-| 3. Block or warn on Stop with open trades | State-corrupting | Phase 1 |
-| 4. Startup broker reconciliation | State-corrupting | Phase 2 |
-| 5. Rehydrate stopped sessions with open trades | State-corrupting | Phase 2 |
-| 6. Monitoring-phase Stop button behavior | Confusing | Phase 1 |
-| 7. Post-stop orphan warning banner | State-corrupting | Phase 3 |
-| 8. `resumeSession` no silent `startSession` | Flow-breaking | Phase 1 |
-| 9. Immediate monitor tick on start | State-corrupting | Phase 2 |
-| 10. Progress refresh on `trade_closed` | Confusing | Phase 3 |
-| 11. Trade-close toast | Friction | Phase 3 |
-| 12. Distinct monitoring visual (not 100%) | Confusing | Phase 3 |
-| 13. Pause vs Stop label differentiation | Confusing | Phase 1 |
-| 14. Capital reservation audit on rehydration | State-corrupting | Phase 2 |
-| 15. Graceful quit stops all runtimes | State-corrupting | Phase 2 |
-| 16. Per-session process isolation | Architectural | Phase 5 |
+| UX review priority                             | Severity         | Plan phase |
+| ---------------------------------------------- | ---------------- | ---------- |
+| 1. `enqueueTask` instead of `queue.add`        | Flow-breaking    | Phase 1    |
+| 2. Full-close gate before selector restart     | Flow-breaking    | Phase 1    |
+| 3. Block or warn on Stop with open trades      | State-corrupting | Phase 1    |
+| 4. Startup broker reconciliation               | State-corrupting | Phase 2    |
+| 5. Rehydrate stopped sessions with open trades | State-corrupting | Phase 2    |
+| 6. Monitoring-phase Stop button behavior       | Confusing        | Phase 1    |
+| 7. Post-stop orphan warning banner             | State-corrupting | Phase 3    |
+| 8. `resumeSession` no silent `startSession`    | Flow-breaking    | Phase 1    |
+| 9. Immediate monitor tick on start             | State-corrupting | Phase 2    |
+| 10. Progress refresh on `trade_closed`         | Confusing        | Phase 3    |
+| 11. Trade-close toast                          | Friction         | Phase 3    |
+| 12. Distinct monitoring visual (not 100%)      | Confusing        | Phase 3    |
+| 13. Pause vs Stop label differentiation        | Confusing        | Phase 1    |
+| 14. Capital reservation audit on rehydration   | State-corrupting | Phase 2    |
+| 15. Graceful quit stops all runtimes           | State-corrupting | Phase 2    |
+| 16. Per-session process isolation              | Architectural    | Phase 5    |
 
 ## 4. Research Summary
 
@@ -151,15 +151,15 @@ The review’s priority order is preserved in phase sequencing. Flow-breaking an
 
 Keep the current lifecycle model, fix only `ctx.queue.add()` in `trade-closed-handler.ts`, and leave stop semantics, recovery, and UI behavior largely unchanged.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Low |
-| Performance | Neutral |
-| Reliability | Poor; leaves open-trade invariant, startup recovery, and unsafe Stop behavior broken |
-| Cost | Low engineering time |
-| Reversibility | High |
-| Stack fit | High |
-| Team readiness | High |
+| Dimension      | Assessment                                                                           |
+| -------------- | ------------------------------------------------------------------------------------ |
+| Complexity     | Low                                                                                  |
+| Performance    | Neutral                                                                              |
+| Reliability    | Poor; leaves open-trade invariant, startup recovery, and unsafe Stop behavior broken |
+| Cost           | Low engineering time                                                                 |
+| Reversibility  | High                                                                                 |
+| Stack fit      | High                                                                                 |
+| Team readiness | High                                                                                 |
 
 Risks: high likelihood of recurring orphaned trades and silent recovery gaps. Fixes the most obvious race but not the root contract failure.
 
@@ -169,15 +169,15 @@ Open questions: none; this option is rejected because it knowingly leaves critic
 
 Introduce a new session status and runtime mode so `Stop` transitions `active -> monitoring_only -> stopped` once open trades reach zero.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium-high; touches enums, validation, repo transitions, UI status mapping, rehydration, and lifecycle controls |
-| Performance | Neutral |
-| Reliability | Good if implemented correctly |
-| Cost | Moderate to high |
-| Reversibility | Medium |
-| Stack fit | Moderate; current code already uses `paused` for safe monitor-only semantics |
-| Team readiness | Good, but broader than needed for first-pass correction |
+| Dimension      | Assessment                                                                                                       |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Complexity     | Medium-high; touches enums, validation, repo transitions, UI status mapping, rehydration, and lifecycle controls |
+| Performance    | Neutral                                                                                                          |
+| Reliability    | Good if implemented correctly                                                                                    |
+| Cost           | Moderate to high                                                                                                 |
+| Reversibility  | Medium                                                                                                           |
+| Stack fit      | Moderate; current code already uses `paused` for safe monitor-only semantics                                     |
+| Team readiness | Good, but broader than needed for first-pass correction                                                          |
 
 Risks: status proliferation, more migration surface, and a large first-pass change while lifecycle rules are still not centralized.
 
@@ -187,15 +187,15 @@ Open questions: whether the operator actually needs a drain-to-stop state distin
 
 Keep the existing persisted statuses, treat `paused` as the safe “monitor alive, no new intake” mode, block normal Stop when open trades exist, centralize the open-trade invariant, add startup/shutdown recovery, and fix UI monitoring semantics.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Medium |
-| Performance | Neutral to slightly better; fewer accidental selector restarts |
-| Reliability | High for current architecture; addresses every review point, with isolation deferred to Phase 5 |
-| Cost | Moderate |
-| Reversibility | High; mostly additive helpers and guard paths |
-| Stack fit | High; extends current `paused` semantics instead of inventing new persisted state |
-| Team readiness | High |
+| Dimension      | Assessment                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| Complexity     | Medium                                                                                          |
+| Performance    | Neutral to slightly better; fewer accidental selector restarts                                  |
+| Reliability    | High for current architecture; addresses every review point, with isolation deferred to Phase 5 |
+| Cost           | Moderate                                                                                        |
+| Reversibility  | High; mostly additive helpers and guard paths                                                   |
+| Stack fit      | High; extends current `paused` semantics instead of inventing new persisted state               |
+| Team readiness | High                                                                                            |
 
 Risks: still shares the Electron main process, so catastrophic process-level failures remain a longer-term concern.
 
@@ -205,15 +205,15 @@ Open questions: whether to add a drain-to-stop `monitoring_only` workflow in a l
 
 Move each runtime to a worker/child/utility process first, and solve lifecycle correctness during the isolation rewrite.
 
-| Dimension | Assessment |
-|-----------|------------|
-| Complexity | Very high |
-| Performance | Slight overhead from IPC, but better isolation |
-| Reliability | Potentially best long-term, but risky short-term because the migration is large |
-| Cost | High |
-| Reversibility | Medium-low |
-| Stack fit | Good long-term, poor first-pass fit |
-| Team readiness | Moderate |
+| Dimension      | Assessment                                                                      |
+| -------------- | ------------------------------------------------------------------------------- |
+| Complexity     | Very high                                                                       |
+| Performance    | Slight overhead from IPC, but better isolation                                  |
+| Reliability    | Potentially best long-term, but risky short-term because the migration is large |
+| Cost           | High                                                                            |
+| Reversibility  | Medium-low                                                                      |
+| Stack fit      | Good long-term, poor first-pass fit                                             |
+| Team readiness | Moderate                                                                        |
 
 Risks: delays the correctness fixes that are already hurting live session behavior, and makes root-cause verification harder because control-plane and runtime-plane are both changing at once.
 
@@ -470,7 +470,7 @@ Shipped in Phases 0–3:
 - Shared guards: `electron/main/services/session/session-trade-state.ts`
 - Startup recovery: `electron/main/services/session/session-startup-recovery-service.ts`
 - Graceful quit: `electron/main/services/session/shutdown-coordinator.ts` wired from `electron/main/index.ts` (`will-quit`)
-- Stop API: `SessionService.stop()` blocks with `OPEN_TRADES_BLOCK_STOP`; `SessionService.forceStop()` bypasses the guard
+- Stop API: `SessionService.stop()` enters drain mode (`monitoring_only`) when open trades exist; `SessionService.forceStop()` bypasses the guard and stops immediately
 - IPC/preload: `session:force-stop`, progress API now returns `openTradeCount` and `monitoringActive`
 - UI: TopNav, SessionsPage, SessionTable, StrategyConfig expose Pause + Force stop; orphan warnings on stopped sessions with open trades; `RuntimeEventToast` shows `trade_closed` outcomes
 
@@ -488,28 +488,28 @@ Continuation (2026-05-24):
 
 ## 8. Risk Register
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|------|-----------|--------|------------|
-| 1 | A selector entry point still bypasses the new open-trade guard | Medium | High | Centralize the predicate, grep audit all scheduler call sites, add regression tests around every restart path |
-| 2 | Startup reconciliation blocks too long on broker/network failures | Medium | High | Time-box adapter calls, emit warnings, keep session paused, and fall back to immediate monitor tick |
-| 3 | Changing Stop semantics confuses existing users | Medium | Medium | Use explicit UI copy: Pause keeps exits managed; normal Stop is hidden while trades are open; Force stop requires confirmation |
-| 4 | Releasing capital reservations on recovery frees valid state | Low-Medium | High | Compare reservations against open trades and pending approvals before release; add targeted repo tests |
-| 5 | Progress/UI changes still race with fast close-to-restart cycles | Medium | Medium | Make progress API open-trade aware and refresh on trade-open/trade-close events, not only step events |
-| 6 | Graceful quit still loses in-memory state if shutdown is skipped | Medium | High | Pair quit coordinator with startup stale-step repair and capital reservation audit |
-| 7 | Isolation phase grows into a rewrite | Medium | High | Defer until lifecycle contracts stabilize and introduce a host abstraction first |
+| #   | Risk                                                              | Likelihood | Impact | Mitigation                                                                                                                     |
+| --- | ----------------------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | A selector entry point still bypasses the new open-trade guard    | Medium     | High   | Centralize the predicate, grep audit all scheduler call sites, add regression tests around every restart path                  |
+| 2   | Startup reconciliation blocks too long on broker/network failures | Medium     | High   | Time-box adapter calls, emit warnings, keep session paused, and fall back to immediate monitor tick                            |
+| 3   | Changing Stop semantics confuses existing users                   | Medium     | Medium | Use explicit UI copy: Pause keeps exits managed; normal Stop is hidden while trades are open; Force stop requires confirmation |
+| 4   | Releasing capital reservations on recovery frees valid state      | Low-Medium | High   | Compare reservations against open trades and pending approvals before release; add targeted repo tests                         |
+| 5   | Progress/UI changes still race with fast close-to-restart cycles  | Medium     | Medium | Make progress API open-trade aware and refresh on trade-open/trade-close events, not only step events                          |
+| 6   | Graceful quit still loses in-memory state if shutdown is skipped  | Medium     | High   | Pair quit coordinator with startup stale-step repair and capital reservation audit                                             |
+| 7   | Isolation phase grows into a rewrite                              | Medium     | High   | Defer until lifecycle contracts stabilize and introduce a host abstraction first                                               |
 
 ## 9. Success Criteria
 
-| Goal | Metric | Baseline | Target | How Measured |
-|------|--------|----------|--------|--------------|
-| No selector while trades are open | Selector scheduling events emitted while `openTradeCount > 0` | Possible today | 0 | Regression tests plus runtime logs around scheduling gates |
-| Safe Stop behavior | Normal stop requests accepted with `openTradeCount > 0` | Allowed today | 0 | Service-level tests and UI action tests; Force stop remains available with confirmation |
-| Graceful quit cleanup | Quit with active sessions that leaves steps `running` or capital reserved | Common today | 0 | Shutdown integration tests plus startup stale-step and reservation audit checks |
-| Startup trade recovery | Recovered sessions that reconcile open DB trades before normal interval wait | 0% explicit pass today | 100% of rehydrated sessions | Runtime-manager recovery tests and startup logs |
-| Immediate monitoring after restart | Delay before first monitor tick after runtime start | 5s/60s/300s depending on style | < 1s | TradeMonitor tests and timestamped logs |
-| Step-state repair | Stale `running` steps left after restart | Possible today | 0 | Startup recovery tests querying execution step rows |
-| Trade-close awareness | `trade_closed` events producing visible user notification | 0% today | 100% | Renderer event tests/manual QA |
-| Accurate monitoring UI | Sessions showing monitoring state after `openTradeCount` drops to 0 | Common today | 0 | Renderer tests/manual close-flow QA |
+| Goal                               | Metric                                                                       | Baseline                       | Target                      | How Measured                                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------------- | ------------------------------ | --------------------------- | --------------------------------------------------------------------------------------- |
+| No selector while trades are open  | Selector scheduling events emitted while `openTradeCount > 0`                | Possible today                 | 0                           | Regression tests plus runtime logs around scheduling gates                              |
+| Safe Stop behavior                 | Normal stop requests accepted with `openTradeCount > 0`                      | Allowed today                  | 0                           | Service-level tests and UI action tests; Force stop remains available with confirmation |
+| Graceful quit cleanup              | Quit with active sessions that leaves steps `running` or capital reserved    | Common today                   | 0                           | Shutdown integration tests plus startup stale-step and reservation audit checks         |
+| Startup trade recovery             | Recovered sessions that reconcile open DB trades before normal interval wait | 0% explicit pass today         | 100% of rehydrated sessions | Runtime-manager recovery tests and startup logs                                         |
+| Immediate monitoring after restart | Delay before first monitor tick after runtime start                          | 5s/60s/300s depending on style | < 1s                        | TradeMonitor tests and timestamped logs                                                 |
+| Step-state repair                  | Stale `running` steps left after restart                                     | Possible today                 | 0                           | Startup recovery tests querying execution step rows                                     |
+| Trade-close awareness              | `trade_closed` events producing visible user notification                    | 0% today                       | 100%                        | Renderer event tests/manual QA                                                          |
+| Accurate monitoring UI             | Sessions showing monitoring state after `openTradeCount` drops to 0          | Common today                   | 0                           | Renderer tests/manual close-flow QA                                                     |
 
 Leading indicators:
 
@@ -523,17 +523,17 @@ Lagging indicators:
 
 ## 10. Open Questions
 
-| # | Question | Owner | Needed By | Status |
-|---|----------|-------|-----------|--------|
-| 1 | Should Exva add a drain-to-stop `monitoring_only` workflow (Phase 4), or is Pause + Force stop sufficient for the operator contract? | Product/runtime owner | Before Phase 4 | Open |
-| 2 | If broker reconciliation fails for one open trade on startup, should the session stay `paused`, switch to `attention_required`, or run monitor-only with a prominent warning? Default recommendation: stay `paused`, emit WARN, run immediate monitor tick, and surface per-trade recovery failure in the session card. | Runtime owner | Before Phase 2 | Open |
-| 3 | Should progress clearing on final trade close happen entirely in the renderer, or should the execution-progress API expose an explicit `cycleState` enum? Default recommendation: expose `openTradeCount`/`monitoringActive` in Phase 0 and add `cycleState` only if renderer-only refresh proves brittle. | Renderer + IPC owner | Before Phase 3 | Open |
-| 4 | For isolation, do we standardize on Electron `utilityProcess.fork()` immediately, or keep a host interface that could also support raw `child_process.fork()` for tests? Default recommendation: `utilityProcess` in production, host interface swappable for tests. | Architecture owner | Before Phase 5 | Open |
+| #   | Question                                                                                                                                                                                                                                                                                                                | Owner                 | Needed By      | Status |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | -------------- | ------ |
+| 1   | Should Exva add a drain-to-stop `monitoring_only` workflow (Phase 4), or is Pause + Force stop sufficient for the operator contract?                                                                                                                                                                                    | Product/runtime owner | Before Phase 4 | Open   |
+| 2   | If broker reconciliation fails for one open trade on startup, should the session stay `paused`, switch to `attention_required`, or run monitor-only with a prominent warning? Default recommendation: stay `paused`, emit WARN, run immediate monitor tick, and surface per-trade recovery failure in the session card. | Runtime owner         | Before Phase 2 | Open   |
+| 3   | Should progress clearing on final trade close happen entirely in the renderer, or should the execution-progress API expose an explicit `cycleState` enum? Default recommendation: expose `openTradeCount`/`monitoringActive` in Phase 0 and add `cycleState` only if renderer-only refresh proves brittle.              | Renderer + IPC owner  | Before Phase 3 | Open   |
+| 4   | For isolation, do we standardize on Electron `utilityProcess.fork()` immediately, or keep a host interface that could also support raw `child_process.fork()` for tests? Default recommendation: `utilityProcess` in production, host interface swappable for tests.                                                    | Architecture owner    | Before Phase 5 | Open   |
 
 ## 11. Alternatives Rejected
 
-| Option | Why Rejected |
-|--------|-------------|
-| Patch only `trade-closed-handler.ts` | Too small; leaves open-trade invariant, startup recovery, UI confusion, and quit corruption unsolved |
-| Add `monitoring_only` persisted status first | Solves drain-to-stop before lifecycle guards are centralized; deferred to optional Phase 4 after Pause + Force stop ship in Phase 1 |
-| Jump straight to per-session process isolation | Correct end state, wrong first move; delays urgent correctness fixes and widens implementation risk |
+| Option                                         | Why Rejected                                                                                                                        |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Patch only `trade-closed-handler.ts`           | Too small; leaves open-trade invariant, startup recovery, UI confusion, and quit corruption unsolved                                |
+| Add `monitoring_only` persisted status first   | Solves drain-to-stop before lifecycle guards are centralized; deferred to optional Phase 4 after Pause + Force stop ship in Phase 1 |
+| Jump straight to per-session process isolation | Correct end state, wrong first move; delays urgent correctness fixes and widens implementation risk                                 |

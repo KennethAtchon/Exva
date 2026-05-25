@@ -63,6 +63,9 @@ export class UtilityProcessSessionRuntimeHost {
       child,
       bridge,
       logger: this.logger,
+      onDispose: () => {
+        this.children.delete(sessionId);
+      },
     });
     this.children.set(sessionId, runtime);
     return runtime;
