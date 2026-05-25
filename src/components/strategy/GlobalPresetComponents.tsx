@@ -25,6 +25,68 @@ export interface UserGlobalPresetInput {
   timeframePresetId: TimeframePresetId;
 }
 
+const presetCardStyle = {
+  position: "relative",
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  padding: "16px 16px 14px",
+  borderRadius: 14,
+  transition: "border-color 0.15s, box-shadow 0.15s",
+} as const;
+
+const presetBadgeStyle = {
+  fontSize: 12,
+  fontWeight: 600,
+  letterSpacing: 0.3,
+  padding: "3px 8px",
+  borderRadius: 999,
+  color: "var(--text2)",
+  whiteSpace: "nowrap" as const,
+} as const;
+
+const applyPresetButtonStyle = {
+  marginTop: 2,
+  width: "100%",
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: "1px solid rgba(59,130,246,0.4)",
+  fontSize: 12,
+  fontWeight: 700,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  transition: "background 0.12s",
+  letterSpacing: 0.3,
+} as const;
+
+const modalOverlayStyle = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 1000,
+  background: "rgba(0,0,0,0.65)",
+  backdropFilter: "blur(4px)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 24,
+} as const;
+
+const modalPanelStyle = {
+  width: "100%",
+  maxWidth: 460,
+  background:
+    "linear-gradient(145deg, rgba(22,32,50,0.98), rgba(14,22,38,0.97))",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: 16,
+  padding: "24px 24px 20px",
+  boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(59,130,246,0.1)",
+  display: "flex",
+  flexDirection: "column",
+  gap: 18,
+} as const;
+
 function labelize(id: string): string {
   return id
     .split("_")
@@ -92,12 +154,7 @@ function GlobalPresetCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        padding: "16px 16px 14px",
-        borderRadius: 14,
+        ...presetCardStyle,
         border: isApplied
           ? "1px solid rgba(59,130,246,0.45)"
           : hovered
@@ -111,7 +168,6 @@ function GlobalPresetCard({
           : hovered
             ? "0 4px 20px rgba(0,0,0,0.3)"
             : "0 2px 8px rgba(0,0,0,0.2)",
-        transition: "border-color 0.15s, box-shadow 0.15s",
       }}
     >
       {isApplied && (
@@ -198,15 +254,9 @@ function GlobalPresetCard({
           <span
             key={b.label}
             style={{
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: 0.3,
-              padding: "3px 8px",
-              borderRadius: 999,
-              color: "var(--text2)",
+              ...presetBadgeStyle,
               background: b.color,
               border: `1px solid ${b.border}`,
-              whiteSpace: "nowrap",
             }}
           >
             {b.label}
@@ -248,27 +298,15 @@ function GlobalPresetCard({
         onMouseEnter={() => setApplyHover(true)}
         onMouseLeave={() => setApplyHover(false)}
         style={{
-          marginTop: 2,
-          width: "100%",
-          padding: "8px 12px",
-          borderRadius: 8,
-          border: "1px solid rgba(59,130,246,0.4)",
+          ...applyPresetButtonStyle,
           background: isApplied
             ? "rgba(59,130,246,0.08)"
             : applyHover && !disabled
               ? "rgba(59,130,246,0.22)"
               : "rgba(59,130,246,0.14)",
           color: isApplied ? "rgba(147,197,253,0.9)" : "rgba(191,219,254,0.95)",
-          fontSize: 12,
-          fontWeight: 700,
           cursor: disabled ? "not-allowed" : "pointer",
           opacity: disabled ? 0.5 : 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 5,
-          transition: "background 0.12s",
-          letterSpacing: 0.3,
         }}
       >
         {isApplied ? (
@@ -453,35 +491,12 @@ export function CreateEditGlobalPresetModal({
           onClose();
         }
       }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        background: "rgba(0,0,0,0.65)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-      }}
+      style={modalOverlayStyle}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         role="presentation"
-        style={{
-          width: "100%",
-          maxWidth: 460,
-          background:
-            "linear-gradient(145deg, rgba(22,32,50,0.98), rgba(14,22,38,0.97))",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: 16,
-          padding: "24px 24px 20px",
-          boxShadow:
-            "0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(59,130,246,0.1)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 18,
-        }}
+        style={modalPanelStyle}
       >
         <div>
           <h2

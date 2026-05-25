@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
 import { Button, Checkbox } from "@/components/ui";
@@ -11,18 +11,103 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 
 type Filter = "all" | "open" | "closed";
 
+type FilterState = {
+  filter: Filter;
+  symbolContains: string;
+  instrumentType: "" | InstrumentClass;
+  brokerAccountId: string;
+  sessionFilterId: string;
+};
+
+type FilterAction =
+  | { type: "setFilter"; filter: Filter }
+  | { type: "setSymbolContains"; symbolContains: string }
+  | { type: "setInstrumentType"; instrumentType: "" | InstrumentClass }
+  | { type: "setBrokerAccountId"; brokerAccountId: string }
+  | { type: "setSessionFilterId"; sessionFilterId: string };
+
+const initialFilterState: FilterState = {
+  filter: "all",
+  symbolContains: "",
+  instrumentType: "",
+  brokerAccountId: "",
+  sessionFilterId: "",
+};
+
+function filterReducer(state: FilterState, action: FilterAction): FilterState {
+  switch (action.type) {
+    case "setFilter":
+      return { ...state, filter: action.filter };
+    case "setSymbolContains":
+      return { ...state, symbolContains: action.symbolContains };
+    case "setInstrumentType":
+      return { ...state, instrumentType: action.instrumentType };
+    case "setBrokerAccountId":
+      return { ...state, brokerAccountId: action.brokerAccountId };
+    case "setSessionFilterId":
+      return { ...state, sessionFilterId: action.sessionFilterId };
+    default:
+      return state;
+  }
+}
+
+const filterTabButtonStyle = {
+  padding: "5px 14px",
+  fontSize: 12,
+  borderRadius: 7,
+  cursor: "pointer",
+  fontFamily: "var(--font-sans)",
+} as const;
+
+const tradeTableHeaderStyle = {
+  display: "grid",
+  padding: "10px 20px 8px",
+  fontSize: 12,
+  color: "var(--text3)",
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+  fontWeight: 600,
+  borderBottom: "1px solid var(--border)",
+} as const;
+
+const tradeRowStyle = {
+  display: "grid",
+  padding: "11px 20px",
+  alignItems: "center",
+  cursor: "pointer",
+  borderBottom: "1px solid var(--border)",
+  transition: "background 0.1s",
+} as const;
+
+const autopsyButtonStyle = {
+  padding: "3px 8px",
+  borderRadius: 5,
+  border: "1px solid var(--border)",
+  background: "transparent",
+  color: "var(--text3)",
+  fontSize: 12,
+  cursor: "pointer",
+  fontFamily: "var(--font-mono)",
+  letterSpacing: "0.03em",
+  whiteSpace: "nowrap" as const,
+} as const;
+
 export const TradesPage = ({
   onViewAutopsy,
 }: {
   onViewAutopsy?: (tradeId: string) => void;
 } = {}) => {
-  const [filter, setFilter] = useState<Filter>("all");
-  const [symbolContains, setSymbolContains] = useState("");
-  const [instrumentType, setInstrumentType] = useState<"" | InstrumentClass>(
-    "",
+  const [filterState, dispatchFilter] = useReducer(
+    filterReducer,
+    initialFilterState,
   );
-  const [brokerAccountId, setBrokerAccountId] = useState("");
-  const [sessionFilterId, setSessionFilterId] = useState("");
+  const {
+    filter,
+    symbolContains,
+    instrumentType,
+    brokerAccountId,
+    sessionFilterId,
+  } = filterState;
 
   const viewMode = useWorkspaceStore((state) => state.viewMode);
   const focusedSessionId = useWorkspaceStore((state) => state.focusedSessionId);
@@ -79,10 +164,6 @@ export const TradesPage = ({
   });
   const sessionOptions =
     sessionsData?.sessions.map((s) => ({ id: s.id, name: s.name })) ?? [];
-
-  useEffect(() => {
-    setSessionFilterId("");
-  }, [environmentMode]);
 
   useEffect(() => {
     void api
@@ -170,7 +251,12 @@ export const TradesPage = ({
           Symbol
           <input
             value={symbolContains}
-            onChange={(e) => setSymbolContains(e.target.value)}
+            onChange={(e) =>
+              dispatchFilter({
+                type: "setSymbolContains",
+                symbolContains: e.target.value,
+              })
+            }
             placeholder="e.g. AAPL"
             style={filterInputStyle}
           />
@@ -180,7 +266,10 @@ export const TradesPage = ({
           <ShadcnSelect
             value={instrumentType}
             onValueChange={(value) =>
-              setInstrumentType(value as "" | InstrumentClass)
+              dispatchFilter({
+                type: "setInstrumentType",
+                instrumentType: value as "" | InstrumentClass,
+              })
             }
             className="min-w-[120px]"
             options={[
@@ -195,7 +284,12 @@ export const TradesPage = ({
           Broker account id
           <input
             value={brokerAccountId}
-            onChange={(e) => setBrokerAccountId(e.target.value)}
+            onChange={(e) =>
+              dispatchFilter({
+                type: "setBrokerAccountId",
+                brokerAccountId: e.target.value,
+              })
+            }
             placeholder="UUID"
             style={filterInputStyle}
           />
@@ -205,7 +299,12 @@ export const TradesPage = ({
             Session
             <ShadcnSelect
               value={sessionFilterId}
-              onValueChange={setSessionFilterId}
+              onValueChange={(value) =>
+                dispatchFilter({
+                  type: "setSessionFilterId",
+                  sessionFilterId: value,
+                })
+              }
               className="min-w-[180px]"
               options={[
                 { value: "", label: "All sessions" },
@@ -280,17 +379,13 @@ export const TradesPage = ({
           {(["all", "open", "closed"] as Filter[]).map((s) => (
             <Button
               key={s}
-              onClick={() => setFilter(s)}
+              onClick={() => dispatchFilter({ type: "setFilter", filter: s })}
               variant="ghost"
               style={{
-                padding: "5px 14px",
-                fontSize: 12,
-                borderRadius: 7,
-                cursor: "pointer",
+                ...filterTabButtonStyle,
                 background: filter === s ? "var(--surface3)" : "transparent",
                 border: `1px solid ${filter === s ? "var(--border)" : "transparent"}`,
                 color: filter === s ? "var(--text1)" : "var(--text3)",
-                fontFamily: "var(--font-sans)",
               }}
             >
               {s}
@@ -300,18 +395,11 @@ export const TradesPage = ({
         <div style={{ overflowX: "auto" }}>
           <div
             style={{
-              display: "grid",
+              ...tradeTableHeaderStyle,
               gridTemplateColumns:
                 viewMode === "global"
                   ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
                   : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px",
-              padding: "10px 20px 8px",
-              fontSize: 12,
-              color: "var(--text3)",
-              textTransform: "uppercase",
-              letterSpacing: "0.07em",
-              fontWeight: 600,
-              borderBottom: "1px solid var(--border)",
               minWidth: 860,
             }}
           >
@@ -350,18 +438,13 @@ export const TradesPage = ({
                   }
                 }}
                 style={{
-                  display: "grid",
+                  ...tradeRowStyle,
                   gridTemplateColumns:
                     viewMode === "global"
                       ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
                       : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px",
-                  padding: "11px 20px",
-                  alignItems: "center",
-                  cursor: "pointer",
-                  borderBottom: "1px solid var(--border)",
                   background:
                     t.id === selectedId ? "var(--surface2)" : "transparent",
-                  transition: "background 0.1s",
                   minWidth: 860,
                 }}
               >
@@ -498,18 +581,7 @@ export const TradesPage = ({
                       e.stopPropagation();
                       onViewAutopsy(t.id);
                     }}
-                    style={{
-                      padding: "3px 8px",
-                      borderRadius: 5,
-                      border: "1px solid var(--border)",
-                      background: "transparent",
-                      color: "var(--text3)",
-                      fontSize: 12,
-                      cursor: "pointer",
-                      fontFamily: "var(--font-mono)",
-                      letterSpacing: "0.03em",
-                      whiteSpace: "nowrap",
-                    }}
+                    style={autopsyButtonStyle}
                     title="View autopsy"
                   >
                     ⚕ Autopsy

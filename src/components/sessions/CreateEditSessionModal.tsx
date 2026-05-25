@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import type {
@@ -44,65 +44,70 @@ export const CreateEditSessionModal = ({
 }: Props) => {
   const environmentMode = useWorkspaceStore((s) => s.environmentMode);
   const [form, setForm] = useState<SessionCreateInput>(() => defaultInput());
-  const [searchEverything, setSearchEverything] = useState(false);
-  const [searchEverythingSnapshot, setSearchEverythingSnapshot] = useState<{
+  const searchEverythingSnapshotRef = useRef<{
     instrumentClasses: InstrumentClass[];
     instrumentScope: string;
     aiPickerEnabled: boolean;
   } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [loadingSeed, setLoadingSeed] = useState(false);
-  const [loadingBrokers, setLoadingBrokers] = useState(false);
   const [brokerAccounts, setBrokerAccounts] = useState<
     BrokerAccountWithState[]
   >([]);
-  const [searchProviders, setSearchProviders] = useState<ProviderAccount[]>([]);
-  const [
-    workspaceDefaultSearchProviderId,
-    setWorkspaceDefaultSearchProviderId,
-  ] = useState<string | null>(null);
+  const [searchProviderState, setSearchProviderState] = useState<{
+    providers: ProviderAccount[];
+    workspaceDefaultSearchProviderId: string | null;
+  }>({ providers: [], workspaceDefaultSearchProviderId: null });
   const [error, setError] = useState<string | null>(null);
+  const applyInitializedForm = (
+    nextForm: SessionCreateInput,
+    nextError: string | null = null,
+  ) => {
+    setError(nextError);
+    setForm(nextForm);
+  };
 
   useEffect(() => {
     if (!open) return;
 
     let cancelled = false;
-    setError(null);
 
     const envExecMode =
       environmentMode === "live" ? "live_allowed" : "paper_only";
 
     if (templateInput) {
-      setForm({ ...templateInput, executionMode: envExecMode });
+      applyInitializedForm({ ...templateInput, executionMode: envExecMode });
       return;
     }
 
     if (!initialSession) {
-      setForm({ ...defaultInput(), executionMode: envExecMode });
+      applyInitializedForm({ ...defaultInput(), executionMode: envExecMode });
       return;
     }
 
-    setLoadingSeed(true);
-    void api
-      .buildTemplatePayloadFromSession(initialSession.id)
-      .then((payload) => {
-        if (cancelled) return;
-        setForm({
+    void (async () => {
+      let nextError: string | null = null;
+      let nextForm: SessionCreateInput;
+      try {
+        const payload = await api.buildTemplatePayloadFromSession(
+          initialSession.id,
+        );
+        nextForm = {
           ...payloadToInput(payload, initialSession.name),
           executionMode: envExecMode,
-        });
-      })
-      .catch((seedError: Error) => {
-        if (cancelled) return;
-        setError(seedError.message);
-        setForm({
+        };
+      } catch (seedError) {
+        nextError =
+          seedError instanceof Error
+            ? seedError.message
+            : "Failed to load seed.";
+        nextForm = {
           ...summaryToInput(initialSession),
           executionMode: envExecMode,
-        });
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingSeed(false);
-      });
+        };
+      }
+      if (cancelled) return;
+      applyInitializedForm(nextForm, nextError);
+    })();
 
     return () => {
       cancelled = true;
@@ -112,7 +117,6 @@ export const CreateEditSessionModal = ({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoadingBrokers(true);
     void api
       .listBrokerAccountState()
       .then((response) => {
@@ -122,9 +126,6 @@ export const CreateEditSessionModal = ({
       .catch(() => {
         if (cancelled) return;
         setBrokerAccounts([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingBrokers(false);
       });
 
     return () => {
@@ -138,31 +139,27 @@ export const CreateEditSessionModal = ({
     void Promise.all([api.listProviders(), api.getWorkspaceView()])
       .then(([providerResponse, workspaceView]) => {
         if (cancelled) return;
-        setSearchProviders(
-          providerResponse.providers.filter(
+        setSearchProviderState({
+          providers: providerResponse.providers.filter(
             (provider) =>
               provider.category === "search" && provider.isConfigured,
           ),
-        );
-        setWorkspaceDefaultSearchProviderId(
-          workspaceView.preferences.defaultSearchProviderId,
-        );
+          workspaceDefaultSearchProviderId:
+            workspaceView.preferences.defaultSearchProviderId,
+        });
       })
       .catch(() => {
         if (cancelled) return;
-        setSearchProviders([]);
-        setWorkspaceDefaultSearchProviderId(null);
+        setSearchProviderState({
+          providers: [],
+          workspaceDefaultSearchProviderId: null,
+        });
       });
 
     return () => {
       cancelled = true;
     };
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    setSearchEverything(isSearchEverythingInput(form));
-  }, [open, form]);
 
   const assignedBrokerIds = useMemo(
     () =>
@@ -216,15 +213,17 @@ export const CreateEditSessionModal = ({
     form.selectionMode === "ai_selected_universe" &&
     form.selectorSettings.aiPickerEnabled &&
     !form.defaultSearchProviderId &&
-    !workspaceDefaultSearchProviderId;
+    !searchProviderState.workspaceDefaultSearchProviderId;
   const workspaceDefaultSearchProviderName =
-    searchProviders.find(
-      (provider) => provider.id === workspaceDefaultSearchProviderId,
+    searchProviderState.providers.find(
+      (provider) =>
+        provider.id === searchProviderState.workspaceDefaultSearchProviderId,
     )?.name ?? null;
   const searchEverythingFocusInstrumentClass = useMemo(
     () => parseSearchEverythingFocusInstrumentClass(form.instrumentScope),
     [form.instrumentScope],
   );
+  const searchEverything = isSearchEverythingInput(form);
 
   useEffect(() => {
     if (brokerAccounts.length === 0) return;
@@ -357,20 +356,19 @@ export const CreateEditSessionModal = ({
                           nextMode !== "ai_selected_universe" &&
                           searchEverything
                         ) {
-                          setSearchEverything(false);
+                          const snapshot = searchEverythingSnapshotRef.current;
                           setForm((prev) => ({
                             ...prev,
                             selectionMode: nextMode,
                             instrumentScope:
-                              searchEverythingSnapshot?.instrumentScope ??
-                              prev.instrumentScope,
+                              snapshot?.instrumentScope ?? prev.instrumentScope,
                             selectorSettings: {
                               aiPickerEnabled:
-                                searchEverythingSnapshot?.aiPickerEnabled ??
+                                snapshot?.aiPickerEnabled ??
                                 prev.selectorSettings.aiPickerEnabled,
                             },
                           }));
-                          setSearchEverythingSnapshot(null);
+                          searchEverythingSnapshotRef.current = null;
                           return;
                         }
                         setForm((prev) => ({
@@ -409,7 +407,7 @@ export const CreateEditSessionModal = ({
                             ? `Workspace default (${workspaceDefaultSearchProviderName})`
                             : "Workspace default (not set)",
                         },
-                        ...searchProviders.map((provider) => ({
+                        ...searchProviderState.providers.map((provider) => ({
                           value: provider.id,
                           label: provider.name,
                         })),
@@ -443,12 +441,12 @@ export const CreateEditSessionModal = ({
                       checked={searchEverything}
                       onCheckedChange={(checked) => {
                         if (checked) {
-                          setSearchEverythingSnapshot({
+                          searchEverythingSnapshotRef.current = {
                             instrumentClasses: form.instrumentClasses,
                             instrumentScope: form.instrumentScope,
                             aiPickerEnabled:
                               form.selectorSettings.aiPickerEnabled,
-                          });
+                          };
                           setForm((prev) => ({
                             ...prev,
                             instrumentClasses: brokerDrivenInstrumentClasses,
@@ -458,20 +456,19 @@ export const CreateEditSessionModal = ({
                           return;
                         }
 
+                        const snapshot = searchEverythingSnapshotRef.current;
                         setForm((prev) => ({
                           ...prev,
                           instrumentClasses:
-                            searchEverythingSnapshot?.instrumentClasses ??
+                            snapshot?.instrumentClasses ??
                             prev.instrumentClasses,
                           instrumentScope:
-                            searchEverythingSnapshot?.instrumentScope ??
-                            "SPY,QQQ",
+                            snapshot?.instrumentScope ?? "SPY,QQQ",
                           selectorSettings: {
-                            aiPickerEnabled:
-                              searchEverythingSnapshot?.aiPickerEnabled ?? true,
+                            aiPickerEnabled: snapshot?.aiPickerEnabled ?? true,
                           },
                         }));
-                        setSearchEverythingSnapshot(null);
+                        searchEverythingSnapshotRef.current = null;
                       }}
                     />
                     <span>
@@ -645,11 +642,7 @@ export const CreateEditSessionModal = ({
               />
               <Field label="Broker accounts">
                 <div style={brokerPickerStyle}>
-                  {loadingBrokers ? (
-                    <div style={inlineHintStyle}>
-                      Loading broker accounts...
-                    </div>
-                  ) : visibleBrokers.length === 0 ? (
+                  {visibleBrokers.length === 0 ? (
                     <div style={inlineHintStyle}>
                       No {brokerMode} broker accounts found. Add one in
                       Accounts.
@@ -804,11 +797,7 @@ export const CreateEditSessionModal = ({
               flexWrap: "wrap",
             }}
           >
-            <div style={{ color: "var(--text3)", fontSize: 12 }}>
-              {loadingSeed
-                ? "Loading persisted strategy, broker assignments, and routing..."
-                : ""}
-            </div>
+            <div style={{ color: "var(--text3)", fontSize: 12 }}>{""}</div>
             <div
               style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}
             >
@@ -849,7 +838,6 @@ export const CreateEditSessionModal = ({
                 className="bg-[var(--accent)] text-white"
                 disabled={
                   saving ||
-                  loadingSeed ||
                   !isValid ||
                   !hasBrokerCoverage ||
                   requiresSearchProviderSetup

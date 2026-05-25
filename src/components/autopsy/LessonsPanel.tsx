@@ -67,6 +67,25 @@ const LESSON_CATEGORIES: LessonCategory[] = [
   "system",
 ];
 
+const lessonChipStyle = {
+  padding: "2px 7px",
+  borderRadius: 4,
+  background: "var(--surface3)",
+  fontSize: 12,
+  fontFamily: "var(--font-mono)",
+} as const;
+
+const statusPillButtonStyle = {
+  padding: "3px 9px",
+  borderRadius: 5,
+  border: "none",
+  fontSize: 12,
+  fontFamily: "var(--font-mono)",
+  fontWeight: 600,
+  cursor: "pointer",
+  letterSpacing: "0.04em",
+} as const;
+
 // ---------------------------------------------------------------------------
 // Components
 // ---------------------------------------------------------------------------
@@ -186,14 +205,10 @@ function LessonRow({
           {/* Severity dot + label */}
           <span
             style={{
+              ...lessonChipStyle,
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              padding: "2px 7px",
-              borderRadius: 4,
-              background: "var(--surface3)",
-              fontSize: 12,
-              fontFamily: "var(--font-mono)",
               color: sev.dot,
               fontWeight: 600,
               letterSpacing: "0.04em",
@@ -213,11 +228,7 @@ function LessonRow({
           {/* Category */}
           <span
             style={{
-              padding: "2px 7px",
-              borderRadius: 4,
-              background: "var(--surface3)",
-              fontSize: 12,
-              fontFamily: "var(--font-mono)",
+              ...lessonChipStyle,
               color: "var(--text3)",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
@@ -230,11 +241,8 @@ function LessonRow({
           {lesson.recurrenceCount > 0 && (
             <span
               style={{
-                padding: "2px 7px",
-                borderRadius: 4,
+                ...lessonChipStyle,
                 background: "rgba(251,191,36,0.12)",
-                fontSize: 12,
-                fontFamily: "var(--font-mono)",
                 color: "#fbbf24",
               }}
             >
@@ -309,16 +317,9 @@ function LessonRow({
               setPickerOpen((o) => !o);
             }}
             style={{
-              padding: "3px 9px",
-              borderRadius: 5,
-              border: "none",
+              ...statusPillButtonStyle,
               background: st.bg,
               color: st.color,
-              fontSize: 12,
-              fontFamily: "var(--font-mono)",
-              fontWeight: 600,
-              cursor: "pointer",
-              letterSpacing: "0.04em",
             }}
           >
             {st.label} ▾

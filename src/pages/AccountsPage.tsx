@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
@@ -94,7 +94,6 @@ const InputField = ({
         padding: "10px 14px",
         color: "var(--text1)",
         fontSize: 13,
-        outline: "none",
         fontFamily: mono ? "var(--font-mono)" : "var(--font-sans)",
         letterSpacing: mono ? "0.04em" : "normal",
         transition: "border-color 0.15s",
@@ -187,6 +186,30 @@ export const AccountsPage = () => {
     useState(false);
   const [savingDefaultModel, setSavingDefaultModel] = useState(false);
   const [savedDefaultModel, setSavedDefaultModel] = useState(false);
+  const applyWorkspaceDrafts = useCallback(
+    (workspace: NonNullable<typeof workspaceData>) => {
+      const provKey = workspace.prefs.defaultModelProviderKey ?? "";
+      const modId = workspace.prefs.defaultModelModelId ?? "";
+      setDefaultModelProviderKey(provKey);
+      setDefaultModelModelId(modId);
+      setDefaultModelReasoningLevel(
+        workspace.prefs.defaultModelReasoningLevel ?? "off",
+      );
+      if (provKey) {
+        api
+          .getStrategyProviderModels(provKey)
+          .then((r) => setDefaultModelModels(r.models))
+          .catch(() => {});
+      }
+      const draft: Partial<Record<InstrumentClass, string>> = {};
+      for (const row of workspace.routing) {
+        draft[row.instrumentClass] = row.defaultBrokerAccountId;
+      }
+      setRoutingDraft(draft);
+      setPrefsDraft(workspace.prefs);
+    },
+    [],
+  );
 
   const { data: providersData, refetch: refetchProviders } = useQuery({
     queryKey: ["accounts-providers"],
@@ -235,34 +258,11 @@ export const AccountsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providersData]);
 
-  useEffect(() => {
-    setRoutingDraft({});
-    setPrefsDraft(null);
-  }, [environmentMode]);
-
   // Sync editable form state from workspace data
   useEffect(() => {
     if (!workspaceData) return;
-    const provKey = workspaceData.prefs.defaultModelProviderKey ?? "";
-    const modId = workspaceData.prefs.defaultModelModelId ?? "";
-    setDefaultModelProviderKey(provKey);
-    setDefaultModelModelId(modId);
-    setDefaultModelReasoningLevel(
-      workspaceData.prefs.defaultModelReasoningLevel ?? "off",
-    );
-    if (provKey) {
-      api
-        .getStrategyProviderModels(provKey)
-        .then((r) => setDefaultModelModels(r.models))
-        .catch(() => {});
-    }
-    const draft: Partial<Record<InstrumentClass, string>> = {};
-    for (const row of workspaceData.routing) {
-      draft[row.instrumentClass] = row.defaultBrokerAccountId;
-    }
-    setRoutingDraft(draft);
-    setPrefsDraft(workspaceData.prefs);
-  }, [workspaceData]);
+    applyWorkspaceDrafts(workspaceData);
+  }, [applyWorkspaceDrafts, workspaceData]);
 
   const testAllConnections = async () => {
     setTesting(true);

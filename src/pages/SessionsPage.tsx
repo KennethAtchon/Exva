@@ -261,20 +261,6 @@ export const SessionsPage = ({
   }, [load]);
 
   useEffect(() => {
-    setDetail(null);
-    setEditing(null);
-    setModalOpen(false);
-    setTemplatesOpen(false);
-    setTemplateInput(null);
-    setTemplateWarnings([]);
-    setProgressBySessionId({});
-    setLiveReadinessSession(null);
-    setLiveReadinessReport(null);
-    setActionSessionId(null);
-    setError(null);
-  }, [environmentMode]);
-
-  useEffect(() => {
     if (focusedSessionId) void checkAiReady(focusedSessionId);
   }, [focusedSessionId, checkAiReady]);
 

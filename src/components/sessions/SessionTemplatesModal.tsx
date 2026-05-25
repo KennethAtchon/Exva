@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useReducer } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
 import { ShadcnSelect } from "@/components/custom-ui";
@@ -25,36 +25,113 @@ export const SessionTemplatesModal = ({
   onClose: () => void;
   onUseTemplate: (input: SessionCreateInput, clearedFields: string[]) => void;
 }) => {
-  const [templates, setTemplates] = useState<TemplateListItem[]>([]);
-  const [templateName, setTemplateName] = useState("");
-  const [templateDescription, setTemplateDescription] = useState("");
-  const [search, setSearch] = useState("");
-  const [instrumentClass, setInstrumentClass] = useState<
-    InstrumentClass | "all"
-  >("all");
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  type State = {
+    templates: TemplateListItem[];
+    templateName: string;
+    templateDescription: string;
+    search: string;
+    instrumentClass: InstrumentClass | "all";
+    loading: boolean;
+    saving: boolean;
+    error: string | null;
+  };
+  type Action =
+    | { type: "setSearch"; search: string }
+    | { type: "setInstrumentClass"; instrumentClass: InstrumentClass | "all" }
+    | { type: "setTemplateName"; templateName: string }
+    | { type: "setTemplateDescription"; templateDescription: string }
+    | { type: "loadStart" }
+    | { type: "loadSuccess"; templates: TemplateListItem[] }
+    | { type: "loadError"; error: string }
+    | { type: "saveStart" }
+    | { type: "saveEnd" }
+    | { type: "setError"; error: string | null }
+    | { type: "setTemplates"; templates: TemplateListItem[] }
+    | {
+        type: "hydrateFromSource";
+        sourceSession: SessionSummary | null;
+      };
+
+  const initialState: State = {
+    templates: [],
+    templateName: "",
+    templateDescription: "",
+    search: "",
+    instrumentClass: "all",
+    loading: false,
+    saving: false,
+    error: null,
+  };
+
+  function reducer(state: State, action: Action): State {
+    switch (action.type) {
+      case "setSearch":
+        return { ...state, search: action.search };
+      case "setInstrumentClass":
+        return { ...state, instrumentClass: action.instrumentClass };
+      case "setTemplateName":
+        return { ...state, templateName: action.templateName };
+      case "setTemplateDescription":
+        return { ...state, templateDescription: action.templateDescription };
+      case "loadStart":
+        return { ...state, error: null, loading: true };
+      case "loadSuccess":
+        return { ...state, templates: action.templates, loading: false };
+      case "loadError":
+        return { ...state, error: action.error, loading: false };
+      case "saveStart":
+        return { ...state, saving: true, error: null };
+      case "saveEnd":
+        return { ...state, saving: false };
+      case "setError":
+        return { ...state, error: action.error };
+      case "setTemplates":
+        return { ...state, templates: action.templates };
+      case "hydrateFromSource":
+        return {
+          ...state,
+          templateName: action.sourceSession
+            ? `${action.sourceSession.name} Template`
+            : "",
+          templateDescription: action.sourceSession?.objective ?? "",
+        };
+      default:
+        return state;
+    }
+  }
+
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const {
+    templates,
+    templateName,
+    templateDescription,
+    search,
+    instrumentClass,
+    loading,
+    saving,
+    error,
+  } = state;
 
   useEffect(() => {
     if (!open) return;
-    setError(null);
-    setLoading(true);
+    dispatch({ type: "loadStart" });
     void api
       .listTemplates({
         search: search.trim() || undefined,
         instrumentClass:
           instrumentClass === "all" ? undefined : instrumentClass,
       })
-      .then((result) => setTemplates(result.templates))
-      .catch((loadError: Error) => setError(loadError.message))
-      .finally(() => setLoading(false));
+      .then((result) =>
+        dispatch({ type: "loadSuccess", templates: result.templates }),
+      )
+      .catch((loadError: Error) =>
+        dispatch({ type: "loadError", error: loadError.message }),
+      );
   }, [open, search, instrumentClass]);
 
   useEffect(() => {
     if (!open) return;
-    setTemplateName(sourceSession ? `${sourceSession.name} Template` : "");
-    setTemplateDescription(sourceSession?.objective ?? "");
+    dispatch({ type: "hydrateFromSource", sourceSession });
   }, [open, sourceSession]);
 
   if (!open) return null;
@@ -122,13 +199,23 @@ export const SessionTemplatesModal = ({
             <div style={{ display: "grid", gap: 10 }}>
               <Input
                 value={templateName}
-                onChange={(event) => setTemplateName(event.target.value)}
+                onChange={(event) =>
+                  dispatch({
+                    type: "setTemplateName",
+                    templateName: event.target.value,
+                  })
+                }
                 placeholder="Template name"
                 className="h-10 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
               />
               <textarea
                 value={templateDescription}
-                onChange={(event) => setTemplateDescription(event.target.value)}
+                onChange={(event) =>
+                  dispatch({
+                    type: "setTemplateDescription",
+                    templateDescription: event.target.value,
+                  })
+                }
                 placeholder="What this template is for"
                 rows={3}
                 style={textareaStyle}
@@ -136,8 +223,7 @@ export const SessionTemplatesModal = ({
               <Button
                 onClick={async () => {
                   if (!sourceSession || !templateName.trim()) return;
-                  setSaving(true);
-                  setError(null);
+                  dispatch({ type: "saveStart" });
                   try {
                     const payload = await api.buildTemplatePayloadFromSession(
                       sourceSession.id,
@@ -157,10 +243,10 @@ export const SessionTemplatesModal = ({
                       instrumentClasses: payload.identity.instrumentClasses,
                       updatedAt: created.updatedAt,
                     };
-                    setTemplates((current) => {
+                    const nextTemplates = (() => {
                       const next = [
                         nextTemplate,
-                        ...current.filter(
+                        ...templates.filter(
                           (template) => template.id !== created.id,
                         ),
                       ];
@@ -178,15 +264,21 @@ export const SessionTemplatesModal = ({
                           template.instrumentClasses.includes(instrumentClass);
                         return matchesSearch && matchesInstrument;
                       });
+                    })();
+                    dispatch({
+                      type: "setTemplates",
+                      templates: nextTemplates,
                     });
                   } catch (saveError) {
-                    setError(
-                      saveError instanceof Error
-                        ? saveError.message
-                        : "Failed to save template.",
-                    );
+                    dispatch({
+                      type: "setError",
+                      error:
+                        saveError instanceof Error
+                          ? saveError.message
+                          : "Failed to save template.",
+                    });
                   } finally {
-                    setSaving(false);
+                    dispatch({ type: "saveEnd" });
                   }
                 }}
                 className="bg-[var(--accent)] text-white"
@@ -200,14 +292,19 @@ export const SessionTemplatesModal = ({
           <div style={toolbarStyle}>
             <Input
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) =>
+                dispatch({ type: "setSearch", search: event.target.value })
+              }
               placeholder="Search templates"
               className="h-10 flex-1 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
             />
             <ShadcnSelect
               value={instrumentClass}
               onValueChange={(value) =>
-                setInstrumentClass(value as InstrumentClass | "all")
+                dispatch({
+                  type: "setInstrumentClass",
+                  instrumentClass: value as InstrumentClass | "all",
+                })
               }
               className="w-[180px]"
               options={[
@@ -297,7 +394,7 @@ export const SessionTemplatesModal = ({
                       >
                         <Button
                           onClick={async () => {
-                            setError(null);
+                            dispatch({ type: "setError", error: null });
                             try {
                               const result = await api.useTemplate(template.id);
                               onUseTemplate(
@@ -306,11 +403,13 @@ export const SessionTemplatesModal = ({
                               );
                               onClose();
                             } catch (useError) {
-                              setError(
-                                useError instanceof Error
-                                  ? useError.message
-                                  : "Failed to apply template.",
-                              );
+                              dispatch({
+                                type: "setError",
+                                error:
+                                  useError instanceof Error
+                                    ? useError.message
+                                    : "Failed to apply template.",
+                              });
                             }
                           }}
                           className="bg-[var(--accent)] text-white"
@@ -319,20 +418,23 @@ export const SessionTemplatesModal = ({
                         </Button>
                         <Button
                           onClick={async () => {
-                            setError(null);
+                            dispatch({ type: "setError", error: null });
                             try {
                               await api.deleteTemplate(template.id);
-                              setTemplates((current) =>
-                                current.filter(
+                              dispatch({
+                                type: "setTemplates",
+                                templates: templates.filter(
                                   (entry) => entry.id !== template.id,
                                 ),
-                              );
+                              });
                             } catch (deleteError) {
-                              setError(
-                                deleteError instanceof Error
-                                  ? deleteError.message
-                                  : "Failed to delete template.",
-                              );
+                              dispatch({
+                                type: "setError",
+                                error:
+                                  deleteError instanceof Error
+                                    ? deleteError.message
+                                    : "Failed to delete template.",
+                              });
                             }
                           }}
                           variant="outline"

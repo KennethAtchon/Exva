@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useReducer, type CSSProperties } from "react";
 import { api } from "@/lib/exva";
 import { ShadcnSelect } from "@/components/custom-ui";
 import {
@@ -24,6 +24,60 @@ const DEFAULT_NAMES: Record<SearchProviderType, string> = {
   tavily: "Tavily Search",
 };
 
+type State = {
+  providerType: SearchProviderType;
+  name: string;
+  apiKey: string;
+  saving: boolean;
+  message: string | null;
+};
+
+type Action =
+  | { type: "reset" }
+  | { type: "setProviderType"; providerType: SearchProviderType }
+  | { type: "setName"; name: string }
+  | { type: "setApiKey"; apiKey: string }
+  | { type: "setSaving"; saving: boolean }
+  | { type: "setMessage"; message: string | null };
+
+const INITIAL_STATE: State = {
+  providerType: "brave",
+  name: DEFAULT_NAMES.brave,
+  apiKey: "",
+  saving: false,
+  message: null,
+};
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "reset":
+      return INITIAL_STATE;
+    case "setProviderType": {
+      const next = action.providerType;
+      const prevDefault = DEFAULT_NAMES[state.providerType];
+      return {
+        ...state,
+        providerType: next,
+        name:
+          state.name === prevDefault || state.name.trim() === ""
+            ? DEFAULT_NAMES[next]
+            : state.name,
+        message: null,
+      };
+    }
+    case "setName":
+      return { ...state, name: action.name };
+    case "setApiKey":
+      return { ...state, apiKey: action.apiKey };
+    case "setSaving":
+      return { ...state, saving: action.saving };
+    case "setMessage":
+      return { ...state, message: action.message };
+    default:
+      return state;
+  }
+}
+
 export const AddSearchProviderModal = ({
   open,
   onClose,
@@ -33,40 +87,27 @@ export const AddSearchProviderModal = ({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) => {
-  const [providerType, setProviderType] = useState<SearchProviderType>("brave");
-  const [name, setName] = useState(DEFAULT_NAMES.brave);
-  const [apiKey, setApiKey] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const { providerType, name, apiKey, saving, message } = state;
 
   useEffect(() => {
     if (!open) return;
-    setProviderType("brave");
-    setName(DEFAULT_NAMES.brave);
-    setApiKey("");
-    setMessage(null);
+    dispatch({ type: "reset" });
   }, [open]);
 
   if (!open) return null;
 
   const onTypeChange = (next: SearchProviderType) => {
-    setProviderType(next);
-    setName((current) => {
-      const prevDefault = DEFAULT_NAMES[providerType];
-      return current === prevDefault || current.trim() === ""
-        ? DEFAULT_NAMES[next]
-        : current;
-    });
-    setMessage(null);
+    dispatch({ type: "setProviderType", providerType: next });
   };
 
   const save = async () => {
-    setSaving(true);
-    setMessage(null);
+    dispatch({ type: "setSaving", saving: true });
+    dispatch({ type: "setMessage", message: null });
     try {
       const trimmedKey = apiKey.trim();
       if (!trimmedKey) {
-        setMessage("Enter an API key.");
+        dispatch({ type: "setMessage", message: "Enter an API key." });
         return;
       }
       const { id } = await api.saveProvider({
@@ -79,18 +120,23 @@ export const AddSearchProviderModal = ({
         .testProvider(id)
         .catch(() => ({ ok: false as const, error: "Test failed" }));
       if (!test.ok) {
-        setMessage(
-          test.error ??
+        dispatch({
+          type: "setMessage",
+          message:
+            test.error ??
             "Saved key, but the connection test failed. Check the key and try Test on the account.",
-        );
+        });
       }
-      setApiKey("");
+      dispatch({ type: "setApiKey", apiKey: "" });
       await onSaved();
       if (test.ok) onClose();
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Save failed");
+      dispatch({
+        type: "setMessage",
+        message: e instanceof Error ? e.message : "Save failed",
+      });
     } finally {
-      setSaving(false);
+      dispatch({ type: "setSaving", saving: false });
     }
   };
 
@@ -132,7 +178,9 @@ export const AddSearchProviderModal = ({
           <Input
             className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) =>
+              dispatch({ type: "setName", name: e.target.value })
+            }
             placeholder={DEFAULT_NAMES[providerType]}
           />
         </div>
@@ -143,7 +191,9 @@ export const AddSearchProviderModal = ({
             className="h-10 border-border bg-[var(--surface2)] font-mono text-[13px] tracking-[0.03em] text-[var(--text1)]"
             type="password"
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) =>
+              dispatch({ type: "setApiKey", apiKey: e.target.value })
+            }
             placeholder={providerType === "brave" ? "BSA…" : "tvly-…"}
             autoComplete="off"
           />

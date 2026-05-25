@@ -2630,7 +2630,6 @@ export const DevPanel = ({
 
   // Events state
   const [events, setEvents] = useState<ExtEventRow[]>([]);
-  const [eventCursor, setEventCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
 
   // Inspector state
@@ -2746,9 +2745,6 @@ export const DevPanel = ({
         })) as ExtEventRow[];
         setEvents(cursor ? (prev) => [...prev, ...fetched] : fetched);
         setHasMore(fetched.length === 200);
-        setEventCursor(
-          fetched.length > 0 ? fetched[fetched.length - 1].id : null,
-        );
       } catch {
         /* event stream fetch failed; keep existing rows */
       }
@@ -2758,9 +2754,6 @@ export const DevPanel = ({
 
   useEffect(() => {
     setEvents([]);
-    setSelectedId(null);
-    setEventCursor(null);
-    setHasMore(false);
     void loadEvents(null);
   }, [loadEvents]);
 
@@ -3105,7 +3098,11 @@ export const DevPanel = ({
               setSearch={setSearch}
               loading={false}
               hasMore={hasMore}
-              onLoadMore={() => loadEvents(eventCursor)}
+              onLoadMore={() =>
+                loadEvents(
+                  events.length > 0 ? events[events.length - 1].id : null,
+                )
+              }
             />
           </div>
 

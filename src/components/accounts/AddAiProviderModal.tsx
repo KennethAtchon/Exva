@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useReducer, type CSSProperties } from "react";
 import { api } from "@/lib/exva";
 import { ShadcnSelect } from "@/components/custom-ui";
 import {
@@ -36,6 +36,66 @@ const DEFAULT_NAMES: Record<AiProviderType, string> = {
   openrouter: "OpenRouter",
 };
 
+type State = {
+  providerType: AiProviderType;
+  name: string;
+  apiKey: string;
+  baseUrl: string;
+  saving: boolean;
+  message: string | null;
+};
+
+type Action =
+  | { type: "reset" }
+  | { type: "setProviderType"; providerType: AiProviderType }
+  | { type: "setName"; name: string }
+  | { type: "setApiKey"; apiKey: string }
+  | { type: "setBaseUrl"; baseUrl: string }
+  | { type: "setSaving"; saving: boolean }
+  | { type: "setMessage"; message: string | null };
+
+const INITIAL_STATE: State = {
+  providerType: "anthropic",
+  name: DEFAULT_NAMES.anthropic,
+  apiKey: "",
+  baseUrl: "",
+  saving: false,
+  message: null,
+};
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "reset":
+      return INITIAL_STATE;
+    case "setProviderType": {
+      const next = action.providerType;
+      const prevDefault = DEFAULT_NAMES[state.providerType];
+      return {
+        ...state,
+        providerType: next,
+        name:
+          state.name === prevDefault || state.name.trim() === ""
+            ? DEFAULT_NAMES[next]
+            : state.name,
+        baseUrl: next === "openrouter" ? state.baseUrl : "",
+        message: null,
+      };
+    }
+    case "setName":
+      return { ...state, name: action.name };
+    case "setApiKey":
+      return { ...state, apiKey: action.apiKey };
+    case "setBaseUrl":
+      return { ...state, baseUrl: action.baseUrl };
+    case "setSaving":
+      return { ...state, saving: action.saving };
+    case "setMessage":
+      return { ...state, message: action.message };
+    default:
+      return state;
+  }
+}
+
 export const AddAiProviderModal = ({
   open,
   onClose,
@@ -45,34 +105,18 @@ export const AddAiProviderModal = ({
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }) => {
-  const [providerType, setProviderType] = useState<AiProviderType>("anthropic");
-  const [name, setName] = useState(DEFAULT_NAMES.anthropic);
-  const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
+  const { providerType, name, apiKey, baseUrl, saving, message } = state;
 
   useEffect(() => {
     if (!open) return;
-    setProviderType("anthropic");
-    setName(DEFAULT_NAMES.anthropic);
-    setApiKey("");
-    setBaseUrl("");
-    setMessage(null);
+    dispatch({ type: "reset" });
   }, [open]);
 
   if (!open) return null;
 
   const onTypeChange = (next: AiProviderType) => {
-    setProviderType(next);
-    setName((current) => {
-      const prevDefault = DEFAULT_NAMES[providerType];
-      return current === prevDefault || current.trim() === ""
-        ? DEFAULT_NAMES[next]
-        : current;
-    });
-    if (next !== "openrouter") setBaseUrl("");
-    setMessage(null);
+    dispatch({ type: "setProviderType", providerType: next });
   };
 
   const metadata =
@@ -81,12 +125,12 @@ export const AddAiProviderModal = ({
       : undefined;
 
   const save = async () => {
-    setSaving(true);
-    setMessage(null);
+    dispatch({ type: "setSaving", saving: true });
+    dispatch({ type: "setMessage", message: null });
     try {
       const trimmedKey = apiKey.trim();
       if (!trimmedKey) {
-        setMessage("Enter an API key.");
+        dispatch({ type: "setMessage", message: "Enter an API key." });
         return;
       }
       const { id } = await api.saveProvider({
@@ -100,18 +144,23 @@ export const AddAiProviderModal = ({
         .testProvider(id)
         .catch(() => ({ ok: false as const, error: "Test failed" }));
       if (!test.ok) {
-        setMessage(
-          test.error ??
+        dispatch({
+          type: "setMessage",
+          message:
+            test.error ??
             "Saved key, but the connection test failed. Check the key and try Test on the account.",
-        );
+        });
       }
-      setApiKey("");
+      dispatch({ type: "setApiKey", apiKey: "" });
       await onSaved();
       if (test.ok) onClose();
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Save failed");
+      dispatch({
+        type: "setMessage",
+        message: e instanceof Error ? e.message : "Save failed",
+      });
     } finally {
-      setSaving(false);
+      dispatch({ type: "setSaving", saving: false });
     }
   };
 
@@ -153,7 +202,9 @@ export const AddAiProviderModal = ({
           <Input
             className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) =>
+              dispatch({ type: "setName", name: e.target.value })
+            }
             placeholder={DEFAULT_NAMES[providerType]}
           />
         </div>
@@ -164,7 +215,9 @@ export const AddAiProviderModal = ({
             className="h-10 border-border bg-[var(--surface2)] font-mono text-[13px] tracking-[0.03em] text-[var(--text1)]"
             type="password"
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(e) =>
+              dispatch({ type: "setApiKey", apiKey: e.target.value })
+            }
             placeholder={
               providerType === "anthropic"
                 ? "sk-ant-…"
@@ -182,7 +235,9 @@ export const AddAiProviderModal = ({
             <Input
               className="h-10 border-border bg-[var(--surface2)] font-mono text-[12px] text-[var(--text1)]"
               value={baseUrl}
-              onChange={(e) => setBaseUrl(e.target.value)}
+              onChange={(e) =>
+                dispatch({ type: "setBaseUrl", baseUrl: e.target.value })
+              }
               placeholder="https://openrouter.ai/api/v1"
             />
             <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 6 }}>

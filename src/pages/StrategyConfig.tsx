@@ -140,15 +140,19 @@ export const StrategyConfig = ({
       setFocusedOpenTradeCount(0);
       return;
     }
-    void api
-      .listSessions({ includeArchived: false })
-      .then((result) => {
+    void (async () => {
+      let nextCount = 0;
+      try {
+        const result = await api.listSessions({ includeArchived: false });
         const focused = result.sessions.find(
           (session) => session.id === focusedSessionId,
         );
-        setFocusedOpenTradeCount(focused?.openTradeCount ?? 0);
-      })
-      .catch(() => setFocusedOpenTradeCount(0));
+        nextCount = focused?.openTradeCount ?? 0;
+      } catch {
+        nextCount = 0;
+      }
+      setFocusedOpenTradeCount(nextCount);
+    })();
   }, [focusedSessionId, viewMode, environmentMode]);
 
   const builtInGlobalPresets = globalPresets.reduce<GlobalStrategyPreset[]>(

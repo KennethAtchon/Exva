@@ -47,15 +47,17 @@ export const LiveReadinessModal = ({
   onAcknowledged,
   onCancel,
 }: Props) => {
-  const [report_, setReport] = useState<LiveReadinessReport>(report);
+  const [refreshedReport, setRefreshedReport] =
+    useState<LiveReadinessReport | null>(null);
   const [testing, setTesting] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
   const [testResult, setTestResult] = useState<{
     ok: boolean;
     message: string;
   } | null>(null);
+  const currentReport = refreshedReport ?? report;
 
-  const nonAckChecks = report_.checks.filter((c) => !c.requiresAck);
+  const nonAckChecks = currentReport.checks.filter((c) => !c.requiresAck);
   const allNonAckPassed = nonAckChecks.every((c) => c.passed);
 
   const handleTestConnection = async () => {
@@ -65,7 +67,7 @@ export const LiveReadinessModal = ({
       const result = await api.testLiveBrokerConnection(sessionId);
       setTestResult(result);
       const refreshed = await api.getLiveReadiness(sessionId);
-      setReport(refreshed);
+      setRefreshedReport(refreshed);
     } catch (error) {
       setTestResult({
         ok: false,
@@ -100,7 +102,7 @@ export const LiveReadinessModal = ({
         </div>
 
         <div style={bodyStyle}>
-          {report_.checks.map((check) => (
+          {currentReport.checks.map((check) => (
             <div key={check.name} style={checkRowStyle(check.passed)}>
               <div style={checkIconStyle(check.passed)}>
                 {check.passed ? "✓" : "✗"}
@@ -136,7 +138,7 @@ export const LiveReadinessModal = ({
             </div>
           )}
 
-          {allNonAckPassed && !report_.acknowledgedAt && (
+          {allNonAckPassed && !currentReport.acknowledgedAt && (
             <div style={consentBoxStyle}>
               <div
                 style={{

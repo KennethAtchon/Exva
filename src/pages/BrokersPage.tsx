@@ -7,6 +7,14 @@ import { fmt } from "@/lib/formatters";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
+function formatIsoDateTime(isoLike: string): string {
+  const match = isoLike.match(
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/,
+  );
+  if (!match) return isoLike;
+  return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:${match[6] ?? "00"}`;
+}
+
 export const BrokersPage = ({
   onJumpToSession,
 }: {
@@ -58,10 +66,7 @@ export const BrokersPage = ({
   };
 
   useEffect(() => {
-    setBrokers([]);
     setExpandedBrokerId(null);
-    setSettingsDrafts({});
-    setError(null);
     void load();
     const interval = window.setInterval(() => {
       void load();
@@ -251,7 +256,7 @@ export const BrokersPage = ({
                         ? fmt.usd(broker.balanceCacheUsd)
                         : "—"}
                       {broker.balanceCachedAt
-                        ? ` · updated ${new Date(broker.balanceCachedAt).toLocaleString()}`
+                        ? ` · updated ${formatIsoDateTime(broker.balanceCachedAt)}`
                         : ""}
                     </div>
                   </div>

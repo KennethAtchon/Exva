@@ -19,6 +19,38 @@ const PHASE_PALETTE: Record<string, { color: string; label: string }> = {
   synthesis: { color: "#e2e8f0", label: "Synthesis" },
 };
 
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+function formatIsoMonthDay(isoLike: string): string {
+  const match = isoLike.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return isoLike;
+  const monthIndex = Number.parseInt(match[2], 10) - 1;
+  const day = Number.parseInt(match[3], 10);
+  const month = MONTH_LABELS[monthIndex] ?? match[2];
+  return `${month} ${day}`;
+}
+
+function formatIsoDateTime(isoLike: string): string {
+  const match = isoLike.match(
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/,
+  );
+  if (!match) return isoLike;
+  return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:${match[6] ?? "00"}`;
+}
+
 // ---------------------------------------------------------------------------
 // PhaseRow
 // ---------------------------------------------------------------------------
@@ -64,15 +96,9 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
         {/* Phase chip */}
         <span
           style={{
-            padding: "2px 8px",
-            borderRadius: 4,
+            ...phaseChipStyle,
             background: `${ph.color}22`,
             color: ph.color,
-            fontSize: 12,
-            fontFamily: "var(--font-mono)",
-            fontWeight: 700,
-            letterSpacing: "0.05em",
-            flexShrink: 0,
           }}
         >
           {ph.label.toUpperCase()}
@@ -193,20 +219,10 @@ function PromptBlock({
       </div>
       <pre
         style={{
-          margin: 0,
-          padding: "10px 12px",
-          borderRadius: 6,
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
+          ...promptBlockPreStyle,
           borderLeft: borderColor ? `3px solid ${borderColor}` : undefined,
-          fontSize: 12,
-          lineHeight: 1.5,
-          fontFamily: "var(--font-mono)",
           color: color ?? "var(--text2)",
-          overflow: "auto",
           maxHeight: maxH,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
         }}
       >
         {displayText}
@@ -233,26 +249,19 @@ function VersionChips({
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
       {autopsies.map((a, i) => {
         const active = a.id === selected;
-        const date = new Date(a.createdAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
+        const date = formatIsoMonthDay(a.createdAt);
         return (
           <button
             key={a.id}
             onClick={() => onSelect(a.id)}
             style={{
-              padding: "4px 11px",
-              borderRadius: 6,
+              ...versionChipStyle,
               border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
               background: active ? "rgba(96,165,250,0.15)" : "transparent",
               color: active ? "#60a5fa" : "var(--text3)",
-              fontSize: 12,
-              fontFamily: "var(--font-mono)",
-              cursor: "pointer",
             }}
           >
-            v{i + 1} · {date}
+            v{i + 1} · <span suppressHydrationWarning>{date}</span>
             {i === autopsies.length - 1 && (
               <span style={{ marginLeft: 5, opacity: 0.7 }}>●</span>
             )}
@@ -284,6 +293,7 @@ export function ChatHistoryModal({
   const phases: PhaseTrace[] = autopsy
     ? parsePhaseTracesJson(autopsy.phaseTracesJson)
     : [];
+  const phaseKeyCounts = new Map<string, number>();
 
   const handleCopyAll = () => {
     void navigator.clipboard.writeText(autopsy?.phaseTracesJson ?? "[]");
@@ -352,8 +362,10 @@ export function ChatHistoryModal({
                 }}
               >
                 {autopsy.modelId} ·{" "}
-                {new Date(autopsy.createdAt).toLocaleString()} · {phases.length}{" "}
-                phases
+                <span suppressHydrationWarning>
+                  {formatIsoDateTime(autopsy.createdAt)}
+                </span>{" "}
+                · {phases.length} phases
               </div>
             )}
           </div>
@@ -398,7 +410,20 @@ export function ChatHistoryModal({
                 Chat history not available for this autopsy.
               </div>
             ) : (
-              phases.map((p, i) => <PhaseRow key={i} trace={p} />)
+              phases.map((p) => {
+                const baseKey = [
+                  p.phase,
+                  p.providerKey,
+                  p.modelId,
+                  p.inputTokens,
+                  p.outputTokens,
+                  p.durationMs,
+                  p.error ?? "",
+                ].join("|");
+                const seenCount = phaseKeyCounts.get(baseKey) ?? 0;
+                phaseKeyCounts.set(baseKey, seenCount + 1);
+                return <PhaseRow key={`${baseKey}|${seenCount}`} trace={p} />;
+              })
             )}
           </div>
 
@@ -424,6 +449,38 @@ export function ChatHistoryModal({
     </Dialog>
   );
 }
+
+const phaseChipStyle = {
+  padding: "2px 8px",
+  borderRadius: 4,
+  fontSize: 12,
+  fontFamily: "var(--font-mono)",
+  fontWeight: 700,
+  letterSpacing: "0.05em",
+  flexShrink: 0,
+} as const;
+
+const promptBlockPreStyle = {
+  margin: 0,
+  padding: "10px 12px",
+  borderRadius: 6,
+  background: "var(--bg)",
+  border: "1px solid var(--border)",
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontFamily: "var(--font-mono)",
+  overflow: "auto",
+  whiteSpace: "pre-wrap" as const,
+  wordBreak: "break-word" as const,
+} as const;
+
+const versionChipStyle = {
+  padding: "4px 11px",
+  borderRadius: 6,
+  fontSize: 12,
+  fontFamily: "var(--font-mono)",
+  cursor: "pointer",
+} as const;
 
 const footerBtn: React.CSSProperties = {
   padding: "7px 14px",

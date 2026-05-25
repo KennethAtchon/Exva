@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useReducer } from "react";
 import { getSearchProviderDisplayName } from "@electron/shared/instruments/search-providers";
 import { Badge } from "@/components/custom-ui";
 import { api, listenEvent, type SessionSummary } from "@/lib/exva";
@@ -27,36 +27,107 @@ export const SessionDetailDrawer = ({
   session: SessionSummary | null;
   onClose: () => void;
 }) => {
-  const [payload, setPayload] = useState<SessionTemplatePayload | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [recentEvents, setRecentEvents] = useState<EventRow[]>([]);
-  const [instrumentCache, setInstrumentCache] =
-    useState<InstrumentCacheView | null>(null);
-  const [cacheLoading, setCacheLoading] = useState(false);
-  const [cacheAction, setCacheAction] = useState<string | null>(null);
-  const [executionProgress, setExecutionProgress] =
-    useState<SessionProgressState | null>(null);
-  const [researchFailure, setResearchFailure] = useState<string | null>(null);
+  type State = {
+    payload: SessionTemplatePayload | null;
+    loading: boolean;
+    error: string | null;
+    recentEvents: EventRow[];
+    instrumentCache: InstrumentCacheView | null;
+    cacheLoading: boolean;
+    cacheAction: string | null;
+    executionProgress: SessionProgressState | null;
+    researchFailure: string | null;
+  };
+  type Action =
+    | { type: "resetExecutionState" }
+    | {
+        type: "setExecutionProgress";
+        executionProgress: SessionProgressState | null;
+      }
+    | { type: "setResearchFailure"; researchFailure: string | null }
+    | { type: "setRecentEvents"; recentEvents: EventRow[] }
+    | { type: "cacheLoadStart" }
+    | { type: "cacheLoadSuccess"; instrumentCache: InstrumentCacheView | null }
+    | { type: "cacheLoadEnd" }
+    | { type: "setCacheAction"; cacheAction: string | null }
+    | { type: "payloadLoadStart" }
+    | { type: "payloadLoadSuccess"; payload: SessionTemplatePayload }
+    | { type: "payloadLoadError"; error: string };
+
+  const initialState: State = {
+    payload: null,
+    loading: false,
+    error: null,
+    recentEvents: [],
+    instrumentCache: null,
+    cacheLoading: false,
+    cacheAction: null,
+    executionProgress: null,
+    researchFailure: null,
+  };
+
+  function reducer(state: State, action: Action): State {
+    switch (action.type) {
+      case "resetExecutionState":
+        return { ...state, executionProgress: null, researchFailure: null };
+      case "setExecutionProgress":
+        return { ...state, executionProgress: action.executionProgress };
+      case "setResearchFailure":
+        return { ...state, researchFailure: action.researchFailure };
+      case "setRecentEvents":
+        return { ...state, recentEvents: action.recentEvents };
+      case "cacheLoadStart":
+        return { ...state, cacheLoading: true, cacheAction: null };
+      case "cacheLoadSuccess":
+        return { ...state, instrumentCache: action.instrumentCache };
+      case "cacheLoadEnd":
+        return { ...state, cacheLoading: false };
+      case "setCacheAction":
+        return { ...state, cacheAction: action.cacheAction };
+      case "payloadLoadStart":
+        return { ...state, loading: true, error: null };
+      case "payloadLoadSuccess":
+        return { ...state, payload: action.payload, loading: false };
+      case "payloadLoadError":
+        return { ...state, error: action.error, loading: false };
+      default:
+        return state;
+    }
+  }
+
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const {
+    payload,
+    loading,
+    error,
+    recentEvents,
+    instrumentCache,
+    cacheLoading,
+    cacheAction,
+    executionProgress,
+    researchFailure,
+  } = state;
 
   const refreshExecutionProgress = async (sessionId: string) => {
     try {
       const result = await api.getSessionExecutionProgress(sessionId);
       if (!result.cycleId) {
-        setExecutionProgress(null);
+        dispatch({ type: "setExecutionProgress", executionProgress: null });
         return;
       }
-      setExecutionProgress(
-        deriveProgress(
-          result.steps,
-          result.cycleId,
-          null,
-          result.openTradeCount,
-          result.monitoringActive,
-        ) ?? null,
-      );
+      dispatch({
+        type: "setExecutionProgress",
+        executionProgress:
+          deriveProgress(
+            result.steps,
+            result.cycleId,
+            null,
+            result.openTradeCount,
+            result.monitoringActive,
+          ) ?? null,
+      });
     } catch {
-      setExecutionProgress(null);
+      dispatch({ type: "setExecutionProgress", executionProgress: null });
     }
   };
 
@@ -83,9 +154,10 @@ export const SessionDetailDrawer = ({
           };
           if (cancelled || data.sessionId !== session.id) return;
           if (eventName === "research_phase_failed") {
-            setResearchFailure(
-              `${data.phase ?? "research"} failed: ${data.error ?? "unknown error"}`,
-            );
+            dispatch({
+              type: "setResearchFailure",
+              researchFailure: `${data.phase ?? "research"} failed: ${data.error ?? "unknown error"}`,
+            });
           }
           void refreshExecutionProgress(session.id);
         }),
@@ -95,8 +167,7 @@ export const SessionDetailDrawer = ({
     return () => {
       cancelled = true;
       for (const unsub of cleanup) unsub();
-      setExecutionProgress(null);
-      setResearchFailure(null);
+      dispatch({ type: "resetExecutionState" });
     };
   }, [session]);
 
@@ -106,10 +177,14 @@ export const SessionDetailDrawer = ({
     void api
       .getEvents({ sessionId: session.id, limit: 25 })
       .then((rows) => {
-        if (!cancelled) setRecentEvents(rows);
+        if (!cancelled) {
+          dispatch({ type: "setRecentEvents", recentEvents: rows });
+        }
       })
       .catch(() => {
-        if (!cancelled) setRecentEvents([]);
+        if (!cancelled) {
+          dispatch({ type: "setRecentEvents", recentEvents: [] });
+        }
       });
     return () => {
       cancelled = true;
@@ -119,17 +194,21 @@ export const SessionDetailDrawer = ({
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-    setCacheLoading(true);
+    dispatch({ type: "cacheLoadStart" });
     void api
       .getSessionInstrumentCache(session.id)
       .then((row) => {
-        if (!cancelled) setInstrumentCache(row);
+        if (!cancelled) {
+          dispatch({ type: "cacheLoadSuccess", instrumentCache: row });
+        }
       })
       .catch(() => {
-        if (!cancelled) setInstrumentCache(null);
+        if (!cancelled) {
+          dispatch({ type: "cacheLoadSuccess", instrumentCache: null });
+        }
       })
       .finally(() => {
-        if (!cancelled) setCacheLoading(false);
+        if (!cancelled) dispatch({ type: "cacheLoadEnd" });
       });
     return () => {
       cancelled = true;
@@ -139,20 +218,18 @@ export const SessionDetailDrawer = ({
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+    dispatch({ type: "payloadLoadStart" });
     void api
       .buildTemplatePayloadFromSession(session.id)
       .then((result) => {
         if (!cancelled) {
-          setPayload(result);
+          dispatch({ type: "payloadLoadSuccess", payload: result });
         }
       })
       .catch((loadError: Error) => {
-        if (!cancelled) setError(loadError.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          dispatch({ type: "payloadLoadError", error: loadError.message });
+        }
       });
     return () => {
       cancelled = true;
@@ -284,27 +361,39 @@ export const SessionDetailDrawer = ({
                               session.status === "active" ||
                               session.status === "paused"
                             ) {
-                              setCacheAction(
-                                "Stop the session before clearing the selector cache.",
-                              );
+                              dispatch({
+                                type: "setCacheAction",
+                                cacheAction:
+                                  "Stop the session before clearing the selector cache.",
+                              });
                               return;
                             }
-                            setCacheAction(null);
+                            dispatch({
+                              type: "setCacheAction",
+                              cacheAction: null,
+                            });
                             try {
                               await api.clearSessionInstrumentCache(session.id);
                               const next = await api.getSessionInstrumentCache(
                                 session.id,
                               );
-                              setInstrumentCache(next);
-                              setCacheAction(
-                                "Cache cleared. Selector will run on next session start.",
-                              );
+                              dispatch({
+                                type: "cacheLoadSuccess",
+                                instrumentCache: next,
+                              });
+                              dispatch({
+                                type: "setCacheAction",
+                                cacheAction:
+                                  "Cache cleared. Selector will run on next session start.",
+                              });
                             } catch (err) {
-                              setCacheAction(
-                                err instanceof Error
-                                  ? err.message
-                                  : "Clear failed",
-                              );
+                              dispatch({
+                                type: "setCacheAction",
+                                cacheAction:
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Clear failed",
+                              });
                             }
                           }}
                           disabled={
