@@ -1,15 +1,16 @@
 import type { AgentMessage, Trade } from "@/lib/types";
-import type {
-  AddLessonInput,
-  AutopsyLesson,
-  AutopsyStructured,
-  AndonCordPayload,
-  LessonStatus,
-  PhaseKind,
-  PhaseTrace,
-  QualityGrade,
-  TradeAutopsyRecord,
-  UpdateLessonInput,
+import {
+  parseAutopsyStructuredJson,
+  type AddLessonInput,
+  type AutopsyLesson,
+  type AutopsyStructured,
+  type AndonCordPayload,
+  type LessonStatus,
+  type PhaseKind,
+  type PhaseTrace,
+  type QualityGrade,
+  type TradeAutopsyRecord,
+  type UpdateLessonInput,
 } from "@electron/shared/domain/autopsy";
 import { AppError } from "@electron/shared/infra/errors";
 import { z } from "zod";
@@ -427,13 +428,12 @@ export class TradeAutopsyService {
 
   validateLessons(
     sessionId: string,
-    _newAutopsyId: string,
+    newAutopsyId: string,
     structured: AutopsyStructured,
   ): void {
-    const priorLessons = this.deps.lessons.listBySession(sessionId, [
-      "pending",
-      "implemented",
-    ]);
+    const priorLessons = this.deps.lessons
+      .listBySession(sessionId, ["pending", "implemented"])
+      .filter((lesson) => lesson.autopsyId !== newAutopsyId);
     if (priorLessons.length === 0) return;
 
     const closedTrades = this.deps.trades.listClosed(sessionId);
@@ -445,14 +445,10 @@ export class TradeAutopsyService {
         recentStructuredByTrade.set(recentTrade.id, null);
         continue;
       }
-      try {
-        recentStructuredByTrade.set(
-          recentTrade.id,
-          JSON.parse(latest.summaryStructuredJson) as AutopsyStructured,
-        );
-      } catch {
-        recentStructuredByTrade.set(recentTrade.id, null);
-      }
+      recentStructuredByTrade.set(
+        recentTrade.id,
+        parseAutopsyStructuredJson(latest.summaryStructuredJson),
+      );
     }
 
     const { updates, andonCords } = runLessonValidation({
@@ -647,7 +643,7 @@ function formatPnlPct(trade: Trade): string {
 }
 
 function earliestMessage(messages: AgentMessage[]): AgentMessage | null {
-  return messages.length > 0 ? messages[0]! : null;
+  return messages.length > 0 ? messages[0] ?? null : null;
 }
 
 function decisionMessage(messages: AgentMessage[]): AgentMessage | null {

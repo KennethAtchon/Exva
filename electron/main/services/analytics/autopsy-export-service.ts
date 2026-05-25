@@ -1,12 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { dialog, BrowserWindow, type WebContents } from "electron";
-import type {
-  AutopsyLesson,
-  AutopsyStructured,
-  ExportFormat,
-  ExportResult,
-  TradeAutopsyRecord,
+import {
+  parseAutopsyStructuredJson,
+  type AutopsyLesson,
+  type AutopsyStructured,
+  type ExportFormat,
+  type ExportResult,
+  type TradeAutopsyRecord,
 } from "@electron/shared/domain/autopsy";
 import type { Trade } from "@/lib/types";
 
@@ -19,7 +20,9 @@ export class AutopsyExportService {
     sessionName: string,
     webContents?: WebContents,
   ): Promise<ExportResult> {
-    const structured = parseStructured(autopsyRecord.summaryStructuredJson);
+    const structured = parseAutopsyStructuredJson(
+      autopsyRecord.summaryStructuredJson,
+    );
     const defaultName = buildDefaultFilename(trade, autopsyRecord.createdAt, format);
 
     const saveResult = await dialog.showSaveDialog({
@@ -70,7 +73,7 @@ export class AutopsyExportService {
           trade,
           sessionName,
         );
-        await exportPdf(html, saveResult.filePath, webContents);
+        await exportPdf(html, saveResult.filePath);
       }
 
       return {
@@ -88,14 +91,13 @@ export class AutopsyExportService {
 async function exportPdf(
   html: string,
   filePath: string,
-  _webContents: WebContents,
 ): Promise<void> {
   const win = new BrowserWindow({
     show: false,
     webPreferences: { offscreen: true },
   });
 
-  const timeout = window.setTimeout(() => {
+  const timeout = setTimeout(() => {
     if (!win.isDestroyed()) win.close();
   }, 10_000);
 
@@ -109,7 +111,7 @@ async function exportPdf(
     });
     fs.writeFileSync(filePath, pdf);
   } finally {
-    window.clearTimeout(timeout);
+    clearTimeout(timeout);
     if (!win.isDestroyed()) win.close();
   }
 }
@@ -133,14 +135,6 @@ function buildDefaultFilename(
   const date = createdAt.slice(0, 10);
   const ext = format === "markdown" ? "md" : format;
   return `autopsy-${trade.instrumentSymbol}-${date}.${ext}`;
-}
-
-function parseStructured(json: string): AutopsyStructured | null {
-  try {
-    return JSON.parse(json) as AutopsyStructured;
-  } catch {
-    return null;
-  }
 }
 
 function renderMarkdown(

@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui";
-import type { PhaseTrace, TradeAutopsyRecord } from "@/lib/autopsy-types";
+import {
+  parsePhaseTracesJson,
+  type PhaseTrace,
+  type TradeAutopsyRecord,
+} from "@/lib/autopsy-types";
 import { fmt } from "@/lib/formatters";
 
 // ---------------------------------------------------------------------------
@@ -259,17 +263,24 @@ export function ChatHistoryModal({
 }) {
   const autopsy = autopsies.find((a) => a.id === selectedAutopsyId);
   const phases: PhaseTrace[] = autopsy
-    ? (() => {
-        try {
-          return JSON.parse(autopsy.phaseTracesJson) as PhaseTrace[];
-        } catch {
-          return [];
-        }
-      })()
+    ? parsePhaseTracesJson(autopsy.phaseTracesJson)
     : [];
 
   const handleCopyAll = () => {
     void navigator.clipboard.writeText(autopsy?.phaseTracesJson ?? "[]");
+  };
+
+  const handleExportHistory = () => {
+    if (!autopsy) return;
+    const blob = new Blob([autopsy.phaseTracesJson], {
+      type: "application/json;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `autopsy-chat-history-${autopsy.createdAt.slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -381,9 +392,7 @@ export function ChatHistoryModal({
               Copy All (JSON)
             </button>
             <button
-              onClick={() => {
-                /* TODO: export chat history JSON */
-              }}
+              onClick={handleExportHistory}
               style={footerBtn}
             >
               Export Chat History

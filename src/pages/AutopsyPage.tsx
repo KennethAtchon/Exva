@@ -5,13 +5,15 @@ import { ChatHistoryModal } from "@/components/autopsy/ChatHistoryModal";
 import { LessonsPanel } from "@/components/autopsy/LessonsPanel";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
-import type {
-  AutopsyLesson,
-  AutopsyStructured,
-  ExportFormat,
-  LessonStatus,
-  QualityGrade,
-  TradeAutopsyRecord,
+import {
+  parseAutopsyStructuredJson,
+  parsePhaseTracesJson,
+  type AutopsyStructured,
+  type ExportFormat,
+  type LessonCategory,
+  type LessonSeverity,
+  type LessonStatus,
+  type TradeAutopsyRecord,
 } from "@/lib/autopsy-types";
 import type { Trade } from "@/lib/types";
 
@@ -29,14 +31,6 @@ const GRADE_STYLE: Record<
   C: { color: "#fbbf24", glow: "rgba(251,191,36,0.2)", bg: "rgba(251,191,36,0.06)" },
   D: { color: "#f97316", glow: "rgba(249,115,22,0.2)", bg: "rgba(249,115,22,0.06)" },
   F: { color: "#f87171", glow: "rgba(248,113,113,0.2)", bg: "rgba(248,113,113,0.06)" },
-};
-
-const PHASE_LABEL: Record<string, string> = {
-  thesis: "Thesis",
-  execution: "Execution",
-  behavioral: "Behavioral",
-  market_context: "Market",
-  synthesis: "Synthesis",
 };
 
 // ---------------------------------------------------------------------------
@@ -307,6 +301,52 @@ function GradeBanner({
           {structured.executiveSummary}
         </p>
       </div>
+    </div>
+  );
+}
+
+function LegacySummaryCard({ autopsy }: { autopsy: TradeAutopsyRecord }) {
+  return (
+    <div
+      style={{
+        borderRadius: 10,
+        border: "1px solid var(--border)",
+        background: "var(--surface)",
+        padding: "18px 20px",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          color: "var(--text3)",
+          fontWeight: 700,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          marginBottom: 10,
+        }}
+      >
+        Legacy Autopsy Summary
+      </div>
+      <div
+        style={{
+          fontSize: 11,
+          color: "var(--text3)",
+          fontFamily: "var(--font-mono)",
+          marginBottom: 12,
+        }}
+      >
+        {autopsy.modelId} · {new Date(autopsy.createdAt).toLocaleString()} · grade {autopsy.qualityGrade ?? "N/A"}
+      </div>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 13,
+          color: "var(--text2)",
+          lineHeight: 1.65,
+        }}
+      >
+        {autopsy.summary}
+      </p>
     </div>
   );
 }
@@ -909,6 +949,12 @@ export function AutopsyPage({
     queryFn: () => api.listTradeAutopsies(tradeId),
   });
 
+  const { data: tradeDetail } = useQuery({
+    queryKey: ["trade-detail", tradeId],
+    queryFn: () => api.getTradeDetail(tradeId),
+    enabled: trade == null,
+  });
+
   const { data: lessons = [] } = useQuery({
     queryKey: ["autopsy-lessons", selectedAutopsyId],
     queryFn: () =>
@@ -917,8 +963,9 @@ export function AutopsyPage({
   });
 
   useEffect(() => {
-    if (autopsies.length > 0 && !selectedAutopsyId) {
-      setSelectedAutopsyId(autopsies[0]!.id);
+    const latestAutopsyId = autopsies[0]?.id;
+    if (latestAutopsyId && !selectedAutopsyId) {
+      setSelectedAutopsyId(latestAutopsyId);
     }
   }, [autopsies, selectedAutopsyId]);
 
@@ -940,33 +987,49 @@ export function AutopsyPage({
     [queryClient, selectedAutopsyId],
   );
 
+  const resolvedTrade = trade ?? tradeDetail?.trade ?? null;
+
+  const handleAddLesson = useCallback(
+    async (draft: {
+      lesson: string;
+      severity: LessonSeverity;
+      category: LessonCategory;
+      proposedFix: string;
+    }) => {
+      if (!selectedAutopsyId) {
+        throw new Error("Select an autopsy before adding a lesson.");
+      }
+      if (!resolvedTrade?.sessionId) {
+        throw new Error("Trade session is unavailable for this autopsy.");
+      }
+      await api.addAutopsyLesson({
+        autopsyId: selectedAutopsyId,
+        tradeId,
+        sessionId: resolvedTrade.sessionId,
+        lesson: draft.lesson,
+        severity: draft.severity,
+        category: draft.category,
+        proposedFix: draft.proposedFix,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["autopsy-lessons", selectedAutopsyId],
+      });
+    },
+    [queryClient, resolvedTrade?.sessionId, selectedAutopsyId, tradeId],
+  );
+
   // Resolve selected autopsy
   const autopsy = autopsies.find((a) => a.id === selectedAutopsyId) ?? null;
 
   // Parse structured JSON
   const structured: AutopsyStructured | null = autopsy
-    ? (() => {
-        try {
-          return JSON.parse(autopsy.summaryStructuredJson) as AutopsyStructured;
-        } catch {
-          return null;
-        }
-      })()
+    ? parseAutopsyStructuredJson(autopsy.summaryStructuredJson)
     : null;
 
   // Phase count
-  const phaseCount = autopsy
-    ? (() => {
-        try {
-          const traces = JSON.parse(autopsy.phaseTracesJson) as unknown[];
-          return traces.length;
-        } catch {
-          return 0;
-        }
-      })()
-    : 0;
+  const phaseCount = autopsy ? parsePhaseTracesJson(autopsy.phaseTracesJson).length : 0;
 
-  const isTradeOpen = trade?.status === "open";
+  const isTradeOpen = resolvedTrade?.status === "open";
   const hasAutopsies = autopsies.length > 0;
   const isGenerating = generateMutation.isPending;
 
@@ -1000,37 +1063,37 @@ export function AutopsyPage({
                 color: "var(--text1)",
               }}
             >
-              {trade?.instrumentSymbol ?? "—"}
+              {resolvedTrade?.instrumentSymbol ?? "—"}
             </span>
-            {trade && (
+            {resolvedTrade && (
               <span
                 style={{
                   padding: "2px 7px",
                   borderRadius: 4,
                   background:
-                    trade.side === "BUY"
+                    resolvedTrade.side === "BUY"
                       ? "rgba(52,211,153,0.15)"
                       : "rgba(248,113,113,0.15)",
-                  color: trade.side === "BUY" ? "#34d399" : "#f87171",
+                  color: resolvedTrade.side === "BUY" ? "#34d399" : "#f87171",
                   fontSize: 11,
                   fontFamily: "var(--font-mono)",
                   fontWeight: 600,
                 }}
               >
-                {trade.side}
+                {resolvedTrade.side}
               </span>
             )}
-            {trade && trade.final_pnl_usd != null && (
+            {resolvedTrade && resolvedTrade.final_pnl_usd != null && (
               <span
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 13,
                   color:
-                    trade.final_pnl_usd >= 0 ? "#34d399" : "#f87171",
+                    resolvedTrade.final_pnl_usd >= 0 ? "#34d399" : "#f87171",
                   fontWeight: 600,
                 }}
               >
-                {fmt.pnl(trade.final_pnl_usd)}
+                {fmt.pnl(resolvedTrade.final_pnl_usd)}
               </span>
             )}
           </div>
@@ -1115,6 +1178,9 @@ export function AutopsyPage({
               {autopsy?.isFallback && (
                 <WarningBanner message="LLM unavailable — this autopsy used fallback summarization." />
               )}
+              {autopsy && !structured && (
+                <WarningBanner message="Structured details are unavailable for this autopsy version. Showing the saved summary only." />
+              )}
 
               {/* Version selector */}
               {autopsies.length > 1 && selectedAutopsyId && (
@@ -1196,6 +1262,7 @@ export function AutopsyPage({
                   )}
                 </>
               )}
+              {autopsy && !structured && <LegacySummaryCard autopsy={autopsy} />}
             </div>
 
             {/* RIGHT SIDEBAR */}
@@ -1213,10 +1280,11 @@ export function AutopsyPage({
                 overflowY: "auto",
               }}
             >
-              <TradeMetaCard trade={trade} />
+              <TradeMetaCard trade={resolvedTrade} />
               <LessonsPanel
                 lessons={lessons}
                 onStatusChange={handleStatusChange}
+                onAddLesson={handleAddLesson}
               />
             </div>
           </div>

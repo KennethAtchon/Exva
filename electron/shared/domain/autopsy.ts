@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type PhaseKind =
   | "thesis"
   | "execution"
@@ -139,4 +141,84 @@ export interface AndonCordPayload {
   lessonText: string;
   recurrenceCount: number;
   sessionId: string;
+}
+
+export const phaseTraceSchema = z.object({
+  phase: z.enum(["thesis", "execution", "behavioral", "market_context", "synthesis"]),
+  modelId: z.string(),
+  providerKey: z.string(),
+  systemPrompt: z.string(),
+  userPrompt: z.string(),
+  toolCallsJson: z.string().nullable(),
+  responseText: z.string(),
+  inputTokens: z.number(),
+  outputTokens: z.number(),
+  costUsd: z.number(),
+  durationMs: z.number(),
+  error: z.string().nullable(),
+});
+
+export const autopsyStructuredSchema = z.object({
+  executiveSummary: z.string(),
+  thesisReview: z.object({
+    valid: z.boolean().nullable(),
+    analysis: z.string(),
+    confirmatoryBias: z.boolean(),
+    prematureConviction: z.boolean(),
+    ignoredCounterSignals: z.array(z.string()),
+  }),
+  executionQuality: z.object({
+    entryTiming: z.enum(["early", "good", "late", "unknown"]),
+    sizingAdequacy: z.enum([
+      "oversized",
+      "appropriate",
+      "undersized",
+      "unknown",
+    ]),
+    exitManagement: z.string(),
+    slippage: z.string().nullable(),
+  }),
+  behavioralFlags: z.array(
+    z.object({
+      flag: z.string(),
+      description: z.string(),
+      severity: z.enum(["low", "medium", "high", "critical"]),
+    }),
+  ),
+  marketContext: z.object({
+    regime: z.enum([
+      "trending",
+      "ranging",
+      "volatile",
+      "low_liquidity",
+      "unknown",
+    ]),
+    macro: z.string(),
+    volatility: z.string(),
+    suitability: z.enum(["good_conditions", "neutral", "poor_conditions"]),
+  }),
+  whatWorked: z.array(z.string()),
+  whatFailed: z.array(z.string()),
+  rootCause: z.string().nullable(),
+  processImprovements: z.array(z.string()),
+});
+
+export function parseAutopsyStructuredJson(
+  json: string,
+): AutopsyStructured | null {
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    return autopsyStructuredSchema.parse(parsed);
+  } catch {
+    return null;
+  }
+}
+
+export function parsePhaseTracesJson(json: string): PhaseTrace[] {
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    return z.array(phaseTraceSchema).parse(parsed);
+  } catch {
+    return [];
+  }
 }

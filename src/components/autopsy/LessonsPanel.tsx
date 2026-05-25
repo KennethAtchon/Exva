@@ -1,5 +1,10 @@
 import { useState } from "react";
-import type { AutopsyLesson, LessonStatus } from "@/lib/autopsy-types";
+import type {
+  AutopsyLesson,
+  LessonCategory,
+  LessonSeverity,
+  LessonStatus,
+} from "@/lib/autopsy-types";
 
 // ---------------------------------------------------------------------------
 // Status + Severity colour maps
@@ -48,6 +53,21 @@ const STATUS_ORDER: LessonStatus[] = [
   "validated",
   "recurring",
   "dismissed",
+];
+
+const LESSON_SEVERITIES: LessonSeverity[] = [
+  "low",
+  "medium",
+  "high",
+  "critical",
+];
+
+const LESSON_CATEGORIES: LessonCategory[] = [
+  "strategy",
+  "execution",
+  "behavioral",
+  "risk",
+  "system",
 ];
 
 // ---------------------------------------------------------------------------
@@ -333,8 +353,53 @@ export function LessonsPanel({
 }: {
   lessons: AutopsyLesson[];
   onStatusChange: (id: string, status: LessonStatus) => void;
-  onAddLesson?: () => void;
+  onAddLesson?: (draft: {
+    lesson: string;
+    severity: LessonSeverity;
+    category: LessonCategory;
+    proposedFix: string;
+  }) => Promise<void> | void;
 }) {
+  const [adding, setAdding] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lesson, setLesson] = useState("");
+  const [severity, setSeverity] = useState<LessonSeverity>("medium");
+  const [category, setCategory] = useState<LessonCategory>("strategy");
+  const [proposedFix, setProposedFix] = useState("");
+
+  const resetForm = () => {
+    setLesson("");
+    setSeverity("medium");
+    setCategory("strategy");
+    setProposedFix("");
+    setError(null);
+  };
+
+  const submitLesson = async () => {
+    if (!onAddLesson) return;
+    if (!lesson.trim()) {
+      setError("Lesson text is required.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onAddLesson({
+        lesson: lesson.trim(),
+        severity,
+        category,
+        proposedFix: proposedFix.trim(),
+      });
+      resetForm();
+      setAdding(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -366,7 +431,13 @@ export function LessonsPanel({
           Lessons
         </span>
         <button
-          onClick={onAddLesson}
+          onClick={() => {
+            setAdding((open) => {
+              const next = !open;
+              if (!next) resetForm();
+              return next;
+            });
+          }}
           style={{
             padding: "3px 9px",
             borderRadius: 5,
@@ -374,12 +445,92 @@ export function LessonsPanel({
             background: "transparent",
             color: "var(--text2)",
             fontSize: 11,
-            cursor: "pointer",
+            cursor: onAddLesson ? "pointer" : "not-allowed",
+            opacity: onAddLesson ? 1 : 0.55,
           }}
+          disabled={!onAddLesson}
         >
           + Add
         </button>
       </div>
+
+      {adding && onAddLesson && (
+        <div
+          style={{
+            padding: "12px 14px",
+            borderBottom: "1px solid var(--border)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            background: "var(--surface2)",
+          }}
+        >
+          <textarea
+            value={lesson}
+            onChange={(e) => setLesson(e.target.value)}
+            placeholder="Add the lesson to track"
+            rows={3}
+            style={inputStyle}
+          />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <select
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value as LessonSeverity)}
+              style={inputStyle}
+            >
+              {LESSON_SEVERITIES.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as LessonCategory)}
+              style={inputStyle}
+            >
+              {LESSON_CATEGORIES.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </div>
+          <textarea
+            value={proposedFix}
+            onChange={(e) => setProposedFix(e.target.value)}
+            placeholder="Optional proposed fix"
+            rows={2}
+            style={inputStyle}
+          />
+          {error && (
+            <div style={{ fontSize: 11, color: "#fca5a5", lineHeight: 1.5 }}>
+              {error}
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <button
+              onClick={() => {
+                resetForm();
+                setAdding(false);
+              }}
+              style={secondaryButtonStyle}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                void submitLesson();
+              }}
+              style={primaryButtonStyle}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : "Save Lesson"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Lesson list */}
       <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -403,3 +554,35 @@ export function LessonsPanel({
     </div>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  padding: "8px 10px",
+  borderRadius: 6,
+  border: "1px solid var(--border)",
+  background: "var(--surface)",
+  color: "var(--text1)",
+  fontSize: 12,
+  fontFamily: "var(--font-sans)",
+  resize: "vertical" as const,
+};
+
+const secondaryButtonStyle = {
+  padding: "7px 11px",
+  borderRadius: 6,
+  border: "1px solid var(--border)",
+  background: "transparent",
+  color: "var(--text2)",
+  fontSize: 12,
+  cursor: "pointer",
+};
+
+const primaryButtonStyle = {
+  padding: "7px 11px",
+  borderRadius: 6,
+  border: "1px solid rgba(96,165,250,0.4)",
+  background: "rgba(96,165,250,0.15)",
+  color: "#60a5fa",
+  fontSize: 12,
+  cursor: "pointer",
+};

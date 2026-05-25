@@ -1,7 +1,7 @@
 # Trade Autopsy — Low-Level Implementation Plan
 
 > **Date:** 2026-05-24  
-> **Status:** Implemented (2026-05-25)  
+> **Status:** Implemented (2026-05-25; contract fixes applied 2026-05-25)  
 > **Spec:** `docs/design/autopsy-product-spec.md`  
 > **Author:** System Designer
 
@@ -911,6 +911,14 @@ Execute in this order. Each phase is independently deployable.
 ### Phase 8 — PDF Export
 32. [x] Implement `AutopsyExportService.exportPdf()` with hidden BrowserWindow
 33. [x] Add PDF item to `ExportDropdown`
+
+### Post-Implementation Contract Fixes — 2026-05-25
+34. [x] Exclude lessons created by the current autopsy from the recurrence validator
+35. [x] Safely degrade pre-migration autopsies with invalid/empty structured JSON in renderer + export paths
+36. [x] Fix PDF export timeout code to use main-process timers instead of `window.*`
+37. [x] Load trade detail inside `AutopsyPage` so header/meta/open-trade guard work from page state
+38. [x] Wire inline manual lesson creation from `LessonsPanel`
+39. [x] Wire Chat History JSON export from `ChatHistoryModal`
 
 ---
 

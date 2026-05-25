@@ -1,12 +1,14 @@
-import { describe, expect, it } from "vitest";
-import type {
-  AutopsyLesson,
-  AutopsyStructured,
+import { describe, expect, it, vi } from "vitest";
+import {
+  parseAutopsyStructuredJson,
+  type AutopsyLesson,
+  type AutopsyStructured,
 } from "@electron/shared/domain/autopsy";
 import {
   extractKeywords,
   lessonMatchesStructured,
   runLessonValidation,
+  TradeAutopsyService,
 } from "../trade-autopsy-service";
 
 function makeStructured(
@@ -172,5 +174,54 @@ describe("runLessonValidation", () => {
         validatedAt: expect.any(String),
       },
     ]);
+  });
+});
+
+describe("parseAutopsyStructuredJson", () => {
+  it("returns null for legacy default rows", () => {
+    expect(parseAutopsyStructuredJson("{}")).toBeNull();
+  });
+});
+
+describe("TradeAutopsyService.validateLessons", () => {
+  it("ignores lessons created by the current autopsy", () => {
+    const oldLesson = makeLesson({
+      id: "old-lesson",
+      autopsyId: "old-autopsy",
+      recurrenceCount: 1,
+      status: "pending",
+    });
+    const newLesson = makeLesson({
+      id: "new-lesson",
+      autopsyId: "new-autopsy",
+      recurrenceCount: 0,
+      status: "pending",
+    });
+    const update = vi.fn();
+    const service = new TradeAutopsyService({
+      trades: { listClosed: () => [] } as never,
+      agentMessages: {} as never,
+      autopsies: { findLatest: () => null } as never,
+      lessons: {
+        listBySession: () => [oldLesson, newLesson],
+        update,
+      } as never,
+      events: { insert: vi.fn() } as never,
+      providerRegistry: {} as never,
+      workspacePrefs: {} as never,
+      eventBus: { emit: vi.fn() } as never,
+    });
+
+    service.validateLessons(
+      "session-1",
+      "new-autopsy",
+      makeStructured({ whatFailed: ["Stop loss moved during drawdown"] }),
+    );
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(
+      "old-lesson",
+      expect.objectContaining({ recurrenceCount: 2, status: "recurring" }),
+    );
   });
 });

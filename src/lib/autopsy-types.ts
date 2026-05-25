@@ -1,1 +1,1 @@
-export type * from "@electron/shared/domain/autopsy";
+export * from "@electron/shared/domain/autopsy";
