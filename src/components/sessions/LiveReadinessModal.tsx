@@ -116,7 +116,7 @@ export const LiveReadinessModal = ({
                   {CHECK_LABELS[check.name] ?? check.name}
                 </div>
                 <div
-                  style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}
+                  style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}
                 >
                   {check.message ?? CHECK_DESCRIPTIONS[check.name]}
                 </div>
@@ -129,7 +129,7 @@ export const LiveReadinessModal = ({
 
           {testResult && (
             <div style={testResultBannerStyle(testResult.ok)}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
                 {testResult.ok ? "✓ " : "✗ "}
                 {testResult.message}
               </span>
@@ -267,7 +267,7 @@ function checkIconStyle(passed: boolean) {
 }
 
 const ackBadgeStyle = {
-  fontSize: 10,
+  fontSize: 12,
   fontFamily: "var(--font-mono)",
   color: "#fbbf24",
   background: "rgba(251,191,36,0.1)",

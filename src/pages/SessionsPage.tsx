@@ -351,7 +351,7 @@ export const SessionsPage = ({
         <div>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               color: "var(--text3)",
@@ -436,7 +436,7 @@ export const SessionsPage = ({
             >
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   letterSpacing: "0.14em",
                   textTransform: "uppercase",
                   color: "var(--text3)",
@@ -669,7 +669,7 @@ export const SessionsPage = ({
               { value: "futures", label: "Futures" },
             ]}
           />
-          <label
+          <div
             style={{
               display: "flex",
               alignItems: "center",
@@ -698,7 +698,7 @@ export const SessionsPage = ({
               }}
             />
             Include archived
-          </label>
+          </div>
         </div>
 
         {loading ? (
@@ -864,7 +864,7 @@ const ContextMetric = ({ label, value }: { label: string; value: string }) => (
   <div>
     <div
       style={{
-        fontSize: 10,
+        fontSize: 12,
         color: "var(--text3)",
         textTransform: "uppercase",
         letterSpacing: "0.12em",

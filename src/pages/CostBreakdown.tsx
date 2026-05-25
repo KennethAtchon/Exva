@@ -152,7 +152,7 @@ export const CostBreakdownPage = () => {
                     y={65}
                     textAnchor="middle"
                     fill="var(--text3)"
-                    fontSize={9}
+                    fontSize={12}
                     fontFamily="JetBrains Mono,monospace"
                   >
                     of budget
@@ -165,7 +165,7 @@ export const CostBreakdownPage = () => {
                 <div>
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       color: "var(--text3)",
                       textTransform: "uppercase",
                       letterSpacing: "0.07em",
@@ -359,7 +359,7 @@ export const CostBreakdownPage = () => {
                       <span
                         style={{
                           fontFamily: "var(--font-mono)",
-                          fontSize: 9,
+                          fontSize: 12,
                           color: today ? "var(--accent)" : "var(--text3)",
                           height: 14,
                         }}
@@ -390,7 +390,7 @@ export const CostBreakdownPage = () => {
                       </div>
                       <span
                         style={{
-                          fontSize: 10,
+                          fontSize: 12,
                           color: today ? "var(--accent)" : "var(--text3)",
                           fontFamily: "var(--font-mono)",
                         }}

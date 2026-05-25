@@ -79,7 +79,7 @@ const InputField = ({
         {label}
       </label>
       {hint && (
-        <span style={{ fontSize: 11, color: "var(--text3)" }}>{hint}</span>
+        <span style={{ fontSize: 12, color: "var(--text3)" }}>{hint}</span>
       )}
     </div>
     <input
@@ -118,7 +118,7 @@ const ConnBadge = ({ ok }: { ok: boolean }) => (
     <Dot color={ok ? "#34d399" : "#f87171"} size={6} />
     <span
       style={{
-        fontSize: 11,
+        fontSize: 12,
         fontFamily: "var(--font-mono)",
         color: ok ? "#34d399" : "#f87171",
         fontWeight: 600,
@@ -455,7 +455,7 @@ export const AccountsPage = () => {
               {aiProviders.length === 0 ? (
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--text3)",
                     fontWeight: 500,
                   }}
@@ -517,7 +517,7 @@ export const AccountsPage = () => {
                         </div>
                         <div
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--text3)",
                             fontFamily: "var(--font-mono)",
                           }}
@@ -526,7 +526,7 @@ export const AccountsPage = () => {
                         </div>
                         <div
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: statusColor,
                             marginTop: 4,
                             fontWeight: 600,
@@ -548,7 +548,7 @@ export const AccountsPage = () => {
                             type="button"
                             onClick={() => beginEditProviderKey(p)}
                             style={{
-                              fontSize: 11,
+                              fontSize: 12,
                               padding: "6px 10px",
                               borderRadius: 7,
                               border: "1px solid var(--border)",
@@ -570,7 +570,7 @@ export const AccountsPage = () => {
                               void refetchProviders();
                             }}
                             style={{
-                              fontSize: 11,
+                              fontSize: 12,
                               padding: "6px 10px",
                               borderRadius: 7,
                               border: "1px solid var(--border)",
@@ -585,7 +585,7 @@ export const AccountsPage = () => {
                             disabled={rowSavingId === p.id}
                             onClick={() => void deleteProvider(p)}
                             style={{
-                              fontSize: 11,
+                              fontSize: 12,
                               padding: "6px 10px",
                               borderRadius: 7,
                               border: "1px solid rgba(248,113,113,0.35)",
@@ -699,7 +699,7 @@ export const AccountsPage = () => {
               >
                 Workspace default AI model
               </div>
-              <div style={{ fontSize: 11, color: "var(--text3)" }}>
+              <div style={{ fontSize: 12, color: "var(--text3)" }}>
                 Auto-fills provider, model, and reasoning on new sessions.
                 Phases still at Off are updated when you save here.
               </div>
@@ -730,7 +730,7 @@ export const AccountsPage = () => {
               <div>
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--text3)",
                     marginBottom: 4,
                     textTransform: "uppercase",
@@ -751,7 +751,7 @@ export const AccountsPage = () => {
                   disabled={savingDefaultModel}
                 />
                 <div
-                  style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}
+                  style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}
                 >
                   Non-off levels increase token spend. Pair with a
                   reasoning-capable model. Override per phase in Strategy → AI
@@ -875,7 +875,7 @@ export const AccountsPage = () => {
                     </div>
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--text3)",
                         fontFamily: "var(--font-mono)",
                       }}
@@ -909,7 +909,7 @@ export const AccountsPage = () => {
                         setStatus((s) => ({ ...s, broker: r.ok }));
                       }}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         padding: "6px 10px",
                         borderRadius: 7,
                         border: "1px solid var(--border)",
@@ -932,7 +932,7 @@ export const AccountsPage = () => {
                         void refetchWorkspace();
                       }}
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         padding: "6px 10px",
                         borderRadius: 7,
                         border: "1px solid rgba(248,113,113,0.35)",
@@ -1181,7 +1181,7 @@ export const AccountsPage = () => {
               {searchProviders.length === 0 ? (
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--text3)",
                     fontWeight: 500,
                   }}
@@ -1191,7 +1191,7 @@ export const AccountsPage = () => {
               ) : !hasTestedSearchProvider ? (
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--text3)",
                     fontWeight: 500,
                   }}
@@ -1269,7 +1269,7 @@ export const AccountsPage = () => {
                         </div>
                         <div
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: "var(--text3)",
                             fontFamily: "var(--font-mono)",
                           }}
@@ -1278,7 +1278,7 @@ export const AccountsPage = () => {
                         </div>
                         <div
                           style={{
-                            fontSize: 11,
+                            fontSize: 12,
                             color: statusColor,
                             marginTop: 4,
                             fontWeight: 600,
@@ -1301,7 +1301,7 @@ export const AccountsPage = () => {
                               type="button"
                               onClick={() => beginEditProviderKey(p)}
                               style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 padding: "6px 10px",
                                 borderRadius: 7,
                                 border: "1px solid var(--border)",
@@ -1327,7 +1327,7 @@ export const AccountsPage = () => {
                               void refetchProviders();
                             }}
                             style={{
-                              fontSize: 11,
+                              fontSize: 12,
                               padding: "6px 10px",
                               borderRadius: 7,
                               border: "1px solid var(--border)",
@@ -1343,7 +1343,7 @@ export const AccountsPage = () => {
                               disabled={rowSavingId === p.id}
                               onClick={() => void deleteProvider(p)}
                               style={{
-                                fontSize: 11,
+                                fontSize: 12,
                                 padding: "6px 10px",
                                 borderRadius: 7,
                                 border: "1px solid rgba(248,113,113,0.35)",

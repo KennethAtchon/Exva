@@ -43,6 +43,14 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
     >
       <div
         onClick={() => setOpen((o) => !o)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen((o) => !o);
+          }
+        }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -58,7 +66,7 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
           style={{
             flex: 1,
             fontFamily: "var(--font-mono)",
-            fontSize: 11,
+            fontSize: 12,
             color: "var(--text3)",
           }}
         >
@@ -66,7 +74,7 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
           {fmt.tokens(run.input_tokens + run.output_tokens)} tok ·{" "}
           {fmt.usd(run.cost_usd, 4)} · {fmt.duration(run.duration_ms)}
         </span>
-        <span style={{ fontSize: 11, color: "var(--text3)" }}>
+        <span style={{ fontSize: 12, color: "var(--text3)" }}>
           {open ? "▲" : "▼"}
         </span>
       </div>
@@ -94,7 +102,7 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
               <div key={k}>
                 <div
                   style={{
-                    fontSize: 10,
+                    fontSize: 12,
                     color: "var(--text3)",
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
@@ -149,6 +157,14 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
     >
       <div
         onClick={() => setOpen((o) => !o)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen((o) => !o);
+          }
+        }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -164,14 +180,14 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
           style={{
             flex: 1,
             fontFamily: "var(--font-mono)",
-            fontSize: 10,
+            fontSize: 12,
             color: "var(--text3)",
           }}
         >
           {msg.provider_key.replace(/^provider-/, "")} · {msg.model_id}
           {msg.cycle_id ? ` · cycle ${msg.cycle_id.slice(0, 8)}…` : ""}
         </span>
-        <span style={{ fontSize: 11, color: "var(--text3)" }}>
+        <span style={{ fontSize: 12, color: "var(--text3)" }}>
           {open ? "▲" : "▼"}
         </span>
       </div>
@@ -188,7 +204,7 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
           <pre
             style={{
               margin: 0,
-              fontSize: 11,
+              fontSize: 12,
               lineHeight: 1.45,
               color: "var(--text2)",
               background: "var(--surface2)",
@@ -205,14 +221,14 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
           {msg.tool_calls_json ? (
             <div>
               <div
-                style={{ fontSize: 10, color: "var(--text3)", marginBottom: 6 }}
+                style={{ fontSize: 12, color: "var(--text3)", marginBottom: 6 }}
               >
                 Tool calls
               </div>
               <pre
                 style={{
                   margin: 0,
-                  fontSize: 11,
+                  fontSize: 12,
                   lineHeight: 1.45,
                   color: "var(--text2)",
                   background: "var(--surface2)",
@@ -307,7 +323,7 @@ export const TradeDetail = ({
                   border: "1px solid var(--border)",
                   background: "transparent",
                   color: "var(--text3)",
-                  fontSize: 11,
+                  fontSize: 12,
                   cursor: "pointer",
                   fontFamily: "var(--font-mono)",
                   flexShrink: 0,
@@ -452,7 +468,7 @@ export const TradeDetail = ({
                               left: 10,
                               top: "50%",
                               transform: "translateY(-50%)",
-                              fontSize: 10,
+                              fontSize: 12,
                               color: "#f87171",
                               fontFamily: "var(--font-mono)",
                             }}
@@ -465,7 +481,7 @@ export const TradeDetail = ({
                               right: 10,
                               top: "50%",
                               transform: "translateY(-50%)",
-                              fontSize: 10,
+                              fontSize: 12,
                               color: "#34d399",
                               fontFamily: "var(--font-mono)",
                             }}
@@ -478,7 +494,7 @@ export const TradeDetail = ({
                             display: "flex",
                             justifyContent: "space-between",
                             marginTop: 5,
-                            fontSize: 10,
+                            fontSize: 12,
                             color: "var(--text3)",
                           }}
                         >
@@ -544,7 +560,7 @@ export const TradeDetail = ({
                   <div key={k}>
                     <div
                       style={{
-                        fontSize: 10,
+                        fontSize: 12,
                         color: "var(--text3)",
                         textTransform: "uppercase",
                         letterSpacing: "0.06em",
@@ -680,7 +696,7 @@ const ts: Record<string, CSSProperties> = {
     borderBottom: "1px solid var(--border)",
   },
   heroLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: "var(--text3)",
     textTransform: "uppercase",
     letterSpacing: "0.08em",
@@ -688,7 +704,7 @@ const ts: Record<string, CSSProperties> = {
     fontWeight: 600,
   },
   secTitle: {
-    fontSize: 11,
+    fontSize: 12,
     color: "var(--text3)",
     textTransform: "uppercase",
     letterSpacing: "0.08em",

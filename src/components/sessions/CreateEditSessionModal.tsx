@@ -438,7 +438,7 @@ export const CreateEditSessionModal = ({
                   </div>
                 ) : null}
                 {form.selectionMode === "ai_selected_universe" ? (
-                  <label style={switchRowStyle}>
+                  <div style={switchRowStyle}>
                     <Switch
                       checked={searchEverything}
                       onCheckedChange={(checked) => {
@@ -496,7 +496,7 @@ export const CreateEditSessionModal = ({
                         accounts define the full tradable universe.
                       </span>
                     </span>
-                  </label>
+                  </div>
                 ) : null}
                 {searchEverything && effectiveInstrumentClasses.length > 1 ? (
                   <Field label="Research focus">
@@ -601,7 +601,7 @@ export const CreateEditSessionModal = ({
                     disabled={searchEverything}
                   />
                 </Field>
-                <label style={switchRowStyle}>
+                <div style={switchRowStyle}>
                   <Switch
                     checked={form.selectorSettings.aiPickerEnabled}
                     disabled={searchEverything}
@@ -634,7 +634,7 @@ export const CreateEditSessionModal = ({
                       when the session calls for it.
                     </span>
                   </span>
-                </label>
+                </div>
               </div>
             </section>
 
@@ -658,7 +658,7 @@ export const CreateEditSessionModal = ({
                     visibleBrokers.map((broker) => {
                       const checked = assignedBrokerIdSet.has(broker.id);
                       return (
-                        <label key={broker.id} style={brokerRowStyle}>
+                        <div key={broker.id} style={brokerRowStyle}>
                           <Checkbox
                             checked={checked}
                             onCheckedChange={(nextChecked) =>
@@ -688,13 +688,13 @@ export const CreateEditSessionModal = ({
                                 display: "block",
                                 marginTop: 1,
                                 color: "var(--text3)",
-                                fontSize: 11,
+                                fontSize: 12,
                               }}
                             >
                               {broker.id} · {broker.brokerType}
                             </span>
                           </span>
-                        </label>
+                        </div>
                       );
                     })
                   )}
@@ -737,7 +737,7 @@ export const CreateEditSessionModal = ({
                               <div
                                 style={{
                                   color: "var(--text3)",
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   marginTop: 2,
                                 }}
                               >
@@ -879,7 +879,7 @@ const SectionHeader = ({
   <div style={{ marginBottom: 14 }}>
     <div
       style={{
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: 700,
         color: "var(--text3)",
         textTransform: "uppercase",
@@ -905,7 +905,7 @@ const Field = ({
     <span
       style={{
         color: "var(--text3)",
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 600,
         textTransform: "uppercase",
         letterSpacing: "0.08em",

@@ -198,7 +198,7 @@ function GlobalPresetCard({
           <span
             key={b.label}
             style={{
-              fontSize: 10,
+              fontSize: 12,
               fontWeight: 600,
               letterSpacing: 0.3,
               padding: "3px 8px",
@@ -224,7 +224,7 @@ function GlobalPresetCard({
               <span
                 style={{
                   color: "var(--text3)",
-                  fontSize: 10,
+                  fontSize: 12,
                   marginTop: 2,
                   flexShrink: 0,
                 }}
@@ -232,7 +232,7 @@ function GlobalPresetCard({
                 ▸
               </span>
               <span
-                style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.5 }}
+                style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.5 }}
               >
                 {b}
               </span>
@@ -445,6 +445,14 @@ export function CreateEditGlobalPresetModal({
   return (
     <div
       onClick={onClose}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClose();
+        }
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -459,6 +467,7 @@ export function CreateEditGlobalPresetModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="presentation"
         style={{
           width: "100%",
           maxWidth: 460,
@@ -495,7 +504,6 @@ export function CreateEditGlobalPresetModal({
         <div style={{ display: "grid", gap: 14 }}>
           <ModalField label="Preset name">
             <input
-              autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. My Swing Setup"
@@ -590,7 +598,7 @@ const ModalField = ({
   <div style={{ display: "grid", gap: 6 }}>
     <div
       style={{
-        fontSize: 11,
+        fontSize: 12,
         color: "var(--text3)",
         fontWeight: 600,
         letterSpacing: 0.4,

@@ -121,7 +121,7 @@ function SectionCard({
         >
           {title}
         </span>
-        <span style={{ fontSize: 11, color: "var(--text3)" }}>
+        <span style={{ fontSize: 12, color: "var(--text3)" }}>
           {open ? "▲" : "▼"}
         </span>
       </button>
@@ -161,7 +161,7 @@ function Chip({
         borderRadius: 4,
         background: bg ?? "var(--surface3)",
         color: color ?? "var(--text2)",
-        fontSize: 11,
+        fontSize: 12,
         fontFamily: "var(--font-mono)",
         fontWeight: 600,
       }}
@@ -193,7 +193,7 @@ function FieldRow({
     >
       <span
         style={{
-          fontSize: 10,
+          fontSize: 12,
           color: "var(--text3)",
           fontWeight: 700,
           letterSpacing: "0.07em",
@@ -304,7 +304,7 @@ function GradeBanner({
           <span style={{ color: "var(--text3)", fontSize: 12 }}>·</span>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               color: "var(--text3)",
               fontFamily: "var(--font-mono)",
             }}
@@ -314,7 +314,7 @@ function GradeBanner({
           <span style={{ color: "var(--text3)", fontSize: 12 }}>·</span>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               color: "var(--text3)",
               fontFamily: "var(--font-mono)",
             }}
@@ -324,7 +324,7 @@ function GradeBanner({
           <span style={{ color: "var(--text3)", fontSize: 12 }}>·</span>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               color: "var(--text3)",
               fontFamily: "var(--font-mono)",
             }}
@@ -361,7 +361,7 @@ function LegacySummaryCard({ autopsy }: { autopsy: TradeAutopsyRecord }) {
     >
       <div
         style={{
-          fontSize: 10,
+          fontSize: 12,
           color: "var(--text3)",
           fontWeight: 700,
           letterSpacing: "0.1em",
@@ -373,7 +373,7 @@ function LegacySummaryCard({ autopsy }: { autopsy: TradeAutopsyRecord }) {
       </div>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 12,
           color: "var(--text3)",
           fontFamily: "var(--font-mono)",
           marginBottom: 12,
@@ -425,14 +425,14 @@ function VersionSelector({
               border: `1px solid ${active ? "rgba(96,165,250,0.5)" : "var(--border)"}`,
               background: active ? "rgba(96,165,250,0.12)" : "transparent",
               color: active ? "#60a5fa" : "var(--text3)",
-              fontSize: 11,
+              fontSize: 12,
               fontFamily: "var(--font-mono)",
               cursor: "pointer",
             }}
           >
             v{autopsies.length - i} · {date}
             {active && (
-              <span style={{ marginLeft: 6, opacity: 0.7, fontSize: 9 }}>
+              <span style={{ marginLeft: 6, opacity: 0.7, fontSize: 12 }}>
                 ●
               </span>
             )}
@@ -648,7 +648,7 @@ function BehavioralCard({
                 />
                 <span
                   style={{
-                    fontSize: 10,
+                    fontSize: 12,
                     color: sevColor[f.severity],
                     fontFamily: "var(--font-mono)",
                     textTransform: "uppercase",
@@ -731,7 +731,7 @@ function WhatWorkedFailedCard({
         <div>
           <div
             style={{
-              fontSize: 10,
+              fontSize: 12,
               color: "#34d399",
               fontWeight: 700,
               letterSpacing: "0.08em",
@@ -760,7 +760,7 @@ function WhatWorkedFailedCard({
         <div>
           <div
             style={{
-              fontSize: 10,
+              fontSize: 12,
               color: "#f87171",
               fontWeight: 700,
               letterSpacing: "0.08em",
@@ -878,7 +878,7 @@ function TradeMetaCard({ trade }: { trade: Trade | null }) {
         style={{
           padding: "11px 14px",
           borderBottom: "1px solid var(--border)",
-          fontSize: 10,
+          fontSize: 12,
           color: "var(--text3)",
           fontWeight: 700,
           letterSpacing: "0.1em",
@@ -904,7 +904,7 @@ function TradeMetaCard({ trade }: { trade: Trade | null }) {
               alignItems: "center",
             }}
           >
-            <span style={{ fontSize: 11, color: "var(--text3)" }}>{k}</span>
+            <span style={{ fontSize: 12, color: "var(--text3)" }}>{k}</span>
             <span
               style={{
                 fontSize: 12,
@@ -1176,7 +1176,7 @@ export function AutopsyPage({
                       ? "rgba(52,211,153,0.15)"
                       : "rgba(248,113,113,0.15)",
                   color: resolvedTrade.side === "BUY" ? "#34d399" : "#f87171",
-                  fontSize: 11,
+                  fontSize: 12,
                   fontFamily: "var(--font-mono)",
                   fontWeight: 600,
                 }}

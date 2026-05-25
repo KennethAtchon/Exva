@@ -219,7 +219,7 @@ export const SessionExecutionProgress = ({
         >
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               color: "var(--text3)",
               textTransform: "uppercase",
               letterSpacing: "0.08em",
@@ -335,7 +335,7 @@ const infoRowStyle = {
 } as const;
 
 const roleChipStyle = {
-  fontSize: 10,
+  fontSize: 12,
   color: "var(--text2)",
   background: "rgba(255,255,255,0.05)",
   borderRadius: 4,
@@ -345,7 +345,7 @@ const roleChipStyle = {
 } as const;
 
 const statusChipStyle = {
-  fontSize: 10,
+  fontSize: 12,
   borderRadius: 999,
   padding: "2px 7px",
   fontFamily: "monospace",
@@ -353,7 +353,7 @@ const statusChipStyle = {
 } as const;
 
 const errorMessageStyle = {
-  fontSize: 10,
+  fontSize: 12,
   color: "rgba(251,146,60,0.8)",
   minWidth: 0,
   overflow: "hidden",
@@ -364,7 +364,7 @@ const errorMessageStyle = {
 const retryButtonStyle = {
   height: 24,
   padding: "0 8px",
-  fontSize: 11,
+  fontSize: 12,
   borderRadius: 6,
   border: "1px solid rgba(239,68,68,0.4)",
   color: "#fca5a5",
@@ -374,7 +374,7 @@ const retryButtonStyle = {
 const traceButtonStyle = {
   height: 24,
   padding: "0 8px",
-  fontSize: 11,
+  fontSize: 12,
   borderRadius: 6,
   border: "1px solid var(--border)",
   color: "var(--text2)",
@@ -385,7 +385,7 @@ const pauseToggleStyle = {
   display: "flex",
   alignItems: "center",
   gap: 4,
-  fontSize: 10,
+  fontSize: 12,
   color: "var(--text3)",
   background: "transparent",
   border: "none",
@@ -404,7 +404,7 @@ const pauseDotStyle = {
 } as const;
 
 const cycleIdStyle = {
-  fontSize: 10,
+  fontSize: 12,
   color: "var(--text3)",
   fontFamily: "monospace",
   opacity: 0.6,

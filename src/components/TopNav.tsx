@@ -187,9 +187,18 @@ export const TopNav = ({
                 <span
                   style={s.attentionBadgeStyle}
                   title={`${attentionCount} session(s) need attention`}
+                  role="button"
+                  tabIndex={0}
                   onClick={(event) => {
                     event.stopPropagation();
                     onNavigateToAttentionSessions?.();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onNavigateToAttentionSessions?.();
+                    }
                   }}
                 >
                   {attentionCount}
@@ -226,7 +235,7 @@ export const TopNav = ({
           />
           <span
             style={{
-              fontSize: 11,
+              fontSize: 12,
               color: environmentMode === "live" ? "#34d399" : "#fbbf24",
               fontWeight: 500,
             }}
@@ -252,7 +261,7 @@ export const TopNav = ({
             title="No session focused — viewing global workspace. Go to Sessions to focus a session."
           >
             <span
-              style={{ fontSize: 11, color: "var(--text3)", fontWeight: 500 }}
+              style={{ fontSize: 12, color: "var(--text3)", fontWeight: 500 }}
             >
               Global
             </span>
@@ -428,7 +437,7 @@ const s: Record<string, CSSProperties> = {
     background: "rgba(251,113,133,0.18)",
     border: "1px solid rgba(251,113,133,0.35)",
     color: "#fb7185",
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 700,
     display: "inline-flex",
     alignItems: "center",
@@ -479,7 +488,7 @@ const s: Record<string, CSSProperties> = {
     overflow: "hidden",
   },
   sessionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: "var(--text1)",
     fontWeight: 500,
     overflow: "hidden",
@@ -487,7 +496,7 @@ const s: Record<string, CSSProperties> = {
     whiteSpace: "nowrap",
   },
   sessionStatus: {
-    fontSize: 10,
+    fontSize: 12,
     color: "var(--text3)",
     fontWeight: 400,
     paddingLeft: 4,
@@ -504,7 +513,7 @@ const s: Record<string, CSSProperties> = {
     border: "1px solid rgba(96,165,250,0.25)",
     background: "rgba(96,165,250,0.08)",
     color: "rgba(96,165,250,0.9)",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 500,
     cursor: "pointer",
     whiteSpace: "nowrap",
@@ -567,7 +576,7 @@ const s: Record<string, CSSProperties> = {
     border: "1px solid rgba(251,146,60,0.35)",
     borderRadius: 8,
     color: "#fdba74",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
     fontFamily: "var(--font-mono)",
@@ -579,7 +588,7 @@ const s: Record<string, CSSProperties> = {
     border: "1px solid rgba(239,68,68,0.55)",
     borderRadius: 8,
     color: "#fecaca",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 700,
     cursor: "pointer",
     fontFamily: "var(--font-mono)",

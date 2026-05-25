@@ -99,7 +99,7 @@ export function RuntimeEventToast() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: 700,
                   letterSpacing: "0.06em",
                   color: isError ? "#fca5a5" : isInfo ? "#93c5fd" : "#fcd34d",

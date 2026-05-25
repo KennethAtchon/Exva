@@ -160,11 +160,19 @@ function LessonRow({
     >
       {/* Header row */}
       <div
+        role="button"
+        tabIndex={0}
         style={{
           padding: "10px 12px 8px",
           cursor: "pointer",
         }}
         onClick={() => setExpanded((e) => !e)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setExpanded((e) => !e);
+          }
+        }}
       >
         {/* Chips row */}
         <div
@@ -184,7 +192,7 @@ function LessonRow({
               padding: "2px 7px",
               borderRadius: 4,
               background: "var(--surface3)",
-              fontSize: 10,
+              fontSize: 12,
               fontFamily: "var(--font-mono)",
               color: sev.dot,
               fontWeight: 600,
@@ -208,7 +216,7 @@ function LessonRow({
               padding: "2px 7px",
               borderRadius: 4,
               background: "var(--surface3)",
-              fontSize: 10,
+              fontSize: 12,
               fontFamily: "var(--font-mono)",
               color: "var(--text3)",
               textTransform: "uppercase",
@@ -225,7 +233,7 @@ function LessonRow({
                 padding: "2px 7px",
                 borderRadius: 4,
                 background: "rgba(251,191,36,0.12)",
-                fontSize: 10,
+                fontSize: 12,
                 fontFamily: "var(--font-mono)",
                 color: "#fbbf24",
               }}
@@ -263,7 +271,7 @@ function LessonRow({
         >
           <div
             style={{
-              fontSize: 10,
+              fontSize: 12,
               color: "var(--text3)",
               textTransform: "uppercase",
               letterSpacing: "0.07em",
@@ -306,7 +314,7 @@ function LessonRow({
               border: "none",
               background: st.bg,
               color: st.color,
-              fontSize: 10,
+              fontSize: 12,
               fontFamily: "var(--font-mono)",
               fontWeight: 600,
               cursor: "pointer",
@@ -319,12 +327,20 @@ function LessonRow({
             <>
               {/* Backdrop */}
               <div
+                role="button"
+                tabIndex={0}
                 style={{
                   position: "fixed",
                   inset: 0,
                   zIndex: 49,
                 }}
                 onClick={() => setPickerOpen(false)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setPickerOpen(false);
+                  }
+                }}
               />
               <StatusPicker
                 current={lesson.status}
@@ -418,7 +434,7 @@ export function LessonsPanel({
       >
         <span
           style={{
-            fontSize: 10,
+            fontSize: 12,
             color: "var(--text3)",
             fontWeight: 700,
             letterSpacing: "0.1em",
@@ -441,7 +457,7 @@ export function LessonsPanel({
             border: "1px solid var(--border)",
             background: "transparent",
             color: "var(--text2)",
-            fontSize: 11,
+            fontSize: 12,
             cursor: onAddLesson ? "pointer" : "not-allowed",
             opacity: onAddLesson ? 1 : 0.55,
           }}
@@ -503,7 +519,7 @@ export function LessonsPanel({
             style={inputStyle}
           />
           {error && (
-            <div style={{ fontSize: 11, color: "#fca5a5", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: "#fca5a5", lineHeight: 1.5 }}>
               {error}
             </div>
           )}

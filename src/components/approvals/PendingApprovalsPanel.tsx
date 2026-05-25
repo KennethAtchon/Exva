@@ -60,7 +60,7 @@ export const PendingApprovalsPanel = ({
                   {workspaceViewMode === "global" && (
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--text3)",
                         marginBottom: 4,
                       }}
@@ -80,7 +80,7 @@ export const PendingApprovalsPanel = ({
                   {a.instrumentDisplayName ? (
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--text3)",
                         marginTop: 2,
                       }}
@@ -90,7 +90,7 @@ export const PendingApprovalsPanel = ({
                   ) : null}
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       color: "var(--text3)",
                       marginTop: 4,
                     }}
@@ -103,7 +103,7 @@ export const PendingApprovalsPanel = ({
                   </div>
                   <div
                     style={{
-                      fontSize: 10,
+                      fontSize: 12,
                       color: "var(--text3)",
                       marginTop: 4,
                     }}

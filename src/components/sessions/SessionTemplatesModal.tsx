@@ -88,7 +88,7 @@ export const SessionTemplatesModal = ({
             <div>
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   letterSpacing: "0.14em",
                   textTransform: "uppercase",
                   color: "var(--text3)",
@@ -445,7 +445,7 @@ const chipStyle = {
   border: "1px solid var(--border)",
   background: "rgba(7,10,15,0.38)",
   color: "var(--text2)",
-  fontSize: 11,
+  fontSize: 12,
 } as const;
 const errorBannerStyle = {
   marginBottom: 16,

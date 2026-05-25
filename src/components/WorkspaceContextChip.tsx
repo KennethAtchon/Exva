@@ -59,7 +59,7 @@ export const WorkspaceContextChip = ({
       >
         <div
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: "var(--text3)",
             marginBottom: 8,
             textTransform: "uppercase",
@@ -86,7 +86,7 @@ export const WorkspaceContextChip = ({
             className="justify-between rounded-lg text-[var(--text2)]"
           >
             <span>{session.name}</span>
-            <span style={{ color: "var(--text3)", fontSize: 11 }}>
+            <span style={{ color: "var(--text3)", fontSize: 12 }}>
               {session.status}
             </span>
           </DropdownMenuItem>

@@ -83,7 +83,7 @@ const ModelCombobox = ({
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[12px]">{o.label}</div>
                     {o.label !== o.id && (
-                      <div className="truncate font-mono text-[10px] text-[var(--text3)]">
+                      <div className="truncate font-mono text-[12px] text-[var(--text3)]">
                         {o.id}
                       </div>
                     )}
@@ -144,4 +144,4 @@ export const ProviderModelPicker = ({
 );
 
 const fieldStyle = { display: "grid", gap: 4 } as const;
-const fieldLabelStyle = { fontSize: 11, color: "var(--text3)" } as const;
+const fieldLabelStyle = { fontSize: 12, color: "var(--text3)" } as const;

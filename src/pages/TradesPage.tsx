@@ -134,7 +134,7 @@ export const TradesPage = ({
           }}
         />
         {viewMode === "global" && (
-          <label
+          <div
             style={{
               display: "flex",
               alignItems: "center",
@@ -153,7 +153,7 @@ export const TradesPage = ({
               }}
             />
             Include archived sessions
-          </label>
+          </div>
         )}
       </div>
 
@@ -166,7 +166,7 @@ export const TradesPage = ({
           alignItems: "flex-end",
         }}
       >
-        <label style={filterLabelStyle}>
+        <div style={filterLabelStyle}>
           Symbol
           <input
             value={symbolContains}
@@ -174,8 +174,8 @@ export const TradesPage = ({
             placeholder="e.g. AAPL"
             style={filterInputStyle}
           />
-        </label>
-        <label style={filterLabelStyle}>
+        </div>
+        <div style={filterLabelStyle}>
           Class
           <ShadcnSelect
             value={instrumentType}
@@ -190,8 +190,8 @@ export const TradesPage = ({
               { value: "futures", label: "Futures" },
             ]}
           />
-        </label>
-        <label style={filterLabelStyle}>
+        </div>
+        <div style={filterLabelStyle}>
           Broker account id
           <input
             value={brokerAccountId}
@@ -199,9 +199,9 @@ export const TradesPage = ({
             placeholder="UUID"
             style={filterInputStyle}
           />
-        </label>
+        </div>
         {viewMode === "global" ? (
-          <label style={filterLabelStyle}>
+          <div style={filterLabelStyle}>
             Session
             <ShadcnSelect
               value={sessionFilterId}
@@ -215,7 +215,7 @@ export const TradesPage = ({
                 })),
               ]}
             />
-          </label>
+          </div>
         ) : null}
       </Card>
 
@@ -243,7 +243,7 @@ export const TradesPage = ({
           <Card key={String(lbl)} style={{ flex: 1, padding: "18px 22px" }}>
             <div
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 color: "var(--text3)",
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
@@ -306,7 +306,7 @@ export const TradesPage = ({
                   ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
                   : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px",
               padding: "10px 20px 8px",
-              fontSize: 10,
+              fontSize: 12,
               color: "var(--text3)",
               textTransform: "uppercase",
               letterSpacing: "0.07em",
@@ -341,6 +341,14 @@ export const TradesPage = ({
               <div
                 key={t.id}
                 onClick={() => setSelected(t.id === selectedId ? null : t.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelected(t.id === selectedId ? null : t.id);
+                  }
+                }}
                 style={{
                   display: "grid",
                   gridTemplateColumns:
@@ -390,7 +398,7 @@ export const TradesPage = ({
                   {t.instrumentDisplayName ? (
                     <span
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--text3)",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -455,7 +463,7 @@ export const TradesPage = ({
                 <span
                   style={{
                     fontFamily: "var(--font-mono)",
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--text3)",
                   }}
                 >
@@ -478,7 +486,7 @@ export const TradesPage = ({
                 <span
                   style={{
                     fontFamily: "var(--font-mono)",
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "var(--text3)",
                   }}
                 >
@@ -496,7 +504,7 @@ export const TradesPage = ({
                       border: "1px solid var(--border)",
                       background: "transparent",
                       color: "var(--text3)",
-                      fontSize: 10,
+                      fontSize: 12,
                       cursor: "pointer",
                       fontFamily: "var(--font-mono)",
                       letterSpacing: "0.03em",
@@ -520,7 +528,7 @@ const filterLabelStyle = {
   display: "flex",
   flexDirection: "column" as const,
   gap: 6,
-  fontSize: 11,
+  fontSize: 12,
   color: "var(--text3)",
   textTransform: "uppercase" as const,
   letterSpacing: "0.06em",

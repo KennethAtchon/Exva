@@ -187,7 +187,7 @@ export const SessionTable = ({
               <div
                 style={{
                   marginTop: 8,
-                  fontSize: 11,
+                  fontSize: 12,
                   color: "#fca5a5",
                   lineHeight: 1.4,
                 }}
@@ -391,7 +391,7 @@ const Metric = ({ label, value }: { label: string; value: string }) => (
     <div
       style={{
         marginTop: 2,
-        fontSize: 10,
+        fontSize: 12,
         letterSpacing: "0.10em",
         textTransform: "uppercase",
         color: "var(--text3)",
@@ -406,7 +406,7 @@ const MetaBlock = ({ label, value }: { label: string; value: string }) => (
   <div style={{ minWidth: 0 }}>
     <div
       style={{
-        fontSize: 10,
+        fontSize: 12,
         letterSpacing: "0.10em",
         textTransform: "uppercase",
         color: "var(--text3)",
@@ -521,7 +521,7 @@ const chipStyle = {
   border: "1px solid var(--border)",
   background: "rgba(7,10,15,0.5)",
   color: "var(--text2)",
-  fontSize: 10,
+  fontSize: 12,
   fontWeight: 500,
   letterSpacing: "0.02em",
 } as const;

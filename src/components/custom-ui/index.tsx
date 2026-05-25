@@ -41,8 +41,8 @@ export const Badge = ({
       className={cn(
         "inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] font-mono font-medium tracking-wide",
         size === "sm"
-          ? "px-[7px] py-[2px] text-[10px]"
-          : "px-[9px] py-[3px] text-[11px]",
+          ? "px-[7px] py-[2px] text-[12px]"
+          : "px-[9px] py-[3px] text-[12px]",
         tone[variant],
       )}
     >
@@ -116,7 +116,7 @@ export const PageShell = ({ children }: { children: ReactNode }) => (
 );
 
 export const SectionTitle = ({ children }: { children: ReactNode }) => (
-  <h2 className="m-0 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+  <h2 className="m-0 text-[12px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
     {children}
   </h2>
 );

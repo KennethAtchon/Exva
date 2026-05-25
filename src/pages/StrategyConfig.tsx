@@ -721,7 +721,7 @@ const Step = ({ n, text }: { n: number; text: string }) => (
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: 700,
         color: "var(--text2)",
         flexShrink: 0,
@@ -855,7 +855,7 @@ const activeGlobalPresetStyle = {
 } as const;
 const activeGlobalPresetEyebrowStyle = {
   color: "rgba(147,197,253,0.85)",
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 700,
   letterSpacing: 0.35,
   textTransform: "uppercase" as const,
@@ -886,7 +886,7 @@ const activeGlobalPresetSourceStyle = (
       source === "user" ? "rgba(34,197,94,0.12)" : "rgba(96,165,250,0.12)",
     color:
       source === "user" ? "rgba(187,247,208,0.96)" : "rgba(191,219,254,0.96)",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 700,
     letterSpacing: 0.2,
   }) as const;
@@ -908,7 +908,7 @@ const presetBadgeStyle = {
   border: "1px solid rgba(96,165,250,0.28)",
   background: "rgba(96,165,250,0.12)",
   color: "rgba(191,219,254,0.96)",
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 700,
   letterSpacing: 0.2,
 } as const;
@@ -1437,7 +1437,7 @@ const RiskSection = ({
           style={inputStyle}
         />
       </Field>
-      <label
+      <div
         style={{
           display: "flex",
           alignItems: "center",
@@ -1454,7 +1454,7 @@ const RiskSection = ({
           disabled={isLocked}
         />
         Human Approval Required
-      </label>
+      </div>
     </div>
   </Card>
 );

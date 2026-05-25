@@ -171,6 +171,14 @@ const TradeRow = ({
   return (
     <div
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       style={{
         ...ds.tradeRow,
         background: selected ? "var(--surface2)" : "transparent",
@@ -192,7 +200,7 @@ const TradeRow = ({
           {trade.instrumentDisplayName ? (
             <span
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 color: "var(--text3)",
                 maxWidth: 120,
                 overflow: "hidden",
@@ -367,7 +375,7 @@ const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
           {ap ? (
             <span
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 600,
                 color: ap.color,
                 letterSpacing: "0.02em",
@@ -378,7 +386,7 @@ const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
           ) : (
             <span
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 color: LEVEL_COLOR[ev.level],
                 fontFamily: "var(--font-mono)",
                 fontWeight: 600,
@@ -391,7 +399,7 @@ const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
           {ev.trade_id && (
             <span
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 color: "var(--text3)",
                 fontFamily: "var(--font-mono)",
                 background: "var(--surface3)",
@@ -404,7 +412,7 @@ const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
           )}
           <span
             style={{
-              fontSize: 10,
+              fontSize: 12,
               color: "var(--text3)",
               fontFamily: "var(--font-mono)",
               marginLeft: "auto",
@@ -534,7 +542,7 @@ export const Dashboard = () => {
         </div>
       </div>
       {viewMode === "global" && (
-        <label style={ds.archivedToggle}>
+        <div style={ds.archivedToggle}>
           <Checkbox
             checked={preferences?.globalIncludeArchived ?? false}
             onCheckedChange={async (checked) => {
@@ -545,7 +553,7 @@ export const Dashboard = () => {
             }}
           />
           Include archived sessions
-        </label>
+        </div>
       )}
       <StatStrip stats={stats} />
       <div style={ds.approvalsWrap}>
@@ -614,7 +622,7 @@ export const Dashboard = () => {
             <SectionTitle>Agent Feed</SectionTitle>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <Dot color="#34d399" pulse size={6} />
-              <span style={{ fontSize: 11, color: "var(--text3)" }}>live</span>
+              <span style={{ fontSize: 12, color: "var(--text3)" }}>live</span>
             </div>
           </div>
           <div style={{ overflowY: "auto", flex: 1, padding: "4px 0 8px 8px" }}>
@@ -650,7 +658,7 @@ const ds: Record<string, CSSProperties> = {
   },
   headerTitleBlock: { minWidth: 0, flex: "1 1 auto" },
   headerEyebrow: {
-    fontSize: 10,
+    fontSize: 12,
     letterSpacing: "0.16em",
     textTransform: "uppercase",
     color: "var(--text3)",
@@ -702,7 +710,7 @@ const ds: Record<string, CSSProperties> = {
     minWidth: 0,
   },
   stripLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: "var(--text3)",
     textTransform: "uppercase",
     letterSpacing: "0.08em",
@@ -749,7 +757,7 @@ const ds: Record<string, CSSProperties> = {
     padding: "0 24px 10px",
     gap: 0,
     borderBottom: "1px solid var(--border)",
-    fontSize: 10,
+    fontSize: 12,
     color: "var(--text3)",
     textTransform: "uppercase",
     letterSpacing: "0.07em",

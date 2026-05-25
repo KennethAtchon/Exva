@@ -43,6 +43,14 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
       {/* Header */}
       <div
         onClick={() => setOpen((o) => !o)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen((o) => !o);
+          }
+        }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -60,7 +68,7 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
             borderRadius: 4,
             background: `${ph.color}22`,
             color: ph.color,
-            fontSize: 10,
+            fontSize: 12,
             fontFamily: "var(--font-mono)",
             fontWeight: 700,
             letterSpacing: "0.05em",
@@ -74,7 +82,7 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
         <span
           style={{
             flex: 1,
-            fontSize: 11,
+            fontSize: 12,
             color: "var(--text3)",
             fontFamily: "var(--font-mono)",
           }}
@@ -87,7 +95,7 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
         {hasError && (
           <span
             style={{
-              fontSize: 10,
+              fontSize: 12,
               color: "#f87171",
               fontFamily: "var(--font-mono)",
               marginRight: 4,
@@ -97,7 +105,7 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
           </span>
         )}
 
-        <span style={{ fontSize: 11, color: "var(--text3)", flexShrink: 0 }}>
+        <span style={{ fontSize: 12, color: "var(--text3)", flexShrink: 0 }}>
           {open ? "▲" : "▼"}
         </span>
       </div>
@@ -173,7 +181,7 @@ function PromptBlock({
     <div>
       <div
         style={{
-          fontSize: 9,
+          fontSize: 12,
           color: "var(--text3)",
           fontFamily: "var(--font-mono)",
           letterSpacing: "0.1em",
@@ -191,7 +199,7 @@ function PromptBlock({
           background: "var(--bg)",
           border: "1px solid var(--border)",
           borderLeft: borderColor ? `3px solid ${borderColor}` : undefined,
-          fontSize: 11,
+          fontSize: 12,
           lineHeight: 1.5,
           fontFamily: "var(--font-mono)",
           color: color ?? "var(--text2)",
@@ -239,7 +247,7 @@ function VersionChips({
               border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
               background: active ? "rgba(96,165,250,0.15)" : "transparent",
               color: active ? "#60a5fa" : "var(--text3)",
-              fontSize: 11,
+              fontSize: 12,
               fontFamily: "var(--font-mono)",
               cursor: "pointer",
             }}
@@ -338,7 +346,7 @@ export function ChatHistoryModal({
             {autopsy && (
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   color: "var(--text3)",
                   fontFamily: "var(--font-mono)",
                 }}

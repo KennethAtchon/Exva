@@ -19,7 +19,7 @@ const PHASE_LABELS: Record<PipelinePhase, string> = {
 };
 
 const fieldLabelStyle: CSSProperties = {
-  fontSize: 11,
+  fontSize: 12,
   color: "var(--text3)",
   marginBottom: 4,
   textTransform: "uppercase",
@@ -198,7 +198,7 @@ const PhaseCard = ({
             placeholder="Off"
             disabled={isLocked}
           />
-          <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
             Non-off levels increase token spend. Pair with a reasoning-capable
             model.
           </div>
@@ -215,7 +215,7 @@ const PhaseCard = ({
             <div style={{ fontSize: 13, color: "var(--text1)" }}>
               Session prompt override
             </div>
-            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
               Replace the bundled worker prompt for this phase.
             </div>
           </div>
@@ -246,7 +246,7 @@ const PhaseCard = ({
           />
         )}
         {config.workerOverrides.length > 0 && (
-          <div style={{ fontSize: 11, color: "var(--text3)" }}>
+          <div style={{ fontSize: 12, color: "var(--text3)" }}>
             {config.workerOverrides.length} worker override
             {config.workerOverrides.length === 1 ? "" : "s"} configured
           </div>

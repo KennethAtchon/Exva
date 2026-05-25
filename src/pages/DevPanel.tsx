@@ -137,14 +137,14 @@ const ROLE_COLOR: Record<string, string> = {
 const S = {
   mono9: {
     fontFamily: "var(--font-mono)",
-    fontSize: 9,
+    fontSize: 12,
     letterSpacing: "0.08em",
   } as const,
-  mono10: { fontFamily: "var(--font-mono)", fontSize: 10 } as const,
-  mono11: { fontFamily: "var(--font-mono)", fontSize: 11 } as const,
+  mono10: { fontFamily: "var(--font-mono)", fontSize: 12 } as const,
+  mono11: { fontFamily: "var(--font-mono)", fontSize: 12 } as const,
   label: {
     fontFamily: "var(--font-mono)",
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: 800,
     letterSpacing: "0.12em",
     textTransform: "uppercase" as const,

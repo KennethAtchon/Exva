@@ -29,6 +29,10 @@
     "test:e2e": "playwright test",
     "prepare": "husky",
     "doctor": "react-doctor",
+    "doctor:scan": "bunx react-doctor . --verbose",
+    "doctor:fix:safe": "bun run scripts/react-doctor-fix.ts --safe",
+    "doctor:fix:safe:dry": "bun run scripts/react-doctor-fix.ts --safe --dry-run",
+    "doctor:fix:tiny-text": "bun run scripts/react-doctor-fix.ts --rule no-tiny-text",
     "logs:clear": "rm -f \"$HOME/.exva/logs\"/*.log",
     "clean": "rm -rf node_modules && rm -rf dist && rm -rf .vite"
   },

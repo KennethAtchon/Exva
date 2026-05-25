@@ -492,7 +492,7 @@ export const SessionDetailDrawer = ({
                       <span
                         style={{
                           color: "var(--text3)",
-                          fontSize: 10,
+                          fontSize: 12,
                           paddingTop: 1,
                           whiteSpace: "nowrap",
                         }}
@@ -638,7 +638,7 @@ const sectionStyle = {
 } as const;
 
 const sectionTitleStyle = {
-  fontSize: 10,
+  fontSize: 12,
   fontWeight: 700,
   color: "var(--text3)",
   textTransform: "uppercase" as const,
@@ -648,7 +648,7 @@ const sectionTitleStyle = {
 
 const rowLabelStyle = {
   color: "var(--text3)",
-  fontSize: 11,
+  fontSize: 12,
   lineHeight: 1.5,
   paddingTop: 1,
 } as const;
@@ -659,7 +659,7 @@ const cacheChipStyle = {
   border: "1px solid var(--border)",
   background: "rgba(7,10,15,0.4)",
   color: "var(--text2)",
-  fontSize: 11,
+  fontSize: 12,
 } as const;
 
 const mutedStyle = { color: "var(--text3)", fontSize: 13 } as const;

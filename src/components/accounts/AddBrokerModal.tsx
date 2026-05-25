@@ -171,7 +171,7 @@ export const AddBrokerModal = ({
               { value: "polymarket", label: "Polymarket (prediction markets)" },
             ]}
           />
-          <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>
+          <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 6 }}>
             Supports: {supportedHint().join(", ")}
           </div>
         </div>
@@ -189,7 +189,7 @@ export const AddBrokerModal = ({
                 label: `${MOCK_SCENARIO_LABELS[kind].label} ${MOCK_SCENARIO_LABELS[kind].outcome}`,
               }))}
             />
-            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 6 }}>
               Use Clean breakout to verify the bot selects, decides, and fills a
               trade end-to-end.
             </div>

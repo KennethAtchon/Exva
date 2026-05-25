@@ -117,7 +117,7 @@ export const BrokersPage = ({
         <div>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               color: "var(--text3)",
@@ -141,7 +141,7 @@ export const BrokersPage = ({
         <Card style={{ minWidth: 220, padding: 18 }}>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: "0.12em",
               textTransform: "uppercase",
               color: "var(--text3)",
@@ -344,7 +344,7 @@ export const BrokersPage = ({
                 <div style={{ display: "grid", gap: 8 }}>
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       letterSpacing: "0.1em",
                       textTransform: "uppercase",
                       color: "var(--text3)",
@@ -372,7 +372,7 @@ export const BrokersPage = ({
                           <div
                             style={{
                               color: "var(--text3)",
-                              fontSize: 11,
+                              fontSize: 12,
                               marginTop: 2,
                             }}
                           >
@@ -572,7 +572,7 @@ const settingsPanelStyle = {
 const fieldStyle = { display: "grid", gap: 6 };
 const fieldLabelStyle = {
   color: "var(--text3)",
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 600,
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",

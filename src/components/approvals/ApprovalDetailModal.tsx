@@ -130,7 +130,7 @@ export const ApprovalDetailModal = ({
             border: "1px solid var(--border)",
           }}
         >
-          <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 6 }}>
+          <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 6 }}>
             Decision snapshot
           </div>
           {typeof summary.reasoning === "string" && (
@@ -261,7 +261,7 @@ function renderSessionHorizon(value: unknown): ReactNode {
         border: "1px solid rgba(96,165,250,0.22)",
       }}
     >
-      <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 8 }}>
+      <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 8 }}>
         Session trading horizon
       </div>
       <ul
