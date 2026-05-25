@@ -142,81 +142,84 @@ const LockedWarning = ({
 const StrategyHeader = ({
   activeView,
   setActiveView,
-  hasDirty,
-  isSaving,
-  isLocked,
+  saveState,
   focusedSessionId,
   saveAll,
 }: {
   activeView: "presets" | "customize";
   setActiveView: (view: "presets" | "customize") => void;
-  hasDirty: boolean;
-  isSaving: boolean;
-  isLocked: boolean;
+  saveState: "locked" | "clean" | "dirty" | "saving";
   focusedSessionId: string;
   saveAll: (id: string) => Promise<void>;
-}) => (
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}
-  >
-    <div>
-      <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>
-        Strategy
-      </h1>
-      <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
-        Separate research posture, trade rules, risk limits, timeframe, phase
-        operating briefs, and AI phase model/prompt settings for the focused
-        session.
-      </p>
-    </div>
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={viewToggleContainerStyle}>
+}) => {
+  const isSaving = saveState === "saving";
+  const canSave = saveState === "dirty";
+  const showActiveSaveStyle = saveState === "dirty" || saveState === "saving";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+      }}
+    >
+      <div>
+        <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>
+          Strategy
+        </h1>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
+          Separate research posture, trade rules, risk limits, timeframe, phase
+          operating briefs, and AI phase model/prompt settings for the focused
+          session.
+        </p>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={viewToggleContainerStyle}>
+          <button
+            type="button"
+            onClick={() => setActiveView("presets")}
+            style={
+              activeView === "presets"
+                ? viewToggleActiveStyle
+                : viewToggleInactiveStyle
+            }
+          >
+            Presets
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveView("customize")}
+            style={
+              activeView === "customize"
+                ? viewToggleActiveStyle
+                : viewToggleInactiveStyle
+            }
+          >
+            Customize
+          </button>
+        </div>
         <button
-          type="button"
-          onClick={() => setActiveView("presets")}
-          style={
-            activeView === "presets"
-              ? viewToggleActiveStyle
-              : viewToggleInactiveStyle
-          }
+          onClick={() => void saveAll(focusedSessionId)}
+          disabled={!canSave}
+          style={{
+            padding: "9px 18px",
+            borderRadius: 9,
+            border: "none",
+            background: showActiveSaveStyle
+              ? "var(--accent)"
+              : "var(--surface3)",
+            color: showActiveSaveStyle ? "#fff" : "var(--text3)",
+            cursor: canSave ? "pointer" : "not-allowed",
+            fontWeight: 700,
+          }}
         >
-          Presets
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveView("customize")}
-          style={
-            activeView === "customize"
-              ? viewToggleActiveStyle
-              : viewToggleInactiveStyle
-          }
-        >
-          Customize
+          {isSaving ? "Saving..." : "Save Changes"}
         </button>
       </div>
-      <button
-        onClick={() => void saveAll(focusedSessionId)}
-        disabled={!hasDirty || isSaving || isLocked}
-        style={{
-          padding: "9px 18px",
-          borderRadius: 9,
-          border: "none",
-          background:
-            !hasDirty || isLocked ? "var(--surface3)" : "var(--accent)",
-          color: !hasDirty || isLocked ? "var(--text3)" : "#fff",
-          cursor: !hasDirty || isLocked ? "not-allowed" : "pointer",
-          fontWeight: 700,
-        }}
-      >
-        {isSaving ? "Saving..." : "Save Changes"}
-      </button>
     </div>
-  </div>
-);
+  );
+};
 
 const PresetPanel = ({
   builtInGlobalPresets,
@@ -645,9 +648,9 @@ const renderStrategyConfigMainView = ({
     <StrategyHeader
       activeView={activeView}
       setActiveView={setActiveView}
-      hasDirty={hasDirty}
-      isSaving={isSaving}
-      isLocked={isLocked}
+      saveState={
+        isSaving ? "saving" : isLocked ? "locked" : hasDirty ? "dirty" : "clean"
+      }
       focusedSessionId={focusedSessionId}
       saveAll={saveAll}
     />

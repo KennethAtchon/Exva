@@ -60,6 +60,12 @@ interface Props {
   stats: DashboardStats | null;
 }
 
+type SessionStatusView = {
+  context: "global" | "focused";
+  lifecycle: "inactive" | "active" | "draining";
+  tradeState: "none" | "open";
+};
+
 const NavItems = ({
   activePage,
   onNavigate,
@@ -137,34 +143,31 @@ const NavStatus = ({
   environmentMode,
   stats,
   sessionStatus,
-  isGlobal,
+  statusView,
   sessionName,
   ss,
   aiReady,
   sessionControlsDisabled,
   sessionActionPending,
-  isRunning,
-  isDraining,
-  hasOpenTrades,
   onSessionAction,
 }: {
   environmentMode: "live" | "paper";
   stats: DashboardStats | null;
   sessionStatus: SessionStatus;
-  isGlobal: boolean;
+  statusView: SessionStatusView;
   sessionName: string;
   ss: { label: string; dot: string; pulse: boolean };
   aiReady: boolean | null | undefined;
   sessionControlsDisabled: boolean;
   sessionActionPending: boolean;
-  isRunning: boolean;
-  isDraining: boolean;
-  hasOpenTrades: boolean;
   onSessionAction: (
     a: "start" | "pause" | "resume" | "stop" | "forceStop",
   ) => void;
 }) => {
-  const isMonitorAlive = isRunning || isDraining;
+  const isGlobal = statusView.context === "global";
+  const isRunning = statusView.lifecycle === "active";
+  const isMonitorAlive = statusView.lifecycle !== "inactive";
+  const hasOpenTrades = statusView.tradeState === "open";
   const stopWhenFlatTitle =
     "Stops new research immediately and completes shutdown once all open trades close.";
   return (
@@ -392,6 +395,11 @@ export const TopNav = ({
       sessionStatus === "idle" ||
       sessionStatus === "stopped") &&
     activePage !== "strategy";
+  const statusView: SessionStatusView = {
+    context: isGlobal ? "global" : "focused",
+    lifecycle: isDraining ? "draining" : isRunning ? "active" : "inactive",
+    tradeState: hasOpenTrades ? "open" : "none",
+  };
 
   return (
     <header style={s.bar}>
@@ -426,15 +434,12 @@ export const TopNav = ({
         environmentMode={environmentMode}
         stats={stats}
         sessionStatus={sessionStatus}
-        isGlobal={isGlobal}
+        statusView={statusView}
         sessionName={sessionName}
         ss={ss}
         aiReady={aiReady}
         sessionControlsDisabled={sessionControlsDisabled}
         sessionActionPending={sessionActionPending}
-        isRunning={isRunning}
-        isDraining={isDraining}
-        hasOpenTrades={hasOpenTrades}
         onSessionAction={onSessionAction}
       />
     </header>

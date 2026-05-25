@@ -1052,9 +1052,11 @@ const ActionStrip = ({
             diagnostics={diagnostics}
             retryableStep={retryableStep}
             failedNonRetryable={failedNonRetryable}
-            canRetry={canRetry}
-            canPause={canPause}
-            canClear={canClear}
+            capabilities={{
+              retry: canRetry ? "enabled" : "disabled",
+              pause: canPause ? "enabled" : "disabled",
+              clear: canClear ? "enabled" : "disabled",
+            }}
           />
         )}
       </div>
@@ -1065,24 +1067,29 @@ const ActionStrip = ({
 // ─── Lifecycle Buttons ────────────────────────────────────────────────────────
 
 type ExecutionStep = SessionExecutionProgressResponse["steps"][number];
+type LifecycleActionAvailability = "enabled" | "disabled";
+type LifecycleCapabilities = {
+  retry: LifecycleActionAvailability;
+  pause: LifecycleActionAvailability;
+  clear: LifecycleActionAvailability;
+};
 
 const LifecycleButtons = ({
   diagnostics,
   retryableStep,
   failedNonRetryable,
-  canRetry,
-  canPause,
-  canClear,
+  capabilities,
 }: {
   diagnostics: ScopeDiagnostics | null;
   retryableStep: ExecutionStep | null;
   failedNonRetryable: ExecutionStep | null;
-  canRetry: boolean;
-  canPause: boolean;
-  canClear: boolean;
+  capabilities: LifecycleCapabilities;
 }) => {
   const qc = useQueryClient();
   const progress = diagnostics?.executionProgress;
+  const canRetry = capabilities.retry === "enabled";
+  const canPause = capabilities.pause === "enabled";
+  const canClear = capabilities.clear === "enabled";
 
   const retryMutation = useMutation({
     mutationFn: async () => {

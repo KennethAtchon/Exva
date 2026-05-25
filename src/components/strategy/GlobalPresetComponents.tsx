@@ -106,8 +106,8 @@ function parseUserPreset(p: UserGlobalPresetRow): GlobalStrategyPreset {
 
 interface GlobalPresetCardProps {
   preset: GlobalStrategyPreset;
-  isApplied: boolean;
-  isBuiltIn: boolean;
+  state: "applied" | "available";
+  source: "built_in" | "user";
   disabled: boolean;
   onApply: () => void;
   onEdit?: () => void;
@@ -116,8 +116,8 @@ interface GlobalPresetCardProps {
 
 function GlobalPresetCard({
   preset,
-  isApplied,
-  isBuiltIn,
+  state,
+  source,
   disabled,
   onApply,
   onEdit,
@@ -125,6 +125,8 @@ function GlobalPresetCard({
 }: GlobalPresetCardProps) {
   const [hovered, setHovered] = useState(false);
   const [applyHover, setApplyHover] = useState(false);
+  const isApplied = state === "applied";
+  const canManagePreset = source === "user" && hovered;
 
   const badges = [
     {
@@ -217,7 +219,7 @@ function GlobalPresetCard({
             </div>
           )}
         </div>
-        {!isBuiltIn && hovered && (
+        {canManagePreset && (
           <div style={{ display: "flex", gap: 4, flexShrink: 0, marginTop: 1 }}>
             {onEdit && (
               <button
@@ -403,8 +405,8 @@ export function GlobalPresetGrid({
           <GlobalPresetCard
             key={preset.id}
             preset={preset}
-            isApplied={isApplied(preset)}
-            isBuiltIn
+            state={isApplied(preset) ? "applied" : "available"}
+            source="built_in"
             disabled={disabled}
             onApply={() => onApply(preset)}
           />
@@ -422,8 +424,8 @@ export function GlobalPresetGrid({
             <GlobalPresetCard
               key={up.id}
               preset={presetForCallbacks}
-              isApplied={isApplied(presetForCallbacks)}
-              isBuiltIn={false}
+              state={isApplied(presetForCallbacks) ? "applied" : "available"}
+              source="user"
               disabled={disabled}
               onApply={() => onApply(presetForCallbacks)}
               onEdit={() => onEditPreset(up)}
