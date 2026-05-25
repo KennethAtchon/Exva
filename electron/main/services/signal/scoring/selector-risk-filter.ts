@@ -85,7 +85,10 @@ export class SelectorRiskFilter {
         entry.instrumentSymbol === candidate.symbol &&
         entry.instrumentClass === candidate.instrumentClass,
     );
-    if (recentFailure?.retryAt && Date.parse(recentFailure.retryAt) > Date.now()) {
+    if (
+      recentFailure?.retryAt &&
+      Date.parse(recentFailure.retryAt) > Date.now()
+    ) {
       reasons.push(
         `Recent ${recentFailure.outcome} at ${recentFailure.stage}; retry after ${recentFailure.retryAt}`,
       );

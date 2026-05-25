@@ -37,10 +37,7 @@ const STATUS_STYLE: Record<
   },
 };
 
-const SEVERITY_STYLE: Record<
-  string,
-  { dot: string; label: string }
-> = {
+const SEVERITY_STYLE: Record<string, { dot: string; label: string }> = {
   low: { dot: "#4a5a6a", label: "Low" },
   medium: { dot: "#60a5fa", label: "Med" },
   high: { dot: "#fbbf24", label: "High" },
@@ -472,7 +469,9 @@ export function LessonsPanel({
             rows={3}
             style={inputStyle}
           />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
+          >
             <select
               value={severity}
               onChange={(e) => setSeverity(e.target.value as LessonSeverity)}
@@ -533,7 +532,14 @@ export function LessonsPanel({
       )}
 
       {/* Lesson list */}
-      <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div
+        style={{
+          padding: "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
         {lessons.length === 0 ? (
           <div
             style={{

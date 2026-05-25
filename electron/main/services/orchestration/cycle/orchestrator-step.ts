@@ -121,7 +121,11 @@ export async function runPhaseCycle<TContext extends CycleContext, TResult>(
 
   if (outcome.status === "paused") {
     logger.info(
-      { sessionId: ctx.sessionId, cycleId: options.context.cycleId, stage: options.stage },
+      {
+        sessionId: ctx.sessionId,
+        cycleId: options.context.cycleId,
+        stage: options.stage,
+      },
       "orchestrator step paused after completion",
     );
     return;

@@ -7,6 +7,7 @@ import { channels } from "@electron/shared/ipc/channels";
 import type { AppServices } from "../../services/app-services";
 import { handle } from "../handle";
 import { createLogger } from "../../services/infra/log";
+import { env } from "../../config/env";
 import {
   apiCallLog,
   agentRuns,
@@ -22,7 +23,7 @@ const log = createLogger("developer-ipc");
 const ALLOWED_PATH_KINDS = new Set(["logsDirectory", "debugBundle"]);
 
 function resolveLogDir(): string {
-  const envDir = process.env.EXVA_LOG_DIR;
+  const envDir = env.logDir;
   if (envDir && envDir.trim()) return envDir.trim();
   return path.join(os.homedir(), ".exva", "logs");
 }
@@ -36,7 +37,7 @@ function isAllowedPath(kind: string, filePath?: string): boolean {
   return false;
 }
 
-let effectiveLogLevel = process.env.LOG_LEVEL ?? "info";
+let effectiveLogLevel = env.logLevel;
 
 function getOrCreateSettings(db: AppServices["db"]["db"]) {
   const row = db
@@ -153,7 +154,7 @@ export function registerDeveloperHandlers(services: AppServices): void {
       .run();
 
     if (p.scopeType === "global") {
-      effectiveLogLevel = p.mainLogLevel;
+      effectiveLogLevel = p.mainLogLevel as typeof env.logLevel;
       log.info({ level: p.mainLogLevel }, "Log level override applied");
     }
 
@@ -165,9 +166,17 @@ export function registerDeveloperHandlers(services: AppServices): void {
             .delete(runtimeLogOverrides)
             .where(eq(runtimeLogOverrides.id, overrideId))
             .run();
-          effectiveLogLevel = process.env.LOG_LEVEL ?? "info";
+          effectiveLogLevel = env.logLevel;
           log.info({ overrideId }, "Debug capture expired, log level restored");
-        } catch {}
+        } catch (error) {
+          log.warn(
+            {
+              overrideId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+            "Failed to clear expired log override",
+          );
+        }
       }, ms);
     }
 
@@ -180,7 +189,7 @@ export function registerDeveloperHandlers(services: AppServices): void {
       .delete(runtimeLogOverrides)
       .where(eq(runtimeLogOverrides.id, p.overrideId))
       .run();
-    effectiveLogLevel = process.env.LOG_LEVEL ?? "info";
+    effectiveLogLevel = env.logLevel;
     return { stopped: true as const, effectiveLogLevel };
   });
 

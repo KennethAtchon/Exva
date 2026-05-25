@@ -1,23 +1,22 @@
 import type { WorkspacePreferences } from "@/lib/types";
-import type { WorkspaceViewResponse } from "./dto";
 import { channels } from "./channels";
 import { workspacePrefsPatchSchema } from "../validation/schemas";
 
-export interface IpcEndpointDef<TInput, TOutput> {
+export interface IpcEndpointDef<TInput> {
   channel: string;
   parseInput: (payload: unknown) => TInput;
 }
 
-export function defineEndpoint<TInput, TOutput>(
+export function defineEndpoint<TInput>(
   channel: string,
   parseInput: (payload: unknown) => TInput,
-): IpcEndpointDef<TInput, TOutput> {
+): IpcEndpointDef<TInput> {
   return { channel, parseInput };
 }
 
 export function invokeEndpoint<TInput, TOutput>(
   invoke: (channel: string, payload?: unknown) => Promise<TOutput>,
-  endpoint: IpcEndpointDef<TInput, TOutput>,
+  endpoint: IpcEndpointDef<TInput>,
   input: TInput,
 ): Promise<TOutput> {
   return input === undefined
@@ -26,14 +25,12 @@ export function invokeEndpoint<TInput, TOutput>(
 }
 
 export const workspaceEndpoints = {
-  getView: defineEndpoint<undefined, WorkspaceViewResponse>(
+  getView: defineEndpoint<undefined>(
     channels.workspace.viewGet,
     () => undefined,
   ),
-  patchPreferences: defineEndpoint<
-    Partial<Omit<WorkspacePreferences, "id">>,
-    WorkspacePreferences
-  >(channels.workspace.prefsPatch, (payload) =>
-    workspacePrefsPatchSchema.parse(payload ?? {}),
+  patchPreferences: defineEndpoint<Partial<Omit<WorkspacePreferences, "id">>>(
+    channels.workspace.prefsPatch,
+    (payload) => workspacePrefsPatchSchema.parse(payload ?? {}),
   ),
 } as const;

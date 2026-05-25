@@ -30,10 +30,6 @@ export interface ResolveEffectivePipelineConfigOptions {
   strategyContext?: SessionStrategyContext | null;
 }
 
-export interface ValidateEffectivePipelineConfigOptions {}
-
-export interface ValidatePipelineDefinitionCatalogOptions {}
-
 export function resolveEffectivePipelineConfig(
   opts: ResolveEffectivePipelineConfigOptions,
 ): EffectivePipelineConfig {
@@ -71,7 +67,6 @@ export function resolveEffectivePipelineConfig(
 
 export function assertValidEffectivePipelineConfig(
   config: EffectivePipelineConfig,
-  opts: ValidateEffectivePipelineConfigOptions = {},
 ): void {
   const errors: string[] = [];
 
@@ -122,9 +117,7 @@ export function assertValidEffectivePipelineConfig(
   }
 }
 
-export function assertValidPipelineDefinitionCatalog(
-  opts: ValidatePipelineDefinitionCatalogOptions = {},
-): void {
+export function assertValidPipelineDefinitionCatalog(): void {
   const errors: string[] = [];
   const discoveryModes: Array<
     SessionStrategyContext["researchPosture"]["discoveryMode"]

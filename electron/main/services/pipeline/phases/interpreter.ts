@@ -40,9 +40,7 @@ export interface AIPhaseRunInput {
 }
 
 export class AIPhaseRunner {
-  async run<TOutput>(
-    input: AIPhaseRunInput,
-  ): Promise<AIPhaseResult<TOutput>> {
+  async run<TOutput>(input: AIPhaseRunInput): Promise<AIPhaseResult<TOutput>> {
     const phaseStartedAt = Date.now();
     logger.info(
       {
@@ -108,7 +106,10 @@ export class AIPhaseRunner {
     let cacheFingerprint: string | null = null;
     let cacheEngine: CacheEngine | null = null;
     if (input.plan.cacheEngineId) {
-      cacheEngine = resolveEngine<CacheEngine>(input.plan.cacheEngineId, "cache");
+      cacheEngine = resolveEngine<CacheEngine>(
+        input.plan.cacheEngineId,
+        "cache",
+      );
       cacheFingerprint = cacheEngine.fingerprint(ctx);
       const cached = cacheEngine.read(ctx, cacheFingerprint);
       if (cached) {
@@ -220,8 +221,7 @@ export class AIPhaseRunner {
           workerIds,
           successfulWorkers: results.map(({ worker }) => worker.id),
           failedWorkers: workerIds.filter(
-            (workerId) =>
-              !results.some(({ worker }) => worker.id === workerId),
+            (workerId) => !results.some(({ worker }) => worker.id === workerId),
           ),
           rejectedCount: rejectedReasons.length,
           rejectedReasons: rejectedReasons.slice(0, 5),
@@ -329,7 +329,9 @@ export class AIPhaseRunner {
       cacheEngine &&
       cacheFingerprint &&
       aggregate &&
-      (cacheEngine.shouldWrite ? cacheEngine.shouldWrite(output) : output != null)
+      (cacheEngine.shouldWrite
+        ? cacheEngine.shouldWrite(output)
+        : output != null)
     ) {
       cacheEngine.write(ctx, cacheFingerprint, output, {
         agentRunId: aggregate.run.id,
@@ -397,8 +399,12 @@ function assemblePhaseAggregate<TOutput>(
     providerKey: workerTraces[0]?.run.provider_key ?? "unknown",
     modelId: workerTraces[0]?.run.model ?? "unknown",
     strategyContext: ctx.strategyContext,
-    schedulingMode: plan.stages.length > 1 ? "dependency_graph" : "flat_parallel",
-    maxConcurrency: Math.max(...plan.stages.map((stage) => stage.concurrency), 1),
+    schedulingMode:
+      plan.stages.length > 1 ? "dependency_graph" : "flat_parallel",
+    maxConcurrency: Math.max(
+      ...plan.stages.map((stage) => stage.concurrency),
+      1,
+    ),
     output,
     outputSchemaName: plan.outputSchemaName ?? plan.phase,
     marketSnapshotJson:
@@ -419,4 +425,3 @@ function formatRejectionReason(reason: unknown): string {
   if (reason instanceof Error) return reason.message;
   return String(reason);
 }
-

@@ -91,5 +91,4 @@ export function registerTradeHandlers(services: AppServices): void {
         ?.orchestrator.resolveApproval(tradeId, approved);
     }
   });
-
 }

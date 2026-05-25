@@ -7,7 +7,10 @@ import {
 } from "../../analysis/registry";
 import { DEFAULT_TRADE_CYCLE_STAGES } from "../trade/default-analysis-steps";
 import { listEngineInputBuilderIds } from "../../execution/input-builder-registry";
-import type { InstrumentAnalysis, InstrumentAnalysisState } from "../../analysis/types";
+import type {
+  InstrumentAnalysis,
+  InstrumentAnalysisState,
+} from "../../analysis/types";
 import { resolveEffectivePlanStages } from "../registry/analysis-resolver";
 
 describe("default-trade-cycle plan", () => {
@@ -76,30 +79,31 @@ describe("default-trade-cycle plan", () => {
 
   it("resolves effective stages for non-default cycle plans", () => {
     const planId = "test-non-default-analysis-plan";
-    const customInstrumentAnalysis: InstrumentAnalysis<InstrumentAnalysisState> = {
-      id: planId,
-      initialState: (_ctx, seed = {}) => ({ ...seed }),
-      inspect: {
-        stageIds: ["technical", "risk_gate"],
-        phaseStages: ["technical"],
-        engineStages: ["risk-gate", "broker-allocation"],
-      },
-      stages: [
-        {
-          id: "technical",
-          executionStage: "technical",
-          required: true,
-          execute: async (_ctx, state) => state,
+    const customInstrumentAnalysis: InstrumentAnalysis<InstrumentAnalysisState> =
+      {
+        id: planId,
+        initialState: (_ctx, seed = {}) => ({ ...seed }),
+        inspect: {
+          stageIds: ["technical", "risk_gate"],
+          phaseStages: ["technical"],
+          engineStages: ["risk-gate", "broker-allocation"],
         },
-        {
-          id: "risk_gate",
-          executionStage: "risk_gate",
-          required: true,
-          failurePolicy: "reject_trade",
-          execute: async (_ctx, state) => state,
-        },
-      ],
-    };
+        stages: [
+          {
+            id: "technical",
+            executionStage: "technical",
+            required: true,
+            execute: async (_ctx, state) => state,
+          },
+          {
+            id: "risk_gate",
+            executionStage: "risk_gate",
+            required: true,
+            failurePolicy: "reject_trade",
+            execute: async (_ctx, state) => state,
+          },
+        ],
+      };
 
     registerInstrumentAnalysis(customInstrumentAnalysis);
 

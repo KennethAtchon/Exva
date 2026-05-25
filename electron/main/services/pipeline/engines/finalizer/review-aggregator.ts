@@ -1,5 +1,8 @@
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
-import type { ReviewSignal, TechnicalSignal } from "@electron/shared/ai/trade-signals";
+import type {
+  ReviewSignal,
+  TechnicalSignal,
+} from "@electron/shared/ai/trade-signals";
 import { MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER } from "@electron/shared/domain/mock-scenario";
 import {
   conflictDetectorOutputSchema,
@@ -31,7 +34,9 @@ const reviewAggregatorEngine: FinalizerEngine<
         : undefined;
     const technical = ctx.input.technical as TechnicalSignal | undefined;
     const momentumFallbackArtifact = Boolean(
-      technical?.rawSummary?.includes(MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER),
+      technical?.rawSummary?.includes(
+        MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER,
+      ),
     );
     return runEngineForWorker<ReviewSignal>({
       phase: "review",

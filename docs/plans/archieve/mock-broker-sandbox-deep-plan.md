@@ -121,11 +121,11 @@ Key files:
 | File                                                      | Purpose                                                                       |
 | --------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `electron/main/services/broker/adapters/mock-adapter.ts`  | Mock broker: price, order, positions                                          |
-| `electron/main/services/tools/market-tools.ts`         | Harness tool implementations; `buildSyntheticBars()` lives here               |
-| `electron/main/services/llm/harness-tools.ts`   | Assembles `ToolSet` from availability flags; calls `createMarketTools`        |
-| `electron/main/services/llm/prompt-pack-builder.ts`        | Builds system + user prompts; `renderSystemPrompt()` has no sandbox awareness |
-| `electron/main/services/llm/runtime.ts`         | `AiRuntime` — calls `buildPromptPack`, then `adapter.runAgent()`              |
-| `electron/main/services/llm/runtime-prompt.ts`  | Resolves prompt asset per role                                                |
+| `electron/main/services/tools/market-tools.ts`            | Harness tool implementations; `buildSyntheticBars()` lives here               |
+| `electron/main/services/llm/harness-tools.ts`             | Assembles `ToolSet` from availability flags; calls `createMarketTools`        |
+| `electron/main/services/llm/prompt-pack-builder.ts`       | Builds system + user prompts; `renderSystemPrompt()` has no sandbox awareness |
+| `electron/main/services/llm/runtime.ts`                   | `AiRuntime` — calls `buildPromptPack`, then `adapter.runAgent()`              |
+| `electron/main/services/llm/runtime-prompt.ts`            | Resolves prompt asset per role                                                |
 | `electron/main/services/broker/broker-registry.ts`        | Returns `BrokerAdapter` by account ID                                         |
 | `electron/main/services/broker/broker-routing-service.ts` | Maps session + instrument class → broker account ID                           |
 

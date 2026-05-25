@@ -12,23 +12,19 @@ import type {
   CostBreakdown,
   DashboardStats,
   ExecutionStage,
-  ExecutionStepStatus,
   ExecutionMode,
   EventRow,
   InstrumentClass,
   ProviderAccount,
-  SelectionMode,
   SessionRiskConfig,
   SessionStatus,
   SessionStrategy,
   SessionTradeRules,
-  SessionSelectorSettings,
   SessionTemplatePayload,
   SessionTimeframeConfig,
   SessionResearchPosture,
   SessionAiSettings,
   Trade,
-  TradeDecisionPayload,
   TradeDetail,
   WorkspacePreferences,
   WorkspaceViewMode,
@@ -239,13 +235,7 @@ export interface ExvaApi {
       modelId?: string;
       temperature?: number;
       maxTokens?: number;
-      reasoningLevel?:
-        | "off"
-        | "auto"
-        | "low"
-        | "medium"
-        | "high"
-        | "max";
+      reasoningLevel?: "off" | "auto" | "low" | "medium" | "high" | "max";
       promptSource?: "default" | "session_override";
       promptMarkdown?: string;
     }): Promise<{ savedAt: string }>;

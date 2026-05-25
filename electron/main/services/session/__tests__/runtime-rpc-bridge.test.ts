@@ -64,7 +64,14 @@ describe("MainRuntimeRpcBridge", () => {
     const setRuntimeStatus = vi.fn();
     const bridge = new MainRuntimeRpcBridge(
       "session-1",
-      { logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } } as never,
+      {
+        logger: {
+          debug: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+        },
+      } as never,
       { emit, setRuntimeStatus, clearRuntimeStatus: vi.fn() } as never,
       vi.fn(),
     );
@@ -88,9 +95,18 @@ describe("MainRuntimeRpcBridge", () => {
       "session-1",
       {
         sessionRepo: { getStatus },
-        logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+        logger: {
+          debug: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+        },
       } as never,
-      { emit: vi.fn(), setRuntimeStatus: vi.fn(), clearRuntimeStatus: vi.fn() } as never,
+      {
+        emit: vi.fn(),
+        setRuntimeStatus: vi.fn(),
+        clearRuntimeStatus: vi.fn(),
+      } as never,
       (message) => posted.push(message),
     );
 
@@ -102,8 +118,6 @@ describe("MainRuntimeRpcBridge", () => {
     });
 
     expect(getStatus).toHaveBeenCalledWith("session-1");
-    expect(posted).toEqual([
-      { type: "rpc_response", id: 7, result: "active" },
-    ]);
+    expect(posted).toEqual([{ type: "rpc_response", id: 7, result: "active" }]);
   });
 });

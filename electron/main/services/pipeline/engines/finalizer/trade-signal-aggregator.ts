@@ -34,7 +34,10 @@ const tradeSignalAggregatorEngine: FinalizerEngine<
       task: {
         symbol: ctx.input.instrumentSymbol as string,
         review: ctx.input.review,
-        classifier: pickWorkerOutput(workerResults, signalClassifierOutputSchema),
+        classifier: pickWorkerOutput(
+          workerResults,
+          signalClassifierOutputSchema,
+        ),
         timer: pickWorkerOutput(workerResults, entryTimerOutputSchema),
         mockRelaxedEntryTiming,
         waitForOpenThreshold: effectiveWaitForOpenThreshold,

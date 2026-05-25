@@ -69,7 +69,9 @@ export function scheduleCycleRefillAfterDelayIfIdle(
   );
   ctx.noInstrumentRetryTimer = setTimeout(() => {
     ctx.noInstrumentRetryTimer = null;
-    if (ctx.deps.sessionRepo.getStatus(ctx.sessionId) === "attention_required") {
+    if (
+      ctx.deps.sessionRepo.getStatus(ctx.sessionId) === "attention_required"
+    ) {
       return;
     }
     if (!ctx.runtimeIsActive()) return;

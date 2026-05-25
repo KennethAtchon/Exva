@@ -20,7 +20,11 @@ export function attachTradeClosedListener(
     );
     if (remainingOpenTrades > 0) {
       ctx.deps.logger.info(
-        { sessionId: ctx.sessionId, remainingOpenTrades, closedTradeId: trade.id },
+        {
+          sessionId: ctx.sessionId,
+          remainingOpenTrades,
+          closedTradeId: trade.id,
+        },
         "selector restart blocked after trade_closed: open trades remain",
       );
       return;

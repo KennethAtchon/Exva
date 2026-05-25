@@ -98,7 +98,11 @@ describe("trade signal aggregator", () => {
         confidence: 0.85,
         reasoning: "Breakout setup",
       },
-      { entryTiming: "wait", entryPrice: 118.25, rawSummary: "Wait for pullback" },
+      {
+        entryTiming: "wait",
+        entryPrice: 118.25,
+        rawSummary: "Wait for pullback",
+      },
       { mockRelaxedEntryTiming: true },
     );
 

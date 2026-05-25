@@ -212,7 +212,9 @@ export const useStrategyStore = create<StrategyStoreState>((set, get) => ({
     for (const key of Object.keys(patch))
       dirtyFields.add(`aiPhases.${phase}.${key}`);
     const next = [...aiPhases];
-    next[index] = { ...aiPhases[index]!, ...patch, phase };
+    const currentPhase = aiPhases[index];
+    if (!currentPhase) return;
+    next[index] = { ...currentPhase, ...patch, phase };
     set({ aiPhases: next, dirtyFields, strategyErrors: [] });
   },
   applyGlobalPreset: (preset) => {

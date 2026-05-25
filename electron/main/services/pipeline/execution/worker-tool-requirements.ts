@@ -6,7 +6,9 @@ import type {
 } from "@electron/shared/ai/ai-phase";
 import type { LLMCallTrace } from "../../llm/llm-types";
 
-export function extractToolNamesUsed(trace: LLMCallTrace<unknown>): Set<string> {
+export function extractToolNamesUsed(
+  trace: LLMCallTrace<unknown>,
+): Set<string> {
   return new Set(
     trace.steps.flatMap((step) => step.toolCalls.map((call) => call.tool)),
   );

@@ -13,6 +13,7 @@ Selector's complexity was externalised into 8+ files across 6 folders instead of
 ## Complete File Inventory
 
 ### `definitions/selector.phase.ts`
+
 **What it does:** 22-line stub declaring `SELECTOR_PHASE` as a `PipelineDefinition`. Imports workers from `pipeline-discovery-config.ts`. Never used for execution — the real `AIPhase` is `SELECTOR_PLAN` in `implementations/selector/selector-analysis.ts`.
 
 **Why it exists:** The `definitions/` folder implied all phases should have a file here. This file satisfies that structural expectation without doing anything.
@@ -22,31 +23,33 @@ Selector's complexity was externalised into 8+ files across 6 folders instead of
 ---
 
 ### `implementations/selector/selector-analysis.ts`
+
 **What it does:** The real `AIPhase<SelectorPlanState, InstrumentSelection>` definition (~400 lines). Contains: discovery stage (workers + `buildTask` + `applyResults` with `mergeDiscoveryCandidates` and `scoreSelectorCandidates`), verification stage (same pattern), `initialState()`, `finalize()` with direct calls to `SelectorRiskFilter` and `buildInstrumentSelection`, `filterOutput()`, `entryModes` array with `isManualSelectorMode` and `buildManualShortlistSelection`.
 
 **Why it exists:** Selector needed multi-stage execution and couldn't use `createAggregatorAIPhase()` (which only handles flat parallel workers). So it got its own folder and raw `AIPhase` definition.
 
 **Disposition:** **Deleted.** Content distributes as follows:
 
-| What in this file | Goes to |
-|---|---|
-| Stage declarations (discovery, verification) | `definitions/selector.phase.ts` |
-| `initialState()` | `definitions/selector.phase.ts` (optional function) |
-| `filterOutput()` | `definitions/selector.phase.ts` (optional function) |
-| `SelectorRiskFilter.evaluate()` call in `finalize()` | `engines/finalizer/selector-risk-filter.ts` (adapter over `signal/scoring/selector-risk-filter.ts`) |
-| `buildInstrumentSelection()` call in `finalize()` | `engines/finalizer/selector-submission-builder.ts` (adapter over `signal/scoring/selector-submission-builder.ts`) |
-| `buildSelectorEvidence()` call in `finalize()` | Moves into `engines/finalizer/selector-risk-filter.ts` as a local helper (currently a private function in `selector-analysis.ts`, not exported from `signal/`) |
-| `isManualSelectorMode` / `buildManualShortlistSelection` in `entryModes` | `engines/entry-mode/manual-shortlist.ts` |
-| `mergeDiscoveryCandidates()` in discovery `applyResults()` | Stays as direct call inside the stage definition in `definitions/selector.phase.ts` — `applyResults()` is stage-local, exempt from engine registry |
-| `scoreSelectorCandidates()` helper | Moves to `definitions/selector.phase.ts` as a local function or imports from `signal/scoring/selector-scoring-engine.ts` |
-| `applyVerificationResults()` helper | Moves to `definitions/selector.phase.ts` as a local function |
-| `assembleAggregateTrace()` call in `finalize()` | Framework concern — `AIPhaseRunner` handles this after finalizers complete |
+| What in this file                                                        | Goes to                                                                                                                                                        |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stage declarations (discovery, verification)                             | `definitions/selector.phase.ts`                                                                                                                                |
+| `initialState()`                                                         | `definitions/selector.phase.ts` (optional function)                                                                                                            |
+| `filterOutput()`                                                         | `definitions/selector.phase.ts` (optional function)                                                                                                            |
+| `SelectorRiskFilter.evaluate()` call in `finalize()`                     | `engines/finalizer/selector-risk-filter.ts` (adapter over `signal/scoring/selector-risk-filter.ts`)                                                            |
+| `buildInstrumentSelection()` call in `finalize()`                        | `engines/finalizer/selector-submission-builder.ts` (adapter over `signal/scoring/selector-submission-builder.ts`)                                              |
+| `buildSelectorEvidence()` call in `finalize()`                           | Moves into `engines/finalizer/selector-risk-filter.ts` as a local helper (currently a private function in `selector-analysis.ts`, not exported from `signal/`) |
+| `isManualSelectorMode` / `buildManualShortlistSelection` in `entryModes` | `engines/entry-mode/manual-shortlist.ts`                                                                                                                       |
+| `mergeDiscoveryCandidates()` in discovery `applyResults()`               | Stays as direct call inside the stage definition in `definitions/selector.phase.ts` — `applyResults()` is stage-local, exempt from engine registry             |
+| `scoreSelectorCandidates()` helper                                       | Moves to `definitions/selector.phase.ts` as a local function or imports from `signal/scoring/selector-scoring-engine.ts`                                       |
+| `applyVerificationResults()` helper                                      | Moves to `definitions/selector.phase.ts` as a local function                                                                                                   |
+| `assembleAggregateTrace()` call in `finalize()`                          | Framework concern — `AIPhaseRunner` handles this after finalizers complete                                                                                     |
 
 Note: `finalize()` itself is deleted. There is no finalize function in the new definition. `finalizeEngineIds` replaces it.
 
 ---
 
 ### `implementations/selector/selector-schemas.ts`
+
 **What it does:** Zod schemas for candidate output and verification output (`candidateOutputSchema`, `verificationOutputSchema`).
 
 **Disposition:** **Moved** to `definitions/selector.schemas.ts`. These are the output contracts for selector workers and belong with the phase definition.
@@ -54,6 +57,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `implementations/inputs/selector-scope.ts`
+
 **What it does:** `InputBuilder` that produces the scope instruction string — either "full universe discovery" or the session's `instrumentScope` value.
 
 **Disposition:** **Moved** to `engines/input/selector-scope.ts`. Registered as `kind: "input"` engine with ID `"selector-scope"`. Referenced on `definitions/selector.phase.ts` via `inputEngineIds: ["selector-scope", ...]`.
@@ -61,6 +65,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `implementations/inputs/broker-coverage.ts`
+
 **What it does:** `InputBuilder` that produces broker assignment and coverage constraint text — which instrument classes are tradable via which brokers.
 
 **Disposition:** **Moved** to `engines/input/broker-coverage.ts`. Registered as `kind: "input"` engine with ID `"broker-coverage"`. Any phase that needs broker context can reference this ID — it is not selector-specific in principle.
@@ -68,6 +73,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `implementations/inputs/prediction-market-candidates.ts`
+
 **What it does:** `InputBuilder` that fetches prediction market candidates from the broker and injects them as a constrained candidate list.
 
 **Disposition:** **Moved** to `engines/input/prediction-market-candidates.ts`. Registered as `kind: "input"` engine with ID `"prediction-market-candidates"`.
@@ -75,6 +81,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `implementations/inputs/manual-shortlist.ts`
+
 **What it does:** Two exported functions — `isManualSelectorMode(ctx)` and `buildManualShortlistSelection(session, maxConcurrentTrades)`. Does NOT implement `InputBuilder`. Called directly from `selector-analysis.ts` inside the `entryModes` array.
 
 **What's wrong with it:** Floating utility file with no interface contract, doesn't conform to any framework type, can only be used by selector. The `if (isManualSelectorMode)` check inside selector-analysis is exactly the kind of conditional the engine registry eliminates.
@@ -84,6 +91,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `implementations/cache/selector-instrument-cache.ts`
+
 **What it does:** `CachePolicy<InstrumentSelection>` — fingerprinting (hashes session config + broker routing + model), read (checks TTL + hash match), write (persists with TTL by holding style). ~195 lines.
 
 **Disposition:** **Moved** to `engines/cache/selector-instrument-cache.ts`. Registered as `kind: "cache"` engine with ID `"selector-instrument-cache"`. Referenced on `definitions/selector.phase.ts` via `cacheEngineId: "selector-instrument-cache"`.
@@ -91,6 +99,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `pipeline-discovery-config.ts` (selector section)
+
 **What it does:** Exports `selectorDiscoveryWorkersForMode(discoveryMode)` — returns either `STANDARD_SELECTOR_DISCOVERY` or `EVENT_SELECTOR_DISCOVERY` worker arrays.
 
 **Disposition:** **Selector section deleted.** Worker arrays (`STANDARD_SELECTOR_DISCOVERY`, `EVENT_SELECTOR_DISCOVERY`, `verificationWorkers()`) move inline to `definitions/selector.phase.ts`. Mode-switching is a single ternary in `resolveWorkers`.
@@ -98,6 +107,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `services/session/preflight/selector-config-check.ts`
+
 **What it does:** Preflight validation checking selector settings before a session starts.
 
 **Disposition:** **Evaluate separately.** Session preflight concern, not a phase execution concern. Does not move to `engines/`. If it validates phase config, it may become a `kind: "validator"` engine. Review during Phase 2.
@@ -105,6 +115,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `signal/scoring/selector-risk-filter.ts`
+
 **What it does:** `SelectorRiskFilter` class — evaluates candidates against broker routing, instrument class constraints, and risk rules. Produces `{ accepted, rejected }`.
 
 **Disposition:** **Stays in place.** An adapter file at `engines/finalizer/selector-risk-filter.ts` imports it and wraps it as a `FinalizerEngine`. Tests for `SelectorRiskFilter` remain in `signal/scoring/`.
@@ -112,6 +123,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `signal/scoring/selector-submission-builder.ts`
+
 **What it does:** `buildInstrumentSelection()` — builds the final `InstrumentSelection` output from accepted candidates.
 
 **Disposition:** **Stays in place.** An adapter at `engines/finalizer/selector-submission-builder.ts` imports it and wraps it as a `FinalizerEngine`.
@@ -119,6 +131,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `signal/scoring/selector-candidate-merger.ts`
+
 **What it does:** `mergeDiscoveryCandidates()` — deduplicates candidates from multiple discovery workers by symbol.
 
 **Disposition:** **Stays in place.** Called directly from the discovery stage's `applyResults()` in `definitions/selector.phase.ts`. `applyResults()` is stage-local — no engine wrapping needed.
@@ -126,6 +139,7 @@ Note: `finalize()` itself is deleted. There is no finalize function in the new d
 ---
 
 ### `signal/scoring/selector-scoring-engine.ts`
+
 **What it does:** `scoreCandidate()` — scores a single candidate using weighted signals (volume, liquidity, catalyst, risk flags).
 
 **Disposition:** **Stays in place.** Called directly from `scoreSelectorCandidates()` helper inside the stage `applyResults()` functions. Stage-local — no engine wrapping needed.

@@ -1,4 +1,3 @@
---> statement-breakpoint
 ALTER TABLE `trade_autopsies` ADD COLUMN `summary_structured_json` text NOT NULL DEFAULT '{}';
 --> statement-breakpoint
 ALTER TABLE `trade_autopsies` ADD COLUMN `phase_traces_json` text NOT NULL DEFAULT '[]';

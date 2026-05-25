@@ -33,10 +33,12 @@ const Bar = ({
     <div
       style={{
         height: "100%",
-        width: `${Math.min((value / max) * 100, 100)}%`,
+        width: "100%",
         background: color,
         borderRadius: h,
-        transition: "width 0.5s ease",
+        transform: `scaleX(${Math.min(value / max, 1)})`,
+        transformOrigin: "left center",
+        transition: "transform 0.5s ease",
       }}
     />
   </div>
@@ -340,6 +342,7 @@ export const CostBreakdownPage = () => {
               {d.daily_history.length > 0 ? (
                 d.daily_history.map((h) => {
                   const barH = histMax > 0 ? (h.cost / histMax) * 100 : 0;
+                  const barScale = h.cost > 0 ? Math.max(barH, 4) / 100 : 0;
                   const today = h.date === todayIso;
                   const label = formatHistoryDate(h.date);
                   return (
@@ -374,13 +377,14 @@ export const CostBreakdownPage = () => {
                         <div
                           style={{
                             width: "100%",
-                            height: `${Math.max(barH, h.cost > 0 ? 4 : 0)}%`,
-                            minHeight: h.cost > 0 ? 4 : 0,
+                            height: "100%",
                             background: today
                               ? "var(--accent)"
                               : "var(--surface3)",
                             borderRadius: "4px 4px 0 0",
-                            transition: "height 0.5s",
+                            transform: `scaleY(${barScale})`,
+                            transformOrigin: "center bottom",
+                            transition: "transform 0.5s",
                           }}
                         />
                       </div>

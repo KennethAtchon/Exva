@@ -190,7 +190,10 @@ function createService(input: {
     }>;
   };
   sessionExecutionStepsRepo?: { upsert: ReturnType<typeof vi.fn> };
-  activeReservations?: Array<{ approvalId: string | null; tradeId: string | null }>;
+  activeReservations?: Array<{
+    approvalId: string | null;
+    tradeId: string | null;
+  }>;
   openTrades?: Array<{
     id: string;
     status: string;
@@ -257,10 +260,8 @@ function createService(input: {
     capitalReservation: {
       releaseOnClose: vi.fn(),
       listActiveBySession: () => input.activeReservations ?? [],
-      releaseByApproval:
-        input.capitalReservation?.releaseByApproval ?? vi.fn(),
-      releaseOnFailure:
-        input.capitalReservation?.releaseOnFailure ?? vi.fn(),
+      releaseByApproval: input.capitalReservation?.releaseByApproval ?? vi.fn(),
+      releaseOnFailure: input.capitalReservation?.releaseOnFailure ?? vi.fn(),
     },
     brokerRegistry: input.brokerRegistry ?? {
       get: vi.fn(),

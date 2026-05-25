@@ -106,7 +106,7 @@ describe("executeRunAgent logging", () => {
     const startEntry = infoSpy.mock.calls.find(
       ([, message]) => message === "execute run agent start",
     )?.[0];
-    const promptEntry = debugSpy.mock.calls.find(
+    const promptEntry = infoSpy.mock.calls.find(
       ([, message]) => message === "agent prompt",
     )?.[0];
     const toolEntry = infoSpy.mock.calls.find(
@@ -116,7 +116,6 @@ describe("executeRunAgent logging", () => {
       ([, message]) => message === "execute run agent complete",
     )?.[0];
 
-    // prompts now at DEBUG, not INFO
     expect(startEntry).not.toHaveProperty("systemPrompt");
     expect(startEntry).not.toHaveProperty("userPrompt");
     expect(startEntry).toMatchObject({

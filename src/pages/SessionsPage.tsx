@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
 import { Button, Checkbox } from "@/components/ui";
 import {
@@ -92,14 +92,14 @@ export const SessionsPage = ({
     useState<SessionSummary | null>(null);
   const [liveReadinessReport, setLiveReadinessReport] =
     useState<LiveReadinessReport | null>(null);
-  const refreshProgress = async (sessionId: string) => {
+  const refreshProgress = useCallback(async (sessionId: string) => {
     try {
       const result = await api.getSessionExecutionProgress(sessionId);
       if (!result.cycleId) {
         setProgressBySessionId((prev) => {
-          const next = { ...prev };
-          delete next[sessionId];
-          return next;
+          return Object.fromEntries(
+            Object.entries(prev).filter(([key]) => key !== sessionId),
+          ) as Record<string, SessionProgressState>;
         });
         return;
       }
@@ -112,9 +112,9 @@ export const SessionsPage = ({
       );
       if (!state) {
         setProgressBySessionId((prev) => {
-          const next = { ...prev };
-          delete next[sessionId];
-          return next;
+          return Object.fromEntries(
+            Object.entries(prev).filter(([key]) => key !== sessionId),
+          ) as Record<string, SessionProgressState>;
         });
         return;
       }
@@ -122,7 +122,54 @@ export const SessionsPage = ({
     } catch {
       // silently ignore
     }
-  };
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await api.listSessions({
+        search: search.trim() || undefined,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        instrumentClass:
+          instrumentFilter === "all" ? undefined : instrumentFilter,
+        includeArchived: preferences?.globalIncludeArchived,
+        executionMode:
+          environmentMode === "live" ? "live_allowed" : "paper_only",
+      });
+      setSessions(result.sessions);
+      await loadWorkspaceView();
+      // Seed progress for sessions that may have active execution
+      await Promise.all(
+        result.sessions.reduce<Array<Promise<void>>>((acc, session) => {
+          if (
+            session.status === "active" ||
+            session.status === "paused" ||
+            session.status === "monitoring_only"
+          ) {
+            acc.push(refreshProgress(session.id));
+          }
+          return acc;
+        }, []),
+      );
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Failed to load sessions.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    environmentMode,
+    instrumentFilter,
+    loadWorkspaceView,
+    preferences?.globalIncludeArchived,
+    refreshProgress,
+    search,
+    statusFilter,
+  ]);
 
   const unsubsRef = useRef<Array<() => void>>([]);
 
@@ -141,21 +188,22 @@ export const SessionsPage = ({
     ] as const;
     const cleanup: Array<() => void> = [];
 
-    (async () => {
-      for (const eventName of stepEvents) {
-        const unsub = await listenEvent(eventName, (payload) => {
+    void Promise.all(
+      stepEvents.map((eventName) =>
+        listenEvent(eventName, (payload) => {
           void refreshProgress((payload as { sessionId: string }).sessionId);
-        });
-        cleanup.push(unsub);
-      }
+        }),
+      ),
+    ).then((unsubs) => {
+      cleanup.push(...unsubs);
       unsubsRef.current = cleanup;
-    })();
+    });
 
     return () => {
       for (const unsub of unsubsRef.current) unsub();
       unsubsRef.current = [];
     };
-  }, []);
+  }, [refreshProgress]);
 
   useEffect(() => {
     let cancelled = false;
@@ -178,7 +226,7 @@ export const SessionsPage = ({
       cancelled = true;
       for (const unsub of cleanup) unsub();
     };
-  }, []);
+  }, [load, refreshProgress]);
 
   useEffect(() => {
     let cancelled = false;
@@ -206,49 +254,11 @@ export const SessionsPage = ({
       cancelled = true;
       for (const unsub of cleanup) unsub();
     };
-  }, []);
-
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.listSessions({
-        search: search.trim() || undefined,
-        status: statusFilter === "all" ? undefined : statusFilter,
-        instrumentClass:
-          instrumentFilter === "all" ? undefined : instrumentFilter,
-        includeArchived: preferences?.globalIncludeArchived,
-        executionMode:
-          environmentMode === "live" ? "live_allowed" : "paper_only",
-      });
-      setSessions(result.sessions);
-      await loadWorkspaceView();
-      // Seed progress for sessions that may have active execution
-      for (const session of result.sessions) {
-        if (session.status === "active" || session.status === "paused" || session.status === "monitoring_only") {
-          void refreshProgress(session.id);
-        }
-      }
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Failed to load sessions.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [refreshProgress]);
 
   useEffect(() => {
     void load();
-  }, [
-    search,
-    statusFilter,
-    instrumentFilter,
-    preferences?.globalIncludeArchived,
-    environmentMode,
-  ]);
+  }, [load]);
 
   useEffect(() => {
     setDetail(null);
@@ -534,8 +544,8 @@ export const SessionsPage = ({
               ) : null}
               {focusedSession?.status === "monitoring_only" ? (
                 <div style={drainBannerStyle}>
-                  Stopping when flat — managing{" "}
-                  {focusedSession.openTradeCount} open trade
+                  Stopping when flat — managing {focusedSession.openTradeCount}{" "}
+                  open trade
                   {focusedSession.openTradeCount === 1 ? "" : "s"}. Session
                   stops automatically once flat.
                 </div>
@@ -592,8 +602,8 @@ export const SessionsPage = ({
               focusedSession.openTradeCount > 0 ? (
                 <div style={orphanWarningStyle}>
                   Stopped with {focusedSession.openTradeCount} open trade
-                  {focusedSession.openTradeCount === 1 ? "" : "s"} — no automated
-                  exits will fire. Restart to resume monitoring.
+                  {focusedSession.openTradeCount === 1 ? "" : "s"} — no
+                  automated exits will fire. Restart to resume monitoring.
                 </div>
               ) : null}
             </div>

@@ -1,6 +1,6 @@
 import type { DbClient } from "../../client";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { sessionBrokerAssignments, sessions } from "../../schema";
+import { sessionBrokerAssignments } from "../../schema";
 
 export class SessionBrokerAssignmentsRepo {
   constructor(private readonly client: DbClient) {}

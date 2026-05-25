@@ -20,7 +20,6 @@ This plan fixes the blockers in priority order, **raises spend caps aggressively
 
 Session `07eb8274-d06b-42db-a070-615a85e84ee1`, mock broker, `clean_breakout`, model `deepseek/deepseek-v4-flash`.
 
-
 | Observation                                  | Evidence                                                                               | Impact                                                                                          |
 | -------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Mock tools isolated                          | `search_web` → `provider: "mock"`, `mock.local` URLs throughout                        | Design goal met                                                                                 |
@@ -30,7 +29,6 @@ Session `07eb8274-d06b-42db-a070-615a85e84ee1`, mock broker, `clean_breakout`, m
 | Selector completes twice                     | Cycle `f17cab4c…` then retry cycle `c9eb91e8…` ~5 min later                            | Matches `DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES = 5` in `orchestration/cycle/types.ts:56` |
 | **No trade pipeline in log**                 | Zero `tradeId`, zero `technical`/`decision` phase runs, zero `enqueueing trade cycles` | Orchestrator never enqueued trades                                                              |
 | Verification mostly succeeds                 | NVDA/AAPL/AMD/MSFT pass; PLTR failed in cycle 2                                        | Candidates exist; problem is post-verification filtering                                        |
-
 
 **Key inference:** Selector finishes → `acceptedCount = 0` after risk filter → orchestrator schedules another selector in 5 minutes → repeat. The user sees an idle dashboard with no open trades, not a `skip` decision row.
 
@@ -65,8 +63,6 @@ flowchart TB
   RF -.->|blocks| TC --> DEC --> FILL
 ```
 
-
-
 ### P0 — Risk filter rejects all candidates (CV-7 logic bug)
 
 There are two rejection points that both push `"Selector rationale is empty"`. The first is a direct check in `RiskFilter.collectRejectionReasons()` itself:
@@ -91,7 +87,7 @@ if (!structuredEvidence?.summary?.trim()) {
 }
 ```
 
-`structuredEvidence` comes from `candidate.selectorEvidence`, which is `**null` on every candidate** when `RiskFilter.evaluate()` runs in selector `finalize()`. `buildSelectorEvidence()` is only called **after** filtering, on accepted rows:
+`structuredEvidence` comes from `candidate.selectorEvidence`, which is `**null` on every candidate** when `RiskFilter.evaluate()` runs in selector `finalize()`. `buildSelectorEvidence()` is only called **after\*\* filtering, on accepted rows:
 
 ```ts
 // selector/plan.ts finalize()
@@ -110,29 +106,25 @@ This explains the 5-minute selector retry with no trade phases.
 
 **Files:** `electron/shared/ai/pipeline-config.ts`, `electron/shared/ai/pipeline-phase.ts` (`PHASE_DEFAULTS`)
 
-
 | Cap                        | Default          | Observed (hello.json)                |
 | -------------------------- | ---------------- | ------------------------------------ |
 | Selector phase             | $0.30            | $0.34–0.36                           |
 | Pipeline total             | $0.50            | $0.34 in selector alone              |
 | Per-worker `spendLimitUsd` | $0.30 (selector) | Single worker can consume full phase |
 
-
 Caps abort workers with `[pipeline] aborting further workers: spend $0.3400 exceeded cap $0.3000 (phase)` (log format uses 4 decimal places). Selector still completes (partial failure tolerated), but verification quality degrades.
 
 ### P1 — Cost tracking uses estimates, not what providers actually charge
 
-Spend guards today run entirely on `**estimateCostUsd()`** — a static prefix table in `model-pricing.ts` multiplied by token counts. That architecture breaks for **every model not explicitly listed**, not just v4-flash.
-
+Spend guards today run entirely on `**estimateCostUsd()`** — a static prefix table in `model-pricing.ts` multiplied by token counts. That architecture breaks for **every model not explicitly listed\*\*, not just v4-flash.
 
 | Issue                                   | Location                                                           | Effect                                                                                                       |
 | --------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
 | Static table, unknown model → catch-all | `model-pricing.ts` `{ prefix: "", inputPer1M: 1, outputPer1M: 1 }` | `deepseek/deepseek-v4-flash` (and any new model) priced at **$1/1M** — likely **over** real OpenRouter cost  |
-| OpenRouter `**usage.cost` ignored**     | `run-agent-execute.ts`                                             | OR returns actual billed credits on every response; we throw it away                                         |
+| OpenRouter `**usage.cost` ignored\*\*   | `run-agent-execute.ts`                                             | OR returns actual billed credits on every response; we throw it away                                         |
 | Cost computed **twice**, inconsistently | `run-agent-execute.ts` → `trace-assembler.ts`                      | Run agent estimates once; assembler re-estimates via `estimateCostUsd()` instead of reusing the run's number |
 | Estimates drive cap aborts              | `worker-executor.ts:402` → `spendTracker.record(run.cost_usd)`     | Workers stopped on fake numbers                                                                              |
 | Session totals sum estimates            | `agent-runs-repo.dailyAiSpendUsd()`                                | Retry cycles inherit wrong baseline                                                                          |
-
 
 **Symptom vs fix:** Adding `v4-flash` to the table patches one model. The durable fix is **provider-reported cost first, estimate fallback second** — which automatically works for all OpenRouter models (v4-flash, the next DeepSeek, whatever you swap in).
 
@@ -214,13 +206,13 @@ Add resolver hook when `sandboxMode === true` OR session uses `brokerType === "m
 ```ts
 // Proposed PAPER_MOCK_BUDGETS (starting point — tune after one clean run)
 export const PAPER_MOCK_BUDGETS = {
-  totalSpendCapUsd: 25.0,       // was 0.5
+  totalSpendCapUsd: 25.0, // was 0.5
   phases: {
-    selector: 5.0,               // was 0.3  (~14× observed)
-    technical: 2.0,              // was 0.08
-    fundamental: 2.0,            // was 0.08
-    review: 1.0,                 // was 0.05
-    decision: 1.0,               // was 0.05
+    selector: 5.0, // was 0.3  (~14× observed)
+    technical: 2.0, // was 0.08
+    fundamental: 2.0, // was 0.08
+    review: 1.0, // was 0.05
+    decision: 1.0, // was 0.05
   },
   workerCaps: {
     selector: { spendLimitUsd: 3.0, maxSteps: 50 },
@@ -265,18 +257,15 @@ function resolveRunCostUsd(input: {
 }): { costUsd: number; costSource: "provider" | "estimated" };
 ```
 
-
 | Priority | Source                                    | Covers                                                                                      |
 | -------- | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
 | 1        | OpenRouter `usage.cost` from API response | **All** models routed through OR (v4-flash, future models, routing/caching quirks included) |
 | 2        | Direct-provider billed cost               | When/if adapters call Anthropic/OpenAI directly and expose billing                          |
 | 3        | `estimateCostUsd()`                       | Last resort; **log WARN** with `{ modelId, costSource: "estimated" }`                       |
 
-
 OpenRouter documents `usage.cost` on every response ([usage accounting](https://openrouter.ai/docs/guides/administration/usage-accounting)). Their token counts and per-provider routing can differ from local math — another reason not to rely on the table.
 
 #### Plumbing (single source of truth)
-
 
 | Task                                       | File                                                        | Detail                                                                                                   |
 | ------------------------------------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
@@ -287,7 +276,6 @@ OpenRouter documents `usage.cost` on every response ([usage accounting](https://
 | Demote pricing table                       | `model-pricing.ts`                                          | Keep for fallback; add comment that new models do **not** require table entries when on OpenRouter       |
 | Observability                              | `worker-executor.ts`                                        | Log `{ costUsd, costSource, modelId }`; if fallback, also log `{ estimatedVsWouldBe }` during transition |
 | Tests                                      | `run-agent-execute.test.ts`, new `resolve-run-cost.test.ts` | Mock OR response with `usage.cost` → persisted cost matches; missing cost → fallback + WARN              |
-
 
 **Acceptance:**
 
@@ -309,8 +297,9 @@ OpenRouter documents `usage.cost` on every response ([usage accounting](https://
 2. In `filterMockWebSearch`, fall back to `knownSymbols[0]` when `extractQuerySymbol` returns `null` (no valid ticker after noise filtering). Current code: `symbol ?? "TICKER"` — change to: `symbol ?? knownSymbols?.[0] ?? "TICKER"`.
 3. Do **not** expand the regex to `\b[A-Z]{1,6}\b`. All primary symbols (`NVDA`, `AMD`, `PLTR`, `AAPL`, `GOOGL`, etc.) are ≤5 characters and already match the existing `{1,5}` pattern. Expanding to 6 would allow 6-letter noise tokens like `STRONG`, `STOCKS`, `AUGUST` to match.
 4. Add regression tests for queries from hello.json:
-  - `"strong breakout stocks today momentum…"` → `NVDA` (knownSymbols fallback), not `TODAY`
-  - `"NVDA stock breakout catalyst May 2026"` → `NVDA` (knownSymbols direct match)
+
+- `"strong breakout stocks today momentum…"` → `NVDA` (knownSymbols fallback), not `TODAY`
+- `"NVDA stock breakout catalyst May 2026"` → `NVDA` (knownSymbols direct match)
 
 **Acceptance:** Zero `TODAY`/`APRIL`/`CRUDE` substitution in mock search results for clean_breakout session.
 
@@ -336,14 +325,12 @@ From original design §5.6 — implement now that trades can reach decision:
 
 ### Phase 5 — Observability + integration test (Phase E from design) ✅ Partial
 
-
 | Task                             | Detail                                                                               |
 | -------------------------------- | ------------------------------------------------------------------------------------ |
 | Log selector diagnostics at INFO | `acceptedCount`, `rejected[].reasons` in `phase plan complete`                       |
 | Log orchestrator enqueue         | Already exists at INFO — verify log level / scope in dev                             |
 | Integration test                 | Mock broker + `clean_breakout` + minimal strategy → expect `trade.status === "open"` |
 | Coherence test                   | Assert NVDA fixtures directionally bullish across news/search/OHLCV                  |
-
 
 **Files:** `phase/interpreter.ts`, `instrument-queue.ts`, new test under `electron/main/services/.../__tests__/`
 
@@ -365,7 +352,6 @@ Cycle 1 lost web-scout to 5 × 60s timeouts while other scouts succeeded.
 
 ## 7. Proposed Cap Table (summary)
 
-
 | Setting                               | Production (unchanged)  | Paper / mock (new)                     |
 | ------------------------------------- | ----------------------- | -------------------------------------- |
 | `totalSpendCapUsd`                    | $0.50                   | **$25.00**                             |
@@ -376,7 +362,6 @@ Cycle 1 lost web-scout to 5 × 60s timeouts while other scouts succeeded.
 | Worker `spendLimitUsd` (trade phases) | $0.05–0.08              | **$2.00**                              |
 | Session `maxAiSpendUsd`               | user config ($5 in log) | **$50** default for new paper sessions |
 | Cap enforcement                       | hard abort              | **warn-only optional** in sandbox      |
-
 
 Rationale: observed selector alone is **~$0.35** (currently **over-estimated** for v4-flash); one full trade cycle adds **~$0.26+**. Current defaults cannot complete one rehearsal. Phase 1 caps are a **bridge**; Phase 2 provider cost enables tuning caps back down with confidence.
 

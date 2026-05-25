@@ -366,10 +366,10 @@ After Phase 1–3 and Phase 6 land:
 | `electron/main/services/llm/tool-loop-guard.ts`                                           | P0: include `timeframe`+`instrumentClass` in `get_ohlcv` signature       |
 | `electron/main/services/pipeline/execution/worker-executor.ts`                            | P0b: mock clean_breakout bullish fallback for momentum-indicator         |
 | `electron/main/services/pipeline/worker-prompts.ts`                                       | P1: confidence ≥ threshold guidance in signal-classifier prompt          |
-| `electron/main/services/pipeline/engines/finalizer/trade-signal-aggregator.ts`            | P2: effective threshold relaxation for mock clean_breakout                 |
-| `electron/main/services/pipeline/engines/finalizer/review-aggregator.ts`                  | P3: pass mockOverride + momentum fallback artifact to review aggregator    |
-| `electron/main/services/signal/aggregators/review-aggregator.ts`                          | P3: cap reduce_size → proceed for clean_breakout mock fallback artifact    |
-| `electron/shared/domain/mock-scenario.ts`                                                 | Shared momentum fallback marker constant                                   |
+| `electron/main/services/pipeline/engines/finalizer/trade-signal-aggregator.ts`            | P2: effective threshold relaxation for mock clean_breakout               |
+| `electron/main/services/pipeline/engines/finalizer/review-aggregator.ts`                  | P3: pass mockOverride + momentum fallback artifact to review aggregator  |
+| `electron/main/services/signal/aggregators/review-aggregator.ts`                          | P3: cap reduce_size → proceed for clean_breakout mock fallback artifact  |
+| `electron/shared/domain/mock-scenario.ts`                                                 | Shared momentum fallback marker constant                                 |
 | `electron/main/services/llm/__tests__/tool-loop-guard.test.ts`                            | New or updated: multi-timeframe guard tests                              |
 | `electron/main/services/orchestration/__tests__/mock-trade-rehearsal.integration.test.ts` | Fix `waitForOpenThreshold: 0` → `0.8`; add confidence-gate no-trade test |
 | `electron/main/services/signal/aggregators/__tests__/trade-signal-aggregator.test.ts`     | Verify confidence→skip with threshold                                    |

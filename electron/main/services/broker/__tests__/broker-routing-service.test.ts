@@ -200,9 +200,7 @@ function createRoutingContext(
 function createService(
   db: ReturnType<typeof createTestDb>,
   registry: {
-    get(
-      id: string,
-    ): Promise<{
+    get(id: string): Promise<{
       testConnection(): Promise<{
         ok: boolean;
         message: string;

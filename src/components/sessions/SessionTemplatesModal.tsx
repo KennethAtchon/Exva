@@ -142,18 +142,43 @@ export const SessionTemplatesModal = ({
                     const payload = await api.buildTemplatePayloadFromSession(
                       sourceSession.id,
                     );
-                    await api.createTemplate({
+                    const created = await api.createTemplate({
                       name: templateName.trim(),
                       description: templateDescription.trim() || undefined,
                       sourceSessionId: sourceSession.id,
                       payload,
                     });
-                    const result = await api.listTemplates({
-                      search: search.trim() || undefined,
-                      instrumentClass:
-                        instrumentClass === "all" ? undefined : instrumentClass,
+                    const nextTemplate = {
+                      id: created.id,
+                      name: templateName.trim(),
+                      description: templateDescription.trim() || null,
+                      sourceSessionId: sourceSession.id,
+                      sourceSessionName: sourceSession.name,
+                      instrumentClasses: payload.identity.instrumentClasses,
+                      updatedAt: created.updatedAt,
+                    };
+                    setTemplates((current) => {
+                      const next = [
+                        nextTemplate,
+                        ...current.filter(
+                          (template) => template.id !== created.id,
+                        ),
+                      ];
+                      return next.filter((template) => {
+                        const matchesSearch =
+                          !search.trim() ||
+                          template.name
+                            .toLowerCase()
+                            .includes(search.trim().toLowerCase()) ||
+                          template.description
+                            ?.toLowerCase()
+                            .includes(search.trim().toLowerCase());
+                        const matchesInstrument =
+                          instrumentClass === "all" ||
+                          template.instrumentClasses.includes(instrumentClass);
+                        return matchesSearch && matchesInstrument;
+                      });
                     });
-                    setTemplates(result.templates);
                   } catch (saveError) {
                     setError(
                       saveError instanceof Error

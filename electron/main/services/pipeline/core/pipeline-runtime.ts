@@ -104,7 +104,9 @@ export class PipelineRuntime {
     this.deps.planServices = planServices;
   }
 
-  setInstrumentAnalysisServices(cyclePlanServices: InstrumentAnalysisServices): void {
+  setInstrumentAnalysisServices(
+    cyclePlanServices: InstrumentAnalysisServices,
+  ): void {
     this.deps.cyclePlanServices = cyclePlanServices;
   }
 
@@ -183,8 +185,7 @@ export class PipelineRuntime {
       lastStageId?: string;
     },
   ): Promise<
-    | InstrumentAnalysisResult
-    | import("../phases/types").AIPhaseResult<unknown>
+    InstrumentAnalysisResult | import("../phases/types").AIPhaseResult<unknown>
   > {
     const plan = requireAnalysis(planId);
     if (plan.kind === "phase") {

@@ -74,30 +74,26 @@ export function registerAutopsyHandlers(services: AppServices): void {
     return { ok: true as const };
   });
 
-  handle(
-    ipcMain,
-    channels.trades.autopsy.export,
-    async (payload, event) => {
-      const { autopsyId, format } = exportSchema.parse(payload) as {
-        autopsyId: string;
-        format: ExportFormat;
-      };
-      const autopsy = services.repos.tradeAutopsies.find(autopsyId);
-      if (!autopsy) {
-        throw new AppError("Autopsy not found.", "NOT_FOUND", { autopsyId });
-      }
-      assertSessionInWorkspaceEnvironment(services, autopsy.sessionId);
-      const trade = services.repos.trades.require(autopsy.tradeId);
-      const lessons = services.tradeAutopsy.listLessons(autopsyId);
-      const session = services.repos.session.get(autopsy.sessionId);
-      return services.autopsyExport.export(
-        format,
-        autopsy,
-        lessons,
-        trade,
-        session?.name ?? autopsy.sessionId,
-        event.sender,
-      );
-    },
-  );
+  handle(ipcMain, channels.trades.autopsy.export, async (payload, event) => {
+    const { autopsyId, format } = exportSchema.parse(payload) as {
+      autopsyId: string;
+      format: ExportFormat;
+    };
+    const autopsy = services.repos.tradeAutopsies.find(autopsyId);
+    if (!autopsy) {
+      throw new AppError("Autopsy not found.", "NOT_FOUND", { autopsyId });
+    }
+    assertSessionInWorkspaceEnvironment(services, autopsy.sessionId);
+    const trade = services.repos.trades.require(autopsy.tradeId);
+    const lessons = services.tradeAutopsy.listLessons(autopsyId);
+    const session = services.repos.session.get(autopsy.sessionId);
+    return services.autopsyExport.export(
+      format,
+      autopsy,
+      lessons,
+      trade,
+      session?.name ?? autopsy.sessionId,
+      event.sender,
+    );
+  });
 }

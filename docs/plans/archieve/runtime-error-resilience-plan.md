@@ -26,11 +26,11 @@ Still pending from this document:
 
 Exva currently mixes three different outcomes under the same failure machinery:
 
-| What happened | What the operator sees | What the session does |
-|---|---|---|
-| Expected no-trade (low confidence, AI skip) | Often **ERROR** | Used to **stall**; partially fixed |
-| Recoverable infra failure (AI timeout, 503) | ERROR + step retry | Retries, but may still hit **attention_required** |
-| Genuine operator/config problem | ERROR + **attention_required** | Stops intake until manual Resume |
+| What happened                               | What the operator sees         | What the session does                             |
+| ------------------------------------------- | ------------------------------ | ------------------------------------------------- |
+| Expected no-trade (low confidence, AI skip) | Often **ERROR**                | Used to **stall**; partially fixed                |
+| Recoverable infra failure (AI timeout, 503) | ERROR + step retry             | Retries, but may still hit **attention_required** |
+| Genuine operator/config problem             | ERROR + **attention_required** | Stops intake until manual Resume                  |
 
 The low-confidence case exposed the core design flaw: **policy rejection was treated like a pipeline crash**. That specific path is now fixed (see §3), but the same pattern exists elsewhere. The second design flaw is that the selector currently has almost no memory of recent failed attempts, so retries can immediately repeat the same bad trade path with no awareness of what just happened or when the session should try again.
 
@@ -86,16 +86,16 @@ flowchart TD
 
 ### Key files
 
-| Layer | File | Role |
-|---|---|---|
-| Step execution | [`trading-step-runner.ts`](../../electron/main/services/orchestration/cycle/trading-step-runner.ts) | Catches throws, classifies retryability, emits `step:failed` |
-| Failure policy | [`trading-cycle-context.ts`](../../electron/main/services/orchestration/cycle/trading-cycle-context.ts) `handleStepFailure` | Emits ERROR; sets `attention_required` for non-retryable failures (except `risk_gate` / `broker_order`) |
-| Trade pipeline | [`run-trade-pipeline.ts`](../../electron/main/services/orchestration/cycle/trade/run-trade-pipeline.ts) | Converts step failure → `AnalysisStepFailedError` → returns `null` |
-| Trade cycle | [`trade-cycle.ts`](../../electron/main/services/orchestration/cycle/trade/trade-cycle.ts) | Orchestrates pipeline → trade record → approval → broker |
-| Loop refill | [`cycle-refill.ts`](../../electron/main/services/orchestration/cycle/scheduling/cycle-refill.ts) | Schedules selector when queue idle after no-trade |
-| Session runtime | [`session-runtime-manager.ts`](../../electron/main/services/session/session-runtime-manager.ts) | `attention_required` only auto-recovers on explicit Resume |
-| UI feed | [`Dashboard.tsx`](../../src/pages/Dashboard.tsx) | Polls `getEvents` on `agent_event`; renders ERROR in red |
-| Log mirror | [`event-bus-observer.ts`](../../electron/main/services/infra/event-bus-observer.ts) | Mirrors bus events to pino log file |
+| Layer           | File                                                                                                                        | Role                                                                                                    |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Step execution  | [`trading-step-runner.ts`](../../electron/main/services/orchestration/cycle/trading-step-runner.ts)                         | Catches throws, classifies retryability, emits `step:failed`                                            |
+| Failure policy  | [`trading-cycle-context.ts`](../../electron/main/services/orchestration/cycle/trading-cycle-context.ts) `handleStepFailure` | Emits ERROR; sets `attention_required` for non-retryable failures (except `risk_gate` / `broker_order`) |
+| Trade pipeline  | [`run-trade-pipeline.ts`](../../electron/main/services/orchestration/cycle/trade/run-trade-pipeline.ts)                     | Converts step failure → `AnalysisStepFailedError` → returns `null`                                      |
+| Trade cycle     | [`trade-cycle.ts`](../../electron/main/services/orchestration/cycle/trade/trade-cycle.ts)                                   | Orchestrates pipeline → trade record → approval → broker                                                |
+| Loop refill     | [`cycle-refill.ts`](../../electron/main/services/orchestration/cycle/scheduling/cycle-refill.ts)                            | Schedules selector when queue idle after no-trade                                                       |
+| Session runtime | [`session-runtime-manager.ts`](../../electron/main/services/session/session-runtime-manager.ts)                             | `attention_required` only auto-recovers on explicit Resume                                              |
+| UI feed         | [`Dashboard.tsx`](../../src/pages/Dashboard.tsx)                                                                            | Polls `getEvents` on `agent_event`; renders ERROR in red                                                |
+| Log mirror      | [`event-bus-observer.ts`](../../electron/main/services/infra/event-bus-observer.ts)                                         | Mirrors bus events to pino log file                                                                     |
 
 ### Error classification today
 
@@ -127,39 +127,39 @@ This plan extends that pattern across the rest of the runtime.
 
 Introduce an explicit **outcome kind** at orchestration boundaries. Every failure should be classified into one of:
 
-| Outcome | Operator level | Save to `failureHistory` | Session status | Loop behavior |
-|---|---|---|---|---|
-| **no_trade** | INFO / WARN | Yes when it should influence the next pass | stay active | schedule next selector pass after retry delay |
-| **transient** | WARN while retrying; ERROR after exhaustion | Yes | stay active | retry step first, then delayed selector retry if cycle ends without a position |
-| **session_capacity** | WARN | Yes | stay active; pause new entries only | auto-retry when capacity frees (e.g. a trade closes and a concurrent slot opens) |
-| **operator_required** | ERROR | Yes | `attention_required` | stop intake until Resume; keep TradeMonitor running for open positions |
-| **bug** | ERROR | Yes | `attention_required` | stop intake; log stack |
+| Outcome               | Operator level                              | Save to `failureHistory`                   | Session status                      | Loop behavior                                                                    |
+| --------------------- | ------------------------------------------- | ------------------------------------------ | ----------------------------------- | -------------------------------------------------------------------------------- |
+| **no_trade**          | INFO / WARN                                 | Yes when it should influence the next pass | stay active                         | schedule next selector pass after retry delay                                    |
+| **transient**         | WARN while retrying; ERROR after exhaustion | Yes                                        | stay active                         | retry step first, then delayed selector retry if cycle ends without a position   |
+| **session_capacity**  | WARN                                        | Yes                                        | stay active; pause new entries only | auto-retry when capacity frees (e.g. a trade closes and a concurrent slot opens) |
+| **operator_required** | ERROR                                       | Yes                                        | `attention_required`                | stop intake until Resume; keep TradeMonitor running for open positions           |
+| **bug**               | ERROR                                       | Yes                                        | `attention_required`                | stop intake; log stack                                                           |
 
 **Two classes of session-wide block — do not conflate them:**
 
-| Class | Examples | Why |
-|---|---|---|
-| **Operational capacity** (`session_capacity`) | Max concurrent trades, broker allocation full for the session | Temporary; self-heals when a slot or allocation frees. Auto-retry is correct. |
+| Class                                                | Examples                                                             | Why                                                                                                                    |
+| ---------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Operational capacity** (`session_capacity`)        | Max concurrent trades, broker allocation full for the session        | Temporary; self-heals when a slot or allocation frees. Auto-retry is correct.                                          |
 | **Capital / spend guardrails** (`operator_required`) | Daily API budget, daily loss limit, profit target, `maxDataSpendUsd` | Deliberate daily stops on real money. Operator must decide to raise limits, stop for the day, or Resume intentionally. |
 
 Per-instrument and recoverable conditions should map into the soft outcomes above instead of throwing as hard runtime failures. Examples: low-confidence skip, broker allocation conflict on one symbol, broker order rejected, or max-concurrent-trades reached (capacity — retry when a slot opens).
 
 ### Mapping examples
 
-| Source | Current | Proposed |
-|---|---|---|
-| Confidence below wait-for-open | ~~ERROR + stall~~ | **no_trade** (done) |
-| Decision `action: skip` | INFO + ~~stall~~ | **no_trade** + refill (done) |
-| Daily API budget reached | ERROR via risk stats | **operator_required** — `attention_required`, no selector retry |
-| Daily loss limit reached | ERROR via risk stats | **operator_required** — `attention_required`, no selector retry |
-| Profit target reached | ERROR via risk stats | **operator_required** — `attention_required`, no selector retry |
-| `maxDataSpendUsd` exhausted (when enforced) | not yet wired | **operator_required** — same as API budget |
-| Max concurrent trades at risk gate | ERROR throw | **session_capacity** WARN + auto-retry when slot opens |
-| AI provider timeout | retry then ERROR | **transient** |
-| Broker allocation conflict / symbol already in flight | ERROR throw | **no_trade** WARN + delayed retry |
-| Broker order rejected | ERROR + refill (done) | **no_trade** WARN + delayed retry |
-| Missing API key at preflight | blocks start | **operator_required** (before runtime) |
-| `riskOrder missing after pipeline` throw | uncaught task error | **bug** — should never happen |
+| Source                                                | Current               | Proposed                                                        |
+| ----------------------------------------------------- | --------------------- | --------------------------------------------------------------- |
+| Confidence below wait-for-open                        | ~~ERROR + stall~~     | **no_trade** (done)                                             |
+| Decision `action: skip`                               | INFO + ~~stall~~      | **no_trade** + refill (done)                                    |
+| Daily API budget reached                              | ERROR via risk stats  | **operator_required** — `attention_required`, no selector retry |
+| Daily loss limit reached                              | ERROR via risk stats  | **operator_required** — `attention_required`, no selector retry |
+| Profit target reached                                 | ERROR via risk stats  | **operator_required** — `attention_required`, no selector retry |
+| `maxDataSpendUsd` exhausted (when enforced)           | not yet wired         | **operator_required** — same as API budget                      |
+| Max concurrent trades at risk gate                    | ERROR throw           | **session_capacity** WARN + auto-retry when slot opens          |
+| AI provider timeout                                   | retry then ERROR      | **transient**                                                   |
+| Broker allocation conflict / symbol already in flight | ERROR throw           | **no_trade** WARN + delayed retry                               |
+| Broker order rejected                                 | ERROR + refill (done) | **no_trade** WARN + delayed retry                               |
+| Missing API key at preflight                          | blocks start          | **operator_required** (before runtime)                          |
+| `riskOrder missing after pipeline` throw              | uncaught task error   | **bug** — should never happen                                   |
 
 Implementation vehicle: extend [`AppError`](../../electron/shared/infra/errors.ts) with optional `details.outcome: 'no_trade' | 'transient' | ...` and `details.failureHistoryEntry`, or add a small `classifyOrchestrationOutcome(error, stage, context)` that returns both an outcome and an optional history entry used by `handleStepFailure` and trade-cycle boundaries.
 
@@ -167,15 +167,15 @@ Implementation vehicle: extend [`AppError`](../../electron/shared/infra/errors.t
 
 Short-term failure memory is a first-class part of the runtime contract, not just an observability detail. The main intended use is instrument-specific no-trade memory: if the model just decided not to trade `AAPL`, or the runtime soft-rejected `BTC-USD` at risk/policy/allocation time, that instrument should remain visible in the short-term window so the next pass knows not to immediately select it again unless there is materially new evidence or the entry has expired out of the window.
 
-| Field | Requirement |
-|---|---|
-| Window | Rolling 1 hour |
-| Storage intent | Runtime/session-scoped short-term memory used for retry behavior and selector context |
-| Pruning | On every read/write, drop entries older than 1 hour; if all entries expire, `failureHistory` becomes empty |
-| Default retry delay | 5 minutes |
-| Config surface | Generalize `session_selector_settings.noInstrumentRetryMinutes` into a session setting that means "time to retry trade after any failure" (recommended name: `retryAfterFailureMinutes`) |
-| Selector visibility | Include recent `failureHistory` and nearest retry time in the trusted context/tool payload used for the next selector decision |
-| Primary use case | Instrument-specific no-trade / soft-rejection memory so the model avoids repeating the same failed candidate too soon |
+| Field               | Requirement                                                                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Window              | Rolling 1 hour                                                                                                                                                                           |
+| Storage intent      | Runtime/session-scoped short-term memory used for retry behavior and selector context                                                                                                    |
+| Pruning             | On every read/write, drop entries older than 1 hour; if all entries expire, `failureHistory` becomes empty                                                                               |
+| Default retry delay | 5 minutes                                                                                                                                                                                |
+| Config surface      | Generalize `session_selector_settings.noInstrumentRetryMinutes` into a session setting that means "time to retry trade after any failure" (recommended name: `retryAfterFailureMinutes`) |
+| Selector visibility | Include recent `failureHistory` and nearest retry time in the trusted context/tool payload used for the next selector decision                                                           |
+| Primary use case    | Instrument-specific no-trade / soft-rejection memory so the model avoids repeating the same failed candidate too soon                                                                    |
 
 Recommended entry shape:
 
@@ -188,7 +188,12 @@ type FailureHistoryEntry = {
   instrumentSymbol: string | null;
   instrumentClass: InstrumentClass | null;
   stage: ExecutionStage | "trade_cycle" | "selector_cycle";
-  outcome: "no_trade" | "transient" | "session_capacity" | "operator_required" | "bug";
+  outcome:
+    | "no_trade"
+    | "transient"
+    | "session_capacity"
+    | "operator_required"
+    | "bug";
   level: "WARN" | "ERROR";
   code: string | null;
   message: string;
@@ -222,12 +227,12 @@ This is the behavior change the plan cares about. The renderer format is seconda
 
 `failureHistory` should not only exist at the top-level selector summary. It should be injected into the worker/runtime surfaces that actually decide which instruments to research, keep, or reject.
 
-| Surface | Required behavior |
-|---|---|
-| Selector discovery workers | Treat recent instrument-specific `no_trade` / soft-rejection entries as negative prior context. Do not re-propose the same instrument unless new evidence clearly justifies revisiting it or its history entry has expired. |
-| Selector verification workers (`market-validator`, `catalyst-extractor`, `liquidity-gate`) | Receive the candidate's recent failure history so they can explain whether the prior block still applies or what changed. |
-| Selector finalizers (`selector-risk-filter`, `selector-submission-builder`) | Down-rank or remove instruments that are still inside the short-term retry window unless the runtime explicitly allows override with stronger evidence. |
-| Trade-analysis workers when instrument already selected | Receive the instrument's recent failure history as trusted context so later phases can avoid repeating the same rejected setup assumptions. |
+| Surface                                                                                    | Required behavior                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Selector discovery workers                                                                 | Treat recent instrument-specific `no_trade` / soft-rejection entries as negative prior context. Do not re-propose the same instrument unless new evidence clearly justifies revisiting it or its history entry has expired. |
+| Selector verification workers (`market-validator`, `catalyst-extractor`, `liquidity-gate`) | Receive the candidate's recent failure history so they can explain whether the prior block still applies or what changed.                                                                                                   |
+| Selector finalizers (`selector-risk-filter`, `selector-submission-builder`)                | Down-rank or remove instruments that are still inside the short-term retry window unless the runtime explicitly allows override with stronger evidence.                                                                     |
+| Trade-analysis workers when instrument already selected                                    | Receive the instrument's recent failure history as trusted context so later phases can avoid repeating the same rejected setup assumptions.                                                                                 |
 
 The minimal acceptable behavior is:
 
@@ -243,42 +248,42 @@ This is a memory aid, not a permanent denylist. The purpose is to stop immediate
 
 ### 5.1 Loop still stalls
 
-| Gap | Location | Impact |
-|---|---|---|
-| Pipeline returns `null` on any `AnalysisStepFailedError` | [`run-trade-pipeline.ts:78-82`](../../electron/main/services/orchestration/cycle/trade/run-trade-pipeline.ts) | Trade cycle exits at line 58 with **no refill** — AI spend lost, session idle |
-| Selector non-retryable failure | [`orchestrator-step.ts` runPhaseCycle](../../electron/main/services/orchestration/cycle/orchestrator-step.ts) | `attention_required`; no selector reschedule until manual Resume |
-| Uncaught throw in `executeTradeCycle` | [`trade-cycle.ts:85-88`](../../electron/main/services/orchestration/cycle/trade/trade-cycle.ts) | `enqueueTask` onError emits ERROR; no refill |
-| `runTradeCycle` has no top-level try/catch | [`trade-cycle.ts`](../../electron/main/services/orchestration/cycle/trade/trade-cycle.ts) | Same as above for any unexpected throw |
-| Retry timing only covers empty selector results | `session_selector_settings.noInstrumentRetryMinutes` and selector no-instrument timer path | Recoverable trade failures still fall through inconsistent refill paths instead of one delayed retry rule |
+| Gap                                                      | Location                                                                                                      | Impact                                                                                                    |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Pipeline returns `null` on any `AnalysisStepFailedError` | [`run-trade-pipeline.ts:78-82`](../../electron/main/services/orchestration/cycle/trade/run-trade-pipeline.ts) | Trade cycle exits at line 58 with **no refill** — AI spend lost, session idle                             |
+| Selector non-retryable failure                           | [`orchestrator-step.ts` runPhaseCycle](../../electron/main/services/orchestration/cycle/orchestrator-step.ts) | `attention_required`; no selector reschedule until manual Resume                                          |
+| Uncaught throw in `executeTradeCycle`                    | [`trade-cycle.ts:85-88`](../../electron/main/services/orchestration/cycle/trade/trade-cycle.ts)               | `enqueueTask` onError emits ERROR; no refill                                                              |
+| `runTradeCycle` has no top-level try/catch               | [`trade-cycle.ts`](../../electron/main/services/orchestration/cycle/trade/trade-cycle.ts)                     | Same as above for any unexpected throw                                                                    |
+| Retry timing only covers empty selector results          | `session_selector_settings.noInstrumentRetryMinutes` and selector no-instrument timer path                    | Recoverable trade failures still fall through inconsistent refill paths instead of one delayed retry rule |
 
 ### 5.2 ERROR severity misapplied
 
-| Gap | Location | Impact |
-|---|---|---|
-| Most `VALIDATION_FAILED` → non-retryable ERROR | [`trading-step-runner.ts:193-197`](../../electron/main/services/orchestration/cycle/trading-step-runner.ts) | Expected policy blocks look like crashes |
-| Other risk denials still throw | [`trade-engine-input-builders.ts`](../../electron/main/services/pipeline/implementations/inputs/trade-engine-input-builders.ts) `riskGateInputBuilder`, `brokerAllocationInputBuilder` | e.g. concurrent trade cap, allocation reject |
-| Candidate validation throws | same file `candidateValidationInputBuilder` | Optional stage with `failurePolicy: warn` — OK — but required stages don't |
-| Order policy gate throws in effect-runner | [`effect-runner.ts`](../../electron/main/services/orchestration/cycle/trade/effect-runner.ts) | Broker placement failure = hard throw → step failed |
-| Session/system-provided blocks are not recorded as reusable context | same general path | Selector retry forgets why the prior attempt was blocked and can immediately re-pick the same losing path |
+| Gap                                                                 | Location                                                                                                                                                                               | Impact                                                                                                    |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Most `VALIDATION_FAILED` → non-retryable ERROR                      | [`trading-step-runner.ts:193-197`](../../electron/main/services/orchestration/cycle/trading-step-runner.ts)                                                                            | Expected policy blocks look like crashes                                                                  |
+| Other risk denials still throw                                      | [`trade-engine-input-builders.ts`](../../electron/main/services/pipeline/implementations/inputs/trade-engine-input-builders.ts) `riskGateInputBuilder`, `brokerAllocationInputBuilder` | e.g. concurrent trade cap, allocation reject                                                              |
+| Candidate validation throws                                         | same file `candidateValidationInputBuilder`                                                                                                                                            | Optional stage with `failurePolicy: warn` — OK — but required stages don't                                |
+| Order policy gate throws in effect-runner                           | [`effect-runner.ts`](../../electron/main/services/orchestration/cycle/trade/effect-runner.ts)                                                                                          | Broker placement failure = hard throw → step failed                                                       |
+| Session/system-provided blocks are not recorded as reusable context | same general path                                                                                                                                                                      | Selector retry forgets why the prior attempt was blocked and can immediately re-pick the same losing path |
 
 ### 5.3 Failure-history gap
 
-| Gap | Location | Impact |
-|---|---|---|
-| No dedicated `failureHistory` in runtime/session context | orchestration + prompt/context surfaces | The selector has no short-term memory of recent instrument-specific failures when choosing the next trade |
-| No 1-hour pruning rule | same | Failure memory behavior is undefined; stale blocks could linger forever or not exist at all |
-| No unified retry timestamp exposed to selector | same | The model cannot see "do not retry until X" when deciding what to do next |
-| No worker-level injection of recent no-trade history | worker prompt/context builders + selector finalizers | Discovery/verification workers can re-propose the same instrument because only the top-level runtime knows it recently failed |
+| Gap                                                      | Location                                             | Impact                                                                                                                        |
+| -------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| No dedicated `failureHistory` in runtime/session context | orchestration + prompt/context surfaces              | The selector has no short-term memory of recent instrument-specific failures when choosing the next trade                     |
+| No 1-hour pruning rule                                   | same                                                 | Failure memory behavior is undefined; stale blocks could linger forever or not exist at all                                   |
+| No unified retry timestamp exposed to selector           | same                                                 | The model cannot see "do not retry until X" when deciding what to do next                                                     |
+| No worker-level injection of recent no-trade history     | worker prompt/context builders + selector finalizers | Discovery/verification workers can re-propose the same instrument because only the top-level runtime knows it recently failed |
 
 ### 5.4 Visibility gaps (errors not shown promptly)
 
-| Gap | Location | Impact |
-|---|---|---|
-| Dashboard only refreshes events on `agent_event` + initial load | [`Dashboard.tsx:491-496`](../../src/pages/Dashboard.tsx) | Works for orchestrator ERRORs; misses `step:failed`-only failures if `recordFailure: false` |
-| SessionsPage listens to `step:failed` for progress only | [`SessionsPage.tsx:98-103`](../../src/pages/SessionsPage.tsx) | Step failure message not promoted to event feed |
-| No global toast/banner for ERROR | `App.tsx` | Operator must be on Dashboard to see red feed |
-| `research_phase_failed` logged but no dedicated UI surface | bus event in [`orchestrator-step.ts`](../../electron/main/services/orchestration/cycle/orchestrator-step.ts) | Selector failure may be invisible outside DevPanel logs |
-| `step:failed` logged at **warn** in pino | [`event-bus-observer.ts:89-93`](../../electron/main/services/infra/event-bus-observer.ts) | File log level inconsistent with operator ERROR in DB |
+| Gap                                                             | Location                                                                                                     | Impact                                                                                      |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Dashboard only refreshes events on `agent_event` + initial load | [`Dashboard.tsx:491-496`](../../src/pages/Dashboard.tsx)                                                     | Works for orchestrator ERRORs; misses `step:failed`-only failures if `recordFailure: false` |
+| SessionsPage listens to `step:failed` for progress only         | [`SessionsPage.tsx:98-103`](../../src/pages/SessionsPage.tsx)                                                | Step failure message not promoted to event feed                                             |
+| No global toast/banner for ERROR                                | `App.tsx`                                                                                                    | Operator must be on Dashboard to see red feed                                               |
+| `research_phase_failed` logged but no dedicated UI surface      | bus event in [`orchestrator-step.ts`](../../electron/main/services/orchestration/cycle/orchestrator-step.ts) | Selector failure may be invisible outside DevPanel logs                                     |
+| `step:failed` logged at **warn** in pino                        | [`event-bus-observer.ts:89-93`](../../electron/main/services/infra/event-bus-observer.ts)                    | File log level inconsistent with operator ERROR in DB                                       |
 
 ### 5.5 attention_required overuse
 
@@ -360,13 +365,13 @@ flowchart TD
 
 **Goal:** No trade cycle exit leaves the session idle.
 
-| Task | Files |
-|---|---|
-| Call `finishWithoutOpenPosition` when `runTradePipeline` returns `null` (except pause) | [`trade-cycle.ts`](../../electron/main/services/orchestration/cycle/trade/trade-cycle.ts) |
-| Wrap `executeTradeCycle` body in try/catch; emit ERROR on unexpected throw; refill | same |
-| Generalize the selector no-instrument timer into a unified "retry after any failure / no-open-position outcome" timer with 5-minute default | [`trading-cycle-context.ts`](../../electron/main/services/orchestration/cycle/trading-cycle-context.ts), scheduling files, selector settings surfaces |
+| Task                                                                                                                                                  | Files                                                                                                                                                                                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Call `finishWithoutOpenPosition` when `runTradePipeline` returns `null` (except pause)                                                                | [`trade-cycle.ts`](../../electron/main/services/orchestration/cycle/trade/trade-cycle.ts)                                                                                                                 |
+| Wrap `executeTradeCycle` body in try/catch; emit ERROR on unexpected throw; refill                                                                    | same                                                                                                                                                                                                      |
+| Generalize the selector no-instrument timer into a unified "retry after any failure / no-open-position outcome" timer with 5-minute default           | [`trading-cycle-context.ts`](../../electron/main/services/orchestration/cycle/trading-cycle-context.ts), scheduling files, selector settings surfaces                                                     |
 | After selector failure, schedule delayed selector retry instead of only attention; escalate to `attention_required` after N consecutive hard failures | [`orchestrator-step.ts`](../../electron/main/services/orchestration/cycle/orchestrator-step.ts), [`instrument-queue.ts`](../../electron/main/services/orchestration/cycle/scheduling/instrument-queue.ts) |
-| Narrow `attention_required` to `operator_required` and `bug` outcomes only (includes spend/PnL guardrails) | [`trading-cycle-context.ts`](../../electron/main/services/orchestration/cycle/trading-cycle-context.ts) |
+| Narrow `attention_required` to `operator_required` and `bug` outcomes only (includes spend/PnL guardrails)                                            | [`trading-cycle-context.ts`](../../electron/main/services/orchestration/cycle/trading-cycle-context.ts)                                                                                                   |
 
 **Acceptance:**
 
@@ -377,17 +382,17 @@ flowchart TD
 
 **Goal:** Expand the wait-for-open pattern to other expected rejections and make recent failures visible to the next selector pass.
 
-| Task | Files |
-|---|---|
-| Define `classifyPolicyRejection(reason)` → `no_trade` \| `session_capacity` \| `operator_required` \| `bug` and emit optional `failureHistoryEntry` | new `orchestration/policy/outcome-classifier.ts` |
-| Soft-convert capacity denials: concurrent trade cap → `session_capacity` | [`trade-engine-input-builders.ts`](../../electron/main/services/pipeline/implementations/inputs/trade-engine-input-builders.ts), [`risk-engine.ts`](../../electron/main/services/risk/risk-engine.ts) |
-| Hard-stop spend/PnL guardrails: API budget, daily loss, profit target → `operator_required` + `attention_required` | same |
-| Soft-convert broker allocation / conflict when symbol-specific | same + [`broker-allocation`](../../electron/main/services/orchestration/policy/) |
-| Order policy gate: map block reasons to no_trade vs operator_required | [`order-policy-gate.ts`](../../electron/main/services/orchestration/policy/order-policy-gate.ts), [`effect-runner.ts`](../../electron/main/services/orchestration/cycle/trade/effect-runner.ts) |
-| Update `classifyStepError` to respect `details.outcome` on AppError | [`trading-step-runner.ts`](../../electron/main/services/orchestration/cycle/trading-step-runner.ts) |
-| Add runtime-scoped `failureHistory` with 1-hour pruning and a dedicated context section for selector/tool inputs | orchestration context + prompt/context builders |
-| Inject instrument-specific recent-failure context into selector discovery workers, verification workers, and selector finalizers | selector phase task/context builders |
-| Expose nearest retry time plus recent failures when the selector decides what to try next | same |
+| Task                                                                                                                                                | Files                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Define `classifyPolicyRejection(reason)` → `no_trade` \| `session_capacity` \| `operator_required` \| `bug` and emit optional `failureHistoryEntry` | new `orchestration/policy/outcome-classifier.ts`                                                                                                                                                      |
+| Soft-convert capacity denials: concurrent trade cap → `session_capacity`                                                                            | [`trade-engine-input-builders.ts`](../../electron/main/services/pipeline/implementations/inputs/trade-engine-input-builders.ts), [`risk-engine.ts`](../../electron/main/services/risk/risk-engine.ts) |
+| Hard-stop spend/PnL guardrails: API budget, daily loss, profit target → `operator_required` + `attention_required`                                  | same                                                                                                                                                                                                  |
+| Soft-convert broker allocation / conflict when symbol-specific                                                                                      | same + [`broker-allocation`](../../electron/main/services/orchestration/policy/)                                                                                                                      |
+| Order policy gate: map block reasons to no_trade vs operator_required                                                                               | [`order-policy-gate.ts`](../../electron/main/services/orchestration/policy/order-policy-gate.ts), [`effect-runner.ts`](../../electron/main/services/orchestration/cycle/trade/effect-runner.ts)       |
+| Update `classifyStepError` to respect `details.outcome` on AppError                                                                                 | [`trading-step-runner.ts`](../../electron/main/services/orchestration/cycle/trading-step-runner.ts)                                                                                                   |
+| Add runtime-scoped `failureHistory` with 1-hour pruning and a dedicated context section for selector/tool inputs                                    | orchestration context + prompt/context builders                                                                                                                                                       |
+| Inject instrument-specific recent-failure context into selector discovery workers, verification workers, and selector finalizers                    | selector phase task/context builders                                                                                                                                                                  |
+| Expose nearest retry time plus recent failures when the selector decides what to try next                                                           | same                                                                                                                                                                                                  |
 
 **Acceptance:**
 
@@ -401,13 +406,13 @@ flowchart TD
 
 **Goal:** ERRORs appear immediately wherever the operator is working.
 
-| Task | Files |
-|---|---|
-| Global session event toast/banner on `agent_event` level ERROR/WARN | new `src/components/RuntimeEventToast.tsx`, wire in [`App.tsx`](../../src/App.tsx) |
+| Task                                                                                                            | Files                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Global session event toast/banner on `agent_event` level ERROR/WARN                                             | new `src/components/RuntimeEventToast.tsx`, wire in [`App.tsx`](../../src/App.tsx)                                                         |
 | Subscribe to `step:failed` and surface last failure plus retry timing on SessionsPage row + SessionDetailDrawer | [`SessionsPage.tsx`](../../src/pages/SessionsPage.tsx), [`SessionDetailDrawer.tsx`](../../src/components/sessions/SessionDetailDrawer.tsx) |
-| Subscribe to `research_phase_failed` with human-readable message | same |
-| Promote `attention_required` in TopNav with click → Sessions filtered view | [`TopNav.tsx`](../../src/components/TopNav.tsx) |
-| Optional: push recent WARN/ERROR count badge and expose recent `failureHistory` summary | [`SessionsPage.tsx`](../../src/pages/SessionsPage.tsx) |
+| Subscribe to `research_phase_failed` with human-readable message                                                | same                                                                                                                                       |
+| Promote `attention_required` in TopNav with click → Sessions filtered view                                      | [`TopNav.tsx`](../../src/components/TopNav.tsx)                                                                                            |
+| Optional: push recent WARN/ERROR count badge and expose recent `failureHistory` summary                         | [`SessionsPage.tsx`](../../src/pages/SessionsPage.tsx)                                                                                     |
 
 **Acceptance:**
 
@@ -416,39 +421,39 @@ flowchart TD
 
 ### Phase 4 — Observability consistency (backend + UI, small)
 
-| Task | Files |
-|---|---|
-| Emit `agent_event` for every terminal `step:failed` (dedupe if orchestrator already emitted) | [`trading-step-runner.ts`](../../electron/main/services/orchestration/cycle/trading-step-runner.ts) or `handleStepFailure` |
-| Align pino level: operator ERROR → `error`, retrying → `warn` | [`event-bus-observer.ts`](../../electron/main/services/infra/event-bus-observer.ts) |
-| Add `outcome` field to execution step DB record for DevPanel filtering | schema + [`session-execution-steps-repo.ts`](../../electron/main/db/repositories/sessions/session-execution-steps-repo.ts) |
-| Keep `failureHistory` separate from long-term analytics: short-term runtime memory for selector behavior, DB events/steps for audit | docs + implementation note |
+| Task                                                                                                                                | Files                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Emit `agent_event` for every terminal `step:failed` (dedupe if orchestrator already emitted)                                        | [`trading-step-runner.ts`](../../electron/main/services/orchestration/cycle/trading-step-runner.ts) or `handleStepFailure` |
+| Align pino level: operator ERROR → `error`, retrying → `warn`                                                                       | [`event-bus-observer.ts`](../../electron/main/services/infra/event-bus-observer.ts)                                        |
+| Add `outcome` field to execution step DB record for DevPanel filtering                                                              | schema + [`session-execution-steps-repo.ts`](../../electron/main/db/repositories/sessions/session-execution-steps-repo.ts) |
+| Keep `failureHistory` separate from long-term analytics: short-term runtime memory for selector behavior, DB events/steps for audit | docs + implementation note                                                                                                 |
 
 ### Phase 5 — Tests and replay fixtures
 
-| Task | Files |
-|---|---|
-| Integration: trade pipeline stage failure → refill, session stays active | extend [`agent-orchestrator.test.ts`](../../electron/main/services/orchestration/cycle/__tests__/agent-orchestrator.test.ts) |
-| Integration: selector failure → retry/refill, not attention | same |
-| Integration: concurrent-trade cap → WARN `session_capacity` + auto-retry when slot opens | same |
-| Integration: API budget / daily loss / profit target → `operator_required` + `attention_required`, no selector retry until Resume | same |
-| Integration: history entries older than 1 hour are pruned before selector context render | same + prompt/context tests |
-| Replay fixtures for no_trade vs error outcomes | [`cycle-replay-service`](../../electron/main/services/replay/cycle-replay-service.ts) fixtures |
-| Frontend: bus handler renders toast | component test or manual QA checklist |
+| Task                                                                                                                              | Files                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Integration: trade pipeline stage failure → refill, session stays active                                                          | extend [`agent-orchestrator.test.ts`](../../electron/main/services/orchestration/cycle/__tests__/agent-orchestrator.test.ts) |
+| Integration: selector failure → retry/refill, not attention                                                                       | same                                                                                                                         |
+| Integration: concurrent-trade cap → WARN `session_capacity` + auto-retry when slot opens                                          | same                                                                                                                         |
+| Integration: API budget / daily loss / profit target → `operator_required` + `attention_required`, no selector retry until Resume | same                                                                                                                         |
+| Integration: history entries older than 1 hour are pruned before selector context render                                          | same + prompt/context tests                                                                                                  |
+| Replay fixtures for no_trade vs error outcomes                                                                                    | [`cycle-replay-service`](../../electron/main/services/replay/cycle-replay-service.ts) fixtures                               |
+| Frontend: bus handler renders toast                                                                                               | component test or manual QA checklist                                                                                        |
 
 ---
 
 ## 8. Decision log
 
-| # | Decision | Recommendation |
-|---|---|---|
-| 1 | Should session **spend/PnL guardrails** (API budget, daily loss, profit target) halt selector intake? | **Yes** — set `attention_required`, keep TradeMonitor running for open positions, record in `failureHistory`, and require explicit operator **Resume**. No auto-retry. These are deliberate capital stops. |
-| 2 | Should **operational capacity** limits (max concurrent trades) auto-recover? | **Yes** — classify as `session_capacity`, pause new entries, auto-retry when a slot opens. WARN operator; do not require Resume. |
-| 3 | What is the short-term failure window? | **1 hour** — anything older is pruned and disappears from selector context. |
-| 4 | What retry delay should apply after a failed/no-open cycle? | **5 minutes by default** — generalize the current empty-selector retry field into a session setting that means "retry trade after any failure." Does **not** apply when session is in `attention_required` for spend/PnL limits. |
-| 5 | Should every terminal `step:failed` also write an `agent_event`? | **Yes** — single operator feed. |
-| 6 | Should the selector see recent failure memory when deciding what to do next? | **Yes** — add a dedicated `failureHistory` section plus nearest retry time to the trusted selector/tool context. |
-| 7 | What does "short-term failure" mainly mean in practice? | **Recent instrument-specific no-trade / soft-rejection memory** — especially model no-trade outcomes and runtime soft blocks that should discourage immediately retrying the same instrument. |
-| 8 | After N consecutive genuine hard failures, should the runtime still escalate? | **Yes** — repeated selector/pipeline hard failures escalate to `attention_required`; soft `no_trade` / `session_capacity` warnings should not. |
+| #   | Decision                                                                                              | Recommendation                                                                                                                                                                                                                   |
+| --- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Should session **spend/PnL guardrails** (API budget, daily loss, profit target) halt selector intake? | **Yes** — set `attention_required`, keep TradeMonitor running for open positions, record in `failureHistory`, and require explicit operator **Resume**. No auto-retry. These are deliberate capital stops.                       |
+| 2   | Should **operational capacity** limits (max concurrent trades) auto-recover?                          | **Yes** — classify as `session_capacity`, pause new entries, auto-retry when a slot opens. WARN operator; do not require Resume.                                                                                                 |
+| 3   | What is the short-term failure window?                                                                | **1 hour** — anything older is pruned and disappears from selector context.                                                                                                                                                      |
+| 4   | What retry delay should apply after a failed/no-open cycle?                                           | **5 minutes by default** — generalize the current empty-selector retry field into a session setting that means "retry trade after any failure." Does **not** apply when session is in `attention_required` for spend/PnL limits. |
+| 5   | Should every terminal `step:failed` also write an `agent_event`?                                      | **Yes** — single operator feed.                                                                                                                                                                                                  |
+| 6   | Should the selector see recent failure memory when deciding what to do next?                          | **Yes** — add a dedicated `failureHistory` section plus nearest retry time to the trusted selector/tool context.                                                                                                                 |
+| 7   | What does "short-term failure" mainly mean in practice?                                               | **Recent instrument-specific no-trade / soft-rejection memory** — especially model no-trade outcomes and runtime soft blocks that should discourage immediately retrying the same instrument.                                    |
+| 8   | After N consecutive genuine hard failures, should the runtime still escalate?                         | **Yes** — repeated selector/pipeline hard failures escalate to `attention_required`; soft `no_trade` / `session_capacity` warnings should not.                                                                                   |
 
 ---
 

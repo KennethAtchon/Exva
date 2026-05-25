@@ -93,7 +93,10 @@ export class SessionRuntimeManager {
     this.deps.sessionRepo.setStatus("paused", sessionId);
     // Emit immediately so the renderer and other consumers see the change
     // without waiting for the next polling cycle.
-    this.deps.bus.emit("session_status_changed", { sessionId, status: "paused" });
+    this.deps.bus.emit("session_status_changed", {
+      sessionId,
+      status: "paused",
+    });
     await runtime.pause();
     this.deps.logger.info({ sessionId }, "runtime paused");
   }
@@ -111,7 +114,10 @@ export class SessionRuntimeManager {
     }
     this.deps.bus.setRuntimeStatus(sessionId, "active");
     this.deps.sessionRepo.setStatus("active", sessionId);
-    this.deps.bus.emit("session_status_changed", { sessionId, status: "active" });
+    this.deps.bus.emit("session_status_changed", {
+      sessionId,
+      status: "active",
+    });
     await runtime.resume();
     if (priorStatus === "attention_required") {
       // A failed selector cycle does not auto-reschedule, so an idempotent
@@ -136,10 +142,16 @@ export class SessionRuntimeManager {
         await runtime.stop();
       }
       this.deps.sessionRepo.setStatus("stopped", sessionId);
-      this.deps.bus.emit("session_status_changed", { sessionId, status: "stopped" });
+      this.deps.bus.emit("session_status_changed", {
+        sessionId,
+        status: "stopped",
+      });
     } catch (error) {
       this.deps.sessionRepo.setStatus("attention_required", sessionId);
-      this.deps.bus.emit("session_status_changed", { sessionId, status: "attention_required" });
+      this.deps.bus.emit("session_status_changed", {
+        sessionId,
+        status: "attention_required",
+      });
       throw error;
     } finally {
       this.runtimes.delete(sessionId);
@@ -250,10 +262,15 @@ export class SessionRuntimeManager {
 
   private async handleTradeClosedForDrain(trade: Trade): Promise<void> {
     if (trade.status !== "closed" || !trade.sessionId) return;
-    if (this.deps.sessionRepo.getStatus(trade.sessionId) !== "monitoring_only") {
+    if (
+      this.deps.sessionRepo.getStatus(trade.sessionId) !== "monitoring_only"
+    ) {
       return;
     }
-    const openTradeCount = countOpenTrades(this.deps.tradesRepo, trade.sessionId);
+    const openTradeCount = countOpenTrades(
+      this.deps.tradesRepo,
+      trade.sessionId,
+    );
     if (openTradeCount > 0) return;
     await this.completeDrainStop(trade.sessionId);
   }

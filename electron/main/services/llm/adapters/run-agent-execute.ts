@@ -15,7 +15,7 @@ import type { z } from "zod";
 import type { AgentRole } from "@/lib/types";
 import type { ReasoningLevel } from "@electron/shared/ai/ai-phase";
 import type { AgentRunFinishReason } from "@electron/shared/domain";
-import { estimateCostUsd, resolveModelPricingRates } from "../model-pricing";
+import { resolveModelPricingRates } from "../model-pricing";
 import { resolveRunCostUsd } from "../resolve-run-cost";
 import type {
   LLMMessage,
@@ -287,7 +287,9 @@ export async function executeRunAgent<T = undefined>(
     tools: params.tools,
     temperature: params.temperature,
     maxOutputTokens: params.maxOutputTokens,
-    ...(params.providerOptions ? { providerOptions: params.providerOptions } : {}),
+    ...(params.providerOptions
+      ? { providerOptions: params.providerOptions }
+      : {}),
     abortSignal: params.abortSignal,
     stopWhen,
     prepareStep: params.prepareStep,

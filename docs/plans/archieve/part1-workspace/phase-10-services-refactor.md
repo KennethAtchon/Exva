@@ -145,8 +145,8 @@ No domain subfolder imports from `agent-orchestrator` or `ipc/`.
 | `services/ai-sdk-service.ts`                | deleted in Phase 7                                            |
 | `services/risk-engine.ts`                   | `services/risk/risk-engine.ts`                                |
 | `services/session-service.ts`               | `services/session/session-service.ts`                         |
-| `services/prompt-asset-loader.ts`           | `services/pipeline/prompt-asset-loader.ts`                          |
-| `services/provider-model-catalog.ts`        | `services/llm/provider-model-catalog.ts`                       |
+| `services/prompt-asset-loader.ts`           | `services/pipeline/prompt-asset-loader.ts`                    |
+| `services/provider-model-catalog.ts`        | `services/llm/provider-model-catalog.ts`                      |
 | `broker/broker-adapter.ts`                  | `services/broker/adapters/broker-adapter.ts`                  |
 | `broker/alpaca-adapter.ts`                  | `services/broker/adapters/alpaca-adapter.ts`                  |
 | `broker/coinbase-advanced-trade-adapter.ts` | `services/broker/adapters/coinbase-advanced-trade-adapter.ts` |

@@ -30,7 +30,11 @@ export function assertExecutionModeMatchesWorkspace(
     throw new AppError(
       `Session execution mode must be ${required} while workspace is in ${prefs.globalEnvironmentMode} mode.`,
       "VALIDATION_FAILED",
-      { executionMode, required, globalEnvironmentMode: prefs.globalEnvironmentMode },
+      {
+        executionMode,
+        required,
+        globalEnvironmentMode: prefs.globalEnvironmentMode,
+      },
     );
   }
 }
@@ -98,9 +102,13 @@ export function assertSessionInWorkspaceEnvironment(
   }
 }
 
-export function workspaceEnvironmentSessionIds(services: AppServices): string[] {
+export function workspaceEnvironmentSessionIds(
+  services: AppServices,
+): string[] {
   const prefs = services.repos.workspacePreferences.get();
-  const executionMode = executionModeForEnvironment(prefs.globalEnvironmentMode);
+  const executionMode = executionModeForEnvironment(
+    prefs.globalEnvironmentMode,
+  );
   return services.repos.session
     .list({ includeArchived: true, executionMode })
     .map((session) => session.id);

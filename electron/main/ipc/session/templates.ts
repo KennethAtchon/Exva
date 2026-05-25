@@ -18,7 +18,9 @@ export function registerTemplateHandlers(services: AppServices): void {
   handle(ipcMain, channels.templates.list, async (payload) => {
     const filters = templateListFiltersSchema.parse(payload) ?? {};
     const prefs = services.repos.workspacePreferences.get();
-    const requiredMode = executionModeForEnvironment(prefs.globalEnvironmentMode);
+    const requiredMode = executionModeForEnvironment(
+      prefs.globalEnvironmentMode,
+    );
     const templates = services.sessionTemplates.list(filters).filter((item) => {
       const row = services.repos.sessionTemplates.get(item.id);
       if (!row) return false;
@@ -53,7 +55,9 @@ export function registerTemplateHandlers(services: AppServices): void {
       JSON.parse(row.templatePayloadJson),
     );
     const prefs = services.repos.workspacePreferences.get();
-    const requiredMode = executionModeForEnvironment(prefs.globalEnvironmentMode);
+    const requiredMode = executionModeForEnvironment(
+      prefs.globalEnvironmentMode,
+    );
     if (
       !parsed.success ||
       parsed.data.identity.executionMode !== requiredMode

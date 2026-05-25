@@ -38,8 +38,9 @@ export const AddBrokerModal = ({
   const [brokerType, setBrokerType] = useState<
     "alpaca" | "coinbase_advanced_trade" | "tradovate" | "polymarket" | "mock"
   >("mock");
-  const [mockScenarioKind, setMockScenarioKind] =
-    useState<MockScenarioKind>(DEFAULT_MOCK_SCENARIO_KIND);
+  const [mockScenarioKind, setMockScenarioKind] = useState<MockScenarioKind>(
+    DEFAULT_MOCK_SCENARIO_KIND,
+  );
   const [name, setName] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [secretKey, setSecretKey] = useState("");

@@ -47,9 +47,10 @@ describe("mock trade rehearsal integration", () => {
     const cycleId = crypto.randomUUID();
     const quote = await harness.mockAdapter.getMarketSnapshot("NVDA");
 
-    vi.spyOn(runTradePipelineModule, "runTradePipeline").mockResolvedValue(
-      { status: "ok", result: makeMockBuyPipeline(quote.price) },
-    );
+    vi.spyOn(runTradePipelineModule, "runTradePipeline").mockResolvedValue({
+      status: "ok",
+      result: makeMockBuyPipeline(quote.price),
+    });
 
     await executeTradeCycle(ctx, {
       kind: "trade",
@@ -108,7 +109,9 @@ describe("mock trade rehearsal integration", () => {
     expect(failures[0]?.level).toBe("WARN");
     expect(failures[0]?.reasonCategory).toBe("risk_gate");
 
-    const errorEvents = harness.listEvents().filter((event) => event.level === "ERROR");
+    const errorEvents = harness
+      .listEvents()
+      .filter((event) => event.level === "ERROR");
     expect(errorEvents).toHaveLength(0);
   });
 });
@@ -200,7 +203,11 @@ function createHarness(
         trades.set(id, next);
         return next;
       },
-      updateStatus: (id: string, status: Trade["status"], finalPnlUsd: number) => {
+      updateStatus: (
+        id: string,
+        status: Trade["status"],
+        finalPnlUsd: number,
+      ) => {
         const trade = trades.get(id);
         if (!trade) throw new Error(`Trade ${id} not found`);
         const next = {
@@ -259,7 +266,9 @@ function createHarness(
     },
     brokerRoutingRepo: {} as never,
     sessionBrokerAssignmentsRepo: {
-      listAssignments: () => [{ brokerAccountId: "mock-broker", allocatedUsd: 5000 }],
+      listAssignments: () => [
+        { brokerAccountId: "mock-broker", allocatedUsd: 5000 },
+      ],
     },
     brokerAccountsRepo: {} as never,
     brokerRegistry: {} as never,

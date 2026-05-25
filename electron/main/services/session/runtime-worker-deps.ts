@@ -26,14 +26,20 @@ export function createWorkerOrchestratorDeps(
     eventsRepo: createDepProxy(rpc, "eventsRepo"),
     statsRepo: createDepProxy(rpc, "statsRepo"),
     sessionAiPhasesRepo: createDepProxy(rpc, "sessionAiPhasesRepo"),
-    sessionSelectorSettingsRepo: createDepProxy(rpc, "sessionSelectorSettingsRepo"),
+    sessionSelectorSettingsRepo: createDepProxy(
+      rpc,
+      "sessionSelectorSettingsRepo",
+    ),
     sessionExecutionStepsRepo: createDepProxy(rpc, "sessionExecutionStepsRepo"),
     providerAccountsRepo: createDepProxy(rpc, "providerAccountsRepo"),
     workspacePreferencesRepo: createDepProxy(rpc, "workspacePreferencesRepo"),
     capitalReservationsRepo: createDepProxy(rpc, "capitalReservationsRepo"),
     capitalReservation: createDepProxy(rpc, "capitalReservation"),
     brokerRoutingRepo: createDepProxy(rpc, "brokerRoutingRepo"),
-    sessionBrokerAssignmentsRepo: createDepProxy(rpc, "sessionBrokerAssignmentsRepo"),
+    sessionBrokerAssignmentsRepo: createDepProxy(
+      rpc,
+      "sessionBrokerAssignmentsRepo",
+    ),
     brokerAccountsRepo: createDepProxy(rpc, "brokerAccountsRepo"),
     brokerRegistry: createDepProxy(rpc, "brokerRegistry"),
     brokerRouting: createDepProxy(rpc, "brokerRouting"),
@@ -48,4 +54,3 @@ export function createWorkerOrchestratorDeps(
     logger: logger as unknown as OrchestratorDeps["logger"],
   };
 }
-

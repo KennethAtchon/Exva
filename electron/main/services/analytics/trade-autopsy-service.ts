@@ -201,9 +201,10 @@ export interface LessonUpdate {
   validatedAt?: string | null;
 }
 
-export function runLessonValidation(
-  ctx: LessonValidationContext,
-): { updates: LessonUpdate[]; andonCords: AndonCordPayload[] } {
+export function runLessonValidation(ctx: LessonValidationContext): {
+  updates: LessonUpdate[];
+  andonCords: AndonCordPayload[];
+} {
   const updates: LessonUpdate[] = [];
   const andonCords: AndonCordPayload[] = [];
 
@@ -643,7 +644,7 @@ function formatPnlPct(trade: Trade): string {
 }
 
 function earliestMessage(messages: AgentMessage[]): AgentMessage | null {
-  return messages.length > 0 ? messages[0] ?? null : null;
+  return messages.length > 0 ? (messages[0] ?? null) : null;
 }
 
 function decisionMessage(messages: AgentMessage[]): AgentMessage | null {
@@ -678,7 +679,9 @@ function buildThesisPrompt(trade: Trade, messages: AgentMessage[]): string {
     `Strategy Snapshot: ${earliest?.strategy_snapshot_json ?? "{}"}`,
     "",
     "Decision agent output:",
-    decision?.output_json ?? decision?.messages_json ?? "No decision output available.",
+    decision?.output_json ??
+      decision?.messages_json ??
+      "No decision output available.",
     "",
     "Was the thesis logically valid given these inputs?",
   ].join("\n");

@@ -167,9 +167,7 @@ function renderWorkerGuidanceBlock(markdown: string): string | null {
 }
 
 /** Character counts vs RUNTIME_DEFAULTS — for tests and observability only; never mutates content. */
-export function measureWorkerPrompt(
-  messages: LLMMessage[],
-): PromptSizeReport {
+export function measureWorkerPrompt(messages: LLMMessage[]): PromptSizeReport {
   const systemChars =
     messages.find((m) => m.role === "system")?.content.length ?? 0;
   const userChars =

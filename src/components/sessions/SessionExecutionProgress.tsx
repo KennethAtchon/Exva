@@ -62,17 +62,20 @@ export function deriveProgress(
 ): SessionProgressState | null {
   if (steps.length === 0) return null;
 
-  type StepEntry = SessionExecutionProgressResponse["steps"][number];
-  const activeStep = STAGE_ORDER.map((stage) =>
-    steps.find((s) => s.stage === stage),
-  )
-    .filter((s): s is StepEntry => Boolean(s))
-    .find(
-      (s) =>
-        s.status !== "succeeded" &&
-        s.status !== "skipped" &&
-        s.status !== "pending",
-    );
+  const stepsByStage = new Map(steps.map((step) => [step.stage, step]));
+  let activeStep: SessionExecutionProgressResponse["steps"][number] | undefined;
+  for (const stage of STAGE_ORDER) {
+    const step = stepsByStage.get(stage);
+    if (
+      step &&
+      step.status !== "succeeded" &&
+      step.status !== "skipped" &&
+      step.status !== "pending"
+    ) {
+      activeStep = step;
+      break;
+    }
+  }
 
   const allSucceeded = steps.every(
     (s) => s.status === "succeeded" || s.status === "skipped",

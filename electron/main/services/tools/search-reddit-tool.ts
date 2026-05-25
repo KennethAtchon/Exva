@@ -186,24 +186,25 @@ export function createSearchRedditTool(deps: {
       }
 
       try {
-        const posts = (deps.mockPosts
-          ? deps.mockPosts
-          : (
-              await searchReddit(
-                validation.sanitized,
-                subsToUse,
-                sort,
-                timeFilter,
-              )
-            ).map((post) => ({
-              subreddit: post.subreddit,
-              title: post.title,
-              body: post.selftext,
-              score: post.score,
-              comments: post.num_comments,
-              url: toRedditThreadUrl(post),
-              postedAt: new Date(post.created_utc * 1000).toISOString(),
-            }))
+        const posts = (
+          deps.mockPosts
+            ? deps.mockPosts
+            : (
+                await searchReddit(
+                  validation.sanitized,
+                  subsToUse,
+                  sort,
+                  timeFilter,
+                )
+              ).map((post) => ({
+                subreddit: post.subreddit,
+                title: post.title,
+                body: post.selftext,
+                score: post.score,
+                comments: post.num_comments,
+                url: toRedditThreadUrl(post),
+                postedAt: new Date(post.created_utc * 1000).toISOString(),
+              }))
         ).map((post) => {
           const symbol =
             validation.sanitized.match(/\b[A-Z]{1,5}\b/)?.[0] ??

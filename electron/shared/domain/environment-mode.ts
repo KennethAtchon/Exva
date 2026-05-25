@@ -18,7 +18,5 @@ export function sessionMatchesEnvironment(
   sessionExecutionMode: ExecutionMode,
   environmentMode: GlobalEnvironmentMode,
 ): boolean {
-  return (
-    sessionExecutionMode === executionModeForEnvironment(environmentMode)
-  );
+  return sessionExecutionMode === executionModeForEnvironment(environmentMode);
 }

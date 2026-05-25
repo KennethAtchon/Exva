@@ -97,7 +97,10 @@ export class SessionStartupRecoveryService {
     return recoverable;
   }
 
-  async recoverSession(sessionId: string, input: RecoverableSession): Promise<void> {
+  async recoverSession(
+    sessionId: string,
+    input: RecoverableSession,
+  ): Promise<void> {
     const startedAt = Date.now();
     const openTradeCount = countOpenTrades(this.deps.tradesRepo, sessionId);
 
@@ -160,7 +163,9 @@ export class SessionStartupRecoveryService {
       }
 
       try {
-        const adapter = await this.deps.brokerRegistry.get(trade.brokerAccountId);
+        const adapter = await this.deps.brokerRegistry.get(
+          trade.brokerAccountId,
+        );
         const status = await withTimeout(
           adapter.getOrderStatus(trade.broker_order_id),
           BROKER_RECONCILE_TIMEOUT_MS,
@@ -181,8 +186,7 @@ export class SessionStartupRecoveryService {
           );
         }
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : String(error);
         warnings.push(
           `Could not reconcile ${trade.instrumentSymbol} (${trade.id}): ${message}`,
         );

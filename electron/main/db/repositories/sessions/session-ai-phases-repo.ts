@@ -139,7 +139,9 @@ export class SessionAiPhasesRepo {
     return updated;
   }
 
-  backfillDefaultReasoningLevel(reasoningLevel: SessionAiPhase["reasoningLevel"]): number {
+  backfillDefaultReasoningLevel(
+    reasoningLevel: SessionAiPhase["reasoningLevel"],
+  ): number {
     if (reasoningLevel === "off") return 0;
     const rows = this.client.db.select().from(sessionAiPhases).all();
     let updated = 0;

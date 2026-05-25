@@ -93,8 +93,16 @@ export function registerStrategyHandlers(services: AppServices): void {
   handle(ipcMain, channels.strategy.saveAiPhase, async (payload) => {
     const input = strategyAiPhaseSaveSchema.parse(payload);
     const sessionId = resolveSessionId(services, input);
-    const { sessionId: _ignored, phase, ...patch } = input;
-    services.strategyContext.saveAiPhase(sessionId, { phase, ...patch });
+    services.strategyContext.saveAiPhase(sessionId, {
+      phase: input.phase,
+      providerKey: input.providerKey,
+      modelId: input.modelId,
+      temperature: input.temperature,
+      maxTokens: input.maxTokens,
+      reasoningLevel: input.reasoningLevel,
+      promptSource: input.promptSource,
+      promptMarkdown: input.promptMarkdown,
+    });
     return { savedAt: new Date().toISOString() };
   });
 

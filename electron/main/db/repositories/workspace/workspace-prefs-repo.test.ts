@@ -20,7 +20,7 @@ describe("WorkspacePreferencesRepo", () => {
     expect(repo.get()).toMatchObject({
       id: 1,
       globalIncludeArchived: false,
-      defaultSearchProviderId: null,
+      defaultSearchProviderId: "builtin-search-duckduckgo",
       allocationEnforcementOverride: null,
     });
 

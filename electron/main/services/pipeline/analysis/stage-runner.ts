@@ -1,8 +1,14 @@
 import { AppError } from "@electron/shared/infra/errors";
 import type { LLMRunResult } from "../../llm/llm-types";
 import type { DeclarativeCycleStageConfig } from "../execution/input-builder-registry";
-import { runEngineChainStage, runEngineStage } from "../execution/stage-dispatch";
-import type { InstrumentAnalysisContext, InstrumentAnalysisState } from "./types";
+import {
+  runEngineChainStage,
+  runEngineStage,
+} from "../execution/stage-dispatch";
+import type {
+  InstrumentAnalysisContext,
+  InstrumentAnalysisState,
+} from "./types";
 
 export async function runAnalysisStep(
   config: DeclarativeCycleStageConfig,

@@ -7,15 +7,18 @@ The engine registry is how the framework exposes capabilities that phases can op
 ## The Pattern
 
 **Wrong:**
+
 ```ts
 // Inside selector-analysis.ts finalize():
 const scored = scoreCandidate(candidates, DEFAULT_SCORING_WEIGHTS);
 const filtered = new SelectorRiskFilter(ctx).evaluate(scored);
 const output = buildInstrumentSelection(filtered.accepted, maxConcurrentTrades);
 ```
+
 Direct calls. Hardcoded in the selector execution path. Adding another step means editing this function and adding another import.
 
 **Right:**
+
 ```ts
 // In selector.phase.ts:
 finalizeEngineIds: ["selector-risk-filter", "selector-submission-builder"]
@@ -53,6 +56,7 @@ That's it. No changes to the runtime. No changes to any phase's execution flow.
 Builds a string block injected into the worker's system prompt before execution. Used to provide the AI with session-specific context it needs to do its job.
 
 **Interface:**
+
 ```ts
 interface InputEngine extends Engine {
   kind: "input";
@@ -64,13 +68,14 @@ interface InputEngine extends Engine {
 
 **Current engines:**
 
-| ID | File | What it injects |
-|---|---|---|
-| `selector-scope` | `engines/input/selector-scope.ts` | Scope instruction: full-universe or constrained to `instrumentScope` |
-| `broker-coverage` | `engines/input/broker-coverage.ts` | Which instrument classes are tradable via which brokers |
-| `prediction-market-candidates` | `engines/input/prediction-market-candidates.ts` | Pre-fetched canonical prediction market rows |
+| ID                             | File                                            | What it injects                                                      |
+| ------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------- |
+| `selector-scope`               | `engines/input/selector-scope.ts`               | Scope instruction: full-universe or constrained to `instrumentScope` |
+| `broker-coverage`              | `engines/input/broker-coverage.ts`              | Which instrument classes are tradable via which brokers              |
+| `prediction-market-candidates` | `engines/input/prediction-market-candidates.ts` | Pre-fetched canonical prediction market rows                         |
 
 **Example:**
+
 ```ts
 // engines/input/broker-coverage.ts
 registerEngine<InputEngine>({
@@ -79,7 +84,7 @@ registerEngine<InputEngine>({
   async build(ctx) {
     const brokers = ctx.services.sessionBrokerAssignmentsRepo
       .listBrokerAccountIds(ctx.session.id)
-      .map(id => ctx.services.brokerAccountsRepo.find(id))
+      .map((id) => ctx.services.brokerAccountsRepo.find(id))
       .filter(Boolean);
     // ... build and return coverage string
     return coverageString;
@@ -94,6 +99,7 @@ registerEngine<InputEngine>({
 Checked before stages run. If `matches()` returns true, the framework calls `resolve()` and returns the output directly. Stages, finalizers, and cache write are all skipped.
 
 **Interface:**
+
 ```ts
 interface EntryModeEngine extends Engine {
   kind: "entry_mode";
@@ -104,19 +110,25 @@ interface EntryModeEngine extends Engine {
 
 **Current engines:**
 
-| ID | File | Condition |
-|---|---|---|
+| ID                 | File                                     | Condition                                                                             |
+| ------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------- |
 | `manual-shortlist` | `engines/entry-mode/manual-shortlist.ts` | `session.selectionMode === "manual_shortlist"` or `!selectorSettings.aiPickerEnabled` |
 
 **Example:**
+
 ```ts
 // engines/entry-mode/manual-shortlist.ts
 registerEngine<EntryModeEngine>({
   id: "manual-shortlist",
   kind: "entry_mode",
   matches(ctx) {
-    const settings = ctx.services.sessionSelectorSettingsRepo.get(ctx.sessionId);
-    return ctx.session.selectionMode === "manual_shortlist" || !settings.aiPickerEnabled;
+    const settings = ctx.services.sessionSelectorSettingsRepo.get(
+      ctx.sessionId,
+    );
+    return (
+      ctx.session.selectionMode === "manual_shortlist" ||
+      !settings.aiPickerEnabled
+    );
   },
   resolve(ctx) {
     return buildManualShortlistSelection(
@@ -134,6 +146,7 @@ registerEngine<EntryModeEngine>({
 Fingerprints the phase inputs, checks for a valid cached result, writes the result after completion.
 
 **Interface:**
+
 ```ts
 interface CacheEngine<TOutput> extends Engine {
   kind: "cache";
@@ -150,8 +163,8 @@ interface CacheEngine<TOutput> extends Engine {
 
 **Current engines:**
 
-| ID | File | What it caches |
-|---|---|---|
+| ID                          | File                                         | What it caches                                                           |
+| --------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
 | `selector-instrument-cache` | `engines/cache/selector-instrument-cache.ts` | `InstrumentSelection` keyed by session config hash, TTL by holding style |
 
 ---
@@ -161,6 +174,7 @@ interface CacheEngine<TOutput> extends Engine {
 Runs after all stages complete. Multiple finalizers run in the order declared in `finalizeEngineIds`. Each receives stage results + current state and produces the next state. Last finalizer produces the phase output.
 
 **Interface:**
+
 ```ts
 interface FinalizerEngine<TState = unknown, TOutput = unknown> extends Engine {
   kind: "finalizer";
@@ -176,23 +190,24 @@ interface FinalizerEngine<TState = unknown, TOutput = unknown> extends Engine {
 
 **Current engines (selector chain):**
 
-| ID | File | What it does |
-|---|---|---|
-| `selector-risk-filter` | `engines/finalizer/selector-risk-filter.ts` | Adds selector evidence, then filters by broker routing + instrument class + risk rules |
-| `selector-submission-builder` | `engines/finalizer/selector-submission-builder.ts` | Builds `InstrumentSelection` from accepted candidates |
+| ID                            | File                                               | What it does                                                                           |
+| ----------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `selector-risk-filter`        | `engines/finalizer/selector-risk-filter.ts`        | Adds selector evidence, then filters by broker routing + instrument class + risk rules |
+| `selector-submission-builder` | `engines/finalizer/selector-submission-builder.ts` | Builds `InstrumentSelection` from accepted candidates                                  |
 
 **Not finalizer engines (stage-local only):**
+
 - `mergeDiscoveryCandidates` — called directly in discovery stage `applyResults()`, not through registry
 - `scoreCandidate` / `scoreSelectorCandidates` — called directly in both stage `applyResults()` functions, not through registry
 
 **Current engines (trade analysis phases):**
 
-| ID | File | Phase |
-|---|---|---|
-| `technical-aggregator` | `engines/finalizer/technical-aggregator.ts` | technical |
-| `fundamental-aggregator` | `engines/finalizer/fundamental-aggregator.ts` | fundamental |
-| `review-aggregator` | `engines/finalizer/review-aggregator.ts` | review |
-| `trade-signal-aggregator` | `engines/finalizer/trade-signal-aggregator.ts` | decision |
+| ID                        | File                                           | Phase       |
+| ------------------------- | ---------------------------------------------- | ----------- |
+| `technical-aggregator`    | `engines/finalizer/technical-aggregator.ts`    | technical   |
+| `fundamental-aggregator`  | `engines/finalizer/fundamental-aggregator.ts`  | fundamental |
+| `review-aggregator`       | `engines/finalizer/review-aggregator.ts`       | review      |
+| `trade-signal-aggregator` | `engines/finalizer/trade-signal-aggregator.ts` | decision    |
 
 ---
 

@@ -2,10 +2,7 @@ import type { AgentRole, ProviderType } from "@/lib/types";
 import type { PrepareStepFunction, ToolSet } from "ai";
 import type { z } from "zod";
 import type { ReasoningLevel } from "@electron/shared/ai/ai-phase";
-import type {
-  LLMMessage,
-  LLMCallTrace,
-} from "../llm-types";
+import type { LLMMessage, LLMCallTrace } from "../llm-types";
 
 export interface GenerateTextOptions {
   model: string;

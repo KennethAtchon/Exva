@@ -7,11 +7,17 @@ describe("scheduleCycleRefillIfIdle", () => {
     const scheduleSelectorCycle = vi.fn(async () => undefined);
     const ctx = createContext({ openTradeCount: 0, maxConcurrentTrades: 3 });
 
-    scheduleCycleRefillIfIdle(ctx, scheduleSelectorCycle, "No-trade cycle complete");
+    scheduleCycleRefillIfIdle(
+      ctx,
+      scheduleSelectorCycle,
+      "No-trade cycle complete",
+    );
     await ctx.queue.onIdle();
     await ctx.queue.onIdle();
 
-    expect(scheduleSelectorCycle).toHaveBeenCalledWith("No-trade cycle complete");
+    expect(scheduleSelectorCycle).toHaveBeenCalledWith(
+      "No-trade cycle complete",
+    );
     expect(ctx.cycleRestartInFlight).toBe(false);
   });
 
@@ -19,7 +25,11 @@ describe("scheduleCycleRefillIfIdle", () => {
     const scheduleSelectorCycle = vi.fn(async () => undefined);
     const ctx = createContext({ openTradeCount: 3, maxConcurrentTrades: 3 });
 
-    scheduleCycleRefillIfIdle(ctx, scheduleSelectorCycle, "No-trade cycle complete");
+    scheduleCycleRefillIfIdle(
+      ctx,
+      scheduleSelectorCycle,
+      "No-trade cycle complete",
+    );
     await ctx.queue.onIdle();
 
     expect(scheduleSelectorCycle).not.toHaveBeenCalled();

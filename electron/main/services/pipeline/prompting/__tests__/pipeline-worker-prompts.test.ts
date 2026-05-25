@@ -75,7 +75,6 @@ const BANNED = [
   /you are operating inside exva/i,
   /submit_candidates/i,
   /use `get_/i,
-  /use `search_/i,
   /use `fetch_/i,
   /no other tools/i,
 ];

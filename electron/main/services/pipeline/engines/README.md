@@ -17,13 +17,13 @@ All five phases are fully migrated. Every phase-level hook is a registered engin
 
 ## Registered engines by phase
 
-| Phase | Input | Entry | Cache | Finalizers |
-| ----- | ----- | ----- | ----- | ---------- |
-| selector | selector-scope, broker-coverage, prediction-market-candidates | manual-shortlist | selector-instrument-cache | selector-risk-filter, selector-submission-builder |
-| technical | — | — | — | technical-aggregator |
-| fundamental | — | — | — | fundamental-aggregator |
-| review | — | — | — | review-aggregator |
-| decision | — | — | — | trade-signal-aggregator |
+| Phase       | Input                                                         | Entry            | Cache                     | Finalizers                                        |
+| ----------- | ------------------------------------------------------------- | ---------------- | ------------------------- | ------------------------------------------------- |
+| selector    | selector-scope, broker-coverage, prediction-market-candidates | manual-shortlist | selector-instrument-cache | selector-risk-filter, selector-submission-builder |
+| technical   | —                                                             | —                | —                         | technical-aggregator                              |
+| fundamental | —                                                             | —                | —                         | fundamental-aggregator                            |
+| review      | —                                                             | —                | —                         | review-aggregator                                 |
+| decision    | —                                                             | —                | —                         | trade-signal-aggregator                           |
 
 Finalizer engines delegate to deterministic functions in `services/signal/aggregators/` and `services/signal/scoring/`. This folder is the orchestration boundary; signal logic stays in `signal/`.
 

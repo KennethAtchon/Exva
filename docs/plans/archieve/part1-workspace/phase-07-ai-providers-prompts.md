@@ -543,35 +543,35 @@ The same policy applies to broker adapter calls in Phase 8 with one difference: 
 
 ## Files Created / Modified
 
-| Action | File                                                                                                   |
-| ------ | ------------------------------------------------------------------------------------------------------ |
-| Create | `electron/main/services/pipeline/prompting/strategy-prompt-context.ts` — `buildStrategyTimeframeContext`               |
-| Create | `electron/main/services/llm/index.ts`                                                                   |
-| Create | `electron/main/services/llm/adapters/provider-adapter.ts`                                               |
-| Create | `electron/main/services/llm/adapters/anthropic-adapter.ts`                                              |
-| Create | `electron/main/services/llm/adapters/openai-adapter.ts`                                                 |
-| Create | `electron/main/services/llm/adapters/openrouter-adapter.ts`                                             |
-| Create | `electron/main/services/llm/provider-registry.ts`                                                       |
-| Create | `electron/main/services/llm/ai-runtime.ts`                                                              |
-| Create | `electron/main/services/llm/ai-runtime-types.ts`                                                        |
-| Create | `electron/main/services/llm/ai-runtime-schemas.ts`                                                      |
-| Create | `electron/main/services/search/index.ts` (P1.4)                                                     |
-| Create | `electron/main/services/search/search-registry.ts`                                                  |
-| Create | `electron/main/services/search/search-types.ts`                                                     |
-| Create | `electron/main/services/search/adapters/search-adapter.ts`                                          |
-| Create | `electron/main/services/search/adapters/brave-adapter.ts`                                           |
-| Create | `electron/main/services/search/adapters/tavily-adapter.ts`                                          |
-| Modify | `electron/main/services/pipeline/prompt-asset-loader.ts` — add version()                                     |
-| Create | `electron/prompts/researcher_bull.md`                                                                  |
-| Create | `electron/prompts/researcher_bear.md`                                                                  |
-| Create | `electron/prompts/reviewer.md`                                                                         |
-| Create | `electron/prompts/decision_maker.md`                                                                   |
-| Create | `electron/prompts/instrument_selector.md`                                                              |
-| Modify | `electron/main/services/agent-orchestrator.ts` — use AiRuntime                                         |
-| Modify | `electron/main/ipc/accounts.ts` — add provider list/save/test handlers                                 |
-| Modify | `electron/main/services/app-services.ts` — wire ProviderRegistry, SearchRegistry, AiRuntime            |
-| Delete | `electron/main/services/ai-sdk-service.ts` — replaced by AiRuntime                                     |
-| Modify | `src/pages/AccountsPage.tsx` — provider list UI expansion (free-text model input for openrouter, P1.5) |
+| Action | File                                                                                                     |
+| ------ | -------------------------------------------------------------------------------------------------------- |
+| Create | `electron/main/services/pipeline/prompting/strategy-prompt-context.ts` — `buildStrategyTimeframeContext` |
+| Create | `electron/main/services/llm/index.ts`                                                                    |
+| Create | `electron/main/services/llm/adapters/provider-adapter.ts`                                                |
+| Create | `electron/main/services/llm/adapters/anthropic-adapter.ts`                                               |
+| Create | `electron/main/services/llm/adapters/openai-adapter.ts`                                                  |
+| Create | `electron/main/services/llm/adapters/openrouter-adapter.ts`                                              |
+| Create | `electron/main/services/llm/provider-registry.ts`                                                        |
+| Create | `electron/main/services/llm/ai-runtime.ts`                                                               |
+| Create | `electron/main/services/llm/ai-runtime-types.ts`                                                         |
+| Create | `electron/main/services/llm/ai-runtime-schemas.ts`                                                       |
+| Create | `electron/main/services/search/index.ts` (P1.4)                                                          |
+| Create | `electron/main/services/search/search-registry.ts`                                                       |
+| Create | `electron/main/services/search/search-types.ts`                                                          |
+| Create | `electron/main/services/search/adapters/search-adapter.ts`                                               |
+| Create | `electron/main/services/search/adapters/brave-adapter.ts`                                                |
+| Create | `electron/main/services/search/adapters/tavily-adapter.ts`                                               |
+| Modify | `electron/main/services/pipeline/prompt-asset-loader.ts` — add version()                                 |
+| Create | `electron/prompts/researcher_bull.md`                                                                    |
+| Create | `electron/prompts/researcher_bear.md`                                                                    |
+| Create | `electron/prompts/reviewer.md`                                                                           |
+| Create | `electron/prompts/decision_maker.md`                                                                     |
+| Create | `electron/prompts/instrument_selector.md`                                                                |
+| Modify | `electron/main/services/agent-orchestrator.ts` — use AiRuntime                                           |
+| Modify | `electron/main/ipc/accounts.ts` — add provider list/save/test handlers                                   |
+| Modify | `electron/main/services/app-services.ts` — wire ProviderRegistry, SearchRegistry, AiRuntime              |
+| Delete | `electron/main/services/ai-sdk-service.ts` — replaced by AiRuntime                                       |
+| Modify | `src/pages/AccountsPage.tsx` — provider list UI expansion (free-text model input for openrouter, P1.5)   |
 
 ## Acceptance Criteria
 

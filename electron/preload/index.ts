@@ -69,7 +69,10 @@ const exva: ExvaApi = {
   },
   autopsy: {
     summarize: (tradeId) =>
-      invoke(channels.trades.autopsy.summarize, tradeIdSchema.parse({ tradeId })),
+      invoke(
+        channels.trades.autopsy.summarize,
+        tradeIdSchema.parse({ tradeId }),
+      ),
     list: (tradeId) =>
       invoke(channels.trades.autopsy.list, tradeIdSchema.parse({ tradeId })),
     listLessons: (autopsyId) =>

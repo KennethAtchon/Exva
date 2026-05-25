@@ -78,36 +78,36 @@ const NEUTRAL_SEARCH: MockWebSearchItem[] = [
   ),
 ];
 
-export const SCENARIO_WEB_SEARCH: Record<MockScenarioKind, MockWebSearchItem[]> =
-  {
-    clean_breakout: BULLISH_SEARCH,
-    failed_breakout: BEARISH_SEARCH,
-    sideways_chop: NEUTRAL_SEARCH,
-    gap_down_after_entry: [
-      searchItem(
-        "{symbol} gaps down after earnings miss and guidance cut",
-        "Shares of {symbol} fell sharply pre-market after missing estimates and reducing full-year outlook.",
-        "search/gap_down/1",
-      ),
-    ],
-    news_reversal: [
-      searchItem(
-        "{symbol} CEO resigns; guidance slashed despite bullish chart",
-        "Fundamental deterioration in {symbol} contradicts recent technical strength; analysts downgrade outlook.",
-        "search/news_reversal/1",
-      ),
-      ...BULLISH_SEARCH.slice(0, 1),
-    ],
-    stale_quote: NEUTRAL_SEARCH,
-    wide_spread: NEUTRAL_SEARCH,
-    partial_fill: BULLISH_SEARCH.slice(0, 2),
-    broker_reject: BULLISH_SEARCH.slice(0, 2),
-    rate_limit: BULLISH_SEARCH.slice(0, 2),
-  };
+export const SCENARIO_WEB_SEARCH: Record<
+  MockScenarioKind,
+  MockWebSearchItem[]
+> = {
+  clean_breakout: BULLISH_SEARCH,
+  failed_breakout: BEARISH_SEARCH,
+  sideways_chop: NEUTRAL_SEARCH,
+  gap_down_after_entry: [
+    searchItem(
+      "{symbol} gaps down after earnings miss and guidance cut",
+      "Shares of {symbol} fell sharply pre-market after missing estimates and reducing full-year outlook.",
+      "search/gap_down/1",
+    ),
+  ],
+  news_reversal: [
+    searchItem(
+      "{symbol} CEO resigns; guidance slashed despite bullish chart",
+      "Fundamental deterioration in {symbol} contradicts recent technical strength; analysts downgrade outlook.",
+      "search/news_reversal/1",
+    ),
+    ...BULLISH_SEARCH.slice(0, 1),
+  ],
+  stale_quote: NEUTRAL_SEARCH,
+  wide_spread: NEUTRAL_SEARCH,
+  partial_fill: BULLISH_SEARCH.slice(0, 2),
+  broker_reject: BULLISH_SEARCH.slice(0, 2),
+  rate_limit: BULLISH_SEARCH.slice(0, 2),
+};
 
-function urlPages(
-  entries: Array<[string, string[]]>,
-): Record<string, string> {
+function urlPages(entries: Array<[string, string[]]>): Record<string, string> {
   return Object.fromEntries(
     entries.map(([path, paragraphs]) => [
       `https://mock.local/${path}`,
@@ -338,7 +338,8 @@ export function resolveMockSymbolForUrl(
     for (const sym of primarySymbols) {
       if (new RegExp(`\\b${sym}\\b`).test(upper)) return sym;
     }
-    return primarySymbols[0]!;
+    const [firstSymbol] = primarySymbols;
+    if (firstSymbol) return firstSymbol;
   }
   return "TICKER";
 }
@@ -377,7 +378,13 @@ export function filterMockWebSearch(
 
   return ranked.map((item) => ({
     ...item,
-    title: substituteMockSymbol(item.title, symbol ?? knownSymbols?.[0] ?? "TICKER"),
-    snippet: substituteMockSymbol(item.snippet, symbol ?? knownSymbols?.[0] ?? "TICKER"),
+    title: substituteMockSymbol(
+      item.title,
+      symbol ?? knownSymbols?.[0] ?? "TICKER",
+    ),
+    snippet: substituteMockSymbol(
+      item.snippet,
+      symbol ?? knownSymbols?.[0] ?? "TICKER",
+    ),
   }));
 }

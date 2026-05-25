@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
 import { buildSearchEverythingScope } from "@electron/shared/instruments/session-instrument-classes";
 import { registerAllPhases } from "../../../pipeline/definitions";
-import { resolveEngine, type InputEngine } from "../../../pipeline/engines/registry";
+import {
+  resolveEngine,
+  type InputEngine,
+} from "../../../pipeline/engines/registry";
 import { AgentOrchestrator } from "../agent-orchestrator";
 import * as runSelectorModule from "../selector/run-selector";
 
@@ -387,6 +390,9 @@ function createDeps({
     },
     eventsRepo: {
       insert: vi.fn((event) => event),
+    },
+    tradesRepo: {
+      listOpenAndPending: vi.fn(() => []),
     },
     capitalReservation: {
       listActiveBySession: vi.fn(() => []),

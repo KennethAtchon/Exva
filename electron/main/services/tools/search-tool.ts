@@ -113,7 +113,8 @@ export async function createSearchTool(deps: {
           created_at: createdAt,
         });
         return out;
-      } catch (error) {
+      } catch (searchError) {
+        let finalError: unknown = searchError;
         if (fallbackAdapter) {
           try {
             const out = await fallbackAdapter.search(validation.sanitized);
@@ -134,10 +135,11 @@ export async function createSearchTool(deps: {
             });
             return out;
           } catch (fallbackError) {
-            error = fallbackError;
+            finalError = fallbackError;
           }
         }
-        const message = error instanceof Error ? error.message : String(error);
+        const message =
+          finalError instanceof Error ? finalError.message : String(finalError);
         deps.apiCallLogRepo.insert({
           id: crypto.randomUUID(),
           session_id: deps.sessionId,
@@ -153,7 +155,7 @@ export async function createSearchTool(deps: {
           from_cache: false,
           created_at: createdAt,
         });
-        throw error;
+        throw finalError;
       }
     },
   });

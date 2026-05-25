@@ -46,12 +46,10 @@ function makeService(
 
   const brokerRegistry = {
     get: vi.fn().mockResolvedValue({
-      testConnection: vi
-        .fn()
-        .mockResolvedValue({
-          ok: connectionOk,
-          message: connectionOk ? "ok" : "failed",
-        }),
+      testConnection: vi.fn().mockResolvedValue({
+        ok: connectionOk,
+        message: connectionOk ? "ok" : "failed",
+      }),
       launchCapable: true,
     }),
   } as never;

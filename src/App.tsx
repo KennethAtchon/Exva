@@ -215,9 +215,7 @@ export default function App() {
         );
       case "trades":
         return (
-          <TradesPage
-            onViewAutopsy={(tradeId) => setAutopsyTradeId(tradeId)}
-          />
+          <TradesPage onViewAutopsy={(tradeId) => setAutopsyTradeId(tradeId)} />
         );
       case "strategy":
         return <StrategyConfig onGoToSessions={() => setPage("sessions")} />;
@@ -312,7 +310,6 @@ export default function App() {
           sessionId={liveReadinessSession.id}
           report={liveReadinessReport}
           onAcknowledged={async () => {
-            const session = liveReadinessSession;
             setLiveReadinessReport(null);
             setLiveReadinessSession(null);
             try {

@@ -124,9 +124,6 @@ export class SessionTemplateService {
     const payload = parsed.data;
     const clearedFields: string[] = [];
 
-    const providerIds = new Set(
-      this.deps.providerAccounts.list().map((provider) => provider.id),
-    );
     const brokerIds = new Set(
       this.deps.brokerAccounts.list().map((broker) => broker.id),
     );

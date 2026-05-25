@@ -32,7 +32,9 @@ export interface InstrumentAnalysisRunInput {
 }
 
 export class InstrumentAnalysisRunner {
-  async run(input: InstrumentAnalysisRunInput): Promise<InstrumentAnalysisResult> {
+  async run(
+    input: InstrumentAnalysisRunInput,
+  ): Promise<InstrumentAnalysisResult> {
     const cycleStartedAt = Date.now();
     logger.info(
       {

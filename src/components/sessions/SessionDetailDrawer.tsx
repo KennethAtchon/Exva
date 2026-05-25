@@ -5,7 +5,6 @@ import { api, listenEvent, type SessionSummary } from "@/lib/exva";
 import type {
   EventRow,
   InstrumentClass,
-  ProviderAccount,
   SessionTemplatePayload,
 } from "@/lib/types";
 import { Button, Dialog, DialogContent } from "@/components/ui";
@@ -36,7 +35,6 @@ export const SessionDetailDrawer = ({
     useState<InstrumentCacheView | null>(null);
   const [cacheLoading, setCacheLoading] = useState(false);
   const [cacheAction, setCacheAction] = useState<string | null>(null);
-  const [providers, setProviders] = useState<ProviderAccount[]>([]);
   const [executionProgress, setExecutionProgress] =
     useState<SessionProgressState | null>(null);
   const [researchFailure, setResearchFailure] = useState<string | null>(null);
@@ -75,10 +73,14 @@ export const SessionDetailDrawer = ({
       "research_phase_failed",
     ] as const;
 
-    void (async () => {
-      for (const eventName of events) {
-        const unsub = await listenEvent(eventName, (payload) => {
-          const data = payload as { sessionId?: string; phase?: string; error?: string };
+    void Promise.all(
+      events.map((eventName) =>
+        listenEvent(eventName, (payload) => {
+          const data = payload as {
+            sessionId?: string;
+            phase?: string;
+            error?: string;
+          };
           if (cancelled || data.sessionId !== session.id) return;
           if (eventName === "research_phase_failed") {
             setResearchFailure(
@@ -86,10 +88,9 @@ export const SessionDetailDrawer = ({
             );
           }
           void refreshExecutionProgress(session.id);
-        });
-        cleanup.push(unsub);
-      }
-    })();
+        }),
+      ),
+    ).then((unsubs) => cleanup.push(...unsubs));
 
     return () => {
       cancelled = true;
@@ -140,14 +141,11 @@ export const SessionDetailDrawer = ({
     let cancelled = false;
     setLoading(true);
     setError(null);
-    void Promise.all([
-      api.buildTemplatePayloadFromSession(session.id),
-      api.getStrategy(session.id).then((res) => res.providers),
-    ])
-      .then(([result, providerList]) => {
+    void api
+      .buildTemplatePayloadFromSession(session.id)
+      .then((result) => {
         if (!cancelled) {
           setPayload(result);
-          setProviders(providerList);
         }
       })
       .catch((loadError: Error) => {

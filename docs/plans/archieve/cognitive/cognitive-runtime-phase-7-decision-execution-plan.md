@@ -40,16 +40,16 @@ Phase 7 is where the architecture delivers its most important product guarantee:
 
 ## 3. Background & Context
 
-| File                                                                       | Current responsibility                                                                  | Gap                                                                             |
-| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| File                                                                | Current responsibility                                                                  | Gap                                                                             |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `electron/main/services/llm/pipeline/definitions/decision.phase.ts` | One decision worker returning `tradeDecisionSchema`                                     | Schema still includes execution-math fields                                     |
-| `src/lib/schemas.ts`                                                       | Defines `tradeDecisionSchema`                                                           | Wrong boundary for the new architecture                                         |
-| `electron/main/services/orchestration/agent-orchestrator.ts`               | Calls decision phase with review text and computes sizing in `resolvePositionSizeUsd()` | Execution logic split between AI and orchestrator                               |
-| `electron/main/services/llm/decision-parse.ts`                   | Legacy decision parsing helper                                                          | Likely obsolete once decision is fully typed and phase-native                   |
-| `electron/main/services/risk/risk-engine.ts`                               | Session/trade gating logic                                                              | Must become explicit policy-engine input, not ad hoc orchestrator dependency    |
-| `electron/main/services/orchestration/order-policy-gate.ts`                | Placement policy gate                                                                   | Must be modeled as a first-class policy engine                                  |
-| `electron/main/services/risk/broker-allocation-gate.ts`                    | Broker allocation + conflict gating                                                     | Must be part of execution-time engine story                                     |
-| `electron/main/services/risk/exit-policy-evaluator.ts`                     | Exit/lifecycle logic                                                                    | Must be connected to the same engine system and DB-backed risk/timeframe config |
+| `src/lib/schemas.ts`                                                | Defines `tradeDecisionSchema`                                                           | Wrong boundary for the new architecture                                         |
+| `electron/main/services/orchestration/agent-orchestrator.ts`        | Calls decision phase with review text and computes sizing in `resolvePositionSizeUsd()` | Execution logic split between AI and orchestrator                               |
+| `electron/main/services/llm/decision-parse.ts`                      | Legacy decision parsing helper                                                          | Likely obsolete once decision is fully typed and phase-native                   |
+| `electron/main/services/risk/risk-engine.ts`                        | Session/trade gating logic                                                              | Must become explicit policy-engine input, not ad hoc orchestrator dependency    |
+| `electron/main/services/orchestration/order-policy-gate.ts`         | Placement policy gate                                                                   | Must be modeled as a first-class policy engine                                  |
+| `electron/main/services/risk/broker-allocation-gate.ts`             | Broker allocation + conflict gating                                                     | Must be part of execution-time engine story                                     |
+| `electron/main/services/risk/exit-policy-evaluator.ts`              | Exit/lifecycle logic                                                                    | Must be connected to the same engine system and DB-backed risk/timeframe config |
 
 The prediction-market path is especially important here because it already contains deterministic Kelly-style sizing logic. Phase 7 should generalize that idea into a first-class execution-profile engine rather than leaving it embedded in orchestrator code.
 

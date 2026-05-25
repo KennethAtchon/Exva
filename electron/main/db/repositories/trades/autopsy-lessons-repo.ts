@@ -38,10 +38,7 @@ export class AutopsyLessonsRepo {
     return rows.map(toLesson);
   }
 
-  listBySession(
-    sessionId: string,
-    statuses?: LessonStatus[],
-  ): AutopsyLesson[] {
+  listBySession(sessionId: string, statuses?: LessonStatus[]): AutopsyLesson[] {
     const conditions = [eq(autopsyLessons.sessionId, sessionId)];
     if (statuses?.length) {
       conditions.push(inArray(autopsyLessons.status, statuses));
@@ -55,9 +52,7 @@ export class AutopsyLessonsRepo {
     return rows.map(toLesson);
   }
 
-  insert(
-    lesson: Omit<AutopsyLesson, "id"> & { id?: string },
-  ): AutopsyLesson {
+  insert(lesson: Omit<AutopsyLesson, "id"> & { id?: string }): AutopsyLesson {
     const id = lesson.id ?? crypto.randomUUID();
     this.client.db
       .insert(autopsyLessons)

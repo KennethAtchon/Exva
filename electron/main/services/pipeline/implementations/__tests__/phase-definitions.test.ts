@@ -36,7 +36,10 @@ describe("phase definitions", () => {
 
     for (const phase of ALL_PHASE_IDS) {
       const plan = getAIPhase(phase);
-      expect(plan?.outputSchemaName, `${phase} missing outputSchemaName`).toBeTruthy();
+      expect(
+        plan?.outputSchemaName,
+        `${phase} missing outputSchemaName`,
+      ).toBeTruthy();
     }
   });
 
@@ -50,30 +53,32 @@ describe("phase definitions", () => {
   it("catalog workers match AIPhase stage workers for every phase and mode", () => {
     registerAllPhases();
 
-    const modesToCheck: Array<(typeof DISCOVERY_MODES)[number]> = ["trend_scan", "event_contract_scan"];
-
     for (const phase of ALL_PHASE_IDS) {
       const plan = getAIPhase(phase);
       if (!plan) throw new Error(`Phase '${phase}' not registered`);
 
       // Build a minimal context that satisfies the discoveryMode access pattern
       // used by resolveWorkers on all current phase stage definitions.
-      for (const mode of modesToCheck) {
+      for (const mode of DISCOVERY_MODES) {
         const minimalCtx = {
           strategyContext: { researchPosture: { discoveryMode: mode } },
         } as import("../../phases/types").AIPhaseContext;
 
         // Workers resolved by the AIPhase runtime path
-        const phaseWorkerIds = plan.stages[0]
-          ?.resolveWorkers(minimalCtx, {} as never)
-          .map((w) => w.id) ?? [];
+        const phaseWorkerIds =
+          plan.stages[0]
+            ?.resolveWorkers(minimalCtx, {} as never)
+            .map((w) => w.id) ?? [];
 
         // Workers resolved by the catalog path (used by effective config / renderer)
-        const catalogWorkerIds = resolvePhaseWorkers(phase, mode).map((w) => w.id);
-
-        expect(catalogWorkerIds, `${phase}/${mode} catalog vs AIPhase mismatch`).toEqual(
-          phaseWorkerIds,
+        const catalogWorkerIds = resolvePhaseWorkers(phase, mode).map(
+          (w) => w.id,
         );
+
+        expect(
+          catalogWorkerIds,
+          `${phase}/${mode} catalog vs AIPhase mismatch`,
+        ).toEqual(phaseWorkerIds);
       }
     }
   });

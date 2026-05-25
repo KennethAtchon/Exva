@@ -67,7 +67,10 @@ describe("attachTradeClosedListener", () => {
 
   it("detaches cleanly", () => {
     const ctx = createContext({ openTradeCount: 0, runtimeActive: true });
-    attachTradeClosedListener(ctx, vi.fn(async () => undefined));
+    attachTradeClosedListener(
+      ctx,
+      vi.fn(async () => undefined),
+    );
     detachTradeClosedListener(ctx);
     expect(ctx.unsubscribeTradeClosed).toBeNull();
   });

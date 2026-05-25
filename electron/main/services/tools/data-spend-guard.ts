@@ -8,7 +8,8 @@ export function assertSessionDataSpendAvailable(deps: {
 }): void {
   if (deps.maxDataSpendUsd == null) return;
   if (
-    deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >= deps.maxDataSpendUsd
+    deps.apiCallLogRepo.dailyDataSpendUsd(deps.sessionId) >=
+    deps.maxDataSpendUsd
   ) {
     throw createOutcomeError(
       "Session max data spend reached; data tools blocked by runtime policy.",

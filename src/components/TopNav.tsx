@@ -53,7 +53,9 @@ interface Props {
   onNavigate: (p: PageKey) => void;
   onNavigateToAttentionSessions?: () => void;
   sessionStatus: SessionStatus;
-  onSessionAction: (a: "start" | "pause" | "resume" | "stop" | "forceStop") => void;
+  onSessionAction: (
+    a: "start" | "pause" | "resume" | "stop" | "forceStop",
+  ) => void;
   sessionActionPending?: boolean;
   stats: DashboardStats | null;
 }
@@ -115,12 +117,11 @@ export const TopNav = ({
 
   const focusedInCurrentEnvironment =
     focusedSession != null &&
-    sessionMatchesEnvironment(
-      focusedSession.executionMode,
-      environmentMode,
-    );
+    sessionMatchesEnvironment(focusedSession.executionMode, environmentMode);
   const sessionControlsDisabled =
-    !focusedInCurrentEnvironment || viewMode === "global" || sessionActionPending;
+    !focusedInCurrentEnvironment ||
+    viewMode === "global" ||
+    sessionActionPending;
 
   const ss = SESSION_STATUS[sessionStatus];
   const isRunning = sessionStatus === "active" || sessionStatus === "paused";
@@ -211,9 +212,7 @@ export const TopNav = ({
       <div style={s.session}>
         {/* Data source indicator */}
         <div
-          style={
-            environmentMode === "live" ? s.liveEnvPill : s.paperEnvPill
-          }
+          style={environmentMode === "live" ? s.liveEnvPill : s.paperEnvPill}
           title={
             environmentMode === "live"
               ? "Live trading mode — real broker connection"
@@ -272,41 +271,43 @@ export const TopNav = ({
         {!isGlobal &&
           sessionStatus !== "active" &&
           sessionStatus !== "monitoring_only" && (
-          <Button
-            style={{
-              ...s.btnStart,
-              ...(aiReady === false || sessionControlsDisabled
-                ? {
-                    opacity: 0.4,
-                    cursor: "not-allowed",
-                    background: "var(--surface3)",
-                    color: "var(--text3)",
-                  }
-                : {}),
-            }}
-            variant="ghost"
-            disabled={aiReady === false || sessionControlsDisabled}
-            title={
-              sessionControlsDisabled
-                ? "Focused session is not in the current workspace environment"
-                : aiReady === false
-                  ? "AI providers not connected — configure in Strategy tab"
-                  : undefined
-            }
-            onClick={() =>
-              onSessionAction(
-                sessionStatus === "paused" || sessionStatus === "attention_required"
-                  ? "resume"
-                  : "start",
-              )
-            }
-          >
-            ▶{" "}
-            {sessionStatus === "paused" || sessionStatus === "attention_required"
-              ? "Resume"
-              : "Start"}
-          </Button>
-        )}
+            <Button
+              style={{
+                ...s.btnStart,
+                ...(aiReady === false || sessionControlsDisabled
+                  ? {
+                      opacity: 0.4,
+                      cursor: "not-allowed",
+                      background: "var(--surface3)",
+                      color: "var(--text3)",
+                    }
+                  : {}),
+              }}
+              variant="ghost"
+              disabled={aiReady === false || sessionControlsDisabled}
+              title={
+                sessionControlsDisabled
+                  ? "Focused session is not in the current workspace environment"
+                  : aiReady === false
+                    ? "AI providers not connected — configure in Strategy tab"
+                    : undefined
+              }
+              onClick={() =>
+                onSessionAction(
+                  sessionStatus === "paused" ||
+                    sessionStatus === "attention_required"
+                    ? "resume"
+                    : "start",
+                )
+              }
+            >
+              ▶{" "}
+              {sessionStatus === "paused" ||
+              sessionStatus === "attention_required"
+                ? "Resume"
+                : "Start"}
+            </Button>
+          )}
         {sessionStatus === "active" && !sessionControlsDisabled && (
           <Button
             variant="ghost"

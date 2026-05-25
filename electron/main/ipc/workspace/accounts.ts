@@ -16,9 +16,7 @@ import { AppError } from "@electron/shared/infra/errors";
 import { isBuiltInSearchProviderAccount } from "@electron/shared/instruments/search-providers";
 import type { AppServices } from "../../services/app-services";
 import { resolveBrokerModeFilter } from "../../services/session/environment-scope";
-import {
-  assertBrokerModeMatchesWorkspace,
-} from "../environment-guards";
+import { assertBrokerModeMatchesWorkspace } from "../environment-guards";
 import {
   serializeBrokerCredentials,
   tempBrokerAccount,

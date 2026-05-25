@@ -171,7 +171,9 @@ export const sessionAiSettings = sqliteTable("session_ai_settings", {
   sessionId: text("session_id")
     .primaryKey()
     .references(() => sessions.id, { onDelete: "cascade" }),
-  workerGuidanceMarkdown: text("worker_guidance_markdown").notNull().default(""),
+  workerGuidanceMarkdown: text("worker_guidance_markdown")
+    .notNull()
+    .default(""),
   updatedAt: text("updated_at").notNull(),
 });
 

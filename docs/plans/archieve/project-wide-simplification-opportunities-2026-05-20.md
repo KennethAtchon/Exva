@@ -101,11 +101,11 @@ Then generate or derive:
 
 **Files observed:**
 
-| File                                                                            | Current Role                                    |
-| ------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `orchestration/cycle/trade/approval-recheck.ts`                                 | Builds order-policy task manually after recheck |
-| `orchestration/cycle/trade/order-placer.ts`                                     | Places routed broker order                      |
-| `orchestration/policy/order-policy-gate.ts`                                     | Policy evaluator                                |
+| File                                                                | Current Role                                    |
+| ------------------------------------------------------------------- | ----------------------------------------------- |
+| `orchestration/cycle/trade/approval-recheck.ts`                     | Builds order-policy task manually after recheck |
+| `orchestration/cycle/trade/order-placer.ts`                         | Places routed broker order                      |
+| `orchestration/policy/order-policy-gate.ts`                         | Policy evaluator                                |
 | `ai/pipeline/implementations/inputs/trade-engine-input-builders.ts` | Engine input builders for plan stages           |
 
 **Problem:** The existing pipeline simplification removed duplicated risk/allocation gates from approval recheck, but `approval-recheck.ts` still manually constructs the order-policy task with `existingOrderCheck`, `sessionIsPaused`, `decisionRiskInput`, exit policy, side bias, and broker support. This is a smaller but still meaningful fork from normal order placement.
@@ -218,10 +218,10 @@ The backend validates the full `SessionStrategyContext`, writes related tables i
 
 **Files observed:**
 
-| File                                                    | Current Role                                                                    |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `src/components/sessions/CreateEditSessionModal.tsx`    | UI draft state, broker filtering, search-everything behavior, coverage warnings |
-| `services/session/write-service.ts`                     | Backend validation and normalization                                            |
+| File                                                        | Current Role                                                                    |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `src/components/sessions/CreateEditSessionModal.tsx`        | UI draft state, broker filtering, search-everything behavior, coverage warnings |
+| `services/session/write-service.ts`                         | Backend validation and normalization                                            |
 | `electron/shared/instruments/session-instrument-classes.ts` | Shared class derivation helpers                                                 |
 
 **Problem:** The session modal and backend already share `resolveEffectiveInstrumentClasses()`, but the broader draft lifecycle is still duplicated: broker mode pruning, selected broker ID normalization, search-everything state, effective classes, coverage warnings, required search provider checks, and override filtering.

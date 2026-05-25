@@ -4,10 +4,11 @@ import { createOrchestratorDeps } from "./session-runtime-host";
 import { MainRuntimeRpcBridge } from "./runtime-rpc-bridge";
 import type { EventBus } from "../infra/event-bus";
 import type { Logger } from "../infra/log";
-import type { ManagedSessionRuntime, SessionRuntimeManagerDeps } from "./session-types";
-import {
-  UtilityProcessSessionRuntime,
-} from "./utility-process-session-runtime";
+import type {
+  ManagedSessionRuntime,
+  SessionRuntimeManagerDeps,
+} from "./session-types";
+import { UtilityProcessSessionRuntime } from "./utility-process-session-runtime";
 
 export function resolveSessionWorkerPath(): string {
   return path.join(__dirname, "session-runtime-worker.cjs");

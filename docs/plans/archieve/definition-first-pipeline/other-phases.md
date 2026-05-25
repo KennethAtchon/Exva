@@ -7,6 +7,7 @@ Technical, fundamental, review, and decision phases. Each is simpler than select
 ## The Factory Problem
 
 `createAggregatorAIPhase()` in `implementations/trade/aggregator-phase-plan.ts` is a convenience wrapper that builds an `AIPhase` from a simplified config struct. It handles the flat-parallel-workers + LLM-aggregator pattern. It does not support:
+
 - Multi-stage execution
 - Entry modes
 - Cache policies
@@ -21,6 +22,7 @@ When selector needed multi-stage, it couldn't use the factory. So selector got i
 ## State Type for Aggregator Phases
 
 The factory currently uses `AggregatorPlanState`:
+
 ```ts
 type AggregatorPlanState = {
   workers: readonly WorkerDefinition[];
@@ -44,12 +46,12 @@ This file holds worker arrays for three phases across two discovery modes (6 arr
 
 ### Files involved
 
-| File | Role | Disposition |
-|---|---|---|
-| `definitions/technical.phase.ts` | `PipelineDefinition` metadata stub | **Replaced** — same path, new content: real `AIPhase` |
-| `pipeline-discovery-config.ts` (technical section) | `STANDARD_TECHNICAL`, `EVENT_TECHNICAL`, `technicalWorkersForMode()` | **Deleted** — arrays move inline |
-| `implementations/trade/phase-analyses.ts` (TECHNICAL_PLAN) | `AIPhase` via `createAggregatorAIPhase` | **Deleted** — replaced by `definitions/technical.phase.ts` |
-| `signal/aggregators/technical-aggregator.ts` | LLM aggregation called from TECHNICAL_PLAN finalize | **Stays in place** — wrapped by `engines/finalizer/technical-aggregator.ts` |
+| File                                                       | Role                                                                 | Disposition                                                                 |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `definitions/technical.phase.ts`                           | `PipelineDefinition` metadata stub                                   | **Replaced** — same path, new content: real `AIPhase`                       |
+| `pipeline-discovery-config.ts` (technical section)         | `STANDARD_TECHNICAL`, `EVENT_TECHNICAL`, `technicalWorkersForMode()` | **Deleted** — arrays move inline                                            |
+| `implementations/trade/phase-analyses.ts` (TECHNICAL_PLAN) | `AIPhase` via `createAggregatorAIPhase`                              | **Deleted** — replaced by `definitions/technical.phase.ts`                  |
+| `signal/aggregators/technical-aggregator.ts`               | LLM aggregation called from TECHNICAL_PLAN finalize                  | **Stays in place** — wrapped by `engines/finalizer/technical-aggregator.ts` |
 
 ### After
 
@@ -71,7 +73,10 @@ const EVENT_TECHNICAL_WORKERS: readonly WorkerDefinition[] = [
   // event-specific variants
 ];
 
-export const TECHNICAL_PHASE: AIPhase<TechnicalAggregatorState, TechnicalSignal> = {
+export const TECHNICAL_PHASE: AIPhase<
+  TechnicalAggregatorState,
+  TechnicalSignal
+> = {
   phase: "technical",
   persistAggregate: false,
   finalizeEngineIds: ["technical-aggregator"],
@@ -80,7 +85,8 @@ export const TECHNICAL_PHASE: AIPhase<TechnicalAggregatorState, TechnicalSignal>
       id: "workers",
       frontier: 0,
       resolveWorkers: (ctx) =>
-        ctx.strategyContext.researchPosture.discoveryMode === "event_contract_scan"
+        ctx.strategyContext.researchPosture.discoveryMode ===
+        "event_contract_scan"
           ? EVENT_TECHNICAL_WORKERS
           : STANDARD_TECHNICAL_WORKERS,
       buildTask: (ctx) => ({
@@ -119,7 +125,10 @@ registerEngine<FinalizerEngine>({
   async run(ctx, state) {
     // This engine makes an LLM call. It is async and may be slow.
     const workerPayload = {
-      chartPattern: pickWorkerOutput(state.workerResults, chartPatternOutputSchema),
+      chartPattern: pickWorkerOutput(
+        state.workerResults,
+        chartPatternOutputSchema,
+      ),
       momentum: pickWorkerOutput(state.workerResults, momentumOutputSchema),
       volume: pickWorkerOutput(state.workerResults, volumeOutputSchema),
     };
@@ -147,12 +156,12 @@ registerEngine<FinalizerEngine>({
 
 ### Files involved
 
-| File | Role | Disposition |
-|---|---|---|
-| `definitions/fundamental.phase.ts` | Metadata stub | **Replaced** (same path, new content) |
-| `pipeline-discovery-config.ts` (fundamental section) | `STANDARD_FUNDAMENTAL`, `EVENT_FUNDAMENTAL`, `fundamentalWorkersForMode()` | **Deleted** — arrays move inline |
-| `implementations/trade/phase-analyses.ts` (FUNDAMENTAL_PLAN) | `AIPhase` via factory | **Deleted** |
-| `signal/aggregators/fundamental-aggregator.ts` | LLM aggregation | **Stays in place** — wrapped by `engines/finalizer/fundamental-aggregator.ts` |
+| File                                                         | Role                                                                       | Disposition                                                                   |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `definitions/fundamental.phase.ts`                           | Metadata stub                                                              | **Replaced** (same path, new content)                                         |
+| `pipeline-discovery-config.ts` (fundamental section)         | `STANDARD_FUNDAMENTAL`, `EVENT_FUNDAMENTAL`, `fundamentalWorkersForMode()` | **Deleted** — arrays move inline                                              |
+| `implementations/trade/phase-analyses.ts` (FUNDAMENTAL_PLAN) | `AIPhase` via factory                                                      | **Deleted**                                                                   |
+| `signal/aggregators/fundamental-aggregator.ts`               | LLM aggregation                                                            | **Stays in place** — wrapped by `engines/finalizer/fundamental-aggregator.ts` |
 
 ### After
 
@@ -164,11 +173,11 @@ Same structure as technical. Worker arrays inline. Single stage. `finalizeEngine
 
 ### Files involved
 
-| File | Role | Disposition |
-|---|---|---|
-| `definitions/review.phase.ts` | `PipelineDefinition` stub — workers ARE defined here and referenced from REVIEW_PLAN | **Replaced** (same path, new content) |
-| `implementations/trade/phase-analyses.ts` (REVIEW_PLAN) | `AIPhase` via factory, uses `REVIEW_PHASE.workers` | **Deleted** |
-| `signal/aggregators/review-aggregator.ts` | LLM aggregation | **Stays in place** — wrapped by `engines/finalizer/review-aggregator.ts` |
+| File                                                    | Role                                                                                 | Disposition                                                              |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `definitions/review.phase.ts`                           | `PipelineDefinition` stub — workers ARE defined here and referenced from REVIEW_PLAN | **Replaced** (same path, new content)                                    |
+| `implementations/trade/phase-analyses.ts` (REVIEW_PLAN) | `AIPhase` via factory, uses `REVIEW_PHASE.workers`                                   | **Deleted**                                                              |
+| `signal/aggregators/review-aggregator.ts`               | LLM aggregation                                                                      | **Stays in place** — wrapped by `engines/finalizer/review-aggregator.ts` |
 
 **Note:** Review phase workers are currently declared in `definitions/review.phase.ts` (unlike technical/fundamental which use `pipeline-discovery-config.ts`). No mode-switching. Two workers: `conflict-detector`, `risk-assessor`. The migration simply promotes these into a real `AIPhase` in the same file.
 
@@ -215,18 +224,20 @@ export const REVIEW_PHASE: AIPhase<AggregatorPlanState, ReviewSignal> = {
 
 ### Files involved
 
-| File | Role | Disposition |
-|---|---|---|
-| `definitions/decision.phase.ts` | `PipelineDefinition` stub — workers ARE defined here | **Replaced** (same path, new content) |
-| `implementations/trade/phase-analyses.ts` (DECISION_PLAN) | `AIPhase` via factory, has mock scenario special case | **Deleted** |
-| `signal/aggregators/trade-signal-aggregator.ts` | LLM aggregation | **Stays in place** — wrapped by `engines/finalizer/trade-signal-aggregator.ts` |
+| File                                                      | Role                                                  | Disposition                                                                    |
+| --------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `definitions/decision.phase.ts`                           | `PipelineDefinition` stub — workers ARE defined here  | **Replaced** (same path, new content)                                          |
+| `implementations/trade/phase-analyses.ts` (DECISION_PLAN) | `AIPhase` via factory, has mock scenario special case | **Deleted**                                                                    |
+| `signal/aggregators/trade-signal-aggregator.ts`           | LLM aggregation                                       | **Stays in place** — wrapped by `engines/finalizer/trade-signal-aggregator.ts` |
 
 **Special case:** DECISION_PLAN has a mock scenario check:
+
 ```ts
 const mockRelaxedEntryTiming =
   ctx.toolContext.isMockSession === true &&
   ctx.toolContext.mockScenarioKind === "clean_breakout";
 ```
+
 This gets passed as part of the `buildFinalizeTask` payload. After migration this moves into the `trade-signal-aggregator` finalizer engine, which reads from `ctx.toolContext`. Do not silently drop. Verify the test that covers mock scenario behavior still passes.
 
 ### After

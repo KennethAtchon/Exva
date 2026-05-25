@@ -1008,12 +1008,14 @@ function mergeUniqueBrokerAssignments(
   nextBrokerIds: string[],
 ): Array<{ brokerAccountId: string; allocatedUsd: number }> {
   const existing = new Set(current.map((entry) => entry.brokerAccountId));
-  return [
-    ...current,
-    ...nextBrokerIds
-      .filter((brokerId) => !existing.has(brokerId))
-      .map((brokerAccountId) => ({ brokerAccountId, allocatedUsd: 0 })),
-  ];
+  const nextEntries = [...current];
+  for (const brokerAccountId of nextBrokerIds) {
+    if (!existing.has(brokerAccountId)) {
+      existing.add(brokerAccountId);
+      nextEntries.push({ brokerAccountId, allocatedUsd: 0 });
+    }
+  }
+  return nextEntries;
 }
 
 function formatInstrumentClass(value: InstrumentClass): string {

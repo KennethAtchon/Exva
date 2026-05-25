@@ -44,9 +44,7 @@ function makeStructured(
   };
 }
 
-function makeLesson(
-  overrides: Partial<AutopsyLesson> = {},
-): AutopsyLesson {
+function makeLesson(overrides: Partial<AutopsyLesson> = {}): AutopsyLesson {
   return {
     id: "lesson-1",
     autopsyId: "autopsy-1",

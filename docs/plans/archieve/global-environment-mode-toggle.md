@@ -341,7 +341,7 @@ Each phase is independently deployable and leaves the system in a valid state.
 - [x] `src/pages/TradesPage.tsx:~177` — **DELETE** the executionMode `<ShadcnSelect>` dropdown from filter UI entirely.
 - [x] `src/pages/TradesPage.tsx:50-56` — Remove `executionMode` from `useMemo` dependency array.
 - [x] Verify: `grep -n "setExecutionMode\|executionMode.*useState" src/pages/TradesPage.tsx` returns zero results.
-- [x] *(beyond plan)* `TradesPage` session dropdown and `WorkspaceContextChip` also pass `executionMode` to `listSessions`; session filter resets on env change.
+- [x] _(beyond plan)_ `TradesPage` session dropdown and `WorkspaceContextChip` also pass `executionMode` to `listSessions`; session filter resets on env change.
 
 **Dependencies:** Phase 2 complete.
 

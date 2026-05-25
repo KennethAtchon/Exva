@@ -49,7 +49,8 @@ export const TradesPage = ({
     if (brokerAccountId.trim()) f.brokerAccountId = brokerAccountId.trim();
     if (symbolContains.trim()) f.symbolContains = symbolContains.trim();
     if (instrumentType) f.instrumentType = instrumentType;
-    f.executionMode = environmentMode === "live" ? "live_allowed" : "paper_only";
+    f.executionMode =
+      environmentMode === "live" ? "live_allowed" : "paper_only";
     return f;
   }, [
     viewMode,

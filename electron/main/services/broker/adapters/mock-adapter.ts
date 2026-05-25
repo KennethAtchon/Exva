@@ -98,7 +98,9 @@ function shapeCleanBreakoutBars(bars: MockOhlcvBar[]): MockOhlcvBar[] {
     if (!bar) continue;
     next[i] = {
       ...bar,
-      volume: Math.round((bar.volume ?? 0) * (1.05 + (i - (lastIndex - 4)) * 0.05)),
+      volume: Math.round(
+        (bar.volume ?? 0) * (1.05 + (i - (lastIndex - 4)) * 0.05),
+      ),
     };
   }
 

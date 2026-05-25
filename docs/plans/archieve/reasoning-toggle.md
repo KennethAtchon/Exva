@@ -55,13 +55,13 @@ UI (AiPhasesSection.tsx)
 
 ### Relevant types (all need extension)
 
-| File                                                         | Type                      | Missing field            |
-| ------------------------------------------------------------ | ------------------------- | ------------------------ |
-| `electron/shared/ai/pipeline-phase.ts:212`                   | `SessionAiPhase`          | `reasoningLevel`         |
-| `electron/shared/ai/pipeline-phase.ts:236`                   | `PhaseRuntimeSummary`     | `reasoningLevel`         |
+| File                                                          | Type                      | Missing field            |
+| ------------------------------------------------------------- | ------------------------- | ------------------------ |
+| `electron/shared/ai/pipeline-phase.ts:212`                    | `SessionAiPhase`          | `reasoningLevel`         |
+| `electron/shared/ai/pipeline-phase.ts:236`                    | `PhaseRuntimeSummary`     | `reasoningLevel`         |
 | `electron/main/services/llm/adapters/provider-adapter.ts:33`  | `AgentRunOptions`         | `reasoningLevel`         |
 | `electron/main/services/llm/adapters/run-agent-execute.ts:51` | `RunAgentExecuteParams`   | `reasoningLevel`         |
-| `electron/main/db/schema.ts:169`                             | `session_ai_phases` table | `reasoning_level` column |
+| `electron/main/db/schema.ts:169`                              | `session_ai_phases` table | `reasoning_level` column |
 
 ### SDK capabilities (installed)
 

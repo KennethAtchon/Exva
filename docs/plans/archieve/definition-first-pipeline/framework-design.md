@@ -48,15 +48,15 @@ A definition file contains no `if` statements, no direct function calls to busin
 ```ts
 export interface AIPhase<TState, TOutput> {
   phase: PipelinePhase;
-  inputBuilderIds?: readonly string[];       // ← ID-based, but separate registry
-  cachePolicyId?: string;                    // ← ID-based, but separate registry
+  inputBuilderIds?: readonly string[]; // ← ID-based, but separate registry
+  cachePolicyId?: string; // ← ID-based, but separate registry
   persistAggregate?: boolean;
-  entryModes: readonly AIPhaseEntryMode[];   // ← inline objects, not IDs
+  entryModes: readonly AIPhaseEntryMode[]; // ← inline objects, not IDs
   initialState(ctx: AIPhaseContext): TState | Promise<TState>;
   stages: readonly AIWorkerBatch<TState>[];
   finalize(ctx, state, workerTraces): Promise<{ output: TOutput; aggregate? }>;
   filterOutput?(output: TOutput, ctx: AIPhaseContext): TOutput;
-  inspect: AIPhaseMetadata;                  // ← manually duplicates the ID lists above
+  inspect: AIPhaseMetadata; // ← manually duplicates the ID lists above
 }
 ```
 
@@ -137,16 +137,16 @@ export interface AIPhase<TState, TOutput> {
 
 ### What changed and why
 
-| Field | Change | Reason |
-|---|---|---|
-| `inputBuilderIds` | **Renamed** to `inputEngineIds` | Unified into the engine registry; separate input-builder-registry.ts deleted |
-| `cachePolicyId` | **Renamed** to `cacheEngineId` | Unified into the engine registry; separate cache-policy-registry.ts deleted |
-| `entryModes: readonly AIPhaseEntryMode[]` | **Replaced** by `entryEngineIds?: readonly string[]` | Inline mode objects encode logic in the definition; engine IDs don't |
-| `finalize()` | **Replaced** by `finalizeEngineIds?: readonly string[]` | Direct function calls in finalize are the problem; engine IDs are the solution |
-| `inspect: AIPhaseMetadata` | **Removed** | Manually duplicated the ID lists. Now redundant — runtime reads fields directly. `analysis-resolver.ts` reads `inputEngineIds`, `cacheEngineId` from the definition object. |
-| `initialState()` | **Made optional** (default: `() => ({} as TState)`) | Structural state setup, not business logic. Stays on definition. |
-| `filterOutput?()` | **Unchanged** | Lightweight post-output constraint, not business logic. Stays on definition. |
-| `stages` | **Unchanged** | `applyResults()` inside stages is stage-local — exempt from engine registry rule. |
+| Field                                     | Change                                                  | Reason                                                                                                                                                                      |
+| ----------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inputBuilderIds`                         | **Renamed** to `inputEngineIds`                         | Unified into the engine registry; separate input-builder-registry.ts deleted                                                                                                |
+| `cachePolicyId`                           | **Renamed** to `cacheEngineId`                          | Unified into the engine registry; separate cache-policy-registry.ts deleted                                                                                                 |
+| `entryModes: readonly AIPhaseEntryMode[]` | **Replaced** by `entryEngineIds?: readonly string[]`    | Inline mode objects encode logic in the definition; engine IDs don't                                                                                                        |
+| `finalize()`                              | **Replaced** by `finalizeEngineIds?: readonly string[]` | Direct function calls in finalize are the problem; engine IDs are the solution                                                                                              |
+| `inspect: AIPhaseMetadata`                | **Removed**                                             | Manually duplicated the ID lists. Now redundant — runtime reads fields directly. `analysis-resolver.ts` reads `inputEngineIds`, `cacheEngineId` from the definition object. |
+| `initialState()`                          | **Made optional** (default: `() => ({} as TState)`)     | Structural state setup, not business logic. Stays on definition.                                                                                                            |
+| `filterOutput?()`                         | **Unchanged**                                           | Lightweight post-output constraint, not business logic. Stays on definition.                                                                                                |
+| `stages`                                  | **Unchanged**                                           | `applyResults()` inside stages is stage-local — exempt from engine registry rule.                                                                                           |
 
 ---
 
@@ -157,6 +157,7 @@ export interface AIPhase<TState, TOutput> {
 **`applyResults()` is stage-local transformation and is explicitly exempt from the engine registry rule.** It is the stage's way of expressing "how do collected worker results become part of the phase state." Direct utility function calls inside `applyResults()` are fine.
 
 Example from selector's discovery stage (correct pattern):
+
 ```ts
 applyResults: (ctx, state, results) => {
   const merged = mergeDiscoveryCandidates(results); // direct call — this is fine
@@ -177,10 +178,10 @@ Worker-level engines (`kind: "context"`, `"policy"`, `"validator"`, `"transforme
 
 ```ts
 export type PhaseEngineKind =
-  | "input"        // builds context string for worker prompts
-  | "entry_mode"   // short-circuit condition + output resolver
-  | "cache"        // fingerprint, read, write
-  | "finalizer";   // post-stage processing, output assembly
+  | "input" // builds context string for worker prompts
+  | "entry_mode" // short-circuit condition + output resolver
+  | "cache" // fingerprint, read, write
+  | "finalizer"; // post-stage processing, output assembly
 
 export interface Engine {
   id: string;
@@ -193,10 +194,16 @@ export function registerEngine(engine: Engine): void {
   REGISTRY.set(engine.id, engine);
 }
 
-export function resolveEngine<T extends Engine>(id: string, kind: PhaseEngineKind): T {
+export function resolveEngine<T extends Engine>(
+  id: string,
+  kind: PhaseEngineKind,
+): T {
   const engine = REGISTRY.get(id);
   if (!engine) throw new Error(`Engine '${id}' is not registered`);
-  if (engine.kind !== kind) throw new Error(`Engine '${id}' is kind '${engine.kind}', expected '${kind}'`);
+  if (engine.kind !== kind)
+    throw new Error(
+      `Engine '${id}' is kind '${engine.kind}', expected '${kind}'`,
+    );
   return engine as T;
 }
 ```
@@ -257,6 +264,7 @@ export interface CacheEngine<TOutput> extends Engine {
 ```
 
 Framework behavior:
+
 1. Calls `fingerprint(ctx)` to get a hash
 2. Calls `read(ctx, hash)` — if non-null, returns immediately (source: `"cache"`)
 3. After finalizers complete, calls `write(ctx, hash, output, meta)`
@@ -268,7 +276,10 @@ Framework behavior:
 Post-stage processing. Finalizers run in the order declared in `finalizeEngineIds`. Each receives the accumulated stage state and all worker results and produces the next state. The last finalizer produces `TOutput`.
 
 ```ts
-export interface FinalizerEngine<TState = unknown, TOutput = unknown> extends Engine {
+export interface FinalizerEngine<
+  TState = unknown,
+  TOutput = unknown,
+> extends Engine {
   kind: "finalizer";
   run(
     ctx: AIPhaseContext,
@@ -358,8 +369,8 @@ definitions/
 
 ```ts
 // main boot — engines must register before phases are resolved
-import "../engines";       // registers all engines (side-effect imports)
-import "../definitions";   // registers all phases
+import "../engines"; // registers all engines (side-effect imports)
+import "../definitions"; // registers all phases
 ```
 
 ```ts

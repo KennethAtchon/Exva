@@ -192,13 +192,15 @@ export const SessionTable = ({
                   lineHeight: 1.4,
                 }}
               >
-                Research phase failed ({researchFailuresBySessionId[session.id].phase}):{" "}
+                Research phase failed (
+                {researchFailuresBySessionId[session.id].phase}):{" "}
                 {researchFailuresBySessionId[session.id].error}
               </div>
             ) : null}
             {isDraining ? (
               <div style={drainBannerStyle}>
-                Stopping when flat — managing {session.openTradeCount} open trade
+                Stopping when flat — managing {session.openTradeCount} open
+                trade
                 {session.openTradeCount === 1 ? "" : "s"}. Session stops
                 automatically once flat.
               </div>
@@ -428,9 +430,7 @@ const MetaBlock = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-function formatSessionStatusLabel(
-  status: SessionSummary["status"],
-): string {
+function formatSessionStatusLabel(status: SessionSummary["status"]): string {
   if (status === "monitoring_only") return "Stopping when flat";
   if (status === "attention_required") return "Needs attention";
   return status;

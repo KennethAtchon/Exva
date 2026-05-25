@@ -59,9 +59,9 @@ const selectorRiskFilterEngine: FinalizerEngine<
       ...candidate,
       selectorEvidence: buildSelectorEvidence(candidate),
     }));
-    const failureHistory = ((ctx.input.failureHistory as FailureHistoryEntry[] | undefined) ?? []).filter(
-      (entry) => entry.instrumentSymbol != null,
-    );
+    const failureHistory = (
+      (ctx.input.failureHistory as FailureHistoryEntry[] | undefined) ?? []
+    ).filter((entry) => entry.instrumentSymbol != null);
     const evaluation = new SelectorRiskFilter({
       sessionId: ctx.sessionId,
       instrumentClasses: ctx.instrumentClasses,

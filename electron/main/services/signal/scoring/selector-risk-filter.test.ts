@@ -107,7 +107,9 @@ describe("SelectorRiskFilter", () => {
     }).evaluate([withoutEvidence]);
 
     expect(result.rejected.map((row) => row.reasons)).not.toEqual(
-      expect.arrayContaining([expect.arrayContaining(["Selector rationale is empty"])]),
+      expect.arrayContaining([
+        expect.arrayContaining(["Selector rationale is empty"]),
+      ]),
     );
   });
 
@@ -134,6 +136,8 @@ describe("SelectorRiskFilter", () => {
     ]);
 
     expect(result.accepted).toHaveLength(0);
-    expect(result.rejected[0]?.reasons).toContain("Selector rationale is empty");
+    expect(result.rejected[0]?.reasons).toContain(
+      "Selector rationale is empty",
+    );
   });
 });

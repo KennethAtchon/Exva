@@ -79,7 +79,11 @@ export async function executeTradeCycle(
     applyTradePipelineToContext(context, pipeline.result);
     const latestQuote = pipeline.result.state.quoteSnapshot;
     const { decision } = requirePipelineAiResults(pipeline.result);
-    const trade = persistPendingTradeFromPipeline(ctx, context, pipeline.result);
+    const trade = persistPendingTradeFromPipeline(
+      ctx,
+      context,
+      pipeline.result,
+    );
 
     if (decision.output.action === "skip") {
       ctx.clearAttentionRequired();
@@ -159,7 +163,11 @@ export async function executeTradeCycle(
       }
       ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
       ctx.deps.bus.emit("trade_closed", ctx.deps.tradesRepo.require(trade.id));
-      finishWithoutOpenPosition(ctx, "Broker order failed", brokerStep.result.outcome);
+      finishWithoutOpenPosition(
+        ctx,
+        "Broker order failed",
+        brokerStep.result.outcome,
+      );
       return;
     }
 

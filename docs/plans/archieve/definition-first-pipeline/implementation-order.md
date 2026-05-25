@@ -15,6 +15,7 @@ Four phases. Each is independently shippable and leaves the system in a valid st
 **Why first:** Every subsequent phase depends on the engine registry existing and the `AIPhase` type accepting engine ID fields. Nothing else can be migrated until this is in place.
 
 **Done when:**
+
 - [x] `engines/registry.ts` exists with `registerEngine` / `resolveEngine`
 - [x] `EngineKind` includes `"input"`, `"entry_mode"`, `"cache"`, `"finalizer"` (alongside existing kinds)
 - [x] `AIPhase` type updated:
@@ -31,6 +32,7 @@ Four phases. Each is independently shippable and leaves the system in a valid st
 - [x] `AIPhase` confirmed NOT in `@electron/shared` — run `grep -r "AIPhase" electron/shared/` before touching the type
 
 **Type migration for existing phases:** All existing `AIPhase` objects (`SELECTOR_PLAN`, `TECHNICAL_PLAN`, etc.) must be updated to match the new type. Since all five phases are being migrated in subsequent phases anyway, the simplest approach is:
+
 - `SELECTOR_PLAN` in `selector-analysis.ts`: rename fields, add `finalizeEngineIds: []` (empty for now — full migration in Phase 2)
 - `TECHNICAL_PLAN`, `FUNDAMENTAL_PLAN`, `REVIEW_PLAN`, `DECISION_PLAN` in `aggregator-phase-plan.ts`: rename fields (factory output also updated)
 
@@ -49,6 +51,7 @@ Four phases. Each is independently shippable and leaves the system in a valid st
 **Why second:** Selector is the most scattered phase (multi-stage, direct calls in finalize, entry modes, cache, multiple input builders). If the pattern works for selector, it works for everything.
 
 **Done when:**
+
 - [x] `engines/input/selector-scope.ts` registered and referenced by ID
 - [x] `engines/input/broker-coverage.ts` registered and referenced by ID
 - [x] `engines/input/prediction-market-candidates.ts` registered and referenced by ID
@@ -76,7 +79,8 @@ Four phases. Each is independently shippable and leaves the system in a valid st
   - `pipeline-discovery-config.ts` selector section removed
 - [x] All existing selector tests pass
 
-**Before starting:** 
+**Before starting:**
+
 - `grep -r "isManualSelectorMode\|manual-shortlist\|buildManualShortlistSelection" --include="*.ts"` — ensure no hidden callers outside selector-analysis
 - `grep -r "selector-instrument-cache\|SELECTOR_INSTRUMENT_CACHE" --include="*.ts"` — same check
 - `grep -r "selector-analysis" --include="*.ts"` — find all import sites before deleting
@@ -94,6 +98,7 @@ Four phases. Each is independently shippable and leaves the system in a valid st
 **Why third:** These two phases share the `pipeline-discovery-config.ts` problem. Migrating them together deletes the file in one shot.
 
 **Done when:**
+
 - [x] `engines/finalizer/technical-aggregator.ts` registered — adapter that calls `runEngineForWorker()` with `ENGINE_BINDINGS.technicalAggregatorFinalize` (LLM call, async)
 - [x] `engines/finalizer/fundamental-aggregator.ts` registered — same pattern with `ENGINE_BINDINGS.fundamentalAggregatorFinalize`
 - [x] `definitions/technical.phase.ts` content fully replaced:
@@ -108,7 +113,8 @@ Four phases. Each is independently shippable and leaves the system in a valid st
 - [x] `implementations/trade/aggregator-phase-plan.ts` NOT deleted yet (review + decision still use factory)
 - [x] All tests pass
 
-**Before starting:** 
+**Before starting:**
+
 - `grep -r "technicalWorkersForMode\|fundamentalWorkersForMode\|pipeline-discovery-config" --include="*.ts"` — find all callers
 - `grep -r "signal/aggregators/technical\|signal/aggregators/fundamental" --include="*.ts"` — confirm no renderer imports before wrapping aggregators
 
@@ -123,6 +129,7 @@ Four phases. Each is independently shippable and leaves the system in a valid st
 **Goal:** All five phases live in `definitions/` as real `AIPhase` configs. `implementations/trade/` is stripped of phase definitions. Factory is eliminated. Boot is manifest-driven.
 
 **Done when:**
+
 - [x] `engines/finalizer/review-aggregator.ts` registered (LLM-calling adapter)
 - [x] `engines/finalizer/trade-signal-aggregator.ts` registered (LLM-calling adapter, mock scenario logic moved here from DECISION_PLAN)
 - [x] `definitions/review.phase.ts` content fully replaced — raw `AIPhase`, workers inline (from existing `definitions/review.phase.ts` `PipelineDefinition` workers), `finalizeEngineIds: ["review-aggregator"]`
@@ -136,11 +143,13 @@ Four phases. Each is independently shippable and leaves the system in a valid st
 - [x] All tests pass
 
 **Decision phase special case:** The mock scenario check in `DECISION_PLAN`:
+
 ```ts
 const mockRelaxedEntryTiming =
   ctx.toolContext.isMockSession === true &&
   ctx.toolContext.mockScenarioKind === "clean_breakout";
 ```
+
 This must be preserved. Move into `engines/finalizer/trade-signal-aggregator.ts` where it reads from `ctx.toolContext`. Do not silently drop. Verify the test that covers this scenario still passes.
 
 **Rollback:** Revert file moves. Review + decision are the simplest phases — lowest risk.
@@ -164,6 +173,7 @@ wc -l definitions/index.ts                                     # → ≤ 15
 ```
 
 Adding a new phase after this:
+
 1. Create `definitions/[name].phase.ts` with `AIPhase<>` config
 2. Add to `definitions/index.ts` manifest
 3. Register any new engines in `engines/[kind]/` + import in `engines/index.ts`

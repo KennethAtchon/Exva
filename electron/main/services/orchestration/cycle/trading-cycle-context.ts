@@ -9,7 +9,10 @@ import {
 import type { OrchestratorDeps } from "../../session";
 import { resolveSessionInstrumentClasses } from "../../session/effective-instrument-classes";
 import type { InstrumentClass } from "@/lib/types";
-import { TradingStepRunner, type TradingStepResult } from "./trading-step-runner";
+import {
+  TradingStepRunner,
+  type TradingStepResult,
+} from "./trading-step-runner";
 import type { CycleContext } from "./types";
 import {
   DEFAULT_SELECTOR_NO_INSTRUMENT_RETRY_MINUTES,
@@ -100,7 +103,8 @@ export class TradingCycleContext {
     result: Extract<TradingStepResult<unknown>, { ok: false }>,
     tradeId: string | null = null,
   ): void {
-    const level = result.level ?? outcomeLevel(result.outcome, result.retryable);
+    const level =
+      result.level ?? outcomeLevel(result.outcome, result.retryable);
     this.emitEvent(
       level,
       tradeId,
@@ -288,7 +292,8 @@ export class TradingCycleContext {
   }): void {
     this.pruneFailureHistory();
     const cycleContext = this.cycleContexts.get(input.cycleId);
-    const instrument = cycleContext?.kind === "trade" ? cycleContext.instrument : null;
+    const instrument =
+      cycleContext?.kind === "trade" ? cycleContext.instrument : null;
     const occurredAt = new Date().toISOString();
     const retryAt =
       input.outcome === "no_trade" || input.outcome === "transient"

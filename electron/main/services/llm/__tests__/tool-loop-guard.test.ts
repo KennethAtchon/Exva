@@ -59,12 +59,10 @@ describe("verify tool loop detection", () => {
   function verifyCallsWouldStop(
     calls: Array<{ toolName: string; input: unknown }>,
   ): boolean {
-    const recentCalls = calls
-      .slice(-6)
-      .map((call) => ({
-        toolName: call.toolName,
-        signature: canonicalizeToolInput(call.toolName, call.input),
-      }));
+    const recentCalls = calls.slice(-6).map((call) => ({
+      toolName: call.toolName,
+      signature: canonicalizeToolInput(call.toolName, call.input),
+    }));
     const verifyCalls = recentCalls.filter(
       (call) =>
         call.toolName === "get_quote" ||
@@ -79,7 +77,10 @@ describe("verify tool loop detection", () => {
 
   it("get_quote + 3x get_ohlcv different timeframes does NOT stop", () => {
     const calls = [
-      { toolName: "get_quote", input: { symbol: "ETH", instrumentClass: "crypto" } },
+      {
+        toolName: "get_quote",
+        input: { symbol: "ETH", instrumentClass: "crypto" },
+      },
       {
         toolName: "get_ohlcv",
         input: { symbol: "ETH", timeframe: "1h", instrumentClass: "crypto" },
@@ -95,8 +96,9 @@ describe("verify tool loop detection", () => {
     ];
     expect(verifyCallsWouldStop(calls)).toBe(false);
     expect(
-      new Set(calls.map((call) => canonicalizeToolInput(call.toolName, call.input)))
-        .size,
+      new Set(
+        calls.map((call) => canonicalizeToolInput(call.toolName, call.input)),
+      ).size,
     ).toBe(4);
   });
 
@@ -116,7 +118,10 @@ describe("verify tool loop detection", () => {
       instrumentClass: "crypto",
     };
     const calls = [
-      { toolName: "get_quote", input: { symbol: "ETH", instrumentClass: "crypto" } },
+      {
+        toolName: "get_quote",
+        input: { symbol: "ETH", instrumentClass: "crypto" },
+      },
       { toolName: "get_ohlcv", input: ohlcvInput },
       { toolName: "get_ohlcv", input: ohlcvInput },
       { toolName: "get_ohlcv", input: ohlcvInput },

@@ -73,10 +73,7 @@ export class AIPhaseConfigResolver {
     };
   }
 
-  resolvePhaseSpendCapUsd(
-    phase: PipelinePhase,
-    sandbox = false,
-  ): number {
+  resolvePhaseSpendCapUsd(phase: PipelinePhase, sandbox = false): number {
     return resolvePhaseSpendCapUsdForProfile(phase, sandbox);
   }
 

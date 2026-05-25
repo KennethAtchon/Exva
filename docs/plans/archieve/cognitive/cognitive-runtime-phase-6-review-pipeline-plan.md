@@ -40,11 +40,11 @@ Review is where the pipeline should explicitly reason about conflict, tail risk,
 
 ## 3. Background & Context
 
-| File                                                                     | Current responsibility                                     | Gap                                |
-| ------------------------------------------------------------------------ | ---------------------------------------------------------- | ---------------------------------- |
+| File                                                              | Current responsibility                                     | Gap                                |
+| ----------------------------------------------------------------- | ---------------------------------------------------------- | ---------------------------------- |
 | `electron/main/services/llm/pipeline/definitions/review.phase.ts` | One `reviewer` worker consuming strings                    | No typed review contract           |
-| `electron/main/services/orchestration/agent-orchestrator.ts`             | Builds review input from technical/fundamental text blocks | Hard-coded prose coupling          |
-| `docs/design/cognitive-pipeline-rearchitecture-spec.md`                  | Defines target `ReviewSignal`                              | Migration target already specified |
+| `electron/main/services/orchestration/agent-orchestrator.ts`      | Builds review input from technical/fundamental text blocks | Hard-coded prose coupling          |
+| `docs/design/cognitive-pipeline-rearchitecture-spec.md`           | Defines target `ReviewSignal`                              | Migration target already specified |
 
 The review phase is also where graceful degradation becomes important. If upstream technical or fundamental dimensions are null, review should produce a typed skip or reduce-size recommendation rather than fabricating certainty.
 

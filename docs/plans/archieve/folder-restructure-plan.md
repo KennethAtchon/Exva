@@ -71,18 +71,18 @@ services/llm/
 
 ### Type and class renames
 
-| Old | New | Why |
-|-----|-----|-----|
-| `LLMRuntime` | `LLMRuntime` | Consistent casing; direct |
-| `LLMMessage` | `LLMMessage` | "RuntimeAgent" is noise — it's a message to/from an LLM |
-| `LLMCallTrace<T>` | `LLMCallTrace<T>` | A trace of one LLM call |
-| `LLMToolStepTrace` | `LLMToolLLMToolStepTrace` | One tool call within an LLM call |
-| `LLMToolCall` | `LLMToolCall` | — |
-| `LLMRunResult<T>` | `LLMRunResult<T>` | "Agent" bleeds from Anthropic API naming; internally it's an LLM run result |
-| `withLLMRetry` | `withLLMRetry` | — |
-| `LLMRetryContext` | `LLMRetryContext` | — |
-| `traceToRunRecord` | `traceToRunRecord` | Verb-object order; direction is clear |
-| `buildLLMTraceMessage` | `buildLLMTraceMessage` | — |
+| Old                    | New                       | Why                                                                         |
+| ---------------------- | ------------------------- | --------------------------------------------------------------------------- |
+| `LLMRuntime`           | `LLMRuntime`              | Consistent casing; direct                                                   |
+| `LLMMessage`           | `LLMMessage`              | "RuntimeAgent" is noise — it's a message to/from an LLM                     |
+| `LLMCallTrace<T>`      | `LLMCallTrace<T>`         | A trace of one LLM call                                                     |
+| `LLMToolStepTrace`     | `LLMToolLLMToolStepTrace` | One tool call within an LLM call                                            |
+| `LLMToolCall`          | `LLMToolCall`             | —                                                                           |
+| `LLMRunResult<T>`      | `LLMRunResult<T>`         | "Agent" bleeds from Anthropic API naming; internally it's an LLM run result |
+| `withLLMRetry`         | `withLLMRetry`            | —                                                                           |
+| `LLMRetryContext`      | `LLMRetryContext`         | —                                                                           |
+| `traceToRunRecord`     | `traceToRunRecord`        | Verb-object order; direction is clear                                       |
+| `buildLLMTraceMessage` | `buildLLMTraceMessage`    | —                                                                           |
 
 ---
 
@@ -146,6 +146,7 @@ plan/unified/                     →   pipeline/implementations/registry/      
 #### Why selector and trade are both top-level under `implementations/`
 
 They are two distinct analyses, not nested:
+
 - `selector/` — finds instruments worth trading (runs once per session tick, before any trade analysis)
 - `trade/` — analyzes one specific instrument to decide whether to trade it (runs per instrument)
 
@@ -157,111 +158,111 @@ They run at different times, serve different purposes, and have different execut
 
 Not a "plan." Not a "cycle." It's the definition of a full instrument analysis — the ordered sequence of steps that runs when the orchestrator picks an instrument to evaluate.
 
-| Old | New | Why |
-|-----|-----|-----|
-| `InstrumentAnalysis<TState>` | `InstrumentAnalysis<TState>` | What it is: a definition of how to analyze one instrument |
-| `AnalysisStep<TState>` | `AnalysisStep<TState>` | One step in the analysis sequence |
-| `InstrumentAnalysisRunner` | `InstrumentAnalysisRunner` | Runs an instrument analysis |
-| `InstrumentAnalysisRunInput` | `InstrumentAnalysisRunInput` | — |
-| `InstrumentAnalysisContext` | `InstrumentAnalysisContext` | — |
-| `InstrumentAnalysisState` | `InstrumentAnalysisState` | State accumulated as each step completes |
-| `AnalysisPausedError` | `AnalysisPausedError` | — |
-| `AnalysisStepFailedError` | `AnalysisStepFailedError` | — |
-| `registerInstrumentAnalysis` / `getInstrumentAnalysis` | `registerInstrumentAnalysis` / `getInstrumentAnalysis` | — |
-| `InstrumentAnalysisServices` | `InstrumentAnalysisServices` | — |
-| `buildAnalysisStepExecute` | `buildAnalysisStepExecute` | — |
-| `runAnalysisStep` | `runAnalysisStep` | — |
-| `InstrumentAnalysisMetadata` | `InstrumentAnalysisMetadata` | — |
-| `AnalysisStepRunner` | `AnalysisStepRunner` | — |
-| `InstrumentAnalysisResult` | `InstrumentAnalysisResult` | Consistent with new naming |
+| Old                                                    | New                                                    | Why                                                       |
+| ------------------------------------------------------ | ------------------------------------------------------ | --------------------------------------------------------- |
+| `InstrumentAnalysis<TState>`                           | `InstrumentAnalysis<TState>`                           | What it is: a definition of how to analyze one instrument |
+| `AnalysisStep<TState>`                                 | `AnalysisStep<TState>`                                 | One step in the analysis sequence                         |
+| `InstrumentAnalysisRunner`                             | `InstrumentAnalysisRunner`                             | Runs an instrument analysis                               |
+| `InstrumentAnalysisRunInput`                           | `InstrumentAnalysisRunInput`                           | —                                                         |
+| `InstrumentAnalysisContext`                            | `InstrumentAnalysisContext`                            | —                                                         |
+| `InstrumentAnalysisState`                              | `InstrumentAnalysisState`                              | State accumulated as each step completes                  |
+| `AnalysisPausedError`                                  | `AnalysisPausedError`                                  | —                                                         |
+| `AnalysisStepFailedError`                              | `AnalysisStepFailedError`                              | —                                                         |
+| `registerInstrumentAnalysis` / `getInstrumentAnalysis` | `registerInstrumentAnalysis` / `getInstrumentAnalysis` | —                                                         |
+| `InstrumentAnalysisServices`                           | `InstrumentAnalysisServices`                           | —                                                         |
+| `buildAnalysisStepExecute`                             | `buildAnalysisStepExecute`                             | —                                                         |
+| `runAnalysisStep`                                      | `runAnalysisStep`                                      | —                                                         |
+| `InstrumentAnalysisMetadata`                           | `InstrumentAnalysisMetadata`                           | —                                                         |
+| `AnalysisStepRunner`                                   | `AnalysisStepRunner`                                   | —                                                         |
+| `InstrumentAnalysisResult`                             | `InstrumentAnalysisResult`                             | Consistent with new naming                                |
 
 #### AI phases (was "AIPhase")
 
 A `AIPhase` IS an AI phase — "plan" is the wrong word.
 
-| Old | New | Why |
-|-----|-----|-----|
-| `AIPhase<TState, TOutput>` | `AIPhase<TState, TOutput>` | Direct |
-| `AIPhaseRunner` | `AIPhaseRunner` | Runs a phase |
-| `AIPhaseRunInput` | `AIPhaseRunInput` | — |
-| `AIPhaseContext` | `AIPhaseContext` | — |
-| `AIPhaseResult<TOutput>` | `AIPhaseResult<TOutput>` | — |
-| `AIWorkerBatch<TState>` | `AIWorkerBatch<TState>` | A group of workers at the same dependency level |
-| `AIWorkerTrace` | `AIWorkerTrace` | — |
-| `AIPhaseSource` | `AIPhaseSource` | — |
-| `AIPhaseMetadata` | `AIPhaseMetadata` | — |
-| `AIPhaseServices` | `AIPhaseServices` | — |
-| `registerAIPhase` / `getAIPhase` | `registerAIPhase` / `getAIPhase` | — |
-| `AIPhaseEntryMode` | `AIAIPhaseEntryMode` | — |
-| `PhaseRunInput` | `AIPhaseRunInput` | — |
-| `PhaseRunResult` | `AIPhaseResult` | — |
-| `AIPhaseConfigResolver` | `AIAIPhaseConfigResolver` | — |
+| Old                              | New                              | Why                                             |
+| -------------------------------- | -------------------------------- | ----------------------------------------------- |
+| `AIPhase<TState, TOutput>`       | `AIPhase<TState, TOutput>`       | Direct                                          |
+| `AIPhaseRunner`                  | `AIPhaseRunner`                  | Runs a phase                                    |
+| `AIPhaseRunInput`                | `AIPhaseRunInput`                | —                                               |
+| `AIPhaseContext`                 | `AIPhaseContext`                 | —                                               |
+| `AIPhaseResult<TOutput>`         | `AIPhaseResult<TOutput>`         | —                                               |
+| `AIWorkerBatch<TState>`          | `AIWorkerBatch<TState>`          | A group of workers at the same dependency level |
+| `AIWorkerTrace`                  | `AIWorkerTrace`                  | —                                               |
+| `AIPhaseSource`                  | `AIPhaseSource`                  | —                                               |
+| `AIPhaseMetadata`                | `AIPhaseMetadata`                | —                                               |
+| `AIPhaseServices`                | `AIPhaseServices`                | —                                               |
+| `registerAIPhase` / `getAIPhase` | `registerAIPhase` / `getAIPhase` | —                                               |
+| `AIPhaseEntryMode`               | `AIAIPhaseEntryMode`             | —                                               |
+| `PhaseRunInput`                  | `AIPhaseRunInput`                | —                                               |
+| `PhaseRunResult`                 | `AIPhaseResult`                  | —                                               |
+| `AIPhaseConfigResolver`          | `AIAIPhaseConfigResolver`        | —                                               |
 
 #### Workers and execution
 
-| Old | New | Why |
-|-----|-----|-----|
-| `runAIWorker` | `runAIWorker` | Verb-first; matches pattern |
-| `AIWorkerRunnerDeps` | `AIWorkerRunnerDeps` | — |
-| `AIWorkerRunOptions` | `AIAIWorkerRunOptions` | — |
-| `AIWorkerOutputSchema` | `AIWorkerOutputSchema` | It's a Zod schema + inferred type, not a "contract" |
-| `AIWorkerNode` | `AIWorkerNode` | — |
-| `AIWorkerSchedule` | `AIWorkerSchedule` | — |
-| `scheduleWorkersByDependency` | `scheduleWorkersByDependency` | Says what it does |
-| `runWorkerBatches` | `runWorkerBatches` | "frontier" is internal jargon |
-| `AIWorkerRunner` | `AIWorkerRunner` | — |
-| `runWorkersConcurrently` | `runWorkersConcurrently` | — |
-| `WorkerExecConfig` | `WorkerExecConfig` | "Resolved" is always implied — drop it |
-| `EngineInjectionInput` | `EngineInjectionInput` | — |
-| `injectEngineResults` | `injectEngineResults` | What it does: injects engine output into prompt context |
-| `runEngineForWorker` | `runEngineForWorker` | — |
+| Old                           | New                           | Why                                                     |
+| ----------------------------- | ----------------------------- | ------------------------------------------------------- |
+| `runAIWorker`                 | `runAIWorker`                 | Verb-first; matches pattern                             |
+| `AIWorkerRunnerDeps`          | `AIWorkerRunnerDeps`          | —                                                       |
+| `AIWorkerRunOptions`          | `AIAIWorkerRunOptions`        | —                                                       |
+| `AIWorkerOutputSchema`        | `AIWorkerOutputSchema`        | It's a Zod schema + inferred type, not a "contract"     |
+| `AIWorkerNode`                | `AIWorkerNode`                | —                                                       |
+| `AIWorkerSchedule`            | `AIWorkerSchedule`            | —                                                       |
+| `scheduleWorkersByDependency` | `scheduleWorkersByDependency` | Says what it does                                       |
+| `runWorkerBatches`            | `runWorkerBatches`            | "frontier" is internal jargon                           |
+| `AIWorkerRunner`              | `AIWorkerRunner`              | —                                                       |
+| `runWorkersConcurrently`      | `runWorkersConcurrently`      | —                                                       |
+| `WorkerExecConfig`            | `WorkerExecConfig`            | "Resolved" is always implied — drop it                  |
+| `EngineInjectionInput`        | `EngineInjectionInput`        | —                                                       |
+| `injectEngineResults`         | `injectEngineResults`         | What it does: injects engine output into prompt context |
+| `runEngineForWorker`          | `runEngineForWorker`          | —                                                       |
 
 #### Spend tracking
 
-| Old | New | Why |
-|-----|-----|-----|
-| `AISpendTracker` | `AISpendTracker` | "Pipeline" is obvious from context |
-| `AISpendTrackerOptions` | `AISpendTrackerOptions` | — |
-| `SpendCapLevel` | `SpendCapLevel` | "kind" is vague; "level" (phase/pipeline/session) is what it means |
-| `SpendCapExceededError` | `SpendCapExceededErrorError` | Should be an Error, not a plain object |
+| Old                     | New                          | Why                                                                |
+| ----------------------- | ---------------------------- | ------------------------------------------------------------------ |
+| `AISpendTracker`        | `AISpendTracker`             | "Pipeline" is obvious from context                                 |
+| `AISpendTrackerOptions` | `AISpendTrackerOptions`      | —                                                                  |
+| `SpendCapLevel`         | `SpendCapLevel`              | "kind" is vague; "level" (phase/pipeline/session) is what it means |
+| `SpendCapExceededError` | `SpendCapExceededErrorError` | Should be an Error, not a plain object                             |
 
 #### Prompts and envelopes
 
-| Old | New | Why |
-|-----|-----|-----|
-| `WorkerPromptMessages` | `WorkerPromptMessages` | "Envelope" is metaphor — it's literally the messages array sent to the model |
-| `WorkerPromptInput` | `WorkerPromptInput` | — |
-| `PromptSizeReport` | `PromptSizeReport` | — |
-| `buildWorkerPrompt` | `buildWorkerPrompt` | — |
-| `envelopeToMessages` | Remove — fold into `buildWorkerPrompt` return | Pointless indirection |
-| `measureWorkerPrompt` | `measureWorkerPrompt` | — |
-| `buildStrategyGuidance` | `buildStrategyGuidance` | "Preset behavior" is a DB concept leaking into prompting |
+| Old                     | New                                           | Why                                                                          |
+| ----------------------- | --------------------------------------------- | ---------------------------------------------------------------------------- |
+| `WorkerPromptMessages`  | `WorkerPromptMessages`                        | "Envelope" is metaphor — it's literally the messages array sent to the model |
+| `WorkerPromptInput`     | `WorkerPromptInput`                           | —                                                                            |
+| `PromptSizeReport`      | `PromptSizeReport`                            | —                                                                            |
+| `buildWorkerPrompt`     | `buildWorkerPrompt`                           | —                                                                            |
+| `envelopeToMessages`    | Remove — fold into `buildWorkerPrompt` return | Pointless indirection                                                        |
+| `measureWorkerPrompt`   | `measureWorkerPrompt`                         | —                                                                            |
+| `buildStrategyGuidance` | `buildStrategyGuidance`                       | "Preset behavior" is a DB concept leaking into prompting                     |
 
 #### Tools and context
 
-| Old | New | Why |
-|-----|-----|-----|
-| `WorkerToolContext` | `WorkerToolContext` | "Build context" sounds like a constructor arg — it IS the worker's tool context |
-| `buildWorkerTools` | `buildWorkerTools` | — |
-| `resolveWorkerToolContext` | `resolveWorkerToolContext` | — |
-| `WorkerToolResolverDeps` | `WorkerToolResolverDeps` | — |
-| `context/` (folder) | `worker-tools/` | "context" in AI means token window/knowledge — not tool dependencies |
-| `analyses/` (folder) | `implementations/` | Clearer — it holds HOW the selector and trade analyses are implemented |
-| `unified/` (folder) | dissolved into `implementations/registry/` | "unified" says nothing; it's a dispatcher folded into the registry |
-| `AnalysisDispatcher` | `AnalysisDispatcher` | Given any ID, dispatches to the right runner (AIPhaseRunner or InstrumentAnalysisRunner) |
-| `AnyAnalysisDefinition` | `AnyAnalysisDefinition` | Discriminated union of a phase or full instrument analysis |
-| `AnalysisInspectMetadata` | `AnalysisInspectMetadata` | — |
-| `resolveAnalysis` | `resolveAnalysis` | — |
-| `requireAnalysis` | `requireAnalysis` | — |
-| `listAnalysisIds` | `listAnalysisIds` | — |
-| `inspectAnalysis` | `inspectAnalysis` | — |
-| `AnalysisKind` | `AnalysisKind` | — |
-| `WorkerToolAvailability` | `WorkerToolAvailability` | "Harness" is an internal framework word leaking into domain names |
-| `SubmitOutputToolSpec` | `SubmitOutputToolSpec` | "Terminal" means "final" here — "Submit" is explicit |
-| `DEFAULT_SUBMIT_TOOL_DESCRIPTION` | `DEFAULT_SUBMIT_TOOL_DESCRIPTION` | — |
-| `extractWorkerSubmission` | `extractWorkerSubmission` | — |
-| `parseWorkerOutput` | `parseWorkerOutput` | — |
-| `WorkerOutputAttempt` | `WorkerOutputAttempt` | — |
+| Old                               | New                                        | Why                                                                                      |
+| --------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `WorkerToolContext`               | `WorkerToolContext`                        | "Build context" sounds like a constructor arg — it IS the worker's tool context          |
+| `buildWorkerTools`                | `buildWorkerTools`                         | —                                                                                        |
+| `resolveWorkerToolContext`        | `resolveWorkerToolContext`                 | —                                                                                        |
+| `WorkerToolResolverDeps`          | `WorkerToolResolverDeps`                   | —                                                                                        |
+| `context/` (folder)               | `worker-tools/`                            | "context" in AI means token window/knowledge — not tool dependencies                     |
+| `analyses/` (folder)              | `implementations/`                         | Clearer — it holds HOW the selector and trade analyses are implemented                   |
+| `unified/` (folder)               | dissolved into `implementations/registry/` | "unified" says nothing; it's a dispatcher folded into the registry                       |
+| `AnalysisDispatcher`              | `AnalysisDispatcher`                       | Given any ID, dispatches to the right runner (AIPhaseRunner or InstrumentAnalysisRunner) |
+| `AnyAnalysisDefinition`           | `AnyAnalysisDefinition`                    | Discriminated union of a phase or full instrument analysis                               |
+| `AnalysisInspectMetadata`         | `AnalysisInspectMetadata`                  | —                                                                                        |
+| `resolveAnalysis`                 | `resolveAnalysis`                          | —                                                                                        |
+| `requireAnalysis`                 | `requireAnalysis`                          | —                                                                                        |
+| `listAnalysisIds`                 | `listAnalysisIds`                          | —                                                                                        |
+| `inspectAnalysis`                 | `inspectAnalysis`                          | —                                                                                        |
+| `AnalysisKind`                    | `AnalysisKind`                             | —                                                                                        |
+| `WorkerToolAvailability`          | `WorkerToolAvailability`                   | "Harness" is an internal framework word leaking into domain names                        |
+| `SubmitOutputToolSpec`            | `SubmitOutputToolSpec`                     | "Terminal" means "final" here — "Submit" is explicit                                     |
+| `DEFAULT_SUBMIT_TOOL_DESCRIPTION` | `DEFAULT_SUBMIT_TOOL_DESCRIPTION`          | —                                                                                        |
+| `extractWorkerSubmission`         | `extractWorkerSubmission`                  | —                                                                                        |
+| `parseWorkerOutput`               | `parseWorkerOutput`                        | —                                                                                        |
+| `WorkerOutputAttempt`             | `WorkerOutputAttempt`                      | —                                                                                        |
 
 ---
 
@@ -296,21 +297,21 @@ services/signal/
 
 ### Type and class renames
 
-| Old | New | Why |
-|-----|-----|-----|
-| `SignalEngineDefinition` | `SignalSignalEngineDefinition` | Scoped — "engine" alone is used everywhere |
-| `SignalEngineContext` | `SignalEngineContext` | — |
-| `AnySignalEngine` | `AnySignalEngine` | — |
-| `registerSignalEngine` / `getSignalEngine` | `registerSignalEngine` / `getSignalEngine` | Avoids collision with future engine types |
-| `registerTradeSignalEngines` | `registerTradeSignalEngines` | What it registers |
-| `SelectorRiskFilter` | `SelectorSelectorRiskFilter` | Scoped — disambiguates from `risk-engine.ts` in `services/risk/` |
-| `SelectorSelectorRiskFilterDeps` | `SelectorSelectorSelectorRiskFilterDeps` | — |
-| `SelectorSelectorRiskFilterResult` | `SelectorSelectorRiskFilterResult` | — |
-| `TradeExecutionProfile` | `TradeTradeExecutionProfile` | "Execution" alone collides with orchestration execution |
-| `TradeTradeExecutionProfileInput` | `TradeTradeTradeExecutionProfileInput` | — |
-| `computeTradeTradeExecutionProfile` | `computeTradeTradeExecutionProfile` | — |
-| `SelectorCandidate` | `SelectorCandidate` | "Working" implies temp state — these are candidate instruments |
-| `mergeDiscoveryCandidates` | `mergeDiscoveryCandidates` | Distinguishes from other merge operations |
+| Old                                        | New                                        | Why                                                              |
+| ------------------------------------------ | ------------------------------------------ | ---------------------------------------------------------------- |
+| `SignalEngineDefinition`                   | `SignalSignalEngineDefinition`             | Scoped — "engine" alone is used everywhere                       |
+| `SignalEngineContext`                      | `SignalEngineContext`                      | —                                                                |
+| `AnySignalEngine`                          | `AnySignalEngine`                          | —                                                                |
+| `registerSignalEngine` / `getSignalEngine` | `registerSignalEngine` / `getSignalEngine` | Avoids collision with future engine types                        |
+| `registerTradeSignalEngines`               | `registerTradeSignalEngines`               | What it registers                                                |
+| `SelectorRiskFilter`                       | `SelectorSelectorRiskFilter`               | Scoped — disambiguates from `risk-engine.ts` in `services/risk/` |
+| `SelectorSelectorRiskFilterDeps`           | `SelectorSelectorSelectorRiskFilterDeps`   | —                                                                |
+| `SelectorSelectorRiskFilterResult`         | `SelectorSelectorRiskFilterResult`         | —                                                                |
+| `TradeExecutionProfile`                    | `TradeTradeExecutionProfile`               | "Execution" alone collides with orchestration execution          |
+| `TradeTradeExecutionProfileInput`          | `TradeTradeTradeExecutionProfileInput`     | —                                                                |
+| `computeTradeTradeExecutionProfile`        | `computeTradeTradeExecutionProfile`        | —                                                                |
+| `SelectorCandidate`                        | `SelectorCandidate`                        | "Working" implies temp state — these are candidate instruments   |
+| `mergeDiscoveryCandidates`                 | `mergeDiscoveryCandidates`                 | Distinguishes from other merge operations                        |
 
 ---
 
@@ -320,22 +321,22 @@ services/signal/
 
 ### File renames
 
-| Old file | New file | Why |
-|----------|----------|-----|
-| `pipeline-config.ts` | `ai-phase-config.ts` | Configures per-phase AI model settings |
-| `effective-pipeline-config.ts` | `effective-ai-phase-config.ts` | — |
-| `pipeline-observability.ts` | `ai-phase-trace.ts` | Contains `AIPhaseTrace` — it's trace data |
-| `pipeline-phase.ts` | `ai-phase.ts` | — |
-| `pipeline-signals.ts` | `trade-signals.ts` | These are trade signals: `TechnicalSignal`, `FundamentalSignal`, etc. |
-| `signal-prompt-payload.ts` | `worker-prompt-payload.ts` | — |
-| `selector-pipeline-candidate.ts` | `selector-candidate.ts` | "pipeline" is noise |
+| Old file                         | New file                       | Why                                                                   |
+| -------------------------------- | ------------------------------ | --------------------------------------------------------------------- |
+| `pipeline-config.ts`             | `ai-phase-config.ts`           | Configures per-phase AI model settings                                |
+| `effective-pipeline-config.ts`   | `effective-ai-phase-config.ts` | —                                                                     |
+| `pipeline-observability.ts`      | `ai-phase-trace.ts`            | Contains `AIPhaseTrace` — it's trace data                             |
+| `pipeline-phase.ts`              | `ai-phase.ts`                  | —                                                                     |
+| `pipeline-signals.ts`            | `trade-signals.ts`             | These are trade signals: `TechnicalSignal`, `FundamentalSignal`, etc. |
+| `signal-prompt-payload.ts`       | `worker-prompt-payload.ts`     | —                                                                     |
+| `selector-pipeline-candidate.ts` | `selector-candidate.ts`        | "pipeline" is noise                                                   |
 
 ### Type renames
 
-| Old | New | Why |
-|-----|-----|-----|
-| `AIPhaseTrace` | `AIPhaseTrace` | Drop version from type name — version lives as an internal field |
-| `AIPhaseRunContext` | `AIPhaseRunContext` | Consistent with new phase naming |
+| Old                 | New                 | Why                                                              |
+| ------------------- | ------------------- | ---------------------------------------------------------------- |
+| `AIPhaseTrace`      | `AIPhaseTrace`      | Drop version from type name — version lives as an internal field |
+| `AIPhaseRunContext` | `AIPhaseRunContext` | Consistent with new phase naming                                 |
 
 ---
 
@@ -361,14 +362,14 @@ services/analytics/    # absorbs analytics/
 
 ### Type renames — remove "cycle" ambiguity
 
-| Old | New | Why |
-|-----|-----|-----|
-| `TradingCycleContext` | `TradingCycleContext` | "Orchestrator" is the service name, not the context object |
-| `TradingStepRunner` | `TradingStepRunner` | "Execution step" collides with pipeline execution step |
-| `StepResult<T>` | `TradingStepResult<T>` | Scoped to trading cycle |
-| `TradingStepRunnerDeps` | `TradingTradingStepRunnerDeps` | — |
-| `TradingStepRunOptions` | `TradingTradingStepRunOptions` | — |
-| `StepRetrySchedule` | `StepRetrySchedule` | — |
+| Old                     | New                            | Why                                                        |
+| ----------------------- | ------------------------------ | ---------------------------------------------------------- |
+| `TradingCycleContext`   | `TradingCycleContext`          | "Orchestrator" is the service name, not the context object |
+| `TradingStepRunner`     | `TradingStepRunner`            | "Execution step" collides with pipeline execution step     |
+| `StepResult<T>`         | `TradingStepResult<T>`         | Scoped to trading cycle                                    |
+| `TradingStepRunnerDeps` | `TradingTradingStepRunnerDeps` | —                                                          |
+| `TradingStepRunOptions` | `TradingTradingStepRunOptions` | —                                                          |
+| `StepRetrySchedule`     | `StepRetrySchedule`            | —                                                          |
 
 ---
 
@@ -466,11 +467,11 @@ Previously prompts were loaded from disk at runtime which required them to be bu
 
 ## Change 9: Remaining small fixes
 
-| What | Change | Why |
-|------|--------|-----|
-| `electron/shared/instruments/` | Rename → `electron/shared/instruments/` | "catalog" doesn't communicate "instrument types" |
-| `services/session/` (1 file) | Dissolve — move `environment-scope.ts` into `services/session/` | One file is not a module |
-| `electron/prompts/` | Delete — build artifact, no longer needed after Change 8 | Prompts are now inline strings compiled into the bundle |
+| What                           | Change                                                          | Why                                                     |
+| ------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------- |
+| `electron/shared/instruments/` | Rename → `electron/shared/instruments/`                         | "catalog" doesn't communicate "instrument types"        |
+| `services/session/` (1 file)   | Dissolve — move `environment-scope.ts` into `services/session/` | One file is not a module                                |
+| `electron/prompts/`            | Delete — build artifact, no longer needed after Change 8        | Prompts are now inline strings compiled into the bundle |
 
 ---
 
@@ -483,9 +484,11 @@ Every folder under `services/` gets a `README.md`. Every README follows this exa
 Write it like you're telling a new teammate what this folder does over lunch. Not a job description. Not bullet points. One or two sentences max.
 
 **Bad:**
+
 > This module facilitates the orchestration and sequential dispatch of AI worker invocations across dependency-ordered frontier batches.
 
 **Good:**
+
 > Runs one instrument through all its AI analysis phases in order. Gets AAPL, fires technical → fundamental → review → decision one after another, hands back a complete picture of whether to trade it.
 
 The test: read it out loud. If it sounds like a legal document, rewrite it.
@@ -499,7 +502,7 @@ Goes deeper: what are the inputs, what are the outputs, what are the important r
 Mermaid sequence or flowchart showing how the code moves. If the folder has more than two collaborators or a non-obvious execution order, it needs a diagram.
 
 ```markdown
-​```mermaid
+​`mermaid
 sequenceDiagram
     participant Orchestrator
     participant InstrumentAnalysisRunner
@@ -510,7 +513,7 @@ sequenceDiagram
     InstrumentAnalysisRunner->>AIPhaseRunner: runPhase(fundamental)
     AIPhaseRunner-->>InstrumentAnalysisRunner: FundamentalSignal
     InstrumentAnalysisRunner-->>Orchestrator: InstrumentAnalysisResult
-​```
+​`
 ```
 
 ### Section 4 — Glossary (required if the folder has domain-specific terms)
@@ -519,6 +522,7 @@ Any word that isn't obvious to someone who hasn't read the codebase gets a one-l
 
 ```markdown
 ## Terms
+
 - **AIPhase** — the definition of one analysis phase: what workers run, in what order, how to merge their outputs
 - **WorkerBatch** — a group of AI workers that run in parallel because none depends on the others
 - **InstrumentAnalysisState** — the accumulated results as each phase completes; passed forward into the next phase
@@ -526,7 +530,7 @@ Any word that isn't obvious to someone who hasn't read the codebase gets a one-l
 
 ### Example README
 
-```markdown
+````markdown
 # pipeline/analysis
 
 Runs one instrument through all its AI analysis phases in order. Gets a symbol like AAPL, fires
@@ -546,10 +550,10 @@ hands back a complete picture of whether to trade it.
 
 ​```mermaid
 sequenceDiagram
-    participant Caller
-    participant Runner as InstrumentAnalysisRunner
-    participant Phase as AIPhaseRunner
-    participant Engine as SignalEngine
+participant Caller
+participant Runner as InstrumentAnalysisRunner
+participant Phase as AIPhaseRunner
+participant Engine as SignalEngine
 
     Caller->>Runner: run(analysis, {symbol, sessionId})
     Runner->>Runner: initialState(seed)
@@ -564,6 +568,7 @@ sequenceDiagram
         Runner->>Runner: applyStepResult(state)
     end
     Runner-->>Caller: InstrumentAnalysisResult
+
 ​```
 
 ## Terms
@@ -573,7 +578,7 @@ sequenceDiagram
 - **InstrumentAnalysisState** — mutable accumulator; each step reads from it and writes its output into it
 - **seedState** — optional pre-populated state used to resume a partial analysis (e.g. replay from step 3)
 - **required step** — a step where failure aborts the whole analysis (vs. optional steps that are skipped on failure)
-```
+````
 
 ---
 
@@ -599,13 +604,13 @@ Done in three commits. The codebase will be broken between commits. That is expe
 
 ### Status (2026-05-23)
 
-| Commit | Scope | Status |
-|--------|-------|--------|
-| **A** | Folder moves (Changes 1–7, 9) + import path fixes | **Done** — `bun typecheck` passes |
-| **A** | Change 8 — inline prompts, delete `prompts/` | **Done** |
-| **A** | README files per folder | **Done** |
-| **B** | Full symbol rename pass | **Done** |
-| **C** | Tests, architecture docs, `folder-structure.md` | **Done** |
+| Commit | Scope                                             | Status                            |
+| ------ | ------------------------------------------------- | --------------------------------- |
+| **A**  | Folder moves (Changes 1–7, 9) + import path fixes | **Done** — `bun typecheck` passes |
+| **A**  | Change 8 — inline prompts, delete `prompts/`      | **Done**                          |
+| **A**  | README files per folder                           | **Done**                          |
+| **B**  | Full symbol rename pass                           | **Done**                          |
+| **C**  | Tests, architecture docs, `folder-structure.md`   | **Done**                          |
 
 Import path fix scripts were deleted after Commit B.
 
@@ -620,6 +625,7 @@ Completion gate: every file is in its new location.
 With all files in their new locations, rename every symbol in the tables above. This is done in a single session.
 
 Process per rename:
+
 1. TypeScript language server rename (VS Code F2) — catches all typed references including re-exports
 2. `grep -rn "OldName" electron/ src/` — catches string literals, logger names, comments, dynamic references the TS server misses
 3. Fix everything grep finds
@@ -1042,18 +1048,18 @@ electron/
 
 ### Dissolved / removed
 
-| Old path | Disposition |
-|----------|-------------|
-| `services/session/environment-scope.ts` | Moved → `services/session/environment-scope.ts` |
-| `services/llm/` (entire directory) | Split into `llm/`, `pipeline/`, `signal/`, `search/`, `tools/` |
-| `services/replay/` | Promoted → `services/replay/` |
-| `services/analytics/` | Merged → `services/analytics/` |
-| `services/pipeline/execution/tool-use-harness.ts` | Evaluate: move to `pipeline/execution/` or `tools/` |
-| `services/pipeline/prompting/strategy-prompt-context.ts` | Move → `pipeline/prompting/` |
-| `services/llm/provider-registry.ts` | Move → `llm/adapters/` |
-| `services/llm/resolve-run-cost.ts` | Move → `llm/` |
-| `services/pipeline/prompt-asset-loader.ts` | **Delete** — no longer needed after Change 8 (prompts inlined into definitions) |
-| `services/llm/model-pricing.ts` | Move → `llm/` |
-| `pipeline/prompts/` (entire folder, 25 .md files) | **Delete** — all prompt text inlined into `definitions/` files |
-| `electron/shared/instruments/` | Renamed → `electron/shared/instruments/` |
-| `services/session/` | Dissolved — one file, moved to `session/` |
+| Old path                                                 | Disposition                                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `services/session/environment-scope.ts`                  | Moved → `services/session/environment-scope.ts`                                 |
+| `services/llm/` (entire directory)                       | Split into `llm/`, `pipeline/`, `signal/`, `search/`, `tools/`                  |
+| `services/replay/`                                       | Promoted → `services/replay/`                                                   |
+| `services/analytics/`                                    | Merged → `services/analytics/`                                                  |
+| `services/pipeline/execution/tool-use-harness.ts`        | Evaluate: move to `pipeline/execution/` or `tools/`                             |
+| `services/pipeline/prompting/strategy-prompt-context.ts` | Move → `pipeline/prompting/`                                                    |
+| `services/llm/provider-registry.ts`                      | Move → `llm/adapters/`                                                          |
+| `services/llm/resolve-run-cost.ts`                       | Move → `llm/`                                                                   |
+| `services/pipeline/prompt-asset-loader.ts`               | **Delete** — no longer needed after Change 8 (prompts inlined into definitions) |
+| `services/llm/model-pricing.ts`                          | Move → `llm/`                                                                   |
+| `pipeline/prompts/` (entire folder, 25 .md files)        | **Delete** — all prompt text inlined into `definitions/` files                  |
+| `electron/shared/instruments/`                           | Renamed → `electron/shared/instruments/`                                        |
+| `services/session/`                                      | Dissolved — one file, moved to `session/`                                       |

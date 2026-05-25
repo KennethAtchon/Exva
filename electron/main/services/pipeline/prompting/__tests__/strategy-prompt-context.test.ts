@@ -6,9 +6,7 @@ import {
   buildWorkerStrategyPromptContext,
   prependStrategyContextToUserPrompt,
 } from "../strategy-prompt-context";
-import {
-  buildWorkerPrompt,
-} from "../worker-prompt-builder";
+import { buildWorkerPrompt } from "../worker-prompt-builder";
 
 function baseContext(): SessionStrategyContext {
   const ts = "2026-05-05T00:00:00.000Z";

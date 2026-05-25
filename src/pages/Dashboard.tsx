@@ -267,7 +267,7 @@ const TradesPanel = () => {
   const trades = useTradeStore((s) => s.trades);
   const selectedId = useTradeStore((s) => s.selectedId);
   const setSelected = useTradeStore((s) => s.setSelected);
-  const sorted = [...trades].sort((a, b) => {
+  const sorted = trades.toSorted((a, b) => {
     const at = a.opened_at ? new Date(a.opened_at).getTime() : 0;
     const bt = b.opened_at ? new Date(b.opened_at).getTime() : 0;
     return bt - at;

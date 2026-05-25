@@ -54,12 +54,7 @@ function requireResolver(phase: AIPhase<unknown, unknown>): WorkerResolver {
 const PHASE_INDEX = new Map<
   PipelinePhase,
   { phase: AIPhase<unknown, unknown>; resolver: WorkerResolver }
->(
-  ALL_PHASES.map((p) => [
-    p.phase,
-    { phase: p, resolver: requireResolver(p) },
-  ]),
-);
+>(ALL_PHASES.map((p) => [p.phase, { phase: p, resolver: requireResolver(p) }]));
 
 // Validate catalog fields eagerly — catch missing fields at module load.
 for (const { phase } of PHASE_INDEX.values()) {

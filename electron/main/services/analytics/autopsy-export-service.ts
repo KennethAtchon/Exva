@@ -23,7 +23,11 @@ export class AutopsyExportService {
     const structured = parseAutopsyStructuredJson(
       autopsyRecord.summaryStructuredJson,
     );
-    const defaultName = buildDefaultFilename(trade, autopsyRecord.createdAt, format);
+    const defaultName = buildDefaultFilename(
+      trade,
+      autopsyRecord.createdAt,
+      format,
+    );
 
     const saveResult = await dialog.showSaveDialog({
       defaultPath: defaultName,
@@ -88,10 +92,7 @@ export class AutopsyExportService {
   }
 }
 
-async function exportPdf(
-  html: string,
-  filePath: string,
-): Promise<void> {
+async function exportPdf(html: string, filePath: string): Promise<void> {
   const win = new BrowserWindow({
     show: false,
     webPreferences: { offscreen: true },

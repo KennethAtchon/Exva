@@ -4,9 +4,19 @@ import * as runSelectorModule from "../selector/run-selector";
 
 describe("runSelector", () => {
   it("filters non-tradable instruments and keeps tradable ones", async () => {
-    vi.spyOn(MarketHoursService.prototype, "filterTradable").mockImplementation(
-      (rows) => rows.filter((row) => row.symbol === "BTC-USD"),
-    );
+    vi.spyOn(
+      MarketHoursService.prototype,
+      "partitionByTradability",
+    ).mockImplementation((rows) => ({
+      tradable: rows.filter((row) => row.symbol === "BTC-USD"),
+      excluded: rows
+        .filter((row) => row.symbol !== "BTC-USD")
+        .map((row) => ({
+          symbol: row.symbol,
+          instrumentClass: row.instrumentClass,
+          reason: "closed",
+        })),
+    }));
 
     const ctx = {
       sessionId: "session-1",
@@ -23,9 +33,17 @@ describe("runSelector", () => {
           }),
         },
         bus: { emit: vi.fn() },
-        logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+        logger: {
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
+        },
       },
       emitEvent: vi.fn(),
+      getFailureHistory: vi.fn(() => []),
+      getNearestRetryAt: vi.fn(() => null),
+      getFailureHistoryForInstrument: vi.fn(() => []),
     };
 
     const out = await runSelectorModule.runSelector(
@@ -40,9 +58,10 @@ describe("runSelector", () => {
   });
 
   it("returns empty list when no instruments are tradable", async () => {
-    vi.spyOn(MarketHoursService.prototype, "filterTradable").mockReturnValue(
-      [],
-    );
+    vi.spyOn(
+      MarketHoursService.prototype,
+      "partitionByTradability",
+    ).mockReturnValue({ tradable: [], excluded: [] });
 
     const ctx = {
       sessionId: "session-1",
@@ -54,9 +73,17 @@ describe("runSelector", () => {
           }),
         },
         bus: { emit: vi.fn() },
-        logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+        logger: {
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
+        },
       },
       emitEvent: vi.fn(),
+      getFailureHistory: vi.fn(() => []),
+      getNearestRetryAt: vi.fn(() => null),
+      getFailureHistoryForInstrument: vi.fn(() => []),
     };
 
     await expect(

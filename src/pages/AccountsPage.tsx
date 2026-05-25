@@ -178,9 +178,8 @@ export const AccountsPage = () => {
   );
   const [defaultModelProviderKey, setDefaultModelProviderKey] = useState("");
   const [defaultModelModelId, setDefaultModelModelId] = useState("");
-  const [defaultModelReasoningLevel, setDefaultModelReasoningLevel] = useState<
-    (typeof REASONING_LEVEL_OPTIONS)[number]["value"]
-  >("off");
+  const [defaultModelReasoningLevel, setDefaultModelReasoningLevel] =
+    useState<(typeof REASONING_LEVEL_OPTIONS)[number]["value"]>("off");
   const [defaultModelModels, setDefaultModelModels] = useState<
     ProviderModelEntry[]
   >([]);
@@ -276,31 +275,37 @@ export const AccountsPage = () => {
       const searchList = provList.providers.filter(
         (p) => p.category === "search",
       );
-      let anyAiOk = false;
-      let anySearchOk = false;
-      for (const p of aiList) {
-        const r = await api
-          .testProvider(p.id)
-          .catch(() => ({ ok: false as const }));
-        if (r.ok) anyAiOk = true;
-      }
-      for (const p of searchList) {
-        const r = await api
-          .testProvider(p.id)
-          .catch(() => ({ ok: false as const }));
-        if (r.ok) anySearchOk = true;
-      }
+      const [aiResults, searchResults, brokerResults] = await Promise.all([
+        Promise.all(
+          aiList.map((provider) =>
+            api.testProvider(provider.id).catch(() => ({ ok: false as const })),
+          ),
+        ),
+        Promise.all(
+          searchList.map((provider) =>
+            api.testProvider(provider.id).catch(() => ({ ok: false as const })),
+          ),
+        ),
+        Promise.all(
+          brokerResp.brokers.reduce<Array<Promise<{ ok: boolean }>>>(
+            (acc, broker) => {
+              if (broker.mode === environmentMode) {
+                acc.push(
+                  api
+                    .testSavedBrokerAccount(broker.id)
+                    .catch(() => ({ ok: false as const })),
+                );
+              }
+              return acc;
+            },
+            [],
+          ),
+        ),
+      ]);
+      const anyAiOk = aiResults.some((result) => result.ok);
+      const anySearchOk = searchResults.some((result) => result.ok);
       void refetchProviders();
-
-      let anyBrokerOk = false;
-      for (const b of brokerResp.brokers.filter(
-        (broker) => broker.mode === environmentMode,
-      )) {
-        const t = await api
-          .testSavedBrokerAccount(b.id)
-          .catch(() => ({ ok: false as const }));
-        if (t.ok) anyBrokerOk = true;
-      }
+      const anyBrokerOk = brokerResults.some((result) => result.ok);
       setStatus({ broker: anyBrokerOk, ai: anyAiOk, search: anySearchOk });
     } catch {
       setStatus({ broker: false, ai: false, search: false });
@@ -745,7 +750,9 @@ export const AccountsPage = () => {
                   placeholder="Off"
                   disabled={savingDefaultModel}
                 />
-                <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                <div
+                  style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}
+                >
                   Non-off levels increase token spend. Pair with a
                   reasoning-capable model. Override per phase in Strategy → AI
                   Phases.
@@ -873,8 +880,7 @@ export const AccountsPage = () => {
                         fontFamily: "var(--font-mono)",
                       }}
                     >
-                      {b.brokerType} ·{" "}
-                      {b.supportedInstrumentClasses.join(", ")}
+                      {b.brokerType} · {b.supportedInstrumentClasses.join(", ")}
                     </div>
                     {b.brokerType === "mock" && (
                       <div style={{ marginTop: 8, maxWidth: 320 }}>
@@ -1015,19 +1021,21 @@ export const AccountsPage = () => {
             <button
               type="button"
               onClick={async () => {
-                const rows: BrokerRoutingDefault[] = (
+                const rows = (
                   [
                     "stock",
                     "crypto",
                     "futures",
                     "prediction_market",
                   ] as InstrumentClass[]
-                )
-                  .map((instrumentClass) => ({
-                    instrumentClass,
-                    defaultBrokerAccountId: routingDraft[instrumentClass] ?? "",
-                  }))
-                  .filter((r) => r.defaultBrokerAccountId.length > 0);
+                ).reduce<BrokerRoutingDefault[]>((acc, instrumentClass) => {
+                  const defaultBrokerAccountId =
+                    routingDraft[instrumentClass] ?? "";
+                  if (defaultBrokerAccountId) {
+                    acc.push({ instrumentClass, defaultBrokerAccountId });
+                  }
+                  return acc;
+                }, []);
                 if (rows.length < 4) {
                   alert(
                     "Pick a default broker for stock, crypto, futures, and prediction markets.",

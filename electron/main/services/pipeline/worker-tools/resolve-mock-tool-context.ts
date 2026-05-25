@@ -131,10 +131,12 @@ function applyMockInstrumentFocus(
   return {
     ...fixtures,
     primarySymbols,
-    redditPosts: (fixtures.redditPosts ?? MOCK_REDDIT_POSTS).map((post, index) => ({
-      ...post,
-      subreddit: subreddits[index % subreddits.length] ?? post.subreddit,
-    })),
+    redditPosts: (fixtures.redditPosts ?? MOCK_REDDIT_POSTS).map(
+      (post, index) => ({
+        ...post,
+        subreddit: subreddits[index % subreddits.length] ?? post.subreddit,
+      }),
+    ),
     trendingSymbols: primarySymbols.map((symbol, index) => ({
       symbol,
       name: FOCUSED_SYMBOL_NAMES[symbol] ?? symbol,
@@ -145,7 +147,8 @@ function applyMockInstrumentFocus(
     webSearch:
       fixtures.webSearch?.map((item, index) => {
         const symbol =
-          primarySymbols[index % primarySymbols.length] ?? symbolForIndex(index);
+          primarySymbols[index % primarySymbols.length] ??
+          symbolForIndex(index);
         return {
           ...item,
           title: substituteMockSymbol(item.title, symbol),
@@ -156,7 +159,11 @@ function applyMockInstrumentFocus(
 }
 
 function symbolForIndex(index: number): string {
-  return FOCUSED_PRIMARY_SYMBOLS.stock[index % FOCUSED_PRIMARY_SYMBOLS.stock.length] ?? "NVDA";
+  return (
+    FOCUSED_PRIMARY_SYMBOLS.stock[
+      index % FOCUSED_PRIMARY_SYMBOLS.stock.length
+    ] ?? "NVDA"
+  );
 }
 
 async function resolveMockAdapter(input: {

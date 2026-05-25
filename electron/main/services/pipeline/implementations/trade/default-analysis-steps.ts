@@ -16,6 +16,13 @@ import type {
   InstrumentAnalysisState,
 } from "../../analysis/types";
 
+function requireAnalysisSignal<T>(signal: T | undefined, name: string): T {
+  if (!signal) {
+    throw new Error(`${name} analysis output is required before this stage.`);
+  }
+  return signal;
+}
+
 export const DEFAULT_TRADE_CYCLE_STAGES: readonly DeclarativeCycleStageConfig[] =
   [
     {
@@ -69,12 +76,19 @@ export const DEFAULT_TRADE_CYCLE_STAGES: readonly DeclarativeCycleStageConfig[] 
       phase: "review",
       executionStage: "review",
       required: true,
-      buildInput: (ctx, state) => ({
-        instrumentSymbol: ctx.instrument.symbol,
-        technical: state.technical!.output,
-        fundamental: state.fundamental!.output,
-        recentFailureHistory: ctx.instrument.recentFailureHistory ?? [],
-      }),
+      buildInput: (ctx, state) => {
+        const technical = requireAnalysisSignal(state.technical, "technical");
+        const fundamental = requireAnalysisSignal(
+          state.fundamental,
+          "fundamental",
+        );
+        return {
+          instrumentSymbol: ctx.instrument.symbol,
+          technical: technical.output,
+          fundamental: fundamental.output,
+          recentFailureHistory: ctx.instrument.recentFailureHistory ?? [],
+        };
+      },
       applyOutput: (state, result) => ({
         ...state,
         review: result as LLMRunResult<ReviewSignal>,
@@ -86,13 +100,21 @@ export const DEFAULT_TRADE_CYCLE_STAGES: readonly DeclarativeCycleStageConfig[] 
       phase: "decision",
       executionStage: "decision",
       required: true,
-      buildInput: (ctx, state) => ({
-        instrumentSymbol: ctx.instrument.symbol,
-        technical: state.technical!.output,
-        fundamental: state.fundamental!.output,
-        review: state.review!.output,
-        recentFailureHistory: ctx.instrument.recentFailureHistory ?? [],
-      }),
+      buildInput: (ctx, state) => {
+        const technical = requireAnalysisSignal(state.technical, "technical");
+        const fundamental = requireAnalysisSignal(
+          state.fundamental,
+          "fundamental",
+        );
+        const review = requireAnalysisSignal(state.review, "review");
+        return {
+          instrumentSymbol: ctx.instrument.symbol,
+          technical: technical.output,
+          fundamental: fundamental.output,
+          review: review.output,
+          recentFailureHistory: ctx.instrument.recentFailureHistory ?? [],
+        };
+      },
       applyOutput: (state, result) => ({
         ...state,
         decision: result as LLMRunResult<TradeSignal>,

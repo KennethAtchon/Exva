@@ -23,9 +23,7 @@ export function registerEventHandlers(services: AppServices): void {
     const allowed = new Set(workspaceEnvironmentSessionIds(services));
     return services.repos.events
       .query(filters)
-      .filter(
-        (event) => !event.session_id || allowed.has(event.session_id),
-      );
+      .filter((event) => !event.session_id || allowed.has(event.session_id));
   });
 
   handle(ipcMain, channels.events.getAgentTraces, async (payload) => {

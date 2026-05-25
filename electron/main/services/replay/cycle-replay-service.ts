@@ -430,8 +430,9 @@ type RawToolCall = {
 function normalizeToolCalls(
   parsed: Array<RawToolCall | { toolCalls?: RawToolCall[] }>,
 ): RawToolCall[] {
-  if (parsed.length === 0) return [];
-  if ("toolCalls" in parsed[0]!) {
+  const [first] = parsed;
+  if (!first) return [];
+  if ("toolCalls" in first) {
     return (parsed as Array<{ toolCalls?: RawToolCall[] }>).flatMap(
       (step) => step.toolCalls ?? [],
     );

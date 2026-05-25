@@ -190,7 +190,8 @@ const PhaseCard = ({
             value={config.reasoningLevel ?? "off"}
             onValueChange={(reasoningLevel) =>
               onUpdate({
-                reasoningLevel: reasoningLevel as PhaseRuntimeSummary["reasoningLevel"],
+                reasoningLevel:
+                  reasoningLevel as PhaseRuntimeSummary["reasoningLevel"],
               })
             }
             options={[...REASONING_LEVEL_OPTIONS]}

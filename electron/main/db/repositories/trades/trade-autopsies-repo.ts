@@ -52,7 +52,9 @@ export class TradeAutopsiesRepo {
     return row ? toRecord(row) : null;
   }
 
-  insert(record: Omit<TradeAutopsyRecord, "id"> & { id?: string }): TradeAutopsyRecord {
+  insert(
+    record: Omit<TradeAutopsyRecord, "id"> & { id?: string },
+  ): TradeAutopsyRecord {
     const id = record.id ?? crypto.randomUUID();
     this.client.db
       .insert(tradeAutopsies)
@@ -71,6 +73,10 @@ export class TradeAutopsiesRepo {
         createdBy: record.createdBy,
       })
       .run();
-    return this.find(id)!;
+    const created = this.find(id);
+    if (!created) {
+      throw new Error(`Failed to load inserted trade autopsy ${id}`);
+    }
+    return created;
   }
 }

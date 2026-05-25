@@ -127,7 +127,13 @@ export const StrategyConfig = ({
     resetForEnvironmentChange();
     if (viewMode !== "session" || !focusedSessionId) return;
     void loadStrategy(focusedSessionId);
-  }, [focusedSessionId, loadStrategy, resetForEnvironmentChange, viewMode, environmentMode]);
+  }, [
+    focusedSessionId,
+    loadStrategy,
+    resetForEnvironmentChange,
+    viewMode,
+    environmentMode,
+  ]);
 
   useEffect(() => {
     if (viewMode !== "session" || !focusedSessionId) {
@@ -145,9 +151,15 @@ export const StrategyConfig = ({
       .catch(() => setFocusedOpenTradeCount(0));
   }, [focusedSessionId, viewMode, environmentMode]);
 
-  const builtInGlobalPresets = globalPresets
-    .filter((p) => p.isBuiltIn)
-    .map((p) => JSON.parse(p.presetJson) as GlobalStrategyPreset);
+  const builtInGlobalPresets = globalPresets.reduce<GlobalStrategyPreset[]>(
+    (acc, preset) => {
+      if (preset.isBuiltIn) {
+        acc.push(JSON.parse(preset.presetJson) as GlobalStrategyPreset);
+      }
+      return acc;
+    },
+    [],
+  );
   const userGlobalPresets = globalPresets.filter((p) => !p.isBuiltIn);
 
   const isLocked = pageState === "locked";
@@ -688,8 +700,12 @@ function resolveActiveGlobalPreset({
 function labelize(value: string): string {
   return value
     .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .reduce<string[]>((parts, part) => {
+      if (part) {
+        parts.push(part.charAt(0).toUpperCase() + part.slice(1));
+      }
+      return parts;
+    }, [])
     .join(" ");
 }
 

@@ -7,11 +7,6 @@ import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
 import type { AgentRunsRepo } from "../../db/repositories/agents/agent-runs-repo";
-import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messages-repo";
-import type { InstrumentCacheRepo } from "../../db/repositories/market/instrument-cache-repo";
-import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
-import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
-import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRoutingService } from "../broker/broker-routing-service";
 import type { BrokerRegistry } from "../broker/broker-registry";
 import type { SessionStrategyContextService } from "../session/session-strategy-context-service";
@@ -49,7 +44,10 @@ export class LLMRuntime {
         })
       | null,
     cyclePlanServices?:
-      | (Omit<InstrumentAnalysisServices, "strategyContextService" | "brokerRouting"> & {
+      | (Omit<
+          InstrumentAnalysisServices,
+          "strategyContextService" | "brokerRouting"
+        > & {
           brokerRouting?: BrokerRoutingService;
         })
       | null,

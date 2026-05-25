@@ -46,7 +46,8 @@ export class AgentOrchestrator {
     attachTradeClosedListener(this.ctx, () =>
       this.scheduleSelectorCycle("Trade-closed research cycle complete"),
     );
-    this.ctx.scheduleSelectorCycle = (label) => this.scheduleSelectorCycle(label);
+    this.ctx.scheduleSelectorCycle = (label) =>
+      this.scheduleSelectorCycle(label);
     this.ctx.started = true;
     this.ctx.enqueueTask(
       () =>

@@ -40,11 +40,11 @@ That prevents deterministic review and decision logic from being built on top of
 
 ## 3. Background & Context
 
-| File                                                                          | Current responsibility                                | Gap                            |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------ |
+| File                                                                   | Current responsibility                                | Gap                            |
+| ---------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------ |
 | `electron/main/services/llm/pipeline/definitions/fundamental.phase.ts` | One `analyst-fundamental` worker returning `{ text }` | No typed phase signal          |
-| `electron/main/services/orchestration/agent-orchestrator.ts`                  | Passes `fundamental.output.text` to later phases      | Hard free-text coupling        |
-| `docs/design/cognitive-pipeline-rearchitecture-spec.md`                       | Defines target `FundamentalSignal` fields             | Migration target already clear |
+| `electron/main/services/orchestration/agent-orchestrator.ts`           | Passes `fundamental.output.text` to later phases      | Hard free-text coupling        |
+| `docs/design/cognitive-pipeline-rearchitecture-spec.md`                | Defines target `FundamentalSignal` fields             | Migration target already clear |
 
 The important difference from the technical phase is that fundamental output must also encode contradiction risk and catalyst freshness. Those are not just informative fields; they are inputs to later review and risk decisions.
 

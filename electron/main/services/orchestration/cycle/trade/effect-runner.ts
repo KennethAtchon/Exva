@@ -1,4 +1,3 @@
-import { AppError } from "@electron/shared/infra/errors";
 import type { OrderRequest } from "../../../broker/adapters/broker-adapter";
 import type { Trade } from "@/lib/types";
 import type { TradeSignal } from "@electron/shared/ai/trade-signals";
@@ -45,7 +44,10 @@ export function persistPendingTradeFromPipeline(
     context.trade = trade;
   }
 
-  return context.trade!;
+  if (!context.trade) {
+    throw new Error("Trade should exist after pending trade persistence");
+  }
+  return context.trade;
 }
 
 export async function runApprovalAndCapital(

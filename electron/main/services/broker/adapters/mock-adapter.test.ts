@@ -184,7 +184,10 @@ describe("MockBrokerAdapter", () => {
     const rangeHigh = Math.max(...bars.map((bar) => bar.high));
 
     expect(last).toBeDefined();
-    expect(last!.close).toBeGreaterThanOrEqual(rangeHigh * 0.995);
-    expect((last!.volume ?? 0)).toBeGreaterThan(bars.at(-5)?.volume ?? 0);
+    if (!last) {
+      throw new Error("Expected a final OHLCV bar");
+    }
+    expect(last.close).toBeGreaterThanOrEqual(rangeHigh * 0.995);
+    expect(last.volume ?? 0).toBeGreaterThan(bars.at(-5)?.volume ?? 0);
   });
 });

@@ -45,13 +45,13 @@ A phase definition never imports phase-level business logic directly. It declare
 
 ## Documents in This Folder
 
-| File | What it covers |
-|---|---|
-| [framework-design.md](./framework-design.md) | Framework design, `AIPhase` config shape, engine registry kinds |
-| [selector-files.md](./selector-files.md) | Historical selector file inventory and migration disposition |
-| [engine-registry.md](./engine-registry.md) | Engine structure, registration, kinds with examples |
-| [other-phases.md](./other-phases.md) | Historical migration plan for trade phases |
-| [implementation-order.md](./implementation-order.md) | Phased rollout plan and done criteria |
+| File                                                 | What it covers                                                  |
+| ---------------------------------------------------- | --------------------------------------------------------------- |
+| [framework-design.md](./framework-design.md)         | Framework design, `AIPhase` config shape, engine registry kinds |
+| [selector-files.md](./selector-files.md)             | Historical selector file inventory and migration disposition    |
+| [engine-registry.md](./engine-registry.md)           | Engine structure, registration, kinds with examples             |
+| [other-phases.md](./other-phases.md)                 | Historical migration plan for trade phases                      |
+| [implementation-order.md](./implementation-order.md) | Phased rollout plan and done criteria                           |
 
 These planning docs describe the migration path. For current architecture, prefer `docs/architecture/pipeline-runtime.md`.
 

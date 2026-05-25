@@ -44,23 +44,23 @@ The renderer is sandboxed and talks to the main process through the typed preloa
 
 ## 3. Core Concepts & Glossary
 
-| Term | Definition |
-|------|------------|
-| Session | Persisted trading workspace with objective, execution mode, broker assignments, strategy context, AI config, selector settings, and runtime status. |
-| `SessionRuntimeManager` | Owner of live `sessionId -> SessionRuntime` instances. It starts, pauses, resumes, stops, rehydrates, and routes approval rechecks/execution controls. |
-| `SessionRuntime` | In-memory lifecycle wrapper around one `AgentOrchestrator` and one `TradeMonitor`; serializes lifecycle operations with `PQueue`. |
-| `AgentOrchestrator` | Per-session trading loop in `services/orchestration/cycle/agent-orchestrator.ts`. Runs selector cycles, queues trade cycles, handles no-instrument retry timers, and resolves approval callbacks. |
-| `TradeMonitor` | Per-session monitor in `services/orchestration/lifecycle/trade-monitor.ts` that watches open trades and closes them through exit policy or broker status. |
-| `LLMRuntime` | AI facade in `services/llm/runtime.ts`. Validates session ids and delegates `runPlan`, `runCycle`, and `runAIPhase` to `PipelineRuntime`. |
-| `PipelineRuntime` | Analysis executor in `services/pipeline/core/pipeline-runtime.ts`. Builds strategy/tool/spend context and dispatches to `AIPhaseRunner` or `InstrumentAnalysisRunner`. |
-| `AIPhase` | Executable definition of one AI phase in `pipeline/definitions/*.phase.ts`. Declares worker batches, engine IDs (input, entry, cache, finalizer), and optional hooks such as `resolveWorkersForMode` and `summarize`. |
-| `Phase engine` | Registered hook in `pipeline/engines/` resolved by engine ID from an `AIPhase`. Kinds: `input`, `entry_mode`, `cache`, `finalizer`. |
-| `InstrumentAnalysis` | Full analysis for one selected instrument. The default `default-trade-cycle` plan sequences candidate validation, AI phases, and risk/allocation engines via `default-analysis-steps.ts`. |
-| `TradingStepRunner` | Orchestration wrapper that persists stage progress/retries to `session_execution_steps` and classifies retryable failures. |
-| `RiskEngine` | Deterministic guard for spend, P&L, concurrent trades, position size, prediction exposure, and confidence thresholds. |
-| `OrderPolicyGate` | Final pre-order gate for runtime state, side bias, quote freshness, price/spread/capital/broker/idempotency/exit-policy checks. |
-| Approval recheck | Safe recovery path when a persisted approval is approved without an in-memory callback: rerun AI/gates before placing an order. |
-| EventBus | In-process and BrowserWindow fan-out for runtime events; also stores in-memory runtime status. |
+| Term                    | Definition                                                                                                                                                                                                            |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Session                 | Persisted trading workspace with objective, execution mode, broker assignments, strategy context, AI config, selector settings, and runtime status.                                                                   |
+| `SessionRuntimeManager` | Owner of live `sessionId -> SessionRuntime` instances. It starts, pauses, resumes, stops, rehydrates, and routes approval rechecks/execution controls.                                                                |
+| `SessionRuntime`        | In-memory lifecycle wrapper around one `AgentOrchestrator` and one `TradeMonitor`; serializes lifecycle operations with `PQueue`.                                                                                     |
+| `AgentOrchestrator`     | Per-session trading loop in `services/orchestration/cycle/agent-orchestrator.ts`. Runs selector cycles, queues trade cycles, handles no-instrument retry timers, and resolves approval callbacks.                     |
+| `TradeMonitor`          | Per-session monitor in `services/orchestration/lifecycle/trade-monitor.ts` that watches open trades and closes them through exit policy or broker status.                                                             |
+| `LLMRuntime`            | AI facade in `services/llm/runtime.ts`. Validates session ids and delegates `runPlan`, `runCycle`, and `runAIPhase` to `PipelineRuntime`.                                                                             |
+| `PipelineRuntime`       | Analysis executor in `services/pipeline/core/pipeline-runtime.ts`. Builds strategy/tool/spend context and dispatches to `AIPhaseRunner` or `InstrumentAnalysisRunner`.                                                |
+| `AIPhase`               | Executable definition of one AI phase in `pipeline/definitions/*.phase.ts`. Declares worker batches, engine IDs (input, entry, cache, finalizer), and optional hooks such as `resolveWorkersForMode` and `summarize`. |
+| `Phase engine`          | Registered hook in `pipeline/engines/` resolved by engine ID from an `AIPhase`. Kinds: `input`, `entry_mode`, `cache`, `finalizer`.                                                                                   |
+| `InstrumentAnalysis`    | Full analysis for one selected instrument. The default `default-trade-cycle` plan sequences candidate validation, AI phases, and risk/allocation engines via `default-analysis-steps.ts`.                             |
+| `TradingStepRunner`     | Orchestration wrapper that persists stage progress/retries to `session_execution_steps` and classifies retryable failures.                                                                                            |
+| `RiskEngine`            | Deterministic guard for spend, P&L, concurrent trades, position size, prediction exposure, and confidence thresholds.                                                                                                 |
+| `OrderPolicyGate`       | Final pre-order gate for runtime state, side bias, quote freshness, price/spread/capital/broker/idempotency/exit-policy checks.                                                                                       |
+| Approval recheck        | Safe recovery path when a persisted approval is approved without an in-memory callback: rerun AI/gates before placing an order.                                                                                       |
+| EventBus                | In-process and BrowserWindow fan-out for runtime events; also stores in-memory runtime status.                                                                                                                        |
 
 ---
 
@@ -108,18 +108,18 @@ graph LR
 
 **Main components:**
 
-| Component | Responsibility | Files |
-|-----------|----------------|-------|
-| Composition root | Creates repos, registries, LLM/pipeline runtime, signal engines, session services, runtime manager, replay/analytics, and balance ticker | `electron/main/services/app-services.ts` |
-| Session service | Validates lifecycle transitions, live readiness, preflight checks, and starts/stops runtime manager operations | `electron/main/services/session/session-service.ts` |
-| Runtime manager | Builds orchestrator dependencies, creates runtimes, rehydrates previous sessions, forwards approval rechecks and execution controls | `electron/main/services/session/session-runtime-manager.ts` |
-| Runtime wrapper | Starts monitor and orchestrator in the right active/paused mode | `electron/main/services/session/session-runtime.ts` |
-| Orchestrator | Runs selector, schedules trade cycles, handles approvals, queues no-instrument retries, emits progress events | `electron/main/services/orchestration/cycle/agent-orchestrator.ts` |
-| Pipeline bridge | Calls `LLMRuntime.runPlan("selector")` and `runPlan("default-trade-cycle")` from orchestration | `electron/main/services/orchestration/cycle/selector/`, `cycle/trade/` |
-| Pipeline runtime | Executes registered analyses and definition-first phases | `electron/main/services/llm/`, `electron/main/services/pipeline/` |
-| Deterministic gates | Candidate validation, risk, broker allocation, order policy, exit policy | `electron/main/services/orchestration/policy/`, `electron/main/services/risk/`, `electron/main/services/signal/` |
-| Monitoring | Polls open trades, checks exit rules, closes positions, updates stats | `electron/main/services/orchestration/lifecycle/trade-monitor.ts` |
-| Observability | Events, execution steps, agent traces, API call log, Pino files | `events`, `session_execution_steps`, `agent_runs`, `agent_messages`, `api_call_log` |
+| Component           | Responsibility                                                                                                                           | Files                                                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Composition root    | Creates repos, registries, LLM/pipeline runtime, signal engines, session services, runtime manager, replay/analytics, and balance ticker | `electron/main/services/app-services.ts`                                                                         |
+| Session service     | Validates lifecycle transitions, live readiness, preflight checks, and starts/stops runtime manager operations                           | `electron/main/services/session/session-service.ts`                                                              |
+| Runtime manager     | Builds orchestrator dependencies, creates runtimes, rehydrates previous sessions, forwards approval rechecks and execution controls      | `electron/main/services/session/session-runtime-manager.ts`                                                      |
+| Runtime wrapper     | Starts monitor and orchestrator in the right active/paused mode                                                                          | `electron/main/services/session/session-runtime.ts`                                                              |
+| Orchestrator        | Runs selector, schedules trade cycles, handles approvals, queues no-instrument retries, emits progress events                            | `electron/main/services/orchestration/cycle/agent-orchestrator.ts`                                               |
+| Pipeline bridge     | Calls `LLMRuntime.runPlan("selector")` and `runPlan("default-trade-cycle")` from orchestration                                           | `electron/main/services/orchestration/cycle/selector/`, `cycle/trade/`                                           |
+| Pipeline runtime    | Executes registered analyses and definition-first phases                                                                                 | `electron/main/services/llm/`, `electron/main/services/pipeline/`                                                |
+| Deterministic gates | Candidate validation, risk, broker allocation, order policy, exit policy                                                                 | `electron/main/services/orchestration/policy/`, `electron/main/services/risk/`, `electron/main/services/signal/` |
+| Monitoring          | Polls open trades, checks exit rules, closes positions, updates stats                                                                    | `electron/main/services/orchestration/lifecycle/trade-monitor.ts`                                                |
+| Observability       | Events, execution steps, agent traces, API call log, Pino files                                                                          | `events`, `session_execution_steps`, `agent_runs`, `agent_messages`, `api_call_log`                              |
 
 ---
 
@@ -151,18 +151,18 @@ erDiagram
 
 **Key runtime entities:**
 
-| Entity | Runtime role |
-|--------|--------------|
-| `sessions` | Status, execution mode, selection mode, instrument scope/classes, default search provider, live-readiness acknowledgement. |
-| `session_execution_steps` | Per `(session_id, cycle_id, stage)` progress and retry state for selector, AI phases, risk gate, broker order, and monitoring marker. |
-| `session_* strategy tables` | Research posture, trade rules, risk config, timeframe, AI settings, selector settings, and phase/worker model config. |
-| `trades` | Pending/open/closed/rejected trade records, broker ids, instrument metadata, prediction-market metadata, AI cost, confidence, price levels, and close snapshots. |
-| `trade_approvals` | Human approval rows and resolution state. |
-| `capital_reservations` | Approval/order/position capital locks that release or convert as the trade lifecycle progresses. |
-| `agent_runs` / `agent_messages` | AI trace metadata, prompts/messages/tool calls/output JSON/thinking/strategy snapshot/cycle id. |
-| `events` | User-visible and developer-visible runtime log rows with optional session/trade/cycle correlation. |
-| `api_call_log` | AI/search/tool call accounting with provider, endpoint, latency, cost/credits, and status. |
-| `session_instrument_cache` | Selector cache for non-empty instrument selections keyed by session/effective-scope fingerprint. |
+| Entity                          | Runtime role                                                                                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sessions`                      | Status, execution mode, selection mode, instrument scope/classes, default search provider, live-readiness acknowledgement.                                       |
+| `session_execution_steps`       | Per `(session_id, cycle_id, stage)` progress and retry state for selector, AI phases, risk gate, broker order, and monitoring marker.                            |
+| `session_* strategy tables`     | Research posture, trade rules, risk config, timeframe, AI settings, selector settings, and phase/worker model config.                                            |
+| `trades`                        | Pending/open/closed/rejected trade records, broker ids, instrument metadata, prediction-market metadata, AI cost, confidence, price levels, and close snapshots. |
+| `trade_approvals`               | Human approval rows and resolution state.                                                                                                                        |
+| `capital_reservations`          | Approval/order/position capital locks that release or convert as the trade lifecycle progresses.                                                                 |
+| `agent_runs` / `agent_messages` | AI trace metadata, prompts/messages/tool calls/output JSON/thinking/strategy snapshot/cycle id.                                                                  |
+| `events`                        | User-visible and developer-visible runtime log rows with optional session/trade/cycle correlation.                                                               |
+| `api_call_log`                  | AI/search/tool call accounting with provider, endpoint, latency, cost/credits, and status.                                                                       |
+| `session_instrument_cache`      | Selector cache for non-empty instrument selections keyed by session/effective-scope fingerprint.                                                                 |
 
 ---
 
@@ -409,15 +409,15 @@ stateDiagram-v2
     stopped --> archived
 ```
 
-| Status | Meaning | Runtime behavior |
-|--------|---------|------------------|
-| `draft` | Configurable but not ready/running | No runtime. |
-| `idle` | Configured and stopped | No runtime until started. |
-| `active` | New selector/trade intake allowed | Orchestrator and monitor run. |
-| `paused` | New intake paused | Monitor may continue for open positions. |
+| Status               | Meaning                                   | Runtime behavior                                                             |
+| -------------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
+| `draft`              | Configurable but not ready/running        | No runtime.                                                                  |
+| `idle`               | Configured and stopped                    | No runtime until started.                                                    |
+| `active`             | New selector/trade intake allowed         | Orchestrator and monitor run.                                                |
+| `paused`             | New intake paused                         | Monitor may continue for open positions.                                     |
 | `attention_required` | Failure or operator intervention required | Resume routes through explicit runtime controls and fresh work where needed. |
-| `stopped` | Fully stopped | Runtime removed and monitor stopped. |
-| `archived` | Hidden from normal views | Not part of active runtime management. |
+| `stopped`            | Fully stopped                             | Runtime removed and monitor stopped.                                         |
+| `archived`           | Hidden from normal views                  | Not part of active runtime management.                                       |
 
 ---
 
@@ -527,16 +527,16 @@ Primary debugging surfaces:
 
 ## 13. Design Decisions & Trade-offs
 
-| Decision | Chosen approach | Rationale | Trade-off |
-|----------|-----------------|-----------|-----------|
-| Per-session runtime ownership | One `SessionRuntime` per running/paused session | Supports concurrent sessions while isolating orchestrator/monitor state | In-memory callbacks and timers are process-local. |
-| Startup rehydration | Prior active sessions become paused monitor-only runtimes | Protects open positions without opening stale new trades | User must explicitly resume intake. |
-| AI pipeline delegation | `LLMRuntime` facade delegates to `PipelineRuntime` | Keeps orchestration out of prompt/worker/signal details | Naming can be confusing because `LLMRuntime` does more than raw provider calls. |
-| Definition-first phases | Executable `AIPhase` objects + phase engine registry | Phase behavior lives in `definitions/` and `engines/`; `AIPhaseRunner` is generic glue | Two engine systems (phase engines vs signal `ENGINE_BINDINGS`) and dual metadata (`AIPhase` + derived `PipelineDefinition`). |
-| Approval recovery | Fresh AI/gate recheck before stale approved order placement | Avoids placing orders from old context after callback loss | Costs extra AI/API calls. |
-| Execution progress | Persisted step rows plus `step:*` events | Makes retries and failures visible/recoverable | Requires consistent `cycleId` propagation. |
-| Local-first storage | SQLite plus Keychain | Fits a single-user desktop app and avoids hosted infrastructure | Not distributed or multi-machine. |
-| Poll-based monitoring | Broker/status polling by holding style | Works across broker adapters with uneven push support | Close detection latency depends on poll interval. |
+| Decision                      | Chosen approach                                             | Rationale                                                                              | Trade-off                                                                                                                    |
+| ----------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Per-session runtime ownership | One `SessionRuntime` per running/paused session             | Supports concurrent sessions while isolating orchestrator/monitor state                | In-memory callbacks and timers are process-local.                                                                            |
+| Startup rehydration           | Prior active sessions become paused monitor-only runtimes   | Protects open positions without opening stale new trades                               | User must explicitly resume intake.                                                                                          |
+| AI pipeline delegation        | `LLMRuntime` facade delegates to `PipelineRuntime`          | Keeps orchestration out of prompt/worker/signal details                                | Naming can be confusing because `LLMRuntime` does more than raw provider calls.                                              |
+| Definition-first phases       | Executable `AIPhase` objects + phase engine registry        | Phase behavior lives in `definitions/` and `engines/`; `AIPhaseRunner` is generic glue | Two engine systems (phase engines vs signal `ENGINE_BINDINGS`) and dual metadata (`AIPhase` + derived `PipelineDefinition`). |
+| Approval recovery             | Fresh AI/gate recheck before stale approved order placement | Avoids placing orders from old context after callback loss                             | Costs extra AI/API calls.                                                                                                    |
+| Execution progress            | Persisted step rows plus `step:*` events                    | Makes retries and failures visible/recoverable                                         | Requires consistent `cycleId` propagation.                                                                                   |
+| Local-first storage           | SQLite plus Keychain                                        | Fits a single-user desktop app and avoids hosted infrastructure                        | Not distributed or multi-machine.                                                                                            |
+| Poll-based monitoring         | Broker/status polling by holding style                      | Works across broker adapters with uneven push support                                  | Close detection latency depends on poll interval.                                                                            |
 
 ---
 
@@ -553,40 +553,40 @@ Primary debugging surfaces:
 
 ## 15. File Reference Map
 
-| Area | Files |
-|------|-------|
-| Electron entry | `electron/main/index.ts` |
-| Window/security setup | `electron/main/window.ts` |
-| Composition root | `electron/main/services/app-services.ts` |
-| Session lifecycle | `electron/main/services/session/session-service.ts` |
-| Runtime manager | `electron/main/services/session/session-runtime-manager.ts` |
-| Runtime wrapper | `electron/main/services/session/session-runtime.ts` |
-| Preflight checks | `electron/main/services/session/preflight/` |
-| Orchestrator | `electron/main/services/orchestration/cycle/agent-orchestrator.ts` |
-| Step runner | `electron/main/services/orchestration/cycle/trading-step-runner.ts` |
-| Selector bridge | `electron/main/services/orchestration/cycle/selector/run-selector.ts` |
-| Trade cycle | `electron/main/services/orchestration/cycle/trade/trade-cycle.ts` |
-| Trade pipeline bridge | `electron/main/services/orchestration/cycle/trade/run-trade-pipeline.ts` |
-| Trade effects | `electron/main/services/orchestration/cycle/trade/effect-runner.ts` |
-| Approval flow | `electron/main/services/orchestration/cycle/trade/approval-flow.ts` |
-| Approval recheck | `electron/main/services/orchestration/cycle/trade/approval-recheck.ts` |
-| Order placement | `electron/main/services/orchestration/cycle/trade/order-placer.ts` |
-| Trade monitor | `electron/main/services/orchestration/lifecycle/trade-monitor.ts` |
-| LLM facade | `electron/main/services/llm/runtime.ts` |
-| Provider registry/adapters | `electron/main/services/llm/provider-registry.ts`, `electron/main/services/llm/adapters/` |
-| Pipeline runtime | `electron/main/services/pipeline/core/pipeline-runtime.ts` |
-| Phase definitions | `electron/main/services/pipeline/definitions/` (`all-phases.ts`, `*.phase.ts`, `phase-catalog.ts`) |
-| Phase engine registry | `electron/main/services/pipeline/engines/` |
-| AI phase interpreter | `electron/main/services/pipeline/phases/interpreter.ts` |
-| Instrument analysis interpreter | `electron/main/services/pipeline/analysis/interpreter.ts` |
-| Trade analysis plan | `electron/main/services/pipeline/implementations/trade/` |
-| Analysis resolver | `electron/main/services/pipeline/implementations/registry/analysis-resolver.ts` |
-| Worker executor | `electron/main/services/pipeline/execution/worker-executor.ts` |
-| Signal engines | `electron/main/services/signal/` |
-| Risk engine | `electron/main/services/risk/risk-engine.ts` |
-| Capital reservations | `electron/main/services/risk/capital-reservation-service.ts` |
-| Live readiness | `electron/main/services/risk/live-readiness-service.ts` |
-| Order policy | `electron/main/services/orchestration/policy/order-policy-gate.ts` |
-| Event bus | `electron/main/services/infra/event-bus.ts` |
-| Replay | `electron/main/services/replay/cycle-replay-service.ts` |
-| Analytics | `electron/main/services/analytics/` |
+| Area                            | Files                                                                                              |
+| ------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Electron entry                  | `electron/main/index.ts`                                                                           |
+| Window/security setup           | `electron/main/window.ts`                                                                          |
+| Composition root                | `electron/main/services/app-services.ts`                                                           |
+| Session lifecycle               | `electron/main/services/session/session-service.ts`                                                |
+| Runtime manager                 | `electron/main/services/session/session-runtime-manager.ts`                                        |
+| Runtime wrapper                 | `electron/main/services/session/session-runtime.ts`                                                |
+| Preflight checks                | `electron/main/services/session/preflight/`                                                        |
+| Orchestrator                    | `electron/main/services/orchestration/cycle/agent-orchestrator.ts`                                 |
+| Step runner                     | `electron/main/services/orchestration/cycle/trading-step-runner.ts`                                |
+| Selector bridge                 | `electron/main/services/orchestration/cycle/selector/run-selector.ts`                              |
+| Trade cycle                     | `electron/main/services/orchestration/cycle/trade/trade-cycle.ts`                                  |
+| Trade pipeline bridge           | `electron/main/services/orchestration/cycle/trade/run-trade-pipeline.ts`                           |
+| Trade effects                   | `electron/main/services/orchestration/cycle/trade/effect-runner.ts`                                |
+| Approval flow                   | `electron/main/services/orchestration/cycle/trade/approval-flow.ts`                                |
+| Approval recheck                | `electron/main/services/orchestration/cycle/trade/approval-recheck.ts`                             |
+| Order placement                 | `electron/main/services/orchestration/cycle/trade/order-placer.ts`                                 |
+| Trade monitor                   | `electron/main/services/orchestration/lifecycle/trade-monitor.ts`                                  |
+| LLM facade                      | `electron/main/services/llm/runtime.ts`                                                            |
+| Provider registry/adapters      | `electron/main/services/llm/provider-registry.ts`, `electron/main/services/llm/adapters/`          |
+| Pipeline runtime                | `electron/main/services/pipeline/core/pipeline-runtime.ts`                                         |
+| Phase definitions               | `electron/main/services/pipeline/definitions/` (`all-phases.ts`, `*.phase.ts`, `phase-catalog.ts`) |
+| Phase engine registry           | `electron/main/services/pipeline/engines/`                                                         |
+| AI phase interpreter            | `electron/main/services/pipeline/phases/interpreter.ts`                                            |
+| Instrument analysis interpreter | `electron/main/services/pipeline/analysis/interpreter.ts`                                          |
+| Trade analysis plan             | `electron/main/services/pipeline/implementations/trade/`                                           |
+| Analysis resolver               | `electron/main/services/pipeline/implementations/registry/analysis-resolver.ts`                    |
+| Worker executor                 | `electron/main/services/pipeline/execution/worker-executor.ts`                                     |
+| Signal engines                  | `electron/main/services/signal/`                                                                   |
+| Risk engine                     | `electron/main/services/risk/risk-engine.ts`                                                       |
+| Capital reservations            | `electron/main/services/risk/capital-reservation-service.ts`                                       |
+| Live readiness                  | `electron/main/services/risk/live-readiness-service.ts`                                            |
+| Order policy                    | `electron/main/services/orchestration/policy/order-policy-gate.ts`                                 |
+| Event bus                       | `electron/main/services/infra/event-bus.ts`                                                        |
+| Replay                          | `electron/main/services/replay/cycle-replay-service.ts`                                            |
+| Analytics                       | `electron/main/services/analytics/`                                                                |

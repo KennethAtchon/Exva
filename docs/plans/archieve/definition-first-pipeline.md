@@ -22,24 +22,24 @@ The fix must address both problems together. The framework needs a well-defined 
 
 **Goals**
 
-| #   | Goal                                                | Success Looks Like                                                                                                                               |
-| --- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | Engine registry over direct invocation              | All phase-level hooks (input context, entry modes, cache policy, finalization) are registered engines referenced by ID on definitions            |
+| #   | Goal                                                | Success Looks Like                                                                                                                                |
+| --- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Engine registry over direct invocation              | All phase-level hooks (input context, entry modes, cache policy, finalization) are registered engines referenced by ID on definitions             |
 | 2   | Phase definitions are pure config                   | A phase definition declares which engine IDs to invoke and which workers to run — no imperative logic, no direct function calls to business logic |
-| 3   | New business logic never touches the execution path | Adding a new capability = register an engine + add its ID to a definition. The runtime never changes. No new `if` clauses.                       |
-| 4   | Uniform phase layout across all five phases         | Every phase follows the same directory and file structure; no phase has special folders or special-case files                                    |
-| 5   | Single source of truth per phase                    | Every question about a phase (workers, inputs, entry modes, engines, cache) is answered by reading one file                                      |
-| 6   | Adding a new phase is a 1–2 file operation       | Create `definitions/[name].phase.ts` (+ optional `[name].schemas.ts`) and add one line to `definitions/index.ts`. Nothing else. |
+| 3   | New business logic never touches the execution path | Adding a new capability = register an engine + add its ID to a definition. The runtime never changes. No new `if` clauses.                        |
+| 4   | Uniform phase layout across all five phases         | Every phase follows the same directory and file structure; no phase has special folders or special-case files                                     |
+| 5   | Single source of truth per phase                    | Every question about a phase (workers, inputs, entry modes, engines, cache) is answered by reading one file                                       |
+| 6   | Adding a new phase is a 1–2 file operation          | Create `definitions/[name].phase.ts` (+ optional `[name].schemas.ts`) and add one line to `definitions/index.ts`. Nothing else.                   |
 
 **Non-Goals**
 
-| #   | Non-Goal                                                                          | Reason                                                                                                             |
-| --- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| #   | Non-Goal                                                                           | Reason                                                                                                                     |
+| --- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Rewriting the execution engine (`phases/interpreter.ts`, `worker-graph-scheduler`) | Out of scope; this is about definition organization. The runtime gains engine resolution; its core mechanics don't change. |
-| 2   | Changing how workers execute or what tools they use                               | Worker behavior is unchanged; only where they are declared moves                                                   |
-| 3   | Eliminating the `AIPhase` / `PipelineDefinition` type distinction in shared types | The shared package is consumed by the renderer; keep the blast radius small                                        |
-| 4   | Auto-discovery of phase files at startup                                          | File-based auto-discovery adds complexity; explicit manifest is fine as long as there is only one place to edit it |
-| 5   | Moving `signal/scoring/` and `signal/aggregators/` files                          | These files are well-tested standalone units. Engines wrap them; files stay in place.                              |
+| 2   | Changing how workers execute or what tools they use                                | Worker behavior is unchanged; only where they are declared moves                                                           |
+| 3   | Eliminating the `AIPhase` / `PipelineDefinition` type distinction in shared types  | The shared package is consumed by the renderer; keep the blast radius small                                                |
+| 4   | Auto-discovery of phase files at startup                                           | File-based auto-discovery adds complexity; explicit manifest is fine as long as there is only one place to edit it         |
+| 5   | Moving `signal/scoring/` and `signal/aggregators/` files                           | These files are well-tested standalone units. Engines wrap them; files stay in place.                                      |
 
 ---
 
@@ -130,18 +130,18 @@ This means `definitions/selector.phase.ts` exists only to satisfy the type struc
 
 The current `AIPhase<TState, TOutput>` has these fields:
 
-| Field | Status after refactor | Notes |
-|---|---|---|
-| `phase` | **Unchanged** | |
-| `inputBuilderIds?: readonly string[]` | **Renamed** to `inputEngineIds` | Already uses ID pattern; moves to engine registry |
-| `cachePolicyId?: string` | **Renamed** to `cacheEngineId` | Already uses ID pattern; moves to engine registry |
-| `entryModes: readonly AIPhaseEntryMode[]` | **Replaced** by `entryEngineIds?: readonly string[]` | Object array → ID array |
-| `initialState(ctx): TState` | **Kept** as optional function | Structural state shape setup, not business logic. Default: `() => ({} as TState)` |
-| `stages: readonly AIWorkerBatch<TState>[]` | **Unchanged** | Worker stages, including `applyResults()` — see note below |
-| `finalize(ctx, state, traces)` | **Replaced** by `finalizeEngineIds?: readonly string[]` | Direct function calls in finalize are the problem |
-| `filterOutput?(output, ctx): TOutput` | **Kept** as optional function | Post-output filter, lightweight |
-| `persistAggregate?: boolean` | **Unchanged** | |
-| `inspect: AIPhaseMetadata` | **Removed** | Redundant once engine IDs are first-class fields; `analysis-resolver.ts` reads fields directly |
+| Field                                      | Status after refactor                                   | Notes                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `phase`                                    | **Unchanged**                                           |                                                                                                |
+| `inputBuilderIds?: readonly string[]`      | **Renamed** to `inputEngineIds`                         | Already uses ID pattern; moves to engine registry                                              |
+| `cachePolicyId?: string`                   | **Renamed** to `cacheEngineId`                          | Already uses ID pattern; moves to engine registry                                              |
+| `entryModes: readonly AIPhaseEntryMode[]`  | **Replaced** by `entryEngineIds?: readonly string[]`    | Object array → ID array                                                                        |
+| `initialState(ctx): TState`                | **Kept** as optional function                           | Structural state shape setup, not business logic. Default: `() => ({} as TState)`              |
+| `stages: readonly AIWorkerBatch<TState>[]` | **Unchanged**                                           | Worker stages, including `applyResults()` — see note below                                     |
+| `finalize(ctx, state, traces)`             | **Replaced** by `finalizeEngineIds?: readonly string[]` | Direct function calls in finalize are the problem                                              |
+| `filterOutput?(output, ctx): TOutput`      | **Kept** as optional function                           | Post-output filter, lightweight                                                                |
+| `persistAggregate?: boolean`               | **Unchanged**                                           |                                                                                                |
+| `inspect: AIPhaseMetadata`                 | **Removed**                                             | Redundant once engine IDs are first-class fields; `analysis-resolver.ts` reads fields directly |
 
 **`applyResults()` on `AIWorkerBatch` is NOT subject to the engine registry rule.** It is stage-local state transformation — the stage accumulates worker results into the phase state. Direct utility function calls inside `applyResults()` are fine. The engine registry applies to phase-level hooks only: input context, entry modes, cache, and finalization.
 
@@ -149,13 +149,13 @@ The current `AIPhase<TState, TOutput>` has these fields:
 
 **Engine kinds:**
 
-| Kind         | Current state                                                                               | Target state                                                                                                         |
-| ------------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `input`      | Direct call: `buildCompositeInput(inputBuilderIds, ...)` via separate registry             | Registered in `engines/registry.ts` as `kind: "input"`; `inputBuilderIds` renamed to `inputEngineIds`               |
-| `entry_mode` | Direct call: `if (entryMode.matches(ctx))` iterating inline objects in `entryModes` array  | Registered in `engines/registry.ts` as `kind: "entry_mode"`; `entryModes` array replaced by `entryEngineIds`        |
-| `cache`      | Direct call: `getCachePolicy(cachePolicyId)` via separate registry                         | Registered in `engines/registry.ts` as `kind: "cache"`; `cachePolicyId` renamed to `cacheEngineId`                  |
-| `finalizer`  | Direct call: `SelectorRiskFilter`, `buildInstrumentSelection()` in `finalize()`            | Registered as `kind: "finalizer"`; `finalize()` replaced by `finalizeEngineIds`                                      |
-| `context`    | `ENGINE_BINDINGS.riskSummaryRead` — already correct pattern                                | Unchanged                                                                                                            |
+| Kind         | Current state                                                                             | Target state                                                                                                 |
+| ------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `input`      | Direct call: `buildCompositeInput(inputBuilderIds, ...)` via separate registry            | Registered in `engines/registry.ts` as `kind: "input"`; `inputBuilderIds` renamed to `inputEngineIds`        |
+| `entry_mode` | Direct call: `if (entryMode.matches(ctx))` iterating inline objects in `entryModes` array | Registered in `engines/registry.ts` as `kind: "entry_mode"`; `entryModes` array replaced by `entryEngineIds` |
+| `cache`      | Direct call: `getCachePolicy(cachePolicyId)` via separate registry                        | Registered in `engines/registry.ts` as `kind: "cache"`; `cachePolicyId` renamed to `cacheEngineId`           |
+| `finalizer`  | Direct call: `SelectorRiskFilter`, `buildInstrumentSelection()` in `finalize()`           | Registered as `kind: "finalizer"`; `finalize()` replaced by `finalizeEngineIds`                              |
+| `context`    | `ENGINE_BINDINGS.riskSummaryRead` — already correct pattern                               | Unchanged                                                                                                    |
 
 **What the phase definition looks like with all direct calls replaced by engine IDs:**
 
@@ -165,7 +165,11 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
   phase: "selector",
 
   // Framework resolves these from engines/input/ and concatenates into worker prompt context
-  inputEngineIds: ["selector-scope", "broker-coverage", "prediction-market-candidates"],
+  inputEngineIds: [
+    "selector-scope",
+    "broker-coverage",
+    "prediction-market-candidates",
+  ],
 
   // Framework checks these in order before running stages; first match short-circuits
   entryEngineIds: ["manual-shortlist"],
@@ -179,7 +183,8 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       id: "discovery",
       frontier: 0,
       resolveWorkers: (ctx) =>
-        ctx.strategyContext.researchPosture.discoveryMode === "event_contract_scan"
+        ctx.strategyContext.researchPosture.discoveryMode ===
+        "event_contract_scan"
           ? EVENT_SELECTOR_DISCOVERY
           : STANDARD_SELECTOR_DISCOVERY,
       buildTask: (ctx) => ({
@@ -204,15 +209,26 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
         state.candidatesForVerification.flatMap(verificationWorkers),
       buildTask: (_ctx, state, worker) => {
         const symbol = worker.id.split(":")[1] ?? "";
-        const candidate = state.candidatesForVerification.find(c => c.symbol === symbol);
-        return { selectionInstructions: state.selectionInstructions, candidate };
+        const candidate = state.candidatesForVerification.find(
+          (c) => c.symbol === symbol,
+        );
+        return {
+          selectionInstructions: state.selectionInstructions,
+          candidate,
+        };
       },
       concurrency: 4,
       toleratePartialFailure: true,
       minSuccessfulWorkers: 1,
       applyResults: (_ctx, state, results) => {
-        const verified = applyVerificationResults(state.candidatesForVerification, results);
-        return { ...state, verifiedCandidates: scoreSelectorCandidates(verified) };
+        const verified = applyVerificationResults(
+          state.candidatesForVerification,
+          results,
+        );
+        return {
+          ...state,
+          verifiedCandidates: scoreSelectorCandidates(verified),
+        };
       },
     },
   ],
@@ -396,45 +412,45 @@ pipeline/
 
 **What changes for every file (complete migration map):**
 
-| Current file                                             | Destination                                              | Notes                                                          |
-| -------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------- |
-| `definitions/selector.phase.ts`                          | **Replaced** (same path, new content)                    | Dead stub → real AIPhase with engine IDs; file stays at same path |
-| `definitions/technical.phase.ts`                         | **Replaced** (same path, new content)                    | PipelineDefinition stub → real AIPhase with workers inline    |
-| `definitions/fundamental.phase.ts`                       | **Replaced** (same path, new content)                    | Same pattern as technical                                      |
-| `definitions/review.phase.ts`                            | **Replaced** (same path, new content)                    | Already had workers; rewrite as AIPhase                        |
-| `definitions/decision.phase.ts`                          | **Replaced** (same path, new content)                    | Same; mock scenario logic addressed explicitly                 |
-| `implementations/selector/selector-analysis.ts`          | **Deleted**                                              | Content moves to definitions/selector.phase.ts + engines/      |
-| `implementations/selector/selector-schemas.ts`           | **Moved** → `definitions/selector.schemas.ts`            |                                                                |
-| `implementations/inputs/selector-scope.ts`               | **Moved** → `engines/input/selector-scope.ts`            |                                                                |
-| `implementations/inputs/broker-coverage.ts`              | **Moved** → `engines/input/broker-coverage.ts`           |                                                                |
-| `implementations/inputs/prediction-market-candidates.ts` | **Moved** → `engines/input/prediction-market-candidates.ts` |                                                             |
-| `implementations/inputs/manual-shortlist.ts`             | **Moved** → `engines/entry-mode/manual-shortlist.ts`     | Promoted to EntryModeEngine                                    |
-| `implementations/cache/selector-instrument-cache.ts`     | **Moved** → `engines/cache/selector-instrument-cache.ts` |                                                                |
-| `signal/scoring/selector-risk-filter.ts`                 | **Stays in place** — wrapped by `engines/finalizer/selector-risk-filter.ts` | Never moves |
-| `signal/scoring/selector-submission-builder.ts`          | **Stays in place** — wrapped by `engines/finalizer/selector-submission-builder.ts` | Never moves |
-| `signal/aggregators/technical-aggregator.ts`             | **Stays in place** — wrapped by `engines/finalizer/technical-aggregator.ts` | Never moves |
-| `signal/aggregators/fundamental-aggregator.ts`           | **Stays in place** — wrapped by `engines/finalizer/fundamental-aggregator.ts` | Never moves |
-| `signal/aggregators/review-aggregator.ts`                | **Stays in place** — wrapped by `engines/finalizer/review-aggregator.ts` | Never moves |
-| `signal/aggregators/trade-signal-aggregator.ts`          | **Stays in place** — wrapped by `engines/finalizer/trade-signal-aggregator.ts` | Never moves |
-| `implementations/trade/phase-analyses.ts`                | **Deleted**                                              | Each phase absorbs its own AIPhase definition                  |
-| `implementations/trade/aggregator-phase-plan.ts`         | **Deleted** (Phase 4 — after review + decision migrated) | Factory eliminated after all phases migrated                   |
-| `pipeline-discovery-config.ts`                           | **Deleted**                                              | Workers inline in each phase file                              |
-| `implementations/registry/register-phases.ts`            | **Replaced** by `definitions/index.ts`                   | Manifest loop replaces imperative boot calls                   |
-| `implementations/registry/cache-policy-registry.ts`      | **Deleted**                                              | Replaced by engines/registry.ts (cache kind)                  |
-| `implementations/registry/input-builder-registry.ts`     | **Deleted**                                              | Replaced by engines/registry.ts (input kind)                  |
-| `implementations/registry/register-analyses.ts`          | **Unchanged**                                            | Registers trade cycle analyses — separate concern              |
-| `implementations/registry/analysis-resolver.ts`          | **Updated** — reads `inputEngineIds`, `cacheEngineId` directly from AIPhase | Removes `inspect` dependency |
-| `implementations/inputs/trade-engine-input-builders.ts`  | **Unchanged**                                            | Trade cycle concern, not a phase input engine                  |
+| Current file                                             | Destination                                                                        | Notes                                                             |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `definitions/selector.phase.ts`                          | **Replaced** (same path, new content)                                              | Dead stub → real AIPhase with engine IDs; file stays at same path |
+| `definitions/technical.phase.ts`                         | **Replaced** (same path, new content)                                              | PipelineDefinition stub → real AIPhase with workers inline        |
+| `definitions/fundamental.phase.ts`                       | **Replaced** (same path, new content)                                              | Same pattern as technical                                         |
+| `definitions/review.phase.ts`                            | **Replaced** (same path, new content)                                              | Already had workers; rewrite as AIPhase                           |
+| `definitions/decision.phase.ts`                          | **Replaced** (same path, new content)                                              | Same; mock scenario logic addressed explicitly                    |
+| `implementations/selector/selector-analysis.ts`          | **Deleted**                                                                        | Content moves to definitions/selector.phase.ts + engines/         |
+| `implementations/selector/selector-schemas.ts`           | **Moved** → `definitions/selector.schemas.ts`                                      |                                                                   |
+| `implementations/inputs/selector-scope.ts`               | **Moved** → `engines/input/selector-scope.ts`                                      |                                                                   |
+| `implementations/inputs/broker-coverage.ts`              | **Moved** → `engines/input/broker-coverage.ts`                                     |                                                                   |
+| `implementations/inputs/prediction-market-candidates.ts` | **Moved** → `engines/input/prediction-market-candidates.ts`                        |                                                                   |
+| `implementations/inputs/manual-shortlist.ts`             | **Moved** → `engines/entry-mode/manual-shortlist.ts`                               | Promoted to EntryModeEngine                                       |
+| `implementations/cache/selector-instrument-cache.ts`     | **Moved** → `engines/cache/selector-instrument-cache.ts`                           |                                                                   |
+| `signal/scoring/selector-risk-filter.ts`                 | **Stays in place** — wrapped by `engines/finalizer/selector-risk-filter.ts`        | Never moves                                                       |
+| `signal/scoring/selector-submission-builder.ts`          | **Stays in place** — wrapped by `engines/finalizer/selector-submission-builder.ts` | Never moves                                                       |
+| `signal/aggregators/technical-aggregator.ts`             | **Stays in place** — wrapped by `engines/finalizer/technical-aggregator.ts`        | Never moves                                                       |
+| `signal/aggregators/fundamental-aggregator.ts`           | **Stays in place** — wrapped by `engines/finalizer/fundamental-aggregator.ts`      | Never moves                                                       |
+| `signal/aggregators/review-aggregator.ts`                | **Stays in place** — wrapped by `engines/finalizer/review-aggregator.ts`           | Never moves                                                       |
+| `signal/aggregators/trade-signal-aggregator.ts`          | **Stays in place** — wrapped by `engines/finalizer/trade-signal-aggregator.ts`     | Never moves                                                       |
+| `implementations/trade/phase-analyses.ts`                | **Deleted**                                                                        | Each phase absorbs its own AIPhase definition                     |
+| `implementations/trade/aggregator-phase-plan.ts`         | **Deleted** (Phase 4 — after review + decision migrated)                           | Factory eliminated after all phases migrated                      |
+| `pipeline-discovery-config.ts`                           | **Deleted**                                                                        | Workers inline in each phase file                                 |
+| `implementations/registry/register-phases.ts`            | **Replaced** by `definitions/index.ts`                                             | Manifest loop replaces imperative boot calls                      |
+| `implementations/registry/cache-policy-registry.ts`      | **Deleted**                                                                        | Replaced by engines/registry.ts (cache kind)                      |
+| `implementations/registry/input-builder-registry.ts`     | **Deleted**                                                                        | Replaced by engines/registry.ts (input kind)                      |
+| `implementations/registry/register-analyses.ts`          | **Unchanged**                                                                      | Registers trade cycle analyses — separate concern                 |
+| `implementations/registry/analysis-resolver.ts`          | **Updated** — reads `inputEngineIds`, `cacheEngineId` directly from AIPhase        | Removes `inspect` dependency                                      |
+| `implementations/inputs/trade-engine-input-builders.ts`  | **Unchanged**                                                                      | Trade cycle concern, not a phase input engine                     |
 
-| Dimension      | Assessment                                                                  |
-| -------------- | --------------------------------------------------------------------------- |
-| Complexity     | Medium — engine registry extension, file moves, type field changes          |
-| Performance    | No change in execution; one fewer map lookup (engine registry vs. separate registries) |
-| Reliability    | Low risk — pure refactor; all existing logic moves, none changes            |
-| Cost           | ~3–4 days total across all 4 migration phases                               |
-| Reversibility  | Moderate — file moves are easy; type changes require a migration            |
+| Dimension      | Assessment                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------- |
+| Complexity     | Medium — engine registry extension, file moves, type field changes                          |
+| Performance    | No change in execution; one fewer map lookup (engine registry vs. separate registries)      |
+| Reliability    | Low risk — pure refactor; all existing logic moves, none changes                            |
+| Cost           | ~3–4 days total across all 4 migration phases                                               |
+| Reversibility  | Moderate — file moves are easy; type changes require a migration                            |
 | Stack fit      | Excellent — unifies the existing ENGINE_BINDINGS + cachePolicyId + inputBuilderIds patterns |
-| Team readiness | Straightforward; no external dependencies                                   |
+| Team readiness | Straightforward; no external dependencies                                                   |
 
 Risks:
 
@@ -572,29 +588,29 @@ See `docs/plans/definition-first-pipeline/implementation-order.md` for the phase
 
 ## 8. Risk Register
 
-| #   | Risk                                                                                         | Likelihood | Impact | Mitigation                                                                                                     |
-| --- | -------------------------------------------------------------------------------------------- | ---------- | ------ | -------------------------------------------------------------------------------------------------------------- |
-| 1   | `AIPhase` is in shared type graph; Phase 1 becomes a breaking shared change                  | Low        | High   | Already confirmed: `AIPhase` is in `phases/types.ts`, not `@electron/shared`. Run grep to be sure.             |
-| 2   | `inspect` field removal breaks `analysis-resolver.ts`                                        | Certain    | Medium | Update `analysis-resolver.ts` in same commit as type change. Already identified all usages.                    |
-| 3   | Hidden callers of `isManualSelectorMode` or `buildManualShortlistSelection` outside selector  | Low        | Medium | Workspace-wide import scan before deleting `manual-shortlist.ts`                                               |
-| 4   | `pipeline-discovery-config.ts` has callers we missed                                         | Low        | Medium | `grep -r "pipeline-discovery-config"` before deleting                                                          |
-| 5   | `signal/scoring/` or `signal/aggregators/` imported directly by renderer diagnostics         | Low        | Medium | `grep -r "signal/scoring\|signal/aggregators"` across all non-pipeline services before wrapping               |
-| 6   | Finalizer engine state threading is incorrect (last engine output ≠ TOutput)                 | Medium     | Medium | Define the state threading contract in Phase 1 before any engine is written. Test with selector in Phase 2.    |
-| 7   | Merge conflicts with in-flight work touching selector or pipeline-discovery-config            | Medium     | Medium | Do each phase in a short-lived branch, merge fast                                                              |
+| #   | Risk                                                                                         | Likelihood | Impact | Mitigation                                                                                                  |
+| --- | -------------------------------------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------------------------------- |
+| 1   | `AIPhase` is in shared type graph; Phase 1 becomes a breaking shared change                  | Low        | High   | Already confirmed: `AIPhase` is in `phases/types.ts`, not `@electron/shared`. Run grep to be sure.          |
+| 2   | `inspect` field removal breaks `analysis-resolver.ts`                                        | Certain    | Medium | Update `analysis-resolver.ts` in same commit as type change. Already identified all usages.                 |
+| 3   | Hidden callers of `isManualSelectorMode` or `buildManualShortlistSelection` outside selector | Low        | Medium | Workspace-wide import scan before deleting `manual-shortlist.ts`                                            |
+| 4   | `pipeline-discovery-config.ts` has callers we missed                                         | Low        | Medium | `grep -r "pipeline-discovery-config"` before deleting                                                       |
+| 5   | `signal/scoring/` or `signal/aggregators/` imported directly by renderer diagnostics         | Low        | Medium | `grep -r "signal/scoring\|signal/aggregators"` across all non-pipeline services before wrapping             |
+| 6   | Finalizer engine state threading is incorrect (last engine output ≠ TOutput)                 | Medium     | Medium | Define the state threading contract in Phase 1 before any engine is written. Test with selector in Phase 2. |
+| 7   | Merge conflicts with in-flight work touching selector or pipeline-discovery-config           | Medium     | Medium | Do each phase in a short-lived branch, merge fast                                                           |
 
 ---
 
 ## 9. Success Criteria
 
-| Goal                                            | Metric                                                    | Baseline                                                     | Target        | How Measured |
-| ----------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------ | ------------- | ------------ |
-| All five phases have single source of truth     | Files needed to understand any one phase's full lifecycle | 8 (selector), 5 (technical/fundamental), 3 (review/decision) | 1–2 per phase | Manual count |
-| No phase has a special-case folder              | Phase-named directories outside `definitions/[name]*`    | 1 (`implementations/selector/`)                              | 0             | `find`       |
-| Shared input folders contain only shared inputs | Files in `implementations/inputs/` not used by 2+ phases | 4 (selector-only)                                            | 0             | Code audit   |
-| Pipeline config scatter eliminated              | `pipeline-discovery-config.ts` exists                     | Yes                                                          | No            | `ls`         |
-| Phase definitions are real AIPhase configs      | `definitions/*.phase.ts` use `AIPhase<>` not `PipelineDefinition<>` | No                                               | Yes           | Code audit   |
-| `register-phases.ts` is a manifest loop         | Lines of code                                             | ~32                                                          | 0 (replaced by definitions/index.ts) | `wc -l` |
-| All tests pass                                  | Test suite                                                | Passing                                                      | Passing       | `pnpm test`  |
+| Goal                                            | Metric                                                              | Baseline                                                     | Target                               | How Measured |
+| ----------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------ | ------------ |
+| All five phases have single source of truth     | Files needed to understand any one phase's full lifecycle           | 8 (selector), 5 (technical/fundamental), 3 (review/decision) | 1–2 per phase                        | Manual count |
+| No phase has a special-case folder              | Phase-named directories outside `definitions/[name]*`               | 1 (`implementations/selector/`)                              | 0                                    | `find`       |
+| Shared input folders contain only shared inputs | Files in `implementations/inputs/` not used by 2+ phases            | 4 (selector-only)                                            | 0                                    | Code audit   |
+| Pipeline config scatter eliminated              | `pipeline-discovery-config.ts` exists                               | Yes                                                          | No                                   | `ls`         |
+| Phase definitions are real AIPhase configs      | `definitions/*.phase.ts` use `AIPhase<>` not `PipelineDefinition<>` | No                                                           | Yes                                  | Code audit   |
+| `register-phases.ts` is a manifest loop         | Lines of code                                                       | ~32                                                          | 0 (replaced by definitions/index.ts) | `wc -l`      |
+| All tests pass                                  | Test suite                                                          | Passing                                                      | Passing                              | `pnpm test`  |
 
 Leading indicators (Phase 2 done — selector migrated):
 
@@ -611,24 +627,24 @@ Lagging indicators (Phase 4 done — system complete):
 
 ## 10. Open Questions
 
-| #   | Question                                                                                                                              | Owner   | Needed By      | Status                                                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------- | ------------------------------------------------------------------------ |
-| 1   | Does finalizer state thread as `TState | TOutput` per engine call, or does the last engine always produce `TOutput`?                  | Kenneth | Phase 1        | **Recommended:** each engine receives the previous engine's return value as `state`; the first receives post-stage `TState`; the last produces `TOutput`. For selector, `selector-risk-filter` must pass through `discoveredCount` / `verifiedCount` so `selector-submission-builder` can build diagnostics. |
-| 2   | Should `initialState()` become optional with a default of `() => ({} as TState)`, or stay required?                                  | Kenneth | Phase 1        | Open — optional with default is cleaner; need to confirm no phase relies on validation inside initialState |
-| 3   | Does anything outside `selector-analysis.ts` import `isManualSelectorMode` or `buildManualShortlistSelection`?                       | Kenneth | Before Phase 2 | Open — run `grep -r "manual-shortlist\|isManualSelectorMode\|buildManualShortlistSelection" --include="*.ts"` |
-| 4   | Does anything outside `phase-analyses.ts` and `selector-analysis.ts` call `selectorDiscoveryWorkersForMode`, `technicalWorkersForMode`, or `fundamentalWorkersForMode`? | Kenneth | Before Phase 3 | Open — run `grep -r "pipeline-discovery-config" --include="*.ts"` |
-| 5   | Should `InputProvider` replace `InputBuilder` as the interface name, or keep `InputBuilder` for continuity?                           | Kenneth | Phase 1        | Open                                                                     |
+| #   | Question                                                                                                                                                                | Owner                                                                     | Needed By      | Status                                                                                                        |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Does finalizer state thread as `TState                                                                                                                                  | TOutput`per engine call, or does the last engine always produce`TOutput`? | Kenneth        | Phase 1                                                                                                       | **Recommended:** each engine receives the previous engine's return value as `state`; the first receives post-stage `TState`; the last produces `TOutput`. For selector, `selector-risk-filter` must pass through `discoveredCount` / `verifiedCount` so `selector-submission-builder` can build diagnostics. |
+| 2   | Should `initialState()` become optional with a default of `() => ({} as TState)`, or stay required?                                                                     | Kenneth                                                                   | Phase 1        | Open — optional with default is cleaner; need to confirm no phase relies on validation inside initialState    |
+| 3   | Does anything outside `selector-analysis.ts` import `isManualSelectorMode` or `buildManualShortlistSelection`?                                                          | Kenneth                                                                   | Before Phase 2 | Open — run `grep -r "manual-shortlist\|isManualSelectorMode\|buildManualShortlistSelection" --include="*.ts"` |
+| 4   | Does anything outside `phase-analyses.ts` and `selector-analysis.ts` call `selectorDiscoveryWorkersForMode`, `technicalWorkersForMode`, or `fundamentalWorkersForMode`? | Kenneth                                                                   | Before Phase 3 | Open — run `grep -r "pipeline-discovery-config" --include="*.ts"`                                             |
+| 5   | Should `InputProvider` replace `InputBuilder` as the interface name, or keep `InputBuilder` for continuity?                                                             | Kenneth                                                                   | Phase 1        | Open                                                                                                          |
 
 ---
 
 ## 11. Alternatives Rejected
 
-| Option                                                         | Why Rejected                                                                                                                                                      |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Option A — Status quo                                          | Pain grows with each new phase; decision phase complexity is coming                                                                                               |
-| Option B — Consolidate selector only                           | Fixes the symptom (selector scatter) but not the system pattern; same problem recurs for decision phase                                                           |
-| Auto-discovery of phase files at startup (no manifest)         | Adds build-time complexity (glob at module load, or a code-gen step). A five-line manifest array is simpler and explicit                                          |
-| Merge `AIPhase` and `PipelineDefinition` into one unified type | `PipelineDefinition` is in `@electron/shared` and used by the renderer for display metadata. Merging risks shared-package changes. Out of scope for this refactor |
-| Move everything into one giant `pipeline.ts`                   | Solves the scatter problem but creates a monolith. Phase-level files are the right granularity                                                                    |
-| Move `signal/scoring/` and `signal/aggregators/` into `engines/finalizer/` | These files are well-tested standalone units with their own test suites. Moving them breaks that structure for no gain. Adapters are the right pattern. |
-| Make `applyResults()` use engines too (stage reducer pattern)  | Adds engine kind complexity for limited gain. Stage-local state transformation is not the same class of problem as phase-level hooks. `applyResults()` is exempt. |
+| Option                                                                     | Why Rejected                                                                                                                                                      |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Option A — Status quo                                                      | Pain grows with each new phase; decision phase complexity is coming                                                                                               |
+| Option B — Consolidate selector only                                       | Fixes the symptom (selector scatter) but not the system pattern; same problem recurs for decision phase                                                           |
+| Auto-discovery of phase files at startup (no manifest)                     | Adds build-time complexity (glob at module load, or a code-gen step). A five-line manifest array is simpler and explicit                                          |
+| Merge `AIPhase` and `PipelineDefinition` into one unified type             | `PipelineDefinition` is in `@electron/shared` and used by the renderer for display metadata. Merging risks shared-package changes. Out of scope for this refactor |
+| Move everything into one giant `pipeline.ts`                               | Solves the scatter problem but creates a monolith. Phase-level files are the right granularity                                                                    |
+| Move `signal/scoring/` and `signal/aggregators/` into `engines/finalizer/` | These files are well-tested standalone units with their own test suites. Moving them breaks that structure for no gain. Adapters are the right pattern.           |
+| Make `applyResults()` use engines too (stage reducer pattern)              | Adds engine kind complexity for limited gain. Stage-local state transformation is not the same class of problem as phase-level hooks. `applyResults()` is exempt. |

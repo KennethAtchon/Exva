@@ -43,7 +43,9 @@ describe("mock discovery fixtures", () => {
       known,
     );
 
-    expect(extractQuerySymbol("strong breakout stocks today momentum", known)).toBeNull();
+    expect(
+      extractQuerySymbol("strong breakout stocks today momentum", known),
+    ).toBeNull();
     expect(results[0]?.title).toContain("NVDA");
     expect(results.every((row) => !row.title.includes("TODAY"))).toBe(true);
   });
@@ -60,7 +62,11 @@ describe("mock discovery fixtures", () => {
 
   it("substitutes fetch_url page bodies using primary symbol fallback", () => {
     const url = "https://mock.local/search/clean_breakout/1";
-    const raw = SCENARIO_URL_CONTENT.clean_breakout[url]!;
+    const raw = SCENARIO_URL_CONTENT.clean_breakout[url];
+    expect(raw).toBeDefined();
+    if (!raw) {
+      throw new Error(`Missing mock URL content for ${url}`);
+    }
     const symbol = resolveMockSymbolForUrl(
       url,
       SCENARIO_PRIMARY_SYMBOLS.clean_breakout,

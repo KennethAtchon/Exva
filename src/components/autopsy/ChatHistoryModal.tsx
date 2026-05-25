@@ -25,7 +25,10 @@ const PHASE_PALETTE: Record<string, { color: string; label: string }> = {
 
 function PhaseRow({ trace }: { trace: PhaseTrace }) {
   const [open, setOpen] = useState(false);
-  const ph = PHASE_PALETTE[trace.phase] ?? { color: "var(--text3)", label: trace.phase };
+  const ph = PHASE_PALETTE[trace.phase] ?? {
+    color: "var(--text3)",
+    label: trace.phase,
+  };
   const hasError = !!trace.error;
 
   return (
@@ -110,10 +113,18 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
             gap: 14,
           }}
         >
-          <PromptBlock label="SYSTEM PROMPT" text={trace.systemPrompt} maxH={180} />
+          <PromptBlock
+            label="SYSTEM PROMPT"
+            text={trace.systemPrompt}
+            maxH={180}
+          />
           <PromptBlock label="USER PROMPT" text={trace.userPrompt} maxH={280} />
           {trace.toolCallsJson && (
-            <PromptBlock label="TOOL CALLS" text={trace.toolCallsJson} maxH={180} />
+            <PromptBlock
+              label="TOOL CALLS"
+              text={trace.toolCallsJson}
+              maxH={180}
+            />
           )}
           {hasError ? (
             <PromptBlock
@@ -314,7 +325,14 @@ export function ChatHistoryModal({
               flexShrink: 0,
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text1)", marginBottom: 4 }}>
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: "var(--text1)",
+                marginBottom: 4,
+              }}
+            >
               Autopsy Chat History
             </div>
             {autopsy && (
@@ -325,8 +343,9 @@ export function ChatHistoryModal({
                   fontFamily: "var(--font-mono)",
                 }}
               >
-                {autopsy.modelId} · {new Date(autopsy.createdAt).toLocaleString()} ·{" "}
-                {phases.length} phases
+                {autopsy.modelId} ·{" "}
+                {new Date(autopsy.createdAt).toLocaleString()} · {phases.length}{" "}
+                phases
               </div>
             )}
           </div>
@@ -385,16 +404,10 @@ export function ChatHistoryModal({
               flexShrink: 0,
             }}
           >
-            <button
-              onClick={handleCopyAll}
-              style={footerBtn}
-            >
+            <button onClick={handleCopyAll} style={footerBtn}>
               Copy All (JSON)
             </button>
-            <button
-              onClick={handleExportHistory}
-              style={footerBtn}
-            >
+            <button onClick={handleExportHistory} style={footerBtn}>
               Export Chat History
             </button>
           </div>

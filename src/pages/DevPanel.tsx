@@ -1627,9 +1627,16 @@ const PhaseGraphTab = ({
   messages: AgentMessage[];
   loading: boolean;
 }) => {
-  const traces = messages
-    .map((m) => ({ m, t: parsePhaseTrace(m) }))
-    .filter((x): x is { m: AgentMessage; t: AIPhaseTrace } => x.t != null);
+  const traces = messages.reduce<Array<{ m: AgentMessage; t: AIPhaseTrace }>>(
+    (acc, message) => {
+      const trace = parsePhaseTrace(message);
+      if (trace) {
+        acc.push({ m: message, t: trace });
+      }
+      return acc;
+    },
+    [],
+  );
   if (loading) return <EmptyState msg="Loading phase graph…" />;
   if (traces.length === 0)
     return <EmptyState msg="Phase graph metadata unavailable." />;

@@ -26,7 +26,11 @@ import type { AISpendTracker } from "./ai-spend-tracker";
 import { assertSessionDataSpendAvailable } from "../../tools/data-spend-guard";
 import { createOutcomeError } from "../../orchestration/cycle/runtime-outcome";
 import { injectEngineResults } from "./engine-prompt-injector";
-import { enforceWorkerToolRequirements, extractToolNamesUsed, summarizeWorkerToolCoverage } from "./worker-tool-requirements";
+import {
+  enforceWorkerToolRequirements,
+  extractToolNamesUsed,
+  summarizeWorkerToolCoverage,
+} from "./worker-tool-requirements";
 
 const logger = createLogger("pipeline-runtime");
 

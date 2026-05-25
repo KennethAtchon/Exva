@@ -97,6 +97,16 @@ export async function runApprovalRecheck(
     );
     return;
   }
+  const riskOrder = gateState.riskOrder;
+  if (!riskOrder) {
+    failRecheck(
+      ctx,
+      trade.id,
+      approval.id,
+      "Approval recheck could not resolve a risk-sized order.",
+    );
+    return;
+  }
 
   const nextTrade = buildTradeFromDecision(
     ctx,
@@ -110,7 +120,7 @@ export async function runApprovalRecheck(
   ctx.deps.tradesRepo.patchPendingExecution(trade.id, {
     side: nextTrade.side,
     entry_price: nextTrade.entry_price,
-    position_size_usd: gateState.riskOrder!.sizeUsd,
+    position_size_usd: riskOrder.sizeUsd,
     stop_loss_price: nextTrade.stop_loss_price,
     take_profit_price: nextTrade.take_profit_price,
     execution_strategy: nextTrade.execution_strategy,
@@ -119,7 +129,7 @@ export async function runApprovalRecheck(
   });
   ctx.deps.capitalReservation.updateReservedAmountForApproval(
     approval.id,
-    gateState.riskOrder!.sizeUsd,
+    riskOrder.sizeUsd,
   );
 
   if (gateState.brokerAllocation?.allocation.warning === "over_allocated") {
@@ -147,38 +157,39 @@ export async function runApprovalRecheck(
     );
     return;
   }
-  const recheckPolicy = runEngineForWorker<{ allowed: boolean; reason?: string }>(
-    {
-      phase: "decision",
+  const recheckPolicy = runEngineForWorker<{
+    allowed: boolean;
+    reason?: string;
+  }>({
+    phase: "decision",
+    sessionId: ctx.sessionId,
+    cycleId,
+    strategyContext: strategy,
+    bindings: [],
+    binding: { engine: "order-policy", kind: "policy", mode: "read" },
+    task: buildOrderPolicyTask({
       sessionId: ctx.sessionId,
       cycleId,
-      strategyContext: strategy,
-      bindings: [],
-      binding: { engine: "order-policy", kind: "policy", mode: "read" },
-      task: buildOrderPolicyTask({
-        sessionId: ctx.sessionId,
-        cycleId,
-        tradeId: trade.id,
-        brokerAccountId: recheckBrokerAccountId,
-        existingOrderCheck: (orderId: string, accountId: string) =>
-          ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
-        sessionIsPaused: () => !ctx.runtimeIsActive(),
-        config,
-        stats: ctx.deps.statsRepo.dashboardStats(
-          ctx.sessionId,
-          ctx.deps.sessionRepo.getStatus(ctx.sessionId),
-          ctx.totalAllocatedUsd(),
-          ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
-          config.max_api_spend_usd,
-        ),
-        order: gateState.riskOrder!,
-        confidence: fresh.confidence,
-        side: nextTrade.side,
-        strategy,
-        brokerSupportsClass: true,
-      }) as unknown as Record<string, unknown>,
-    },
-  );
+      tradeId: trade.id,
+      brokerAccountId: recheckBrokerAccountId,
+      existingOrderCheck: (orderId: string, accountId: string) =>
+        ctx.deps.tradesRepo.checkDuplicateClientOrder(accountId, orderId),
+      sessionIsPaused: () => !ctx.runtimeIsActive(),
+      config,
+      stats: ctx.deps.statsRepo.dashboardStats(
+        ctx.sessionId,
+        ctx.deps.sessionRepo.getStatus(ctx.sessionId),
+        ctx.totalAllocatedUsd(),
+        ctx.deps.sessionRepo.uptimeMin(ctx.sessionId),
+        config.max_api_spend_usd,
+      ),
+      order: riskOrder,
+      confidence: fresh.confidence,
+      side: nextTrade.side,
+      strategy,
+      brokerSupportsClass: true,
+    }) as unknown as Record<string, unknown>,
+  });
   if (!recheckPolicy.allowed) {
     failRecheck(
       ctx,
@@ -194,7 +205,7 @@ export async function runApprovalRecheck(
     ctx,
     updated,
     input.instrumentClass,
-    gateState.riskOrder!,
+    riskOrder,
     recheckClientOrderId,
   );
   if (!placed) {
@@ -216,7 +227,7 @@ export async function runApprovalRecheck(
   ctx.emitEvent(
     "INFO",
     trade.id,
-    `Placed ${nextTrade.side} ${trade.instrumentSymbol} $${gateState.riskOrder!.sizeUsd} via broker (post-approval recheck).`,
+    `Placed ${nextTrade.side} ${trade.instrumentSymbol} $${riskOrder.sizeUsd} via broker (post-approval recheck).`,
     "broker",
   );
   ctx.deps.bus.emit("trade_opened", opened);
