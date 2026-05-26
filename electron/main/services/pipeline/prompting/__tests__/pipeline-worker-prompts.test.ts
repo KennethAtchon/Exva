@@ -20,12 +20,6 @@ const PROMPT_CASES: Array<{
     content: workerPrompts.SELECTOR_WORKERS_WEB_SCOUT_PROMPT,
   },
   {
-    name: "selector-workers/reddit-scout",
-    phase: "selector",
-    workerId: "reddit-scout",
-    content: workerPrompts.SELECTOR_WORKERS_REDDIT_SCOUT_PROMPT,
-  },
-  {
     name: "selector-workers/trend-scout",
     phase: "selector",
     workerId: "trend-scout",

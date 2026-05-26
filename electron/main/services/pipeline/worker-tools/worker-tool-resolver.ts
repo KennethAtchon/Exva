@@ -58,8 +58,6 @@ export async function resolveWorkerToolContext(
     strategyContext: input.strategyContext,
     maxDataSpendUsd: input.strategyContext.riskConfig.maxDataSpendUsd,
     getMockOhlcv: mock.getMockOhlcv,
-    mockNewsData: mock.mockNewsData,
-    mockRedditData: mock.mockRedditData,
     mockTrendingData: mock.mockTrendingData,
     mockWebSearchData: mock.mockWebSearchData,
     mockUrlContent: mock.mockUrlContent,

@@ -65,7 +65,7 @@ Use social and web signals. When finished, call the \`submit_result\` tool; its 
 
 export const FUNDAMENTAL_WORKERS_SENTIMENT_CONTEXT_PROMPT = `# Sentiment context
 
-Given Reddit and web discussion for {instrumentSymbol}, assess current retail and institutional sentiment.
+Given web discussion for {instrumentSymbol}, assess current retail and institutional sentiment.
 
 \`sentimentScore\` — aggregate sentiment strength (0 = bearish/negative consensus, 1 = bullish/positive consensus), or null if no meaningful signal exists.
 Distinguish organic conviction from hype. Null is preferable to a fabricated score.
@@ -110,11 +110,11 @@ No trade recommendation. When finished, call the \`submit_result\` tool; its sch
 
 export const SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT = `# Catalyst extractor
 
-Validate one candidate's near-term catalyst using news or fetched pages.
+Validate one candidate's near-term catalyst using web search or fetched pages.
 
 ## Required Process
 
-1. Call at least one of \`get_news\`, \`search_web\`, or \`fetch_url\` for the candidate.
+1. Call at least one of \`search_web\` or \`fetch_url\` for the candidate.
 2. If every tool returns an error, return a low score and include the exact tool errors in \`rationale\`.
 3. Do not infer catalysts or news from memory.
 4. Do not submit your result until at least one evidence tool has been called.
@@ -159,18 +159,6 @@ Validate one candidate using quote and OHLCV data.
 5. Do not submit your result until both required tools have been called.
 
 Use low scores when the candidate is thin, stale, or weakly confirmed. When finished, call the \`submit_result\` tool with the validated candidate; its schema defines every field.`;
-
-export const SELECTOR_WORKERS_REDDIT_SCOUT_PROMPT = `# Reddit scout
-
-Find up to 3 concrete trade candidates from Reddit discussion that fit the session instructions.
-
-## Required Process
-
-1. Call \`search_reddit\` with queries derived from the session instructions.
-2. Do not invent symbols without tool-backed evidence.
-3. Do not submit your result until \`search_reddit\` has been called.
-
-Only include symbols with concrete current evidence. When finished, call the \`submit_result\` tool with your candidates; its schema defines every field.`;
 
 export const SELECTOR_WORKERS_TREND_SCOUT_PROMPT = `# Trend scout
 

@@ -13,7 +13,6 @@ import {
   SELECTOR_WORKERS_EVENT_WEB_SCOUT_PROMPT,
   SELECTOR_WORKERS_LIQUIDITY_GATE_PROMPT,
   SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
-  SELECTOR_WORKERS_REDDIT_SCOUT_PROMPT,
   SELECTOR_WORKERS_TREND_SCOUT_PROMPT,
   SELECTOR_WORKERS_WEB_SCOUT_PROMPT,
 } from "../worker-prompts";
@@ -93,16 +92,6 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     outputSchema: candidateOutputSchema,
   },
   {
-    id: "reddit-scout",
-    prompt: SELECTOR_WORKERS_REDDIT_SCOUT_PROMPT,
-    tools: ["search_reddit"],
-    toolRequirements: { requiredAll: ["search_reddit"], minToolCalls: 1 },
-    strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
-    engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "tool_result",
-    outputSchema: candidateOutputSchema,
-  },
-  {
     id: "trend-scout",
     prompt: SELECTOR_WORKERS_TREND_SCOUT_PROMPT,
     tools: ["get_trending_symbols", "search_web"],
@@ -166,10 +155,10 @@ function verificationWorkers(candidate: SelectorCandidate): WorkerDefinition[] {
     {
       id: `catalyst-extractor:${candidate.symbol}`,
       prompt: SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
-      tools: ["get_news", "search_web", "fetch_url"],
+      tools: ["search_web", "fetch_url"],
       toolConfig: SEARCH_WEB_TOOL_CONFIG,
       toolRequirements: {
-        requiredAny: ["get_news", "search_web", "fetch_url"],
+        requiredAny: ["search_web", "fetch_url"],
         minToolCalls: 1,
       },
       strategyContext: CATALYST_EXTRACTOR_STRATEGY_CONTEXT,

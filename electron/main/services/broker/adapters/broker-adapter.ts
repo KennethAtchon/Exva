@@ -58,6 +58,15 @@ export interface CloseResult {
   realizedPnlUsd: number;
 }
 
+export interface OhlcvBar {
+  ts: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number | null;
+}
+
 /** Used by risk engine / orchestrator before routing normalizes symbols. */
 export interface OrderRequest {
   instrumentSymbol: string;
@@ -90,12 +99,12 @@ export interface BrokerAdapter {
   getOrderStatus(orderId: string): Promise<OrderStatus>;
   closeOrder(orderId: string): Promise<CloseResult>;
 
-  /** Optional: return OHLCV bars for exit-policy ATR computation. */
+  /** Optional: return OHLCV bars. Used by get_ohlcv tool and ATR computation. */
   getOhlcv?(
     instrumentSymbol: string,
     timeframe: "1h" | "4h" | "1d",
     barCount: number,
-  ): Promise<Array<{ high: number; low: number; close: number }>>;
+  ): Promise<OhlcvBar[]>;
 }
 
 /** Raw row shape returned by Polymarket Gamma REST API. */

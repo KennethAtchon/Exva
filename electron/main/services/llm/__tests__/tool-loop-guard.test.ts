@@ -64,10 +64,7 @@ describe("verify tool loop detection", () => {
       signature: canonicalizeToolInput(call.toolName, call.input),
     }));
     const verifyCalls = recentCalls.filter(
-      (call) =>
-        call.toolName === "get_quote" ||
-        call.toolName === "get_news" ||
-        call.toolName === "get_ohlcv",
+      (call) => call.toolName === "get_quote" || call.toolName === "get_ohlcv",
     );
     return (
       verifyCalls.length >= 4 &&

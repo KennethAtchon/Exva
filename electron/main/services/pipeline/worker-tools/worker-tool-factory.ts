@@ -12,13 +12,10 @@ import {
 import type { BrokerRoutingService } from "../../broker/broker-routing-service";
 import type { BrokerRegistry } from "../../broker/broker-registry";
 import type { MockOhlcvBar } from "../../broker/adapters/mock-adapter";
-import type { MockNewsItem } from "../../tools/market-tools";
 import type { MockWebSearchItem } from "../../broker/mock/mock-discovery-fixtures";
 import { createMarketTools } from "../../tools/market-tools";
 import { createFetchUrlTool } from "../../tools/fetch-url-tool";
-import { createSearchRedditTool } from "../../tools/search-reddit-tool";
 import { createTrendingSymbolsTool } from "../../tools/trending-symbols-tool";
-import type { MOCK_REDDIT_POSTS } from "../../tools/search-reddit-tool";
 import type { MOCK_TRENDING_SYMBOLS } from "../../tools/trending-symbols-tool";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
@@ -27,11 +24,9 @@ import type { WorkerToolConfig } from "@electron/shared/ai/ai-phase-config";
 export const SUPPORTED_TOOL_IDS = [
   "search_web",
   "fetch_url",
-  "search_reddit",
   "get_trending_symbols",
   "get_quote",
   "get_ohlcv",
-  "get_news",
 ] as const;
 
 export const DEFAULT_SUBMIT_TOOL_DESCRIPTION =
@@ -58,8 +53,6 @@ export interface WorkerToolContext {
   strategyContext: SessionStrategyContext;
   maxDataSpendUsd?: number | null;
   getMockOhlcv?: (symbol: string, timeframe?: string) => MockOhlcvBar[];
-  mockNewsData?: MockNewsItem[];
-  mockRedditData?: typeof MOCK_REDDIT_POSTS;
   mockTrendingData?: typeof MOCK_TRENDING_SYMBOLS;
   mockWebSearchData?: MockWebSearchItem[];
   mockUrlContent?: Record<string, string>;
@@ -131,19 +124,6 @@ export async function buildWorkerTools(
     });
   }
 
-  if (idSet.has("search_reddit")) {
-    tools.search_reddit = createSearchRedditTool({
-      sessionId: ctx.sessionId,
-      apiCallLogRepo: ctx.apiCallLogRepo,
-      cycleId: ctx.cycleId,
-      instrumentClasses: ctx.instrumentClasses,
-      focusInstrumentClass: ctx.focusInstrumentClass,
-      mockPosts: ctx.mockRedditData,
-      mockPrimarySymbols: ctx.mockPrimarySymbols,
-      isMockSession: ctx.isMockSession,
-    });
-  }
-
   if (idSet.has("get_trending_symbols")) {
     tools.get_trending_symbols = createTrendingSymbolsTool({
       sessionId: ctx.sessionId,
@@ -153,15 +133,13 @@ export async function buildWorkerTools(
     });
   }
 
-  const needsMarket =
-    idSet.has("get_quote") || idSet.has("get_ohlcv") || idSet.has("get_news");
+  const needsMarket = idSet.has("get_quote") || idSet.has("get_ohlcv");
   if (
     needsMarket &&
     hasBrokerWiring &&
     ctx.brokerRouting &&
     ctx.brokerRegistry
   ) {
-    const searchOk = Boolean(ctx.searchProviderId);
     const marketTools = createMarketTools({
       sessionId: ctx.sessionId,
       brokerRegistry: ctx.brokerRegistry,
@@ -177,20 +155,14 @@ export async function buildWorkerTools(
           return null;
         }
       },
-      searchRegistry: idSet.has("get_news") ? ctx.searchRegistry : undefined,
-      searchProviderId:
-        idSet.has("get_news") && searchOk ? ctx.searchProviderId : null,
       include: {
         quote: idSet.has("get_quote"),
         ohlcv: idSet.has("get_ohlcv"),
-        news: idSet.has("get_news"),
       },
       getMockOhlcv: ctx.getMockOhlcv,
-      mockNewsData: ctx.mockNewsData,
     });
     if (marketTools.get_quote) tools.get_quote = marketTools.get_quote;
     if (marketTools.get_ohlcv) tools.get_ohlcv = marketTools.get_ohlcv;
-    if (marketTools.get_news) tools.get_news = marketTools.get_news;
   }
 
   return Object.keys(tools).length > 0 ? tools : undefined;

@@ -8,8 +8,16 @@ import type {
   BrokerPosition,
   CloseResult,
   MarketSnapshot,
+  OhlcvBar,
   OrderStatus,
 } from "./broker-adapter";
+
+const ALPACA_DATA_URL = "https://data.alpaca.markets";
+const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
+  "1h": "1Hour",
+  "4h": "4Hour",
+  "1d": "1Day",
+};
 
 export class AlpacaAdapter implements BrokerAdapter {
   readonly brokerType = "alpaca";
@@ -170,6 +178,37 @@ export class AlpacaAdapter implements BrokerAdapter {
     return { brokerOrderId: orderId, realizedPnlUsd };
   }
 
+  async getOhlcv(
+    instrumentSymbol: string,
+    timeframe: "1h" | "4h" | "1d",
+    barCount: number,
+  ): Promise<OhlcvBar[]> {
+    const alpacaTimeframe = ALPACA_TIMEFRAME_MAP[timeframe] ?? "1Day";
+    const params = new URLSearchParams({
+      timeframe: alpacaTimeframe,
+      limit: String(barCount),
+      feed: "iex",
+    });
+    const data = await this.dataRequest<{
+      bars?: Array<{
+        t: string;
+        o: number;
+        h: number;
+        l: number;
+        c: number;
+        v: number;
+      }>;
+    }>(`/v2/stocks/${encodeURIComponent(instrumentSymbol)}/bars?${params}`);
+    return (data.bars ?? []).map((bar) => ({
+      ts: bar.t,
+      open: bar.o,
+      high: bar.h,
+      low: bar.l,
+      close: bar.c,
+      volume: bar.v,
+    }));
+  }
+
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
     const order = await this.request<{
       id: string;
@@ -190,7 +229,19 @@ export class AlpacaAdapter implements BrokerAdapter {
   }
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
+    return this.fetchWithAuth(this.baseUrl, path, init);
+  }
+
+  private async dataRequest<T>(path: string): Promise<T> {
+    return this.fetchWithAuth(ALPACA_DATA_URL, path);
+  }
+
+  private async fetchWithAuth<T>(
+    baseUrl: string,
+    path: string,
+    init: RequestInit = {},
+  ): Promise<T> {
+    const response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers: {
         "APCA-API-KEY-ID": this.credentials.api_key,

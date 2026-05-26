@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createMarketTools, scenarioMockNews } from "../../tools/market-tools";
+import { createMarketTools } from "../../tools/market-tools";
 import { MockBrokerAdapter } from "../../broker/adapters/mock-adapter";
 
 type StockToolExecutor = {
@@ -19,10 +19,7 @@ type OhlcvToolExecutor = {
     symbol: string;
     instrumentClass: "stock";
     timeframe?: string;
-  }) => Promise<{ bars?: unknown[]; timeframe?: string }>;
-};
-type NewsToolExecutor = {
-  execute: (input: { symbol: string }) => Promise<{ results?: unknown[] }>;
+  }) => Promise<{ bars?: unknown[]; timeframe?: string; error?: string }>;
 };
 
 describe("market-tools", () => {
@@ -31,7 +28,7 @@ describe("market-tools", () => {
       sessionId: "s1",
       brokerRegistry: { get: vi.fn() } as never,
       brokerAccountIdByClass: () => null,
-      include: { quote: true, ohlcv: false, news: false },
+      include: { quote: true, ohlcv: false },
     });
 
     const getQuote = tools.get_quote as unknown as StockToolExecutor;
@@ -45,17 +42,19 @@ describe("market-tools", () => {
     });
   });
 
-  it("returns synthetic bars for get_ohlcv", async () => {
+  it("get_ohlcv returns error when broker does not implement getOhlcv", async () => {
     const brokerRegistry = {
       get: vi.fn().mockResolvedValue({
+        brokerType: "some_broker",
         getMarketSnapshot: vi.fn().mockResolvedValue({ price: 101.25 }),
+        // no getOhlcv method
       }),
     };
     const tools = createMarketTools({
       sessionId: "s1",
       brokerRegistry: brokerRegistry as never,
       brokerAccountIdByClass: () => "b1",
-      include: { quote: false, ohlcv: true, news: false },
+      include: { quote: false, ohlcv: true },
     });
 
     const getOhlcv = tools.get_ohlcv as unknown as OhlcvToolExecutor;
@@ -64,83 +63,53 @@ describe("market-tools", () => {
       instrumentClass: "stock",
     });
 
-    expect(Array.isArray(out.bars)).toBe(true);
-    expect(out.bars?.length).toBe(30);
+    expect(out.error).toMatch(/does not support OHLCV/);
+    expect(out.bars).toBeUndefined();
   });
 
-  it("returns mock news when provided", async () => {
-    const tools = createMarketTools({
-      sessionId: "s1",
-      brokerRegistry: { get: vi.fn() } as never,
-      brokerAccountIdByClass: () => "b1",
-      include: { quote: false, ohlcv: false, news: true },
-      mockNewsData: [
-        {
-          title: "{symbol} catalyst",
-          snippet: "Catalyst snippet for {symbol}",
-          url: "https://mock.local/1",
-          publishedAt: "2026-05-08T00:00:00.000Z",
-        },
-      ],
-    });
-
-    const getNews = tools.get_news as unknown as NewsToolExecutor;
-    const out = await getNews.execute({ symbol: "AAPL" });
-
-    expect(out.results).toHaveLength(1);
-    expect(out.results?.[0]).toMatchObject({
-      title: "AAPL catalyst",
-      snippet: "Catalyst snippet for AAPL",
-      query: "AAPL",
-    });
-  });
-
-  it("returns bullish scenario news with momentum wording", () => {
-    const news = scenarioMockNews("bullish");
-    const combined = news
-      .map((item) => `${item.title} ${item.snippet}`)
-      .join(" ")
-      .toLowerCase();
-
-    expect(news).toHaveLength(3);
-    expect(combined).toMatch(/breakout|momentum|bullish|strength/);
-  });
-
-  it("returns three news items for every scenario", () => {
-    for (const bias of [
-      "bullish",
-      "bearish",
-      "sideways",
-      "volatile",
-    ] as const) {
-      expect(scenarioMockNews(bias)).toHaveLength(3);
-    }
-  });
-
-  it("buildSyntheticBars drifts upward toward spot price", async () => {
+  it("get_ohlcv delegates to adapter.getOhlcv when available", async () => {
+    const mockBars = [
+      {
+        ts: "2026-05-01T00:00:00Z",
+        open: 100,
+        high: 105,
+        low: 99,
+        close: 103,
+        volume: 5000,
+      },
+      {
+        ts: "2026-05-02T00:00:00Z",
+        open: 103,
+        high: 108,
+        low: 102,
+        close: 107,
+        volume: 6000,
+      },
+    ];
+    const getOhlcvMock = vi.fn().mockResolvedValue(mockBars);
     const brokerRegistry = {
       get: vi.fn().mockResolvedValue({
-        getMarketSnapshot: vi.fn().mockResolvedValue({ price: 200 }),
+        brokerType: "alpaca",
+        getOhlcv: getOhlcvMock,
       }),
     };
     const tools = createMarketTools({
       sessionId: "s1",
       brokerRegistry: brokerRegistry as never,
       brokerAccountIdByClass: () => "b1",
-      include: { quote: false, ohlcv: true, news: false },
+      include: { quote: false, ohlcv: true },
     });
 
     const getOhlcv = tools.get_ohlcv as unknown as OhlcvToolExecutor;
     const out = await getOhlcv.execute({
       symbol: "AAPL",
       instrumentClass: "stock",
+      timeframe: "1d",
     });
 
-    const bars = out.bars as Array<{ close: number }>;
-    const first = bars.at(0);
-    const last = bars.at(-1);
-    if (!first || !last) throw new Error("expected non-empty bars");
-    expect(first.close).toBeLessThan(last.close);
+    expect(getOhlcvMock).toHaveBeenCalledWith("AAPL", "1d", 200);
+    expect(out.bars).toEqual(mockBars);
+    expect(out.error).toBeUndefined();
   });
 
   it("get_ohlcv with timeframe 4h passes timeframe through mock callback", async () => {
@@ -150,7 +119,7 @@ describe("market-tools", () => {
       sessionId: "s1",
       brokerRegistry: { get: vi.fn() } as never,
       brokerAccountIdByClass: () => null,
-      include: { quote: false, ohlcv: true, news: false },
+      include: { quote: false, ohlcv: true },
       getMockOhlcv: (symbol, timeframe) => {
         capturedCalls.push({ symbol, timeframe });
         return adapter.getMockOhlcv(symbol, timeframe);
@@ -186,7 +155,7 @@ describe("market-tools", () => {
       sessionId: "s1",
       brokerRegistry: brokerRegistry as never,
       brokerAccountIdByClass: () => "coinbase-1",
-      include: { quote: true, ohlcv: false, news: false },
+      include: { quote: true, ohlcv: false },
     });
 
     const getQuote = tools.get_quote as unknown as CryptoQuoteToolExecutor;

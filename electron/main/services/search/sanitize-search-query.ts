@@ -13,7 +13,7 @@ export function sanitizeSearchQuery(raw: string): string {
 }
 
 const TOOL_NAME_QUERY_REGEX =
-  /^(search_web|search_reddit|get_trending_symbols|get_quote|get_news|get_ohlcv|fetch_url|submit_result)$/i;
+  /^(search_web|get_trending_symbols|get_quote|get_ohlcv|fetch_url|submit_result)$/i;
 
 export interface DiscoveryQueryValidationResult {
   sanitized: string;

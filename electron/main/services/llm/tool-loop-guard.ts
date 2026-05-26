@@ -20,7 +20,7 @@ export function canonicalizeToolInput(
     return JSON.stringify(input ?? null);
   }
 
-  if (toolName === "search_web" || toolName === "search_reddit") {
+  if (toolName === "search_web") {
     const query = readStringField(input, "query") ?? "";
     return normalizeQueryFamily(query);
   }
@@ -37,7 +37,7 @@ export function canonicalizeToolInput(
     return `${symbol ?? "?"}:${instrumentClass}:${timeframe}`;
   }
 
-  if (toolName === "get_quote" || toolName === "get_news") {
+  if (toolName === "get_quote") {
     return (
       normalizeSymbol(readStringField(input, "symbol")) ?? JSON.stringify(input)
     );

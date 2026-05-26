@@ -59,7 +59,7 @@ function renderBrokerCoverageInstructions(
   }
 
   lines.push(
-    "- If get_quote/get_news/get_ohlcv cannot verify an instrument, treat it as not tradable enough for this session and exclude it.",
+    "- If get_quote/get_ohlcv cannot verify an instrument, treat it as not tradable enough for this session and exclude it.",
   );
   return lines.join("\n");
 }

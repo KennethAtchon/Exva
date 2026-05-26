@@ -111,9 +111,9 @@ describe("worker-tool-requirements", () => {
     const worker: WorkerDefinition = {
       id: "catalyst-extractor:PLTR",
       prompt: SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
-      tools: ["get_news", "search_web", "fetch_url"],
+      tools: ["search_web", "fetch_url"],
       toolRequirements: {
-        requiredAny: ["get_news", "search_web", "fetch_url"],
+        requiredAny: ["search_web", "fetch_url"],
         minToolCalls: 1,
       },
       strategyContext: testStrategyContext,

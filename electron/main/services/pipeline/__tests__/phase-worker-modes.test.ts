@@ -26,11 +26,7 @@ describe("phase worker discovery modes", () => {
       SELECTOR_PHASE.resolveWorkersForMode,
       "trend_scan",
     );
-    expect(workers.map((w) => w.id)).toEqual([
-      "web-scout",
-      "reddit-scout",
-      "trend-scout",
-    ]);
+    expect(workers.map((w) => w.id)).toEqual(["web-scout", "trend-scout"]);
   });
 
   it("declares strategy context for standard selector scouts", () => {

@@ -165,7 +165,7 @@ describe("executeRunAgent logging", () => {
       toolCalls: [
         {
           toolCallId: "tc-late",
-          toolName: "get_news",
+          toolName: "get_quote",
           input: { symbol: "NVDA", instrumentClass: "stock" },
         },
       ],
@@ -213,7 +213,7 @@ describe("executeRunAgent logging", () => {
           { role: "system", content: "System instructions" },
           { role: "user", content: "Prompt" },
         ],
-        tools: { get_news: {} } as never,
+        tools: { get_quote: {} } as never,
         maxSteps: 4,
         abortSignal: controller.signal,
       }),

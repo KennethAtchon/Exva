@@ -40,7 +40,8 @@ const STANDARD_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "earnings-context",
     prompt: FUNDAMENTAL_WORKERS_EARNINGS_CONTEXT_PROMPT,
-    tools: ["get_news"],
+    tools: ["search_web"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "tool_result",
@@ -49,7 +50,7 @@ const STANDARD_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "catalyst-context",
     prompt: FUNDAMENTAL_WORKERS_CATALYST_CONTEXT_PROMPT,
-    tools: ["get_news", "search_web"],
+    tools: ["search_web"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
@@ -59,7 +60,7 @@ const STANDARD_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "sentiment-context",
     prompt: FUNDAMENTAL_WORKERS_SENTIMENT_CONTEXT_PROMPT,
-    tools: ["search_reddit", "search_web"],
+    tools: ["search_web"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
@@ -72,7 +73,8 @@ const EVENT_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "resolution-context",
     prompt: FUNDAMENTAL_WORKERS_EVENT_RESOLUTION_PROMPT,
-    tools: ["get_news", "search_web"],
+    tools: ["search_web"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",
     outputSchema: earningsOutputSchema,
@@ -80,7 +82,8 @@ const EVENT_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "event-catalyst",
     prompt: FUNDAMENTAL_WORKERS_EVENT_CATALYST_PROMPT,
-    tools: ["get_news", "search_web", "fetch_url"],
+    tools: ["search_web", "fetch_url"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",
     outputSchema: catalystOutputSchema,
@@ -88,7 +91,8 @@ const EVENT_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "event-sentiment",
     prompt: FUNDAMENTAL_WORKERS_EVENT_SENTIMENT_PROMPT,
-    tools: ["search_web", "search_reddit"],
+    tools: ["search_web"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
     strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",
     outputSchema: sentimentOutputSchema,

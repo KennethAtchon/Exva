@@ -41,7 +41,7 @@ describe("selector candidate merger", () => {
         candidate("NVDA", {
           hypeScore: 0.7,
           catalystScore: 0.5,
-          source: ["reddit-scout"],
+          source: ["trend-scout"],
         }),
       ],
     ]);
@@ -52,7 +52,7 @@ describe("selector candidate merger", () => {
     expect(merged[0]?.volumeScore).toBe(0.6);
     expect(merged[0]?.catalystScore).toBe(0.5);
     expect(merged[0]?.source).toEqual(
-      expect.arrayContaining(["web-scout", "reddit-scout"]),
+      expect.arrayContaining(["web-scout", "trend-scout"]),
     );
   });
 

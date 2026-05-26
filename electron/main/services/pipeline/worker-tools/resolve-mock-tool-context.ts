@@ -11,8 +11,6 @@ import {
   DEFAULT_MOCK_SCENARIO_KIND,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
-import { scenarioMockNews, type MockNewsItem } from "../../tools/market-tools";
-import { MOCK_REDDIT_POSTS } from "../../tools/search-reddit-tool";
 import { MOCK_TRENDING_SYMBOLS } from "../../tools/trending-symbols-tool";
 import type { InstrumentClass } from "@/lib/types";
 
@@ -20,8 +18,6 @@ export type MockToolContext = {
   isMockSession: boolean;
   mockScenarioKind?: MockScenarioKind;
   getMockOhlcv?: (symbol: string, timeframe?: string) => MockOhlcvBar[];
-  mockNewsData?: MockNewsItem[];
-  mockRedditData?: typeof MOCK_REDDIT_POSTS;
   mockTrendingData?: typeof MOCK_TRENDING_SYMBOLS;
   mockWebSearchData?: MockWebSearchItem[];
   mockUrlContent?: Record<string, string>;
@@ -40,8 +36,6 @@ export async function resolveMockToolContext(input: {
       isMockSession: false,
       mockScenarioKind: undefined,
       getMockOhlcv: undefined,
-      mockNewsData: undefined,
-      mockRedditData: undefined,
       mockTrendingData: undefined,
       mockWebSearchData: undefined,
       mockUrlContent: undefined,
@@ -60,10 +54,6 @@ export async function resolveMockToolContext(input: {
     mockScenarioKind: kind,
     getMockOhlcv: (symbol: string, timeframe?: string) =>
       mockAdapter.getMockOhlcv(symbol, timeframe),
-    mockNewsData:
-      fixtures.news ?? scenarioMockNews(mockAdapter.getScenarioBias()),
-    mockRedditData: (focusedFixtures.redditPosts ??
-      MOCK_REDDIT_POSTS) as typeof MOCK_REDDIT_POSTS,
     mockTrendingData: (focusedFixtures.trendingSymbols ??
       MOCK_TRENDING_SYMBOLS) as typeof MOCK_TRENDING_SYMBOLS,
     mockWebSearchData: focusedFixtures.webSearch,
@@ -94,24 +84,8 @@ const FOCUSED_SYMBOL_NAMES: Record<string, string> = {
   FEDCUT: "Fed rate cut by next meeting",
 };
 
-const FOCUSED_SUBREDDITS: Record<InstrumentClass, string[]> = {
-  stock: ["stocks", "SecurityAnalysis", "wallstreetbets"],
-  crypto: ["CryptoMarkets", "CryptoCurrency", "ethfinance"],
-  futures: ["FuturesTrading", "Daytrading", "Trading"],
-  prediction_market: ["Polymarket", "PredictionMarkets", "trading"],
-};
-
 function applyMockInstrumentFocus(
   fixtures: {
-    redditPosts?: Array<{
-      subreddit: string;
-      title: string;
-      body: string;
-      score: number;
-      comments: number;
-      url: string;
-      postedAt: string;
-    }>;
     trendingSymbols?: Array<{
       symbol: string;
       name: string;
@@ -121,22 +95,16 @@ function applyMockInstrumentFocus(
     }>;
     webSearch?: MockWebSearchItem[];
     primarySymbols?: string[];
+    urlContent?: Record<string, string>;
   },
   focusInstrumentClass?: InstrumentClass | null,
 ) {
   if (!focusInstrumentClass) return fixtures;
 
   const primarySymbols = FOCUSED_PRIMARY_SYMBOLS[focusInstrumentClass];
-  const subreddits = FOCUSED_SUBREDDITS[focusInstrumentClass];
   return {
     ...fixtures,
     primarySymbols,
-    redditPosts: (fixtures.redditPosts ?? MOCK_REDDIT_POSTS).map(
-      (post, index) => ({
-        ...post,
-        subreddit: subreddits[index % subreddits.length] ?? post.subreddit,
-      }),
-    ),
     trendingSymbols: primarySymbols.map((symbol, index) => ({
       symbol,
       name: FOCUSED_SYMBOL_NAMES[symbol] ?? symbol,
@@ -185,7 +153,8 @@ async function resolveMockAdapter(input: {
         instrumentClass,
       );
       const adapter = await input.brokerRegistry.get(accountId);
-      if (adapter.brokerType === "mock") return adapter as MockBrokerAdapter;
+      if (adapter.brokerType === "mock")
+        return adapter as unknown as MockBrokerAdapter;
     } catch {
       // try next class
     }

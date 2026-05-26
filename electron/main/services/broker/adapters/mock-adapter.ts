@@ -274,7 +274,7 @@ export class MockBrokerAdapter implements BrokerAdapter {
     instrumentSymbol: string,
     timeframe: "1h" | "4h" | "1d",
     barCount: number,
-  ): Promise<Array<{ high: number; low: number; close: number }>> {
+  ): Promise<MockOhlcvBar[]> {
     return this.getMockOhlcv(instrumentSymbol, timeframe, barCount);
   }
 

@@ -31,7 +31,7 @@ export interface CandidateValidationInput {
 }
 
 interface CandidateEvidenceEntry {
-  source: "get_news" | "search_web" | "get_quote" | "fetch_url";
+  source: "search_web" | "get_quote" | "fetch_url";
   symbolMatched: boolean;
   publishedAt?: string;
 }
@@ -121,19 +121,6 @@ export class CandidateValidationService {
     }
 
     // CV-6: Symbol-specific evidence
-    const hasNewsEvidence = selectorTrace.some((step) =>
-      step.toolCalls.some((call) => {
-        if (call.tool !== "get_news") return false;
-        const args = safeParseJson(call.argsJson);
-        const result = safeParseJson(call.resultJson);
-        const matched =
-          args?.symbol === instrument.symbol &&
-          result != null &&
-          !Object.hasOwn(result, "error");
-        if (matched) evidence.push({ source: "get_news", symbolMatched: true });
-        return matched;
-      }),
-    );
     const hasSearchEvidence = selectorTrace.some((step) =>
       step.toolCalls.some((call) => {
         if (call.tool !== "search_web") return false;
@@ -146,12 +133,11 @@ export class CandidateValidationService {
     // Fallback: use typed selector evidence when traces are unavailable
     const structuredEvidence = instrument.selectorEvidence;
     const hasStructuredEvidence =
-      structuredEvidence?.hasNewsEvidence ||
       structuredEvidence?.hasSearchEvidence ||
       structuredEvidence?.hasQuoteEvidence ||
       structuredEvidence?.hasOhlcvEvidence ||
       structuredEvidence?.hasFetchEvidence;
-    if (!hasNewsEvidence && !hasSearchEvidence && !hasStructuredEvidence) {
+    if (!hasSearchEvidence && !hasStructuredEvidence) {
       reasons.push(
         `No symbol-specific evidence found for ${instrument.symbol}`,
       );
@@ -201,16 +187,5 @@ export class CandidateValidationService {
       evidence,
       quoteSnapshot,
     };
-  }
-}
-
-function safeParseJson(raw: string | null): Record<string, unknown> | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object") return null;
-    return parsed as Record<string, unknown>;
-  } catch {
-    return null;
   }
 }

@@ -113,8 +113,7 @@ function loopFingerprintGuard<T extends ToolSet>(): StopCondition<T> {
     if (recentCalls.length < 4) return false;
 
     const searchCalls = recentCalls.filter(
-      (call) =>
-        call.toolName === "search_web" || call.toolName === "search_reddit",
+      (call) => call.toolName === "search_web",
     );
     if (
       searchCalls.length >= 4 &&
@@ -125,10 +124,7 @@ function loopFingerprintGuard<T extends ToolSet>(): StopCondition<T> {
     }
 
     const verifyCalls = recentCalls.filter(
-      (call) =>
-        call.toolName === "get_quote" ||
-        call.toolName === "get_news" ||
-        call.toolName === "get_ohlcv",
+      (call) => call.toolName === "get_quote" || call.toolName === "get_ohlcv",
     );
     if (
       verifyCalls.length >= 4 &&

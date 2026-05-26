@@ -28,9 +28,8 @@ function buildSelectorEvidence(candidate: SelectorCandidate): SelectorEvidence {
     sourceWorkers: candidate.source,
     riskFlags: candidate.riskFlags,
     hasQuoteEvidence: toolNames.has("get_quote"),
-    hasNewsEvidence: toolNames.has("get_news"),
-    hasSearchEvidence:
-      toolNames.has("search_web") || toolNames.has("search_reddit"),
+    hasNewsEvidence: false,
+    hasSearchEvidence: toolNames.has("search_web"),
     hasOhlcvEvidence: toolNames.has("get_ohlcv"),
     hasFetchEvidence: toolNames.has("fetch_url"),
   });
