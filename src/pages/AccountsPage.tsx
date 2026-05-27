@@ -1271,7 +1271,7 @@ const testAllConnectionsBtnClass =
   "w-full cursor-pointer rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-5 py-[11px] font-sans text-[13px] font-medium text-[var(--text2)]";
 
 const envToggleClass =
-  "mt-1 grid grid-cols-2 gap-1.5 rounded-[10px] border border-[var(--border)] bg-[rgba(7,10,15,0.34)] p-[5px]";
+  "mt-1 grid grid-cols-2 gap-1.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] p-[5px]";
 const envToggleButtonClass =
   "cursor-pointer rounded-[7px] border border-[var(--border)] bg-transparent px-4 py-[7px] text-[12px] font-semibold text-[var(--text2)]";
 const envTogglePaperActiveClass =

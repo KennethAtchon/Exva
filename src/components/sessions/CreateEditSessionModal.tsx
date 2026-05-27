@@ -967,18 +967,18 @@ function sameInstrumentClasses(
 }
 
 const panelClass =
-  "max-h-[92vh] w-[900px] max-w-[96vw] overflow-auto rounded-[20px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(13,18,25,0.99)_0%,rgba(9,13,18,0.99)_100%)] p-[22px] shadow-[0_26px_60px_rgba(2,6,23,0.48)]";
+  "max-h-[92vh] w-[900px] max-w-[96vw] overflow-auto rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-[22px] shadow-[0_26px_60px_rgba(2,6,23,0.28)]";
 const sectionClass =
-  "rounded-xl border border-[var(--border)] bg-[rgba(18,26,36,0.6)] px-4 py-3.5";
+  "rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3.5";
 const sectionBodyClass = "grid gap-3.5";
 const inputClass =
-  "w-full rounded-lg border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
+  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
 const textareaClass =
-  "min-h-[88px] w-full resize-y rounded-lg border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
+  "min-h-[88px] w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
 const toggleChipClass =
-  "inline-flex items-center gap-2 rounded-full border bg-[rgba(7,10,15,0.38)] px-[11px] py-2 text-[12px] text-[var(--text2)]";
+  "inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--chip)] px-[11px] py-2 text-[12px] text-[var(--text2)]";
 const switchRowClass =
-  "flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[rgba(7,10,15,0.34)] px-[14px] py-3";
+  "flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-[14px] py-3";
 const twoColumnGridClass =
   "grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3.5";
 const brokerPickerClass =
@@ -986,12 +986,12 @@ const brokerPickerClass =
 const brokerRowClass =
   "flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2";
 const allocationRowClass =
-  "grid grid-cols-[1fr_auto] items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[rgba(7,10,15,0.34)] px-3 py-2.5";
+  "grid grid-cols-[1fr_auto] items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5";
 const inlineHintClass = "text-[12px] text-[var(--text3)]";
 const selectAllButtonClass =
   "mt-0.5 cursor-pointer justify-self-start rounded-lg border border-[var(--border)] bg-transparent px-2.5 py-[7px] text-[12px] font-semibold text-[var(--text2)]";
 const inlineActionButtonClass =
-  "cursor-pointer rounded-lg border border-warning-border bg-[rgba(7,10,15,0.34)] px-2.5 py-2 text-[12px] font-semibold text-warning";
+  "cursor-pointer rounded-lg border border-warning-border bg-warning-dim px-2.5 py-2 text-[12px] font-semibold text-warning";
 const warningTextClass = "text-[12px] font-semibold text-warning";
 const successTextClass = "text-[12px] font-semibold text-success";
 const warningBannerClass =

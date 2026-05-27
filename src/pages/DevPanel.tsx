@@ -230,7 +230,7 @@ const devClass = {
     "flex shrink-0 items-center gap-4 border-t border-[var(--border)] bg-[var(--surface2)] px-4 py-1",
   rootLayout: "flex min-h-0 flex-1 overflow-hidden",
   skeletonRow:
-    "flex h-9 items-center gap-2.5 border-b border-b-white/[0.025] px-3.5",
+    "flex h-9 items-center gap-2.5 border-b border-b-[var(--border)] px-3.5",
   skeletonBar: "h-2 rounded-[3px] bg-[var(--surface3)] opacity-60",
   modalOverlay:
     "fixed inset-0 z-[1000] flex items-center justify-center bg-black/70",
@@ -518,7 +518,7 @@ const ScopeRailItem = ({
       className={devClass.scopeItemBtn}
       style={{
         borderLeft: `2px solid ${c}`,
-        background: isActive ? "rgba(77,166,255,0.07)" : "transparent",
+        background: isActive ? "var(--color-info-dim)" : "transparent",
       }}
     >
       {icon && <span className={devClass.iconMuted}>{icon}</span>}

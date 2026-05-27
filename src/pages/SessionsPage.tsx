@@ -1026,9 +1026,9 @@ function statusVariant(
 }
 
 const contextHeroClass =
-  "grid gap-[18px] bg-[radial-gradient(circle_at_top_left,rgba(96,165,250,0.16),transparent_45%)] p-6 [grid-template-columns:minmax(0,1.4fr)_minmax(280px,0.9fr)]";
+  "grid gap-[18px] bg-[var(--surface)] p-6 [grid-template-columns:minmax(0,1.4fr)_minmax(280px,0.9fr)]";
 const contextMetricsClass =
-  "grid grid-cols-2 gap-3 rounded-2xl border border-[var(--border)] bg-[rgba(7,10,15,0.34)] px-4 py-3.5";
+  "grid grid-cols-2 gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3.5";
 const toolbarClass =
   "mb-[18px] flex flex-wrap items-center justify-between gap-2.5";
 const inputClass =

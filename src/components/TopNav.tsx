@@ -8,6 +8,7 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 import { sessionMatchesEnvironment } from "@/lib/environment-mode";
 import type { SessionSummary } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
+import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 
 export type PageKey =
@@ -62,11 +63,11 @@ const navClass = {
   navItem:
     "relative flex h-full cursor-pointer items-center gap-1.5 whitespace-nowrap border-none bg-transparent px-[14px] py-0 font-sans text-[13px] font-normal text-[var(--text2)] transition-colors duration-150",
   navItemActive: "font-medium text-[var(--text1)]",
-  navItemHint: "text-[oklch(0.65_0.14_240)]",
+  navItemHint: "text-[var(--accent)]",
   navUnderline:
     "absolute bottom-0 left-[14px] right-[14px] h-0.5 rounded-t-[2px] bg-[var(--accent)]",
   strategyDot:
-    "inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[oklch(0.65_0.14_240)]",
+    "inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]",
   attentionBadge:
     "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-error-border bg-error-dim px-[5px] py-0 font-mono text-[12px] font-bold text-error",
   session: "flex shrink-0 items-center gap-2",
@@ -422,6 +423,7 @@ export const TopNav = ({
     refreshAttentionCount();
   });
 
+  const { theme, toggleTheme } = useTheme();
   const focusedInCurrentEnvironment =
     focusedSession != null &&
     sessionMatchesEnvironment(focusedSession.executionMode, environmentMode);
@@ -481,6 +483,44 @@ export const TopNav = ({
       />
 
       <div className="flex-1" />
+
+      <button
+        onClick={toggleTheme}
+        title={
+          theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+        }
+        className="mr-3 flex h-7 w-7 items-center justify-center rounded-md text-[var(--text2)] transition-colors hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
+        aria-label="Toggle theme"
+      >
+        {theme === "dark" ? (
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+          </svg>
+        ) : (
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        )}
+      </button>
 
       <NavStatus
         environmentMode={environmentMode}

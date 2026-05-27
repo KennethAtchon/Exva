@@ -184,16 +184,16 @@ export const SessionExecutionProgress = ({
     isHoldingPosition,
   });
   const detailMessageColor = isRetrying
-    ? "rgba(147,197,253,0.9)"
-    : "rgba(251,146,60,0.8)";
+    ? "var(--color-info)"
+    : "var(--color-orange)";
 
   return (
     <div className="mb-1 mt-3">
-      <div className="mb-2 h-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+      <div className="mb-2 h-1 overflow-hidden rounded-full bg-[var(--surface3)]">
         <div
           className={cn(
             "h-full rounded-full",
-            !isHoldingPosition && "bg-[rgba(96,165,250,0.6)]",
+            !isHoldingPosition && "bg-[var(--accent)]",
             isHoldingPosition && "w-[66%]",
           )}
           style={{
@@ -231,7 +231,7 @@ export const SessionExecutionProgress = ({
           ) : null}
 
           {activeRoleLabel && isRunning ? (
-            <span className="shrink-0 rounded bg-[rgba(255,255,255,0.05)] px-1.5 py-0.5 font-mono text-[12px] text-[var(--text2)]">
+            <span className="shrink-0 rounded bg-[var(--surface2)] px-1.5 py-0.5 font-mono text-[12px] text-[var(--text2)]">
               {activeRoleLabel}
             </span>
           ) : null}

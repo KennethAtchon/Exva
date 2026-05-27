@@ -578,7 +578,7 @@ const Row = ({ label, value }: { label: string; value: string }) => (
 );
 
 const StatBlock = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-[10px] border border-[var(--border)] bg-[rgba(7,10,15,0.4)] px-3 py-2.5">
+  <div className="rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5">
     <div className={rowLabelClass}>{label}</div>
     <div className="mt-1 text-[14px] font-semibold tabular-nums text-[var(--text1)]">
       {value}
@@ -635,10 +635,10 @@ function formatTimestamp(value: string): string {
 }
 
 const panelClass =
-  "w-[620px] max-w-[96vw] rounded-[20px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(13,18,25,0.99)_0%,rgba(9,13,18,0.99)_100%)] p-[22px]";
+  "w-[620px] max-w-[96vw] rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-[22px]";
 
 const sectionClass =
-  "rounded-xl border border-[var(--border)] bg-[rgba(18,26,36,0.6)] px-4 py-3.5";
+  "rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3.5";
 
 const sectionTitleClass =
   "mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text3)]";
@@ -646,7 +646,7 @@ const sectionTitleClass =
 const rowLabelClass = "pt-px text-[12px] leading-normal text-[var(--text3)]";
 
 const cacheChipClass =
-  "rounded-full border border-[var(--border)] bg-[rgba(7,10,15,0.4)] px-2 py-[3px] text-[12px] text-[var(--text2)]";
+  "rounded-full border border-[var(--border)] bg-[var(--chip)] px-2 py-[3px] text-[12px] text-[var(--text2)]";
 
 const mutedClass = "text-[13px] text-[var(--text3)]";
 

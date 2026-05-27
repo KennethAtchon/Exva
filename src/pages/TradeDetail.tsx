@@ -231,7 +231,7 @@ const TradePositionBar = ({
         <div className="relative h-9 overflow-hidden rounded-lg bg-[var(--surface2)]">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-error-dim)_0%,transparent_38%,transparent_62%,var(--color-success-dim)_100%)]" />
           <div
-            className="absolute top-1.5 bottom-1.5 w-px rounded-[1px] bg-[rgba(255,255,255,0.25)]"
+            className="absolute top-1.5 bottom-1.5 w-px rounded-[1px] bg-[var(--text3)]"
             style={{ left: `${entryPct}%` }}
           />
           <div className={priceMarkerClass} style={{ left: `${curPct}%` }} />

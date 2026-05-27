@@ -239,13 +239,11 @@ const SessionCard = ({
     <article
       className="rounded-2xl px-[18px] py-4"
       style={{
-        border: `1px solid ${session.isFocused ? "rgba(96,165,250,0.30)" : "var(--border)"}`,
+        border: `1px solid ${session.isFocused ? "var(--color-info-border)" : "var(--border)"}`,
         background: session.isFocused
-          ? "linear-gradient(135deg, rgba(96,165,250,0.07) 0%, rgba(13,18,25,0.97) 60%)"
-          : "rgba(13,18,25,0.97)",
-        boxShadow: session.isFocused
-          ? "0 0 0 1px rgba(96,165,250,0.08) inset, 0 8px 24px rgba(2,6,23,0.24)"
-          : "none",
+          ? "var(--color-info-dim)"
+          : "var(--surface)",
+        boxShadow: session.isFocused ? "0 8px 24px rgba(2,6,23,0.12)" : "none",
       }}
     >
       {/* Top row: name+objective | metrics+chips */}
@@ -501,13 +499,13 @@ const objectiveClass =
   "mt-1.5 line-clamp-2 overflow-hidden text-[12px] leading-normal text-[var(--text2)]";
 
 const metricStripClass =
-  "grid grid-cols-3 gap-2 rounded-[10px] border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-2.5 py-2.5";
+  "grid grid-cols-3 gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-2.5";
 
 const metaGridClass =
   "mt-3.5 grid grid-cols-4 gap-3 border-t border-[var(--border)] pt-3";
 
 const chipClass =
-  "rounded-full border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-2 py-[3px] text-[12px] font-medium tracking-[0.02em] text-[var(--text2)]";
+  "rounded-full border border-[var(--border)] bg-[var(--chip)] px-2 py-[3px] text-[12px] font-medium tracking-[0.02em] text-[var(--text2)]";
 
 const controlsBarClass =
   "mt-3.5 flex flex-wrap gap-1.5 border-t border-[var(--border)] pt-3";
@@ -515,8 +513,7 @@ const controlsBarClass =
 const actionButtonClass =
   "h-[30px] rounded-lg border border-[var(--border)] bg-transparent px-2.5 text-[12px] font-medium text-[var(--text2)]";
 
-const focusedButtonClass =
-  "border-[rgba(96,165,250,0.3)] text-[rgba(96,165,250,0.8)]";
+const focusedButtonClass = "border-info-border text-info";
 
 const primaryActionButtonClass =
   "h-[30px] rounded-lg border border-transparent bg-[var(--accent)] px-2.5 text-[12px] font-semibold text-[hsl(var(--primary-foreground))]";

@@ -61,7 +61,7 @@ const TemplateSearchBar = ({
       value={search}
       onChange={(event) => onSearchChange(event.target.value)}
       placeholder="Search templates"
-      className="h-10 flex-1 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
+      className="h-10 flex-1 border-border bg-[var(--surface2)] text-[var(--text1)]"
     />
     <ShadcnSelect
       value={instrumentClass}
@@ -361,7 +361,7 @@ const renderSessionTemplatesModalView = ({
                 })
               }
               placeholder="Template name"
-              className="h-10 border-border bg-[rgba(7,10,15,0.5)] text-[var(--text1)]"
+              className="h-10 border-border bg-[var(--surface2)] text-[var(--text1)]"
             />
             <textarea
               value={templateDescription}
@@ -512,17 +512,17 @@ function formatTimestamp(value: string): string {
 }
 
 const panelClass =
-  "max-h-[92vh] w-[920px] max-w-[96vw] overflow-auto rounded-[20px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(13,18,25,0.98),rgba(9,13,18,0.98))] p-6 shadow-[0_26px_60px_rgba(2,6,23,0.48)]";
+  "max-h-[92vh] w-[920px] max-w-[96vw] overflow-auto rounded-[20px] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[0_26px_60px_rgba(2,6,23,0.28)]";
 const heroCardClass =
-  "mb-[18px] grid grid-cols-[1.2fr_1fr] items-start gap-[18px] rounded-[18px] border border-[var(--accent-dim)] bg-[linear-gradient(135deg,rgba(96,165,250,0.12),rgba(15,23,42,0.18))] p-[18px]";
+  "mb-[18px] grid grid-cols-[1.2fr_1fr] items-start gap-[18px] rounded-[18px] border border-info-border bg-info-dim p-[18px]";
 const toolbarClass = "mb-3.5 flex flex-wrap items-center gap-2.5";
 const templateCardClass =
-  "rounded-2xl border border-[var(--border)] bg-[rgba(18,26,36,0.72)] p-4";
+  "rounded-2xl border border-[var(--border)] bg-[var(--surface2)] p-4";
 const emptyStateClass =
   "rounded-2xl border border-dashed border-[var(--border)] p-[22px] text-center text-[var(--text3)]";
 const textareaClass =
-  "min-h-[84px] resize-y rounded-[10px] border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-3 py-[11px] text-[var(--text1)]";
+  "min-h-[84px] resize-y rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-[11px] text-[var(--text1)]";
 const chipClass =
-  "rounded-full border border-[var(--border)] bg-[rgba(7,10,15,0.38)] px-[9px] py-1 text-[12px] text-[var(--text2)]";
+  "rounded-full border border-[var(--border)] bg-[var(--chip)] px-[9px] py-1 text-[12px] text-[var(--text2)]";
 const errorBannerClass =
   "mb-4 rounded-xl border border-error-border bg-error-dim px-[14px] py-3 text-[13px] text-error";

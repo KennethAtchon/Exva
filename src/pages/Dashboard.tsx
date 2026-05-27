@@ -527,7 +527,7 @@ const archivedToggleClass =
   "mb-3 flex shrink-0 items-center gap-2 text-[12px] text-[var(--text2)]";
 
 const stripClass =
-  "mb-1 flex shrink-0 items-stretch overflow-x-auto overscroll-x-contain rounded-xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(18,26,36,0.55),var(--surface))] [-webkit-overflow-scrolling:touch]";
+  "mb-1 flex shrink-0 items-stretch overflow-x-auto overscroll-x-contain rounded-xl border border-[var(--border)] bg-[var(--surface)] [-webkit-overflow-scrolling:touch]";
 
 const stripItemClass =
   "flex min-w-0 flex-[1_0_120px] flex-col gap-[5px] px-5 py-[18px]";

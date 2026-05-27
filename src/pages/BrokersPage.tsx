@@ -507,13 +507,13 @@ const errorBannerClass =
   "rounded-xl border border-error-border bg-error-dim p-3 px-3.5 text-[13px] text-error";
 
 const sessionRowClass =
-  "flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[rgba(7,10,15,0.28)] px-3.5 py-3";
+  "flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-3.5 py-3";
 
 const settingsPanelClass =
-  "grid gap-3 rounded-[14px] border border-[var(--border)] bg-[rgba(7,10,15,0.34)] p-3.5";
+  "grid gap-3 rounded-[14px] border border-[var(--border)] bg-[var(--surface2)] p-3.5";
 
 const fieldClass = "grid gap-1.5";
 const fieldLabelClass =
   "text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]";
 const inputClass =
-  "w-full rounded-lg border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
+  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";

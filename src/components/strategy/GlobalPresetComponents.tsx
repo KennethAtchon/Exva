@@ -33,13 +33,13 @@ const presetBadgeClass =
   "whitespace-nowrap rounded-full px-2 py-[3px] text-[12px] font-semibold tracking-[0.3px] text-[var(--text2)]";
 
 const applyPresetButtonClass =
-  "mt-0.5 flex w-full items-center justify-center gap-[5px] rounded-lg border border-[rgba(59,130,246,0.4)] px-3 py-2 text-[12px] font-bold tracking-[0.3px] transition-colors duration-[120ms]";
+  "mt-0.5 flex w-full items-center justify-center gap-[5px] rounded-lg border border-info-border px-3 py-2 text-[12px] font-bold tracking-[0.3px] transition-colors duration-[120ms]";
 
 const modalOverlayClass =
   "fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.65)] p-6 backdrop-blur-[4px]";
 
 const modalPanelClass =
-  "flex w-full max-w-[460px] flex-col gap-[18px] rounded-2xl border border-[rgba(255,255,255,0.1)] bg-[linear-gradient(145deg,rgba(22,32,50,0.98),rgba(14,22,38,0.97))] px-6 pb-5 pt-6 shadow-[0_24px_64px_rgba(0,0,0,0.6),0_0_0_1px_rgba(59,130,246,0.1)]";
+  "flex w-full max-w-[460px] flex-col gap-[18px] rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 pb-5 pt-6 shadow-[0_24px_64px_rgba(0,0,0,0.4)]";
 
 function labelize(id: string): string {
   return id
@@ -85,23 +85,23 @@ function GlobalPresetCard({
   const badges = [
     {
       label: labelize(preset.posturePresetId),
-      color: "rgba(99,102,241,0.18)",
-      border: "rgba(99,102,241,0.32)",
+      color: "var(--color-market-dim)",
+      border: "var(--color-market-border)",
     },
     {
       label: labelize(preset.rulesPresetId),
-      color: "rgba(16,185,129,0.14)",
-      border: "rgba(16,185,129,0.28)",
+      color: "var(--color-success-dim)",
+      border: "var(--color-success-border)",
     },
     {
       label: labelize(preset.riskPresetId),
-      color: "rgba(245,158,11,0.14)",
-      border: "rgba(245,158,11,0.28)",
+      color: "var(--color-warning-dim)",
+      border: "var(--color-warning-border)",
     },
     {
       label: labelize(preset.timeframePresetId),
-      color: "rgba(59,130,246,0.14)",
-      border: "rgba(59,130,246,0.28)",
+      color: "var(--color-info-dim)",
+      border: "var(--color-info-border)",
     },
   ];
 
@@ -112,14 +112,14 @@ function GlobalPresetCard({
       className={cn(
         presetCardClass,
         isApplied
-          ? "border border-[rgba(59,130,246,0.45)] bg-[linear-gradient(145deg,rgba(30,41,59,0.95),rgba(15,23,42,0.9))] shadow-[0_0_0_1px_rgba(59,130,246,0.2),0_4px_16px_rgba(59,130,246,0.1)]"
+          ? "border border-info-border bg-[var(--surface2)] shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
           : hovered
-            ? "border border-[rgba(255,255,255,0.1)] bg-[linear-gradient(145deg,rgba(22,32,46,0.9),rgba(14,22,36,0.85))] shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
-            : "border border-[var(--border)] bg-[linear-gradient(145deg,rgba(22,32,46,0.9),rgba(14,22,36,0.85))] shadow-[0_2px_8px_rgba(0,0,0,0.2)]",
+            ? "border border-[var(--border)] bg-[var(--surface2)] shadow-[0_4px_20px_rgba(0,0,0,0.08)]"
+            : "border border-[var(--border)] bg-[var(--surface2)] shadow-[0_2px_8px_rgba(0,0,0,0.06)]",
       )}
     >
       {isApplied && (
-        <div className="absolute left-0 right-0 top-0 h-0.5 rounded-t-[14px] bg-[linear-gradient(90deg,transparent,rgba(59,130,246,0.7),transparent)]" />
+        <div className="absolute left-0 right-0 top-0 h-0.5 rounded-t-[14px] bg-[linear-gradient(90deg,transparent,var(--color-info),transparent)]" />
       )}
 
       <div className="flex items-start justify-between gap-2">
@@ -156,7 +156,7 @@ function GlobalPresetCard({
                   onDelete();
                 }}
                 title="Delete preset"
-                className={cn(iconBtnClass, "text-[rgba(248,113,113,0.8)]")}
+                className={cn(iconBtnClass, "text-error")}
               >
                 <TrashIcon />
               </button>
@@ -204,10 +204,10 @@ function GlobalPresetCard({
         className={cn(
           applyPresetButtonClass,
           isApplied
-            ? "bg-[rgba(59,130,246,0.08)] text-[rgba(147,197,253,0.9)]"
+            ? "bg-info-dim text-info"
             : applyHover && !disabled
-              ? "bg-[rgba(59,130,246,0.22)] text-[rgba(191,219,254,0.95)]"
-              : "bg-[rgba(59,130,246,0.14)] text-[rgba(191,219,254,0.95)]",
+              ? "bg-info-dim text-info"
+              : "bg-info-dim text-info",
           disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
         )}
       >
@@ -561,4 +561,4 @@ const saveBtnBaseClass =
   "rounded-lg border-none px-5 py-[9px] text-[13px] font-bold";
 
 const createBtnClass =
-  "cursor-pointer rounded-lg border border-[rgba(59,130,246,0.35)] bg-[rgba(59,130,246,0.1)] px-3.5 py-[7px] text-[12px] font-bold tracking-[0.3px] text-[rgba(147,197,253,0.9)]";
+  "cursor-pointer rounded-lg border border-info-border bg-info-dim px-3.5 py-[7px] text-[12px] font-bold tracking-[0.3px] text-info";

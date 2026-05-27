@@ -907,12 +907,12 @@ const stepBadgeClass =
   "flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface3)] text-[12px] font-bold text-[var(--text2)]";
 
 const emptyStateClass =
-  "flex flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[rgba(18,26,36,0.6)] px-6 py-[60px] text-center";
+  "flex flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface2)] px-6 py-[60px] text-center";
 
 const stepListClass = "mb-6 grid w-full max-w-[340px] gap-2.5 text-left";
 
 const goToSessionsButtonClass =
-  "cursor-pointer rounded-[10px] border border-[rgba(96,165,250,0.3)] bg-[rgba(96,165,250,0.1)] px-[22px] py-2.5 text-[13px] font-semibold text-[rgba(96,165,250,0.95)]";
+  "cursor-pointer rounded-[10px] border border-info-border bg-info-dim px-[22px] py-2.5 text-[13px] font-semibold text-info";
 
 const viewToggleContainerClass =
   "flex overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface2)]";
@@ -935,9 +935,9 @@ const warningDrainButtonClass =
 const warningForceStopButtonClass =
   "cursor-pointer rounded-lg border border-error-border bg-error-dim px-2.5 py-[7px] text-error";
 const activeGlobalPresetClass =
-  "flex items-center justify-between gap-3 rounded-xl border border-[rgba(96,165,250,0.22)] bg-[linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.82))] px-4 py-3.5";
+  "flex items-center justify-between gap-3 rounded-xl border border-info-border bg-[var(--surface2)] px-4 py-3.5";
 const activeGlobalPresetEyebrowClass =
-  "text-[12px] font-bold uppercase tracking-[0.35px] text-[rgba(147,197,253,0.85)]";
+  "text-[12px] font-bold uppercase tracking-[0.35px] text-info";
 const activeGlobalPresetLabelClass =
   "text-[16px] font-bold text-[var(--text1)]";
 const activeGlobalPresetDescriptionClass =
@@ -948,13 +948,13 @@ const activeGlobalPresetSourceClass = (
   cn(
     "inline-flex w-fit rounded-full px-2.5 py-1 text-[12px] font-bold tracking-[0.2px]",
     source === "user"
-      ? "border border-[rgba(34,197,94,0.28)] bg-[rgba(34,197,94,0.12)] text-[rgba(187,247,208,0.96)]"
-      : "border border-[rgba(96,165,250,0.28)] bg-[rgba(96,165,250,0.12)] text-[rgba(191,219,254,0.96)]",
+      ? "border border-success-border bg-success-dim text-success"
+      : "border border-info-border bg-info-dim text-info",
   );
 const presetSummaryClass =
-  "mt-3.5 grid gap-3 rounded-xl border border-[rgba(96,165,250,0.22)] bg-[linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.82))] p-3.5";
+  "mt-3.5 grid gap-3 rounded-xl border border-info-border bg-[var(--surface2)] p-3.5";
 const presetBadgeClass =
-  "inline-flex w-fit rounded-full border border-[rgba(96,165,250,0.28)] bg-[rgba(96,165,250,0.12)] px-2.5 py-1 text-[12px] font-bold tracking-[0.2px] text-[rgba(191,219,254,0.96)]";
+  "inline-flex w-fit rounded-full border border-info-border bg-info-dim px-2.5 py-1 text-[12px] font-bold tracking-[0.2px] text-info";
 const presetThesisClass =
   "text-[13px] font-semibold leading-[1.55] text-[var(--text1)]";
 const presetBulletClass = "text-[12px] leading-normal text-[var(--text3)]";

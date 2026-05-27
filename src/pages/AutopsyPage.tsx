@@ -355,7 +355,7 @@ function VersionSelector({
             className={cn(
               versionBtnBaseClass,
               active
-                ? "border border-[rgba(96,165,250,0.5)] bg-[rgba(96,165,250,0.12)] text-info"
+                ? "border border-info-border bg-info-dim text-info"
                 : "border border-[var(--border)] bg-transparent text-[var(--text3)]",
             )}
           >
@@ -386,7 +386,7 @@ function WarningBanner({
       className={cn(
         warningBannerBaseClass,
         tone === "success" &&
-          "border border-success-border bg-[rgba(52,211,153,0.08)] text-success",
+          "border border-success-border bg-success-dim text-success",
         tone === "error" &&
           "border border-error-border bg-error-dim text-error",
         tone === "warning" &&
@@ -419,10 +419,10 @@ function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
           }
           bg={
             d.valid === true
-              ? "rgba(52,211,153,0.12)"
+              ? "var(--color-success-dim)"
               : d.valid === false
-                ? "rgba(248,113,113,0.12)"
-                : "rgba(251,191,36,0.12)"
+                ? "var(--color-error-dim)"
+                : "var(--color-warning-dim)"
           }
         />
       </FieldRow>
@@ -434,8 +434,8 @@ function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
           }
           bg={
             d.confirmatoryBias
-              ? "rgba(251,191,36,0.12)"
-              : "rgba(52,211,153,0.12)"
+              ? "var(--color-warning-dim)"
+              : "var(--color-success-dim)"
           }
         />
       </FieldRow>
