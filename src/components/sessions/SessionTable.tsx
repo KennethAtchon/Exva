@@ -347,7 +347,7 @@ const SessionCard = ({
           style={{
             marginTop: 8,
             fontSize: 12,
-            color: "#fca5a5",
+            color: "var(--color-error)",
             lineHeight: 1.4,
           }}
         >
@@ -644,28 +644,28 @@ const primaryActionButtonStyle = {
   ...actionButtonStyle,
   border: "1px solid transparent",
   background: "var(--accent)",
-  color: "white",
+  color: "hsl(var(--primary-foreground))",
   fontWeight: 600,
 } as const;
 
 const dangerButtonStyle = {
   ...actionButtonStyle,
-  border: "1px solid rgba(248,113,113,0.32)",
-  color: "#fca5a5",
+  border: "1px solid var(--color-error-border)",
+  color: "var(--color-error)",
 } as const;
 
 const forceStopButtonStyle = {
   ...dangerButtonStyle,
-  border: "1px solid rgba(239,68,68,0.55)",
-  background: "rgba(127,29,29,0.28)",
-  color: "#fecaca",
+  border: "1px solid var(--color-error-border)",
+  background: "var(--color-error-dim)",
+  color: "var(--color-error)",
 } as const;
 
 const stopWhenFlatButtonStyle = {
   ...actionButtonStyle,
-  border: "1px solid rgba(251,146,60,0.35)",
-  background: "rgba(249,115,22,0.14)",
-  color: "#fdba74",
+  border: "1px solid var(--color-orange-border)",
+  background: "var(--color-orange-dim)",
+  color: "var(--color-orange)",
   fontWeight: 600,
 } as const;
 
@@ -673,9 +673,9 @@ const drainBannerStyle = {
   marginTop: 8,
   padding: "10px 12px",
   borderRadius: 8,
-  border: "1px solid rgba(251,146,60,0.35)",
-  background: "rgba(249,115,22,0.12)",
-  color: "#fdba74",
+  border: "1px solid var(--color-orange-border)",
+  background: "var(--color-orange-dim)",
+  color: "var(--color-orange)",
   fontSize: 12,
   lineHeight: 1.45,
 } as const;
@@ -684,9 +684,9 @@ const orphanWarningStyle = {
   marginTop: 8,
   padding: "10px 12px",
   borderRadius: 8,
-  border: "1px solid rgba(251,146,60,0.35)",
-  background: "rgba(249,115,22,0.12)",
-  color: "#fdba74",
+  border: "1px solid var(--color-orange-border)",
+  background: "var(--color-orange-dim)",
+  color: "var(--color-orange)",
   fontSize: 12,
   lineHeight: 1.45,
 } as const;

@@ -22,18 +22,11 @@ export const TimeframeHorizonCard = ({
   return (
     <Card>
       <SectionTitle>Timeframe &amp; holding horizon</SectionTitle>
-      <p
-        style={{
-          color: "var(--text3)",
-          fontSize: 12,
-          marginTop: 8,
-          lineHeight: 1.55,
-        }}
-      >
+      <p className="mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
         Bar size agents use for thesis and risk. Optional hold targets align
         approvals and AI context with how long you intend to keep positions.
       </p>
-      <div style={formGridStyle}>
+      <div className="mt-4 grid gap-3.5">
         <Field label="Primary trading timeframe">
           <ShadcnSelect
             value={timeframe.primaryTradingTimeframe}
@@ -109,14 +102,7 @@ export const TimeframeHorizonCard = ({
         </Field>
       </div>
       {mismatch ? (
-        <p
-          style={{
-            marginTop: 12,
-            fontSize: 12,
-            color: "#fbbf24",
-            lineHeight: 1.45,
-          }}
-        >
+        <p className="mt-3 text-[12px] leading-[1.45] text-warning">
           {mismatch}
         </p>
       ) : null}
@@ -146,13 +132,11 @@ const Field = ({
   label: string;
   children: React.ReactNode;
 }) => (
-  <div style={{ display: "grid", gap: 6 }}>
-    <div style={{ fontSize: 12, color: "var(--text3)" }}>{label}</div>
+  <div className="grid gap-1.5">
+    <div className="text-[12px] text-[var(--text3)]">{label}</div>
     {children}
   </div>
 );
-
-const formGridStyle = { display: "grid", gap: 14, marginTop: 16 } as const;
 const inputStyle = {
   width: "100%",
   padding: "9px 11px",

@@ -12,11 +12,11 @@ import { fmt } from "@/lib/formatters";
 // ---------------------------------------------------------------------------
 
 const PHASE_PALETTE: Record<string, { color: string; label: string }> = {
-  thesis: { color: "#60a5fa", label: "Thesis" },
-  execution: { color: "#34d399", label: "Execution" },
-  behavioral: { color: "#fbbf24", label: "Behavioral" },
-  market_context: { color: "#a78bfa", label: "Market" },
-  synthesis: { color: "#e2e8f0", label: "Synthesis" },
+  thesis: { color: "var(--color-info)", label: "Thesis" },
+  execution: { color: "var(--color-success)", label: "Execution" },
+  behavioral: { color: "var(--color-warning)", label: "Behavioral" },
+  market_context: { color: "var(--color-market)", label: "Market" },
+  synthesis: { color: "var(--text1)", label: "Synthesis" },
 };
 
 const MONTH_LABELS = [
@@ -67,7 +67,7 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
     <div
       style={{
         borderRadius: 8,
-        border: `1px solid ${hasError ? "rgba(248,113,113,0.3)" : "var(--border)"}`,
+        border: `1px solid ${hasError ? "var(--color-error-border)" : "var(--border)"}`,
         overflow: "hidden",
         background: "var(--surface2)",
       }}
@@ -89,7 +89,7 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
           gap: 10,
           padding: "10px 14px",
           cursor: "pointer",
-          borderLeft: `3px solid ${hasError ? "#f87171" : ph.color}`,
+          borderLeft: `3px solid ${hasError ? "var(--color-error)" : ph.color}`,
           background: "transparent",
         }}
       >
@@ -122,7 +122,7 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
           <span
             style={{
               fontSize: 12,
-              color: "#f87171",
+              color: "var(--color-error)",
               fontFamily: "var(--font-mono)",
               marginRight: 4,
             }}
@@ -165,8 +165,8 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
               label="ERROR"
               text={trace.error ?? ""}
               maxH={120}
-              color="#f87171"
-              borderColor="#f87171"
+              color="var(--color-error)"
+              borderColor="var(--color-error)"
             />
           ) : (
             <PromptBlock
@@ -257,8 +257,8 @@ function VersionChips({
             style={{
               ...versionChipStyle,
               border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-              background: active ? "rgba(96,165,250,0.15)" : "transparent",
-              color: active ? "#60a5fa" : "var(--text3)",
+              background: active ? "var(--color-info-dim)" : "transparent",
+              color: active ? "var(--color-info)" : "var(--text3)",
             }}
           >
             v{i + 1} · <span suppressHydrationWarning>{date}</span>

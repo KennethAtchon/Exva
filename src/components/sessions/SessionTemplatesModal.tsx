@@ -648,8 +648,8 @@ const errorBannerStyle = {
   marginBottom: 16,
   padding: "12px 14px",
   borderRadius: 12,
-  border: "1px solid rgba(248,113,113,0.34)",
-  background: "rgba(248,113,113,0.08)",
-  color: "#fca5a5",
+  border: "1px solid var(--color-error-border)",
+  background: "var(--color-error-dim)",
+  color: "var(--color-error)",
   fontSize: 13,
 } as const;

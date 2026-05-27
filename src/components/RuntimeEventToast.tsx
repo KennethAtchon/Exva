@@ -75,7 +75,10 @@ export function RuntimeEventToast() {
   if (toasts.length === 0) return null;
 
   return (
-    <div style={containerStyle} aria-live="polite">
+    <div
+      className="pointer-events-none fixed right-5 top-[66px] z-[100] flex w-[min(420px,calc(100vw-40px))] flex-col gap-2"
+      aria-live="polite"
+    >
       {toasts.map((toast) => {
         const isError = toast.level === "ERROR";
         const isInfo = toast.level === "INFO";
@@ -85,38 +88,34 @@ export function RuntimeEventToast() {
             style={{
               ...toastStyle,
               borderColor: isError
-                ? "rgba(248,113,113,0.35)"
+                ? "var(--color-error-border)"
                 : isInfo
-                  ? "rgba(96,165,250,0.35)"
-                  : "rgba(251,191,36,0.35)",
+                  ? "var(--color-info-border)"
+                  : "var(--color-warning-border)",
               background: isError
-                ? "rgba(248,113,113,0.12)"
+                ? "var(--color-error-dim)"
                 : isInfo
-                  ? "rgba(59,130,246,0.12)"
-                  : "rgba(251,191,36,0.1)",
+                  ? "var(--color-info-dim)"
+                  : "var(--color-warning-dim)",
             }}
           >
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="min-w-0 flex-1">
               <div
                 style={{
-                  fontSize: 12,
                   fontWeight: 700,
                   letterSpacing: "0.05em",
-                  color: isError ? "#fca5a5" : isInfo ? "#93c5fd" : "#fcd34d",
-                  marginBottom: 4,
+                  color: isError
+                    ? "var(--color-error)"
+                    : isInfo
+                      ? "var(--color-info)"
+                      : "var(--color-warning)",
                   fontFamily: "var(--font-mono)",
                 }}
+                className="mb-1 text-[12px]"
               >
                 {toast.level}
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  lineHeight: 1.45,
-                  color: "var(--text1)",
-                  wordBreak: "break-word",
-                }}
-              >
+              <div className="break-words text-[12px] leading-[1.45] text-[var(--text1)]">
                 {toast.message}
               </div>
             </div>
@@ -134,18 +133,6 @@ export function RuntimeEventToast() {
     </div>
   );
 }
-
-const containerStyle: CSSProperties = {
-  position: "fixed",
-  top: 66,
-  right: 20,
-  zIndex: 100,
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
-  width: "min(420px, calc(100vw - 40px))",
-  pointerEvents: "none",
-};
 
 const toastStyle: CSSProperties = {
   display: "flex",

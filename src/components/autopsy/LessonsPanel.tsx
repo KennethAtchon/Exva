@@ -14,34 +14,34 @@ const STATUS_STYLE: Record<
   LessonStatus,
   { label: string; bg: string; color: string }
 > = {
-  pending: { label: "Pending", bg: "rgba(148,163,184,0.12)", color: "#94a3b8" },
+  pending: { label: "Pending", bg: "var(--surface3)", color: "var(--text3)" },
   implemented: {
     label: "Implemented",
-    bg: "rgba(96,165,250,0.15)",
-    color: "#60a5fa",
+    bg: "var(--color-info-dim)",
+    color: "var(--color-info)",
   },
   validated: {
     label: "Validated",
-    bg: "rgba(52,211,153,0.15)",
-    color: "#34d399",
+    bg: "var(--color-success-dim)",
+    color: "var(--color-success)",
   },
   recurring: {
     label: "Recurring",
-    bg: "rgba(251,191,36,0.15)",
-    color: "#fbbf24",
+    bg: "var(--color-warning-dim)",
+    color: "var(--color-warning)",
   },
   dismissed: {
     label: "Dismissed",
-    bg: "rgba(100,116,139,0.12)",
-    color: "#64748b",
+    bg: "var(--surface3)",
+    color: "var(--text2)",
   },
 };
 
 const SEVERITY_STYLE: Record<string, { dot: string; label: string }> = {
-  low: { dot: "#4a5a6a", label: "Low" },
-  medium: { dot: "#60a5fa", label: "Med" },
-  high: { dot: "#fbbf24", label: "High" },
-  critical: { dot: "#f87171", label: "Crit" },
+  low: { dot: "var(--text3)", label: "Low" },
+  medium: { dot: "var(--color-info)", label: "Med" },
+  high: { dot: "var(--color-warning)", label: "High" },
+  critical: { dot: "var(--color-error)", label: "Crit" },
 };
 
 const STATUS_ORDER: LessonStatus[] = [
@@ -257,8 +257,8 @@ function LessonRow({
             <span
               style={{
                 ...lessonChipStyle,
-                background: "rgba(251,191,36,0.12)",
-                color: "#fbbf24",
+                background: "var(--color-warning-dim)",
+                color: "var(--color-warning)",
               }}
             >
               ×{lesson.recurrenceCount}
@@ -559,7 +559,13 @@ export function LessonsPanel({
             style={inputStyle}
           />
           {error && (
-            <div style={{ fontSize: 12, color: "#fca5a5", lineHeight: 1.5 }}>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--color-error)",
+                lineHeight: 1.5,
+              }}
+            >
               {error}
             </div>
           )}
@@ -642,9 +648,9 @@ const secondaryButtonStyle = {
 const primaryButtonStyle = {
   padding: "7px 11px",
   borderRadius: 6,
-  border: "1px solid rgba(96,165,250,0.4)",
-  background: "rgba(96,165,250,0.15)",
-  color: "#60a5fa",
+  border: "1px solid var(--color-info-border)",
+  background: "var(--color-info-dim)",
+  color: "var(--color-info)",
   fontSize: 12,
   cursor: "pointer",
 };

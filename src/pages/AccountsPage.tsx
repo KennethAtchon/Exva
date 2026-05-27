@@ -100,16 +100,16 @@ const ConnBadge = ({ ok }: { ok: boolean }) => (
       gap: 6,
       padding: "4px 11px",
       borderRadius: 20,
-      background: ok ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)",
-      border: `1px solid ${ok ? "rgba(52,211,153,0.2)" : "rgba(248,113,113,0.2)"}`,
+      background: ok ? "var(--color-success-dim)" : "var(--color-error-dim)",
+      border: `1px solid ${ok ? "var(--color-success-border)" : "var(--color-error-border)"}`,
     }}
   >
-    <Dot color={ok ? "#34d399" : "#f87171"} size={6} />
+    <Dot color={ok ? "var(--color-success)" : "var(--color-error)"} size={6} />
     <span
       style={{
         fontSize: 12,
         fontFamily: "var(--font-mono)",
-        color: ok ? "#34d399" : "#f87171",
+        color: ok ? "var(--color-success)" : "var(--color-error)",
         fontWeight: 600,
       }}
     >
@@ -542,9 +542,9 @@ export const AccountsPage = () => {
               {aiProviders.map((p) => {
                 const statusColor =
                   p.lastTestStatus === "ok"
-                    ? "#34d399"
+                    ? "var(--color-success)"
                     : p.lastTestStatus === "error"
-                      ? "#f87171"
+                      ? "var(--color-error)"
                       : "var(--text3)";
                 const statusLabel =
                   p.lastTestStatus === "ok"
@@ -654,10 +654,10 @@ export const AccountsPage = () => {
                               fontSize: 12,
                               padding: "6px 10px",
                               borderRadius: 7,
-                              border: "1px solid rgba(248,113,113,0.35)",
-                              background: "rgba(248,113,113,0.08)",
+                              border: "1px solid var(--color-error-border)",
+                              background: "var(--color-error-dim)",
                               cursor: rowSavingId === p.id ? "wait" : "pointer",
-                              color: "#fca5a5",
+                              color: "var(--color-error)",
                             }}
                           >
                             {rowSavingId === p.id ? "Deleting…" : "Delete"}
@@ -952,8 +952,8 @@ export const AccountsPage = () => {
                         fontSize: 12,
                         padding: "6px 10px",
                         borderRadius: 7,
-                        border: "1px solid rgba(248,113,113,0.35)",
-                        color: "#f87171",
+                        border: "1px solid var(--color-error-border)",
+                        color: "var(--color-error)",
                         background: "transparent",
                         cursor: "pointer",
                       }}
@@ -1192,9 +1192,9 @@ export const AccountsPage = () => {
                 const isBuiltIn = isBuiltInSearchProviderAccount(p);
                 const statusColor =
                   p.lastTestStatus === "ok"
-                    ? "#34d399"
+                    ? "var(--color-success)"
                     : p.lastTestStatus === "error"
-                      ? "#f87171"
+                      ? "var(--color-error)"
                       : "var(--text3)";
                 const statusLabel =
                   p.lastTestStatus === "ok"
@@ -1331,11 +1331,11 @@ export const AccountsPage = () => {
                                 fontSize: 12,
                                 padding: "6px 10px",
                                 borderRadius: 7,
-                                border: "1px solid rgba(248,113,113,0.35)",
-                                background: "rgba(248,113,113,0.08)",
+                                border: "1px solid var(--color-error-border)",
+                                background: "var(--color-error-dim)",
                                 cursor:
                                   rowSavingId === p.id ? "wait" : "pointer",
-                                color: "#fca5a5",
+                                color: "var(--color-error)",
                               }}
                             >
                               {rowSavingId === p.id ? "Deleting…" : "Delete"}
@@ -1488,7 +1488,7 @@ export const AccountsPage = () => {
                 >
                   <span
                     style={{
-                      color: "#34d399",
+                      color: "var(--color-success)",
                       fontSize: 13,
                       flexShrink: 0,
                       marginTop: 1,
@@ -1569,7 +1569,7 @@ const saveKeychainBtnStyle = (isSaving: boolean) =>
     borderRadius: 8,
     border: "none",
     background: "var(--accent)",
-    color: "#fff",
+    color: "hsl(var(--primary-foreground))",
     fontWeight: 600,
     cursor: isSaving ? "wait" : "pointer",
     opacity: isSaving ? 0.85 : 1,
@@ -1594,7 +1594,7 @@ const saveDefaultModelBtnStyle = (disabled: boolean) =>
     borderRadius: 9,
     border: "none",
     background: "var(--accent)",
-    color: "#fff",
+    color: "hsl(var(--primary-foreground))",
     fontWeight: 600,
     fontSize: 13,
     cursor: disabled ? "not-allowed" : "pointer",
@@ -1618,7 +1618,7 @@ const accentActionBtnBase = {
   borderRadius: 9,
   border: "none",
   background: "var(--accent)",
-  color: "#fff",
+  color: "hsl(var(--primary-foreground))",
   fontWeight: 600,
   fontSize: 13,
   cursor: "pointer",
@@ -1672,13 +1672,13 @@ const envToggleButtonStyle = {
 } as const;
 
 const envTogglePaperActiveStyle = {
-  background: "rgba(251,191,36,0.15)",
-  color: "#fbbf24",
-  borderColor: "rgba(251,191,36,0.4)",
+  background: "var(--color-warning-dim)",
+  color: "var(--color-warning)",
+  borderColor: "var(--color-warning-border)",
 } as const;
 
 const envToggleLiveActiveStyle = {
-  background: "rgba(52,211,153,0.15)",
-  color: "#34d399",
-  borderColor: "rgba(52,211,153,0.4)",
+  background: "var(--color-success-dim)",
+  color: "var(--color-success)",
+  borderColor: "var(--color-success-border)",
 } as const;

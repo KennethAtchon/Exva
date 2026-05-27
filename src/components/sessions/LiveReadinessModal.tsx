@@ -107,7 +107,7 @@ export const LiveReadinessModal = ({
               <div style={checkIconStyle(check.passed)}>
                 {check.passed ? "✓" : "✗"}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="min-w-0 flex-1">
                 <div
                   style={{
                     fontSize: 13,
@@ -131,7 +131,7 @@ export const LiveReadinessModal = ({
 
           {testResult && (
             <div style={testResultBannerStyle(testResult.ok)}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
+              <span className="font-mono text-[12px]">
                 {testResult.ok ? "✓ " : "✗ "}
                 {testResult.message}
               </span>
@@ -140,14 +140,7 @@ export const LiveReadinessModal = ({
 
           {allNonAckPassed && !currentReport.acknowledgedAt && (
             <div style={consentBoxStyle}>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: "#fca5a5",
-                  fontWeight: 600,
-                  marginBottom: 6,
-                }}
-              >
+              <div className="mb-1.5 text-[13px] font-semibold text-error">
                 Live trading uses real capital
               </div>
               <div
@@ -169,7 +162,7 @@ export const LiveReadinessModal = ({
           >
             Cancel
           </Button>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={() => void handleTestConnection()}
@@ -205,7 +198,7 @@ const overlayStyle = {
 
 const dialogStyle = {
   background: "var(--surface)",
-  border: "1px solid rgba(248,113,113,0.28)",
+  border: "1px solid var(--color-error-border)",
   borderRadius: 16,
   width: 520,
   maxWidth: "90vw",
@@ -218,7 +211,7 @@ const dialogStyle = {
 const headerStyle = {
   padding: "20px 24px 16px",
   borderBottom: "1px solid var(--border)",
-  background: "rgba(248,113,113,0.06)",
+  background: "var(--color-error-dim)",
 };
 
 const bodyStyle = {
@@ -246,8 +239,8 @@ function checkRowStyle(passed: boolean) {
     gap: 12,
     padding: "10px 12px",
     borderRadius: 8,
-    border: `1px solid ${passed ? "rgba(0,229,160,0.2)" : "rgba(255,71,87,0.2)"}`,
-    background: passed ? "rgba(0,229,160,0.04)" : "rgba(255,71,87,0.04)",
+    border: `1px solid ${passed ? "var(--color-success-border)" : "var(--color-error-border)"}`,
+    background: passed ? "var(--color-success-dim)" : "var(--color-error-dim)",
   } as const;
 }
 
@@ -263,17 +256,17 @@ function checkIconStyle(passed: boolean) {
     fontWeight: 700,
     flexShrink: 0,
     marginTop: 1,
-    background: passed ? "rgba(0,229,160,0.14)" : "rgba(255,71,87,0.14)",
-    color: passed ? "#00e5a0" : "#ff4757",
+    background: passed ? "var(--color-success-dim)" : "var(--color-error-dim)",
+    color: passed ? "var(--color-success)" : "var(--color-error)",
   } as const;
 }
 
 const ackBadgeStyle = {
   fontSize: 12,
   fontFamily: "var(--font-mono)",
-  color: "#fbbf24",
-  background: "rgba(251,191,36,0.1)",
-  border: "1px solid rgba(251,191,36,0.2)",
+  color: "var(--color-warning)",
+  background: "var(--color-warning-dim)",
+  border: "1px solid var(--color-warning-border)",
   borderRadius: 4,
   padding: "2px 6px",
   flexShrink: 0,
@@ -283,17 +276,17 @@ function testResultBannerStyle(ok: boolean) {
   return {
     padding: "8px 12px",
     borderRadius: 6,
-    border: `1px solid ${ok ? "rgba(0,229,160,0.24)" : "rgba(255,71,87,0.24)"}`,
-    background: ok ? "rgba(0,229,160,0.06)" : "rgba(255,71,87,0.06)",
-    color: ok ? "#00e5a0" : "#ff4757",
+    border: `1px solid ${ok ? "var(--color-success-border)" : "var(--color-error-border)"}`,
+    background: ok ? "var(--color-success-dim)" : "var(--color-error-dim)",
+    color: ok ? "var(--color-success)" : "var(--color-error)",
   } as const;
 }
 
 const consentBoxStyle = {
   padding: "12px 14px",
   borderRadius: 8,
-  border: "1px solid rgba(248,113,113,0.3)",
-  background: "rgba(127,29,29,0.12)",
+  border: "1px solid var(--color-error-border)",
+  background: "var(--color-error-dim)",
   marginTop: 4,
 } as const;
 
@@ -317,8 +310,8 @@ const primaryButtonStyle = {
   padding: "9px 18px",
   borderRadius: 8,
   border: "none",
-  background: "rgba(248,113,113,0.2)",
-  color: "#fca5a5",
+  background: "var(--color-error-dim)",
+  color: "var(--color-error)",
 } as const;
 
 const disabledButtonStyle = {

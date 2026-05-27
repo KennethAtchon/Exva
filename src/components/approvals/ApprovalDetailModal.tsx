@@ -75,23 +75,11 @@ export const ApprovalDetailModal = ({
                 {approval.instrumentSymbol}
               </DialogTitle>
               {approval.instrumentDisplayName ? (
-                <p
-                  style={{
-                    margin: "6px 0 0",
-                    fontSize: 12,
-                    color: "var(--text2)",
-                  }}
-                >
+                <p className="mt-1.5 text-[12px] text-[var(--text2)]">
                   {approval.instrumentDisplayName}
                 </p>
               ) : null}
-              <p
-                style={{
-                  margin: "6px 0 0",
-                  fontSize: 12,
-                  color: "var(--text3)",
-                }}
-              >
+              <p className="mt-1.5 text-[12px] text-[var(--text3)]">
                 {approval.predictionOutcome
                   ? `${approval.predictionOutcome} · `
                   : ""}
@@ -109,11 +97,9 @@ export const ApprovalDetailModal = ({
         </DialogHeader>
 
         {workspaceViewMode === "global" && (
-          <p
-            style={{ margin: "12px 0 0", fontSize: 12, color: "var(--text2)" }}
-          >
+          <p className="mt-3 text-[12px] text-[var(--text2)]">
             Session:{" "}
-            <strong style={{ color: "var(--text1)" }}>
+            <strong className="text-[var(--text1)]">
               {approval.sessionName}
             </strong>
           </p>
@@ -121,66 +107,31 @@ export const ApprovalDetailModal = ({
 
         <SessionHorizonSection value={summary.sessionHorizon} />
 
-        <div
-          style={{
-            marginTop: 16,
-            padding: 12,
-            borderRadius: 10,
-            background: "var(--surface2)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 6 }}>
+        <div className="mt-4 rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] p-3">
+          <div className="mb-1.5 text-[12px] text-[var(--text3)]">
             Decision snapshot
           </div>
           {typeof summary.reasoning === "string" && (
-            <p
-              style={{
-                margin: 0,
-                fontSize: 13,
-                color: "var(--text2)",
-                lineHeight: 1.5,
-              }}
-            >
+            <p className="text-[13px] leading-[1.5] text-[var(--text2)]">
               {summary.reasoning}
             </p>
           )}
           {typeof summary.riskNote === "string" && summary.riskNote && (
-            <p
-              style={{
-                margin: "10px 0 0",
-                fontSize: 12,
-                color: "var(--text3)",
-              }}
-            >
+            <p className="mt-2.5 text-[12px] text-[var(--text3)]">
               Risk: {String(summary.riskNote)}
             </p>
           )}
         </div>
 
         {showRecheckNote && (
-          <p
-            style={{
-              marginTop: 14,
-              fontSize: 12,
-              color: "#fbbf24",
-              lineHeight: 1.45,
-            }}
-          >
+          <p className="mt-3.5 text-[12px] leading-[1.45] text-warning">
             If this approval was created before the current session run,
             approving will re-run decision and risk checks before any order is
             sent.
           </p>
         )}
 
-        <label
-          style={{
-            display: "block",
-            marginTop: 14,
-            fontSize: 12,
-            color: "var(--text3)",
-          }}
-        >
+        <label className="mt-3.5 block text-[12px] text-[var(--text3)]">
           Note (optional)
           <textarea
             value={note}
@@ -190,20 +141,9 @@ export const ApprovalDetailModal = ({
           />
         </label>
 
-        {error && (
-          <p style={{ marginTop: 10, fontSize: 12, color: "#f87171" }}>
-            {error}
-          </p>
-        )}
+        {error && <p className="mt-2.5 text-[12px] text-error">{error}</p>}
 
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            marginTop: 18,
-            justifyContent: "flex-end",
-          }}
-        >
+        <div className="mt-[18px] flex justify-end gap-2.5">
           <Button
             type="button"
             variant="outline"
@@ -215,7 +155,7 @@ export const ApprovalDetailModal = ({
           <Button
             type="button"
             variant="outline"
-            className="border-red-400/60 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            className="border-error-border text-error hover:bg-error-dim hover:text-error"
             onClick={() => void run("rejected")}
             disabled={busy != null || approval.status !== "pending"}
           >
@@ -224,7 +164,7 @@ export const ApprovalDetailModal = ({
           <Button
             type="button"
             variant="outline"
-            className="border-emerald-400/60 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+            className="border-success-border text-success hover:bg-success-dim hover:text-success"
             onClick={() => void run("approved")}
             disabled={busy != null || approval.status !== "pending"}
           >
@@ -252,16 +192,8 @@ function SessionHorizonSection({ value }: { value: unknown }) {
       ? h.timeframeNotes.trim()
       : null;
   return (
-    <div
-      style={{
-        marginTop: 4,
-        padding: 12,
-        borderRadius: 10,
-        background: "rgba(96,165,250,0.08)",
-        border: "1px solid rgba(96,165,250,0.22)",
-      }}
-    >
-      <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 8 }}>
+    <div className="mt-1 rounded-[10px] border border-info-border bg-info-dim p-3">
+      <div className="mb-2 text-[12px] text-[var(--text3)]">
         Session trading horizon
       </div>
       <ul

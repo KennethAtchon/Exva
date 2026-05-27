@@ -29,11 +29,11 @@ export const Badge = ({
 }) => {
   const tone: Record<BadgeVariant, string> = {
     default: "bg-muted text-muted-foreground border-transparent",
-    success: "bg-emerald-500/15 text-emerald-400 border-transparent",
-    danger: "bg-red-500/15 text-red-400 border-transparent",
-    warn: "bg-amber-500/15 text-amber-300 border-transparent",
-    blue: "bg-blue-500/15 text-blue-400 border-transparent",
-    purple: "bg-violet-500/15 text-violet-400 border-transparent",
+    success: "border-success-border bg-success-dim text-success",
+    danger: "border-error-border bg-error-dim text-error",
+    warn: "border-warning-border bg-warning-dim text-warning",
+    blue: "border-info-border bg-info-dim text-info",
+    purple: "border-market-border bg-market-dim text-market",
   };
 
   return (
@@ -52,7 +52,7 @@ export const Badge = ({
 };
 
 export const Dot = ({
-  color = "#556068",
+  color = "var(--text3)",
   pulse = false,
   size = 7,
 }: {
@@ -61,13 +61,11 @@ export const Dot = ({
   size?: number;
 }) => (
   <span
+    className="inline-block shrink-0 rounded-full"
     style={{
-      display: "inline-block",
       width: size,
       height: size,
-      borderRadius: "50%",
       background: color,
-      flexShrink: 0,
       animation: pulse ? "pulse-dot 2s ease-in-out infinite" : "none",
     }}
   />

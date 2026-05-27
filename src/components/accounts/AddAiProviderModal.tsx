@@ -22,8 +22,8 @@ const labelStyle: CSSProperties = {
 const anthropicHintStyle: CSSProperties = {
   marginBottom: 16,
   padding: "10px 12px",
-  background: "rgba(52,211,153,0.06)",
-  border: "1px solid rgba(52,211,153,0.15)",
+  background: "var(--color-success-dim)",
+  border: "1px solid var(--color-success-border)",
   borderRadius: 9,
   fontSize: 12,
   color: "var(--text3)",
@@ -172,19 +172,12 @@ export const AddAiProviderModal = ({
             Add AI provider
           </DialogTitle>
         </DialogHeader>
-        <p
-          style={{
-            fontSize: 12,
-            color: "var(--text3)",
-            marginBottom: 16,
-            lineHeight: 1.45,
-          }}
-        >
+        <p className="mb-4 text-[12px] leading-[1.45] text-[var(--text3)]">
           Keys are stored in the OS keychain. Pick a provider, then assign
           models per role on the Strategy page.
         </p>
 
-        <div style={{ marginBottom: 14 }}>
+        <div className="mb-3.5">
           <div style={labelStyle}>Provider</div>
           <ShadcnSelect
             value={providerType}
@@ -197,7 +190,7 @@ export const AddAiProviderModal = ({
           />
         </div>
 
-        <div style={{ marginBottom: 14 }}>
+        <div className="mb-3.5">
           <div style={labelStyle}>Display name</div>
           <Input
             className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
@@ -209,7 +202,7 @@ export const AddAiProviderModal = ({
           />
         </div>
 
-        <div style={{ marginBottom: 14 }}>
+        <div className="mb-3.5">
           <div style={labelStyle}>API key</div>
           <Input
             className="h-10 border-border bg-[var(--surface2)] font-mono text-[13px] tracking-[0.03em] text-[var(--text1)]"
@@ -230,7 +223,7 @@ export const AddAiProviderModal = ({
         </div>
 
         {providerType === "openrouter" ? (
-          <div style={{ marginBottom: 14 }}>
+          <div className="mb-3.5">
             <div style={labelStyle}>API base URL (optional)</div>
             <Input
               className="h-10 border-border bg-[var(--surface2)] font-mono text-[12px] text-[var(--text1)]"
@@ -240,7 +233,7 @@ export const AddAiProviderModal = ({
               }
               placeholder="https://openrouter.ai/api/v1"
             />
-            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 6 }}>
+            <div className="mt-1.5 text-[12px] text-[var(--text3)]">
               Leave empty to use the default OpenRouter endpoint. Use a full
               https URL if you override it.
             </div>
@@ -249,7 +242,7 @@ export const AddAiProviderModal = ({
 
         {providerType === "anthropic" ? (
           <div style={anthropicHintStyle}>
-            <span style={{ color: "#34d399", fontWeight: 600 }}>
+            <span style={{ color: "var(--color-success)", fontWeight: 600 }}>
               Prompt caching
             </span>{" "}
             is used on Anthropic models where supported, which typically cuts
@@ -258,21 +251,12 @@ export const AddAiProviderModal = ({
         ) : null}
 
         {message ? (
-          <div
-            style={{
-              fontSize: 12,
-              color: "#f87171",
-              marginBottom: 12,
-              lineHeight: 1.4,
-              overflowWrap: "anywhere",
-              wordBreak: "break-word",
-            }}
-          >
+          <div className="mb-3 break-words text-[12px] leading-[1.4] text-error [overflow-wrap:anywhere]">
             {message}
           </div>
         ) : null}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+        <div className="mt-1 flex gap-2.5">
           <Button
             type="button"
             variant="outline"
@@ -285,7 +269,7 @@ export const AddAiProviderModal = ({
             type="button"
             disabled={saving}
             onClick={() => void save()}
-            className="flex-1 bg-[var(--accent)] text-white hover:opacity-95"
+            className="flex-1 bg-[var(--accent)] text-[hsl(var(--primary-foreground))] hover:opacity-95"
           >
             {saving ? "Saving…" : "Save & test"}
           </Button>

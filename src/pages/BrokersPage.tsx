@@ -285,7 +285,7 @@ const BrokerCard = ({
                 height: "100%",
                 borderRadius: 999,
                 background: broker.isOverAllocated
-                  ? "#f87171"
+                  ? "var(--color-error)"
                   : "var(--accent)",
               }}
             />
@@ -623,9 +623,9 @@ const emptyStateStyle = {
 const errorBannerStyle = {
   padding: "12px 14px",
   borderRadius: 12,
-  border: "1px solid rgba(248,113,113,0.34)",
-  background: "rgba(248,113,113,0.08)",
-  color: "#fca5a5",
+  border: "1px solid var(--color-error-border)",
+  background: "var(--color-error-dim)",
+  color: "var(--color-error)",
   fontSize: 13,
 };
 

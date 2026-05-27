@@ -366,8 +366,8 @@ const retryButtonStyle = {
   padding: "0 8px",
   fontSize: 12,
   borderRadius: 6,
-  border: "1px solid rgba(239,68,68,0.4)",
-  color: "#fca5a5",
+  border: "1px solid var(--color-error-border)",
+  color: "var(--color-error)",
   background: "transparent",
 } as const;
 
@@ -426,36 +426,36 @@ function resolveStatusChip({
   if (isHoldingPosition) {
     return {
       label: "Holding",
-      color: "#fcd34d",
-      border: "rgba(251,191,36,0.35)",
-      background: "rgba(251,191,36,0.14)",
+      color: "var(--color-warning)",
+      border: "var(--color-warning-border)",
+      background: "var(--color-warning-dim)",
     };
   }
 
   if (isRetrying) {
     return {
       label: `Retrying in ${countdown}s`,
-      color: "#93c5fd",
-      border: "rgba(147,197,253,0.35)",
-      background: "rgba(59,130,246,0.14)",
+      color: "var(--color-info)",
+      border: "var(--color-info-border)",
+      background: "var(--color-info-dim)",
     };
   }
 
   if (isFailed && retryable) {
     return {
       label: "Retry available",
-      color: "#fca5a5",
-      border: "rgba(248,113,113,0.35)",
-      background: "rgba(239,68,68,0.14)",
+      color: "var(--color-error)",
+      border: "var(--color-error-border)",
+      background: "var(--color-error-dim)",
     };
   }
 
   if (isFailed) {
     return {
       label: "Needs attention",
-      color: "#fdba74",
-      border: "rgba(251,146,60,0.35)",
-      background: "rgba(249,115,22,0.14)",
+      color: "var(--color-orange)",
+      border: "var(--color-orange-border)",
+      background: "var(--color-orange-dim)",
     };
   }
 

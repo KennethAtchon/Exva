@@ -33,17 +33,6 @@ interface LiveReadinessReport {
   acknowledgedAt: string | null;
 }
 
-const appRootStyle = {
-  display: "flex",
-  flexDirection: "column" as const,
-  height: "100vh",
-  width: "100vw",
-  overflow: "hidden",
-  background: "var(--bg)",
-  color: "var(--text1)",
-  fontFamily: "var(--font-sans)",
-} as const;
-
 const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
 
 type AppUiState = {
@@ -305,7 +294,7 @@ const renderAppShell = ({
   pageEl: () => JSX.Element;
   setStatus: ReturnType<typeof useSessionStore.getState>["setStatus"];
 }) => (
-  <div style={appRootStyle}>
+  <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--bg)] font-sans text-[var(--text1)]">
     <TopNav
       activePage={ui.page}
       onNavigate={(p) => {
@@ -329,29 +318,11 @@ const renderAppShell = ({
       stats={stats}
     />
     {ui.loadError && (
-      <div
-        style={{
-          padding: "10px 28px",
-          borderBottom: "1px solid rgba(248,113,113,0.18)",
-          background: "rgba(248,113,113,0.08)",
-          color: "#fca5a5",
-          fontSize: 12,
-          fontFamily: "var(--font-mono)",
-        }}
-      >
+      <div className="border-b border-error-border bg-error-dim px-7 py-2.5 font-mono text-[12px] text-error">
         {ui.loadError}
       </div>
     )}
-    <div
-      style={{
-        flex: 1,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {pageEl()}
-    </div>
+    <div className="flex flex-1 flex-col overflow-hidden">{pageEl()}</div>
     <RuntimeEventToast />
     {selectedId && (
       <TradeDetail

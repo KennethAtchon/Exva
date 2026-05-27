@@ -4,6 +4,15 @@ import animate from "tailwindcss-animate";
 const config = {
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  safelist: [
+    {
+      pattern:
+        /^(text|bg|border)-(success|error|warning|info|market|status-orange)(-(dim|border))?$/,
+    },
+    {
+      pattern: /^text-log-(debug|info|warn|error)$/,
+    },
+  ],
   theme: {
     extend: {
       borderRadius: {
@@ -42,6 +51,40 @@ const config = {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
         },
+        success: {
+          DEFAULT: "var(--color-success)",
+          dim: "var(--color-success-dim)",
+          border: "var(--color-success-border)",
+        },
+        error: {
+          DEFAULT: "var(--color-error)",
+          dim: "var(--color-error-dim)",
+          border: "var(--color-error-border)",
+        },
+        warning: {
+          DEFAULT: "var(--color-warning)",
+          dim: "var(--color-warning-dim)",
+          border: "var(--color-warning-border)",
+        },
+        info: {
+          DEFAULT: "var(--color-info)",
+          dim: "var(--color-info-dim)",
+          border: "var(--color-info-border)",
+        },
+        market: {
+          DEFAULT: "var(--color-market)",
+          dim: "var(--color-market-dim)",
+          border: "var(--color-market-border)",
+        },
+        "status-orange": {
+          DEFAULT: "var(--color-orange)",
+          dim: "var(--color-orange-dim)",
+          border: "var(--color-orange-border)",
+        },
+        "log-debug": "var(--color-log-debug)",
+        "log-info": "var(--color-log-info)",
+        "log-warn": "var(--color-log-warn)",
+        "log-error": "var(--color-log-error)",
         border: "hsl(var(--border-hsl))",
         input: "hsl(var(--input-hsl))",
         ring: "hsl(var(--ring))",

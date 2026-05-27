@@ -7,11 +7,11 @@ import type { AgentMessage, AgentRun, EventSourceType } from "@/lib/types";
 import { Dialog, DialogContent } from "@/components/ui";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {
-  technical: { bar: "#34d399", bg: "rgba(52,211,153,0.06)" },
-  fundamental: { bar: "#f87171", bg: "rgba(248,113,113,0.06)" },
-  review: { bar: "#60a5fa", bg: "rgba(96,165,250,0.06)" },
-  decision: { bar: "#a78bfa", bg: "rgba(167,139,250,0.06)" },
-  selector: { bar: "#fbbf24", bg: "rgba(251,191,36,0.08)" },
+  technical: { bar: "var(--color-success)", bg: "var(--color-success-dim)" },
+  fundamental: { bar: "var(--color-error)", bg: "var(--color-error-dim)" },
+  review: { bar: "var(--color-info)", bg: "var(--color-info-dim)" },
+  decision: { bar: "var(--color-market)", bg: "var(--color-market-dim)" },
+  selector: { bar: "var(--color-warning)", bg: "var(--color-warning-dim)" },
 };
 const EMPTY_VALUE = "—";
 
@@ -242,7 +242,7 @@ const TradeHero = ({
           fontFamily: "var(--font-mono)",
           fontSize: 40,
           fontWeight: 700,
-          color: hasPositivePnl ? "#34d399" : "#f87171",
+          color: hasPositivePnl ? "var(--color-success)" : "var(--color-error)",
           lineHeight: 1,
         }}
       >
@@ -253,7 +253,9 @@ const TradeHero = ({
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: 14,
-            color: hasPositivePnl ? "#34d399" : "#f87171",
+            color: hasPositivePnl
+              ? "var(--color-success)"
+              : "var(--color-error)",
             marginTop: 4,
           }}
         >
@@ -319,7 +321,7 @@ const TradePositionBar = ({
               position: "absolute",
               inset: 0,
               background:
-                "linear-gradient(to right, rgba(248,113,113,0.18) 0%, transparent 38%, transparent 62%, rgba(52,211,153,0.18) 100%)",
+                "linear-gradient(to right, var(--color-error-dim) 0%, transparent 38%, transparent 62%, var(--color-success-dim) 100%)",
             }}
           />
           <div
@@ -341,7 +343,7 @@ const TradePositionBar = ({
               top: "50%",
               transform: "translateY(-50%)",
               fontSize: 12,
-              color: "#f87171",
+              color: "var(--color-error)",
               fontFamily: "var(--font-mono)",
             }}
           >
@@ -354,7 +356,7 @@ const TradePositionBar = ({
               top: "50%",
               transform: "translateY(-50%)",
               fontSize: 12,
-              color: "#34d399",
+              color: "var(--color-success)",
               fontFamily: "var(--font-mono)",
             }}
           >
@@ -792,10 +794,10 @@ const ts: Record<string, CSSProperties> = {
   forceCloseBtn: {
     width: "100%",
     padding: 12,
-    background: "rgba(248,113,113,0.1)",
-    border: "1px solid rgba(248,113,113,0.25)",
+    background: "var(--color-error-dim)",
+    border: "1px solid var(--color-error-border)",
     borderRadius: 10,
-    color: "#f87171",
+    color: "var(--color-error)",
     fontSize: 13,
     fontWeight: 600,
     cursor: "pointer",

@@ -45,28 +45,118 @@
   --accent-dim: rgba(96, 165, 250, 0.2);
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* =======================================================
+     SEMANTIC COLOR TOKENS
+     -------------------------------------------------------
+     Edit ONLY this section to re-theme the entire app.
+     Dark (default) values live in :root.
+     Light overrides live in .light (applied to <html>).
+     Toggle: document.documentElement.classList.toggle("light")
+     =======================================================
+
+     Dim variants = tinted backgrounds for chips, badges, cards
+     Border variants = outline color for tinted elements
+
+     Dark mode dim opacity: 10-12%
+     Light mode dim opacity: 13-18%
+     ======================================================= */
+
+  /* Success: buy side, positive PnL, ok status, passing checks */
+  --color-success: #34d399;
+  --color-success-dim: rgba(52, 211, 153, 0.1);
+  --color-success-border: rgba(52, 211, 153, 0.25);
+
+  /* Error: sell side, negative PnL, error status, failed checks */
+  --color-error: #f87171;
+  --color-error-dim: rgba(248, 113, 113, 0.1);
+  --color-error-border: rgba(248, 113, 113, 0.25);
+
+  /* Warning: attention required, paused, caution states */
+  --color-warning: #fbbf24;
+  --color-warning-dim: rgba(251, 191, 36, 0.1);
+  --color-warning-border: rgba(251, 191, 36, 0.25);
+
+  /* Info: neutral signal, review phase, informational */
+  --color-info: #60a5fa;
+  --color-info-dim: rgba(96, 165, 250, 0.1);
+  --color-info-border: rgba(96, 165, 250, 0.25);
+
+  /* Market: market context phase, synthesis */
+  --color-market: #a78bfa;
+  --color-market-dim: rgba(167, 139, 250, 0.1);
+  --color-market-border: rgba(167, 139, 250, 0.25);
+
+  /* Orange: executing/running state, partial fill */
+  --color-orange: #fb923c;
+  --color-orange-dim: rgba(251, 146, 60, 0.12);
+  --color-orange-border: rgba(251, 146, 60, 0.35);
+
+  /* Log level colors - alias semantic tokens */
+  --color-log-debug: #374151;
+  --color-log-info: var(--color-info);
+  --color-log-warn: var(--color-warning);
+  --color-log-error: var(--color-error);
 }
 
-.dark {
-  --background: 220 23% 5%;
-  --foreground: 210 33% 94%;
-  --card: 218 30% 8%;
-  --card-foreground: 210 33% 94%;
-  --popover: 218 30% 8%;
-  --popover-foreground: 210 33% 94%;
-  --primary: 231 87% 69%;
-  --primary-foreground: 220 40% 8%;
-  --secondary: 216 30% 14%;
-  --secondary-foreground: 210 33% 94%;
-  --muted: 216 22% 20%;
-  --muted-foreground: 214 19% 61%;
-  --accent-hsl: 231 87% 69%;
-  --accent-foreground: 220 40% 8%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 210 40% 98%;
-  --border-hsl: 216 30% 17%;
-  --input-hsl: 216 30% 17%;
-  --ring: 231 87% 69%;
+.light {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface2: #f1f5f9;
+  --surface3: #e2e8f0;
+  --chip: #e2e8f0;
+  --border: #cbd5e1;
+
+  --text1: #0f172a;
+  --text2: #475569;
+  --text3: #94a3b8;
+
+  --accent: oklch(0.55 0.18 240);
+  --accent-dim: rgba(59, 130, 246, 0.15);
+
+  --background: 210 40% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 231 87% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 94%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 94%;
+  --muted-foreground: 215 16% 47%;
+  --accent-hsl: 231 87% 60%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border-hsl: 214 32% 82%;
+  --input-hsl: 214 32% 82%;
+  --ring: 231 87% 60%;
+
+  --color-success: #059669;
+  --color-success-dim: rgba(5, 150, 105, 0.13);
+  --color-success-border: rgba(5, 150, 105, 0.3);
+
+  --color-error: #dc2626;
+  --color-error-dim: rgba(220, 38, 38, 0.12);
+  --color-error-border: rgba(220, 38, 38, 0.28);
+
+  --color-warning: #d97706;
+  --color-warning-dim: rgba(217, 119, 6, 0.18);
+  --color-warning-border: rgba(217, 119, 6, 0.35);
+
+  --color-info: #2563eb;
+  --color-info-dim: rgba(37, 99, 235, 0.12);
+  --color-info-border: rgba(37, 99, 235, 0.28);
+
+  --color-market: #7c3aed;
+  --color-market-dim: rgba(124, 58, 237, 0.12);
+  --color-market-border: rgba(124, 58, 237, 0.28);
+
+  --color-orange: #ea580c;
+  --color-orange-dim: rgba(234, 88, 12, 0.14);
+  --color-orange-border: rgba(234, 88, 12, 0.3);
 }
 
 html,

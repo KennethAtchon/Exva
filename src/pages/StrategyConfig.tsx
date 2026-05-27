@@ -209,7 +209,9 @@ const StrategyHeader = ({
             background: showActiveSaveStyle
               ? "var(--accent)"
               : "var(--surface3)",
-            color: showActiveSaveStyle ? "#fff" : "var(--text3)",
+            color: showActiveSaveStyle
+              ? "hsl(var(--primary-foreground))"
+              : "var(--text3)",
             cursor: canSave ? "pointer" : "not-allowed",
             fontWeight: 700,
           }}
@@ -625,8 +627,8 @@ const renderStrategyConfigMainView = ({
         style={{
           ...warningStyle,
           marginBottom: 12,
-          borderColor: "rgba(248,113,113,0.28)",
-          color: "#fca5a5",
+          borderColor: "var(--color-error-border)",
+          color: "var(--color-error)",
         }}
       >
         {strategyErrors.map((message) => (
@@ -1055,30 +1057,30 @@ const warningStyle = {
   gap: 12,
   padding: "12px 14px",
   borderRadius: 10,
-  border: "1px solid rgba(251,191,36,0.24)",
-  background: "rgba(251,191,36,0.08)",
-  color: "#fbbf24",
+  border: "1px solid var(--color-warning-border)",
+  background: "var(--color-warning-dim)",
+  color: "var(--color-warning)",
   fontSize: 12,
 } as const;
 const warningButtonStyle = {
   padding: "7px 10px",
   borderRadius: 8,
-  border: "1px solid rgba(251,191,36,0.28)",
-  background: "rgba(251,191,36,0.14)",
-  color: "#fbbf24",
+  border: "1px solid var(--color-warning-border)",
+  background: "var(--color-warning-dim)",
+  color: "var(--color-warning)",
   cursor: "pointer",
 } as const;
 const warningDrainButtonStyle = {
   ...warningButtonStyle,
-  border: "1px solid rgba(251,146,60,0.35)",
-  background: "rgba(249,115,22,0.14)",
-  color: "#fdba74",
+  border: "1px solid var(--color-orange-border)",
+  background: "var(--color-orange-dim)",
+  color: "var(--color-orange)",
 } as const;
 const warningForceStopButtonStyle = {
   ...warningButtonStyle,
-  border: "1px solid rgba(239,68,68,0.55)",
-  background: "rgba(127,29,29,0.28)",
-  color: "#fecaca",
+  border: "1px solid var(--color-error-border)",
+  background: "var(--color-error-dim)",
+  color: "var(--color-error)",
 } as const;
 const activeGlobalPresetStyle = {
   display: "flex",

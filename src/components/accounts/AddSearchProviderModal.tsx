@@ -22,8 +22,8 @@ const labelStyle: CSSProperties = {
 const hintBoxStyle: CSSProperties = {
   marginBottom: 16,
   padding: "10px 12px",
-  background: "rgba(96,165,250,0.06)",
-  border: "1px solid rgba(96,165,250,0.15)",
+  background: "var(--color-info-dim)",
+  border: "1px solid var(--color-info-border)",
   borderRadius: 9,
   fontSize: 12,
   color: "var(--text3)",
@@ -159,20 +159,13 @@ export const AddSearchProviderModal = ({
             Add search provider
           </DialogTitle>
         </DialogHeader>
-        <p
-          style={{
-            fontSize: 12,
-            color: "var(--text3)",
-            marginBottom: 16,
-            lineHeight: 1.45,
-          }}
-        >
+        <p className="mb-4 text-[12px] leading-[1.45] text-[var(--text3)]">
           Exva already includes DuckDuckGo as the built-in default search path.
           Add Brave or Tavily here only if you want an API-backed provider
           instead.
         </p>
 
-        <div style={{ marginBottom: 14 }}>
+        <div className="mb-3.5">
           <div style={labelStyle}>Provider</div>
           <ShadcnSelect
             value={providerType}
@@ -184,7 +177,7 @@ export const AddSearchProviderModal = ({
           />
         </div>
 
-        <div style={{ marginBottom: 14 }}>
+        <div className="mb-3.5">
           <div style={labelStyle}>Display name</div>
           <Input
             className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
@@ -196,7 +189,7 @@ export const AddSearchProviderModal = ({
           />
         </div>
 
-        <div style={{ marginBottom: 14 }}>
+        <div className="mb-3.5">
           <div style={labelStyle}>API key</div>
           <Input
             className="h-10 border-border bg-[var(--surface2)] font-mono text-[13px] tracking-[0.03em] text-[var(--text1)]"
@@ -216,21 +209,12 @@ export const AddSearchProviderModal = ({
         </div>
 
         {message ? (
-          <div
-            style={{
-              fontSize: 12,
-              color: "#f87171",
-              marginBottom: 12,
-              lineHeight: 1.4,
-              overflowWrap: "anywhere",
-              wordBreak: "break-word",
-            }}
-          >
+          <div className="mb-3 break-words text-[12px] leading-[1.4] text-error [overflow-wrap:anywhere]">
             {message}
           </div>
         ) : null}
 
-        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+        <div className="mt-1 flex gap-2.5">
           <Button
             type="button"
             variant="outline"
@@ -243,7 +227,7 @@ export const AddSearchProviderModal = ({
             type="button"
             disabled={saving}
             onClick={() => void save()}
-            className="flex-1 bg-[var(--accent)] text-white hover:opacity-95"
+            className="flex-1 bg-[var(--accent)] text-[hsl(var(--primary-foreground))] hover:opacity-95"
           >
             {saving ? "Saving…" : "Save & test"}
           </Button>

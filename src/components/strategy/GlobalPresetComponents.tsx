@@ -596,7 +596,9 @@ export function CreateEditGlobalPresetModal({
             style={{
               ...saveBtnBaseStyle,
               background: canSave ? "var(--accent)" : "var(--surface3)",
-              color: canSave ? "#fff" : "var(--text3)",
+              color: canSave
+                ? "hsl(var(--primary-foreground))"
+                : "var(--text3)",
               cursor: canSave ? "pointer" : "not-allowed",
             }}
           >

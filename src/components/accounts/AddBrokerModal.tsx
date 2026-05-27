@@ -198,13 +198,12 @@ const TestResult = ({
   if (!message) return null;
   return (
     <div
+      className="mb-3 rounded-lg px-2.5 py-2 text-[12px]"
       style={{
-        marginBottom: 12,
-        padding: "8px 10px",
-        borderRadius: 8,
-        fontSize: 12,
-        background: testOk ? "rgba(52,211,153,0.1)" : "rgba(248,113,113,0.1)",
-        color: testOk ? "#34d399" : "#f87171",
+        background: testOk
+          ? "var(--color-success-dim)"
+          : "var(--color-error-dim)",
+        color: testOk ? "var(--color-success)" : "var(--color-error)",
       }}
     >
       {message}
@@ -377,7 +376,7 @@ export const AddBrokerModal = ({
               { value: "polymarket", label: "Polymarket (prediction markets)" },
             ]}
           />
-          <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 6 }}>
+          <div className="mt-1.5 text-[12px] text-[var(--text3)]">
             Supports: {supportedHint().join(", ")}
           </div>
         </div>
@@ -395,7 +394,7 @@ export const AddBrokerModal = ({
                 label: `${MOCK_SCENARIO_LABELS[kind].label} ${MOCK_SCENARIO_LABELS[kind].outcome}`,
               }))}
             />
-            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 6 }}>
+            <div className="mt-1.5 text-[12px] text-[var(--text3)]">
               Use Clean breakout to verify the bot selects, decides, and fills a
               trade end-to-end.
             </div>
@@ -420,7 +419,7 @@ export const AddBrokerModal = ({
 
         <TestResult message={message} testOk={testOk} />
 
-        <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+        <div className="mt-2 flex gap-2.5">
           <Button
             type="button"
             variant="outline"
@@ -434,7 +433,7 @@ export const AddBrokerModal = ({
             type="button"
             onClick={() => void save()}
             disabled={saving || testOk !== true}
-            className="flex-1 bg-[var(--accent)] text-white hover:opacity-95 disabled:opacity-45"
+            className="flex-1 bg-[var(--accent)] text-[hsl(var(--primary-foreground))] hover:opacity-95 disabled:opacity-45"
           >
             {saving ? "Saving…" : "Save"}
           </Button>

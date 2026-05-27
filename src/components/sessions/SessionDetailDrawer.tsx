@@ -534,7 +534,7 @@ export const SessionDetailDrawer = ({
                     style={{
                       marginTop: 8,
                       fontSize: 12,
-                      color: "#fca5a5",
+                      color: "var(--color-error)",
                       lineHeight: 1.45,
                     }}
                   >
@@ -604,7 +604,9 @@ export const SessionDetailDrawer = ({
                       <span
                         style={{
                           color:
-                            ev.level === "ERROR" ? "#f87171" : "var(--text2)",
+                            ev.level === "ERROR"
+                              ? "var(--color-error)"
+                              : "var(--text2)",
                         }}
                       >
                         {ev.message}
@@ -770,8 +772,8 @@ const errorBannerStyle = {
   marginBottom: 14,
   padding: "11px 14px",
   borderRadius: 10,
-  border: "1px solid rgba(248,113,113,0.30)",
-  background: "rgba(248,113,113,0.07)",
-  color: "#fca5a5",
+  border: "1px solid var(--color-error-border)",
+  background: "var(--color-error-dim)",
+  color: "var(--color-error)",
   fontSize: 13,
 } as const;

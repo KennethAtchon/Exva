@@ -1157,9 +1157,9 @@ const selectAllButtonStyle = {
   justifySelf: "start",
 } as const;
 const inlineActionButtonStyle = {
-  border: "1px solid rgba(251,191,36,0.34)",
+  border: "1px solid var(--color-warning-border)",
   background: "rgba(7,10,15,0.34)",
-  color: "#fde68a",
+  color: "var(--color-warning)",
   borderRadius: 8,
   padding: "8px 10px",
   fontSize: 12,
@@ -1167,12 +1167,12 @@ const inlineActionButtonStyle = {
   cursor: "pointer",
 } as const;
 const warningTextStyle = {
-  color: "#fbbf24",
+  color: "var(--color-warning)",
   fontSize: 12,
   fontWeight: 600,
 } as const;
 const successTextStyle = {
-  color: "#86efac",
+  color: "var(--color-success)",
   fontSize: 12,
   fontWeight: 600,
 } as const;
@@ -1180,9 +1180,9 @@ const warningBannerStyle = {
   marginBottom: 16,
   padding: "12px 14px",
   borderRadius: 12,
-  border: "1px solid rgba(251,191,36,0.34)",
-  background: "rgba(251,191,36,0.08)",
-  color: "#fcd34d",
+  border: "1px solid var(--color-warning-border)",
+  background: "var(--color-warning-dim)",
+  color: "var(--color-warning)",
   fontSize: 13,
   lineHeight: 1.5,
 } as const;
@@ -1190,8 +1190,8 @@ const errorBannerStyle = {
   marginBottom: 16,
   padding: "12px 14px",
   borderRadius: 12,
-  border: "1px solid rgba(248,113,113,0.34)",
-  background: "rgba(248,113,113,0.08)",
-  color: "#fca5a5",
+  border: "1px solid var(--color-error-border)",
+  background: "var(--color-error-dim)",
+  color: "var(--color-error)",
   fontSize: 13,
 } as const;

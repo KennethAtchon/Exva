@@ -34,18 +34,22 @@ const SESSION_STATUS: Record<
   SessionStatus,
   { label: string; dot: string; pulse: boolean }
 > = {
-  draft: { label: "Draft", dot: "#94a3b8", pulse: false },
-  active: { label: "Active", dot: "#34d399", pulse: true },
-  attention_required: { label: "Needs Attention", dot: "#fb7185", pulse: true },
-  paused: { label: "Paused", dot: "#fbbf24", pulse: false },
-  monitoring_only: {
-    label: "Stopping when flat",
-    dot: "#fb923c",
+  draft: { label: "Draft", dot: "var(--text3)", pulse: false },
+  active: { label: "Active", dot: "var(--color-success)", pulse: true },
+  attention_required: {
+    label: "Needs Attention",
+    dot: "var(--color-error)",
     pulse: true,
   },
-  stopped: { label: "Stopped", dot: "#f87171", pulse: false },
-  idle: { label: "Idle", dot: "#556068", pulse: false },
-  archived: { label: "Archived", dot: "#64748b", pulse: false },
+  paused: { label: "Paused", dot: "var(--color-warning)", pulse: false },
+  monitoring_only: {
+    label: "Stopping when flat",
+    dot: "var(--color-orange)",
+    pulse: true,
+  },
+  stopped: { label: "Stopped", dot: "var(--color-error)", pulse: false },
+  idle: { label: "Idle", dot: "var(--text3)", pulse: false },
+  archived: { label: "Archived", dot: "var(--text2)", pulse: false },
 };
 
 interface Props {
@@ -181,14 +185,21 @@ const NavStatus = ({
         }
       >
         <Dot
-          color={environmentMode === "live" ? "#34d399" : "#fbbf24"}
+          color={
+            environmentMode === "live"
+              ? "var(--color-success)"
+              : "var(--color-warning)"
+          }
           pulse={environmentMode === "live"}
           size={7}
         />
         <span
           style={{
             fontSize: 12,
-            color: environmentMode === "live" ? "#34d399" : "#fbbf24",
+            color:
+              environmentMode === "live"
+                ? "var(--color-success)"
+                : "var(--color-warning)",
             fontWeight: 500,
           }}
         >
@@ -515,9 +526,9 @@ const s: Record<string, CSSProperties> = {
     height: 18,
     padding: "0 5px",
     borderRadius: 999,
-    background: "rgba(251,113,133,0.18)",
-    border: "1px solid rgba(251,113,133,0.35)",
-    color: "#fb7185",
+    background: "var(--color-error-dim)",
+    border: "1px solid var(--color-error-border)",
+    color: "var(--color-error)",
     fontSize: 12,
     fontWeight: 700,
     display: "inline-flex",
@@ -531,9 +542,9 @@ const s: Record<string, CSSProperties> = {
     alignItems: "center",
     gap: 5,
     padding: "4px 9px",
-    background: "rgba(52,211,153,0.08)",
+    background: "var(--color-success-dim)",
     borderRadius: 20,
-    border: "1px solid rgba(52,211,153,0.15)",
+    border: "1px solid var(--color-success-border)",
     cursor: "default",
   },
   paperEnvPill: {
@@ -541,9 +552,9 @@ const s: Record<string, CSSProperties> = {
     alignItems: "center",
     gap: 5,
     padding: "4px 9px",
-    background: "rgba(251,191,36,0.08)",
+    background: "var(--color-warning-dim)",
     borderRadius: 20,
-    border: "1px solid rgba(251,191,36,0.18)",
+    border: "1px solid var(--color-warning-border)",
     cursor: "default",
   },
   globalPill: {
@@ -591,9 +602,9 @@ const s: Record<string, CSSProperties> = {
     gap: 4,
     padding: "4px 9px",
     borderRadius: 20,
-    border: "1px solid rgba(96,165,250,0.25)",
-    background: "rgba(96,165,250,0.08)",
-    color: "rgba(96,165,250,0.9)",
+    border: "1px solid var(--color-info-border)",
+    background: "var(--color-info-dim)",
+    color: "var(--color-info)",
     fontSize: 12,
     fontWeight: 500,
     cursor: "pointer",
@@ -610,7 +621,7 @@ const s: Record<string, CSSProperties> = {
     fontFamily: "var(--font-mono)",
     fontSize: 13,
     fontWeight: 700,
-    color: "#34d399",
+    color: "var(--color-success)",
   },
   liveStatSep: { color: "var(--text3)", fontSize: 12 },
   liveStatLabel: {
@@ -623,7 +634,7 @@ const s: Record<string, CSSProperties> = {
     background: "var(--accent)",
     border: "none",
     borderRadius: 8,
-    color: "#fff",
+    color: "hsl(var(--primary-foreground))",
     fontSize: 12,
     fontWeight: 700,
     cursor: "pointer",
@@ -632,10 +643,10 @@ const s: Record<string, CSSProperties> = {
   },
   btnPause: {
     padding: "6px 14px",
-    background: "rgba(251,191,36,0.1)",
-    border: "1px solid rgba(251,191,36,0.25)",
+    background: "var(--color-warning-dim)",
+    border: "1px solid var(--color-warning-border)",
     borderRadius: 8,
-    color: "#fbbf24",
+    color: "var(--color-warning)",
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
@@ -643,20 +654,20 @@ const s: Record<string, CSSProperties> = {
   },
   btnStop: {
     padding: "6px 10px",
-    background: "rgba(248,113,113,0.1)",
-    border: "1px solid rgba(248,113,113,0.2)",
+    background: "var(--color-error-dim)",
+    border: "1px solid var(--color-error-border)",
     borderRadius: 8,
-    color: "#f87171",
+    color: "var(--color-error)",
     fontSize: 12,
     cursor: "pointer",
     fontFamily: "var(--font-mono)",
   },
   btnStopWhenFlat: {
     padding: "6px 10px",
-    background: "rgba(251,146,60,0.12)",
-    border: "1px solid rgba(251,146,60,0.35)",
+    background: "var(--color-orange-dim)",
+    border: "1px solid var(--color-orange-border)",
     borderRadius: 8,
-    color: "#fdba74",
+    color: "var(--color-orange)",
     fontSize: 12,
     fontWeight: 600,
     cursor: "pointer",
@@ -665,10 +676,10 @@ const s: Record<string, CSSProperties> = {
   },
   btnForceStop: {
     padding: "6px 10px",
-    background: "rgba(127,29,29,0.28)",
-    border: "1px solid rgba(239,68,68,0.55)",
+    background: "var(--color-error-dim)",
+    border: "1px solid var(--color-error-border)",
     borderRadius: 8,
-    color: "#fecaca",
+    color: "var(--color-error)",
     fontSize: 12,
     fontWeight: 700,
     cursor: "pointer",

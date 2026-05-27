@@ -307,7 +307,7 @@ const TradeRow = ({
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: 12,
-          color: pos ? "#34d399" : "#f87171",
+          color: pos ? "var(--color-success)" : "var(--color-error)",
           fontWeight: 600,
         }}
       >
@@ -528,7 +528,7 @@ export const TradesPage = ({
           [
             "Realized P&L",
             fmt.pnl(realPnl),
-            realPnl >= 0 ? "#34d399" : "#f87171",
+            realPnl >= 0 ? "var(--color-success)" : "var(--color-error)",
           ],
           [
             "Win Rate",
@@ -541,7 +541,7 @@ export const TradesPage = ({
           [
             "Open",
             `${allTrades.filter((t) => t.status === "open").length}`,
-            "#60a5fa",
+            "var(--color-info)",
           ],
         ].map(([lbl, val, color]) => (
           <Card key={String(lbl)} style={{ flex: 1, padding: "18px 22px" }}>

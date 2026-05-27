@@ -27,32 +27,36 @@ const AGENT_PALETTE: Partial<
   Record<EventSourceType, { color: string; label: string; bg: string }>
 > = {
   technical: {
-    color: "#34d399",
+    color: "var(--color-success)",
     label: "Technical",
-    bg: "rgba(52,211,153,0.07)",
+    bg: "var(--color-success-dim)",
   },
   fundamental: {
-    color: "#f87171",
+    color: "var(--color-error)",
     label: "Fundamental",
-    bg: "rgba(248,113,113,0.07)",
+    bg: "var(--color-error-dim)",
   },
-  review: { color: "#60a5fa", label: "Review", bg: "rgba(96,165,250,0.07)" },
+  review: {
+    color: "var(--color-info)",
+    label: "Review",
+    bg: "var(--color-info-dim)",
+  },
   decision: {
-    color: "#a78bfa",
+    color: "var(--color-market)",
     label: "Decision",
-    bg: "rgba(167,139,250,0.07)",
+    bg: "var(--color-market-dim)",
   },
   selector: {
-    color: "#fbbf24",
+    color: "var(--color-warning)",
     label: "Universe",
-    bg: "rgba(251,191,36,0.07)",
+    bg: "var(--color-warning-dim)",
   },
 };
 const LEVEL_COLOR: Record<string, string> = {
-  DEBUG: "#374151",
-  INFO: "#60a5fa",
-  WARN: "#fbbf24",
-  ERROR: "#f87171",
+  DEBUG: "var(--color-log-debug)",
+  INFO: "var(--color-log-info)",
+  WARN: "var(--color-log-warn)",
+  ERROR: "var(--color-log-error)",
 };
 
 const StatStrip = ({ stats }: { stats: DashboardStats }) => {
@@ -73,16 +77,22 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
         : "No live broker balance yet",
       subColor: hasLivePortfolioValue
         ? stats.unrealized_pnl >= 0
-          ? "#34d399"
-          : "#f87171"
+          ? "var(--color-success)"
+          : "var(--color-error)"
         : undefined,
     },
     {
       label: "Daily P&L",
       value: fmt.pnl(stats.daily_pnl_usd),
       sub: fmt.pct(stats.daily_pnl_pct),
-      subColor: stats.daily_pnl_usd >= 0 ? "#34d399" : "#f87171",
-      valColor: stats.daily_pnl_usd >= 0 ? "#34d399" : "#f87171",
+      subColor:
+        stats.daily_pnl_usd >= 0
+          ? "var(--color-success)"
+          : "var(--color-error)",
+      valColor:
+        stats.daily_pnl_usd >= 0
+          ? "var(--color-success)"
+          : "var(--color-error)",
     },
     {
       label: "Win Rate",
@@ -142,7 +152,9 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
                       height: "100%",
                       width: `${Math.min(item.meter * 100, 100)}%`,
                       background:
-                        item.meter > 0.8 ? "#f87171" : "var(--accent)",
+                        item.meter > 0.8
+                          ? "var(--color-error)"
+                          : "var(--accent)",
                       borderRadius: 2,
                     }}
                   />
@@ -231,7 +243,7 @@ const TradeRow = ({
       <span
         style={{
           ...ds.trCell,
-          color: pos ? "#34d399" : "#f87171",
+          color: pos ? "var(--color-success)" : "var(--color-error)",
           fontWeight: 600,
         }}
       >
@@ -442,9 +454,9 @@ const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
               fontSize: 12,
               color:
                 ev.level === "WARN"
-                  ? "#fbbf24"
+                  ? "var(--color-warning)"
                   : ev.level === "ERROR"
-                    ? "#f87171"
+                    ? "var(--color-error)"
                     : "var(--text3)",
               lineHeight: 1.4,
             }}
@@ -609,7 +621,7 @@ export const Dashboard = () => {
           >
             <SectionTitle>Agent Feed</SectionTitle>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <Dot color="#34d399" pulse size={6} />
+              <Dot color="var(--color-success)" pulse size={6} />
               <span style={{ fontSize: 12, color: "var(--text3)" }}>live</span>
             </div>
           </div>

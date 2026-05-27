@@ -142,7 +142,11 @@ const BudgetCard = ({
 }) => {
   const pct = budget > 0 ? (total / budget) * 100 : 0;
   const barColor =
-    pct > 80 ? "#f87171" : pct > 60 ? "#fbbf24" : "var(--accent)";
+    pct > 80
+      ? "var(--color-error)"
+      : pct > 60
+        ? "var(--color-warning)"
+        : "var(--accent)";
   return (
     <Card>
       <SectionTitle>Today's Budget</SectionTitle>
@@ -241,12 +245,12 @@ const BudgetCard = ({
               alignItems: "center",
               gap: 6,
               padding: "6px 10px",
-              background: "rgba(52,211,153,0.08)",
-              border: "1px solid rgba(52,211,153,0.2)",
+              background: "var(--color-success-dim)",
+              border: "1px solid var(--color-success-border)",
               borderRadius: 8,
             }}
           >
-            <span style={{ fontSize: 12, color: "#34d399" }}>
+            <span style={{ fontSize: 12, color: "var(--color-success)" }}>
               ↓ {fmt.usd(cacheSavingsUsd)} saved via prompt cache
             </span>
           </div>
@@ -257,11 +261,11 @@ const BudgetCard = ({
 };
 
 const agentColors: Record<string, string> = {
-  technical: "#34d399",
-  fundamental: "#f87171",
-  review: "#60a5fa",
-  decision: "#a78bfa",
-  selector: "#fbbf24",
+  technical: "var(--color-success)",
+  fundamental: "var(--color-error)",
+  review: "var(--color-info)",
+  decision: "var(--color-market)",
+  selector: "var(--color-warning)",
 };
 
 const CostByAgentCard = ({

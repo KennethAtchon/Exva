@@ -122,28 +122,28 @@ const SOURCE_TYPES = [
 ];
 
 const LEVEL_COLOR: Record<LogLevel, string> = {
-  DEBUG: "#3d4f60",
-  INFO: "#4da6ff",
-  WARN: "#ffb733",
-  ERROR: "#ff4757",
+  DEBUG: "var(--color-log-debug)",
+  INFO: "var(--color-log-info)",
+  WARN: "var(--color-log-warn)",
+  ERROR: "var(--color-log-error)",
 };
 const LEVEL_BG: Record<LogLevel, string> = {
-  DEBUG: "rgba(61,79,96,0.2)",
-  INFO: "rgba(77,166,255,0.14)",
-  WARN: "rgba(255,183,51,0.14)",
-  ERROR: "rgba(255,71,87,0.14)",
+  DEBUG: "color-mix(in srgb, var(--color-log-debug) 20%, transparent)",
+  INFO: "var(--color-info-dim)",
+  WARN: "var(--color-warning-dim)",
+  ERROR: "var(--color-error-dim)",
 };
 const ROLE_COLOR: Record<string, string> = {
-  technical: "#00e5a0",
-  fundamental: "#ff7b8a",
-  review: "#4da6ff",
-  decision: "#c084fc",
-  selector: "#fbbf24",
-  orchestrator: "#fb923c",
-  preflight: "#a3e635",
-  capital: "#34d399",
-  broker: "#60a5fa",
-  session: "#94a3b8",
+  technical: "var(--color-success)",
+  fundamental: "var(--color-error)",
+  review: "var(--color-info)",
+  decision: "var(--color-market)",
+  selector: "var(--color-warning)",
+  orchestrator: "var(--color-orange)",
+  preflight: "var(--color-warning)",
+  capital: "var(--color-success)",
+  broker: "var(--color-info)",
+  session: "var(--text3)",
 };
 
 // ─── Shared Styles ────────────────────────────────────────────────────────────
@@ -303,14 +303,14 @@ const S = {
   // DebugCapture confirm button base (dynamic: opacity)
   debugCaptureBtnBase: {
     padding: "7px 16px",
-    background: "rgba(77,166,255,0.18)",
-    border: "1px solid #4da6ff44",
+    background: "var(--color-info-dim)",
+    border: "1px solid var(--color-info-border)",
     borderRadius: 6,
     fontFamily: "var(--font-mono)",
     fontSize: 12,
     letterSpacing: "0.08em",
     fontWeight: 700,
-    color: "#4da6ff",
+    color: "var(--color-info)",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
@@ -485,9 +485,9 @@ const CopyBtn = ({
       }}
       style={{
         ...S.copyBtnBase,
-        background: copied ? "rgba(0,229,160,0.12)" : "var(--surface3)",
-        border: `1px solid ${copied ? "#00e5a040" : "var(--border)"}`,
-        color: copied ? "#00e5a0" : "var(--text3)",
+        background: copied ? "var(--color-success-dim)" : "var(--surface3)",
+        border: `1px solid ${copied ? "var(--color-success-border)" : "var(--border)"}`,
+        color: copied ? "var(--color-success)" : "var(--text3)",
       }}
     >
       {copied ? "copied!" : label}
@@ -498,13 +498,13 @@ const CopyBtn = ({
 const StatusChip = ({ status }: { status: string }) => {
   const c =
     status === "active"
-      ? "#00e5a0"
+      ? "var(--color-success)"
       : status === "paused"
-        ? "#ffb733"
+        ? "var(--color-warning)"
         : status === "error"
-          ? "#ff4757"
+          ? "var(--color-error)"
           : status === "stopping"
-            ? "#ff8c42"
+            ? "var(--color-orange)"
             : "var(--text3)";
   return (
     <span
@@ -879,12 +879,12 @@ const ActionStrip = ({
             <StatPill
               label="errors"
               value={diagnostics.counts.errors}
-              color="#ff4757"
+              color="var(--color-error)"
             />
             <StatPill
               label="warns"
               value={diagnostics.counts.warnings}
-              color="#ffb733"
+              color="var(--color-warning)"
             />
             <StatPill label="runs" value={diagnostics.counts.agentRuns} />
             <StatPill label="calls" value={diagnostics.counts.externalCalls} />
@@ -892,7 +892,7 @@ const ActionStrip = ({
               <StatPill
                 label="failed steps"
                 value={diagnostics.counts.failedSteps}
-                color="#ff4757"
+                color="var(--color-error)"
               />
             )}
           </>
@@ -951,11 +951,14 @@ const ActionStrip = ({
                   border: "none",
                   background:
                     timeWindow === tw.value
-                      ? "rgba(77,166,255,0.18)"
+                      ? "var(--color-info-dim)"
                       : "transparent",
                   ...S.mono9,
                   fontWeight: 700,
-                  color: timeWindow === tw.value ? "#4da6ff" : "var(--text3)",
+                  color:
+                    timeWindow === tw.value
+                      ? "var(--color-info)"
+                      : "var(--text3)",
                   cursor: "pointer",
                 }}
               >
@@ -1146,21 +1149,21 @@ const LifecycleButtons = ({
         disabled={!canRetry}
         loading={retryMutation.isPending}
         onClick={() => retryMutation.mutate()}
-        color="#00e5a0"
+        color="var(--color-success)"
       />
       <StripBtn
         label="Pause After Step"
         disabled={!canPause}
         loading={pauseMutation.isPending}
         onClick={() => pauseMutation.mutate()}
-        color="#ffb733"
+        color="var(--color-warning)"
       />
       <StripBtn
         label="Clear Failed"
         disabled={!canClear}
         loading={clearMutation.isPending}
         onClick={() => clearMutation.mutate()}
-        color="#ff4757"
+        color="var(--color-error)"
       />
     </>
   );
@@ -1338,7 +1341,11 @@ const EventTimeline = ({
                 }}
               >
                 <span
-                  style={{ ...S.mono9, color: "#4da6ff40", marginRight: 5 }}
+                  style={{
+                    ...S.mono9,
+                    color: "var(--color-info-border)",
+                    marginRight: 5,
+                  }}
                 >
                   [{summarizeEventSource(ev)}]
                 </span>
@@ -1414,7 +1421,10 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           value={
             <span
               style={{
-                color: diag.counts.errors > 0 ? "#ff4757" : "var(--text2)",
+                color:
+                  diag.counts.errors > 0
+                    ? "var(--color-error)"
+                    : "var(--text2)",
               }}
             >
               {diag.counts.errors}
@@ -1427,7 +1437,10 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           value={
             <span
               style={{
-                color: diag.counts.warnings > 0 ? "#ffb733" : "var(--text2)",
+                color:
+                  diag.counts.warnings > 0
+                    ? "var(--color-warning)"
+                    : "var(--text2)",
               }}
             >
               {diag.counts.warnings}
@@ -1442,7 +1455,10 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           value={
             <span
               style={{
-                color: diag.counts.failedSteps > 0 ? "#ff4757" : "var(--text2)",
+                color:
+                  diag.counts.failedSteps > 0
+                    ? "var(--color-error)"
+                    : "var(--text2)",
               }}
             >
               {diag.counts.failedSteps}
@@ -1453,7 +1469,9 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
       </SectionCard>
       {diag.latestError && (
         <SectionCard title="Latest Error">
-          <div style={{ ...S.mono9, color: "#ff4757", lineHeight: 1.5 }}>
+          <div
+            style={{ ...S.mono9, color: "var(--color-error)", lineHeight: 1.5 }}
+          >
             {diag.latestError.message}
           </div>
           <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 4 }}>
@@ -1492,11 +1510,11 @@ const ExecutionTab = ({
       {steps.map((step) => {
         const c =
           step.status === "succeeded"
-            ? "#00e5a0"
+            ? "var(--color-success)"
             : step.status === "failed"
-              ? "#ff4757"
+              ? "var(--color-error)"
               : step.status === "running"
-                ? "#4da6ff"
+                ? "var(--color-info)"
                 : "var(--text3)";
         return (
           <div
@@ -1531,7 +1549,7 @@ const ExecutionTab = ({
               <div
                 style={{
                   ...S.mono9,
-                  color: "#ff4757",
+                  color: "var(--color-error)",
                   marginTop: 4,
                   lineHeight: 1.5,
                 }}
@@ -1545,7 +1563,13 @@ const ExecutionTab = ({
               </div>
             )}
             {step.nextRetryAt && (
-              <div style={{ ...S.mono9, color: "#ffb733", marginTop: 2 }}>
+              <div
+                style={{
+                  ...S.mono9,
+                  color: "var(--color-warning)",
+                  marginTop: 2,
+                }}
+              >
                 retry at {fmt.time(step.nextRetryAt)}
               </div>
             )}
@@ -1585,7 +1609,7 @@ const PipelineConfigTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           <div
             style={{
               ...S.mono9,
-              color: "#ff4757",
+              color: "var(--color-error)",
               lineHeight: 1.5,
               whiteSpace: "pre-wrap",
             }}
@@ -1786,9 +1810,12 @@ const RunCard = ({ run, accent }: { run: ExtAgentRun; accent: string }) => {
             borderRadius: 3,
             background:
               run.finish_reason === "stop"
-                ? "rgba(0,229,160,0.1)"
-                : "rgba(255,71,87,0.1)",
-            color: run.finish_reason === "stop" ? "#00e5a0" : "#ff4757",
+                ? "var(--color-success-dim)"
+                : "var(--color-error-dim)",
+            color:
+              run.finish_reason === "stop"
+                ? "var(--color-success)"
+                : "var(--color-error)",
           }}
         >
           {run.finish_reason}
@@ -2015,7 +2042,10 @@ const ExternalCallsTab = ({
               style={{
                 ...S.mono9,
                 fontWeight: 700,
-                color: c.status === "ok" ? "#00e5a0" : "#ff4757",
+                color:
+                  c.status === "ok"
+                    ? "var(--color-success)"
+                    : "var(--color-error)",
               }}
             >
               {c.status.toUpperCase()}
@@ -2035,7 +2065,9 @@ const ExternalCallsTab = ({
               </span>
             )}
             {c.from_cache && (
-              <span style={{ ...S.mono9, color: "#4da6ff" }}>cached</span>
+              <span style={{ ...S.mono9, color: "var(--color-info)" }}>
+                cached
+              </span>
             )}
           </div>
           <div
@@ -2194,14 +2226,14 @@ const CaptureFormFields = ({
               cursor: "pointer",
               background:
                 form.duration === d && !form.untilStopped
-                  ? "rgba(77,166,255,0.18)"
+                  ? "var(--color-info-dim)"
                   : "var(--surface3)",
-              border: `1px solid ${form.duration === d && !form.untilStopped ? "#4da6ff44" : "var(--border)"}`,
+              border: `1px solid ${form.duration === d && !form.untilStopped ? "var(--color-info-border)" : "var(--border)"}`,
               ...S.mono9,
               fontWeight: 700,
               color:
                 form.duration === d && !form.untilStopped
-                  ? "#4da6ff"
+                  ? "var(--color-info)"
                   : "var(--text2)",
             }}
           >
@@ -2215,12 +2247,12 @@ const CaptureFormFields = ({
             borderRadius: 5,
             cursor: "pointer",
             background: form.untilStopped
-              ? "rgba(255,183,51,0.18)"
+              ? "var(--color-warning-dim)"
               : "var(--surface3)",
-            border: `1px solid ${form.untilStopped ? "#ffb73344" : "var(--border)"}`,
+            border: `1px solid ${form.untilStopped ? "var(--color-warning-border)" : "var(--border)"}`,
             ...S.mono9,
             fontWeight: 700,
-            color: form.untilStopped ? "#ffb733" : "var(--text2)",
+            color: form.untilStopped ? "var(--color-warning)" : "var(--text2)",
           }}
         >
           Until stopped
@@ -2253,19 +2285,25 @@ const CaptureFormFields = ({
       </select>
       {form.mainLevel === "trace" && !form.traceConfirm && (
         <div style={{ marginTop: 6 }}>
-          <div style={{ ...S.mono9, color: "#ffb733", marginBottom: 4 }}>
+          <div
+            style={{
+              ...S.mono9,
+              color: "var(--color-warning)",
+              marginBottom: 4,
+            }}
+          >
             Trace logs can include large payload metadata and may slow the app.
           </div>
           <button
             onClick={() => dispatchForm({ traceConfirm: true })}
             style={{
               padding: "4px 10px",
-              background: "rgba(255,183,51,0.12)",
-              border: "1px solid #ffb73344",
+              background: "var(--color-warning-dim)",
+              border: "1px solid var(--color-warning-border)",
               borderRadius: 4,
               ...S.mono9,
               fontWeight: 700,
-              color: "#ffb733",
+              color: "var(--color-warning)",
               cursor: "pointer",
             }}
           >
@@ -2328,7 +2366,9 @@ const CaptureFormFields = ({
     </div>
 
     {form.error && (
-      <div style={{ ...S.mono9, color: "#ff4757" }}>{form.error}</div>
+      <div style={{ ...S.mono9, color: "var(--color-error)" }}>
+        {form.error}
+      </div>
     )}
   </>
 );
@@ -2551,7 +2591,9 @@ const Toggle = ({
         style={{
           ...S.toggleThumbBase,
           left: checked ? 18 : 2,
-          background: checked ? "#fff" : "var(--text3)",
+          background: checked
+            ? "hsl(var(--primary-foreground))"
+            : "var(--text3)",
         }}
       />
     </button>
@@ -2575,7 +2617,9 @@ const ExportResultDrawer = ({
         alignItems: "center",
       }}
     >
-      <span style={{ ...S.mono9, fontWeight: 800, color: "#00e5a0" }}>
+      <span
+        style={{ ...S.mono9, fontWeight: 800, color: "var(--color-success)" }}
+      >
         Debug bundle exported.
       </span>
       <button
@@ -2614,7 +2658,7 @@ const ExportResultDrawer = ({
       redacted · {(result.sizeBytes / 1024).toFixed(0)} KB
     </div>
     {result.warnings.map((w) => (
-      <div key={w} style={{ ...S.mono9, color: "#ffb733" }}>
+      <div key={w} style={{ ...S.mono9, color: "var(--color-warning)" }}>
         {w}
       </div>
     ))}
@@ -2652,11 +2696,14 @@ const ToastContainer = ({
           padding: "8px 16px",
           borderRadius: 8,
           background:
-            t.kind === "ok" ? "rgba(0,229,160,0.15)" : "rgba(255,71,87,0.15)",
-          border: `1px solid ${t.kind === "ok" ? "#00e5a044" : "#ff475744"}`,
+            t.kind === "ok"
+              ? "var(--color-success-dim)"
+              : "var(--color-error-dim)",
+          border: `1px solid ${t.kind === "ok" ? "var(--color-success-border)" : "var(--color-error-border)"}`,
           ...S.mono9,
           fontWeight: 700,
-          color: t.kind === "ok" ? "#00e5a0" : "#ff4757",
+          color:
+            t.kind === "ok" ? "var(--color-success)" : "var(--color-error)",
           backdropFilter: "blur(8px)",
         }}
       >
@@ -3172,23 +3219,24 @@ export const DevPanel = ({
               <span
                 style={{
                   ...S.streamBadgeBase,
-                  color: "#00e5a0",
-                  background: "rgba(0,229,160,0.1)",
-                  border: "1px solid #00e5a030",
+                  color: "var(--color-success)",
+                  background: "var(--color-success-dim)",
+                  border: "1px solid var(--color-success-border)",
                 }}
               >
-                <Dot color="#00e5a0" pulse size={4} /> Live
+                <Dot color="var(--color-success)" pulse size={4} /> Live
               </span>
             ) : (
               <span
                 style={{
                   ...S.streamBadgeBase,
-                  color: "#ffb733",
-                  background: "rgba(255,183,51,0.1)",
-                  border: "1px solid #ffb73330",
+                  color: "var(--color-warning)",
+                  background: "var(--color-warning-dim)",
+                  border: "1px solid var(--color-warning-border)",
                 }}
               >
-                <Dot color="#ffb733" pulse size={4} /> Delayed · polling
+                <Dot color="var(--color-warning)" pulse size={4} /> Delayed ·
+                polling
               </span>
             )}
           </div>
@@ -3197,12 +3245,12 @@ export const DevPanel = ({
             <span
               style={{
                 ...S.streamBadgeBase,
-                color: "#c084fc",
-                background: "rgba(192,132,252,0.1)",
-                border: "1px solid #c084fc30",
+                color: "var(--color-market)",
+                background: "var(--color-market-dim)",
+                border: "1px solid var(--color-market-border)",
               }}
             >
-              <Dot color="#c084fc" pulse size={4} />
+              <Dot color="var(--color-market)" pulse size={4} />
               Capture active
               {uiState.captureActive.expiresAt
                 ? ` · ends ${fmt.time(uiState.captureActive.expiresAt)}`
@@ -3215,14 +3263,14 @@ export const DevPanel = ({
               label="Capture Debug Window"
               disabled={!!uiState.captureActive}
               onClick={() => dispatchUi({ showCapture: true })}
-              color="#c084fc"
+              color="var(--color-market)"
             />
             <HeaderBtn
               label="Export Debug Bundle"
               disabled={uiState.exportLoading}
               loading={uiState.exportLoading}
               onClick={handleExport}
-              color="#4da6ff"
+              color="var(--color-info)"
             />
             <HeaderBtn
               label="Open Logs Folder"

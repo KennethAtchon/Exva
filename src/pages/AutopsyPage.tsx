@@ -39,34 +39,34 @@ function ClientDateTime({ iso }: { iso: string }) {
 const GRADE_STYLE: Record<string, { color: string; glow: string; bg: string }> =
   {
     "A+": {
-      color: "#34d399",
-      glow: "rgba(52,211,153,0.25)",
-      bg: "rgba(52,211,153,0.08)",
+      color: "var(--color-success)",
+      glow: "var(--color-success-border)",
+      bg: "var(--color-success-dim)",
     },
     A: {
-      color: "#34d399",
-      glow: "rgba(52,211,153,0.2)",
-      bg: "rgba(52,211,153,0.06)",
+      color: "var(--color-success)",
+      glow: "var(--color-success-border)",
+      bg: "var(--color-success-dim)",
     },
     B: {
-      color: "#60a5fa",
-      glow: "rgba(96,165,250,0.2)",
-      bg: "rgba(96,165,250,0.06)",
+      color: "var(--color-info)",
+      glow: "var(--color-info-border)",
+      bg: "var(--color-info-dim)",
     },
     C: {
-      color: "#fbbf24",
-      glow: "rgba(251,191,36,0.2)",
-      bg: "rgba(251,191,36,0.06)",
+      color: "var(--color-warning)",
+      glow: "var(--color-warning-border)",
+      bg: "var(--color-warning-dim)",
     },
     D: {
-      color: "#f97316",
-      glow: "rgba(249,115,22,0.2)",
-      bg: "rgba(249,115,22,0.06)",
+      color: "var(--color-orange)",
+      glow: "var(--color-orange-border)",
+      bg: "var(--color-orange-dim)",
     },
     F: {
-      color: "#f87171",
-      glow: "rgba(248,113,113,0.2)",
-      bg: "rgba(248,113,113,0.06)",
+      color: "var(--color-error)",
+      glow: "var(--color-error-border)",
+      bg: "var(--color-error-dim)",
     },
   };
 
@@ -391,7 +391,7 @@ function VersionSelector({
               ...versionBtnBaseStyle,
               border: `1px solid ${active ? "rgba(96,165,250,0.5)" : "var(--border)"}`,
               background: active ? "rgba(96,165,250,0.12)" : "transparent",
-              color: active ? "#60a5fa" : "var(--text3)",
+              color: active ? "var(--color-info)" : "var(--text3)",
             }}
           >
             v{autopsies.length - i} · {date}
@@ -422,21 +422,21 @@ function WarningBanner({
     tone === "success"
       ? {
           background: "rgba(52,211,153,0.08)",
-          border: "1px solid rgba(52,211,153,0.25)",
-          color: "#6ee7b7",
+          border: "1px solid var(--color-success-border)",
+          color: "var(--color-success)",
           prefix: "✓",
         }
       : tone === "error"
         ? {
-            background: "rgba(248,113,113,0.08)",
-            border: "1px solid rgba(248,113,113,0.25)",
-            color: "#fca5a5",
+            background: "var(--color-error-dim)",
+            border: "1px solid var(--color-error-border)",
+            color: "var(--color-error)",
             prefix: "✕",
           }
         : {
-            background: "rgba(251,191,36,0.08)",
-            border: "1px solid rgba(251,191,36,0.25)",
-            color: "#fcd34d",
+            background: "var(--color-warning-dim)",
+            border: "1px solid var(--color-warning-border)",
+            color: "var(--color-warning)",
             prefix: "⚠",
           };
   return (
@@ -462,7 +462,7 @@ function WarningBanner({
 
 function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
   return (
-    <SectionCard title="Thesis Review" accent="#60a5fa">
+    <SectionCard title="Thesis Review" accent="var(--color-info)">
       <FieldRow label="Valid Thesis">
         <Chip
           label={
@@ -470,10 +470,10 @@ function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
           }
           color={
             d.valid === true
-              ? "#34d399"
+              ? "var(--color-success)"
               : d.valid === false
-                ? "#f87171"
-                : "#fbbf24"
+                ? "var(--color-error)"
+                : "var(--color-warning)"
           }
           bg={
             d.valid === true
@@ -487,7 +487,9 @@ function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
       <FieldRow label="Confirm. Bias">
         <Chip
           label={d.confirmatoryBias ? "Detected" : "None"}
-          color={d.confirmatoryBias ? "#fbbf24" : "#34d399"}
+          color={
+            d.confirmatoryBias ? "var(--color-warning)" : "var(--color-success)"
+          }
           bg={
             d.confirmatoryBias
               ? "rgba(251,191,36,0.12)"
@@ -525,20 +527,20 @@ function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
 
 function ExecutionCard({ d }: { d: AutopsyStructured["executionQuality"] }) {
   const timingColor: Record<string, string> = {
-    early: "#fbbf24",
-    good: "#34d399",
-    late: "#f97316",
+    early: "var(--color-warning)",
+    good: "var(--color-success)",
+    late: "var(--color-orange)",
     unknown: "var(--text3)",
   };
   const sizingColor: Record<string, string> = {
-    oversized: "#f87171",
-    appropriate: "#34d399",
-    undersized: "#fbbf24",
+    oversized: "var(--color-error)",
+    appropriate: "var(--color-success)",
+    undersized: "var(--color-warning)",
     unknown: "var(--text3)",
   };
 
   return (
-    <SectionCard title="Execution Quality" accent="#34d399">
+    <SectionCard title="Execution Quality" accent="var(--color-success)">
       <FieldRow label="Entry Timing">
         <Chip
           label={d.entryTiming}
@@ -560,7 +562,9 @@ function ExecutionCard({ d }: { d: AutopsyStructured["executionQuality"] }) {
       </FieldRow>
       {d.slippage && (
         <FieldRow label="Slippage">
-          <span style={{ fontSize: 13, color: "#fbbf24" }}>{d.slippage}</span>
+          <span style={{ fontSize: 13, color: "var(--color-warning)" }}>
+            {d.slippage}
+          </span>
         </FieldRow>
       )}
     </SectionCard>
@@ -574,13 +578,13 @@ function BehavioralCard({
 }) {
   const sevColor: Record<string, string> = {
     low: "var(--text3)",
-    medium: "#60a5fa",
-    high: "#fbbf24",
-    critical: "#f87171",
+    medium: "var(--color-info)",
+    high: "var(--color-warning)",
+    critical: "var(--color-error)",
   };
 
   return (
-    <SectionCard title="Behavioral Flags" accent="#fbbf24">
+    <SectionCard title="Behavioral Flags" accent="var(--color-warning)">
       {flags.length === 0 ? (
         <span style={{ fontSize: 13, color: "var(--text3)" }}>
           No behavioral flags detected.
@@ -640,9 +644,9 @@ function BehavioralCard({
 
 function MarketContextCard({ d }: { d: AutopsyStructured["marketContext"] }) {
   const suitColor: Record<string, string> = {
-    good_conditions: "#34d399",
-    neutral: "#60a5fa",
-    poor_conditions: "#f87171",
+    good_conditions: "var(--color-success)",
+    neutral: "var(--color-info)",
+    poor_conditions: "var(--color-error)",
   };
   const suitLabel: Record<string, string> = {
     good_conditions: "Good",
@@ -651,7 +655,7 @@ function MarketContextCard({ d }: { d: AutopsyStructured["marketContext"] }) {
   };
 
   return (
-    <SectionCard title="Market Context" accent="#a78bfa">
+    <SectionCard title="Market Context" accent="var(--color-market)">
       <FieldRow label="Regime">
         <Chip label={d.regime} />
       </FieldRow>
@@ -696,7 +700,7 @@ function WhatWorkedFailedCard({
           <div
             style={{
               fontSize: 12,
-              color: "#34d399",
+              color: "var(--color-success)",
               fontWeight: 700,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
@@ -725,7 +729,7 @@ function WhatWorkedFailedCard({
           <div
             style={{
               fontSize: 12,
-              color: "#f87171",
+              color: "var(--color-error)",
               fontWeight: 700,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
@@ -757,7 +761,7 @@ function WhatWorkedFailedCard({
 
 function RootCauseCard({ text }: { text: string }) {
   return (
-    <SectionCard title="Root Cause" accent="#f87171">
+    <SectionCard title="Root Cause" accent="var(--color-error)">
       <p
         style={{
           margin: 0,
@@ -1113,9 +1117,12 @@ export function AutopsyPage({
                   borderRadius: 4,
                   background:
                     resolvedTrade.side === "BUY"
-                      ? "rgba(52,211,153,0.15)"
-                      : "rgba(248,113,113,0.15)",
-                  color: resolvedTrade.side === "BUY" ? "#34d399" : "#f87171",
+                      ? "var(--color-success-dim)"
+                      : "var(--color-error-dim)",
+                  color:
+                    resolvedTrade.side === "BUY"
+                      ? "var(--color-success)"
+                      : "var(--color-error)",
                   fontSize: 12,
                   fontFamily: "var(--font-mono)",
                   fontWeight: 600,
@@ -1130,7 +1137,9 @@ export function AutopsyPage({
                   fontFamily: "var(--font-mono)",
                   fontSize: 13,
                   color:
-                    resolvedTrade.final_pnl_usd >= 0 ? "#34d399" : "#f87171",
+                    resolvedTrade.final_pnl_usd >= 0
+                      ? "var(--color-success)"
+                      : "var(--color-error)",
                   fontWeight: 600,
                 }}
               >
@@ -1171,10 +1180,10 @@ export function AutopsyPage({
               style={{
                 ...actionBtnStyle,
                 background: isGenerating
-                  ? "rgba(96,165,250,0.1)"
-                  : "rgba(96,165,250,0.15)",
-                borderColor: "rgba(96,165,250,0.4)",
-                color: "#60a5fa",
+                  ? "var(--color-info-dim)"
+                  : "var(--color-info-dim)",
+                borderColor: "var(--color-info-border)",
+                color: "var(--color-info)",
                 opacity: isGenerating ? 0.7 : 1,
               }}
             >
@@ -1502,9 +1511,9 @@ const exportOptionBtnStyle: CSSProperties = {
 const generateBtnStyle: CSSProperties = {
   padding: "10px 24px",
   borderRadius: 8,
-  border: "1px solid rgba(96,165,250,0.4)",
-  background: "rgba(96,165,250,0.15)",
-  color: "#60a5fa",
+  border: "1px solid var(--color-info-border)",
+  background: "var(--color-info-dim)",
+  color: "var(--color-info)",
   fontSize: 14,
   fontWeight: 600,
   cursor: "pointer",
