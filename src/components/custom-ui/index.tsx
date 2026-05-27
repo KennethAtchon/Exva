@@ -122,16 +122,19 @@ export const SectionTitle = ({ children }: { children: ReactNode }) => (
 export const Card = ({
   children,
   style,
+  className,
   accent,
 }: {
   children: ReactNode;
   style?: CSSProperties;
+  className?: string;
   accent?: boolean;
 }) => (
   <UICard
     className={cn(
       "rounded-[14px] border border-border bg-card px-6 py-[22px]",
       accent && "border-primary/35",
+      className,
     )}
     style={style}
   >

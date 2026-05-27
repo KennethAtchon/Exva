@@ -22,6 +22,7 @@ import {
   type UserGlobalPresetInput,
 } from "@/components/strategy/GlobalPresetComponents";
 import { api } from "@/lib/exva";
+import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/sessionStore";
 import type { SessionStatus } from "@/lib/types";
 import { useStrategyStore } from "@/store/strategyStore";
@@ -81,7 +82,7 @@ const LockedWarning = ({
   setSessionStatus: (status: SessionStatus) => void;
   loadStrategy: (id: string) => Promise<void>;
 }) => (
-  <div style={warningStyle}>
+  <div className={warningClass}>
     <div>
       {sessionStatus === "monitoring_only"
         ? "Session is stopping when flat — open positions remain managed until the last trade closes."
@@ -90,7 +91,7 @@ const LockedWarning = ({
         ? " Open positions are active — use Stop when flat to drain safely, or Force stop to edit anyway."
         : null}
     </div>
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+    <div className="flex flex-wrap gap-2">
       {(sessionStatus === "active" || sessionStatus === "paused") &&
       focusedOpenTradeCount > 0 ? (
         <button
@@ -99,7 +100,7 @@ const LockedWarning = ({
             setSessionStatus(next);
             await loadStrategy(focusedSessionId);
           }}
-          style={warningDrainButtonStyle}
+          className={warningDrainButtonClass}
           title="Stops new research immediately and completes shutdown once all open trades close."
         >
           Stop when flat
@@ -119,7 +120,7 @@ const LockedWarning = ({
             setSessionStatus(next);
             await loadStrategy(focusedSessionId);
           }}
-          style={warningForceStopButtonStyle}
+          className={warningForceStopButtonClass}
         >
           Force Stop Session
         </button>
@@ -130,7 +131,7 @@ const LockedWarning = ({
             setSessionStatus(next);
             await loadStrategy(focusedSessionId);
           }}
-          style={warningButtonStyle}
+          className={warningButtonClass}
         >
           Stop Session
         </button>
@@ -157,32 +158,24 @@ const StrategyHeader = ({
   const showActiveSaveStyle = saveState === "dirty" || saveState === "saving";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
+    <div className="flex items-center justify-between">
       <div>
-        <h1 style={{ margin: 0, fontSize: 22, color: "var(--text1)" }}>
-          Strategy
-        </h1>
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text3)" }}>
+        <h1 className="m-0 text-[22px] text-[var(--text1)]">Strategy</h1>
+        <p className="m-0 mt-1 text-[13px] text-[var(--text3)]">
           Separate research posture, trade rules, risk limits, timeframe, phase
           operating briefs, and AI phase model/prompt settings for the focused
           session.
         </p>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={viewToggleContainerStyle}>
+      <div className="flex items-center gap-2.5">
+        <div className={viewToggleContainerClass}>
           <button
             type="button"
             onClick={() => setActiveView("presets")}
-            style={
+            className={
               activeView === "presets"
-                ? viewToggleActiveStyle
-                : viewToggleInactiveStyle
+                ? viewToggleActiveClass
+                : viewToggleInactiveClass
             }
           >
             Presets
@@ -190,10 +183,10 @@ const StrategyHeader = ({
           <button
             type="button"
             onClick={() => setActiveView("customize")}
-            style={
+            className={
               activeView === "customize"
-                ? viewToggleActiveStyle
-                : viewToggleInactiveStyle
+                ? viewToggleActiveClass
+                : viewToggleInactiveClass
             }
           >
             Customize
@@ -202,19 +195,13 @@ const StrategyHeader = ({
         <button
           onClick={() => void saveAll(focusedSessionId)}
           disabled={!canSave}
-          style={{
-            padding: "9px 18px",
-            borderRadius: 9,
-            border: "none",
-            background: showActiveSaveStyle
-              ? "var(--accent)"
-              : "var(--surface3)",
-            color: showActiveSaveStyle
-              ? "hsl(var(--primary-foreground))"
-              : "var(--text3)",
-            cursor: canSave ? "pointer" : "not-allowed",
-            fontWeight: 700,
-          }}
+          className={cn(
+            "rounded-[9px] border-none px-[18px] py-[9px] font-bold",
+            showActiveSaveStyle
+              ? "bg-[var(--accent)] text-[hsl(var(--primary-foreground))]"
+              : "bg-[var(--surface3)] text-[var(--text3)]",
+            canSave ? "cursor-pointer" : "cursor-not-allowed",
+          )}
         >
           {isSaving ? "Saving..." : "Save Changes"}
         </button>
@@ -406,32 +393,17 @@ export const StrategyConfig = ({
           loadWorkspaceView={loadWorkspaceView}
           setViewMode={setViewMode}
         />
-        <div style={emptyStateStyle}>
-          <div style={{ fontSize: 32, marginBottom: 16 }}>⚙</div>
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: "var(--text1)",
-              marginBottom: 8,
-            }}
-          >
+        <div className={emptyStateClass}>
+          <div className="mb-4 text-[32px]">⚙</div>
+          <div className="mb-2 text-[16px] font-bold text-[var(--text1)]">
             No session focused
           </div>
-          <p
-            style={{
-              color: "var(--text2)",
-              fontSize: 13,
-              lineHeight: 1.65,
-              maxWidth: 380,
-              margin: "0 auto 20px",
-            }}
-          >
+          <p className="mx-auto mb-5 max-w-[380px] text-[13px] leading-[1.65] text-[var(--text2)]">
             Strategy configuration is session-scoped. You need to focus a
             session first, then come back here to configure AI phases, risk
             limits, and strategy behavior.
           </p>
-          <div style={stepListStyle}>
+          <div className={stepListClass}>
             <Step n={1} text="Go to Sessions" />
             <Step n={2} text="Find the session you want to configure" />
             <Step n={3} text='Click "Focus" on that session' />
@@ -441,7 +413,7 @@ export const StrategyConfig = ({
             <button
               type="button"
               onClick={onGoToSessions}
-              style={goToSessionsButtonStyle}
+              className={goToSessionsButtonClass}
             >
               Go to Sessions →
             </button>
@@ -454,7 +426,7 @@ export const StrategyConfig = ({
   if (!researchPosture || !rules || !riskConfig || !timeframe || !aiSettings) {
     return (
       <PageShell>
-        <div style={{ color: "var(--text3)" }}>Loading strategy…</div>
+        <div className="text-[var(--text3)]">Loading strategy…</div>
       </PageShell>
     );
   }
@@ -623,14 +595,7 @@ const renderStrategyConfigMainView = ({
     <Header loadWorkspaceView={loadWorkspaceView} setViewMode={setViewMode} />
 
     {strategyErrors.length > 0 && (
-      <div
-        style={{
-          ...warningStyle,
-          marginBottom: 12,
-          borderColor: "var(--color-error-border)",
-          color: "var(--color-error)",
-        }}
-      >
+      <div className={cn(warningClass, "mb-3 border-error-border text-error")}>
         {strategyErrors.map((message) => (
           <div key={message}>{message}</div>
         ))}
@@ -688,15 +653,8 @@ const renderStrategyConfigMainView = ({
           ))}
         </TabsList>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-            gap: 16,
-            marginTop: 16,
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="mt-4 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(320px,1fr))]">
+          <div className="flex flex-col gap-4">
             {TABS.map(([value]) => (
               <TabsContent key={value} value={value}>
                 {value === "style" && (
@@ -745,7 +703,7 @@ const renderStrategyConfigMainView = ({
             ))}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="flex flex-col gap-4">
             <CostSummaryCard riskConfig={riskConfig} />
           </div>
         </div>
@@ -807,13 +765,7 @@ const Header = ({
     focusedSessionId?: string | null,
   ) => void;
 }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-    }}
-  >
+  <div className="flex items-center justify-between">
     <div />
     <WorkspaceContextChip
       onSwitchSession={async (id) => {
@@ -829,8 +781,8 @@ const Header = ({
 );
 
 const Field = ({ label, children }: { label: string; children: ReactNode }) => (
-  <div style={{ display: "grid", gap: 6 }}>
-    <div style={{ fontSize: 12, color: "var(--text3)" }}>{label}</div>
+  <div className="grid gap-1.5">
+    <div className="text-[12px] text-[var(--text3)]">{label}</div>
     {children}
   </div>
 );
@@ -844,12 +796,12 @@ const PresetSummaryCard = ({
   thesis: string;
   bullets: string[];
 }) => (
-  <div style={presetSummaryStyle}>
-    <div style={presetBadgeStyle}>{presetLabel}</div>
-    <div style={presetThesisStyle}>{thesis}</div>
-    <div style={{ display: "grid", gap: 8 }}>
+  <div className={presetSummaryClass}>
+    <div className={presetBadgeClass}>{presetLabel}</div>
+    <div className={presetThesisClass}>{thesis}</div>
+    <div className="grid gap-2">
       {bullets.map((bullet) => (
-        <div key={bullet} style={presetBulletStyle}>
+        <div key={bullet} className={presetBulletClass}>
           {bullet}
         </div>
       ))}
@@ -862,21 +814,14 @@ const ActiveGlobalPresetIndicator = ({
 }: {
   preset: { preset: GlobalStrategyPreset; source: "built_in" | "user" } | null;
 }) => (
-  <div style={activeGlobalPresetStyle}>
-    <div style={{ display: "grid", gap: 4 }}>
-      <div style={activeGlobalPresetEyebrowStyle}>Active Global Preset</div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={activeGlobalPresetLabelStyle}>
+  <div className={activeGlobalPresetClass}>
+    <div className="grid gap-1">
+      <div className={activeGlobalPresetEyebrowClass}>Active Global Preset</div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className={activeGlobalPresetLabelClass}>
           {preset?.preset.label ?? "Custom"}
         </div>
-        <div style={activeGlobalPresetSourceStyle(preset?.source)}>
+        <div className={activeGlobalPresetSourceClass(preset?.source)}>
           {preset
             ? preset.source === "built_in"
               ? "Built-in"
@@ -884,7 +829,7 @@ const ActiveGlobalPresetIndicator = ({
             : "No exact preset match"}
         </div>
       </div>
-      <div style={activeGlobalPresetDescriptionStyle}>
+      <div className={activeGlobalPresetDescriptionClass}>
         {preset?.preset.description ??
           "Current style, rules, risk, and timeframe selections do not match a saved global preset."}
       </div>
@@ -952,217 +897,67 @@ function labelize(value: string): string {
 }
 
 const Step = ({ n, text }: { n: number; text: string }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-    <div style={stepBadgeStyle}>{n}</div>
-    <span style={{ color: "var(--text2)", fontSize: 13 }}>{text}</span>
+  <div className="flex items-center gap-2.5">
+    <div className={stepBadgeClass}>{n}</div>
+    <span className="text-[13px] text-[var(--text2)]">{text}</span>
   </div>
 );
 
-const stepBadgeStyle = {
-  width: 22,
-  height: 22,
-  borderRadius: "50%",
-  background: "var(--surface3)",
-  border: "1px solid var(--border)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: 12,
-  fontWeight: 700,
-  color: "var(--text2)",
-  flexShrink: 0,
-} as const;
+const stepBadgeClass =
+  "flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface3)] text-[12px] font-bold text-[var(--text2)]";
 
-const emptyStateStyle = {
-  display: "flex",
-  flexDirection: "column" as const,
-  alignItems: "center",
-  justifyContent: "center",
-  textAlign: "center" as const,
-  padding: "60px 24px",
-  border: "1px solid var(--border)",
-  borderRadius: 16,
-  background: "rgba(18,26,36,0.6)",
-} as const;
+const emptyStateClass =
+  "flex flex-col items-center justify-center rounded-2xl border border-[var(--border)] bg-[rgba(18,26,36,0.6)] px-6 py-[60px] text-center";
 
-const stepListStyle = {
-  display: "grid",
-  gap: 10,
-  textAlign: "left" as const,
-  marginBottom: 24,
-  width: "100%",
-  maxWidth: 340,
-} as const;
+const stepListClass = "mb-6 grid w-full max-w-[340px] gap-2.5 text-left";
 
-const goToSessionsButtonStyle = {
-  padding: "10px 22px",
-  borderRadius: 10,
-  border: "1px solid rgba(96,165,250,0.3)",
-  background: "rgba(96,165,250,0.1)",
-  color: "rgba(96,165,250,0.95)",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-} as const;
+const goToSessionsButtonClass =
+  "cursor-pointer rounded-[10px] border border-[rgba(96,165,250,0.3)] bg-[rgba(96,165,250,0.1)] px-[22px] py-2.5 text-[13px] font-semibold text-[rgba(96,165,250,0.95)]";
 
-const viewToggleContainerStyle = {
-  display: "flex",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  overflow: "hidden",
-  background: "var(--surface2)",
-} as const;
-const viewToggleActiveStyle = {
-  padding: "7px 16px",
-  border: "none",
-  background: "var(--surface3)",
-  color: "var(--text1)",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-} as const;
-const viewToggleInactiveStyle = {
-  padding: "7px 16px",
-  border: "none",
-  background: "transparent",
-  color: "var(--text3)",
-  fontSize: 13,
-  fontWeight: 500,
-  cursor: "pointer",
-} as const;
-const briefStyle = {
-  marginTop: 14,
-  padding: 14,
-  borderRadius: 10,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text2)",
-  fontSize: 12,
-  lineHeight: 1.6,
-  whiteSpace: "pre-wrap",
-} as const;
-const formGridStyle = { display: "grid", gap: 14, marginTop: 16 } as const;
-const inputStyle = {
-  width: "100%",
-  padding: "9px 11px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text1)",
-} as const;
-const warningStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 12,
-  padding: "12px 14px",
-  borderRadius: 10,
-  border: "1px solid var(--color-warning-border)",
-  background: "var(--color-warning-dim)",
-  color: "var(--color-warning)",
-  fontSize: 12,
-} as const;
-const warningButtonStyle = {
-  padding: "7px 10px",
-  borderRadius: 8,
-  border: "1px solid var(--color-warning-border)",
-  background: "var(--color-warning-dim)",
-  color: "var(--color-warning)",
-  cursor: "pointer",
-} as const;
-const warningDrainButtonStyle = {
-  ...warningButtonStyle,
-  border: "1px solid var(--color-orange-border)",
-  background: "var(--color-orange-dim)",
-  color: "var(--color-orange)",
-} as const;
-const warningForceStopButtonStyle = {
-  ...warningButtonStyle,
-  border: "1px solid var(--color-error-border)",
-  background: "var(--color-error-dim)",
-  color: "var(--color-error)",
-} as const;
-const activeGlobalPresetStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 12,
-  padding: "14px 16px",
-  borderRadius: 12,
-  border: "1px solid rgba(96,165,250,0.22)",
-  background:
-    "linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.82))",
-} as const;
-const activeGlobalPresetEyebrowStyle = {
-  color: "rgba(147,197,253,0.85)",
-  fontSize: 12,
-  fontWeight: 700,
-  letterSpacing: 0.35,
-  textTransform: "uppercase" as const,
-};
-const activeGlobalPresetLabelStyle = {
-  color: "var(--text1)",
-  fontSize: 16,
-  fontWeight: 700,
-} as const;
-const activeGlobalPresetDescriptionStyle = {
-  color: "var(--text3)",
-  fontSize: 12,
-  lineHeight: 1.55,
-} as const;
-const activeGlobalPresetSourceStyle = (
+const viewToggleContainerClass =
+  "flex overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface2)]";
+const viewToggleActiveClass =
+  "cursor-pointer border-none bg-[var(--surface3)] px-4 py-[7px] text-[13px] font-semibold text-[var(--text1)]";
+const viewToggleInactiveClass =
+  "cursor-pointer border-none bg-transparent px-4 py-[7px] text-[13px] font-medium text-[var(--text3)]";
+const briefClass =
+  "mt-3.5 whitespace-pre-wrap rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] p-3.5 text-[12px] leading-relaxed text-[var(--text2)]";
+const formGridClass = "mt-4 grid gap-3.5";
+const inputClass =
+  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[var(--text1)]";
+const textareaClass = cn(inputClass, "min-h-32 resize-y");
+const warningClass =
+  "flex items-center justify-between gap-3 rounded-[10px] border border-warning-border bg-warning-dim p-3 px-3.5 text-[12px] text-warning";
+const warningButtonClass =
+  "cursor-pointer rounded-lg border border-warning-border bg-warning-dim px-2.5 py-[7px] text-warning";
+const warningDrainButtonClass =
+  "cursor-pointer rounded-lg border border-status-orange-border bg-status-orange-dim px-2.5 py-[7px] text-status-orange";
+const warningForceStopButtonClass =
+  "cursor-pointer rounded-lg border border-error-border bg-error-dim px-2.5 py-[7px] text-error";
+const activeGlobalPresetClass =
+  "flex items-center justify-between gap-3 rounded-xl border border-[rgba(96,165,250,0.22)] bg-[linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.82))] px-4 py-3.5";
+const activeGlobalPresetEyebrowClass =
+  "text-[12px] font-bold uppercase tracking-[0.35px] text-[rgba(147,197,253,0.85)]";
+const activeGlobalPresetLabelClass =
+  "text-[16px] font-bold text-[var(--text1)]";
+const activeGlobalPresetDescriptionClass =
+  "text-[12px] leading-[1.55] text-[var(--text3)]";
+const activeGlobalPresetSourceClass = (
   source: "built_in" | "user" | undefined,
 ) =>
-  ({
-    display: "inline-flex",
-    width: "fit-content",
-    padding: "4px 10px",
-    borderRadius: 999,
-    border:
-      source === "user"
-        ? "1px solid rgba(34,197,94,0.28)"
-        : "1px solid rgba(96,165,250,0.28)",
-    background:
-      source === "user" ? "rgba(34,197,94,0.12)" : "rgba(96,165,250,0.12)",
-    color:
-      source === "user" ? "rgba(187,247,208,0.96)" : "rgba(191,219,254,0.96)",
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: 0.2,
-  }) as const;
-const presetSummaryStyle = {
-  display: "grid",
-  gap: 12,
-  marginTop: 14,
-  padding: 14,
-  borderRadius: 12,
-  border: "1px solid rgba(96,165,250,0.22)",
-  background:
-    "linear-gradient(135deg, rgba(30,41,59,0.9), rgba(15,23,42,0.82))",
-} as const;
-const presetBadgeStyle = {
-  display: "inline-flex",
-  width: "fit-content",
-  padding: "4px 10px",
-  borderRadius: 999,
-  border: "1px solid rgba(96,165,250,0.28)",
-  background: "rgba(96,165,250,0.12)",
-  color: "rgba(191,219,254,0.96)",
-  fontSize: 12,
-  fontWeight: 700,
-  letterSpacing: 0.2,
-} as const;
-const presetThesisStyle = {
-  color: "var(--text1)",
-  fontSize: 13,
-  lineHeight: 1.55,
-  fontWeight: 600,
-} as const;
-const presetBulletStyle = {
-  color: "var(--text3)",
-  fontSize: 12,
-  lineHeight: 1.5,
-} as const;
+  cn(
+    "inline-flex w-fit rounded-full px-2.5 py-1 text-[12px] font-bold tracking-[0.2px]",
+    source === "user"
+      ? "border border-[rgba(34,197,94,0.28)] bg-[rgba(34,197,94,0.12)] text-[rgba(187,247,208,0.96)]"
+      : "border border-[rgba(96,165,250,0.28)] bg-[rgba(96,165,250,0.12)] text-[rgba(191,219,254,0.96)]",
+  );
+const presetSummaryClass =
+  "mt-3.5 grid gap-3 rounded-xl border border-[rgba(96,165,250,0.22)] bg-[linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.82))] p-3.5";
+const presetBadgeClass =
+  "inline-flex w-fit rounded-full border border-[rgba(96,165,250,0.28)] bg-[rgba(96,165,250,0.12)] px-2.5 py-1 text-[12px] font-bold tracking-[0.2px] text-[rgba(191,219,254,0.96)]";
+const presetThesisClass =
+  "text-[13px] font-semibold leading-[1.55] text-[var(--text1)]";
+const presetBulletClass = "text-[12px] leading-normal text-[var(--text3)]";
 
 // ─── Section components ───────────────────────────────────────────────────────
 
@@ -1186,15 +981,7 @@ const StyleSection = ({
   <>
     <Card>
       <SectionTitle>AI Instructions</SectionTitle>
-      <p
-        style={{
-          color: "var(--text3)",
-          fontSize: 12,
-          marginTop: 8,
-          marginBottom: 12,
-          lineHeight: 1.55,
-        }}
-      >
+      <p className="mb-3 mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
         Optional guidance injected into every AI worker for this session.
         Structured risk limits and position caps on the Risk tab remain
         authoritative.
@@ -1208,14 +995,14 @@ const StyleSection = ({
           disabled={isLocked}
           rows={6}
           placeholder="Example: Prefer liquid large caps. Reject stale catalysts. Keep rationales concise."
-          style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
+          className={textareaClass}
         />
       </Field>
     </Card>
 
     <Card>
       <SectionTitle>Research posture</SectionTitle>
-      <div style={formGridStyle}>
+      <div className={formGridClass}>
         <Field label="Posture preset">
           <ShadcnSelect
             value={researchPosture.posturePresetId}
@@ -1303,7 +1090,7 @@ const StyleSection = ({
             disabled={isLocked}
             rows={6}
             placeholder="Describe the edge, posture, and evidence stack this session should favor."
-            style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
+            className={textareaClass}
           />
         </Field>
       </div>
@@ -1311,14 +1098,7 @@ const StyleSection = ({
 
     <Card>
       <SectionTitle>Selected Style Summary</SectionTitle>
-      <p
-        style={{
-          color: "var(--text3)",
-          fontSize: 12,
-          marginTop: 8,
-          lineHeight: 1.55,
-        }}
-      >
+      <p className="mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
         Keep style high-level here: what edge you want the AI to pursue and what
         evidence posture it should adopt.
       </p>
@@ -1331,7 +1111,7 @@ const StyleSection = ({
 
     <Card>
       <SectionTitle>Live Style Guidance</SectionTitle>
-      <pre style={briefStyle}>{stylePreview}</pre>
+      <pre className={briefClass}>{stylePreview}</pre>
     </Card>
   </>
 );
@@ -1352,7 +1132,7 @@ const RulesSection = ({
   <>
     <Card>
       <SectionTitle>Trade Rules</SectionTitle>
-      <div style={formGridStyle}>
+      <div className={formGridClass}>
         <Field label="Rules preset">
           <ShadcnSelect
             value={rules.rulesPresetId}
@@ -1442,7 +1222,7 @@ const RulesSection = ({
             disabled={isLocked}
             rows={6}
             placeholder="Add setup-specific filters, invalidation rules, liquidity constraints, or execution reminders."
-            style={{ ...inputStyle, resize: "vertical", minHeight: 128 }}
+            className={textareaClass}
           />
         </Field>
       </div>
@@ -1450,14 +1230,7 @@ const RulesSection = ({
 
     <Card>
       <SectionTitle>Selected Rules Summary</SectionTitle>
-      <p
-        style={{
-          color: "var(--text3)",
-          fontSize: 12,
-          marginTop: 8,
-          lineHeight: 1.55,
-        }}
-      >
+      <p className="mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
         Rules define how trades are structured after the style identifies the
         kind of edge to pursue.
       </p>
@@ -1470,7 +1243,7 @@ const RulesSection = ({
 
     <Card>
       <SectionTitle>Live Rules Markdown</SectionTitle>
-      <pre style={briefStyle}>{rulesPreview}</pre>
+      <pre className={briefClass}>{rulesPreview}</pre>
     </Card>
   </>
 );
@@ -1486,7 +1259,7 @@ const RiskSection = ({
 }) => (
   <Card>
     <SectionTitle>Risk Controls</SectionTitle>
-    <div style={formGridStyle}>
+    <div className={formGridClass}>
       <Field label="Risk preset">
         <ShadcnSelect
           value={riskConfig.riskPresetId ?? "custom"}
@@ -1509,7 +1282,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Max concurrent trades">
@@ -1522,7 +1295,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Stop loss type">
@@ -1552,7 +1325,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Take profit %">
@@ -1567,7 +1340,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="ATR stop multiplier">
@@ -1582,7 +1355,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Kelly fraction">
@@ -1594,7 +1367,7 @@ const RiskSection = ({
             updateRiskConfig({ kellyFraction: Number(event.target.value) || 0 })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Prediction edge threshold">
@@ -1608,7 +1381,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Max exposure USD">
@@ -1622,7 +1395,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Wait-for-open threshold">
@@ -1636,7 +1409,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Daily loss limit USD">
@@ -1649,7 +1422,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Profit target USD">
@@ -1662,7 +1435,7 @@ const RiskSection = ({
             })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
       <Field label="Max AI spend USD / day">
@@ -1674,18 +1447,10 @@ const RiskSection = ({
             updateRiskConfig({ maxAiSpendUsd: Number(event.target.value) || 0 })
           }
           disabled={isLocked}
-          style={inputStyle}
+          className={inputClass}
         />
       </Field>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          color: "var(--text2)",
-          fontSize: 13,
-        }}
-      >
+      <div className="flex items-center gap-2 text-[13px] text-[var(--text2)]">
         <Switch
           checked={riskConfig.humanApprovalRequired}
           onCheckedChange={(checked) =>
@@ -1711,7 +1476,7 @@ const TimeframeSection = ({
   <>
     <Card>
       <SectionTitle>Timeframe Preset</SectionTitle>
-      <div style={formGridStyle}>
+      <div className={formGridClass}>
         <Field label="Timeframe preset">
           <ShadcnSelect
             value={timeframe.timeframePresetId ?? "custom"}

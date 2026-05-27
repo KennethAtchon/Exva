@@ -1,4 +1,5 @@
-import React, { useReducer, type CSSProperties, type Reducer } from "react";
+import React, { useReducer, type Reducer } from "react";
+import { cn } from "@/lib/utils";
 import type { InstrumentClass } from "@/lib/types";
 import {
   DEFAULT_MOCK_SCENARIO_KIND,
@@ -49,12 +50,7 @@ function mergeReducer<S>(state: S, update: Partial<S>): S {
   return { ...state, ...update };
 }
 
-const labelStyle: CSSProperties = {
-  fontSize: 12,
-  fontWeight: 500,
-  color: "var(--text2)",
-  marginBottom: 6,
-};
+const labelClass = "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
 
 const inputClass =
   "h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]";
@@ -81,8 +77,8 @@ const CredentialFields = ({
   if (brokerType === "alpaca") {
     return (
       <>
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>API key ID</div>
+        <div className="mb-3">
+          <div className={labelClass}>API key ID</div>
           <Input
             className={inputClass}
             value={apiKey}
@@ -90,8 +86,8 @@ const CredentialFields = ({
             type="password"
           />
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>Secret key</div>
+        <div className="mb-3">
+          <div className={labelClass}>Secret key</div>
           <Input
             className={inputClass}
             value={secretKey}
@@ -106,8 +102,8 @@ const CredentialFields = ({
   if (brokerType === "coinbase_advanced_trade") {
     return (
       <>
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>API key</div>
+        <div className="mb-3">
+          <div className={labelClass}>API key</div>
           <Input
             className={inputClass}
             value={apiKey}
@@ -115,8 +111,8 @@ const CredentialFields = ({
             type="password"
           />
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>API secret (CDP EC private key, PEM)</div>
+        <div className="mb-3">
+          <div className={labelClass}>API secret (CDP EC private key, PEM)</div>
           <Input
             className={inputClass}
             value={secretKey}
@@ -124,8 +120,8 @@ const CredentialFields = ({
             type="password"
           />
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>Passphrase (if required)</div>
+        <div className="mb-3">
+          <div className={labelClass}>Passphrase (if required)</div>
           <Input
             className={inputClass}
             value={passphrase}
@@ -140,16 +136,16 @@ const CredentialFields = ({
   if (brokerType === "tradovate") {
     return (
       <>
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>Username</div>
+        <div className="mb-3">
+          <div className={labelClass}>Username</div>
           <Input
             className={inputClass}
             value={username}
             onChange={(e) => dispatch({ username: e.target.value })}
           />
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>Password</div>
+        <div className="mb-3">
+          <div className={labelClass}>Password</div>
           <Input
             className={inputClass}
             value={password}
@@ -164,8 +160,8 @@ const CredentialFields = ({
   if (brokerType === "polymarket") {
     return (
       <>
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>Polygon private key</div>
+        <div className="mb-3">
+          <div className={labelClass}>Polygon private key</div>
           <Input
             className={inputClass}
             value={privateKey}
@@ -173,8 +169,8 @@ const CredentialFields = ({
             type="password"
           />
         </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>Polymarket funder/profile address</div>
+        <div className="mb-3">
+          <div className={labelClass}>Polymarket funder/profile address</div>
           <Input
             className={inputClass}
             value={funderAddress}
@@ -198,13 +194,10 @@ const TestResult = ({
   if (!message) return null;
   return (
     <div
-      className="mb-3 rounded-lg px-2.5 py-2 text-[12px]"
-      style={{
-        background: testOk
-          ? "var(--color-success-dim)"
-          : "var(--color-error-dim)",
-        color: testOk ? "var(--color-success)" : "var(--color-error)",
-      }}
+      className={cn(
+        "mb-3 rounded-lg px-2.5 py-2 text-[12px]",
+        testOk ? "bg-success-dim text-success" : "bg-error-dim text-error",
+      )}
     >
       {message}
     </div>
@@ -353,8 +346,8 @@ export const AddBrokerModal = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>Broker type</div>
+        <div className="mb-3">
+          <div className={labelClass}>Broker type</div>
           <ShadcnSelect
             value={brokerType}
             onValueChange={(value) => {
@@ -382,8 +375,8 @@ export const AddBrokerModal = ({
         </div>
 
         {brokerType === "mock" && (
-          <div style={{ marginBottom: 12 }}>
-            <div style={labelStyle}>Mock scenario</div>
+          <div className="mb-3">
+            <div className={labelClass}>Mock scenario</div>
             <ShadcnSelect
               value={mockScenarioKind}
               onValueChange={(value) =>
@@ -401,8 +394,8 @@ export const AddBrokerModal = ({
           </div>
         )}
 
-        <div style={{ marginBottom: 12 }}>
-          <div style={labelStyle}>Display name</div>
+        <div className="mb-3">
+          <div className={labelClass}>Display name</div>
           <Input
             className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
             value={name}

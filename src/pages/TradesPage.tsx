@@ -5,6 +5,7 @@ import { Button, Checkbox } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { api } from "@/lib/exva";
 import { fmt } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 import type { ExecutionMode, InstrumentClass } from "@/lib/types";
 import { useTradeStore } from "@/store/tradeStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
@@ -92,16 +93,8 @@ const TradeFilters = ({
   const { symbolContains, instrumentType, brokerAccountId, sessionFilterId } =
     filterState;
   return (
-    <Card
-      style={{
-        padding: "14px 18px",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 10,
-        alignItems: "flex-end",
-      }}
-    >
-      <div style={filterLabelStyle}>
+    <Card className="flex flex-wrap items-end gap-2.5 px-[18px] py-3.5">
+      <div className={filterLabelClass}>
         Symbol
         <input
           value={symbolContains}
@@ -112,10 +105,10 @@ const TradeFilters = ({
             })
           }
           placeholder="e.g. AAPL"
-          style={filterInputStyle}
+          className={filterInputClass}
         />
       </div>
-      <div style={filterLabelStyle}>
+      <div className={filterLabelClass}>
         Class
         <ShadcnSelect
           value={instrumentType}
@@ -134,7 +127,7 @@ const TradeFilters = ({
           ]}
         />
       </div>
-      <div style={filterLabelStyle}>
+      <div className={filterLabelClass}>
         Broker account id
         <input
           value={brokerAccountId}
@@ -145,11 +138,11 @@ const TradeFilters = ({
             })
           }
           placeholder="UUID"
-          style={filterInputStyle}
+          className={filterInputClass}
         />
       </div>
       {viewMode === "global" ? (
-        <div style={filterLabelStyle}>
+        <div className={filterLabelClass}>
           Session
           <ShadcnSelect
             value={sessionFilterId}
@@ -212,8 +205,8 @@ const TradeRow = ({
           onSelect(trade.id);
         }
       }}
+      className={tradeRowClass}
       style={{
-        ...tradeRowStyle,
         gridTemplateColumns: gridCols,
         background: isSelected ? "var(--surface2)" : "transparent",
         minWidth: 860,
@@ -221,48 +214,23 @@ const TradeRow = ({
     >
       {viewMode === "global" && (
         <span
-          style={{
-            fontSize: 12,
-            color: "var(--text3)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
+          className="overflow-hidden text-ellipsis text-[12px] text-[var(--text3)]"
           title={sessionLabel}
         >
           {sessionLabel}
         </span>
       )}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 14,
-            fontWeight: 700,
-            color: "var(--text1)",
-          }}
-        >
+      <div className="flex min-w-0 flex-col">
+        <span className="font-mono text-[14px] font-bold text-[var(--text1)]">
           {trade.instrumentSymbol}
         </span>
         {trade.instrumentDisplayName ? (
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--text3)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
+          <span className="overflow-hidden text-ellipsis text-[12px] text-[var(--text3)]">
             {trade.instrumentDisplayName}
           </span>
         ) : null}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="flex items-center gap-1.5">
         {trade.predictionOutcome ? (
           <Badge variant="purple" size="sm">
             {trade.predictionOutcome}
@@ -272,63 +240,31 @@ const TradeRow = ({
           {trade.side}
         </Badge>
       </div>
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 12,
-          color: "var(--text2)",
-        }}
-      >
+      <span className="font-mono text-[12px] text-[var(--text2)]">
         {trade.position_size_usd != null
           ? fmt.usd(trade.position_size_usd, 0)
           : "—"}
       </span>
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 12,
-          color: "var(--text2)",
-        }}
-      >
+      <span className="font-mono text-[12px] text-[var(--text2)]">
         {trade.entry_price != null ? fmt.usd(trade.entry_price) : "—"}
       </span>
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 12,
-          color: "var(--text2)",
-        }}
-      >
+      <span className="font-mono text-[12px] text-[var(--text2)]">
         {isOpen && trade.current_price != null
           ? fmt.usd(trade.current_price)
           : "—"}
       </span>
       <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 12,
-          color: pos ? "var(--color-success)" : "var(--color-error)",
-          fontWeight: 600,
-        }}
+        className={cn(
+          "font-mono text-[12px] font-semibold",
+          pos ? "text-success" : "text-error",
+        )}
       >
         {pnl != null ? fmt.pnl(pnl) : "—"}
       </span>
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 12,
-          color: "var(--text3)",
-        }}
-      >
+      <span className="font-mono text-[12px] text-[var(--text3)]">
         {trade.ai_cost_usd != null ? fmt.usd(trade.ai_cost_usd, 3) : "—"}
       </span>
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 12,
-          color: "var(--text2)",
-        }}
-      >
+      <span className="font-mono text-[12px] text-[var(--text2)]">
         {trade.confidence_score != null
           ? `${Math.round(trade.confidence_score * 100)}%`
           : "—"}
@@ -336,13 +272,7 @@ const TradeRow = ({
       <Badge variant={isOpen ? "success" : "default"} size="sm">
         {trade.status}
       </Badge>
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 12,
-          color: "var(--text3)",
-        }}
-      >
+      <span className="font-mono text-[12px] text-[var(--text3)]">
         {trade.opened_at ? fmt.time(trade.opened_at) : "—"}
       </span>
       {!isOpen && onViewAutopsy && (
@@ -351,7 +281,7 @@ const TradeRow = ({
             e.stopPropagation();
             onViewAutopsy(trade.id);
           }}
-          style={autopsyButtonStyle}
+          className={autopsyButtonClass}
           title="View autopsy"
         >
           ⚕ Autopsy
@@ -460,28 +390,14 @@ export const TradesPage = ({
   return (
     <PageShell>
       <div>
-        <h1
-          style={{
-            fontSize: 22,
-            fontWeight: 600,
-            color: "var(--text1)",
-            margin: 0,
-          }}
-        >
+        <h1 className="m-0 text-[22px] font-semibold text-[var(--text1)]">
           Trades
         </h1>
-        <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>
+        <p className="mt-1 text-[13px] text-[var(--text3)]">
           All trade history and open positions
         </p>
       </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
+      <div className="flex items-center justify-between gap-2.5">
         <WorkspaceContextChip
           onSwitchSession={async (id) => {
             await api.focusSession(id);
@@ -493,15 +409,7 @@ export const TradesPage = ({
           }}
         />
         {viewMode === "global" && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              color: "var(--text2)",
-              fontSize: 12,
-            }}
-          >
+          <div className="flex items-center gap-2 text-[12px] text-[var(--text2)]">
             <Checkbox
               checked={preferences?.globalIncludeArchived ?? false}
               onCheckedChange={async (checked) => {
@@ -523,48 +431,36 @@ export const TradesPage = ({
         dispatch={dispatchFilter}
       />
 
-      <div style={{ display: "flex", gap: 14 }}>
+      <div className="flex gap-3.5">
         {[
           [
             "Realized P&L",
             fmt.pnl(realPnl),
-            realPnl >= 0 ? "var(--color-success)" : "var(--color-error)",
+            realPnl >= 0 ? "text-success" : "text-error",
           ],
           [
             "Win Rate",
             closed.length
               ? `${Math.round((wins.length / closed.length) * 100)}%`
               : "—",
-            "var(--text1)",
+            "text-[var(--text1)]",
           ],
-          ["Total Trades", `${allTrades.length}`, "var(--text1)"],
+          ["Total Trades", `${allTrades.length}`, "text-[var(--text1)]"],
           [
             "Open",
             `${allTrades.filter((t) => t.status === "open").length}`,
-            "var(--color-info)",
+            "text-info",
           ],
-        ].map(([lbl, val, color]) => (
-          <Card key={String(lbl)} style={{ flex: 1, padding: "18px 22px" }}>
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--text3)",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginBottom: 8,
-                fontWeight: 600,
-              }}
-            >
+        ].map(([lbl, val, colorClass]) => (
+          <Card key={String(lbl)} className="flex-1 px-[22px] py-[18px]">
+            <div className="mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]">
               {lbl}
             </div>
             <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 26,
-                fontWeight: 700,
-                color,
-                lineHeight: 1,
-              }}
+              className={cn(
+                "font-mono text-[26px] font-bold leading-none",
+                colorClass,
+              )}
             >
               {val}
             </div>
@@ -572,38 +468,28 @@ export const TradesPage = ({
         ))}
       </div>
 
-      <Card style={{ padding: 0, overflow: "hidden" }}>
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            padding: "16px 20px",
-            borderBottom: "1px solid var(--border)",
-          }}
-        >
+      <Card className="overflow-hidden !p-0">
+        <div className="flex gap-1.5 border-b border-[var(--border)] px-5 py-4">
           {(["all", "open", "closed"] as Filter[]).map((s) => (
             <Button
               key={s}
               onClick={() => dispatchFilter({ type: "setFilter", filter: s })}
               variant="ghost"
-              style={{
-                ...filterTabButtonStyle,
-                background: filter === s ? "var(--surface3)" : "transparent",
-                border: `1px solid ${filter === s ? "var(--border)" : "transparent"}`,
-                color: filter === s ? "var(--text1)" : "var(--text3)",
-              }}
+              className={cn(
+                filterTabButtonClass,
+                filter === s
+                  ? "border border-[var(--border)] bg-[var(--surface3)] text-[var(--text1)]"
+                  : "border border-transparent bg-transparent text-[var(--text3)]",
+              )}
             >
               {s}
             </Button>
           ))}
         </div>
-        <div style={{ overflowX: "auto" }}>
+        <div className="overflow-x-auto">
           <div
-            style={{
-              ...tradeTableHeaderStyle,
-              gridTemplateColumns: gridCols,
-              minWidth: 860,
-            }}
+            className={tradeTableHeaderClass}
+            style={{ gridTemplateColumns: gridCols, minWidth: 860 }}
           >
             {[
               ...(viewMode === "global" ? ["Session"] : []),
@@ -638,63 +524,20 @@ export const TradesPage = ({
   );
 };
 
-const filterTabButtonStyle = {
-  padding: "5px 14px",
-  fontSize: 12,
-  borderRadius: 7,
-  cursor: "pointer",
-  fontFamily: "var(--font-sans)",
-} as const;
+const filterTabButtonClass =
+  "cursor-pointer rounded-[7px] px-[14px] py-[5px] font-sans text-[12px]";
 
-const tradeTableHeaderStyle = {
-  display: "grid",
-  padding: "10px 20px 8px",
-  fontSize: 12,
-  color: "var(--text3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.07em",
-  fontWeight: 600,
-  borderBottom: "1px solid var(--border)",
-} as const;
+const tradeTableHeaderClass =
+  "grid border-b border-[var(--border)] px-5 pb-2 pt-2.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-[var(--text3)]";
 
-const tradeRowStyle = {
-  display: "grid",
-  padding: "11px 20px",
-  alignItems: "center",
-  cursor: "pointer",
-  borderBottom: "1px solid var(--border)",
-  transition: "background 0.1s",
-} as const;
+const tradeRowClass =
+  "grid cursor-pointer items-center border-b border-[var(--border)] px-5 py-[11px] transition-[background] duration-100";
 
-const autopsyButtonStyle = {
-  padding: "3px 8px",
-  borderRadius: 5,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text3)",
-  fontSize: 12,
-  cursor: "pointer",
-  fontFamily: "var(--font-mono)",
-  letterSpacing: "0.03em",
-  whiteSpace: "nowrap" as const,
-} as const;
+const autopsyButtonClass =
+  "cursor-pointer whitespace-nowrap rounded-[5px] border border-[var(--border)] bg-transparent px-2 py-[3px] font-mono text-[12px] tracking-[0.03em] text-[var(--text3)]";
 
-const filterLabelStyle = {
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: 6,
-  fontSize: 12,
-  color: "var(--text3)",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.06em",
-};
-const filterInputStyle = {
-  minWidth: 120,
-  padding: "7px 10px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text1)",
-  fontSize: 13,
-  fontFamily: "var(--font-sans)",
-};
+const filterLabelClass =
+  "flex flex-col gap-1.5 text-[12px] uppercase tracking-[0.06em] text-[var(--text3)]";
+
+const filterInputClass =
+  "min-w-[120px] rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-[7px] font-sans text-[13px] text-[var(--text1)]";

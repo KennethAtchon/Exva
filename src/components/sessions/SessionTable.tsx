@@ -1,6 +1,7 @@
 import { Badge } from "@/components/custom-ui";
 import { Button } from "@/components/ui";
 import type { SessionSummary } from "@/lib/exva";
+import { cn } from "@/lib/utils";
 import type { ExecutionStage } from "@/lib/types";
 import { getSearchProviderDisplayName } from "@electron/shared/instruments/search-providers";
 import {
@@ -49,23 +50,14 @@ const SessionControls = ({
     session.status === "monitoring_only";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 6,
-        flexWrap: "wrap",
-        marginTop: 14,
-        borderTop: "1px solid var(--border)",
-        paddingTop: 12,
-      }}
-    >
+    <div className={controlsBarClass}>
       <Button
         onClick={() => onFocus(session.id)}
         variant="outline"
-        style={{
-          ...actionButtonStyle,
-          ...(session.isFocused ? focusedButtonStyle : {}),
-        }}
+        className={cn(
+          actionButtonClass,
+          session.isFocused && focusedButtonClass,
+        )}
         disabled={busy || session.isFocused}
       >
         {session.isFocused ? "Focused" : "Focus"}
@@ -73,7 +65,7 @@ const SessionControls = ({
       <Button
         onClick={() => onEdit(session)}
         variant="outline"
-        style={actionButtonStyle}
+        className={actionButtonClass}
         disabled={busy || locked}
       >
         Edit
@@ -81,7 +73,7 @@ const SessionControls = ({
       <Button
         onClick={() => onDuplicate(session)}
         variant="outline"
-        style={actionButtonStyle}
+        className={actionButtonClass}
         disabled={busy}
       >
         Duplicate
@@ -89,22 +81,22 @@ const SessionControls = ({
       <Button
         onClick={() => onSaveTemplate(session)}
         variant="outline"
-        style={actionButtonStyle}
+        className={actionButtonClass}
         disabled={busy}
       >
         Save Template
       </Button>
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
       {session.status === "draft" ||
       session.status === "idle" ||
       session.status === "stopped" ? (
         <Button
           onClick={() => onLifecycle(session, "start")}
           variant="ghost"
-          style={{
-            ...primaryActionButtonStyle,
-            ...(aiBlocked ? blockedStyle : {}),
-          }}
+          className={cn(
+            primaryActionButtonClass,
+            aiBlocked && blockedButtonClass,
+          )}
           disabled={busy || aiBlocked}
           title={
             aiBlocked
@@ -119,7 +111,7 @@ const SessionControls = ({
         <Button
           onClick={() => onLifecycle(session, "pause")}
           variant="outline"
-          style={actionButtonStyle}
+          className={actionButtonClass}
           disabled={busy}
           title="Pause stops new research but keeps exits managed."
         >
@@ -130,7 +122,7 @@ const SessionControls = ({
         <Button
           onClick={() => onLifecycle(session, "resume")}
           variant="ghost"
-          style={primaryActionButtonStyle}
+          className={primaryActionButtonClass}
           disabled={busy}
         >
           Resume
@@ -141,7 +133,7 @@ const SessionControls = ({
         <Button
           onClick={() => onLifecycle(session, "stop")}
           variant="ghost"
-          style={dangerButtonStyle}
+          className={dangerButtonClass}
           disabled={busy}
         >
           Stop
@@ -152,7 +144,7 @@ const SessionControls = ({
         <Button
           onClick={() => onLifecycle(session, "stop")}
           variant="ghost"
-          style={stopWhenFlatButtonStyle}
+          className={stopWhenFlatButtonClass}
           disabled={busy}
           title={STOP_WHEN_FLAT_TITLE}
         >
@@ -169,7 +161,7 @@ const SessionControls = ({
             onLifecycle(session, "forceStop");
           }}
           variant="ghost"
-          style={forceStopButtonStyle}
+          className={forceStopButtonClass}
           disabled={busy}
           title="Force stop ends automated exit management for open positions."
         >
@@ -179,7 +171,7 @@ const SessionControls = ({
       <Button
         onClick={() => onArchive(session.id)}
         variant="outline"
-        style={actionButtonStyle}
+        className={actionButtonClass}
         disabled={busy || locked}
       >
         Archive
@@ -245,10 +237,9 @@ const SessionCard = ({
 
   return (
     <article
+      className="rounded-2xl px-[18px] py-4"
       style={{
         border: `1px solid ${session.isFocused ? "rgba(96,165,250,0.30)" : "var(--border)"}`,
-        borderRadius: 16,
-        padding: "16px 18px",
         background: session.isFocused
           ? "linear-gradient(135deg, rgba(96,165,250,0.07) 0%, rgba(13,18,25,0.97) 60%)"
           : "rgba(13,18,25,0.97)",
@@ -258,37 +249,15 @@ const SessionCard = ({
       }}
     >
       {/* Top row: name+objective | metrics+chips */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 220px",
-          gap: 16,
-          alignItems: "start",
-        }}
-      >
+      <div className="grid grid-cols-[1fr_220px] items-start gap-4">
         {/* Left: clickable name + objective */}
         <button
           type="button"
           onClick={() => onOpen(session)}
-          style={titleButtonStyle}
+          className={titleButtonClass}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              flexWrap: "wrap",
-              minWidth: 0,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                color: "var(--text1)",
-                letterSpacing: "-0.01em",
-              }}
-            >
+          <div className="flex min-w-0 flex-wrap items-center gap-[7px]">
+            <span className="text-[15px] font-bold tracking-[-0.01em] text-[var(--text1)]">
               {session.name}
             </span>
             {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
@@ -296,12 +265,12 @@ const SessionCard = ({
               {formatSessionStatusLabel(session.status)}
             </Badge>
           </div>
-          <div style={objectiveStyle}>{session.objective}</div>
+          <div className={objectiveClass}>{session.objective}</div>
         </button>
 
         {/* Right: metrics + chips */}
-        <div style={{ display: "grid", gap: 8 }}>
-          <div style={metricStripStyle}>
+        <div className="grid gap-2">
+          <div className={metricStripClass}>
             <Metric
               label="uptime"
               value={session.uptimeMin > 0 ? `${session.uptimeMin}m` : "—"}
@@ -309,25 +278,18 @@ const SessionCard = ({
             <Metric label="trades" value={String(session.openTradeCount)} />
             <Metric label="brokers" value={String(session.brokerCount)} />
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: 5,
-              flexWrap: "wrap",
-              justifyContent: "flex-end",
-            }}
-          >
+          <div className="flex flex-wrap justify-end gap-[5px]">
             {session.instrumentClasses.map((ic) => (
-              <span key={ic} style={chipStyle}>
+              <span key={ic} className={chipClass}>
                 {formatInstrumentClass(ic)}
               </span>
             ))}
-            <span style={{ ...chipStyle, color: "var(--text3)" }}>
+            <span className={cn(chipClass, "text-[var(--text3)]")}>
               {session.selectionMode === "ai_selected_universe"
                 ? "AI"
                 : "Manual"}
             </span>
-            <span style={{ ...chipStyle, color: "var(--text3)" }}>
+            <span className={cn(chipClass, "text-[var(--text3)]")}>
               {session.executionMode === "live_allowed" ? "Live" : "Paper"}
             </span>
           </div>
@@ -343,27 +305,20 @@ const SessionCard = ({
         onPauseAfterStep={onPauseAfterStep ?? (() => undefined)}
       />
       {researchFailuresBySessionId?.[session.id] ? (
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 12,
-            color: "var(--color-error)",
-            lineHeight: 1.4,
-          }}
-        >
+        <div className="mt-2 text-[12px] leading-snug text-error">
           Research phase failed ({researchFailuresBySessionId[session.id].phase}
           ): {researchFailuresBySessionId[session.id].error}
         </div>
       ) : null}
       {isDraining ? (
-        <div style={drainBannerStyle}>
+        <div className={drainBannerClass}>
           Stopping when flat: managing {session.openTradeCount} open trade
           {session.openTradeCount === 1 ? "" : "s"}. Session stops automatically
           once flat.
         </div>
       ) : null}
       {showOrphanWarning ? (
-        <div style={orphanWarningStyle}>
+        <div className={orphanWarningClass}>
           Stopped with {session.openTradeCount} open trade
           {session.openTradeCount === 1 ? "" : "s"}, no automated exits will
           fire. Restart to resume monitoring.
@@ -371,7 +326,7 @@ const SessionCard = ({
       ) : null}
 
       {/* Meta strip */}
-      <div style={metaGridStyle}>
+      <div className={metaGridClass}>
         <MetaBlock label="Scope" value={session.instrumentScope} />
         <MetaBlock
           label="Allocated"
@@ -449,7 +404,7 @@ export const SessionTable = ({
   onPauseAfterStep?: (sessionId: string) => void;
 }) => {
   return (
-    <div style={{ display: "grid", gap: 10 }}>
+    <div className="grid gap-2.5">
       {sessions.map((session) => (
         <SessionCard
           key={session.id}
@@ -475,54 +430,22 @@ export const SessionTable = ({
 };
 
 const Metric = ({ label, value }: { label: string; value: string }) => (
-  <div style={{ textAlign: "center" }}>
-    <div
-      style={{
-        fontSize: 15,
-        fontWeight: 700,
-        color: "var(--text1)",
-        fontVariantNumeric: "tabular-nums",
-      }}
-    >
+  <div className="text-center">
+    <div className="text-[15px] font-bold tabular-nums text-[var(--text1)]">
       {value}
     </div>
-    <div
-      style={{
-        marginTop: 2,
-        fontSize: 12,
-        letterSpacing: "0.10em",
-        textTransform: "uppercase",
-        color: "var(--text3)",
-      }}
-    >
+    <div className="mt-0.5 text-[12px] uppercase tracking-[0.10em] text-[var(--text3)]">
       {label}
     </div>
   </div>
 );
 
 const MetaBlock = ({ label, value }: { label: string; value: string }) => (
-  <div style={{ minWidth: 0 }}>
-    <div
-      style={{
-        fontSize: 12,
-        letterSpacing: "0.10em",
-        textTransform: "uppercase",
-        color: "var(--text3)",
-        marginBottom: 3,
-      }}
-    >
+  <div className="min-w-0">
+    <div className="mb-[3px] text-[12px] uppercase tracking-[0.10em] text-[var(--text3)]">
       {label}
     </div>
-    <div
-      style={{
-        color: "var(--text2)",
-        fontSize: 12,
-        lineHeight: 1.4,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      }}
-    >
+    <div className="truncate text-[12px] leading-snug text-[var(--text2)]">
       {value}
     </div>
   </div>
@@ -571,127 +494,46 @@ function formatTimestamp(value: string): string {
   return new Date(value).toLocaleString();
 }
 
-const titleButtonStyle = {
-  background: "transparent",
-  border: "none",
-  color: "inherit",
-  textAlign: "left" as const,
-  cursor: "pointer",
-  padding: 0,
-  width: "100%",
-  minWidth: 0,
-  display: "block",
-} as const;
+const titleButtonClass =
+  "block w-full min-w-0 cursor-pointer border-none bg-transparent p-0 text-left text-inherit";
 
-const objectiveStyle = {
-  marginTop: 6,
-  color: "var(--text2)",
-  fontSize: 12,
-  lineHeight: 1.5,
-  overflow: "hidden",
-  display: "-webkit-box",
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: "vertical" as const,
-} as const;
+const objectiveClass =
+  "mt-1.5 line-clamp-2 overflow-hidden text-[12px] leading-normal text-[var(--text2)]";
 
-const metricStripStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  gap: 8,
-  padding: "10px 10px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.5)",
-} as const;
+const metricStripClass =
+  "grid grid-cols-3 gap-2 rounded-[10px] border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-2.5 py-2.5";
 
-const metaGridStyle = {
-  marginTop: 14,
-  display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-  gap: 12,
-  padding: "12px 0 0",
-  borderTop: "1px solid var(--border)",
-} as const;
+const metaGridClass =
+  "mt-3.5 grid grid-cols-4 gap-3 border-t border-[var(--border)] pt-3";
 
-const chipStyle = {
-  padding: "3px 8px",
-  borderRadius: 999,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.5)",
-  color: "var(--text2)",
-  fontSize: 12,
-  fontWeight: 500,
-  letterSpacing: "0.02em",
-} as const;
+const chipClass =
+  "rounded-full border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-2 py-[3px] text-[12px] font-medium tracking-[0.02em] text-[var(--text2)]";
 
-const actionButtonStyle = {
-  height: 30,
-  padding: "0 10px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  fontSize: 12,
-  fontWeight: 500,
-} as const;
+const controlsBarClass =
+  "mt-3.5 flex flex-wrap gap-1.5 border-t border-[var(--border)] pt-3";
 
-const focusedButtonStyle = {
-  border: "1px solid rgba(96,165,250,0.3)",
-  color: "rgba(96,165,250,0.8)",
-} as const;
+const actionButtonClass =
+  "h-[30px] rounded-lg border border-[var(--border)] bg-transparent px-2.5 text-[12px] font-medium text-[var(--text2)]";
 
-const primaryActionButtonStyle = {
-  ...actionButtonStyle,
-  border: "1px solid transparent",
-  background: "var(--accent)",
-  color: "hsl(var(--primary-foreground))",
-  fontWeight: 600,
-} as const;
+const focusedButtonClass =
+  "border-[rgba(96,165,250,0.3)] text-[rgba(96,165,250,0.8)]";
 
-const dangerButtonStyle = {
-  ...actionButtonStyle,
-  border: "1px solid var(--color-error-border)",
-  color: "var(--color-error)",
-} as const;
+const primaryActionButtonClass =
+  "h-[30px] rounded-lg border border-transparent bg-[var(--accent)] px-2.5 text-[12px] font-semibold text-[hsl(var(--primary-foreground))]";
 
-const forceStopButtonStyle = {
-  ...dangerButtonStyle,
-  border: "1px solid var(--color-error-border)",
-  background: "var(--color-error-dim)",
-  color: "var(--color-error)",
-} as const;
+const dangerButtonClass =
+  "h-[30px] rounded-lg border border-error-border bg-transparent px-2.5 text-[12px] font-medium text-error";
 
-const stopWhenFlatButtonStyle = {
-  ...actionButtonStyle,
-  border: "1px solid var(--color-orange-border)",
-  background: "var(--color-orange-dim)",
-  color: "var(--color-orange)",
-  fontWeight: 600,
-} as const;
+const forceStopButtonClass =
+  "h-[30px] rounded-lg border border-error-border bg-error-dim px-2.5 text-[12px] font-medium text-error";
 
-const drainBannerStyle = {
-  marginTop: 8,
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--color-orange-border)",
-  background: "var(--color-orange-dim)",
-  color: "var(--color-orange)",
-  fontSize: 12,
-  lineHeight: 1.45,
-} as const;
+const stopWhenFlatButtonClass =
+  "h-[30px] rounded-lg border border-status-orange-border bg-status-orange-dim px-2.5 text-[12px] font-semibold text-status-orange";
 
-const orphanWarningStyle = {
-  marginTop: 8,
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--color-orange-border)",
-  background: "var(--color-orange-dim)",
-  color: "var(--color-orange)",
-  fontSize: 12,
-  lineHeight: 1.45,
-} as const;
+const drainBannerClass =
+  "mt-2 rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-[12px] leading-[1.45] text-status-orange";
 
-const blockedStyle = {
-  opacity: 0.4,
-  cursor: "not-allowed",
-} as const;
+const orphanWarningClass =
+  "mt-2 rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-[12px] leading-[1.45] text-status-orange";
+
+const blockedButtonClass = "cursor-not-allowed opacity-40";

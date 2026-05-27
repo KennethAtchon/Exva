@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
 import { Switch } from "@/components/ui";
 import { api } from "@/lib/exva";
@@ -18,23 +18,11 @@ const PHASE_LABELS: Record<PipelinePhase, string> = {
   decision: "Decision",
 };
 
-const fieldLabelStyle: CSSProperties = {
-  fontSize: 12,
-  color: "var(--text3)",
-  marginBottom: 4,
-  textTransform: "uppercase",
-  letterSpacing: "0.04em",
-};
+const fieldLabelClass =
+  "mb-1 text-[12px] uppercase tracking-[0.04em] text-[var(--text3)]";
 
-const inputStyle: CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--bg)",
-  color: "var(--text1)",
-  fontSize: 13,
-};
+const inputClass =
+  "w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-2 text-[13px] text-[var(--text1)]";
 
 interface AiPhasesSectionProps {
   aiPhases: PhaseRuntimeSummary[];
@@ -57,7 +45,7 @@ export const AiPhasesSection = ({
   ) as Partial<Record<PipelinePhase, PhaseRuntimeSummary>>;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <div className="flex flex-col gap-4">
       {PIPELINE_PHASES.map((phase) => {
         const config = phaseMap[phase];
         if (!config) return null;
@@ -121,16 +109,9 @@ const PhaseCard = ({
   return (
     <Card>
       <SectionTitle>{PHASE_LABELS[phase]}</SectionTitle>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          marginTop: 14,
-        }}
-      >
+      <div className="mt-3.5 flex flex-col gap-3">
         <div>
-          <div style={fieldLabelStyle}>Provider</div>
+          <div className={fieldLabelClass}>Provider</div>
           <ShadcnSelect
             value={config.providerKey || ""}
             onValueChange={(providerKey) =>
@@ -142,7 +123,7 @@ const PhaseCard = ({
           />
         </div>
         <div>
-          <div style={fieldLabelStyle}>Model</div>
+          <div className={fieldLabelClass}>Model</div>
           <ShadcnSelect
             value={config.modelId || ""}
             onValueChange={(modelId) => onUpdate({ modelId })}
@@ -153,11 +134,9 @@ const PhaseCard = ({
             disabled={isLocked || !config.providerKey}
           />
         </div>
-        <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-        >
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <div style={fieldLabelStyle}>Temperature</div>
+            <div className={fieldLabelClass}>Temperature</div>
             <input
               type="number"
               min={0}
@@ -165,27 +144,27 @@ const PhaseCard = ({
               step={0.1}
               value={config.temperature}
               disabled={isLocked}
-              style={inputStyle}
+              className={inputClass}
               onChange={(e) =>
                 onUpdate({ temperature: Number(e.target.value) })
               }
             />
           </div>
           <div>
-            <div style={fieldLabelStyle}>Max tokens</div>
+            <div className={fieldLabelClass}>Max tokens</div>
             <input
               type="number"
               min={256}
               step={256}
               value={config.maxTokens}
               disabled={isLocked}
-              style={inputStyle}
+              className={inputClass}
               onChange={(e) => onUpdate({ maxTokens: Number(e.target.value) })}
             />
           </div>
         </div>
         <div>
-          <div style={fieldLabelStyle}>Reasoning</div>
+          <div className={fieldLabelClass}>Reasoning</div>
           <ShadcnSelect
             value={config.reasoningLevel ?? "off"}
             onValueChange={(reasoningLevel) =>
@@ -198,24 +177,17 @@ const PhaseCard = ({
             placeholder="Off"
             disabled={isLocked}
           />
-          <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
+          <div className="mt-1 text-[12px] text-[var(--text3)]">
             Non-off levels increase token spend. Pair with a reasoning-capable
             model.
           </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <div style={{ fontSize: 13, color: "var(--text1)" }}>
+            <div className="text-[13px] text-[var(--text1)]">
               Session prompt override
             </div>
-            <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
+            <div className="mt-0.5 text-[12px] text-[var(--text3)]">
               Replace the bundled worker prompt for this phase.
             </div>
           </div>
@@ -235,18 +207,13 @@ const PhaseCard = ({
             value={config.promptMarkdown}
             disabled={isLocked}
             rows={6}
-            style={{
-              ...inputStyle,
-              resize: "vertical",
-              fontFamily: "var(--font-mono)",
-              fontSize: 12,
-            }}
+            className={`${inputClass} resize-y font-mono text-[12px]`}
             onChange={(e) => onUpdate({ promptMarkdown: e.target.value })}
             placeholder="Phase-level prompt override (markdown)"
           />
         )}
         {config.workerOverrides.length > 0 && (
-          <div style={{ fontSize: 12, color: "var(--text3)" }}>
+          <div className="text-[12px] text-[var(--text3)]">
             {config.workerOverrides.length} worker override
             {config.workerOverrides.length === 1 ? "" : "s"} configured
           </div>

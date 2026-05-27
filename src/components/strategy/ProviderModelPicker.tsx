@@ -117,9 +117,9 @@ export const ProviderModelPicker = ({
   onProviderChange: (providerKey: string) => void;
   onModelChange: (modelId: string) => void;
 }) => (
-  <div style={{ display: "grid", gap: 10 }}>
-    <div style={fieldStyle}>
-      <div style={fieldLabelStyle}>Provider</div>
+  <div className="grid gap-2.5">
+    <div className={fieldClass}>
+      <div className={fieldLabelClass}>Provider</div>
       <ShadcnSelect
         value={providerKey}
         onValueChange={onProviderChange}
@@ -130,8 +130,8 @@ export const ProviderModelPicker = ({
         ]}
       />
     </div>
-    <div style={fieldStyle}>
-      <div style={fieldLabelStyle}>Model</div>
+    <div className={fieldClass}>
+      <div className={fieldLabelClass}>Model</div>
       <ModelCombobox
         value={modelId}
         onChange={onModelChange}
@@ -143,5 +143,5 @@ export const ProviderModelPicker = ({
   </div>
 );
 
-const fieldStyle = { display: "grid", gap: 4 } as const;
-const fieldLabelStyle = { fontSize: 12, color: "var(--text3)" } as const;
+const fieldClass = "grid gap-1";
+const fieldLabelClass = "text-[12px] text-[var(--text3)]";

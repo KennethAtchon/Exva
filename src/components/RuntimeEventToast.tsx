@@ -1,10 +1,10 @@
 import { useCallback, useState } from "react";
-import type { CSSProperties } from "react";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import type { AndonCordPayload } from "@/lib/autopsy-types";
 import type { EventRow, Trade } from "@/lib/types";
 import { Button } from "@/components/ui";
 import { fmt } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 
 interface ToastItem {
   id: string;
@@ -16,6 +16,12 @@ interface ToastItem {
 
 const MAX_TOASTS = 5;
 const AUTO_DISMISS_MS = 8000;
+
+const toastClass =
+  "pointer-events-auto flex items-start gap-2 rounded-[10px] border px-3 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.25)]";
+
+const dismissClass =
+  "h-6 min-w-6 shrink-0 px-1.5 text-base leading-none text-[var(--text3)]";
 
 function formatExitReason(exitReason: string | null | undefined): string {
   if (!exitReason) return "closed";
@@ -85,33 +91,25 @@ export function RuntimeEventToast() {
         return (
           <div
             key={toast.id}
-            style={{
-              ...toastStyle,
-              borderColor: isError
-                ? "var(--color-error-border)"
+            className={cn(
+              toastClass,
+              isError
+                ? "border-error-border bg-error-dim"
                 : isInfo
-                  ? "var(--color-info-border)"
-                  : "var(--color-warning-border)",
-              background: isError
-                ? "var(--color-error-dim)"
-                : isInfo
-                  ? "var(--color-info-dim)"
-                  : "var(--color-warning-dim)",
-            }}
+                  ? "border-info-border bg-info-dim"
+                  : "border-warning-border bg-warning-dim",
+            )}
           >
             <div className="min-w-0 flex-1">
               <div
-                style={{
-                  fontWeight: 700,
-                  letterSpacing: "0.05em",
-                  color: isError
-                    ? "var(--color-error)"
+                className={cn(
+                  "mb-1 font-mono text-[12px] font-bold tracking-[0.05em]",
+                  isError
+                    ? "text-error"
                     : isInfo
-                      ? "var(--color-info)"
-                      : "var(--color-warning)",
-                  fontFamily: "var(--font-mono)",
-                }}
-                className="mb-1 text-[12px]"
+                      ? "text-info"
+                      : "text-warning",
+                )}
               >
                 {toast.level}
               </div>
@@ -121,7 +119,7 @@ export function RuntimeEventToast() {
             </div>
             <Button
               variant="ghost"
-              style={dismissStyle}
+              className={dismissClass}
               onClick={() => dismiss(toast.id)}
               aria-label="Dismiss notification"
             >
@@ -133,24 +131,3 @@ export function RuntimeEventToast() {
     </div>
   );
 }
-
-const toastStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "flex-start",
-  gap: 8,
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: "1px solid",
-  boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-  pointerEvents: "auto",
-};
-
-const dismissStyle: CSSProperties = {
-  padding: "0 6px",
-  minWidth: 24,
-  height: 24,
-  fontSize: 16,
-  lineHeight: 1,
-  color: "var(--text3)",
-  flexShrink: 0,
-};

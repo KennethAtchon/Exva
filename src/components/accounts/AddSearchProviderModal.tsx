@@ -1,4 +1,4 @@
-import { useEffect, useReducer, type CSSProperties } from "react";
+import { useEffect, useReducer } from "react";
 import { api } from "@/lib/exva";
 import { ShadcnSelect } from "@/components/custom-ui";
 import {
@@ -12,23 +12,10 @@ import {
 
 export type SearchProviderType = "brave" | "tavily";
 
-const labelStyle: CSSProperties = {
-  fontSize: 12,
-  fontWeight: 500,
-  color: "var(--text2)",
-  marginBottom: 6,
-};
+const labelClass = "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
 
-const hintBoxStyle: CSSProperties = {
-  marginBottom: 16,
-  padding: "10px 12px",
-  background: "var(--color-info-dim)",
-  border: "1px solid var(--color-info-border)",
-  borderRadius: 9,
-  fontSize: 12,
-  color: "var(--text3)",
-  lineHeight: 1.45,
-};
+const hintBoxClass =
+  "mb-4 rounded-[9px] border border-info-border bg-info-dim px-3 py-2.5 text-[12px] leading-[1.45] text-[var(--text3)]";
 
 const DEFAULT_NAMES: Record<SearchProviderType, string> = {
   brave: "Brave Search",
@@ -166,7 +153,7 @@ export const AddSearchProviderModal = ({
         </p>
 
         <div className="mb-3.5">
-          <div style={labelStyle}>Provider</div>
+          <div className={labelClass}>Provider</div>
           <ShadcnSelect
             value={providerType}
             onValueChange={(value) => onTypeChange(value as SearchProviderType)}
@@ -178,7 +165,7 @@ export const AddSearchProviderModal = ({
         </div>
 
         <div className="mb-3.5">
-          <div style={labelStyle}>Display name</div>
+          <div className={labelClass}>Display name</div>
           <Input
             className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
             value={name}
@@ -190,7 +177,7 @@ export const AddSearchProviderModal = ({
         </div>
 
         <div className="mb-3.5">
-          <div style={labelStyle}>API key</div>
+          <div className={labelClass}>API key</div>
           <Input
             className="h-10 border-border bg-[var(--surface2)] font-mono text-[13px] tracking-[0.03em] text-[var(--text1)]"
             type="password"
@@ -203,7 +190,7 @@ export const AddSearchProviderModal = ({
           />
         </div>
 
-        <div style={hintBoxStyle}>
+        <div className={hintBoxClass}>
           Optional providers let you override the built-in default for sessions
           that need a specific backend.
         </div>

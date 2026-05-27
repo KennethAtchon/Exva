@@ -70,7 +70,7 @@ export const TimeframeHorizonCard = ({
               onChange({ targetHoldDays: raw === "" ? null : Number(raw) });
             }}
             disabled={disabled}
-            style={inputStyle}
+            className={inputClass}
           />
         </Field>
         <Field label="Max hold (days, optional)">
@@ -85,7 +85,7 @@ export const TimeframeHorizonCard = ({
               onChange({ maxHoldDays: raw === "" ? null : Number(raw) });
             }}
             disabled={disabled}
-            style={inputStyle}
+            className={inputClass}
           />
         </Field>
         <Field label="Timeframe notes">
@@ -97,7 +97,7 @@ export const TimeframeHorizonCard = ({
             disabled={disabled}
             rows={3}
             placeholder="e.g. No new entries after Friday 12 ET"
-            style={{ ...inputStyle, resize: "vertical", minHeight: 72 }}
+            className={`${inputClass} min-h-[72px] resize-y`}
           />
         </Field>
       </div>
@@ -137,11 +137,5 @@ const Field = ({
     {children}
   </div>
 );
-const inputStyle = {
-  width: "100%",
-  padding: "9px 11px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text1)",
-} as const;
+const inputClass =
+  "w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[var(--text1)]";

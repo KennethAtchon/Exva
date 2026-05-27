@@ -1,8 +1,9 @@
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Badge } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
+import { cn } from "@/lib/utils";
 import type { AgentMessage, AgentRun, EventSourceType } from "@/lib/types";
 import { Dialog, DialogContent } from "@/components/ui";
 
@@ -37,14 +38,7 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
     bg: "var(--surface2)",
   };
   return (
-    <div
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: 10,
-        overflow: "hidden",
-        marginBottom: 8,
-      }}
-    >
+    <div className={traceCardClass}>
       <div
         onClick={() => setOpen((o) => !o)}
         role="button"
@@ -55,44 +49,25 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
             setOpen((o) => !o);
           }
         }}
+        className="flex cursor-pointer items-center gap-2.5 px-3.5 py-[11px]"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "11px 14px",
-          cursor: "pointer",
           background: p.bg,
           borderLeft: `3px solid ${p.bar}`,
         }}
       >
         <AgentLabel type={run.agent_type as EventSourceType} />
-        <span
-          style={{
-            flex: 1,
-            fontFamily: "var(--font-mono)",
-            fontSize: 12,
-            color: "var(--text3)",
-          }}
-        >
+        <span className="flex-1 font-mono text-[12px] text-[var(--text3)]">
           {run.provider_key.replace(/^provider-/, "")} · {run.finish_reason} ·{" "}
           {fmt.tokens(run.input_tokens + run.output_tokens)} tok ·{" "}
           {fmt.usd(run.cost_usd, 4)} · {fmt.duration(run.duration_ms)}
         </span>
-        <span style={{ fontSize: 12, color: "var(--text3)" }}>
+        <span className="text-[12px] text-[var(--text3)]">
           {open ? "▲" : "▼"}
         </span>
       </div>
       {open && (
-        <div
-          style={{
-            padding: 14,
-            borderTop: "1px solid var(--border)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
-          <div style={{ display: "flex", gap: 20 }}>
+        <div className="flex flex-col gap-3 border-t border-[var(--border)] p-3.5">
+          <div className="flex gap-5">
             {(
               [
                 ["Provider", run.provider_key],
@@ -104,30 +79,15 @@ const AgentTrace = ({ run }: { run: AgentRun }) => {
               ] as [string, string][]
             ).map(([k, v]) => (
               <div key={k}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text3)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    marginBottom: 3,
-                  }}
-                >
-                  {k}
-                </div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--text2)",
-                  }}
-                >
-                  {v}
-                </div>
+                <div className={traceMetaLabelClass}>{k}</div>
+                <div className={traceMetaValueClass}>{v}</div>
               </div>
             ))}
           </div>
-          <div style={{ ...ts.outputText, borderLeft: `3px solid ${p.bar}` }}>
+          <div
+            className={outputTextClass}
+            style={{ borderLeft: `3px solid ${p.bar}` }}
+          >
             "{run.output_text}"
           </div>
         </div>
@@ -144,14 +104,7 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
   const [open, setOpen] = useState(false);
   const p = PALETTE[msg.role] ?? { bar: "var(--text3)", bg: "var(--surface2)" };
   return (
-    <div
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: 10,
-        overflow: "hidden",
-        marginBottom: 8,
-      }}
-    >
+    <div className={traceCardClass}>
       <div
         onClick={() => setOpen((o) => !o)}
         role="button"
@@ -162,51 +115,32 @@ const MessageTrace = ({ msg }: { msg: AgentMessage }) => {
             setOpen((o) => !o);
           }
         }}
+        className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2.5"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "10px 14px",
-          cursor: "pointer",
           background: p.bg,
           borderLeft: `3px solid ${p.bar}`,
         }}
       >
         <AgentLabel type={msg.role as EventSourceType} />
-        <span
-          style={{
-            flex: 1,
-            fontFamily: "var(--font-mono)",
-            fontSize: 12,
-            color: "var(--text3)",
-          }}
-        >
+        <span className="flex-1 font-mono text-[12px] text-[var(--text3)]">
           {msg.provider_key.replace(/^provider-/, "")} · {msg.model_id}
           {msg.cycle_id ? ` · cycle ${msg.cycle_id.slice(0, 8)}…` : ""}
         </span>
-        <span style={{ fontSize: 12, color: "var(--text3)" }}>
+        <span className="text-[12px] text-[var(--text3)]">
           {open ? "▲" : "▼"}
         </span>
       </div>
       {open && (
-        <div
-          style={{
-            padding: 12,
-            borderTop: "1px solid var(--border)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          <pre style={ts.msgJsonPre}>{previewJson(msg.messages_json)}</pre>
+        <div className="flex flex-col gap-2.5 border-t border-[var(--border)] p-3">
+          <pre className={msgJsonPreClass}>
+            {previewJson(msg.messages_json)}
+          </pre>
           {msg.tool_calls_json ? (
             <div>
-              <div
-                style={{ fontSize: 12, color: "var(--text3)", marginBottom: 6 }}
-              >
+              <div className="mb-1.5 text-[12px] text-[var(--text3)]">
                 Tool calls
               </div>
-              <pre style={ts.toolCallsPre}>
+              <pre className={toolCallsPreClass}>
                 {previewJson(msg.tool_calls_json, 1600)}
               </pre>
             </div>
@@ -234,46 +168,33 @@ const TradeHero = ({
   confidenceScore: number | null;
   positionSizeUsd: number;
 }) => (
-  <div style={ts.hero}>
+  <div className={heroClass}>
     <div>
-      <div style={ts.heroLabel}>{isOpen ? "Unrealized P&L" : "Final P&L"}</div>
+      <div className={heroLabelClass}>
+        {isOpen ? "Unrealized P&L" : "Final P&L"}
+      </div>
       <div
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 40,
-          fontWeight: 700,
-          color: hasPositivePnl ? "var(--color-success)" : "var(--color-error)",
-          lineHeight: 1,
-        }}
+        className={cn(
+          "font-mono text-[40px] font-bold leading-none",
+          hasPositivePnl ? "text-success" : "text-error",
+        )}
       >
         {pnl != null ? fmt.pnl(pnl) : EMPTY_VALUE}
       </div>
       {pnl != null && (
         <div
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 14,
-            color: hasPositivePnl
-              ? "var(--color-success)"
-              : "var(--color-error)",
-            marginTop: 4,
-          }}
+          className={cn(
+            "mt-1 font-mono text-[14px]",
+            hasPositivePnl ? "text-success" : "text-error",
+          )}
         >
           {fmt.pct(pnl / positionSizeUsd)}
         </div>
       )}
     </div>
-    <div style={{ textAlign: "right" }}>
-      <div style={ts.heroLabel}>Confidence</div>
-      <div
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 40,
-          fontWeight: 700,
-          color: "var(--text1)",
-          lineHeight: 1,
-        }}
-      >
+    <div className="text-right">
+      <div className={heroLabelClass}>Confidence</div>
+      <div className="font-mono text-[40px] font-bold leading-none text-[var(--text1)]">
         {Math.round((confidenceScore ?? 0) * 100)}%
       </div>
     </div>
@@ -304,74 +225,24 @@ const TradePositionBar = ({
   const curPct = Math.max(0, Math.min(100, ((cur - lo) / range) * 100));
 
   return (
-    <div style={{ padding: "0 24px 20px" }}>
-      <div style={ts.secTitle}>Position</div>
+    <div className="px-6 pb-5">
+      <div className={secTitleClass}>Position</div>
       <div>
-        <div
-          style={{
-            position: "relative",
-            height: 36,
-            background: "var(--surface2)",
-            borderRadius: 8,
-            overflow: "hidden",
-          }}
-        >
+        <div className="relative h-9 overflow-hidden rounded-lg bg-[var(--surface2)]">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-error-dim)_0%,transparent_38%,transparent_62%,var(--color-success-dim)_100%)]" />
           <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "linear-gradient(to right, var(--color-error-dim) 0%, transparent 38%, transparent 62%, var(--color-success-dim) 100%)",
-            }}
+            className="absolute top-1.5 bottom-1.5 w-px rounded-[1px] bg-[rgba(255,255,255,0.25)]"
+            style={{ left: `${entryPct}%` }}
           />
-          <div
-            style={{
-              position: "absolute",
-              left: `${entryPct}%`,
-              top: 6,
-              bottom: 6,
-              width: 1.5,
-              background: "rgba(255,255,255,0.25)",
-              borderRadius: 1,
-            }}
-          />
-          <div style={{ ...ts.priceMarkerBase, left: `${curPct}%` }} />
-          <span
-            style={{
-              position: "absolute",
-              left: 10,
-              top: "50%",
-              transform: "translateY(-50%)",
-              fontSize: 12,
-              color: "var(--color-error)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
+          <div className={priceMarkerClass} style={{ left: `${curPct}%` }} />
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-[12px] text-error">
             {fmt.usd(lo)}
           </span>
-          <span
-            style={{
-              position: "absolute",
-              right: 10,
-              top: "50%",
-              transform: "translateY(-50%)",
-              fontSize: 12,
-              color: "var(--color-success)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-mono text-[12px] text-success">
             {fmt.usd(hi)}
           </span>
         </div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginTop: 5,
-            fontSize: 12,
-            color: "var(--text3)",
-          }}
-        >
+        <div className="mt-[5px] flex justify-between text-[12px] text-[var(--text3)]">
           <span>Stop Loss</span>
           <span>● current price</span>
           <span>Take Profit</span>
@@ -399,22 +270,9 @@ type TradeFields = {
 };
 
 const TradeOrderDetails = ({ trade }: { trade: TradeFields }) => (
-  <div
-    style={{
-      padding: "0 24px 20px",
-      borderTop: "1px solid var(--border)",
-      paddingTop: 20,
-    }}
-  >
-    <div style={ts.secTitle}>Order Details</div>
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: 14,
-        marginTop: 12,
-      }}
-    >
+  <div className={sectionClass}>
+    <div className={secTitleClass}>Order Details</div>
+    <div className="mt-3 grid grid-cols-2 gap-3.5">
       {(
         [
           [
@@ -450,27 +308,8 @@ const TradeOrderDetails = ({ trade }: { trade: TradeFields }) => (
         ] as [string, string][]
       ).map(([k, v]) => (
         <div key={k}>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--text3)",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: 4,
-            }}
-          >
-            {k}
-          </div>
-          <div
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 13,
-              color: "var(--text1)",
-              fontWeight: 500,
-            }}
-          >
-            {v}
-          </div>
+          <div className={orderFieldLabelClass}>{k}</div>
+          <div className={orderFieldValueClass}>{v}</div>
         </div>
       ))}
     </div>
@@ -484,14 +323,8 @@ const TradeOrderDetails = ({ trade }: { trade: TradeFields }) => (
 const TradeHarnessMessages = ({ messages }: { messages: AgentMessage[] }) => {
   if (messages.length === 0) return null;
   return (
-    <div
-      style={{
-        padding: "0 24px 20px",
-        borderTop: "1px solid var(--border)",
-        paddingTop: 20,
-      }}
-    >
-      <div style={{ ...ts.secTitle, marginBottom: 12 }}>Harness messages</div>
+    <div className={sectionClass}>
+      <div className={cn(secTitleClass, "mb-3")}>Harness messages</div>
       {messages.map((m) => (
         <MessageTrace key={m.id} msg={m} />
       ))}
@@ -506,42 +339,20 @@ const TradeHarnessMessages = ({ messages }: { messages: AgentMessage[] }) => {
 const TradeAgentRuns = ({ runs }: { runs: AgentRun[] }) => {
   if (runs.length === 0) return null;
   return (
-    <div
-      style={{
-        padding: "0 24px 20px",
-        borderTop: "1px solid var(--border)",
-        paddingTop: 20,
-      }}
-    >
-      <div style={{ ...ts.secTitle, marginBottom: 12 }}>Agent runs</div>
+    <div className={sectionClass}>
+      <div className={cn(secTitleClass, "mb-3")}>Agent runs</div>
       {runs.map((r) => (
         <AgentTrace key={r.id} run={r} />
       ))}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginTop: 10,
-          padding: "10px 14px",
-          background: "var(--surface2)",
-          borderRadius: 8,
-        }}
-      >
-        <span style={{ fontSize: 12, color: "var(--text3)" }}>
+      <div className="mt-2.5 flex justify-between rounded-lg bg-[var(--surface2)] px-3.5 py-2.5">
+        <span className="text-[12px] text-[var(--text3)]">
           Total ·{" "}
           {fmt.tokens(
             runs.reduce((s, r) => s + r.input_tokens + r.output_tokens, 0),
           )}{" "}
           tokens
         </span>
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 12,
-            color: "var(--text2)",
-            fontWeight: 600,
-          }}
-        >
+        <span className="font-mono text-[12px] font-semibold text-[var(--text2)]">
           {fmt.usd(
             runs.reduce((s, r) => s + r.cost_usd, 0),
             4,
@@ -597,17 +408,10 @@ export const TradeDetail = ({
   return (
     <Dialog open={!!trade} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="h-[92vh] max-w-[96vw] overflow-auto border-border bg-transparent p-0 sm:max-w-[480px]">
-        <div style={ts.panel}>
-          <div style={ts.header}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 22,
-                  fontWeight: 700,
-                  color: "var(--text1)",
-                }}
-              >
+        <div className={panelClass}>
+          <div className={headerClass}>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[22px] font-bold text-[var(--text1)]">
                 {trade.instrumentSymbol}
               </span>
               {trade.predictionOutcome ? (
@@ -623,30 +427,16 @@ export const TradeDetail = ({
             {!isOpen && onViewAutopsy && (
               <button
                 onClick={() => onViewAutopsy(tradeId)}
-                style={ts.autopsyBtn}
+                className={autopsyBtnClass}
               >
                 ⚕ Autopsy
               </button>
             )}
           </div>
 
-          <div
-            style={{
-              overflowY: "auto",
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              gap: 0,
-            }}
-          >
+          <div className="flex flex-1 flex-col gap-0 overflow-y-auto">
             {trade.instrumentDisplayName ? (
-              <div
-                style={{
-                  padding: "0 24px 14px",
-                  color: "var(--text2)",
-                  fontSize: 13,
-                }}
-              >
+              <div className="px-6 pb-3.5 text-[13px] text-[var(--text2)]">
                 {trade.instrumentDisplayName}
               </div>
             ) : null}
@@ -677,11 +467,11 @@ export const TradeDetail = ({
             <TradeAgentRuns runs={runs} />
 
             {isOpen && (
-              <div style={{ padding: "0 24px 28px" }}>
+              <div className="px-6 pb-7">
                 <button
                   disabled={closing}
                   onClick={handleForceClose}
-                  style={ts.forceCloseBtn}
+                  className={forceCloseBtnClass}
                 >
                   {closing ? "Closing…" : "Force Close Position"}
                 </button>
@@ -694,113 +484,51 @@ export const TradeDetail = ({
   );
 };
 
-const ts: Record<string, CSSProperties> = {
-  outputText: {
-    fontSize: 13,
-    color: "var(--text2)",
-    lineHeight: 1.65,
-    background: "var(--surface2)",
-    borderRadius: 8,
-    padding: "12px 14px",
-    fontStyle: "italic",
-  },
-  msgJsonPre: {
-    margin: 0,
-    fontSize: 12,
-    lineHeight: 1.45,
-    color: "var(--text2)",
-    background: "var(--surface2)",
-    borderRadius: 8,
-    padding: 12,
-    overflow: "auto",
-    maxHeight: 280,
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-  },
-  toolCallsPre: {
-    margin: 0,
-    fontSize: 12,
-    lineHeight: 1.45,
-    color: "var(--text2)",
-    background: "var(--surface2)",
-    borderRadius: 8,
-    padding: 12,
-    overflow: "auto",
-    maxHeight: 200,
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
-  },
-  autopsyBtn: {
-    padding: "5px 11px",
-    borderRadius: 6,
-    border: "1px solid var(--border)",
-    background: "transparent",
-    color: "var(--text3)",
-    fontSize: 12,
-    cursor: "pointer",
-    fontFamily: "var(--font-mono)",
-    flexShrink: 0,
-  },
-  priceMarkerBase: {
-    position: "absolute",
-    top: "50%",
-    transform: "translate(-50%,-50%)",
-    width: 12,
-    height: 12,
-    borderRadius: "50%",
-    background: "var(--accent)",
-    border: "2px solid var(--bg)",
-    boxShadow: "0 0 8px var(--accent)",
-  },
-  panel: {
-    width: 480,
-    minHeight: "100%",
-    background: "var(--surface)",
-    borderLeft: "1px solid var(--border)",
-    display: "flex",
-    flexDirection: "column",
-    animation: "slideIn 0.22s ease-out",
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "20px 24px",
-    borderBottom: "1px solid var(--border)",
-    flexShrink: 0,
-  },
-  hero: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    padding: "24px 24px 20px",
-    borderBottom: "1px solid var(--border)",
-  },
-  heroLabel: {
-    fontSize: 12,
-    color: "var(--text3)",
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    marginBottom: 8,
-    fontWeight: 600,
-  },
-  secTitle: {
-    fontSize: 12,
-    color: "var(--text3)",
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    fontWeight: 600,
-  },
-  forceCloseBtn: {
-    width: "100%",
-    padding: 12,
-    background: "var(--color-error-dim)",
-    border: "1px solid var(--color-error-border)",
-    borderRadius: 10,
-    color: "var(--color-error)",
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "var(--font-sans)",
-  },
-};
+const traceCardClass =
+  "mb-2 overflow-hidden rounded-[10px] border border-[var(--border)]";
+
+const traceMetaLabelClass =
+  "mb-[3px] text-[12px] uppercase tracking-[0.06em] text-[var(--text3)]";
+
+const traceMetaValueClass = "font-mono text-[12px] text-[var(--text2)]";
+
+const outputTextClass =
+  "rounded-lg bg-[var(--surface2)] px-3.5 py-3 text-[13px] italic leading-[1.65] text-[var(--text2)]";
+
+const msgJsonPreClass =
+  "m-0 max-h-[280px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--surface2)] p-3 font-mono text-[12px] leading-[1.45] text-[var(--text2)]";
+
+const toolCallsPreClass =
+  "m-0 max-h-[200px] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-[var(--surface2)] p-3 font-mono text-[12px] leading-[1.45] text-[var(--text2)]";
+
+const autopsyBtnClass =
+  "shrink-0 cursor-pointer rounded-md border border-[var(--border)] bg-transparent px-[11px] py-[5px] font-mono text-[12px] text-[var(--text3)]";
+
+const priceMarkerClass =
+  "absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[var(--bg)] bg-[var(--accent)] shadow-[0_0_8px_var(--accent)]";
+
+const panelClass =
+  "flex min-h-full w-[480px] animate-[slideIn_0.22s_ease-out] flex-col border-l border-[var(--border)] bg-[var(--surface)]";
+
+const headerClass =
+  "flex shrink-0 items-center justify-between border-b border-[var(--border)] px-6 py-5";
+
+const heroClass =
+  "flex items-end justify-between border-b border-[var(--border)] px-6 pb-5 pt-6";
+
+const heroLabelClass =
+  "mb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]";
+
+const secTitleClass =
+  "text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]";
+
+const sectionClass = "border-t border-[var(--border)] px-6 pb-5 pt-5";
+
+const orderFieldLabelClass =
+  "mb-1 text-[12px] uppercase tracking-[0.06em] text-[var(--text3)]";
+
+const orderFieldValueClass =
+  "font-mono text-[13px] font-medium text-[var(--text1)]";
+
+const forceCloseBtnClass =
+  "w-full cursor-pointer rounded-[10px] border border-error-border bg-error-dim px-3 py-3 font-sans text-[13px] font-semibold text-error";

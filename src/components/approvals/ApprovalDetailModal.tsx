@@ -196,15 +196,7 @@ function SessionHorizonSection({ value }: { value: unknown }) {
       <div className="mb-2 text-[12px] text-[var(--text3)]">
         Session trading horizon
       </div>
-      <ul
-        style={{
-          margin: 0,
-          paddingLeft: 18,
-          fontSize: 12,
-          color: "var(--text2)",
-          lineHeight: 1.55,
-        }}
-      >
+      <ul className="m-0 list-disc pl-[18px] text-[12px] leading-[1.55] text-[var(--text2)]">
         {tf ? <li>Primary timeframe: {tf}</li> : null}
         {hs ? <li>Holding style: {hs}</li> : null}
         {typeof target === "number" ? (

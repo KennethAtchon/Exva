@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import type { CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChatHistoryModal } from "@/components/autopsy/ChatHistoryModal";
 import { LessonsPanel } from "@/components/autopsy/LessonsPanel";
@@ -16,24 +15,107 @@ import {
   type TradeAutopsyRecord,
 } from "@/lib/autopsy-types";
 import type { Trade } from "@/lib/types";
-
-function ClientDateTime({ iso }: { iso: string }) {
-  const [text, setText] = useState<string | null>(null);
-
-  useEffect(() => {
-    setText(
-      new Date(iso).toLocaleString("en-US", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }),
-    );
-  }, [iso]);
-
-  return <span>{text ?? iso.slice(0, 10)}</span>;
-}
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Grade styling
+// Shared layout / typography classes
+// ---------------------------------------------------------------------------
+
+const overlayClass =
+  "fixed inset-0 z-[200] flex flex-col overflow-hidden bg-[var(--bg)]";
+
+const headerClass =
+  "sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-6";
+
+const bodyClass =
+  "mx-auto box-border w-full max-w-[1280px] flex-1 overflow-y-auto px-6 py-5";
+
+const columnsClass = "flex items-start gap-5";
+
+const backBtnClass =
+  "cursor-pointer rounded-md border border-[var(--border)] bg-transparent px-3 py-1.5 font-sans text-[13px] text-[var(--text2)]";
+
+const actionBtnClass =
+  "cursor-pointer rounded-md border border-[var(--border)] bg-transparent px-3.5 py-1.5 font-sans text-[12px] text-[var(--text2)]";
+
+const openTradeGuardClass =
+  "flex h-[60vh] flex-col items-center justify-center text-center";
+
+const emptyStateClass =
+  "flex min-h-[320px] flex-col items-center justify-center rounded-[10px] border border-dashed border-[var(--border)] p-10 text-center";
+
+const sectionCardClass =
+  "overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]";
+
+const collapsibleBtnBaseClass =
+  "flex w-full cursor-pointer items-center justify-between border-none bg-transparent px-4 py-[13px] text-left";
+
+const sectionTitleClass =
+  "text-[12px] font-bold tracking-[0.02em] text-[var(--text1)]";
+
+const sectionToggleClass = "text-[12px] text-[var(--text3)]";
+
+const sectionBodyClass = "border-t border-[var(--border)] px-4 pb-4 pt-3.5";
+
+const chipBaseClass =
+  "inline-block rounded px-2 py-[3px] font-mono text-[12px] font-semibold";
+
+const fieldRowClass = "mb-2.5 flex items-start gap-2.5";
+
+const fieldLabelClass =
+  "min-w-[110px] shrink-0 pt-0.5 text-[12px] font-bold uppercase tracking-[0.07em] text-[var(--text3)]";
+
+const fieldValueClass = "flex-1 text-[13px] leading-normal text-[var(--text1)]";
+
+const bodyTextClass = "text-[13px] leading-[1.6] text-[var(--text2)]";
+
+const gradeChipBaseClass =
+  "flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[10px]";
+
+const gradeBannerClass =
+  "flex items-start gap-5 rounded-[10px] border border-[var(--border)] px-5 pb-[18px] pt-5";
+
+const versionBtnBaseClass =
+  "cursor-pointer rounded-md px-3 py-[5px] font-mono text-[12px]";
+
+const exportDropdownClass =
+  "absolute right-0 top-[calc(100%+4px)] z-50 min-w-[160px] rounded-lg border border-[var(--border)] bg-[var(--surface3)] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)]";
+
+const exportOptionBtnClass =
+  "block w-full cursor-pointer rounded-[5px] border-none bg-transparent px-3 py-2 text-left text-[12px] text-[var(--text1)]";
+
+const exportBackdropClass =
+  "fixed inset-0 z-[49] cursor-default border-none bg-transparent p-0";
+
+const generateBtnClass =
+  "cursor-pointer rounded-lg border border-info-border bg-info-dim px-6 py-2.5 font-sans text-[14px] font-semibold text-info";
+
+const rightSidebarClass =
+  "sticky top-[58px] flex max-h-[calc(100vh-74px)] w-[300px] shrink-0 flex-col gap-3 self-start overflow-y-auto";
+
+const mainColumnClass = "flex min-w-0 flex-1 flex-col gap-3.5";
+
+const metaDotClass = "text-[12px] text-[var(--text3)]";
+
+const metaMonoClass = "font-mono text-[12px] text-[var(--text3)]";
+
+const listItemClass = "mb-[3px] text-[12px] leading-[1.6] text-[var(--text2)]";
+
+const listItemSpacedClass =
+  "mb-[5px] text-[12px] leading-[1.6] text-[var(--text2)]";
+
+const processItemClass =
+  "mb-2.5 text-[13px] leading-[1.65] text-[var(--text2)]";
+
+const headerDividerClass = "h-[18px] w-px shrink-0 bg-[var(--border)]";
+
+const symbolTitleClass = "font-mono text-[16px] font-bold text-[var(--text1)]";
+
+const warningBannerBaseClass =
+  "rounded-lg px-[14px] py-2.5 text-[12px] leading-normal";
+
+// ---------------------------------------------------------------------------
+// Grade styling (dynamic colors only)
 // ---------------------------------------------------------------------------
 
 const GRADE_STYLE: Record<string, { color: string; glow: string; bg: string }> =
@@ -70,6 +152,21 @@ const GRADE_STYLE: Record<string, { color: string; glow: string; bg: string }> =
     },
   };
 
+function ClientDateTime({ iso }: { iso: string }) {
+  const [text, setText] = useState<string | null>(null);
+
+  useEffect(() => {
+    setText(
+      new Date(iso).toLocaleString("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    );
+  }, [iso]);
+
+  return <span>{text ?? iso.slice(0, 10)}</span>;
+}
+
 // ---------------------------------------------------------------------------
 // Collapsible section card
 // ---------------------------------------------------------------------------
@@ -88,46 +185,18 @@ function SectionCard({
   const [open, setOpen] = useState(() => defaultOpen ?? false);
 
   return (
-    <div
-      style={{
-        borderRadius: 10,
-        border: "1px solid var(--border)",
-        background: "var(--surface)",
-        overflow: "hidden",
-      }}
-    >
+    <div className={sectionCardClass}>
       <button
         onClick={() => setOpen((o) => !o)}
+        className={collapsibleBtnBaseClass}
         style={{
-          ...collapsibleBtnBaseStyle,
           borderLeft: accent ? `3px solid ${accent}` : "3px solid transparent",
         }}
       >
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--text1)",
-            letterSpacing: "0.02em",
-          }}
-        >
-          {title}
-        </span>
-        <span style={{ fontSize: 12, color: "var(--text3)" }}>
-          {open ? "▲" : "▼"}
-        </span>
+        <span className={sectionTitleClass}>{title}</span>
+        <span className={sectionToggleClass}>{open ? "▲" : "▼"}</span>
       </button>
-      {open && (
-        <div
-          style={{
-            padding: "0 16px 16px",
-            borderTop: "1px solid var(--border)",
-            paddingTop: 14,
-          }}
-        >
-          {children}
-        </div>
-      )}
+      {open && <div className={sectionBodyClass}>{children}</div>}
     </div>
   );
 }
@@ -147,8 +216,8 @@ function Chip({
 }) {
   return (
     <span
+      className={chipBaseClass}
       style={{
-        ...chipBaseStyle,
         background: bg ?? "var(--surface3)",
         color: color ?? "var(--text2)",
       }}
@@ -170,25 +239,9 @@ function FieldRow({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 10,
-        alignItems: "flex-start",
-        marginBottom: 10,
-      }}
-    >
-      <span style={fieldLabelStyle}>{label}</span>
-      <div
-        style={{
-          flex: 1,
-          fontSize: 13,
-          color: "var(--text1)",
-          lineHeight: 1.5,
-        }}
-      >
-        {children}
-      </div>
+    <div className={fieldRowClass}>
+      <span className={fieldLabelClass}>{label}</span>
+      <div className={fieldValueClass}>{children}</div>
     </div>
   );
 }
@@ -214,32 +267,18 @@ function GradeBanner({
   };
 
   return (
-    <div
-      style={{
-        borderRadius: 10,
-        border: "1px solid var(--border)",
-        background: gs.bg,
-        padding: "20px 20px 18px",
-        display: "flex",
-        gap: 20,
-        alignItems: "flex-start",
-      }}
-    >
-      {/* Grade chip */}
+    <div className={gradeBannerClass} style={{ background: gs.bg }}>
       <div
+        className={gradeChipBaseClass}
         style={{
-          ...gradeChipBaseStyle,
           background: `radial-gradient(circle at center, ${gs.glow} 0%, transparent 70%)`,
           border: `2px solid ${gs.color}44`,
         }}
       >
         <span
+          className="font-mono text-[36px] font-extrabold leading-none"
           style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: 36,
-            fontWeight: 800,
             color: gs.color,
-            lineHeight: 1,
             textShadow: `0 0 20px ${gs.glow}`,
           }}
         >
@@ -247,69 +286,25 @@ function GradeBanner({
         </span>
       </div>
 
-      {/* Right side */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Score + meta */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 10,
-            flexWrap: "wrap",
-          }}
-        >
+      <div className="min-w-0 flex-1">
+        <div className="mb-2.5 flex flex-wrap items-center gap-2.5">
           <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 20,
-              fontWeight: 700,
-              color: gs.color,
-            }}
+            className="font-mono text-[20px] font-bold"
+            style={{ color: gs.color }}
           >
             {autopsy.qualityScore?.toFixed(0) ?? "—"}/100
           </span>
-          <span style={{ color: "var(--text3)", fontSize: 12 }}>·</span>
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--text3)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            {autopsy.modelId}
-          </span>
-          <span style={{ color: "var(--text3)", fontSize: 12 }}>·</span>
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--text3)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
+          <span className={metaDotClass}>·</span>
+          <span className={metaMonoClass}>{autopsy.modelId}</span>
+          <span className={metaDotClass}>·</span>
+          <span className={metaMonoClass}>
             <ClientDateTime iso={autopsy.createdAt} />
           </span>
-          <span style={{ color: "var(--text3)", fontSize: 12 }}>·</span>
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--text3)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            {phaseCount} phases
-          </span>
+          <span className={metaDotClass}>·</span>
+          <span className={metaMonoClass}>{phaseCount} phases</span>
         </div>
 
-        {/* Executive summary */}
-        <p
-          style={{
-            margin: 0,
-            fontSize: 13,
-            color: "var(--text2)",
-            lineHeight: 1.65,
-          }}
-        >
+        <p className="m-0 text-[13px] leading-[1.65] text-[var(--text2)]">
           {structured.executiveSummary}
         </p>
       </div>
@@ -319,45 +314,15 @@ function GradeBanner({
 
 function LegacySummaryCard({ autopsy }: { autopsy: TradeAutopsyRecord }) {
   return (
-    <div
-      style={{
-        borderRadius: 10,
-        border: "1px solid var(--border)",
-        background: "var(--surface)",
-        padding: "18px 20px",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 12,
-          color: "var(--text3)",
-          fontWeight: 700,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          marginBottom: 10,
-        }}
-      >
+    <div className="rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-5 py-[18px]">
+      <div className="mb-2.5 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text3)]">
         Legacy Autopsy Summary
       </div>
-      <div
-        style={{
-          fontSize: 12,
-          color: "var(--text3)",
-          fontFamily: "var(--font-mono)",
-          marginBottom: 12,
-        }}
-      >
+      <div className="mb-3 font-mono text-[12px] text-[var(--text3)]">
         {autopsy.modelId} · <ClientDateTime iso={autopsy.createdAt} /> · grade{" "}
         {autopsy.qualityGrade ?? "N/A"}
       </div>
-      <p
-        style={{
-          margin: 0,
-          fontSize: 13,
-          color: "var(--text2)",
-          lineHeight: 1.65,
-        }}
-      >
+      <p className="m-0 text-[13px] leading-[1.65] text-[var(--text2)]">
         {autopsy.summary}
       </p>
     </div>
@@ -379,7 +344,7 @@ function VersionSelector({
 }) {
   if (autopsies.length <= 1) return null;
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+    <div className="flex flex-wrap gap-1.5">
       {autopsies.map((a, i) => {
         const active = a.id === selected;
         const date = a.createdAt.slice(0, 10);
@@ -387,19 +352,15 @@ function VersionSelector({
           <button
             key={a.id}
             onClick={() => onSelect(a.id)}
-            style={{
-              ...versionBtnBaseStyle,
-              border: `1px solid ${active ? "rgba(96,165,250,0.5)" : "var(--border)"}`,
-              background: active ? "rgba(96,165,250,0.12)" : "transparent",
-              color: active ? "var(--color-info)" : "var(--text3)",
-            }}
+            className={cn(
+              versionBtnBaseClass,
+              active
+                ? "border border-[rgba(96,165,250,0.5)] bg-[rgba(96,165,250,0.12)] text-info"
+                : "border border-[var(--border)] bg-transparent text-[var(--text3)]",
+            )}
           >
             v{autopsies.length - i} · {date}
-            {active && (
-              <span style={{ marginLeft: 6, opacity: 0.7, fontSize: 12 }}>
-                ●
-              </span>
-            )}
+            {active && <span className="ml-1.5 text-[12px] opacity-70">●</span>}
           </button>
         );
       })}
@@ -418,40 +379,21 @@ function WarningBanner({
   message: string;
   tone?: "warning" | "success" | "error";
 }) {
-  const styles =
-    tone === "success"
-      ? {
-          background: "rgba(52,211,153,0.08)",
-          border: "1px solid var(--color-success-border)",
-          color: "var(--color-success)",
-          prefix: "✓",
-        }
-      : tone === "error"
-        ? {
-            background: "var(--color-error-dim)",
-            border: "1px solid var(--color-error-border)",
-            color: "var(--color-error)",
-            prefix: "✕",
-          }
-        : {
-            background: "var(--color-warning-dim)",
-            border: "1px solid var(--color-warning-border)",
-            color: "var(--color-warning)",
-            prefix: "⚠",
-          };
+  const prefix = tone === "success" ? "✓" : tone === "error" ? "✕" : "⚠";
+
   return (
     <div
-      style={{
-        padding: "10px 14px",
-        borderRadius: 8,
-        background: styles.background,
-        border: styles.border,
-        fontSize: 12,
-        color: styles.color,
-        lineHeight: 1.5,
-      }}
+      className={cn(
+        warningBannerBaseClass,
+        tone === "success" &&
+          "border border-success-border bg-[rgba(52,211,153,0.08)] text-success",
+        tone === "error" &&
+          "border border-error-border bg-error-dim text-error",
+        tone === "warning" &&
+          "border border-warning-border bg-warning-dim text-warning",
+      )}
     >
-      {styles.prefix} {message}
+      {prefix} {message}
     </div>
   );
 }
@@ -498,23 +440,13 @@ function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
         />
       </FieldRow>
       <FieldRow label="Analysis">
-        <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>
-          {d.analysis}
-        </span>
+        <span className={bodyTextClass}>{d.analysis}</span>
       </FieldRow>
       {d.ignoredCounterSignals.length > 0 && (
         <FieldRow label="Ignored Signals">
-          <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
+          <ul className="m-0 pl-4">
             {d.ignoredCounterSignals.map((s) => (
-              <li
-                key={s}
-                style={{
-                  fontSize: 12,
-                  color: "var(--text2)",
-                  lineHeight: 1.6,
-                  marginBottom: 3,
-                }}
-              >
+              <li key={s} className={listItemClass}>
                 {s}
               </li>
             ))}
@@ -556,15 +488,11 @@ function ExecutionCard({ d }: { d: AutopsyStructured["executionQuality"] }) {
         />
       </FieldRow>
       <FieldRow label="Exit Mgmt">
-        <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>
-          {d.exitManagement}
-        </span>
+        <span className={bodyTextClass}>{d.exitManagement}</span>
       </FieldRow>
       {d.slippage && (
         <FieldRow label="Slippage">
-          <span style={{ fontSize: 13, color: "var(--color-warning)" }}>
-            {d.slippage}
-          </span>
+          <span className="text-[13px] text-warning">{d.slippage}</span>
         </FieldRow>
       )}
     </SectionCard>
@@ -586,52 +514,31 @@ function BehavioralCard({
   return (
     <SectionCard title="Behavioral Flags" accent="var(--color-warning)">
       {flags.length === 0 ? (
-        <span style={{ fontSize: 13, color: "var(--text3)" }}>
+        <span className="text-[13px] text-[var(--text3)]">
           No behavioral flags detected.
         </span>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {flags.map((f) => (
             <div
               key={`${f.flag}-${f.severity}-${f.description}`}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 7,
-                background: "var(--surface2)",
-                borderLeft: `3px solid ${sevColor[f.severity]}`,
-              }}
+              className="rounded-[7px] bg-[var(--surface2)] px-3 py-2.5"
+              style={{ borderLeft: `3px solid ${sevColor[f.severity]}` }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 5,
-                }}
-              >
+              <div className="mb-[5px] flex items-center gap-2">
                 <Chip
                   label={f.flag.replace(/_/g, " ").toUpperCase()}
                   color={sevColor[f.severity]}
                   bg={`${sevColor[f.severity]}18`}
                 />
                 <span
-                  style={{
-                    fontSize: 12,
-                    color: sevColor[f.severity],
-                    fontFamily: "var(--font-mono)",
-                    textTransform: "uppercase",
-                  }}
+                  className="font-mono text-[12px] uppercase"
+                  style={{ color: sevColor[f.severity] }}
                 >
                   {f.severity}
                 </span>
               </div>
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "var(--text2)",
-                  lineHeight: 1.55,
-                }}
-              >
+              <span className="text-[12px] leading-[1.55] text-[var(--text2)]">
                 {f.description}
               </span>
             </div>
@@ -667,14 +574,10 @@ function MarketContextCard({ d }: { d: AutopsyStructured["marketContext"] }) {
         />
       </FieldRow>
       <FieldRow label="Macro">
-        <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>
-          {d.macro}
-        </span>
+        <span className={bodyTextClass}>{d.macro}</span>
       </FieldRow>
       <FieldRow label="Volatility">
-        <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>
-          {d.volatility}
-        </span>
+        <span className={bodyTextClass}>{d.volatility}</span>
       </FieldRow>
     </SectionCard>
   );
@@ -689,66 +592,26 @@ function WhatWorkedFailedCard({
 }) {
   return (
     <SectionCard title="What Worked / What Failed">
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-        }}
-      >
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--color-success)",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
+          <div className="mb-2 text-[12px] font-bold uppercase tracking-[0.08em] text-success">
             ✓ What Worked
           </div>
-          <ul style={{ margin: 0, padding: "0 0 0 14px" }}>
+          <ul className="m-0 pl-3.5">
             {worked.map((w) => (
-              <li
-                key={w}
-                style={{
-                  fontSize: 12,
-                  color: "var(--text2)",
-                  lineHeight: 1.6,
-                  marginBottom: 5,
-                }}
-              >
+              <li key={w} className={listItemSpacedClass}>
                 {w}
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--color-error)",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              marginBottom: 8,
-            }}
-          >
+          <div className="mb-2 text-[12px] font-bold uppercase tracking-[0.08em] text-error">
             ✗ What Failed
           </div>
-          <ul style={{ margin: 0, padding: "0 0 0 14px" }}>
+          <ul className="m-0 pl-3.5">
             {failed.map((f) => (
-              <li
-                key={f}
-                style={{
-                  fontSize: 12,
-                  color: "var(--text2)",
-                  lineHeight: 1.6,
-                  marginBottom: 5,
-                }}
-              >
+              <li key={f} className={listItemSpacedClass}>
                 {f}
               </li>
             ))}
@@ -762,14 +625,7 @@ function WhatWorkedFailedCard({
 function RootCauseCard({ text }: { text: string }) {
   return (
     <SectionCard title="Root Cause" accent="var(--color-error)">
-      <p
-        style={{
-          margin: 0,
-          fontSize: 13,
-          color: "var(--text2)",
-          lineHeight: 1.65,
-        }}
-      >
+      <p className="m-0 text-[13px] leading-[1.65] text-[var(--text2)]">
         {text}
       </p>
     </SectionCard>
@@ -779,17 +635,9 @@ function RootCauseCard({ text }: { text: string }) {
 function ProcessImprovementsCard({ items }: { items: string[] }) {
   return (
     <SectionCard title="Process Improvements">
-      <ol style={{ margin: 0, padding: "0 0 0 18px" }}>
+      <ol className="m-0 pl-[18px]">
         {items.map((item) => (
-          <li
-            key={item}
-            style={{
-              fontSize: 13,
-              color: "var(--text2)",
-              lineHeight: 1.65,
-              marginBottom: 10,
-            }}
-          >
+          <li key={item} className={processItemClass}>
             {item}
           </li>
         ))}
@@ -805,15 +653,7 @@ function ProcessImprovementsCard({ items }: { items: string[] }) {
 function TradeMetaCard({ trade }: { trade: Trade | null }) {
   if (!trade)
     return (
-      <div
-        style={{
-          borderRadius: 10,
-          border: "1px solid var(--border)",
-          background: "var(--surface2)",
-          padding: "14px 16px",
-          height: 120,
-        }}
-      />
+      <div className="h-[120px] rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-4 py-3.5" />
     );
 
   const rows: [string, string][] = [
@@ -834,53 +674,15 @@ function TradeMetaCard({ trade }: { trade: Trade | null }) {
   ];
 
   return (
-    <div
-      style={{
-        borderRadius: 10,
-        border: "1px solid var(--border)",
-        background: "var(--surface)",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          padding: "11px 14px",
-          borderBottom: "1px solid var(--border)",
-          fontSize: 12,
-          color: "var(--text3)",
-          fontWeight: 700,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-        }}
-      >
+    <div className="overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]">
+      <div className="border-b border-[var(--border)] px-3.5 py-[11px] text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text3)]">
         Trade Details
       </div>
-      <div
-        style={{
-          padding: "12px 14px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
+      <div className="flex flex-col gap-2 px-3.5 py-3">
         {rows.map(([k, v]) => (
-          <div
-            key={k}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ fontSize: 12, color: "var(--text3)" }}>{k}</span>
-            <span
-              style={{
-                fontSize: 12,
-                color: "var(--text1)",
-                fontFamily: "var(--font-mono)",
-                fontWeight: 500,
-              }}
-            >
+          <div key={k} className="flex items-center justify-between">
+            <span className="text-[12px] text-[var(--text3)]">{k}</span>
+            <span className="font-mono text-[12px] font-medium text-[var(--text1)]">
               {v}
             </span>
           </div>
@@ -923,8 +725,8 @@ function ExportDropdown({
   };
 
   return (
-    <div style={{ position: "relative" }}>
-      <button onClick={() => setOpen((o) => !o)} style={actionBtnStyle}>
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)} className={actionBtnClass}>
         ↓ Export
       </button>
       {open && (
@@ -932,18 +734,10 @@ function ExportDropdown({
           <button
             type="button"
             aria-label="Close export menu"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 49,
-              border: "none",
-              padding: 0,
-              background: "transparent",
-              cursor: "default",
-            }}
+            className={exportBackdropClass}
             onClick={() => setOpen(false)}
           />
-          <div style={exportDropdownStyle}>
+          <div className={exportDropdownClass}>
             {[
               { label: "Markdown (.md)", format: "markdown" },
               { label: "JSON (.json)", format: "json" },
@@ -954,7 +748,7 @@ function ExportDropdown({
                 onClick={() => {
                   void handleExport(format as ExportFormat);
                 }}
-                style={exportOptionBtnStyle}
+                className={exportOptionBtnClass}
               >
                 {label}
               </button>
@@ -1061,15 +855,12 @@ export function AutopsyPage({
     [queryClient, resolvedTrade?.sessionId, selectedAutopsyId, tradeId],
   );
 
-  // Resolve selected autopsy
   const autopsy = autopsies.find((a) => a.id === selectedAutopsyId) ?? null;
 
-  // Parse structured JSON
   const structured: AutopsyStructured | null = autopsy
     ? parseAutopsyStructuredJson(autopsy.summaryStructuredJson)
     : null;
 
-  // Phase count
   const phaseCount = autopsy
     ? parsePhaseTracesJson(autopsy.phaseTracesJson).length
     : 0;
@@ -1078,43 +869,22 @@ export function AutopsyPage({
   const hasAutopsies = autopsies.length > 0;
   const isGenerating = generateMutation.isPending;
 
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
-
   return (
-    <div style={overlay}>
-      {/* Sticky header */}
-      <div style={headerStyle}>
-        {/* Left */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={onClose} style={backBtnStyle}>
+    <div className={overlayClass}>
+      <div className={headerClass}>
+        <div className="flex items-center gap-3">
+          <button onClick={onClose} className={backBtnClass}>
             ← Back
           </button>
-          <div
-            style={{
-              width: 1,
-              height: 18,
-              background: "var(--border)",
-              flexShrink: 0,
-            }}
-          />
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 16,
-                fontWeight: 700,
-                color: "var(--text1)",
-              }}
-            >
+          <div className={headerDividerClass} />
+          <div className="flex items-center gap-2">
+            <span className={symbolTitleClass}>
               {resolvedTrade?.instrumentSymbol ?? "—"}
             </span>
             {resolvedTrade && (
               <span
+                className="rounded px-[7px] py-0.5 font-mono text-[12px] font-semibold"
                 style={{
-                  padding: "2px 7px",
-                  borderRadius: 4,
                   background:
                     resolvedTrade.side === "BUY"
                       ? "var(--color-success-dim)"
@@ -1123,9 +893,6 @@ export function AutopsyPage({
                     resolvedTrade.side === "BUY"
                       ? "var(--color-success)"
                       : "var(--color-error)",
-                  fontSize: 12,
-                  fontFamily: "var(--font-mono)",
-                  fontWeight: 600,
                 }}
               >
                 {resolvedTrade.side}
@@ -1133,14 +900,12 @@ export function AutopsyPage({
             )}
             {resolvedTrade && resolvedTrade.final_pnl_usd != null && (
               <span
+                className="font-mono text-[13px] font-semibold"
                 style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 13,
                   color:
                     resolvedTrade.final_pnl_usd >= 0
                       ? "var(--color-success)"
                       : "var(--color-error)",
-                  fontWeight: 600,
                 }}
               >
                 {fmt.pnl(resolvedTrade.final_pnl_usd)}
@@ -1149,12 +914,11 @@ export function AutopsyPage({
           </div>
         </div>
 
-        {/* Right: action bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="flex items-center gap-2">
           {hasAutopsies && (
             <button
               onClick={() => setChatHistoryOpen(true)}
-              style={actionBtnStyle}
+              className={actionBtnClass}
             >
               View Chat History
             </button>
@@ -1177,15 +941,11 @@ export function AutopsyPage({
             <button
               disabled={isGenerating}
               onClick={() => generateMutation.mutate()}
-              style={{
-                ...actionBtnStyle,
-                background: isGenerating
-                  ? "var(--color-info-dim)"
-                  : "var(--color-info-dim)",
-                borderColor: "var(--color-info-border)",
-                color: "var(--color-info)",
-                opacity: isGenerating ? 0.7 : 1,
-              }}
+              className={cn(
+                actionBtnClass,
+                "border-info-border bg-info-dim text-info",
+                isGenerating && "opacity-70",
+              )}
             >
               {isGenerating
                 ? "Generating…"
@@ -1197,36 +957,20 @@ export function AutopsyPage({
         </div>
       </div>
 
-      {/* Body */}
-      <div style={bodyStyle}>
-        {/* Open trade guard */}
+      <div className={bodyClass}>
         {isTradeOpen ? (
-          <div style={openTradeGuard}>
-            <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.4 }}>
-              🔒
-            </div>
-            <div
-              style={{ fontSize: 15, color: "var(--text1)", fontWeight: 600 }}
-            >
+          <div className={openTradeGuardClass}>
+            <div className="mb-3 text-[32px] opacity-40">🔒</div>
+            <div className="text-[15px] font-semibold text-[var(--text1)]">
               Autopsy is only available for closed trades.
             </div>
-            <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 6 }}>
+            <div className="mt-1.5 text-[13px] text-[var(--text3)]">
               Close this position first to generate an autopsy.
             </div>
           </div>
         ) : (
-          <div style={columnsStyle}>
-            {/* MAIN COLUMN */}
-            <div
-              style={{
-                flex: 1,
-                minWidth: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: 14,
-              }}
-            >
-              {/* Warnings */}
+          <div className={columnsClass}>
+            <div className={mainColumnClass}>
               {exportToast && (
                 <WarningBanner message={exportToast} tone="success" />
               )}
@@ -1240,7 +984,6 @@ export function AutopsyPage({
                 <WarningBanner message="Structured details are unavailable for this autopsy version. Showing the saved summary only." />
               )}
 
-              {/* Version selector */}
               {autopsies.length > 1 && selectedAutopsyId && (
                 <VersionSelector
                   autopsies={autopsies}
@@ -1249,45 +992,29 @@ export function AutopsyPage({
                 />
               )}
 
-              {/* Empty state */}
               {!autopsiesLoading && autopsies.length === 0 && (
-                <div style={emptyStateStyle}>
-                  <div
-                    style={{ fontSize: 40, marginBottom: 14, opacity: 0.25 }}
-                  >
-                    ⚕
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 16,
-                      color: "var(--text1)",
-                      fontWeight: 600,
-                      marginBottom: 6,
-                    }}
-                  >
+                <div className={emptyStateClass}>
+                  <div className="mb-3.5 text-[40px] opacity-25">⚕</div>
+                  <div className="mb-1.5 text-[16px] font-semibold text-[var(--text1)]">
                     No autopsy generated yet.
                   </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "var(--text3)",
-                      marginBottom: 20,
-                    }}
-                  >
+                  <div className="mb-5 text-[13px] text-[var(--text3)]">
                     Generate an autopsy to get structured analysis of this
                     trade.
                   </div>
                   <button
                     disabled={isGenerating}
                     onClick={() => generateMutation.mutate()}
-                    style={generateBtnStyle}
+                    className={cn(
+                      generateBtnClass,
+                      isGenerating && "opacity-70",
+                    )}
                   >
                     {isGenerating ? "Generating…" : "Generate Autopsy"}
                   </button>
                 </div>
               )}
 
-              {/* Autopsy content */}
               {autopsy && structured && (
                 <>
                   <GradeBanner
@@ -1318,8 +1045,7 @@ export function AutopsyPage({
               )}
             </div>
 
-            {/* RIGHT SIDEBAR */}
-            <div style={rightSidebarStyle}>
+            <div className={rightSidebarClass}>
               <TradeMetaCard trade={resolvedTrade} />
               <LessonsPanel
                 lessons={lessons}
@@ -1331,7 +1057,6 @@ export function AutopsyPage({
         )}
       </div>
 
-      {/* Chat history modal */}
       {chatHistoryOpen && selectedAutopsyId && (
         <ChatHistoryModal
           open={chatHistoryOpen}
@@ -1344,191 +1069,3 @@ export function AutopsyPage({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
-const overlay: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 200,
-  background: "var(--bg)",
-  display: "flex",
-  flexDirection: "column",
-  overflow: "hidden",
-};
-
-const headerStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "0 24px",
-  height: 56,
-  borderBottom: "1px solid var(--border)",
-  background: "var(--surface)",
-  flexShrink: 0,
-  position: "sticky",
-  top: 0,
-  zIndex: 10,
-};
-
-const bodyStyle: CSSProperties = {
-  flex: 1,
-  overflowY: "auto",
-  padding: "20px 24px",
-  maxWidth: 1280,
-  width: "100%",
-  margin: "0 auto",
-  boxSizing: "border-box",
-};
-
-const columnsStyle: CSSProperties = {
-  display: "flex",
-  gap: 20,
-  alignItems: "flex-start",
-};
-
-const backBtnStyle: CSSProperties = {
-  padding: "6px 12px",
-  borderRadius: 6,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  fontSize: 13,
-  cursor: "pointer",
-  fontFamily: "var(--font-sans)",
-};
-
-const actionBtnStyle: CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: 6,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  fontSize: 12,
-  cursor: "pointer",
-  fontFamily: "var(--font-sans)",
-};
-
-const openTradeGuard: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  height: "60vh",
-  textAlign: "center",
-};
-
-const emptyStateStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  minHeight: 320,
-  textAlign: "center",
-  borderRadius: 10,
-  border: "1px dashed var(--border)",
-  padding: 40,
-};
-
-const collapsibleBtnBaseStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  width: "100%",
-  padding: "13px 16px",
-  border: "none",
-  background: "transparent",
-  cursor: "pointer",
-  textAlign: "left",
-};
-
-const chipBaseStyle: CSSProperties = {
-  display: "inline-block",
-  padding: "3px 8px",
-  borderRadius: 4,
-  fontSize: 12,
-  fontFamily: "var(--font-mono)",
-  fontWeight: 600,
-};
-
-const fieldLabelStyle: CSSProperties = {
-  fontSize: 12,
-  color: "var(--text3)",
-  fontWeight: 700,
-  letterSpacing: "0.07em",
-  textTransform: "uppercase",
-  minWidth: 110,
-  flexShrink: 0,
-  paddingTop: 2,
-};
-
-const gradeChipBaseStyle: CSSProperties = {
-  flexShrink: 0,
-  width: 72,
-  height: 72,
-  borderRadius: 10,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-const versionBtnBaseStyle: CSSProperties = {
-  padding: "5px 12px",
-  borderRadius: 6,
-  fontSize: 12,
-  fontFamily: "var(--font-mono)",
-  cursor: "pointer",
-};
-
-const exportDropdownStyle: CSSProperties = {
-  position: "absolute",
-  top: "calc(100% + 4px)",
-  right: 0,
-  zIndex: 50,
-  background: "var(--surface3)",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  padding: 4,
-  minWidth: 160,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-};
-
-const exportOptionBtnStyle: CSSProperties = {
-  display: "block",
-  width: "100%",
-  padding: "8px 12px",
-  borderRadius: 5,
-  border: "none",
-  background: "transparent",
-  color: "var(--text1)",
-  fontSize: 12,
-  cursor: "pointer",
-  textAlign: "left",
-};
-
-const generateBtnStyle: CSSProperties = {
-  padding: "10px 24px",
-  borderRadius: 8,
-  border: "1px solid var(--color-info-border)",
-  background: "var(--color-info-dim)",
-  color: "var(--color-info)",
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: "pointer",
-  fontFamily: "var(--font-sans)",
-};
-
-const rightSidebarStyle: CSSProperties = {
-  width: 300,
-  flexShrink: 0,
-  display: "flex",
-  flexDirection: "column",
-  gap: 12,
-  position: "sticky",
-  top: 58,
-  alignSelf: "flex-start",
-  maxHeight: "calc(100vh - 74px)",
-  overflowY: "auto",
-};

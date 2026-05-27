@@ -1,4 +1,4 @@
-import { useEffect, useReducer, type CSSProperties } from "react";
+import { useEffect, useReducer } from "react";
 import { api } from "@/lib/exva";
 import { ShadcnSelect } from "@/components/custom-ui";
 import {
@@ -12,23 +12,10 @@ import {
 
 export type AiProviderType = "anthropic" | "openai" | "openrouter";
 
-const labelStyle: CSSProperties = {
-  fontSize: 12,
-  fontWeight: 500,
-  color: "var(--text2)",
-  marginBottom: 6,
-};
+const labelClass = "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
 
-const anthropicHintStyle: CSSProperties = {
-  marginBottom: 16,
-  padding: "10px 12px",
-  background: "var(--color-success-dim)",
-  border: "1px solid var(--color-success-border)",
-  borderRadius: 9,
-  fontSize: 12,
-  color: "var(--text3)",
-  lineHeight: 1.45,
-};
+const anthropicHintClass =
+  "mb-4 rounded-[9px] border border-success-border bg-success-dim px-3 py-2.5 text-[12px] leading-[1.45] text-[var(--text3)]";
 
 const DEFAULT_NAMES: Record<AiProviderType, string> = {
   anthropic: "Anthropic",
@@ -178,7 +165,7 @@ export const AddAiProviderModal = ({
         </p>
 
         <div className="mb-3.5">
-          <div style={labelStyle}>Provider</div>
+          <div className={labelClass}>Provider</div>
           <ShadcnSelect
             value={providerType}
             onValueChange={(value) => onTypeChange(value as AiProviderType)}
@@ -191,7 +178,7 @@ export const AddAiProviderModal = ({
         </div>
 
         <div className="mb-3.5">
-          <div style={labelStyle}>Display name</div>
+          <div className={labelClass}>Display name</div>
           <Input
             className="h-10 border-border bg-[var(--surface2)] text-[13px] text-[var(--text1)]"
             value={name}
@@ -203,7 +190,7 @@ export const AddAiProviderModal = ({
         </div>
 
         <div className="mb-3.5">
-          <div style={labelStyle}>API key</div>
+          <div className={labelClass}>API key</div>
           <Input
             className="h-10 border-border bg-[var(--surface2)] font-mono text-[13px] tracking-[0.03em] text-[var(--text1)]"
             type="password"
@@ -224,7 +211,7 @@ export const AddAiProviderModal = ({
 
         {providerType === "openrouter" ? (
           <div className="mb-3.5">
-            <div style={labelStyle}>API base URL (optional)</div>
+            <div className={labelClass}>API base URL (optional)</div>
             <Input
               className="h-10 border-border bg-[var(--surface2)] font-mono text-[12px] text-[var(--text1)]"
               value={baseUrl}
@@ -241,10 +228,8 @@ export const AddAiProviderModal = ({
         ) : null}
 
         {providerType === "anthropic" ? (
-          <div style={anthropicHintStyle}>
-            <span style={{ color: "var(--color-success)", fontWeight: 600 }}>
-              Prompt caching
-            </span>{" "}
+          <div className={anthropicHintClass}>
+            <span className="font-semibold text-success">Prompt caching</span>{" "}
             is used on Anthropic models where supported, which typically cuts
             cost on repeated agent calls.
           </div>

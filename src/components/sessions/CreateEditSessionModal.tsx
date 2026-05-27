@@ -15,6 +15,7 @@ import {
   DialogContent,
   Switch,
 } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import {
   buildSearchEverythingScope,
   isSearchEverythingEnabled,
@@ -296,47 +297,35 @@ export const CreateEditSessionModal = ({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-auto rounded-[20px] border-border bg-transparent p-0 sm:max-w-[900px]">
-        <div style={panelStyle}>
-          <div
-            style={{
-              paddingBottom: 18,
-              borderBottom: "1px solid var(--border)",
-              marginBottom: 20,
-            }}
-          >
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 17,
-                fontWeight: 600,
-                color: "var(--text1)",
-                letterSpacing: "-0.01em",
-              }}
-            >
+        <div className={panelClass}>
+          <div className="mb-5 border-b border-[var(--border)] pb-[18px]">
+            <h2 className="m-0 text-[17px] font-semibold tracking-[-0.01em] text-[var(--text1)]">
               {initialSession ? "Refine Session" : "Create Session"}
             </h2>
-            <div style={{ marginTop: 5, color: "var(--text3)", fontSize: 12 }}>
+            <div className="mt-[5px] text-[12px] text-[var(--text3)]">
               Identity, task boundary, and execution routing in one place.
             </div>
           </div>
 
           {templateWarnings?.length ? (
-            <div style={warningBannerStyle}>
+            <div className={warningBannerClass}>
               Template fallback cleared {templateWarnings.length} unavailable
               field{templateWarnings.length === 1 ? "" : "s"}:{" "}
               {templateWarnings.join(", ")}
             </div>
           ) : null}
-          {req.error ? <div style={errorBannerStyle}>{req.error}</div> : null}
+          {req.error ? (
+            <div className={errorBannerClass}>{req.error}</div>
+          ) : null}
 
-          <div style={{ display: "grid", gap: 16 }}>
-            <section style={sectionStyle}>
+          <div className="grid gap-4">
+            <section className={sectionClass}>
               <SectionHeader
                 title="Identity"
                 caption="The operator-facing shell for this session."
               />
-              <div style={sectionBodyStyle}>
-                <div style={twoColumnGridStyle}>
+              <div className={sectionBodyClass}>
+                <div className={twoColumnGridClass}>
                   <Field label="Session name">
                     <input
                       value={form.name}
@@ -347,7 +336,7 @@ export const CreateEditSessionModal = ({
                         }))
                       }
                       placeholder="Income Engine"
-                      style={inputStyle}
+                      className={inputClass}
                     />
                   </Field>
                 </div>
@@ -361,19 +350,19 @@ export const CreateEditSessionModal = ({
                       }))
                     }
                     rows={4}
-                    style={textareaStyle}
+                    className={textareaClass}
                   />
                 </Field>
               </div>
             </section>
 
-            <section style={sectionStyle}>
+            <section className={sectionClass}>
               <SectionHeader
                 title="Task Boundary"
                 caption="Universe selection, scope, and search-provider behavior."
               />
-              <div style={sectionBodyStyle}>
-                <div style={twoColumnGridStyle}>
+              <div className={sectionBodyClass}>
+                <div className={twoColumnGridClass}>
                   <Field label="Selection mode">
                     <ShadcnSelect
                       value={form.selectionMode}
@@ -444,18 +433,18 @@ export const CreateEditSessionModal = ({
                   </Field>
                 </div>
                 {requiresSearchProviderSetup ? (
-                  <div style={warningBannerStyle}>
+                  <div className={warningBannerClass}>
                     AI-selected universe needs a search provider before this
                     session can be saved in selector mode. DuckDuckGo is built
                     in by default, and you can optionally add Brave or Tavily in
                     Accounts. OpenRouter model accounts do not satisfy this
                     requirement.
                     {onOpenAccounts ? (
-                      <div style={{ marginTop: 10 }}>
+                      <div className="mt-2.5">
                         <button
                           type="button"
                           onClick={onOpenAccounts}
-                          style={inlineActionButtonStyle}
+                          className={inlineActionButtonClass}
                         >
                           Open Accounts setup
                         </button>
@@ -464,7 +453,7 @@ export const CreateEditSessionModal = ({
                   </div>
                 ) : null}
                 {form.selectionMode === "ai_selected_universe" ? (
-                  <div style={switchRowStyle}>
+                  <div className={switchRowClass}>
                     <Switch
                       checked={searchEverything}
                       onCheckedChange={(checked) => {
@@ -500,23 +489,10 @@ export const CreateEditSessionModal = ({
                       }}
                     />
                     <span>
-                      <span
-                        style={{
-                          display: "block",
-                          color: "var(--text1)",
-                          fontWeight: 600,
-                        }}
-                      >
+                      <span className="block font-semibold text-[var(--text1)]">
                         Search everything
                       </span>
-                      <span
-                        style={{
-                          display: "block",
-                          marginTop: 2,
-                          color: "var(--text3)",
-                          fontSize: 12,
-                        }}
-                      >
+                      <span className="mt-0.5 block text-[12px] text-[var(--text3)]">
                         Ignore manual class picks and let the selected broker
                         accounts define the full tradable universe.
                       </span>
@@ -550,14 +526,14 @@ export const CreateEditSessionModal = ({
                         ),
                       ]}
                     />
-                    <div style={inlineHintStyle}>
+                    <div className={inlineHintClass}>
                       Keeps the broader broker-backed universe available, but
                       tells the selector which class to prioritize first.
                     </div>
                   </Field>
                 ) : null}
                 <Field label="Instrument classes">
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <div className="flex flex-wrap gap-2.5">
                     {(
                       [
                         "stock",
@@ -571,12 +547,12 @@ export const CreateEditSessionModal = ({
                       return (
                         <label
                           key={instrumentClass}
-                          style={{
-                            ...toggleChipStyle,
-                            borderColor: checked
-                              ? "var(--accent-dim)"
-                              : "var(--border)",
-                          }}
+                          className={cn(
+                            toggleChipClass,
+                            checked
+                              ? "border-[var(--accent-dim)]"
+                              : "border-[var(--border)]",
+                          )}
                         >
                           <Checkbox
                             checked={checked}
@@ -598,7 +574,7 @@ export const CreateEditSessionModal = ({
                     })}
                   </div>
                   {searchEverything ? (
-                    <div style={inlineHintStyle}>
+                    <div className={inlineHintClass}>
                       Broker-derived classes:{" "}
                       {effectiveInstrumentClasses.length > 0
                         ? effectiveInstrumentClasses
@@ -622,11 +598,11 @@ export const CreateEditSessionModal = ({
                     }
                     placeholder="SPY\nQQQ\nNVDA"
                     rows={4}
-                    style={textareaStyle}
+                    className={textareaClass}
                     disabled={searchEverything}
                   />
                 </Field>
-                <div style={switchRowStyle}>
+                <div className={switchRowClass}>
                   <Switch
                     checked={form.selectorSettings.aiPickerEnabled}
                     disabled={searchEverything}
@@ -638,23 +614,10 @@ export const CreateEditSessionModal = ({
                     }
                   />
                   <span>
-                    <span
-                      style={{
-                        display: "block",
-                        color: "var(--text1)",
-                        fontWeight: 600,
-                      }}
-                    >
+                    <span className="block font-semibold text-[var(--text1)]">
                       AI picker enabled
                     </span>
-                    <span
-                      style={{
-                        display: "block",
-                        marginTop: 2,
-                        color: "var(--text3)",
-                        fontSize: 12,
-                      }}
-                    >
+                    <span className="mt-0.5 block text-[12px] text-[var(--text3)]">
                       Allow the selector role to expand or refine the shortlist
                       when the session calls for it.
                     </span>
@@ -663,15 +626,15 @@ export const CreateEditSessionModal = ({
               </div>
             </section>
 
-            <section style={sectionStyle}>
+            <section className={sectionClass}>
               <SectionHeader
                 title="Execution Setup"
                 caption="Pick broker accounts for this session."
               />
               <Field label="Broker accounts">
-                <div style={brokerPickerStyle}>
+                <div className={brokerPickerClass}>
                   {visibleBrokers.length === 0 ? (
-                    <div style={inlineHintStyle}>
+                    <div className={inlineHintClass}>
                       No {brokerMode} broker accounts found. Add one in
                       Accounts.
                     </div>
@@ -679,7 +642,7 @@ export const CreateEditSessionModal = ({
                     visibleBrokers.map((broker) => {
                       const checked = assignedBrokerIdSet.has(broker.id);
                       return (
-                        <div key={broker.id} style={brokerRowStyle}>
+                        <div key={broker.id} className={brokerRowClass}>
                           <Checkbox
                             checked={checked}
                             onCheckedChange={(nextChecked) =>
@@ -694,24 +657,10 @@ export const CreateEditSessionModal = ({
                             }
                           />
                           <span>
-                            <span
-                              style={{
-                                display: "block",
-                                color: "var(--text1)",
-                                fontSize: 12,
-                                fontWeight: 600,
-                              }}
-                            >
+                            <span className="block text-[12px] font-semibold text-[var(--text1)]">
                               {broker.name}
                             </span>
-                            <span
-                              style={{
-                                display: "block",
-                                marginTop: 1,
-                                color: "var(--text3)",
-                                fontSize: 12,
-                              }}
-                            >
+                            <span className="mt-px block text-[12px] text-[var(--text3)]">
                               {broker.id} · {broker.brokerType}
                             </span>
                           </span>
@@ -722,7 +671,7 @@ export const CreateEditSessionModal = ({
                   {visibleBrokers.length > 0 ? (
                     <button
                       type="button"
-                      style={selectAllButtonStyle}
+                      className={selectAllButtonClass}
                       onClick={() =>
                         setForm((prev) => ({
                           ...prev,
@@ -737,31 +686,19 @@ export const CreateEditSessionModal = ({
                     </button>
                   ) : null}
                   {assignedActiveModeBrokers.length > 0 ? (
-                    <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+                    <div className="mt-1 grid gap-2">
                       {assignedActiveModeBrokers.map((broker) => {
                         const assignment = form.brokerAssignments.find(
                           (entry) => entry.brokerAccountId === broker.id,
                         );
                         if (!assignment) return null;
                         return (
-                          <div key={broker.id} style={allocationRowStyle}>
-                            <div style={{ minWidth: 0 }}>
-                              <div
-                                style={{
-                                  color: "var(--text1)",
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                }}
-                              >
+                          <div key={broker.id} className={allocationRowClass}>
+                            <div className="min-w-0">
+                              <div className="text-[12px] font-semibold text-[var(--text1)]">
                                 {broker.name}
                               </div>
-                              <div
-                                style={{
-                                  color: "var(--text3)",
-                                  fontSize: 12,
-                                  marginTop: 2,
-                                }}
-                              >
+                              <div className="mt-0.5 text-[12px] text-[var(--text3)]">
                                 Balance:{" "}
                                 {broker.balanceCacheUsd != null
                                   ? `$${broker.balanceCacheUsd.toLocaleString()}`
@@ -790,7 +727,7 @@ export const CreateEditSessionModal = ({
                                   ),
                                 }))
                               }
-                              style={{ ...inputStyle, width: 140 }}
+                              className={cn(inputClass, "w-[140px]")}
                             />
                           </div>
                         );
@@ -798,7 +735,7 @@ export const CreateEditSessionModal = ({
                     </div>
                   ) : null}
                   {uncoveredInstrumentClasses.length > 0 ? (
-                    <div style={warningTextStyle}>
+                    <div className={warningTextClass}>
                       No selected broker can trade:{" "}
                       {uncoveredInstrumentClasses
                         .map(formatInstrumentClass)
@@ -806,7 +743,7 @@ export const CreateEditSessionModal = ({
                       .
                     </div>
                   ) : (
-                    <div style={successTextStyle}>
+                    <div className={successTextClass}>
                       Coverage looks good for selected instrument classes.
                     </div>
                   )}
@@ -815,20 +752,9 @@ export const CreateEditSessionModal = ({
             </section>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 12,
-              marginTop: 20,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ color: "var(--text3)", fontSize: 12 }}>{""}</div>
-            <div
-              style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}
-            >
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-[12px] text-[var(--text3)]">{""}</div>
+            <div className="flex justify-end gap-2.5">
               <Button
                 onClick={onClose}
                 variant="outline"
@@ -892,21 +818,11 @@ const SectionHeader = ({
   title: string;
   caption: string;
 }) => (
-  <div style={{ marginBottom: 14 }}>
-    <div
-      style={{
-        fontSize: 12,
-        fontWeight: 700,
-        color: "var(--text3)",
-        textTransform: "uppercase",
-        letterSpacing: "0.14em",
-      }}
-    >
+  <div className="mb-3.5">
+    <div className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text3)]">
       {title}
     </div>
-    <div style={{ marginTop: 4, color: "var(--text2)", fontSize: 12 }}>
-      {caption}
-    </div>
+    <div className="mt-1 text-[12px] text-[var(--text2)]">{caption}</div>
   </div>
 );
 
@@ -917,16 +833,8 @@ const Field = ({
   label: string;
   children: React.ReactNode;
 }) => (
-  <label style={{ display: "grid", gap: 6 }}>
-    <span
-      style={{
-        color: "var(--text3)",
-        fontSize: 12,
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
-      }}
-    >
+  <label className="grid gap-1.5">
+    <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]">
       {label}
     </span>
     {children}
@@ -1058,140 +966,35 @@ function sameInstrumentClasses(
   );
 }
 
-const panelStyle = {
-  width: 900,
-  maxWidth: "96vw",
-  maxHeight: "92vh",
-  overflow: "auto",
-  background:
-    "linear-gradient(180deg, rgba(13,18,25,0.99) 0%, rgba(9,13,18,0.99) 100%)",
-  border: "1px solid var(--border)",
-  borderRadius: 20,
-  padding: 22,
-  boxShadow: "0 26px 60px rgba(2,6,23,0.48)",
-} as const;
-const sectionStyle = {
-  border: "1px solid var(--border)",
-  borderRadius: 12,
-  padding: "14px 16px",
-  background: "rgba(18,26,36,0.6)",
-} as const;
-const sectionBodyStyle = { display: "grid", gap: 14 } as const;
-const inputStyle = {
-  width: "100%",
-  padding: "9px 11px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.5)",
-  color: "var(--text1)",
-  fontSize: 13,
-} as const;
-const textareaStyle = {
-  ...inputStyle,
-  resize: "vertical" as const,
-  minHeight: 88,
-};
-const toggleChipStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 8,
-  border: "1px solid var(--border)",
-  borderRadius: 999,
-  padding: "8px 11px",
-  background: "rgba(7,10,15,0.38)",
-  color: "var(--text2)",
-  fontSize: 12,
-} as const;
-const switchRowStyle = {
-  display: "flex",
-  alignItems: "flex-start",
-  gap: 12,
-  padding: "12px 14px",
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.34)",
-} as const;
-const twoColumnGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-  gap: 14,
-} as const;
-const brokerPickerStyle = {
-  display: "grid",
-  gap: 8,
-  border: "1px solid var(--border)",
-  borderRadius: 12,
-  padding: 10,
-  background: "var(--surface2)",
-} as const;
-const brokerRowStyle = {
-  display: "flex",
-  alignItems: "flex-start",
-  gap: 8,
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  padding: "8px 10px",
-  background: "var(--surface)",
-} as const;
-const allocationRowStyle = {
-  display: "grid",
-  gridTemplateColumns: "1fr auto",
-  gap: 10,
-  alignItems: "center",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  padding: "10px 12px",
-  background: "rgba(7,10,15,0.34)",
-} as const;
-const inlineHintStyle = { color: "var(--text3)", fontSize: 12 } as const;
-const selectAllButtonStyle = {
-  marginTop: 2,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  borderRadius: 8,
-  padding: "7px 10px",
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-  justifySelf: "start",
-} as const;
-const inlineActionButtonStyle = {
-  border: "1px solid var(--color-warning-border)",
-  background: "rgba(7,10,15,0.34)",
-  color: "var(--color-warning)",
-  borderRadius: 8,
-  padding: "8px 10px",
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-} as const;
-const warningTextStyle = {
-  color: "var(--color-warning)",
-  fontSize: 12,
-  fontWeight: 600,
-} as const;
-const successTextStyle = {
-  color: "var(--color-success)",
-  fontSize: 12,
-  fontWeight: 600,
-} as const;
-const warningBannerStyle = {
-  marginBottom: 16,
-  padding: "12px 14px",
-  borderRadius: 12,
-  border: "1px solid var(--color-warning-border)",
-  background: "var(--color-warning-dim)",
-  color: "var(--color-warning)",
-  fontSize: 13,
-  lineHeight: 1.5,
-} as const;
-const errorBannerStyle = {
-  marginBottom: 16,
-  padding: "12px 14px",
-  borderRadius: 12,
-  border: "1px solid var(--color-error-border)",
-  background: "var(--color-error-dim)",
-  color: "var(--color-error)",
-  fontSize: 13,
-} as const;
+const panelClass =
+  "max-h-[92vh] w-[900px] max-w-[96vw] overflow-auto rounded-[20px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(13,18,25,0.99)_0%,rgba(9,13,18,0.99)_100%)] p-[22px] shadow-[0_26px_60px_rgba(2,6,23,0.48)]";
+const sectionClass =
+  "rounded-xl border border-[var(--border)] bg-[rgba(18,26,36,0.6)] px-4 py-3.5";
+const sectionBodyClass = "grid gap-3.5";
+const inputClass =
+  "w-full rounded-lg border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
+const textareaClass =
+  "min-h-[88px] w-full resize-y rounded-lg border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
+const toggleChipClass =
+  "inline-flex items-center gap-2 rounded-full border bg-[rgba(7,10,15,0.38)] px-[11px] py-2 text-[12px] text-[var(--text2)]";
+const switchRowClass =
+  "flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[rgba(7,10,15,0.34)] px-[14px] py-3";
+const twoColumnGridClass =
+  "grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3.5";
+const brokerPickerClass =
+  "grid gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface2)] p-2.5";
+const brokerRowClass =
+  "flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2";
+const allocationRowClass =
+  "grid grid-cols-[1fr_auto] items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[rgba(7,10,15,0.34)] px-3 py-2.5";
+const inlineHintClass = "text-[12px] text-[var(--text3)]";
+const selectAllButtonClass =
+  "mt-0.5 cursor-pointer justify-self-start rounded-lg border border-[var(--border)] bg-transparent px-2.5 py-[7px] text-[12px] font-semibold text-[var(--text2)]";
+const inlineActionButtonClass =
+  "cursor-pointer rounded-lg border border-warning-border bg-[rgba(7,10,15,0.34)] px-2.5 py-2 text-[12px] font-semibold text-warning";
+const warningTextClass = "text-[12px] font-semibold text-warning";
+const successTextClass = "text-[12px] font-semibold text-success";
+const warningBannerClass =
+  "mb-4 rounded-xl border border-warning-border bg-warning-dim px-[14px] py-3 text-[13px] leading-normal text-warning";
+const errorBannerClass =
+  "mb-4 rounded-xl border border-error-border bg-error-dim px-[14px] py-3 text-[13px] text-error";

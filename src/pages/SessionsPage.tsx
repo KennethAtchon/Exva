@@ -24,6 +24,7 @@ import {
   deriveProgress,
   type SessionProgressState,
 } from "@/components/sessions/SessionExecutionProgress";
+import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
 const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
@@ -176,12 +177,12 @@ const SessionFilters = ({
   onInstrumentChange: (value: InstrumentClass | "all") => void;
   onIncludeArchivedChange: (checked: boolean) => Promise<void>;
 }) => (
-  <div style={toolbarStyle}>
+  <div className={toolbarClass}>
     <input
       value={search}
       onChange={(event) => onSearchChange(event.target.value)}
       placeholder="Search by name or objective"
-      style={{ ...inputStyle, flex: 1 }}
+      className={cn(inputClass, "flex-1")}
     />
     <ShadcnSelect
       value={statusFilter}
@@ -212,16 +213,7 @@ const SessionFilters = ({
         { value: "futures", label: "Futures" },
       ]}
     />
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        color: "var(--text2)",
-        fontSize: 12,
-        whiteSpace: "nowrap",
-      }}
-    >
+    <div className="flex items-center gap-2 whitespace-nowrap text-[12px] text-[var(--text2)]">
       <Checkbox
         checked={includeArchived}
         onCheckedChange={(checked) =>
@@ -249,22 +241,15 @@ const SessionFocusPanel = ({
   if (!focusedSession) return null;
   const { status, openTradeCount } = focusedSession;
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        flexWrap: "wrap",
-        justifyContent: "flex-end",
-      }}
-    >
+    <div className="flex flex-wrap justify-end gap-2">
       {status === "draft" || status === "idle" || status === "stopped" ? (
         <Button
           variant="ghost"
           onClick={() => onLifecycleAction(focusedSession, "start")}
-          style={{
-            ...primaryButtonStyle,
-            ...(aiReady === false ? disabledStartStyle : {}),
-          }}
+          className={cn(
+            primaryButtonClass,
+            aiReady === false && disabledStartClass,
+          )}
           disabled={actionSessionId === focusedSession.id || aiReady === false}
           title={
             aiReady === false
@@ -279,7 +264,7 @@ const SessionFocusPanel = ({
         <Button
           variant="outline"
           onClick={() => onLifecycleAction(focusedSession, "pause")}
-          style={secondaryButtonStyle}
+          className={secondaryButtonClass}
           disabled={actionSessionId === focusedSession.id}
           title="Pause stops new research but keeps exits managed."
         >
@@ -290,14 +275,14 @@ const SessionFocusPanel = ({
         <Button
           variant="ghost"
           onClick={() => onLifecycleAction(focusedSession, "resume")}
-          style={primaryButtonStyle}
+          className={primaryButtonClass}
           disabled={actionSessionId === focusedSession.id}
         >
           Resume
         </Button>
       ) : null}
       {status === "monitoring_only" ? (
-        <div style={drainBannerStyle}>
+        <div className={drainBannerClass}>
           Stopping when flat: managing {openTradeCount} open trade
           {openTradeCount === 1 ? "" : "s"}. Session stops automatically once
           flat.
@@ -307,7 +292,7 @@ const SessionFocusPanel = ({
         <Button
           variant="ghost"
           onClick={() => onLifecycleAction(focusedSession, "stop")}
-          style={dangerButtonStyle}
+          className={dangerButtonClass}
           disabled={actionSessionId === focusedSession.id}
         >
           Stop
@@ -317,7 +302,7 @@ const SessionFocusPanel = ({
         <Button
           variant="ghost"
           onClick={() => onLifecycleAction(focusedSession, "stop")}
-          style={stopWhenFlatButtonStyle}
+          className={stopWhenFlatButtonClass}
           disabled={actionSessionId === focusedSession.id}
           title={STOP_WHEN_FLAT_TITLE}
         >
@@ -331,7 +316,7 @@ const SessionFocusPanel = ({
         <Button
           variant="ghost"
           onClick={() => onLifecycleAction(focusedSession, "forceStop")}
-          style={forceStopButtonStyle}
+          className={forceStopButtonClass}
           disabled={actionSessionId === focusedSession.id}
           title="Force stop ends automated exit management for open positions."
         >
@@ -339,7 +324,7 @@ const SessionFocusPanel = ({
         </Button>
       ) : null}
       {status === "stopped" && openTradeCount > 0 ? (
-        <div style={orphanWarningStyle}>
+        <div className={orphanWarningClass}>
           Stopped with {openTradeCount} open trade
           {openTradeCount === 1 ? "" : "s"}, no automated exits will fire.
           Restart to resume monitoring.
@@ -347,14 +332,14 @@ const SessionFocusPanel = ({
       ) : null}
       {(status === "draft" || status === "idle" || status === "stopped") &&
       onGoToStrategy ? (
-        <div style={strategyNudgeBannerStyle}>
-          <span style={{ color: "var(--text2)", fontSize: 12 }}>
+        <div className={strategyNudgeBannerClass}>
+          <span className="text-[12px] text-[var(--text2)]">
             Configure AI phases, risk limits, and strategy before starting.
           </span>
           <button
             type="button"
             onClick={onGoToStrategy}
-            style={strategyNudgeButtonStyle}
+            className={strategyNudgeButtonClass}
           >
             Open Strategy →
           </button>
@@ -694,40 +679,18 @@ const renderSessionsPageView = ({
   ui,
 }: RenderSessionsPageViewArgs) => (
   <PageShell>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: 16,
-        flexWrap: "wrap",
-      }}
-    >
+    <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <div
-          style={{
-            fontSize: 12,
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "var(--text3)",
-          }}
-        >
+        <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
           Workspace Sessions
         </div>
-        <h1 style={{ margin: "10px 0 0", fontSize: 28 }}>Sessions</h1>
-        <p
-          style={{
-            marginTop: 8,
-            color: "var(--text3)",
-            fontSize: 13,
-            maxWidth: 640,
-          }}
-        >
+        <h1 className="m-0 mt-2.5 text-[28px]">Sessions</h1>
+        <p className="mt-2 max-w-[640px] text-[13px] text-[var(--text3)]">
           Focus a live trading context, tune its boundary, and turn working
           configurations into reusable templates.
         </p>
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="flex flex-wrap gap-2">
         <Button
           onClick={() => {
             dispatchUi({
@@ -736,7 +699,7 @@ const renderSessionsPageView = ({
             });
           }}
           variant="outline"
-          style={secondaryButtonStyle}
+          className={secondaryButtonClass}
         >
           Templates
         </Button>
@@ -756,7 +719,7 @@ const renderSessionsPageView = ({
             }
           }}
           variant="outline"
-          style={secondaryButtonStyle}
+          className={secondaryButtonClass}
           disabled={
             data.sessions.filter((session) => session.status !== "archived")
               .length === 0 || viewMode === "global"
@@ -774,34 +737,20 @@ const renderSessionsPageView = ({
             });
           }}
           variant="ghost"
-          style={primaryButtonStyle}
+          className={primaryButtonClass}
         >
           New Session
         </Button>
       </div>
     </div>
 
-    {data.error ? <div style={errorBannerStyle}>{data.error}</div> : null}
+    {data.error ? <div className={errorBannerClass}>{data.error}</div> : null}
 
-    <Card accent style={{ padding: 0 }}>
-      <div style={contextHeroStyle}>
+    <Card accent className="!p-0">
+      <div className={contextHeroClass}>
         <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-            }}
-          >
-            <span
-              style={{
-                fontSize: 12,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "var(--text3)",
-              }}
-            >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
               {viewMode === "global" ? "Global Workspace" : "Focused Session"}
             </span>
             <Badge variant={viewMode === "global" ? "purple" : "blue"}>
@@ -813,32 +762,17 @@ const renderSessionsPageView = ({
               </Badge>
             ) : null}
           </div>
-          <div
-            style={{
-              marginTop: 10,
-              fontSize: 24,
-              fontWeight: 700,
-              color: "var(--text1)",
-            }}
-          >
+          <div className="mt-2.5 text-[24px] font-bold text-[var(--text1)]">
             {focusedSession?.name ?? "Global trade fabric"}
           </div>
-          <div
-            style={{
-              marginTop: 8,
-              maxWidth: 700,
-              color: "var(--text2)",
-              fontSize: 14,
-              lineHeight: 1.6,
-            }}
-          >
+          <div className="mt-2 max-w-[700px] text-[14px] leading-relaxed text-[var(--text2)]">
             {focusedSession?.objective ??
               "Aggregate the non-archived sessions, compare posture across them, and choose where the next focused cycle should run."}
           </div>
         </div>
 
-        <div style={{ display: "grid", gap: 12, minWidth: 280 }}>
-          <div style={contextMetricsStyle}>
+        <div className="grid min-w-[280px] gap-3">
+          <div className={contextMetricsClass}>
             <ContextMetric
               label="sessions"
               value={String(data.sessions.length)}
@@ -878,10 +812,10 @@ const renderSessionsPageView = ({
       />
 
       {data.loading ? (
-        <div style={emptyStateStyle}>Loading sessions…</div>
+        <div className={emptyStateClass}>Loading sessions…</div>
       ) : null}
       {!data.loading && data.sessions.length === 0 ? (
-        <div style={emptyStateStyle}>
+        <div className={emptyStateClass}>
           No sessions matched the current filters.
         </div>
       ) : null}
@@ -1055,24 +989,10 @@ const renderSessionsPageView = ({
 
 const ContextMetric = ({ label, value }: { label: string; value: string }) => (
   <div>
-    <div
-      style={{
-        fontSize: 12,
-        color: "var(--text3)",
-        textTransform: "uppercase",
-        letterSpacing: "0.12em",
-      }}
-    >
+    <div className="text-[12px] uppercase tracking-[0.12em] text-[var(--text3)]">
       {label}
     </div>
-    <div
-      style={{
-        marginTop: 4,
-        color: "var(--text1)",
-        fontSize: 18,
-        fontWeight: 700,
-      }}
-    >
+    <div className="mt-1 text-[18px] font-bold text-[var(--text1)]">
       {value}
     </div>
   </div>
@@ -1105,139 +1025,33 @@ function statusVariant(
   }
 }
 
-const contextHeroStyle = {
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1.4fr) minmax(280px, 0.9fr)",
-  gap: 18,
-  padding: 24,
-  background:
-    "radial-gradient(circle at top left, rgba(96,165,250,0.16), transparent 45%)",
-} as const;
-const contextMetricsStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: 12,
-  padding: "14px 16px",
-  borderRadius: 16,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.34)",
-} as const;
-const toolbarStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 10,
-  flexWrap: "wrap",
-  marginBottom: 18,
-} as const;
-const inputStyle = {
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text1)",
-} as const;
-const emptyStateStyle = {
-  border: "1px dashed var(--border)",
-  borderRadius: 16,
-  padding: 28,
-  color: "var(--text3)",
-  textAlign: "center" as const,
-};
-const secondaryButtonStyle = {
-  padding: "10px 13px",
-  borderRadius: 10,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text2)",
-  cursor: "pointer",
-} as const;
-const primaryButtonStyle = {
-  padding: "10px 13px",
-  borderRadius: 10,
-  border: "none",
-  background: "var(--accent)",
-  color: "hsl(var(--primary-foreground))",
-  cursor: "pointer",
-} as const;
-const dangerButtonStyle = {
-  padding: "10px 13px",
-  borderRadius: 10,
-  border: "1px solid var(--color-error-border)",
-  background: "var(--color-error-dim)",
-  color: "var(--color-error)",
-  cursor: "pointer",
-} as const;
-const forceStopButtonStyle = {
-  ...dangerButtonStyle,
-  border: "1px solid var(--color-error-border)",
-  background: "var(--color-error-dim)",
-  color: "var(--color-error)",
-} as const;
-const stopWhenFlatButtonStyle = {
-  padding: "10px 13px",
-  borderRadius: 10,
-  border: "1px solid var(--color-orange-border)",
-  background: "var(--color-orange-dim)",
-  color: "var(--color-orange)",
-  cursor: "pointer",
-  fontWeight: 600,
-} as const;
-const drainBannerStyle = {
-  width: "100%",
-  marginTop: 8,
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--color-orange-border)",
-  background: "var(--color-orange-dim)",
-  color: "var(--color-orange)",
-  fontSize: 12,
-  lineHeight: 1.45,
-} as const;
-const orphanWarningStyle = {
-  width: "100%",
-  marginTop: 8,
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--color-orange-border)",
-  background: "var(--color-orange-dim)",
-  color: "var(--color-orange)",
-  fontSize: 12,
-  lineHeight: 1.45,
-} as const;
-const disabledStartStyle = {
-  opacity: 0.45,
-  cursor: "not-allowed",
-  background: "var(--surface3)",
-  color: "var(--text3)",
-} as const;
-const strategyNudgeBannerStyle = {
-  marginTop: 10,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 10,
-  padding: "9px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--color-info-border)",
-  background: "var(--color-info-dim)",
-} as const;
-const strategyNudgeButtonStyle = {
-  padding: "5px 12px",
-  borderRadius: 8,
-  border: "1px solid var(--color-info-border)",
-  background: "var(--color-info-dim)",
-  color: "var(--color-info)",
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-} as const;
-const errorBannerStyle = {
-  padding: "12px 14px",
-  borderRadius: 12,
-  border: "1px solid var(--color-error-border)",
-  background: "var(--color-error-dim)",
-  color: "var(--color-error)",
-  fontSize: 13,
-} as const;
+const contextHeroClass =
+  "grid gap-[18px] bg-[radial-gradient(circle_at_top_left,rgba(96,165,250,0.16),transparent_45%)] p-6 [grid-template-columns:minmax(0,1.4fr)_minmax(280px,0.9fr)]";
+const contextMetricsClass =
+  "grid grid-cols-2 gap-3 rounded-2xl border border-[var(--border)] bg-[rgba(7,10,15,0.34)] px-4 py-3.5";
+const toolbarClass =
+  "mb-[18px] flex flex-wrap items-center justify-between gap-2.5";
+const inputClass =
+  "rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5 text-[var(--text1)]";
+const emptyStateClass =
+  "rounded-2xl border border-dashed border-[var(--border)] p-7 text-center text-[var(--text3)]";
+const secondaryButtonClass =
+  "cursor-pointer rounded-[10px] border border-[var(--border)] bg-[var(--surface2)] px-[13px] py-2.5 text-[var(--text2)]";
+const primaryButtonClass =
+  "cursor-pointer rounded-[10px] border-none bg-[var(--accent)] px-[13px] py-2.5 text-[hsl(var(--primary-foreground))]";
+const dangerButtonClass =
+  "cursor-pointer rounded-[10px] border border-error-border bg-error-dim px-[13px] py-2.5 text-error";
+const forceStopButtonClass = dangerButtonClass;
+const stopWhenFlatButtonClass =
+  "cursor-pointer rounded-[10px] border border-status-orange-border bg-status-orange-dim px-[13px] py-2.5 font-semibold text-status-orange";
+const drainBannerClass =
+  "mt-2 w-full rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-[12px] leading-[1.45] text-status-orange";
+const orphanWarningClass = drainBannerClass;
+const disabledStartClass =
+  "cursor-not-allowed bg-[var(--surface3)] text-[var(--text3)] opacity-45";
+const strategyNudgeBannerClass =
+  "mt-2.5 flex items-center justify-between gap-2.5 rounded-lg border border-info-border bg-info-dim px-3 py-[9px]";
+const strategyNudgeButtonClass =
+  "cursor-pointer whitespace-nowrap rounded-lg border border-info-border bg-info-dim px-3 py-[5px] text-[12px] font-semibold text-info";
+const errorBannerClass =
+  "rounded-xl border border-error-border bg-error-dim p-3 px-3.5 text-[13px] text-error";

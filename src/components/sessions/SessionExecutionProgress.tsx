@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import type { ExecutionStage, ExecutionStepStatus } from "@/lib/types";
 import type { SessionExecutionProgressResponse } from "@/lib/exva";
 
@@ -187,12 +188,16 @@ export const SessionExecutionProgress = ({
     : "rgba(251,146,60,0.8)";
 
   return (
-    <div style={wrapperStyle}>
-      <div style={trackStyle}>
+    <div className="mb-1 mt-3">
+      <div className="mb-2 h-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
         <div
+          className={cn(
+            "h-full rounded-full",
+            !isHoldingPosition && "bg-[rgba(96,165,250,0.6)]",
+            isHoldingPosition && "w-[66%]",
+          )}
           style={{
-            ...fillStyle,
-            width: isHoldingPosition ? "66%" : `${progressPct}%`,
+            width: isHoldingPosition ? undefined : `${progressPct}%`,
             transition: isRunning ? "width 0.6s ease" : "none",
             ...(isHoldingPosition
               ? {
@@ -206,33 +211,16 @@ export const SessionExecutionProgress = ({
         />
       </div>
 
-      <div style={infoRowStyle}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            minWidth: 0,
-            flex: 1,
-            flexWrap: "wrap",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--text3)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              fontWeight: 500,
-            }}
-          >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--text3)]">
             {stageLabel}
           </span>
 
           {statusChip ? (
             <span
+              className="shrink-0 rounded-full px-[7px] py-0.5 font-mono text-[12px]"
               style={{
-                ...statusChipStyle,
                 color: statusChip.color,
                 border: `1px solid ${statusChip.border}`,
                 background: statusChip.background,
@@ -243,12 +231,15 @@ export const SessionExecutionProgress = ({
           ) : null}
 
           {activeRoleLabel && isRunning ? (
-            <span style={roleChipStyle}>{activeRoleLabel}</span>
+            <span className="shrink-0 rounded bg-[rgba(255,255,255,0.05)] px-1.5 py-0.5 font-mono text-[12px] text-[var(--text2)]">
+              {activeRoleLabel}
+            </span>
           ) : null}
 
           {lastErrorMessage && (isFailed || isRetrying) ? (
             <span
-              style={{ ...errorMessageStyle, color: detailMessageColor }}
+              className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px]"
+              style={{ color: detailMessageColor }}
               title={lastErrorMessage}
             >
               {lastErrorMessage.length > 60
@@ -258,20 +249,13 @@ export const SessionExecutionProgress = ({
           ) : null}
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-            flexShrink: 0,
-          }}
-        >
+        <div className="flex shrink-0 items-center gap-[5px]">
           {isFailed && activeStage ? (
             <>
               {retryable ? (
                 <Button
                   variant="outline"
-                  style={retryButtonStyle}
+                  className="h-6 rounded-md border border-error-border bg-transparent px-2 text-[12px] text-error"
                   onClick={() => onRetry(sessionId, cycleId, activeStage)}
                 >
                   Retry
@@ -279,7 +263,7 @@ export const SessionExecutionProgress = ({
               ) : null}
               <Button
                 variant="outline"
-                style={traceButtonStyle}
+                className="h-6 rounded-md border border-[var(--border)] bg-transparent px-2 text-[12px] text-[var(--text2)]"
                 onClick={() => onViewTrace(sessionId, cycleId, activeStage)}
               >
                 View Trace
@@ -290,16 +274,19 @@ export const SessionExecutionProgress = ({
           {isRunning || isRetrying || isMonitoring ? (
             <button
               type="button"
-              style={pauseToggleStyle}
+              className="flex cursor-pointer items-center gap-1 rounded bg-transparent px-1 py-0.5 text-[12px] text-[var(--text3)]"
               onClick={() => onPauseAfterStep(sessionId)}
               title="Pause stops new research but keeps exits managed."
             >
-              <span style={pauseDotStyle} />
+              <span className="inline-block size-1.5 shrink-0 rounded-[2px] border border-[var(--text3)]" />
               Pause after step
             </button>
           ) : null}
 
-          <span style={cycleIdStyle} title={cycleId}>
+          <span
+            className="font-mono text-[12px] text-[var(--text3)] opacity-60"
+            title={cycleId}
+          >
             #{cycleIdShort}
           </span>
         </div>
@@ -307,108 +294,6 @@ export const SessionExecutionProgress = ({
     </div>
   );
 };
-
-const wrapperStyle = {
-  marginTop: 12,
-  marginBottom: 4,
-} as const;
-
-const trackStyle = {
-  height: 4,
-  borderRadius: 999,
-  background: "rgba(255,255,255,0.06)",
-  overflow: "hidden",
-  marginBottom: 8,
-} as const;
-
-const fillStyle = {
-  height: "100%",
-  borderRadius: 999,
-  background: "rgba(96,165,250,0.6)",
-} as const;
-
-const infoRowStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 8,
-} as const;
-
-const roleChipStyle = {
-  fontSize: 12,
-  color: "var(--text2)",
-  background: "rgba(255,255,255,0.05)",
-  borderRadius: 4,
-  padding: "2px 6px",
-  fontFamily: "monospace",
-  flexShrink: 0,
-} as const;
-
-const statusChipStyle = {
-  fontSize: 12,
-  borderRadius: 999,
-  padding: "2px 7px",
-  fontFamily: "monospace",
-  flexShrink: 0,
-} as const;
-
-const errorMessageStyle = {
-  fontSize: 12,
-  color: "rgba(251,146,60,0.8)",
-  minWidth: 0,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap" as const,
-} as const;
-
-const retryButtonStyle = {
-  height: 24,
-  padding: "0 8px",
-  fontSize: 12,
-  borderRadius: 6,
-  border: "1px solid var(--color-error-border)",
-  color: "var(--color-error)",
-  background: "transparent",
-} as const;
-
-const traceButtonStyle = {
-  height: 24,
-  padding: "0 8px",
-  fontSize: 12,
-  borderRadius: 6,
-  border: "1px solid var(--border)",
-  color: "var(--text2)",
-  background: "transparent",
-} as const;
-
-const pauseToggleStyle = {
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-  fontSize: 12,
-  color: "var(--text3)",
-  background: "transparent",
-  border: "none",
-  cursor: "pointer",
-  padding: "2px 4px",
-  borderRadius: 4,
-} as const;
-
-const pauseDotStyle = {
-  width: 6,
-  height: 6,
-  borderRadius: 2,
-  border: "1px solid var(--text3)",
-  display: "inline-block",
-  flexShrink: 0,
-} as const;
-
-const cycleIdStyle = {
-  fontSize: 12,
-  color: "var(--text3)",
-  fontFamily: "monospace",
-  opacity: 0.6,
-} as const;
 
 function resolveStatusChip({
   isRetrying,

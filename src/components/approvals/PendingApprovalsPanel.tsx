@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Badge, Card, SectionTitle } from "@/components/custom-ui";
-import { Button } from "@/components/ui";
+import { Badge, SectionTitle } from "@/components/custom-ui";
+import { Button, Card } from "@/components/ui";
 import { fmt } from "@/lib/formatters";
 import type { ApprovalSummary } from "@/lib/types";
 import { ApprovalDetailModal } from "./ApprovalDetailModal";
@@ -28,26 +28,19 @@ export const PendingApprovalsPanel = ({
 
   return (
     <>
-      <Card style={{ padding: "18px 22px" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 4,
-          }}
-        >
+      <Card className="rounded-[14px] border border-border bg-card px-[22px] py-[18px]">
+        <div className="mb-1 flex items-center gap-2.5">
           <SectionTitle>Pending approvals</SectionTitle>
           <Badge variant="warn" size="sm">
             {pending.length}
           </Badge>
         </div>
         {pending.length === 0 ? (
-          <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 10 }}>
+          <p className="mt-2.5 text-[13px] text-[var(--text3)]">
             No pending approvals.
           </p>
         ) : (
-          <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+          <div className="mt-3 grid gap-2.5">
             {pending.map((a) => (
               <Button
                 key={a.id}
@@ -56,58 +49,28 @@ export const PendingApprovalsPanel = ({
                 variant="outline"
                 className="h-auto w-full justify-between gap-3 rounded-[10px] border-border bg-[var(--surface2)] p-[10px_12px] text-left"
               >
-                <div style={{ textAlign: "left" }}>
+                <div className="text-left">
                   {workspaceViewMode === "global" && (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text3)",
-                        marginBottom: 4,
-                      }}
-                    >
+                    <div className="mb-1 text-[12px] text-[var(--text3)]">
                       {a.sessionName}
                     </div>
                   )}
-                  <div
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontWeight: 700,
-                      color: "var(--text1)",
-                    }}
-                  >
+                  <div className="font-mono font-bold text-[var(--text1)]">
                     {a.instrumentSymbol}
                   </div>
                   {a.instrumentDisplayName ? (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text3)",
-                        marginTop: 2,
-                      }}
-                    >
+                    <div className="mt-0.5 text-[12px] text-[var(--text3)]">
                       {a.instrumentDisplayName}
                     </div>
                   ) : null}
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "var(--text3)",
-                      marginTop: 4,
-                    }}
-                  >
+                  <div className="mt-1 text-[12px] text-[var(--text3)]">
                     {a.predictionOutcome ? `${a.predictionOutcome} · ` : ""}
                     {a.proposedSide} · {fmt.usd(a.proposedSizeUsd, 0)}
                     {a.confidenceScore != null && (
                       <> · {Math.round(a.confidenceScore * 100)}% conf</>
                     )}
                   </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "var(--text3)",
-                      marginTop: 4,
-                    }}
-                  >
+                  <div className="mt-1 text-[12px] text-[var(--text3)]">
                     {fmt.time(a.requestedAt)}
                   </div>
                 </div>

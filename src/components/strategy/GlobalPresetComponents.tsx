@@ -14,6 +14,7 @@ import {
 import type { GlobalStrategyPreset } from "../../../electron/shared/presets";
 import type { UserGlobalPresetRow } from "@/lib/exva";
 import { ShadcnSelect } from "@/components/custom-ui";
+import { cn } from "@/lib/utils";
 
 export type { UserGlobalPresetRow };
 
@@ -25,67 +26,20 @@ export interface UserGlobalPresetInput {
   timeframePresetId: TimeframePresetId;
 }
 
-const presetCardStyle = {
-  position: "relative",
-  display: "flex",
-  flexDirection: "column",
-  gap: 12,
-  padding: "16px 16px 14px",
-  borderRadius: 14,
-  transition: "border-color 0.15s, box-shadow 0.15s",
-} as const;
+const presetCardClass =
+  "relative flex flex-col gap-3 rounded-[14px] px-4 pb-3.5 pt-4 transition-[border-color,box-shadow] duration-150";
 
-const presetBadgeStyle = {
-  fontSize: 12,
-  fontWeight: 600,
-  letterSpacing: 0.3,
-  padding: "3px 8px",
-  borderRadius: 999,
-  color: "var(--text2)",
-  whiteSpace: "nowrap" as const,
-} as const;
+const presetBadgeClass =
+  "whitespace-nowrap rounded-full px-2 py-[3px] text-[12px] font-semibold tracking-[0.3px] text-[var(--text2)]";
 
-const applyPresetButtonStyle = {
-  marginTop: 2,
-  width: "100%",
-  padding: "8px 12px",
-  borderRadius: 8,
-  border: "1px solid rgba(59,130,246,0.4)",
-  fontSize: 12,
-  fontWeight: 700,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 5,
-  transition: "background 0.12s",
-  letterSpacing: 0.3,
-} as const;
+const applyPresetButtonClass =
+  "mt-0.5 flex w-full items-center justify-center gap-[5px] rounded-lg border border-[rgba(59,130,246,0.4)] px-3 py-2 text-[12px] font-bold tracking-[0.3px] transition-colors duration-[120ms]";
 
-const modalOverlayStyle = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 1000,
-  background: "rgba(0,0,0,0.65)",
-  backdropFilter: "blur(4px)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 24,
-} as const;
+const modalOverlayClass =
+  "fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.65)] p-6 backdrop-blur-[4px]";
 
-const modalPanelStyle = {
-  width: "100%",
-  maxWidth: 460,
-  background:
-    "linear-gradient(145deg, rgba(22,32,50,0.98), rgba(14,22,38,0.97))",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 16,
-  padding: "24px 24px 20px",
-  boxShadow: "0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(59,130,246,0.1)",
-  display: "flex",
-  flexDirection: "column",
-  gap: 18,
-} as const;
+const modalPanelClass =
+  "flex w-full max-w-[460px] flex-col gap-[18px] rounded-2xl border border-[rgba(255,255,255,0.1)] bg-[linear-gradient(145deg,rgba(22,32,50,0.98),rgba(14,22,38,0.97))] px-6 pb-5 pt-6 shadow-[0_24px_64px_rgba(0,0,0,0.6),0_0_0_1px_rgba(59,130,246,0.1)]";
 
 function labelize(id: string): string {
   return id
@@ -155,72 +109,32 @@ function GlobalPresetCard({
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        ...presetCardStyle,
-        border: isApplied
-          ? "1px solid rgba(59,130,246,0.45)"
+      className={cn(
+        presetCardClass,
+        isApplied
+          ? "border border-[rgba(59,130,246,0.45)] bg-[linear-gradient(145deg,rgba(30,41,59,0.95),rgba(15,23,42,0.9))] shadow-[0_0_0_1px_rgba(59,130,246,0.2),0_4px_16px_rgba(59,130,246,0.1)]"
           : hovered
-            ? "1px solid rgba(255,255,255,0.1)"
-            : "1px solid var(--border)",
-        background: isApplied
-          ? "linear-gradient(145deg, rgba(30,41,59,0.95), rgba(15,23,42,0.9))"
-          : "linear-gradient(145deg, rgba(22,32,46,0.9), rgba(14,22,36,0.85))",
-        boxShadow: isApplied
-          ? "0 0 0 1px rgba(59,130,246,0.2), 0 4px 16px rgba(59,130,246,0.1)"
-          : hovered
-            ? "0 4px 20px rgba(0,0,0,0.3)"
-            : "0 2px 8px rgba(0,0,0,0.2)",
-      }}
+            ? "border border-[rgba(255,255,255,0.1)] bg-[linear-gradient(145deg,rgba(22,32,46,0.9),rgba(14,22,36,0.85))] shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
+            : "border border-[var(--border)] bg-[linear-gradient(145deg,rgba(22,32,46,0.9),rgba(14,22,36,0.85))] shadow-[0_2px_8px_rgba(0,0,0,0.2)]",
+      )}
     >
       {isApplied && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 2,
-            background:
-              "linear-gradient(90deg, transparent, rgba(59,130,246,0.7), transparent)",
-            borderRadius: "14px 14px 0 0",
-          }}
-        />
+        <div className="absolute left-0 right-0 top-0 h-0.5 rounded-t-[14px] bg-[linear-gradient(90deg,transparent,rgba(59,130,246,0.7),transparent)]" />
       )}
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 8,
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: "var(--text1)",
-              lineHeight: 1.3,
-            }}
-          >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1">
+          <div className="text-[14px] font-bold leading-[1.3] text-[var(--text1)]">
             {preset.label}
           </div>
           {preset.description && (
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--text3)",
-                marginTop: 3,
-                lineHeight: 1.45,
-              }}
-            >
+            <div className="mt-[3px] text-[12px] leading-[1.45] text-[var(--text3)]">
               {preset.description}
             </div>
           )}
         </div>
         {canManagePreset && (
-          <div style={{ display: "flex", gap: 4, flexShrink: 0, marginTop: 1 }}>
+          <div className="mt-px flex shrink-0 gap-1">
             {onEdit && (
               <button
                 type="button"
@@ -229,7 +143,7 @@ function GlobalPresetCard({
                   onEdit();
                 }}
                 title="Edit preset"
-                style={iconBtnStyle}
+                className={iconBtnClass}
               >
                 <PencilIcon />
               </button>
@@ -242,7 +156,7 @@ function GlobalPresetCard({
                   onDelete();
                 }}
                 title="Delete preset"
-                style={{ ...iconBtnStyle, color: "rgba(248,113,113,0.8)" }}
+                className={cn(iconBtnClass, "text-[rgba(248,113,113,0.8)]")}
               >
                 <TrashIcon />
               </button>
@@ -251,12 +165,12 @@ function GlobalPresetCard({
         )}
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+      <div className="flex flex-wrap gap-[5px]">
         {badges.map((b) => (
           <span
             key={b.label}
+            className={presetBadgeClass}
             style={{
-              ...presetBadgeStyle,
               background: b.color,
               border: `1px solid ${b.border}`,
             }}
@@ -267,25 +181,13 @@ function GlobalPresetCard({
       </div>
 
       {preset.summaryBullets?.length > 0 && (
-        <div style={{ display: "grid", gap: 4 }}>
+        <div className="grid gap-1">
           {preset.summaryBullets.slice(0, 3).map((b) => (
-            <div
-              key={b}
-              style={{ display: "flex", gap: 6, alignItems: "flex-start" }}
-            >
-              <span
-                style={{
-                  color: "var(--text3)",
-                  fontSize: 12,
-                  marginTop: 2,
-                  flexShrink: 0,
-                }}
-              >
+            <div key={b} className="flex items-start gap-1.5">
+              <span className="mt-0.5 shrink-0 text-[12px] text-[var(--text3)]">
                 ▸
               </span>
-              <span
-                style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.5 }}
-              >
+              <span className="text-[12px] leading-normal text-[var(--text3)]">
                 {b}
               </span>
             </div>
@@ -299,17 +201,15 @@ function GlobalPresetCard({
         onClick={onApply}
         onMouseEnter={() => setApplyHover(true)}
         onMouseLeave={() => setApplyHover(false)}
-        style={{
-          ...applyPresetButtonStyle,
-          background: isApplied
-            ? "rgba(59,130,246,0.08)"
+        className={cn(
+          applyPresetButtonClass,
+          isApplied
+            ? "bg-[rgba(59,130,246,0.08)] text-[rgba(147,197,253,0.9)]"
             : applyHover && !disabled
-              ? "rgba(59,130,246,0.22)"
-              : "rgba(59,130,246,0.14)",
-          color: isApplied ? "rgba(147,197,253,0.9)" : "rgba(191,219,254,0.95)",
-          cursor: disabled ? "not-allowed" : "pointer",
-          opacity: disabled ? 0.5 : 1,
-        }}
+              ? "bg-[rgba(59,130,246,0.22)] text-[rgba(191,219,254,0.95)]"
+              : "bg-[rgba(59,130,246,0.14)] text-[rgba(191,219,254,0.95)]",
+          disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
+        )}
       >
         {isApplied ? (
           <>
@@ -360,27 +260,13 @@ export function GlobalPresetGrid({
     p.timeframePresetId === currentTimeframePresetId;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h2
-            style={{
-              margin: 0,
-              fontSize: 15,
-              fontWeight: 600,
-              color: "var(--text1)",
-              letterSpacing: 0.2,
-            }}
-          >
+          <h2 className="m-0 text-[15px] font-semibold tracking-[0.2px] text-[var(--text1)]">
             Global Presets
           </h2>
-          <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--text3)" }}>
+          <p className="m-0 mt-[3px] text-[12px] text-[var(--text3)]">
             Apply a preset to configure all sections at once.
           </p>
         </div>
@@ -388,19 +274,16 @@ export function GlobalPresetGrid({
           type="button"
           onClick={onCreatePreset}
           disabled={disabled}
-          style={createBtnStyle(disabled)}
+          className={cn(
+            createBtnClass,
+            disabled && "cursor-not-allowed opacity-50",
+          )}
         >
           + Create Preset
         </button>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-          gap: 12,
-        }}
-      >
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
         {builtInPresets.map((preset) => (
           <GlobalPresetCard
             key={preset.id}
@@ -498,32 +381,25 @@ export function CreateEditGlobalPresetModal({
           onClose();
         }
       }}
-      style={modalOverlayStyle}
+      className={modalOverlayClass}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         role="presentation"
-        style={modalPanelStyle}
+        className={modalPanelClass}
       >
         <div>
-          <h2
-            style={{
-              margin: 0,
-              fontSize: 16,
-              fontWeight: 600,
-              color: "var(--text1)",
-            }}
-          >
+          <h2 className="m-0 text-[16px] font-semibold text-[var(--text1)]">
             {isEdit ? "Edit Global Preset" : "Create Global Preset"}
           </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text3)" }}>
+          <p className="m-0 mt-1 text-[12px] text-[var(--text3)]">
             Name this preset and choose sub-presets for each section.
           </p>
         </div>
 
-        <div style={{ height: 1, background: "var(--border)" }} />
+        <div className="h-px bg-[var(--border)]" />
 
-        <div style={{ display: "grid", gap: 14 }}>
+        <div className="grid gap-3.5">
           <ModalField label="Preset name">
             <input
               value={form.name}
@@ -532,7 +408,7 @@ export function CreateEditGlobalPresetModal({
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSave();
               }}
-              style={modalInputStyle}
+              className={modalInputClass}
             />
           </ModalField>
           <ModalField label="Style (posture)">
@@ -585,22 +461,20 @@ export function CreateEditGlobalPresetModal({
           </ModalField>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button type="button" onClick={onClose} style={cancelBtnStyle}>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={cancelBtnClass}>
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            style={{
-              ...saveBtnBaseStyle,
-              background: canSave ? "var(--accent)" : "var(--surface3)",
-              color: canSave
-                ? "hsl(var(--primary-foreground))"
-                : "var(--text3)",
-              cursor: canSave ? "pointer" : "not-allowed",
-            }}
+            className={cn(
+              saveBtnBaseClass,
+              canSave
+                ? "cursor-pointer bg-[var(--accent)] text-[hsl(var(--primary-foreground))]"
+                : "cursor-not-allowed bg-[var(--surface3)] text-[var(--text3)]",
+            )}
           >
             {isEdit ? "Save Changes" : "Create Preset"}
           </button>
@@ -619,16 +493,8 @@ const ModalField = ({
   label: string;
   children: React.ReactNode;
 }) => (
-  <div style={{ display: "grid", gap: 6 }}>
-    <div
-      style={{
-        fontSize: 12,
-        color: "var(--text3)",
-        fontWeight: 600,
-        letterSpacing: 0.4,
-        textTransform: "uppercase",
-      }}
-    >
+  <div className="grid gap-1.5">
+    <div className="text-[12px] font-semibold uppercase tracking-[0.4px] text-[var(--text3)]">
       {label}
     </div>
     {children}
@@ -682,61 +548,17 @@ const TrashIcon = () => (
   </svg>
 );
 
-const iconBtnStyle: React.CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 6,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text3)",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 0,
-};
+const iconBtnClass =
+  "flex h-[26px] w-[26px] cursor-pointer items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface2)] p-0 text-[var(--text3)]";
 
-const modalInputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "9px 11px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text1)",
-  fontSize: 13,
-  outline: "none",
-  boxSizing: "border-box",
-};
+const modalInputClass =
+  "box-border w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)] outline-none";
 
-const cancelBtnStyle: React.CSSProperties = {
-  padding: "9px 16px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-  color: "var(--text2)",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-};
+const cancelBtnClass =
+  "cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-4 py-[9px] text-[13px] font-semibold text-[var(--text2)]";
 
-const saveBtnBaseStyle: React.CSSProperties = {
-  padding: "9px 20px",
-  borderRadius: 8,
-  border: "none",
-  fontSize: 13,
-  fontWeight: 700,
-  cursor: "pointer",
-};
+const saveBtnBaseClass =
+  "rounded-lg border-none px-5 py-[9px] text-[13px] font-bold";
 
-const createBtnStyle = (disabled: boolean): React.CSSProperties => ({
-  padding: "7px 14px",
-  borderRadius: 8,
-  border: "1px solid rgba(59,130,246,0.35)",
-  background: "rgba(59,130,246,0.1)",
-  color: "rgba(147,197,253,0.9)",
-  fontSize: 12,
-  fontWeight: 700,
-  cursor: disabled ? "not-allowed" : "pointer",
-  opacity: disabled ? 0.5 : 1,
-  letterSpacing: 0.3,
-});
+const createBtnClass =
+  "cursor-pointer rounded-lg border border-[rgba(59,130,246,0.35)] bg-[rgba(59,130,246,0.1)] px-3.5 py-[7px] text-[12px] font-bold tracking-[0.3px] text-[rgba(147,197,253,0.9)]";

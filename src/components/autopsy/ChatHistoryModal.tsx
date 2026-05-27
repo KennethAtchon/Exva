@@ -6,6 +6,7 @@ import {
   type TradeAutopsyRecord,
 } from "@/lib/autopsy-types";
 import { fmt } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Phase colour palette
@@ -33,6 +34,18 @@ const MONTH_LABELS = [
   "Nov",
   "Dec",
 ] as const;
+
+const phaseChipClass =
+  "shrink-0 rounded-[4px] px-2 py-0.5 font-mono text-[12px] font-bold tracking-[0.05em]";
+
+const promptBlockPreClass =
+  "m-0 overflow-auto whitespace-pre-wrap break-words rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 font-mono text-[12px] leading-normal";
+
+const versionChipClass =
+  "cursor-pointer rounded-md px-[11px] py-1 font-mono text-[12px]";
+
+const footerBtnClass =
+  "cursor-pointer rounded-[7px] border border-[var(--border)] bg-transparent px-3.5 py-[7px] font-sans text-[12px] text-[var(--text2)]";
 
 function formatIsoMonthDay(isoLike: string): string {
   const match = isoLike.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -65,12 +78,12 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
 
   return (
     <div
-      style={{
-        borderRadius: 8,
-        border: `1px solid ${hasError ? "var(--color-error-border)" : "var(--border)"}`,
-        overflow: "hidden",
-        background: "var(--surface2)",
-      }}
+      className={cn(
+        "overflow-hidden rounded-lg bg-[var(--surface2)]",
+        hasError
+          ? "border border-error-border"
+          : "border border-[var(--border)]",
+      )}
     >
       {/* Header */}
       <div
@@ -83,20 +96,15 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
             setOpen((o) => !o);
           }
         }}
+        className="flex cursor-pointer items-center gap-2.5 bg-transparent px-3.5 py-2.5"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "10px 14px",
-          cursor: "pointer",
           borderLeft: `3px solid ${hasError ? "var(--color-error)" : ph.color}`,
-          background: "transparent",
         }}
       >
         {/* Phase chip */}
         <span
+          className={phaseChipClass}
           style={{
-            ...phaseChipStyle,
             background: `${ph.color}22`,
             color: ph.color,
           }}
@@ -105,48 +113,24 @@ function PhaseRow({ trace }: { trace: PhaseTrace }) {
         </span>
 
         {/* Stats */}
-        <span
-          style={{
-            flex: 1,
-            fontSize: 12,
-            color: "var(--text3)",
-            fontFamily: "var(--font-mono)",
-          }}
-        >
+        <span className="flex-1 font-mono text-[12px] text-[var(--text3)]">
           {trace.providerKey} · {trace.modelId} ·{" "}
           {fmt.tokens(trace.inputTokens)} in · {fmt.tokens(trace.outputTokens)}{" "}
           out · {fmt.usd(trace.costUsd, 4)} · {fmt.duration(trace.durationMs)}
         </span>
 
         {hasError && (
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--color-error)",
-              fontFamily: "var(--font-mono)",
-              marginRight: 4,
-            }}
-          >
-            ERROR
-          </span>
+          <span className="mr-1 font-mono text-[12px] text-error">ERROR</span>
         )}
 
-        <span style={{ fontSize: 12, color: "var(--text3)", flexShrink: 0 }}>
+        <span className="shrink-0 text-[12px] text-[var(--text3)]">
           {open ? "▲" : "▼"}
         </span>
       </div>
 
       {/* Expanded body */}
       {open && (
-        <div
-          style={{
-            padding: "14px 16px",
-            borderTop: "1px solid var(--border)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
-        >
+        <div className="flex flex-col gap-3.5 border-t border-[var(--border)] px-4 py-3.5">
           <PromptBlock
             label="SYSTEM PROMPT"
             text={trace.systemPrompt}
@@ -205,21 +189,12 @@ function PromptBlock({
 
   return (
     <div>
-      <div
-        style={{
-          fontSize: 12,
-          color: "var(--text3)",
-          fontFamily: "var(--font-mono)",
-          letterSpacing: "0.05em",
-          fontWeight: 700,
-          marginBottom: 6,
-        }}
-      >
+      <div className="mb-1.5 font-mono text-[12px] font-bold tracking-[0.05em] text-[var(--text3)]">
         {label}
       </div>
       <pre
+        className={promptBlockPreClass}
         style={{
-          ...promptBlockPreStyle,
           borderLeft: borderColor ? `3px solid ${borderColor}` : undefined,
           color: color ?? "var(--text2)",
           maxHeight: maxH,
@@ -246,7 +221,7 @@ function VersionChips({
 }) {
   if (autopsies.length <= 1) return null;
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+    <div className="flex flex-wrap gap-1.5">
       {autopsies.map((a, i) => {
         const active = a.id === selected;
         const date = formatIsoMonthDay(a.createdAt);
@@ -254,16 +229,17 @@ function VersionChips({
           <button
             key={a.id}
             onClick={() => onSelect(a.id)}
-            style={{
-              ...versionChipStyle,
-              border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
-              background: active ? "var(--color-info-dim)" : "transparent",
-              color: active ? "var(--color-info)" : "var(--text3)",
-            }}
+            className={cn(
+              versionChipClass,
+              "border",
+              active
+                ? "border-[var(--accent)] bg-info-dim text-info"
+                : "border-[var(--border)] bg-transparent text-[var(--text3)]",
+            )}
           >
             v{i + 1} · <span suppressHydrationWarning>{date}</span>
             {i === autopsies.length - 1 && (
-              <span style={{ marginLeft: 5, opacity: 0.7 }}>●</span>
+              <span className="ml-[5px] opacity-70">●</span>
             )}
           </button>
         );
@@ -315,52 +291,18 @@ export function ChatHistoryModal({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
-        className="border-border bg-transparent p-0"
-        style={{
-          maxWidth: 700,
-          height: "88vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
+        className={cn(
+          "flex h-[88vh] max-w-[700px] flex-col overflow-hidden border-border bg-transparent p-0",
+        )}
       >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            height: "100%",
-            background: "var(--surface)",
-            borderRadius: 14,
-            border: "1px solid var(--border)",
-            overflow: "hidden",
-          }}
-        >
+        <div className="flex h-full flex-col overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--surface)]">
           {/* Modal header */}
-          <div
-            style={{
-              padding: "18px 20px 16px",
-              borderBottom: "1px solid var(--border)",
-              flexShrink: 0,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                color: "var(--text1)",
-                marginBottom: 4,
-              }}
-            >
+          <div className="shrink-0 border-b border-[var(--border)] px-5 pb-4 pt-[18px]">
+            <div className="mb-1 text-[15px] font-bold text-[var(--text1)]">
               Autopsy Chat History
             </div>
             {autopsy && (
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--text3)",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
+              <div className="font-mono text-[12px] text-[var(--text3)]">
                 {autopsy.modelId} ·{" "}
                 <span suppressHydrationWarning>
                   {formatIsoDateTime(autopsy.createdAt)}
@@ -372,13 +314,7 @@ export function ChatHistoryModal({
 
           {/* Version selector */}
           {autopsies.length > 1 && (
-            <div
-              style={{
-                padding: "12px 20px",
-                borderBottom: "1px solid var(--border)",
-                flexShrink: 0,
-              }}
-            >
+            <div className="shrink-0 border-b border-[var(--border)] px-5 py-3">
               <VersionChips
                 autopsies={autopsies}
                 selected={selectedAutopsyId}
@@ -388,25 +324,9 @@ export function ChatHistoryModal({
           )}
 
           {/* Phase list */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "14px 18px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-            }}
-          >
+          <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-[18px] py-3.5">
             {phases.length === 0 ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "40px 0",
-                  color: "var(--text3)",
-                  fontSize: 13,
-                }}
-              >
+              <div className="py-10 text-center text-[13px] text-[var(--text3)]">
                 Chat history not available for this autopsy.
               </div>
             ) : (
@@ -428,19 +348,11 @@ export function ChatHistoryModal({
           </div>
 
           {/* Footer */}
-          <div
-            style={{
-              padding: "12px 18px",
-              borderTop: "1px solid var(--border)",
-              display: "flex",
-              gap: 8,
-              flexShrink: 0,
-            }}
-          >
-            <button onClick={handleCopyAll} style={footerBtn}>
+          <div className="flex shrink-0 gap-2 border-t border-[var(--border)] px-[18px] py-3">
+            <button onClick={handleCopyAll} className={footerBtnClass}>
               Copy All (JSON)
             </button>
-            <button onClick={handleExportHistory} style={footerBtn}>
+            <button onClick={handleExportHistory} className={footerBtnClass}>
               Export Chat History
             </button>
           </div>
@@ -449,46 +361,3 @@ export function ChatHistoryModal({
     </Dialog>
   );
 }
-
-const phaseChipStyle = {
-  padding: "2px 8px",
-  borderRadius: 4,
-  fontSize: 12,
-  fontFamily: "var(--font-mono)",
-  fontWeight: 700,
-  letterSpacing: "0.05em",
-  flexShrink: 0,
-} as const;
-
-const promptBlockPreStyle = {
-  margin: 0,
-  padding: "10px 12px",
-  borderRadius: 6,
-  background: "var(--bg)",
-  border: "1px solid var(--border)",
-  fontSize: 12,
-  lineHeight: 1.5,
-  fontFamily: "var(--font-mono)",
-  overflow: "auto",
-  whiteSpace: "pre-wrap" as const,
-  wordBreak: "break-word" as const,
-} as const;
-
-const versionChipStyle = {
-  padding: "4px 11px",
-  borderRadius: 6,
-  fontSize: 12,
-  fontFamily: "var(--font-mono)",
-  cursor: "pointer",
-} as const;
-
-const footerBtn: React.CSSProperties = {
-  padding: "7px 14px",
-  borderRadius: 7,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  fontSize: 12,
-  cursor: "pointer",
-  fontFamily: "var(--font-sans)",
-};

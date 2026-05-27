@@ -23,6 +23,7 @@ import {
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
 import { api, type ProviderModelEntry } from "@/lib/exva";
+import { cn } from "@/lib/utils";
 import { REASONING_LEVEL_OPTIONS } from "../../electron/shared/ai/ai-phase";
 import type {
   BrokerRoutingDefault,
@@ -67,54 +68,25 @@ const InputField = ({
   placeholder?: string;
   mono?: boolean;
 }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "baseline",
-      }}
-    >
-      <label style={{ fontSize: 13, fontWeight: 500, color: "var(--text2)" }}>
-        {label}
-      </label>
-      {hint && (
-        <span style={{ fontSize: 12, color: "var(--text3)" }}>{hint}</span>
-      )}
+  <div className={inputFieldRootClass}>
+    <div className={inputFieldHeaderClass}>
+      <label className={inputFieldLabelClass}>{label}</label>
+      {hint && <span className={inputFieldHintClass}>{hint}</span>}
     </div>
     <input
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      style={inputFieldInputStyle(mono)}
+      className={inputFieldInputClass(mono)}
     />
   </div>
 );
 
 const ConnBadge = ({ ok }: { ok: boolean }) => (
-  <div
-    style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "4px 11px",
-      borderRadius: 20,
-      background: ok ? "var(--color-success-dim)" : "var(--color-error-dim)",
-      border: `1px solid ${ok ? "var(--color-success-border)" : "var(--color-error-border)"}`,
-    }}
-  >
+  <div className={connBadgeClass(ok)}>
     <Dot color={ok ? "var(--color-success)" : "var(--color-error)"} size={6} />
-    <span
-      style={{
-        fontSize: 12,
-        fontFamily: "var(--font-mono)",
-        color: ok ? "var(--color-success)" : "var(--color-error)",
-        fontWeight: 600,
-      }}
-    >
-      {ok ? "Connected" : "Error"}
-    </span>
+    <span className={connBadgeTextClass(ok)}>{ok ? "Connected" : "Error"}</span>
   </div>
 );
 
@@ -443,45 +415,30 @@ export const AccountsPage = () => {
 
   return (
     <PageShell>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-        }}
-      >
+      <div className={pageHeaderRowClass}>
         <div>
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 600,
-              color: "var(--text1)",
-              margin: 0,
-            }}
-          >
-            Accounts
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>
+          <h1 className={pageTitleClass}>Accounts</h1>
+          <p className={pageSubtitleClass}>
             API keys stored in OS keychain, never written to disk or logs
           </p>
         </div>
-        <div style={envToggleStyle}>
+        <div className={envToggleClass}>
           <button
             type="button"
-            style={{
-              ...envToggleButtonStyle,
-              ...(environmentMode === "paper" ? envTogglePaperActiveStyle : {}),
-            }}
+            className={cn(
+              envToggleButtonClass,
+              environmentMode === "paper" && envTogglePaperActiveClass,
+            )}
             onClick={() => handleToggleEnvironment("paper")}
           >
             Paper
           </button>
           <button
             type="button"
-            style={{
-              ...envToggleButtonStyle,
-              ...(environmentMode === "live" ? envToggleLiveActiveStyle : {}),
-            }}
+            className={cn(
+              envToggleButtonClass,
+              environmentMode === "live" && envToggleLiveActiveClass,
+            )}
             onClick={() => handleToggleEnvironment("live")}
           >
             Live
@@ -489,52 +446,26 @@ export const AccountsPage = () => {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 16 }}>
-        <div
-          style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}
-        >
+      <div className={twoColumnLayoutClass}>
+        <div className={columnClass}>
           <Card>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                marginBottom: 14,
-              }}
-            >
+            <div className={cardHeaderRowClass}>
               <div>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: "var(--text1)",
-                    marginBottom: 3,
-                  }}
-                >
-                  AI providers
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                <div className={cardTitleClass}>AI providers</div>
+                <div className={cardSubtitleClass}>
                   Add keys for each vendor; assign provider and model per role
                   on Strategy
                 </div>
               </div>
               {aiProviders.length === 0 ? (
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text3)",
-                    fontWeight: 500,
-                  }}
-                >
-                  None yet
-                </span>
+                <span className={noneYetLabelClass}>None yet</span>
               ) : (
                 <ConnBadge ok={status.ai} />
               )}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className={cardSectionStackClass}>
               {aiProviders.length === 0 && (
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                <div className={mutedText12Class}>
                   No AI accounts yet. Add Anthropic, OpenAI, or OpenRouter (you
                   can configure more than one).
                 </div>
@@ -554,74 +485,26 @@ export const AccountsPage = () => {
                       : "Untested";
                 const isEditing = editingProviderId === p.id;
                 return (
-                  <div
-                    key={p.id}
-                    style={{
-                      padding: "10px 12px",
-                      borderRadius: 9,
-                      border: "1px solid var(--border)",
-                      background: "var(--surface2)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: 10,
-                      }}
-                    >
+                  <div key={p.id} className={providerCardClass}>
+                    <div className={providerCardHeaderClass}>
                       <div>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: "var(--text1)",
-                          }}
-                        >
-                          {p.name}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "var(--text3)",
-                            fontFamily: "var(--font-mono)",
-                          }}
-                        >
+                        <div className={providerNameClass}>{p.name}</div>
+                        <div className={providerTypeMonoClass}>
                           {providerTypeLabel(p.providerType)}
                         </div>
                         <div
-                          style={{
-                            fontSize: 12,
-                            color: statusColor,
-                            marginTop: 4,
-                            fontWeight: 600,
-                          }}
+                          className={providerStatusClass}
+                          style={{ color: statusColor }}
                         >
                           {statusLabel}
                         </div>
                       </div>
                       {!isEditing ? (
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 8,
-                            justifyContent: "flex-end",
-                          }}
-                        >
+                        <div className={providerActionsClass}>
                           <button
                             type="button"
                             onClick={() => beginEditProviderKey(p)}
-                            style={{
-                              fontSize: 12,
-                              padding: "6px 10px",
-                              borderRadius: 7,
-                              border: "1px solid var(--border)",
-                              background: "var(--surface)",
-                              cursor: "pointer",
-                              color: "var(--text2)",
-                            }}
+                            className={outlineBtnClass}
                           >
                             Update key
                           </button>
@@ -635,14 +518,7 @@ export const AccountsPage = () => {
                               setStatus((s) => ({ ...s, ai: r.ok || s.ai }));
                               void refetchProviders();
                             }}
-                            style={{
-                              fontSize: 12,
-                              padding: "6px 10px",
-                              borderRadius: 7,
-                              border: "1px solid var(--border)",
-                              background: "var(--surface)",
-                              cursor: "pointer",
-                            }}
+                            className={testBtnClass}
                           >
                             Test
                           </button>
@@ -650,15 +526,9 @@ export const AccountsPage = () => {
                             type="button"
                             disabled={rowSavingId === p.id}
                             onClick={() => void deleteProvider(p)}
-                            style={{
-                              fontSize: 12,
-                              padding: "6px 10px",
-                              borderRadius: 7,
-                              border: "1px solid var(--color-error-border)",
-                              background: "var(--color-error-dim)",
-                              cursor: rowSavingId === p.id ? "wait" : "pointer",
-                              color: "var(--color-error)",
-                            }}
+                            className={deleteProviderBtnClass(
+                              rowSavingId === p.id,
+                            )}
                           >
                             {rowSavingId === p.id ? "Deleting…" : "Delete"}
                           </button>
@@ -666,14 +536,7 @@ export const AccountsPage = () => {
                       ) : null}
                     </div>
                     {isEditing ? (
-                      <div
-                        style={{
-                          marginTop: 12,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 12,
-                        }}
-                      >
+                      <div className={editFormClass}>
                         <InputField
                           label="New API key"
                           hint="stored in OS keychain"
@@ -693,14 +556,14 @@ export const AccountsPage = () => {
                             mono
                           />
                         ) : null}
-                        <div
-                          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
-                        >
+                        <div className={buttonRowClass}>
                           <button
                             type="button"
                             disabled={rowSavingId === p.id}
                             onClick={() => void saveEditedProviderKey(p)}
-                            style={saveKeychainBtnStyle(rowSavingId === p.id)}
+                            className={saveKeychainBtnClass(
+                              rowSavingId === p.id,
+                            )}
                           >
                             {rowSavingId === p.id
                               ? "Saving…"
@@ -710,15 +573,7 @@ export const AccountsPage = () => {
                             type="button"
                             disabled={rowSavingId === p.id}
                             onClick={cancelEditProviderKey}
-                            style={{
-                              fontSize: 12,
-                              padding: "8px 12px",
-                              borderRadius: 8,
-                              border: "1px solid var(--border)",
-                              background: "transparent",
-                              color: "var(--text2)",
-                              cursor: "pointer",
-                            }}
+                            className={cancelBtnClass}
                           >
                             Cancel
                           </button>
@@ -732,20 +587,18 @@ export const AccountsPage = () => {
             <button
               type="button"
               onClick={() => setAiModalOpen(true)}
-              style={addProviderBtnStyle}
+              className={addProviderBtnClass}
             >
               + Add AI provider
             </button>
           </Card>
 
           <Card>
-            <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-              <div
-                style={{ fontSize: 12, fontWeight: 500, color: "var(--text2)" }}
-              >
+            <div className={defaultModelSectionClass}>
+              <div className={sectionLabelClass}>
                 Workspace default AI model
               </div>
-              <div style={{ fontSize: 12, color: "var(--text3)" }}>
+              <div className={mutedText12Class}>
                 Auto-fills provider, model, and reasoning on new sessions.
                 Phases still at Off are updated when you save here.
               </div>
@@ -774,17 +627,7 @@ export const AccountsPage = () => {
                 onModelChange={(v) => setDefaultModelModelId(v)}
               />
               <div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text3)",
-                    marginBottom: 4,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  Reasoning
-                </div>
+                <div className={reasoningLabelClass}>Reasoning</div>
                 <ShadcnSelect
                   value={defaultModelReasoningLevel}
                   onValueChange={(value) =>
@@ -796,9 +639,7 @@ export const AccountsPage = () => {
                   placeholder="Off"
                   disabled={savingDefaultModel}
                 />
-                <div
-                  style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}
-                >
+                <div className={hintBelowClass}>
                   Non-off levels increase token spend. Pair with a
                   reasoning-capable model. Override per phase in Strategy → AI
                   Phases.
@@ -832,7 +673,7 @@ export const AccountsPage = () => {
                     setSavingDefaultModel(false);
                   }
                 }}
-                style={saveDefaultModelBtnStyle(
+                className={saveDefaultModelBtnClass(
                   savingDefaultModel ||
                     !defaultModelProviderKey ||
                     !defaultModelModelId,
@@ -848,59 +689,29 @@ export const AccountsPage = () => {
           </Card>
 
           <Card>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                marginBottom: 14,
-              }}
-            >
+            <div className={cardHeaderRowClass}>
               <div>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: "var(--text1)",
-                    marginBottom: 3,
-                  }}
-                >
-                  Broker accounts
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                <div className={cardTitleClass}>Broker accounts</div>
+                <div className={cardSubtitleClass}>
                   Multi-broker routing: keys in OS keychain
                 </div>
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className={cardSectionStackClass}>
               {brokers.length === 0 && (
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                <div className={mutedText12Class}>
                   No broker accounts yet. Add one to enable trading.
                 </div>
               )}
               {brokers.map((b) => (
-                <div key={b.id} style={brokerRowStyle}>
+                <div key={b.id} className={brokerRowClass}>
                   <div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--text1)",
-                      }}
-                    >
-                      {b.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text3)",
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
+                    <div className={providerNameClass}>{b.name}</div>
+                    <div className={providerTypeMonoClass}>
                       {b.brokerType} · {b.supportedInstrumentClasses.join(", ")}
                     </div>
                     {b.brokerType === "mock" && (
-                      <div style={{ marginTop: 8, maxWidth: 320 }}>
+                      <div className={mockScenarioWrapClass}>
                         <ShadcnSelect
                           value={b.mockScenarioKind ?? "clean_breakout"}
                           onValueChange={async (value) => {
@@ -918,21 +729,14 @@ export const AccountsPage = () => {
                       </div>
                     )}
                   </div>
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className={buttonRowClass}>
                     <button
                       type="button"
                       onClick={async () => {
                         const r = await api.testSavedBrokerAccount(b.id);
                         setStatus((s) => ({ ...s, broker: r.ok }));
                       }}
-                      style={{
-                        fontSize: 12,
-                        padding: "6px 10px",
-                        borderRadius: 7,
-                        border: "1px solid var(--border)",
-                        background: "var(--surface)",
-                        cursor: "pointer",
-                      }}
+                      className={testBtnClass}
                     >
                       Test
                     </button>
@@ -948,15 +752,7 @@ export const AccountsPage = () => {
                         await api.deleteBrokerAccount(b.id);
                         void refetchWorkspace();
                       }}
-                      style={{
-                        fontSize: 12,
-                        padding: "6px 10px",
-                        borderRadius: 7,
-                        border: "1px solid var(--color-error-border)",
-                        color: "var(--color-error)",
-                        background: "transparent",
-                        cursor: "pointer",
-                      }}
+                      className={removeBrokerBtnClass}
                     >
                       Remove
                     </button>
@@ -967,26 +763,17 @@ export const AccountsPage = () => {
             <button
               type="button"
               onClick={() => setBrokerModalOpen(true)}
-              style={addProviderBtnStyle}
+              className={addProviderBtnClass}
             >
               + Add broker account
             </button>
           </Card>
         </div>
 
-        <div
-          style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}
-        >
+        <div className={columnClass}>
           <Card>
             <SectionTitle>Workspace routing defaults</SectionTitle>
-            <p
-              style={{
-                fontSize: 12,
-                color: "var(--text3)",
-                marginTop: 6,
-                marginBottom: 12,
-              }}
-            >
+            <p className={routingDescClass}>
               Per-class default broker (session overrides live on the Strategy /
               session editor).
             </p>
@@ -998,17 +785,8 @@ export const AccountsPage = () => {
                 "prediction_market",
               ] as InstrumentClass[]
             ).map((ic) => (
-              <div key={ic} style={{ marginBottom: 10 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "var(--text2)",
-                    marginBottom: 6,
-                  }}
-                >
-                  {ic}
-                </div>
+              <div key={ic} className={routingItemClass}>
+                <div className={routingItemLabelClass}>{ic}</div>
                 <ShadcnSelect
                   value={routingDraft[ic] ?? ""}
                   onValueChange={(value) =>
@@ -1052,7 +830,7 @@ export const AccountsPage = () => {
                 await api.saveBrokerRoutingDefaults(rows);
                 void refetchWorkspace();
               }}
-              style={accentActionBtnStyle}
+              className={accentActionBtnMt8Class}
             >
               Save routing defaults
             </button>
@@ -1060,30 +838,14 @@ export const AccountsPage = () => {
 
           <Card>
             <SectionTitle>Broker allocation override</SectionTitle>
-            <p
-              style={{
-                fontSize: 12,
-                color: "var(--text3)",
-                marginTop: 6,
-                marginBottom: 12,
-              }}
-            >
+            <p className={routingDescClass}>
               Optionally force all brokers to use the same over-allocation
               behavior.
             </p>
             {prefs && (
               <>
-                <div style={{ marginBottom: 10 }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "var(--text2)",
-                      marginBottom: 6,
-                    }}
-                  >
-                    Override
-                  </div>
+                <div className={prefsFieldClass}>
+                  <div className={prefsFieldLabelClass}>Override</div>
                   <ShadcnSelect
                     value={prefsDraft?.allocationEnforcementOverride ?? ""}
                     onValueChange={(value) =>
@@ -1117,7 +879,7 @@ export const AccountsPage = () => {
                     });
                     void refetchWorkspace();
                   }}
-                  style={saveOverrideBtnStyle}
+                  className={saveOverrideBtnClass}
                 >
                   Save override
                 </button>
@@ -1126,68 +888,28 @@ export const AccountsPage = () => {
           </Card>
 
           <Card>
-            <div style={{ marginBottom: 14 }}>
-              <div
-                style={{
-                  fontSize: 15,
-                  fontWeight: 600,
-                  color: "var(--text1)",
-                  marginBottom: 3,
-                }}
-              >
-                Web Search
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text3)" }}>
+            <div className={webSearchHeaderClass}>
+              <div className={cardTitleClass}>Web Search</div>
+              <div className={cardSubtitleClass}>
                 AI-selected universe sessions require a dedicated search
                 account. Brave and Tavily are supported today.
               </div>
             </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                justifyContent: "space-between",
-                gap: 10,
-                marginBottom: 14,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--text3)",
-                  maxWidth: 360,
-                  lineHeight: 1.5,
-                }}
-              >
+            <div className={webSearchMetaRowClass}>
+              <div className={webSearchHintClass}>
                 OpenRouter model accounts do not satisfy this requirement.
                 DuckDuckGo is built in by default, and you can add Brave or
                 Tavily if you want an API-backed override.
               </div>
               {searchProviders.length === 0 ? (
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text3)",
-                    fontWeight: 500,
-                  }}
-                >
-                  None yet
-                </span>
+                <span className={noneYetLabelClass}>None yet</span>
               ) : !hasTestedSearchProvider ? (
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text3)",
-                    fontWeight: 500,
-                  }}
-                >
-                  Built-in default
-                </span>
+                <span className={noneYetLabelClass}>Built-in default</span>
               ) : (
                 <ConnBadge ok={status.search} />
               )}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className={cardSectionStackClass}>
               {searchProviders.map((p) => {
                 const isBuiltIn = isBuiltInSearchProviderAccount(p);
                 const statusColor =
@@ -1206,41 +928,11 @@ export const AccountsPage = () => {
                 const isWorkspaceDefault =
                   prefs?.defaultSearchProviderId === p.id;
                 return (
-                  <div
-                    key={p.id}
-                    style={{
-                      padding: "10px 12px",
-                      borderRadius: 9,
-                      border: "1px solid var(--border)",
-                      background: "var(--surface2)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: 10,
-                      }}
-                    >
+                  <div key={p.id} className={providerCardClass}>
+                    <div className={providerCardHeaderClass}>
                       <div>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 600,
-                              color: "var(--text1)",
-                            }}
-                          >
-                            {p.name}
-                          </div>
+                        <div className={providerNameRowClass}>
+                          <div className={providerNameClass}>{p.name}</div>
                           {isWorkspaceDefault ? (
                             <Badge variant="blue" size="sm">
                               workspace default
@@ -1252,48 +944,23 @@ export const AccountsPage = () => {
                             </Badge>
                           ) : null}
                         </div>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "var(--text3)",
-                            fontFamily: "var(--font-mono)",
-                          }}
-                        >
+                        <div className={providerTypeMonoClass}>
                           {providerTypeLabel(p.providerType)}
                         </div>
                         <div
-                          style={{
-                            fontSize: 12,
-                            color: statusColor,
-                            marginTop: 4,
-                            fontWeight: 600,
-                          }}
+                          className={providerStatusClass}
+                          style={{ color: statusColor }}
                         >
                           {statusLabel}
                         </div>
                       </div>
                       {!isEditing ? (
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 8,
-                            justifyContent: "flex-end",
-                          }}
-                        >
+                        <div className={providerActionsClass}>
                           {!isBuiltIn ? (
                             <button
                               type="button"
                               onClick={() => beginEditProviderKey(p)}
-                              style={{
-                                fontSize: 12,
-                                padding: "6px 10px",
-                                borderRadius: 7,
-                                border: "1px solid var(--border)",
-                                background: "var(--surface)",
-                                cursor: "pointer",
-                                color: "var(--text2)",
-                              }}
+                              className={outlineBtnClass}
                             >
                               Update key
                             </button>
@@ -1311,14 +978,7 @@ export const AccountsPage = () => {
                               }));
                               void refetchProviders();
                             }}
-                            style={{
-                              fontSize: 12,
-                              padding: "6px 10px",
-                              borderRadius: 7,
-                              border: "1px solid var(--border)",
-                              background: "var(--surface)",
-                              cursor: "pointer",
-                            }}
+                            className={testBtnClass}
                           >
                             Test
                           </button>
@@ -1327,16 +987,9 @@ export const AccountsPage = () => {
                               type="button"
                               disabled={rowSavingId === p.id}
                               onClick={() => void deleteProvider(p)}
-                              style={{
-                                fontSize: 12,
-                                padding: "6px 10px",
-                                borderRadius: 7,
-                                border: "1px solid var(--color-error-border)",
-                                background: "var(--color-error-dim)",
-                                cursor:
-                                  rowSavingId === p.id ? "wait" : "pointer",
-                                color: "var(--color-error)",
-                              }}
+                              className={deleteProviderBtnClass(
+                                rowSavingId === p.id,
+                              )}
                             >
                               {rowSavingId === p.id ? "Deleting…" : "Delete"}
                             </button>
@@ -1345,14 +998,7 @@ export const AccountsPage = () => {
                       ) : null}
                     </div>
                     {isEditing ? (
-                      <div
-                        style={{
-                          marginTop: 12,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 12,
-                        }}
-                      >
+                      <div className={editFormClass}>
                         <InputField
                           label="New API key"
                           hint="stored in OS keychain"
@@ -1362,14 +1008,14 @@ export const AccountsPage = () => {
                           placeholder="Paste key…"
                           mono
                         />
-                        <div
-                          style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
-                        >
+                        <div className={buttonRowClass}>
                           <button
                             type="button"
                             disabled={rowSavingId === p.id}
                             onClick={() => void saveEditedProviderKey(p)}
-                            style={saveKeychainBtnStyle(rowSavingId === p.id)}
+                            className={saveKeychainBtnClass(
+                              rowSavingId === p.id,
+                            )}
                           >
                             {rowSavingId === p.id
                               ? "Saving…"
@@ -1379,15 +1025,7 @@ export const AccountsPage = () => {
                             type="button"
                             disabled={rowSavingId === p.id}
                             onClick={cancelEditProviderKey}
-                            style={{
-                              fontSize: 12,
-                              padding: "8px 12px",
-                              borderRadius: 8,
-                              border: "1px solid var(--border)",
-                              background: "transparent",
-                              color: "var(--text2)",
-                              cursor: "pointer",
-                            }}
+                            className={cancelBtnClass}
                           >
                             Cancel
                           </button>
@@ -1398,16 +1036,9 @@ export const AccountsPage = () => {
                 );
               })}
             </div>
-            <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            <div className={searchDefaultSectionClass}>
               <div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "var(--text2)",
-                    marginBottom: 6,
-                  }}
-                >
+                <div className={searchDefaultLabelClass}>
                   Workspace default search provider
                 </div>
                 <ShadcnSelect
@@ -1438,7 +1069,7 @@ export const AccountsPage = () => {
                   });
                   void refetchWorkspace();
                 }}
-                style={saveSearchSettingsBtnStyle}
+                className={saveSearchSettingsBtnClass}
               >
                 Save search settings
               </button>
@@ -1446,7 +1077,7 @@ export const AccountsPage = () => {
             <button
               type="button"
               onClick={() => setSearchModalOpen(true)}
-              style={addProviderBtnStyle}
+              className={addProviderBtnClass}
             >
               + Add search provider
             </button>
@@ -1454,14 +1085,7 @@ export const AccountsPage = () => {
 
           <Card accent>
             <SectionTitle>Security Model</SectionTitle>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-                marginTop: 16,
-              }}
-            >
+            <div className={securityListClass}>
               {(
                 [
                   [
@@ -1482,34 +1106,11 @@ export const AccountsPage = () => {
                   ],
                 ] as [string, string][]
               ).map(([k, v]) => (
-                <div
-                  key={k}
-                  style={{ display: "flex", gap: 12, alignItems: "flex-start" }}
-                >
-                  <span
-                    style={{
-                      color: "var(--color-success)",
-                      fontSize: 13,
-                      flexShrink: 0,
-                      marginTop: 1,
-                    }}
-                  >
-                    ✓
-                  </span>
+                <div key={k} className={securityItemClass}>
+                  <span className={securityCheckClass}>✓</span>
                   <div>
-                    <span
-                      style={{
-                        fontSize: 13,
-                        color: "var(--text1)",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {k}
-                    </span>
-                    <span style={{ fontSize: 13, color: "var(--text3)" }}>
-                      {" "}
-                      : {v}
-                    </span>
+                    <span className={securityTitleClass}>{k}</span>
+                    <span className={securityDescClass}> : {v}</span>
                   </div>
                 </div>
               ))}
@@ -1520,7 +1121,7 @@ export const AccountsPage = () => {
             type="button"
             onClick={() => void testAllConnections()}
             disabled={testing}
-            style={testAllConnectionsBtnStyle}
+            className={testAllConnectionsBtnClass}
           >
             {testing ? "Testing…" : "Test all connections"}
           </button>
@@ -1549,136 +1150,131 @@ export const AccountsPage = () => {
   );
 };
 
-const inputFieldInputStyle = (mono?: boolean) =>
-  ({
-    background: "var(--surface2)",
-    border: "1px solid var(--border)",
-    borderRadius: 9,
-    padding: "10px 14px",
-    color: "var(--text1)",
-    fontSize: 13,
-    fontFamily: mono ? "var(--font-mono)" : "var(--font-sans)",
-    letterSpacing: mono ? "0.04em" : "normal",
-    transition: "border-color 0.15s",
-  }) as const;
+const inputFieldRootClass = "flex flex-col gap-[7px]";
+const inputFieldHeaderClass = "flex items-baseline justify-between";
+const inputFieldLabelClass = "text-[13px] font-medium text-[var(--text2)]";
+const inputFieldHintClass = "text-[12px] text-[var(--text3)]";
 
-const saveKeychainBtnStyle = (isSaving: boolean) =>
-  ({
-    fontSize: 12,
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "none",
-    background: "var(--accent)",
-    color: "hsl(var(--primary-foreground))",
-    fontWeight: 600,
-    cursor: isSaving ? "wait" : "pointer",
-    opacity: isSaving ? 0.85 : 1,
-  }) as const;
+const inputFieldInputClass = (mono?: boolean) =>
+  cn(
+    "rounded-[9px] border border-[var(--border)] bg-[var(--surface2)] px-[14px] py-[10px] text-[13px] text-[var(--text1)] transition-[border-color] duration-150",
+    mono ? "font-mono tracking-[0.04em]" : "font-sans",
+  );
 
-const addProviderBtnStyle = {
-  marginTop: 12,
-  width: "100%",
-  padding: "10px 14px",
-  borderRadius: 9,
-  border: "1px dashed var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  fontSize: 13,
-  cursor: "pointer",
-} as const;
+const connBadgeClass = (ok: boolean) =>
+  cn(
+    "inline-flex items-center gap-1.5 rounded-[20px] px-[11px] py-1 border",
+    ok
+      ? "border-success-border bg-success-dim"
+      : "border-error-border bg-error-dim",
+  );
 
-const saveDefaultModelBtnStyle = (disabled: boolean) =>
-  ({
-    width: "100%",
-    padding: "10px 14px",
-    borderRadius: 9,
-    border: "none",
-    background: "var(--accent)",
-    color: "hsl(var(--primary-foreground))",
-    fontWeight: 600,
-    fontSize: 13,
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.7 : 1,
-  }) as const;
+const connBadgeTextClass = (ok: boolean) =>
+  cn("font-mono text-[12px] font-semibold", ok ? "text-success" : "text-error");
 
-const brokerRowStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 10,
-  padding: "10px 12px",
-  borderRadius: 9,
-  border: "1px solid var(--border)",
-  background: "var(--surface2)",
-} as const;
+const pageHeaderRowClass = "flex items-start justify-between";
+const pageTitleClass = "m-0 text-[22px] font-semibold text-[var(--text1)]";
+const pageSubtitleClass = "mt-1 text-[13px] text-[var(--text3)]";
+const twoColumnLayoutClass = "flex gap-4";
+const columnClass = "flex flex-1 flex-col gap-3.5";
 
-const accentActionBtnBase = {
-  width: "100%",
-  padding: "10px 14px",
-  borderRadius: 9,
-  border: "none",
-  background: "var(--accent)",
-  color: "hsl(var(--primary-foreground))",
-  fontWeight: 600,
-  fontSize: 13,
-  cursor: "pointer",
-} as const;
+const cardHeaderRowClass = "mb-3.5 flex items-start justify-between";
+const cardTitleClass = "mb-[3px] text-[15px] font-semibold text-[var(--text1)]";
+const cardSubtitleClass = "text-[12px] text-[var(--text3)]";
+const cardSectionStackClass = "flex flex-col gap-2.5";
+const mutedText12Class = "text-[12px] text-[var(--text3)]";
+const noneYetLabelClass = "text-[12px] font-medium text-[var(--text3)]";
 
-const accentActionBtnStyle = {
-  ...accentActionBtnBase,
-  marginTop: 8,
-} as const;
+const providerCardClass =
+  "rounded-[9px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5";
+const providerCardHeaderClass = "flex items-start justify-between gap-2.5";
+const providerNameClass = "text-[13px] font-semibold text-[var(--text1)]";
+const providerTypeMonoClass = "font-mono text-[12px] text-[var(--text3)]";
+const providerStatusClass = "mt-1 text-[12px] font-semibold";
+const providerActionsClass = "flex flex-wrap justify-end gap-2";
+const providerNameRowClass = "flex flex-wrap items-center gap-2";
 
-const saveOverrideBtnStyle = {
-  ...accentActionBtnBase,
-  marginTop: 12,
-} as const;
+const outlineBtnClass =
+  "cursor-pointer rounded-[7px] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px] text-[var(--text2)]";
+const testBtnClass =
+  "cursor-pointer rounded-[7px] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[12px]";
+const deleteProviderBtnClass = (waiting: boolean) =>
+  cn(
+    "rounded-[7px] border border-error-border bg-error-dim px-2.5 py-1.5 text-[12px] text-error",
+    waiting ? "cursor-wait" : "cursor-pointer",
+  );
 
-const saveSearchSettingsBtnStyle = accentActionBtnBase;
+const editFormClass = "mt-3 flex flex-col gap-3";
+const buttonRowClass = "flex flex-wrap gap-2";
 
-const testAllConnectionsBtnStyle = {
-  width: "100%",
-  padding: "11px 20px",
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: 10,
-  color: "var(--text2)",
-  fontSize: 13,
-  cursor: "pointer",
-  fontFamily: "var(--font-sans)",
-  fontWeight: 500,
-} as const;
+const saveKeychainBtnClass = (isSaving: boolean) =>
+  cn(
+    "rounded-lg border-none bg-[var(--accent)] px-3 py-2 text-[12px] font-semibold text-[hsl(var(--primary-foreground))]",
+    isSaving ? "cursor-wait opacity-85" : "cursor-pointer opacity-100",
+  );
 
-const envToggleStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: 6,
-  padding: 5,
-  borderRadius: 10,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.34)",
-  marginTop: 4,
-} as const;
+const cancelBtnClass =
+  "cursor-pointer rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-[12px] text-[var(--text2)]";
 
-const envToggleButtonStyle = {
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  borderRadius: 7,
-  padding: "7px 16px",
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-} as const;
+const addProviderBtnClass =
+  "mt-3 w-full cursor-pointer rounded-[9px] border border-dashed border-[var(--border)] bg-transparent px-[14px] py-2.5 text-[13px] text-[var(--text2)]";
 
-const envTogglePaperActiveStyle = {
-  background: "var(--color-warning-dim)",
-  color: "var(--color-warning)",
-  borderColor: "var(--color-warning-border)",
-} as const;
+const saveDefaultModelBtnClass = (disabled: boolean) =>
+  cn(
+    "w-full rounded-[9px] border-none bg-[var(--accent)] px-[14px] py-2.5 text-[13px] font-semibold text-[hsl(var(--primary-foreground))]",
+    disabled ? "cursor-not-allowed opacity-70" : "cursor-pointer opacity-100",
+  );
 
-const envToggleLiveActiveStyle = {
-  background: "var(--color-success-dim)",
-  color: "var(--color-success)",
-  borderColor: "var(--color-success-border)",
-} as const;
+const defaultModelSectionClass = "mt-3.5 grid gap-2.5";
+const sectionLabelClass = "text-[12px] font-medium text-[var(--text2)]";
+const reasoningLabelClass =
+  "mb-1 text-[12px] uppercase tracking-[0.04em] text-[var(--text3)]";
+const hintBelowClass = "mt-1 text-[12px] text-[var(--text3)]";
+
+const brokerRowClass =
+  "flex items-center justify-between gap-2.5 rounded-[9px] border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5";
+const removeBrokerBtnClass =
+  "cursor-pointer rounded-[7px] border border-error-border bg-transparent px-2.5 py-1.5 text-[12px] text-error";
+const mockScenarioWrapClass = "mt-2 max-w-[320px]";
+
+const routingDescClass = "mb-3 mt-1.5 text-[12px] text-[var(--text3)]";
+const routingItemClass = "mb-2.5";
+const routingItemLabelClass =
+  "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
+
+const accentActionBtnClass =
+  "w-full cursor-pointer rounded-[9px] border-none bg-[var(--accent)] px-[14px] py-2.5 text-[13px] font-semibold text-[hsl(var(--primary-foreground))]";
+const accentActionBtnMt8Class = cn(accentActionBtnClass, "mt-2");
+const saveOverrideBtnClass = cn(accentActionBtnClass, "mt-3");
+const saveSearchSettingsBtnClass = accentActionBtnClass;
+
+const prefsFieldClass = "mb-2.5";
+const prefsFieldLabelClass =
+  "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
+
+const webSearchHeaderClass = "mb-3.5";
+const webSearchMetaRowClass = "mb-3.5 flex items-start justify-between gap-2.5";
+const webSearchHintClass =
+  "max-w-[360px] text-[12px] leading-normal text-[var(--text3)]";
+
+const searchDefaultSectionClass = "mt-3.5 grid gap-2.5";
+const searchDefaultLabelClass =
+  "mb-1.5 text-[12px] font-medium text-[var(--text2)]";
+
+const securityListClass = "mt-4 flex flex-col gap-3";
+const securityItemClass = "flex items-start gap-3";
+const securityCheckClass = "mt-px shrink-0 text-[13px] text-success";
+const securityTitleClass = "text-[13px] font-medium text-[var(--text1)]";
+const securityDescClass = "text-[13px] text-[var(--text3)]";
+
+const testAllConnectionsBtnClass =
+  "w-full cursor-pointer rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-5 py-[11px] font-sans text-[13px] font-medium text-[var(--text2)]";
+
+const envToggleClass =
+  "mt-1 grid grid-cols-2 gap-1.5 rounded-[10px] border border-[var(--border)] bg-[rgba(7,10,15,0.34)] p-[5px]";
+const envToggleButtonClass =
+  "cursor-pointer rounded-[7px] border border-[var(--border)] bg-transparent px-4 py-[7px] text-[12px] font-semibold text-[var(--text2)]";
+const envTogglePaperActiveClass =
+  "border-warning-border bg-warning-dim text-warning";
+const envToggleLiveActiveClass =
+  "border-success-border bg-success-dim text-success";

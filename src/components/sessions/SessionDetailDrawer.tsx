@@ -8,6 +8,7 @@ import type {
   SessionTemplatePayload,
 } from "@/lib/types";
 import { Button, Dialog, DialogContent } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import {
   SessionExecutionProgress,
   deriveProgress,
@@ -63,14 +64,14 @@ const SessionInfoGrid = ({
         }
       />
       {session.selectionMode === "ai_selected_universe" ? (
-        <div style={{ marginTop: 4 }}>
-          <div style={rowLabelStyle}>Last AI universe selection</div>
-          <div style={{ marginTop: 6 }}>
+        <div className="mt-1">
+          <div className={rowLabelClass}>Last AI universe selection</div>
+          <div className="mt-1.5">
             {cacheLoading ? (
-              <span style={mutedStyle}>Loading cache…</span>
+              <span className={mutedClass}>Loading cache…</span>
             ) : instrumentCache?.instruments?.length ? (
-              <div style={{ display: "grid", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "var(--text2)" }}>
+              <div className="grid gap-2">
+                <div className="text-[12px] text-[var(--text2)]">
                   {instrumentCache.selectedAt
                     ? `Selected ${formatTimestamp(instrumentCache.selectedAt)}`
                     : "—"}
@@ -80,11 +81,11 @@ const SessionInfoGrid = ({
                     Definition changed: next start recomputes universe
                   </Badge>
                 ) : null}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                <div className="flex flex-wrap gap-1">
                   {instrumentCache.instruments.map((row) => (
                     <span
                       key={`${row.symbol}-${row.instrumentClass}`}
-                      style={cacheChipStyle}
+                      className={cacheChipClass}
                     >
                       {row.symbol} · {row.instrumentClass}
                     </span>
@@ -102,13 +103,13 @@ const SessionInfoGrid = ({
                   Re-run selector on next start
                 </Button>
                 {cacheAction ? (
-                  <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                  <div className="text-[12px] text-[var(--text3)]">
                     {cacheAction}
                   </div>
                 ) : null}
               </div>
             ) : (
-              <span style={mutedStyle}>
+              <span className={mutedClass}>
                 No cached selection yet (selector runs when you start with AI
                 picker on).
               </span>
@@ -151,13 +152,7 @@ const SessionInfoGrid = ({
     </Section>
 
     <Section title="Risk Limits">
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 12,
-        }}
-      >
+      <div className="grid grid-cols-2 gap-3">
         <StatBlock
           label="Total allocated"
           value={`$${session.totalAllocatedUsd.toLocaleString()}`}
@@ -448,32 +443,11 @@ export const SessionDetailDrawer = ({
   return (
     <Dialog open={!!session} onOpenChange={(next) => !next && onClose()}>
       <DialogContent className="max-h-[92vh] max-w-[96vw] overflow-hidden border-border bg-transparent p-0 sm:max-w-[620px]">
-        <div style={panelStyle}>
+        <div className={panelClass}>
           {/* Header */}
-          <div
-            style={{
-              paddingBottom: 18,
-              borderBottom: "1px solid var(--border)",
-              marginBottom: 18,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: 17,
-                  fontWeight: 600,
-                  color: "var(--text1)",
-                  letterSpacing: "-0.01em",
-                }}
-              >
+          <div className="mb-[18px] border-b border-[var(--border)] pb-[18px]">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="m-0 text-[17px] font-semibold tracking-[-0.01em] text-[var(--text1)]">
                 {session.name}
               </h2>
               <Badge variant={statusVariant(session.status)}>
@@ -482,30 +456,15 @@ export const SessionDetailDrawer = ({
               {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
             </div>
             {session.objective ? (
-              <div
-                style={{
-                  marginTop: 6,
-                  color: "var(--text2)",
-                  fontSize: 13,
-                  lineHeight: 1.55,
-                }}
-              >
+              <div className="mt-1.5 text-[13px] leading-[1.55] text-[var(--text2)]">
                 {session.objective}
               </div>
             ) : null}
           </div>
 
-          {error ? <div style={errorBannerStyle}>{error}</div> : null}
+          {error ? <div className={errorBannerClass}>{error}</div> : null}
 
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              overflowY: "auto",
-              maxHeight: "calc(92vh - 120px)",
-              paddingRight: 4,
-            }}
-          >
+          <div className="grid max-h-[calc(92vh-120px)] gap-3 overflow-y-auto pr-1">
             <SessionInfoGrid
               session={session}
               payload={payload}
@@ -527,17 +486,10 @@ export const SessionDetailDrawer = ({
                     onPauseAfterStep={() => undefined}
                   />
                 ) : (
-                  <span style={mutedStyle}>No active execution cycle.</span>
+                  <span className={mutedClass}>No active execution cycle.</span>
                 )}
                 {researchFailure ? (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      fontSize: 12,
-                      color: "var(--color-error)",
-                      lineHeight: 1.45,
-                    }}
-                  >
+                  <div className="mt-2 text-[12px] leading-[1.45] text-error">
                     {researchFailure}
                   </div>
                 ) : null}
@@ -545,13 +497,7 @@ export const SessionDetailDrawer = ({
             )}
 
             <Section title="Session Summary">
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12,
-                }}
-              >
+              <div className="grid grid-cols-2 gap-3">
                 <StatBlock
                   label="Updated"
                   value={formatTimestamp(session.updatedAt)}
@@ -577,37 +523,23 @@ export const SessionDetailDrawer = ({
 
             <Section title="Recent Events">
               {recentEvents.length === 0 ? (
-                <div style={mutedStyle}>No recent events.</div>
+                <div className={mutedClass}>No recent events.</div>
               ) : (
-                <div style={{ display: "grid", gap: 6 }}>
+                <div className="grid gap-1.5">
                   {recentEvents.map((ev) => (
                     <div
                       key={ev.id}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "auto 1fr",
-                        gap: 10,
-                        fontSize: 12,
-                        lineHeight: 1.45,
-                      }}
+                      className="grid grid-cols-[auto_1fr] gap-2.5 text-[12px] leading-[1.45]"
                     >
-                      <span
-                        style={{
-                          color: "var(--text3)",
-                          fontSize: 12,
-                          paddingTop: 1,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
+                      <span className="whitespace-nowrap pt-px text-[12px] text-[var(--text3)]">
                         {formatTimestamp(ev.created_at)}
                       </span>
                       <span
-                        style={{
-                          color:
-                            ev.level === "ERROR"
-                              ? "var(--color-error)"
-                              : "var(--text2)",
-                        }}
+                        className={cn(
+                          ev.level === "ERROR"
+                            ? "text-error"
+                            : "text-[var(--text2)]",
+                        )}
                       >
                         {ev.message}
                       </span>
@@ -630,47 +562,25 @@ const Section = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <section style={sectionStyle}>
-    <div style={sectionTitleStyle}>{title}</div>
-    <div style={{ display: "grid", gap: 10 }}>{children}</div>
+  <section className={sectionClass}>
+    <div className={sectionTitleClass}>{title}</div>
+    <div className="grid gap-2.5">{children}</div>
   </section>
 );
 
 const Row = ({ label, value }: { label: string; value: string }) => (
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "140px 1fr",
-      gap: 8,
-      alignItems: "start",
-    }}
-  >
-    <div style={rowLabelStyle}>{label}</div>
-    <div style={{ color: "var(--text1)", fontSize: 13, lineHeight: 1.5 }}>
+  <div className="grid grid-cols-[140px_1fr] items-start gap-2">
+    <div className={rowLabelClass}>{label}</div>
+    <div className="text-[13px] leading-normal text-[var(--text1)]">
       {value}
     </div>
   </div>
 );
 
 const StatBlock = ({ label, value }: { label: string; value: string }) => (
-  <div
-    style={{
-      padding: "10px 12px",
-      borderRadius: 10,
-      border: "1px solid var(--border)",
-      background: "rgba(7,10,15,0.4)",
-    }}
-  >
-    <div style={rowLabelStyle}>{label}</div>
-    <div
-      style={{
-        marginTop: 4,
-        color: "var(--text1)",
-        fontSize: 14,
-        fontWeight: 600,
-        fontVariantNumeric: "tabular-nums",
-      }}
-    >
+  <div className="rounded-[10px] border border-[var(--border)] bg-[rgba(7,10,15,0.4)] px-3 py-2.5">
+    <div className={rowLabelClass}>{label}</div>
+    <div className="mt-1 text-[14px] font-semibold tabular-nums text-[var(--text1)]">
       {value}
     </div>
   </div>
@@ -724,56 +634,21 @@ function formatTimestamp(value: string): string {
   return new Date(value).toLocaleString();
 }
 
-const panelStyle = {
-  width: 620,
-  maxWidth: "96vw",
-  background:
-    "linear-gradient(180deg, rgba(13,18,25,0.99) 0%, rgba(9,13,18,0.99) 100%)",
-  borderRadius: 20,
-  padding: 22,
-  border: "1px solid var(--border)",
-} as const;
+const panelClass =
+  "w-[620px] max-w-[96vw] rounded-[20px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(13,18,25,0.99)_0%,rgba(9,13,18,0.99)_100%)] p-[22px]";
 
-const sectionStyle = {
-  border: "1px solid var(--border)",
-  borderRadius: 12,
-  padding: "14px 16px",
-  background: "rgba(18,26,36,0.6)",
-} as const;
+const sectionClass =
+  "rounded-xl border border-[var(--border)] bg-[rgba(18,26,36,0.6)] px-4 py-3.5";
 
-const sectionTitleStyle = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: "var(--text3)",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.14em",
-  marginBottom: 12,
-} as const;
+const sectionTitleClass =
+  "mb-3 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text3)]";
 
-const rowLabelStyle = {
-  color: "var(--text3)",
-  fontSize: 12,
-  lineHeight: 1.5,
-  paddingTop: 1,
-} as const;
+const rowLabelClass = "pt-px text-[12px] leading-normal text-[var(--text3)]";
 
-const cacheChipStyle = {
-  padding: "3px 8px",
-  borderRadius: 999,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.4)",
-  color: "var(--text2)",
-  fontSize: 12,
-} as const;
+const cacheChipClass =
+  "rounded-full border border-[var(--border)] bg-[rgba(7,10,15,0.4)] px-2 py-[3px] text-[12px] text-[var(--text2)]";
 
-const mutedStyle = { color: "var(--text3)", fontSize: 13 } as const;
+const mutedClass = "text-[13px] text-[var(--text3)]";
 
-const errorBannerStyle = {
-  marginBottom: 14,
-  padding: "11px 14px",
-  borderRadius: 10,
-  border: "1px solid var(--color-error-border)",
-  background: "var(--color-error-dim)",
-  color: "var(--color-error)",
-  fontSize: 13,
-} as const;
+const errorBannerClass =
+  "mb-3.5 rounded-[10px] border border-error-border bg-error-dim px-[14px] py-[11px] text-[13px] text-error";

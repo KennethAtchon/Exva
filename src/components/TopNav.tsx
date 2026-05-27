@@ -1,4 +1,4 @@
-import { type CSSProperties, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { DashboardStats, SessionStatus } from "@/lib/types";
 import { Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
@@ -8,6 +8,7 @@ import { useWorkspaceStore } from "@/store/workspaceStore";
 import { sessionMatchesEnvironment } from "@/lib/environment-mode";
 import type { SessionSummary } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
+import { cn } from "@/lib/utils";
 
 export type PageKey =
   | "dashboard"
@@ -52,6 +53,56 @@ const SESSION_STATUS: Record<
   archived: { label: "Archived", dot: "var(--text2)", pulse: false },
 };
 
+const navClass = {
+  bar: "relative z-10 flex h-[58px] shrink-0 items-center gap-0 border-b border-[var(--border)] bg-[var(--surface)] px-7 py-0",
+  logo: "mr-9 flex shrink-0 items-center gap-[9px]",
+  logoText:
+    "font-mono text-[17px] font-bold tracking-[0.08em] text-[var(--text1)]",
+  nav: "flex h-full items-center gap-0.5",
+  navItem:
+    "relative flex h-full cursor-pointer items-center gap-1.5 whitespace-nowrap border-none bg-transparent px-[14px] py-0 font-sans text-[13px] font-normal text-[var(--text2)] transition-colors duration-150",
+  navItemActive: "font-medium text-[var(--text1)]",
+  navItemHint: "text-[oklch(0.65_0.14_240)]",
+  navUnderline:
+    "absolute bottom-0 left-[14px] right-[14px] h-0.5 rounded-t-[2px] bg-[var(--accent)]",
+  strategyDot:
+    "inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[oklch(0.65_0.14_240)]",
+  attentionBadge:
+    "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-error-border bg-error-dim px-[5px] py-0 font-mono text-[12px] font-bold text-error",
+  session: "flex shrink-0 items-center gap-2",
+  liveEnvPill:
+    "flex cursor-default items-center gap-[5px] rounded-[20px] border border-success-border bg-success-dim px-[9px] py-1",
+  paperEnvPill:
+    "flex cursor-default items-center gap-[5px] rounded-[20px] border border-warning-border bg-warning-dim px-[9px] py-1",
+  envLabelLive: "text-[12px] font-medium text-success",
+  envLabelPaper: "text-[12px] font-medium text-warning",
+  globalPill:
+    "flex cursor-default items-center gap-[5px] rounded-[20px] border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-1",
+  globalLabel: "text-[12px] font-medium text-[var(--text3)]",
+  statusPill:
+    "flex max-w-[220px] cursor-default items-center gap-1.5 overflow-hidden rounded-[20px] border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-1",
+  sessionLabel:
+    "overflow-hidden text-ellipsis whitespace-nowrap text-[12px] font-medium text-[var(--text1)]",
+  sessionStatus:
+    "ml-0.5 whitespace-nowrap border-l border-[var(--border)] pl-1 text-[12px] font-normal text-[var(--text3)]",
+  strategyNudge:
+    "flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-[20px] border border-info-border bg-info-dim px-[9px] py-1 text-[12px] font-medium text-info",
+  liveStats: "flex items-center gap-1.5 border-r border-[var(--border)] pr-2",
+  liveStatVal: "font-mono text-[13px] font-bold text-success",
+  liveStatSep: "text-[12px] text-[var(--text3)]",
+  liveStatLabel: "font-mono text-[12px] text-[var(--text3)]",
+  btnStart:
+    "cursor-pointer rounded-lg border-none bg-[var(--accent)] px-3.5 py-1.5 font-mono text-[12px] font-bold tracking-[0.02em] text-[hsl(var(--primary-foreground))] disabled:cursor-not-allowed disabled:bg-[var(--surface3)] disabled:text-[var(--text3)] disabled:opacity-40",
+  btnPause:
+    "cursor-pointer rounded-lg border border-warning-border bg-warning-dim px-3.5 py-1.5 font-mono text-[12px] font-semibold text-warning",
+  btnStop:
+    "cursor-pointer rounded-lg border border-error-border bg-error-dim px-2.5 py-1.5 font-mono text-[12px] text-error",
+  btnStopWhenFlat:
+    "cursor-pointer whitespace-nowrap rounded-lg border border-status-orange-border bg-status-orange-dim px-2.5 py-1.5 font-mono text-[12px] font-semibold text-status-orange",
+  btnForceStop:
+    "cursor-pointer rounded-lg border border-error-border bg-error-dim px-2.5 py-1.5 font-mono text-[12px] font-bold text-error",
+} as const;
+
 interface Props {
   activePage: PageKey;
   onNavigate: (p: PageKey) => void;
@@ -87,7 +138,7 @@ const NavItems = ({
   isGlobal: boolean;
   sessionName: string;
 }) => (
-  <nav style={s.nav}>
+  <nav className={navClass.nav}>
     {NAV_ITEMS.map((item) => {
       const active = activePage === item.id;
       const isStrategy = item.id === "strategy";
@@ -97,11 +148,11 @@ const NavItems = ({
           key={item.id}
           onClick={() => onNavigate(item.id)}
           variant="ghost"
-          style={{
-            ...s.navItem,
-            ...(active ? s.navItemActive : {}),
-            ...(isStrategy && needsStrategyConfig ? s.navItemHint : {}),
-          }}
+          className={cn(
+            navClass.navItem,
+            active && navClass.navItemActive,
+            isStrategy && needsStrategyConfig && navClass.navItemHint,
+          )}
           title={
             isStrategy && !isGlobal
               ? `Configure AI phases, risk limits, and strategy for "${sessionName}"`
@@ -111,7 +162,7 @@ const NavItems = ({
           {item.label}
           {isSessions && attentionCount > 0 && (
             <span
-              style={s.attentionBadgeStyle}
+              className={navClass.attentionBadge}
               title={`${attentionCount} session(s) need attention`}
               role="button"
               tabIndex={0}
@@ -132,11 +183,11 @@ const NavItems = ({
           )}
           {isStrategy && needsStrategyConfig && (
             <span
-              style={s.strategyDot}
+              className={navClass.strategyDot}
               title="This session has unconfigured strategy settings"
             />
           )}
-          {active && <div style={s.navUnderline} />}
+          {active && <div className={navClass.navUnderline} />}
         </Button>
       );
     })}
@@ -174,10 +225,15 @@ const NavStatus = ({
   const hasOpenTrades = statusView.tradeState === "open";
   const stopWhenFlatTitle =
     "Stops new research immediately and completes shutdown once all open trades close.";
+  const startDisabled = aiReady === false || sessionControlsDisabled;
   return (
-    <div style={s.session}>
+    <div className={navClass.session}>
       <div
-        style={environmentMode === "live" ? s.liveEnvPill : s.paperEnvPill}
+        className={
+          environmentMode === "live"
+            ? navClass.liveEnvPill
+            : navClass.paperEnvPill
+        }
         title={
           environmentMode === "live"
             ? "Live trading mode — real broker connection"
@@ -194,24 +250,23 @@ const NavStatus = ({
           size={7}
         />
         <span
-          style={{
-            fontSize: 12,
-            color:
-              environmentMode === "live"
-                ? "var(--color-success)"
-                : "var(--color-warning)",
-            fontWeight: 500,
-          }}
+          className={
+            environmentMode === "live"
+              ? navClass.envLabelLive
+              : navClass.envLabelPaper
+          }
         >
           {environmentMode === "live" ? "Live" : "Paper"}
         </span>
       </div>
 
       {stats && sessionStatus === "active" && (
-        <div style={s.liveStats}>
-          <span style={s.liveStatVal}>{fmt.pnl(stats.daily_pnl_usd)}</span>
-          <span style={s.liveStatSep}>·</span>
-          <span style={s.liveStatLabel}>
+        <div className={navClass.liveStats}>
+          <span className={navClass.liveStatVal}>
+            {fmt.pnl(stats.daily_pnl_usd)}
+          </span>
+          <span className={navClass.liveStatSep}>·</span>
+          <span className={navClass.liveStatLabel}>
             {fmt.uptime(stats.session_uptime_min)}
           </span>
         </div>
@@ -219,23 +274,19 @@ const NavStatus = ({
 
       {isGlobal ? (
         <div
-          style={s.globalPill}
+          className={navClass.globalPill}
           title="No session focused — viewing global workspace. Go to Sessions to focus a session."
         >
-          <span
-            style={{ fontSize: 12, color: "var(--text3)", fontWeight: 500 }}
-          >
-            Global
-          </span>
+          <span className={navClass.globalLabel}>Global</span>
         </div>
       ) : (
         <div
-          style={s.statusPill}
+          className={navClass.statusPill}
           title={`Focused session: "${sessionName}" — status: ${ss.label}`}
         >
           <Dot color={ss.dot} pulse={ss.pulse} size={7} />
-          <span style={s.sessionLabel}>{sessionName}</span>
-          <span style={s.sessionStatus}>{ss.label}</span>
+          <span className={navClass.sessionLabel}>{sessionName}</span>
+          <span className={navClass.sessionStatus}>{ss.label}</span>
         </div>
       )}
 
@@ -243,19 +294,9 @@ const NavStatus = ({
         sessionStatus !== "active" &&
         sessionStatus !== "monitoring_only" && (
           <Button
-            style={{
-              ...s.btnStart,
-              ...(aiReady === false || sessionControlsDisabled
-                ? {
-                    opacity: 0.4,
-                    cursor: "not-allowed",
-                    background: "var(--surface3)",
-                    color: "var(--text3)",
-                  }
-                : {}),
-            }}
+            className={navClass.btnStart}
             variant="ghost"
-            disabled={aiReady === false || sessionControlsDisabled}
+            disabled={startDisabled}
             title={
               sessionControlsDisabled
                 ? "Focused session is not in the current workspace environment"
@@ -282,7 +323,7 @@ const NavStatus = ({
       {sessionStatus === "active" && !sessionControlsDisabled && (
         <Button
           variant="ghost"
-          style={s.btnPause}
+          className={navClass.btnPause}
           disabled={sessionActionPending}
           onClick={() => onSessionAction("pause")}
           title="Pause stops new research but keeps exits managed."
@@ -293,7 +334,7 @@ const NavStatus = ({
       {isRunning && !sessionControlsDisabled && !hasOpenTrades ? (
         <Button
           variant="ghost"
-          style={s.btnStop}
+          className={navClass.btnStop}
           disabled={sessionActionPending}
           onClick={() => onSessionAction("stop")}
         >
@@ -303,7 +344,7 @@ const NavStatus = ({
       {isRunning && !sessionControlsDisabled && hasOpenTrades ? (
         <Button
           variant="ghost"
-          style={s.btnStopWhenFlat}
+          className={navClass.btnStopWhenFlat}
           disabled={sessionActionPending}
           title={stopWhenFlatTitle}
           onClick={() => onSessionAction("stop")}
@@ -314,7 +355,7 @@ const NavStatus = ({
       {isMonitorAlive && !sessionControlsDisabled && hasOpenTrades ? (
         <Button
           variant="ghost"
-          style={s.btnForceStop}
+          className={navClass.btnForceStop}
           disabled={sessionActionPending}
           title="Force stop ends automated exit management for open positions."
           onClick={() => onSessionAction("forceStop")}
@@ -413,8 +454,8 @@ export const TopNav = ({
   };
 
   return (
-    <header style={s.bar}>
-      <div style={s.logo}>
+    <header className={navClass.bar}>
+      <div className={navClass.logo}>
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
           <path
             d="M11 2L20 7V15L11 20L2 15V7L11 2Z"
@@ -426,7 +467,7 @@ export const TopNav = ({
             fill="var(--bg)"
           />
         </svg>
-        <span style={s.logoText}>exva</span>
+        <span className={navClass.logoText}>exva</span>
       </div>
 
       <NavItems
@@ -439,7 +480,7 @@ export const TopNav = ({
         sessionName={sessionName}
       />
 
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
 
       <NavStatus
         environmentMode={environmentMode}
@@ -455,234 +496,4 @@ export const TopNav = ({
       />
     </header>
   );
-};
-
-const s: Record<string, CSSProperties> = {
-  bar: {
-    height: 58,
-    display: "flex",
-    alignItems: "center",
-    gap: 0,
-    borderBottom: "1px solid var(--border)",
-    padding: "0 28px",
-    background: "var(--surface)",
-    flexShrink: 0,
-    position: "relative",
-    zIndex: 10,
-  },
-  logo: {
-    display: "flex",
-    alignItems: "center",
-    gap: 9,
-    marginRight: 36,
-    flexShrink: 0,
-  },
-  logoText: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 17,
-    fontWeight: 700,
-    letterSpacing: "0.08em",
-    color: "var(--text1)",
-  },
-  nav: { display: "flex", alignItems: "center", gap: 2, height: "100%" },
-  navItem: {
-    position: "relative",
-    height: "100%",
-    padding: "0 14px",
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 400,
-    color: "var(--text2)",
-    fontFamily: "var(--font-sans)",
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    transition: "color 0.15s",
-    whiteSpace: "nowrap",
-  },
-  navItemActive: { color: "var(--text1)", fontWeight: 500 },
-  navItemHint: { color: "oklch(0.65 0.14 240)" },
-  navUnderline: {
-    position: "absolute",
-    bottom: 0,
-    left: 14,
-    right: 14,
-    height: 2,
-    background: "var(--accent)",
-    borderRadius: "2px 2px 0 0",
-  },
-  strategyDot: {
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    background: "oklch(0.65 0.14 240)",
-    display: "inline-block",
-    flexShrink: 0,
-  },
-  attentionBadgeStyle: {
-    minWidth: 18,
-    height: 18,
-    padding: "0 5px",
-    borderRadius: 999,
-    background: "var(--color-error-dim)",
-    border: "1px solid var(--color-error-border)",
-    color: "var(--color-error)",
-    fontSize: 12,
-    fontWeight: 700,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontFamily: "var(--font-mono)",
-  },
-  session: { display: "flex", alignItems: "center", gap: 8, flexShrink: 0 },
-  liveEnvPill: {
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    padding: "4px 9px",
-    background: "var(--color-success-dim)",
-    borderRadius: 20,
-    border: "1px solid var(--color-success-border)",
-    cursor: "default",
-  },
-  paperEnvPill: {
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    padding: "4px 9px",
-    background: "var(--color-warning-dim)",
-    borderRadius: 20,
-    border: "1px solid var(--color-warning-border)",
-    cursor: "default",
-  },
-  globalPill: {
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    padding: "4px 10px",
-    background: "var(--surface2)",
-    borderRadius: 20,
-    border: "1px solid var(--border)",
-    cursor: "default",
-  },
-  statusPill: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "4px 10px",
-    background: "var(--surface2)",
-    borderRadius: 20,
-    border: "1px solid var(--border)",
-    cursor: "default",
-    maxWidth: 220,
-    overflow: "hidden",
-  },
-  sessionLabel: {
-    fontSize: 12,
-    color: "var(--text1)",
-    fontWeight: 500,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  sessionStatus: {
-    fontSize: 12,
-    color: "var(--text3)",
-    fontWeight: 400,
-    paddingLeft: 4,
-    borderLeft: "1px solid var(--border)",
-    marginLeft: 2,
-    whiteSpace: "nowrap",
-  },
-  strategyNudge: {
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-    padding: "4px 9px",
-    borderRadius: 20,
-    border: "1px solid var(--color-info-border)",
-    background: "var(--color-info-dim)",
-    color: "var(--color-info)",
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  },
-  liveStats: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    paddingRight: 8,
-    borderRight: "1px solid var(--border)",
-  },
-  liveStatVal: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 13,
-    fontWeight: 700,
-    color: "var(--color-success)",
-  },
-  liveStatSep: { color: "var(--text3)", fontSize: 12 },
-  liveStatLabel: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    color: "var(--text3)",
-  },
-  btnStart: {
-    padding: "6px 14px",
-    background: "var(--accent)",
-    border: "none",
-    borderRadius: 8,
-    color: "hsl(var(--primary-foreground))",
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: "pointer",
-    fontFamily: "var(--font-mono)",
-    letterSpacing: "0.02em",
-  },
-  btnPause: {
-    padding: "6px 14px",
-    background: "var(--color-warning-dim)",
-    border: "1px solid var(--color-warning-border)",
-    borderRadius: 8,
-    color: "var(--color-warning)",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "var(--font-mono)",
-  },
-  btnStop: {
-    padding: "6px 10px",
-    background: "var(--color-error-dim)",
-    border: "1px solid var(--color-error-border)",
-    borderRadius: 8,
-    color: "var(--color-error)",
-    fontSize: 12,
-    cursor: "pointer",
-    fontFamily: "var(--font-mono)",
-  },
-  btnStopWhenFlat: {
-    padding: "6px 10px",
-    background: "var(--color-orange-dim)",
-    border: "1px solid var(--color-orange-border)",
-    borderRadius: 8,
-    color: "var(--color-orange)",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "var(--font-mono)",
-    whiteSpace: "nowrap",
-  },
-  btnForceStop: {
-    padding: "6px 10px",
-    background: "var(--color-error-dim)",
-    border: "1px solid var(--color-error-border)",
-    borderRadius: 8,
-    color: "var(--color-error)",
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: "pointer",
-    fontFamily: "var(--font-mono)",
-  },
 };

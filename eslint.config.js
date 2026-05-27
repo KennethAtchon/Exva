@@ -121,7 +121,7 @@ export default tseslint.config(
             "Use a CSS var token from styles.css or a Tailwind semantic class. See THEMING.md.",
         },
       ],
-      "theming/no-static-inline-styles": "warn",
+      "theming/no-static-inline-styles": "error",
     },
   },
   {

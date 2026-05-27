@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui";
 import { api } from "@/lib/exva";
+import { cn } from "@/lib/utils";
 
 interface ReadinessCheck {
   name: string;
@@ -90,47 +91,70 @@ export const LiveReadinessModal = ({
   };
 
   return (
-    <div style={overlayStyle}>
-      <div style={dialogStyle}>
-        <div style={headerStyle}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text1)" }}>
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.72)]">
+      <div className="flex max-w-[90vw] w-[520px] flex-col overflow-hidden rounded-2xl border border-error-border bg-[var(--surface)] shadow-[0_24px_64px_rgba(0,0,0,0.48)]">
+        <div className="border-b border-[var(--border)] bg-error-dim px-6 pb-4 pt-5">
+          <div className="text-base font-bold text-[var(--text1)]">
             Live Trading Gate
           </div>
-          <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
+          <div className="mt-1 text-[12px] text-[var(--text3)]">
             All checks must pass before starting a live session
           </div>
         </div>
 
-        <div style={bodyStyle}>
+        <div className="flex max-h-[60vh] flex-col gap-2.5 overflow-y-auto px-6 py-4">
           {currentReport.checks.map((check) => (
-            <div key={check.name} style={checkRowStyle(check.passed)}>
-              <div style={checkIconStyle(check.passed)}>
+            <div
+              key={check.name}
+              className={cn(
+                "flex items-start gap-3 rounded-lg px-3 py-2.5",
+                check.passed
+                  ? "border border-success-border bg-success-dim"
+                  : "border border-error-border bg-error-dim",
+              )}
+            >
+              <div
+                className={cn(
+                  "mt-px flex size-5 shrink-0 items-center justify-center rounded-full text-[12px] font-bold",
+                  check.passed
+                    ? "bg-success-dim text-success"
+                    : "bg-error-dim text-error",
+                )}
+              >
                 {check.passed ? "✓" : "✗"}
               </div>
               <div className="min-w-0 flex-1">
                 <div
-                  style={{
-                    fontSize: 13,
-                    color: check.passed ? "var(--text1)" : "var(--text2)",
-                    fontWeight: 500,
-                  }}
+                  className={cn(
+                    "text-[13px] font-medium",
+                    check.passed
+                      ? "text-[var(--text1)]"
+                      : "text-[var(--text2)]",
+                  )}
                 >
                   {CHECK_LABELS[check.name] ?? check.name}
                 </div>
-                <div
-                  style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}
-                >
+                <div className="mt-0.5 text-[12px] text-[var(--text3)]">
                   {check.message ?? CHECK_DESCRIPTIONS[check.name]}
                 </div>
               </div>
               {check.requiresAck && !check.passed && (
-                <span style={ackBadgeStyle}>requires consent</span>
+                <span className="shrink-0 rounded border border-warning-border bg-warning-dim px-1.5 py-0.5 font-mono text-[12px] text-warning">
+                  requires consent
+                </span>
               )}
             </div>
           ))}
 
           {testResult && (
-            <div style={testResultBannerStyle(testResult.ok)}>
+            <div
+              className={cn(
+                "rounded-md px-3 py-2",
+                testResult.ok
+                  ? "border border-success-border bg-success-dim text-success"
+                  : "border border-error-border bg-error-dim text-error",
+              )}
+            >
               <span className="font-mono text-[12px]">
                 {testResult.ok ? "✓ " : "✗ "}
                 {testResult.message}
@@ -139,13 +163,11 @@ export const LiveReadinessModal = ({
           )}
 
           {allNonAckPassed && !currentReport.acknowledgedAt && (
-            <div style={consentBoxStyle}>
+            <div className="mt-1 rounded-lg border border-error-border bg-error-dim px-3.5 py-3">
               <div className="mb-1.5 text-[13px] font-semibold text-error">
                 Live trading uses real capital
               </div>
-              <div
-                style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.6 }}
-              >
+              <div className="text-[12px] leading-[1.6] text-[var(--text2)]">
                 By proceeding, you confirm that this session will execute trades
                 with real money via your connected live broker. Losses incurred
                 are real. This cannot be undone once the session starts.
@@ -154,11 +176,11 @@ export const LiveReadinessModal = ({
           )}
         </div>
 
-        <div style={footerStyle}>
+        <div className="flex items-center justify-between gap-2.5 border-t border-[var(--border)] px-6 py-3.5">
           <Button
             variant="outline"
             onClick={onCancel}
-            style={cancelButtonStyle}
+            className="rounded-lg border border-[var(--border)] bg-transparent px-4 py-[9px] text-[var(--text2)]"
           >
             Cancel
           </Button>
@@ -167,7 +189,7 @@ export const LiveReadinessModal = ({
               variant="outline"
               onClick={() => void handleTestConnection()}
               disabled={testing}
-              style={testButtonStyle}
+              className="rounded-lg border border-[var(--border)] bg-transparent px-3.5 py-[9px] text-[var(--text2)]"
             >
               {testing ? "Testing…" : "Test Connection"}
             </Button>
@@ -175,7 +197,12 @@ export const LiveReadinessModal = ({
               variant="ghost"
               onClick={() => void handleAcknowledge()}
               disabled={!allNonAckPassed || acknowledging}
-              style={allNonAckPassed ? primaryButtonStyle : disabledButtonStyle}
+              className={cn(
+                "rounded-lg border-none px-[18px] py-[9px]",
+                allNonAckPassed
+                  ? "bg-error-dim text-error"
+                  : "cursor-not-allowed bg-[var(--surface3)] text-[var(--text3)] opacity-50",
+              )}
             >
               {acknowledging ? "Confirming…" : "I Understand — Start Live"}
             </Button>
@@ -185,141 +212,3 @@ export const LiveReadinessModal = ({
     </div>
   );
 };
-
-const overlayStyle = {
-  position: "fixed" as const,
-  inset: 0,
-  background: "rgba(0,0,0,0.72)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 1000,
-};
-
-const dialogStyle = {
-  background: "var(--surface)",
-  border: "1px solid var(--color-error-border)",
-  borderRadius: 16,
-  width: 520,
-  maxWidth: "90vw",
-  display: "flex",
-  flexDirection: "column" as const,
-  overflow: "hidden",
-  boxShadow: "0 24px 64px rgba(0,0,0,0.48)",
-};
-
-const headerStyle = {
-  padding: "20px 24px 16px",
-  borderBottom: "1px solid var(--border)",
-  background: "var(--color-error-dim)",
-};
-
-const bodyStyle = {
-  padding: "16px 24px",
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: 10,
-  maxHeight: "60vh",
-  overflowY: "auto" as const,
-};
-
-const footerStyle = {
-  padding: "14px 24px",
-  borderTop: "1px solid var(--border)",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 10,
-};
-
-function checkRowStyle(passed: boolean) {
-  return {
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 12,
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: `1px solid ${passed ? "var(--color-success-border)" : "var(--color-error-border)"}`,
-    background: passed ? "var(--color-success-dim)" : "var(--color-error-dim)",
-  } as const;
-}
-
-function checkIconStyle(passed: boolean) {
-  return {
-    width: 20,
-    height: 20,
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 12,
-    fontWeight: 700,
-    flexShrink: 0,
-    marginTop: 1,
-    background: passed ? "var(--color-success-dim)" : "var(--color-error-dim)",
-    color: passed ? "var(--color-success)" : "var(--color-error)",
-  } as const;
-}
-
-const ackBadgeStyle = {
-  fontSize: 12,
-  fontFamily: "var(--font-mono)",
-  color: "var(--color-warning)",
-  background: "var(--color-warning-dim)",
-  border: "1px solid var(--color-warning-border)",
-  borderRadius: 4,
-  padding: "2px 6px",
-  flexShrink: 0,
-} as const;
-
-function testResultBannerStyle(ok: boolean) {
-  return {
-    padding: "8px 12px",
-    borderRadius: 6,
-    border: `1px solid ${ok ? "var(--color-success-border)" : "var(--color-error-border)"}`,
-    background: ok ? "var(--color-success-dim)" : "var(--color-error-dim)",
-    color: ok ? "var(--color-success)" : "var(--color-error)",
-  } as const;
-}
-
-const consentBoxStyle = {
-  padding: "12px 14px",
-  borderRadius: 8,
-  border: "1px solid var(--color-error-border)",
-  background: "var(--color-error-dim)",
-  marginTop: 4,
-} as const;
-
-const cancelButtonStyle = {
-  padding: "9px 16px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-} as const;
-
-const testButtonStyle = {
-  padding: "9px 14px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-} as const;
-
-const primaryButtonStyle = {
-  padding: "9px 18px",
-  borderRadius: 8,
-  border: "none",
-  background: "var(--color-error-dim)",
-  color: "var(--color-error)",
-} as const;
-
-const disabledButtonStyle = {
-  padding: "9px 18px",
-  borderRadius: 8,
-  border: "none",
-  background: "var(--surface3)",
-  color: "var(--text3)",
-  opacity: 0.5,
-  cursor: "not-allowed",
-} as const;

@@ -57,14 +57,7 @@ export const WorkspaceContextChip = ({
         align="end"
         className="z-[200] w-[min(280px,calc(100vw-48px))] border-border bg-[var(--surface)] p-2"
       >
-        <div
-          style={{
-            fontSize: 12,
-            color: "var(--text3)",
-            marginBottom: 8,
-            textTransform: "uppercase",
-          }}
-        >
+        <div className="mb-2 text-[12px] uppercase text-[var(--text3)]">
           Workspace Context
         </div>
         <DropdownMenuItem
@@ -86,7 +79,7 @@ export const WorkspaceContextChip = ({
             className="justify-between rounded-lg text-[var(--text2)]"
           >
             <span>{session.name}</span>
-            <span style={{ color: "var(--text3)", fontSize: 12 }}>
+            <span className="text-[12px] text-[var(--text3)]">
               {session.status}
             </span>
           </DropdownMenuItem>

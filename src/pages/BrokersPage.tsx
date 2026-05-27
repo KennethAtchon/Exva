@@ -4,6 +4,7 @@ import { Button } from "@/components/ui";
 import { api } from "@/lib/exva";
 import type { BrokerAccountWithState } from "@/lib/types";
 import { fmt } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
@@ -53,16 +54,10 @@ const BrokerSettingsPanel = ({
   onReset: () => void;
   onSave: () => void;
 }) => (
-  <div style={settingsPanelStyle}>
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        gap: 12,
-      }}
-    >
-      <label style={fieldStyle}>
-        <span style={fieldLabelStyle}>Max sessions</span>
+  <div className={settingsPanelClass}>
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+      <label className={fieldClass}>
+        <span className={fieldLabelClass}>Max sessions</span>
         <input
           type="number"
           min={1}
@@ -77,11 +72,11 @@ const BrokerSettingsPanel = ({
               },
             })
           }
-          style={inputStyle}
+          className={inputClass}
         />
       </label>
-      <label style={fieldStyle}>
-        <span style={fieldLabelStyle}>Allocation enforcement</span>
+      <label className={fieldClass}>
+        <span className={fieldLabelClass}>Allocation enforcement</span>
         <select
           value={draft.allocationEnforcement}
           onChange={(event) =>
@@ -93,14 +88,14 @@ const BrokerSettingsPanel = ({
               },
             })
           }
-          style={inputStyle}
+          className={inputClass}
         >
           <option value="hard">Hard block</option>
           <option value="warn">Warn only</option>
         </select>
       </label>
-      <label style={fieldStyle}>
-        <span style={fieldLabelStyle}>Refresh interval (min)</span>
+      <label className={fieldClass}>
+        <span className={fieldLabelClass}>Refresh interval (min)</span>
         <input
           type="number"
           min={1}
@@ -115,11 +110,11 @@ const BrokerSettingsPanel = ({
               },
             })
           }
-          style={inputStyle}
+          className={inputClass}
         />
       </label>
     </div>
-    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+    <div className="flex justify-end gap-2">
       <Button
         variant="outline"
         className="border-border bg-[var(--surface2)] text-[var(--text2)]"
@@ -173,34 +168,13 @@ const BrokerCard = ({
       : 0;
 
   return (
-    <Card style={{ padding: 20 }}>
-      <div style={{ display: "grid", gap: 14 }}>
+    <Card className="p-5">
+      <div className="grid gap-3.5">
         {/* Header row */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 14,
-            alignItems: "flex-start",
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="flex flex-wrap items-start justify-between gap-3.5">
           <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                flexWrap: "wrap",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "var(--text1)",
-                }}
-              >
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-[18px] font-bold text-[var(--text1)]">
                 {broker.name}
               </div>
               <Badge variant="default">{broker.brokerType}</Badge>
@@ -219,13 +193,7 @@ const BrokerCard = ({
                 <Badge variant="warn">Stale balance</Badge>
               ) : null}
             </div>
-            <div
-              style={{
-                marginTop: 8,
-                color: "var(--text3)",
-                fontSize: 12,
-              }}
-            >
+            <div className="mt-2 text-[12px] text-[var(--text3)]">
               Balance{" "}
               {broker.balanceCacheUsd != null
                 ? fmt.usd(broker.balanceCacheUsd)
@@ -235,7 +203,7 @@ const BrokerCard = ({
                 : ""}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               className="border-border bg-[var(--surface2)] text-[var(--text2)]"
@@ -254,15 +222,8 @@ const BrokerCard = ({
         </div>
 
         {/* Allocation bar */}
-        <div style={{ display: "grid", gap: 8 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 12,
-              color: "var(--text3)",
-            }}
-          >
+        <div className="grid gap-2">
+          <div className="flex justify-between text-[12px] text-[var(--text3)]">
             <span>Allocated {fmt.usd(broker.totalAllocatedUsd)}</span>
             <span>
               Free{" "}
@@ -271,33 +232,16 @@ const BrokerCard = ({
                 : "—"}
             </span>
           </div>
-          <div
-            style={{
-              height: 10,
-              borderRadius: 999,
-              background: "var(--surface3)",
-              overflow: "hidden",
-            }}
-          >
+          <div className="h-2.5 overflow-hidden rounded-full bg-[var(--surface3)]">
             <div
-              style={{
-                width: `${allocationPct}%`,
-                height: "100%",
-                borderRadius: 999,
-                background: broker.isOverAllocated
-                  ? "var(--color-error)"
-                  : "var(--accent)",
-              }}
+              className={cn(
+                "h-full rounded-full",
+                broker.isOverAllocated ? "bg-error" : "bg-[var(--accent)]",
+              )}
+              style={{ width: `${allocationPct}%` }}
             />
           </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 12,
-              color: "var(--text3)",
-            }}
-          >
+          <div className="flex justify-between text-[12px] text-[var(--text3)]">
             <span>
               {broker.activeSessionCount} / {broker.maxSessions} active sessions
             </span>
@@ -306,41 +250,22 @@ const BrokerCard = ({
         </div>
 
         {/* Attached sessions */}
-        <div style={{ display: "grid", gap: 8 }}>
-          <div
-            style={{
-              fontSize: 12,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: "var(--text3)",
-            }}
-          >
+        <div className="grid gap-2">
+          <div className="text-[12px] uppercase tracking-[0.1em] text-[var(--text3)]">
             Attached sessions
           </div>
           {broker.sessions.length === 0 ? (
-            <div style={{ color: "var(--text3)", fontSize: 12 }}>
+            <div className="text-[12px] text-[var(--text3)]">
               No active or paused sessions are using this broker.
             </div>
           ) : (
             broker.sessions.map((session) => (
-              <div key={session.sessionId} style={sessionRowStyle}>
+              <div key={session.sessionId} className={sessionRowClass}>
                 <div>
-                  <div
-                    style={{
-                      color: "var(--text1)",
-                      fontSize: 13,
-                      fontWeight: 600,
-                    }}
-                  >
+                  <div className="text-[13px] font-semibold text-[var(--text1)]">
                     {session.sessionName}
                   </div>
-                  <div
-                    style={{
-                      color: "var(--text3)",
-                      fontSize: 12,
-                      marginTop: 2,
-                    }}
-                  >
+                  <div className="mt-0.5 text-[12px] text-[var(--text3)]">
                     {session.status} · allocated {fmt.usd(session.allocatedUsd)}
                   </div>
                 </div>
@@ -462,80 +387,43 @@ export const BrokersPage = ({
 
   return (
     <PageShell>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div
-            style={{
-              fontSize: 12,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: "var(--text3)",
-            }}
-          >
+          <div className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
             Broker Topology
           </div>
-          <h1 style={{ margin: "10px 0 0", fontSize: 28 }}>Brokers</h1>
-          <p
-            style={{
-              marginTop: 8,
-              color: "var(--text3)",
-              fontSize: 13,
-              maxWidth: 700,
-            }}
-          >
+          <h1 className="m-0 mt-2.5 text-[28px]">Brokers</h1>
+          <p className="mt-2 max-w-[700px] text-[13px] text-[var(--text3)]">
             Real broker balances, active session sharing, and per-broker
             allocation policy now live in one place.
           </p>
         </div>
-        <Card style={{ minWidth: 220, padding: 18 }}>
-          <div
-            style={{
-              fontSize: 12,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "var(--text3)",
-            }}
-          >
+        <Card className="min-w-[220px] p-[18px]">
+          <div className="text-[12px] uppercase tracking-[0.12em] text-[var(--text3)]">
             Tracked balance
           </div>
-          <div
-            style={{
-              marginTop: 6,
-              fontSize: 24,
-              fontWeight: 700,
-              color: "var(--text1)",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
+          <div className="mt-1.5 text-[24px] font-bold tabular-nums text-[var(--text1)]">
             {fmt.usd(totalBalanceUsd)}
           </div>
-          <div style={{ marginTop: 4, color: "var(--text3)", fontSize: 12 }}>
+          <div className="mt-1 text-[12px] text-[var(--text3)]">
             {visibleBrokers.length} broker account
             {visibleBrokers.length === 1 ? "" : "s"}
           </div>
         </Card>
       </div>
 
-      {ui.error ? <div style={errorBannerStyle}>{ui.error}</div> : null}
+      {ui.error ? <div className={errorBannerClass}>{ui.error}</div> : null}
 
       {ui.loading && visibleBrokers.length === 0 ? (
-        <div style={emptyStateStyle}>Loading broker balances…</div>
+        <div className={emptyStateClass}>Loading broker balances…</div>
       ) : null}
       {!ui.loading && visibleBrokers.length === 0 ? (
-        <div style={emptyStateStyle}>
+        <div className={emptyStateClass}>
           No {environmentMode} broker accounts configured yet.
         </div>
       ) : null}
 
-      <div style={{ display: "grid", gap: 14 }}>
+      <div className="grid gap-3.5">
         {visibleBrokers.map((broker) => {
           const draft = ui.settingsDrafts[broker.id] ?? {
             maxSessions: broker.maxSessions,
@@ -612,57 +500,20 @@ export const BrokersPage = ({
   );
 };
 
-const emptyStateStyle = {
-  border: "1px dashed var(--border)",
-  borderRadius: 16,
-  padding: 22,
-  color: "var(--text3)",
-  textAlign: "center" as const,
-};
+const emptyStateClass =
+  "rounded-2xl border border-dashed border-[var(--border)] p-[22px] text-center text-[var(--text3)]";
 
-const errorBannerStyle = {
-  padding: "12px 14px",
-  borderRadius: 12,
-  border: "1px solid var(--color-error-border)",
-  background: "var(--color-error-dim)",
-  color: "var(--color-error)",
-  fontSize: 13,
-};
+const errorBannerClass =
+  "rounded-xl border border-error-border bg-error-dim p-3 px-3.5 text-[13px] text-error";
 
-const sessionRowStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 12,
-  border: "1px solid var(--border)",
-  borderRadius: 12,
-  padding: "12px 14px",
-  background: "rgba(7,10,15,0.28)",
-};
+const sessionRowClass =
+  "flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[rgba(7,10,15,0.28)] px-3.5 py-3";
 
-const settingsPanelStyle = {
-  display: "grid",
-  gap: 12,
-  border: "1px solid var(--border)",
-  borderRadius: 14,
-  padding: 14,
-  background: "rgba(7,10,15,0.34)",
-};
+const settingsPanelClass =
+  "grid gap-3 rounded-[14px] border border-[var(--border)] bg-[rgba(7,10,15,0.34)] p-3.5";
 
-const fieldStyle = { display: "grid", gap: 6 };
-const fieldLabelStyle = {
-  color: "var(--text3)",
-  fontSize: 12,
-  fontWeight: 600,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-};
-const inputStyle = {
-  width: "100%",
-  padding: "9px 11px",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "rgba(7,10,15,0.5)",
-  color: "var(--text1)",
-  fontSize: 13,
-} as const;
+const fieldClass = "grid gap-1.5";
+const fieldLabelClass =
+  "text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]";
+const inputClass =
+  "w-full rounded-lg border border-[var(--border)] bg-[rgba(7,10,15,0.5)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";

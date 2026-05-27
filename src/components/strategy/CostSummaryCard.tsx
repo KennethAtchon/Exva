@@ -8,15 +8,8 @@ export const CostSummaryCard = ({
 }) => (
   <Card>
     <SectionTitle>Cost / Latency Summary</SectionTitle>
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        marginTop: 14,
-      }}
-    >
-      <div style={{ fontSize: 12, color: "var(--text2)" }}>
+    <div className="mt-3.5 flex flex-col gap-2">
+      <div className="text-[12px] text-[var(--text2)]">
         Estimated parallel call count: {riskConfig.maxConcurrentTrades * 4}
       </div>
     </div>

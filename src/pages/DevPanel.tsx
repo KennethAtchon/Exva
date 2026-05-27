@@ -10,6 +10,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import type {
@@ -146,272 +147,185 @@ const ROLE_COLOR: Record<string, string> = {
   session: "var(--text3)",
 };
 
-// ─── Shared Styles ────────────────────────────────────────────────────────────
+// ─── Shared class bundles ─────────────────────────────────────────────────────
 
-const S = {
-  mono9: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-  } as const,
-  mono10: { fontFamily: "var(--font-mono)", fontSize: 12 } as const,
-  mono11: { fontFamily: "var(--font-mono)", fontSize: 12 } as const,
-  label: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    fontWeight: 800,
-    letterSpacing: "0.12em",
-    textTransform: "uppercase" as const,
-    color: "var(--text3)",
-  },
-  sectionTitle: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 8,
-    fontWeight: 800,
-    letterSpacing: "0.16em",
-    textTransform: "uppercase" as const,
-    color: "var(--text3)",
-    padding: "10px 12px 4px",
-  },
-  // CopyBtn base (dynamic: background, border, color)
-  copyBtnBase: {
-    borderRadius: 4,
-    padding: "2px 7px",
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-    fontWeight: 700,
-    cursor: "pointer",
-    transition: "background 0.15s, border-color 0.15s, color 0.15s",
-  } as const,
-  // StatusChip base (dynamic: background, border, color)
-  statusChipBase: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 4,
-    borderRadius: 5,
-    padding: "2px 7px",
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-    fontWeight: 700,
-  } as const,
-  // ScopeItem button base (dynamic: borderLeft, background)
-  scopeItemBtn: {
-    width: "100%",
-    padding: "7px 12px 7px 14px",
-    border: "none",
-    cursor: "pointer",
-    transition: "background 0.1s, border-color 0.1s",
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    textAlign: "left" as const,
-  } as const,
-  // StripBtn base (dynamic: background, border, cursor, color, opacity)
-  stripBtnBase: {
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    padding: "5px 10px",
-    borderRadius: 5,
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-    fontWeight: 700,
-    transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
-  } as const,
-  // EventTimeline outer container (all static)
-  eventTimelineOuter: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column" as const,
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderRadius: 10,
-    overflow: "hidden",
-    minWidth: 0,
-  } as const,
-  // EventRow button base (dynamic: background, borderLeft)
-  eventRowBtnBase: {
-    width: "100%",
-    border: "none",
-    display: "grid",
-    gridTemplateColumns: "50px 44px 110px 1fr",
-    padding: "7px 14px",
-    cursor: "pointer",
-    borderBottom: "1px solid rgba(255,255,255,0.022)",
-    transition: "background 0.08s",
-    alignItems: "baseline",
-    gap: 0,
-    textAlign: "left" as const,
-  } as const,
-  // Pre block (config / raw tabs) with maxHeight
-  preBlockWithMax: {
-    background: "var(--bg)",
-    border: "1px solid var(--border)",
-    borderRadius: 7,
-    padding: "10px 12px",
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-    color: "var(--text2)",
-    lineHeight: 1.65,
-    overflowX: "auto" as const,
-    whiteSpace: "pre-wrap" as const,
-    maxHeight: 420,
-  } as const,
-  // Pre block (raw tab) without maxHeight
-  preBlock: {
-    background: "var(--bg)",
-    border: "1px solid var(--border)",
-    borderRadius: 7,
-    padding: "10px 12px",
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-    color: "var(--text2)",
-    lineHeight: 1.65,
-    overflowX: "auto" as const,
-    whiteSpace: "pre-wrap" as const,
-  } as const,
-  // RunCard header button (all static)
-  runCardHeaderBtn: {
-    width: "100%",
-    padding: "8px 10px",
-    background: "var(--surface2)",
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    cursor: "pointer",
-    border: "none",
-    textAlign: "left" as const,
-  } as const,
-  // InspectorPanel tab button base (dynamic: borderBottom, color)
-  inspectorTabBtnBase: {
-    padding: "8px 12px",
-    border: "none",
-    whiteSpace: "nowrap" as const,
-    background: "transparent",
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.05em",
-    fontWeight: 700,
-    cursor: "pointer",
-    transition: "color 0.1s, border-color 0.1s",
-  } as const,
-  // DebugCapture confirm button base (dynamic: opacity)
-  debugCaptureBtnBase: {
-    padding: "7px 16px",
-    background: "var(--color-info-dim)",
-    border: "1px solid var(--color-info-border)",
-    borderRadius: 6,
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-    fontWeight: 700,
-    color: "var(--color-info)",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  } as const,
-  // Toggle track button base (dynamic: background)
-  toggleTrackBase: {
-    width: 36,
-    height: 18,
-    borderRadius: 9,
-    border: "none",
-    cursor: "pointer",
-    position: "relative" as const,
-    transition: "background 0.2s",
-  } as const,
-  // Toggle thumb base (dynamic: left, background)
-  toggleThumbBase: {
-    position: "absolute" as const,
-    top: 2,
-    width: 14,
-    height: 14,
-    borderRadius: "50%",
-    transition: "left 0.2s",
-  } as const,
-  // ExportResultDrawer container (all static)
-  exportDrawer: {
-    position: "fixed" as const,
-    bottom: 20,
-    right: 20,
-    width: 360,
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderRadius: 10,
-    padding: "16px 18px",
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 10,
-    zIndex: 20,
-    boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-  } as const,
-  // Shared action button in ExportResultDrawer (all static)
-  exportActionBtn: {
-    flex: 1,
-    padding: "6px 0",
-    background: "var(--surface3)",
-    border: "1px solid var(--border)",
-    borderRadius: 5,
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-    fontWeight: 700,
-    color: "var(--text2)",
-    cursor: "pointer",
-  } as const,
-  // ToastContainer outer (all static)
-  toastContainer: {
-    position: "fixed" as const,
-    bottom: 20,
-    left: "50%",
-    transform: "translateX(-50%)",
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: 6,
-    zIndex: 30,
-    pointerEvents: "none" as const,
-  } as const,
-  // Stream health badge base (dynamic: color, background, border)
-  streamBadgeBase: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 4,
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-    borderRadius: 5,
-    padding: "3px 8px",
-  } as const,
-  // HeaderBtn base (dynamic: background, border, color, cursor, opacity)
-  headerBtnBase: {
-    display: "flex",
-    alignItems: "center",
-    gap: 5,
-    padding: "5px 10px",
-    borderRadius: 6,
-    fontFamily: "var(--font-mono)",
-    fontSize: 12,
-    letterSpacing: "0.08em",
-    fontWeight: 700,
-    transition: "background 0.12s, border-color 0.12s, opacity 0.12s",
-  } as const,
-  searchInput: {
-    flex: 1,
-    background: "var(--bg)",
-    border: "1px solid var(--border)",
-    borderRadius: 5,
-    padding: "5px 10px",
-    color: "var(--text1)",
-    outline: "none",
-    boxShadow: "0 0 0 0 transparent",
-  } as const,
-};
+const devClass = {
+  mono9: "font-mono text-[12px] tracking-[0.08em]",
+  mono10: "font-mono text-[12px]",
+  mono11: "font-mono text-[12px]",
+  label:
+    "font-mono text-[12px] font-extrabold tracking-[0.12em] uppercase text-[var(--text3)]",
+  sectionTitle:
+    "font-mono text-[8px] font-extrabold tracking-[0.16em] uppercase text-[var(--text3)] px-3 pt-2.5 pb-1",
+  copyBtnBase:
+    "rounded px-[7px] py-[2px] font-mono text-[12px] tracking-[0.08em] font-bold cursor-pointer transition-[background,border-color,color] duration-150",
+  statusChipBase:
+    "inline-flex items-center gap-1 rounded-[5px] px-[7px] py-[2px] font-mono text-[12px] tracking-[0.08em] font-bold",
+  scopeItemBtn:
+    "flex w-full items-center gap-2 border-0 py-[7px] pl-3.5 pr-3 text-left cursor-pointer transition-[background,border-color] duration-100",
+  stripBtnBase:
+    "flex items-center gap-[5px] rounded-[5px] px-2.5 py-[5px] font-mono text-[12px] tracking-[0.08em] font-bold transition-[background,border-color,opacity] duration-[120ms]",
+  eventTimelineOuter:
+    "flex min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]",
+  eventRowBtnBase:
+    "grid w-full cursor-pointer grid-cols-[50px_44px_110px_1fr] items-baseline gap-0 border-0 border-b border-b-white/[0.022] px-3.5 py-[7px] text-left transition-[background] duration-[80ms]",
+  preBlockWithMax:
+    "max-h-[420px] overflow-x-auto whitespace-pre-wrap rounded-[7px] border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 font-mono text-[12px] tracking-[0.08em] leading-[1.65] text-[var(--text2)]",
+  preBlock:
+    "overflow-x-auto whitespace-pre-wrap rounded-[7px] border border-[var(--border)] bg-[var(--bg)] px-3 py-2.5 font-mono text-[12px] tracking-[0.08em] leading-[1.65] text-[var(--text2)]",
+  runCardHeaderBtn:
+    "flex w-full cursor-pointer items-center gap-1.5 border-0 bg-[var(--surface2)] px-2.5 py-2 text-left",
+  inspectorTabBtnBase:
+    "cursor-pointer whitespace-nowrap border-0 bg-transparent px-3 py-2 font-mono text-[12px] font-bold tracking-[0.05em] transition-[color,border-color] duration-100",
+  debugCaptureBtnBase:
+    "flex cursor-pointer items-center gap-1.5 rounded-md border border-[var(--color-info-border)] bg-[var(--color-info-dim)] px-4 py-[7px] font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--color-info)]",
+  toggleTrackBase:
+    "relative h-[18px] w-9 cursor-pointer rounded-[9px] border-0 transition-[background] duration-200",
+  toggleThumbBase:
+    "absolute top-0.5 h-3.5 w-3.5 rounded-full transition-[left] duration-200",
+  exportDrawer:
+    "fixed bottom-5 right-5 z-20 flex w-[360px] flex-col gap-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] px-[18px] py-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
+  exportActionBtn:
+    "flex-1 cursor-pointer rounded-[5px] border border-[var(--border)] bg-[var(--surface3)] py-1.5 font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--text2)]",
+  toastContainer:
+    "pointer-events-none fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 flex-col gap-1.5",
+  streamBadgeBase:
+    "inline-flex items-center gap-1 rounded-[5px] px-2 py-[3px] font-mono text-[12px] tracking-[0.08em]",
+  headerBtnBase:
+    "flex items-center gap-[5px] rounded-md px-2.5 py-[5px] font-mono text-[12px] font-bold tracking-[0.08em] transition-[background,border-color,opacity] duration-[120ms]",
+  searchInput:
+    "flex-1 rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-2.5 py-[5px] text-[var(--text1)] outline-none shadow-none focus:shadow-[0_0_0_2px_var(--accent)]",
+  scopeRail:
+    "flex w-[210px] shrink-0 flex-col overflow-y-auto border-r border-[var(--border)] bg-[var(--surface)]",
+  scopeRailHeader:
+    "shrink-0 border-b border-[var(--border)] px-3.5 pb-2 pt-3.5",
+  actionStrip:
+    "flex shrink-0 flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface2)] px-4 py-2",
+  actionStripRow: "flex flex-wrap items-center gap-2.5",
+  filterGroup:
+    "flex overflow-hidden rounded-[5px] border border-[var(--border)] bg-[var(--bg)]",
+  statPill:
+    "flex items-center gap-1 rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-2 py-[3px]",
+  timelineSearchBar:
+    "flex shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--surface2)] px-3 py-2",
+  tabPadding: "flex flex-col gap-2 px-3.5 py-3",
+  sectionCard:
+    "flex flex-col gap-1.5 rounded-[7px] border border-[var(--border)] bg-[var(--bg)] px-2.5 py-2",
+  sectionCardTitle:
+    "mb-0.5 border-b border-[var(--border)] pb-[5px] font-mono text-[12px] font-extrabold tracking-[0.12em] uppercase text-[var(--text3)]",
+  dataRow: "flex min-h-5 items-start justify-between gap-3",
+  emptyState:
+    "px-5 py-9 text-center font-mono text-[12px] leading-relaxed tracking-[0.08em] text-[var(--text3)]",
+  inspectorPanel:
+    "flex flex-col overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]",
+  inspectorTabBar:
+    "flex shrink-0 overflow-x-auto border-b border-[var(--border)] bg-[var(--surface2)]",
+  mainColumn: "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+  devHeader:
+    "flex shrink-0 items-center gap-2.5 border-b border-[var(--border)] bg-[var(--surface2)] px-4 py-2.5",
+  mainSplit: "flex min-h-0 flex-1 gap-2.5 overflow-hidden p-2.5",
+  timelineColumn: "flex min-w-0 basis-[60%] flex-col",
+  inspectorColumn: "flex min-w-0 basis-[calc(40%-10px)] flex-col",
+  devFooter:
+    "flex shrink-0 items-center gap-4 border-t border-[var(--border)] bg-[var(--surface2)] px-4 py-1",
+  rootLayout: "flex min-h-0 flex-1 overflow-hidden",
+  skeletonRow:
+    "flex h-9 items-center gap-2.5 border-b border-b-white/[0.025] px-3.5",
+  skeletonBar: "h-2 rounded-[3px] bg-[var(--surface3)] opacity-60",
+  modalOverlay:
+    "fixed inset-0 z-[1000] flex items-center justify-center bg-black/70",
+  modalPanel:
+    "flex w-[420px] flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-5",
+  closeBtn: "cursor-pointer border-0 bg-transparent text-[var(--text3)]",
+  fieldGroup: "flex flex-col gap-1.5",
+  toggleRow: "flex items-center justify-between",
+  scopeFooter: "border-t border-[var(--border)] py-2",
+  lifecycleDivider: "mx-0.5 h-5 w-px bg-[var(--border)]",
+  loadMoreWrap: "flex justify-center px-3.5 py-3",
+  loadMoreBtn:
+    "cursor-pointer rounded-[5px] border border-[var(--border)] bg-[var(--surface3)] px-4 py-1.5 font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--text2)]",
+  collapsibleBody:
+    "font-mono text-[12px] leading-relaxed text-[var(--text2)] whitespace-pre-wrap break-words",
+  expandBtn:
+    "mt-1 cursor-pointer border-0 bg-transparent font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+  logSelect:
+    "cursor-pointer rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-1.5 py-[3px] font-mono text-[12px] tracking-[0.08em] text-[var(--text2)]",
+  filterChipBtn:
+    "cursor-pointer rounded px-[7px] py-[2px] font-mono text-[12px] tracking-[0.08em] font-bold",
+  windowBtn:
+    "cursor-pointer border-0 px-2 py-1 font-mono text-[12px] tracking-[0.08em] font-bold",
+  levelBtn:
+    "cursor-pointer border-0 px-2 py-[3px] font-mono text-[12px] tracking-[0.08em] font-bold",
+  scopeLabelTitle:
+    "font-mono text-[12px] font-extrabold tracking-[0.05em] text-[var(--text3)]",
+  devTitle: "text-sm font-extrabold tracking-tight text-[var(--text1)]",
+  scopeSubtitle:
+    "mt-0.5 font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+  modalTitle:
+    "font-mono text-[12px] font-extrabold tracking-[0.05em] text-[var(--text1)]",
+  modalScopeBox:
+    "rounded-md border border-[var(--border)] bg-[var(--surface2)] px-2.5 py-1.5 font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+  modalCancelBtn:
+    "cursor-pointer rounded-md border border-[var(--border)] bg-[var(--surface3)] px-4 py-[7px] font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--text2)]",
+  captureDurationBtn:
+    "cursor-pointer rounded-[5px] px-3 py-[5px] font-mono text-[12px] tracking-[0.08em] font-bold",
+  captureSelect:
+    "w-full rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-2 py-[5px] font-mono text-[12px] text-[var(--text1)]",
+  traceConfirmBtn:
+    "cursor-pointer rounded border border-[var(--color-warning-border)] bg-[var(--color-warning-dim)] px-2.5 py-1 font-mono text-[12px] font-bold tracking-[0.08em] text-[var(--color-warning)]",
+  eventLevelBtn:
+    "flex-1 cursor-pointer border-0 px-1 py-[5px] font-mono text-[12px] tracking-[0.08em] font-bold",
+  exportSectionChip:
+    "rounded-[3px] bg-[var(--surface3)] px-[5px] py-[2px] font-mono text-[12px] tracking-[0.08em] text-[var(--text2)]",
+  exportHeaderRow: "flex items-center justify-between",
+  statGridCell:
+    "rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-center",
+  executionStepCard: "rounded-md px-2.5 py-2",
+  runCardShell: "overflow-hidden rounded-[7px] border border-[var(--border)]",
+  runCardBody: "border-t border-[var(--border)] bg-[var(--bg)] px-3 py-2.5",
+  phaseGraphHeader:
+    "flex items-center justify-between bg-[var(--surface2)] px-2.5 py-[7px]",
+  phaseGraphBody: "flex flex-col gap-2 bg-[var(--bg)] px-3 py-2.5",
+  workerCard:
+    "rounded-[5px] border border-[var(--border)] bg-[var(--surface)] px-[9px] py-[7px]",
+  apiCallCard:
+    "rounded-[5px] border border-[var(--border)] bg-[var(--bg)] px-[9px] py-[7px]",
+  phaseGraphShell:
+    "overflow-hidden rounded-[7px] border border-[var(--border)]",
+  rawTabHeader: "mb-1.5 flex justify-end",
+  flex1Scroll: "flex-1 overflow-y-auto",
+  flex1: "flex-1",
+  mlAutoFlex: "ml-auto flex items-center gap-1.5",
+  mlAutoFlexGap: "ml-auto flex gap-1.5",
+  flexWrapGap: "flex flex-wrap items-center gap-2",
+  flexGap: "flex gap-1.5",
+  flexColGap: "flex flex-col gap-2",
+  flexColGapSm: "flex flex-col gap-1.5",
+  grid3: "grid grid-cols-3 gap-1.5",
+  grid4: "grid grid-cols-4 gap-1.5",
+  centerEmpty: "px-6 py-12 text-center",
+  iconMuted: "text-xs opacity-50",
+  scopeItemLabel: "min-w-0 flex-1",
+  scopeItemTitle:
+    "overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px]",
+  noFocusedSession:
+    "px-3.5 py-1.5 font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+  sessionCount:
+    "px-3.5 py-1 font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]",
+  skeletonGroup: "flex gap-1.5",
+  controlsCluster: "ml-auto flex items-center gap-1.5",
+  sourceFilterRow: "flex flex-wrap gap-1",
+  eventSourceRow: "flex items-center gap-1",
+  stepHeaderRow: "flex items-center justify-between gap-2",
+  workerHeaderRow: "flex items-center justify-between gap-2",
+  apiCallHeaderRow: "flex flex-wrap items-center gap-2",
+  configHeaderRow: "mb-1.5 flex items-center justify-between",
+  modalActions: "flex justify-end gap-2",
+  exportChipRow: "flex flex-wrap gap-1.5",
+  exportActions: "flex gap-1.5",
+  toggleList: "flex flex-col gap-2",
+  captureDurationRow: "flex flex-wrap gap-1.5",
+} as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -483,8 +397,8 @@ const CopyBtn = ({
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
+      className={devClass.copyBtnBase}
       style={{
-        ...S.copyBtnBase,
         background: copied ? "var(--color-success-dim)" : "var(--surface3)",
         border: `1px solid ${copied ? "var(--color-success-border)" : "var(--border)"}`,
         color: copied ? "var(--color-success)" : "var(--text3)",
@@ -508,8 +422,8 @@ const StatusChip = ({ status }: { status: string }) => {
             : "var(--text3)";
   return (
     <span
+      className={devClass.statusChipBase}
       style={{
-        ...S.statusChipBase,
         background: `${c}18`,
         border: `1px solid ${c}44`,
         color: c,
@@ -522,39 +436,15 @@ const StatusChip = ({ status }: { status: string }) => {
 };
 
 const SkeletonRow = () => (
-  <div
-    style={{
-      height: 36,
-      display: "flex",
-      gap: 10,
-      padding: "0 14px",
-      alignItems: "center",
-      borderBottom: "1px solid rgba(255,255,255,0.025)",
-    }}
-  >
+  <div className={devClass.skeletonRow}>
     {[48, 40, 80, 200].map((w) => (
-      <div
-        key={w}
-        style={{
-          width: w,
-          height: 8,
-          borderRadius: 3,
-          background: "var(--surface3)",
-          opacity: 0.6,
-        }}
-      />
+      <div key={w} className={devClass.skeletonBar} style={{ width: w }} />
     ))}
   </div>
 );
 
 const Spinner = () => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 12 12"
-    style={{ animation: "spin 0.8s linear infinite" }}
-  >
-    <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+  <svg width="12" height="12" viewBox="0 0 12 12" className="animate-spin">
     <circle
       cx="6"
       cy="6"
@@ -576,32 +466,19 @@ const CollapsibleText = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   if (!text)
-    return <span style={{ ...S.mono9, color: "var(--text3)" }}>n/a</span>;
+    return (
+      <span className={cn(devClass.mono9, "text-[var(--text3)]")}>n/a</span>
+    );
   const needs = text.length > collapseAt;
   return (
     <div>
-      <div
-        style={{
-          ...S.mono10,
-          color: "var(--text2)",
-          lineHeight: 1.6,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-        }}
-      >
+      <div className={devClass.collapsibleBody}>
         {needs && !expanded ? text.slice(0, collapseAt) + "…" : text}
       </div>
       {needs && (
         <button
           onClick={() => setExpanded((v) => !v)}
-          style={{
-            marginTop: 4,
-            background: "none",
-            border: "none",
-            ...S.mono9,
-            color: "var(--text3)",
-            cursor: "pointer",
-          }}
+          className={devClass.expandBtn}
         >
           {expanded
             ? "collapse"
@@ -638,28 +515,24 @@ const ScopeRailItem = ({
     <button
       type="button"
       onClick={() => onScopeChange(scope)}
+      className={devClass.scopeItemBtn}
       style={{
-        ...S.scopeItemBtn,
         borderLeft: `2px solid ${c}`,
         background: isActive ? "rgba(77,166,255,0.07)" : "transparent",
       }}
     >
-      {icon && <span style={{ fontSize: 12, opacity: 0.5 }}>{icon}</span>}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      {icon && <span className={devClass.iconMuted}>{icon}</span>}
+      <div className={devClass.scopeItemLabel}>
         <div
-          style={{
-            ...S.mono10,
-            color: isActive ? "var(--text1)" : "var(--text2)",
-            fontWeight: isActive ? 700 : 400,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
+          className={cn(
+            devClass.scopeItemTitle,
+            isActive ? "font-bold text-[var(--text1)]" : "text-[var(--text2)]",
+          )}
         >
           {label}
         </div>
         {subLabel && (
-          <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 1 }}>
+          <div className={cn(devClass.mono9, "mt-px text-[var(--text3)]")}>
             {subLabel}
           </div>
         )}
@@ -686,34 +559,9 @@ const ScopeRail = ({
   );
 
   return (
-    <div
-      style={{
-        width: 210,
-        flexShrink: 0,
-        background: "var(--surface)",
-        borderRight: "1px solid var(--border)",
-        display: "flex",
-        flexDirection: "column",
-        overflowY: "auto",
-      }}
-    >
-      <div
-        style={{
-          padding: "14px 12px 8px 14px",
-          borderBottom: "1px solid var(--border)",
-          flexShrink: 0,
-        }}
-      >
-        <div
-          style={{
-            ...S.mono9,
-            fontWeight: 800,
-            color: "var(--text3)",
-            letterSpacing: "0.05em",
-          }}
-        >
-          SCOPE
-        </div>
+    <div className={devClass.scopeRail}>
+      <div className={devClass.scopeRailHeader}>
+        <div className={devClass.scopeLabelTitle}>SCOPE</div>
       </div>
 
       <ScopeRailItem
@@ -724,7 +572,7 @@ const ScopeRail = ({
         onScopeChange={onScopeChange}
       />
 
-      <div style={S.sectionTitle}>Session</div>
+      <div className={devClass.sectionTitle}>Session</div>
       {focused ? (
         <ScopeRailItem
           scope={{ type: "session", id: focused.id, label: focused.name }}
@@ -735,14 +583,12 @@ const ScopeRail = ({
           onScopeChange={onScopeChange}
         />
       ) : (
-        <div style={{ padding: "6px 14px", ...S.mono9, color: "var(--text3)" }}>
-          No focused session
-        </div>
+        <div className={cn(devClass.noFocusedSession)}>No focused session</div>
       )}
 
       {others.length > 0 && (
         <>
-          <div style={S.sectionTitle}>Active sessions</div>
+          <div className={devClass.sectionTitle}>Active sessions</div>
           {others.slice(0, 6).map((s) => (
             <ScopeRailItem
               key={s.id}
@@ -756,9 +602,9 @@ const ScopeRail = ({
         </>
       )}
 
-      <div style={{ flex: 1 }} />
-      <div style={{ borderTop: "1px solid var(--border)", padding: "8px 0" }}>
-        <div style={{ ...S.mono9, color: "var(--text3)", padding: "4px 14px" }}>
+      <div className={devClass.flex1} />
+      <div className={devClass.scopeFooter}>
+        <div className={devClass.sessionCount}>
           {sessions.length} session{sessions.length !== 1 ? "s" : ""}
         </div>
       </div>
@@ -785,8 +631,8 @@ const StripBtn = ({
     type="button"
     onClick={onClick}
     disabled={disabled || loading}
+    className={devClass.stripBtnBase}
     style={{
-      ...S.stripBtnBase,
       background: disabled ? "transparent" : `${color}14`,
       border: `1px solid ${disabled ? "var(--border)" : color + "44"}`,
       cursor: disabled ? "default" : "pointer",
@@ -838,38 +684,17 @@ const ActionStrip = ({
   const isSessionScope = activeScope.type === "session";
 
   return (
-    <div
-      style={{
-        background: "var(--surface2)",
-        borderBottom: "1px solid var(--border)",
-        padding: "8px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        flexShrink: 0,
-      }}
-    >
+    <div className={devClass.actionStrip}>
       {/* Row 1: Status + Controls */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className={devClass.actionStripRow}>
         {/* Status cards */}
         {diagnosticsLoading ? (
-          <div style={{ display: "flex", gap: 6 }}>
+          <div className={devClass.skeletonGroup}>
             {[80, 60, 100].map((w) => (
               <div
                 key={w}
-                style={{
-                  width: w,
-                  height: 24,
-                  borderRadius: 5,
-                  background: "var(--surface3)",
-                }}
+                className="h-6 rounded-[5px] bg-[var(--surface3)]"
+                style={{ width: w }}
               />
             ))}
           </div>
@@ -897,32 +722,17 @@ const ActionStrip = ({
             )}
           </>
         ) : (
-          <span style={{ ...S.mono9, color: "var(--text3)" }}>n/a</span>
+          <span className={cn(devClass.mono9, "text-[var(--text3)]")}>n/a</span>
         )}
 
-        <div
-          style={{
-            marginLeft: "auto",
-            display: "flex",
-            gap: 6,
-            alignItems: "center",
-          }}
-        >
+        <div className={devClass.controlsCluster}>
           {/* Log level */}
-          <span style={S.label}>log</span>
+          <span className={devClass.label}>log</span>
           <select
             value={effectiveLogLevel}
             onChange={(e) => onSetLogLevel(e.target.value as PinoLevel)}
             disabled={logLevelLoading}
-            style={{
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
-              borderRadius: 5,
-              padding: "3px 6px",
-              ...S.mono9,
-              color: "var(--text2)",
-              cursor: "pointer",
-            }}
+            className={devClass.logSelect}
           >
             {LOG_LEVELS.map((l) => (
               <option key={l} value={l}>
@@ -932,34 +742,22 @@ const ActionStrip = ({
           </select>
 
           {/* Time window */}
-          <span style={S.label}>window</span>
-          <div
-            style={{
-              display: "flex",
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
-              borderRadius: 5,
-              overflow: "hidden",
-            }}
-          >
+          <span className={devClass.label}>window</span>
+          <div className={devClass.filterGroup}>
             {TIME_WINDOWS.map((tw) => (
               <button
                 key={tw.value}
                 onClick={() => setTimeWindow(tw.value)}
+                className={devClass.windowBtn}
                 style={{
-                  padding: "4px 8px",
-                  border: "none",
                   background:
                     timeWindow === tw.value
                       ? "var(--color-info-dim)"
                       : "transparent",
-                  ...S.mono9,
-                  fontWeight: 700,
                   color:
                     timeWindow === tw.value
                       ? "var(--color-info)"
                       : "var(--text3)",
-                  cursor: "pointer",
                 }}
               >
                 {tw.label}
@@ -970,36 +768,17 @@ const ActionStrip = ({
       </div>
 
       {/* Row 2: Source filters + step controls */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className={devClass.flexWrapGap}>
         {/* Level filter */}
-        <div
-          style={{
-            display: "flex",
-            background: "var(--bg)",
-            border: "1px solid var(--border)",
-            borderRadius: 5,
-            overflow: "hidden",
-          }}
-        >
+        <div className={devClass.filterGroup}>
           {LEVELS.map((l) => (
             <button
               key={l}
               onClick={() => setMinLevel(l)}
+              className={devClass.levelBtn}
               style={{
-                padding: "3px 8px",
-                border: "none",
                 background: minLevel === l ? LEVEL_BG[l] : "transparent",
-                ...S.mono9,
-                fontWeight: 700,
                 color: minLevel === l ? LEVEL_COLOR[l] : "var(--text3)",
-                cursor: "pointer",
               }}
             >
               {l}
@@ -1008,7 +787,7 @@ const ActionStrip = ({
         </div>
 
         {/* Source filters */}
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        <div className={devClass.sourceFilterRow}>
           {SOURCE_TYPES.map((src) => {
             const on =
               sourceFilters.includes(src) || sourceFilters.length === 0;
@@ -1016,6 +795,7 @@ const ActionStrip = ({
             return (
               <button
                 key={src}
+                className={devClass.filterChipBtn}
                 onClick={() => {
                   if (sourceFilters.length === 0) {
                     setSourceFilters(SOURCE_TYPES.filter((s) => s !== src));
@@ -1034,13 +814,8 @@ const ActionStrip = ({
                   }
                 }}
                 style={{
-                  padding: "2px 7px",
-                  borderRadius: 4,
-                  cursor: "pointer",
                   background: on ? `${c}18` : "transparent",
                   border: `1px solid ${on ? c + "44" : "var(--border)"}`,
-                  ...S.mono9,
-                  fontWeight: 700,
                   color: on ? c : "var(--text3)",
                 }}
               >
@@ -1136,14 +911,7 @@ const LifecycleButtons = ({
 
   return (
     <>
-      <div
-        style={{
-          width: 1,
-          height: 20,
-          background: "var(--border)",
-          margin: "0 2px",
-        }}
-      />
+      <div className={devClass.lifecycleDivider} />
       <StripBtn
         label="Retry Failed Step"
         disabled={!canRetry}
@@ -1178,19 +946,11 @@ const StatPill = ({
   value: number;
   color?: string;
 }) => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 4,
-      background: "var(--bg)",
-      border: "1px solid var(--border)",
-      borderRadius: 5,
-      padding: "3px 8px",
-    }}
-  >
-    <span style={{ ...S.mono9, color: "var(--text3)" }}>{label}</span>
-    <span style={{ ...S.mono9, fontWeight: 800, color }}>{value}</span>
+  <div className={devClass.statPill}>
+    <span className={cn(devClass.mono9, "text-[var(--text3)]")}>{label}</span>
+    <span className={cn(devClass.mono9, "font-extrabold")} style={{ color }}>
+      {value}
+    </span>
   </div>
 );
 
@@ -1220,53 +980,37 @@ const EventTimeline = ({
   const searchRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div style={S.eventTimelineOuter}>
+    <div className={devClass.eventTimelineOuter}>
       {/* Search bar */}
-      <div
-        style={{
-          padding: "8px 12px",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--surface2)",
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          flexShrink: 0,
-        }}
-      >
+      <div className={devClass.timelineSearchBar}>
         <input
           ref={searchRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search message, id, symbol, provider, error…"
-          style={{ ...S.searchInput, ...S.mono10 }}
-          onFocus={(e) => {
-            e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent)";
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.boxShadow = "0 0 0 0 transparent";
-          }}
+          className={cn(devClass.searchInput, devClass.mono10)}
         />
         {loading && <Spinner />}
-        <span style={{ ...S.mono9, color: "var(--text3)", flexShrink: 0 }}>
+        <span className={cn(devClass.mono9, "shrink-0 text-[var(--text3)]")}>
           {filtered.length}/{events.length}
         </span>
       </div>
 
       {/* Event rows */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div className={devClass.flex1Scroll}>
         {loading &&
           events.length === 0 &&
           Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
 
         {!loading && filtered.length === 0 && (
-          <div style={{ padding: "48px 24px", textAlign: "center" }}>
-            <div style={{ ...S.mono10, color: "var(--text3)" }}>
+          <div className={devClass.centerEmpty}>
+            <div className={cn(devClass.mono10, "text-[var(--text3)]")}>
               {events.length === 0
                 ? "No developer events have been recorded yet."
                 : "No events match these filters."}
             </div>
             {events.length === 0 && (
-              <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 6 }}>
+              <div className={cn(devClass.mono9, "mt-1.5 text-[var(--text3)]")}>
                 Start a session or run a diagnostic to create events.
               </div>
             )}
@@ -1282,71 +1026,53 @@ const EventTimeline = ({
               type="button"
               key={ev.id}
               onClick={() => onSelect(ev.id)}
+              className={devClass.eventRowBtnBase}
               style={{
-                ...S.eventRowBtnBase,
                 background: sel ? "var(--surface2)" : "transparent",
                 borderLeft: `2px solid ${sel ? lc : lc + "44"}`,
               }}
             >
-              <span style={{ ...S.mono9, color: "var(--text3)" }}>
+              <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
                 {fmt.time(ev.created_at)}
               </span>
               <span
-                style={{
-                  ...S.mono9,
-                  fontWeight: 800,
-                  color: lc,
-                  letterSpacing: "0.05em",
-                }}
+                className={cn(
+                  devClass.mono9,
+                  "font-extrabold tracking-[0.05em]",
+                )}
+                style={{ color: lc }}
               >
                 {ev.level}
               </span>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div className={devClass.eventSourceRow}>
                 {ev.agent_type && (
                   <span
+                    className={cn(
+                      devClass.mono9,
+                      "rounded-[3px] px-[5px] py-px font-bold",
+                    )}
                     style={{
-                      ...S.mono9,
-                      fontWeight: 700,
                       color: rc,
                       background: `${rc}18`,
-                      borderRadius: 3,
-                      padding: "1px 5px",
                     }}
                   >
                     {ev.agent_type}
                   </span>
                 )}
                 {ev.cycle_id && (
-                  <span
-                    style={{
-                      ...S.mono9,
-                      color: "var(--text3)",
-                      background: "var(--surface3)",
-                      borderRadius: 3,
-                      padding: "1px 4px",
-                    }}
-                  >
+                  <span className="rounded-[3px] bg-[var(--surface3)] px-1 py-px font-mono text-[12px] tracking-[0.08em] text-[var(--text3)]">
                     cyc·{String(ev.cycle_id).slice(0, 5)}
                   </span>
                 )}
               </div>
               <span
-                style={{
-                  ...S.mono10,
-                  color: sel ? "var(--text1)" : "var(--text2)",
-                  lineHeight: 1.4,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
+                className={cn(
+                  devClass.mono10,
+                  "truncate leading-snug",
+                  sel ? "text-[var(--text1)]" : "text-[var(--text2)]",
+                )}
               >
-                <span
-                  style={{
-                    ...S.mono9,
-                    color: "var(--color-info-border)",
-                    marginRight: 5,
-                  }}
-                >
+                <span className="mr-[5px] font-mono text-[12px] tracking-[0.08em] text-[var(--color-info-border)]">
                   [{summarizeEventSource(ev)}]
                 </span>
                 {ev.message}
@@ -1356,26 +1082,8 @@ const EventTimeline = ({
         })}
 
         {hasMore && (
-          <div
-            style={{
-              padding: "12px 14px",
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <button
-              onClick={onLoadMore}
-              style={{
-                padding: "6px 16px",
-                background: "var(--surface3)",
-                border: "1px solid var(--border)",
-                borderRadius: 5,
-                ...S.mono9,
-                fontWeight: 700,
-                color: "var(--text2)",
-                cursor: "pointer",
-              }}
-            >
+          <div className={devClass.loadMoreWrap}>
+            <button onClick={onLoadMore} className={devClass.loadMoreBtn}>
               Load more
             </button>
           </div>
@@ -1391,14 +1099,7 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
   if (!diag) return <EmptyState msg="Select a scope to inspect diagnostics." />;
   const sess = diag.session;
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-    >
+    <div className={devClass.tabPadding}>
       <SectionCard title="Scope">
         <DataRow label="scope" value={diag.scopeLabel} />
         {sess && (
@@ -1420,12 +1121,9 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           label="errors"
           value={
             <span
-              style={{
-                color:
-                  diag.counts.errors > 0
-                    ? "var(--color-error)"
-                    : "var(--text2)",
-              }}
+              className={
+                diag.counts.errors > 0 ? "text-error" : "text-[var(--text2)]"
+              }
             >
               {diag.counts.errors}
             </span>
@@ -1436,12 +1134,11 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           label="warnings"
           value={
             <span
-              style={{
-                color:
-                  diag.counts.warnings > 0
-                    ? "var(--color-warning)"
-                    : "var(--text2)",
-              }}
+              className={
+                diag.counts.warnings > 0
+                  ? "text-warning"
+                  : "text-[var(--text2)]"
+              }
             >
               {diag.counts.warnings}
             </span>
@@ -1454,12 +1151,11 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
           label="failed steps"
           value={
             <span
-              style={{
-                color:
-                  diag.counts.failedSteps > 0
-                    ? "var(--color-error)"
-                    : "var(--text2)",
-              }}
+              className={
+                diag.counts.failedSteps > 0
+                  ? "text-error"
+                  : "text-[var(--text2)]"
+              }
             >
               {diag.counts.failedSteps}
             </span>
@@ -1469,12 +1165,10 @@ const OverviewTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
       </SectionCard>
       {diag.latestError && (
         <SectionCard title="Latest Error">
-          <div
-            style={{ ...S.mono9, color: "var(--color-error)", lineHeight: 1.5 }}
-          >
+          <div className={cn(devClass.mono9, "leading-normal text-error")}>
             {diag.latestError.message}
           </div>
-          <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 4 }}>
+          <div className={cn(devClass.mono9, "mt-1 text-[var(--text3)]")}>
             {fmt.time(diag.latestError.createdAt)}
           </div>
         </SectionCard>
@@ -1494,16 +1188,9 @@ const ExecutionTab = ({
   if (!sessionId || steps.length === 0)
     return <EmptyState msg="No execution steps found for this scope." />;
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
+    <div className={cn(devClass.tabPadding, "gap-1.5")}>
       {diag?.executionProgress?.cycleId && (
-        <div style={{ ...S.mono9, color: "var(--text3)", marginBottom: 4 }}>
+        <div className={cn(devClass.mono9, "mb-1 text-[var(--text3)]")}>
           Cycle: {diag.executionProgress.cycleId}
         </div>
       )}
@@ -1519,57 +1206,42 @@ const ExecutionTab = ({
         return (
           <div
             key={step.stage}
+            className={cn(devClass.executionStepCard, "bg-[var(--bg)]")}
             style={{
-              background: "var(--bg)",
               border: `1px solid ${c}40`,
-              borderRadius: 6,
-              padding: "8px 10px",
               borderLeft: `2px solid ${c}`,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 8,
-                alignItems: "center",
-              }}
-            >
-              <span style={{ ...S.mono9, fontWeight: 800, color: c }}>
+            <div className={devClass.stepHeaderRow}>
+              <span
+                className={cn(devClass.mono9, "font-extrabold")}
+                style={{ color: c }}
+              >
                 {step.stage}
               </span>
-              <span style={{ ...S.mono9, color: c }}>{step.status}</span>
+              <span className={devClass.mono9} style={{ color: c }}>
+                {step.status}
+              </span>
             </div>
             {step.attempt > 0 && (
-              <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 4 }}>
+              <div className={cn(devClass.mono9, "mt-1 text-[var(--text3)]")}>
                 attempt {step.attempt}
               </div>
             )}
             {step.lastErrorMessage && (
               <div
-                style={{
-                  ...S.mono9,
-                  color: "var(--color-error)",
-                  marginTop: 4,
-                  lineHeight: 1.5,
-                }}
+                className={cn(devClass.mono9, "mt-1 leading-normal text-error")}
               >
                 {step.lastErrorMessage}
               </div>
             )}
             {step.outcome && (
-              <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 4 }}>
+              <div className={cn(devClass.mono9, "mt-1 text-[var(--text3)]")}>
                 outcome: {step.outcome}
               </div>
             )}
             {step.nextRetryAt && (
-              <div
-                style={{
-                  ...S.mono9,
-                  color: "var(--color-warning)",
-                  marginTop: 2,
-                }}
-              >
+              <div className={cn(devClass.mono9, "mt-0.5 text-warning")}>
                 retry at {fmt.time(step.nextRetryAt)}
               </div>
             )}
@@ -1596,59 +1268,35 @@ const PipelineConfigTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
     );
   const pretty = JSON.stringify(config, null, 2);
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-    >
+    <div className={devClass.tabPadding}>
       {diag.pipelineConfigError && (
         <SectionCard title="Validation Error">
           <div
-            style={{
-              ...S.mono9,
-              color: "var(--color-error)",
-              lineHeight: 1.5,
-              whiteSpace: "pre-wrap",
-            }}
+            className={cn(
+              devClass.mono9,
+              "whitespace-pre-wrap leading-normal text-error",
+            )}
           >
             {diag.pipelineConfigError}
           </div>
         </SectionCard>
       )}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 6,
-        }}
-      >
+      <div className={devClass.grid4}>
         {[
           ["pipeline", config.pipelineId],
           ["stages", String(config.stages.length)],
           ["workers", String(config.workers.length)],
           ["engines", String(config.engines.length)],
         ].map(([label, value]) => (
-          <div
-            key={label}
-            style={{
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
-              borderRadius: 5,
-              padding: "6px 8px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ ...S.mono9, color: "var(--text3)" }}>{label}</div>
+          <div key={label} className={devClass.statGridCell}>
+            <div className={cn(devClass.mono9, "text-[var(--text3)]")}>
+              {label}
+            </div>
             <div
-              style={{
-                ...S.mono10,
-                fontWeight: 700,
-                color: "var(--text1)",
-                marginTop: 2,
-              }}
+              className={cn(
+                devClass.mono10,
+                "mt-0.5 font-bold text-[var(--text1)]",
+              )}
             >
               {value}
             </div>
@@ -1697,18 +1345,11 @@ const PipelineConfigTab = ({ diag }: { diag: ScopeDiagnostics | null }) => {
         </SectionCard>
       ))}
       <div>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 6,
-          }}
-        >
-          <span style={S.label}>resolved config</span>
+        <div className={devClass.configHeaderRow}>
+          <span className={devClass.label}>resolved config</span>
           <CopyBtn text={pretty} label="copy config" />
         </div>
-        <pre style={S.preBlockWithMax}>{pretty}</pre>
+        <pre className={devClass.preBlockWithMax}>{pretty}</pre>
       </div>
     </div>
   );
@@ -1733,40 +1374,20 @@ const AITraceTab = ({
   });
 
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-      }}
-    >
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}
-      >
+    <div className={devClass.tabPadding}>
+      <div className={devClass.grid3}>
         {[
           ["runs", String(runs.length)],
           ["tokens", fmt.tokens(total.tokens)],
           ["cost", fmt.usd(total.cost, 4)],
         ].map(([l, v]) => (
-          <div
-            key={l}
-            style={{
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
-              borderRadius: 5,
-              padding: "6px 8px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ ...S.mono9, color: "var(--text3)" }}>{l}</div>
+          <div key={l} className={devClass.statGridCell}>
+            <div className={cn(devClass.mono9, "text-[var(--text3)]")}>{l}</div>
             <div
-              style={{
-                ...S.mono10,
-                fontWeight: 700,
-                color: "var(--text1)",
-                marginTop: 2,
-              }}
+              className={cn(
+                devClass.mono10,
+                "mt-0.5 font-bold text-[var(--text1)]",
+              )}
             >
               {v}
             </div>
@@ -1785,67 +1406,43 @@ const RunCard = ({ run, accent }: { run: ExtAgentRun; accent: string }) => {
   const [open, setOpen] = useState(false);
   return (
     <div
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: 7,
-        overflow: "hidden",
-        borderLeft: `2px solid ${accent}`,
-      }}
+      className={devClass.runCardShell}
+      style={{ borderLeft: `2px solid ${accent}` }}
     >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        style={S.runCardHeaderBtn}
+        className={devClass.runCardHeaderBtn}
       >
         <AgentLabel type={run.agent_type as EventSourceType} />
-        <span style={{ ...S.mono9, color: "var(--text3)" }}>
+        <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
           {run.provider_key} · {run.model}
         </span>
         <span
-          style={{
-            ...S.mono9,
-            fontWeight: 700,
-            padding: "1px 5px",
-            borderRadius: 3,
-            background:
-              run.finish_reason === "stop"
-                ? "var(--color-success-dim)"
-                : "var(--color-error-dim)",
-            color:
-              run.finish_reason === "stop"
-                ? "var(--color-success)"
-                : "var(--color-error)",
-          }}
+          className={cn(
+            devClass.mono9,
+            "rounded-[3px] px-[5px] py-px font-bold",
+            run.finish_reason === "stop"
+              ? "bg-success-dim text-success"
+              : "bg-error-dim text-error",
+          )}
         >
           {run.finish_reason}
         </span>
-        <div
-          style={{
-            marginLeft: "auto",
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-          }}
-        >
-          <span style={{ ...S.mono9, color: "var(--text3)" }}>
+        <div className={devClass.mlAutoFlex}>
+          <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
             {fmt.tokens(run.input_tokens + run.output_tokens)} ·{" "}
             {fmt.usd(run.cost_usd, 4)} · {fmt.duration(run.duration_ms)}
           </span>
           <CopyBtn text={JSON.stringify(run, null, 2)} label="copy" />
-          <span style={{ ...S.mono9, color: "var(--text3)" }}>
+          <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
             {open ? "▲" : "▼"}
           </span>
         </div>
       </button>
       {open && (
-        <div
-          style={{
-            padding: "10px 12px",
-            background: "var(--bg)",
-            borderTop: "1px solid var(--border)",
-          }}
-        >
+        <div className={devClass.runCardBody}>
           <CollapsibleText
             text={run.output_text ? `"${run.output_text}"` : null}
           />
@@ -1876,88 +1473,37 @@ const PhaseGraphTab = ({
   if (traces.length === 0)
     return <EmptyState msg="Phase graph metadata unavailable." />;
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-      }}
-    >
+    <div className={cn(devClass.tabPadding, "gap-2.5")}>
       {traces.map(({ m, t }) => (
-        <div
-          key={m.id}
-          style={{
-            border: "1px solid var(--border)",
-            borderRadius: 7,
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "7px 10px",
-              background: "var(--surface2)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div key={m.id} className={devClass.phaseGraphShell}>
+          <div className={devClass.phaseGraphHeader}>
+            <div className={devClass.flexGap}>
               <span
-                style={{
-                  ...S.mono9,
-                  fontWeight: 800,
-                  color: ROLE_COLOR[t.phase] ?? "var(--text2)",
-                }}
+                className={cn(devClass.mono9, "font-extrabold")}
+                style={{ color: ROLE_COLOR[t.phase] ?? "var(--text2)" }}
               >
                 {t.phase}
               </span>
-              <span style={{ ...S.mono9, color: "var(--text3)" }}>
+              <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
                 {t.schedulingMode}
               </span>
-              <span style={{ ...S.mono9, color: "var(--text3)" }}>
+              <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
                 {t.frontiers.length} frontiers · {t.workers.length} workers
               </span>
             </div>
             <CopyBtn text={JSON.stringify(t, null, 2)} />
           </div>
-          <div
-            style={{
-              padding: "10px 12px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 8,
-              background: "var(--bg)",
-            }}
-          >
+          <div className={devClass.phaseGraphBody}>
             {t.workers.map((w) => (
-              <div
-                key={w.workerId}
-                style={{
-                  background: "var(--surface)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 5,
-                  padding: "7px 9px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
+              <div key={w.workerId} className={devClass.workerCard}>
+                <div className={devClass.workerHeaderRow}>
                   <span
-                    style={{
-                      ...S.mono9,
-                      fontWeight: 800,
-                      color: ROLE_COLOR[t.phase] ?? "var(--text2)",
-                    }}
+                    className={cn(devClass.mono9, "font-extrabold")}
+                    style={{ color: ROLE_COLOR[t.phase] ?? "var(--text2)" }}
                   >
                     {w.workerId}
                   </span>
-                  <span style={{ ...S.mono9, color: "var(--text3)" }}>
+                  <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
                     {w.status}
                   </span>
                 </div>
@@ -2012,71 +1558,39 @@ const ExternalCallsTab = ({
   if (calls.length === 0)
     return <EmptyState msg="No external API calls recorded." />;
   return (
-    <div
-      style={{
-        padding: "12px 14px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
+    <div className={cn(devClass.tabPadding, "gap-1.5")}>
       {calls.map((c) => (
-        <div
-          key={c.id}
-          style={{
-            background: "var(--bg)",
-            border: "1px solid var(--border)",
-            borderRadius: 5,
-            padding: "7px 9px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
+        <div key={c.id} className={devClass.apiCallCard}>
+          <div className={devClass.apiCallHeaderRow}>
             <span
-              style={{
-                ...S.mono9,
-                fontWeight: 700,
-                color:
-                  c.status === "ok"
-                    ? "var(--color-success)"
-                    : "var(--color-error)",
-              }}
+              className={cn(
+                devClass.mono9,
+                "font-bold",
+                c.status === "ok" ? "text-success" : "text-error",
+              )}
             >
               {c.status.toUpperCase()}
             </span>
-            <span style={{ ...S.mono9, color: "var(--text2)" }}>
+            <span className={cn(devClass.mono9, "text-[var(--text2)]")}>
               {c.provider}
             </span>
-            <span style={{ ...S.mono9, color: "var(--text3)" }}>
+            <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
               {c.call_type}
             </span>
-            <span style={{ ...S.mono9, color: "var(--text3)" }}>
+            <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
               {c.latency_ms}ms
             </span>
             {c.cost_usd != null && (
-              <span style={{ ...S.mono9, color: "var(--text3)" }}>
+              <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
                 {fmt.usd(c.cost_usd, 4)}
               </span>
             )}
             {c.from_cache && (
-              <span style={{ ...S.mono9, color: "var(--color-info)" }}>
-                cached
-              </span>
+              <span className={cn(devClass.mono9, "text-info")}>cached</span>
             )}
           </div>
           <div
-            style={{
-              ...S.mono9,
-              color: "var(--text3)",
-              marginTop: 4,
-              wordBreak: "break-all",
-            }}
+            className={cn(devClass.mono9, "mt-1 break-all text-[var(--text3)]")}
           >
             {c.endpoint}
           </div>
@@ -2089,13 +1603,11 @@ const ExternalCallsTab = ({
 const RawTab = ({ ev }: { ev: ExtEventRow }) => {
   const pretty = JSON.stringify(ev, null, 2);
   return (
-    <div style={{ padding: "12px 14px" }}>
-      <div
-        style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}
-      >
+    <div className={devClass.tabPadding}>
+      <div className={devClass.rawTabHeader}>
         <CopyBtn text={pretty} label="copy raw" />
       </div>
-      <pre style={S.preBlock}>{pretty}</pre>
+      <pre className={devClass.preBlock}>{pretty}</pre>
     </div>
   );
 };
@@ -2133,32 +1645,15 @@ const InspectorPanel = ({
   ];
 
   return (
-    <div
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 10,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div className={devClass.inspectorPanel}>
       {/* Tab bar */}
-      <div
-        style={{
-          display: "flex",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--surface2)",
-          flexShrink: 0,
-          overflowX: "auto",
-        }}
-      >
+      <div className={devClass.inspectorTabBar}>
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
+            className={devClass.inspectorTabBtnBase}
             style={{
-              ...S.inspectorTabBtnBase,
               borderBottom: `2px solid ${tab === t.id ? "var(--accent)" : "transparent"}`,
               color: tab === t.id ? "var(--text1)" : "var(--text3)",
             }}
@@ -2169,7 +1664,7 @@ const InspectorPanel = ({
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div className={devClass.flex1Scroll}>
         {tab === "overview" && <OverviewTab diag={diagnostics} />}
         {tab === "execution" && (
           <ExecutionTab
@@ -2215,22 +1710,18 @@ const CaptureFormFields = ({
   <>
     {/* Duration */}
     <FieldGroup label="Duration">
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <div className={devClass.captureDurationRow}>
         {([5, 15, 30] as const).map((d) => (
           <button
             key={d}
             onClick={() => dispatchForm({ duration: d, untilStopped: false })}
+            className={devClass.captureDurationBtn}
             style={{
-              padding: "5px 12px",
-              borderRadius: 5,
-              cursor: "pointer",
               background:
                 form.duration === d && !form.untilStopped
                   ? "var(--color-info-dim)"
                   : "var(--surface3)",
               border: `1px solid ${form.duration === d && !form.untilStopped ? "var(--color-info-border)" : "var(--border)"}`,
-              ...S.mono9,
-              fontWeight: 700,
               color:
                 form.duration === d && !form.untilStopped
                   ? "var(--color-info)"
@@ -2242,16 +1733,12 @@ const CaptureFormFields = ({
         ))}
         <button
           onClick={() => dispatchForm({ untilStopped: true, duration: null })}
+          className={devClass.captureDurationBtn}
           style={{
-            padding: "5px 12px",
-            borderRadius: 5,
-            cursor: "pointer",
             background: form.untilStopped
               ? "var(--color-warning-dim)"
               : "var(--surface3)",
             border: `1px solid ${form.untilStopped ? "var(--color-warning-border)" : "var(--border)"}`,
-            ...S.mono9,
-            fontWeight: 700,
             color: form.untilStopped ? "var(--color-warning)" : "var(--text2)",
           }}
         >
@@ -2267,15 +1754,7 @@ const CaptureFormFields = ({
         onChange={(e) =>
           dispatchForm({ mainLevel: e.target.value as PinoLevel })
         }
-        style={{
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
-          borderRadius: 5,
-          padding: "5px 8px",
-          ...S.mono10,
-          color: "var(--text1)",
-          width: "100%",
-        }}
+        className={devClass.captureSelect}
       >
         {LOG_LEVELS.map((l) => (
           <option key={l} value={l}>
@@ -2284,28 +1763,13 @@ const CaptureFormFields = ({
         ))}
       </select>
       {form.mainLevel === "trace" && !form.traceConfirm && (
-        <div style={{ marginTop: 6 }}>
-          <div
-            style={{
-              ...S.mono9,
-              color: "var(--color-warning)",
-              marginBottom: 4,
-            }}
-          >
+        <div className="mt-1.5">
+          <div className={cn(devClass.mono9, "mb-1 text-warning")}>
             Trace logs can include large payload metadata and may slow the app.
           </div>
           <button
             onClick={() => dispatchForm({ traceConfirm: true })}
-            style={{
-              padding: "4px 10px",
-              background: "var(--color-warning-dim)",
-              border: "1px solid var(--color-warning-border)",
-              borderRadius: 4,
-              ...S.mono9,
-              fontWeight: 700,
-              color: "var(--color-warning)",
-              cursor: "pointer",
-            }}
+            className={devClass.traceConfirmBtn}
           >
             Confirm trace level
           </button>
@@ -2315,28 +1779,15 @@ const CaptureFormFields = ({
 
     {/* Event min level */}
     <FieldGroup label="Event min level">
-      <div
-        style={{
-          display: "flex",
-          background: "var(--bg)",
-          border: "1px solid var(--border)",
-          borderRadius: 5,
-          overflow: "hidden",
-        }}
-      >
+      <div className={devClass.filterGroup}>
         {LEVELS.map((l) => (
           <button
             key={l}
             onClick={() => dispatchForm({ eventLevel: l })}
+            className={devClass.eventLevelBtn}
             style={{
-              flex: 1,
-              padding: "5px 4px",
-              border: "none",
               background: form.eventLevel === l ? LEVEL_BG[l] : "transparent",
-              ...S.mono9,
-              fontWeight: 700,
               color: form.eventLevel === l ? LEVEL_COLOR[l] : "var(--text3)",
-              cursor: "pointer",
             }}
           >
             {l}
@@ -2346,7 +1797,7 @@ const CaptureFormFields = ({
     </FieldGroup>
 
     {/* Toggles */}
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className={devClass.toggleList}>
       <Toggle
         label="Include prompt messages"
         checked={form.includePrompts}
@@ -2360,15 +1811,13 @@ const CaptureFormFields = ({
     </div>
 
     {/* Safety note */}
-    <div style={{ ...S.mono9, color: "var(--text3)", lineHeight: 1.5 }}>
+    <div className={cn(devClass.mono9, "leading-normal text-[var(--text3)]")}>
       Secrets are redacted before export. API keys and authorization headers are
       never shown.
     </div>
 
     {form.error && (
-      <div style={{ ...S.mono9, color: "var(--color-error)" }}>
-        {form.error}
-      </div>
+      <div className={cn(devClass.mono9, "text-error")}>{form.error}</div>
     )}
   </>
 );
@@ -2440,94 +1889,32 @@ const DebugCaptureModal = ({
     onError: (err: Error) => dispatchForm({ error: err.message }),
   });
 
-  const OVERLAY: React.CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.7)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000,
-  };
-  const MODAL: React.CSSProperties = {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderRadius: 12,
-    padding: "20px 24px",
-    width: 420,
-    display: "flex",
-    flexDirection: "column",
-    gap: 16,
-  };
-
   return (
     <div
       role="presentation"
-      style={OVERLAY}
+      className={devClass.modalOverlay}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div style={MODAL} role="dialog" aria-modal="true">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              ...S.mono9,
-              fontWeight: 800,
-              letterSpacing: "0.05em",
-              color: "var(--text1)",
-            }}
-          >
-            CAPTURE DEBUG WINDOW
-          </div>
+      <div className={devClass.modalPanel} role="dialog" aria-modal="true">
+        <div className={devClass.exportHeaderRow}>
+          <div className={devClass.modalTitle}>CAPTURE DEBUG WINDOW</div>
           <button
             onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--text3)",
-              cursor: "pointer",
-              fontSize: 14,
-            }}
+            className={cn(devClass.closeBtn, "text-sm")}
           >
             ✕
           </button>
         </div>
 
-        <div
-          style={{
-            ...S.mono9,
-            color: "var(--text3)",
-            background: "var(--surface2)",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            padding: "6px 10px",
-          }}
-        >
+        <div className={devClass.modalScopeBox}>
           Scope: {activeScope.label ?? activeScope.type}
         </div>
 
         <CaptureFormFields form={form} dispatchForm={dispatchForm} />
 
         {/* Actions */}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "7px 16px",
-              background: "var(--surface3)",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              ...S.mono9,
-              fontWeight: 700,
-              color: "var(--text2)",
-              cursor: "pointer",
-            }}
-          >
+        <div className={devClass.modalActions}>
+          <button onClick={onClose} className={devClass.modalCancelBtn}>
             Cancel
           </button>
           <button
@@ -2536,10 +1923,8 @@ const DebugCaptureModal = ({
               mutation.isPending ||
               (form.mainLevel === "trace" && !form.traceConfirm)
             }
-            style={{
-              ...S.debugCaptureBtnBase,
-              opacity: mutation.isPending ? 0.7 : 1,
-            }}
+            className={devClass.debugCaptureBtnBase}
+            style={{ opacity: mutation.isPending ? 0.7 : 1 }}
           >
             {mutation.isPending && <Spinner />}
             {mutation.isPending ? "Starting…" : "Start Capture"}
@@ -2557,8 +1942,8 @@ const FieldGroup = ({
   label: string;
   children: React.ReactNode;
 }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-    <div style={S.label}>{label}</div>
+  <div className={devClass.fieldGroup}>
+    <div className={devClass.label}>{label}</div>
     {children}
   </div>
 );
@@ -2572,24 +1957,18 @@ const Toggle = ({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) => (
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-    }}
-  >
-    <span style={{ ...S.mono10, color: "var(--text2)" }}>{label}</span>
+  <div className={devClass.toggleRow}>
+    <span className={cn(devClass.mono10, "text-[var(--text2)]")}>{label}</span>
     <button
       onClick={() => onChange(!checked)}
+      className={devClass.toggleTrackBase}
       style={{
-        ...S.toggleTrackBase,
         background: checked ? "var(--accent)" : "var(--surface3)",
       }}
     >
       <div
+        className={devClass.toggleThumbBase}
         style={{
-          ...S.toggleThumbBase,
           left: checked ? 18 : 2,
           background: checked
             ? "hsl(var(--primary-foreground))"
@@ -2609,60 +1988,35 @@ const ExportResultDrawer = ({
   result: ExportBundleResult;
   onClose: () => void;
 }) => (
-  <div style={S.exportDrawer}>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
-      <span
-        style={{ ...S.mono9, fontWeight: 800, color: "var(--color-success)" }}
-      >
+  <div className={devClass.exportDrawer}>
+    <div className={devClass.exportHeaderRow}>
+      <span className={cn(devClass.mono9, "font-extrabold text-success")}>
         Debug bundle exported.
       </span>
-      <button
-        onClick={onClose}
-        style={{
-          background: "none",
-          border: "none",
-          color: "var(--text3)",
-          cursor: "pointer",
-        }}
-      >
+      <button onClick={onClose} className={devClass.closeBtn}>
         ✕
       </button>
     </div>
-    <div style={{ ...S.mono9, color: "var(--text3)", wordBreak: "break-all" }}>
+    <div className={cn(devClass.mono9, "break-all text-[var(--text3)]")}>
       {result.path}
     </div>
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+    <div className={devClass.exportChipRow}>
       {result.includedSections.map((s) => (
-        <span
-          key={s}
-          style={{
-            ...S.mono9,
-            color: "var(--text2)",
-            background: "var(--surface3)",
-            borderRadius: 3,
-            padding: "2px 5px",
-          }}
-        >
+        <span key={s} className={devClass.exportSectionChip}>
           {s}
         </span>
       ))}
     </div>
-    <div style={{ ...S.mono9, color: "var(--text3)" }}>
+    <div className={cn(devClass.mono9, "text-[var(--text3)]")}>
       {result.redactionCount} field{result.redactionCount !== 1 ? "s" : ""}{" "}
       redacted · {(result.sizeBytes / 1024).toFixed(0)} KB
     </div>
     {result.warnings.map((w) => (
-      <div key={w} style={{ ...S.mono9, color: "var(--color-warning)" }}>
+      <div key={w} className={cn(devClass.mono9, "text-warning")}>
         {w}
       </div>
     ))}
-    <div style={{ display: "flex", gap: 6 }}>
+    <div className={devClass.exportActions}>
       <button
         onClick={() =>
           developerApi()?.openPath({
@@ -2670,11 +2024,14 @@ const ExportResultDrawer = ({
             path: result.path,
           })
         }
-        style={S.exportActionBtn}
+        className={devClass.exportActionBtn}
       >
         Reveal in Finder
       </button>
-      <button onClick={() => copyText(result.path)} style={S.exportActionBtn}>
+      <button
+        onClick={() => copyText(result.path)}
+        className={devClass.exportActionBtn}
+      >
         Copy Path
       </button>
     </div>
@@ -2688,24 +2045,17 @@ const ToastContainer = ({
 }: {
   toasts: Array<{ id: string; msg: string; kind: "ok" | "err" }>;
 }) => (
-  <div style={S.toastContainer}>
+  <div className={devClass.toastContainer}>
     {toasts.map((t) => (
       <div
         key={t.id}
-        style={{
-          padding: "8px 16px",
-          borderRadius: 8,
-          background:
-            t.kind === "ok"
-              ? "var(--color-success-dim)"
-              : "var(--color-error-dim)",
-          border: `1px solid ${t.kind === "ok" ? "var(--color-success-border)" : "var(--color-error-border)"}`,
-          ...S.mono9,
-          fontWeight: 700,
-          color:
-            t.kind === "ok" ? "var(--color-success)" : "var(--color-error)",
-          backdropFilter: "blur(8px)",
-        }}
+        className={cn(
+          devClass.mono9,
+          "rounded-lg px-4 py-2 font-bold backdrop-blur-sm",
+          t.kind === "ok"
+            ? "border border-success-border bg-success-dim text-success"
+            : "border border-error-border bg-error-dim text-error",
+        )}
       >
         {t.msg}
       </div>
@@ -2722,27 +2072,8 @@ const SectionCard = ({
   title: string;
   children: React.ReactNode;
 }) => (
-  <div
-    style={{
-      background: "var(--bg)",
-      border: "1px solid var(--border)",
-      borderRadius: 7,
-      padding: "8px 10px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 6,
-    }}
-  >
-    <div
-      style={{
-        ...S.label,
-        paddingBottom: 5,
-        borderBottom: "1px solid var(--border)",
-        marginBottom: 2,
-      }}
-    >
-      {title}
-    </div>
+  <div className={devClass.sectionCard}>
+    <div className={devClass.sectionCardTitle}>{title}</div>
     {children}
   </div>
 );
@@ -2756,26 +2087,15 @@ const DataRow = ({
   value: React.ReactNode;
   mono?: boolean;
 }) => (
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      gap: 12,
-      alignItems: "flex-start",
-      minHeight: 20,
-    }}
-  >
-    <span style={{ ...S.mono9, color: "var(--text3)", flexShrink: 0 }}>
+  <div className={devClass.dataRow}>
+    <span className={cn(devClass.mono9, "shrink-0 text-[var(--text3)]")}>
       {label}
     </span>
     <span
-      style={{
-        ...(mono ? S.mono9 : {}),
-        fontSize: 12,
-        color: "var(--text2)",
-        textAlign: "right",
-        wordBreak: "break-all",
-      }}
+      className={cn(
+        mono && devClass.mono9,
+        "break-all text-right text-[12px] text-[var(--text2)]",
+      )}
     >
       {value}
     </span>
@@ -2783,17 +2103,7 @@ const DataRow = ({
 );
 
 const EmptyState = ({ msg }: { msg: string }) => (
-  <div
-    style={{
-      padding: "36px 20px",
-      textAlign: "center",
-      ...S.mono9,
-      color: "var(--text3)",
-      lineHeight: 1.6,
-    }}
-  >
-    {msg}
-  </div>
+  <div className={devClass.emptyState}>{msg}</div>
 );
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -3166,7 +2476,7 @@ export const DevPanel = ({
       : `${uiState.activeScope.type.charAt(0).toUpperCase() + uiState.activeScope.type.slice(1)}: ${uiState.activeScope.label ?? uiState.activeScope.id ?? ""}`;
 
   return (
-    <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className={devClass.rootLayout}>
       {/* Scope Rail */}
       <ScopeRail
         activeScope={uiState.activeScope}
@@ -3176,65 +2486,22 @@ export const DevPanel = ({
       />
 
       {/* Main content */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          minWidth: 0,
-        }}
-      >
+      <div className={devClass.mainColumn}>
         {/* Header */}
-        <div
-          style={{
-            padding: "10px 16px",
-            borderBottom: "1px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            background: "var(--surface2)",
-            flexShrink: 0,
-          }}
-        >
+        <div className={devClass.devHeader}>
           <div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 800,
-                color: "var(--text1)",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Developer Workbench
-            </div>
-            <div style={{ ...S.mono9, color: "var(--text3)", marginTop: 2 }}>
-              {scopeLabel}
-            </div>
+            <div className={devClass.devTitle}>Developer Workbench</div>
+            <div className={devClass.scopeSubtitle}>{scopeLabel}</div>
           </div>
 
           {/* Stream health badge */}
-          <div style={{ marginLeft: 8 }}>
+          <div className="ml-2">
             {dataState.streamHealthy ? (
-              <span
-                style={{
-                  ...S.streamBadgeBase,
-                  color: "var(--color-success)",
-                  background: "var(--color-success-dim)",
-                  border: "1px solid var(--color-success-border)",
-                }}
-              >
+              <span className="inline-flex items-center gap-1 rounded-[5px] border border-success-border bg-success-dim px-2 py-[3px] font-mono text-[12px] tracking-[0.08em] text-success">
                 <Dot color="var(--color-success)" pulse size={4} /> Live
               </span>
             ) : (
-              <span
-                style={{
-                  ...S.streamBadgeBase,
-                  color: "var(--color-warning)",
-                  background: "var(--color-warning-dim)",
-                  border: "1px solid var(--color-warning-border)",
-                }}
-              >
+              <span className="inline-flex items-center gap-1 rounded-[5px] border border-warning-border bg-warning-dim px-2 py-[3px] font-mono text-[12px] tracking-[0.08em] text-warning">
                 <Dot color="var(--color-warning)" pulse size={4} /> Delayed ·
                 polling
               </span>
@@ -3242,14 +2509,7 @@ export const DevPanel = ({
           </div>
 
           {uiState.captureActive && (
-            <span
-              style={{
-                ...S.streamBadgeBase,
-                color: "var(--color-market)",
-                background: "var(--color-market-dim)",
-                border: "1px solid var(--color-market-border)",
-              }}
-            >
+            <span className="inline-flex items-center gap-1 rounded-[5px] border border-market-border bg-market-dim px-2 py-[3px] font-mono text-[12px] tracking-[0.08em] text-market">
               <Dot color="var(--color-market)" pulse size={4} />
               Capture active
               {uiState.captureActive.expiresAt
@@ -3258,7 +2518,7 @@ export const DevPanel = ({
             </span>
           )}
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          <div className={devClass.mlAutoFlexGap}>
             <HeaderBtn
               label="Capture Debug Window"
               disabled={!!uiState.captureActive}
@@ -3301,25 +2561,9 @@ export const DevPanel = ({
         />
 
         {/* Main split */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            gap: 10,
-            padding: "10px",
-            overflow: "hidden",
-            minHeight: 0,
-          }}
-        >
+        <div className={devClass.mainSplit}>
           {/* Timeline — 60% */}
-          <div
-            style={{
-              flex: "0 0 60%",
-              display: "flex",
-              flexDirection: "column",
-              minWidth: 0,
-            }}
-          >
+          <div className={devClass.timelineColumn}>
             <EventTimeline
               events={dataState.events}
               filtered={filtered}
@@ -3344,14 +2588,7 @@ export const DevPanel = ({
           </div>
 
           {/* Inspector — 40% */}
-          <div
-            style={{
-              flex: "0 0 calc(40% - 10px)",
-              display: "flex",
-              flexDirection: "column",
-              minWidth: 0,
-            }}
-          >
+          <div className={devClass.inspectorColumn}>
             <InspectorPanel
               sel={sel}
               selRuns={selRuns as ExtAgentRun[]}
@@ -3365,23 +2602,11 @@ export const DevPanel = ({
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            padding: "4px 16px",
-            borderTop: "1px solid var(--border)",
-            display: "flex",
-            gap: 16,
-            alignItems: "center",
-            background: "var(--surface2)",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ ...S.mono9, color: "var(--text3)" }}>
+        <div className={devClass.devFooter}>
+          <span className={cn(devClass.mono9, "text-[var(--text3)]")}>
             {filtered.length} events
           </span>
-          <span
-            style={{ ...S.mono9, color: "var(--text3)", marginLeft: "auto" }}
-          >
+          <span className={cn(devClass.mono9, "ml-auto text-[var(--text3)]")}>
             SQLite · exva.db
           </span>
         </div>
@@ -3432,8 +2657,8 @@ const HeaderBtn = ({
   <button
     onClick={onClick}
     disabled={disabled || loading}
+    className={devClass.headerBtnBase}
     style={{
-      ...S.headerBtnBase,
       background: `${color}10`,
       border: `1px solid ${color}30`,
       color,

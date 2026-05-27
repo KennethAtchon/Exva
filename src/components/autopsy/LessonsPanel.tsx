@@ -5,6 +5,7 @@ import type {
   LessonSeverity,
   LessonStatus,
 } from "@/lib/autopsy-types";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Status + Severity colour maps
@@ -67,60 +68,29 @@ const LESSON_CATEGORIES: LessonCategory[] = [
   "system",
 ];
 
-const lessonChipStyle = {
-  padding: "2px 7px",
-  borderRadius: 4,
-  background: "var(--surface3)",
-  fontSize: 12,
-  fontFamily: "var(--font-mono)",
-} as const;
+const lessonChipClass =
+  "rounded-[4px] bg-[var(--surface3)] px-[7px] py-[2px] font-mono text-[12px]";
 
-const statusPillButtonStyle = {
-  padding: "3px 9px",
-  borderRadius: 5,
-  border: "none",
-  fontSize: 12,
-  fontFamily: "var(--font-mono)",
-  fontWeight: 600,
-  cursor: "pointer",
-  letterSpacing: "0.04em",
-} as const;
+const statusPillButtonClass =
+  "cursor-pointer rounded-[5px] border-none px-[9px] py-[3px] font-mono text-[12px] font-semibold tracking-[0.04em]";
 
-const statusPickerContainerStyle = {
-  position: "absolute" as const,
-  top: "calc(100% + 4px)",
-  right: 0,
-  zIndex: 50,
-  background: "var(--surface3)",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  padding: 4,
-  minWidth: 140,
-  boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-} as const;
+const statusPickerContainerClass =
+  "absolute right-0 top-[calc(100%+4px)] z-50 min-w-[140px] rounded-lg border border-[var(--border)] bg-[var(--surface3)] p-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)]";
 
-const statusPickerButtonStyle = {
-  display: "flex" as const,
-  alignItems: "center",
-  gap: 8,
-  width: "100%",
-  padding: "7px 10px",
-  borderRadius: 6,
-  border: "none",
-  cursor: "pointer",
-  textAlign: "left" as const,
-} as const;
+const statusPickerButtonClass =
+  "flex w-full cursor-pointer items-center gap-2 rounded-md border-none px-[10px] py-[7px] text-left";
 
-const addLessonButtonStyle = {
-  padding: "3px 9px",
-  borderRadius: 5,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  fontSize: 12,
-  cursor: "pointer",
-  opacity: 1,
-} as const;
+const addLessonButtonClass =
+  "rounded-[5px] border border-[var(--border)] bg-transparent px-[9px] py-[3px] text-[12px] text-[var(--text2)]";
+
+const inputClass =
+  "w-full resize-y rounded-md border border-[var(--border)] bg-[var(--surface)] px-[10px] py-2 font-sans text-[12px] text-[var(--text1)]";
+
+const secondaryButtonClass =
+  "cursor-pointer rounded-md border border-[var(--border)] bg-transparent px-[11px] py-[7px] text-[12px] text-[var(--text2)]";
+
+const primaryButtonClass =
+  "cursor-pointer rounded-md border border-info-border bg-info-dim px-[11px] py-[7px] text-[12px] text-info";
 
 // ---------------------------------------------------------------------------
 // Components
@@ -136,7 +106,7 @@ function StatusPicker({
   onClose: () => void;
 }) {
   return (
-    <div style={statusPickerContainerStyle}>
+    <div className={statusPickerContainerClass}>
       {STATUS_ORDER.map((s) => {
         const st = STATUS_STYLE[s];
         return (
@@ -146,23 +116,16 @@ function StatusPicker({
               onSelect(s);
               onClose();
             }}
+            className={statusPickerButtonClass}
             style={{
-              ...statusPickerButtonStyle,
               background: s === current ? "var(--surface2)" : "transparent",
             }}
           >
             <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: st.color,
-                flexShrink: 0,
-              }}
+              className="size-[7px] shrink-0 rounded-full"
+              style={{ background: st.color }}
             />
-            <span style={{ fontSize: 12, color: "var(--text1)" }}>
-              {st.label}
-            </span>
+            <span className="text-[12px] text-[var(--text1)]">{st.label}</span>
           </button>
         );
       })}
@@ -184,22 +147,12 @@ function LessonRow({
   const sev = SEVERITY_STYLE[lesson.severity] ?? SEVERITY_STYLE.medium;
 
   return (
-    <div
-      style={{
-        borderRadius: 8,
-        border: "1px solid var(--border)",
-        background: "var(--surface2)",
-        overflow: "visible",
-      }}
-    >
+    <div className="overflow-visible rounded-lg border border-[var(--border)] bg-[var(--surface2)]">
       {/* Header row */}
       <div
         role="button"
         tabIndex={0}
-        style={{
-          padding: "10px 12px 8px",
-          cursor: "pointer",
-        }}
+        className="cursor-pointer px-[12px] pb-2 pt-[10px]"
         onClick={() => setExpanded((e) => !e)}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -209,45 +162,28 @@ function LessonRow({
         }}
       >
         {/* Chips row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            marginBottom: 6,
-          }}
-        >
+        <div className="mb-1.5 flex items-center gap-1.5">
           {/* Severity dot + label */}
           <span
-            style={{
-              ...lessonChipStyle,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              color: sev.dot,
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-            }}
+            className={cn(
+              lessonChipClass,
+              "inline-flex items-center gap-1 font-semibold tracking-[0.04em]",
+            )}
+            style={{ color: sev.dot }}
           >
             <span
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: "50%",
-                background: sev.dot,
-              }}
+              className="size-[5px] rounded-full"
+              style={{ background: sev.dot }}
             />
             {sev.label}
           </span>
 
           {/* Category */}
           <span
-            style={{
-              ...lessonChipStyle,
-              color: "var(--text3)",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
+            className={cn(
+              lessonChipClass,
+              "uppercase tracking-[0.05em] text-[var(--text3)]",
+            )}
           >
             {lesson.category}
           </span>
@@ -255,11 +191,7 @@ function LessonRow({
           {/* Recurrence badge */}
           {lesson.recurrenceCount > 0 && (
             <span
-              style={{
-                ...lessonChipStyle,
-                background: "var(--color-warning-dim)",
-                color: "var(--color-warning)",
-              }}
+              className={cn(lessonChipClass, "bg-warning-dim text-warning")}
             >
               ×{lesson.recurrenceCount}
             </span>
@@ -268,15 +200,10 @@ function LessonRow({
 
         {/* Lesson text */}
         <div
-          style={{
-            fontSize: 12,
-            color: "var(--text1)",
-            lineHeight: 1.55,
-            display: "-webkit-box",
-            WebkitLineClamp: expanded ? "unset" : 2,
-            WebkitBoxOrient: "vertical" as const,
-            overflow: expanded ? "visible" : "hidden",
-          }}
+          className={cn(
+            "text-[12px] leading-[1.55] text-[var(--text1)]",
+            !expanded && "line-clamp-2",
+          )}
         >
           {lesson.lesson}
         </div>
@@ -284,58 +211,26 @@ function LessonRow({
 
       {/* Proposed fix (expanded) */}
       {expanded && lesson.proposedFix && (
-        <div
-          style={{
-            padding: "0 12px 10px",
-            borderTop: "1px solid var(--border)",
-            marginTop: 2,
-            paddingTop: 8,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--text3)",
-              textTransform: "uppercase",
-              letterSpacing: "0.07em",
-              marginBottom: 5,
-              fontWeight: 600,
-            }}
-          >
+        <div className="mt-0.5 border-t border-[var(--border)] px-3 pb-2.5 pt-2">
+          <div className="mb-[5px] text-[12px] font-semibold uppercase tracking-[0.07em] text-[var(--text3)]">
             Proposed Fix
           </div>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--text2)",
-              lineHeight: 1.55,
-            }}
-          >
+          <div className="text-[12px] leading-[1.55] text-[var(--text2)]">
             {lesson.proposedFix}
           </div>
         </div>
       )}
 
       {/* Footer: status chip */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          padding: "0 10px 10px",
-          position: "relative",
-        }}
-      >
-        <div style={{ position: "relative" }}>
+      <div className="relative flex justify-end px-2.5 pb-2.5">
+        <div className="relative">
           <button
             onClick={(e) => {
               e.stopPropagation();
               setPickerOpen((o) => !o);
             }}
-            style={{
-              ...statusPillButtonStyle,
-              background: st.bg,
-              color: st.color,
-            }}
+            className={statusPillButtonClass}
+            style={{ background: st.bg, color: st.color }}
           >
             {st.label} ▾
           </button>
@@ -345,11 +240,7 @@ function LessonRow({
               <div
                 role="button"
                 tabIndex={0}
-                style={{
-                  position: "fixed",
-                  inset: 0,
-                  zIndex: 49,
-                }}
+                className="fixed inset-0 z-[49]"
                 onClick={() => setPickerOpen(false)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -457,33 +348,10 @@ export function LessonsPanel({
   };
 
   return (
-    <div
-      style={{
-        borderRadius: 10,
-        border: "1px solid var(--border)",
-        background: "var(--surface)",
-        overflow: "hidden",
-      }}
-    >
+    <div className="overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--surface)]">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "12px 14px",
-          borderBottom: "1px solid var(--border)",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 12,
-            color: "var(--text3)",
-            fontWeight: 700,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-          }}
-        >
+      <div className="flex items-center justify-between border-b border-[var(--border)] px-3.5 py-3">
+        <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--text3)]">
           Lessons
         </span>
         <button
@@ -492,11 +360,12 @@ export function LessonsPanel({
             if (!next) resetForm();
             dispatchUi({ adding: next });
           }}
-          style={{
-            ...addLessonButtonStyle,
-            cursor: onAddLesson ? "pointer" : "not-allowed",
-            opacity: onAddLesson ? 1 : 0.55,
-          }}
+          className={cn(
+            addLessonButtonClass,
+            onAddLesson
+              ? "cursor-pointer opacity-100"
+              : "cursor-not-allowed opacity-[0.55]",
+          )}
           disabled={!onAddLesson}
         >
           + Add
@@ -504,32 +373,21 @@ export function LessonsPanel({
       </div>
 
       {adding && onAddLesson && (
-        <div
-          style={{
-            padding: "12px 14px",
-            borderBottom: "1px solid var(--border)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            background: "var(--surface2)",
-          }}
-        >
+        <div className="flex flex-col gap-2.5 border-b border-[var(--border)] bg-[var(--surface2)] px-3.5 py-3">
           <textarea
             value={lesson}
             onChange={(e) => dispatchForm({ lesson: e.target.value })}
             placeholder="Add the lesson to track"
             rows={3}
-            style={inputStyle}
+            className={inputClass}
           />
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
-          >
+          <div className="grid grid-cols-2 gap-2">
             <select
               value={severity}
               onChange={(e) =>
                 dispatchForm({ severity: e.target.value as LessonSeverity })
               }
-              style={inputStyle}
+              className={inputClass}
             >
               {LESSON_SEVERITIES.map((value) => (
                 <option key={value} value={value}>
@@ -542,7 +400,7 @@ export function LessonsPanel({
               onChange={(e) =>
                 dispatchForm({ category: e.target.value as LessonCategory })
               }
-              style={inputStyle}
+              className={inputClass}
             >
               {LESSON_CATEGORIES.map((value) => (
                 <option key={value} value={value}>
@@ -556,26 +414,18 @@ export function LessonsPanel({
             onChange={(e) => dispatchForm({ proposedFix: e.target.value })}
             placeholder="Optional proposed fix"
             rows={2}
-            style={inputStyle}
+            className={inputClass}
           />
           {error && (
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--color-error)",
-                lineHeight: 1.5,
-              }}
-            >
-              {error}
-            </div>
+            <div className="text-[12px] leading-normal text-error">{error}</div>
           )}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <div className="flex justify-end gap-2">
             <button
               onClick={() => {
                 resetForm();
                 dispatchUi({ adding: false });
               }}
-              style={secondaryButtonStyle}
+              className={secondaryButtonClass}
               disabled={submitting}
             >
               Cancel
@@ -584,7 +434,7 @@ export function LessonsPanel({
               onClick={() => {
                 void submitLesson();
               }}
-              style={primaryButtonStyle}
+              className={primaryButtonClass}
               disabled={submitting}
             >
               {submitting ? "Saving..." : "Save Lesson"}
@@ -594,23 +444,9 @@ export function LessonsPanel({
       )}
 
       {/* Lesson list */}
-      <div
-        style={{
-          padding: "10px 12px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
+      <div className="flex flex-col gap-2 px-3 py-2.5">
         {lessons.length === 0 ? (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "20px 0",
-              fontSize: 12,
-              color: "var(--text3)",
-            }}
-          >
+          <div className="py-5 text-center text-[12px] text-[var(--text3)]">
             No lessons extracted.
           </div>
         ) : (
@@ -622,35 +458,3 @@ export function LessonsPanel({
     </div>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "8px 10px",
-  borderRadius: 6,
-  border: "1px solid var(--border)",
-  background: "var(--surface)",
-  color: "var(--text1)",
-  fontSize: 12,
-  fontFamily: "var(--font-sans)",
-  resize: "vertical" as const,
-};
-
-const secondaryButtonStyle = {
-  padding: "7px 11px",
-  borderRadius: 6,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text2)",
-  fontSize: 12,
-  cursor: "pointer",
-};
-
-const primaryButtonStyle = {
-  padding: "7px 11px",
-  borderRadius: 6,
-  border: "1px solid var(--color-info-border)",
-  background: "var(--color-info-dim)",
-  color: "var(--color-info)",
-  fontSize: 12,
-  cursor: "pointer",
-};

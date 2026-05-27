@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   Badge,
   Card,
@@ -15,6 +15,7 @@ import { useTradeStore } from "@/store/tradeStore";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { PendingApprovalsPanel } from "@/components/approvals/PendingApprovalsPanel";
+import { cn } from "@/lib/utils";
 import type {
   ApprovalSummary,
   DashboardStats,
@@ -113,49 +114,35 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
     },
   ];
   return (
-    <div style={ds.strip}>
+    <div className={stripClass}>
       {items.map((item, i) => (
         <Fragment key={item.label}>
           {i > 0 && <Divider vertical />}
-          <div style={ds.stripItem}>
-            <span style={ds.stripLabel}>{item.label}</span>
+          <div className={stripItemClass}>
+            <span className={stripLabelClass}>{item.label}</span>
             <span
-              style={{
-                ...ds.stripValue,
-                color: item.valColor || "var(--text1)",
-              }}
+              className={stripValueClass}
+              style={item.valColor ? { color: item.valColor } : undefined}
             >
               {item.value}
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="flex items-center gap-2">
               <span
-                style={{
-                  fontSize: 12,
-                  color: item.subColor || "var(--text3)",
-                  fontFamily: "var(--font-mono)",
-                }}
+                className="font-mono text-[12px]"
+                style={{ color: item.subColor || "var(--text3)" }}
               >
                 {item.sub}
               </span>
               {item.meter != null && (
-                <div
-                  style={{
-                    width: 52,
-                    height: 3,
-                    background: "var(--surface3)",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                  }}
-                >
+                <div className="h-[3px] w-[52px] overflow-hidden rounded-[2px] bg-[var(--surface3)]">
                   <div
+                    className="h-full rounded-[2px]"
                     style={{
-                      height: "100%",
                       width: `${Math.min(item.meter * 100, 100)}%`,
                       background:
                         item.meter > 0.8
                           ? "var(--color-error)"
                           : "var(--accent)",
-                      borderRadius: 2,
                     }}
                   />
                 </div>
@@ -191,34 +178,18 @@ const TradeRow = ({
           onClick();
         }
       }}
+      className={tradeRowClass}
       style={{
-        ...ds.tradeRow,
         background: selected ? "var(--surface2)" : "transparent",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-          <span
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 14,
-              fontWeight: 700,
-              color: "var(--text1)",
-              width: 46,
-            }}
-          >
+      <div className="flex items-center gap-2.5">
+        <div className="flex min-w-0 flex-col">
+          <span className="w-[46px] font-mono text-[14px] font-bold text-[var(--text1)]">
             {trade.instrumentSymbol}
           </span>
           {trade.instrumentDisplayName ? (
-            <span
-              style={{
-                fontSize: 12,
-                color: "var(--text3)",
-                maxWidth: 120,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
+            <span className="max-w-[120px] overflow-hidden text-ellipsis text-[12px] text-[var(--text3)]">
               {trade.instrumentDisplayName}
             </span>
           ) : null}
@@ -232,51 +203,41 @@ const TradeRow = ({
           {trade.side}
         </Badge>
       </div>
-      <span style={ds.trCell}>
+      <span className={trCellClass}>
         {trade.entry_price != null ? fmt.usd(trade.entry_price) : "—"}
       </span>
-      <span style={ds.trCell}>
+      <span className={trCellClass}>
         {isOpen && trade.current_price != null
           ? fmt.usd(trade.current_price)
           : "—"}
       </span>
       <span
-        style={{
-          ...ds.trCell,
-          color: pos ? "var(--color-success)" : "var(--color-error)",
-          fontWeight: 600,
-        }}
+        className={cn(
+          trCellClass,
+          "font-semibold",
+          pos ? "text-success" : "text-error",
+        )}
       >
         {pnl != null ? fmt.pnl(pnl) : "—"}
       </span>
-      <span style={ds.trCell}>{fmt.usd(trade.position_size_usd, 0)}</span>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div
-          style={{
-            width: 36,
-            height: 3,
-            background: "var(--surface3)",
-            borderRadius: 2,
-            overflow: "hidden",
-          }}
-        >
+      <span className={trCellClass}>{fmt.usd(trade.position_size_usd, 0)}</span>
+      <div className="flex items-center gap-2">
+        <div className="h-[3px] w-9 overflow-hidden rounded-[2px] bg-[var(--surface3)]">
           <div
+            className="h-full rounded-[2px] bg-[var(--accent)]"
             style={{
-              height: "100%",
               width: `${(trade.confidence_score ?? 0) * 100}%`,
-              background: "var(--accent)",
-              borderRadius: 2,
             }}
           />
         </div>
-        <span style={{ ...ds.trCell, width: 28 }}>
+        <span className={cn(trCellClass, "w-7")}>
           {Math.round((trade.confidence_score ?? 0) * 100)}%
         </span>
       </div>
       <Badge variant={isOpen ? "success" : "default"} size="sm">
         {trade.status}
       </Badge>
-      <span style={{ ...ds.trCell, color: "var(--text3)" }}>
+      <span className={cn(trCellClass, "text-[var(--text3)]")}>
         {trade.opened_at ? fmt.time(trade.opened_at) : "—"}
       </span>
     </div>
@@ -294,18 +255,10 @@ const TradesPanel = () => {
   });
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        minHeight: 0,
-        minWidth: 0,
-      }}
-    >
-      <div style={ds.tradesScroll}>
-        <div style={ds.tradesTableMin}>
-          <div style={ds.trHead}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className={tradesScrollClass}>
+        <div className={tradesTableMinClass}>
+          <div className={trHeadClass}>
             {[
               "Instrument",
               "Entry",
@@ -319,7 +272,7 @@ const TradesPanel = () => {
               <span key={h}>{h}</span>
             ))}
           </div>
-          <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {sorted.map((t) => (
               <TradeRow
                 key={t.id}
@@ -338,128 +291,69 @@ const TradesPanel = () => {
 const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
   const ap = ev.agent_type ? AGENT_PALETTE[ev.agent_type] : null;
   return (
-    <div style={{ display: "flex", gap: 0, position: "relative" }}>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          width: 32,
-          flexShrink: 0,
-          paddingTop: 14,
-        }}
-      >
+    <div className="relative flex gap-0">
+      <div className="flex w-8 shrink-0 flex-col items-center pt-3.5">
         <div
+          className="h-2 w-2 shrink-0 rounded-full border-2 border-[var(--surface)]"
           style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
             background: ap ? ap.color : LEVEL_COLOR[ev.level],
-            flexShrink: 0,
-            border: "2px solid var(--surface)",
             boxShadow: ap ? `0 0 6px ${ap.color}60` : "none",
           }}
         />
         {!isLast && (
-          <div
-            style={{
-              width: 1,
-              flex: 1,
-              minHeight: 8,
-              background: "var(--border)",
-              marginTop: 4,
-            }}
-          />
+          <div className="mt-1 min-h-2 w-px flex-1 bg-[var(--border)]" />
         )}
       </div>
-      <div
-        style={{ flex: 1, paddingBottom: 10, paddingRight: 16, minWidth: 0 }}
-      >
+      <div className="min-w-0 flex-1 pr-4 pb-2.5">
         <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 7,
-            marginBottom: ap ? 6 : 0,
-            paddingTop: 10,
-          }}
+          className={cn("flex items-center gap-[7px] pt-2.5", ap && "mb-1.5")}
         >
           {ap ? (
             <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: ap.color,
-                letterSpacing: "0.02em",
-              }}
+              className="text-[12px] font-semibold tracking-[0.02em]"
+              style={{ color: ap.color }}
             >
               {ap.label}
             </span>
           ) : (
             <span
-              style={{
-                fontSize: 12,
-                color: LEVEL_COLOR[ev.level],
-                fontFamily: "var(--font-mono)",
-                fontWeight: 600,
-                letterSpacing: "0.04em",
-              }}
+              className="font-mono text-[12px] font-semibold tracking-[0.04em]"
+              style={{ color: LEVEL_COLOR[ev.level] }}
             >
               {ev.level}
             </span>
           )}
           {ev.trade_id && (
-            <span
-              style={{
-                fontSize: 12,
-                color: "var(--text3)",
-                fontFamily: "var(--font-mono)",
-                background: "var(--surface3)",
-                padding: "1px 6px",
-                borderRadius: 4,
-              }}
-            >
+            <span className="rounded-[4px] bg-[var(--surface3)] px-1.5 py-px font-mono text-[12px] text-[var(--text3)]">
               {ev.trade_id}
             </span>
           )}
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--text3)",
-              fontFamily: "var(--font-mono)",
-              marginLeft: "auto",
-            }}
-          >
+          <span className="ml-auto font-mono text-[12px] text-[var(--text3)]">
             {fmt.time(ev.created_at)}
           </span>
         </div>
         {ap ? (
           <div
+            className="rounded-r-lg py-2 px-2.5"
             style={{
               background: ap.bg,
               borderLeft: `2px solid ${ap.color}`,
-              borderRadius: "0 8px 8px 0",
-              padding: "8px 10px",
             }}
           >
-            <span
-              style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.55 }}
-            >
+            <span className="text-[12px] leading-[1.55] text-[var(--text2)]">
               {ev.message}
             </span>
           </div>
         ) : (
           <span
-            style={{
-              fontSize: 12,
-              color:
-                ev.level === "WARN"
-                  ? "var(--color-warning)"
-                  : ev.level === "ERROR"
-                    ? "var(--color-error)"
-                    : "var(--text3)",
-              lineHeight: 1.4,
-            }}
+            className={cn(
+              "text-[12px] leading-[1.4]",
+              ev.level === "WARN" && "text-warning",
+              ev.level === "ERROR" && "text-error",
+              ev.level !== "WARN" &&
+                ev.level !== "ERROR" &&
+                "text-[var(--text3)]",
+            )}
           >
             {ev.message}
           </span>
@@ -520,27 +414,25 @@ export const Dashboard = () => {
 
   if (!stats) {
     return (
-      <div
-        style={{ ...ds.page, padding: "36px 40px", justifyContent: "center" }}
-      >
-        <div style={{ color: "var(--text3)", fontSize: 14 }}>Loading…</div>
+      <div className={cn(pageClass, "justify-center px-10 py-9")}>
+        <div className="text-[14px] text-[var(--text3)]">Loading…</div>
       </div>
     );
   }
 
   return (
-    <div style={ds.page}>
-      <div style={ds.headerRow}>
-        <div style={ds.headerTitleBlock}>
-          <div style={ds.headerEyebrow}>Control room</div>
-          <h1 style={ds.headerH1}>Dashboard</h1>
-          <p style={ds.headerSub}>
+    <div className={pageClass}>
+      <div className={headerRowClass}>
+        <div className={headerTitleBlockClass}>
+          <div className={headerEyebrowClass}>Control room</div>
+          <h1 className={headerH1Class}>Dashboard</h1>
+          <p className={headerSubClass}>
             {viewMode === "global"
               ? "Global workspace metrics"
               : "Focused session metrics"}
           </p>
         </div>
-        <div style={ds.headerChipWrap}>
+        <div className={headerChipWrapClass}>
           <WorkspaceContextChip
             onSwitchSession={async (id) => {
               await api.focusSession(id);
@@ -554,7 +446,7 @@ export const Dashboard = () => {
         </div>
       </div>
       {viewMode === "global" && (
-        <div style={ds.archivedToggle}>
+        <div className={archivedToggleClass}>
           <Checkbox
             checked={preferences?.globalIncludeArchived ?? false}
             onCheckedChange={async (checked) => {
@@ -568,7 +460,7 @@ export const Dashboard = () => {
         </div>
       )}
       <StatStrip stats={stats} />
-      <div style={ds.approvalsWrap}>
+      <div className={approvalsWrapClass}>
         <PendingApprovalsPanel
           approvals={approvalList.approvals}
           workspaceViewMode={approvalList.workspaceViewMode}
@@ -577,28 +469,11 @@ export const Dashboard = () => {
         />
       </div>
 
-      <div style={ds.grid}>
-        <Card
-          style={{
-            flex: "1 1 320px",
-            minWidth: 0,
-            minHeight: 0,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            padding: "20px 0 0",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 24px 16px",
-            }}
-          >
+      <div className={gridClass}>
+        <Card className={tradesCardClass}>
+          <div className="flex items-center justify-between px-6 pb-4">
             <SectionTitle>Trades</SectionTitle>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="flex gap-2">
               <Badge variant="success" size="sm">
                 {trades.filter((t) => t.status === "open").length} open
               </Badge>
@@ -610,22 +485,15 @@ export const Dashboard = () => {
           <TradesPanel />
         </Card>
 
-        <Card style={ds.autopsySidebar}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "0 20px 14px",
-            }}
-          >
+        <Card className={autopsySidebarClass}>
+          <div className="flex items-center justify-between px-5 pb-3.5">
             <SectionTitle>Agent Feed</SectionTitle>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div className="flex items-center gap-[5px]">
               <Dot color="var(--color-success)" pulse size={6} />
-              <span style={{ fontSize: 12, color: "var(--text3)" }}>live</span>
+              <span className="text-[12px] text-[var(--text3)]">live</span>
             </div>
           </div>
-          <div style={{ overflowY: "auto", flex: 1, padding: "4px 0 8px 8px" }}>
+          <div className="flex-1 overflow-y-auto py-1 pr-0 pb-2 pl-2">
             {events.map((ev, i) => (
               <FeedRow key={ev.id} ev={ev} isLast={i === events.length - 1} />
             ))}
@@ -636,158 +504,60 @@ export const Dashboard = () => {
   );
 };
 
-const ds: Record<string, CSSProperties> = {
-  page: {
-    display: "flex",
-    flexDirection: "column",
-    height: "100%",
-    minHeight: 0,
-    overflow: "hidden",
-    gap: 0,
-    padding: "28px 40px 32px",
-    boxSizing: "border-box",
-  },
-  headerRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 16,
-    marginBottom: 18,
-    flexShrink: 0,
-    minWidth: 0,
-  },
-  headerTitleBlock: { minWidth: 0, flex: "1 1 auto" },
-  headerEyebrow: {
-    fontSize: 12,
-    letterSpacing: "0.16em",
-    textTransform: "uppercase",
-    color: "var(--text3)",
-    fontWeight: 600,
-    marginBottom: 6,
-  },
-  headerH1: {
-    margin: 0,
-    fontSize: 26,
-    fontWeight: 700,
-    color: "var(--text1)",
-    letterSpacing: "-0.02em",
-  },
-  headerSub: {
-    margin: "6px 0 0",
-    fontSize: 13,
-    color: "var(--text2)",
-    lineHeight: 1.45,
-    maxWidth: 520,
-  },
-  headerChipWrap: { flexShrink: 0, paddingTop: 2 },
-  archivedToggle: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    color: "var(--text2)",
-    fontSize: 12,
-    marginBottom: 12,
-    flexShrink: 0,
-  },
-  strip: {
-    display: "flex",
-    alignItems: "stretch",
-    borderRadius: 12,
-    border: "1px solid var(--border)",
-    margin: "0 0 4px",
-    background: "linear-gradient(180deg, rgba(18,26,36,0.55), var(--surface))",
-    flexShrink: 0,
-    overflowX: "auto",
-    overscrollBehaviorX: "contain",
-    WebkitOverflowScrolling: "touch",
-  },
-  stripItem: {
-    flex: "1 0 120px",
-    display: "flex",
-    flexDirection: "column",
-    gap: 5,
-    padding: "18px 20px",
-    minWidth: 0,
-  },
-  stripLabel: {
-    fontSize: 12,
-    color: "var(--text3)",
-    textTransform: "uppercase",
-    letterSpacing: "0.08em",
-    fontWeight: 600,
-  },
-  stripValue: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 28,
-    fontWeight: 700,
-    color: "var(--text1)",
-    lineHeight: 1.1,
-  },
-  approvalsWrap: { padding: "0 0 14px", flexShrink: 0, minWidth: 0 },
-  grid: {
-    flex: 1,
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 16,
-    overflow: "hidden",
-    minHeight: 0,
-    minWidth: 0,
-    padding: "8px 0 0",
-    alignContent: "stretch",
-  },
-  tradesScroll: {
-    display: "flex",
-    flexDirection: "column",
-    overflowX: "auto",
-    overscrollBehaviorX: "contain",
-    flex: 1,
-    minHeight: 0,
-    minWidth: 0,
-  },
-  tradesTableMin: {
-    display: "flex",
-    flexDirection: "column",
-    flex: 1,
-    minWidth: 720,
-    minHeight: 0,
-  },
-  trHead: {
-    display: "grid",
-    gridTemplateColumns: "130px 90px 90px 90px 70px 110px 70px 60px",
-    padding: "0 24px 10px",
-    gap: 0,
-    borderBottom: "1px solid var(--border)",
-    fontSize: 12,
-    color: "var(--text3)",
-    textTransform: "uppercase",
-    letterSpacing: "0.07em",
-    fontWeight: 600,
-    flexShrink: 0,
-  },
-  tradeRow: {
-    display: "grid",
-    gridTemplateColumns: "130px 90px 90px 90px 70px 110px 70px 60px",
-    padding: "11px 24px",
-    gap: 0,
-    alignItems: "center",
-    cursor: "pointer",
-    borderBottom: "1px solid var(--border)",
-    transition: "background 0.1s",
-  },
-  trCell: {
-    fontFamily: "var(--font-mono)",
-    fontSize: 13,
-    color: "var(--text2)",
-  },
-  autopsySidebar: {
-    flex: "0 1 320px",
-    width: "clamp(280px, 32vw, 340px)",
-    maxWidth: "100%",
-    minWidth: 0,
-    minHeight: 0,
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-    padding: "20px 0 0",
-  },
-};
+const pageClass =
+  "box-border flex h-full min-h-0 flex-col gap-0 overflow-hidden px-10 pt-7 pb-8";
+
+const headerRowClass =
+  "mb-[18px] flex min-w-0 shrink-0 items-start justify-between gap-4";
+
+const headerTitleBlockClass = "min-w-0 flex-[1_1_auto]";
+
+const headerEyebrowClass =
+  "mb-1.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-[var(--text3)]";
+
+const headerH1Class =
+  "m-0 text-[26px] font-bold tracking-[-0.02em] text-[var(--text1)]";
+
+const headerSubClass =
+  "mt-1.5 mb-0 max-w-[520px] text-[13px] leading-[1.45] text-[var(--text2)]";
+
+const headerChipWrapClass = "shrink-0 pt-0.5";
+
+const archivedToggleClass =
+  "mb-3 flex shrink-0 items-center gap-2 text-[12px] text-[var(--text2)]";
+
+const stripClass =
+  "mb-1 flex shrink-0 items-stretch overflow-x-auto overscroll-x-contain rounded-xl border border-[var(--border)] bg-[linear-gradient(180deg,rgba(18,26,36,0.55),var(--surface))] [-webkit-overflow-scrolling:touch]";
+
+const stripItemClass =
+  "flex min-w-0 flex-[1_0_120px] flex-col gap-[5px] px-5 py-[18px]";
+
+const stripLabelClass =
+  "text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]";
+
+const stripValueClass =
+  "font-mono text-[28px] font-bold leading-[1.1] text-[var(--text1)]";
+
+const approvalsWrapClass = "min-w-0 shrink-0 pb-3.5";
+
+const gridClass =
+  "flex min-h-0 min-w-0 flex-1 flex-wrap content-stretch gap-4 overflow-hidden pt-2";
+
+const tradesScrollClass =
+  "flex min-h-0 min-w-0 flex-1 flex-col overflow-x-auto overscroll-x-contain";
+
+const tradesTableMinClass = "flex min-h-0 min-w-[720px] flex-1 flex-col";
+
+const trHeadClass =
+  "grid shrink-0 grid-cols-[130px_90px_90px_90px_70px_110px_70px_60px] gap-0 border-b border-[var(--border)] px-6 pb-2.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-[var(--text3)]";
+
+const tradeRowClass =
+  "grid cursor-pointer grid-cols-[130px_90px_90px_90px_70px_110px_70px_60px] items-center gap-0 border-b border-[var(--border)] px-6 py-[11px] transition-[background] duration-100";
+
+const trCellClass = "font-mono text-[13px] text-[var(--text2)]";
+
+const tradesCardClass =
+  "flex min-h-0 min-w-0 flex-[1_1_320px] flex-col overflow-hidden px-0 pt-5 pb-0";
+
+const autopsySidebarClass =
+  "flex min-h-0 w-[clamp(280px,32vw,340px)] max-w-full min-w-0 flex-[0_1_320px] flex-col overflow-hidden px-0 pt-5 pb-0";

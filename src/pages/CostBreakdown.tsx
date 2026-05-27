@@ -8,6 +8,7 @@ import {
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import type { EventSourceType } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/sessionStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
@@ -23,22 +24,15 @@ const Bar = ({
   h?: number;
 }) => (
   <div
-    style={{
-      height: h,
-      background: "var(--surface3)",
-      borderRadius: h,
-      overflow: "hidden",
-    }}
+    className="overflow-hidden bg-[var(--surface3)]"
+    style={{ height: h, borderRadius: h }}
   >
     <div
+      className="h-full w-full origin-left transition-transform duration-500 ease-in-out"
       style={{
-        height: "100%",
-        width: "100%",
         background: color,
         borderRadius: h,
         transform: `scaleX(${Math.min(value / max, 1)})`,
-        transformOrigin: "left center",
-        transition: "transform 0.5s ease",
       }}
     />
   </div>
@@ -57,7 +51,7 @@ export const CostBreakdownPage = () => {
   if (!d || !stats)
     return (
       <PageShell>
-        <div style={{ color: "var(--text3)" }}>Loading…</div>
+        <div className="text-[var(--text3)]">Loading…</div>
       </PageShell>
     );
 
@@ -74,25 +68,16 @@ export const CostBreakdownPage = () => {
   return (
     <PageShell>
       <div>
-        <h1
-          style={{
-            fontSize: 22,
-            fontWeight: 600,
-            color: "var(--text1)",
-            margin: 0,
-          }}
-        >
+        <h1 className="m-0 text-[22px] font-semibold text-[var(--text1)]">
           API Usage
         </h1>
-        <p style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>
+        <p className="mt-1 text-[13px] text-[var(--text3)]">
           Token consumption and cost tracking by agent
         </p>
       </div>
 
-      <div style={{ display: "flex", gap: 16 }}>
-        <div
-          style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}
-        >
+      <div className="flex gap-4">
+        <div className={columnClass}>
           <BudgetCard
             total={d.total}
             budget={budget}
@@ -102,9 +87,7 @@ export const CostBreakdownPage = () => {
           <CostPerTradeCard rows={d.by_trade} tradeMax={tradeMax} />
         </div>
 
-        <div
-          style={{ flex: 1, display: "flex", flexDirection: "column", gap: 14 }}
-        >
+        <div className={columnClass}>
           <DailyHistoryCard
             rows={d.daily_history}
             histMax={histMax}
@@ -122,9 +105,7 @@ export const CostBreakdownPage = () => {
 };
 
 const EmptyState = ({ text }: { text: string }) => (
-  <div style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.5 }}>
-    {text}
-  </div>
+  <div className="text-[12px] leading-normal text-[var(--text3)]">{text}</div>
 );
 
 type AgentRow = { name: string; tokens: number; cost: number };
@@ -150,15 +131,8 @@ const BudgetCard = ({
   return (
     <Card>
       <SectionTitle>Today's Budget</SectionTitle>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 28,
-          marginTop: 18,
-        }}
-      >
-        <div style={{ position: "relative", flexShrink: 0 }}>
+      <div className="mt-[18px] flex items-center gap-7">
+        <div className="relative shrink-0">
           <svg width={108} height={108} viewBox="0 0 108 108">
             <circle
               cx={54}
@@ -179,7 +153,7 @@ const BudgetCard = ({
               strokeDashoffset={`${2 * Math.PI * 44 * (1 - pct / 100)}`}
               strokeLinecap="round"
               transform="rotate(-90 54 54)"
-              style={{ transition: "stroke-dashoffset 0.7s ease" }}
+              className="transition-[stroke-dashoffset] duration-700 ease-in-out"
             />
             <text
               x={54}
@@ -204,53 +178,20 @@ const BudgetCard = ({
             </text>
           </svg>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="flex flex-col gap-3.5">
           <div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--text3)",
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-                marginBottom: 4,
-              }}
-            >
+            <div className="mb-1 text-[12px] uppercase tracking-[0.07em] text-[var(--text3)]">
               Spent today
             </div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 32,
-                fontWeight: 700,
-                color: "var(--text1)",
-                lineHeight: 1,
-              }}
-            >
+            <div className="font-mono text-[32px] font-bold leading-none text-[var(--text1)]">
               {fmt.usd(total)}
             </div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 13,
-                color: "var(--text3)",
-                marginTop: 4,
-              }}
-            >
+            <div className="mt-1 font-mono text-[13px] text-[var(--text3)]">
               of {fmt.usd(budget)} budget
             </div>
           </div>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 10px",
-              background: "var(--color-success-dim)",
-              border: "1px solid var(--color-success-border)",
-              borderRadius: 8,
-            }}
-          >
-            <span style={{ fontSize: 12, color: "var(--color-success)" }}>
+          <div className="inline-flex items-center gap-1.5 rounded-lg border border-success-border bg-success-dim px-2.5 py-1.5">
+            <span className="text-[12px] text-success">
               ↓ {fmt.usd(cacheSavingsUsd)} saved via prompt cache
             </span>
           </div>
@@ -277,46 +218,17 @@ const CostByAgentCard = ({
 }) => (
   <Card>
     <SectionTitle>Cost by Agent</SectionTitle>
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-        marginTop: 18,
-      }}
-    >
+    <div className="mt-[18px] flex flex-col gap-4">
       {rows.length > 0 ? (
         rows.map((a) => (
           <div key={a.name}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 7,
-              }}
-            >
+            <div className="mb-[7px] flex items-center justify-between">
               <AgentLabel type={a.name as EventSourceType} />
-              <div style={{ display: "flex", gap: 14 }}>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--text3)",
-                  }}
-                >
+              <div className="flex gap-3.5">
+                <span className="font-mono text-[12px] text-[var(--text3)]">
                   {fmt.tokens(a.tokens)} tok
                 </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 12,
-                    color: "var(--text2)",
-                    fontWeight: 600,
-                    width: 38,
-                    textAlign: "right",
-                  }}
-                >
+                <span className="w-[38px] text-right font-mono text-[12px] font-semibold text-[var(--text2)]">
                   {fmt.usd(a.cost)}
                 </span>
               </div>
@@ -345,43 +257,18 @@ const CostPerTradeCard = ({
 }) => (
   <Card>
     <SectionTitle>Cost per Trade</SectionTitle>
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 10,
-        marginTop: 16,
-      }}
-    >
+    <div className="mt-4 flex flex-col gap-2.5">
       {rows.length > 0 ? (
         rows.map((t) => (
           <div
             key={`${t.instrumentSymbol}:${t.cost}`}
-            style={{ display: "flex", alignItems: "center", gap: 12 }}
+            className="flex items-center gap-3"
           >
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "var(--text1)",
-                width: 48,
-                flexShrink: 0,
-              }}
-            >
+            <span className="w-12 shrink-0 font-mono text-[13px] font-bold text-[var(--text1)]">
               {t.instrumentSymbol}
             </span>
             <Bar value={t.cost} max={tradeMax} h={4} />
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                color: "var(--text2)",
-                width: 38,
-                textAlign: "right",
-                flexShrink: 0,
-              }}
-            >
+            <span className="w-[38px] shrink-0 text-right font-mono text-[12px] text-[var(--text2)]">
               {fmt.usd(t.cost)}
             </span>
           </div>
@@ -404,15 +291,7 @@ const DailyHistoryCard = ({
 }) => (
   <Card>
     <SectionTitle>7-Day History</SectionTitle>
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        alignItems: "flex-end",
-        height: 130,
-        marginTop: 20,
-      }}
-    >
+    <div className="mt-5 flex h-[130px] items-end gap-2">
       {rows.length > 0 ? (
         rows.map((h) => {
           const barH = histMax > 0 ? (h.cost / histMax) * 100 : 0;
@@ -422,50 +301,30 @@ const DailyHistoryCard = ({
           return (
             <div
               key={h.date}
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
-              }}
+              className="flex flex-1 flex-col items-center gap-1.5"
             >
               <span
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 12,
-                  color: today ? "var(--accent)" : "var(--text3)",
-                  height: 14,
-                }}
+                className={cn(
+                  "h-3.5 font-mono text-[12px]",
+                  today ? "text-[var(--accent)]" : "text-[var(--text3)]",
+                )}
               >
                 {h.cost > 0 ? fmt.usd(h.cost) : ""}
               </span>
-              <div
-                style={{
-                  width: "100%",
-                  flex: 1,
-                  display: "flex",
-                  alignItems: "flex-end",
-                }}
-              >
+              <div className="flex w-full flex-1 items-end">
                 <div
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    background: today ? "var(--accent)" : "var(--surface3)",
-                    borderRadius: "4px 4px 0 0",
-                    transform: `scaleY(${barScale})`,
-                    transformOrigin: "center bottom",
-                    transition: "transform 0.5s",
-                  }}
+                  className={cn(
+                    "h-full w-full origin-bottom rounded-t-[4px] transition-transform duration-500",
+                    today ? "bg-[var(--accent)]" : "bg-[var(--surface3)]",
+                  )}
+                  style={{ transform: `scaleY(${barScale})` }}
                 />
               </div>
               <span
-                style={{
-                  fontSize: 12,
-                  color: today ? "var(--accent)" : "var(--text3)",
-                  fontFamily: "var(--font-mono)",
-                }}
+                className={cn(
+                  "font-mono text-[12px]",
+                  today ? "text-[var(--accent)]" : "text-[var(--text3)]",
+                )}
               >
                 {label}
               </span>
@@ -476,24 +335,9 @@ const DailyHistoryCard = ({
         <EmptyState text="No AI spend recorded in the last 7 days." />
       )}
     </div>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        marginTop: 14,
-        paddingTop: 14,
-        borderTop: "1px solid var(--border)",
-      }}
-    >
-      <span style={{ fontSize: 12, color: "var(--text3)" }}>7-day total</span>
-      <span
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: 15,
-          fontWeight: 700,
-          color: "var(--text1)",
-        }}
-      >
+    <div className="mt-3.5 flex justify-between border-t border-[var(--border)] pt-3.5">
+      <span className="text-[12px] text-[var(--text3)]">7-day total</span>
+      <span className="font-mono text-[15px] font-bold text-[var(--text1)]">
         {fmt.usd(rows.reduce((s, h) => s + h.cost, 0))}
       </span>
     </div>
@@ -533,34 +377,17 @@ const ProjectionsCard = ({
   return (
     <Card>
       <SectionTitle>Projections</SectionTitle>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 0,
-          marginTop: 14,
-        }}
-      >
+      <div className="mt-3.5 flex flex-col">
         {rows.map(([k, v], i) => (
           <div
             key={k}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              padding: "11px 0",
-              borderBottom:
-                i < rows.length - 1 ? "1px solid var(--border)" : "none",
-            }}
+            className={cn(
+              "flex justify-between py-[11px]",
+              i < rows.length - 1 && "border-b border-[var(--border)]",
+            )}
           >
-            <span style={{ fontSize: 13, color: "var(--text3)" }}>{k}</span>
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 13,
-                color: "var(--text2)",
-                fontWeight: 600,
-              }}
-            >
+            <span className="text-[13px] text-[var(--text3)]">{k}</span>
+            <span className="font-mono text-[13px] font-semibold text-[var(--text2)]">
               {v}
             </span>
           </div>
@@ -579,3 +406,5 @@ function formatHistoryDate(value: string): string {
     timeZone: "UTC",
   });
 }
+
+const columnClass = "flex flex-1 flex-col gap-3.5";
