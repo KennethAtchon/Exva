@@ -1,6 +1,6 @@
 # Pipeline Runtime - Architecture Design Document
 
-> **Last updated:** 2026-05-23
+> **Last updated:** 2026-05-25
 > **Scope:** Main-process AI pipeline execution: registered analyses, AI phases, worker definitions, prompt assembly, tool construction, spend tracking, signal aggregation, selector caching, and trace persistence. Excludes session lifecycle, renderer UI, broker order placement, and trade monitoring except where those systems call the pipeline.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
 > **Related docs:** `docs/architecture/ai-runtime.md`, `docs/folder-structure.md`, `electron/main/services/pipeline/README.md`
@@ -152,7 +152,7 @@ graph LR
 | Instrument analysis interpreter | Sequential trade-analysis step execution and optional `runStep` wrapper                                                                                   | `electron/main/services/pipeline/analysis/interpreter.ts`                           |
 | Worker executor                 | Provider/model resolution, prompt construction, tool construction, provider call, output validation, trace assembly                                       | `electron/main/services/pipeline/execution/worker-executor.ts`                      |
 | Prompt builder                  | System/user message assembly from inline prompt, trusted strategy facts, strategy guidance, worker guidance, engine results, task JSON, and sandbox block | `electron/main/services/pipeline/prompting/worker-prompt-builder.ts`                |
-| Worker tools                    | Runtime creation of `search_web`, `fetch_url`, `search_reddit`, `get_trending_symbols`, `get_quote`, `get_ohlcv`, `get_news`, and terminal submit tools   | `electron/main/services/pipeline/worker-tools/`                                     |
+| Worker tools                    | Runtime creation of `search_web`, `fetch_url`, `get_trending_symbols`, `get_quote`, `get_ohlcv`, and terminal submit tools                                | `electron/main/services/pipeline/worker-tools/`                                     |
 | Trade-cycle wiring              | `default-trade-cycle` plan, declarative stage table, trade-engine input builders, analysis registration                                                   | `electron/main/services/pipeline/implementations/trade/`, `implementations/inputs/` |
 | Signal processing               | Deterministic aggregation, scoring, risk filtering, execution profiles, signal registry                                                                   | `electron/main/services/signal/`                                                    |
 
@@ -319,7 +319,7 @@ Selector details are defined in `pipeline/definitions/selector.phase.ts`:
 - `inputEngineIds`: `selector-scope`, `broker-coverage`, `prediction-market-candidates` (registered in `engines/input/`)
 - `entryEngineIds`: `manual-shortlist` — matches when session uses manual shortlist or disables AI picker (`source: "manual_shortlist"`)
 - `cacheEngineId`: `selector-instrument-cache` — writes only when output has non-empty instruments (`shouldWrite` guard)
-- Discovery workers come from `selectorDiscoveryWorkersForMode(ctx.strategyContext.researchPosture.discoveryMode)`; `trend_scan` uses web/reddit/trend scouts, `event_contract_scan` uses event scouts
+- Discovery workers come from `selectorDiscoveryWorkersForMode(ctx.strategyContext.researchPosture.discoveryMode)`; `trend_scan` uses web and trend scouts, `event_contract_scan` uses event scouts
 - Verification creates three workers per candidate: `market-validator:<symbol>`, `catalyst-extractor:<symbol>`, and `liquidity-gate:<symbol>`
 - `finalizeEngineIds`: `selector-risk-filter` then `selector-submission-builder`
 - `filterOutput()` caps results to effective session instrument classes and `maxConcurrentTrades`

@@ -62,6 +62,28 @@ CREATE TABLE `api_call_log` (
 --> statement-breakpoint
 CREATE INDEX `idx_api_call_log_session` ON `api_call_log` (`session_id`);--> statement-breakpoint
 CREATE INDEX `idx_api_call_log_created` ON `api_call_log` (`created_at`);--> statement-breakpoint
+CREATE TABLE `autopsy_lessons` (
+	`id` text PRIMARY KEY NOT NULL,
+	`autopsy_id` text NOT NULL,
+	`trade_id` text NOT NULL,
+	`session_id` text NOT NULL,
+	`lesson` text NOT NULL,
+	`severity` text DEFAULT 'medium' NOT NULL,
+	`category` text DEFAULT 'strategy' NOT NULL,
+	`proposed_fix` text DEFAULT '' NOT NULL,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`recurrence_count` integer DEFAULT 0 NOT NULL,
+	`created_at` text NOT NULL,
+	`updated_at` text NOT NULL,
+	`validated_at` text,
+	FOREIGN KEY (`autopsy_id`) REFERENCES `trade_autopsies`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`trade_id`) REFERENCES `trades`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `idx_autopsy_lessons_autopsy` ON `autopsy_lessons` (`autopsy_id`);--> statement-breakpoint
+CREATE INDEX `idx_autopsy_lessons_session` ON `autopsy_lessons` (`session_id`);--> statement-breakpoint
+CREATE INDEX `idx_autopsy_lessons_status` ON `autopsy_lessons` (`status`);--> statement-breakpoint
 CREATE TABLE `broker_accounts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -414,6 +436,11 @@ CREATE TABLE `trade_autopsies` (
 	`session_id` text NOT NULL,
 	`model_id` text NOT NULL,
 	`summary` text NOT NULL,
+	`summary_structured_json` text DEFAULT '{}' NOT NULL,
+	`phase_traces_json` text DEFAULT '[]' NOT NULL,
+	`quality_grade` text,
+	`quality_score` real,
+	`is_fallback` integer DEFAULT false NOT NULL,
 	`created_at` text NOT NULL,
 	`created_by` text DEFAULT 'user' NOT NULL,
 	FOREIGN KEY (`trade_id`) REFERENCES `trades`(`id`) ON UPDATE no action ON DELETE cascade,

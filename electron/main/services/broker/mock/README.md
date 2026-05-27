@@ -11,7 +11,7 @@ This folder gives Exva a broker that behaves like a market without touching mone
 - `placeOrder` stores orders in memory and can simulate partial fills, broker rejection, rate limiting, market-closed failures, and request timeouts.
 - `closeOrder` computes simple realized PnL from the stored entry price and a scenario-shaped close price, then removes the order from memory.
 - `getOhlcv` produces synthetic bars, including shaped clean-breakout behavior for scenario tests that need realistic technical inputs.
-- `mock-market-simulator.ts` maps each `MockScenarioKind` to adapter settings and companion fixtures for news, Reddit, trending symbols, web search, URL content, and primary symbols.
+- `mock-market-simulator.ts` maps each `MockScenarioKind` to adapter settings and companion fixtures for trending symbols, web search, URL content, and primary symbols.
 - Fixture files are part of the scenario contract. When adding a scenario, update the simulator config, expected outcome map, and the research fixtures together.
 
 ## Flow
@@ -21,7 +21,7 @@ flowchart TD
     Registry[BrokerRegistry mock account] --> Simulator[MockMarketSimulator.createAdapter]
     Simulator --> Scenario[MockScenarioKind config]
     Scenario --> Adapter[MockBrokerAdapter]
-    Fixtures[news/search/reddit/trending fixtures] --> Simulator
+    Fixtures[search/trending/url fixtures] --> Simulator
     Adapter --> Quotes[getMarketSnapshot / getOhlcv]
     Adapter --> Orders[placeOrder / closeOrder / getOrderStatus]
     Orders --> Memory[In-memory order map]

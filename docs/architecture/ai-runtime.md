@@ -1,6 +1,6 @@
 # Exva AI Runtime - Architecture Design Document
 
-> **Last updated:** 2026-05-23
+> **Last updated:** 2026-05-25
 > **Scope:** Main-process runtime from session start through selector/trade analysis, approval, broker placement, monitoring, persistence, events, and observability. Includes how the runtime calls the LLM/pipeline layer (see also `docs/architecture/pipeline-runtime.md` for pipeline internals). Excludes renderer component design and broker-adapter implementation details.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
 
