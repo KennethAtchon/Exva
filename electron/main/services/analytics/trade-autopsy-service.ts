@@ -1,11 +1,8 @@
 import type { AgentMessage, Trade } from "@/lib/types";
 import {
-  parseAutopsyStructuredJson,
   type AddLessonInput,
   type AutopsyLesson,
   type AutopsyStructured,
-  type AndonCordPayload,
-  type LessonStatus,
   type PhaseKind,
   type PhaseTrace,
   type QualityGrade,
@@ -18,74 +15,9 @@ import type { AgentMessagesRepo } from "../../db/repositories/agents/agent-messa
 import type { AutopsyLessonsRepo } from "../../db/repositories/trades/autopsy-lessons-repo";
 import type { TradeAutopsiesRepo } from "../../db/repositories/trades/trade-autopsies-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
-import type { EventsRepo } from "../../db/repositories/system/events-repo";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 import type { ProviderRegistry } from "../llm/provider-registry";
 import { estimateCostUsd } from "../llm/model-pricing";
-import type { EventBus } from "../infra/event-bus";
-
-const STOPWORDS = new Set([
-  "the",
-  "and",
-  "for",
-  "that",
-  "this",
-  "with",
-  "from",
-  "have",
-  "been",
-  "were",
-  "will",
-  "would",
-  "could",
-  "should",
-  "about",
-  "into",
-  "through",
-  "during",
-  "before",
-  "after",
-  "above",
-  "below",
-  "between",
-  "under",
-  "again",
-  "further",
-  "then",
-  "once",
-  "here",
-  "there",
-  "when",
-  "where",
-  "which",
-  "while",
-  "than",
-  "also",
-  "just",
-  "only",
-  "very",
-  "more",
-  "most",
-  "some",
-  "such",
-  "each",
-  "other",
-  "into",
-  "your",
-  "their",
-  "what",
-  "were",
-  "does",
-  "done",
-  "being",
-  "over",
-  "both",
-  "same",
-  "those",
-  "these",
-  "trade",
-  "agent",
-]);
 
 const synthesisLessonSchema = z.object({
   lesson: z.string(),
@@ -153,109 +85,8 @@ export interface TradeAutopsyServiceDeps {
   agentMessages: AgentMessagesRepo;
   autopsies: TradeAutopsiesRepo;
   lessons: AutopsyLessonsRepo;
-  events: EventsRepo;
   providerRegistry: ProviderRegistry;
   workspacePrefs: WorkspacePreferencesRepo;
-  eventBus: EventBus;
-}
-
-export interface LessonValidationContext {
-  sessionId: string;
-  structured: AutopsyStructured;
-  priorLessons: AutopsyLesson[];
-  recentStructuredByTrade: Map<string, AutopsyStructured | null>;
-}
-
-export function extractKeywords(text: string): string[] {
-  return [
-    ...new Set(
-      text
-        .toLowerCase()
-        .split(/\W+/)
-        .filter((word) => word.length > 3 && !STOPWORDS.has(word)),
-    ),
-  ];
-}
-
-export function lessonMatchesStructured(
-  lesson: AutopsyLesson,
-  structured: AutopsyStructured,
-): boolean {
-  const keywords = extractKeywords(lesson.lesson);
-  if (keywords.length === 0) return false;
-
-  const haystack = [
-    ...structured.behavioralFlags.map((f) => f.description),
-    ...structured.whatFailed,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return keywords.some((keyword) => haystack.includes(keyword));
-}
-
-export interface LessonUpdate {
-  lessonId: string;
-  recurrenceCount?: number;
-  status?: LessonStatus;
-  validatedAt?: string | null;
-}
-
-export function runLessonValidation(ctx: LessonValidationContext): {
-  updates: LessonUpdate[];
-  andonCords: AndonCordPayload[];
-} {
-  const updates: LessonUpdate[] = [];
-  const andonCords: AndonCordPayload[] = [];
-
-  for (const lesson of ctx.priorLessons) {
-    const matched = lessonMatchesStructured(lesson, ctx.structured);
-
-    if (matched) {
-      const nextCount = lesson.recurrenceCount + 1;
-      const nextStatus: LessonStatus =
-        nextCount >= 2 && lesson.status !== "validated"
-          ? "recurring"
-          : lesson.status;
-
-      updates.push({
-        lessonId: lesson.id,
-        recurrenceCount: nextCount,
-        status: nextStatus,
-      });
-
-      if (
-        (lesson.severity === "high" || lesson.severity === "critical") &&
-        nextStatus === "recurring" &&
-        nextCount >= 3
-      ) {
-        andonCords.push({
-          lessonId: lesson.id,
-          lessonText: lesson.lesson,
-          recurrenceCount: nextCount,
-          sessionId: ctx.sessionId,
-        });
-      }
-      continue;
-    }
-
-    if (lesson.status !== "implemented") continue;
-    if (ctx.recentStructuredByTrade.size < 5) continue;
-
-    const anyRecentMatch = [...ctx.recentStructuredByTrade.values()].some(
-      (structured) =>
-        structured ? lessonMatchesStructured(lesson, structured) : false,
-    );
-    if (!anyRecentMatch) {
-      updates.push({
-        lessonId: lesson.id,
-        status: "validated",
-        validatedAt: new Date().toISOString(),
-      });
-    }
-  }
-
-  return { updates, andonCords };
 }
 
 export class TradeAutopsyService {
@@ -365,6 +196,7 @@ export class TradeAutopsyService {
     for (const item of parsed?.lessons ?? []) {
       this.deps.lessons.insert({
         autopsyId: record.id,
+        periodAutopsyId: null,
         tradeId,
         sessionId,
         lesson: item.lesson,
@@ -373,13 +205,13 @@ export class TradeAutopsyService {
         proposedFix: item.proposedFix,
         status: "pending",
         recurrenceCount: 0,
+        source: "trade",
+        scope: "session",
         createdAt: now,
         updatedAt: now,
         validatedAt: null,
       });
     }
-
-    this.validateLessons(sessionId, record.id, structured);
     return record;
   }
 
@@ -413,6 +245,7 @@ export class TradeAutopsyService {
     const now = new Date().toISOString();
     return this.deps.lessons.insert({
       autopsyId: input.autopsyId,
+      periodAutopsyId: null,
       tradeId: input.tradeId,
       sessionId: input.sessionId,
       lesson: input.lesson,
@@ -421,67 +254,12 @@ export class TradeAutopsyService {
       proposedFix: input.proposedFix,
       status: "pending",
       recurrenceCount: 0,
+      source: "trade",
+      scope: "session",
       createdAt: now,
       updatedAt: now,
       validatedAt: null,
     });
-  }
-
-  validateLessons(
-    sessionId: string,
-    newAutopsyId: string,
-    structured: AutopsyStructured,
-  ): void {
-    const priorLessons = this.deps.lessons
-      .listBySession(sessionId, ["pending", "implemented"])
-      .filter((lesson) => lesson.autopsyId !== newAutopsyId);
-    if (priorLessons.length === 0) return;
-
-    const closedTrades = this.deps.trades.listClosed(sessionId);
-    const recentTrades = closedTrades.slice(-5);
-    const recentStructuredByTrade = new Map<string, AutopsyStructured | null>();
-    for (const recentTrade of recentTrades) {
-      const latest = this.deps.autopsies.findLatest(recentTrade.id);
-      if (!latest) {
-        recentStructuredByTrade.set(recentTrade.id, null);
-        continue;
-      }
-      recentStructuredByTrade.set(
-        recentTrade.id,
-        parseAutopsyStructuredJson(latest.summaryStructuredJson),
-      );
-    }
-
-    const { updates, andonCords } = runLessonValidation({
-      sessionId,
-      structured,
-      priorLessons,
-      recentStructuredByTrade,
-    });
-
-    for (const update of updates) {
-      this.deps.lessons.update(update.lessonId, {
-        ...(update.recurrenceCount !== undefined
-          ? { recurrenceCount: update.recurrenceCount }
-          : {}),
-        ...(update.status !== undefined ? { status: update.status } : {}),
-        ...(update.validatedAt !== undefined
-          ? { validatedAt: update.validatedAt }
-          : {}),
-        updatedAt: new Date().toISOString(),
-      });
-    }
-
-    for (const cord of andonCords) {
-      this.deps.eventBus.emit("andon_cord_fired", cord);
-      this.deps.events.insert({
-        session_id: sessionId,
-        trade_id: null,
-        level: "WARN",
-        message: `Andon Cord: ${cord.lessonText} (recurred ${cord.recurrenceCount} times)`,
-        agent_type: "orchestrator",
-      });
-    }
   }
 
   private async runPhase(
@@ -560,6 +338,12 @@ function phaseMaxTokens(phase: PhaseKind): number {
       return 600;
     case "market_context":
       return 500;
+    case "pattern_analysis":
+    case "pattern_analysis_pass1":
+    case "pattern_analysis_pass2":
+      return 800;
+    case "lesson_validation":
+      return 600;
     case "synthesis":
       return 1200;
   }

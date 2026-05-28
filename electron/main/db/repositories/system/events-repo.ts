@@ -19,6 +19,7 @@ const levelRank: Record<LogLevel, number> = {
   INFO: 1,
   WARN: 2,
   ERROR: 3,
+  CRITICAL: 4,
 };
 
 export class EventsRepo {

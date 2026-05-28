@@ -5,7 +5,15 @@ export type PhaseKind =
   | "execution"
   | "behavioral"
   | "market_context"
+  | "pattern_analysis"
+  | "pattern_analysis_pass1"
+  | "pattern_analysis_pass2"
+  | "lesson_validation"
   | "synthesis";
+
+export type AutopsyScope = "global" | "session";
+
+export type AutopsyLessonSource = "trade" | "period" | "manual";
 
 export type LessonStatus =
   | "pending"
@@ -89,17 +97,90 @@ export interface TradeAutopsyRecord {
   createdBy: string;
 }
 
+export interface PeriodLessonInput {
+  lesson: string;
+  severity: LessonSeverity;
+  category: LessonCategory;
+  proposedFix: string;
+}
+
+export interface PeriodAutopsyFilters {
+  instrumentClasses: string[];
+  brokerAccountIds: string[];
+  outcome: "all" | "winners" | "losers";
+  minPositionSizeUsd: number;
+  includeAgentPhases: string[];
+}
+
+export interface PeriodAutopsyStructured {
+  executiveSummary: string;
+  performancePatterns: {
+    winRate: number;
+    totalTrades: number;
+    winners: number;
+    losers: number;
+    avgPnlUsd: number;
+    bestPnlUsd: number;
+    worstPnlUsd: number;
+    avgHoldDurationMs: number;
+    sizingConsistency: string;
+    entryTimingPattern: string;
+    regimeNotes: string;
+  };
+  recurringFailureModes: Array<{
+    category: string;
+    count: number;
+    description: string;
+    tradeIds: string[];
+  }>;
+  lessonsNew: PeriodLessonInput[];
+  lessonsValidated: string[];
+  lessonsRecurring: string[];
+  andonAssessment: {
+    shouldFire: boolean;
+    reasons: Array<{
+      lessonId: string;
+      lessonText: string;
+      recurrenceCount: number;
+    }>;
+  };
+  processImprovements: string[];
+}
+
+export interface PeriodAutopsyRecord {
+  id: string;
+  scope: AutopsyScope;
+  sessionId: string | null;
+  windowStart: string;
+  windowEnd: string;
+  modelId: string;
+  filtersJson: string;
+  tradeCount: number;
+  tradeIdsJson: string;
+  summaryStructuredJson: string;
+  phaseTracesJson: string;
+  qualityGrade: string | null;
+  qualityScore: number | null;
+  isFallback: boolean;
+  totalCostUsd: number;
+  createdAt: string;
+  createdBy: string;
+}
+
 export interface AutopsyLesson {
   id: string;
-  autopsyId: string;
-  tradeId: string;
-  sessionId: string;
+  autopsyId: string | null;
+  periodAutopsyId: string | null;
+  tradeId: string | null;
+  sessionId: string | null;
   lesson: string;
   severity: LessonSeverity;
   category: LessonCategory;
   proposedFix: string;
   status: LessonStatus;
   recurrenceCount: number;
+  source: AutopsyLessonSource;
+  scope: AutopsyScope;
   createdAt: string;
   updatedAt: string;
   validatedAt: string | null;
@@ -122,6 +203,53 @@ export interface UpdateLessonInput {
   proposedFix?: string;
 }
 
+export interface PeriodAutopsyRunInput {
+  scope: AutopsyScope;
+  sessionId?: string;
+  windowStart: string;
+  windowEnd: string;
+  filters: PeriodAutopsyFilters;
+  providerKey?: string;
+  modelId?: string;
+  confirmHighCost?: boolean;
+}
+
+export interface PeriodAutopsyListInput {
+  scope: AutopsyScope;
+  sessionId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface PeriodAutopsyLessonsListInput {
+  scope: AutopsyScope;
+  sessionId?: string;
+  status?: LessonStatus[];
+}
+
+export interface PeriodAutopsyAddLessonInput {
+  scope: AutopsyScope;
+  sessionId?: string;
+  lesson: string;
+  severity: LessonSeverity;
+  category: LessonCategory;
+  proposedFix: string;
+}
+
+export interface PeriodAutopsyPromoteLessonInput {
+  lessonId: string;
+  targetScope: AutopsyScope;
+  targetSessionId?: string;
+}
+
+export interface PeriodAutopsyPreview {
+  tradeCount: number;
+  estimatedPromptTokens: number;
+  estimatedCostUsd: number;
+  lastAutopsyAt: string | null;
+  lastAutopsyTradeCount: number;
+}
+
 export type ExportResult =
   | { path: string; filename: string }
   | { cancelled: true }
@@ -131,7 +259,10 @@ export interface AndonCordPayload {
   lessonId: string;
   lessonText: string;
   recurrenceCount: number;
-  sessionId: string;
+  sessionId: string | null;
+  scope: AutopsyScope;
+  periodAutopsyId: string;
+  severity: LessonSeverity;
 }
 
 const phaseTraceSchema = z.object({
@@ -140,6 +271,10 @@ const phaseTraceSchema = z.object({
     "execution",
     "behavioral",
     "market_context",
+    "pattern_analysis",
+    "pattern_analysis_pass1",
+    "pattern_analysis_pass2",
+    "lesson_validation",
     "synthesis",
   ]),
   modelId: z.string(),
@@ -200,12 +335,69 @@ const autopsyStructuredSchema = z.object({
   processImprovements: z.array(z.string()),
 });
 
+const periodLessonInputSchema = z.object({
+  lesson: z.string(),
+  severity: z.enum(["low", "medium", "high", "critical"]),
+  category: z.enum(["strategy", "execution", "behavioral", "risk", "system"]),
+  proposedFix: z.string(),
+});
+
+const periodAutopsyStructuredSchema = z.object({
+  executiveSummary: z.string(),
+  performancePatterns: z.object({
+    winRate: z.number(),
+    totalTrades: z.number(),
+    winners: z.number(),
+    losers: z.number(),
+    avgPnlUsd: z.number(),
+    bestPnlUsd: z.number(),
+    worstPnlUsd: z.number(),
+    avgHoldDurationMs: z.number(),
+    sizingConsistency: z.string(),
+    entryTimingPattern: z.string(),
+    regimeNotes: z.string(),
+  }),
+  recurringFailureModes: z.array(
+    z.object({
+      category: z.string(),
+      count: z.number(),
+      description: z.string(),
+      tradeIds: z.array(z.string()),
+    }),
+  ),
+  lessonsNew: z.array(periodLessonInputSchema),
+  lessonsValidated: z.array(z.string()),
+  lessonsRecurring: z.array(z.string()),
+  andonAssessment: z.object({
+    shouldFire: z.boolean(),
+    reasons: z.array(
+      z.object({
+        lessonId: z.string(),
+        lessonText: z.string(),
+        recurrenceCount: z.number(),
+      }),
+    ),
+  }),
+  processImprovements: z.array(z.string()),
+});
+
 export function parseAutopsyStructuredJson(
   json: string,
 ): AutopsyStructured | null {
   try {
     const parsed = JSON.parse(json) as unknown;
     return autopsyStructuredSchema.parse(parsed);
+  } catch {
+    return null;
+  }
+}
+
+export function parsePeriodAutopsyStructuredJson(
+  json: string,
+): PeriodAutopsyStructured | null {
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    return periodAutopsyStructuredSchema.parse(parsed);
   } catch {
     return null;
   }

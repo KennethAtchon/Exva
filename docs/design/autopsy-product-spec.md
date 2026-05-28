@@ -1,3 +1,7 @@
+> ⚠ **Superseded.** This document describes the v1 trade-centric autopsy (per-trade only).
+> The primary autopsy feature is now specified in `[docs/design/period-autopsy-product-spec.md](./period-autopsy-product-spec.md)`.
+> This document remains for historical reference only. Do not build new features from it.
+
 # Trade Autopsy System — Feature Specification
 
 > **Date:** 2026-05-24
@@ -411,7 +415,7 @@ flowchart TD
 | `trade_autopsies` | Add column | `is_fallback`                      | `integer` (boolean) | `0`     | No       |
 | `trade_autopsies` | Rename     | `summary` → keep for fallback text | —                   | —       | —        |
 
-`**summary_structured_json` shape:\*\*
+`**summary_structured_json` shape:
 
 ```typescript
 interface AutopsyStructured {
@@ -456,7 +460,7 @@ interface AutopsyStructured {
 }
 ```
 
-`**phase_traces_json` shape:\*\*
+`**phase_traces_json` shape:
 
 ```typescript
 interface PhaseTrace {
@@ -852,7 +856,7 @@ When a new autopsy is generated for a trade in session X, the `TradeAutopsyServi
 - Increment `recurrence_count` on the lesson.
 - If `recurrence_count >= 2` and `status !== 'validated'`, set `status = 'recurring'`.
 
-4. If no match found for a lesson with `status = 'implemented'` across the last 5 trades in the session, set `status = 'validated'`.
+1. If no match found for a lesson with `status = 'implemented'` across the last 5 trades in the session, set `status = 'validated'`.
 
 **Andon Cord:**
 

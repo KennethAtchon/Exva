@@ -136,9 +136,17 @@ function StatusPicker({
 function LessonRow({
   lesson,
   onStatusChange,
+  onPromoteLesson,
+  promoteSessionId,
 }: {
   lesson: AutopsyLesson;
   onStatusChange: (id: string, status: LessonStatus) => void;
+  onPromoteLesson?: (
+    lessonId: string,
+    targetScope: "global" | "session",
+    targetSessionId?: string,
+  ) => void | Promise<void>;
+  promoteSessionId?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -188,6 +196,19 @@ function LessonRow({
             {lesson.category}
           </span>
 
+          <span
+            className={cn(
+              lessonChipClass,
+              "uppercase tracking-[0.05em]",
+              lesson.source === "period" && "bg-info-dim text-info",
+              lesson.source === "manual" && "bg-success-dim text-success",
+              lesson.source === "trade" &&
+                "bg-[var(--surface3)] text-[var(--text3)]",
+            )}
+          >
+            {lesson.source}
+          </span>
+
           {/* Recurrence badge */}
           {lesson.recurrenceCount > 0 && (
             <span
@@ -222,7 +243,49 @@ function LessonRow({
       )}
 
       {/* Footer: status chip */}
-      <div className="relative flex justify-end px-2.5 pb-2.5">
+      <div className="relative flex flex-wrap items-center justify-end gap-2 px-2.5 pb-2.5">
+        {lesson.source === "trade" && onPromoteLesson ? (
+          <>
+            {promoteSessionId ? (
+              <button
+                type="button"
+                className="rounded-[5px] border border-[var(--border)] bg-transparent px-[9px] py-[3px] text-[12px] text-[var(--text2)]"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (
+                    window.confirm(
+                      "Add to the session lesson ledger? This lesson will appear in future period autopsies.",
+                    )
+                  ) {
+                    void onPromoteLesson(
+                      lesson.id,
+                      "session",
+                      promoteSessionId,
+                    );
+                  }
+                }}
+              >
+                Promote → Session
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="rounded-[5px] border border-[var(--border)] bg-transparent px-[9px] py-[3px] text-[12px] text-[var(--text2)]"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (
+                  window.confirm(
+                    "Add to the global lesson ledger? This lesson will appear in future period autopsies.",
+                  )
+                ) {
+                  void onPromoteLesson(lesson.id, "global");
+                }
+              }}
+            >
+              Promote → Global
+            </button>
+          </>
+        ) : null}
         <div className="relative">
           <button
             onClick={(e) => {
@@ -300,6 +363,8 @@ export function LessonsPanel({
   lessons,
   onStatusChange,
   onAddLesson,
+  onPromoteLesson,
+  promoteSessionId,
 }: {
   lessons: AutopsyLesson[];
   onStatusChange: (id: string, status: LessonStatus) => void;
@@ -309,6 +374,12 @@ export function LessonsPanel({
     category: LessonCategory;
     proposedFix: string;
   }) => Promise<void> | void;
+  onPromoteLesson?: (
+    lessonId: string,
+    targetScope: "global" | "session",
+    targetSessionId?: string,
+  ) => Promise<void> | void;
+  promoteSessionId?: string | null;
 }) {
   const [form, dispatchForm] = useReducer<
     Reducer<LessonFormState, Partial<LessonFormState>>
@@ -451,7 +522,13 @@ export function LessonsPanel({
           </div>
         ) : (
           lessons.map((l) => (
-            <LessonRow key={l.id} lesson={l} onStatusChange={onStatusChange} />
+            <LessonRow
+              key={l.id}
+              lesson={l}
+              onStatusChange={onStatusChange}
+              onPromoteLesson={onPromoteLesson}
+              promoteSessionId={promoteSessionId}
+            />
           ))
         )}
       </div>

@@ -877,40 +877,45 @@ export function AutopsyPage({
             ← Back
           </button>
           <div className={headerDividerClass} />
-          <div className="flex items-center gap-2">
-            <span className={symbolTitleClass}>
-              {resolvedTrade?.instrumentSymbol ?? "—"}
-            </span>
-            {resolvedTrade && (
-              <span
-                className="rounded px-[7px] py-0.5 font-mono text-[12px] font-semibold"
-                style={{
-                  background:
-                    resolvedTrade.side === "BUY"
-                      ? "var(--color-success-dim)"
-                      : "var(--color-error-dim)",
-                  color:
-                    resolvedTrade.side === "BUY"
-                      ? "var(--color-success)"
-                      : "var(--color-error)",
-                }}
-              >
-                {resolvedTrade.side}
+          <div className="flex flex-col gap-1">
+            <div className="text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--text3)]">
+              Trade Review
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={symbolTitleClass}>
+                {resolvedTrade?.instrumentSymbol ?? "—"}
               </span>
-            )}
-            {resolvedTrade && resolvedTrade.final_pnl_usd != null && (
-              <span
-                className="font-mono text-[13px] font-semibold"
-                style={{
-                  color:
-                    resolvedTrade.final_pnl_usd >= 0
-                      ? "var(--color-success)"
-                      : "var(--color-error)",
-                }}
-              >
-                {fmt.pnl(resolvedTrade.final_pnl_usd)}
-              </span>
-            )}
+              {resolvedTrade && (
+                <span
+                  className="rounded px-[7px] py-0.5 font-mono text-[12px] font-semibold"
+                  style={{
+                    background:
+                      resolvedTrade.side === "BUY"
+                        ? "var(--color-success-dim)"
+                        : "var(--color-error-dim)",
+                    color:
+                      resolvedTrade.side === "BUY"
+                        ? "var(--color-success)"
+                        : "var(--color-error)",
+                  }}
+                >
+                  {resolvedTrade.side}
+                </span>
+              )}
+              {resolvedTrade && resolvedTrade.final_pnl_usd != null && (
+                <span
+                  className="font-mono text-[13px] font-semibold"
+                  style={{
+                    color:
+                      resolvedTrade.final_pnl_usd >= 0
+                        ? "var(--color-success)"
+                        : "var(--color-error)",
+                  }}
+                >
+                  {fmt.pnl(resolvedTrade.final_pnl_usd)}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1051,6 +1056,18 @@ export function AutopsyPage({
                 lessons={lessons}
                 onStatusChange={handleStatusChange}
                 onAddLesson={handleAddLesson}
+                promoteSessionId={resolvedTrade?.sessionId ?? null}
+                onPromoteLesson={async (
+                  lessonId,
+                  targetScope,
+                  targetSessionId,
+                ) => {
+                  await api.promoteTradeLessonToPeriodLedger({
+                    lessonId,
+                    targetScope,
+                    targetSessionId,
+                  });
+                }}
               />
             </div>
           </div>

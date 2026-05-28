@@ -8,6 +8,7 @@ import { SessionsPage } from "./pages/SessionsPage";
 import { TradesPage } from "./pages/TradesPage";
 import { TradeDetail } from "./pages/TradeDetail";
 import { AutopsyPage } from "./pages/AutopsyPage";
+import { PeriodAutopsyPage } from "./pages/PeriodAutopsyPage";
 import { StrategyConfig } from "./pages/StrategyConfig";
 import { CostBreakdownPage } from "./pages/CostBreakdown";
 import { DevPanel, type DevPanelFocus } from "./pages/DevPanel";
@@ -44,6 +45,9 @@ type AppUiState = {
   liveReadinessSession: SessionSummary | null;
   liveReadinessReport: LiveReadinessReport | null;
   autopsyTradeId: string | null;
+  periodAutopsyScope: "global" | "session";
+  periodAutopsySessionId: string | null;
+  periodAutopsyId: string | null;
 };
 
 export default function App() {
@@ -56,6 +60,9 @@ export default function App() {
     liveReadinessSession: null,
     liveReadinessReport: null,
     autopsyTradeId: null,
+    periodAutopsyScope: "global",
+    periodAutopsySessionId: null,
+    periodAutopsyId: null,
   });
   const loadErrorRef = useRef<string | null>(null);
   loadErrorRef.current = ui.loadError;
@@ -124,6 +131,33 @@ export default function App() {
     void reloadStats();
     void reloadTrades();
   }, [environmentMode, reloadStats, reloadTrades]);
+
+  useEffect(() => {
+    const listener = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          scope: "global" | "session";
+          sessionId: string | null;
+          periodAutopsyId: string | null;
+        }>
+      ).detail;
+      if (!detail) return;
+      dispatchUi({
+        page: "autopsy",
+        periodAutopsyScope: detail.scope,
+        periodAutopsySessionId: detail.sessionId,
+        periodAutopsyId: detail.periodAutopsyId,
+      });
+      setSelected(null);
+    };
+    window.addEventListener("exva:navigate-autopsy", listener as EventListener);
+    return () => {
+      window.removeEventListener(
+        "exva:navigate-autopsy",
+        listener as EventListener,
+      );
+    };
+  }, [setSelected]);
 
   useExvaEvent("stats_update", () => {
     void reloadStats();
@@ -236,6 +270,15 @@ export default function App() {
         return (
           <TradesPage
             onViewAutopsy={(tradeId) => dispatchUi({ autopsyTradeId: tradeId })}
+          />
+        );
+      case "autopsy":
+        return (
+          <PeriodAutopsyPage
+            initialScope={ui.periodAutopsyScope}
+            initialSessionId={ui.periodAutopsySessionId}
+            initialPeriodAutopsyId={ui.periodAutopsyId}
+            onReviewTrade={(tradeId) => dispatchUi({ autopsyTradeId: tradeId })}
           />
         );
       case "strategy":

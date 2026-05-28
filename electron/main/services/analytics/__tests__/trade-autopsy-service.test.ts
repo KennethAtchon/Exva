@@ -1,179 +1,116 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   parseAutopsyStructuredJson,
-  type AutopsyLesson,
-  type AutopsyStructured,
+  type AddLessonInput,
+  type TradeAutopsyRecord,
 } from "@electron/shared/domain/autopsy";
-import {
-  extractKeywords,
-  lessonMatchesStructured,
-  runLessonValidation,
-  TradeAutopsyService,
-} from "../trade-autopsy-service";
+import { TradeAutopsyService } from "../trade-autopsy-service";
 
-function makeStructured(
-  overrides: Partial<AutopsyStructured> = {},
-): AutopsyStructured {
-  return {
-    executiveSummary: "Summary",
-    thesisReview: {
-      valid: true,
-      analysis: "ok",
-      confirmatoryBias: false,
-      prematureConviction: false,
-      ignoredCounterSignals: [],
-    },
-    executionQuality: {
-      entryTiming: "good",
-      sizingAdequacy: "appropriate",
-      exitManagement: "Held to target",
-      slippage: null,
-    },
-    behavioralFlags: [],
-    marketContext: {
-      regime: "trending",
-      macro: "Risk-on",
-      volatility: "Normal",
-      suitability: "good_conditions",
-    },
-    whatWorked: ["Good entry"],
-    whatFailed: [],
-    rootCause: null,
-    processImprovements: ["Keep doing this"],
-    ...overrides,
-  };
-}
+const CLOSED_TRADE = {
+  id: "trade-1",
+  sessionId: "session-1",
+  instrumentSymbol: "AAPL",
+  instrumentDisplayName: "Apple",
+  predictionOutcome: null,
+  instrumentMetadataJson: null,
+  instrumentType: "stock",
+  side: "BUY",
+  entry_price: 100,
+  position_size_usd: 1000,
+  stop_loss_price: 95,
+  take_profit_price: 110,
+  strategy: "trend_momentum",
+  execution_strategy: null,
+  status: "closed",
+  opened_at: "2026-05-20T14:00:00.000Z",
+  closed_at: "2026-05-20T18:00:00.000Z",
+  final_pnl_usd: 42,
+  ai_cost_usd: 0,
+  confidence_score: 0.7,
+  broker_order_id: null,
+  high_water_mark_price: null,
+  exit_reason: "target_hit",
+  client_order_id: null,
+  close_market_snapshot_json: null,
+  created_at: "2026-05-20T13:55:00.000Z",
+} as const;
 
-function makeLesson(overrides: Partial<AutopsyLesson> = {}): AutopsyLesson {
-  return {
-    id: "lesson-1",
-    autopsyId: "autopsy-1",
-    tradeId: "trade-1",
-    sessionId: "session-1",
-    lesson: "Avoid moving stop loss during drawdown",
-    severity: "high",
-    category: "behavioral",
-    proposedFix: "Lock stop after entry",
-    status: "pending",
-    recurrenceCount: 1,
-    createdAt: "2026-05-20T00:00:00.000Z",
-    updatedAt: "2026-05-20T00:00:00.000Z",
-    validatedAt: null,
-    ...overrides,
-  };
-}
-
-describe("extractKeywords", () => {
-  it("filters stopwords and short tokens", () => {
-    expect(extractKeywords("Avoid moving stop loss during drawdown")).toEqual([
-      "avoid",
-      "moving",
-      "stop",
-      "loss",
-      "drawdown",
-    ]);
-  });
-});
-
-describe("lessonMatchesStructured", () => {
-  it("matches when keywords appear in behavioral flags", () => {
-    const lesson = makeLesson({
-      lesson: "Stop loss was moved too early",
-    });
-    const structured = makeStructured({
-      behavioralFlags: [
-        {
-          flag: "stop_moved",
-          description: "Agent moved stop loss after minor pullback",
-          severity: "high",
-        },
-      ],
-    });
-    expect(lessonMatchesStructured(lesson, structured)).toBe(true);
-  });
-
-  it("matches when keywords appear in whatFailed", () => {
-    const lesson = makeLesson({ lesson: "Revenge trading after loss" });
-    const structured = makeStructured({
-      whatFailed: ["Revenge entry after prior stop-out"],
-    });
-    expect(lessonMatchesStructured(lesson, structured)).toBe(true);
-  });
-});
-
-describe("runLessonValidation", () => {
-  it("increments recurrence and marks recurring after second match", () => {
-    const structured = makeStructured({
-      whatFailed: ["Stop loss moved during drawdown"],
-    });
-    const { updates, andonCords } = runLessonValidation({
-      sessionId: "session-1",
-      structured,
-      priorLessons: [makeLesson({ recurrenceCount: 1, status: "pending" })],
-      recentStructuredByTrade: new Map(),
-    });
-
-    expect(updates).toEqual([
-      {
-        lessonId: "lesson-1",
-        recurrenceCount: 2,
-        status: "recurring",
-      },
-    ]);
-    expect(andonCords).toEqual([]);
-  });
-
-  it("fires andon cord for high severity recurring lessons", () => {
-    const structured = makeStructured({
-      whatFailed: ["Stop loss moved during drawdown"],
-    });
-    const { andonCords } = runLessonValidation({
-      sessionId: "session-1",
-      structured,
-      priorLessons: [
-        makeLesson({
-          recurrenceCount: 2,
-          status: "recurring",
-          severity: "critical",
+function createService() {
+  const insertLesson = vi.fn();
+  const insertAutopsy = vi
+    .fn()
+    .mockImplementation(
+      (record: Omit<TradeAutopsyRecord, "id"> & { id?: string }) => ({
+        ...record,
+        id: record.id ?? "autopsy-1",
+      }),
+    );
+  const service = new TradeAutopsyService({
+    trades: { require: () => CLOSED_TRADE } as never,
+    agentMessages: { listByTrade: () => [] } as never,
+    autopsies: { insert: insertAutopsy, listByTrade: () => [] } as never,
+    lessons: {
+      insert: insertLesson,
+      listByAutopsy: () => [],
+      require: vi.fn(),
+      update: vi.fn(),
+    } as never,
+    providerRegistry: {
+      get: async () => ({
+        generateText: async () => ({
+          text: JSON.stringify({
+            executiveSummary: "Solid review.",
+            qualityGrade: "B",
+            qualityScore: 82,
+            thesisReview: {
+              valid: true,
+              analysis: "Reasonable thesis.",
+              confirmatoryBias: false,
+              prematureConviction: false,
+              ignoredCounterSignals: [],
+            },
+            executionQuality: {
+              entryTiming: "good",
+              sizingAdequacy: "appropriate",
+              exitManagement: "Held to plan.",
+              slippage: null,
+            },
+            behavioralFlags: [],
+            marketContext: {
+              regime: "trending",
+              macro: "Supportive.",
+              volatility: "Normal.",
+              suitability: "good_conditions",
+            },
+            whatWorked: ["Entry discipline"],
+            whatFailed: [],
+            rootCause: null,
+            processImprovements: ["Keep risk sizing consistent."],
+            lessons: [
+              {
+                lesson: "Keep position size aligned with conviction.",
+                severity: "medium",
+                category: "risk",
+                proposedFix: "Reuse the same sizing checklist.",
+              },
+            ],
+          }),
+          inputTokens: 100,
+          outputTokens: 50,
+          durationMs: 10,
         }),
-      ],
-      recentStructuredByTrade: new Map(),
-    });
-
-    expect(andonCords).toHaveLength(1);
-    expect(andonCords[0]?.recurrenceCount).toBe(3);
+      }),
+    } as never,
+    workspacePrefs: {
+      get: () => ({
+        defaultModelProviderKey: "provider-1",
+        defaultModelModelId: "model-1",
+      }),
+    } as never,
   });
 
-  it("validates implemented lessons after five clean trades", () => {
-    const structured = makeStructured();
-    const recentStructuredByTrade = new Map<string, AutopsyStructured | null>([
-      ["t1", makeStructured()],
-      ["t2", makeStructured()],
-      ["t3", makeStructured()],
-      ["t4", makeStructured()],
-      ["t5", makeStructured()],
-    ]);
-    const { updates } = runLessonValidation({
-      sessionId: "session-1",
-      structured,
-      priorLessons: [
-        makeLesson({
-          status: "implemented",
-          lesson: "Unique issue not seen recently",
-        }),
-      ],
-      recentStructuredByTrade,
-    });
-
-    expect(updates).toEqual([
-      {
-        lessonId: "lesson-1",
-        status: "validated",
-        validatedAt: expect.any(String),
-      },
-    ]);
-  });
-});
+  return { service, insertAutopsy, insertLesson };
+}
 
 describe("parseAutopsyStructuredJson", () => {
   it("returns null for legacy default rows", () => {
@@ -181,45 +118,55 @@ describe("parseAutopsyStructuredJson", () => {
   });
 });
 
-describe("TradeAutopsyService.validateLessons", () => {
-  it("ignores lessons created by the current autopsy", () => {
-    const oldLesson = makeLesson({
-      id: "old-lesson",
-      autopsyId: "old-autopsy",
-      recurrenceCount: 1,
-      status: "pending",
-    });
-    const newLesson = makeLesson({
-      id: "new-lesson",
-      autopsyId: "new-autopsy",
-      recurrenceCount: 0,
-      status: "pending",
-    });
-    const update = vi.fn();
+describe("TradeAutopsyService", () => {
+  it("creates trade-scoped lessons without period or Andon wiring", async () => {
+    const { service, insertAutopsy, insertLesson } = createService();
+
+    await service.summarize(CLOSED_TRADE.id);
+
+    expect(insertAutopsy).toHaveBeenCalledTimes(1);
+    expect(insertLesson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autopsyId: "autopsy-1",
+        periodAutopsyId: null,
+        tradeId: CLOSED_TRADE.id,
+        sessionId: CLOSED_TRADE.sessionId,
+        source: "trade",
+        scope: "session",
+      }),
+    );
+  });
+
+  it("adds manual trade lessons as trade-scoped rows", () => {
+    const insertLesson = vi.fn((input: AddLessonInput) => input);
     const service = new TradeAutopsyService({
-      trades: { listClosed: () => [] } as never,
+      trades: {} as never,
       agentMessages: {} as never,
-      autopsies: { findLatest: () => null } as never,
-      lessons: {
-        listBySession: () => [oldLesson, newLesson],
-        update,
-      } as never,
-      events: { insert: vi.fn() } as never,
+      autopsies: {} as never,
+      lessons: { insert: insertLesson } as never,
       providerRegistry: {} as never,
       workspacePrefs: {} as never,
-      eventBus: { emit: vi.fn() } as never,
     });
 
-    service.validateLessons(
-      "session-1",
-      "new-autopsy",
-      makeStructured({ whatFailed: ["Stop loss moved during drawdown"] }),
-    );
+    service.addLesson({
+      autopsyId: "autopsy-1",
+      tradeId: "trade-1",
+      sessionId: "session-1",
+      lesson: "Tighten stop placement.",
+      severity: "high",
+      category: "risk",
+      proposedFix: "Anchor stops to invalidation.",
+    });
 
-    expect(update).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledWith(
-      "old-lesson",
-      expect.objectContaining({ recurrenceCount: 2, status: "recurring" }),
+    expect(insertLesson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autopsyId: "autopsy-1",
+        periodAutopsyId: null,
+        tradeId: "trade-1",
+        sessionId: "session-1",
+        source: "trade",
+        scope: "session",
+      }),
     );
   });
 });

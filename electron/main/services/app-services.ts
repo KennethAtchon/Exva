@@ -29,6 +29,7 @@ import { ResearchPosturePresetsRepo } from "../db/repositories/presets/research-
 import { TradeRulePresetsRepo } from "../db/repositories/presets/trade-rule-presets-repo";
 import { StatsRepo } from "../db/repositories/system/stats-repo";
 import { TradeApprovalsRepo } from "../db/repositories/trades/trade-approvals-repo";
+import { PeriodAutopsiesRepo } from "../db/repositories/trades/period-autopsies-repo";
 import { TradeAutopsiesRepo } from "../db/repositories/trades/trade-autopsies-repo";
 import { AutopsyLessonsRepo } from "../db/repositories/trades/autopsy-lessons-repo";
 import { TradesRepo } from "../db/repositories/trades/trades-repo";
@@ -75,6 +76,7 @@ import {
   RiskEngine,
 } from "./risk";
 import { PaperScorecardService } from "./analytics/paper-scorecard-service";
+import { PeriodAutopsyService } from "./analytics/period-autopsy-service";
 import { TradeAutopsyService } from "./analytics/trade-autopsy-service";
 import { AutopsyExportService } from "./analytics/autopsy-export-service";
 import { LiveReadinessService } from "./risk/live-readiness-service";
@@ -107,6 +109,7 @@ export interface AppServices {
     sessionAiSettings: SessionAiSettingsRepo;
     stats: StatsRepo;
     tradeApprovals: TradeApprovalsRepo;
+    periodAutopsies: PeriodAutopsiesRepo;
     tradeAutopsies: TradeAutopsiesRepo;
     autopsyLessons: AutopsyLessonsRepo;
     trades: TradesRepo;
@@ -140,6 +143,7 @@ export interface AppServices {
   sessionWrites: SessionWriteService;
   cycleReplay: CycleReplayService;
   paperScorecard: PaperScorecardService;
+  periodAutopsy: PeriodAutopsyService;
   liveReadiness: LiveReadinessService;
   tradeAutopsy: TradeAutopsyService;
   autopsyExport: AutopsyExportService;
@@ -171,6 +175,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionAiSettings: new SessionAiSettingsRepo(db),
     stats: new StatsRepo(db),
     tradeApprovals: new TradeApprovalsRepo(db),
+    periodAutopsies: new PeriodAutopsiesRepo(db),
     tradeAutopsies: new TradeAutopsiesRepo(db),
     autopsyLessons: new AutopsyLessonsRepo(db),
     trades: new TradesRepo(db),
@@ -423,6 +428,16 @@ export async function createAppServices(app: App): Promise<AppServices> {
     agentMessages: repos.agentMessages,
     autopsies: repos.tradeAutopsies,
     lessons: repos.autopsyLessons,
+    providerRegistry,
+    workspacePrefs: repos.workspacePreferences,
+  });
+  const periodAutopsy = new PeriodAutopsyService({
+    sessions: repos.session,
+    trades: repos.trades,
+    tradeAutopsies: repos.tradeAutopsies,
+    agentMessages: repos.agentMessages,
+    autopsies: repos.periodAutopsies,
+    lessons: repos.autopsyLessons,
     events: repos.events,
     providerRegistry,
     workspacePrefs: repos.workspacePreferences,
@@ -457,6 +472,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionWrites,
     cycleReplay,
     paperScorecard,
+    periodAutopsy,
     liveReadiness,
     tradeAutopsy,
     autopsyExport,

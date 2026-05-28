@@ -127,12 +127,14 @@ const LEVEL_COLOR: Record<LogLevel, string> = {
   INFO: "var(--color-log-info)",
   WARN: "var(--color-log-warn)",
   ERROR: "var(--color-log-error)",
+  CRITICAL: "var(--color-log-error)",
 };
 const LEVEL_BG: Record<LogLevel, string> = {
   DEBUG: "color-mix(in srgb, var(--color-log-debug) 20%, transparent)",
   INFO: "var(--color-info-dim)",
   WARN: "var(--color-warning-dim)",
   ERROR: "var(--color-error-dim)",
+  CRITICAL: "var(--color-error-dim)",
 };
 const ROLE_COLOR: Record<string, string> = {
   technical: "var(--color-success)",

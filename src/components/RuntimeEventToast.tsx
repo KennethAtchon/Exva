@@ -8,10 +8,12 @@ import { cn } from "@/lib/utils";
 
 interface ToastItem {
   id: string;
-  level: "ERROR" | "WARN" | "INFO";
+  level: "ERROR" | "WARN" | "INFO" | "CRITICAL";
   message: string;
   sessionId?: string | null;
   persistent?: boolean;
+  autopsyScope?: "global" | "session";
+  autopsyId?: string | null;
 }
 
 const MAX_TOASTS = 5;
@@ -71,10 +73,12 @@ export function RuntimeEventToast() {
   useExvaEvent("andon_cord_fired", (payload: AndonCordPayload) => {
     pushToast({
       id: `andon-${payload.lessonId}-${payload.recurrenceCount}`,
-      level: "WARN",
-      message: `Andon Cord — ${payload.lessonText}. This issue has recurred ${payload.recurrenceCount} times without resolution. Review required.`,
+      level: "CRITICAL",
+      message: `⚠ Andon Cord — ${payload.lessonText.slice(0, 80)}. Recurred ${payload.recurrenceCount} times without resolution.`,
       sessionId: payload.sessionId,
       persistent: true,
+      autopsyScope: payload.scope,
+      autopsyId: payload.periodAutopsyId,
     });
   });
 
@@ -86,7 +90,7 @@ export function RuntimeEventToast() {
       aria-live="polite"
     >
       {toasts.map((toast) => {
-        const isError = toast.level === "ERROR";
+        const isError = toast.level === "ERROR" || toast.level === "CRITICAL";
         const isInfo = toast.level === "INFO";
         return (
           <div
@@ -116,15 +120,46 @@ export function RuntimeEventToast() {
               <div className="break-words text-[12px] leading-[1.45] text-[var(--text1)]">
                 {toast.message}
               </div>
+              {toast.autopsyScope ? (
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="h-7 border-warning-border bg-transparent px-2.5 text-[11px] text-warning"
+                    onClick={() => {
+                      window.dispatchEvent(
+                        new CustomEvent("exva:navigate-autopsy", {
+                          detail: {
+                            scope: toast.autopsyScope,
+                            sessionId: toast.sessionId ?? null,
+                            periodAutopsyId: toast.autopsyId ?? null,
+                          },
+                        }),
+                      );
+                      dismiss(toast.id);
+                    }}
+                  >
+                    View Autopsy
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="h-7 px-2.5 text-[11px] text-[var(--text3)]"
+                    onClick={() => dismiss(toast.id)}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              ) : null}
             </div>
-            <Button
-              variant="ghost"
-              className={dismissClass}
-              onClick={() => dismiss(toast.id)}
-              aria-label="Dismiss notification"
-            >
-              ×
-            </Button>
+            {!toast.autopsyScope ? (
+              <Button
+                variant="ghost"
+                className={dismissClass}
+                onClick={() => dismiss(toast.id)}
+                aria-label="Dismiss notification"
+              >
+                ×
+              </Button>
+            ) : null}
           </div>
         );
       })}

@@ -45,6 +45,13 @@ import type {
   AutopsyLesson,
   ExportFormat,
   ExportResult,
+  PeriodAutopsyAddLessonInput,
+  PeriodAutopsyLessonsListInput,
+  PeriodAutopsyListInput,
+  PeriodAutopsyPreview,
+  PeriodAutopsyPromoteLessonInput,
+  PeriodAutopsyRecord,
+  PeriodAutopsyRunInput,
   TradeAutopsyRecord,
   UpdateLessonInput,
 } from "@electron/shared/domain/autopsy";
@@ -84,6 +91,25 @@ export interface ExvaApi {
     addLesson(input: AddLessonInput): Promise<AutopsyLesson>;
     updateLesson(input: UpdateLessonInput): Promise<{ ok: true }>;
     export(autopsyId: string, format: ExportFormat): Promise<ExportResult>;
+    period: {
+      run(input: PeriodAutopsyRunInput): Promise<PeriodAutopsyRecord>;
+      list(input: PeriodAutopsyListInput): Promise<{
+        items: PeriodAutopsyRecord[];
+        total: number;
+      }>;
+      get(input: { periodAutopsyId: string }): Promise<PeriodAutopsyRecord>;
+      preview(input: PeriodAutopsyRunInput): Promise<PeriodAutopsyPreview>;
+      lessons: {
+        list(input: PeriodAutopsyLessonsListInput): Promise<AutopsyLesson[]>;
+        update(input: UpdateLessonInput): Promise<{ ok: true }>;
+        add(input: PeriodAutopsyAddLessonInput): Promise<AutopsyLesson>;
+        promote(input: PeriodAutopsyPromoteLessonInput): Promise<AutopsyLesson>;
+      };
+      export(input: {
+        periodAutopsyId: string;
+        format: ExportFormat;
+      }): Promise<ExportResult>;
+    };
   };
   session: {
     start(): Promise<SessionStatus>;

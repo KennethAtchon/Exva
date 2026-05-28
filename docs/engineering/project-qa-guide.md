@@ -155,9 +155,25 @@ Recommended automated priority matrix beyond onboarding:
 
 ## Autopsy
 
-- For a closed trade, click Generate autopsy in Trade Detail.
-- Verify summary appears and persists.
-- Re-open detail and verify autopsy list loads from DB.
+- Verify `Autopsy` appears in TopNav between `Trades` and `Strategy`.
+- Open `Autopsy` and confirm the Period Autopsy page renders as a full page, not an overlay.
+- In global scope, verify the default window uses `Since last autopsy` or falls back to the last 30 days.
+- Switch to session scope, pick a session, and verify the page loads that session's latest period autopsy or empty state.
+- Confirm `Run Autopsy` stays disabled when zero trades match the current window/filters.
+- Run a period autopsy and verify:
+  - a new `period_autopsies` row is created,
+  - executive summary/performance/failure/lesson sections render,
+  - the current scope shows version chips when multiple runs exist,
+  - period lessons appear in the period ledger, not in Trade Review.
+- Trigger a high-severity recurring lesson scenario and verify:
+  - `andon_cord_fired` only comes from the period run,
+  - the toast includes `View Autopsy`,
+  - the Autopsy page shows the persistent Andon banner,
+  - dismissing from the Andon card clears the active banner once no active Andon lessons remain.
+- From Included Trades, click `Review →` and verify Trade Review opens as an overlay without leaving the Period Autopsy page.
+- In Trade Review, verify the row action/title copy is `Review Trade` / `Trade Review`, not `Autopsy`.
+- Promote a trade lesson into the session or global period ledger and verify the source trade lesson remains unchanged.
+- Export the period autopsy as Markdown, JSON, and PDF and verify the file names use `period-autopsy-[scope]-[date]`.
 
 ---
 
@@ -169,7 +185,10 @@ Validate DB-level observability after scenario runs:
 - `agent_messages` rows created with expected `cycle_id` values.
 - `api_call_log` rows created for search/tool calls:
   - provider, endpoint, call_type, credits/cost, latency, status, cache flag.
-- `trade_autopsies` row created after autopsy generation.
+- `trade_autopsies` row created after trade review generation.
+- `period_autopsies` row created after period autopsy generation.
+- `autopsy_lessons` rows reflect the correct `source`, `scope`, and `period_autopsy_id` values.
+- Andon rows persist in `events` with `agent_type = period_autopsy`.
 
 Tip: use SQLite tooling and read-only queries for spot checks.
 
@@ -220,7 +239,7 @@ Use this in PR/release notes:
 - Fresh DB reset run: PASS/FAIL
 - Manual core checklist: PASS/FAIL
 - AI harness traces validated: PASS/FAIL
-- Telemetry tables validated (`agent_runs`, `agent_messages`, `api_call_log`, `trade_autopsies`): PASS/FAIL
+- Telemetry tables validated (`agent_runs`, `agent_messages`, `api_call_log`, `trade_autopsies`, `period_autopsies`, `autopsy_lessons`, `events`): PASS/FAIL
 - Notes/Risks:
 ```
 

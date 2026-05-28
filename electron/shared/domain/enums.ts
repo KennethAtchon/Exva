@@ -197,8 +197,9 @@ export type EventSourceType =
   | "approval"
   | "orchestrator"
   | "broker"
-  | "capital";
-export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
+  | "capital"
+  | "period_autopsy";
+export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "CRITICAL";
 /** Matches `trades.status` CHECK in migrations (Phase 2). */
 export type TradeStatus =
   | "pending"

@@ -1,5 +1,6 @@
 import type { BrowserWindow } from "electron";
 import type { SessionRuntimeStatus } from "@/lib/types";
+import type { AndonCordPayload } from "@electron/shared/domain/autopsy";
 import type {
   DashboardStats,
   EventRow,
@@ -78,12 +79,7 @@ export interface ExvaEventMap {
   };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
-  andon_cord_fired: {
-    lessonId: string;
-    lessonText: string;
-    recurrenceCount: number;
-    sessionId: string;
-  };
+  andon_cord_fired: AndonCordPayload;
 }
 
 export class EventBus {

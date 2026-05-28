@@ -282,9 +282,9 @@ const TradeRow = ({
             onViewAutopsy(trade.id);
           }}
           className={autopsyButtonClass}
-          title="View autopsy"
+          title="Review trade"
         >
-          ⚕ Autopsy
+          ⚕ Review Trade
         </button>
       )}
     </div>

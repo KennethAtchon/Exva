@@ -429,7 +429,7 @@ export const TradeDetail = ({
                 onClick={() => onViewAutopsy(tradeId)}
                 className={autopsyBtnClass}
               >
-                ⚕ Autopsy
+                ⚕ Review Trade
               </button>
             )}
           </div>

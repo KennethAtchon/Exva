@@ -1,6 +1,6 @@
 import type { DbClient } from "../../client";
 import type { AgentMessage } from "@/lib/types";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { agentMessages } from "../../schema";
 
 export class AgentMessagesRepo {
@@ -21,6 +21,17 @@ export class AgentMessagesRepo {
       .select()
       .from(agentMessages)
       .where(eq(agentMessages.cycleId, cycleId))
+      .orderBy(asc(agentMessages.createdAt))
+      .all();
+    return rows.map(toAgentMessage);
+  }
+
+  listByTrades(tradeIds: string[]): AgentMessage[] {
+    if (tradeIds.length === 0) return [];
+    const rows = this.client.db
+      .select()
+      .from(agentMessages)
+      .where(inArray(agentMessages.tradeId, tradeIds))
       .orderBy(asc(agentMessages.createdAt))
       .all();
     return rows.map(toAgentMessage);

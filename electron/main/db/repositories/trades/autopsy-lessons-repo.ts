@@ -1,9 +1,11 @@
 import type { DbClient } from "../../client";
 import type {
+  AutopsyLessonSource,
   AutopsyLesson,
+  AutopsyScope,
   LessonStatus,
 } from "@electron/shared/domain/autopsy";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { autopsyLessons } from "../../schema";
 import { AppError } from "@electron/shared/infra/errors";
 
@@ -11,6 +13,7 @@ function toLesson(row: typeof autopsyLessons.$inferSelect): AutopsyLesson {
   return {
     id: row.id,
     autopsyId: row.autopsyId,
+    periodAutopsyId: row.periodAutopsyId,
     tradeId: row.tradeId,
     sessionId: row.sessionId,
     lesson: row.lesson,
@@ -19,6 +22,8 @@ function toLesson(row: typeof autopsyLessons.$inferSelect): AutopsyLesson {
     proposedFix: row.proposedFix,
     status: row.status as LessonStatus,
     recurrenceCount: row.recurrenceCount,
+    source: row.source as AutopsyLessonSource,
+    scope: row.scope as AutopsyScope,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     validatedAt: row.validatedAt,
@@ -32,7 +37,22 @@ export class AutopsyLessonsRepo {
     const rows = this.client.db
       .select()
       .from(autopsyLessons)
-      .where(eq(autopsyLessons.autopsyId, autopsyId))
+      .where(
+        and(
+          eq(autopsyLessons.autopsyId, autopsyId),
+          eq(autopsyLessons.source, "trade"),
+        ),
+      )
+      .orderBy(desc(autopsyLessons.createdAt))
+      .all();
+    return rows.map(toLesson);
+  }
+
+  listByPeriodAutopsy(periodAutopsyId: string): AutopsyLesson[] {
+    const rows = this.client.db
+      .select()
+      .from(autopsyLessons)
+      .where(eq(autopsyLessons.periodAutopsyId, periodAutopsyId))
       .orderBy(desc(autopsyLessons.createdAt))
       .all();
     return rows.map(toLesson);
@@ -52,6 +72,58 @@ export class AutopsyLessonsRepo {
     return rows.map(toLesson);
   }
 
+  listByScope(input: {
+    scope: AutopsyScope;
+    sessionId?: string | null;
+    statuses?: LessonStatus[];
+    sources?: AutopsyLessonSource[];
+  }): AutopsyLesson[] {
+    const conditions = [eq(autopsyLessons.scope, input.scope)];
+    if (input.scope === "session") {
+      if (!input.sessionId) {
+        throw new AppError(
+          "sessionId is required for session-scoped lessons.",
+          "VALIDATION_FAILED",
+        );
+      }
+      conditions.push(eq(autopsyLessons.sessionId, input.sessionId));
+    } else {
+      conditions.push(sql`${autopsyLessons.sessionId} IS NULL`);
+    }
+    if (input.statuses?.length) {
+      conditions.push(inArray(autopsyLessons.status, input.statuses));
+    }
+    if (input.sources?.length) {
+      conditions.push(inArray(autopsyLessons.source, input.sources));
+    }
+    const rows = this.client.db
+      .select()
+      .from(autopsyLessons)
+      .where(and(...conditions))
+      .orderBy(desc(autopsyLessons.createdAt))
+      .all();
+    return rows.map(toLesson);
+  }
+
+  findSimilar(input: {
+    scope: AutopsyScope;
+    sessionId?: string | null;
+    lesson: string;
+    sources?: AutopsyLessonSource[];
+  }): AutopsyLesson | null {
+    const normalized = input.lesson.trim().toLowerCase();
+    const matches = this.listByScope({
+      scope: input.scope,
+      sessionId: input.sessionId,
+      sources: input.sources,
+    });
+    return (
+      matches.find(
+        (lesson) => lesson.lesson.trim().toLowerCase() === normalized,
+      ) ?? null
+    );
+  }
+
   insert(lesson: Omit<AutopsyLesson, "id"> & { id?: string }): AutopsyLesson {
     const id = lesson.id ?? crypto.randomUUID();
     this.client.db
@@ -59,6 +131,7 @@ export class AutopsyLessonsRepo {
       .values({
         id,
         autopsyId: lesson.autopsyId,
+        periodAutopsyId: lesson.periodAutopsyId,
         tradeId: lesson.tradeId,
         sessionId: lesson.sessionId,
         lesson: lesson.lesson,
@@ -67,6 +140,8 @@ export class AutopsyLessonsRepo {
         proposedFix: lesson.proposedFix,
         status: lesson.status,
         recurrenceCount: lesson.recurrenceCount,
+        source: lesson.source,
+        scope: lesson.scope,
         createdAt: lesson.createdAt,
         updatedAt: lesson.updatedAt,
         validatedAt: lesson.validatedAt,

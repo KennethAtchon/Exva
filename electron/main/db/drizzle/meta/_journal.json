@@ -8,6 +8,13 @@
       "when": 1779844244619,
       "tag": "0000_initial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780000000000,
+      "tag": "0001_period_autopsy",
+      "breakpoints": true
     }
   ]
 }

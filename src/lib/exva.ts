@@ -47,6 +47,13 @@ import type {
   AutopsyLesson,
   ExportFormat,
   ExportResult,
+  PeriodAutopsyAddLessonInput,
+  PeriodAutopsyLessonsListInput,
+  PeriodAutopsyListInput,
+  PeriodAutopsyPreview,
+  PeriodAutopsyPromoteLessonInput,
+  PeriodAutopsyRecord,
+  PeriodAutopsyRunInput,
   TradeAutopsyRecord,
   UpdateLessonInput,
 } from "@electron/shared/domain/autopsy";
@@ -393,6 +400,35 @@ export const api = {
     autopsyId: string,
     format: ExportFormat,
   ): Promise<ExportResult> => bridge().autopsy.export(autopsyId, format),
+  runPeriodAutopsy: (
+    input: PeriodAutopsyRunInput,
+  ): Promise<PeriodAutopsyRecord> => bridge().autopsy.period.run(input),
+  listPeriodAutopsies: (
+    input: PeriodAutopsyListInput,
+  ): Promise<{ items: PeriodAutopsyRecord[]; total: number }> =>
+    bridge().autopsy.period.list(input),
+  getPeriodAutopsy: (periodAutopsyId: string): Promise<PeriodAutopsyRecord> =>
+    bridge().autopsy.period.get({ periodAutopsyId }),
+  previewPeriodAutopsy: (
+    input: PeriodAutopsyRunInput,
+  ): Promise<PeriodAutopsyPreview> => bridge().autopsy.period.preview(input),
+  listPeriodAutopsyLessons: (
+    input: PeriodAutopsyLessonsListInput,
+  ): Promise<AutopsyLesson[]> => bridge().autopsy.period.lessons.list(input),
+  updatePeriodAutopsyLesson: (
+    input: UpdateLessonInput,
+  ): Promise<{ ok: true }> => bridge().autopsy.period.lessons.update(input),
+  addPeriodAutopsyLesson: (
+    input: PeriodAutopsyAddLessonInput,
+  ): Promise<AutopsyLesson> => bridge().autopsy.period.lessons.add(input),
+  promoteTradeLessonToPeriodLedger: (
+    input: PeriodAutopsyPromoteLessonInput,
+  ): Promise<AutopsyLesson> => bridge().autopsy.period.lessons.promote(input),
+  exportPeriodAutopsy: (
+    periodAutopsyId: string,
+    format: ExportFormat,
+  ): Promise<ExportResult> =>
+    bridge().autopsy.period.export({ periodAutopsyId, format }),
 };
 
 export async function listenEvent<K extends ExvaEventName>(

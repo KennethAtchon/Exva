@@ -5,7 +5,18 @@ import type {
   Trade,
   TradeStatus,
 } from "@/lib/types";
-import { and, asc, desc, eq, inArray, like, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  like,
+  lte,
+  ne,
+  sql,
+} from "drizzle-orm";
 import { agentMessages, sessions, trades } from "../../schema";
 import { AppError } from "@electron/shared/infra/errors";
 import { toTrade } from "../system/mappers";
@@ -292,6 +303,68 @@ export class TradesRepo {
       .from(trades)
       .where(and(eq(trades.sessionId, sessionId), eq(trades.status, "closed")))
       .orderBy(asc(trades.closedAt))
+      .all();
+    return rows.map(toTrade);
+  }
+
+  listClosedInWindow(filters: {
+    sessionId?: string;
+    sessionIds?: string[];
+    windowStart: string;
+    windowEnd: string;
+    instrumentClasses?: string[];
+    brokerAccountIds?: string[];
+    outcome?: "all" | "winners" | "losers";
+    minPositionSizeUsd?: number;
+  }): Trade[] {
+    const conditions = [
+      eq(trades.status, "closed"),
+      gte(trades.closedAt, filters.windowStart),
+      lte(trades.closedAt, filters.windowEnd),
+    ];
+
+    if (filters.sessionId) {
+      conditions.push(eq(trades.sessionId, filters.sessionId));
+    } else if (filters.sessionIds?.length) {
+      conditions.push(inArray(trades.sessionId, filters.sessionIds));
+    }
+
+    if (filters.instrumentClasses?.length) {
+      conditions.push(
+        inArray(trades.instrumentType, filters.instrumentClasses),
+      );
+    }
+    if (filters.brokerAccountIds?.length) {
+      conditions.push(
+        inArray(trades.brokerAccountId, filters.brokerAccountIds),
+      );
+    }
+    if (filters.outcome === "winners") {
+      conditions.push(sql`${trades.finalPnlUsd} > 0`);
+    } else if (filters.outcome === "losers") {
+      conditions.push(sql`${trades.finalPnlUsd} < 0`);
+    }
+    if ((filters.minPositionSizeUsd ?? 0) > 0) {
+      conditions.push(
+        gte(trades.positionSizeUsd, filters.minPositionSizeUsd ?? 0),
+      );
+    }
+
+    const rows = this.client.db
+      .select()
+      .from(trades)
+      .where(and(...conditions))
+      .orderBy(asc(trades.closedAt), asc(trades.createdAt))
+      .all();
+    return rows.map(toTrade);
+  }
+
+  listByIds(ids: string[]): Trade[] {
+    if (ids.length === 0) return [];
+    const rows = this.client.db
+      .select()
+      .from(trades)
+      .where(inArray(trades.id, ids))
       .all();
     return rows.map(toTrade);
   }

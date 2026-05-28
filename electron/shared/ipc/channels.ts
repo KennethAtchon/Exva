@@ -17,6 +17,21 @@ export const channels = {
       updateLesson: "trades:autopsy:update-lesson",
     },
   },
+  autopsy: {
+    period: {
+      run: "autopsy:period:run",
+      list: "autopsy:period:list",
+      get: "autopsy:period:get",
+      preview: "autopsy:period:preview",
+      lessons: {
+        list: "autopsy:period:lessons:list",
+        update: "autopsy:period:lessons:update",
+        add: "autopsy:period:lessons:add",
+        promote: "autopsy:period:lessons:promote",
+      },
+      export: "autopsy:period:export",
+    },
+  },
   session: {
     start: "session:start",
     pause: "session:pause",

@@ -82,6 +82,21 @@ const exva: ExvaApi = {
       invoke(channels.trades.autopsy.updateLesson, input),
     export: (autopsyId, format) =>
       invoke(channels.trades.autopsy.export, { autopsyId, format }),
+    period: {
+      run: (input) => invoke(channels.autopsy.period.run, input),
+      list: (input) => invoke(channels.autopsy.period.list, input),
+      get: (input) => invoke(channels.autopsy.period.get, input),
+      preview: (input) => invoke(channels.autopsy.period.preview, input),
+      lessons: {
+        list: (input) => invoke(channels.autopsy.period.lessons.list, input),
+        update: (input) =>
+          invoke(channels.autopsy.period.lessons.update, input),
+        add: (input) => invoke(channels.autopsy.period.lessons.add, input),
+        promote: (input) =>
+          invoke(channels.autopsy.period.lessons.promote, input),
+      },
+      export: (input) => invoke(channels.autopsy.period.export, input),
+    },
   },
   session: {
     start: () => invoke(channels.session.start),

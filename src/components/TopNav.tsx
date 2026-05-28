@@ -16,6 +16,7 @@ export type PageKey =
   | "sessions"
   | "brokers"
   | "trades"
+  | "autopsy"
   | "strategy"
   | "costs"
   | "devpanel"
@@ -26,6 +27,7 @@ const NAV_ITEMS: { id: PageKey; label: string }[] = [
   { id: "sessions", label: "Sessions" },
   { id: "brokers", label: "Brokers" },
   { id: "trades", label: "Trades" },
+  { id: "autopsy", label: "Autopsy" },
   { id: "strategy", label: "Strategy" },
   { id: "costs", label: "API Usage" },
   { id: "devpanel", label: "Developer" },

@@ -20,6 +20,7 @@ import type {
   WorkspaceViewMode,
 } from "@/lib/types";
 import type { PhaseRuntimeSummary } from "@electron/shared/ai/ai-phase";
+import type { AndonCordPayload } from "@electron/shared/domain/autopsy";
 
 export interface SessionSummary {
   id: string;
@@ -177,12 +178,7 @@ export type ExvaEventMap = {
   };
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
-  andon_cord_fired: {
-    lessonId: string;
-    lessonText: string;
-    recurrenceCount: number;
-    sessionId: string;
-  };
+  andon_cord_fired: AndonCordPayload;
 };
 
 export type ExvaEventName = keyof ExvaEventMap;

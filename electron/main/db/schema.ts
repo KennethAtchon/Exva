@@ -581,33 +581,77 @@ export const tradeAutopsies = sqliteTable(
   }),
 );
 
+export const periodAutopsies = sqliteTable(
+  "period_autopsies",
+  {
+    id: text("id").primaryKey(),
+    scope: text("scope").notNull(),
+    sessionId: text("session_id").references(() => sessions.id, {
+      onDelete: "set null",
+    }),
+    windowStart: text("window_start").notNull(),
+    windowEnd: text("window_end").notNull(),
+    modelId: text("model_id").notNull(),
+    filtersJson: text("filters_json").notNull().default("{}"),
+    tradeCount: integer("trade_count").notNull().default(0),
+    tradeIdsJson: text("trade_ids_json").notNull().default("[]"),
+    summaryStructuredJson: text("summary_structured_json")
+      .notNull()
+      .default("{}"),
+    phaseTracesJson: text("phase_traces_json").notNull().default("[]"),
+    qualityGrade: text("quality_grade"),
+    qualityScore: real("quality_score"),
+    isFallback: integer("is_fallback", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    totalCostUsd: real("total_cost_usd").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    createdBy: text("created_by").notNull().default("user"),
+  },
+  (table) => ({
+    scopeIdx: index("idx_period_autopsies_scope").on(table.scope),
+    sessionIdx: index("idx_period_autopsies_session").on(table.sessionId),
+    createdIdx: index("idx_period_autopsies_created").on(table.createdAt),
+  }),
+);
+
 export const autopsyLessons = sqliteTable(
   "autopsy_lessons",
   {
     id: text("id").primaryKey(),
-    autopsyId: text("autopsy_id")
-      .notNull()
-      .references(() => tradeAutopsies.id, { onDelete: "cascade" }),
-    tradeId: text("trade_id")
-      .notNull()
-      .references(() => trades.id, { onDelete: "cascade" }),
-    sessionId: text("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
+    autopsyId: text("autopsy_id").references(() => tradeAutopsies.id, {
+      onDelete: "cascade",
+    }),
+    periodAutopsyId: text("period_autopsy_id").references(
+      () => periodAutopsies.id,
+      {
+        onDelete: "cascade",
+      },
+    ),
+    tradeId: text("trade_id").references(() => trades.id, {
+      onDelete: "cascade",
+    }),
+    sessionId: text("session_id").references(() => sessions.id, {
+      onDelete: "set null",
+    }),
     lesson: text("lesson").notNull(),
     severity: text("severity").notNull().default("medium"),
     category: text("category").notNull().default("strategy"),
     proposedFix: text("proposed_fix").notNull().default(""),
     status: text("status").notNull().default("pending"),
     recurrenceCount: integer("recurrence_count").notNull().default(0),
+    source: text("source").notNull().default("trade"),
+    scope: text("scope").notNull().default("session"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     validatedAt: text("validated_at"),
   },
   (table) => ({
     autopsyIdx: index("idx_autopsy_lessons_autopsy").on(table.autopsyId),
+    periodIdx: index("idx_autopsy_lessons_period").on(table.periodAutopsyId),
     sessionIdx: index("idx_autopsy_lessons_session").on(table.sessionId),
     statusIdx: index("idx_autopsy_lessons_status").on(table.status),
+    scopeIdx: index("idx_autopsy_lessons_scope").on(table.scope),
   }),
 );
 
