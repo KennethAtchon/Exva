@@ -23,6 +23,8 @@ export interface MockScenario {
   kind?: MockScenarioKind;
   marketClosed?: boolean;
   brokerTimeoutMs?: number;
+  /** If set, getOrderStatus returns "closed" with computed PnL after this many ms. */
+  autoCloseAfterMs?: number;
 }
 
 export interface MockOhlcvBar {
@@ -123,7 +125,7 @@ export class MockBrokerAdapter implements BrokerAdapter {
 
   private readonly orders = new Map<
     string,
-    { order: BrokerOrder; price: number }
+    { order: BrokerOrder; price: number; placedAt: number }
   >();
 
   constructor(
@@ -205,7 +207,11 @@ export class MockBrokerAdapter implements BrokerAdapter {
 
     const brokerOrderId = `mock_${crypto.randomUUID()}`;
     const filledAvgPrice = this.basePriceFor(order.instrumentSymbol);
-    this.orders.set(brokerOrderId, { order, price: filledAvgPrice });
+    this.orders.set(brokerOrderId, {
+      order,
+      price: filledAvgPrice,
+      placedAt: Date.now(),
+    });
 
     if (kind === "partial_fill") {
       const fillRatio = 0.4 + Math.random() * 0.4;
@@ -260,12 +266,42 @@ export class MockBrokerAdapter implements BrokerAdapter {
 
   async getOrderStatus(orderId: string): Promise<OrderStatus> {
     const existing = this.orders.get(orderId);
+    if (!existing) {
+      return {
+        brokerOrderId: orderId,
+        status: "closed",
+        latestPrice: null,
+        realizedPnlUsd: null,
+      };
+    }
+
+    const autoClose = this.scenario.autoCloseAfterMs;
+    if (autoClose != null && Date.now() - existing.placedAt >= autoClose) {
+      this.orders.delete(orderId);
+      const closePrice = this.computeClosePrice(
+        existing.order.instrumentSymbol,
+        existing.price,
+      );
+      const isSell = existing.order.side === "SELL";
+      const realizedPnlUsd = round2(
+        isSell
+          ? ((existing.price - closePrice) / existing.price) *
+              existing.order.sizeUsd
+          : ((closePrice - existing.price) / existing.price) *
+              existing.order.sizeUsd,
+      );
+      return {
+        brokerOrderId: orderId,
+        status: "closed",
+        latestPrice: closePrice,
+        realizedPnlUsd,
+      };
+    }
+
     return {
       brokerOrderId: orderId,
-      status: existing ? "open" : "closed",
-      latestPrice: existing
-        ? this.basePriceFor(existing.order.instrumentSymbol)
-        : null,
+      status: "open",
+      latestPrice: this.basePriceFor(existing.order.instrumentSymbol),
       realizedPnlUsd: null,
     };
   }

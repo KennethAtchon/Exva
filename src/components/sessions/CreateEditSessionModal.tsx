@@ -276,6 +276,7 @@ export const CreateEditSessionModal = ({
   const isValid =
     form.name.trim().length > 0 &&
     form.objective.trim().length > 0 &&
+    form.instrumentScope.trim().length > 0 &&
     effectiveInstrumentClasses.length > 0;
   const hasBrokerCoverage =
     uncoveredInstrumentClasses.length === 0 &&

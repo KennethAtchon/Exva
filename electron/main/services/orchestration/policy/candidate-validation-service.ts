@@ -25,6 +25,7 @@ export interface CandidateValidationInput {
   brokerRouteAvailable?: boolean;
   sideBias?: StrategySideBias;
   holdingStyle?: HoldingStyle;
+  selectionMode?: string;
   selectorTrace: ToolLLMToolStepTrace[];
   quoteSnapshot: MarketSnapshot;
   now?: string;
@@ -116,27 +117,29 @@ export class CandidateValidationService {
       }
     }
 
-    // CV-6: Symbol-specific evidence
-    const hasSearchEvidence = selectorTrace.some((step) =>
-      step.toolCalls.some((call) => {
-        if (call.tool !== "search_web") return false;
-        const matched = call.resultJson.includes(instrument.symbol);
-        if (matched)
-          evidence.push({ source: "search_web", symbolMatched: true });
-        return matched;
-      }),
-    );
-    // Fallback: use typed selector evidence when traces are unavailable
     const structuredEvidence = instrument.selectorEvidence;
-    const hasStructuredEvidence =
-      structuredEvidence?.hasSearchEvidence ||
-      structuredEvidence?.hasQuoteEvidence ||
-      structuredEvidence?.hasOhlcvEvidence ||
-      structuredEvidence?.hasFetchEvidence;
-    if (!hasSearchEvidence && !hasStructuredEvidence) {
-      reasons.push(
-        `No symbol-specific evidence found for ${instrument.symbol}`,
+
+    // CV-6: Symbol-specific evidence (skipped for manual shortlist — user explicitly chose these symbols)
+    if (input.selectionMode !== "manual_shortlist") {
+      const hasSearchEvidence = selectorTrace.some((step) =>
+        step.toolCalls.some((call) => {
+          if (call.tool !== "search_web") return false;
+          const matched = call.resultJson.includes(instrument.symbol);
+          if (matched)
+            evidence.push({ source: "search_web", symbolMatched: true });
+          return matched;
+        }),
       );
+      const hasStructuredEvidence =
+        structuredEvidence?.hasSearchEvidence ||
+        structuredEvidence?.hasQuoteEvidence ||
+        structuredEvidence?.hasOhlcvEvidence ||
+        structuredEvidence?.hasFetchEvidence;
+      if (!hasSearchEvidence && !hasStructuredEvidence) {
+        reasons.push(
+          `No symbol-specific evidence found for ${instrument.symbol}`,
+        );
+      }
     }
 
     // CV-7: Rationale non-empty when structured evidence is present

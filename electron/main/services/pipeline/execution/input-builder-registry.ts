@@ -12,6 +12,7 @@ export type EngineRunCtx = Pick<
   | "sessionId"
   | "cycleId"
   | "tradeId"
+  | "session"
   | "instrument"
   | "sessionConfig"
   | "instrumentClasses"

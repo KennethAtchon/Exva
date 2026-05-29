@@ -15,6 +15,8 @@ const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   custom: 300_000,
 };
 
+export const MOCK_POLL_INTERVAL_MS = 10_000;
+
 export class TradeMonitor {
   private timer: NodeJS.Timeout | null = null;
   private pollIntervalMs = POLL_INTERVAL_MS.multi_day_swing;
@@ -33,6 +35,7 @@ export class TradeMonitor {
     private readonly getMaxAiSpendUsd: () => number,
     private readonly uptimeMin: () => number = () => 0,
     private readonly instrumentNormalizer?: InstrumentNormalizer,
+    private readonly overridePollIntervalMs?: number,
   ) {}
 
   start(): void {
@@ -234,6 +237,7 @@ export class TradeMonitor {
   }
 
   private resolvePollIntervalMs(): number {
+    if (this.overridePollIntervalMs != null) return this.overridePollIntervalMs;
     const holdingStyle = this.strategyContextService.get(this.sessionId)
       .timeframe.holdingStyle;
     return POLL_INTERVAL_MS[holdingStyle] ?? POLL_INTERVAL_MS.multi_day_swing;

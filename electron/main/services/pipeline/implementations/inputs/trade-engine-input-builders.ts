@@ -56,6 +56,7 @@ const candidateValidationInputBuilder: EngineInputBuilder = {
         sessionInstrumentClasses: ctx.instrumentClasses,
         sideBias: strategy.rules.sideBias,
         holdingStyle: strategy.timeframe.holdingStyle,
+        selectionMode: ctx.session.selectionMode,
         selectorTrace: ctx.instrument.selectorTraces ?? [],
         quoteSnapshot,
       },

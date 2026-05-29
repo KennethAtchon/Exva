@@ -67,7 +67,10 @@ import { ExitPolicyEvaluator } from "./risk/exit-policy-evaluator";
 import { SessionListingService } from "./session/listing-service";
 import { SessionTemplateService } from "./session/template-service";
 import { SessionWriteService } from "./session/write-service";
-import { TradeMonitor } from "./orchestration/lifecycle/trade-monitor";
+import {
+  TradeMonitor,
+  MOCK_POLL_INTERVAL_MS,
+} from "./orchestration/lifecycle/trade-monitor";
 import { CycleReplayService } from "./replay/cycle-replay-service";
 import { InstrumentCacheService } from "./instrument";
 import {
@@ -338,8 +341,13 @@ export async function createAppServices(app: App): Promise<AppServices> {
     ...orchestratorDepsBase,
     createOrchestrator: (sessionId, deps) =>
       new AgentOrchestrator(sessionId, deps),
-    createTradeMonitor: (sessionId) =>
-      new TradeMonitor(
+    createTradeMonitor: (sessionId) => {
+      const assignments =
+        repos.sessionBrokerAssignments.listAssignments(sessionId);
+      const isMockSession = assignments.some((a) =>
+        brokerRegistry.isMockAccount(a.brokerAccountId),
+      );
+      return new TradeMonitor(
         sessionId,
         repos.trades,
         repos.stats,
@@ -352,7 +360,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
         () => strategyContext.get(sessionId).riskConfig.maxAiSpendUsd,
         () => runtimeManager.get(sessionId)?.uptimeMin() ?? 0,
         instrumentNormalizer,
-      ),
+        isMockSession ? MOCK_POLL_INTERVAL_MS : undefined,
+      );
+    },
   };
   runtimeManager = new SessionRuntimeManager(
     runtimeManagerDeps,

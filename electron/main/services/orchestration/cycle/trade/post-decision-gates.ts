@@ -27,6 +27,7 @@ export async function runPostDecisionGates(
     sessionId: ctx.sessionId,
     cycleId,
     tradeId,
+    session: ctx.deps.sessionRepo.requireById(ctx.sessionId),
     instrument,
     sessionConfig: ctx.getSessionConfig(),
     instrumentClasses: [],
