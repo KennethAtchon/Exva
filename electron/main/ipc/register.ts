@@ -8,6 +8,7 @@ import { registerDeveloperHandlers } from "./system/developer";
 import { registerEventHandlers } from "./system/events";
 import { registerReplayHandlers } from "./session/replay";
 import { registerSessionHandlers } from "./session/session";
+import { registerSignalHandlers } from "./signals";
 import { registerStrategyHandlers } from "./workspace/strategy";
 import { registerTemplateHandlers } from "./session/templates";
 import { registerTradeHandlers } from "./trading/trades";
@@ -30,5 +31,6 @@ export function registerIpcHandlers(services: AppServices): void {
   registerBrokerAccountHandlers(services);
   registerEventHandlers(services);
   registerReplayHandlers(services);
+  registerSignalHandlers(services);
   registerDeveloperHandlers(services);
 }

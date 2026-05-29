@@ -202,8 +202,8 @@ export function toSessionResearchPosture(row: Row): SessionResearchPosture {
     sessionId: String(row.session_id),
     posturePresetId:
       row.posture_preset_id as SessionResearchPosture["posturePresetId"],
-    discoveryMode:
-      row.discovery_mode as SessionResearchPosture["discoveryMode"],
+    processingMode:
+      row.processing_mode as SessionResearchPosture["processingMode"],
     evidenceMode: row.evidence_mode as SessionResearchPosture["evidenceMode"],
     catalystMode: row.catalyst_mode as SessionResearchPosture["catalystMode"],
     fundamentalStrictness:

@@ -13,9 +13,9 @@ function baseContext(): SessionStrategyContext {
   return {
     researchPosture: {
       sessionId: "s1",
-      posturePresetId: "trend_hunt",
-      discoveryMode: "trend_scan",
-      evidenceMode: "price_action_first",
+      posturePresetId: "edgar_catalyst",
+      processingMode: "catalyst",
+      evidenceMode: "document_first",
       catalystMode: "preferred",
       fundamentalStrictness: "sanity_check",
       postureNotes: "Favor strong leaders with clean trend persistence.",
@@ -23,10 +23,10 @@ function baseContext(): SessionStrategyContext {
     },
     rules: {
       sessionId: "s1",
-      rulesPresetId: "breakout_long",
-      setupType: "breakout",
+      rulesPresetId: "catalyst_entry",
+      setupType: "catalyst_entry",
       sideBias: "long_only",
-      entryStyle: "breakout",
+      entryStyle: "catalyst",
       exitStyle: "trailing_atr",
       scalingMode: "single_entry",
       tradeRulesMarkdown: "",
@@ -55,7 +55,7 @@ function baseContext(): SessionStrategyContext {
     },
     timeframe: {
       sessionId: "s1",
-      timeframePresetId: "custom" as const,
+      timeframePresetId: "catalyst",
       primaryTradingTimeframe: "1h",
       holdingStyle: "multi_day_swing",
       targetHoldDays: 3,
@@ -101,9 +101,9 @@ describe("strategy-prompt-context", () => {
     );
 
     expect(out.prompt.startsWith("## Session research posture")).toBe(true);
-    expect(out.prompt).toContain("trend_hunt");
+    expect(out.prompt).toContain("edgar_catalyst");
     expect(out.prompt.endsWith("Instrument: AAPL")).toBe(true);
-    expect(out.snapshot.rules.setupType).toBe("breakout");
+    expect(out.snapshot.rules.setupType).toBe("catalyst_entry");
   });
 
   it("builds a smaller worker-scoped strategy context than the full snapshot prompt", () => {
@@ -114,7 +114,7 @@ describe("strategy-prompt-context", () => {
       TEST_STRATEGY_CONTEXT_REQUEST,
     );
     expect(worker.length).toBeLessThan(full.length);
-    expect(worker).toContain("Discovery: trend_scan");
+    expect(worker).toContain("Processing: catalyst");
     expect(worker).toContain("Stop loss type:");
     expect(worker).not.toContain("Posture notes:");
     expect(worker).not.toContain("Trade rules markdown:");
@@ -128,7 +128,7 @@ describe("strategy-prompt-context", () => {
 
     const messages = buildWorkerPrompt({
       phase: "technical",
-      workerId: "chart-pattern",
+      workerId: "price-reaction-checker",
       basePromptMarkdown: "# Chart pattern",
       task: { instrumentSymbol: "AAPL", context: "brief from selector" },
       strategyContext: context,
@@ -146,7 +146,7 @@ describe("strategy-prompt-context", () => {
   it("adds preset-derived behavior guidance to worker messages", () => {
     const context = baseContext();
     context.riskConfig.riskPresetId = "moderate";
-    context.timeframe.timeframePresetId = "swing";
+    context.timeframe.timeframePresetId = "catalyst";
 
     const messages = buildWorkerPrompt({
       phase: "selector",
@@ -160,7 +160,7 @@ describe("strategy-prompt-context", () => {
     const userMessage = messages[1]?.content ?? "";
 
     expect(userMessage).toContain("<trusted_strategy_facts>");
-    expect(userMessage).toContain("Discovery: trend_scan");
+    expect(userMessage).toContain("Processing: catalyst");
     expect(userMessage).toContain("<trusted_strategy_guidance>");
     expect(userMessage).not.toContain("<trusted_session_context>");
     expect(userMessage).not.toContain("<preset_behavior>");
@@ -192,7 +192,7 @@ describe("strategy-prompt-context", () => {
   it("renders worker-declared strategy facts and guidance only", () => {
     const context = baseContext();
     context.riskConfig.riskPresetId = "moderate";
-    context.timeframe.timeframePresetId = "swing";
+    context.timeframe.timeframePresetId = "catalyst";
 
     const messages = buildWorkerPrompt({
       phase: "selector",
@@ -213,11 +213,11 @@ describe("strategy-prompt-context", () => {
     expect(userMessage).toContain("Max position USD: 100");
     expect(userMessage).toContain("Horizon: 1h (multi_day_swing)");
     expect(userMessage).not.toContain("<trusted_session_context>");
-    expect(userMessage).not.toContain("Discovery: trend_scan");
-    expect(userMessage).not.toContain("Entry: breakout");
+    expect(userMessage).not.toContain("Processing: catalyst");
+    expect(userMessage).not.toContain("Entry: catalyst");
 
     expect(userMessage).toContain("<trusted_strategy_guidance>");
-    expect(userMessage).toContain("Global preset: Trend Momentum");
+    expect(userMessage).toContain("Global preset: EDGAR Catalyst");
     expect(userMessage).toContain("How to evaluate");
     expect(userMessage).not.toContain("What to look for");
     expect(userMessage).not.toContain("Research posture: Trend Hunt");

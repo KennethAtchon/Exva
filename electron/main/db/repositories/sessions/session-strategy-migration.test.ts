@@ -52,11 +52,11 @@ describe("strategy schema migration compatibility", () => {
       .orderBy(asc(sessionAiPhases.phase))
       .all();
 
-    expect(posture?.posturePresetId).toBe("trend_hunt");
-    expect(rules?.setupType).toBe("breakout");
+    expect(posture?.posturePresetId).toBe("edgar_catalyst");
+    expect(rules?.setupType).toBe("catalyst_entry");
     expect(risk?.maxPositionUsd).toBe(500);
     expect(risk?.stopLossType).toBe("trailing_atr");
-    expect(timeframe?.primaryTradingTimeframe).toBe("4h");
+    expect(timeframe?.primaryTradingTimeframe).toBe("1d");
     expect(phases.map((row) => row.phase)).toEqual([
       "decision",
       "fundamental",

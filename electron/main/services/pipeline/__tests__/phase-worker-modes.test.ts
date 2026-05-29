@@ -8,11 +8,9 @@ import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 
 function requireWorkers(
   resolver:
-    | ((
-        mode: "trend_scan" | "event_contract_scan",
-      ) => readonly WorkerDefinition[])
+    | ((mode: "catalyst" | "contract") => readonly WorkerDefinition[])
     | undefined,
-  mode: "trend_scan" | "event_contract_scan",
+  mode: "catalyst" | "contract",
 ): readonly WorkerDefinition[] {
   if (!resolver) {
     throw new Error(`Expected resolveWorkersForMode for ${mode}`);
@@ -20,19 +18,19 @@ function requireWorkers(
   return resolver(mode);
 }
 
-describe("phase worker discovery modes", () => {
+describe("phase worker processing modes", () => {
   it("uses standard selector scouts by default", () => {
     const workers = requireWorkers(
       SELECTOR_PHASE.resolveWorkersForMode,
-      "trend_scan",
+      "catalyst",
     );
-    expect(workers.map((w) => w.id)).toEqual(["web-scout", "trend-scout"]);
+    expect(workers.map((w) => w.id)).toEqual(["catalyst-feed-scout"]);
   });
 
   it("declares strategy context for standard selector scouts", () => {
     const workers = requireWorkers(
       SELECTOR_PHASE.resolveWorkersForMode,
-      "trend_scan",
+      "catalyst",
     );
     for (const worker of workers) {
       expect(worker.strategyContext?.fields).toEqual(
@@ -50,10 +48,10 @@ describe("phase worker discovery modes", () => {
     }
   });
 
-  it("swaps selector scouts for event_contract_scan", () => {
+  it("swaps selector scouts for contract mode", () => {
     const workers = requireWorkers(
       SELECTOR_PHASE.resolveWorkersForMode,
-      "event_contract_scan",
+      "contract",
     );
     expect(workers.map((w) => w.id)).toEqual([
       "event-web-scout",
@@ -61,10 +59,10 @@ describe("phase worker discovery modes", () => {
     ]);
   });
 
-  it("swaps technical workers for event_contract_scan", () => {
+  it("swaps technical workers for contract mode", () => {
     const workers = requireWorkers(
       TECHNICAL_PHASE.resolveWorkersForMode,
-      "event_contract_scan",
+      "contract",
     );
     expect(workers.map((w) => w.id)).toEqual([
       "implied-probability",
@@ -73,10 +71,21 @@ describe("phase worker discovery modes", () => {
     ]);
   });
 
-  it("swaps fundamental workers for event_contract_scan", () => {
+  it("uses catalyst technical workers for catalyst mode", () => {
+    const workers = requireWorkers(
+      TECHNICAL_PHASE.resolveWorkersForMode,
+      "catalyst",
+    );
+    expect(workers.map((w) => w.id)).toEqual([
+      "price-reaction-checker",
+      "volume-profile",
+    ]);
+  });
+
+  it("swaps fundamental workers for contract mode", () => {
     const workers = requireWorkers(
       FUNDAMENTAL_PHASE.resolveWorkersForMode,
-      "event_contract_scan",
+      "contract",
     );
     expect(workers.map((w) => w.id)).toEqual([
       "resolution-context",
@@ -85,14 +94,25 @@ describe("phase worker discovery modes", () => {
     ]);
   });
 
+  it("uses catalyst fundamental workers for catalyst mode", () => {
+    const workers = requireWorkers(
+      FUNDAMENTAL_PHASE.resolveWorkersForMode,
+      "catalyst",
+    );
+    expect(workers.map((w) => w.id)).toEqual([
+      "document-extractor",
+      "market-reaction-checker",
+    ]);
+  });
+
   it("review workers are mode-invariant", () => {
     const standard = requireWorkers(
       REVIEW_PHASE.resolveWorkersForMode,
-      "trend_scan",
+      "catalyst",
     );
     const event = requireWorkers(
       REVIEW_PHASE.resolveWorkersForMode,
-      "event_contract_scan",
+      "contract",
     );
     expect(standard.map((w) => w.id)).toEqual(event.map((w) => w.id));
     expect(standard.map((w) => w.id)).toEqual([
@@ -104,11 +124,11 @@ describe("phase worker discovery modes", () => {
   it("decision workers are mode-invariant", () => {
     const standard = requireWorkers(
       DECISION_PHASE.resolveWorkersForMode,
-      "trend_scan",
+      "catalyst",
     );
     const event = requireWorkers(
       DECISION_PHASE.resolveWorkersForMode,
-      "event_contract_scan",
+      "contract",
     );
     expect(standard.map((w) => w.id)).toEqual(event.map((w) => w.id));
     expect(standard.map((w) => w.id)).toEqual([

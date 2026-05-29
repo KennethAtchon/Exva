@@ -47,7 +47,7 @@ describe("SessionTemplateService", () => {
           researchPosture: {
             sessionId: "s1",
             posturePresetId: "custom",
-            discoveryMode: "custom",
+            processingMode: "manual",
             evidenceMode: "balanced",
             catalystMode: "preferred",
             fundamentalStrictness: "balanced",
@@ -59,7 +59,7 @@ describe("SessionTemplateService", () => {
             rulesPresetId: "custom",
             setupType: "custom",
             sideBias: "both",
-            entryStyle: "breakout",
+            entryStyle: "catalyst",
             exitStyle: "fixed_pct",
             scalingMode: "single_entry",
             tradeRulesMarkdown: "",

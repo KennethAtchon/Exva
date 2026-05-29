@@ -15,6 +15,7 @@ const instrumentClassSchema = z.enum([
 const selectionModeSchema = z.enum([
   "manual_shortlist",
   "ai_selected_universe",
+  "signal_driven",
 ]);
 const executionModeSchema = z.enum(["paper_only", "live_allowed"]);
 const sessionStatusSchema = z.enum([
@@ -35,25 +36,15 @@ const strategyProfileSchema = z.enum([
   "custom",
 ]);
 const researchPosturePresetIdSchema = z.enum([
-  "trend_hunt",
-  "catalyst_momentum",
-  "institutional_quality",
-  "mean_reversion_dislocation",
+  "edgar_catalyst",
+  "earnings_event",
+  "manual_watchlist",
   "prediction_event_edge",
   "custom",
 ]);
-const researchDiscoveryModeSchema = z.enum([
-  "trend_scan",
-  "catalyst_scan",
-  "quality_watchlist",
-  "mean_reversion_scan",
-  "event_contract_scan",
-  "custom",
-]);
+const processingModeSchema = z.enum(["catalyst", "contract", "manual"]);
 const researchEvidenceModeSchema = z.enum([
-  "narrative_first",
-  "price_action_first",
-  "confirmation_first",
+  "document_first",
   "probability_edge",
   "balanced",
 ]);
@@ -69,18 +60,14 @@ const researchFundamentalStrictnessSchema = z.enum([
   "not_applicable",
 ]);
 const tradeRulesPresetIdSchema = z.enum([
-  "breakout_long",
-  "pullback_trend",
+  "catalyst_entry",
   "event_entry",
-  "reversal_fade",
   "probability_edge",
   "custom",
 ]);
 const setupTypeSchema = z.enum([
-  "breakout",
-  "pullback_trend",
+  "catalyst_entry",
   "event_entry",
-  "reversal_fade",
   "probability_edge",
   "custom",
 ]);
@@ -92,10 +79,7 @@ const strategySideBiasSchema = z.enum([
   "n_a",
 ]);
 const strategyEntryStyleSchema = z.enum([
-  "breakout",
-  "pullback",
-  "reversal",
-  "range_fade",
+  "catalyst",
   "event",
   "probability_edge",
 ]);
@@ -119,18 +103,8 @@ const stopLossTypeSchema = z.enum([
   "broker_native_trailing",
   "none",
 ]);
-const tradingTimeframeSchema = z.enum([
-  "1m",
-  "5m",
-  "15m",
-  "30m",
-  "1h",
-  "4h",
-  "1d",
-  "1w",
-]);
+const tradingTimeframeSchema = z.enum(["30m", "1h", "4h", "1d", "1w"]);
 const holdingStyleSchema = z.enum([
-  "intraday_flat",
   "multi_day_swing",
   "weeks_position",
   "custom",
@@ -164,6 +138,7 @@ export const sessionCreateInputSchema = z.object({
   brokerOverridesByInstrumentClass: z
     .record(instrumentClassSchema, z.string().nullable())
     .optional(),
+  subscribedSourceIds: z.array(z.string().min(1)).optional(),
 });
 
 const sessionStrategyPayloadSchema = z.object({
@@ -192,7 +167,7 @@ const sessionStrategyPayloadSchema = z.object({
 
 const sessionResearchPosturePayloadSchema = z.object({
   posturePresetId: researchPosturePresetIdSchema,
-  discoveryMode: researchDiscoveryModeSchema,
+  processingMode: processingModeSchema,
   evidenceMode: researchEvidenceModeSchema,
   catalystMode: researchCatalystModeSchema,
   fundamentalStrictness: researchFundamentalStrictnessSchema,

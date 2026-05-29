@@ -64,7 +64,10 @@ export interface ExecutionStepState {
   updatedAt: string;
 }
 
-export type SelectionMode = "manual_shortlist" | "ai_selected_universe";
+export type SelectionMode =
+  | "manual_shortlist"
+  | "ai_selected_universe"
+  | "signal_driven";
 export type ExecutionMode = "paper_only" | "live_allowed";
 export type ResearchDepth = "light" | "balanced" | "deep";
 export type StrategyProfile =
@@ -73,23 +76,14 @@ export type StrategyProfile =
   | "conservative"
   | "custom";
 export type ResearchPosturePresetId =
-  | "trend_hunt"
-  | "catalyst_momentum"
-  | "institutional_quality"
-  | "mean_reversion_dislocation"
+  | "edgar_catalyst"
+  | "earnings_event"
+  | "manual_watchlist"
   | "prediction_event_edge"
   | "custom";
-export type ResearchDiscoveryMode =
-  | "trend_scan"
-  | "catalyst_scan"
-  | "quality_watchlist"
-  | "mean_reversion_scan"
-  | "event_contract_scan"
-  | "custom";
+export type ProcessingMode = "catalyst" | "contract" | "manual";
 export type ResearchEvidenceMode =
-  | "narrative_first"
-  | "price_action_first"
-  | "confirmation_first"
+  | "document_first"
   | "probability_edge"
   | "balanced";
 export type ResearchCatalystMode = "required" | "preferred" | "not_required";
@@ -99,17 +93,13 @@ export type ResearchFundamentalStrictness =
   | "deep_confirmation"
   | "not_applicable";
 export type TradeRulesPresetId =
-  | "breakout_long"
-  | "pullback_trend"
+  | "catalyst_entry"
   | "event_entry"
-  | "reversal_fade"
   | "probability_edge"
   | "custom";
 export type SetupType =
-  | "breakout"
-  | "pullback_trend"
+  | "catalyst_entry"
   | "event_entry"
-  | "reversal_fade"
   | "probability_edge"
   | "custom";
 export type StrategySideBias =
@@ -118,13 +108,7 @@ export type StrategySideBias =
   | "both"
   | "market_neutral"
   | "n_a";
-export type StrategyEntryStyle =
-  | "breakout"
-  | "pullback"
-  | "reversal"
-  | "range_fade"
-  | "event"
-  | "probability_edge";
+export type StrategyEntryStyle = "catalyst" | "event" | "probability_edge";
 export type StrategyExitStyle =
   | "fixed_pct"
   | "trailing_atr"
@@ -151,29 +135,17 @@ export type RiskPresetId =
   | "custom";
 
 export type TimeframePresetId =
-  | "intraday"
+  | "catalyst"
   | "swing"
   | "position"
   | "prediction"
   | "custom";
 
 /** Bar size the session uses for analysis and agent context. */
-export type TradingTimeframe =
-  | "1m"
-  | "5m"
-  | "15m"
-  | "30m"
-  | "1h"
-  | "4h"
-  | "1d"
-  | "1w";
+export type TradingTimeframe = "30m" | "1h" | "4h" | "1d" | "1w";
 
 /** Coarse intended hold length — steers prompts and approval copy. */
-export type HoldingStyle =
-  | "intraday_flat"
-  | "multi_day_swing"
-  | "weeks_position"
-  | "custom";
+export type HoldingStyle = "multi_day_swing" | "weeks_position" | "custom";
 
 export type WorkspaceViewMode = "session" | "global";
 export type AllocationEnforcement = "hard" | "warn";
@@ -219,19 +191,14 @@ export type AgentRunFinishReason =
   | "timeout"
   | "error";
 
-export const RESEARCH_DISCOVERY_MODES: readonly ResearchDiscoveryMode[] = [
-  "trend_scan",
-  "catalyst_scan",
-  "quality_watchlist",
-  "mean_reversion_scan",
-  "event_contract_scan",
-  "custom",
+export const PROCESSING_MODES: readonly ProcessingMode[] = [
+  "catalyst",
+  "contract",
+  "manual",
 ];
 
 export const RESEARCH_EVIDENCE_MODES: readonly ResearchEvidenceMode[] = [
-  "narrative_first",
-  "price_action_first",
-  "confirmation_first",
+  "document_first",
   "probability_edge",
   "balanced",
 ];
@@ -246,10 +213,8 @@ export const RESEARCH_FUNDAMENTAL_STRICTNESS: readonly ResearchFundamentalStrict
   ["sanity_check", "balanced", "deep_confirmation", "not_applicable"];
 
 export const SETUP_TYPES: readonly SetupType[] = [
-  "breakout",
-  "pullback_trend",
+  "catalyst_entry",
   "event_entry",
-  "reversal_fade",
   "probability_edge",
   "custom",
 ];
@@ -263,10 +228,7 @@ export const STRATEGY_SIDE_BIASES: readonly StrategySideBias[] = [
 ];
 
 export const STRATEGY_ENTRY_STYLES: readonly StrategyEntryStyle[] = [
-  "breakout",
-  "pullback",
-  "reversal",
-  "range_fade",
+  "catalyst",
   "event",
   "probability_edge",
 ];
@@ -296,7 +258,7 @@ export const RISK_PRESET_IDS: readonly RiskPresetId[] = [
 ];
 
 export const TIMEFRAME_PRESET_IDS: readonly TimeframePresetId[] = [
-  "intraday",
+  "catalyst",
   "swing",
   "position",
   "prediction",
@@ -311,9 +273,6 @@ export const STOP_LOSS_TYPES: readonly StopLossType[] = [
 ];
 
 export const TRADING_TIMEFRAMES: readonly TradingTimeframe[] = [
-  "1m",
-  "5m",
-  "15m",
   "30m",
   "1h",
   "4h",
@@ -322,7 +281,6 @@ export const TRADING_TIMEFRAMES: readonly TradingTimeframe[] = [
 ];
 
 export const HOLDING_STYLES: readonly HoldingStyle[] = [
-  "intraday_flat",
   "multi_day_swing",
   "weeks_position",
   "custom",

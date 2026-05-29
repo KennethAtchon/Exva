@@ -3,17 +3,17 @@ import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import { AppError } from "@electron/shared/infra/errors";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
-import type { ResearchDiscoveryMode } from "@electron/shared/domain";
+import type { ProcessingMode } from "@electron/shared/domain";
 import type { LLMRunResult } from "../../llm/llm-types";
 import type { AIPhase } from "../phases/types";
 import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
 import {
+  SELECTOR_WORKERS_CATALYST_FEED_SCOUT_PROMPT,
   SELECTOR_WORKERS_CATALYST_EXTRACTOR_PROMPT,
   SELECTOR_WORKERS_EVENT_PREDICTION_SCOUT_PROMPT,
   SELECTOR_WORKERS_EVENT_WEB_SCOUT_PROMPT,
   SELECTOR_WORKERS_LIQUIDITY_GATE_PROMPT,
   SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
-  SELECTOR_WORKERS_TREND_SCOUT_PROMPT,
   SELECTOR_WORKERS_WEB_SCOUT_PROMPT,
 } from "../worker-prompts";
 import {
@@ -79,6 +79,19 @@ const LIQUIDITY_GATE_STRATEGY_CONTEXT = {
   maxGuidanceItems: 2,
 } as const;
 
+const CATALYST_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
+  {
+    id: "catalyst-feed-scout",
+    prompt: SELECTOR_WORKERS_CATALYST_FEED_SCOUT_PROMPT,
+    tools: ["search_web", "fetch_url", "get_quote"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
+    outputMode: "tool_result",
+    outputSchema: candidateOutputSchema,
+  },
+];
+
 const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   {
     id: "web-scout",
@@ -86,20 +99,6 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     tools: ["search_web", "fetch_url"],
     toolConfig: SEARCH_WEB_TOOL_CONFIG,
     toolRequirements: { requiredAll: ["search_web"], minToolCalls: 1 },
-    strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
-    engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "tool_result",
-    outputSchema: candidateOutputSchema,
-  },
-  {
-    id: "trend-scout",
-    prompt: SELECTOR_WORKERS_TREND_SCOUT_PROMPT,
-    tools: ["get_trending_symbols", "search_web"],
-    toolConfig: SEARCH_WEB_TOOL_CONFIG,
-    toolRequirements: {
-      requiredAll: ["get_trending_symbols"],
-      minToolCalls: 1,
-    },
     strategyContext: SELECTOR_DISCOVERY_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "tool_result",
@@ -131,11 +130,12 @@ const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
 ];
 
 function selectorDiscoveryWorkersForMode(
-  discoveryMode: ResearchDiscoveryMode,
+  processingMode: ProcessingMode,
 ): readonly WorkerDefinition[] {
-  return discoveryMode === "event_contract_scan"
-    ? EVENT_SELECTOR_DISCOVERY
-    : STANDARD_SELECTOR_DISCOVERY;
+  if (processingMode === "contract") return EVENT_SELECTOR_DISCOVERY;
+  if (processingMode === "catalyst" || processingMode === "manual")
+    return CATALYST_SELECTOR_DISCOVERY;
+  return STANDARD_SELECTOR_DISCOVERY;
 }
 
 function verificationWorkers(candidate: SelectorCandidate): WorkerDefinition[] {
@@ -217,7 +217,7 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       resolveWorkers(ctx) {
         return [
           ...selectorDiscoveryWorkersForMode(
-            ctx.strategyContext.researchPosture.discoveryMode,
+            ctx.strategyContext.researchPosture.processingMode,
           ),
         ];
       },
@@ -225,7 +225,7 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
         return {
           selectionInstructions: ctx.input.selectionInstructions,
           instrumentClasses: ctx.instrumentClasses,
-          discoveryMode: ctx.strategyContext.researchPosture.discoveryMode,
+          processingMode: ctx.strategyContext.researchPosture.processingMode,
           failureHistory: ctx.input.failureHistory ?? [],
           nextEligibleRetryAt: ctx.input.nextEligibleRetryAt ?? null,
         };

@@ -1,192 +1,87 @@
 [
   {
-    "id": "trend_hunt",
-    "label": "Trend Hunt",
-    "thesis": "Find persistent trends early and lean on price action to stay in motion.",
+    "id": "edgar_catalyst",
+    "label": "EDGAR Catalyst",
+    "thesis": "Trade EDGAR catalysts with document-first evidence.",
     "summaryBullets": [
-      "Discovery favors trend scans and relative-strength leaders.",
-      "Evidence leans price-action first with confirmation.",
-      "Catalysts help but are not mandatory.",
-      "Fundamentals only need a sanity check."
+      "Processing mode: catalyst.",
+      "Evidence mode: document first.",
+      "Catalyst posture: required.",
+      "Fundamentals: balanced."
     ],
-    "aiGuidance": {
-      "selector": {
-        "whatToLookFor": [
-          "Relative-strength leaders, clean continuation names, and instruments already showing trend persistence.",
-          "Catalysts that strengthen an existing move without requiring a full event-driven thesis."
-        ],
-        "howToEvaluate": [
-          "Lead with price action and structure first, then use narrative as confirmation.",
-          "Reject weak or lagging names even if the story sounds good."
-        ]
-      },
-      "fundamental": {
-        "howToEvaluate": [
-          "Use fundamentals mainly as a sanity check, not as the primary conviction source."
-        ]
-      }
-    },
     "posture": {
-      "posturePresetId": "trend_hunt",
-      "discoveryMode": "trend_scan",
-      "evidenceMode": "price_action_first",
-      "catalystMode": "preferred",
-      "fundamentalStrictness": "sanity_check"
+      "posturePresetId": "edgar_catalyst",
+      "processingMode": "catalyst",
+      "evidenceMode": "document_first",
+      "catalystMode": "required",
+      "fundamentalStrictness": "balanced"
     }
   },
   {
-    "id": "catalyst_momentum",
-    "label": "Catalyst Momentum",
-    "thesis": "Chase clean momentum only when fresh catalysts can keep attention and volume alive.",
+    "id": "earnings_event",
+    "label": "Earnings Event",
+    "thesis": "Focus on earnings-linked catalysts with balanced evidence.",
     "summaryBullets": [
-      "Discovery starts from catalyst and news scans.",
-      "Evidence balances narrative with tape confirmation.",
-      "Catalysts are required, not optional.",
-      "Fundamentals only need a quick sanity check."
+      "Processing mode: catalyst.",
+      "Evidence mode: balanced.",
+      "Catalyst posture: required.",
+      "Fundamentals: sanity check."
     ],
-    "aiGuidance": {
-      "selector": {
-        "whatToLookFor": [
-          "Fresh catalysts, breaking news, and event-driven attention with immediate reaction potential.",
-          "Names where the catalyst is concrete and current rather than speculative."
-        ],
-        "howToEvaluate": [
-          "Do not advance ideas without a real catalyst.",
-          "Balance narrative with tape confirmation so the setup is not just story-driven."
-        ]
-      },
-      "fundamental": {
-        "howToEvaluate": [
-          "Keep the fundamental pass light and time-sensitive unless it directly changes the catalyst read."
-        ]
-      }
-    },
     "posture": {
-      "posturePresetId": "catalyst_momentum",
-      "discoveryMode": "catalyst_scan",
+      "posturePresetId": "earnings_event",
+      "processingMode": "catalyst",
       "evidenceMode": "balanced",
       "catalystMode": "required",
       "fundamentalStrictness": "sanity_check"
     }
   },
   {
-    "id": "institutional_quality",
-    "label": "Institutional Quality",
-    "thesis": "Wait for durable, high-quality names and demand stronger confirmation before committing.",
-    "summaryBullets": [
-      "Discovery starts from curated quality watchlists.",
-      "Evidence favors confirmation before action.",
-      "Catalysts are optional unless they strengthen the case.",
-      "Fundamental review is deep, not cursory."
-    ],
-    "aiGuidance": {
-      "selector": {
-        "whatToLookFor": [
-          "Liquid, high-quality names with credible institutional characteristics and durable narratives.",
-          "Setups that remain sensible beyond short-lived hype."
-        ],
-        "howToEvaluate": [
-          "Require stronger confirmation than usual before elevating a candidate.",
-          "Do not promote low-quality speculation just because it is active."
-        ]
-      },
-      "fundamental": {
-        "howToEvaluate": [
-          "Use deeper business-quality and durability confirmation as part of the decision, not just a light screen."
-        ]
-      }
-    },
-    "posture": {
-      "posturePresetId": "institutional_quality",
-      "discoveryMode": "quality_watchlist",
-      "evidenceMode": "confirmation_first",
-      "catalystMode": "preferred",
-      "fundamentalStrictness": "deep_confirmation"
-    }
-  },
-  {
-    "id": "mean_reversion_dislocation",
-    "label": "Mean Reversion Dislocation",
-    "thesis": "Hunt overstretched moves where odds favor a snap-back once panic or euphoria cools.",
-    "summaryBullets": [
-      "Discovery looks for dislocations and exhaustion.",
-      "Evidence waits for reversal confirmation.",
-      "Catalysts are usually not required.",
-      "Fundamentals are a light sanity filter."
-    ],
-    "aiGuidance": {
-      "selector": {
-        "whatToLookFor": [
-          "Overextended moves, panic/euphoria, and credible dislocations likely to revert.",
-          "Names showing early signs that exhaustion is turning into stabilization or reversal."
-        ],
-        "howToEvaluate": [
-          "Require reversal confirmation before upgrading conviction.",
-          "Do not mistake strong continuation for a mean-reversion setup."
-        ]
-      }
-    },
-    "posture": {
-      "posturePresetId": "mean_reversion_dislocation",
-      "discoveryMode": "mean_reversion_scan",
-      "evidenceMode": "confirmation_first",
-      "catalystMode": "not_required",
-      "fundamentalStrictness": "sanity_check"
-    }
-  },
-  {
     "id": "prediction_event_edge",
     "label": "Prediction Event Edge",
-    "thesis": "Trade event contracts where evidence can shift implied probabilities before resolution.",
+    "thesis": "Trade event contracts where probability edge is explicit.",
     "summaryBullets": [
-      "Discovery focuses on event contracts and resolution timelines.",
-      "Evidence is probability-edge first.",
-      "Catalysts are required because event flow drives repricing.",
-      "Fundamentals are usually not applicable."
+      "Processing mode: contract.",
+      "Evidence mode: probability edge.",
+      "Catalyst posture: required.",
+      "Fundamentals: not applicable."
     ],
-    "aiGuidance": {
-      "selector": {
-        "whatToLookFor": [
-          "Event contracts, resolution criteria, and incoming evidence that can shift implied odds.",
-          "Current facts that create measurable probability-edge opportunities."
-        ],
-        "howToEvaluate": [
-          "Think in terms of mispriced odds instead of standard equity momentum.",
-          "Require explicit event relevance and catalyst flow before escalating a candidate."
-        ]
-      },
-      "fundamental": {
-        "howToEvaluate": [
-          "Treat traditional fundamentals as mostly irrelevant unless they directly affect resolution odds."
-        ]
-      }
-    },
     "posture": {
       "posturePresetId": "prediction_event_edge",
-      "discoveryMode": "event_contract_scan",
+      "processingMode": "contract",
       "evidenceMode": "probability_edge",
       "catalystMode": "required",
       "fundamentalStrictness": "not_applicable"
     }
   },
   {
+    "id": "manual_watchlist",
+    "label": "Manual Watchlist",
+    "thesis": "Operator-driven watchlists with optional catalysts.",
+    "summaryBullets": [
+      "Processing mode: manual.",
+      "Evidence mode: balanced.",
+      "Catalyst posture: preferred.",
+      "Fundamentals: sanity check."
+    ],
+    "posture": {
+      "posturePresetId": "manual_watchlist",
+      "processingMode": "manual",
+      "evidenceMode": "balanced",
+      "catalystMode": "preferred",
+      "fundamentalStrictness": "sanity_check"
+    }
+  },
+  {
     "id": "custom",
     "label": "Custom Style",
-    "thesis": "Blend your own discovery and evidence posture.",
+    "thesis": "Blend your own processing and evidence posture.",
     "summaryBullets": [
-      "No preset assumptions beyond what you set below.",
-      "Use style notes to define the edge clearly."
+      "No preset assumptions beyond configured fields.",
+      "Tune posture notes for workflow-specific context."
     ],
-    "aiGuidance": {
-      "shared": {
-        "howToEvaluate": [
-          "Lean on the live session notes and explicit field values because no built-in style assumptions should dominate."
-        ]
-      }
-    },
     "posture": {
       "posturePresetId": "custom",
-      "discoveryMode": "custom",
+      "processingMode": "manual",
       "evidenceMode": "balanced",
       "catalystMode": "preferred",
       "fundamentalStrictness": "balanced"

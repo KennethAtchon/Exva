@@ -9,15 +9,15 @@
 
 ## Phase Map
 
-| Phase | File                                                                           | Section of Spec                                                          | Status |
-| ----- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------ |
-| 0     | [phase-00-db-migration.md](./phase-00-db-migration.md)                         | §6.1–6.2, §6.5–6.7                                                       | Todo   |
-| 1     | [phase-01-enum-type-overhaul.md](./phase-01-enum-type-overhaul.md)             | §6.3.1, §6.3.2                                                           | Todo   |
-| 2     | [phase-02-signal-infrastructure.md](./phase-02-signal-infrastructure.md)       | §3 (ISignalSource, SignalBus, EdgarSignalSource, IPC, EventBus)          | Todo   |
-| 3     | [phase-03-orchestrator-integration.md](./phase-03-orchestrator-integration.md) | §5.2, §5.3 (Orchestrator trigger, FIFO queue, preflight)                 | Todo   |
-| 4     | [phase-04-pipeline-phase-cleanup.md](./phase-04-pipeline-phase-cleanup.md)     | §3 (worker adds/removes), §5.2 (catalyst pipeline)                       | Todo   |
-| 5     | [phase-05-signal-sources-ui.md](./phase-05-signal-sources-ui.md)               | §4.1–4.4 (Signal Sources page, cards, modals)                            | Todo   |
-| 6     | [phase-06-session-ui-and-drawer.md](./phase-06-session-ui-and-drawer.md)       | §4.5–4.8, §6.3.3–6.3.4 (Session modal, drawer, card, Strategy Config UI) | Todo   |
+| Phase | File                                                                           | Section of Spec                                                          | Status      |
+| ----- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ----------- |
+| 0     | [phase-00-db-migration.md](./phase-00-db-migration.md)                         | §6.1–6.2, §6.5–6.7                                                       | Partial     |
+| 1     | [phase-01-enum-type-overhaul.md](./phase-01-enum-type-overhaul.md)             | §6.3.1, §6.3.2                                                           | Partial     |
+| 2     | [phase-02-signal-infrastructure.md](./phase-02-signal-infrastructure.md)       | §3 (ISignalSource, SignalBus, EdgarSignalSource, IPC, EventBus)          | Partial     |
+| 3     | [phase-03-orchestrator-integration.md](./phase-03-orchestrator-integration.md) | §5.2, §5.3 (Orchestrator trigger, FIFO queue, preflight)                 | Todo        |
+| 4     | [phase-04-pipeline-phase-cleanup.md](./phase-04-pipeline-phase-cleanup.md)     | §3 (worker adds/removes), §5.2 (catalyst pipeline)                       | Partial     |
+| 5     | [phase-05-signal-sources-ui.md](./phase-05-signal-sources-ui.md)               | §4.1–4.4 (Signal Sources page, cards, modals)                            | In Progress |
+| 6     | [phase-06-session-ui-and-drawer.md](./phase-06-session-ui-and-drawer.md)       | §4.5–4.8, §6.3.3–6.3.4 (Session modal, drawer, card, Strategy Config UI) | In Progress |
 
 ---
 

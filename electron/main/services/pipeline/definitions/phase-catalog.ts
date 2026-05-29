@@ -18,12 +18,12 @@ import type {
   PipelinePhase,
   WorkerDefinition,
 } from "@electron/shared/ai/ai-phase";
-import type { ResearchDiscoveryMode } from "@electron/shared/domain";
+import type { ProcessingMode } from "@electron/shared/domain";
 import type { AIPhase } from "../phases/types";
 import { ALL_PHASES } from "./all-phases";
 
 type WorkerResolver = (
-  discoveryMode: ResearchDiscoveryMode,
+  processingMode: ProcessingMode,
 ) => readonly WorkerDefinition[];
 
 function requireCatalog(
@@ -70,14 +70,14 @@ for (const { phase } of PHASE_INDEX.values()) {
  */
 export function resolvePhaseWorkers(
   phase: PipelinePhase,
-  discoveryMode: ResearchDiscoveryMode,
+  processingMode: ProcessingMode,
 ): readonly WorkerDefinition[] {
-  return PHASE_INDEX.get(phase)?.resolver(discoveryMode) ?? [];
+  return PHASE_INDEX.get(phase)?.resolver(processingMode) ?? [];
 }
 
 /**
  * Returns the full PipelineDefinition for a phase, with workers resolved
- * using the default "trend_scan" discovery mode. The catalog is used for
+ * using the default "catalyst" processing mode. The catalog is used for
  * validation and renderer metadata; execution always resolves workers
  * via resolvePhaseWorkers(phase, actualDiscoveryMode).
  */
@@ -91,7 +91,7 @@ export function getPhaseCatalog(phase: PipelinePhase): PipelineDefinition {
     outputMode: cat.outputMode,
     ...(cat.outputSchema !== undefined && { outputSchema: cat.outputSchema }),
     ...(cat.engines !== undefined && { engines: cat.engines }),
-    workers: [...resolver("trend_scan")],
+    workers: [...resolver("catalyst")],
     persistence: {
       outputSchemaName: p.outputSchemaName ?? null,
       traceMode: cat.traceMode ?? "aggregate_workers",

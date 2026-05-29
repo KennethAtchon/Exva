@@ -92,22 +92,22 @@ describe("domain session helpers", () => {
     expect(text).toContain("No earnings week");
   });
 
-  it("warns on intraday style with slow timeframe", () => {
+  it("returns no mismatch warning for supported holding styles", () => {
     expect(
       timeframeHoldMismatchWarning(
         baseStrategy({
-          holdingStyle: "intraday_flat",
-          primaryTradingTimeframe: "5m",
+          holdingStyle: "multi_day_swing",
+          primaryTradingTimeframe: "30m",
         }),
       ),
     ).toBeNull();
     expect(
       timeframeHoldMismatchWarning(
         baseStrategy({
-          holdingStyle: "intraday_flat",
+          holdingStyle: "weeks_position",
           primaryTradingTimeframe: "1d",
         }),
       ),
-    ).toMatch(/Intraday/);
+    ).toBeNull();
   });
 });

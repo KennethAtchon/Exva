@@ -105,10 +105,10 @@ describe("SessionWriteService", () => {
     expect(aiPhases.every((p) => p.modelId === "google/gemma-4-31b-it")).toBe(
       true,
     );
-    expect(researchPosture.posturePresetId).toBe("trend_hunt");
-    expect(tradeRules.rulesPresetId).toBe("breakout_long");
+    expect(researchPosture.posturePresetId).toBe("edgar_catalyst");
+    expect(tradeRules.rulesPresetId).toBe("catalyst_entry");
     expect(riskConfig.riskPresetId).toBe("moderate");
-    expect(timeframe.timeframePresetId).toBe("swing");
+    expect(timeframe.timeframePresetId).toBe("catalyst");
   });
 
   it("leaves new session AI roles blank when no workspace default model is configured", () => {

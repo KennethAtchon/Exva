@@ -1,7 +1,7 @@
 # Phase 5 — Signal Sources UI
 
 > **Date:** 2026-05-28
-> **Status:** Todo
+> **Status:** In Progress
 > **Spec sections:** §4.1–4.4 (Signal Sources page, SignalSourceCard, Add Source Modal, Configure Source Panel), §10 (copy)
 > **Depends on:** Phase 2 (IPC channels must be wired; EventBus events forwarded)
 > **Unlocks:** Phase 6 (Session UI can link to this page)

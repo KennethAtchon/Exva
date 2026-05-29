@@ -1,9 +1,9 @@
 import { isHoldingStyle, isTradingTimeframe } from "./enums";
 import type {
   HoldingStyle,
+  ProcessingMode,
   ResearchCatalystMode,
   ResearchDepth,
-  ResearchDiscoveryMode,
   ResearchEvidenceMode,
   ResearchFundamentalStrictness,
   ResearchPosturePresetId,
@@ -45,7 +45,7 @@ export interface SessionStrategy {
 export interface SessionResearchPosture {
   sessionId: string;
   posturePresetId: ResearchPosturePresetId;
-  discoveryMode: ResearchDiscoveryMode;
+  processingMode: ProcessingMode;
   evidenceMode: ResearchEvidenceMode;
   catalystMode: ResearchCatalystMode;
   fundamentalStrictness: ResearchFundamentalStrictness;
@@ -127,7 +127,7 @@ export interface StrategySnapshot {
   version: 5;
   researchPosture: {
     posturePresetId: ResearchPosturePresetId;
-    discoveryMode: ResearchDiscoveryMode;
+    processingMode: ProcessingMode;
     evidenceMode: ResearchEvidenceMode;
     catalystMode: ResearchCatalystMode;
     fundamentalStrictness: ResearchFundamentalStrictness;
@@ -220,7 +220,7 @@ export interface ResearchPosturePreset {
   summaryBullets: string[];
   posture: {
     posturePresetId: ResearchPosturePresetId;
-    discoveryMode: ResearchDiscoveryMode;
+    processingMode: ProcessingMode;
     evidenceMode: ResearchEvidenceMode;
     catalystMode: ResearchCatalystMode;
     fundamentalStrictness: ResearchFundamentalStrictness;
@@ -327,22 +327,15 @@ function validateSessionTimeframeConfigFields(
 export function timeframeHoldMismatchWarning(
   s: SessionStrategy,
 ): string | null {
-  if (s.holdingStyle !== "intraday_flat") return null;
-  if (s.primaryTradingTimeframe !== "1d" && s.primaryTradingTimeframe !== "1w")
-    return null;
-  return "Intraday style usually uses intraday timeframes; consider 5m–1h.";
+  void s;
+  return null;
 }
 
 export function timeframeConfigHoldMismatchWarning(
   timeframe: SessionTimeframeConfig,
 ): string | null {
-  if (timeframe.holdingStyle !== "intraday_flat") return null;
-  if (
-    timeframe.primaryTradingTimeframe !== "1d" &&
-    timeframe.primaryTradingTimeframe !== "1w"
-  )
-    return null;
-  return "Intraday style usually uses intraday timeframes; consider 5m-1h.";
+  void timeframe;
+  return null;
 }
 
 export function buildResearchPostureMarkdown(
@@ -353,7 +346,7 @@ export function buildResearchPostureMarkdown(
     "",
     "## Edge posture",
     `- Posture preset: ${labelizeToken(posture.posturePresetId)}`,
-    `- Discovery mode: ${labelizeToken(posture.discoveryMode)}`,
+    `- Processing mode: ${labelizeToken(posture.processingMode)}`,
     `- Evidence mode: ${labelizeToken(posture.evidenceMode)}`,
     `- Catalyst posture: ${labelizeToken(posture.catalystMode)}`,
     `- Fundamental strictness: ${labelizeToken(posture.fundamentalStrictness)}`,
@@ -397,7 +390,7 @@ export function buildStrategySnapshot(
     version: 5,
     researchPosture: {
       posturePresetId: context.researchPosture.posturePresetId,
-      discoveryMode: context.researchPosture.discoveryMode,
+      processingMode: context.researchPosture.processingMode,
       evidenceMode: context.researchPosture.evidenceMode,
       catalystMode: context.researchPosture.catalystMode,
       fundamentalStrictness: context.researchPosture.fundamentalStrictness,
@@ -541,8 +534,8 @@ function researchPostureNeedsSearchProvider(
 ): boolean {
   return (
     posture.catalystMode === "required" ||
-    posture.discoveryMode === "catalyst_scan" ||
-    posture.discoveryMode === "event_contract_scan"
+    posture.processingMode === "catalyst" ||
+    posture.processingMode === "contract"
   );
 }
 
@@ -550,7 +543,7 @@ function isPredictionEventResearchPosture(
   posture: SessionResearchPosture,
 ): boolean {
   return (
-    posture.discoveryMode === "event_contract_scan" ||
+    posture.processingMode === "contract" ||
     posture.evidenceMode === "probability_edge"
   );
 }

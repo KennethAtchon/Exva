@@ -35,6 +35,7 @@ import type { CapitalReservationService } from "../risk/capital-reservation-serv
 import type { Logger } from "../infra/log";
 import type { RiskEngine } from "../risk/risk-engine";
 import type { SessionStrategyContextService } from "./session-strategy-context-service";
+import type { SignalDeliveriesRepo } from "../signals/repos/signal-deliveries-repo";
 
 export interface SessionOrchestrator {
   start(): Promise<void>;
@@ -90,6 +91,7 @@ export interface OrchestratorDeps {
   bus: EventBus;
   logger: Logger;
   instrumentCacheRepo: InstrumentCacheRepo;
+  signalDeliveriesRepo?: SignalDeliveriesRepo;
 }
 
 /** Per-check failure (preflight runner adds `check` name). */
@@ -139,6 +141,11 @@ export interface ApprovalRecheckInput {
 }
 
 export interface SessionRuntimeManagerDeps extends OrchestratorDeps {
+  signals?: {
+    injectManualTickers(sessionId: string, instrumentScope: string): void;
+    onSessionResumed(sessionId: string): void;
+    replayStartup(): void;
+  };
   createOrchestrator(
     sessionId: string,
     deps: OrchestratorDeps,

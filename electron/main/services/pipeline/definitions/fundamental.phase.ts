@@ -6,7 +6,7 @@ import {
 } from "@electron/shared/ai/trade-signals";
 // Self-registers the fundamental-aggregator finalizer engine when this module loads.
 import "../engines/finalizer/fundamental-aggregator";
-import type { ResearchDiscoveryMode } from "@electron/shared/domain";
+import type { ProcessingMode } from "@electron/shared/domain";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
 import {
   catalystOutputSchema,
@@ -20,7 +20,8 @@ import {
   FUNDAMENTAL_WORKERS_EVENT_CATALYST_PROMPT,
   FUNDAMENTAL_WORKERS_EVENT_RESOLUTION_PROMPT,
   FUNDAMENTAL_WORKERS_EVENT_SENTIMENT_PROMPT,
-  FUNDAMENTAL_WORKERS_SENTIMENT_CONTEXT_PROMPT,
+  FUNDAMENTAL_WORKERS_DOCUMENT_EXTRACTOR_PROMPT,
+  FUNDAMENTAL_WORKERS_MARKET_REACTION_CHECKER_PROMPT,
 } from "../worker-prompts";
 import type { AggregatorPlanState } from "./aggregator.types";
 
@@ -35,6 +36,29 @@ const FUNDAMENTAL_STRATEGY_CONTEXT = {
   guidance: ["objective", "whatToLookFor", "howToEvaluate", "avoid"],
   maxGuidanceItems: 2,
 } as const;
+
+const CATALYST_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
+  {
+    id: "document-extractor",
+    prompt: FUNDAMENTAL_WORKERS_DOCUMENT_EXTRACTOR_PROMPT,
+    tools: ["fetch_url", "search_web"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
+    outputMode: "tool_result",
+    outputSchema: catalystOutputSchema,
+  },
+  {
+    id: "market-reaction-checker",
+    prompt: FUNDAMENTAL_WORKERS_MARKET_REACTION_CHECKER_PROMPT,
+    tools: ["get_quote", "get_ohlcv"],
+    toolConfig: SEARCH_WEB_TOOL_CONFIG,
+    strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
+    engines: [ENGINE_BINDINGS.riskSummaryRead],
+    outputMode: "tool_result",
+    outputSchema: earningsOutputSchema,
+  },
+];
 
 const STANDARD_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   {
@@ -56,16 +80,6 @@ const STANDARD_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
     engines: [ENGINE_BINDINGS.riskSummaryRead],
     outputMode: "tool_result",
     outputSchema: catalystOutputSchema,
-  },
-  {
-    id: "sentiment-context",
-    prompt: FUNDAMENTAL_WORKERS_SENTIMENT_CONTEXT_PROMPT,
-    tools: ["search_web"],
-    toolConfig: SEARCH_WEB_TOOL_CONFIG,
-    strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
-    engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "tool_result",
-    outputSchema: sentimentOutputSchema,
   },
 ];
 
@@ -100,11 +114,12 @@ const EVENT_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
 ];
 
 function fundamentalWorkersForMode(
-  discoveryMode: ResearchDiscoveryMode,
+  processingMode: ProcessingMode,
 ): readonly WorkerDefinition[] {
-  return discoveryMode === "event_contract_scan"
-    ? EVENT_FUNDAMENTAL_WORKERS
-    : STANDARD_FUNDAMENTAL_WORKERS;
+  if (processingMode === "contract") return EVENT_FUNDAMENTAL_WORKERS;
+  if (processingMode === "catalyst" || processingMode === "manual")
+    return CATALYST_FUNDAMENTAL_WORKERS;
+  return STANDARD_FUNDAMENTAL_WORKERS;
 }
 
 export const FUNDAMENTAL_PHASE: AIPhase<
@@ -129,7 +144,7 @@ export const FUNDAMENTAL_PHASE: AIPhase<
       resolveWorkers(ctx) {
         return [
           ...fundamentalWorkersForMode(
-            ctx.strategyContext.researchPosture.discoveryMode,
+            ctx.strategyContext.researchPosture.processingMode,
           ),
         ];
       },

@@ -80,6 +80,12 @@ import { PeriodAutopsyService } from "./analytics/period-autopsy-service";
 import { TradeAutopsyService } from "./analytics/trade-autopsy-service";
 import { AutopsyExportService } from "./analytics/autopsy-export-service";
 import { LiveReadinessService } from "./risk/live-readiness-service";
+import { SignalSourcesRepo } from "./signals/repos/signal-sources-repo";
+import { SignalEventsRepo } from "./signals/repos/signal-events-repo";
+import { SignalDeliveriesRepo } from "./signals/repos/signal-deliveries-repo";
+import { SignalBus } from "./signals/signal-bus";
+import { SignalSourceRegistry } from "./signals/signal-source-registry";
+import { SignalService } from "./signals/signal-service";
 
 export interface AppServices {
   /** Shared deps shape for IPC helpers (e.g. instrument cache fingerprint). */
@@ -147,6 +153,7 @@ export interface AppServices {
   liveReadiness: LiveReadinessService;
   tradeAutopsy: TradeAutopsyService;
   autopsyExport: AutopsyExportService;
+  signals: SignalService;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -187,6 +194,9 @@ export async function createAppServices(app: App): Promise<AppServices> {
     researchPosturePresets: new ResearchPosturePresetsRepo(db),
     tradeRulePresets: new TradeRulePresetsRepo(db),
   };
+  const signalSourcesRepo = new SignalSourcesRepo(db);
+  const signalEventsRepo = new SignalEventsRepo(db);
+  const signalDeliveriesRepo = new SignalDeliveriesRepo(db);
   const secrets = new SecretsService();
   const brokerRegistry = new BrokerRegistry(repos.brokerAccounts, secrets);
   const instrumentNormalizer = new InstrumentNormalizer();
@@ -321,6 +331,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     bus: eventBus,
     logger,
     instrumentCacheRepo: repos.instrumentCache,
+    signalDeliveriesRepo,
   };
 
   const runtimeManagerDeps: SessionRuntimeManagerDeps = {
@@ -398,16 +409,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerAccounts: repos.brokerAccounts,
   });
 
-  const sessionWrites = new SessionWriteService({
-    sessions: repos.session,
-    events: repos.events,
-    selectorSettings: repos.sessionSelectorSettings,
-    assignments: repos.sessionBrokerAssignments,
-    brokerRouting: repos.brokerRouting,
-    brokerAccounts: repos.brokerAccounts,
-    liveReadiness,
-  });
-
   const cycleReplay = new CycleReplayService({
     agentMessages: repos.agentMessages,
     trades: repos.trades,
@@ -444,6 +445,34 @@ export async function createAppServices(app: App): Promise<AppServices> {
     eventBus,
   });
   const autopsyExport = new AutopsyExportService();
+  const signalBus = new SignalBus(
+    signalEventsRepo,
+    signalDeliveriesRepo,
+    signalSourcesRepo,
+    repos.session,
+    eventBus,
+  );
+  const signalRegistry = new SignalSourceRegistry(db, signalBus);
+  const signals = new SignalService(
+    signalSourcesRepo,
+    signalEventsRepo,
+    signalDeliveriesRepo,
+    signalRegistry,
+    signalBus,
+    repos.session,
+  );
+  runtimeManagerDeps.signals = signals;
+  const sessionWrites = new SessionWriteService({
+    sessions: repos.session,
+    events: repos.events,
+    selectorSettings: repos.sessionSelectorSettings,
+    assignments: repos.sessionBrokerAssignments,
+    brokerRouting: repos.brokerRouting,
+    brokerAccounts: repos.brokerAccounts,
+    liveReadiness,
+    signals,
+  });
+  signals.bootstrapFromDb();
 
   return {
     db,
@@ -476,5 +505,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     liveReadiness,
     tradeAutopsy,
     autopsyExport,
+    signals,
   };
 }

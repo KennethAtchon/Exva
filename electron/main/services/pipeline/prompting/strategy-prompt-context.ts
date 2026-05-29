@@ -35,7 +35,7 @@ const WORKER_STRATEGY_FACT_SECTIONS: readonly WorkerStrategyFactSection[] = [
   {
     field: "researchPosture",
     render: ({ researchPosture }) => [
-      `Discovery: ${researchPosture.discoveryMode}`,
+      `Processing: ${researchPosture.processingMode}`,
       `Evidence: ${researchPosture.evidenceMode}`,
       `Catalyst: ${researchPosture.catalystMode}`,
       `Fundamental strictness: ${researchPosture.fundamentalStrictness}`,
@@ -105,7 +105,7 @@ export function buildStrategyPromptContext(
   const lines = [
     "## Session research posture (authoritative)",
     `- Posture preset: ${snapshot.researchPosture.posturePresetId}`,
-    `- Discovery mode: ${snapshot.researchPosture.discoveryMode}`,
+    `- Processing mode: ${snapshot.researchPosture.processingMode}`,
     `- Evidence mode: ${snapshot.researchPosture.evidenceMode}`,
     `- Catalyst posture: ${snapshot.researchPosture.catalystMode}`,
     `- Fundamental strictness: ${snapshot.researchPosture.fundamentalStrictness}`,

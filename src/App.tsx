@@ -10,6 +10,7 @@ import { TradeDetail } from "./pages/TradeDetail";
 import { AutopsyPage } from "./pages/AutopsyPage";
 import { PeriodAutopsyPage } from "./pages/PeriodAutopsyPage";
 import { StrategyConfig } from "./pages/StrategyConfig";
+import { SignalSourcesPage } from "./pages/SignalSourcesPage";
 import { CostBreakdownPage } from "./pages/CostBreakdown";
 import { DevPanel, type DevPanelFocus } from "./pages/DevPanel";
 import { AccountsPage } from "./pages/AccountsPage";
@@ -289,6 +290,8 @@ export default function App() {
         );
       case "costs":
         return <CostBreakdownPage />;
+      case "signals":
+        return <SignalSourcesPage />;
       case "devpanel":
         return (
           <DevPanel

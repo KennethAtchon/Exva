@@ -114,8 +114,6 @@ function holdingStyleLabel(
   style: SessionTimeframeConfig["holdingStyle"],
 ): string {
   switch (style) {
-    case "intraday_flat":
-      return "Intraday (flat by default)";
     case "multi_day_swing":
       return "Multi-day swing";
     case "weeks_position":

@@ -93,6 +93,25 @@ export const channels = {
     getWorkspaceDefaultModel: "strategy:workspace-default-model:get",
     saveWorkspaceDefaultModel: "strategy:workspace-default-model:save",
   },
+  signals: {
+    sources: {
+      list: "signals:sources:list",
+      create: "signals:sources:create",
+      update: "signals:sources:update",
+      delete: "signals:sources:delete",
+      enable: "signals:sources:enable",
+      disable: "signals:sources:disable",
+      test: "signals:sources:test",
+    },
+    events: {
+      list: "signals:events:list",
+    },
+    sessions: {
+      getSubscriptions: "signals:sessions:get-subscriptions",
+      setSubscriptions: "signals:sessions:set-subscriptions",
+      getReadiness: "signals:sessions:get-readiness",
+    },
+  },
   config: {
     getStrategy: "config:get-strategy",
     saveStrategy: "config:save-strategy",
@@ -165,6 +184,8 @@ export const mainToRendererEvents = [
   "stats_update",
   "notification",
   "andon_cord_fired",
+  "signal_received",
+  "signal_delivery_updated",
 ] as const;
 
 export type ExvaEventName = (typeof mainToRendererEvents)[number];

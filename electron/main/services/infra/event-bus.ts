@@ -80,6 +80,29 @@ export interface ExvaEventMap {
   stats_update: DashboardStats;
   notification: { title: string; body: string; level: string };
   andon_cord_fired: AndonCordPayload;
+  signal_received: {
+    signalId: string;
+    sourceId: string;
+    sourceType: string;
+    ticker: string;
+    companyName: string | null;
+    detectedAt: string;
+  };
+  signal_delivery_updated: {
+    deliveryId: string;
+    sessionId: string;
+    signalId: string;
+    status:
+      | "queued"
+      | "waiting_for_resume"
+      | "processing"
+      | "triggered"
+      | "traded"
+      | "rejected"
+      | "dropped"
+      | "expired";
+    statusBucket: "pending" | "completed" | "dropped";
+  };
 }
 
 export class EventBus {

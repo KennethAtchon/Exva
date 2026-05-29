@@ -6,19 +6,17 @@ import {
 } from "@electron/shared/ai/trade-signals";
 // Self-registers the technical-aggregator finalizer engine when this module loads.
 import "../engines/finalizer/technical-aggregator";
-import type { ResearchDiscoveryMode } from "@electron/shared/domain";
+import type { ProcessingMode } from "@electron/shared/domain";
 import {
-  chartPatternOutputSchema,
   momentumOutputSchema,
   volumeOutputSchema,
 } from "../../signal/aggregators/technical-aggregator";
 import type { AIPhase } from "../phases/types";
 import {
-  TECHNICAL_WORKERS_CHART_PATTERN_PROMPT,
   TECHNICAL_WORKERS_EVENT_IMPLIED_PROBABILITY_PROMPT,
   TECHNICAL_WORKERS_EVENT_LIQUIDITY_PROMPT,
   TECHNICAL_WORKERS_EVENT_PRICE_DRIFT_PROMPT,
-  TECHNICAL_WORKERS_MOMENTUM_INDICATOR_PROMPT,
+  TECHNICAL_WORKERS_PRICE_REACTION_CHECKER_PROMPT,
   TECHNICAL_WORKERS_VOLUME_PROFILE_PROMPT,
 } from "../worker-prompts";
 import type { AggregatorPlanState } from "./aggregator.types";
@@ -37,19 +35,10 @@ const TECHNICAL_STRATEGY_CONTEXT = {
   maxGuidanceItems: 2,
 } as const;
 
-const STANDARD_TECHNICAL_WORKERS: readonly WorkerDefinition[] = [
+const CATALYST_TECHNICAL_WORKERS: readonly WorkerDefinition[] = [
   {
-    id: "chart-pattern",
-    prompt: TECHNICAL_WORKERS_CHART_PATTERN_PROMPT,
-    tools: ["get_ohlcv"],
-    strategyContext: TECHNICAL_STRATEGY_CONTEXT,
-    engines: [ENGINE_BINDINGS.riskSummaryRead],
-    outputMode: "tool_result",
-    outputSchema: chartPatternOutputSchema,
-  },
-  {
-    id: "momentum-indicator",
-    prompt: TECHNICAL_WORKERS_MOMENTUM_INDICATOR_PROMPT,
+    id: "price-reaction-checker",
+    prompt: TECHNICAL_WORKERS_PRICE_REACTION_CHECKER_PROMPT,
     tools: ["get_ohlcv", "get_quote"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     engines: [ENGINE_BINDINGS.riskSummaryRead],
@@ -74,7 +63,7 @@ const EVENT_TECHNICAL_WORKERS: readonly WorkerDefinition[] = [
     tools: ["get_quote", "get_ohlcv"],
     strategyContext: TECHNICAL_STRATEGY_CONTEXT,
     outputMode: "tool_result",
-    outputSchema: chartPatternOutputSchema,
+    outputSchema: momentumOutputSchema,
   },
   {
     id: "price-drift",
@@ -95,11 +84,12 @@ const EVENT_TECHNICAL_WORKERS: readonly WorkerDefinition[] = [
 ];
 
 function technicalWorkersForMode(
-  discoveryMode: ResearchDiscoveryMode,
+  processingMode: ProcessingMode,
 ): readonly WorkerDefinition[] {
-  return discoveryMode === "event_contract_scan"
-    ? EVENT_TECHNICAL_WORKERS
-    : STANDARD_TECHNICAL_WORKERS;
+  if (processingMode === "contract") return EVENT_TECHNICAL_WORKERS;
+  if (processingMode === "catalyst" || processingMode === "manual")
+    return CATALYST_TECHNICAL_WORKERS;
+  return CATALYST_TECHNICAL_WORKERS;
 }
 
 export const TECHNICAL_PHASE: AIPhase<AggregatorPlanState, TechnicalSignal> = {
@@ -121,7 +111,7 @@ export const TECHNICAL_PHASE: AIPhase<AggregatorPlanState, TechnicalSignal> = {
       resolveWorkers(ctx) {
         return [
           ...technicalWorkersForMode(
-            ctx.strategyContext.researchPosture.discoveryMode,
+            ctx.strategyContext.researchPosture.processingMode,
           ),
         ];
       },

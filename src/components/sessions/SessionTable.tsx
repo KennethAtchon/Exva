@@ -232,6 +232,12 @@ const SessionCard = ({
   const aiBlocked = session.isFocused && focusedSessionAiReady === false;
   const hasOpenTrades = session.openTradeCount > 0;
   const isDraining = session.status === "monitoring_only";
+  const manualTickerCount = session.instrumentScope
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter(Boolean).length;
+  const runningButWaiting =
+    session.status === "active" && manualTickerCount === 0;
   const showOrphanWarning =
     session.status === "stopped" && session.openTradeCount > 0;
 
@@ -259,8 +265,14 @@ const SessionCard = ({
               {session.name}
             </span>
             {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
-            <Badge variant={statusVariant(session.status)}>
-              {formatSessionStatusLabel(session.status)}
+            <Badge
+              variant={
+                runningButWaiting ? "warn" : statusVariant(session.status)
+              }
+            >
+              {runningButWaiting
+                ? "Waiting"
+                : formatSessionStatusLabel(session.status)}
             </Badge>
           </div>
           <div className={objectiveClass}>{session.objective}</div>
@@ -283,9 +295,11 @@ const SessionCard = ({
               </span>
             ))}
             <span className={cn(chipClass, "text-[var(--text3)]")}>
-              {session.selectionMode === "ai_selected_universe"
-                ? "AI"
-                : "Manual"}
+              {session.selectionMode === "signal_driven"
+                ? "Signals"
+                : session.selectionMode === "ai_selected_universe"
+                  ? "AI"
+                  : "Manual"}
             </span>
             <span className={cn(chipClass, "text-[var(--text3)]")}>
               {session.executionMode === "live_allowed" ? "Live" : "Paper"}
@@ -308,6 +322,13 @@ const SessionCard = ({
           ): {researchFailuresBySessionId[session.id].error}
         </div>
       ) : null}
+      <div className="mt-2 text-[12px] text-[var(--text3)]">
+        {runningButWaiting
+          ? "Waiting — no live inputs"
+          : manualTickerCount > 0
+            ? "No signals pending"
+            : ""}
+      </div>
       {isDraining ? (
         <div className={drainBannerClass}>
           Stopping when flat: managing {session.openTradeCount} open trade

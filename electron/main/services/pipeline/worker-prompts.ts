@@ -63,6 +63,26 @@ Gauge narrative sentiment and positioning skew for the contract.
 
 Use social and web signals. When finished, call the \`submit_result\` tool; its schema defines every field.`;
 
+export const FUNDAMENTAL_WORKERS_DOCUMENT_EXTRACTOR_PROMPT = `# Document extractor
+
+Fetch and extract key 8-K sections from the filing URL for {instrumentSymbol}.
+
+Focus on material sections (e.g. Item 1.01, 2.02, 8.01) and provide concise structured evidence.
+If the URL is unavailable or fetch fails, report partial output with clear error context.
+
+When finished, call the \`submit_result\` tool; its schema defines every field.`;
+
+export const FUNDAMENTAL_WORKERS_MARKET_REACTION_CHECKER_PROMPT = `# Market reaction checker
+
+Measure market reaction since filing for {instrumentSymbol}.
+
+Estimate:
+- priceChangePct since filing
+- volumeRatio vs recent baseline
+- isAlreadyMoved (true when move is already extended)
+
+No trade recommendation. When finished, call the \`submit_result\` tool; its schema defines every field.`;
+
 export const FUNDAMENTAL_WORKERS_SENTIMENT_CONTEXT_PROMPT = `# Sentiment context
 
 Given web discussion for {instrumentSymbol}, assess current retail and institutional sentiment.
@@ -120,6 +140,20 @@ Validate one candidate's near-term catalyst using web search or fetched pages.
 4. Do not submit your result until at least one evidence tool has been called.
 
 If no fresh catalyst is found, use a low score and explain briefly. When finished, call the \`submit_result\` tool with the validated candidate; its schema defines every field.`;
+
+export const SELECTOR_WORKERS_CATALYST_FEED_SCOUT_PROMPT = `# Catalyst feed scout
+
+Validate the incoming catalyst signal for {instrumentSymbol} and determine if it is material/actionable.
+
+If source is manual, verify the ticker is a tradable US equity using quote/metadata tools.
+If source includes a filing URL, inspect it and summarize why this catalyst matters now.
+
+Output:
+- isMaterial (boolean)
+- materialitySummary (string)
+- structuredCatalyst { catalystType, magnitude, urgency } when available
+
+When finished, call the \`submit_result\` tool; its schema defines every field.`;
 
 export const SELECTOR_WORKERS_EVENT_PREDICTION_SCOUT_PROMPT = `# Event prediction scout
 
@@ -223,6 +257,15 @@ Given OHLCV bars and a current quote for {instrumentSymbol}, assess directional 
 \`momentumScore\` — combined RSI/MACD-style signal strength (0 = extreme/exhausted, 1 = strong continuation).
 
 No trade decision. When finished, call the \`submit_result\` tool; its schema defines every field.`;
+
+export const TECHNICAL_WORKERS_PRICE_REACTION_CHECKER_PROMPT = `# Price reaction checker
+
+Final staleness gate for {instrumentSymbol}.
+
+Assess whether the move since filing is already exhausted.
+If priceChangePct is greater than 3%, flag stale conditions clearly.
+
+No sizing and no final trade action. When finished, call the \`submit_result\` tool; its schema defines every field.`;
 
 export const TECHNICAL_WORKERS_VOLUME_PROFILE_PROMPT = `# Volume profile
 

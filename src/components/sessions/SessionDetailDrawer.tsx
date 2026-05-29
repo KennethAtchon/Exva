@@ -1,4 +1,4 @@
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { getSearchProviderDisplayName } from "@electron/shared/instruments/search-providers";
 import { Badge } from "@/components/custom-ui";
 import { api, listenEvent, type SessionSummary } from "@/lib/exva";
@@ -44,26 +44,12 @@ const SessionInfoGrid = ({
 }) => (
   <>
     <Section title="Task Definition">
-      <Row label="Instrument scope" value={session.instrumentScope} />
-      <Row
-        label="Selection mode"
-        value={
-          session.selectionMode === "ai_selected_universe"
-            ? "AI selected universe"
-            : "Manual shortlist"
-        }
-      />
+      <Row label="Manual tickers" value={session.instrumentScope} />
       <Row
         label="Search provider"
         value={getSearchProviderDisplayName(session.defaultSearchProviderId)}
       />
-      <Row
-        label="AI picker"
-        value={
-          payload?.selectorSettings.aiPickerEnabled ? "Enabled" : "Disabled"
-        }
-      />
-      {session.selectionMode === "ai_selected_universe" ? (
+      {payload?.selectorSettings.aiPickerEnabled ? (
         <div className="mt-1">
           <div className={rowLabelClass}>Last AI universe selection</div>
           <div className="mt-1.5">
@@ -272,6 +258,13 @@ export const SessionDetailDrawer = ({
   }
 
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [activeTab, setActiveTab] = useState<"summary" | "signals">("summary");
+  const [signalFilter, setSignalFilter] = useState<
+    "all" | "pending" | "completed" | "dropped"
+  >("all");
+  const [signalRows, setSignalRows] = useState<
+    Awaited<ReturnType<typeof api.listSessionSignalEvents>>["rows"]
+  >([]);
   const {
     payload,
     loading,
@@ -346,6 +339,34 @@ export const SessionDetailDrawer = ({
       dispatch({ type: "resetExecutionState" });
     };
   }, [session]);
+
+  useEffect(() => {
+    if (!session || activeTab !== "signals") return;
+    let cancelled = false;
+    const loadSignals = async () => {
+      try {
+        const res = await api.listSessionSignalEvents({
+          sessionId: session.id,
+          statusBucket: signalFilter === "all" ? undefined : signalFilter,
+          limit: 50,
+        });
+        if (!cancelled) setSignalRows(res.rows);
+      } catch {
+        if (!cancelled) setSignalRows([]);
+      }
+    };
+    void loadSignals();
+    const unsubA = listenEvent("signal_received", () => void loadSignals());
+    const unsubB = listenEvent(
+      "signal_delivery_updated",
+      () => void loadSignals(),
+    );
+    return () => {
+      cancelled = true;
+      void unsubA.then((u) => u());
+      void unsubB.then((u) => u());
+    };
+  }, [session, activeTab, signalFilter]);
 
   useEffect(() => {
     if (!session) return;
@@ -465,89 +486,186 @@ export const SessionDetailDrawer = ({
           {error ? <div className={errorBannerClass}>{error}</div> : null}
 
           <div className="grid max-h-[calc(92vh-120px)] gap-3 overflow-y-auto pr-1">
-            <SessionInfoGrid
-              session={session}
-              payload={payload}
-              loading={loading}
-              instrumentCache={instrumentCache}
-              cacheLoading={cacheLoading}
-              cacheAction={cacheAction}
-              onClearCache={() => void handleClearCache()}
-            />
-
-            {(executionProgress || researchFailure) && (
-              <Section title="Execution Progress">
-                {executionProgress ? (
-                  <SessionExecutionProgress
-                    sessionId={session.id}
-                    progress={executionProgress}
-                    onRetry={() => undefined}
-                    onViewTrace={() => undefined}
-                    onPauseAfterStep={() => undefined}
-                  />
-                ) : (
-                  <span className={mutedClass}>No active execution cycle.</span>
-                )}
-                {researchFailure ? (
-                  <div className="mt-2 text-[12px] leading-[1.45] text-error">
-                    {researchFailure}
-                  </div>
-                ) : null}
-              </Section>
-            )}
-
-            <Section title="Session Summary">
-              <div className="grid grid-cols-2 gap-3">
-                <StatBlock
-                  label="Updated"
-                  value={formatTimestamp(session.updatedAt)}
-                />
-                <StatBlock
-                  label="Runtime"
-                  value={
-                    session.uptimeMin > 0
-                      ? `${session.uptimeMin} min`
-                      : "Inactive"
-                  }
-                />
-                <StatBlock
-                  label="Open trades"
-                  value={String(session.openTradeCount)}
-                />
-                <StatBlock
-                  label="Workspace"
-                  value={session.isFocused ? "Focused" : "Alternate context"}
-                />
-              </div>
-            </Section>
-
-            <Section title="Recent Events">
-              {recentEvents.length === 0 ? (
-                <div className={mutedClass}>No recent events.</div>
-              ) : (
-                <div className="grid gap-1.5">
-                  {recentEvents.map((ev) => (
-                    <div
-                      key={ev.id}
-                      className="grid grid-cols-[auto_1fr] gap-2.5 text-[12px] leading-[1.45]"
+            <div className="flex gap-2">
+              <Button
+                variant={activeTab === "summary" ? "default" : "outline"}
+                onClick={() => setActiveTab("summary")}
+              >
+                Summary
+              </Button>
+              <Button
+                variant={activeTab === "signals" ? "default" : "outline"}
+                onClick={() => setActiveTab("signals")}
+              >
+                Signals
+              </Button>
+            </div>
+            {activeTab === "signals" ? (
+              <Section title="Signals">
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["all", "All"],
+                      ["pending", "Pending"],
+                      ["completed", "Completed"],
+                      ["dropped", "Dropped"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <Button
+                      key={value}
+                      variant={signalFilter === value ? "default" : "outline"}
+                      onClick={() => setSignalFilter(value)}
+                      className="h-8 text-xs"
                     >
-                      <span className="whitespace-nowrap pt-px text-[12px] text-[var(--text3)]">
-                        {formatTimestamp(ev.created_at)}
-                      </span>
-                      <span
-                        className={cn(
-                          ev.level === "ERROR"
-                            ? "text-error"
-                            : "text-[var(--text2)]",
-                        )}
-                      >
-                        {ev.message}
-                      </span>
-                    </div>
+                      {label}
+                    </Button>
                   ))}
                 </div>
-              )}
-            </Section>
+                {signalRows.length === 0 ? (
+                  <div className={mutedClass}>
+                    No signals received yet for this session.
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {signalRows.map((row) => (
+                      <div
+                        key={row.delivery.id}
+                        className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-[12px] font-semibold text-[var(--text1)]">
+                              {(row.event.ticker as string) ?? "—"}
+                            </div>
+                            <div className="text-[12px] text-[var(--text3)]">
+                              {(row.source.name as string) ?? "Source"}
+                              {(row.event.companyName as string | null)
+                                ? ` · ${String(row.event.companyName)}`
+                                : ""}
+                            </div>
+                          </div>
+                          <Badge
+                            variant={signalStatusVariant(row.delivery.status)}
+                          >
+                            {signalStatusLabel(
+                              row.delivery.status,
+                              row.delivery.dropReason,
+                            )}
+                          </Badge>
+                        </div>
+                        <div className="mt-1 text-[12px] text-[var(--text3)]">
+                          {formatTimestamp(row.delivery.enqueuedAt)}
+                          {row.delivery.status === "queued"
+                            ? ` · #${row.delivery.queuePositionAtEnqueue} in queue`
+                            : ""}
+                        </div>
+                        {row.event.documentUrl ? (
+                          <a
+                            href={String(row.event.documentUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-block text-[12px] text-[var(--accent)]"
+                          >
+                            Open document
+                          </a>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+            ) : null}
+            {activeTab === "summary" ? (
+              <>
+                <SessionInfoGrid
+                  session={session}
+                  payload={payload}
+                  loading={loading}
+                  instrumentCache={instrumentCache}
+                  cacheLoading={cacheLoading}
+                  cacheAction={cacheAction}
+                  onClearCache={() => void handleClearCache()}
+                />
+
+                {(executionProgress || researchFailure) && (
+                  <Section title="Execution Progress">
+                    {executionProgress ? (
+                      <SessionExecutionProgress
+                        sessionId={session.id}
+                        progress={executionProgress}
+                        onRetry={() => undefined}
+                        onViewTrace={() => undefined}
+                        onPauseAfterStep={() => undefined}
+                      />
+                    ) : (
+                      <span className={mutedClass}>
+                        No active execution cycle.
+                      </span>
+                    )}
+                    {researchFailure ? (
+                      <div className="mt-2 text-[12px] leading-[1.45] text-error">
+                        {researchFailure}
+                      </div>
+                    ) : null}
+                  </Section>
+                )}
+
+                <Section title="Session Summary">
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatBlock
+                      label="Updated"
+                      value={formatTimestamp(session.updatedAt)}
+                    />
+                    <StatBlock
+                      label="Runtime"
+                      value={
+                        session.uptimeMin > 0
+                          ? `${session.uptimeMin} min`
+                          : "Inactive"
+                      }
+                    />
+                    <StatBlock
+                      label="Open trades"
+                      value={String(session.openTradeCount)}
+                    />
+                    <StatBlock
+                      label="Workspace"
+                      value={
+                        session.isFocused ? "Focused" : "Alternate context"
+                      }
+                    />
+                  </div>
+                </Section>
+
+                <Section title="Recent Events">
+                  {recentEvents.length === 0 ? (
+                    <div className={mutedClass}>No recent events.</div>
+                  ) : (
+                    <div className="grid gap-1.5">
+                      {recentEvents.map((ev) => (
+                        <div
+                          key={ev.id}
+                          className="grid grid-cols-[auto_1fr] gap-2.5 text-[12px] leading-[1.45]"
+                        >
+                          <span className="whitespace-nowrap pt-px text-[12px] text-[var(--text3)]">
+                            {formatTimestamp(ev.created_at)}
+                          </span>
+                          <span
+                            className={cn(
+                              ev.level === "ERROR"
+                                ? "text-error"
+                                : "text-[var(--text2)]",
+                            )}
+                          >
+                            {ev.message}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Section>
+              </>
+            ) : null}
           </div>
         </div>
       </DialogContent>
@@ -603,6 +721,28 @@ function statusVariant(
     default:
       return "default";
   }
+}
+
+function signalStatusLabel(status: string, dropReason: string | null): string {
+  if (status === "waiting_for_resume") return "Waiting for resume";
+  if (status === "processing") return "Evaluating";
+  if (status === "triggered") return "Triggered cycle";
+  if (status === "traded") return "Trade opened";
+  if (status === "rejected") return "Rejected in review";
+  if (status === "dropped")
+    return dropReason ? `Dropped (${dropReason})` : "Dropped";
+  if (status === "expired") return "Expired while paused";
+  return "Queued";
+}
+
+function signalStatusVariant(
+  status: string,
+): "default" | "success" | "warn" | "danger" | "purple" {
+  if (status === "triggered" || status === "traded") return "success";
+  if (status === "waiting_for_resume") return "warn";
+  if (status === "expired") return "purple";
+  if (status === "dropped") return "danger";
+  return "default";
 }
 
 function formatInstrumentClass(value: InstrumentClass): string {

@@ -20,10 +20,10 @@ const PROMPT_CASES: Array<{
     content: workerPrompts.SELECTOR_WORKERS_WEB_SCOUT_PROMPT,
   },
   {
-    name: "selector-workers/trend-scout",
+    name: "selector-workers/catalyst-feed-scout",
     phase: "selector",
-    workerId: "trend-scout",
-    content: workerPrompts.SELECTOR_WORKERS_TREND_SCOUT_PROMPT,
+    workerId: "catalyst-feed-scout",
+    content: workerPrompts.SELECTOR_WORKERS_CATALYST_FEED_SCOUT_PROMPT,
   },
   {
     name: "selector-workers/market-validator",
@@ -32,22 +32,16 @@ const PROMPT_CASES: Array<{
     content: workerPrompts.SELECTOR_WORKERS_MARKET_VALIDATOR_PROMPT,
   },
   {
-    name: "technical-workers/chart-pattern",
+    name: "technical-workers/price-reaction-checker",
     phase: "technical",
-    workerId: "chart-pattern",
-    content: workerPrompts.TECHNICAL_WORKERS_CHART_PATTERN_PROMPT,
+    workerId: "price-reaction-checker",
+    content: workerPrompts.TECHNICAL_WORKERS_PRICE_REACTION_CHECKER_PROMPT,
   },
   {
-    name: "technical-workers/momentum-indicator",
-    phase: "technical",
-    workerId: "momentum-indicator",
-    content: workerPrompts.TECHNICAL_WORKERS_MOMENTUM_INDICATOR_PROMPT,
-  },
-  {
-    name: "fundamental-workers/earnings-context",
+    name: "fundamental-workers/document-extractor",
     phase: "fundamental",
-    workerId: "earnings-context",
-    content: workerPrompts.FUNDAMENTAL_WORKERS_EARNINGS_CONTEXT_PROMPT,
+    workerId: "document-extractor",
+    content: workerPrompts.FUNDAMENTAL_WORKERS_DOCUMENT_EXTRACTOR_PROMPT,
   },
   {
     name: "review-workers/conflict-detector",
@@ -78,9 +72,9 @@ function baseContext(): SessionStrategyContext {
   return {
     researchPosture: {
       sessionId: "s1",
-      posturePresetId: "trend_hunt",
-      discoveryMode: "trend_scan",
-      evidenceMode: "price_action_first",
+      posturePresetId: "edgar_catalyst",
+      processingMode: "catalyst",
+      evidenceMode: "document_first",
       catalystMode: "preferred",
       fundamentalStrictness: "sanity_check",
       postureNotes: "Favor strong leaders with clean trend persistence.",
@@ -88,10 +82,10 @@ function baseContext(): SessionStrategyContext {
     },
     rules: {
       sessionId: "s1",
-      rulesPresetId: "breakout_long",
-      setupType: "breakout",
+      rulesPresetId: "catalyst_entry",
+      setupType: "catalyst_entry",
       sideBias: "long_only",
-      entryStyle: "breakout",
+      entryStyle: "catalyst",
       exitStyle: "trailing_atr",
       scalingMode: "single_entry",
       tradeRulesMarkdown: "",
@@ -173,7 +167,7 @@ function representativeTask(
       return {
         selectionInstructions: "Find 1-3 tradeable breakout candidates.",
         instrumentClasses: ["stock", "crypto"],
-        discoveryMode: "trend_scan",
+        processingMode: "catalyst",
         candidate: {
           symbol: "AAPL",
           instrumentClass: "stock",

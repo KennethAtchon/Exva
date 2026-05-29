@@ -40,7 +40,7 @@ export class SessionResearchPostureRepo {
       .update(sessionResearchPosture)
       .set({
         posturePresetId: next.posturePresetId,
-        discoveryMode: next.discoveryMode,
+        processingMode: next.processingMode,
         evidenceMode: next.evidenceMode,
         catalystMode: next.catalystMode,
         fundamentalStrictness: next.fundamentalStrictness,

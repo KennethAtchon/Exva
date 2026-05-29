@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { Badge, Card, PageShell } from "@/components/custom-ui";
 import { Button } from "@/components/ui";
 import { api } from "@/lib/exva";
@@ -317,11 +317,17 @@ export const BrokersPage = ({
     settingsDrafts: {},
   });
 
-  const load = async () => {
+  const settingsDraftsRef = useRef(ui.settingsDrafts);
+
+  useEffect(() => {
+    settingsDraftsRef.current = ui.settingsDrafts;
+  }, [ui.settingsDrafts]);
+
+  const load = useCallback(async () => {
     dispatch({ loading: true, error: null });
     try {
       const rows = await api.listBrokerAccountState();
-      const nextDrafts = { ...ui.settingsDrafts };
+      const nextDrafts = { ...settingsDraftsRef.current };
       for (const broker of rows) {
         nextDrafts[broker.id] ??= {
           maxSessions: broker.maxSessions,
@@ -340,7 +346,7 @@ export const BrokersPage = ({
     } finally {
       dispatch({ loading: false });
     }
-  };
+  }, []);
 
   useEffect(() => {
     dispatch({ expandedBrokerId: null });
@@ -349,7 +355,7 @@ export const BrokersPage = ({
       void load();
     }, 30_000);
     return () => window.clearInterval(interval);
-  }, [environmentMode]);
+  }, [environmentMode, load]);
 
   useExvaEvent(
     "broker_balance_updated",

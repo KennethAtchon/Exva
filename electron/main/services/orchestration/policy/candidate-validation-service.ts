@@ -70,11 +70,7 @@ function maxQuoteAgeMs(
   holdingStyle?: HoldingStyle,
 ): number {
   const bucket: "intraday" | "swing" | "position" =
-    holdingStyle === "intraday_flat"
-      ? "intraday"
-      : holdingStyle === "multi_day_swing"
-        ? "swing"
-        : "position";
+    holdingStyle === "multi_day_swing" ? "swing" : "position";
   return MAX_QUOTE_AGE_MS[cls][bucket];
 }
 

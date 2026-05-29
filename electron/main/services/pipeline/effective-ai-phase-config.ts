@@ -119,9 +119,9 @@ export function assertValidEffectivePipelineConfig(
 
 export function assertValidPipelineDefinitionCatalog(): void {
   const errors: string[] = [];
-  const discoveryModes: Array<
-    SessionStrategyContext["researchPosture"]["discoveryMode"]
-  > = ["trend_scan", "event_contract_scan"];
+  const processingModes: Array<
+    SessionStrategyContext["researchPosture"]["processingMode"]
+  > = ["catalyst", "contract"];
 
   for (const { phase, definition } of listPipelineDefinitions()) {
     for (const binding of definition.engines ?? []) {
@@ -130,14 +130,14 @@ export function assertValidPipelineDefinitionCatalog(): void {
 
     const variantKeys =
       phase === "selector" || phase === "technical" || phase === "fundamental"
-        ? discoveryModes
+        ? processingModes
         : (["default"] as const);
 
     for (const variantKey of variantKeys) {
       const workers = workersForEffectiveStage(
         phase,
         definition,
-        variantKey === "default" ? "trend_scan" : variantKey,
+        variantKey === "default" ? "catalyst" : variantKey,
       );
       if (workers.length === 0) {
         errors.push(`Phase '${phase}' variant '${variantKey}' has no workers.`);
@@ -182,13 +182,13 @@ function resolveEffectiveStage(input: {
   phaseConfigResolver: AIPhaseConfigResolver;
   strategyContext: SessionStrategyContext | null;
 }): EffectiveStageConfig {
-  const discoveryMode =
-    input.strategyContext?.researchPosture.discoveryMode ?? "trend_scan";
+  const processingMode =
+    input.strategyContext?.researchPosture.processingMode ?? "catalyst";
   const plan = getAIPhase(input.phase);
   const workers = workersForEffectiveStage(
     input.phase,
     input.definition,
-    discoveryMode,
+    processingMode,
   );
   const schedulingMode = plan
     ? plan.stages.length > 1
@@ -208,7 +208,7 @@ function resolveEffectiveStage(input: {
     id: input.phase,
     kind: "phase",
     phase: input.phase,
-    variantKey: variantKeyForPhase(input.phase, discoveryMode),
+    variantKey: variantKeyForPhase(input.phase, processingMode),
     outputMode: input.definition.outputMode,
     outputSchemaName: input.definition.persistence.outputSchemaName,
     schedulingMode,
@@ -276,17 +276,17 @@ function resolveEffectiveWorker(input: {
 function workersForEffectiveStage(
   phase: PipelinePhase,
   _definition: PipelineDefinition,
-  discoveryMode: SessionStrategyContext["researchPosture"]["discoveryMode"],
+  processingMode: SessionStrategyContext["researchPosture"]["processingMode"],
 ): readonly WorkerDefinition[] {
-  return resolvePhaseWorkers(phase, discoveryMode);
+  return resolvePhaseWorkers(phase, processingMode);
 }
 
 function variantKeyForPhase(
   phase: PipelinePhase,
-  discoveryMode: SessionStrategyContext["researchPosture"]["discoveryMode"],
+  processingMode: SessionStrategyContext["researchPosture"]["processingMode"],
 ): string {
   if (phase === "selector" || phase === "technical" || phase === "fundamental")
-    return discoveryMode;
+    return processingMode;
   return "default";
 }
 

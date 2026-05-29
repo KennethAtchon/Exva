@@ -1,30 +1,18 @@
 [
   {
-    "id": "intraday",
-    "label": "Intraday",
-    "description": "1h bars, flat by end of session. No overnight exposure.",
+    "id": "catalyst",
+    "label": "Catalyst",
+    "description": "Daily bars, 1-5 day hold. Fast reaction window for EDGAR and event-driven catalysts.",
     "summaryBullets": [
-      "Primary timeframe: 1h bars.",
-      "Holding style: intraday flat.",
-      "Target hold: same-day close."
+      "Primary timeframe: 1d bars.",
+      "Holding style: multi-day swing.",
+      "Target hold: 2 days, max 5 days."
     ],
-    "aiGuidance": {
-      "technical": {
-        "howToEvaluate": [
-          "Favor setups that can prove themselves quickly inside the same session."
-        ]
-      },
-      "decision": {
-        "avoid": [
-          "Do not rely on slow multi-day thesis development for an intraday-flat session."
-        ]
-      }
-    },
     "values": {
-      "primaryTradingTimeframe": "1h",
-      "holdingStyle": "intraday_flat",
-      "targetHoldDays": null,
-      "maxHoldDays": 1,
+      "primaryTradingTimeframe": "1d",
+      "holdingStyle": "multi_day_swing",
+      "targetHoldDays": 2,
+      "maxHoldDays": 5,
       "timeframeNotes": ""
     }
   },

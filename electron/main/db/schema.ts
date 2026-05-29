@@ -7,6 +7,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 export const providerAccounts = sqliteTable("provider_accounts", {
   id: text("id").primaryKey(),
@@ -71,6 +72,93 @@ export const sessions = sqliteTable(
     isFocusedIdx: index("idx_sessions_is_focused").on(table.isFocused),
   }),
 );
+
+export const signalSources = sqliteTable("signal_sources", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  configJson: text("config_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const signalEvents = sqliteTable(
+  "signal_events",
+  {
+    id: text("id").primaryKey(),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => signalSources.id, { onDelete: "cascade" }),
+    sourceType: text("source_type").notNull(),
+    ticker: text("ticker").notNull(),
+    companyName: text("company_name"),
+    documentUrl: text("document_url"),
+    accessionNumber: text("accession_number"),
+    payloadJson: text("payload_json").notNull().default("{}"),
+    filedAt: text("filed_at").notNull(),
+    detectedAt: text("detected_at").notNull(),
+    dispatchStatus: text("dispatch_status").notNull(),
+    dispatchCompletedAt: text("dispatch_completed_at"),
+    sourceDroppedReason: text("source_dropped_reason"),
+  },
+  (table) => ({
+    sourceIdx: index("idx_signal_events_source").on(table.sourceId),
+    sourceAccessionUnique: uniqueIndex("idx_signal_events_accession")
+      .on(table.sourceId, table.accessionNumber)
+      .where(sql`${table.accessionNumber} is not null`),
+  }),
+);
+
+export const sessionSignalDeliveries = sqliteTable(
+  "session_signal_deliveries",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    signalEventId: text("signal_event_id")
+      .notNull()
+      .references(() => signalEvents.id, { onDelete: "cascade" }),
+    sourceId: text("source_id").notNull(),
+    queuePositionAtEnqueue: integer("queue_position_at_enqueue").notNull(),
+    status: text("status").notNull(),
+    statusBucket: text("status_bucket").notNull(),
+    enqueuedAt: text("enqueued_at").notNull(),
+    startedAt: text("started_at"),
+    finishedAt: text("finished_at"),
+    expiresAt: text("expires_at"),
+    tradeId: text("trade_id"),
+    dropReason: text("drop_reason"),
+    notesJson: text("notes_json"),
+  },
+  (table) => ({
+    sessionIdx: index("idx_ssd_session").on(table.sessionId),
+    statusIdx: index("idx_ssd_status").on(table.sessionId, table.statusBucket),
+  }),
+);
+
+export const sessionSignalSources = sqliteTable(
+  "session_signal_sources",
+  {
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => signalSources.id, { onDelete: "cascade" }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.sessionId, table.sourceId] }),
+  }),
+);
+
+export const cikTickerCache = sqliteTable("cik_ticker_cache", {
+  cik: text("cik").primaryKey(),
+  ticker: text("ticker"),
+  lookedUpAt: text("looked_up_at").notNull(),
+});
 
 export const sessionExecutionSteps = sqliteTable(
   "session_execution_steps",
@@ -157,7 +245,7 @@ export const sessionResearchPosture = sqliteTable("session_research_posture", {
     .primaryKey()
     .references(() => sessions.id, { onDelete: "cascade" }),
   posturePresetId: text("posture_preset_id").notNull().default("custom"),
-  discoveryMode: text("discovery_mode").notNull().default("custom"),
+  processingMode: text("processing_mode").notNull().default("manual"),
   evidenceMode: text("evidence_mode").notNull().default("balanced"),
   catalystMode: text("catalyst_mode").notNull().default("preferred"),
   fundamentalStrictness: text("fundamental_strictness")

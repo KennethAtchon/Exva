@@ -21,6 +21,7 @@ export interface SessionWriteInput {
   brokerOverridesByInstrumentClass?: Partial<
     Record<InstrumentClass, string | null>
   >;
+  subscribedSourceIds?: string[];
 }
 
 export class SessionWriteService {
@@ -35,6 +36,12 @@ export class SessionWriteService {
       /** Optional: live-readiness acknowledgement is invalidated on every mutation
        *  that changes broker, routing, or execution-mode context. */
       liveReadiness?: { clearAcknowledgement(sessionId: string): void };
+      signals?: {
+        replaceSessionSubscriptions(
+          sessionId: string,
+          sourceIds: string[],
+        ): void;
+      };
     },
   ) {}
 
@@ -93,6 +100,10 @@ export class SessionWriteService {
             typeof brokerAccountId === "string" ? brokerAccountId : null,
         }),
       ),
+    );
+    this.deps.signals?.replaceSessionSubscriptions(
+      sessionId,
+      input.subscribedSourceIds ?? [],
     );
     // Any change to brokers / routing / execution mode invalidates a prior
     // live-readiness acknowledgement — operator must re-confirm.

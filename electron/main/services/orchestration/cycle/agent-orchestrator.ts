@@ -18,6 +18,7 @@ export type { ResolvedInstrument } from "./types";
 
 export class AgentOrchestrator {
   private readonly ctx: TradingCycleContext;
+  private detachSignalListenerFn: (() => void) | null = null;
 
   constructor(
     readonly sessionId: string,
@@ -46,6 +47,7 @@ export class AgentOrchestrator {
     attachTradeClosedListener(this.ctx, () =>
       this.scheduleSelectorCycle("Trade-closed research cycle complete"),
     );
+    this.attachSignalListener();
     this.ctx.scheduleSelectorCycle = (label) =>
       this.scheduleSelectorCycle(label);
     this.ctx.started = true;
@@ -132,6 +134,7 @@ export class AgentOrchestrator {
     this.ctx.queue.pause();
     this.ctx.queue.clear();
     detachTradeClosedListener(this.ctx);
+    this.detachSignalListener();
     this.ctx.clearNoInstrumentRetry();
     this.ctx.cycleRestartInFlight = false;
     this.ctx.pauseAfterStep = false;
@@ -245,6 +248,62 @@ export class AgentOrchestrator {
       cycleId: crypto.randomUUID(),
       label,
     });
+  }
+
+  private attachSignalListener(): void {
+    if (this.detachSignalListenerFn) return;
+    this.detachSignalListenerFn = this.deps.bus.on(
+      "signal_delivery_updated",
+      (payload) => {
+        if (payload.sessionId !== this.sessionId) return;
+        if (payload.status !== "queued") return;
+        const deliveries = this.deps.signalDeliveriesRepo;
+        if (!deliveries) return;
+        this.ctx.enqueueTask(
+          async () => {
+            deliveries.updateStatus(payload.deliveryId, {
+              status: "processing",
+              statusBucket: "pending",
+              startedAt: new Date().toISOString(),
+            });
+            this.deps.bus.emit("signal_delivery_updated", {
+              deliveryId: payload.deliveryId,
+              sessionId: this.sessionId,
+              signalId: payload.signalId,
+              status: "processing",
+              statusBucket: "pending",
+            });
+            await this.scheduleSelectorCycle("Signal delivery queued");
+            deliveries.updateStatus(payload.deliveryId, {
+              status: "triggered",
+              statusBucket: "completed",
+              finishedAt: new Date().toISOString(),
+            });
+            this.deps.bus.emit("signal_delivery_updated", {
+              deliveryId: payload.deliveryId,
+              sessionId: this.sessionId,
+              signalId: payload.signalId,
+              status: "triggered",
+              statusBucket: "completed",
+            });
+          },
+          (error) => {
+            this.ctx.emitEvent(
+              "ERROR",
+              null,
+              `Signal-triggered selector cycle failed: ${error instanceof Error ? error.message : String(error)}`,
+              "orchestrator",
+            );
+          },
+        );
+      },
+    );
+  }
+
+  private detachSignalListener(): void {
+    if (!this.detachSignalListenerFn) return;
+    this.detachSignalListenerFn();
+    this.detachSignalListenerFn = null;
   }
 
   private handleResolvedInstruments(

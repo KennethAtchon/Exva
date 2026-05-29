@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef } from "react";
+import { useEffect, useMemo, useReducer } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import type {
@@ -43,6 +43,8 @@ type ModalDataState = {
     providers: ProviderAccount[];
     workspaceDefaultSearchProviderId: string | null;
   };
+  signalSources: Awaited<ReturnType<typeof api.listSignalSources>>["sources"];
+  subscribedSourceIds: string[];
 };
 
 type ModalReqState = {
@@ -67,16 +69,13 @@ export const CreateEditSessionModal = ({
       providers: [],
       workspaceDefaultSearchProviderId: null,
     },
+    signalSources: [],
+    subscribedSourceIds: [],
   });
   const [req, dispatchReq] = useReducer(mergeReducer<ModalReqState>, {
     saving: false,
     error: null,
   });
-  const searchEverythingSnapshotRef = useRef<{
-    instrumentClasses: InstrumentClass[];
-    instrumentScope: string;
-    aiPickerEnabled: boolean;
-  } | null>(null);
   const applyInitializedForm = (
     nextForm: SessionCreateInput,
     nextError: string | null = null,
@@ -94,12 +93,22 @@ export const CreateEditSessionModal = ({
       environmentMode === "live" ? "live_allowed" : "paper_only";
 
     if (templateInput) {
-      applyInitializedForm({ ...templateInput, executionMode: envExecMode });
+      applyInitializedForm({
+        ...templateInput,
+        executionMode: envExecMode,
+        selectorSettings: { aiPickerEnabled: true },
+        selectionMode: "manual_shortlist",
+      });
       return;
     }
 
     if (!initialSession) {
-      applyInitializedForm({ ...defaultInput(), executionMode: envExecMode });
+      applyInitializedForm({
+        ...defaultInput(),
+        executionMode: envExecMode,
+        selectorSettings: { aiPickerEnabled: true },
+        selectionMode: "manual_shortlist",
+      });
       return;
     }
 
@@ -113,6 +122,8 @@ export const CreateEditSessionModal = ({
         nextForm = {
           ...payloadToInput(payload, initialSession.name),
           executionMode: envExecMode,
+          selectorSettings: { aiPickerEnabled: true },
+          selectionMode: "manual_shortlist",
         };
       } catch (seedError) {
         nextError =
@@ -122,6 +133,8 @@ export const CreateEditSessionModal = ({
         nextForm = {
           ...summaryToInput(initialSession),
           executionMode: envExecMode,
+          selectorSettings: { aiPickerEnabled: true },
+          selectionMode: "manual_shortlist",
         };
       }
       if (cancelled) return;
@@ -132,6 +145,34 @@ export const CreateEditSessionModal = ({
       cancelled = true;
     };
   }, [open, initialSession, templateInput, environmentMode]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void api
+      .listSignalSources()
+      .then(async ({ sources }) => {
+        if (cancelled) return;
+        const filtered = sources.filter((source) => source.type !== "manual");
+        if (!initialSession) {
+          dispatchData({ signalSources: filtered, subscribedSourceIds: [] });
+          return;
+        }
+        const subs = await api.getSessionSignalSubscriptions(initialSession.id);
+        if (cancelled) return;
+        dispatchData({
+          signalSources: filtered,
+          subscribedSourceIds: subs.sourceIds,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        dispatchData({ signalSources: [], subscribedSourceIds: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initialSession]);
 
   useEffect(() => {
     if (!open) return;
@@ -184,7 +225,13 @@ export const CreateEditSessionModal = ({
     };
   }, [open]);
 
-  const { form, brokerAccounts, searchProviderState } = data;
+  const {
+    form,
+    brokerAccounts,
+    searchProviderState,
+    signalSources,
+    subscribedSourceIds,
+  } = data;
 
   const assignedBrokerIds = useMemo(
     () =>
@@ -234,11 +281,7 @@ export const CreateEditSessionModal = ({
     uncoveredInstrumentClasses.length === 0 &&
     form.brokerAssignments.length > 0 &&
     effectiveInstrumentClasses.length > 0;
-  const requiresSearchProviderSetup =
-    form.selectionMode === "ai_selected_universe" &&
-    form.selectorSettings.aiPickerEnabled &&
-    !form.defaultSearchProviderId &&
-    !searchProviderState.workspaceDefaultSearchProviderId;
+  const requiresSearchProviderSetup = false;
   const workspaceDefaultSearchProviderName =
     searchProviderState.providers.find(
       (provider) =>
@@ -249,6 +292,36 @@ export const CreateEditSessionModal = ({
     [form.instrumentScope],
   );
   const searchEverything = isSearchEverythingInput(form);
+  const manualTickerCount = useMemo(
+    () =>
+      form.instrumentScope
+        .split(/[\n,]/)
+        .map((s) => s.trim())
+        .filter(Boolean).length,
+    [form.instrumentScope],
+  );
+  const enabledSubscribedSourceCount = useMemo(
+    () =>
+      signalSources.filter(
+        (source) => subscribedSourceIds.includes(source.id) && source.enabled,
+      ).length,
+    [signalSources, subscribedSourceIds],
+  );
+  const disabledSubscribedSourceCount = useMemo(
+    () =>
+      signalSources.filter(
+        (source) => subscribedSourceIds.includes(source.id) && !source.enabled,
+      ).length,
+    [signalSources, subscribedSourceIds],
+  );
+  const readiness =
+    enabledSubscribedSourceCount > 0 || manualTickerCount > 0
+      ? enabledSubscribedSourceCount === 0
+        ? "manual_only"
+        : "armed"
+      : disabledSubscribedSourceCount > 0
+        ? "waiting_for_source_enable"
+        : "no_inputs";
 
   const setForm = (
     updater: (prev: SessionCreateInput) => SessionCreateInput,
@@ -264,7 +337,7 @@ export const CreateEditSessionModal = ({
     );
     if (nextAssignments.length === form.brokerAssignments.length) return;
     dispatchData({ form: { ...form, brokerAssignments: nextAssignments } });
-  }, [brokerAccounts, brokerById, form.brokerAssignments, visibleBrokers]);
+  }, [brokerAccounts, form, form.brokerAssignments, visibleBrokers]);
 
   useEffect(() => {
     if (!searchEverything) return;
@@ -278,7 +351,12 @@ export const CreateEditSessionModal = ({
     dispatchData({
       form: { ...form, instrumentClasses: brokerDrivenInstrumentClasses },
     });
-  }, [brokerDrivenInstrumentClasses, form.instrumentClasses, searchEverything]);
+  }, [
+    brokerDrivenInstrumentClasses,
+    form,
+    form.instrumentClasses,
+    searchEverything,
+  ]);
 
   useEffect(() => {
     if (!searchEverythingFocusInstrumentClass) return;
@@ -290,7 +368,7 @@ export const CreateEditSessionModal = ({
     dispatchData({
       form: { ...form, instrumentScope: buildSearchEverythingScope() },
     });
-  }, [effectiveInstrumentClasses, searchEverythingFocusInstrumentClass]);
+  }, [effectiveInstrumentClasses, form, searchEverythingFocusInstrumentClass]);
 
   if (!open) return null;
 
@@ -359,52 +437,10 @@ export const CreateEditSessionModal = ({
             <section className={sectionClass}>
               <SectionHeader
                 title="Task Boundary"
-                caption="Universe selection, scope, and search-provider behavior."
+                caption="Scope and search-provider behavior."
               />
               <div className={sectionBodyClass}>
                 <div className={twoColumnGridClass}>
-                  <Field label="Selection mode">
-                    <ShadcnSelect
-                      value={form.selectionMode}
-                      onValueChange={(value) => {
-                        const nextMode =
-                          value as SessionCreateInput["selectionMode"];
-                        if (
-                          nextMode !== "ai_selected_universe" &&
-                          searchEverything
-                        ) {
-                          const snapshot = searchEverythingSnapshotRef.current;
-                          setForm((prev) => ({
-                            ...prev,
-                            selectionMode: nextMode,
-                            instrumentScope:
-                              snapshot?.instrumentScope ?? prev.instrumentScope,
-                            selectorSettings: {
-                              aiPickerEnabled:
-                                snapshot?.aiPickerEnabled ??
-                                prev.selectorSettings.aiPickerEnabled,
-                            },
-                          }));
-                          searchEverythingSnapshotRef.current = null;
-                          return;
-                        }
-                        setForm((prev) => ({
-                          ...prev,
-                          selectionMode: nextMode,
-                        }));
-                      }}
-                      options={[
-                        {
-                          value: "manual_shortlist",
-                          label: "Manual shortlist",
-                        },
-                        {
-                          value: "ai_selected_universe",
-                          label: "AI selected universe",
-                        },
-                      ]}
-                    />
-                  </Field>
                   <Field label="Search provider override">
                     <ShadcnSelect
                       value={
@@ -450,53 +486,6 @@ export const CreateEditSessionModal = ({
                         </button>
                       </div>
                     ) : null}
-                  </div>
-                ) : null}
-                {form.selectionMode === "ai_selected_universe" ? (
-                  <div className={switchRowClass}>
-                    <Switch
-                      checked={searchEverything}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          searchEverythingSnapshotRef.current = {
-                            instrumentClasses: form.instrumentClasses,
-                            instrumentScope: form.instrumentScope,
-                            aiPickerEnabled:
-                              form.selectorSettings.aiPickerEnabled,
-                          };
-                          setForm((prev) => ({
-                            ...prev,
-                            instrumentClasses: brokerDrivenInstrumentClasses,
-                            instrumentScope: buildSearchEverythingScope(),
-                            selectorSettings: { aiPickerEnabled: true },
-                          }));
-                          return;
-                        }
-
-                        const snapshot = searchEverythingSnapshotRef.current;
-                        setForm((prev) => ({
-                          ...prev,
-                          instrumentClasses:
-                            snapshot?.instrumentClasses ??
-                            prev.instrumentClasses,
-                          instrumentScope:
-                            snapshot?.instrumentScope ?? "SPY,QQQ",
-                          selectorSettings: {
-                            aiPickerEnabled: snapshot?.aiPickerEnabled ?? true,
-                          },
-                        }));
-                        searchEverythingSnapshotRef.current = null;
-                      }}
-                    />
-                    <span>
-                      <span className="block font-semibold text-[var(--text1)]">
-                        Search everything
-                      </span>
-                      <span className="mt-0.5 block text-[12px] text-[var(--text3)]">
-                        Ignore manual class picks and let the selected broker
-                        accounts define the full tradable universe.
-                      </span>
-                    </span>
                   </div>
                 ) : null}
                 {searchEverything && effectiveInstrumentClasses.length > 1 ? (
@@ -587,7 +576,7 @@ export const CreateEditSessionModal = ({
                     </div>
                   ) : null}
                 </Field>
-                <Field label="Instrument scope">
+                <Field label="Manual tickers">
                   <textarea
                     value={form.instrumentScope}
                     onChange={(event) =>
@@ -599,30 +588,8 @@ export const CreateEditSessionModal = ({
                     placeholder="SPY\nQQQ\nNVDA"
                     rows={4}
                     className={textareaClass}
-                    disabled={searchEverything}
                   />
                 </Field>
-                <div className={switchRowClass}>
-                  <Switch
-                    checked={form.selectorSettings.aiPickerEnabled}
-                    disabled={searchEverything}
-                    onCheckedChange={(checked) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        selectorSettings: { aiPickerEnabled: checked },
-                      }))
-                    }
-                  />
-                  <span>
-                    <span className="block font-semibold text-[var(--text1)]">
-                      AI picker enabled
-                    </span>
-                    <span className="mt-0.5 block text-[12px] text-[var(--text3)]">
-                      Allow the selector role to expand or refine the shortlist
-                      when the session calls for it.
-                    </span>
-                  </span>
-                </div>
               </div>
             </section>
 
@@ -750,10 +717,82 @@ export const CreateEditSessionModal = ({
                 </div>
               </Field>
             </section>
+
+            <section className={sectionClass}>
+              <SectionHeader
+                title="Signal Sources"
+                caption="Choose which signal feeds drive this session."
+              />
+              <div className={sectionBodyClass}>
+                {signalSources.length === 0 ? (
+                  <div className={inlineHintClass}>
+                    No automated signal sources configured yet. Manual tickers
+                    still work.
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {signalSources.map((source) => {
+                      const checked = subscribedSourceIds.includes(source.id);
+                      return (
+                        <label key={source.id} className={brokerRowClass}>
+                          <Switch
+                            checked={checked}
+                            onCheckedChange={(next) =>
+                              dispatchData({
+                                subscribedSourceIds: next
+                                  ? [
+                                      ...new Set([
+                                        ...subscribedSourceIds,
+                                        source.id,
+                                      ]),
+                                    ]
+                                  : subscribedSourceIds.filter(
+                                      (id) => id !== source.id,
+                                    ),
+                              })
+                            }
+                          />
+                          <span>
+                            <span className="block text-[12px] font-semibold text-[var(--text1)]">
+                              {source.name}
+                            </span>
+                            <span className="mt-px block text-[12px] text-[var(--text3)]">
+                              {source.type === "edgar_8k"
+                                ? "EDGAR 8-K"
+                                : "Web Search"}
+                              {!source.enabled
+                                ? " · Disabled globally — does not count as a live input"
+                                : ""}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text2)]">
+                  {readiness === "armed"
+                    ? `Live inputs: ${manualTickerCount} manual ticker(s), ${enabledSubscribedSourceCount} enabled source(s)`
+                    : readiness === "manual_only"
+                      ? "This session will run from manual tickers only."
+                      : readiness === "waiting_for_source_enable"
+                        ? `This session is subscribed to ${disabledSubscribedSourceCount} source(s), but all are disabled. Starting now will put the session in waiting mode.`
+                        : "This session has no live inputs yet. Add manual tickers or enable at least one subscribed source."}
+                </div>
+              </div>
+            </section>
           </div>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-            <div className="text-[12px] text-[var(--text3)]">{""}</div>
+            <div className="text-[12px] text-[var(--text3)]">
+              {readiness === "manual_only"
+                ? "This session runs from manual tickers only."
+                : readiness === "waiting_for_source_enable"
+                  ? "All subscribed sources are disabled — session will wait idle on start."
+                  : readiness === "no_inputs"
+                    ? "No live inputs — session will wait idle on start."
+                    : ""}
+            </div>
             <div className="flex justify-end gap-2.5">
               <Button
                 onClick={onClose}
@@ -769,6 +808,9 @@ export const CreateEditSessionModal = ({
                     await onSubmit(
                       {
                         ...form,
+                        selectionMode: "manual_shortlist",
+                        selectorSettings: { aiPickerEnabled: true },
+                        subscribedSourceIds,
                         brokerAssignments: form.brokerAssignments.filter(
                           (assignment) =>
                             brokerById.has(assignment.brokerAccountId),
@@ -853,6 +895,7 @@ function defaultInput(): SessionCreateInput {
     executionMode: "paper_only",
     brokerAssignments: [],
     brokerOverridesByInstrumentClass: {},
+    subscribedSourceIds: [],
   };
 }
 
@@ -873,6 +916,7 @@ function payloadToInput(
       (assignment) => assignment.brokerAccountId,
     ),
     brokerOverridesByInstrumentClass: payload.brokerOverridesByInstrumentClass,
+    subscribedSourceIds: [],
   };
 }
 
@@ -888,6 +932,7 @@ function summaryToInput(session: SessionSummary): SessionCreateInput {
     executionMode: session.executionMode,
     brokerAssignments: [],
     brokerOverridesByInstrumentClass: {},
+    subscribedSourceIds: [],
   };
 }
 
@@ -977,8 +1022,6 @@ const textareaClass =
   "min-h-[88px] w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
 const toggleChipClass =
   "inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--chip)] px-[11px] py-2 text-[12px] text-[var(--text2)]";
-const switchRowClass =
-  "flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface2)] px-[14px] py-3";
 const twoColumnGridClass =
   "grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3.5";
 const brokerPickerClass =

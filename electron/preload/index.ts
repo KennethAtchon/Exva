@@ -205,6 +205,22 @@ const exva: ExvaApi = {
     saveWorkspaceDefaultModel: (input) =>
       invoke(channels.strategy.saveWorkspaceDefaultModel, input),
   },
+  signals: {
+    listSources: () => invoke(channels.signals.sources.list),
+    createSource: (input) => invoke(channels.signals.sources.create, input),
+    updateSource: (input) => invoke(channels.signals.sources.update, input),
+    deleteSource: (id) => invoke(channels.signals.sources.delete, { id }),
+    enableSource: (id) => invoke(channels.signals.sources.enable, { id }),
+    disableSource: (id) => invoke(channels.signals.sources.disable, { id }),
+    testSource: (id) => invoke(channels.signals.sources.test, { id }),
+    listSessionEvents: (input) => invoke(channels.signals.events.list, input),
+    getSessionSubscriptions: (sessionId) =>
+      invoke(channels.signals.sessions.getSubscriptions, { sessionId }),
+    setSessionSubscriptions: (input) =>
+      invoke(channels.signals.sessions.setSubscriptions, input),
+    getSessionReadiness: (input) =>
+      invoke(channels.signals.sessions.getReadiness, input),
+  },
   workspace: {
     getView: () =>
       invokeEndpoint<

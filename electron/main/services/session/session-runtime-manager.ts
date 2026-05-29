@@ -76,6 +76,10 @@ export class SessionRuntimeManager {
 
     try {
       await runtime.initialize(initStatus);
+      this.deps.signals?.injectManualTickers(
+        sessionId,
+        session.instrumentScope,
+      );
       this.deps.logger.info({ sessionId, initStatus }, "runtime started");
       return runtime;
     } catch (error) {
@@ -119,6 +123,7 @@ export class SessionRuntimeManager {
       status: "active",
     });
     await runtime.resume();
+    this.deps.signals?.onSessionResumed(sessionId);
     if (priorStatus === "attention_required") {
       // A failed selector cycle does not auto-reschedule, so an idempotent
       // resume() leaves the loop dead. Force a fresh selector cycle.
@@ -214,6 +219,7 @@ export class SessionRuntimeManager {
    * live-monitor is the safe intersection.
    */
   async rehydrateFromDb(): Promise<void> {
+    this.deps.signals?.replayStartup();
     const recoverable = this.startupRecovery.collectRecoverableSessions();
     this.deps.logger.info(
       { sessionCount: recoverable.length },

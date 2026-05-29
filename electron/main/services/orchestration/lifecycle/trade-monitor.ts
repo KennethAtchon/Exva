@@ -10,7 +10,6 @@ import type { InstrumentNormalizer } from "../../broker/instrument-normalizer";
 import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
-  intraday_flat: 5_000,
   multi_day_swing: 60_000,
   weeks_position: 300_000,
   custom: 300_000,
@@ -218,7 +217,6 @@ export class TradeMonitor {
   }
 
   private resolveOhlcvTimeframe(holdingStyle: string): "1h" | "4h" | "1d" {
-    if (holdingStyle === "intraday_flat") return "1h";
     if (holdingStyle === "multi_day_swing") return "4h";
     return "1d";
   }

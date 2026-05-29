@@ -1,4 +1,4 @@
-import { useReducer, useState } from "react";
+import { useState } from "react";
 import type {
   ResearchPosturePresetId,
   RiskPresetId,
@@ -330,8 +330,6 @@ interface CreateEditGlobalPresetModalProps {
   onClose: () => void;
 }
 
-const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
-
 type PresetFormState = {
   name: string;
   posturePresetId: ResearchPosturePresetId;
@@ -347,13 +345,15 @@ export function CreateEditGlobalPresetModal({
   onClose,
 }: CreateEditGlobalPresetModalProps) {
   const isEdit = Boolean(initial?.name);
-  const [form, dispatchForm] = useReducer(mergeReducer<PresetFormState>, {
+  const [form, setForm] = useState<PresetFormState>({
     name: initial?.name ?? "",
-    posturePresetId: initial?.posturePresetId ?? "trend_hunt",
-    rulesPresetId: initial?.rulesPresetId ?? "breakout_long",
+    posturePresetId: initial?.posturePresetId ?? "edgar_catalyst",
+    rulesPresetId: initial?.rulesPresetId ?? "catalyst_entry",
     riskPresetId: initial?.riskPresetId ?? "moderate",
     timeframePresetId: initial?.timeframePresetId ?? "swing",
   });
+  const patchForm = (patch: Partial<PresetFormState>) =>
+    setForm((state) => ({ ...state, ...patch }));
 
   if (!open) return null;
 
@@ -403,7 +403,7 @@ export function CreateEditGlobalPresetModal({
           <ModalField label="Preset name">
             <input
               value={form.name}
-              onChange={(e) => dispatchForm({ name: e.target.value })}
+              onChange={(e) => patchForm({ name: e.target.value })}
               placeholder="e.g. My Swing Setup"
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSave();
@@ -415,7 +415,7 @@ export function CreateEditGlobalPresetModal({
             <ShadcnSelect
               value={form.posturePresetId}
               onValueChange={(v) =>
-                dispatchForm({ posturePresetId: v as ResearchPosturePresetId })
+                patchForm({ posturePresetId: v as ResearchPosturePresetId })
               }
               options={RESEARCH_POSTURE_PRESETS.map((p) => ({
                 value: p.id,
@@ -427,7 +427,7 @@ export function CreateEditGlobalPresetModal({
             <ShadcnSelect
               value={form.rulesPresetId}
               onValueChange={(v) =>
-                dispatchForm({ rulesPresetId: v as TradeRulesPresetId })
+                patchForm({ rulesPresetId: v as TradeRulesPresetId })
               }
               options={TRADE_RULE_PRESETS.map((p) => ({
                 value: p.id,
@@ -439,7 +439,7 @@ export function CreateEditGlobalPresetModal({
             <ShadcnSelect
               value={form.riskPresetId}
               onValueChange={(v) =>
-                dispatchForm({ riskPresetId: v as RiskPresetId })
+                patchForm({ riskPresetId: v as RiskPresetId })
               }
               options={RISK_PRESETS.map((p) => ({
                 value: p.id,
@@ -451,7 +451,7 @@ export function CreateEditGlobalPresetModal({
             <ShadcnSelect
               value={form.timeframePresetId}
               onValueChange={(v) =>
-                dispatchForm({ timeframePresetId: v as TimeframePresetId })
+                patchForm({ timeframePresetId: v as TimeframePresetId })
               }
               options={TIMEFRAME_PRESETS.map((p) => ({
                 value: p.id,

@@ -15,6 +15,20 @@
       "when": 1780000000000,
       "tag": "0001_period_autopsy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780010000000,
+      "tag": "0002_signal_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780015000000,
+      "tag": "0003_cik_ticker_cache",
+      "breakpoints": true
     }
   ]
 }

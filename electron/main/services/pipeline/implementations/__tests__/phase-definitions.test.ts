@@ -3,7 +3,7 @@ import { registerAllPhases } from "../../definitions";
 import { getAIPhase } from "../../phases/registry";
 import { resolvePhaseWorkers } from "../../definitions/phase-catalog";
 
-const DISCOVERY_MODES = ["trend_scan", "event_contract_scan"] as const;
+const PROCESSING_MODES = ["catalyst", "contract"] as const;
 const ALL_PHASE_IDS = [
   "selector",
   "technical",
@@ -45,7 +45,7 @@ describe("phase definitions", () => {
 
   /**
    * Cross-validates that the phase catalog and the AIPhase definitions agree on
-   * which workers each phase runs for each discovery mode.
+   * which workers each phase runs for each processing mode.
    *
    * If this test fails, resolvePhaseWorkers() in phase-catalog.ts has drifted
    * from the phase definition's stages[].resolveWorkers() for that mode.
@@ -57,11 +57,11 @@ describe("phase definitions", () => {
       const plan = getAIPhase(phase);
       if (!plan) throw new Error(`Phase '${phase}' not registered`);
 
-      // Build a minimal context that satisfies the discoveryMode access pattern
+      // Build a minimal context that satisfies the processingMode access pattern
       // used by resolveWorkers on all current phase stage definitions.
-      for (const mode of DISCOVERY_MODES) {
+      for (const mode of PROCESSING_MODES) {
         const minimalCtx = {
-          strategyContext: { researchPosture: { discoveryMode: mode } },
+          strategyContext: { researchPosture: { processingMode: mode } },
         } as import("../../phases/types").AIPhaseContext;
 
         // Workers resolved by the AIPhase runtime path

@@ -1,7 +1,7 @@
 # Phase 6 — Session UI & Drawer
 
 > **Date:** 2026-05-28
-> **Status:** Todo
+> **Status:** In Progress
 > **Spec sections:** §4.5–4.8, §6.3.3–6.3.4, §10 (copy)
 > **Depends on:** Phase 5 (Signal Sources page must exist for nav link), Phase 3 (delivery rows must exist for drawer)
 > **Unlocks:** Nothing (terminal phase for UI work)

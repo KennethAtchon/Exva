@@ -5,7 +5,7 @@ import type {
 } from "@electron/shared/ai/ai-phase";
 import type { LLMRunResult } from "../../llm/llm-types";
 import type {
-  ResearchDiscoveryMode,
+  ProcessingMode,
   SessionStrategyContext,
 } from "@electron/shared/domain";
 import type { WorkerToolContext } from "../worker-tools/worker-tool-factory";
@@ -77,14 +77,14 @@ export interface AIPhase<TState, TOutput> {
    */
   outputSchemaName?: string;
   /**
-   * Resolves the workers for a given discovery mode. Used by the effective
+   * Resolves the workers for a given processing mode. Used by the effective
    * config layer and catalog to determine workers without needing a full
    * AIPhaseContext. Phases without mode-variant workers may ignore the
-   * discoveryMode parameter. Required if the phase participates in the
+   * processingMode parameter. Required if the phase participates in the
    * phase catalog (i.e., all five standard phases).
    */
   resolveWorkersForMode?(
-    discoveryMode: ResearchDiscoveryMode,
+    processingMode: ProcessingMode,
   ): readonly WorkerDefinition[];
   /**
    * Static metadata for the PipelineDefinition catalog (renderer + effective

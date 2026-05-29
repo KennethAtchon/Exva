@@ -351,7 +351,7 @@ export async function runAIWorker<TOutput>(
       if (
         deps.toolContext.isMockSession &&
         deps.toolContext.mockScenarioKind === "clean_breakout" &&
-        worker.id === "momentum-indicator"
+        worker.id === "price-reaction-checker"
       ) {
         output = {
           ...resolution.output,

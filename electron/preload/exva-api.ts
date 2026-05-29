@@ -41,6 +41,11 @@ import type {
   WorkspaceViewResponse,
 } from "@electron/shared/ipc/dto";
 import type {
+  PollResult,
+  SessionSignalDelivery,
+  SignalSourceRecord,
+} from "@electron/shared/domain";
+import type {
   AddLessonInput,
   AutopsyLesson,
   ExportFormat,
@@ -301,6 +306,72 @@ export interface ExvaApi {
       modelId: string;
       reasoningLevel?: import("@electron/shared/ai/ai-phase").ReasoningLevel;
     }): Promise<{ savedAt: string }>;
+  };
+  signals: {
+    listSources(): Promise<{
+      sources: Array<
+        SignalSourceRecord & {
+          runtimeStatus: string;
+          runtimeLastError: string | null;
+          attachedSessionCount: number;
+          attachedSessionNames: string[];
+          lastPollAt: string | null;
+          lastPollResult: PollResult | null;
+          lastSignalAt: string | null;
+          lastSignalTicker: string | null;
+          recentActivity: Array<{
+            at: string;
+            kind: "ok" | "error" | "drop";
+            summary: string;
+          }>;
+        }
+      >;
+    }>;
+    createSource(input: {
+      type: "edgar_8k" | "web_search" | "manual";
+      name: string;
+      description?: string | null;
+      config?: Record<string, unknown>;
+    }): Promise<{ source: SignalSourceRecord }>;
+    updateSource(input: {
+      id: string;
+      name?: string;
+      description?: string | null;
+      enabled?: boolean;
+      config?: Record<string, unknown>;
+    }): Promise<{ source: SignalSourceRecord }>;
+    deleteSource(id: string): Promise<{ ok: true }>;
+    enableSource(id: string): Promise<{ ok: true }>;
+    disableSource(id: string): Promise<{ ok: true }>;
+    testSource(id: string): Promise<{ result: PollResult }>;
+    listSessionEvents(input: {
+      sessionId: string;
+      statusBucket?: "pending" | "completed" | "dropped";
+      limit?: number;
+    }): Promise<{
+      rows: Array<{
+        delivery: SessionSignalDelivery;
+        event: Record<string, unknown>;
+        source: Record<string, unknown>;
+      }>;
+    }>;
+    getSessionSubscriptions(
+      sessionId: string,
+    ): Promise<{ sourceIds: string[] }>;
+    setSessionSubscriptions(input: {
+      sessionId: string;
+      sourceIds: string[];
+    }): Promise<{ ok: true }>;
+    getSessionReadiness(input: {
+      sessionId: string;
+      instrumentScope: string;
+    }): Promise<{
+      readiness:
+        | "armed"
+        | "manual_only"
+        | "waiting_for_source_enable"
+        | "no_inputs";
+    }>;
   };
   config: {
     getStrategy(): Promise<SessionStrategy>;

@@ -37,7 +37,6 @@ import {
   STRATEGY_SCALING_MODES,
   STRATEGY_SIDE_BIASES,
   RESEARCH_CATALYST_MODES,
-  RESEARCH_DISCOVERY_MODES,
   RESEARCH_EVIDENCE_MODES,
   RESEARCH_FUNDAMENTAL_STRICTNESS,
   type SessionAiSettings,
@@ -1017,21 +1016,6 @@ const StyleSection = ({
             options={RESEARCH_POSTURE_PRESETS.map((preset) => ({
               value: preset.id,
               label: preset.label,
-            }))}
-          />
-        </Field>
-        <Field label="Discovery mode">
-          <ShadcnSelect
-            value={researchPosture.discoveryMode}
-            onValueChange={(value) =>
-              updateResearchPosture({
-                discoveryMode: value as typeof researchPosture.discoveryMode,
-              })
-            }
-            disabled={isLocked}
-            options={RESEARCH_DISCOVERY_MODES.map((value) => ({
-              value,
-              label: labelize(value),
             }))}
           />
         </Field>

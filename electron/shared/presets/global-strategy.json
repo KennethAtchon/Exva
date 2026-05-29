@@ -1,142 +1,106 @@
 [
   {
-    "id": "trend_momentum",
-    "label": "Trend Momentum",
-    "description": "Ride persistent trends with breakout entries and trailing stops.",
-    "summaryBullets": [
-      "Style: Trend Hunt — price-action first, catalysts preferred.",
-      "Rules: Breakout Long — trailing ATR exits.",
-      "Risk: Moderate — $500 positions, balanced limits.",
-      "Timeframe: Swing — 4h bars, 3–14 day holds."
-    ],
+    "id": "edgar_catalyst",
+    "label": "EDGAR Catalyst",
+    "description": "Trade EDGAR catalysts with document-first posture and thesis-based exits.",
     "aiGuidance": {
       "shared": {
-        "objective": "Find and act on persistent trend leaders with enough confirmation to keep riding strength instead of guessing bottoms.",
-        "whatToLookFor": [
-          "Names already showing leadership, clean continuation, and usable liquidity.",
-          "Catalysts that reinforce an existing trend, even if the catalyst is not the sole reason for the setup."
-        ],
         "howToEvaluate": [
-          "Reward setups where price action and structure are already aligned with the thesis.",
-          "Prefer ideas that can keep working over a multi-day swing horizon instead of one-candle spikes."
+          "Prioritize whether the catalyst is materially new, tradeable, and timely enough to justify action.",
+          "Prefer primary-source evidence over speculative narrative when the filing and market reaction disagree."
+        ],
+        "avoid": [
+          "Do not force trades from administrative or stale filings that no longer offer an information edge."
+        ]
+      },
+      "selector": {
+        "whatToLookFor": [
+          "Fresh filings with clear operational, financial, or corporate-action implications.",
+          "Symbols where the filing can plausibly change near-term repricing expectations."
         ]
       }
     },
-    "posturePresetId": "trend_hunt",
-    "rulesPresetId": "breakout_long",
+    "summaryBullets": [
+      "Posture: EDGAR Catalyst.",
+      "Rules: Catalyst Entry.",
+      "Risk: Moderate.",
+      "Timeframe: Catalyst."
+    ],
+    "posturePresetId": "edgar_catalyst",
+    "rulesPresetId": "catalyst_entry",
     "riskPresetId": "moderate",
-    "timeframePresetId": "swing"
+    "timeframePresetId": "catalyst"
   },
   {
-    "id": "catalyst_play",
-    "label": "Catalyst Play",
-    "description": "Chase event-driven momentum with tight time-sensitive entries.",
-    "summaryBullets": [
-      "Style: Catalyst Momentum — catalysts required.",
-      "Rules: Event Entry — time-based exits.",
-      "Risk: Aggressive — $1000 positions, wider exposure.",
-      "Timeframe: Intraday — flat by end of session."
-    ],
+    "id": "earnings_event",
+    "label": "Earnings Event",
+    "description": "Focus on earnings catalysts with event-timed entries.",
     "aiGuidance": {
       "shared": {
-        "objective": "Exploit fresh catalysts that can drive fast repricing inside a tight event-driven window.",
-        "whatToLookFor": [
-          "Fresh, specific catalysts with active attention and reaction potential right now.",
-          "Setups where timing matters more than long-duration durability."
-        ],
         "howToEvaluate": [
-          "Prefer evidence that the catalyst is current, actionable, and not already stale.",
-          "Favor concise, high-urgency opportunities over slow-burn narratives."
+          "Anchor the trade to the earnings-specific catalyst, guidance implications, and immediate market reaction."
+        ],
+        "avoid": [
+          "Do not trade noisy post-earnings moves when the update lacks a clear thesis change."
         ]
       }
     },
-    "posturePresetId": "catalyst_momentum",
+    "summaryBullets": [
+      "Posture: Earnings Event.",
+      "Rules: Event Entry.",
+      "Risk: Moderate.",
+      "Timeframe: Catalyst."
+    ],
+    "posturePresetId": "earnings_event",
     "rulesPresetId": "event_entry",
-    "riskPresetId": "aggressive",
-    "timeframePresetId": "intraday"
-  },
-  {
-    "id": "quality_value",
-    "label": "Quality Value",
-    "description": "Patient entry into high-quality names with deep fundamental confirmation.",
-    "summaryBullets": [
-      "Style: Institutional Quality — confirmation-first, deep fundamentals.",
-      "Rules: Pullback Trend — scale-in entries.",
-      "Risk: Conservative — $200 positions, human approval.",
-      "Timeframe: Position — daily bars, weeks-long holds."
-    ],
-    "aiGuidance": {
-      "shared": {
-        "objective": "Wait for higher-quality names where confirmation, business quality, and patience matter more than speed.",
-        "whatToLookFor": [
-          "Liquid, credible names with durable quality and cleaner downside narratives.",
-          "Pullbacks or resets that improve entry quality without breaking the broader thesis."
-        ],
-        "howToEvaluate": [
-          "Demand stronger confirmation and cleaner cross-checks before upgrading conviction.",
-          "Prefer setups that still make sense on a weeks-long hold window, not just intraday excitement."
-        ]
-      }
-    },
-    "posturePresetId": "institutional_quality",
-    "rulesPresetId": "pullback_trend",
-    "riskPresetId": "conservative",
-    "timeframePresetId": "position"
-  },
-  {
-    "id": "mean_reversion",
-    "label": "Mean Reversion",
-    "description": "Fade exhausted moves where odds favor a snap-back to fair value.",
-    "summaryBullets": [
-      "Style: Mean Reversion Dislocation — reversal confirmation required.",
-      "Rules: Reversal Fade — fixed-pct exits.",
-      "Risk: Moderate — $500 positions, balanced limits.",
-      "Timeframe: Swing — 4h bars, multi-day holds."
-    ],
-    "aiGuidance": {
-      "shared": {
-        "objective": "Identify overstretched moves where a snap-back is more likely than trend continuation.",
-        "whatToLookFor": [
-          "Exhaustion, dislocation, panic, or euphoria that has likely moved too far too fast.",
-          "Early evidence that the move is stabilizing or reversing instead of accelerating."
-        ],
-        "howToEvaluate": [
-          "Do not confuse strong trend continuation with a mean-reversion opportunity.",
-          "Require better reversal evidence than you would for a standard pullback."
-        ]
-      }
-    },
-    "posturePresetId": "mean_reversion_dislocation",
-    "rulesPresetId": "reversal_fade",
     "riskPresetId": "moderate",
-    "timeframePresetId": "swing"
+    "timeframePresetId": "catalyst"
   },
   {
     "id": "prediction_edge",
     "label": "Prediction Edge",
-    "description": "Trade event contracts where evidence can shift implied probabilities before resolution.",
-    "summaryBullets": [
-      "Style: Prediction Event Edge — probability-edge first.",
-      "Rules: Probability Edge — market resolution exits.",
-      "Risk: Prediction Market — Kelly-sized, $200 max per position.",
-      "Timeframe: Prediction — hold to resolution."
-    ],
+    "description": "Trade event contracts where evidence suggests probability mispricing.",
     "aiGuidance": {
       "shared": {
-        "objective": "Find event contracts where current evidence and market-implied odds are materially out of line.",
-        "whatToLookFor": [
-          "Live events, resolution mechanics, and evidence that can move implied probabilities before settlement.",
-          "Mispricing between what the market is implying and what the evidence currently supports."
-        ],
         "howToEvaluate": [
-          "Frame the trade as an odds question, not a standard chart setup.",
-          "Prefer contracts with explicit resolution clarity and identifiable repricing catalysts."
+          "Measure whether the evidence implies true odds that differ materially from the market price."
+        ],
+        "avoid": [
+          "Do not confuse strong opinions with genuine probability edge."
         ]
       }
     },
+    "summaryBullets": [
+      "Posture: Prediction Event Edge.",
+      "Rules: Probability Edge.",
+      "Risk: Prediction Market.",
+      "Timeframe: Prediction."
+    ],
     "posturePresetId": "prediction_event_edge",
     "rulesPresetId": "probability_edge",
     "riskPresetId": "prediction_market",
     "timeframePresetId": "prediction"
+  },
+  {
+    "id": "manual_watchlist",
+    "label": "Manual Watchlist",
+    "description": "Operator-driven watchlists with flexible catalyst handling.",
+    "aiGuidance": {
+      "shared": {
+        "howToEvaluate": [
+          "Treat the manual shortlist as curated operator intent and focus on validating tradeability plus current edge quality."
+        ]
+      }
+    },
+    "summaryBullets": [
+      "Posture: Manual Watchlist.",
+      "Rules: Catalyst Entry.",
+      "Risk: Moderate.",
+      "Timeframe: Swing."
+    ],
+    "posturePresetId": "manual_watchlist",
+    "rulesPresetId": "catalyst_entry",
+    "riskPresetId": "moderate",
+    "timeframePresetId": "swing"
   }
 ]

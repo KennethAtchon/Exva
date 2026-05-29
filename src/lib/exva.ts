@@ -57,6 +57,10 @@ import type {
   TradeAutopsyRecord,
   UpdateLessonInput,
 } from "@electron/shared/domain/autopsy";
+import type {
+  SessionSignalDelivery,
+  SignalSourceRecord,
+} from "@electron/shared/domain";
 
 const hasExva =
   typeof window !== "undefined" &&
@@ -286,6 +290,84 @@ export const api = {
     bridge().config.getStrategy(),
   saveStrategyConfig: (cfg: SessionStrategy): Promise<void> =>
     bridge().config.saveStrategy(cfg),
+
+  listSignalSources: (): Promise<{
+    sources: Array<
+      SignalSourceRecord & {
+        runtimeStatus: string;
+        runtimeLastError: string | null;
+        attachedSessionCount: number;
+        attachedSessionNames: string[];
+        lastPollAt: string | null;
+        lastPollResult: {
+          detected: number;
+          passed: number;
+          dropped: number;
+          errors: string[];
+        } | null;
+        lastSignalAt: string | null;
+        lastSignalTicker: string | null;
+        recentActivity: Array<{
+          at: string;
+          kind: "ok" | "error" | "drop";
+          summary: string;
+        }>;
+      }
+    >;
+  }> => bridge().signals.listSources(),
+  createSignalSource: (input: {
+    type: "edgar_8k" | "web_search" | "manual";
+    name: string;
+    description?: string | null;
+    config?: Record<string, unknown>;
+  }) => bridge().signals.createSource(input),
+  updateSignalSource: (input: {
+    id: string;
+    name?: string;
+    description?: string | null;
+    enabled?: boolean;
+    config?: Record<string, unknown>;
+  }) => bridge().signals.updateSource(input),
+  deleteSignalSource: (id: string) => bridge().signals.deleteSource(id),
+  enableSignalSource: (id: string) => bridge().signals.enableSource(id),
+  disableSignalSource: (id: string) => bridge().signals.disableSource(id),
+  testSignalSource: (
+    id: string,
+  ): Promise<{
+    result: {
+      detected: number;
+      passed: number;
+      dropped: number;
+      errors: string[];
+    };
+  }> => bridge().signals.testSource(id),
+  listSessionSignalEvents: (input: {
+    sessionId: string;
+    statusBucket?: "pending" | "completed" | "dropped";
+    limit?: number;
+  }): Promise<{
+    rows: Array<{
+      delivery: SessionSignalDelivery;
+      event: Record<string, unknown>;
+      source: Record<string, unknown>;
+    }>;
+  }> => bridge().signals.listSessionEvents(input),
+  getSessionSignalSubscriptions: (sessionId: string) =>
+    bridge().signals.getSessionSubscriptions(sessionId),
+  setSessionSignalSubscriptions: (input: {
+    sessionId: string;
+    sourceIds: string[];
+  }) => bridge().signals.setSessionSubscriptions(input),
+  getSessionSignalReadiness: (input: {
+    sessionId: string;
+    instrumentScope: string;
+  }): Promise<{
+    readiness:
+      | "armed"
+      | "manual_only"
+      | "waiting_for_source_enable"
+      | "no_inputs";
+  }> => bridge().signals.getSessionReadiness(input),
 
   addBrokerAccount: (creds: BrokerCredentials): Promise<ConnectionTestResult> =>
     bridge().accounts.saveBroker(creds),

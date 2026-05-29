@@ -8,25 +8,30 @@ function minimalContext(
 ): SessionStrategyContext {
   return {
     researchPosture: {
-      posturePresetId: "trend_hunt",
-      discoveryMode: "trend_scan",
-      evidenceMode: "price_action_first",
+      posturePresetId: "edgar_catalyst",
+      processingMode: "catalyst",
+      evidenceMode: "document_first",
       catalystMode: "preferred",
       fundamentalStrictness: "sanity_check",
       postureNotes: "",
+      sessionId: "s1",
+      updatedAt: "2026-05-05T00:00:00.000Z",
     },
     rules: {
-      rulesPresetId: "breakout_long",
-      setupType: "momentum",
+      sessionId: "s1",
+      rulesPresetId: "catalyst_entry",
+      setupType: "catalyst_entry",
       sideBias: "long_only",
-      entryStyle: "breakout",
-      exitStyle: "trailing",
+      entryStyle: "catalyst",
+      exitStyle: "thesis_based",
       scalingMode: "single_entry",
       tradeRulesMarkdown: "",
       ruleNotes: "",
+      updatedAt: "2026-05-05T00:00:00.000Z",
     },
     riskConfig: {
-      riskPresetId: "conservative",
+      sessionId: "s1",
+      riskPresetId: "moderate",
       maxPositionUsd: 1000,
       stopLossType: "fixed_pct",
       stopLossPct: 2,
@@ -42,11 +47,13 @@ function minimalContext(
       maxAiSpendUsd: 5,
       maxDataSpendUsd: 1,
       humanApprovalRequired: false,
+      updatedAt: "2026-05-05T00:00:00.000Z",
     },
     timeframe: {
-      timeframePresetId: "swing",
+      sessionId: "s1",
+      timeframePresetId: "catalyst",
       primaryTradingTimeframe: "1d",
-      holdingStyle: "swing",
+      holdingStyle: "multi_day_swing",
       targetHoldDays: 5,
       maxHoldDays: 10,
       timeframeNotes: "",
@@ -68,23 +75,28 @@ describe("buildStrategyGuidance", () => {
       minimalContext({
         researchPosture: {
           posturePresetId: "custom_unknown",
-          discoveryMode: "custom",
-          evidenceMode: "custom",
-          catalystMode: "optional",
+          processingMode: "manual",
+          evidenceMode: "balanced",
+          catalystMode: "preferred",
           fundamentalStrictness: "balanced",
           postureNotes: "",
+          sessionId: "s1",
+          updatedAt: "2026-05-05T00:00:00.000Z",
         },
         rules: {
+          sessionId: "s1",
           rulesPresetId: "custom_unknown",
           setupType: "custom",
           sideBias: "long_only",
-          entryStyle: "market",
-          exitStyle: "fixed",
+          entryStyle: "catalyst",
+          exitStyle: "fixed_pct",
           scalingMode: "single_entry",
           tradeRulesMarkdown: "",
           ruleNotes: "",
+          updatedAt: "2026-05-05T00:00:00.000Z",
         },
         riskConfig: {
+          sessionId: "s1",
           riskPresetId: "custom_unknown",
           maxPositionUsd: 1000,
           stopLossType: "fixed_pct",
@@ -101,14 +113,17 @@ describe("buildStrategyGuidance", () => {
           maxAiSpendUsd: 1,
           maxDataSpendUsd: 0.5,
           humanApprovalRequired: false,
+          updatedAt: "2026-05-05T00:00:00.000Z",
         },
         timeframe: {
+          sessionId: "s1",
           timeframePresetId: "custom_unknown",
           primaryTradingTimeframe: "1d",
-          holdingStyle: "swing",
+          holdingStyle: "multi_day_swing",
           targetHoldDays: null,
           maxHoldDays: null,
           timeframeNotes: "",
+          updatedAt: "2026-05-05T00:00:00.000Z",
         },
       }),
       "technical",
@@ -132,7 +147,7 @@ describe("buildStrategyGuidance", () => {
       },
     );
 
-    expect(text).toContain("Global preset: Trend Momentum");
+    expect(text).toContain("Global preset: EDGAR Catalyst");
     expect(text).toContain("How to evaluate");
     expect(text).not.toContain("Research posture: Trend Hunt");
     expect(text).not.toContain("Trade rules: Breakout Long");
