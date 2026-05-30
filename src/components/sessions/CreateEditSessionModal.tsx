@@ -45,6 +45,7 @@ type ModalDataState = {
   };
   signalSources: Awaited<ReturnType<typeof api.listSignalSources>>["sources"];
   subscribedSourceIds: string[];
+  signalSourcesLoaded: boolean;
 };
 
 type ModalReqState = {
@@ -57,7 +58,6 @@ export const CreateEditSessionModal = ({
   initialSession,
   templateInput,
   templateWarnings,
-  onOpenAccounts,
   onClose,
   onSubmit,
 }: Props) => {
@@ -71,6 +71,7 @@ export const CreateEditSessionModal = ({
     },
     signalSources: [],
     subscribedSourceIds: [],
+    signalSourcesLoaded: false,
   });
   const [req, dispatchReq] = useReducer(mergeReducer<ModalReqState>, {
     saving: false,
@@ -149,13 +150,18 @@ export const CreateEditSessionModal = ({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    dispatchData({ signalSourcesLoaded: false });
     void api
       .listSignalSources()
       .then(async ({ sources }) => {
         if (cancelled) return;
         const filtered = sources.filter((source) => source.type !== "manual");
         if (!initialSession) {
-          dispatchData({ signalSources: filtered, subscribedSourceIds: [] });
+          dispatchData({
+            signalSources: filtered,
+            subscribedSourceIds: [],
+            signalSourcesLoaded: true,
+          });
           return;
         }
         const subs = await api.getSessionSignalSubscriptions(initialSession.id);
@@ -163,11 +169,16 @@ export const CreateEditSessionModal = ({
         dispatchData({
           signalSources: filtered,
           subscribedSourceIds: subs.sourceIds,
+          signalSourcesLoaded: true,
         });
       })
       .catch(() => {
         if (cancelled) return;
-        dispatchData({ signalSources: [], subscribedSourceIds: [] });
+        dispatchData({
+          signalSources: [],
+          subscribedSourceIds: [],
+          signalSourcesLoaded: true,
+        });
       });
     return () => {
       cancelled = true;
@@ -231,6 +242,7 @@ export const CreateEditSessionModal = ({
     searchProviderState,
     signalSources,
     subscribedSourceIds,
+    signalSourcesLoaded,
   } = data;
 
   const assignedBrokerIds = useMemo(
@@ -273,11 +285,6 @@ export const CreateEditSessionModal = ({
       ),
     [effectiveInstrumentClasses, assignedActiveModeBrokers],
   );
-  const isValid =
-    form.name.trim().length > 0 &&
-    form.objective.trim().length > 0 &&
-    form.instrumentScope.trim().length > 0 &&
-    effectiveInstrumentClasses.length > 0;
   const hasBrokerCoverage =
     uncoveredInstrumentClasses.length === 0 &&
     form.brokerAssignments.length > 0 &&
@@ -323,6 +330,45 @@ export const CreateEditSessionModal = ({
       : disabledSubscribedSourceCount > 0
         ? "waiting_for_source_enable"
         : "no_inputs";
+
+  const anySearchStyleSubscribed = useMemo(
+    () =>
+      signalSources.some(
+        (source) =>
+          subscribedSourceIds.includes(source.id) &&
+          source.type === "web_search",
+      ),
+    [signalSources, subscribedSourceIds],
+  );
+  // Tickers are a property of search-style/manual scoping only — a listener
+  // (EDGAR 8-K) carries its own subject, so it never asks for instruments.
+  const showInstrumentFilter =
+    anySearchStyleSubscribed || subscribedSourceIds.length === 0;
+  const overAllocatedBrokerIds = useMemo(
+    () =>
+      new Set(
+        assignedActiveModeBrokers
+          .filter((broker) => {
+            const assignment = form.brokerAssignments.find(
+              (entry) => entry.brokerAccountId === broker.id,
+            );
+            return (
+              assignment != null &&
+              broker.freeCapitalUsd != null &&
+              assignment.allocatedUsd > broker.freeCapitalUsd
+            );
+          })
+          .map((broker) => broker.id),
+      ),
+    [assignedActiveModeBrokers, form.brokerAssignments],
+  );
+  const isValid =
+    form.name.trim().length > 0 &&
+    form.objective.trim().length > 0 &&
+    (!showInstrumentFilter || form.instrumentScope.trim().length > 0) &&
+    effectiveInstrumentClasses.length > 0 &&
+    overAllocatedBrokerIds.size === 0 &&
+    readiness !== "no_inputs";
 
   const setForm = (
     updater: (prev: SessionCreateInput) => SessionCreateInput,
@@ -382,7 +428,7 @@ export const CreateEditSessionModal = ({
               {initialSession ? "Refine Session" : "Create Session"}
             </h2>
             <div className="mt-[5px] text-[12px] text-[var(--text3)]">
-              Identity, task boundary, and execution routing in one place.
+              Identity, signal scope, and execution routing in one place.
             </div>
           </div>
 
@@ -437,160 +483,243 @@ export const CreateEditSessionModal = ({
 
             <section className={sectionClass}>
               <SectionHeader
-                title="Task Boundary"
-                caption="Scope and search-provider behavior."
+                title="Signal Sources"
+                caption="Pick what drives this session. Choose a signal first."
               />
               <div className={sectionBodyClass}>
-                <div className={twoColumnGridClass}>
-                  <Field label="Search provider override">
-                    <ShadcnSelect
-                      value={
-                        form.defaultSearchProviderId ?? "__workspace_default__"
-                      }
-                      onValueChange={(value) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          defaultSearchProviderId:
-                            value === "__workspace_default__" ? null : value,
-                        }))
-                      }
-                      options={[
-                        {
-                          value: "__workspace_default__",
-                          label: workspaceDefaultSearchProviderName
-                            ? `Workspace default (${workspaceDefaultSearchProviderName})`
-                            : "Workspace default (not set)",
-                        },
-                        ...searchProviderState.providers.map((provider) => ({
-                          value: provider.id,
-                          label: provider.name,
-                        })),
-                      ]}
-                    />
-                  </Field>
-                </div>
-                {requiresSearchProviderSetup ? (
-                  <div className={warningBannerClass}>
-                    AI-selected universe needs a search provider before this
-                    session can be saved in selector mode. DuckDuckGo is built
-                    in by default, and you can optionally add Brave or Tavily in
-                    Accounts. OpenRouter model accounts do not satisfy this
-                    requirement.
-                    {onOpenAccounts ? (
-                      <div className="mt-2.5">
-                        <button
-                          type="button"
-                          onClick={onOpenAccounts}
-                          className={inlineActionButtonClass}
-                        >
-                          Open Accounts setup
-                        </button>
-                      </div>
-                    ) : null}
+                {!signalSourcesLoaded ? (
+                  <div className="grid gap-2">
+                    {[0, 1].map((idx) => (
+                      <div
+                        key={idx}
+                        className="h-[52px] animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]"
+                      />
+                    ))}
                   </div>
-                ) : null}
-                {searchEverything && effectiveInstrumentClasses.length > 1 ? (
-                  <Field label="Research focus">
-                    <ShadcnSelect
-                      value={searchEverythingFocusInstrumentClass ?? "__all__"}
-                      onValueChange={(value) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          instrumentScope: buildSearchEverythingScope(
-                            value === "__all__"
-                              ? null
-                              : (value as InstrumentClass),
-                          ),
-                        }))
-                      }
-                      options={[
-                        {
-                          value: "__all__",
-                          label: "All enabled classes",
-                        },
-                        ...effectiveInstrumentClasses.map(
-                          (instrumentClass) => ({
-                            value: instrumentClass,
-                            label: `Focus ${formatInstrumentClass(instrumentClass)}`,
-                          }),
-                        ),
-                      ]}
-                    />
-                    <div className={inlineHintClass}>
-                      Keeps the broader broker-backed universe available, but
-                      tells the selector which class to prioritize first.
-                    </div>
-                  </Field>
-                ) : null}
-                <Field label="Instrument classes">
-                  <div className="flex flex-wrap gap-2.5">
-                    {(
-                      [
-                        "stock",
-                        "crypto",
-                        "futures",
-                        "prediction_market",
-                      ] as const
-                    ).map((instrumentClass) => {
-                      const checked =
-                        effectiveInstrumentClasses.includes(instrumentClass);
+                ) : signalSources.length === 0 ? (
+                  <div className={inlineHintClass}>
+                    No automated signal sources configured yet. You can still
+                    run from manual tickers below.
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    {signalSources.map((source) => {
+                      const checked = subscribedSourceIds.includes(source.id);
+                      const isSearchStyle = source.type === "web_search";
                       return (
-                        <label
-                          key={instrumentClass}
-                          className={cn(
-                            toggleChipClass,
-                            checked
-                              ? "border-[var(--accent-dim)]"
-                              : "border-[var(--border)]",
-                          )}
-                        >
-                          <Checkbox
+                        <label key={source.id} className={brokerRowClass}>
+                          <Switch
                             checked={checked}
-                            disabled={searchEverything}
-                            onCheckedChange={(nextChecked) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                instrumentClasses: toggleInstrumentClass(
-                                  prev.instrumentClasses,
-                                  instrumentClass,
-                                  nextChecked === true,
-                                ),
-                              }))
+                            onCheckedChange={(next) =>
+                              dispatchData({
+                                subscribedSourceIds: next
+                                  ? [
+                                      ...new Set([
+                                        ...subscribedSourceIds,
+                                        source.id,
+                                      ]),
+                                    ]
+                                  : subscribedSourceIds.filter(
+                                      (id) => id !== source.id,
+                                    ),
+                              })
                             }
                           />
-                          {formatInstrumentClass(instrumentClass)}
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center gap-2">
+                              <span className="text-[12px] font-semibold text-[var(--text1)]">
+                                {source.name}
+                              </span>
+                              <span className={kindChipClass}>
+                                {isSearchStyle ? "Search" : "Listener"}
+                              </span>
+                            </span>
+                            <span className="mt-px block text-[12px] text-[var(--text3)]">
+                              {source.type === "edgar_8k"
+                                ? "EDGAR 8-K"
+                                : "Web Search"}
+                              {!source.enabled
+                                ? " · Disabled globally — does not count as a live input"
+                                : ""}
+                            </span>
+                          </span>
                         </label>
                       );
                     })}
                   </div>
-                  {searchEverything ? (
-                    <div className={inlineHintClass}>
-                      Broker-derived classes:{" "}
-                      {effectiveInstrumentClasses.length > 0
-                        ? effectiveInstrumentClasses
-                            .map(formatInstrumentClass)
-                            .join(", ")
-                        : "Select at least one broker account to derive tradable classes."}
-                      {searchEverythingFocusInstrumentClass
-                        ? ` Focus: ${formatInstrumentClass(searchEverythingFocusInstrumentClass)}.`
-                        : ""}
+                )}
+                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text2)]">
+                  {readiness === "armed"
+                    ? `Live inputs: ${manualTickerCount} manual ticker(s), ${enabledSubscribedSourceCount} enabled source(s)`
+                    : readiness === "manual_only"
+                      ? "This session will run from manual tickers only."
+                      : readiness === "waiting_for_source_enable"
+                        ? `This session is subscribed to ${disabledSubscribedSourceCount} source(s), but all are disabled. Starting now will put the session in waiting mode.`
+                        : "This session has no live inputs yet. Add manual tickers or enable at least one subscribed source."}
+                </div>
+              </div>
+            </section>
+
+            <section className={sectionClass}>
+              <SectionHeader
+                title="Signal Scope"
+                caption={
+                  showInstrumentFilter
+                    ? "Tell the web search what to look at."
+                    : "Automatic listener — nothing to configure."
+                }
+              />
+              <div className={sectionBodyClass}>
+                {showInstrumentFilter ? (
+                  <>
+                    <div className={twoColumnGridClass}>
+                      <Field label="Search provider override">
+                        <ShadcnSelect
+                          value={
+                            form.defaultSearchProviderId ??
+                            "__workspace_default__"
+                          }
+                          onValueChange={(value) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              defaultSearchProviderId:
+                                value === "__workspace_default__"
+                                  ? null
+                                  : value,
+                            }))
+                          }
+                          options={[
+                            {
+                              value: "__workspace_default__",
+                              label: workspaceDefaultSearchProviderName
+                                ? `Workspace default (${workspaceDefaultSearchProviderName})`
+                                : "Workspace default (not set)",
+                            },
+                            ...searchProviderState.providers.map(
+                              (provider) => ({
+                                value: provider.id,
+                                label: provider.name,
+                              }),
+                            ),
+                          ]}
+                        />
+                      </Field>
                     </div>
-                  ) : null}
-                </Field>
-                <Field label="Manual tickers">
-                  <textarea
-                    value={form.instrumentScope}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        instrumentScope: event.target.value,
-                      }))
-                    }
-                    placeholder="SPY\nQQQ\nNVDA"
-                    rows={4}
-                    className={textareaClass}
-                  />
-                </Field>
+                    {searchEverything &&
+                    effectiveInstrumentClasses.length > 1 ? (
+                      <Field label="Research focus">
+                        <ShadcnSelect
+                          value={
+                            searchEverythingFocusInstrumentClass ?? "__all__"
+                          }
+                          onValueChange={(value) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              instrumentScope: buildSearchEverythingScope(
+                                value === "__all__"
+                                  ? null
+                                  : (value as InstrumentClass),
+                              ),
+                            }))
+                          }
+                          options={[
+                            {
+                              value: "__all__",
+                              label: "All enabled classes",
+                            },
+                            ...effectiveInstrumentClasses.map(
+                              (instrumentClass) => ({
+                                value: instrumentClass,
+                                label: `Focus ${formatInstrumentClass(instrumentClass)}`,
+                              }),
+                            ),
+                          ]}
+                        />
+                        <div className={inlineHintClass}>
+                          Keeps the broader broker-backed universe available,
+                          but tells the selector which class to prioritize
+                          first.
+                        </div>
+                      </Field>
+                    ) : null}
+                    <Field label="Instrument classes">
+                      <div className="flex flex-wrap gap-2.5">
+                        {(
+                          [
+                            "stock",
+                            "crypto",
+                            "futures",
+                            "prediction_market",
+                          ] as const
+                        ).map((instrumentClass) => {
+                          const checked =
+                            effectiveInstrumentClasses.includes(
+                              instrumentClass,
+                            );
+                          return (
+                            <label
+                              key={instrumentClass}
+                              className={cn(
+                                toggleChipClass,
+                                checked
+                                  ? "border-[var(--accent-dim)]"
+                                  : "border-[var(--border)]",
+                              )}
+                            >
+                              <Checkbox
+                                checked={checked}
+                                disabled={searchEverything}
+                                onCheckedChange={(nextChecked) =>
+                                  setForm((prev) => ({
+                                    ...prev,
+                                    instrumentClasses: toggleInstrumentClass(
+                                      prev.instrumentClasses,
+                                      instrumentClass,
+                                      nextChecked === true,
+                                    ),
+                                  }))
+                                }
+                              />
+                              {formatInstrumentClass(instrumentClass)}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {searchEverything ? (
+                        <div className={inlineHintClass}>
+                          Broker-derived classes:{" "}
+                          {effectiveInstrumentClasses.length > 0
+                            ? effectiveInstrumentClasses
+                                .map(formatInstrumentClass)
+                                .join(", ")
+                            : "Select at least one broker account to derive tradable classes."}
+                          {searchEverythingFocusInstrumentClass
+                            ? ` Focus: ${formatInstrumentClass(searchEverythingFocusInstrumentClass)}.`
+                            : ""}
+                        </div>
+                      ) : null}
+                    </Field>
+                    <Field label="Manual tickers">
+                      <textarea
+                        value={form.instrumentScope}
+                        onChange={(event) =>
+                          setForm((prev) => ({
+                            ...prev,
+                            instrumentScope: event.target.value,
+                          }))
+                        }
+                        placeholder="SPY, QQQ, NVDA"
+                        rows={4}
+                        className={textareaClass}
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <div className={inlineHintClass}>
+                    EDGAR 8-K is an automatic listener. No instruments to pick —
+                    it responds to filings as they happen.
+                  </div>
+                )}
               </div>
             </section>
 
@@ -620,6 +749,7 @@ export const CreateEditSessionModal = ({
                                   prev.brokerAssignments,
                                   broker.id,
                                   nextChecked === true,
+                                  defaultAllocationUsd(broker),
                                 ),
                               }))
                             }
@@ -645,7 +775,10 @@ export const CreateEditSessionModal = ({
                           ...prev,
                           brokerAssignments: mergeUniqueBrokerAssignments(
                             prev.brokerAssignments,
-                            visibleBrokers.map((broker) => broker.id),
+                            visibleBrokers.map((broker) => ({
+                              brokerAccountId: broker.id,
+                              allocatedUsd: defaultAllocationUsd(broker),
+                            })),
                           ),
                         }))
                       }
@@ -660,6 +793,9 @@ export const CreateEditSessionModal = ({
                           (entry) => entry.brokerAccountId === broker.id,
                         );
                         if (!assignment) return null;
+                        const overAllocated = overAllocatedBrokerIds.has(
+                          broker.id,
+                        );
                         return (
                           <div key={broker.id} className={allocationRowClass}>
                             <div className="min-w-0">
@@ -678,25 +814,69 @@ export const CreateEditSessionModal = ({
                                   : "—"}
                               </div>
                             </div>
-                            <input
-                              type="number"
-                              min={0}
-                              value={String(assignment.allocatedUsd)}
-                              onChange={(event) =>
-                                setForm((prev) => ({
-                                  ...prev,
-                                  brokerAssignments: updateBrokerAllocation(
-                                    prev.brokerAssignments,
-                                    broker.id,
-                                    Number(event.target.value) ||
-                                      (broker.balanceCacheUsd != null
-                                        ? broker.balanceCacheUsd / 10
-                                        : 0),
-                                  ),
-                                }))
-                              }
-                              className={cn(inputClass, "w-[140px]")}
-                            />
+                            <div className="grid justify-items-end gap-1.5">
+                              <input
+                                type="number"
+                                min={0}
+                                value={String(assignment.allocatedUsd)}
+                                onChange={(event) =>
+                                  setForm((prev) => ({
+                                    ...prev,
+                                    brokerAssignments: updateBrokerAllocation(
+                                      prev.brokerAssignments,
+                                      broker.id,
+                                      Number(event.target.value) || 0,
+                                    ),
+                                  }))
+                                }
+                                className={cn(
+                                  inputClass,
+                                  "w-[140px]",
+                                  overAllocated
+                                    ? "border-error-border"
+                                    : undefined,
+                                )}
+                              />
+                              {broker.freeCapitalUsd != null ? (
+                                <div className="flex gap-1.5">
+                                  {(
+                                    [
+                                      ["20%", 0.2],
+                                      ["50%", 0.5],
+                                      ["Max", 1],
+                                    ] as const
+                                  ).map(([label, pct]) => (
+                                    <button
+                                      key={label}
+                                      type="button"
+                                      className={quickFillChipClass}
+                                      onClick={() =>
+                                        setForm((prev) => ({
+                                          ...prev,
+                                          brokerAssignments:
+                                            updateBrokerAllocation(
+                                              prev.brokerAssignments,
+                                              broker.id,
+                                              Math.round(
+                                                (broker.freeCapitalUsd ?? 0) *
+                                                  pct,
+                                              ),
+                                            ),
+                                        }))
+                                      }
+                                    >
+                                      {label}
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              {overAllocated ? (
+                                <div className={warningTextClass}>
+                                  Exceeds free capital ($
+                                  {broker.freeCapitalUsd?.toLocaleString()}).
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                         );
                       })}
@@ -717,70 +897,6 @@ export const CreateEditSessionModal = ({
                   )}
                 </div>
               </Field>
-            </section>
-
-            <section className={sectionClass}>
-              <SectionHeader
-                title="Signal Sources"
-                caption="Choose which signal feeds drive this session."
-              />
-              <div className={sectionBodyClass}>
-                {signalSources.length === 0 ? (
-                  <div className={inlineHintClass}>
-                    No automated signal sources configured yet. Manual tickers
-                    still work.
-                  </div>
-                ) : (
-                  <div className="grid gap-2">
-                    {signalSources.map((source) => {
-                      const checked = subscribedSourceIds.includes(source.id);
-                      return (
-                        <label key={source.id} className={brokerRowClass}>
-                          <Switch
-                            checked={checked}
-                            onCheckedChange={(next) =>
-                              dispatchData({
-                                subscribedSourceIds: next
-                                  ? [
-                                      ...new Set([
-                                        ...subscribedSourceIds,
-                                        source.id,
-                                      ]),
-                                    ]
-                                  : subscribedSourceIds.filter(
-                                      (id) => id !== source.id,
-                                    ),
-                              })
-                            }
-                          />
-                          <span>
-                            <span className="block text-[12px] font-semibold text-[var(--text1)]">
-                              {source.name}
-                            </span>
-                            <span className="mt-px block text-[12px] text-[var(--text3)]">
-                              {source.type === "edgar_8k"
-                                ? "EDGAR 8-K"
-                                : "Web Search"}
-                              {!source.enabled
-                                ? " · Disabled globally — does not count as a live input"
-                                : ""}
-                            </span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-                <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text2)]">
-                  {readiness === "armed"
-                    ? `Live inputs: ${manualTickerCount} manual ticker(s), ${enabledSubscribedSourceCount} enabled source(s)`
-                    : readiness === "manual_only"
-                      ? "This session will run from manual tickers only."
-                      : readiness === "waiting_for_source_enable"
-                        ? `This session is subscribed to ${disabledSubscribedSourceCount} source(s), but all are disabled. Starting now will put the session in waiting mode.`
-                        : "This session has no live inputs yet. Add manual tickers or enable at least one subscribed source."}
-                </div>
-              </div>
             </section>
           </div>
 
@@ -809,6 +925,11 @@ export const CreateEditSessionModal = ({
                     await onSubmit(
                       {
                         ...form,
+                        // Tickers belong to search-style/manual scoping only.
+                        // A listener-only session (EDGAR) carries no tickers.
+                        instrumentScope: showInstrumentFilter
+                          ? form.instrumentScope
+                          : "",
                         selectionMode: "manual_shortlist",
                         selectorSettings: { aiPickerEnabled: true },
                         subscribedSourceIds,
@@ -948,15 +1069,30 @@ function toggleInstrumentClass(
   return current.filter((entry) => entry !== value);
 }
 
+// Seed a sensible non-zero default so operators don't create $0 sessions:
+// 20% of free capital, falling back to 20% of balance, else 0 (unknown).
+function defaultAllocationUsd(broker: BrokerAccountWithState): number {
+  const free = broker.freeCapitalUsd;
+  if (free != null && free > 0) {
+    return Math.round(free * 0.2);
+  }
+  const balance = broker.balanceCacheUsd;
+  if (balance != null && balance > 0) {
+    return Math.round(balance * 0.2);
+  }
+  return 0;
+}
+
 function toggleBrokerAssignment(
   current: Array<{ brokerAccountId: string; allocatedUsd: number }>,
   brokerId: string,
   checked: boolean,
+  defaultUsd: number,
 ): Array<{ brokerAccountId: string; allocatedUsd: number }> {
   if (checked) {
     return current.some((entry) => entry.brokerAccountId === brokerId)
       ? current
-      : [...current, { brokerAccountId: brokerId, allocatedUsd: 0 }];
+      : [...current, { brokerAccountId: brokerId, allocatedUsd: defaultUsd }];
   }
   return current.filter((entry) => entry.brokerAccountId !== brokerId);
 }
@@ -975,17 +1111,17 @@ function updateBrokerAllocation(
 
 function mergeUniqueBrokerAssignments(
   current: Array<{ brokerAccountId: string; allocatedUsd: number }>,
-  nextBrokerIds: string[],
+  nextEntries: Array<{ brokerAccountId: string; allocatedUsd: number }>,
 ): Array<{ brokerAccountId: string; allocatedUsd: number }> {
   const existing = new Set(current.map((entry) => entry.brokerAccountId));
-  const nextEntries = [...current];
-  for (const brokerAccountId of nextBrokerIds) {
-    if (!existing.has(brokerAccountId)) {
-      existing.add(brokerAccountId);
-      nextEntries.push({ brokerAccountId, allocatedUsd: 0 });
+  const merged = [...current];
+  for (const entry of nextEntries) {
+    if (!existing.has(entry.brokerAccountId)) {
+      existing.add(entry.brokerAccountId);
+      merged.push(entry);
     }
   }
-  return nextEntries;
+  return merged;
 }
 
 function formatInstrumentClass(value: InstrumentClass): string {
@@ -1032,10 +1168,12 @@ const brokerRowClass =
 const allocationRowClass =
   "grid grid-cols-[1fr_auto] items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2.5";
 const inlineHintClass = "text-[12px] text-[var(--text3)]";
+const kindChipClass =
+  "rounded-full border border-[var(--border)] bg-[var(--chip)] px-2 py-[1px] text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--text3)]";
+const quickFillChipClass =
+  "cursor-pointer rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-[3px] text-[11px] font-semibold text-[var(--text2)]";
 const selectAllButtonClass =
   "mt-0.5 cursor-pointer justify-self-start rounded-lg border border-[var(--border)] bg-transparent px-2.5 py-[7px] text-[12px] font-semibold text-[var(--text2)]";
-const inlineActionButtonClass =
-  "cursor-pointer rounded-lg border border-warning-border bg-warning-dim px-2.5 py-2 text-[12px] font-semibold text-warning";
 const warningTextClass = "text-[12px] font-semibold text-warning";
 const successTextClass = "text-[12px] font-semibold text-success";
 const warningBannerClass =
