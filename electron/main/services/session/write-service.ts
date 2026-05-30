@@ -41,6 +41,7 @@ export class SessionWriteService {
           sessionId: string,
           sourceIds: string[],
         ): void;
+        requiresInstrumentScopeForSourceIds(sourceIds: string[]): boolean;
       };
     },
   ) {}
@@ -133,7 +134,12 @@ export class SessionWriteService {
       );
     }
 
-    if (!input.instrumentScope.trim()) {
+    const subscribedSourceIds = input.subscribedSourceIds ?? [];
+    const requiresInstrumentScope =
+      this.deps.signals?.requiresInstrumentScopeForSourceIds(
+        subscribedSourceIds,
+      ) ?? true;
+    if (requiresInstrumentScope && !input.instrumentScope.trim()) {
       throw new AppError(
         "Instrument scope cannot be empty.",
         "VALIDATION_FAILED",

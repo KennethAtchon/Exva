@@ -29,6 +29,7 @@ import { EventBus } from "../../infra/event-bus";
 import { createLogger } from "../../infra/log";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
 import { SessionRuntimeManager } from "../session-runtime-manager";
+import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
 import type { CapitalReservationService } from "../../risk/capital-reservation-service";
 
 describe("SessionRuntimeManager", () => {
@@ -183,6 +184,7 @@ function createManager(
       toBrokerSymbol: ({ symbol }: { symbol: string }) => symbol,
     } as never,
     instrumentCacheRepo: new InstrumentCacheRepo(db),
+    signalSourcesRepo: new SignalSourcesRepo(db),
     ai: {} as never,
     riskEngine: {} as never,
     bus: eventBus,

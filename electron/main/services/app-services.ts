@@ -335,6 +335,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     logger,
     instrumentCacheRepo: repos.instrumentCache,
     signalDeliveriesRepo,
+    signalSourcesRepo,
   };
 
   const runtimeManagerDeps: SessionRuntimeManagerDeps = {

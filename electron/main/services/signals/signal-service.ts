@@ -1,4 +1,7 @@
-import type { SignalSourceRecord } from "@electron/shared/domain";
+import {
+  sessionRequiresInstrumentScope,
+  type SignalSourceRecord,
+} from "@electron/shared/domain";
 import { AppError } from "@electron/shared/infra/errors";
 import { SignalDeliveriesRepo } from "./repos/signal-deliveries-repo";
 import { SignalEventsRepo } from "./repos/signal-events-repo";
@@ -297,5 +300,13 @@ export class SignalService {
 
   replaceSessionSubscriptions(sessionId: string, sourceIds: string[]): void {
     this.sourcesRepo.replaceSessionSubscriptions(sessionId, sourceIds);
+  }
+
+  requiresInstrumentScopeForSourceIds(sourceIds: string[]): boolean {
+    const subscribedSources = sourceIds.flatMap((sourceId) => {
+      const source = this.sourcesRepo.get(sourceId);
+      return source ? [{ type: source.type }] : [];
+    });
+    return sessionRequiresInstrumentScope(subscribedSources);
   }
 }

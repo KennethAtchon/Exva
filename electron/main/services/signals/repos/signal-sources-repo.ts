@@ -137,6 +137,19 @@ export class SignalSourcesRepo {
     }));
   }
 
+  subscribedSourceTypesForSession(sessionId: string): SignalSourceType[] {
+    const rows = this.db.db
+      .select({ type: signalSources.type })
+      .from(sessionSignalSources)
+      .innerJoin(
+        signalSources,
+        eq(sessionSignalSources.sourceId, signalSources.id),
+      )
+      .where(eq(sessionSignalSources.sessionId, sessionId))
+      .all();
+    return rows.map((row) => row.type as SignalSourceType);
+  }
+
   subscribedSourceIdsForSession(sessionId: string): string[] {
     const rows = this.db.db
       .select({ sourceId: sessionSignalSources.sourceId })

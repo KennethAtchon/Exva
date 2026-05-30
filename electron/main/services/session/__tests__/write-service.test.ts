@@ -14,6 +14,8 @@ import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/se
 import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
 import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/workspace-prefs-repo";
 import { SessionWriteService } from "../write-service";
+import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
+import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
 
 describe("SessionWriteService", () => {
   let db = createTestDb();
@@ -200,11 +202,92 @@ describe("SessionWriteService", () => {
     const session = new SessionRepo(db).requireById(result.id);
     expect(session.instrumentClasses).toEqual(["stock", "crypto"]);
   });
+
+  it("allows empty instrument scope for listener-only signal subscriptions", () => {
+    const signalSourcesRepo = new SignalSourcesRepo(db);
+    const edgarSourceId = "edgar-source-1";
+    signalSourcesRepo.create({
+      id: edgarSourceId,
+      type: "edgar_8k",
+      name: "EDGAR 8-K",
+      description: null,
+      enabled: true,
+      configJson: "{}",
+    });
+    const service = createService(db, {
+      signalSourcesRepo,
+    });
+    insertBroker(db, {
+      id: "broker-stock",
+      name: "Stock Mock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+
+    const result = service.create({
+      name: "EDGAR Listener Session",
+      objective: "React to filings automatically",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "",
+      selectorSettings: { aiPickerEnabled: true },
+      executionMode: "paper_only",
+      brokerAssignments: [
+        { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
+      ],
+      subscribedSourceIds: [edgarSourceId],
+    });
+
+    const session = new SessionRepo(db).requireById(result.id);
+    expect(session.instrumentScope).toBe("");
+  });
+
+  it("rejects empty instrument scope when no signal subscriptions exist", () => {
+    const service = createService(db);
+    insertBroker(db, {
+      id: "broker-stock",
+      name: "Stock Mock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+
+    expect(() =>
+      service.create({
+        name: "Manual Session",
+        objective: "Needs tickers",
+        selectionMode: "manual_shortlist",
+        instrumentClasses: ["stock"],
+        instrumentScope: "",
+        selectorSettings: { aiPickerEnabled: false },
+        executionMode: "paper_only",
+        brokerAssignments: [
+          { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
+        ],
+      }),
+    ).toThrowError(/instrument scope cannot be empty/i);
+  });
 });
 
 function createService(
   db: ReturnType<typeof createTestDb>,
+  options?: { signalSourcesRepo?: SignalSourcesRepo },
 ): SessionWriteService {
+  const signalSourcesRepo = options?.signalSourcesRepo;
+  const signals = signalSourcesRepo
+    ? {
+        replaceSessionSubscriptions: () => undefined,
+        requiresInstrumentScopeForSourceIds: (sourceIds: string[]) => {
+          const subscribedSources = sourceIds.flatMap((sourceId) => {
+            const source = signalSourcesRepo.get(sourceId);
+            return source ? [{ type: source.type }] : [];
+          });
+          return sessionRequiresInstrumentScope(subscribedSources);
+        },
+      }
+    : undefined;
+
   return new SessionWriteService({
     sessions: new SessionRepo(db),
     events: new EventsRepo(db),
@@ -212,6 +295,7 @@ function createService(
     assignments: new SessionBrokerAssignmentsRepo(db),
     brokerRouting: new BrokerRoutingRepo(db),
     brokerAccounts: new BrokerAccountsRepo(db),
+    signals,
   });
 }
 

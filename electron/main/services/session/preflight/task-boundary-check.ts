@@ -1,4 +1,5 @@
 import type { WorkspaceSession } from "@/lib/types";
+import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
 import { resolveSessionInstrumentClasses } from "../effective-instrument-classes";
 import type { OrchestratorDeps } from "../session-types";
 import type { PreflightStepFailure } from "../session-types";
@@ -30,7 +31,12 @@ export async function taskBoundaryCheck(
       message: "At least one instrument class is required.",
     };
   }
-  if (!session.instrumentScope.trim()) {
+  const subscribedSourceTypes =
+    deps.signalSourcesRepo.subscribedSourceTypesForSession(session.id);
+  const requiresInstrumentScope = sessionRequiresInstrumentScope(
+    subscribedSourceTypes.map((type) => ({ type })),
+  );
+  if (requiresInstrumentScope && !session.instrumentScope.trim()) {
     return {
       ok: false,
       code: "VALIDATION_FAILED",

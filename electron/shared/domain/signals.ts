@@ -1,5 +1,15 @@
 export type SignalSourceType = "edgar_8k" | "web_search" | "manual";
 
+/** True when the session must carry manual tickers / instrument scope. */
+export function sessionRequiresInstrumentScope(
+  subscribedSources: ReadonlyArray<{ type: SignalSourceType }>,
+): boolean {
+  const anySearchStyle = subscribedSources.some(
+    (source) => source.type === "web_search",
+  );
+  return anySearchStyle || subscribedSources.length === 0;
+}
+
 export type SignalSourceRuntimeStatus =
   | "running"
   | "idle"

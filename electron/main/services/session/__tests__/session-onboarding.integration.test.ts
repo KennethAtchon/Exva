@@ -33,6 +33,7 @@ import { SessionRuntimeManager } from "../session-runtime-manager";
 import { SessionService } from "../session-service";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
 import { SessionWriteService } from "../write-service";
+import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
 
 describe("session onboarding integration", () => {
   let db = createTestDb();
@@ -271,6 +272,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     bus: eventBus,
     logger: createLogger("session-onboarding-test"),
     instrumentCacheRepo: new InstrumentCacheRepo(db),
+    signalSourcesRepo: new SignalSourcesRepo(db),
   };
 
   const runtimeManager = new SessionRuntimeManager({

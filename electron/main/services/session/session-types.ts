@@ -36,6 +36,7 @@ import type { Logger } from "../infra/log";
 import type { RiskEngine } from "../risk/risk-engine";
 import type { SessionStrategyContextService } from "./session-strategy-context-service";
 import type { SignalDeliveriesRepo } from "../signals/repos/signal-deliveries-repo";
+import type { SignalSourcesRepo } from "../signals/repos/signal-sources-repo";
 
 export interface SessionOrchestrator {
   start(): Promise<void>;
@@ -92,6 +93,7 @@ export interface OrchestratorDeps {
   logger: Logger;
   instrumentCacheRepo: InstrumentCacheRepo;
   signalDeliveriesRepo?: SignalDeliveriesRepo;
+  signalSourcesRepo: SignalSourcesRepo;
 }
 
 /** Per-check failure (preflight runner adds `check` name). */

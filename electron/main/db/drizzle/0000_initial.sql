@@ -64,26 +64,32 @@ CREATE INDEX `idx_api_call_log_session` ON `api_call_log` (`session_id`);--> sta
 CREATE INDEX `idx_api_call_log_created` ON `api_call_log` (`created_at`);--> statement-breakpoint
 CREATE TABLE `autopsy_lessons` (
 	`id` text PRIMARY KEY NOT NULL,
-	`autopsy_id` text NOT NULL,
-	`trade_id` text NOT NULL,
-	`session_id` text NOT NULL,
+	`autopsy_id` text,
+	`period_autopsy_id` text,
+	`trade_id` text,
+	`session_id` text,
 	`lesson` text NOT NULL,
 	`severity` text DEFAULT 'medium' NOT NULL,
 	`category` text DEFAULT 'strategy' NOT NULL,
 	`proposed_fix` text DEFAULT '' NOT NULL,
 	`status` text DEFAULT 'pending' NOT NULL,
 	`recurrence_count` integer DEFAULT 0 NOT NULL,
+	`source` text DEFAULT 'trade' NOT NULL,
+	`scope` text DEFAULT 'session' NOT NULL,
 	`created_at` text NOT NULL,
 	`updated_at` text NOT NULL,
 	`validated_at` text,
 	FOREIGN KEY (`autopsy_id`) REFERENCES `trade_autopsies`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`period_autopsy_id`) REFERENCES `period_autopsies`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`trade_id`) REFERENCES `trades`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE INDEX `idx_autopsy_lessons_autopsy` ON `autopsy_lessons` (`autopsy_id`);--> statement-breakpoint
+CREATE INDEX `idx_autopsy_lessons_period` ON `autopsy_lessons` (`period_autopsy_id`);--> statement-breakpoint
 CREATE INDEX `idx_autopsy_lessons_session` ON `autopsy_lessons` (`session_id`);--> statement-breakpoint
 CREATE INDEX `idx_autopsy_lessons_status` ON `autopsy_lessons` (`status`);--> statement-breakpoint
+CREATE INDEX `idx_autopsy_lessons_scope` ON `autopsy_lessons` (`scope`);--> statement-breakpoint
 CREATE TABLE `broker_accounts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -123,6 +129,12 @@ CREATE TABLE `capital_reservations` (
 --> statement-breakpoint
 CREATE INDEX `idx_capital_reservations_session` ON `capital_reservations` (`session_id`,`status`);--> statement-breakpoint
 CREATE INDEX `idx_capital_reservations_approval` ON `capital_reservations` (`approval_id`);--> statement-breakpoint
+CREATE TABLE `cik_ticker_cache` (
+	`cik` text PRIMARY KEY NOT NULL,
+	`ticker` text,
+	`looked_up_at` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `developer_settings` (
 	`id` text PRIMARY KEY DEFAULT 'singleton' NOT NULL,
 	`default_event_min_level` text DEFAULT 'INFO' NOT NULL,
@@ -155,6 +167,30 @@ CREATE TABLE `global_presets` (
 	`preset_json` text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `period_autopsies` (
+	`id` text PRIMARY KEY NOT NULL,
+	`scope` text NOT NULL,
+	`session_id` text,
+	`window_start` text NOT NULL,
+	`window_end` text NOT NULL,
+	`model_id` text NOT NULL,
+	`filters_json` text DEFAULT '{}' NOT NULL,
+	`trade_count` integer DEFAULT 0 NOT NULL,
+	`trade_ids_json` text DEFAULT '[]' NOT NULL,
+	`summary_structured_json` text DEFAULT '{}' NOT NULL,
+	`phase_traces_json` text DEFAULT '[]' NOT NULL,
+	`quality_grade` text,
+	`quality_score` real,
+	`is_fallback` integer DEFAULT false NOT NULL,
+	`total_cost_usd` real DEFAULT 0 NOT NULL,
+	`created_at` text NOT NULL,
+	`created_by` text DEFAULT 'user' NOT NULL,
+	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE set null
+);
+--> statement-breakpoint
+CREATE INDEX `idx_period_autopsies_scope` ON `period_autopsies` (`scope`);--> statement-breakpoint
+CREATE INDEX `idx_period_autopsies_session` ON `period_autopsies` (`session_id`);--> statement-breakpoint
+CREATE INDEX `idx_period_autopsies_created` ON `period_autopsies` (`created_at`);--> statement-breakpoint
 CREATE TABLE `provider_accounts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -286,7 +322,7 @@ CREATE TABLE `session_instrument_cache` (
 CREATE TABLE `session_research_posture` (
 	`session_id` text PRIMARY KEY NOT NULL,
 	`posture_preset_id` text DEFAULT 'custom' NOT NULL,
-	`discovery_mode` text DEFAULT 'custom' NOT NULL,
+	`processing_mode` text DEFAULT 'manual' NOT NULL,
 	`evidence_mode` text DEFAULT 'balanced' NOT NULL,
 	`catalyst_mode` text DEFAULT 'preferred' NOT NULL,
 	`fundamental_strictness` text DEFAULT 'balanced' NOT NULL,
@@ -323,6 +359,35 @@ CREATE TABLE `session_selector_settings` (
 	`no_instrument_retry_minutes` integer,
 	`updated_at` text NOT NULL,
 	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `session_signal_deliveries` (
+	`id` text PRIMARY KEY NOT NULL,
+	`session_id` text NOT NULL,
+	`signal_event_id` text NOT NULL,
+	`source_id` text NOT NULL,
+	`queue_position_at_enqueue` integer NOT NULL,
+	`status` text NOT NULL,
+	`status_bucket` text NOT NULL,
+	`enqueued_at` text NOT NULL,
+	`started_at` text,
+	`finished_at` text,
+	`expires_at` text,
+	`trade_id` text,
+	`drop_reason` text,
+	`notes_json` text,
+	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`signal_event_id`) REFERENCES `signal_events`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `idx_ssd_session` ON `session_signal_deliveries` (`session_id`);--> statement-breakpoint
+CREATE INDEX `idx_ssd_status` ON `session_signal_deliveries` (`session_id`,`status_bucket`);--> statement-breakpoint
+CREATE TABLE `session_signal_sources` (
+	`session_id` text NOT NULL,
+	`source_id` text NOT NULL,
+	PRIMARY KEY(`session_id`, `source_id`),
+	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`source_id`) REFERENCES `signal_sources`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `session_strategies` (
@@ -401,6 +466,36 @@ CREATE TABLE `sessions` (
 --> statement-breakpoint
 CREATE INDEX `idx_sessions_status` ON `sessions` (`status`);--> statement-breakpoint
 CREATE INDEX `idx_sessions_is_focused` ON `sessions` (`is_focused`);--> statement-breakpoint
+CREATE TABLE `signal_events` (
+	`id` text PRIMARY KEY NOT NULL,
+	`source_id` text NOT NULL,
+	`source_type` text NOT NULL,
+	`ticker` text NOT NULL,
+	`company_name` text,
+	`document_url` text,
+	`accession_number` text,
+	`payload_json` text DEFAULT '{}' NOT NULL,
+	`filed_at` text NOT NULL,
+	`detected_at` text NOT NULL,
+	`dispatch_status` text NOT NULL,
+	`dispatch_completed_at` text,
+	`source_dropped_reason` text,
+	FOREIGN KEY (`source_id`) REFERENCES `signal_sources`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `idx_signal_events_source` ON `signal_events` (`source_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_signal_events_accession` ON `signal_events` (`source_id`,`accession_number`) WHERE "signal_events"."accession_number" is not null;--> statement-breakpoint
+CREATE TABLE `signal_sources` (
+	`id` text PRIMARY KEY NOT NULL,
+	`type` text NOT NULL,
+	`name` text NOT NULL,
+	`description` text,
+	`enabled` integer DEFAULT true NOT NULL,
+	`config_json` text DEFAULT '{}' NOT NULL,
+	`created_at` text NOT NULL,
+	`updated_at` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `timeframe_presets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`label` text NOT NULL,
