@@ -25,6 +25,26 @@ describe("mock discovery fixtures", () => {
     expect(results.every((row) => !row.title.includes("{symbol}"))).toBe(true);
   });
 
+  it("surfaces a synthetic EDGAR 8-K catalyst for the happy path", () => {
+    // Catalyst / document-first postures require a material SEC filing; without
+    // one the decision phase skips even on a clean breakout. The clean_breakout
+    // scenario must therefore carry an 8-K so the happy path can open a trade.
+    const results = filterMockWebSearch(
+      SCENARIO_WEB_SEARCH.clean_breakout,
+      "NVDA 8-K filing material agreement catalyst",
+      8,
+      SCENARIO_PRIMARY_SYMBOLS.clean_breakout,
+    );
+    const eightK = results.find((row) => row.title.includes("8-K"));
+    expect(eightK).toBeDefined();
+    expect(eightK?.title).toContain("NVDA");
+
+    const url = eightK?.url ?? "";
+    const body = SCENARIO_URL_CONTENT.clean_breakout[url];
+    expect(body).toBeDefined();
+    expect(body).toMatch(/Item 1\.01|Material Definitive Agreement/);
+  });
+
   it("prefers known primary symbols over noisy uppercase tokens", () => {
     expect(
       extractQuerySymbol("I want NVDA momentum data", ["NVDA", "AMD", "PLTR"]),

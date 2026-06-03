@@ -57,6 +57,22 @@ const BULLISH_SEARCH: MockWebSearchItem[] = [
   ),
 ];
 
+// EDGAR 8-K catalyst for the happy-path scenario. Document-first / catalyst
+// postures require a material SEC filing to act; without one the decision phase
+// skips even on a clean breakout (see docs/reviews/mock-no-trade-investigation.md).
+// Keep this separate from BULLISH_SEARCH so other scenarios that reuse the
+// bullish items do not inherit a catalyst.
+const CLEAN_BREAKOUT_EDGAR_8K: MockWebSearchItem = searchItem(
+  "{symbol} files Form 8-K announcing major commercial agreement",
+  "{symbol} disclosed in a Form 8-K (Item 1.01) a multi-year supply agreement expected to be materially accretive to revenue; the filing is fresh and tradeable.",
+  "edgar/clean_breakout/8k",
+);
+
+const CLEAN_BREAKOUT_SEARCH: MockWebSearchItem[] = [
+  CLEAN_BREAKOUT_EDGAR_8K,
+  ...BULLISH_SEARCH,
+];
+
 const BEARISH_SEARCH: MockWebSearchItem[] = [
   searchItem(
     "{symbol} fails at resistance as sellers regain control",
@@ -82,7 +98,7 @@ export const SCENARIO_WEB_SEARCH: Record<
   MockScenarioKind,
   MockWebSearchItem[]
 > = {
-  clean_breakout: BULLISH_SEARCH,
+  clean_breakout: CLEAN_BREAKOUT_SEARCH,
   failed_breakout: BEARISH_SEARCH,
   sideways_chop: NEUTRAL_SEARCH,
   gap_down_after_entry: [
@@ -121,6 +137,15 @@ export const SCENARIO_URL_CONTENT: Record<
   Record<string, string>
 > = {
   clean_breakout: urlPages([
+    [
+      "edgar/clean_breakout/8k",
+      [
+        "{symbol} — Form 8-K (Current Report)",
+        "Item 1.01 Entry into a Material Definitive Agreement.",
+        "On the date of this report, {symbol} entered into a multi-year supply agreement with a major customer. Management expects the agreement to be materially accretive to revenue beginning the next fiscal quarter.",
+        "The filing is current, primary-source, and directly relevant — a fresh, tradeable catalyst consistent with the breakout in the underlying shares.",
+      ],
+    ],
     [
       "search/clean_breakout/1",
       [

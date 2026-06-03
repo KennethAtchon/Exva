@@ -484,7 +484,7 @@ export const CreateEditSessionModal = ({
             <section className={sectionClass}>
               <SectionHeader
                 title="Signal Sources"
-                caption="Pick what drives this session. Choose a signal first."
+                caption="Pick the one signal that drives this session."
               />
               <div className={sectionBodyClass}>
                 {!signalSourcesLoaded ? (
@@ -512,16 +512,9 @@ export const CreateEditSessionModal = ({
                             checked={checked}
                             onCheckedChange={(next) =>
                               dispatchData({
-                                subscribedSourceIds: next
-                                  ? [
-                                      ...new Set([
-                                        ...subscribedSourceIds,
-                                        source.id,
-                                      ]),
-                                    ]
-                                  : subscribedSourceIds.filter(
-                                      (id) => id !== source.id,
-                                    ),
+                                // One active signal per session: selecting a
+                                // source replaces any prior pick.
+                                subscribedSourceIds: next ? [source.id] : [],
                               })
                             }
                           />

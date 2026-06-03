@@ -259,6 +259,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     providerAccountsRepo: repos.providerAccounts,
     workspacePrefsRepo: repos.workspacePreferences,
     sessionAiPhasesRepo: repos.sessionAiPhases,
+    signalSourceTypes: signalSourcesRepo,
   });
   const cyclePlanServicesDeps = {
     sessionSelectorSettingsRepo: repos.sessionSelectorSettings,

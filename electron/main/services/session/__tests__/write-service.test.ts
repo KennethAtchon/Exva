@@ -243,6 +243,46 @@ describe("SessionWriteService", () => {
     expect(session.instrumentScope).toBe("");
   });
 
+  it("rejects subscribing a session to more than one signal source", () => {
+    // One active signal per session keeps the broker driven by a single
+    // signal at a time; two sources is a configuration error, not a blend.
+    const signalSourcesRepo = new SignalSourcesRepo(db);
+    for (const id of ["edgar-source-1", "web-source-1"]) {
+      signalSourcesRepo.create({
+        id,
+        type: id.startsWith("edgar") ? "edgar_8k" : "web_search",
+        name: id,
+        description: null,
+        enabled: true,
+        configJson: "{}",
+      });
+    }
+    const service = createService(db, { signalSourcesRepo });
+    insertBroker(db, {
+      id: "broker-stock",
+      name: "Stock Mock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+
+    expect(() =>
+      service.create({
+        name: "Two Signal Session",
+        objective: "Should be rejected",
+        selectionMode: "manual_shortlist",
+        instrumentClasses: ["stock"],
+        instrumentScope: "AAPL",
+        selectorSettings: { aiPickerEnabled: true },
+        executionMode: "paper_only",
+        brokerAssignments: [
+          { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
+        ],
+        subscribedSourceIds: ["edgar-source-1", "web-source-1"],
+      }),
+    ).toThrowError(/only one signal source/i);
+  });
+
   it("rejects empty instrument scope when no signal subscriptions exist", () => {
     const service = createService(db);
     insertBroker(db, {

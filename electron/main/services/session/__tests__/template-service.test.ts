@@ -226,6 +226,7 @@ function createTemplateService(
       providerAccountsRepo: new ProviderAccountsRepo(db),
       workspacePrefsRepo: new WorkspacePreferencesRepo(db),
       sessionAiPhasesRepo: new SessionAiPhasesRepo(db),
+      signalSourceTypes: { subscribedSourceTypesForSession: () => [] },
     }),
     selectorSettings: new SessionSelectorSettingsRepo(db),
     brokerAssignments: new SessionBrokerAssignmentsRepo(db),

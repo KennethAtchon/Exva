@@ -206,6 +206,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     providerAccountsRepo: providerAccounts,
     workspacePrefsRepo: workspacePreferences,
     sessionAiPhasesRepo,
+    signalSourceTypes: new SignalSourcesRepo(db),
   });
 
   const brokerRegistry = {
