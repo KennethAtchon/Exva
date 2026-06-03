@@ -206,6 +206,28 @@ describe("AgentOrchestrator", () => {
     await orchestrator.stop();
   });
 
+  it("does not run an initial selector cycle for listener-only signal sessions", async () => {
+    const deps = createDeps({
+      noInstrumentRetryMinutes: 5,
+      session: {
+        instrumentScope: "",
+      },
+      signalSourceTypes: ["edgar_8k"],
+    });
+    const orchestrator = new AgentOrchestrator("session-1", deps as never);
+    vi.spyOn(
+      orchestrator as never as { getSessionConfig: () => SessionConfig },
+      "getSessionConfig",
+    ).mockReturnValue(baseConfig());
+    const runSelector = vi.spyOn(runSelectorModule, "runSelector");
+
+    await orchestrator.start();
+    await drainOrchestratorQueue(orchestrator);
+
+    expect(runSelector).not.toHaveBeenCalled();
+    await orchestrator.stop();
+  });
+
   it("does not enqueue follow-up work after stop while selector is in flight", async () => {
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -304,6 +326,7 @@ function createDeps({
   noInstrumentRetryMinutes,
   session,
   assignedBrokers,
+  signalSourceTypes,
 }: {
   noInstrumentRetryMinutes?: number;
   session?: Partial<WorkspaceSession>;
@@ -314,6 +337,7 @@ function createDeps({
       "stock" | "crypto" | "futures" | "prediction_market"
     >;
   }>;
+  signalSourceTypes?: Array<"edgar_8k" | "web_search" | "manual">;
 }) {
   const steps = new Map<string, StepRecord>();
   const sessionStatus = { current: "active" as WorkspaceSession["status"] };
@@ -417,6 +441,9 @@ function createDeps({
     brokerAccountsRepo: {
       find: (brokerAccountId: string) =>
         brokerRows.find((broker) => broker.id === brokerAccountId) ?? null,
+    },
+    signalSourcesRepo: {
+      subscribedSourceTypesForSession: () => signalSourceTypes ?? [],
     },
   };
 }

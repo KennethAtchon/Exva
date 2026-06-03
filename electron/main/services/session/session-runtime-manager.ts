@@ -76,10 +76,6 @@ export class SessionRuntimeManager {
 
     try {
       await runtime.initialize(initStatus);
-      this.deps.signals?.injectManualTickers(
-        sessionId,
-        session.instrumentScope,
-      );
       this.deps.logger.info({ sessionId, initStatus }, "runtime started");
       return runtime;
     } catch (error) {

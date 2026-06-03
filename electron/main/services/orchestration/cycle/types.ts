@@ -9,6 +9,7 @@ import type {
 } from "@electron/shared/ai/trade-signals";
 import type { ToolLLMToolStepTrace } from "../policy/candidate-validation-service";
 import type { FailureHistoryEntry } from "./runtime-outcome";
+import type { SignalSourceType } from "@electron/shared/domain";
 
 export type ResolvedInstrument = {
   symbol: string;
@@ -30,6 +31,16 @@ export type SelectorCycleContext = {
   kind: "selector";
   cycleId: string;
   label: string;
+  signalTrigger?: {
+    deliveryId: string;
+    signalId: string;
+    sourceType: SignalSourceType;
+    ticker: string;
+    companyName: string | null;
+    documentUrl: string | null;
+    accessionNumber: string | null;
+    payloadJson: Record<string, unknown>;
+  } | null;
 };
 
 export type TradeCycleContext = {

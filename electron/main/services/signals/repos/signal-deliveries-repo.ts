@@ -111,6 +111,33 @@ export class SignalDeliveriesRepo {
     }));
   }
 
+  getDetailedById(deliveryId: string): {
+    delivery: SessionSignalDelivery;
+    event: typeof signalEvents.$inferSelect;
+    source: typeof signalSources.$inferSelect;
+  } | null {
+    const row =
+      this.db.db
+        .select()
+        .from(sessionSignalDeliveries)
+        .innerJoin(
+          signalEvents,
+          eq(sessionSignalDeliveries.signalEventId, signalEvents.id),
+        )
+        .innerJoin(
+          signalSources,
+          eq(sessionSignalDeliveries.sourceId, signalSources.id),
+        )
+        .where(eq(sessionSignalDeliveries.id, deliveryId))
+        .get() ?? null;
+    if (!row) return null;
+    return {
+      delivery: row.session_signal_deliveries as SessionSignalDelivery,
+      event: row.signal_events,
+      source: row.signal_sources,
+    };
+  }
+
   listBySessionFiltered(input: {
     sessionId: string;
     statusBucket?: SessionSignalDelivery["statusBucket"];

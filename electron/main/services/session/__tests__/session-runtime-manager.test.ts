@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Trade } from "@/lib/types";
 import { SessionRuntimeManager } from "../session-runtime-manager";
+import type { SessionRuntimeHost } from "../session-runtime-host";
 
 describe("SessionRuntimeManager drain completion", () => {
   it("completes drain stop when the last open trade closes", async () => {
@@ -70,5 +71,81 @@ describe("SessionRuntimeManager drain completion", () => {
 
     expect(stopSession).toHaveBeenCalledWith("session-1");
     expect(sessionStatus).toBe("stopped");
+  });
+
+  it("does not inject manual tickers on startup when the initial selector cycle already covers instrumentScope", async () => {
+    let runtimeStatus = "starting";
+    const initialize = vi.fn(async () => {
+      runtimeStatus = "active";
+    });
+    const runtime = {
+      sessionId: "session-1",
+      status: runtimeStatus,
+      orchestrator: {
+        stop: vi.fn(async () => undefined),
+      },
+      tradeMonitor: {
+        start: vi.fn(),
+        stop: vi.fn(),
+      },
+      startedAt: new Date().toISOString(),
+      uptimeMin: vi.fn(() => 0),
+      initialize,
+      pause: vi.fn(async () => undefined),
+      resume: vi.fn(async () => undefined),
+      drainStop: vi.fn(async () => undefined),
+      stop: vi.fn(async () => undefined),
+    };
+    const createRuntime = vi.fn(async () => runtime);
+    const injectManualTickers = vi.fn();
+
+    const manager = new SessionRuntimeManager(
+      {
+        sessionRepo: {
+          requireById: () => ({
+            id: "session-1",
+            status: "draft",
+            instrumentScope: "SPY, QQQ",
+          }),
+          setStatus: vi.fn(),
+          getStatus: vi.fn(() => "draft"),
+        },
+        tradesRepo: { listOpenAndPending: vi.fn(() => []) },
+        tradeApprovalsRepo: {},
+        sessionExecutionStepsRepo: {},
+        capitalReservationsRepo: {},
+        capitalReservation: {},
+        brokerRegistry: {},
+        eventsRepo: {},
+        logger: {
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
+        },
+        bus: {
+          on: vi.fn(() => () => undefined),
+          setRuntimeStatus: vi.fn(),
+          clearRuntimeStatus: vi.fn(),
+          emit: vi.fn(),
+        },
+        signals: {
+          injectManualTickers,
+          onSessionResumed: vi.fn(),
+          replayStartup: vi.fn(),
+        },
+        createOrchestrator: vi.fn(),
+        createTradeMonitor: vi.fn(),
+      } as never,
+      {
+        createRuntime,
+      } as unknown as SessionRuntimeHost,
+    );
+
+    await manager.startSession("session-1");
+
+    expect(createRuntime).toHaveBeenCalledWith("session-1");
+    expect(initialize).toHaveBeenCalledWith("active");
+    expect(injectManualTickers).not.toHaveBeenCalled();
   });
 });

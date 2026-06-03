@@ -2,7 +2,7 @@ import type { InstrumentSelection } from "@/lib/schemas";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
 import { MarketHoursService } from "../market-hours-service";
 import type { TradingCycleContext } from "../trading-cycle-context";
-import type { ResolvedInstrument } from "../types";
+import type { ResolvedInstrument, SelectorCycleContext } from "../types";
 
 const marketHours = new MarketHoursService();
 
@@ -10,8 +10,9 @@ export async function runSelector(
   ctx: TradingCycleContext,
   session: WorkspaceSession,
   config: SessionConfig,
-  cycleId: string,
+  selectorContext: Pick<SelectorCycleContext, "cycleId" | "signalTrigger">,
 ): Promise<ResolvedInstrument[]> {
+  const { cycleId, signalTrigger } = selectorContext;
   const { logger } = ctx.deps;
 
   logger.info(
@@ -29,6 +30,7 @@ export async function runSelector(
     input: {
       failureHistory: ctx.getFailureHistory(),
       nextEligibleRetryAt: ctx.getNearestRetryAt(),
+      signalTrigger,
     },
   })) as import("../../../pipeline/phases/types").AIPhaseResult<InstrumentSelection>;
 

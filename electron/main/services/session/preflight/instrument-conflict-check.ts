@@ -1,4 +1,5 @@
 import type { WorkspaceSession } from "@/lib/types";
+import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
 import type { OrchestratorDeps, PreflightStepFailure } from "../session-types";
 
 type StepResult = { ok: true } | PreflightStepFailure;
@@ -18,7 +19,15 @@ export async function instrumentConflictCheck(
   if (session.selectionMode !== "manual_shortlist") return { ok: true };
 
   const symbols = parseInstrumentScopeSymbols(session.instrumentScope);
+  const subscribedSourceTypes =
+    deps.signalSourcesRepo.subscribedSourceTypesForSession(session.id);
+  const requiresInstrumentScope = sessionRequiresInstrumentScope(
+    subscribedSourceTypes.map((type) => ({ type })),
+  );
   if (symbols.length === 0) {
+    if (!requiresInstrumentScope) {
+      return { ok: true };
+    }
     return {
       ok: false,
       code: "VALIDATION_FAILED",

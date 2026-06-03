@@ -9,6 +9,7 @@
 import "./input/selector-scope";
 import "./input/broker-coverage";
 import "./input/prediction-market-candidates";
+import "./entry-mode/signal-seeded";
 import "./entry-mode/manual-shortlist";
 import "./cache/selector-instrument-cache";
 import "./finalizer/selector-risk-filter";

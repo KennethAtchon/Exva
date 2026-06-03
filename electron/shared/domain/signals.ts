@@ -1,11 +1,21 @@
 export type SignalSourceType = "edgar_8k" | "web_search" | "manual";
 
+export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
+  return type === "web_search";
+}
+
+export function isSelfDescribingSignalSourceType(
+  type: SignalSourceType,
+): boolean {
+  return type !== "web_search" && type !== "manual";
+}
+
 /** True when the session must carry manual tickers / instrument scope. */
 export function sessionRequiresInstrumentScope(
   subscribedSources: ReadonlyArray<{ type: SignalSourceType }>,
 ): boolean {
-  const anySearchStyle = subscribedSources.some(
-    (source) => source.type === "web_search",
+  const anySearchStyle = subscribedSources.some((source) =>
+    isSearchStyleSignalSourceType(source.type),
   );
   return anySearchStyle || subscribedSources.length === 0;
 }

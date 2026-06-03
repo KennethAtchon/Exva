@@ -50,7 +50,7 @@ describe("runSelector", () => {
       ctx as never,
       {} as never,
       { max_concurrent_trades: 5 } as never,
-      "cycle-1",
+      { cycleId: "cycle-1" },
     );
 
     expect(out).toHaveLength(1);
@@ -91,8 +91,63 @@ describe("runSelector", () => {
         ctx as never,
         {} as never,
         { max_concurrent_trades: 5 } as never,
-        "cycle-1",
+        { cycleId: "cycle-1" },
       ),
     ).resolves.toEqual([]);
+  });
+
+  it("passes signal-trigger context into the selector pipeline", async () => {
+    const runPlan = vi.fn(async () => ({
+      source: "phase",
+      output: { instruments: [{ symbol: "AAPL", instrumentClass: "stock" }] },
+    }));
+    const ctx = {
+      sessionId: "session-1",
+      deps: {
+        ai: { runPlan },
+        bus: { emit: vi.fn() },
+        logger: {
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
+        },
+      },
+      emitEvent: vi.fn(),
+      getFailureHistory: vi.fn(() => []),
+      getNearestRetryAt: vi.fn(() => null),
+      getFailureHistoryForInstrument: vi.fn(() => []),
+    };
+
+    await runSelectorModule.runSelector(
+      ctx as never,
+      { id: "session-1" } as never,
+      { max_concurrent_trades: 5 } as never,
+      {
+        cycleId: "cycle-1",
+        signalTrigger: {
+          deliveryId: "delivery-1",
+          signalId: "signal-1",
+          sourceType: "edgar_8k",
+          ticker: "AAPL",
+          companyName: "Apple Inc.",
+          documentUrl: "https://example.com/8k",
+          accessionNumber: "0000000000-00-000000",
+          payloadJson: { summary: "8-K item" },
+        },
+      },
+    );
+
+    expect(runPlan).toHaveBeenCalledWith(
+      "selector",
+      expect.objectContaining({
+        input: expect.objectContaining({
+          signalTrigger: expect.objectContaining({
+            sourceType: "edgar_8k",
+            ticker: "AAPL",
+          }),
+        }),
+      }),
+    );
   });
 });

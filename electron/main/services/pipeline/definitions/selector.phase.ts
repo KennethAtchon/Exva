@@ -187,7 +187,7 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
     "broker-coverage",
     "prediction-market-candidates",
   ],
-  entryEngineIds: ["manual-shortlist"],
+  entryEngineIds: ["signal-seeded", "manual-shortlist"],
   catalog: { outputMode: "tool_terminal" },
   finalizeEngineIds: ["selector-risk-filter", "selector-submission-builder"],
   resolveWorkersForMode: selectorDiscoveryWorkersForMode,

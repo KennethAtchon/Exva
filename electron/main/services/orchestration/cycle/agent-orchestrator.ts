@@ -1,4 +1,8 @@
 import type { ExecutionStage, SessionConfig } from "@/lib/types";
+import {
+  sessionRequiresInstrumentScope,
+  type SignalSourceType,
+} from "@electron/shared/domain";
 import type { ApprovalRecheckInput, OrchestratorDeps } from "../../session";
 import { canScheduleSelector } from "../../session/session-trade-state";
 import { TradingCycleContext } from "./trading-cycle-context";
@@ -51,22 +55,24 @@ export class AgentOrchestrator {
     this.ctx.scheduleSelectorCycle = (label) =>
       this.scheduleSelectorCycle(label);
     this.ctx.started = true;
-    this.ctx.enqueueTask(
-      () =>
-        this.executeSelectorCycle({
-          kind: "selector",
-          cycleId: crypto.randomUUID(),
-          label: "Initial research cycle complete",
-        }),
-      (error) => {
-        this.ctx.emitEvent(
-          "ERROR",
-          null,
-          `Initial selector cycle failed: ${error instanceof Error ? error.message : String(error)}`,
-          "orchestrator",
-        );
-      },
-    );
+    if (this.shouldRunInitialSelectorCycle()) {
+      this.ctx.enqueueTask(
+        () =>
+          this.executeSelectorCycle({
+            kind: "selector",
+            cycleId: crypto.randomUUID(),
+            label: "Initial research cycle complete",
+          }),
+        (error) => {
+          this.ctx.emitEvent(
+            "ERROR",
+            null,
+            `Initial selector cycle failed: ${error instanceof Error ? error.message : String(error)}`,
+            "orchestrator",
+          );
+        },
+      );
+    }
     this.deps.logger.info(
       { sessionId: this.sessionId },
       "orchestrator started",
@@ -224,12 +230,7 @@ export class AgentOrchestrator {
       },
       run: () => {
         const session = this.ctx.deps.sessionRepo.requireById(this.sessionId);
-        return runSelector(
-          this.ctx,
-          session,
-          this.getSessionConfig(),
-          context.cycleId,
-        );
+        return runSelector(this.ctx, session, this.getSessionConfig(), context);
       },
       retryCycle: () => this.executeSelectorCycle(context),
       retryErrorLabel: "Scheduled selector retry failed",
@@ -242,11 +243,15 @@ export class AgentOrchestrator {
     });
   }
 
-  private scheduleSelectorCycle(label: string): Promise<void> {
+  private scheduleSelectorCycle(
+    label: string,
+    signalTrigger: SelectorCycleContext["signalTrigger"] = null,
+  ): Promise<void> {
     return this.executeSelectorCycle({
       kind: "selector",
       cycleId: crypto.randomUUID(),
       label,
+      signalTrigger,
     });
   }
 
@@ -259,6 +264,8 @@ export class AgentOrchestrator {
         if (payload.status !== "queued") return;
         const deliveries = this.deps.signalDeliveriesRepo;
         if (!deliveries) return;
+        const detail = deliveries.getDetailedById(payload.deliveryId);
+        if (!detail) return;
         this.ctx.enqueueTask(
           async () => {
             deliveries.updateStatus(payload.deliveryId, {
@@ -273,7 +280,16 @@ export class AgentOrchestrator {
               status: "processing",
               statusBucket: "pending",
             });
-            await this.scheduleSelectorCycle("Signal delivery queued");
+            await this.scheduleSelectorCycle("Signal delivery queued", {
+              deliveryId: detail.delivery.id,
+              signalId: detail.event.id,
+              sourceType: detail.event.sourceType as SignalSourceType,
+              ticker: detail.event.ticker,
+              companyName: detail.event.companyName,
+              documentUrl: detail.event.documentUrl,
+              accessionNumber: detail.event.accessionNumber,
+              payloadJson: parseSignalPayloadJson(detail.event.payloadJson),
+            });
             deliveries.updateStatus(payload.deliveryId, {
               status: "triggered",
               statusBucket: "completed",
@@ -320,5 +336,28 @@ export class AgentOrchestrator {
   /** @internal Visible to orchestrator unit tests. */
   private getSessionConfig(): SessionConfig {
     return this.ctx.getSessionConfig();
+  }
+
+  private shouldRunInitialSelectorCycle(): boolean {
+    const session = this.deps.sessionRepo.requireById(this.sessionId);
+    if (session.instrumentScope.trim()) {
+      return true;
+    }
+    const subscribedSourceTypes =
+      this.deps.signalSourcesRepo.subscribedSourceTypesForSession(
+        this.sessionId,
+      );
+    return sessionRequiresInstrumentScope(
+      subscribedSourceTypes.map((type) => ({ type })),
+    );
+  }
+}
+
+function parseSignalPayloadJson(payloadJson: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(payloadJson) as Record<string, unknown>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
   }
 }
