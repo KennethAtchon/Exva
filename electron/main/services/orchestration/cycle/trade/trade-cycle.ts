@@ -78,7 +78,10 @@ export async function executeTradeCycle(
 
     applyTradePipelineToContext(context, pipeline.result);
     const latestQuote = pipeline.result.state.quoteSnapshot;
-    const { decision } = requirePipelineAiResults(pipeline.result);
+    const { decision } = requirePipelineAiResults(
+      pipeline.result,
+      context.pipelineId,
+    );
     const trade = persistPendingTradeFromPipeline(
       ctx,
       context,
@@ -210,5 +213,6 @@ export async function runTradeCycle(
     kind: "trade",
     cycleId: crypto.randomUUID(),
     instrument,
+    pipelineId: instrument.pipelineId,
   });
 }

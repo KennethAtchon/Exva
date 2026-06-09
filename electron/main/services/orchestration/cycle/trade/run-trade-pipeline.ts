@@ -1,6 +1,8 @@
 import { AppError } from "@electron/shared/infra/errors";
 import type { LLMRunResult } from "../../../llm/llm-types";
 import type { InstrumentAnalysisResult } from "../../../pipeline/analysis/types";
+import { DEFAULT_PIPELINE_ID } from "../../../pipeline/effective-ai-phase-config";
+import { requiredSignalPhasesForPipeline } from "../../../pipeline/implementations/registry/pipeline-router";
 import { tradeCycleStageFailurePolicy } from "../../../pipeline/implementations/trade/default-analysis-steps";
 import type { TradingCycleContext } from "../trading-cycle-context";
 import { runOrchestratorStep } from "../orchestrator-step";
@@ -43,43 +45,46 @@ export async function runTradePipeline(
   const seedState = tradePipelineSeedFromContext(context);
 
   try {
-    const result = await ctx.deps.ai.runPlan("default-trade-cycle", {
-      sessionId: ctx.sessionId,
-      cycleId: context.cycleId,
-      tradeId: context.trade?.id ?? null,
-      instrument: context.instrument,
-      sessionConfig: config,
-      instrumentClasses: ctx.getEffectiveInstrumentClasses(session),
-      seedState,
-      runStep: async (stage, execute) => {
-        const failurePolicy = tradeCycleStageFailurePolicy(stage);
-        const step = await runOrchestratorStep(ctx, {
-          cycleId: context.cycleId,
-          stage,
-          onRetry,
-          tradeId: context.trade?.id ?? null,
-          recordFailure: failurePolicy !== "warn",
-          onFailure:
-            failurePolicy === "warn"
-              ? (result) => {
-                  ctx.emitEvent(
-                    "WARN",
-                    null,
-                    `[${stage}] ${context.instrument.symbol}: ${result.errorMessage}`,
-                    "orchestrator",
-                    context.cycleId,
-                  );
-                }
-              : undefined,
-          run: execute,
-        });
+    const result = await ctx.deps.ai.runPlan(
+      context.pipelineId ?? DEFAULT_PIPELINE_ID,
+      {
+        sessionId: ctx.sessionId,
+        cycleId: context.cycleId,
+        tradeId: context.trade?.id ?? null,
+        instrument: context.instrument,
+        sessionConfig: config,
+        instrumentClasses: ctx.getEffectiveInstrumentClasses(session),
+        seedState,
+        runStep: async (stage, execute) => {
+          const failurePolicy = tradeCycleStageFailurePolicy(stage);
+          const step = await runOrchestratorStep(ctx, {
+            cycleId: context.cycleId,
+            stage,
+            onRetry,
+            tradeId: context.trade?.id ?? null,
+            recordFailure: failurePolicy !== "warn",
+            onFailure:
+              failurePolicy === "warn"
+                ? (result) => {
+                    ctx.emitEvent(
+                      "WARN",
+                      null,
+                      `[${stage}] ${context.instrument.symbol}: ${result.errorMessage}`,
+                      "orchestrator",
+                      context.cycleId,
+                    );
+                  }
+                : undefined,
+            run: execute,
+          });
 
-        if (step.status === "paused") throw new AnalysisPausedError();
-        if (step.status === "failed")
-          throw new AnalysisStepFailedError(stage, step.result);
-        return step.value;
+          if (step.status === "paused") throw new AnalysisPausedError();
+          if (step.status === "failed")
+            throw new AnalysisStepFailedError(stage, step.result);
+          return step.value;
+        },
       },
-    });
+    );
     return { status: "ok", result: result as InstrumentAnalysisResult };
   } catch (error) {
     if (error instanceof AnalysisPausedError) {
@@ -143,11 +148,27 @@ export function persistTradeAiRuns(
   }
 }
 
-export function requirePipelineAiResults(result: InstrumentAnalysisResult) {
+export function requirePipelineAiResults(
+  result: InstrumentAnalysisResult,
+  pipelineId: string = DEFAULT_PIPELINE_ID,
+) {
+  const stateByPhase = result.state as Record<string, unknown>;
+  const missing = requiredSignalPhasesForPipeline(pipelineId).filter(
+    (phase) => !stateByPhase[phase],
+  );
+  if (missing.length > 0) {
+    throw new AppError(
+      `Internal error: trade pipeline '${pipelineId}' returned incomplete AI results (missing: ${missing.join(", ")}).`,
+      "VALIDATION_FAILED",
+    );
+  }
+  // Downstream trade persistence (effect-runner) consumes all four signals.
+  // A pipeline that omits any of them fails loud here until that path is made
+  // optional (see multi-pipeline spec, open questions).
   const { technical, fundamental, review, decision } = result.state;
   if (!technical || !fundamental || !review || !decision) {
     throw new AppError(
-      "Internal error: trade pipeline returned incomplete AI results.",
+      `Internal error: trade pipeline '${pipelineId}' returned incomplete AI results.`,
       "VALIDATION_FAILED",
     );
   }

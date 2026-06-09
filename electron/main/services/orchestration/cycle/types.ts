@@ -20,6 +20,12 @@ export type ResolvedInstrument = {
   selectorEvidence?: SelectorEvidence | null;
   selectorTraces?: ToolLLMToolStepTrace[];
   recentFailureHistory?: FailureHistoryEntry[];
+  /**
+   * Trade-cycle pipeline this instrument routes to, derived from the
+   * triggering signal's source type. Omitted when not signal-triggered (the
+   * default pipeline is used).
+   */
+  pipelineId?: string;
 };
 
 type AiTechnicalRun = LLMRunResult<TechnicalSignal>;
@@ -47,6 +53,8 @@ export type TradeCycleContext = {
   kind: "trade";
   cycleId: string;
   instrument: ResolvedInstrument;
+  /** Trade-cycle pipeline id (from the resolved instrument). */
+  pipelineId?: string;
   technical?: AiTechnicalRun;
   fundamental?: AiFundamentalRun;
   review?: AiReviewRun;

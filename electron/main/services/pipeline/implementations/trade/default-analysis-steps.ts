@@ -158,24 +158,28 @@ export function tradeCycleStageFailurePolicy(
   )?.failurePolicy;
 }
 
-export function tradeCycleInspectMetadata() {
-  const phaseStages = DEFAULT_TRADE_CYCLE_STAGES.filter(
-    (stage) => stage.kind === "phase",
-  ).map((stage) => stage.phase);
-  const engineStages = DEFAULT_TRADE_CYCLE_STAGES.flatMap((stage) => {
+export function tradeCycleInspectMetadata(
+  stages: readonly DeclarativeCycleStageConfig[] = DEFAULT_TRADE_CYCLE_STAGES,
+) {
+  const phaseStages = stages
+    .filter((stage) => stage.kind === "phase")
+    .map((stage) => stage.phase);
+  const engineStages = stages.flatMap((stage) => {
     if (stage.kind === "engine") return [stage.engine.engineId];
     if (stage.kind === "engine-chain")
       return stage.engines.map((engine) => engine.engineId);
     return [];
   });
   return {
-    stageIds: DEFAULT_TRADE_CYCLE_STAGES.map((stage) => stage.id),
+    stageIds: stages.map((stage) => stage.id),
     phaseStages,
     engineStages,
   };
 }
 
-export function buildTradeAnalysisSteps(): Array<{
+export function buildTradeAnalysisSteps(
+  stages: readonly DeclarativeCycleStageConfig[] = DEFAULT_TRADE_CYCLE_STAGES,
+): Array<{
   id: string;
   executionStage?: ExecutionStage;
   required: boolean;
@@ -185,7 +189,7 @@ export function buildTradeAnalysisSteps(): Array<{
     state: InstrumentAnalysisState,
   ) => Promise<InstrumentAnalysisState>;
 }> {
-  return DEFAULT_TRADE_CYCLE_STAGES.map((config) => ({
+  return stages.map((config) => ({
     id: config.id,
     executionStage: config.executionStage ?? (config.id as ExecutionStage),
     required: config.required,

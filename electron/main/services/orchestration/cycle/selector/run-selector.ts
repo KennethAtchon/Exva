@@ -1,5 +1,6 @@
 import type { InstrumentSelection } from "@/lib/schemas";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
+import { resolvePipelineIdForSource } from "../../../pipeline/implementations/registry/pipeline-router";
 import { MarketHoursService } from "../market-hours-service";
 import type { TradingCycleContext } from "../trading-cycle-context";
 import type { ResolvedInstrument, SelectorCycleContext } from "../types";
@@ -46,6 +47,8 @@ export async function runSelector(
     "selector pipeline run complete",
   );
 
+  const pipelineId = resolvePipelineIdForSource(signalTrigger?.sourceType);
+
   const instruments: ResolvedInstrument[] = result.output.instruments.map(
     (row) => ({
       symbol: row.symbol,
@@ -55,6 +58,7 @@ export async function runSelector(
       instrumentMetadataJson: row.instrumentMetadataJson ?? null,
       selectorEvidence: row.selectorEvidence ?? null,
       recentFailureHistory: ctx.getFailureHistoryForInstrument(row.symbol),
+      pipelineId,
     }),
   );
 
