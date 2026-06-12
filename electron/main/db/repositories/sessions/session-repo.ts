@@ -37,6 +37,7 @@ import type {
   TradeRulesPreset,
 } from "@electron/shared/domain";
 import type { GlobalStrategyPreset } from "@electron/shared/presets";
+import { loadExperiencePresetBundle } from "../../../experiences/session-bootstrap";
 import {
   DEFAULT_REASONING_LEVEL,
   PIPELINE_PHASES,
@@ -57,6 +58,7 @@ export interface CreateSessionInput {
   instrumentScope: string;
   defaultSearchProviderId?: string | null;
   executionMode: WorkspaceSession["executionMode"];
+  experienceId?: string;
   isFocused?: boolean;
 }
 
@@ -73,12 +75,15 @@ export interface TaskBoundaryInput {
 export class SessionRepo {
   constructor(private readonly client: DbClient) {}
 
-  private loadSessionDefaults(): {
+  private loadSessionDefaults(experienceId?: string): {
     posturePreset: ResearchPosturePreset;
     rulesPreset: TradeRulesPreset;
     riskPreset: RiskPreset;
     timeframePreset: TimeframePreset;
   } {
+    if (experienceId) {
+      return loadExperiencePresetBundle(this.client, experienceId);
+    }
     const globalRow = this.client.db
       .select()
       .from(globalPresets)
@@ -152,7 +157,8 @@ export class SessionRepo {
     const now = new Date().toISOString();
     const sessionId = crypto.randomUUID();
     const roleSeed = this.getDefaultAiRoleSeed();
-    const defaults = this.loadSessionDefaults();
+    const experienceId = input.experienceId ?? "edgar-catalyst";
+    const defaults = this.loadSessionDefaults(experienceId);
     const tradeRulesSeed = {
       sessionId,
       ...defaults.rulesPreset.rules,
@@ -174,6 +180,7 @@ export class SessionRepo {
           instrumentScope: input.instrumentScope,
           defaultSearchProviderId: input.defaultSearchProviderId ?? null,
           executionMode: input.executionMode,
+          experienceId,
           createdAt: now,
           updatedAt: now,
         })

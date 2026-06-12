@@ -4,6 +4,10 @@ import {
   conflictDetectorOutputSchema,
   riskAssessorOutputSchema,
 } from "../../../signal/aggregators/review-aggregator";
+import {
+  adversarialReviewerOutputSchema,
+  aggregateAdversarialReview,
+} from "../../../signal/aggregators/catalyst-two-call-aggregator";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
 import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";
@@ -16,6 +20,19 @@ const reviewAggregatorEngine: FinalizerEngine<
   id: "review-aggregator",
   kind: "finalizer",
   async run(ctx, _state, workerResults) {
+    const adversarial = pickWorkerOutput(
+      workerResults,
+      adversarialReviewerOutputSchema,
+    ) as
+      | import("../../../signal/aggregators/catalyst-two-call-aggregator").AdversarialReviewerOutput
+      | null;
+    if (adversarial) {
+      return aggregateAdversarialReview(
+        ctx.input.instrumentSymbol as string,
+        adversarial,
+      );
+    }
+
     const workerPayload = {
       conflictDetector: pickWorkerOutput(
         workerResults,

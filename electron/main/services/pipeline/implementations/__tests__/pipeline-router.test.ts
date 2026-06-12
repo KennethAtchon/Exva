@@ -7,6 +7,7 @@ import {
   validatePipelineRegistry,
   type PipelineDescriptor,
 } from "../registry/pipeline-router";
+import { PIPELINE_WORKER_SETS } from "../../worker-registry";
 import { DEFAULT_TRADE_CYCLE } from "../trade/default-analysis";
 import type {
   InstrumentAnalysis,
@@ -48,7 +49,9 @@ describe("pipeline router", () => {
       ...FOUR_PHASES,
     ]);
     expect(requiredSignalPhasesForPipeline("edgar-8k-cycle")).toEqual([
-      ...FOUR_PHASES,
+      "fundamental",
+      "review",
+      "decision",
     ]);
   });
 
@@ -60,6 +63,7 @@ describe("pipeline router", () => {
         phases: [...FOUR_PHASES],
         signalSources: [],
         plan: clonePlan("dup-plan"),
+        phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
       } satisfies PipelineDescriptor),
     ).toThrow(/already registered/);
   });
@@ -85,6 +89,7 @@ describe("pipeline router", () => {
         phases: ["technical"],
         signalSources: [],
         plan: clonePlan("mismatch-plan"), // plan runs all four
+        phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
       } satisfies PipelineDescriptor),
     ).toThrow(/declares phases/);
   });
@@ -97,6 +102,7 @@ describe("pipeline router", () => {
       phases: [...FOUR_PHASES],
       signalSources: ["web_search"], // already claimed by default-trade-cycle
       plan: clonePlan("conflict-plan"),
+      phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
     });
     expect(() => validatePipelineRegistry()).toThrow(/claimed by both/);
   });

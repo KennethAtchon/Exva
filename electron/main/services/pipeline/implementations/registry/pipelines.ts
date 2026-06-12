@@ -1,4 +1,5 @@
-import type { PipelineDescriptor } from "./pipeline-router";
+import type { PipelineDescriptor } from "./pipeline-descriptor-store";
+import { PIPELINE_WORKER_SETS } from "../../worker-registry";
 import { DEFAULT_TRADE_CYCLE } from "../trade/default-analysis";
 import { EDGAR_8K_TRADE_CYCLE } from "../filing/edgar-8k-analysis";
 import { RULES_MEAN_REVERSION_CYCLE } from "../rules/mean-reversion-analysis";
@@ -15,6 +16,8 @@ export const DEFAULT_PIPELINE: PipelineDescriptor = {
   signalSources: ["web_search", "manual"],
   isDefault: true,
   plan: DEFAULT_TRADE_CYCLE,
+  phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
+  selectorWorkerIds: PIPELINE_WORKER_SETS.selector.standard,
 };
 
 /**
@@ -25,9 +28,11 @@ export const DEFAULT_PIPELINE: PipelineDescriptor = {
 export const EDGAR_8K_PIPELINE: PipelineDescriptor = {
   id: "edgar-8k-cycle",
   displayName: "EDGAR 8-K (self-describing)",
-  phases: ["technical", "fundamental", "review", "decision"],
+  phases: ["fundamental", "review", "decision"],
   signalSources: ["edgar_8k", "mock"],
   plan: EDGAR_8K_TRADE_CYCLE,
+  phaseWorkers: PIPELINE_WORKER_SETS.catalystTwoCall,
+  selectorWorkerIds: [],
 };
 
 /**
@@ -39,6 +44,8 @@ export const RULES_MEAN_REVERSION_PIPELINE: PipelineDescriptor = {
   phases: ["decision"],
   signalSources: ["timer"],
   plan: RULES_MEAN_REVERSION_CYCLE,
+  phaseWorkers: { decision: [] },
+  selectorWorkerIds: [],
 };
 
 export const ALL_PIPELINES: readonly PipelineDescriptor[] = [

@@ -28,6 +28,7 @@ const logger = createLogger("pipeline-phase-runtime");
 
 export interface AIPhaseRunInput {
   plan: AIPhase<unknown, unknown>;
+  pipelineId: string;
   sessionId: string;
   cycleId: string | null;
   tradeId: string | null;
@@ -66,6 +67,7 @@ export class AIPhaseRunner {
     };
     const ctx: AIPhaseContext = {
       phase: input.plan.phase,
+      pipelineId: input.pipelineId,
       sessionId: input.sessionId,
       cycleId: input.cycleId,
       tradeId: input.tradeId,

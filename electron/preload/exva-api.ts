@@ -116,6 +116,22 @@ export interface ExvaApi {
       }): Promise<ExportResult>;
     };
   };
+  experiences: {
+    list(): Promise<
+      Array<{
+        id: string;
+        displayName: string;
+        signalSourceType: string;
+        pipelineId: string;
+        presets: {
+          posturePresetId: string;
+          rulesPresetId: string;
+          riskPresetId: string;
+          timeframePresetId: string;
+        };
+      }>
+    >;
+  };
   session: {
     start(): Promise<SessionStatus>;
     pause(): Promise<SessionStatus>;

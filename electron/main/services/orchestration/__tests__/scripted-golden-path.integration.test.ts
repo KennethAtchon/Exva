@@ -13,8 +13,30 @@ import {
   signalClassifierOutputSchema,
 } from "../../signal/aggregators/trade-signal-aggregator";
 import { aggregateReviewSignal } from "../../signal/aggregators/review-aggregator";
+import {
+  adversarialReviewerOutputSchema,
+  aggregateAdversarialReview,
+  aggregateCatalystTradeSignal,
+  catalystAnalystOutputSchema,
+} from "../../signal/aggregators/catalyst-two-call-aggregator";
 
 describe("scripted golden path", () => {
+  it("clean_breakout 2-call catalyst scripted outputs produce a buy without LLM", () => {
+    const outputs = scriptedWorkerOutputsForScenario("clean_breakout", "NVDA");
+    const analyst = catalystAnalystOutputSchema.parse(
+      resolveScriptedWorkerOutput("catalyst-analyst", outputs),
+    );
+    const adversarial = adversarialReviewerOutputSchema.parse(
+      resolveScriptedWorkerOutput("adversarial-reviewer", outputs),
+    );
+    const review = aggregateAdversarialReview("NVDA", adversarial);
+    const decision = aggregateCatalystTradeSignal("NVDA", analyst, review, {
+      waitForOpenThreshold: 0.8,
+    });
+    expect(decision.action).toBe("buy");
+    expect(decision.confidence).toBeGreaterThanOrEqual(0.8);
+  });
+
   it("clean_breakout scripted outputs produce a buy decision without LLM", () => {
     const outputs = scriptedWorkerOutputsForScenario("clean_breakout", "NVDA");
 

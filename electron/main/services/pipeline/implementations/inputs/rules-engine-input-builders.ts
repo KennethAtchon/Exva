@@ -59,7 +59,23 @@ export const rulesMeanReversionInputBuilder: EngineInputBuilder = {
       brokerType: adapter.brokerType,
     });
     const getOhlcv = adapter.getOhlcv?.bind(adapter);
-    const bars = getOhlcv ? await getOhlcv(wireSymbol, "1h", 30) : [];
+    let cadence = "15m";
+    if (ctx.instrument.instrumentMetadataJson) {
+      try {
+        const meta = JSON.parse(ctx.instrument.instrumentMetadataJson) as {
+          cadence?: string;
+        };
+        if (meta.cadence) cadence = meta.cadence;
+      } catch {
+        // use default
+      }
+    }
+    const timeframe =
+      cadence === "15m" ? "15m" : cadence === "1h" ? "1h" : "1h";
+    const barCount = timeframe === "15m" ? 40 : 30;
+    const bars = getOhlcv
+      ? await getOhlcv(wireSymbol, timeframe, barCount)
+      : [];
     return {
       task: {
         symbol: ctx.instrument.symbol,

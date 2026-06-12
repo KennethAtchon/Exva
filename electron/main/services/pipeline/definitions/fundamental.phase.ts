@@ -6,23 +6,21 @@ import {
 } from "@electron/shared/ai/trade-signals";
 // Self-registers the fundamental-aggregator finalizer engine when this module loads.
 import "../engines/finalizer/fundamental-aggregator";
-import type { ProcessingMode } from "@electron/shared/domain";
+import { resolvePipelinePhaseWorkers } from "../pipeline-phase-worker-resolver";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
 import {
   catalystOutputSchema,
   earningsOutputSchema,
-  sentimentOutputSchema,
 } from "../../signal/aggregators/fundamental-aggregator";
 import type { AIPhase } from "../phases/types";
 import {
   FUNDAMENTAL_WORKERS_CATALYST_CONTEXT_PROMPT,
   FUNDAMENTAL_WORKERS_EARNINGS_CONTEXT_PROMPT,
-  FUNDAMENTAL_WORKERS_EVENT_CATALYST_PROMPT,
-  FUNDAMENTAL_WORKERS_EVENT_RESOLUTION_PROMPT,
-  FUNDAMENTAL_WORKERS_EVENT_SENTIMENT_PROMPT,
   FUNDAMENTAL_WORKERS_DOCUMENT_EXTRACTOR_PROMPT,
   FUNDAMENTAL_WORKERS_MARKET_REACTION_CHECKER_PROMPT,
+  CATALYST_ANALYST_PROMPT,
 } from "../worker-prompts";
+import { catalystAnalystOutputSchema } from "../../signal/aggregators/catalyst-two-call-aggregator";
 import type { AggregatorPlanState } from "./aggregator.types";
 
 export type { AggregatorPlanState };
@@ -37,7 +35,18 @@ const FUNDAMENTAL_STRATEGY_CONTEXT = {
   maxGuidanceItems: 2,
 } as const;
 
-const CATALYST_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
+export const CATALYST_ANALYST_WORKER: WorkerDefinition = {
+  id: "catalyst-analyst",
+  prompt: CATALYST_ANALYST_PROMPT,
+  tools: ["fetch_url", "search_web", "get_quote", "get_ohlcv"],
+  toolConfig: SEARCH_WEB_TOOL_CONFIG,
+  strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
+  engines: [ENGINE_BINDINGS.riskSummaryRead],
+  outputMode: "tool_result",
+  outputSchema: catalystAnalystOutputSchema,
+};
+
+export const CATALYST_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "document-extractor",
     prompt: FUNDAMENTAL_WORKERS_DOCUMENT_EXTRACTOR_PROMPT,
@@ -60,7 +69,7 @@ const CATALYST_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   },
 ];
 
-const STANDARD_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
+export const STANDARD_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "earnings-context",
     prompt: FUNDAMENTAL_WORKERS_EARNINGS_CONTEXT_PROMPT,
@@ -83,45 +92,6 @@ const STANDARD_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
   },
 ];
 
-const EVENT_FUNDAMENTAL_WORKERS: readonly WorkerDefinition[] = [
-  {
-    id: "resolution-context",
-    prompt: FUNDAMENTAL_WORKERS_EVENT_RESOLUTION_PROMPT,
-    tools: ["search_web"],
-    toolConfig: SEARCH_WEB_TOOL_CONFIG,
-    strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
-    outputMode: "tool_result",
-    outputSchema: earningsOutputSchema,
-  },
-  {
-    id: "event-catalyst",
-    prompt: FUNDAMENTAL_WORKERS_EVENT_CATALYST_PROMPT,
-    tools: ["search_web", "fetch_url"],
-    toolConfig: SEARCH_WEB_TOOL_CONFIG,
-    strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
-    outputMode: "tool_result",
-    outputSchema: catalystOutputSchema,
-  },
-  {
-    id: "event-sentiment",
-    prompt: FUNDAMENTAL_WORKERS_EVENT_SENTIMENT_PROMPT,
-    tools: ["search_web"],
-    toolConfig: SEARCH_WEB_TOOL_CONFIG,
-    strategyContext: FUNDAMENTAL_STRATEGY_CONTEXT,
-    outputMode: "tool_result",
-    outputSchema: sentimentOutputSchema,
-  },
-];
-
-function fundamentalWorkersForMode(
-  processingMode: ProcessingMode,
-): readonly WorkerDefinition[] {
-  if (processingMode === "contract") return EVENT_FUNDAMENTAL_WORKERS;
-  if (processingMode === "catalyst" || processingMode === "manual")
-    return CATALYST_FUNDAMENTAL_WORKERS;
-  return STANDARD_FUNDAMENTAL_WORKERS;
-}
-
 export const FUNDAMENTAL_PHASE: AIPhase<
   AggregatorPlanState,
   FundamentalSignal
@@ -134,7 +104,6 @@ export const FUNDAMENTAL_PHASE: AIPhase<
     outputSchema: fundamentalSignalSchema,
     engines: [ENGINE_BINDINGS.fundamentalAggregatorFinalize],
   },
-  resolveWorkersForMode: fundamentalWorkersForMode,
   finalizeEngineIds: ["fundamental-aggregator"],
   initialState: (): AggregatorPlanState => ({}),
   stages: [
@@ -142,11 +111,7 @@ export const FUNDAMENTAL_PHASE: AIPhase<
       id: "workers",
       frontier: 0,
       resolveWorkers(ctx) {
-        return [
-          ...fundamentalWorkersForMode(
-            ctx.strategyContext.researchPosture.processingMode,
-          ),
-        ];
+        return [...resolvePipelinePhaseWorkers(ctx.pipelineId, "fundamental")];
       },
       buildTask(ctx) {
         return {

@@ -53,6 +53,7 @@ import { registerDefaultEngines } from "./signal/registry/register-default-engin
 import { assertValidPipelineDefinitionCatalog } from "./pipeline/effective-ai-phase-config";
 import { registerAllPhases } from "./pipeline/definitions";
 import { registerDefaultInstrumentAnalyses } from "./pipeline/implementations/registry/register-analyses";
+import "../experiences/index";
 import { ProviderRegistry } from "./llm/provider-registry";
 import { SearchRegistry } from "./search/search-registry";
 import { SecretsService } from "./infra/secrets-service";

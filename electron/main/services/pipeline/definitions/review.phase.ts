@@ -14,10 +14,13 @@ import {
   riskAssessorOutputSchema,
 } from "../../signal/aggregators/review-aggregator";
 import type { AIPhase } from "../phases/types";
+import { resolvePipelinePhaseWorkers } from "../pipeline-phase-worker-resolver";
 import {
   REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT,
   REVIEW_WORKERS_RISK_ASSESSOR_PROMPT,
+  ADVERSARIAL_REVIEWER_PROMPT,
 } from "../worker-prompts";
+import { adversarialReviewerOutputSchema } from "../../signal/aggregators/catalyst-two-call-aggregator";
 import type { AggregatorPlanState } from "./aggregator.types";
 
 export type { AggregatorPlanState };
@@ -34,7 +37,17 @@ const REVIEW_STRATEGY_CONTEXT = {
   maxGuidanceItems: 2,
 } as const;
 
-const REVIEW_WORKERS: readonly WorkerDefinition[] = [
+export const ADVERSARIAL_REVIEWER_WORKER: WorkerDefinition = {
+  id: "adversarial-reviewer",
+  prompt: ADVERSARIAL_REVIEWER_PROMPT,
+  tools: [],
+  engines: [ENGINE_BINDINGS.riskSummaryRead],
+  strategyContext: REVIEW_STRATEGY_CONTEXT,
+  outputMode: "tool_result",
+  outputSchema: adversarialReviewerOutputSchema,
+};
+
+export const REVIEW_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "conflict-detector",
     prompt: REVIEW_WORKERS_CONFLICT_DETECTOR_PROMPT,
@@ -64,15 +77,23 @@ export const REVIEW_PHASE: AIPhase<AggregatorPlanState, ReviewSignal> = {
     outputSchema: reviewSignalSchema,
     engines: [ENGINE_BINDINGS.reviewAggregatorFinalize],
   },
-  resolveWorkersForMode: () => REVIEW_WORKERS,
   finalizeEngineIds: ["review-aggregator"],
   initialState: (): AggregatorPlanState => ({}),
   stages: [
     {
       id: "workers",
       frontier: 0,
-      resolveWorkers: () => [...REVIEW_WORKERS],
+      resolveWorkers(ctx) {
+        return [...resolvePipelinePhaseWorkers(ctx.pipelineId, "review")];
+      },
       buildTask(ctx) {
+        if (ctx.input.analystOutput) {
+          return {
+            instrumentSymbol: ctx.input.instrumentSymbol,
+            analystOutput: ctx.input.analystOutput,
+            recentFailureHistory: ctx.input.recentFailureHistory ?? [],
+          };
+        }
         return {
           instrumentSymbol: ctx.input.instrumentSymbol,
           technicalSignal: JSON.stringify(

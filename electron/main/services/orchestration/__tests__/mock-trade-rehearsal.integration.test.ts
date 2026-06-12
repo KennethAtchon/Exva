@@ -20,6 +20,10 @@ import { CandidateValidationService } from "../policy/candidate-validation-servi
 import { TradingCycleContext } from "../cycle/trading-cycle-context";
 import { executeTradeCycle } from "../cycle/trade/trade-cycle";
 import * as runTradePipelineModule from "../cycle/trade/run-trade-pipeline";
+import {
+  MOCK_POLL_INTERVAL_MS,
+  TradeMonitor,
+} from "../lifecycle/trade-monitor";
 
 registerDefaultEngines({
   riskEngine: new RiskEngine(),
@@ -113,6 +117,66 @@ describe("mock trade rehearsal integration", () => {
       .listEvents()
       .filter((event) => event.level === "ERROR");
     expect(errorEvents).toHaveLength(0);
+  });
+
+  it("golden path: scripted pipeline opens a mock trade then monitor auto-closes it", async () => {
+    vi.useFakeTimers();
+    try {
+      const sessionId = "session-golden-path";
+      const harness = createHarness(sessionId);
+      const ctx = new TradingCycleContext(
+        sessionId,
+        harness.deps as unknown as import("../../session/session-types").OrchestratorDeps,
+      );
+      const cycleId = crypto.randomUUID();
+      const quote = await harness.mockAdapter.getMarketSnapshot("NVDA");
+
+      vi.spyOn(runTradePipelineModule, "runTradePipeline").mockResolvedValue({
+        status: "ok",
+        result: makeMockBuyPipeline(quote.price),
+      });
+
+      await executeTradeCycle(ctx, {
+        kind: "trade",
+        cycleId,
+        instrument: { symbol: "NVDA", instrumentClass: "stock" },
+      });
+
+      const opened = harness.listTrades()[0];
+      expect(opened?.status).toBe("open");
+
+      const closedEvents: string[] = [];
+      harness.deps.bus.on("trade_closed", (trade) => {
+        closedEvents.push(trade.id);
+      });
+
+      const monitor = new TradeMonitor(
+        sessionId,
+        harness.deps
+          .tradesRepo as unknown as import("../../../db/repositories/trades/trades-repo").TradesRepo,
+        harness.deps.statsRepo as never,
+        harness.deps.sessionRepo as never,
+        {
+          get: async () => harness.mockAdapter,
+        } as never,
+        harness.deps.strategyContextService as never,
+        harness.deps.capitalReservation as never,
+        () => 5000,
+        harness.deps.bus,
+        () => 10,
+        undefined,
+        harness.deps.instrumentNormalizer as never,
+        MOCK_POLL_INTERVAL_MS,
+      );
+
+      await vi.advanceTimersByTimeAsync(31_000);
+      await monitor["tick"]();
+
+      expect(harness.listTrades()[0]?.status).toBe("closed");
+      expect(closedEvents).toContain(opened?.id);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -221,6 +285,11 @@ function createHarness(
       },
       checkDuplicateClientOrder: () => false,
       checkInstrumentConflict: () => false,
+      listOpenAndPending: () =>
+        [...trades.values()].filter(
+          (trade) => trade.status === "open" || trade.status === "pending",
+        ),
+      updateHighWaterMark: vi.fn(),
     },
     tradeApprovalsRepo: {} as never,
     agentRunsRepo: { insert: vi.fn() },
@@ -262,6 +331,7 @@ function createHarness(
       convertApprovalToOpenOrder: vi.fn(),
       convertOrderToPosition: vi.fn(),
       releaseOnFailure: vi.fn(),
+      releaseOnClose: vi.fn(),
       listActiveBySession: () => [],
     },
     brokerRoutingRepo: {} as never,

@@ -29,6 +29,7 @@ export interface AIWorkerTrace {
 
 export interface AIPhaseContext {
   phase: PipelinePhase;
+  pipelineId: string;
   sessionId: string;
   cycleId: string | null;
   tradeId: string | null;

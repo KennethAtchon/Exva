@@ -68,6 +68,23 @@ const ENTER_NOW = {
   rawSummary: "Scripted immediate entry for mock E2E.",
 };
 
+const CATALYST_ANALYST_BUY = {
+  executionStrategy: "event_driven" as const,
+  action: "buy" as const,
+  confidence: 0.9,
+  entryTiming: "now" as const,
+  catalystStrength: 0.88,
+  priceReactionScore: 0.75,
+  reasoning: "Scripted catalyst analyst buy for mock E2E.",
+};
+
+const ADVERSARIAL_PROCEED = {
+  recommendation: "proceed" as const,
+  contradictionRisk: 0.1,
+  overallRisk: "low" as const,
+  reasoning: "Scripted adversarial review proceed for mock E2E.",
+};
+
 const SKIP_TIMER = {
   entryTiming: "skip" as const,
   entryPrice: null,
@@ -133,6 +150,8 @@ function tradePathOutputs(symbol: string): ScriptedWorkerOutputs {
     "risk-assessor": LOW_RISK,
     "signal-classifier": BUY_CLASSIFIER,
     "entry-timer": ENTER_NOW,
+    "catalyst-analyst": CATALYST_ANALYST_BUY,
+    "adversarial-reviewer": ADVERSARIAL_PROCEED,
     ...verificationWorkers(symbol),
   };
 }
@@ -164,6 +183,12 @@ const SCENARIO_WORKER_OUTPUTS: Record<
     },
     "signal-classifier": SKIP_CLASSIFIER,
     "entry-timer": SKIP_TIMER,
+    "adversarial-reviewer": {
+      recommendation: "skip" as const,
+      contradictionRisk: 0.85,
+      overallRisk: "high" as const,
+      reasoning: "Scripted adversarial skip for news_reversal.",
+    },
   }),
   stale_quote: tradePathOutputs,
   wide_spread: tradePathOutputs,

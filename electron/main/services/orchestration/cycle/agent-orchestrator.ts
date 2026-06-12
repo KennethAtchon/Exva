@@ -266,8 +266,8 @@ export class AgentOrchestrator {
         if (!deliveries) return;
         const detail = deliveries.getDetailedById(payload.deliveryId);
         if (!detail) return;
-        this.ctx.enqueueTask(
-          async () => {
+        void this.ctx.signalDeliveryQueue
+          .add(async () => {
             const deliveryId = payload.deliveryId;
             const signalId = payload.signalId;
             deliveries.updateStatus(deliveryId, {
@@ -302,8 +302,8 @@ export class AgentOrchestrator {
               );
               throw error;
             }
-          },
-          (error) => {
+          })
+          .catch((error) => {
             this.deps.signalDeliveryLifecycle?.expireIfStillProcessing(
               payload.deliveryId,
               this.sessionId,
@@ -316,8 +316,7 @@ export class AgentOrchestrator {
               `Signal-triggered selector cycle failed: ${error instanceof Error ? error.message : String(error)}`,
               "orchestrator",
             );
-          },
-        );
+          });
       },
     );
   }

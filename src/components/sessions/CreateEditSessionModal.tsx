@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useReducer } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
+import type { ExperienceSummary } from "@electron/shared/ipc/dto";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import type {
   BrokerAccountWithState,
@@ -46,6 +47,8 @@ type ModalDataState = {
   signalSources: Awaited<ReturnType<typeof api.listSignalSources>>["sources"];
   subscribedSourceIds: string[];
   signalSourcesLoaded: boolean;
+  experiences: ExperienceSummary[];
+  experiencesLoaded: boolean;
 };
 
 type ModalReqState = {
@@ -72,6 +75,8 @@ export const CreateEditSessionModal = ({
     signalSources: [],
     subscribedSourceIds: [],
     signalSourcesLoaded: false,
+    experiences: [],
+    experiencesLoaded: false,
   });
   const [req, dispatchReq] = useReducer(mergeReducer<ModalReqState>, {
     saving: false,
@@ -157,9 +162,12 @@ export const CreateEditSessionModal = ({
         if (cancelled) return;
         const filtered = sources.filter((source) => source.type !== "manual");
         if (!initialSession) {
+          const defaultExperienceType = "edgar_8k";
           dispatchData({
             signalSources: filtered,
-            subscribedSourceIds: [],
+            subscribedSourceIds: filtered
+              .filter((source) => source.type === defaultExperienceType)
+              .map((source) => source.id),
             signalSourcesLoaded: true,
           });
           return;
@@ -184,6 +192,24 @@ export const CreateEditSessionModal = ({
       cancelled = true;
     };
   }, [open, initialSession]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void api
+      .listExperiences()
+      .then((experiences) => {
+        if (cancelled) return;
+        dispatchData({ experiences, experiencesLoaded: true });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        dispatchData({ experiences: [], experiencesLoaded: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -243,6 +269,8 @@ export const CreateEditSessionModal = ({
     signalSources,
     subscribedSourceIds,
     signalSourcesLoaded,
+    experiences,
+    experiencesLoaded,
   } = data;
 
   const assignedBrokerIds = useMemo(
@@ -450,6 +478,41 @@ export const CreateEditSessionModal = ({
                 caption="The operator-facing shell for this session."
               />
               <div className={sectionBodyClass}>
+                {!initialSession &&
+                experiencesLoaded &&
+                experiences.length > 0 ? (
+                  <Field label="Experience">
+                    <ShadcnSelect
+                      value={form.experienceId ?? experiences[0]?.id ?? ""}
+                      onValueChange={(experienceId) => {
+                        const experience = experiences.find(
+                          (entry) => entry.id === experienceId,
+                        );
+                        const matchingSourceIds = experience
+                          ? signalSources
+                              .filter(
+                                (source) =>
+                                  source.type === experience.signalSourceType,
+                              )
+                              .map((source) => source.id)
+                          : [];
+                        setForm((prev) => ({
+                          ...prev,
+                          experienceId,
+                          subscribedSourceIds: matchingSourceIds,
+                          instrumentScope:
+                            experience?.signalSourceType === "timer"
+                              ? "SPY"
+                              : prev.instrumentScope,
+                        }));
+                      }}
+                      options={experiences.map((experience) => ({
+                        value: experience.id,
+                        label: experience.displayName,
+                      }))}
+                    />
+                  </Field>
+                ) : null}
                 <div className={twoColumnGridClass}>
                   <Field label="Session name">
                     <input
@@ -1002,6 +1065,7 @@ function defaultInput(): SessionCreateInput {
   return {
     name: "",
     objective: "",
+    experienceId: "edgar-catalyst",
     selectionMode: "manual_shortlist",
     instrumentClasses: ["stock"],
     instrumentScope: "SPY,QQQ",

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { TradeSignal } from "@electron/shared/ai/trade-signals";
 import { registerSignalEngine } from "./signal-engine-registry";
 import { aggregateTechnicalSignal } from "../aggregators/technical-aggregator";
 import { aggregateFundamentalSignal } from "../aggregators/fundamental-aggregator";
@@ -94,6 +95,14 @@ export function registerTradeSignalEngines(): void {
     inputSchema: z.any(),
     outputSchema: z.any(),
     run: (input) => computeMeanReversionSignal(input as never),
+  });
+
+  registerSignalEngine({
+    id: "catalyst-trade-decision",
+    kind: "policy",
+    inputSchema: z.any(),
+    outputSchema: z.any(),
+    run: (input: unknown) => (input as { signal: TradeSignal }).signal,
   });
 
   registerSignalEngine({

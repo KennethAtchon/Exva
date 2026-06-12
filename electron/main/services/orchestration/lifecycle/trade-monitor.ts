@@ -15,6 +15,9 @@ const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   custom: 300_000,
 };
 
+/** Fast poll for 15m/30m primary bars — prompt stop/TP reaction (audit §8.2). */
+const INTRADAY_POLL_MS = 15_000;
+
 export const MOCK_POLL_INTERVAL_MS = 10_000;
 
 export class TradeMonitor {
@@ -57,7 +60,7 @@ export class TradeMonitor {
       .listOpenAndPending(this.sessionId)
       .filter((trade) => trade.status === "open");
     const strategyContext = this.strategyContextService.get(this.sessionId);
-    this.ensurePollInterval(strategyContext.timeframe.holdingStyle);
+    this.ensurePollInterval(strategyContext.timeframe);
 
     await this.enforceMaxHoldDays(
       openTrades,
@@ -90,7 +93,7 @@ export class TradeMonitor {
 
       // Get OHLCV for ATR — uses getOhlcv if available; falls back to empty for adapters that don't implement it
       const ohlcvTimeframe = this.resolveOhlcvTimeframe(
-        strategyContext.timeframe.holdingStyle,
+        strategyContext.timeframe,
       );
       let bars: { high: number; low: number; close: number }[] = [];
       if (adapter.getOhlcv) {
@@ -219,8 +222,13 @@ export class TradeMonitor {
     }
   }
 
-  private resolveOhlcvTimeframe(holdingStyle: string): "1h" | "4h" | "1d" {
-    if (holdingStyle === "multi_day_swing") return "4h";
+  private resolveOhlcvTimeframe(timeframe: {
+    holdingStyle: string;
+    primaryTradingTimeframe?: string;
+  }): "15m" | "30m" | "1h" | "4h" | "1d" {
+    const primary = timeframe.primaryTradingTimeframe;
+    if (primary === "15m" || primary === "30m") return primary;
+    if (timeframe.holdingStyle === "multi_day_swing") return "4h";
     return "1d";
   }
 
@@ -238,14 +246,28 @@ export class TradeMonitor {
 
   private resolvePollIntervalMs(): number {
     if (this.overridePollIntervalMs != null) return this.overridePollIntervalMs;
-    const holdingStyle = this.strategyContextService.get(this.sessionId)
-      .timeframe.holdingStyle;
-    return POLL_INTERVAL_MS[holdingStyle] ?? POLL_INTERVAL_MS.multi_day_swing;
+    return this.pollIntervalForTimeframe(
+      this.strategyContextService.get(this.sessionId).timeframe,
+    );
   }
 
-  private ensurePollInterval(holdingStyle: HoldingStyle): void {
-    const next =
-      POLL_INTERVAL_MS[holdingStyle] ?? POLL_INTERVAL_MS.multi_day_swing;
+  private pollIntervalForTimeframe(timeframe: {
+    holdingStyle: HoldingStyle;
+    primaryTradingTimeframe?: string;
+  }): number {
+    const primary = timeframe.primaryTradingTimeframe;
+    if (primary === "15m" || primary === "30m") return INTRADAY_POLL_MS;
+    return (
+      POLL_INTERVAL_MS[timeframe.holdingStyle] ??
+      POLL_INTERVAL_MS.multi_day_swing
+    );
+  }
+
+  private ensurePollInterval(timeframe: {
+    holdingStyle: HoldingStyle;
+    primaryTradingTimeframe?: string;
+  }): void {
+    const next = this.pollIntervalForTimeframe(timeframe);
     if (next === this.pollIntervalMs || !this.timer) return;
     clearInterval(this.timer);
     this.pollIntervalMs = next;

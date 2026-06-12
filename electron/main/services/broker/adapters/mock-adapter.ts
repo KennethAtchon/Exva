@@ -39,10 +39,14 @@ export interface MockOhlcvBar {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 
+const FIFTEEN_MIN_MS = 15 * 60 * 1000;
+
 const BAR_MS: Record<string, number> = {
   "1d": DAY_MS,
   "4h": 4 * HOUR_MS,
   "1h": HOUR_MS,
+  "30m": 30 * 60 * 1000,
+  "15m": FIFTEEN_MIN_MS,
 };
 
 const SCENARIO_DRIFT: Record<MockScenarioBias, number> = {

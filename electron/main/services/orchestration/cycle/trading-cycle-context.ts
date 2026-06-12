@@ -31,6 +31,8 @@ const MAX_CONSECUTIVE_HARD_FAILURES = 3;
 
 export class TradingCycleContext {
   readonly queue = new PQueue({ concurrency: 1 });
+  /** FIFO signal delivery processing — one signal-driven selector cycle at a time. */
+  readonly signalDeliveryQueue = new PQueue({ concurrency: 1 });
   readonly approvalCallbacks = new Map<string, (approved: boolean) => void>();
   readonly pendingApprovalIds = new Map<string, string>();
   readonly cycleContexts = new Map<string, CycleContext>();

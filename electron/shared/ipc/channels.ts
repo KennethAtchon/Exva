@@ -32,6 +32,9 @@ export const channels = {
       export: "autopsy:period:export",
     },
   },
+  experiences: {
+    list: "experiences:list",
+  },
   session: {
     start: "session:start",
     pause: "session:pause",

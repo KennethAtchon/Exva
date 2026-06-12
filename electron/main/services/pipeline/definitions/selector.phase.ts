@@ -3,7 +3,11 @@ import type { WorkerDefinition } from "@electron/shared/ai/ai-phase";
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
 import { AppError } from "@electron/shared/infra/errors";
 import { BUILT_IN_DUCKDUCKGO_PROVIDER_ID } from "@electron/shared/instruments/search-providers";
-import type { ProcessingMode } from "@electron/shared/domain";
+import type { SignalSourceType } from "@electron/shared/domain";
+import {
+  resolveSelectorWorkerIds,
+  resolveWorkersByIds,
+} from "../worker-registry";
 import type { LLMRunResult } from "../../llm/llm-types";
 import type { AIPhase } from "../phases/types";
 import type { FailureHistoryEntry } from "../../orchestration/cycle/runtime-outcome";
@@ -79,7 +83,7 @@ const LIQUIDITY_GATE_STRATEGY_CONTEXT = {
   maxGuidanceItems: 2,
 } as const;
 
-const CATALYST_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
+export const CATALYST_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   {
     id: "catalyst-feed-scout",
     prompt: SELECTOR_WORKERS_CATALYST_FEED_SCOUT_PROMPT,
@@ -92,7 +96,7 @@ const CATALYST_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   },
 ];
 
-const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
+export const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   {
     id: "web-scout",
     prompt: SELECTOR_WORKERS_WEB_SCOUT_PROMPT,
@@ -106,7 +110,7 @@ const STANDARD_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   },
 ];
 
-const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
+export const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
   {
     id: "event-web-scout",
     prompt: SELECTOR_WORKERS_EVENT_WEB_SCOUT_PROMPT,
@@ -128,15 +132,6 @@ const EVENT_SELECTOR_DISCOVERY: readonly WorkerDefinition[] = [
     outputSchema: candidateOutputSchema,
   },
 ];
-
-function selectorDiscoveryWorkersForMode(
-  processingMode: ProcessingMode,
-): readonly WorkerDefinition[] {
-  if (processingMode === "contract") return EVENT_SELECTOR_DISCOVERY;
-  if (processingMode === "catalyst" || processingMode === "manual")
-    return CATALYST_SELECTOR_DISCOVERY;
-  return STANDARD_SELECTOR_DISCOVERY;
-}
 
 function verificationWorkers(candidate: SelectorCandidate): WorkerDefinition[] {
   return [
@@ -190,7 +185,6 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
   entryEngineIds: ["signal-seeded", "manual-shortlist"],
   catalog: { outputMode: "tool_terminal" },
   finalizeEngineIds: ["selector-risk-filter", "selector-submission-builder"],
-  resolveWorkersForMode: selectorDiscoveryWorkersForMode,
   summarize: summarizeSelectorOutput,
   initialState(ctx) {
     const selectionInstructions = ctx.input.selectionInstructions;
@@ -215,11 +209,11 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       id: "discovery",
       frontier: 0,
       resolveWorkers(ctx) {
-        return [
-          ...selectorDiscoveryWorkersForMode(
-            ctx.strategyContext.researchPosture.processingMode,
-          ),
-        ];
+        const trigger = ctx.input.signalTrigger as
+          | { sourceType?: SignalSourceType }
+          | undefined;
+        const ids = resolveSelectorWorkerIds(trigger?.sourceType);
+        return [...resolveWorkersByIds(ids)];
       },
       buildTask(ctx) {
         return {

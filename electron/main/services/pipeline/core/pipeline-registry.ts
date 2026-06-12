@@ -107,6 +107,9 @@ function validatePipelineDefinition(
   for (const workerId of workerIds) dfs(workerId);
 }
 
-for (const { phase, definition } of listPhaseCatalog()) {
-  validatePipelineDefinition(phase, definition);
+/** Called at boot after workers and pipelines are registered. */
+export function assertValidPipelineDefinitionRegistry(): void {
+  for (const { phase, definition } of listPhaseCatalog()) {
+    validatePipelineDefinition(phase, definition);
+  }
 }

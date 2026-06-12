@@ -14,10 +14,10 @@ export const RULES_MEAN_REVERSION_EXPERIENCE: ExperienceDescriptor = {
   },
   pipeline: RULES_MEAN_REVERSION_PIPELINE,
   presets: {
-    posturePresetId: "manual",
-    rulesPresetId: "mean_reversion",
+    posturePresetId: "manual_watchlist",
+    rulesPresetId: "catalyst_entry",
     riskPresetId: "moderate",
-    timeframePresetId: "intraday",
+    timeframePresetId: "swing",
   },
   mockFixtures: {
     defaultScenario: "clean_breakout",

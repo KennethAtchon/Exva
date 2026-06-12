@@ -64,6 +64,22 @@ export class MarketHoursService {
         return "weekend_utc_market_closed";
       }
     }
+    if (
+      instrument.instrumentClass === "stock" ||
+      instrument.instrumentClass === "futures"
+    ) {
+      const ny = new Date(
+        now.toLocaleString("en-US", { timeZone: "America/New_York" }),
+      );
+      const hour = ny.getHours();
+      const minute = ny.getMinutes();
+      const minutes = hour * 60 + minute;
+      const open = 9 * 60 + 30;
+      const close = 16 * 60;
+      if (minutes < open || minutes >= close) {
+        return "exchange_closed";
+      }
+    }
     return null;
   }
 }

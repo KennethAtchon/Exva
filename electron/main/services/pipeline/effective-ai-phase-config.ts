@@ -13,13 +13,17 @@ import type { SessionStrategyContext } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/infra/errors";
 import { requireEngine } from "../signal/registry/signal-engine-registry";
 import { SUPPORTED_TOOL_IDS } from "./worker-tools/worker-tool-factory";
-import { listPipelineDefinitions } from "./core/pipeline-registry";
+import {
+  assertValidPipelineDefinitionRegistry,
+  listPipelineDefinitions,
+} from "./core/pipeline-registry";
 import type { AIPhaseConfigResolver } from "./ai-phase-config-resolver";
 import { resolvePhaseWorkers } from "./definitions/phase-catalog";
 import { getAIPhase } from "./phases/registry";
 import { resolveEffectivePlanStages } from "./implementations/registry/analysis-resolver";
 
-export const DEFAULT_PIPELINE_ID = "default-trade-cycle";
+export { DEFAULT_PIPELINE_ID } from "./pipeline-constants";
+import { DEFAULT_PIPELINE_ID } from "./pipeline-constants";
 
 const SUPPORTED_TOOL_ID_SET = new Set<string>(SUPPORTED_TOOL_IDS);
 
@@ -33,10 +37,12 @@ export interface ResolveEffectivePipelineConfigOptions {
 export function resolveEffectivePipelineConfig(
   opts: ResolveEffectivePipelineConfigOptions,
 ): EffectivePipelineConfig {
+  const pipelineId = opts.pipelineId ?? DEFAULT_PIPELINE_ID;
   const stages = listPipelineDefinitions().map(({ phase, definition }) =>
     resolveEffectiveStage({
       phase,
       definition,
+      pipelineId,
       sessionId: opts.sessionId,
       phaseConfigResolver: opts.phaseConfigResolver,
       strategyContext: opts.strategyContext ?? null,
@@ -118,48 +124,40 @@ export function assertValidEffectivePipelineConfig(
 }
 
 export function assertValidPipelineDefinitionCatalog(): void {
+  assertValidPipelineDefinitionRegistry();
   const errors: string[] = [];
-  const processingModes: Array<
-    SessionStrategyContext["researchPosture"]["processingMode"]
-  > = ["catalyst", "contract"];
-
   for (const { phase, definition } of listPipelineDefinitions()) {
     for (const binding of definition.engines ?? []) {
       validateEngineBinding(errors, `Phase '${phase}'`, binding);
     }
 
-    const variantKeys =
-      phase === "selector" || phase === "technical" || phase === "fundamental"
-        ? processingModes
-        : (["default"] as const);
-
-    for (const variantKey of variantKeys) {
-      const workers = workersForEffectiveStage(
-        phase,
-        definition,
-        variantKey === "default" ? "catalyst" : variantKey,
-      );
-      if (workers.length === 0) {
-        errors.push(`Phase '${phase}' variant '${variantKey}' has no workers.`);
+    for (const pipelineId of [
+      DEFAULT_PIPELINE_ID,
+      "edgar-8k-cycle",
+      "rules-mean-reversion-cycle",
+    ]) {
+      const workers = workersForEffectiveStage(phase, pipelineId);
+      if (workers.length === 0 && phase !== "decision") {
+        continue;
       }
       for (const worker of workers) {
         for (const toolId of worker.tools) {
           if (!SUPPORTED_TOOL_ID_SET.has(toolId)) {
             errors.push(
-              `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}' references unknown tool '${toolId}'.`,
+              `Worker '${worker.id}' in phase '${phase}' pipeline '${pipelineId}' references unknown tool '${toolId}'.`,
             );
           }
         }
         for (const binding of worker.engines ?? []) {
           validateEngineBinding(
             errors,
-            `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}'`,
+            `Worker '${worker.id}' in phase '${phase}' pipeline '${pipelineId}'`,
             binding,
           );
         }
         if (!worker.prompt.trim()) {
           errors.push(
-            `Worker '${worker.id}' in phase '${phase}' variant '${variantKey}' has an empty prompt.`,
+            `Worker '${worker.id}' in phase '${phase}' pipeline '${pipelineId}' has an empty prompt.`,
           );
         }
       }
@@ -178,6 +176,7 @@ export function assertValidPipelineDefinitionCatalog(): void {
 function resolveEffectiveStage(input: {
   phase: PipelinePhase;
   definition: PipelineDefinition;
+  pipelineId: string;
   sessionId: string;
   phaseConfigResolver: AIPhaseConfigResolver;
   strategyContext: SessionStrategyContext | null;
@@ -185,11 +184,7 @@ function resolveEffectiveStage(input: {
   const processingMode =
     input.strategyContext?.researchPosture.processingMode ?? "catalyst";
   const plan = getAIPhase(input.phase);
-  const workers = workersForEffectiveStage(
-    input.phase,
-    input.definition,
-    processingMode,
-  );
+  const workers = workersForEffectiveStage(input.phase, input.pipelineId);
   const schedulingMode = plan
     ? plan.stages.length > 1
       ? "dependency_graph"
@@ -275,10 +270,9 @@ function resolveEffectiveWorker(input: {
 
 function workersForEffectiveStage(
   phase: PipelinePhase,
-  _definition: PipelineDefinition,
-  processingMode: SessionStrategyContext["researchPosture"]["processingMode"],
+  pipelineId: string,
 ): readonly WorkerDefinition[] {
-  return resolvePhaseWorkers(phase, processingMode);
+  return resolvePhaseWorkers(phase, pipelineId);
 }
 
 function variantKeyForPhase(

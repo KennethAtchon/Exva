@@ -458,6 +458,8 @@ CREATE TABLE `sessions` (
 	`instrument_scope` text NOT NULL,
 	`default_search_provider_id` text,
 	`execution_mode` text DEFAULT 'paper_only' NOT NULL,
+	`experience_id` text DEFAULT 'edgar-catalyst' NOT NULL,
+	`overrides_json` text,
 	`live_readiness_acknowledged_at` text,
 	`created_at` text NOT NULL,
 	`updated_at` text NOT NULL,

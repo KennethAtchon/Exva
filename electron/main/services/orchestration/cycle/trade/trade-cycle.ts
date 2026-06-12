@@ -15,6 +15,7 @@ import {
   requirePipelineAiResults,
   runTradePipeline,
 } from "./run-trade-pipeline";
+import { completeSignalDeliveryFromContext } from "../../../signals/complete-signal-delivery";
 
 function tradeCycleRetry(
   ctx: TradingCycleContext,
@@ -68,6 +69,15 @@ export async function executeTradeCycle(
     const pipeline = await runTradePipeline(ctx, context, retry);
     if (pipeline.status === "paused") return;
     if (pipeline.status === "failed") {
+      const dropReason =
+        pipeline.stage === "risk_gate"
+          ? "risk_gate_rejected"
+          : pipeline.stage === "broker_order"
+            ? "order_policy_rejected"
+            : `${pipeline.stage}_failed`;
+      completeSignalDeliveryFromContext(ctx, context, "rejected", {
+        dropReason,
+      });
       finishWithoutOpenPosition(
         ctx,
         `${pipeline.stage} failed; scheduling selector retry.`,
@@ -112,16 +122,13 @@ export async function executeTradeCycle(
         "orchestrator",
         context.cycleId,
       );
-      if (context.signalDeliveryId && context.signalId) {
-        ctx.deps.signalDeliveryLifecycle?.complete(context.signalDeliveryId, {
-          sessionId: ctx.sessionId,
-          signalId: context.signalId,
-          status: "rejected",
-          dropReason: isConfidenceNoTrade
-            ? "confidence_below_threshold"
+      completeSignalDeliveryFromContext(ctx, context, "rejected", {
+        dropReason: isConfidenceNoTrade
+          ? "confidence_below_threshold"
+          : decision.output.reasoning.includes("stale")
+            ? "stale"
             : "decision_skip",
-        });
-      }
+      });
       finishWithoutOpenPosition(ctx, "No-trade cycle complete", "no_trade");
       return;
     }
@@ -156,6 +163,9 @@ export async function executeTradeCycle(
     const { approved, approvalId: approvalIdForCapital } =
       await runApprovalAndCapital(ctx, context, trade, decision.output);
     if (!approved) {
+      completeSignalDeliveryFromContext(ctx, context, "rejected", {
+        dropReason: "approval_rejected",
+      });
       finishWithoutOpenPosition(ctx, "Trade not approved", "no_trade");
       return;
     }
@@ -176,6 +186,9 @@ export async function executeTradeCycle(
       }
       ctx.deps.tradesRepo.updateStatus(trade.id, "rejected", 0);
       ctx.deps.bus.emit("trade_closed", ctx.deps.tradesRepo.require(trade.id));
+      completeSignalDeliveryFromContext(ctx, context, "rejected", {
+        dropReason: "broker_order_failed",
+      });
       finishWithoutOpenPosition(
         ctx,
         "Broker order failed",

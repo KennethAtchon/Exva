@@ -5,6 +5,11 @@ import {
   earningsOutputSchema,
   sentimentOutputSchema,
 } from "../../../signal/aggregators/fundamental-aggregator";
+import {
+  catalystAnalystOutputSchema,
+  type CatalystAnalystOutput,
+} from "../../../signal/aggregators/catalyst-two-call-aggregator";
+import { fundamentalSignalSchema } from "@electron/shared/ai/trade-signals";
 import { runEngineForWorker } from "../../execution/engine-prompt-injector";
 import type { AggregatorPlanState } from "../../definitions/aggregator.types";
 import { registerEngine, type FinalizerEngine } from "../registry";
@@ -17,6 +22,21 @@ const fundamentalAggregatorEngine: FinalizerEngine<
   id: "fundamental-aggregator",
   kind: "finalizer",
   async run(ctx, _state, workerResults) {
+    const analyst = pickWorkerOutput(
+      workerResults,
+      catalystAnalystOutputSchema,
+    ) as CatalystAnalystOutput | null;
+    if (analyst) {
+      const symbol = ctx.input.instrumentSymbol as string;
+      return fundamentalSignalSchema.parse({
+        symbol,
+        catalystScore: analyst.catalystStrength,
+        earningsScore: analyst.priceReactionScore,
+        catalystSummary: analyst.reasoning,
+        rawSummary: JSON.stringify({ kind: "catalyst-analyst", ...analyst }),
+      });
+    }
+
     const workerPayload = {
       earnings: pickWorkerOutput(workerResults, earningsOutputSchema),
       catalyst: pickWorkerOutput(workerResults, catalystOutputSchema),

@@ -46,9 +46,23 @@ export interface WorkspaceViewResponse {
   preferences: WorkspacePreferences;
 }
 
+export interface ExperienceSummary {
+  id: string;
+  displayName: string;
+  signalSourceType: string;
+  pipelineId: string;
+  presets: {
+    posturePresetId: string;
+    rulesPresetId: string;
+    riskPresetId: string;
+    timeframePresetId: string;
+  };
+}
+
 export interface SessionCreateInput {
   name: string;
   objective: string;
+  experienceId?: string;
   selectionMode: SelectionMode;
   instrumentClasses: InstrumentClass[];
   instrumentScope: string;

@@ -14,8 +14,8 @@ export const EDGAR_CATALYST_EXPERIENCE: ExperienceDescriptor = {
   },
   pipeline: EDGAR_8K_PIPELINE,
   presets: {
-    posturePresetId: "catalyst",
-    rulesPresetId: "catalyst",
+    posturePresetId: "edgar_catalyst",
+    rulesPresetId: "catalyst_entry",
     riskPresetId: "moderate",
     timeframePresetId: "catalyst",
   },

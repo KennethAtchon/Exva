@@ -284,6 +284,7 @@ describe("selector input builders", () => {
       ["selector-scope", "broker-coverage"],
       {
         phase: "selector",
+        pipelineId: "default-trade-cycle",
         sessionId: session.id,
         cycleId: null,
         tradeId: null,

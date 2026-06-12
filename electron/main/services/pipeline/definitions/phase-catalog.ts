@@ -18,13 +18,12 @@ import type {
   PipelinePhase,
   WorkerDefinition,
 } from "@electron/shared/ai/ai-phase";
-import type { ProcessingMode } from "@electron/shared/domain";
 import type { AIPhase } from "../phases/types";
 import { ALL_PHASES } from "./all-phases";
-
-type WorkerResolver = (
-  processingMode: ProcessingMode,
-) => readonly WorkerDefinition[];
+import { requirePipelineDescriptor } from "../implementations/registry/pipeline-descriptor-store";
+import { DEFAULT_PIPELINE_ID } from "../pipeline-constants";
+import { resolvePipelinePhaseWorkers } from "../pipeline-phase-worker-resolver";
+import { PIPELINE_WORKER_SETS, resolveWorkersByIds } from "../worker-registry";
 
 function requireCatalog(
   phase: AIPhase<unknown, unknown>,
@@ -38,41 +37,41 @@ function requireCatalog(
   return phase.catalog;
 }
 
-function requireResolver(phase: AIPhase<unknown, unknown>): WorkerResolver {
-  if (!phase.resolveWorkersForMode) {
-    throw new Error(
-      `Phase '${phase.phase}' must declare resolveWorkersForMode to participate in the phase catalog.`,
-    );
-  }
-  return phase.resolveWorkersForMode as WorkerResolver;
-}
-
 /**
- * Indexes ALL_PHASES by phase ID. Built eagerly — any missing catalog or
- * resolveWorkersForMode field throws immediately at module load time.
+ * Indexes ALL_PHASES by phase ID. Built eagerly — any missing catalog field
+ * throws immediately at module load time.
  */
-const PHASE_INDEX = new Map<
-  PipelinePhase,
-  { phase: AIPhase<unknown, unknown>; resolver: WorkerResolver }
->(ALL_PHASES.map((p) => [p.phase, { phase: p, resolver: requireResolver(p) }]));
+const PHASE_INDEX = new Map<PipelinePhase, AIPhase<unknown, unknown>>(
+  ALL_PHASES.map((p) => [p.phase, p]),
+);
 
 // Validate catalog fields eagerly — catch missing fields at module load.
-for (const { phase } of PHASE_INDEX.values()) {
+for (const phase of PHASE_INDEX.values()) {
   requireCatalog(phase);
 }
 
 /**
- * Resolves the workers a phase will run for a given discovery mode.
- *
- * Delegates to the AIPhase's resolveWorkersForMode(), which is the same
- * function the runtime's stages[].resolveWorkers() calls — so execution and
- * metadata always agree.
+ * Resolves workers for a pipeline phase from the pipeline descriptor graph.
  */
 export function resolvePhaseWorkers(
   phase: PipelinePhase,
-  processingMode: ProcessingMode,
+  pipelineId = DEFAULT_PIPELINE_ID,
 ): readonly WorkerDefinition[] {
-  return PHASE_INDEX.get(phase)?.resolver(processingMode) ?? [];
+  try {
+    if (phase === "selector") {
+      try {
+        const descriptor = requirePipelineDescriptor(pipelineId);
+        const ids = descriptor.selectorWorkerIds ?? [];
+        if (ids.length > 0) return resolveWorkersByIds(ids);
+      } catch {
+        // Registry not populated yet at module load — fall back to default graph.
+      }
+      return resolveWorkersByIds(PIPELINE_WORKER_SETS.selector.standard);
+    }
+    return resolvePipelinePhaseWorkers(pipelineId, phase);
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -82,16 +81,15 @@ export function resolvePhaseWorkers(
  * via resolvePhaseWorkers(phase, actualDiscoveryMode).
  */
 export function getPhaseCatalog(phase: PipelinePhase): PipelineDefinition {
-  const entry = PHASE_INDEX.get(phase);
-  if (!entry) throw new Error(`Phase '${phase}' is not in ALL_PHASES`);
-  const { phase: p, resolver } = entry;
+  const p = PHASE_INDEX.get(phase);
+  if (!p) throw new Error(`Phase '${phase}' is not in ALL_PHASES`);
   const cat = requireCatalog(p);
   return {
     phase: p.phase,
     outputMode: cat.outputMode,
     ...(cat.outputSchema !== undefined && { outputSchema: cat.outputSchema }),
     ...(cat.engines !== undefined && { engines: cat.engines }),
-    workers: [...resolver("catalyst")],
+    workers: [...resolvePhaseWorkers(phase, DEFAULT_PIPELINE_ID)],
     persistence: {
       outputSchemaName: p.outputSchemaName ?? null,
       traceMode: cat.traceMode ?? "aggregate_workers",

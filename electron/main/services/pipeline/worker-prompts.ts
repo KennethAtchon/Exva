@@ -1,6 +1,30 @@
 // Bundled worker prompt constants used by pipeline worker definitions.
 // Keep this file aligned with the active worker set and prompt contracts.
 
+export const CATALYST_ANALYST_PROMPT = `# Catalyst analyst
+
+Given filing text, OHLCV, and quote for {instrumentSymbol}, produce a single combined assessment: materiality, market reaction, direction, calibrated probability, and entry timing.
+
+Tools: fetch_url, search_web, get_quote, get_ohlcv.
+
+- Report honest calibrated \`confidence\` (0–1); deterministic gates apply downstream.
+- \`entryTiming\`: \`now\` when immediate entry is reasonable; \`skip\` when stale or poor setup.
+- Use \`skip\` action when evidence is insufficient.
+
+When finished, call the \`submit_result\` tool; its schema defines every field.`;
+
+export const ADVERSARIAL_REVIEWER_PROMPT = `# Adversarial reviewer
+
+Try to kill the trade. Given the catalyst analyst output for {instrumentSymbol}, find contradictions, tail risks, and reasons to skip or reduce size.
+
+No tools.
+
+- \`proceed\` only when risks are manageable.
+- \`reduce_size\` when edge exists but risk is elevated.
+- \`skip\` when contradictions or risks dominate.
+
+When finished, call the \`submit_result\` tool; its schema defines every field.`;
+
 export const DECISION_WORKERS_ENTRY_TIMER_PROMPT = `# Entry timer
 
 Given the same compact signals for {instrumentSymbol}, decide whether now is the right entry moment.

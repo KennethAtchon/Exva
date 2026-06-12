@@ -14,6 +14,8 @@ import type {
 
 const ALPACA_DATA_URL = "https://data.alpaca.markets";
 const ALPACA_TIMEFRAME_MAP: Record<string, string> = {
+  "15m": "15Min",
+  "30m": "30Min",
   "1h": "1Hour",
   "4h": "4Hour",
   "1d": "1Day",

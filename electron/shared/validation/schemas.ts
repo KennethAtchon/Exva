@@ -103,7 +103,7 @@ const stopLossTypeSchema = z.enum([
   "broker_native_trailing",
   "none",
 ]);
-const tradingTimeframeSchema = z.enum(["30m", "1h", "4h", "1d", "1w"]);
+const tradingTimeframeSchema = z.enum(["15m", "30m", "1h", "4h", "1d", "1w"]);
 const holdingStyleSchema = z.enum([
   "multi_day_swing",
   "weeks_position",
@@ -144,6 +144,7 @@ export const sessionCreateInputSchema = z.object({
     .array(z.string().min(1))
     .max(1, "A session can subscribe to only one signal source.")
     .optional(),
+  experienceId: z.string().min(1).optional(),
 });
 
 const sessionStrategyPayloadSchema = z.object({

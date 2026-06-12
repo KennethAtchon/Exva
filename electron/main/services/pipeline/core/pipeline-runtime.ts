@@ -39,6 +39,7 @@ import { AIPhaseRunner } from "../phases/interpreter";
 import { requireAIPhase } from "../phases/registry";
 import type { AIPhaseServices } from "../phases/services";
 import { InstrumentAnalysisRunner } from "../analysis/interpreter";
+import { resolvePipelineIdForSource } from "../implementations/registry/pipeline-router";
 import { requireInstrumentAnalysis } from "../analysis/registry";
 import { requireAnalysis } from "../implementations/registry/analysis-resolver";
 import type { InstrumentAnalysisServices } from "../analysis/services";
@@ -71,6 +72,7 @@ export interface PipelineRuntimeDeps {
 
 export interface RunPhaseOptions<TInput = Record<string, unknown>> {
   phase: PipelinePhase;
+  pipelineId?: string;
   sessionId: string;
   input: TInput;
   cycleId?: string | null;
@@ -161,6 +163,7 @@ export class PipelineRuntime {
       runAIPhase: (phase, input) =>
         this.runAIPhase({
           phase,
+          pipelineId: cyclePlanId,
           sessionId: opts.sessionId,
           input,
           cycleId: opts.cycleId,
@@ -189,8 +192,17 @@ export class PipelineRuntime {
   > {
     const plan = requireAnalysis(planId);
     if (plan.kind === "phase") {
+      const trigger = (
+        opts.input as {
+          signalTrigger?: {
+            sourceType?: import("@electron/shared/domain").SignalSourceType;
+          };
+        }
+      )?.signalTrigger;
+      const pipelineId = resolvePipelineIdForSource(trigger?.sourceType);
       return this.runAIPhase({
         phase: plan.id,
+        pipelineId,
         sessionId: opts.sessionId,
         cycleId: opts.cycleId,
         tradeId: opts.tradeId ?? null,
@@ -363,6 +375,7 @@ export class PipelineRuntime {
 
     const result = await this.planInterpreter.run<TOutput>({
       plan,
+      pipelineId: opts.pipelineId ?? DEFAULT_PIPELINE_ID,
       sessionId: opts.sessionId,
       cycleId: opts.cycleId ?? null,
       tradeId: opts.tradeId ?? null,

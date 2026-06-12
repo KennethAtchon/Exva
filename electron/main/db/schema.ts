@@ -63,6 +63,8 @@ export const sessions = sqliteTable(
       },
     ),
     executionMode: text("execution_mode").notNull().default("paper_only"),
+    experienceId: text("experience_id").notNull().default("edgar-catalyst"),
+    overridesJson: text("overrides_json"),
     liveReadinessAcknowledgedAt: text("live_readiness_acknowledged_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),

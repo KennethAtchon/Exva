@@ -15,6 +15,7 @@ import {
   signalClassifierOutputSchema,
 } from "../../signal/aggregators/trade-signal-aggregator";
 import type { AIPhase } from "../phases/types";
+import { resolvePipelinePhaseWorkers } from "../pipeline-phase-worker-resolver";
 import {
   DECISION_WORKERS_ENTRY_TIMER_PROMPT,
   DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
@@ -35,7 +36,7 @@ const DECISION_STRATEGY_CONTEXT = {
   maxGuidanceItems: 2,
 } as const;
 
-const DECISION_WORKERS: readonly WorkerDefinition[] = [
+export const DECISION_WORKERS: readonly WorkerDefinition[] = [
   {
     id: "signal-classifier",
     prompt: DECISION_WORKERS_SIGNAL_CLASSIFIER_PROMPT,
@@ -65,14 +66,15 @@ export const DECISION_PHASE: AIPhase<AggregatorPlanState, TradeSignal> = {
     outputSchema: tradeSignalSchema,
     engines: [ENGINE_BINDINGS.tradeSignalAggregatorFinalize],
   },
-  resolveWorkersForMode: () => DECISION_WORKERS,
   finalizeEngineIds: ["trade-signal-aggregator"],
   initialState: (): AggregatorPlanState => ({}),
   stages: [
     {
       id: "workers",
       frontier: 0,
-      resolveWorkers: () => [...DECISION_WORKERS],
+      resolveWorkers(ctx) {
+        return [...resolvePipelinePhaseWorkers(ctx.pipelineId, "decision")];
+      },
       buildTask(ctx) {
         return {
           instrumentSymbol: ctx.input.instrumentSymbol,

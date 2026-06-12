@@ -22,6 +22,7 @@ export interface SessionWriteInput {
     Record<InstrumentClass, string | null>
   >;
   subscribedSourceIds?: string[];
+  experienceId?: string;
 }
 
 export class SessionWriteService {
@@ -57,6 +58,7 @@ export class SessionWriteService {
       instrumentScope: normalized.instrumentScope.trim(),
       defaultSearchProviderId: normalized.defaultSearchProviderId ?? null,
       executionMode: normalized.executionMode,
+      experienceId: normalized.experienceId,
     });
     this.deps.sessions.setFocus(session.id);
     this.applySideTables(session.id, normalized);

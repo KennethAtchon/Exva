@@ -98,6 +98,9 @@ const exva: ExvaApi = {
       export: (input) => invoke(channels.autopsy.period.export, input),
     },
   },
+  experiences: {
+    list: () => invoke(channels.experiences.list),
+  },
   session: {
     start: () => invoke(channels.session.start),
     pause: () => invoke(channels.session.pause),

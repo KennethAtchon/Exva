@@ -32,6 +32,7 @@ import type {
 import type { AIPhaseTrace } from "@electron/shared/ai/ai-phase-trace";
 import type { PhaseRuntimeSummary } from "@electron/shared/ai/ai-phase";
 import type {
+  ExperienceSummary,
   ExvaEventMap,
   ExvaEventName,
   ProviderModelEntry,
@@ -148,6 +149,8 @@ export const api = {
     focusedSessionId: string | null;
     sessions: SessionSummary[];
   }> => bridge().session.list(filters),
+  listExperiences: (): Promise<ExperienceSummary[]> =>
+    bridge().experiences.list(),
   createSession: (input: SessionCreateInput) => bridge().session.create(input),
   updateSession: (id: string, input: SessionCreateInput) =>
     bridge().session.update(id, input),

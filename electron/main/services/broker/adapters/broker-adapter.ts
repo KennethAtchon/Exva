@@ -102,7 +102,7 @@ export interface BrokerAdapter {
   /** Optional: return OHLCV bars. Used by get_ohlcv tool and ATR computation. */
   getOhlcv?(
     instrumentSymbol: string,
-    timeframe: "1h" | "4h" | "1d",
+    timeframe: "15m" | "30m" | "1h" | "4h" | "1d",
     barCount: number,
   ): Promise<OhlcvBar[]>;
 }

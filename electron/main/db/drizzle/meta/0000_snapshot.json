@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d298f924-2700-4e2c-91f3-7c4ae46db1a1",
+  "id": "1abd6a44-d0a5-4c4d-8774-26e01ff5c437",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_messages": {
@@ -3013,6 +3013,21 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'paper_only'"
+        },
+        "experience_id": {
+          "name": "experience_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'edgar-catalyst'"
+        },
+        "overrides_json": {
+          "name": "overrides_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         },
         "live_readiness_acknowledged_at": {
           "name": "live_readiness_acknowledged_at",
