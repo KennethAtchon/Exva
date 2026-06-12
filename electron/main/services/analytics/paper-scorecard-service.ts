@@ -1,6 +1,7 @@
 import type { Trade } from "@/lib/types";
 import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import type { ApiCallLogRepo } from "../../db/repositories/system/api-call-log-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { SqliteSessionExecutionStepsRepo } from "../../db/repositories/sessions/session-execution-steps-repo";
@@ -75,6 +76,7 @@ export function meetsPromotionCriteria(
 
 interface PaperScorecardServiceDeps {
   trades: TradesRepo;
+  brokerAccounts: BrokerAccountsRepo;
   apiCallLog: ApiCallLogRepo;
   session: SessionRepo;
   sessionExecutionSteps: SqliteSessionExecutionStepsRepo;
@@ -84,7 +86,9 @@ export class PaperScorecardService {
   constructor(private readonly deps: PaperScorecardServiceDeps) {}
 
   generate(sessionId: string): TradeScorecard {
-    const closedTrades = this.deps.trades.listClosed(sessionId);
+    const closedTrades = this.deps.trades
+      .listClosed(sessionId)
+      .filter((trade) => !isMockBrokerTrade(trade, this.deps.brokerAccounts));
 
     const session = this.deps.session.get(sessionId);
     const strategyPresetLabel = session?.name ?? sessionId;
@@ -201,6 +205,15 @@ export class PaperScorecardService {
       scenarioCoverage,
     };
   }
+}
+
+function isMockBrokerTrade(
+  trade: Trade,
+  brokerAccounts: BrokerAccountsRepo,
+): boolean {
+  if (!trade.brokerAccountId) return false;
+  const account = brokerAccounts.find(trade.brokerAccountId);
+  return account?.brokerType === "mock";
 }
 
 function readMockScenarioKind(trade: Trade): MockScenarioKind | null {

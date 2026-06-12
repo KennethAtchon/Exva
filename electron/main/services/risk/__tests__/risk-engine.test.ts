@@ -98,7 +98,7 @@ describe("RiskEngine", () => {
     expect(result.reason).toMatch(/max exposure/i);
   });
 
-  it("blocks low-confidence or over-limit decisions", () => {
+  it("blocks concurrent cap and asset-group exposure", () => {
     expect(
       engine.validateDecision({
         config,
@@ -121,54 +121,41 @@ describe("RiskEngine", () => {
       engine.validateDecision({
         config,
         stats,
-        confidence: 0.5,
+        confidence: 0.9,
+        assetGroup: "equities_beta",
+        openExposureByGroupUsd: { equities_beta: 900 },
+        maxSameGroupExposureUsd: 1000,
         order: {
           instrumentSymbol: "AAPL",
           instrumentType: "stock",
           side: "BUY",
-          sizeUsd: 100,
+          sizeUsd: 200,
         },
       }),
     ).toEqual({
       allowed: false,
-      reason: "Decision confidence is below wait-for-open threshold",
-      gateType: "confidence",
+      reason: "Asset group equities_beta exposure cap reached",
+      gateType: "position_size",
     });
   });
 
-  it("uses the session wait-for-open threshold when provided", () => {
-    expect(
-      engine.validateDecision({
-        config,
-        stats,
-        confidence: 0.7,
-        riskPolicy: { waitForOpenThreshold: 0.8, maxExposureUsd: null },
-        order: {
-          instrumentSymbol: "AAPL",
-          instrumentType: "stock",
-          side: "BUY",
-          sizeUsd: 100,
-        },
-      }),
-    ).toEqual({
-      allowed: false,
-      reason: "Decision confidence is below wait-for-open threshold",
-      gateType: "confidence",
+  it("applies ATR vol-target sizing when configured", () => {
+    const result = engine.validateDecision({
+      config,
+      stats: { ...stats, portfolio_value: 100_000 },
+      confidence: 0.9,
+      sizingMode: "atr_vol_target",
+      atrUsd: 2,
+      riskPerTradePct: 0.01,
+      order: {
+        instrumentSymbol: "AAPL",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 5000,
+      },
     });
 
-    expect(
-      engine.validateDecision({
-        config,
-        stats,
-        confidence: 0.81,
-        riskPolicy: { waitForOpenThreshold: 0.8, maxExposureUsd: null },
-        order: {
-          instrumentSymbol: "AAPL",
-          instrumentType: "stock",
-          side: "BUY",
-          sizeUsd: 100,
-        },
-      }).allowed,
-    ).toBe(true);
+    expect(result.allowed).toBe(true);
+    expect(result.value?.sizeUsd).toBe(500);
   });
 });

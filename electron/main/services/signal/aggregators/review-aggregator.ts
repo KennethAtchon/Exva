@@ -3,7 +3,6 @@ import {
   reviewSignalSchema,
   type ReviewSignal,
 } from "@electron/shared/ai/trade-signals";
-import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 
 export const conflictDetectorOutputSchema = z.object({
   technicalFundamentalConflict: z
@@ -50,24 +49,13 @@ export interface ReviewWorkerOutputs {
 export function aggregateReviewSignal(
   symbol: string,
   workers: ReviewWorkerOutputs,
-  options?: {
-    mockOverride?: MockScenarioKind;
-    momentumFallbackArtifact?: boolean;
-  },
 ): ReviewSignal {
   const conflict =
     workers.conflictDetector?.technicalFundamentalConflict ?? null;
   const overallRisk = workers.riskAssessor?.overallRisk ?? null;
   const tailRisks = workers.riskAssessor?.tailRisks ?? [];
 
-  let recommendation = deriveRecommendation(conflict, overallRisk, workers);
-  if (
-    options?.mockOverride === "clean_breakout" &&
-    recommendation === "reduce_size" &&
-    options.momentumFallbackArtifact
-  ) {
-    recommendation = "proceed";
-  }
+  const recommendation = deriveRecommendation(conflict, overallRisk, workers);
   const rawSummary = buildRawSummary(workers);
 
   return reviewSignalSchema.parse({

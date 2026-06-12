@@ -16,6 +16,8 @@ const FEED_URL =
 
 type EdgarConfig = {
   cikWhitelist?: string[];
+  /** Item codes to accept, e.g. ["1.01", "2.02", "8.01"]. Empty/omitted = accept all. */
+  itemCodeWhitelist?: string[];
   minFilingAgeMinutes?: number;
   pollIntervalMarketMinutes?: number;
   pollIntervalOffHoursMinutes?: number;
@@ -135,6 +137,15 @@ export class EdgarSignalSource implements ISignalSource {
           result.dropped += 1;
           continue;
         }
+        const itemCodes = extractItemCodes(entry.summary, entry.title);
+        const itemCodeWhitelist = this.config.itemCodeWhitelist;
+        if (
+          itemCodeWhitelist?.length &&
+          !itemCodes.some((code) => itemCodeWhitelist.includes(code))
+        ) {
+          result.dropped += 1;
+          continue;
+        }
         const event: SignalEvent = {
           id: crypto.randomUUID(),
           sourceId: this.id,
@@ -143,7 +154,11 @@ export class EdgarSignalSource implements ISignalSource {
           companyName: entry.title ?? null,
           documentUrl: entry.link ?? null,
           accessionNumber: extractAccession(entry.id),
-          payloadJson: { rawId: entry.id, summary: entry.summary },
+          payloadJson: {
+            rawId: entry.id,
+            summary: entry.summary,
+            itemCodes,
+          },
           filedAt: entry.updated,
           detectedAt: new Date().toISOString(),
         };
@@ -269,6 +284,20 @@ function isTooFresh(filedAtIso: string, minAgeMinutes: number): boolean {
   const filedMs = new Date(filedAtIso).getTime();
   if (Number.isNaN(filedMs)) return false;
   return Date.now() - filedMs < minAgeMinutes * 60 * 1000;
+}
+
+/** Parse SEC 8-K item codes from filing text (e.g. Item 1.01, Item 2.02). */
+function extractItemCodes(
+  summary: string | null,
+  title: string | null,
+): string[] {
+  const text = `${summary ?? ""} ${title ?? ""}`;
+  const matches = text.matchAll(/Item\s+(\d+\.\d+)/gi);
+  const codes = new Set<string>();
+  for (const match of matches) {
+    if (match[1]) codes.add(match[1]);
+  }
+  return [...codes];
 }
 
 function isLikelyMarketHoursEt(now = new Date()): boolean {

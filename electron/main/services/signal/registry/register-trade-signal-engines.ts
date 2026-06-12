@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import { registerSignalEngine } from "./signal-engine-registry";
 import { aggregateTechnicalSignal } from "../aggregators/technical-aggregator";
 import { aggregateFundamentalSignal } from "../aggregators/fundamental-aggregator";
@@ -9,6 +8,7 @@ import { mergeDiscoveryCandidates } from "../scoring/selector-candidate-merger";
 import { scoreCandidate } from "../scoring/selector-scoring-engine";
 import { buildInstrumentSelection } from "../scoring/selector-submission-builder";
 import { computeTradeTradeExecutionProfile } from "../execution/trade-execution-profile";
+import { computeMeanReversionSignal } from "../rules/mean-reversion-signal";
 
 export function registerTradeSignalEngines(): void {
   registerSignalEngine({
@@ -61,16 +61,8 @@ export function registerTradeSignalEngines(): void {
     kind: "transformer",
     inputSchema: z.any(),
     outputSchema: z.any(),
-    run: (input: {
-      symbol: string;
-      workers: unknown;
-      mockOverride?: MockScenarioKind;
-      momentumFallbackArtifact?: boolean;
-    }) =>
-      aggregateReviewSignal(input.symbol, input.workers as never, {
-        mockOverride: input.mockOverride,
-        momentumFallbackArtifact: input.momentumFallbackArtifact,
-      }),
+    run: (input: { symbol: string; workers: unknown }) =>
+      aggregateReviewSignal(input.symbol, input.workers as never),
   });
 
   registerSignalEngine({
@@ -83,7 +75,6 @@ export function registerTradeSignalEngines(): void {
       review: unknown;
       classifier: unknown;
       timer: unknown;
-      mockRelaxedEntryTiming?: boolean;
       waitForOpenThreshold?: number;
     }) =>
       aggregateTradeSignal(
@@ -92,10 +83,17 @@ export function registerTradeSignalEngines(): void {
         input.classifier as never,
         input.timer as never,
         {
-          mockRelaxedEntryTiming: input.mockRelaxedEntryTiming,
           waitForOpenThreshold: input.waitForOpenThreshold,
         },
       ),
+  });
+
+  registerSignalEngine({
+    id: "rules-mean-reversion",
+    kind: "policy",
+    inputSchema: z.any(),
+    outputSchema: z.any(),
+    run: (input) => computeMeanReversionSignal(input as never),
   });
 
   registerSignalEngine({

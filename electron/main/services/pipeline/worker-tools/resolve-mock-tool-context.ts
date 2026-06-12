@@ -8,15 +8,23 @@ import {
   type MockWebSearchItem,
 } from "../../broker/mock/mock-discovery-fixtures";
 import {
+  DEFAULT_MOCK_EXECUTION_TIER,
   DEFAULT_MOCK_SCENARIO_KIND,
+  type MockExecutionTier,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
+import {
+  scriptedWorkerOutputsForScenario,
+  type ScriptedWorkerOutputs,
+} from "../../broker/mock/mock-scenario-worker-outputs";
 import { MOCK_TRENDING_SYMBOLS } from "../../tools/trending-symbols-tool";
 import type { InstrumentClass } from "@/lib/types";
 
 export type MockToolContext = {
   isMockSession: boolean;
   mockScenarioKind?: MockScenarioKind;
+  executionTier?: MockExecutionTier;
+  scriptedWorkerOutputs?: ScriptedWorkerOutputs;
   getMockOhlcv?: (symbol: string, timeframe?: string) => MockOhlcvBar[];
   mockTrendingData?: typeof MOCK_TRENDING_SYMBOLS;
   mockWebSearchData?: MockWebSearchItem[];
@@ -49,9 +57,18 @@ export async function resolveMockToolContext(input: {
     fixtures,
     input.focusInstrumentClass,
   );
+  const executionTier = DEFAULT_MOCK_EXECUTION_TIER;
+  const primarySymbol = focusedFixtures.primarySymbols?.[0];
+  const scriptedWorkerOutputs =
+    executionTier === "scripted"
+      ? scriptedWorkerOutputsForScenario(kind, primarySymbol)
+      : undefined;
+
   return {
     isMockSession: true,
     mockScenarioKind: kind,
+    executionTier,
+    scriptedWorkerOutputs,
     getMockOhlcv: (symbol: string, timeframe?: string) =>
       mockAdapter.getMockOhlcv(symbol, timeframe),
     mockTrendingData: (focusedFixtures.trendingSymbols ??

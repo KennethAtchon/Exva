@@ -963,6 +963,49 @@ function buildSynthesisPrompt(
   ].join("\n");
 }
 
+function computeConfidenceCalibration(trades: Trade[]) {
+  const labeled = trades
+    .filter(
+      (trade): trade is Trade & { confidence_score: number } =>
+        trade.confidence_score != null && trade.final_pnl_usd != null,
+    )
+    .map((trade) => ({
+      confidence: trade.confidence_score,
+      hit5d: (trade.final_pnl_usd ?? 0) > 0,
+    }));
+  if (labeled.length === 0) return undefined;
+  const buckets = computeConfidenceCalibrationBuckets(labeled);
+  const brierScore =
+    labeled.reduce(
+      (sum, row) => sum + (row.confidence - (row.hit5d ? 1 : 0)) ** 2,
+      0,
+    ) / labeled.length;
+  return { brierScore, sampleCount: labeled.length, buckets };
+}
+
+function computeConfidenceCalibrationBuckets(
+  labeled: Array<{ confidence: number; hit5d: boolean }>,
+  bucketSize = 0.1,
+) {
+  const buckets = new Map<string, typeof labeled>();
+  for (const row of labeled) {
+    const bucketKey = `${Math.floor(row.confidence / bucketSize) * bucketSize}`;
+    const list = buckets.get(bucketKey) ?? [];
+    list.push(row);
+    buckets.set(bucketKey, list);
+  }
+  return [...buckets.entries()].map(([bucket, rows]) => {
+    const count = rows.length;
+    const avgConfidence =
+      rows.reduce((s, r) => s + r.confidence, 0) / Math.max(count, 1);
+    const hitRate = rows.filter((r) => r.hit5d).length / Math.max(count, 1);
+    const brierScore =
+      rows.reduce((s, r) => s + (r.confidence - (r.hit5d ? 1 : 0)) ** 2, 0) /
+      Math.max(count, 1);
+    return { bucket, count, avgConfidence, hitRate, brierScore };
+  });
+}
+
 function computeAggregateStats(trades: Trade[]): AggregateStats {
   const totalTrades = trades.length;
   const winners = trades.filter(
@@ -994,6 +1037,7 @@ function computeAggregateStats(trades: Trade[]): AggregateStats {
     sizingConsistency: describeSizingConsistency(trades),
     entryTimingPattern: "LLM analysis unavailable.",
     regimeNotes: "LLM analysis unavailable.",
+    confidenceCalibration: computeConfidenceCalibration(trades),
   };
 }
 

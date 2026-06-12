@@ -1,4 +1,9 @@
-export type SignalSourceType = "edgar_8k" | "web_search" | "manual";
+export type SignalSourceType =
+  | "edgar_8k"
+  | "web_search"
+  | "manual"
+  | "mock"
+  | "timer";
 
 export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
   return type === "web_search";
@@ -7,7 +12,7 @@ export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
 export function isSelfDescribingSignalSourceType(
   type: SignalSourceType,
 ): boolean {
-  return type !== "web_search" && type !== "manual";
+  return type !== "web_search" && type !== "manual" && type !== "timer";
 }
 
 /** True when the session must carry manual tickers / instrument scope. */

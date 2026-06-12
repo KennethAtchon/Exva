@@ -44,8 +44,12 @@ function makeService(trades: Trade[]) {
   const sessionExecutionSteps = {
     getLatestBySession: vi.fn().mockReturnValue([]),
   };
+  const brokerAccounts = {
+    find: vi.fn().mockReturnValue({ brokerType: "alpaca" }),
+  };
   return new PaperScorecardService({
     trades: tradesRepo as never,
+    brokerAccounts: brokerAccounts as never,
     apiCallLog: apiCallLog as never,
     session: session as never,
     sessionExecutionSteps: sessionExecutionSteps as never,
@@ -113,6 +117,9 @@ describe("PaperScorecardService.generate", () => {
     };
     const svc = new PaperScorecardService({
       trades: tradesRepo as never,
+      brokerAccounts: {
+        find: vi.fn().mockReturnValue({ brokerType: "alpaca" }),
+      } as never,
       apiCallLog: apiCallLog as never,
       session: session as never,
       sessionExecutionSteps: sessionExecutionSteps as never,

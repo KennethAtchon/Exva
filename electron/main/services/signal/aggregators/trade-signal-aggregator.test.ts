@@ -48,27 +48,6 @@ describe("trade signal aggregator", () => {
     expect(signal.action).toBe("skip");
   });
 
-  it("uses timer wait over classifier buy", () => {
-    const signal = aggregateTradeSignal(
-      "NVDA",
-      reviewProceed,
-      {
-        executionStrategy: "trend_momentum",
-        action: "buy",
-        confidence: 0.8,
-        reasoning: "Momentum",
-      },
-      {
-        entryTiming: "wait",
-        entryPrice: 118.25,
-        rawSummary: "Wait for pullback",
-      },
-    );
-
-    expect(signal.action).toBe("skip");
-    expect(signal.reasoning).toContain("Timing: wait");
-  });
-
   it("merges classifier and timer for a buy", () => {
     const signal = aggregateTradeSignal(
       "NVDA",
@@ -85,28 +64,6 @@ describe("trade signal aggregator", () => {
     expect(signal.action).toBe("buy");
     expect(signal.executionStrategy).toBe("breakout");
     expect(signal.entryPrice).toBe(120.5);
-    expect(signal.reasoning).toContain("Timing: now");
-  });
-
-  it("maps timer wait to buy when mock relaxed entry timing is enabled", () => {
-    const signal = aggregateTradeSignal(
-      "NVDA",
-      reviewProceed,
-      {
-        executionStrategy: "breakout",
-        action: "buy",
-        confidence: 0.85,
-        reasoning: "Breakout setup",
-      },
-      {
-        entryTiming: "wait",
-        entryPrice: 118.25,
-        rawSummary: "Wait for pullback",
-      },
-      { mockRelaxedEntryTiming: true },
-    );
-
-    expect(signal.action).toBe("buy");
     expect(signal.reasoning).toContain("Timing: now");
   });
 
@@ -128,29 +85,7 @@ describe("trade signal aggregator", () => {
     expect(signal.reasoning).toContain("wait-for-open threshold");
   });
 
-  it("does not apply mock relaxed entry timing when review recommends reduce_size", () => {
-    const signal = aggregateTradeSignal(
-      "NVDA",
-      { ...reviewProceed, recommendation: "reduce_size" },
-      {
-        executionStrategy: "breakout",
-        action: "buy",
-        confidence: 0.85,
-        reasoning: "Breakout setup",
-      },
-      {
-        entryTiming: "wait",
-        entryPrice: 118.25,
-        rawSummary: "Wait for pullback",
-      },
-      { mockRelaxedEntryTiming: true },
-    );
-
-    expect(signal.action).toBe("skip");
-    expect(signal.reasoning).toContain("Timing: wait");
-  });
-
-  it("allows buy when confidence clears mock relaxed wait-for-open threshold", () => {
+  it("allows buy when confidence clears wait-for-open threshold", () => {
     const signal = aggregateTradeSignal(
       "NVDA",
       reviewProceed,
@@ -162,23 +97,6 @@ describe("trade signal aggregator", () => {
       },
       { entryTiming: "now", entryPrice: null, rawSummary: "Enter now" },
       { waitForOpenThreshold: 0.6 },
-    );
-
-    expect(signal.action).toBe("buy");
-  });
-
-  it("does not raise wait-for-open threshold when production threshold is already lower", () => {
-    const signal = aggregateTradeSignal(
-      "NVDA",
-      reviewProceed,
-      {
-        executionStrategy: "breakout",
-        action: "buy",
-        confidence: 0.55,
-        reasoning: "Moderate setup",
-      },
-      { entryTiming: "now", entryPrice: null, rawSummary: "Enter now" },
-      { waitForOpenThreshold: 0.5 },
     );
 
     expect(signal.action).toBe("buy");

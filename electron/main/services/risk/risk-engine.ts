@@ -76,6 +76,16 @@ export interface DecisionRiskInput {
   brokerSupportsClass?: boolean;
   marketIsOpen?: boolean;
   holdingStyle?: HoldingStyle;
+  /** ATR in USD for vol-targeted sizing (audit §8.3). */
+  atrUsd?: number | null;
+  sizingMode?: "flat_usd" | "atr_vol_target";
+  riskPerTradePct?: number | null;
+  /** Asset exposure bucket for correlation cap (audit §8.3). */
+  assetGroup?: "equities_beta" | "crypto" | "commodities" | "rates" | "other";
+  openExposureByGroupUsd?: Partial<
+    Record<NonNullable<DecisionRiskInput["assetGroup"]>, number>
+  >;
+  maxSameGroupExposureUsd?: number | null;
 }
 
 export class RiskEngine {
@@ -142,10 +152,60 @@ export class RiskEngine {
         gateType: "concurrent_cap",
       };
     }
-    if (input.order.sizeUsd > input.config.max_position_usd) {
+    let order = { ...input.order };
+    if (
+      input.sizingMode === "atr_vol_target" &&
+      input.atrUsd != null &&
+      input.atrUsd > 0 &&
+      input.riskPerTradePct != null &&
+      input.riskPerTradePct > 0
+    ) {
+      const equityUsd =
+        input.stats.portfolio_value > 0
+          ? input.stats.portfolio_value
+          : input.config.max_position_usd * 10;
+      const riskBudgetUsd = equityUsd * input.riskPerTradePct;
+      const atrSizedUsd = riskBudgetUsd / input.atrUsd;
+      if (atrSizedUsd > 0 && atrSizedUsd < order.sizeUsd) {
+        order = { ...order, sizeUsd: atrSizedUsd };
+        logger.info(
+          {
+            atrUsd: input.atrUsd,
+            atrSizedUsd,
+            riskPerTradePct: input.riskPerTradePct,
+          },
+          "risk decision ATR vol-target size applied",
+        );
+      }
+    }
+
+    if (
+      input.assetGroup &&
+      input.maxSameGroupExposureUsd != null &&
+      input.openExposureByGroupUsd
+    ) {
+      const groupExposure = input.openExposureByGroupUsd[input.assetGroup] ?? 0;
+      if (groupExposure + order.sizeUsd > input.maxSameGroupExposureUsd) {
+        logger.warn(
+          {
+            assetGroup: input.assetGroup,
+            groupExposure,
+            max: input.maxSameGroupExposureUsd,
+          },
+          "risk decision denied due to asset-group exposure cap",
+        );
+        return {
+          allowed: false,
+          reason: `Asset group ${input.assetGroup} exposure cap reached`,
+          gateType: "position_size",
+        };
+      }
+    }
+
+    if (order.sizeUsd > input.config.max_position_usd) {
       const reduced = {
         allowed: true,
-        value: { ...input.order, sizeUsd: input.config.max_position_usd },
+        value: { ...order, sizeUsd: input.config.max_position_usd },
         reason: "Position size reduced to configured maximum",
       };
       logger.info(
@@ -161,11 +221,11 @@ export class RiskEngine {
     if (
       input.order.instrumentType === "prediction_market" &&
       maxExposureUsd != null &&
-      input.order.sizeUsd > maxExposureUsd
+      order.sizeUsd > maxExposureUsd
     ) {
       const reduced = {
         allowed: true,
-        value: { ...input.order, sizeUsd: maxExposureUsd },
+        value: { ...order, sizeUsd: maxExposureUsd },
         reason: "Prediction-market position reduced to max exposure",
       };
       logger.info(
@@ -174,27 +234,16 @@ export class RiskEngine {
       );
       return reduced;
     }
-    const confidenceThreshold = input.riskPolicy?.waitForOpenThreshold ?? 0.6;
-    if (input.confidence < confidenceThreshold) {
-      logger.warn(
-        { confidence: input.confidence, confidenceThreshold },
-        "risk decision denied due to confidence",
-      );
-      return {
-        allowed: false,
-        reason: WAIT_FOR_OPEN_REJECTION_REASON,
-        gateType: "confidence",
-      };
-    }
+    // Confidence gating is owned by trade-signal-aggregator; risk engine does not re-check.
     logger.debug(
       {
         instrumentType: input.order.instrumentType,
-        sizeUsd: input.order.sizeUsd,
+        sizeUsd: order.sizeUsd,
         confidence: input.confidence,
       },
       "risk decision allowed",
     );
-    return { allowed: true, value: input.order };
+    return { allowed: true, value: order };
   }
 
   checkSessionLimits(

@@ -27,11 +27,12 @@ export class MarketHoursService {
   partitionByTradability(
     instruments: BurstInstrument[],
     now = new Date(),
+    options?: { skipWeekendFilter?: boolean },
   ): TradabilityPartition {
     const tradable: BurstInstrument[] = [];
     const excluded: TradabilityExclusion[] = [];
     for (const instrument of instruments) {
-      const reason = this.exclusionReason(instrument, now);
+      const reason = this.exclusionReason(instrument, now, options);
       if (reason) {
         excluded.push({
           symbol: instrument.symbol,
@@ -48,6 +49,7 @@ export class MarketHoursService {
   private exclusionReason(
     instrument: BurstInstrument,
     now: Date,
+    options?: { skipWeekendFilter?: boolean },
   ): string | null {
     if (
       instrument.instrumentClass === "crypto" ||
@@ -56,9 +58,11 @@ export class MarketHoursService {
       return null;
     }
     const day = now.getUTCDay();
-    const isWeekend = day === 0 || day === 6;
-    if (isWeekend) {
-      return "weekend_utc_market_closed";
+    if (!options?.skipWeekendFilter) {
+      const isWeekend = day === 0 || day === 6;
+      if (isWeekend) {
+        return "weekend_utc_market_closed";
+      }
     }
     return null;
   }

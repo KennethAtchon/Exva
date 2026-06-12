@@ -86,6 +86,7 @@ import { LiveReadinessService } from "./risk/live-readiness-service";
 import { SignalSourcesRepo } from "./signals/repos/signal-sources-repo";
 import { SignalEventsRepo } from "./signals/repos/signal-events-repo";
 import { SignalDeliveriesRepo } from "./signals/repos/signal-deliveries-repo";
+import { SignalDeliveryLifecycle } from "./signals/signal-delivery-lifecycle";
 import { SignalBus } from "./signals/signal-bus";
 import { SignalSourceRegistry } from "./signals/signal-source-registry";
 import { SignalService } from "./signals/signal-service";
@@ -231,6 +232,10 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const broker = new BrokerService(brokerRegistry);
 
   const eventBus = new EventBus();
+  const signalDeliveryLifecycle = new SignalDeliveryLifecycle(
+    signalDeliveriesRepo,
+    eventBus,
+  );
   attachEventBusObserver(eventBus, logger);
   const balanceTicker = new BrokerBalanceTicker(
     repos.brokerAccounts,
@@ -336,6 +341,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     logger,
     instrumentCacheRepo: repos.instrumentCache,
     signalDeliveriesRepo,
+    signalDeliveryLifecycle,
     signalSourcesRepo,
   };
 
@@ -431,6 +437,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
 
   const paperScorecard = new PaperScorecardService({
     trades: repos.trades,
+    brokerAccounts: repos.brokerAccounts,
     apiCallLog: repos.apiCallLog,
     session: repos.session,
     sessionExecutionSteps: repos.sessionExecutionSteps,

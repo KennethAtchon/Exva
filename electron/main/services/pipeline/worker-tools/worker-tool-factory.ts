@@ -18,7 +18,11 @@ import { createFetchUrlTool } from "../../tools/fetch-url-tool";
 import { createTrendingSymbolsTool } from "../../tools/trending-symbols-tool";
 import type { MOCK_TRENDING_SYMBOLS } from "../../tools/trending-symbols-tool";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
+import type {
+  MockExecutionTier,
+  MockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
+import type { ScriptedWorkerOutputs } from "../../broker/mock/mock-scenario-worker-outputs";
 import type { WorkerToolConfig } from "@electron/shared/ai/ai-phase-config";
 
 export const SUPPORTED_TOOL_IDS = [
@@ -58,6 +62,8 @@ export interface WorkerToolContext {
   mockUrlContent?: Record<string, string>;
   mockPrimarySymbols?: string[];
   mockScenarioKind?: MockScenarioKind;
+  executionTier?: MockExecutionTier;
+  scriptedWorkerOutputs?: ScriptedWorkerOutputs;
   isMockSession?: boolean;
 }
 

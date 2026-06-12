@@ -79,10 +79,9 @@ const executionProfileInputBuilder: EngineInputBuilder = {
   id: "execution-profile",
   build({ planCtx: ctx, state }) {
     const decision = state.decision;
-    const review = state.review;
-    if (!decision || !review) {
+    if (!decision) {
       throw new Error(
-        "execution-profile input builder requires decision and review in state",
+        "execution-profile input builder requires decision in state",
       );
     }
     return {
@@ -96,7 +95,7 @@ const executionProfileInputBuilder: EngineInputBuilder = {
           takeProfitPct: ctx.strategyContext.riskConfig.takeProfitPct,
           kellyFraction: ctx.strategyContext.riskConfig.kellyFraction,
         },
-        reviewRecommendation: review.output.recommendation,
+        reviewRecommendation: state.review?.output.recommendation ?? "proceed",
       },
     };
   },

@@ -20,7 +20,7 @@ import {
 import type { AIPhaseConfigResolver } from "../ai-phase-config-resolver";
 import { buildWorkerPrompt } from "../prompting/worker-prompt-builder";
 import type { SessionStrategyContext } from "@electron/shared/domain";
-import { MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER } from "@electron/shared/domain/mock-scenario";
+import { resolveScriptedWorkerOutput } from "../../broker/mock/mock-scenario-worker-outputs";
 import { createLogger } from "../../infra/log";
 import type { AISpendTracker } from "./ai-spend-tracker";
 import { assertSessionDataSpendAvailable } from "../../tools/data-spend-guard";
@@ -146,6 +146,15 @@ export async function runAIWorker<TOutput>(
     workerExecConfig.workerOverride,
     deps.sandboxBudget ?? false,
   );
+
+  const scriptedResult = tryRunScriptedWorker<TOutput>(
+    deps,
+    opts,
+    (resolvedConfig.output ?? undefined) as
+      | AIWorkerOutputSchema<TOutput>
+      | undefined,
+  );
+  if (scriptedResult) return scriptedResult;
 
   if (!workerExecConfig.providerKey || !workerExecConfig.modelId) {
     throw new AppError(
@@ -347,29 +356,6 @@ export async function runAIWorker<TOutput>(
         },
         "worker terminal output substituted empty dimension after validation failure",
       );
-
-      if (
-        deps.toolContext.isMockSession &&
-        deps.toolContext.mockScenarioKind === "clean_breakout" &&
-        worker.id === "price-reaction-checker"
-      ) {
-        output = {
-          ...resolution.output,
-          trendDirection: "bullish",
-          trendStrength: 0.85,
-          momentumScore: 0.8,
-          rawSummary: MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER,
-        } as TOutput;
-        logger.warn(
-          {
-            ...logCtx(),
-            worker: worker.id,
-            scenario: deps.toolContext.mockScenarioKind,
-          },
-          "mock clean_breakout: substituted bullish momentum fallback after parse failure",
-        );
-        parseFallback = true;
-      }
     }
   } else {
     output = { text: trace.assistantText } as TOutput;
@@ -462,6 +448,74 @@ export async function runAIWorker<TOutput>(
  * structured submission. Returns the last submission if called more than once,
  * or undefined if the worker never called the terminal tool.
  */
+function tryRunScriptedWorker<TOutput>(
+  deps: AIWorkerRunnerDeps,
+  opts: AIWorkerRunOptions,
+  outputContract: AIWorkerOutputSchema<TOutput> | undefined,
+): LLMRunResult<TOutput> | null {
+  const { toolContext } = deps;
+  if (
+    !toolContext.isMockSession ||
+    toolContext.executionTier !== "scripted" ||
+    !toolContext.scriptedWorkerOutputs ||
+    !outputContract
+  ) {
+    return null;
+  }
+
+  const raw = resolveScriptedWorkerOutput(
+    opts.worker.id,
+    toolContext.scriptedWorkerOutputs,
+  );
+  if (raw === undefined) return null;
+
+  const resolution = parseWorkerOutput<TOutput>(outputContract, raw, false);
+  if ("needsRetry" in resolution) {
+    throw new AppError(
+      `Scripted output for worker ${opts.worker.id} failed schema validation.`,
+      "VALIDATION_FAILED",
+    );
+  }
+
+  const { run, message } = assembleTrace({
+    phase: opts.phase,
+    workerId: opts.worker.id,
+    sessionId: opts.sessionId,
+    tradeId: opts.tradeId ?? null,
+    cycleId: opts.cycleId ?? null,
+    providerKey: "scripted",
+    modelId: "scripted/mock",
+    trace: {
+      assistantText: "",
+      finishReason: "stop",
+      steps: [],
+      messages: [],
+      parseFallback: false,
+      costSource: "estimated",
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+      durationMs: 0,
+      auditMessagesJson: "[]",
+    },
+    outputJson: JSON.stringify(resolution.output),
+    outputSchemaName: opts.worker.id,
+    strategyContext: deps.strategyContext,
+    parseFallback: false,
+  });
+
+  logger.info(
+    {
+      ...workerLogContext(opts),
+      executionTier: "scripted",
+      scenario: toolContext.mockScenarioKind ?? null,
+    },
+    "worker complete via scripted tier (no LLM call)",
+  );
+
+  return { run, message, output: resolution.output };
+}
+
 export function extractWorkerSubmission(
   trace: {
     steps: Array<{

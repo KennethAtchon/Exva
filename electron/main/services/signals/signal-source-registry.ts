@@ -6,6 +6,8 @@ import type {
 import type { ISignalSource, SignalSourceSnapshot } from "./ISignalSource";
 import { CikTickerCache } from "./cache/cik-ticker-cache";
 import { EdgarSignalSource } from "./sources/edgar-signal-source";
+import { MockSignalSource } from "./sources/mock-signal-source";
+import { TimerSignalSource } from "./sources/timer-signal-source";
 import { WebSearchSignalSource } from "./sources/web-search-signal-source";
 import { SignalBus } from "./signal-bus";
 
@@ -87,6 +89,12 @@ export class SignalSourceRegistry {
     }
     if (record.type === "web_search") {
       return new WebSearchSignalSource(record.id);
+    }
+    if (record.type === "mock") {
+      return new MockSignalSource(record.id, record.configJson);
+    }
+    if (record.type === "timer") {
+      return new TimerSignalSource(record.id, record.configJson);
     }
     return new WebSearchSignalSource(record.id);
   }

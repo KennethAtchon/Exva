@@ -112,6 +112,16 @@ export async function executeTradeCycle(
         "orchestrator",
         context.cycleId,
       );
+      if (context.signalDeliveryId && context.signalId) {
+        ctx.deps.signalDeliveryLifecycle?.complete(context.signalDeliveryId, {
+          sessionId: ctx.sessionId,
+          signalId: context.signalId,
+          status: "rejected",
+          dropReason: isConfidenceNoTrade
+            ? "confidence_below_threshold"
+            : "decision_skip",
+        });
+      }
       finishWithoutOpenPosition(ctx, "No-trade cycle complete", "no_trade");
       return;
     }
@@ -214,5 +224,7 @@ export async function runTradeCycle(
     cycleId: crypto.randomUUID(),
     instrument,
     pipelineId: instrument.pipelineId,
+    signalDeliveryId: instrument.signalDeliveryId,
+    signalId: instrument.signalId,
   });
 }

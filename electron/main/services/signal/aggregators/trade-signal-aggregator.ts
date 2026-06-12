@@ -31,9 +31,9 @@ export type SignalClassifierOutput = z.infer<
 
 export const entryTimerOutputSchema = z.object({
   entryTiming: z
-    .enum(["now", "wait", "skip"])
+    .enum(["now", "skip"])
     .describe(
-      "now = enter immediately is reasonable; wait = valid setup, timing not ideal; skip = poor or review says skip.",
+      "now = enter immediately is reasonable; skip = poor setup or review says skip.",
     ),
   entryPrice: z
     .number()
@@ -51,7 +51,6 @@ export function aggregateTradeSignal(
   classifier: SignalClassifierOutput | null,
   timer: EntryTimerOutput | null,
   options?: {
-    mockRelaxedEntryTiming?: boolean;
     waitForOpenThreshold?: number;
   },
 ): TradeSignal {
@@ -68,15 +67,8 @@ export function aggregateTradeSignal(
     });
   }
 
-  let timing = timer?.entryTiming ?? "unknown";
-  if (
-    options?.mockRelaxedEntryTiming &&
-    review.recommendation === "proceed" &&
-    timing === "wait"
-  ) {
-    timing = "now";
-  }
-  const timingBlocksEntry = timing === "skip" || timing === "wait";
+  const timing = timer?.entryTiming ?? "unknown";
+  const timingBlocksEntry = timing === "skip";
   let action = timingBlocksEntry ? "skip" : classifier.action;
   let reasoning = `${classifier.reasoning} Timing: ${timing}.`;
 

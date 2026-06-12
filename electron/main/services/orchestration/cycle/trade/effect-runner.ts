@@ -22,8 +22,10 @@ export function persistPendingTradeFromPipeline(
   pipeline: InstrumentAnalysisResult,
 ): Trade {
   const config = ctx.getSessionConfig();
-  const { technical, fundamental, review, decision } =
-    requirePipelineAiResults(pipeline);
+  const { technical, fundamental, review, decision } = requirePipelineAiResults(
+    pipeline,
+    context.pipelineId,
+  );
 
   if (!context.trade) {
     const trade = createTradeFromDecision(
@@ -32,15 +34,16 @@ export function persistPendingTradeFromPipeline(
       config,
       decision.output,
       pipeline.totalAiCostUsd,
-      review.output.recommendation,
+      review?.output.recommendation,
     );
     ctx.deps.tradesRepo.insert(trade);
-    persistTradeAiRuns(ctx, trade.id, [
-      technical,
-      fundamental,
-      review,
-      decision,
-    ]);
+    persistTradeAiRuns(
+      ctx,
+      trade.id,
+      [technical, fundamental, review, decision].filter(
+        (run): run is NonNullable<typeof run> => run != null,
+      ),
+    );
     context.trade = trade;
   }
 
@@ -50,6 +53,19 @@ export function persistPendingTradeFromPipeline(
   return context.trade;
 }
 
+import { resolveMockToolContext } from "../../../pipeline/worker-tools/resolve-mock-tool-context";
+
+async function isScriptedMockSession(
+  ctx: TradingCycleContext,
+): Promise<boolean> {
+  const mock = await resolveMockToolContext({
+    sessionId: ctx.sessionId,
+    brokerRouting: ctx.deps.brokerRouting,
+    brokerRegistry: ctx.deps.brokerRegistry,
+  });
+  return mock.isMockSession && mock.executionTier === "scripted";
+}
+
 export async function runApprovalAndCapital(
   ctx: TradingCycleContext,
   context: TradeCycleContext,
@@ -57,8 +73,10 @@ export async function runApprovalAndCapital(
   decisionOutput: TradeSignal,
 ): Promise<{ approved: boolean; approvalId: string | null }> {
   const config = ctx.getSessionConfig();
+  const autoApprove =
+    !config.human_approval_required || (await isScriptedMockSession(ctx));
 
-  if (!config.human_approval_required) {
+  if (autoApprove) {
     ctx.deps.capitalReservation.reserveForOrder({
       sessionId: ctx.sessionId,
       tradeId: trade.id,
@@ -196,6 +214,25 @@ export async function placeBrokerOrder(
   return placed;
 }
 
+function completeSignalDelivery(
+  ctx: TradingCycleContext,
+  context: TradeCycleContext,
+  status: "traded" | "rejected" | "dropped",
+  tradeId?: string | null,
+  dropReason?: string | null,
+): void {
+  if (!context.signalDeliveryId || !context.signalId) return;
+  const lifecycle = ctx.deps.signalDeliveryLifecycle;
+  if (!lifecycle) return;
+  lifecycle.complete(context.signalDeliveryId, {
+    sessionId: ctx.sessionId,
+    signalId: context.signalId,
+    status,
+    tradeId: tradeId ?? null,
+    dropReason: dropReason ?? null,
+  });
+}
+
 export function finalizeOpenedTrade(
   ctx: TradingCycleContext,
   context: TradeCycleContext,
@@ -226,6 +263,7 @@ export function finalizeOpenedTrade(
     context.cycleId,
   );
   ctx.deps.bus.emit("trade_opened", opened);
+  completeSignalDelivery(ctx, context, "traded", trade.id);
   ctx.deps.sessionExecutionStepsRepo.upsert({
     sessionId: ctx.sessionId,
     cycleId: context.cycleId,

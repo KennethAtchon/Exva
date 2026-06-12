@@ -33,6 +33,7 @@ const SCENARIO_CONFIG: Record<MockScenarioKind, MockScenario> = {
     volatilityPct: 0.01,
     trendPctPerDay: 0.0,
     kind: "sideways_chop",
+    autoCloseAfterMs: AUTO_CLOSE_MS,
   },
   gap_down_after_entry: {
     bias: "bearish",
@@ -53,12 +54,14 @@ const SCENARIO_CONFIG: Record<MockScenarioKind, MockScenario> = {
     volatilityPct: 0.01,
     trendPctPerDay: 0.0,
     kind: "stale_quote",
+    autoCloseAfterMs: AUTO_CLOSE_MS,
   },
   wide_spread: {
     bias: "sideways",
     volatilityPct: 0.015,
     trendPctPerDay: 0.0,
     kind: "wide_spread",
+    autoCloseAfterMs: AUTO_CLOSE_MS,
   },
   partial_fill: {
     bias: "bullish",
@@ -72,12 +75,14 @@ const SCENARIO_CONFIG: Record<MockScenarioKind, MockScenario> = {
     volatilityPct: 0.012,
     trendPctPerDay: 0.006,
     kind: "broker_reject",
+    autoCloseAfterMs: AUTO_CLOSE_MS,
   },
   rate_limit: {
     bias: "bullish",
     volatilityPct: 0.012,
     trendPctPerDay: 0.006,
     kind: "rate_limit",
+    autoCloseAfterMs: AUTO_CLOSE_MS,
   },
 };
 

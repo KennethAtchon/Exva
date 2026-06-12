@@ -1,9 +1,5 @@
 import { ENGINE_BINDINGS } from "@electron/shared/ai/ai-phase-config";
-import type {
-  ReviewSignal,
-  TechnicalSignal,
-} from "@electron/shared/ai/trade-signals";
-import { MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER } from "@electron/shared/domain/mock-scenario";
+import type { ReviewSignal } from "@electron/shared/ai/trade-signals";
 import {
   conflictDetectorOutputSchema,
   riskAssessorOutputSchema,
@@ -27,17 +23,6 @@ const reviewAggregatorEngine: FinalizerEngine<
       ),
       riskAssessor: pickWorkerOutput(workerResults, riskAssessorOutputSchema),
     };
-    const mockOverride =
-      ctx.toolContext.isMockSession === true &&
-      ctx.toolContext.mockScenarioKind === "clean_breakout"
-        ? ("clean_breakout" as const)
-        : undefined;
-    const technical = ctx.input.technical as TechnicalSignal | undefined;
-    const momentumFallbackArtifact = Boolean(
-      technical?.rawSummary?.includes(
-        MOCK_CLEAN_BREAKOUT_MOMENTUM_FALLBACK_MARKER,
-      ),
-    );
     return runEngineForWorker<ReviewSignal>({
       phase: "review",
       sessionId: ctx.sessionId,
@@ -48,8 +33,6 @@ const reviewAggregatorEngine: FinalizerEngine<
       task: {
         symbol: ctx.input.instrumentSymbol as string,
         workers: workerPayload,
-        mockOverride,
-        momentumFallbackArtifact,
       },
     });
   },

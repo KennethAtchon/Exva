@@ -268,42 +268,48 @@ export class AgentOrchestrator {
         if (!detail) return;
         this.ctx.enqueueTask(
           async () => {
-            deliveries.updateStatus(payload.deliveryId, {
+            const deliveryId = payload.deliveryId;
+            const signalId = payload.signalId;
+            deliveries.updateStatus(deliveryId, {
               status: "processing",
               statusBucket: "pending",
               startedAt: new Date().toISOString(),
             });
             this.deps.bus.emit("signal_delivery_updated", {
-              deliveryId: payload.deliveryId,
+              deliveryId,
               sessionId: this.sessionId,
-              signalId: payload.signalId,
+              signalId,
               status: "processing",
               statusBucket: "pending",
             });
-            await this.scheduleSelectorCycle("Signal delivery queued", {
-              deliveryId: detail.delivery.id,
-              signalId: detail.event.id,
-              sourceType: detail.event.sourceType as SignalSourceType,
-              ticker: detail.event.ticker,
-              companyName: detail.event.companyName,
-              documentUrl: detail.event.documentUrl,
-              accessionNumber: detail.event.accessionNumber,
-              payloadJson: parseSignalPayloadJson(detail.event.payloadJson),
-            });
-            deliveries.updateStatus(payload.deliveryId, {
-              status: "triggered",
-              statusBucket: "completed",
-              finishedAt: new Date().toISOString(),
-            });
-            this.deps.bus.emit("signal_delivery_updated", {
-              deliveryId: payload.deliveryId,
-              sessionId: this.sessionId,
-              signalId: payload.signalId,
-              status: "triggered",
-              statusBucket: "completed",
-            });
+            try {
+              await this.scheduleSelectorCycle("Signal delivery queued", {
+                deliveryId: detail.delivery.id,
+                signalId: detail.event.id,
+                sourceType: detail.event.sourceType as SignalSourceType,
+                ticker: detail.event.ticker,
+                companyName: detail.event.companyName,
+                documentUrl: detail.event.documentUrl,
+                accessionNumber: detail.event.accessionNumber,
+                payloadJson: parseSignalPayloadJson(detail.event.payloadJson),
+              });
+            } catch (error) {
+              this.deps.signalDeliveryLifecycle?.expireIfStillProcessing(
+                deliveryId,
+                this.sessionId,
+                signalId,
+                error instanceof Error ? error.message : String(error),
+              );
+              throw error;
+            }
           },
           (error) => {
+            this.deps.signalDeliveryLifecycle?.expireIfStillProcessing(
+              payload.deliveryId,
+              this.sessionId,
+              payload.signalId,
+              error instanceof Error ? error.message : String(error),
+            );
             this.ctx.emitEvent(
               "ERROR",
               null,

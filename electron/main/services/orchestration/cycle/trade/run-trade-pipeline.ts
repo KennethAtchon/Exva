@@ -166,9 +166,9 @@ export function requirePipelineAiResults(
   // A pipeline that omits any of them fails loud here until that path is made
   // optional (see multi-pipeline spec, open questions).
   const { technical, fundamental, review, decision } = result.state;
-  if (!technical || !fundamental || !review || !decision) {
+  if (!decision) {
     throw new AppError(
-      `Internal error: trade pipeline '${pipelineId}' returned incomplete AI results.`,
+      `Internal error: trade pipeline '${pipelineId}' returned no decision output.`,
       "VALIDATION_FAILED",
     );
   }

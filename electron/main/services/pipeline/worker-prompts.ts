@@ -8,7 +8,6 @@ Given the same compact signals for {instrumentSymbol}, decide whether now is the
 No tools.
 
 - \`skip\` when conditions are poor or review says skip.
-- \`wait\` when setup is valid but timing is not ideal yet.
 - \`now\` when entering immediately is reasonable.
 - \`entryPrice\` only when a specific limit level is justified; otherwise null.
 
@@ -22,7 +21,7 @@ No tools. Do not output size, stop loss, or take profit.
 
 - Use \`skip\` when review recommends skip or evidence is insufficient.
 - Match \`executionStrategy\` to the dominant setup (catalyst → event_driven, trend → trend_momentum, etc.).
-- If action is \`buy\` or \`sell\`, \`confidence\` must be ≥ the wait-for-open threshold in the risk limits. If evidence does not support that level of confidence, use \`skip\` instead.
+- Report an honest calibrated probability in \`confidence\` (0–1): how likely is this trade to hit its target before its stop? Do not inflate confidence to pass a threshold — deterministic gates apply downstream.
 
 When finished, call the \`submit_result\` tool; its schema defines every field.`;
 
@@ -194,20 +193,6 @@ Validate one candidate using quote and OHLCV data.
 
 Use low scores when the candidate is thin, stale, or weakly confirmed. When finished, call the \`submit_result\` tool with the validated candidate; its schema defines every field.`;
 
-export const SELECTOR_WORKERS_TREND_SCOUT_PROMPT = `# Trend scout
-
-Find up to 3 concrete trade candidates from trending sources that fit the session instructions.
-
-## Required Process
-
-1. If the session instructions are focused on stocks, call \`get_trending_symbols\` to discover current trending symbols.
-2. If the session instructions focus crypto, futures, or prediction markets, skip stock-only trend feeds and use \`search_web\` for class-appropriate discovery instead.
-3. Optionally call \`search_web\` for additional context on promising symbols.
-4. Do not invent symbols without tool-backed evidence.
-5. Do not submit your result until you have called at least one discovery tool that matches the focused instrument class.
-
-Only include symbols with concrete current evidence. When finished, call the \`submit_result\` tool with your candidates; its schema defines every field.`;
-
 export const SELECTOR_WORKERS_WEB_SCOUT_PROMPT = `# Web scout
 
 Find up to 3 concrete trade candidates that fit the session instructions.
@@ -220,16 +205,6 @@ Find up to 3 concrete trade candidates that fit the session instructions.
 4. Do not submit your result until \`search_web\` has been called.
 
 Only include symbols with concrete current evidence. When finished, call the \`submit_result\` tool with your candidates; its schema defines every field.`;
-
-export const TECHNICAL_WORKERS_CHART_PATTERN_PROMPT = `# Chart pattern
-
-Given OHLCV bars for {instrumentSymbol}, identify the dominant price pattern and key support/resistance levels.
-
-\`patternName\` — standard pattern name (e.g. "bull flag", "ascending triangle", "double bottom") or null if no clear pattern.
-\`patternStrength\` — confidence that the pattern is well-formed (0 = ambiguous, 1 = textbook).
-\`nearestSupport\` and \`nearestResistance\` — price levels from visible structure, or null if indeterminate.
-
-No trade decision. When finished, call the \`submit_result\` tool; its schema defines every field.`;
 
 export const TECHNICAL_WORKERS_EVENT_IMPLIED_PROBABILITY_PROMPT = `# Implied probability
 
@@ -248,15 +223,6 @@ export const TECHNICAL_WORKERS_EVENT_PRICE_DRIFT_PROMPT = `# Price drift
 Score short-horizon drift and volatility for an event contract.
 
 Use OHLCV and quote only; no sizing or execution guidance. When finished, call the \`submit_result\` tool; its schema defines every field.`;
-
-export const TECHNICAL_WORKERS_MOMENTUM_INDICATOR_PROMPT = `# Momentum indicator
-
-Given OHLCV bars and a current quote for {instrumentSymbol}, assess directional momentum.
-
-\`trendStrength\` — how sustained and consistent the direction is across recent bars.
-\`momentumScore\` — combined RSI/MACD-style signal strength (0 = extreme/exhausted, 1 = strong continuation).
-
-No trade decision. When finished, call the \`submit_result\` tool; its schema defines every field.`;
 
 export const TECHNICAL_WORKERS_PRICE_REACTION_CHECKER_PROMPT = `# Price reaction checker
 

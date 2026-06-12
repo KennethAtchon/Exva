@@ -1,6 +1,7 @@
 import type { PipelineDescriptor } from "./pipeline-router";
 import { DEFAULT_TRADE_CYCLE } from "../trade/default-analysis";
 import { EDGAR_8K_TRADE_CYCLE } from "../filing/edgar-8k-analysis";
+import { RULES_MEAN_REVERSION_CYCLE } from "../rules/mean-reversion-analysis";
 
 /**
  * Default pipeline — serves web_search and manual signals, and is the fallback
@@ -25,11 +26,23 @@ export const EDGAR_8K_PIPELINE: PipelineDescriptor = {
   id: "edgar-8k-cycle",
   displayName: "EDGAR 8-K (self-describing)",
   phases: ["technical", "fundamental", "review", "decision"],
-  signalSources: ["edgar_8k"],
+  signalSources: ["edgar_8k", "mock"],
   plan: EDGAR_8K_TRADE_CYCLE,
+};
+
+/**
+ * Deterministic rules pipeline — timer-driven mean reversion, zero LLM calls.
+ */
+export const RULES_MEAN_REVERSION_PIPELINE: PipelineDescriptor = {
+  id: "rules-mean-reversion-cycle",
+  displayName: "Rules mean reversion",
+  phases: ["decision"],
+  signalSources: ["timer"],
+  plan: RULES_MEAN_REVERSION_CYCLE,
 };
 
 export const ALL_PIPELINES: readonly PipelineDescriptor[] = [
   DEFAULT_PIPELINE,
   EDGAR_8K_PIPELINE,
+  RULES_MEAN_REVERSION_PIPELINE,
 ];

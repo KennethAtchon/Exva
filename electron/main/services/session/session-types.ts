@@ -93,6 +93,7 @@ export interface OrchestratorDeps {
   logger: Logger;
   instrumentCacheRepo: InstrumentCacheRepo;
   signalDeliveriesRepo?: SignalDeliveriesRepo;
+  signalDeliveryLifecycle?: import("../signals/signal-delivery-lifecycle").SignalDeliveryLifecycle;
   signalSourcesRepo: SignalSourcesRepo;
 }
 

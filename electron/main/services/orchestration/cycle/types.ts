@@ -26,6 +26,9 @@ export type ResolvedInstrument = {
    * default pipeline is used).
    */
   pipelineId?: string;
+  /** Signal delivery that triggered this instrument (when signal-driven). */
+  signalDeliveryId?: string;
+  signalId?: string;
 };
 
 type AiTechnicalRun = LLMRunResult<TechnicalSignal>;
@@ -55,6 +58,8 @@ export type TradeCycleContext = {
   instrument: ResolvedInstrument;
   /** Trade-cycle pipeline id (from the resolved instrument). */
   pipelineId?: string;
+  signalDeliveryId?: string;
+  signalId?: string;
   technical?: AiTechnicalRun;
   fundamental?: AiFundamentalRun;
   review?: AiReviewRun;

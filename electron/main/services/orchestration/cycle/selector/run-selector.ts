@@ -1,11 +1,23 @@
 import type { InstrumentSelection } from "@/lib/schemas";
 import type { SessionConfig, WorkspaceSession } from "@/lib/types";
 import { resolvePipelineIdForSource } from "../../../pipeline/implementations/registry/pipeline-router";
+import { resolveMockToolContext } from "../../../pipeline/worker-tools/resolve-mock-tool-context";
 import { MarketHoursService } from "../market-hours-service";
 import type { TradingCycleContext } from "../trading-cycle-context";
 import type { ResolvedInstrument, SelectorCycleContext } from "../types";
 
 const marketHours = new MarketHoursService();
+
+async function shouldSkipWeekendFilter(
+  ctx: TradingCycleContext,
+): Promise<boolean> {
+  const mock = await resolveMockToolContext({
+    sessionId: ctx.sessionId,
+    brokerRouting: ctx.deps.brokerRouting,
+    brokerRegistry: ctx.deps.brokerRegistry,
+  });
+  return mock.isMockSession;
+}
 
 export async function runSelector(
   ctx: TradingCycleContext,
@@ -49,6 +61,7 @@ export async function runSelector(
 
   const pipelineId = resolvePipelineIdForSource(signalTrigger?.sourceType);
 
+  const signalDeliveryId = signalTrigger?.deliveryId;
   const instruments: ResolvedInstrument[] = result.output.instruments.map(
     (row) => ({
       symbol: row.symbol,
@@ -59,6 +72,8 @@ export async function runSelector(
       selectorEvidence: row.selectorEvidence ?? null,
       recentFailureHistory: ctx.getFailureHistoryForInstrument(row.symbol),
       pipelineId,
+      signalDeliveryId,
+      signalId: signalTrigger?.signalId,
     }),
   );
 
@@ -137,7 +152,12 @@ export async function runSelector(
     });
   }
 
-  const { tradable, excluded } = marketHours.partitionByTradability(capped);
+  const skipWeekendFilter = await shouldSkipWeekendFilter(ctx);
+  const { tradable, excluded } = marketHours.partitionByTradability(
+    capped,
+    new Date(),
+    { skipWeekendFilter },
+  );
   if (excluded.length > 0) {
     logger.warn(
       {
@@ -157,6 +177,23 @@ export async function runSelector(
       "orchestrator",
       cycleId,
     );
+  }
+
+  if (
+    tradable.length === 0 &&
+    signalDeliveryId &&
+    signalTrigger?.signalId &&
+    ctx.deps.signalDeliveryLifecycle
+  ) {
+    ctx.deps.signalDeliveryLifecycle.complete(signalDeliveryId, {
+      sessionId: ctx.sessionId,
+      signalId: signalTrigger.signalId,
+      status: capped.length === 0 ? "rejected" : "dropped",
+      dropReason:
+        capped.length === 0
+          ? "selector_no_instruments"
+          : "market_hours_filtered",
+    });
   }
 
   if (tradable.length === 0 && capped.length > 0) {

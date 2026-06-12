@@ -126,6 +126,17 @@ export interface PeriodAutopsyStructured {
     sizingConsistency: string;
     entryTimingPattern: string;
     regimeNotes: string;
+    confidenceCalibration?: {
+      brierScore: number;
+      sampleCount: number;
+      buckets: Array<{
+        bucket: string;
+        count: number;
+        avgConfidence: number;
+        hitRate: number;
+        brierScore: number;
+      }>;
+    };
   };
   recurringFailureModes: Array<{
     category: string;
@@ -356,6 +367,21 @@ const periodAutopsyStructuredSchema = z.object({
     sizingConsistency: z.string(),
     entryTimingPattern: z.string(),
     regimeNotes: z.string(),
+    confidenceCalibration: z
+      .object({
+        brierScore: z.number(),
+        sampleCount: z.number(),
+        buckets: z.array(
+          z.object({
+            bucket: z.string(),
+            count: z.number(),
+            avgConfidence: z.number(),
+            hitRate: z.number(),
+            brierScore: z.number(),
+          }),
+        ),
+      })
+      .optional(),
   }),
   recurringFailureModes: z.array(
     z.object({

@@ -63,6 +63,8 @@ export async function resolveWorkerToolContext(
     mockUrlContent: mock.mockUrlContent,
     mockPrimarySymbols: mock.mockPrimarySymbols,
     mockScenarioKind: mock.mockScenarioKind,
+    executionTier: mock.executionTier,
+    scriptedWorkerOutputs: mock.scriptedWorkerOutputs,
     isMockSession: mock.isMockSession,
   };
 }
