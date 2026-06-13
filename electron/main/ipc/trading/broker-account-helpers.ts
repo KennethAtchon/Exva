@@ -1,8 +1,14 @@
 import type { InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
 import type { BrokerAccount } from "@/lib/types";
-import { DEFAULT_MOCK_SCENARIO_KIND } from "@electron/shared/domain/mock-scenario";
-import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
+import type {
+  MockExecutionTier,
+  MockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
+import {
+  DEFAULT_MOCK_EXECUTION_TIER,
+  DEFAULT_MOCK_SCENARIO_KIND,
+} from "@electron/shared/domain/mock-scenario";
 
 export function supportedInstrumentClassesFor(
   brokerType: string,
@@ -76,6 +82,7 @@ export function tempBrokerAccount(
     brokerType: string;
     mode: "paper" | "live";
     mockScenarioKind?: MockScenarioKind | null;
+    mockExecutionTier?: MockExecutionTier | null;
   },
 ): BrokerAccount {
   return {
@@ -87,6 +94,10 @@ export function tempBrokerAccount(
     mockScenarioKind:
       input.brokerType === "mock"
         ? (input.mockScenarioKind ?? DEFAULT_MOCK_SCENARIO_KIND)
+        : null,
+    mockExecutionTier:
+      input.brokerType === "mock"
+        ? (input.mockExecutionTier ?? DEFAULT_MOCK_EXECUTION_TIER)
         : null,
     maxSessions: 10,
     allocationEnforcement: "hard",

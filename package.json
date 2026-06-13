@@ -26,6 +26,7 @@
     "check": "bun run typecheck && bun run lint && bun run format:check && bun run test",
     "test": "vitest run",
     "test:watch": "vitest",
+    "backtest:edgar": "bun run scripts/run-edgar-backtest.ts",
     "test:e2e": "playwright test",
     "prepare": "husky",
     "doctor": "react-doctor",

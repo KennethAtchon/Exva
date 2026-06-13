@@ -33,6 +33,7 @@ import type { AIPhaseTrace } from "@electron/shared/ai/ai-phase-trace";
 import type { PhaseRuntimeSummary } from "@electron/shared/ai/ai-phase";
 import type {
   ExperienceSummary,
+  ExperienceScorecardSummary,
   ExvaEventMap,
   ExvaEventName,
   ProviderModelEntry,
@@ -151,6 +152,16 @@ export const api = {
   }> => bridge().session.list(filters),
   listExperiences: (): Promise<ExperienceSummary[]> =>
     bridge().experiences.list(),
+  listExperienceScorecards: (): Promise<ExperienceScorecardSummary[]> =>
+    bridge()
+      .experiences.listScorecards()
+      .then((r) => r.scorecards),
+  getExperienceScorecard: (
+    experienceId: string,
+  ): Promise<ExperienceScorecardSummary> =>
+    bridge()
+      .experiences.getScorecard(experienceId)
+      .then((r) => r.scorecard),
   createSession: (input: SessionCreateInput) => bridge().session.create(input),
   updateSession: (id: string, input: SessionCreateInput) =>
     bridge().session.update(id, input),
@@ -183,6 +194,9 @@ export const api = {
     balanceRefreshIntervalMin?: number;
     mockScenarioKind?:
       | import("@electron/shared/domain/mock-scenario").MockScenarioKind
+      | null;
+    mockExecutionTier?:
+      | import("@electron/shared/domain/mock-scenario").MockExecutionTier
       | null;
   }) => bridge().brokerAccounts.updateSettings(input),
 
@@ -420,6 +434,7 @@ export const api = {
     mode: "paper" | "live";
     credentials: Record<string, string>;
     mockScenarioKind?: import("@electron/shared/domain/mock-scenario").MockScenarioKind;
+    mockExecutionTier?: import("@electron/shared/domain/mock-scenario").MockExecutionTier;
   }) => bridge().accounts.addBroker(input),
   deleteBrokerAccount: (id: string) =>
     bridge().accounts.removeBrokerAccount({ id }),
@@ -535,6 +550,7 @@ export async function listenEvent<K extends ExvaEventName>(
 }
 
 export type {
+  ExperienceScorecardSummary,
   ExvaEventMap,
   ExvaEventName,
   ProviderModelEntry,

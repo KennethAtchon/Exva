@@ -25,6 +25,7 @@ export const EDGAR_CATALYST_EXPERIENCE: ExperienceDescriptor = {
     riskPresetId: "moderate",
     timeframePresetId: "catalyst",
   },
+  promptVariantKey: "catalyst",
   mockFixtures: {
     defaultScenario: "clean_breakout",
     scriptedWorkerOutputs: scriptedWorkerOutputsForScenario("clean_breakout"),

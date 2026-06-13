@@ -79,6 +79,7 @@ export interface SessionRiskConfig {
   maxExposureUsd: number | null;
   waitForOpenThreshold: number;
   maxConcurrentTrades: number;
+  maxConsecutiveLosers: number;
   dailyLossLimitUsd: number;
   profitTargetUsd: number;
   maxAiSpendUsd: number;
@@ -154,6 +155,7 @@ export interface StrategySnapshot {
     maxExposureUsd: number | null;
     waitForOpenThreshold: number;
     maxConcurrentTrades: number;
+    maxConsecutiveLosers: number;
     dailyLossLimitUsd: number;
     profitTargetUsd: number;
     maxAiSpendUsd: number;
@@ -253,6 +255,7 @@ export interface SessionConfig {
   stop_loss_pct: number;
   take_profit_pct: number;
   max_concurrent_trades: number;
+  max_consecutive_losers: number;
   research_depth: ResearchDepth;
   daily_loss_limit_usd: number;
   profit_target_usd: number;
@@ -417,6 +420,7 @@ export function buildStrategySnapshot(
       maxExposureUsd: context.riskConfig.maxExposureUsd,
       waitForOpenThreshold: context.riskConfig.waitForOpenThreshold,
       maxConcurrentTrades: context.riskConfig.maxConcurrentTrades,
+      maxConsecutiveLosers: context.riskConfig.maxConsecutiveLosers,
       dailyLossLimitUsd: context.riskConfig.dailyLossLimitUsd,
       profitTargetUsd: context.riskConfig.profitTargetUsd,
       maxAiSpendUsd: context.riskConfig.maxAiSpendUsd,
@@ -513,6 +517,7 @@ export function toLegacySessionConfig(
     stop_loss_pct: context.riskConfig.stopLossPct ?? 0,
     take_profit_pct: context.riskConfig.takeProfitPct ?? 0,
     max_concurrent_trades: context.riskConfig.maxConcurrentTrades,
+    max_consecutive_losers: context.riskConfig.maxConsecutiveLosers,
     research_depth: "balanced",
     daily_loss_limit_usd: context.riskConfig.dailyLossLimitUsd,
     profit_target_usd: context.riskConfig.profitTargetUsd,

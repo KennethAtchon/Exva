@@ -16,6 +16,7 @@ export type RiskGateType =
   | "api_budget"
   | "daily_loss"
   | "profit_target"
+  | "consecutive_losers"
   | "concurrent_cap"
   | "position_size"
   | "confidence"
@@ -274,6 +275,16 @@ export class RiskEngine {
         allowed: false,
         reason: "Profit target reached",
         gateType: "profit_target",
+      };
+    }
+    if (
+      stats.consecutive_losers >= config.max_consecutive_losers &&
+      config.max_consecutive_losers > 0
+    ) {
+      return {
+        allowed: false,
+        reason: "Maximum consecutive losers reached",
+        gateType: "consecutive_losers",
       };
     }
     return { allowed: true };

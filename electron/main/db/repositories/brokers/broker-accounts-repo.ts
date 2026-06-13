@@ -7,7 +7,9 @@ import type {
 } from "@/lib/types";
 import {
   DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
+  DEFAULT_MOCK_EXECUTION_TIER,
   DEFAULT_MOCK_SCENARIO_KIND,
+  type MockExecutionTier,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
 import { asc, eq } from "drizzle-orm";
@@ -53,11 +55,16 @@ export class BrokerAccountsRepo {
     mode: BrokerMode;
     secretRef: string;
     mockScenarioKind?: MockScenarioKind | null;
+    mockExecutionTier?: MockExecutionTier | null;
   }): BrokerAccount {
     const now = new Date().toISOString();
     const mockScenarioKind =
       input.brokerType === "mock"
         ? (input.mockScenarioKind ?? DEFAULT_MOCK_SCENARIO_KIND)
+        : null;
+    const mockExecutionTier =
+      input.brokerType === "mock"
+        ? (input.mockExecutionTier ?? DEFAULT_MOCK_EXECUTION_TIER)
         : null;
     this.client.db
       .insert(brokerAccounts)
@@ -70,6 +77,7 @@ export class BrokerAccountsRepo {
         ),
         mode: input.mode,
         mockScenarioKind,
+        mockExecutionTier,
         balanceCacheUsd:
           input.brokerType === "mock" ? DEFAULT_MOCK_ACCOUNT_BALANCE_USD : null,
         balanceCachedAt: input.brokerType === "mock" ? now : null,
@@ -128,16 +136,20 @@ export class BrokerAccountsRepo {
       allocationEnforcement?: AllocationEnforcement;
       balanceRefreshIntervalMin?: number;
       mockScenarioKind?: MockScenarioKind | null;
+      mockExecutionTier?: MockExecutionTier | null;
     },
   ): void {
     const account = this.require(id);
-    const { mockScenarioKind, ...rest } = patch;
+    const { mockScenarioKind, mockExecutionTier, ...rest } = patch;
     this.client.db
       .update(brokerAccounts)
       .set({
         ...rest,
         ...(mockScenarioKind !== undefined && account.brokerType === "mock"
           ? { mockScenarioKind }
+          : {}),
+        ...(mockExecutionTier !== undefined && account.brokerType === "mock"
+          ? { mockExecutionTier }
           : {}),
         updatedAt: new Date().toISOString(),
       })

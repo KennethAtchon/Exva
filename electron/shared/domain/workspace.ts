@@ -9,7 +9,7 @@ import type {
   SelectionMode,
   SessionStatus,
 } from "./enums";
-import type { MockScenarioKind } from "./mock-scenario";
+import type { MockExecutionTier, MockScenarioKind } from "./mock-scenario";
 import type { SessionStrategy, SessionStrategyContext } from "./session";
 
 export interface WorkspaceSession {
@@ -54,6 +54,8 @@ export interface BrokerAccount {
   mode: BrokerMode;
   /** Mock broker only — drives scenario fixtures and adapter behavior. */
   mockScenarioKind: MockScenarioKind | null;
+  /** Mock broker only — scripted (canned) vs rehearsal (real LLM). */
+  mockExecutionTier: MockExecutionTier | null;
   maxSessions: number;
   allocationEnforcement: AllocationEnforcement;
   balanceRefreshIntervalMin: number;
@@ -144,6 +146,7 @@ export interface DashboardStats {
   portfolio_value_source: "broker";
   portfolio_broker_count: number;
   unrealized_pnl: number;
+  consecutive_losers: number;
   session_uptime_min: number;
 }
 

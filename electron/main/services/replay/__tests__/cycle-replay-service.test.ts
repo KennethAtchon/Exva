@@ -53,6 +53,7 @@ function makeStrategySnapshot(): StrategySnapshot {
       maxExposureUsd: null,
       waitForOpenThreshold: 0,
       maxConcurrentTrades: 3,
+      maxConsecutiveLosers: 5,
       dailyLossLimitUsd: 500,
       profitTargetUsd: 2000,
       maxAiSpendUsd: 10,

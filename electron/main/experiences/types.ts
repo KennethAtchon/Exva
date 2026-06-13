@@ -1,3 +1,4 @@
+import type { ProcessingMode } from "@electron/shared/domain/enums";
 import type { PipelineDescriptor } from "../services/pipeline/implementations/registry/pipeline-router";
 import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
 import type { SignalSourceType } from "@electron/shared/domain";
@@ -24,6 +25,8 @@ export interface ExperienceDescriptor {
     riskPresetId: string;
     timeframePresetId: string;
   };
+  /** Drives AI phase variantKey selection — decoupled from session posture toggles. */
+  promptVariantKey: ProcessingMode;
   mockFixtures: {
     defaultScenario: MockScenarioKind;
     scriptedWorkerOutputs: ScriptedWorkerOutputs;

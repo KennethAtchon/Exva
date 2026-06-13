@@ -102,6 +102,7 @@ CREATE TABLE `broker_accounts` (
 	`balance_cache_usd` real,
 	`balance_cached_at` text,
 	`mock_scenario_kind` text,
+	`mock_execution_tier` text DEFAULT 'scripted',
 	`secret_ref` text NOT NULL,
 	`updated_at` text NOT NULL
 );
@@ -344,6 +345,7 @@ CREATE TABLE `session_risk_config` (
 	`max_exposure_usd` real,
 	`wait_for_open_threshold` real DEFAULT 0.8 NOT NULL,
 	`max_concurrent_trades` integer DEFAULT 3 NOT NULL,
+	`max_consecutive_losers` integer DEFAULT 5 NOT NULL,
 	`daily_loss_limit_usd` real DEFAULT 200 NOT NULL,
 	`profit_target_usd` real DEFAULT 1000 NOT NULL,
 	`max_ai_spend_usd` real DEFAULT 5 NOT NULL,
@@ -598,6 +600,10 @@ CREATE TABLE `trades` (
 	`exit_reason` text,
 	`client_order_id` text,
 	`close_market_snapshot_json` text,
+	`mfe_usd` real,
+	`mae_usd` real,
+	`spread_at_entry_bps` real,
+	`slippage_bps` real,
 	`created_at` text NOT NULL,
 	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`broker_account_id`) REFERENCES `broker_accounts`(`id`) ON UPDATE no action ON DELETE set null

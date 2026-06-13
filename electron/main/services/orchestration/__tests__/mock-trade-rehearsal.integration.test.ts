@@ -20,6 +20,7 @@ import { CandidateValidationService } from "../policy/candidate-validation-servi
 import { TradingCycleContext } from "../cycle/trading-cycle-context";
 import { executeTradeCycle } from "../cycle/trade/trade-cycle";
 import * as runTradePipelineModule from "../cycle/trade/run-trade-pipeline";
+import { TradeAutopsyService } from "../../analytics/trade-autopsy-service";
 import {
   MOCK_POLL_INTERVAL_MS,
   TradeMonitor,
@@ -174,6 +175,74 @@ describe("mock trade rehearsal integration", () => {
 
       expect(harness.listTrades()[0]?.status).toBe("closed");
       expect(closedEvents).toContain(opened?.id);
+
+      const insertAutopsy = vi.fn((record: { tradeId: string }) => ({
+        id: "autopsy-1",
+        ...record,
+      }));
+      const autopsyService = new TradeAutopsyService({
+        trades: harness.deps.tradesRepo as never,
+        agentMessages: { listByTrade: () => [] } as never,
+        autopsies: {
+          insert: insertAutopsy,
+          listByTrade: () => [],
+        } as never,
+        lessons: {
+          insert: vi.fn(),
+          listByAutopsy: () => [],
+        } as never,
+        providerRegistry: {
+          get: async () => ({
+            generateText: async () => ({
+              text: JSON.stringify({
+                executiveSummary: "Golden path autopsy.",
+                qualityGrade: "B",
+                qualityScore: 80,
+                thesisReview: {
+                  valid: true,
+                  analysis: "ok",
+                  confirmatoryBias: false,
+                  prematureConviction: false,
+                  ignoredCounterSignals: [],
+                },
+                executionQuality: {
+                  entryTiming: "good",
+                  sizingAdequacy: "appropriate",
+                  exitManagement: "Auto-closed by monitor.",
+                  slippage: null,
+                },
+                behavioralFlags: [],
+                marketContext: {
+                  regime: "trending",
+                  macro: "Mock scenario.",
+                  volatility: "Low.",
+                  suitability: "good_conditions",
+                },
+                whatWorked: ["Monitor exit"],
+                whatFailed: [],
+                rootCause: null,
+                processImprovements: [],
+                lessons: [],
+              }),
+              inputTokens: 10,
+              outputTokens: 10,
+              durationMs: 5,
+            }),
+          }),
+        } as never,
+        workspacePrefs: {
+          get: () => ({
+            defaultModelProviderKey: "test",
+            defaultModelModelId: "test-model",
+          }),
+        } as never,
+      });
+
+      expect(opened).toBeDefined();
+      const tradeId = opened?.id;
+      if (!tradeId) throw new Error("golden path: missing opened trade id");
+      await autopsyService.summarize(tradeId);
+      expect(insertAutopsy).toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }

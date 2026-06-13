@@ -80,6 +80,7 @@ import {
   RiskEngine,
 } from "./risk";
 import { PaperScorecardService } from "./analytics/paper-scorecard-service";
+import { ExperienceScorecardService } from "./analytics/experience-scorecard-service";
 import { PeriodAutopsyService } from "./analytics/period-autopsy-service";
 import { TradeAutopsyService } from "./analytics/trade-autopsy-service";
 import { AutopsyExportService } from "./analytics/autopsy-export-service";
@@ -155,6 +156,7 @@ export interface AppServices {
   sessionWrites: SessionWriteService;
   cycleReplay: CycleReplayService;
   paperScorecard: PaperScorecardService;
+  experienceScorecard: ExperienceScorecardService;
   periodAutopsy: PeriodAutopsyService;
   liveReadiness: LiveReadinessService;
   tradeAutopsy: TradeAutopsyService;
@@ -391,12 +393,30 @@ export async function createAppServices(app: App): Promise<AppServices> {
     () => orchestratorDepsBase,
   );
 
+  const paperScorecard = new PaperScorecardService({
+    trades: repos.trades,
+    brokerAccounts: repos.brokerAccounts,
+    apiCallLog: repos.apiCallLog,
+    session: repos.session,
+    sessionExecutionSteps: repos.sessionExecutionSteps,
+  });
+
+  const experienceScorecard = new ExperienceScorecardService({
+    trades: repos.trades,
+    brokerAccounts: repos.brokerAccounts,
+    brokerAssignments: repos.sessionBrokerAssignments,
+    session: repos.session,
+    apiCallLog: repos.apiCallLog,
+  });
+
   const liveReadiness = new LiveReadinessService(
     db,
     repos.session,
     repos.brokerAccounts,
     repos.sessionBrokerAssignments,
     brokerRegistry,
+    paperScorecard,
+    experienceScorecard,
   );
 
   const session = new SessionService({
@@ -436,14 +456,6 @@ export async function createAppServices(app: App): Promise<AppServices> {
     instrumentCache: repos.instrumentCache,
     sessionExecutionSteps: repos.sessionExecutionSteps,
     userDataPath: app.getPath("userData"),
-  });
-
-  const paperScorecard = new PaperScorecardService({
-    trades: repos.trades,
-    brokerAccounts: repos.brokerAccounts,
-    apiCallLog: repos.apiCallLog,
-    session: repos.session,
-    sessionExecutionSteps: repos.sessionExecutionSteps,
   });
 
   const tradeAutopsy = new TradeAutopsyService({
@@ -528,6 +540,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     sessionWrites,
     cycleReplay,
     paperScorecard,
+    experienceScorecard,
     periodAutopsy,
     liveReadiness,
     tradeAutopsy,

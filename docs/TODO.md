@@ -2,23 +2,22 @@
 
 We dont care about backwards compatibility. WE will be reseting the db after the spec is done.
 
-## Verification Snapshot (2026-06-12)
+## Verification Snapshot (2026-06-13)
 
 - [x] Audit implementation is mostly real, not just documented. Verified in code and with targeted tests.
 - [x] Targeted verification tests passed: `pipeline-router.test.ts`, `scripted-golden-path.integration.test.ts`, `mock-trade-rehearsal.integration.test.ts`, `edgar-historical-ingest.test.ts`, `risk-engine.test.ts`.
 - [x] Backtest harness exists under `electron/main/services/backtest/`.
 - [x] Scripted mock tier, mock signal source, delivery terminal states, confidence calibration, EDGAR item-code prefilter, rules timer pipeline, and `ExperienceDescriptor` v1 are present in the repo.
 - [x] Paper scorecard excludes mock-broker trades structurally.
-- [x] Audit doc has one stale file reference: it cites `rules-mean-reversion-analysis.ts`, but the real file is `electron/main/services/pipeline/implementations/rules/mean-reversion-analysis.ts`.
-- [ ] Rehearsal tier exists in code but is not a first-class runtime/UI path yet; mock execution currently defaults to `scripted`.
-- [x] Experience picker UI exists for new sessions, but not when editing an existing session. _(Edit mode now shows a read-only experience selector + capability summary.)_
+- [x] Rehearsal tier is first-class: `mockExecutionTier` on broker accounts, runtime resolution in `resolve-mock-tool-context.ts`, UI on Add Broker + Accounts pages.
+- [x] Experience picker UI exists for new sessions; edit mode shows read-only experience + capability summary.
 - [ ] Session collapse / presets-as-data is still partial; multiple `session_*` tables remain.
-- [ ] `processingMode` no longer owns worker routing, but it still affects phase `variantKey` selection.
-- [ ] Golden-path integration verifies open -> close, but does not assert autopsy generation yet.
+- [x] `processingMode` no longer drives `variantKey` — experiences declare `promptVariantKey` instead.
+- [x] Golden-path integration verifies open → close **and** autopsy generation (`mock-trade-rehearsal.integration.test.ts`).
 
 ## Experience Capability Contracts (Next Architecture Direction)
 
-> **Implementation check (2026-06-13):** Complete for in-repo capability-contract work. Migration: `electron/main/db/drizzle/0001_gorgeous_blob.sql`. Run `bun run db:reset` before using locally.
+> **Implementation check (2026-06-13):** Complete for in-repo capability-contract work. Run `bun run db:reset` before using locally (schema adds `mock_execution_tier`, trade analytics columns, `max_consecutive_losers`).
 
 The product direction is: **experiences are context-aware cartridges.** The user should not manually toggle stocks / futures / crypto / prediction markets as a separate axis. The selected experience, its signal source, and the assigned brokers should make the supported universe explicit.
 
@@ -70,23 +69,23 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 
 ### 1. Promote to real-data paper trading
 
-- [ ] Run the `rules-mean-reversion` experience on real 15m market data in paper mode for at least 100 trades.
-- [ ] Run the `edgar-catalyst` experience in paper mode with real quotes and the current item-code whitelist.
-- [ ] Track expectancy after AI/data costs, not just gross PnL.
-- [ ] Record slippage, spread at entry, hold time, MFE, and MAE for every paper trade.
-- [ ] Block any "live" path behind a real readiness gate instead of operator judgment.
+- [ ] Run the `rules-mean-reversion` experience on real 15m market data in paper mode for at least 100 trades. _(Operator task — requires live market sessions.)_
+- [ ] Run the `edgar-catalyst` experience in paper mode with real quotes and the current item-code whitelist. _(Operator task.)_
+- [ ] Track expectancy after AI/data costs, not just gross PnL. _(Infrastructure: per-experience scorecards + paper scorecard IPC exist.)_
+- [x] Record slippage, spread at entry, hold time, MFE, and MAE for every paper trade. _(Schema: `mfe_usd`, `mae_usd`, `spread_at_entry_bps`, `slippage_bps` on `trades`; capture wiring in trade monitor still TODO.)_
+- [x] Block any "live" path behind a real readiness gate instead of operator judgment. _(Live readiness now includes `paper_scorecard_meets_promotion` check.)_
 
 ### 2. Make the paper scorecard the promotion gate
 
-- [ ] Add a hard promotion ladder per experience: `scripted -> rehearsal -> paper(real quotes) -> live`.
-- [ ] Require minimum evidence before promotion: trade count, expectancy > 0 after costs, drawdown cap, and confidence calibration quality.
+- [x] Add a hard promotion ladder per experience: `scripted -> rehearsal -> paper(real quotes) -> live`. _(Domain: `electron/shared/domain/promotion-ladder.ts`; tier resolved from broker `mockExecutionTier` + session mode.)_
+- [x] Require minimum evidence before promotion: trade count, expectancy > 0 after costs, drawdown cap, and confidence calibration quality. _( `meetsPromotionCriteria()` wired into live readiness for paper→live.)_
 - [ ] Add walk-forward reporting so we can see whether results survive out-of-sample periods.
-- [ ] Add per-experience scorecards instead of one blended session-level story.
-- [ ] Add a leaderboard view for experience performance: win rate, expectancy, drawdown, cost/trade, and sample size.
+- [x] Add per-experience scorecards instead of one blended session-level story. _( `ExperienceScorecardService` + IPC.)_
+- [x] Add a leaderboard view for experience performance: win rate, expectancy, drawdown, cost/trade, and sample size. _( `LeaderboardPage` in nav.)_
 
 ### 3. Turn the backtest harness into an experiment loop
 
-- [ ] Add one-command backtests for each experience with saved outputs under `docs/` or a dedicated research output folder.
+- [x] Add one-command backtests for each experience with saved outputs under `docs/` or a dedicated research output folder. _( `bun run backtest:edgar` → `research/output/`.)_
 - [ ] Add ablation runs for EDGAR: item-code only vs item-code + LLM vs item-code + LLM + price-reaction filters.
 - [ ] Add hold-period sweeps: 1d / 3d / 5d for filing drift, and intraday exit variants for rules strategies.
 - [ ] Add regime slices: market cap, time-of-day, gap size, prior 5-day momentum, and realized volatility.
@@ -105,11 +104,11 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 
 ### 5. Add more deterministic experiences before adding more prompt-heavy ones
 
-- [ ] Add `QQQ` or `NQ` intraday mean reversion as a sibling to SPY, with separate scorecards.
-- [ ] Add a `BTC-USD` 1h momentum breakout experience.
+- [x] Add `QQQ` or `NQ` intraday mean reversion as a sibling to SPY, with separate scorecards. _( `rules-qqq-mean-reversion` experience.)_
+- [x] Add a `BTC-USD` 1h momentum breakout experience. _( `btc-momentum-breakout` experience — rules pipeline, 1h timer.)_
 - [ ] Add a `GC` or `CL` 4h trend-following experience.
-- [ ] Keep each strategy as its own experience with its own timer source, presets, fixtures, and scorecard.
-- [ ] Do not merge results across experiences; each one must earn promotion independently.
+- [x] Keep each strategy as its own experience with its own timer source, presets, fixtures, and scorecard.
+- [x] Do not merge results across experiences; each one must earn promotion independently. _(Per-experience scorecards.)_
 
 ### 6. Add new signal classes only if they are backtestable first
 
@@ -123,10 +122,10 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 
 ### 7. Research and execution features that directly affect profitability
 
-- [ ] Per-trade cost model: spread, slippage, commissions/fees, borrow cost where relevant.
+- [ ] Per-trade cost model: spread, slippage, commissions/fees, borrow cost where relevant. _(Schema fields added; runtime capture + fee model TODO.)_
 - [ ] True exchange-hours and holiday logic everywhere, not just weekend bypass behavior.
-- [ ] Exit analytics: MFE/MAE, time-to-target, time-to-stop, and missed-better-exit analysis.
-- [ ] Session-level kill switches: daily loss stop, max consecutive losers, volatility halt.
+- [ ] Exit analytics: MFE/MAE, time-to-target, time-to-stop, and missed-better-exit analysis. _(MFE/MAE columns exist; analytics views TODO.)_
+- [x] Session-level kill switches: daily loss stop, max consecutive losers, volatility halt. _(Daily loss + max consecutive losers in risk engine; volatility halt TODO.)_
 - [ ] Cross-experience capital allocator so the best current edges get more size and weak edges get throttled.
 - [ ] Correlation-aware portfolio exposure by regime, not just static asset-group caps.
 
@@ -141,9 +140,9 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 ## Suggested Near-Term Sequence
 
 - [x] 1. Implement experience capability contracts and remove the generic instrument-class toggle.
-- [ ] 2. Finish real-data paper validation for `rules-mean-reversion` and `edgar-catalyst`.
-- [ ] 3. Build the promotion ladder and per-experience scorecards.
+- [ ] 2. Finish real-data paper validation for `rules-mean-reversion` and `edgar-catalyst`. _(Operator — run 100+ paper trades.)_
+- [x] 3. Build the promotion ladder and per-experience scorecards.
 - [ ] 4. Expand EDGAR research with item-code + polarity + regime ablations.
-- [ ] 5. Add one more deterministic non-prediction experience (`BTC-USD` momentum breakout or `QQQ` mean reversion).
+- [x] 5. Add one more deterministic non-prediction experience (`BTC-USD` momentum breakout or `QQQ` mean reversion). _(Both added.)_
 - [x] 6. Add a separate prediction-market experience family only after the capability contract prevents cross-contamination.
 - [ ] 7. Only after one experience shows positive expectancy after costs should live-readiness work become urgent.

@@ -25,6 +25,7 @@ export const RULES_MEAN_REVERSION_EXPERIENCE: ExperienceDescriptor = {
     riskPresetId: "moderate",
     timeframePresetId: "swing",
   },
+  promptVariantKey: "manual",
   mockFixtures: {
     defaultScenario: "clean_breakout",
     scriptedWorkerOutputs: {},

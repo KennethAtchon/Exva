@@ -69,6 +69,10 @@ export interface Trade {
   exit_reason: string | null;
   client_order_id?: string | null;
   close_market_snapshot_json?: string | null;
+  mfe_usd?: number | null;
+  mae_usd?: number | null;
+  spread_at_entry_bps?: number | null;
+  slippage_bps?: number | null;
   created_at: string;
   current_price?: number | null;
   unrealized_pnl?: number | null;

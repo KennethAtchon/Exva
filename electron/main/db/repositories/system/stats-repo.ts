@@ -43,8 +43,29 @@ export class StatsRepo {
         portfolio_value_source: "broker",
         portfolio_broker_count: 0,
         unrealized_pnl: 0,
+        consecutive_losers: 0,
         session_uptime_min: uptimeMin,
       };
+    }
+
+    const allClosedRows = this.client.db
+      .select({
+        final_pnl_usd: trades.finalPnlUsd,
+      })
+      .from(trades)
+      .where(
+        tradeSessionCondition
+          ? and(tradeSessionCondition, eq(trades.status, "closed"))
+          : eq(trades.status, "closed"),
+      )
+      .orderBy(desc(trades.closedAt))
+      .limit(50)
+      .all();
+
+    let consecutiveLosers = 0;
+    for (const row of allClosedRows) {
+      if (Number(row.final_pnl_usd ?? 0) <= 0) consecutiveLosers += 1;
+      else break;
     }
 
     const tradeRows = this.client.db
@@ -102,6 +123,7 @@ export class StatsRepo {
       portfolio_value_source: "broker",
       portfolio_broker_count: 0,
       unrealized_pnl: 0,
+      consecutive_losers: consecutiveLosers,
       session_uptime_min: uptimeMin,
     };
   }

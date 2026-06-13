@@ -34,6 +34,8 @@ export const channels = {
   },
   experiences: {
     list: "experiences:list",
+    getScorecard: "experiences:getScorecard",
+    listScorecards: "experiences:listScorecards",
   },
   session: {
     start: "session:start",

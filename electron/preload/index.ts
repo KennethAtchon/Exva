@@ -100,6 +100,9 @@ const exva: ExvaApi = {
   },
   experiences: {
     list: () => invoke(channels.experiences.list),
+    listScorecards: () => invoke(channels.experiences.listScorecards),
+    getScorecard: (experienceId: string) =>
+      invoke(channels.experiences.getScorecard, { experienceId }),
   },
   session: {
     start: () => invoke(channels.session.start),

@@ -27,6 +27,7 @@ export const PREDICTION_EVENT_EDGE_EXPERIENCE: ExperienceDescriptor = {
     riskPresetId: "prediction_market",
     timeframePresetId: "prediction",
   },
+  promptVariantKey: "catalyst",
   mockFixtures: {
     defaultScenario: "clean_breakout",
     scriptedWorkerOutputs: {},

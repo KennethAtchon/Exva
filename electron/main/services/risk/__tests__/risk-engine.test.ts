@@ -10,6 +10,7 @@ describe("RiskEngine", () => {
     stop_loss_pct: 2,
     take_profit_pct: 4,
     max_concurrent_trades: 2,
+    max_consecutive_losers: 5,
     research_depth: "balanced",
     max_api_spend_usd: 10,
     daily_loss_limit_usd: 100,
@@ -30,6 +31,7 @@ describe("RiskEngine", () => {
     portfolio_value_source: "broker",
     portfolio_broker_count: 0,
     unrealized_pnl: 0,
+    consecutive_losers: 0,
     session_uptime_min: 30,
   };
 

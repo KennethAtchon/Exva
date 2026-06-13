@@ -52,12 +52,13 @@ export async function resolveMockToolContext(input: {
   }
 
   const kind = mockAdapter.getScenarioKind() ?? DEFAULT_MOCK_SCENARIO_KIND;
+  const executionTier =
+    mockAdapter.getExecutionTier() ?? DEFAULT_MOCK_EXECUTION_TIER;
   const fixtures = MockMarketSimulator.fixturesFor(kind);
   const focusedFixtures = applyMockInstrumentFocus(
     fixtures,
     input.focusInstrumentClass,
   );
-  const executionTier = DEFAULT_MOCK_EXECUTION_TIER;
   const primarySymbol = focusedFixtures.primarySymbols?.[0];
   const scriptedWorkerOutputs =
     executionTier === "scripted"

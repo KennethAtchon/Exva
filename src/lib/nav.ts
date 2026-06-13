@@ -9,6 +9,7 @@ import {
   Microscope,
   Radio,
   SlidersHorizontal,
+  Trophy,
   Wallet,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ export type PageKey =
   | "brokers"
   | "trades"
   | "autopsy"
+  | "leaderboard"
   | "strategy"
   | "signals"
   | "costs"
@@ -32,6 +34,7 @@ export const NAV_ITEMS: { id: PageKey; label: string; icon: LucideIcon }[] = [
   { id: "brokers", label: "Brokers", icon: Landmark },
   { id: "trades", label: "Trades", icon: ArrowLeftRight },
   { id: "autopsy", label: "Autopsy", icon: Microscope },
+  { id: "leaderboard", label: "Leaderboard", icon: Trophy },
   { id: "strategy", label: "Strategy", icon: SlidersHorizontal },
   { id: "signals", label: "Signals", icon: Radio },
   { id: "costs", label: "API Usage", icon: BarChart3 },

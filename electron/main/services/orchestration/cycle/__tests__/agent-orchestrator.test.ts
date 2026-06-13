@@ -457,6 +457,7 @@ function baseConfig(): SessionConfig {
     stop_loss_pct: 2,
     take_profit_pct: 4,
     max_concurrent_trades: 3,
+    max_consecutive_losers: 5,
     research_depth: "balanced",
     daily_loss_limit_usd: 200,
     profit_target_usd: 1000,

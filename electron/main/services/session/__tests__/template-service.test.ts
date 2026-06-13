@@ -79,6 +79,7 @@ describe("SessionTemplateService", () => {
             maxExposureUsd: null,
             waitForOpenThreshold: 0.8,
             maxConcurrentTrades: 3,
+            maxConsecutiveLosers: 5,
             dailyLossLimitUsd: 200,
             profitTargetUsd: 1000,
             maxAiSpendUsd: 5,

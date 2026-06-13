@@ -23,8 +23,10 @@ import type {
 import { isHoldingStyle, isTradingTimeframe } from "@electron/shared/domain";
 import {
   DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
+  DEFAULT_MOCK_EXECUTION_TIER,
   DEFAULT_MOCK_SCENARIO_KIND,
   isMockScenarioKind,
+  type MockExecutionTier,
 } from "@electron/shared/domain/mock-scenario";
 
 type Row = Record<string, unknown>;
@@ -60,6 +62,10 @@ export function toTrade(row: Row): Trade {
     exit_reason: nullableString(row.exit_reason),
     client_order_id: nullableString(row.client_order_id),
     close_market_snapshot_json: nullableString(row.close_market_snapshot_json),
+    mfe_usd: nullableNumber(row.mfe_usd),
+    mae_usd: nullableNumber(row.mae_usd),
+    spread_at_entry_bps: nullableNumber(row.spread_at_entry_bps),
+    slippage_bps: nullableNumber(row.slippage_bps),
     created_at: String(row.created_at),
   };
 }
@@ -130,6 +136,7 @@ export function toSessionConfig(row: Row): SessionConfig {
     stop_loss_pct: Number(row.stop_loss_pct),
     take_profit_pct: Number(row.take_profit_pct),
     max_concurrent_trades: Number(row.max_concurrent_trades),
+    max_consecutive_losers: Number(row.max_consecutive_losers ?? 5),
     research_depth: row.research_depth as SessionConfig["research_depth"],
     daily_loss_limit_usd: Number(row.daily_loss_limit_usd),
     profit_target_usd: Number(row.profit_target_usd),
@@ -259,6 +266,7 @@ export function toSessionRiskConfig(row: Row): SessionRiskConfig {
     maxExposureUsd: nullableNumber(row.max_exposure_usd),
     waitForOpenThreshold: Number(row.wait_for_open_threshold),
     maxConcurrentTrades: Number(row.max_concurrent_trades),
+    maxConsecutiveLosers: Number(row.max_consecutive_losers ?? 5),
     dailyLossLimitUsd: Number(row.daily_loss_limit_usd),
     profitTargetUsd: Number(row.profit_target_usd),
     maxAiSpendUsd: Number(row.max_ai_spend_usd),
@@ -321,6 +329,13 @@ export function toBrokerAccount(row: Row): BrokerAccount {
         ? (String(row.mock_scenario_kind) as BrokerAccount["mockScenarioKind"])
         : isMockBroker
           ? DEFAULT_MOCK_SCENARIO_KIND
+          : null,
+    mockExecutionTier:
+      row.mock_execution_tier === "rehearsal" ||
+      row.mock_execution_tier === "scripted"
+        ? (row.mock_execution_tier as MockExecutionTier)
+        : isMockBroker
+          ? DEFAULT_MOCK_EXECUTION_TIER
           : null,
     maxSessions: Number(row.max_sessions ?? 10),
     allocationEnforcement:

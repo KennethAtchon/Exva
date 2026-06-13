@@ -39,6 +39,7 @@ export const brokerAccounts = sqliteTable("broker_accounts", {
   balanceCacheUsd: real("balance_cache_usd"),
   balanceCachedAt: text("balance_cached_at"),
   mockScenarioKind: text("mock_scenario_kind"),
+  mockExecutionTier: text("mock_execution_tier"),
   secretRef: text("secret_ref").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -369,6 +370,7 @@ export const sessionRiskConfig = sqliteTable("session_risk_config", {
   maxExposureUsd: real("max_exposure_usd"),
   waitForOpenThreshold: real("wait_for_open_threshold").notNull().default(0.8),
   maxConcurrentTrades: integer("max_concurrent_trades").notNull().default(3),
+  maxConsecutiveLosers: integer("max_consecutive_losers").notNull().default(5),
   dailyLossLimitUsd: real("daily_loss_limit_usd").notNull().default(200),
   profitTargetUsd: real("profit_target_usd").notNull().default(1000),
   maxAiSpendUsd: real("max_ai_spend_usd").notNull().default(5),
@@ -552,6 +554,10 @@ export const trades = sqliteTable(
     exitReason: text("exit_reason"),
     clientOrderId: text("client_order_id"),
     closeMarketSnapshotJson: text("close_market_snapshot_json"),
+    mfeUsd: real("mfe_usd"),
+    maeUsd: real("mae_usd"),
+    spreadAtEntryBps: real("spread_at_entry_bps"),
+    slippageBps: real("slippage_bps"),
     createdAt: text("created_at").notNull(),
   },
   (table) => ({

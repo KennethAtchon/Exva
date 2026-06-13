@@ -11,6 +11,8 @@ import type {
 } from "./broker-adapter";
 import {
   DEFAULT_MOCK_ACCOUNT_BALANCE_USD,
+  DEFAULT_MOCK_EXECUTION_TIER,
+  type MockExecutionTier,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
 
@@ -21,6 +23,7 @@ export interface MockScenario {
   volatilityPct?: number;
   trendPctPerDay?: number;
   kind?: MockScenarioKind;
+  executionTier?: MockExecutionTier;
   marketClosed?: boolean;
   brokerTimeoutMs?: number;
   /** If set, getOrderStatus returns "closed" with computed PnL after this many ms. */
@@ -376,6 +379,10 @@ export class MockBrokerAdapter implements BrokerAdapter {
 
   getScenarioKind(): MockScenarioKind | undefined {
     return this.scenario.kind;
+  }
+
+  getExecutionTier(): MockExecutionTier {
+    return this.scenario.executionTier ?? DEFAULT_MOCK_EXECUTION_TIER;
   }
 
   private basePriceFor(instrumentSymbol: string): number {

@@ -496,6 +496,8 @@ export class CycleReplayRunner {
         stop_loss_pct: strategySnapshot.riskConfig.stopLossPct ?? 0,
         take_profit_pct: strategySnapshot.riskConfig.takeProfitPct ?? 0,
         max_concurrent_trades: strategySnapshot.riskConfig.maxConcurrentTrades,
+        max_consecutive_losers:
+          strategySnapshot.riskConfig.maxConsecutiveLosers,
         research_depth: "balanced" as const,
         daily_loss_limit_usd: strategySnapshot.riskConfig.dailyLossLimitUsd,
         profit_target_usd: strategySnapshot.riskConfig.profitTargetUsd,
@@ -524,6 +526,7 @@ export class CycleReplayRunner {
             portfolio_value_source: "broker",
             portfolio_broker_count: 0,
             unrealized_pnl: 0,
+            consecutive_losers: 0,
             session_uptime_min: 0,
           },
           order: {

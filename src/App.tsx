@@ -9,6 +9,7 @@ import { TradesPage } from "./pages/TradesPage";
 import { TradeDetail } from "./pages/TradeDetail";
 import { AutopsyPage } from "./pages/AutopsyPage";
 import { PeriodAutopsyPage } from "./pages/PeriodAutopsyPage";
+import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { StrategyConfig } from "./pages/StrategyConfig";
 import { SignalSourcesPage } from "./pages/SignalSourcesPage";
 import { CostBreakdownPage } from "./pages/CostBreakdown";
@@ -282,6 +283,8 @@ export default function App() {
             onReviewTrade={(tradeId) => dispatchUi({ autopsyTradeId: tradeId })}
           />
         );
+      case "leaderboard":
+        return <LeaderboardPage />;
       case "strategy":
         return (
           <StrategyConfig

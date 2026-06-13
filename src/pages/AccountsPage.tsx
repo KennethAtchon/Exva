@@ -18,8 +18,10 @@ import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
 import { AddSearchProviderModal } from "@/components/accounts/AddSearchProviderModal";
 import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
 import {
+  MOCK_EXECUTION_TIER_LABELS,
   MOCK_SCENARIO_KINDS,
   MOCK_SCENARIO_LABELS,
+  type MockExecutionTier,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
 import { api, type ProviderModelEntry } from "@/lib/exva";
@@ -725,6 +727,22 @@ export const AccountsPage = () => {
                             value: kind,
                             label: `${MOCK_SCENARIO_LABELS[kind].label} ${MOCK_SCENARIO_LABELS[kind].outcome}`,
                           }))}
+                        />
+                        <ShadcnSelect
+                          value={b.mockExecutionTier ?? "scripted"}
+                          onValueChange={async (value) => {
+                            await api.updateBrokerAccountSettings({
+                              brokerAccountId: b.id,
+                              mockExecutionTier: value as MockExecutionTier,
+                            });
+                            void refetchWorkspace();
+                          }}
+                          options={(["scripted", "rehearsal"] as const).map(
+                            (tier) => ({
+                              value: tier,
+                              label: MOCK_EXECUTION_TIER_LABELS[tier].label,
+                            }),
+                          )}
                         />
                       </div>
                     )}

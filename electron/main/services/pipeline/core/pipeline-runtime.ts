@@ -235,9 +235,11 @@ export class PipelineRuntime {
     pipelineId = DEFAULT_PIPELINE_ID,
   ): EffectivePipelineConfig {
     const strategyContext = this.requireStrategyContextService().get(sessionId);
+    const session = this.deps.sessionRepo.get(sessionId);
     return resolveEffectivePipelineConfig({
       sessionId,
       pipelineId,
+      experienceId: session?.experienceId,
       phaseConfigResolver: this.deps.phaseConfigResolver,
       strategyContext,
     });

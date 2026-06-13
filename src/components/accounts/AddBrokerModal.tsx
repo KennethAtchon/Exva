@@ -2,9 +2,12 @@ import React, { useReducer, type Reducer } from "react";
 import { cn } from "@/lib/utils";
 import type { InstrumentClass } from "@/lib/types";
 import {
+  DEFAULT_MOCK_EXECUTION_TIER,
   DEFAULT_MOCK_SCENARIO_KIND,
+  MOCK_EXECUTION_TIER_LABELS,
   MOCK_SCENARIO_KINDS,
   MOCK_SCENARIO_LABELS,
+  type MockExecutionTier,
   type MockScenarioKind,
 } from "@electron/shared/domain/mock-scenario";
 import { api } from "@/lib/exva";
@@ -29,6 +32,7 @@ type BrokerType =
 interface FormState {
   brokerType: BrokerType;
   mockScenarioKind: MockScenarioKind;
+  mockExecutionTier: MockExecutionTier;
   name: string;
   apiKey: string;
   secretKey: string;
@@ -220,6 +224,7 @@ export const AddBrokerModal = ({
   >(mergeReducer, {
     brokerType: "mock",
     mockScenarioKind: DEFAULT_MOCK_SCENARIO_KIND,
+    mockExecutionTier: DEFAULT_MOCK_EXECUTION_TIER,
     name: "",
     apiKey: "",
     secretKey: "",
@@ -241,6 +246,7 @@ export const AddBrokerModal = ({
   const {
     brokerType,
     mockScenarioKind,
+    mockExecutionTier,
     name,
     apiKey,
     secretKey,
@@ -296,7 +302,9 @@ export const AddBrokerModal = ({
         name: name.trim() || `${brokerType} account`,
         mode: environmentMode,
         credentials: credentials(),
-        ...(brokerType === "mock" ? { mockScenarioKind } : {}),
+        ...(brokerType === "mock"
+          ? { mockScenarioKind, mockExecutionTier }
+          : {}),
       });
       if (!result.ok) {
         dispatchReq({ message: result.message });
@@ -390,6 +398,21 @@ export const AddBrokerModal = ({
             <div className="mt-1.5 text-[12px] text-[var(--text3)]">
               Use Clean breakout to verify the bot selects, decides, and fills a
               trade end-to-end.
+            </div>
+            <div className="mt-3">
+              <div className={labelClass}>Execution tier</div>
+              <ShadcnSelect
+                value={mockExecutionTier}
+                onValueChange={(value) =>
+                  dispatchForm({
+                    mockExecutionTier: value as MockExecutionTier,
+                  })
+                }
+                options={(["scripted", "rehearsal"] as const).map((tier) => ({
+                  value: tier,
+                  label: `${MOCK_EXECUTION_TIER_LABELS[tier].label} — ${MOCK_EXECUTION_TIER_LABELS[tier].description}`,
+                }))}
+              />
             </div>
           </div>
         )}

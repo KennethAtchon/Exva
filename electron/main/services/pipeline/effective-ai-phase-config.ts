@@ -11,6 +11,7 @@ import type {
 } from "@electron/shared/ai/effective-ai-phase-config";
 import type { SessionStrategyContext } from "@electron/shared/domain";
 import { AppError } from "@electron/shared/infra/errors";
+import { requireExperience } from "../../experiences/index";
 import { requireEngine } from "../signal/registry/signal-engine-registry";
 import { SUPPORTED_TOOL_IDS } from "./worker-tools/worker-tool-factory";
 import {
@@ -30,6 +31,7 @@ const SUPPORTED_TOOL_ID_SET = new Set<string>(SUPPORTED_TOOL_IDS);
 export interface ResolveEffectivePipelineConfigOptions {
   sessionId: string;
   pipelineId?: string;
+  experienceId?: string;
   phaseConfigResolver: AIPhaseConfigResolver;
   strategyContext?: SessionStrategyContext | null;
 }
@@ -44,6 +46,7 @@ export function resolveEffectivePipelineConfig(
       definition,
       pipelineId,
       sessionId: opts.sessionId,
+      experienceId: opts.experienceId,
       phaseConfigResolver: opts.phaseConfigResolver,
       strategyContext: opts.strategyContext ?? null,
     }),
@@ -178,11 +181,11 @@ function resolveEffectiveStage(input: {
   definition: PipelineDefinition;
   pipelineId: string;
   sessionId: string;
+  experienceId?: string;
   phaseConfigResolver: AIPhaseConfigResolver;
   strategyContext: SessionStrategyContext | null;
 }): EffectiveStageConfig {
-  const processingMode =
-    input.strategyContext?.researchPosture.processingMode ?? "catalyst";
+  const promptVariantKey = resolvePromptVariantKey(input);
   const plan = getAIPhase(input.phase);
   const workers = workersForEffectiveStage(input.phase, input.pipelineId);
   const schedulingMode = plan
@@ -203,7 +206,7 @@ function resolveEffectiveStage(input: {
     id: input.phase,
     kind: "phase",
     phase: input.phase,
-    variantKey: variantKeyForPhase(input.phase, processingMode),
+    variantKey: variantKeyForPhase(input.phase, promptVariantKey),
     outputMode: input.definition.outputMode,
     outputSchemaName: input.definition.persistence.outputSchemaName,
     schedulingMode,
@@ -275,12 +278,26 @@ function workersForEffectiveStage(
   return resolvePhaseWorkers(phase, pipelineId);
 }
 
+function resolvePromptVariantKey(input: {
+  experienceId?: string;
+  strategyContext: SessionStrategyContext | null;
+}): SessionStrategyContext["researchPosture"]["processingMode"] {
+  if (input.experienceId) {
+    try {
+      return requireExperience(input.experienceId).promptVariantKey;
+    } catch {
+      // fall through to posture default
+    }
+  }
+  return input.strategyContext?.researchPosture.processingMode ?? "catalyst";
+}
+
 function variantKeyForPhase(
   phase: PipelinePhase,
-  processingMode: SessionStrategyContext["researchPosture"]["processingMode"],
+  promptVariantKey: SessionStrategyContext["researchPosture"]["processingMode"],
 ): string {
   if (phase === "selector" || phase === "technical" || phase === "fundamental")
-    return processingMode;
+    return promptVariantKey;
   return "default";
 }
 

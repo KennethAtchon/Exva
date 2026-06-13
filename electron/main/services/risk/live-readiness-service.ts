@@ -2,6 +2,8 @@ import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
 import type { BrokerRegistry } from "../broker/broker-registry";
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
+import type { PaperScorecardService } from "../analytics/paper-scorecard-service";
+import type { ExperienceScorecardService } from "../analytics/experience-scorecard-service";
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../../db/client";
 import { sessions } from "../../db/schema";
@@ -28,6 +30,8 @@ export class LiveReadinessService {
     private readonly brokerAccountsRepo: BrokerAccountsRepo,
     private readonly sessionBrokerAssignmentsRepo: SessionBrokerAssignmentsRepo,
     private readonly brokerRegistry: BrokerRegistry,
+    private readonly paperScorecard?: PaperScorecardService,
+    private readonly experienceScorecard?: ExperienceScorecardService,
   ) {}
 
   async check(sessionId: string): Promise<LiveReadinessReport> {
@@ -135,7 +139,28 @@ export class LiveReadinessService {
         : undefined,
     });
 
-    // Check 5: explicit user acknowledgement (requires all others to pass)
+    // Check 5: paper scorecard meets promotion criteria (experience-level)
+    let paperScorecardPassed = false;
+    let paperScorecardMessage: string | undefined;
+    if (this.experienceScorecard) {
+      const scorecard = this.experienceScorecard.generateForExperience(
+        session.experienceId,
+      );
+      paperScorecardPassed = scorecard.meetsPromotion;
+      if (!paperScorecardPassed) {
+        paperScorecardMessage = `Experience '${scorecard.displayName}' does not meet promotion criteria: ${scorecard.failedPromotionCriteria.join(", ")}`;
+      }
+    } else {
+      paperScorecardPassed = true;
+    }
+    checks.push({
+      name: "paper_scorecard_meets_promotion",
+      passed: paperScorecardPassed,
+      requiresAck: false,
+      message: paperScorecardMessage,
+    });
+
+    // Check 6: explicit user acknowledgement (requires all others to pass)
     const acknowledgedAt = this.getAcknowledgedAt(sessionId);
     checks.push({
       name: "user_acknowledged",

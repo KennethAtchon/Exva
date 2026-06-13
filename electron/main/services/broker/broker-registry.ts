@@ -10,6 +10,7 @@ import {
 } from "./adapters/coinbase-advanced-trade-adapter";
 import { MockMarketSimulator } from "./mock/mock-market-simulator";
 import {
+  DEFAULT_MOCK_EXECUTION_TIER,
   DEFAULT_MOCK_SCENARIO_KIND,
   isMockScenarioKind,
   type MockScenarioKind,
@@ -103,7 +104,8 @@ export class BrokerRegistry {
       }
       case "mock": {
         const kind = resolveMockScenarioKind(account);
-        return MockMarketSimulator.createAdapter(kind);
+        const tier = account.mockExecutionTier ?? DEFAULT_MOCK_EXECUTION_TIER;
+        return MockMarketSimulator.createAdapter(kind, tier);
       }
       default:
         throw new AppError(

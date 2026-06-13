@@ -186,6 +186,7 @@ export const brokerAccountAddSchema = z.object({
       "rate_limit",
     ])
     .optional(),
+  mockExecutionTier: z.enum(["scripted", "rehearsal"]).optional(),
 });
 
 export const brokerAccountIdSchema = z.object({

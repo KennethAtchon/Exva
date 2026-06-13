@@ -20,6 +20,20 @@ export const DEFAULT_MOCK_ACCOUNT_BALANCE_USD = 100000;
 export type MockExecutionTier = "scripted" | "rehearsal";
 export const DEFAULT_MOCK_EXECUTION_TIER: MockExecutionTier = "scripted";
 
+export const MOCK_EXECUTION_TIER_LABELS: Record<
+  MockExecutionTier,
+  { label: string; description: string }
+> = {
+  scripted: {
+    label: "Scripted",
+    description: "Canned worker outputs — zero LLM cost, deterministic E2E",
+  },
+  rehearsal: {
+    label: "Rehearsal",
+    description: "Real LLM on mock fixtures — prompt and judgment QA",
+  },
+};
+
 export function isMockScenarioKind(value: string): value is MockScenarioKind {
   return (MOCK_SCENARIO_KINDS as readonly string[]).includes(value);
 }

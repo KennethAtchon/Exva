@@ -171,6 +171,10 @@ export function registerAccountHandlers(services: AppServices): void {
         input.brokerType === "mock"
           ? (input.mockScenarioKind ?? "clean_breakout")
           : null,
+      mockExecutionTier:
+        input.brokerType === "mock"
+          ? (input.mockExecutionTier ?? "scripted")
+          : null,
     });
     services.brokerRegistry.invalidate(id);
     return {

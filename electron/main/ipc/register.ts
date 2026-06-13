@@ -16,9 +16,11 @@ import { registerAutopsyHandlers } from "./trading/autopsy";
 import { registerPeriodAutopsyHandlers } from "./trading/period-autopsy";
 import { registerWorkspaceHandlers } from "./workspace/workspace";
 import { registerExperienceHandlers } from "./experiences";
+import { registerAnalyticsHandlers } from "./analytics";
 
 export function registerIpcHandlers(services: AppServices): void {
   registerExperienceHandlers();
+  registerAnalyticsHandlers(services);
   registerDashboardHandlers(services);
   registerTradeHandlers(services);
   registerAutopsyHandlers(services);

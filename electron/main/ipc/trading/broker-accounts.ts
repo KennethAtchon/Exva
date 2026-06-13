@@ -26,6 +26,7 @@ const updateSettingsSchema = z.object({
     ])
     .nullable()
     .optional(),
+  mockExecutionTier: z.enum(["scripted", "rehearsal"]).nullable().optional(),
 });
 
 export function registerBrokerAccountHandlers(services: AppServices): void {
@@ -57,7 +58,10 @@ export function registerBrokerAccountHandlers(services: AppServices): void {
   handle(ipcMain, channels.brokerAccounts.updateSettings, async (payload) => {
     const { brokerAccountId, ...patch } = updateSettingsSchema.parse(payload);
     services.brokerCapital.updateSettings(brokerAccountId, patch);
-    if (patch.mockScenarioKind !== undefined) {
+    if (
+      patch.mockScenarioKind !== undefined ||
+      patch.mockExecutionTier !== undefined
+    ) {
       services.brokerRegistry.invalidate(brokerAccountId);
     }
     return { ok: true as const };

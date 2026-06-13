@@ -33,6 +33,7 @@ import type {
   ExvaEventMap,
   ExvaEventName,
   ExperienceSummary,
+  ExperienceScorecardSummary,
   ProviderModelEntry,
   SessionCreateInput,
   SessionExecutionProgressResponse,
@@ -119,6 +120,10 @@ export interface ExvaApi {
   };
   experiences: {
     list(): Promise<ExperienceSummary[]>;
+    listScorecards(): Promise<{ scorecards: ExperienceScorecardSummary[] }>;
+    getScorecard(
+      experienceId: string,
+    ): Promise<{ scorecard: ExperienceScorecardSummary }>;
   };
   session: {
     start(): Promise<SessionStatus>;

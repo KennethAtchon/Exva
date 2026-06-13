@@ -63,6 +63,28 @@ export interface ExperienceSummary {
   capabilities: ExperienceCapabilities;
 }
 
+export interface ExperienceScorecardSummary {
+  experienceId: string;
+  displayName: string;
+  sessionCount: number;
+  tradeCount: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number;
+  expectancy: number;
+  maxDrawdownPct: number;
+  netPnlUsd: number;
+  netPnlAfterCostsUsd: number;
+  totalAiSpendUsd: number;
+  totalDataSpendUsd: number;
+  costPerTradeUsd: number;
+  avgHoldHours: number;
+  promotionTier: "scripted" | "rehearsal" | "paper" | "live";
+  meetsPromotion: boolean;
+  failedPromotionCriteria: string[];
+  generatedAt: string;
+}
+
 export interface SessionCreateInput {
   name: string;
   objective: string;
