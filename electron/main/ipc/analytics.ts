@@ -20,4 +20,11 @@ export function registerAnalyticsHandlers(services: AppServices): void {
       services.experienceScorecard.generateForExperience(experienceId);
     return { scorecard };
   });
+
+  handle(ipcMain, channels.experiences.listExperiments, async (payload) => {
+    const { experienceId } = experienceIdSchema.parse(payload);
+    const experiments =
+      services.repos.experienceExperiments.listByExperience(experienceId);
+    return { experiments };
+  });
 }

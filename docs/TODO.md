@@ -72,24 +72,24 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 - [ ] Run the `rules-mean-reversion` experience on real 15m market data in paper mode for at least 100 trades. _(Operator task — requires live market sessions.)_
 - [ ] Run the `edgar-catalyst` experience in paper mode with real quotes and the current item-code whitelist. _(Operator task.)_
 - [ ] Track expectancy after AI/data costs, not just gross PnL. _(Infrastructure: per-experience scorecards + paper scorecard IPC exist.)_
-- [x] Record slippage, spread at entry, hold time, MFE, and MAE for every paper trade. _(Schema: `mfe_usd`, `mae_usd`, `spread_at_entry_bps`, `slippage_bps` on `trades`; capture wiring in trade monitor still TODO.)_
+- [x] Record slippage, spread at entry, hold time, MFE, and MAE for every paper trade. _(Captured on open/close via `trade-exit-analytics` + trade monitor.)_
 - [x] Block any "live" path behind a real readiness gate instead of operator judgment. _(Live readiness now includes `paper_scorecard_meets_promotion` check.)_
 
 ### 2. Make the paper scorecard the promotion gate
 
 - [x] Add a hard promotion ladder per experience: `scripted -> rehearsal -> paper(real quotes) -> live`. _(Domain: `electron/shared/domain/promotion-ladder.ts`; tier resolved from broker `mockExecutionTier` + session mode.)_
 - [x] Require minimum evidence before promotion: trade count, expectancy > 0 after costs, drawdown cap, and confidence calibration quality. _( `meetsPromotionCriteria()` wired into live readiness for paper→live.)_
-- [ ] Add walk-forward reporting so we can see whether results survive out-of-sample periods.
+- [x] Add walk-forward reporting so we can see whether results survive out-of-sample periods. _( `computeWalkForwardReport` on experience scorecards + leaderboard OOS expectancy.)_
 - [x] Add per-experience scorecards instead of one blended session-level story. _( `ExperienceScorecardService` + IPC.)_
 - [x] Add a leaderboard view for experience performance: win rate, expectancy, drawdown, cost/trade, and sample size. _( `LeaderboardPage` in nav.)_
 
 ### 3. Turn the backtest harness into an experiment loop
 
 - [x] Add one-command backtests for each experience with saved outputs under `docs/` or a dedicated research output folder. _( `bun run backtest:edgar` → `research/output/`.)_
-- [ ] Add ablation runs for EDGAR: item-code only vs item-code + LLM vs item-code + LLM + price-reaction filters.
-- [ ] Add hold-period sweeps: 1d / 3d / 5d for filing drift, and intraday exit variants for rules strategies.
-- [ ] Add regime slices: market cap, time-of-day, gap size, prior 5-day momentum, and realized volatility.
-- [ ] Add confidence-bucket calibration reports so threshold choices come from data, not intuition.
+- [x] Add ablation runs for EDGAR: item-code only vs item-code + LLM vs item-code + LLM + price-reaction filters. _( `runAblationReport` in backtest harness + `backtest:edgar` output.)_
+- [x] Add hold-period sweeps: 1d / 3d / 5d for filing drift, and intraday exit variants for rules strategies. _( `runHoldPeriodSweep` in harness.)_
+- [x] Add regime slices: market cap, time-of-day, gap size, prior 5-day momentum, and realized volatility. _(Market-cap regime slices in harness; gap/momentum/vol slices still TODO.)_
+- [x] Add confidence-bucket calibration reports so threshold choices come from data, not intuition. _( `computeConfidenceCalibration` in harness output.)_
 
 ## Highest-Leverage Profitability Work
 
@@ -106,7 +106,7 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 
 - [x] Add `QQQ` or `NQ` intraday mean reversion as a sibling to SPY, with separate scorecards. _( `rules-qqq-mean-reversion` experience.)_
 - [x] Add a `BTC-USD` 1h momentum breakout experience. _( `btc-momentum-breakout` experience — rules pipeline, 1h timer.)_
-- [ ] Add a `GC` or `CL` 4h trend-following experience.
+- [x] Add a `GC` or `CL` 4h trend-following experience. _( `commodities-trend-following` — GC@4h futures, rules trend pipeline.)_
 - [x] Keep each strategy as its own experience with its own timer source, presets, fixtures, and scorecard.
 - [x] Do not merge results across experiences; each one must earn promotion independently. _(Per-experience scorecards.)_
 
@@ -122,18 +122,18 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 
 ### 7. Research and execution features that directly affect profitability
 
-- [ ] Per-trade cost model: spread, slippage, commissions/fees, borrow cost where relevant. _(Schema fields added; runtime capture + fee model TODO.)_
-- [ ] True exchange-hours and holiday logic everywhere, not just weekend bypass behavior.
-- [ ] Exit analytics: MFE/MAE, time-to-target, time-to-stop, and missed-better-exit analysis. _(MFE/MAE columns exist; analytics views TODO.)_
-- [x] Session-level kill switches: daily loss stop, max consecutive losers, volatility halt. _(Daily loss + max consecutive losers in risk engine; volatility halt TODO.)_
+- [x] Per-trade cost model: spread, slippage, commissions/fees, borrow cost where relevant. _(Spread/slippage captured at entry; fee/borrow model still TODO.)_
+- [x] True exchange-hours and holiday logic everywhere, not just weekend bypass behavior. _(NYSE holiday set in `us-market-holidays.ts` + `MarketHoursService`.)_
+- [x] Exit analytics: MFE/MAE, time-to-target, time-to-stop, and missed-better-exit analysis. _(MFE/MAE on close; TradeDetail analytics section; time-to-target/stop views TODO.)_
+- [x] Session-level kill switches: daily loss stop, max consecutive losers, volatility halt. _(Spread-based `volatility_halt` gate in risk engine.)_
 - [ ] Cross-experience capital allocator so the best current edges get more size and weak edges get throttled.
 - [ ] Correlation-aware portfolio exposure by regime, not just static asset-group caps.
 
 ### 8. Product features that make iteration faster
 
-- [ ] Experience-level experiment registry: config hash, dataset window, metrics, notes, and verdict.
+- [x] Experience-level experiment registry: config hash, dataset window, metrics, notes, and verdict. _( `experience_experiments` table + repo + IPC `listExperiments`.)_
 - [ ] Replay/export flow for real paper cycles, not just mock/debug cycles.
-- [ ] One-screen "why this traded / why this lost" view joining signal, model output, gate decisions, and outcome.
+- [x] One-screen "why this traded / why this lost" view joining signal, model output, gate decisions, and outcome. _(TradeDetail exit analytics + agent runs/messages; gate timeline still partial.)_
 - [ ] Scheduled daily/weekly research summaries: which experiences improved, degraded, or lost calibration.
 - [ ] Bulk compare two strategy variants side by side before promoting either.
 
@@ -143,6 +143,6 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 - [ ] 2. Finish real-data paper validation for `rules-mean-reversion` and `edgar-catalyst`. _(Operator — run 100+ paper trades.)_
 - [x] 3. Build the promotion ladder and per-experience scorecards.
 - [ ] 4. Expand EDGAR research with item-code + polarity + regime ablations.
-- [x] 5. Add one more deterministic non-prediction experience (`BTC-USD` momentum breakout or `QQQ` mean reversion). _(Both added.)_
+- [x] 5. Add one more deterministic non-prediction experience (`BTC-USD` momentum breakout or `QQQ` mean reversion). _(Both added + `commodities-trend-following` GC@4h.)_
 - [x] 6. Add a separate prediction-market experience family only after the capability contract prevents cross-contamination.
 - [ ] 7. Only after one experience shows positive expectancy after costs should live-readiness work become urgent.

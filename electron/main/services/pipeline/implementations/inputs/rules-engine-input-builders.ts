@@ -71,7 +71,15 @@ export const rulesMeanReversionInputBuilder: EngineInputBuilder = {
       }
     }
     const timeframe =
-      cadence === "15m" ? "15m" : cadence === "1h" ? "1h" : "1h";
+      cadence === "15m"
+        ? "15m"
+        : cadence === "30m"
+          ? "30m"
+          : cadence === "4h"
+            ? "4h"
+            : cadence === "1h"
+              ? "1h"
+              : "1h";
     const barCount = timeframe === "15m" ? 40 : 30;
     const bars = getOhlcv
       ? await getOhlcv(wireSymbol, timeframe, barCount)

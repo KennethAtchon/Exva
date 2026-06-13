@@ -43,6 +43,15 @@ describe("MarketHoursService", () => {
     expect(tradable).toEqual([stock]);
   });
 
+  it("blocks stocks on US market holidays", () => {
+    const independenceDay = new Date("2026-07-03T14:00:00.000Z");
+    const { excluded } = service.partitionByTradability(
+      [stock],
+      independenceDay,
+    );
+    expect(excluded[0]?.reason).toBe("market_holiday");
+  });
+
   it("does not apply exchange-hours filter to crypto", () => {
     const { tradable } = service.partitionByTradability([crypto], afterHoursEt);
     expect(tradable).toEqual([crypto]);

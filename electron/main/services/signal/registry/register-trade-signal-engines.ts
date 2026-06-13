@@ -10,6 +10,7 @@ import { scoreCandidate } from "../scoring/selector-scoring-engine";
 import { buildInstrumentSelection } from "../scoring/selector-submission-builder";
 import { computeTradeTradeExecutionProfile } from "../execution/trade-execution-profile";
 import { computeMeanReversionSignal } from "../rules/mean-reversion-signal";
+import { computeTrendFollowingSignal } from "../rules/trend-following-signal";
 
 export function registerTradeSignalEngines(): void {
   registerSignalEngine({
@@ -95,6 +96,14 @@ export function registerTradeSignalEngines(): void {
     inputSchema: z.any(),
     outputSchema: z.any(),
     run: (input) => computeMeanReversionSignal(input as never),
+  });
+
+  registerSignalEngine({
+    id: "rules-trend-following",
+    kind: "policy",
+    inputSchema: z.any(),
+    outputSchema: z.any(),
+    run: (input) => computeTrendFollowingSignal(input as never),
   });
 
   registerSignalEngine({

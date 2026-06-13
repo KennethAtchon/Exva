@@ -80,6 +80,7 @@ export interface SessionRiskConfig {
   waitForOpenThreshold: number;
   maxConcurrentTrades: number;
   maxConsecutiveLosers: number;
+  volatilityHaltMaxSpreadPct: number | null;
   dailyLossLimitUsd: number;
   profitTargetUsd: number;
   maxAiSpendUsd: number;
@@ -156,6 +157,7 @@ export interface StrategySnapshot {
     waitForOpenThreshold: number;
     maxConcurrentTrades: number;
     maxConsecutiveLosers: number;
+    volatilityHaltMaxSpreadPct: number | null;
     dailyLossLimitUsd: number;
     profitTargetUsd: number;
     maxAiSpendUsd: number;
@@ -421,6 +423,7 @@ export function buildStrategySnapshot(
       waitForOpenThreshold: context.riskConfig.waitForOpenThreshold,
       maxConcurrentTrades: context.riskConfig.maxConcurrentTrades,
       maxConsecutiveLosers: context.riskConfig.maxConsecutiveLosers,
+      volatilityHaltMaxSpreadPct: context.riskConfig.volatilityHaltMaxSpreadPct,
       dailyLossLimitUsd: context.riskConfig.dailyLossLimitUsd,
       profitTargetUsd: context.riskConfig.profitTargetUsd,
       maxAiSpendUsd: context.riskConfig.maxAiSpendUsd,

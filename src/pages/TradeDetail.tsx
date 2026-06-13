@@ -316,6 +316,64 @@ const TradeOrderDetails = ({ trade }: { trade: TradeFields }) => (
   </div>
 );
 
+const TradeExitAnalytics = ({
+  trade,
+}: {
+  trade: {
+    mfe_usd?: number | null;
+    mae_usd?: number | null;
+    spread_at_entry_bps?: number | null;
+    slippage_bps?: number | null;
+    exit_reason?: string | null;
+  };
+}) => {
+  const hasAnalytics =
+    trade.mfe_usd != null ||
+    trade.mae_usd != null ||
+    trade.spread_at_entry_bps != null ||
+    trade.slippage_bps != null ||
+    trade.exit_reason;
+  if (!hasAnalytics) return null;
+
+  return (
+    <div className={sectionClass}>
+      <div className={secTitleClass}>Why this traded / why it closed</div>
+      <div className="mt-3 grid grid-cols-2 gap-3.5">
+        {(
+          [
+            [
+              "MFE",
+              trade.mfe_usd != null ? fmt.usd(trade.mfe_usd) : EMPTY_VALUE,
+            ],
+            [
+              "MAE",
+              trade.mae_usd != null ? fmt.usd(trade.mae_usd) : EMPTY_VALUE,
+            ],
+            [
+              "Spread at entry",
+              trade.spread_at_entry_bps != null
+                ? `${trade.spread_at_entry_bps.toFixed(1)} bps`
+                : EMPTY_VALUE,
+            ],
+            [
+              "Slippage",
+              trade.slippage_bps != null
+                ? `${trade.slippage_bps.toFixed(1)} bps`
+                : EMPTY_VALUE,
+            ],
+            ["Exit reason", trade.exit_reason ?? EMPTY_VALUE],
+          ] as [string, string][]
+        ).map(([k, v]) => (
+          <div key={k}>
+            <div className={orderFieldLabelClass}>{k}</div>
+            <div className={orderFieldValueClass}>{v}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // ---------------------------------------------------------------------------
 // TradeHarnessMessages — collapsible harness messages section
 // ---------------------------------------------------------------------------
@@ -463,6 +521,7 @@ export const TradeDetail = ({
               )}
 
             <TradeOrderDetails trade={trade} />
+            <TradeExitAnalytics trade={trade} />
             <TradeHarnessMessages messages={messages} />
             <TradeAgentRuns runs={runs} />
 

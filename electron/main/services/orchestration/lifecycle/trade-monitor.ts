@@ -8,6 +8,7 @@ import type { CapitalReservationService } from "../../risk/capital-reservation-s
 import type { HoldingStyle, InstrumentClass } from "@/lib/types";
 import type { InstrumentNormalizer } from "../../broker/instrument-normalizer";
 import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
+import { computeMfeMaeUsd } from "@electron/shared/instruments/trade-exit-analytics";
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   multi_day_swing: 60_000,
@@ -88,8 +89,8 @@ export class TradeMonitor {
       const snapshot = await adapter.getMarketSnapshot(wireSymbol);
       const currentPrice = snapshot.price;
 
-      // Update high-water-mark before evaluating (conditional: only moves up for longs)
-      this.tradesRepo.updateHighWaterMark(trade.id, currentPrice);
+      // Update price extremes before evaluating exits.
+      this.tradesRepo.updatePriceExtremes(trade.id, currentPrice);
 
       // Get OHLCV for ATR — uses getOhlcv if available; falls back to empty for adapters that don't implement it
       const ohlcvTimeframe = this.resolveOhlcvTimeframe(
@@ -128,7 +129,12 @@ export class TradeMonitor {
       // Fallback: check if broker already closed the order externally
       const status = await adapter.getOrderStatus(trade.broker_order_id);
       if (status.status === "closed") {
-        this.closeTrade(trade.id, status.realizedPnlUsd ?? 0, "broker_closed");
+        this.closeTrade(
+          trade.id,
+          status.realizedPnlUsd ?? 0,
+          "broker_closed",
+          currentPrice,
+        );
       }
     }
 
@@ -216,7 +222,12 @@ export class TradeMonitor {
           JSON.stringify(closeSnapshot),
         );
       }
-      this.closeTrade(trade.id, result.realizedPnlUsd, exitReason);
+      this.closeTrade(
+        trade.id,
+        result.realizedPnlUsd,
+        exitReason,
+        closeSnapshot?.price,
+      );
     } catch {
       // broker close failure: log is handled by caller context; trade stays open for retry next tick
     }
@@ -232,7 +243,28 @@ export class TradeMonitor {
     return "1d";
   }
 
-  private closeTrade(tradeId: string, pnl: number, exitReason?: string) {
+  private closeTrade(
+    tradeId: string,
+    pnl: number,
+    exitReason?: string,
+    exitPrice?: number,
+  ) {
+    const current = this.tradesRepo.require(tradeId);
+    if (
+      exitPrice != null &&
+      current.entry_price != null &&
+      current.entry_price > 0
+    ) {
+      const { mfeUsd, maeUsd } = computeMfeMaeUsd({
+        side: current.side as "BUY" | "SELL",
+        entryPrice: current.entry_price,
+        positionSizeUsd: current.position_size_usd,
+        highWaterMarkPrice: current.high_water_mark_price,
+        lowWaterMarkPrice: current.low_water_mark_price,
+        exitPrice,
+      });
+      this.tradesRepo.updateExitAnalytics(tradeId, { mfeUsd, maeUsd });
+    }
     const closed = this.tradesRepo.updateStatus(
       tradeId,
       "closed",

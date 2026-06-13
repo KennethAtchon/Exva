@@ -346,6 +346,7 @@ CREATE TABLE `session_risk_config` (
 	`wait_for_open_threshold` real DEFAULT 0.8 NOT NULL,
 	`max_concurrent_trades` integer DEFAULT 3 NOT NULL,
 	`max_consecutive_losers` integer DEFAULT 5 NOT NULL,
+	`volatility_halt_max_spread_pct` real,
 	`daily_loss_limit_usd` real DEFAULT 200 NOT NULL,
 	`profit_target_usd` real DEFAULT 1000 NOT NULL,
 	`max_ai_spend_usd` real DEFAULT 5 NOT NULL,
@@ -597,6 +598,7 @@ CREATE TABLE `trades` (
 	`confidence_score` real,
 	`broker_order_id` text,
 	`high_water_mark_price` real,
+	`low_water_mark_price` real,
 	`exit_reason` text,
 	`client_order_id` text,
 	`close_market_snapshot_json` text,
@@ -612,6 +614,19 @@ CREATE TABLE `trades` (
 CREATE INDEX `idx_trades_session_id` ON `trades` (`session_id`);--> statement-breakpoint
 CREATE INDEX `idx_trades_status` ON `trades` (`status`);--> statement-breakpoint
 CREATE INDEX `idx_trades_instrument` ON `trades` (`instrument_symbol`,`broker_account_id`,`status`);--> statement-breakpoint
+CREATE TABLE `experience_experiments` (
+	`id` text PRIMARY KEY NOT NULL,
+	`experience_id` text NOT NULL,
+	`config_hash` text NOT NULL,
+	`dataset_window_start` text,
+	`dataset_window_end` text,
+	`metrics_json` text DEFAULT '{}' NOT NULL,
+	`notes` text DEFAULT '' NOT NULL,
+	`verdict` text DEFAULT 'inconclusive' NOT NULL,
+	`created_at` text NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `idx_experience_experiments_experience` ON `experience_experiments` (`experience_id`,`created_at`);--> statement-breakpoint
 CREATE TABLE `workspace_preferences` (
 	`id` integer PRIMARY KEY DEFAULT 1 NOT NULL,
 	`global_include_archived` integer DEFAULT false NOT NULL,

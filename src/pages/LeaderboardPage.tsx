@@ -80,7 +80,14 @@ export function LeaderboardPage() {
                 </td>
                 <td className="px-4 py-3">{row.tradeCount}</td>
                 <td className="px-4 py-3">{pct(row.winRate)}</td>
-                <td className="px-4 py-3">{usd(row.expectancy)}</td>
+                <td className="px-4 py-3">
+                  {usd(row.expectancy)}
+                  {row.walkForward ? (
+                    <div className="text-[11px] text-[var(--text3)]">
+                      OOS {usd(row.walkForward.outOfSample.expectancy)}
+                    </div>
+                  ) : null}
+                </td>
                 <td className="px-4 py-3">{pct(row.maxDrawdownPct)}</td>
                 <td className="px-4 py-3">{usd(row.netPnlAfterCostsUsd)}</td>
                 <td className="px-4 py-3">{usd(row.costPerTradeUsd)}</td>

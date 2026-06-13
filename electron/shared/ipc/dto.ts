@@ -82,6 +82,24 @@ export interface ExperienceScorecardSummary {
   promotionTier: "scripted" | "rehearsal" | "paper" | "live";
   meetsPromotion: boolean;
   failedPromotionCriteria: string[];
+  walkForward: {
+    splitIndex: number;
+    splitRatio: number;
+    inSample: {
+      label: "in_sample" | "out_of_sample";
+      tradeCount: number;
+      winRate: number;
+      expectancy: number;
+      netPnlUsd: number;
+    };
+    outOfSample: {
+      label: "in_sample" | "out_of_sample";
+      tradeCount: number;
+      winRate: number;
+      expectancy: number;
+      netPnlUsd: number;
+    };
+  } | null;
   generatedAt: string;
 }
 

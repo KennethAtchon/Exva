@@ -17,6 +17,7 @@ export type RiskGateType =
   | "daily_loss"
   | "profit_target"
   | "consecutive_losers"
+  | "volatility_halt"
   | "concurrent_cap"
   | "position_size"
   | "confidence"
@@ -87,6 +88,7 @@ export interface DecisionRiskInput {
     Record<NonNullable<DecisionRiskInput["assetGroup"]>, number>
   >;
   maxSameGroupExposureUsd?: number | null;
+  volatilityHaltMaxSpreadPct?: number | null;
 }
 
 export class RiskEngine {
@@ -234,6 +236,18 @@ export class RiskEngine {
         "risk decision exposure reduced",
       );
       return reduced;
+    }
+    if (
+      input.volatilityHaltMaxSpreadPct != null &&
+      input.volatilityHaltMaxSpreadPct > 0 &&
+      input.quoteSnapshot?.spreadPct != null &&
+      input.quoteSnapshot.spreadPct > input.volatilityHaltMaxSpreadPct
+    ) {
+      return {
+        allowed: false,
+        reason: `Spread ${input.quoteSnapshot.spreadPct.toFixed(2)}% exceeds volatility halt threshold`,
+        gateType: "volatility_halt",
+      };
     }
     // Confidence gating is owned by trade-signal-aggregator; risk engine does not re-check.
     logger.debug(

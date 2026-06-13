@@ -1,4 +1,5 @@
 import { BTC_MOMENTUM_BREAKOUT_EXPERIENCE } from "./btc-momentum-breakout/descriptor";
+import { COMMODITIES_TREND_FOLLOWING_EXPERIENCE } from "./commodities-trend-following/descriptor";
 import { EDGAR_CATALYST_EXPERIENCE } from "./edgar-catalyst/descriptor";
 import { PREDICTION_EVENT_EDGE_EXPERIENCE } from "./prediction-event-edge/descriptor";
 import { RULES_MEAN_REVERSION_EXPERIENCE } from "./rules-mean-reversion/descriptor";
@@ -66,5 +67,6 @@ registerExperience(EDGAR_CATALYST_EXPERIENCE);
 registerExperience(RULES_MEAN_REVERSION_EXPERIENCE);
 registerExperience(RULES_QQQ_MEAN_REVERSION_EXPERIENCE);
 registerExperience(BTC_MOMENTUM_BREAKOUT_EXPERIENCE);
+registerExperience(COMMODITIES_TREND_FOLLOWING_EXPERIENCE);
 registerExperience(PREDICTION_EVENT_EDGE_EXPERIENCE);
 validateExperienceRegistry();

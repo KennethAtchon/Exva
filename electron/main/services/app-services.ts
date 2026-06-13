@@ -81,6 +81,7 @@ import {
 } from "./risk";
 import { PaperScorecardService } from "./analytics/paper-scorecard-service";
 import { ExperienceScorecardService } from "./analytics/experience-scorecard-service";
+import { ExperienceExperimentsRepo } from "../db/repositories/experiences/experience-experiments-repo";
 import { PeriodAutopsyService } from "./analytics/period-autopsy-service";
 import { TradeAutopsyService } from "./analytics/trade-autopsy-service";
 import { AutopsyExportService } from "./analytics/autopsy-export-service";
@@ -124,6 +125,7 @@ export interface AppServices {
     tradeApprovals: TradeApprovalsRepo;
     periodAutopsies: PeriodAutopsiesRepo;
     tradeAutopsies: TradeAutopsiesRepo;
+    experienceExperiments: ExperienceExperimentsRepo;
     autopsyLessons: AutopsyLessonsRepo;
     trades: TradesRepo;
     workspacePreferences: WorkspacePreferencesRepo;
@@ -192,6 +194,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     tradeApprovals: new TradeApprovalsRepo(db),
     periodAutopsies: new PeriodAutopsiesRepo(db),
     tradeAutopsies: new TradeAutopsiesRepo(db),
+    experienceExperiments: new ExperienceExperimentsRepo(db),
     autopsyLessons: new AutopsyLessonsRepo(db),
     trades: new TradesRepo(db),
     workspacePreferences: new WorkspacePreferencesRepo(db),

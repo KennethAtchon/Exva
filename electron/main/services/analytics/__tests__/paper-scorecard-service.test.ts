@@ -25,6 +25,7 @@ function makeTrade(overrides: Partial<Trade> = {}): Trade {
     confidence_score: null,
     broker_order_id: null,
     high_water_mark_price: null,
+    low_water_mark_price: null,
     exit_reason: null,
     created_at: "2024-01-01T09:00:00Z",
     ...overrides,

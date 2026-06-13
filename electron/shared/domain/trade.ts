@@ -66,6 +66,7 @@ export interface Trade {
   confidence_score: number | null;
   broker_order_id: string | null;
   high_water_mark_price: number | null;
+  low_water_mark_price: number | null;
   exit_reason: string | null;
   client_order_id?: string | null;
   close_market_snapshot_json?: string | null;

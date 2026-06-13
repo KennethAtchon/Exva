@@ -207,6 +207,10 @@ const sessionRiskConfigPayloadSchema = z.object({
   waitForOpenThreshold: z.number().nonnegative(),
   maxConcurrentTrades: z.number().int().nonnegative(),
   maxConsecutiveLosers: z.number().int().nonnegative().default(5),
+  volatilityHaltMaxSpreadPct: z
+    .union([z.number().nonnegative(), z.null()])
+    .optional()
+    .default(null),
   dailyLossLimitUsd: z.number().nonnegative(),
   profitTargetUsd: z.number().nonnegative(),
   maxAiSpendUsd: z.number().nonnegative(),

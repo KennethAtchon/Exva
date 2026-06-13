@@ -3,6 +3,7 @@ import { PIPELINE_WORKER_SETS } from "../../worker-registry";
 import { DEFAULT_TRADE_CYCLE } from "../trade/default-analysis";
 import { EDGAR_8K_TRADE_CYCLE } from "../filing/edgar-8k-analysis";
 import { RULES_MEAN_REVERSION_CYCLE } from "../rules/mean-reversion-analysis";
+import { RULES_TREND_FOLLOWING_CYCLE } from "../rules/trend-following-analysis";
 
 /**
  * Default pipeline — serves web_search and manual signals, and is the fallback
@@ -61,9 +62,20 @@ export const PREDICTION_EVENT_PIPELINE: PipelineDescriptor = {
   selectorWorkerIds: PIPELINE_WORKER_SETS.selector.event,
 };
 
+export const RULES_TREND_FOLLOWING_PIPELINE: PipelineDescriptor = {
+  id: "rules-trend-following-cycle",
+  displayName: "Rules trend following",
+  phases: ["decision"],
+  signalSources: ["timer"],
+  plan: RULES_TREND_FOLLOWING_CYCLE,
+  phaseWorkers: { decision: [] },
+  selectorWorkerIds: [],
+};
+
 export const ALL_PIPELINES: readonly PipelineDescriptor[] = [
   DEFAULT_PIPELINE,
   EDGAR_8K_PIPELINE,
   RULES_MEAN_REVERSION_PIPELINE,
+  RULES_TREND_FOLLOWING_PIPELINE,
   PREDICTION_EVENT_PIPELINE,
 ];

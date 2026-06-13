@@ -371,6 +371,7 @@ export const sessionRiskConfig = sqliteTable("session_risk_config", {
   waitForOpenThreshold: real("wait_for_open_threshold").notNull().default(0.8),
   maxConcurrentTrades: integer("max_concurrent_trades").notNull().default(3),
   maxConsecutiveLosers: integer("max_consecutive_losers").notNull().default(5),
+  volatilityHaltMaxSpreadPct: real("volatility_halt_max_spread_pct"),
   dailyLossLimitUsd: real("daily_loss_limit_usd").notNull().default(200),
   profitTargetUsd: real("profit_target_usd").notNull().default(1000),
   maxAiSpendUsd: real("max_ai_spend_usd").notNull().default(5),
@@ -551,6 +552,7 @@ export const trades = sqliteTable(
     confidenceScore: real("confidence_score"),
     brokerOrderId: text("broker_order_id"),
     highWaterMarkPrice: real("high_water_mark_price"),
+    lowWaterMarkPrice: real("low_water_mark_price"),
     exitReason: text("exit_reason"),
     clientOrderId: text("client_order_id"),
     closeMarketSnapshotJson: text("close_market_snapshot_json"),
@@ -865,6 +867,27 @@ export const runtimeLogOverrides = sqliteTable("runtime_log_overrides", {
   expiresAt: text("expires_at"),
   createdAt: text("created_at").notNull(),
 });
+
+export const experienceExperiments = sqliteTable(
+  "experience_experiments",
+  {
+    id: text("id").primaryKey(),
+    experienceId: text("experience_id").notNull(),
+    configHash: text("config_hash").notNull(),
+    datasetWindowStart: text("dataset_window_start"),
+    datasetWindowEnd: text("dataset_window_end"),
+    metricsJson: text("metrics_json").notNull().default("{}"),
+    notes: text("notes").notNull().default(""),
+    verdict: text("verdict").notNull().default("inconclusive"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    experienceIdx: index("idx_experience_experiments_experience").on(
+      table.experienceId,
+      table.createdAt,
+    ),
+  }),
+);
 
 export const capitalReservations = sqliteTable(
   "capital_reservations",

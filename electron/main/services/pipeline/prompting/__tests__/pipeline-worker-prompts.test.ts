@@ -106,6 +106,7 @@ function baseContext(): SessionStrategyContext {
       waitForOpenThreshold: 0.8,
       maxConcurrentTrades: 1,
       maxConsecutiveLosers: 5,
+      volatilityHaltMaxSpreadPct: null,
       dailyLossLimitUsd: 50,
       profitTargetUsd: 200,
       maxAiSpendUsd: 5,

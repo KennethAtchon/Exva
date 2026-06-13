@@ -51,6 +51,7 @@ export class SessionRiskConfigRepo {
         waitForOpenThreshold: next.waitForOpenThreshold,
         maxConcurrentTrades: next.maxConcurrentTrades,
         maxConsecutiveLosers: next.maxConsecutiveLosers,
+        volatilityHaltMaxSpreadPct: next.volatilityHaltMaxSpreadPct,
         dailyLossLimitUsd: next.dailyLossLimitUsd,
         profitTargetUsd: next.profitTargetUsd,
         maxAiSpendUsd: next.maxAiSpendUsd,

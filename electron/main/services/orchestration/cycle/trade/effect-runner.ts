@@ -54,6 +54,16 @@ export function persistPendingTradeFromPipeline(
 }
 
 import { resolveMockToolContext } from "../../../pipeline/worker-tools/resolve-mock-tool-context";
+import {
+  computeSlippageBps,
+  spreadPctToBps,
+} from "@electron/shared/instruments/trade-exit-analytics";
+
+type EntryQuoteSnapshot = {
+  price: number;
+  spreadPct?: number;
+  timestamp: string;
+};
 
 async function isScriptedMockSession(
   ctx: TradingCycleContext,
@@ -240,11 +250,28 @@ export function finalizeOpenedTrade(
   brokerOrderId: string,
   filledAvgPrice: number,
   approvalIdForCapital: string | null,
+  quoteSnapshot?: EntryQuoteSnapshot,
 ): void {
+  const referencePrice =
+    trade.entry_price ?? quoteSnapshot?.price ?? filledAvgPrice;
+  const spreadAtEntryBps =
+    quoteSnapshot?.spreadPct != null
+      ? spreadPctToBps(quoteSnapshot.spreadPct)
+      : null;
+  const slippageBps =
+    referencePrice > 0
+      ? computeSlippageBps({
+          side: trade.side as "BUY" | "SELL",
+          referencePrice,
+          filledPrice: filledAvgPrice,
+        })
+      : null;
+
   const opened = ctx.deps.tradesRepo.markOpen(
     trade.id,
     brokerOrderId,
     filledAvgPrice,
+    { spreadAtEntryBps, slippageBps },
   );
   if (approvalIdForCapital) {
     ctx.deps.capitalReservation.convertApprovalToOpenOrder(

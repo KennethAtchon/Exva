@@ -242,6 +242,10 @@ export class TradesRepo {
   }
 
   updateHighWaterMark(tradeId: string, price: number): void {
+    this.updatePriceExtremes(tradeId, price);
+  }
+
+  updatePriceExtremes(tradeId: string, price: number): void {
     this.client.db
       .update(trades)
       .set({ highWaterMarkPrice: price })
@@ -251,6 +255,27 @@ export class TradesRepo {
           sql`(${trades.highWaterMarkPrice} IS NULL OR ${trades.highWaterMarkPrice} < ${price})`,
         ),
       )
+      .run();
+    this.client.db
+      .update(trades)
+      .set({ lowWaterMarkPrice: price })
+      .where(
+        and(
+          eq(trades.id, tradeId),
+          sql`(${trades.lowWaterMarkPrice} IS NULL OR ${trades.lowWaterMarkPrice} > ${price})`,
+        ),
+      )
+      .run();
+  }
+
+  updateExitAnalytics(
+    id: string,
+    analytics: { mfeUsd: number; maeUsd: number },
+  ): void {
+    this.client.db
+      .update(trades)
+      .set({ mfeUsd: analytics.mfeUsd, maeUsd: analytics.maeUsd })
+      .where(eq(trades.id, id))
       .run();
   }
 
@@ -402,6 +427,10 @@ export class TradesRepo {
     id: string,
     brokerOrderId: string,
     entryPrice: number,
+    entryAnalytics?: {
+      spreadAtEntryBps?: number | null;
+      slippageBps?: number | null;
+    },
     clientOrderId?: string,
   ): Trade {
     this.client.db
@@ -411,6 +440,14 @@ export class TradesRepo {
         brokerOrderId,
         entryPrice,
         openedAt: new Date().toISOString(),
+        highWaterMarkPrice: entryPrice,
+        lowWaterMarkPrice: entryPrice,
+        ...(entryAnalytics?.spreadAtEntryBps != null
+          ? { spreadAtEntryBps: entryAnalytics.spreadAtEntryBps }
+          : {}),
+        ...(entryAnalytics?.slippageBps != null
+          ? { slippageBps: entryAnalytics.slippageBps }
+          : {}),
         ...(clientOrderId != null ? { clientOrderId } : {}),
       })
       .where(eq(trades.id, id))

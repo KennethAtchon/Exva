@@ -138,6 +138,7 @@ export function assertValidPipelineDefinitionCatalog(): void {
       DEFAULT_PIPELINE_ID,
       "edgar-8k-cycle",
       "rules-mean-reversion-cycle",
+      "rules-trend-following-cycle",
     ]) {
       const workers = workersForEffectiveStage(phase, pipelineId);
       if (workers.length === 0 && phase !== "decision") {

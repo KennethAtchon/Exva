@@ -160,4 +160,27 @@ describe("RiskEngine", () => {
     expect(result.allowed).toBe(true);
     expect(result.value?.sizeUsd).toBe(500);
   });
+
+  it("blocks decisions when spread exceeds volatility halt threshold", () => {
+    const result = engine.validateDecision({
+      config,
+      stats,
+      order: {
+        instrumentSymbol: "AAPL",
+        instrumentType: "stock",
+        side: "BUY",
+        sizeUsd: 200,
+      },
+      confidence: 0.9,
+      quoteSnapshot: {
+        price: 100,
+        spreadPct: 1.2,
+        timestamp: new Date().toISOString(),
+      },
+      volatilityHaltMaxSpreadPct: 0.5,
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.gateType).toBe("volatility_halt");
+  });
 });

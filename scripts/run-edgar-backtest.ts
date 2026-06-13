@@ -8,7 +8,11 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  computeConfidenceCalibration,
   computeForwardReturns,
+  runAblationReport,
+  runHoldPeriodSweep,
+  sliceByRegime,
   summarizeByItemCode,
   type FilingRecord,
   type OhlcvBar,
@@ -30,6 +34,13 @@ const SAMPLE_FILINGS: FilingRecord[] = [
     filedAt: "2026-01-12T10:00:00.000Z",
     itemCodes: ["2.02"],
     marketCapBucket: "large",
+  },
+  {
+    accessionNumber: "0003",
+    ticker: "NVDA",
+    filedAt: "2026-01-15T16:00:00.000Z",
+    itemCodes: ["8.01"],
+    marketCapBucket: "mega",
   },
 ];
 
@@ -66,9 +77,22 @@ function main() {
     return computeForwardReturns(filing, bars);
   }).filter(Boolean);
 
-  const summary = summarizeByItemCode(
-    results as NonNullable<(typeof results)[number]>[],
+  const typedResults = results as NonNullable<(typeof results)[number]>[];
+  const itemCodeSummary = summarizeByItemCode(typedResults);
+  const holdPeriodSweep = runHoldPeriodSweep(typedResults, [1, 3, 5]);
+  const regimeSlices = sliceByRegime(typedResults);
+  const ablations = [
+    runAblationReport(typedResults, "item_code_only"),
+    runAblationReport(typedResults, "item_code_llm"),
+    runAblationReport(typedResults, "item_code_llm_price"),
+  ];
+  const calibration = computeConfidenceCalibration(
+    typedResults.map((row, index) => ({
+      confidence: 0.55 + (index % 4) * 0.1,
+      hit5d: row.returns.days5 > 0,
+    })),
   );
+
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const outPath = join(OUTPUT_DIR, `edgar-drift-${stamp}.json`);
   writeFileSync(
@@ -77,9 +101,12 @@ function main() {
       {
         generatedAt: new Date().toISOString(),
         filingCount: SAMPLE_FILINGS.length,
-        resultCount: results.length,
-        itemCodeSummary: summary,
-        holdPeriods: ["1d", "3d", "5d"],
+        resultCount: typedResults.length,
+        itemCodeSummary,
+        holdPeriodSweep,
+        regimeSlices,
+        ablations,
+        confidenceCalibration: calibration,
         note: "Sample synthetic data — replace with edgar-historical-ingest output for production runs.",
       },
       null,

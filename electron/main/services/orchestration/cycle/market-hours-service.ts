@@ -1,4 +1,5 @@
 import type { InstrumentClass } from "@/lib/types";
+import { isUsMarketHoliday } from "@electron/shared/instruments/us-market-holidays";
 
 export type BurstInstrument = {
   symbol: string;
@@ -76,6 +77,9 @@ export class MarketHoursService {
       (instrument.instrumentClass === "stock" ||
         instrument.instrumentClass === "futures")
     ) {
+      if (isUsMarketHoliday(now)) {
+        return "market_holiday";
+      }
       const ny = new Date(
         now.toLocaleString("en-US", { timeZone: "America/New_York" }),
       );

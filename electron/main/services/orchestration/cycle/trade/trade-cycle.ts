@@ -204,6 +204,7 @@ export async function executeTradeCycle(
       brokerStep.value.brokerOrderId,
       brokerStep.value.filledAvgPrice,
       approvalIdForCapital,
+      latestQuote,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

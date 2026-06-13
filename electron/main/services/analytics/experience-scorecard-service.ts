@@ -9,6 +9,10 @@ import {
   meetsPromotionCriteria,
   type TradeScorecard,
 } from "./paper-scorecard-service";
+import {
+  computeWalkForwardReport,
+  type WalkForwardReport,
+} from "./walk-forward-report";
 import type { PromotionTier } from "@electron/shared/domain/promotion-ladder";
 import { resolveSessionPromotionTier } from "@electron/shared/domain/promotion-ladder";
 
@@ -31,6 +35,7 @@ export interface ExperienceScorecard {
   promotionTier: PromotionTier;
   meetsPromotion: boolean;
   failedPromotionCriteria: string[];
+  walkForward: WalkForwardReport | null;
   generatedAt: string;
 }
 
@@ -140,6 +145,8 @@ export class ExperienceScorecardService {
       scenarioCoverage: {},
     };
 
+    const walkForward = computeWalkForwardReport(closedTrades);
+
     const promotion =
       promotionTier === "paper"
         ? meetsPromotionCriteria(sessionScorecard)
@@ -164,6 +171,7 @@ export class ExperienceScorecardService {
       promotionTier,
       meetsPromotion: promotion.meets,
       failedPromotionCriteria: promotion.failedCriteria,
+      walkForward,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -263,6 +271,7 @@ function emptyScorecard(input: {
     promotionTier: input.promotionTier,
     meetsPromotion: false,
     failedPromotionCriteria: ["minTradeCount"],
+    walkForward: null,
     generatedAt: new Date().toISOString(),
   };
 }

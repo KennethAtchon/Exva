@@ -130,6 +130,7 @@ export function buildTradeFromDecision(
     confidence_score: signal.confidence,
     broker_order_id: null,
     high_water_mark_price: null,
+    low_water_mark_price: null,
     exit_reason: null,
     created_at: new Date().toISOString(),
   };
@@ -180,6 +181,7 @@ export function createTradeFromDecision(
     confidence_score: signal.confidence,
     broker_order_id: null,
     high_water_mark_price: null,
+    low_water_mark_price: null,
     exit_reason: null,
     created_at: new Date().toISOString(),
   };

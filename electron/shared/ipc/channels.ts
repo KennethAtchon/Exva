@@ -36,6 +36,7 @@ export const channels = {
     list: "experiences:list",
     getScorecard: "experiences:getScorecard",
     listScorecards: "experiences:listScorecards",
+    listExperiments: "experiences:listExperiments",
   },
   session: {
     start: "session:start",

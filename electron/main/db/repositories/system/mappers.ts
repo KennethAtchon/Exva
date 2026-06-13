@@ -59,6 +59,7 @@ export function toTrade(row: Row): Trade {
     confidence_score: nullableNumber(row.confidence_score),
     broker_order_id: nullableString(row.broker_order_id),
     high_water_mark_price: nullableNumber(row.high_water_mark_price),
+    low_water_mark_price: nullableNumber(row.low_water_mark_price),
     exit_reason: nullableString(row.exit_reason),
     client_order_id: nullableString(row.client_order_id),
     close_market_snapshot_json: nullableString(row.close_market_snapshot_json),
@@ -267,6 +268,9 @@ export function toSessionRiskConfig(row: Row): SessionRiskConfig {
     waitForOpenThreshold: Number(row.wait_for_open_threshold),
     maxConcurrentTrades: Number(row.max_concurrent_trades),
     maxConsecutiveLosers: Number(row.max_consecutive_losers ?? 5),
+    volatilityHaltMaxSpreadPct: nullableNumber(
+      row.volatility_halt_max_spread_pct,
+    ),
     dailyLossLimitUsd: Number(row.daily_loss_limit_usd),
     profitTargetUsd: Number(row.profit_target_usd),
     maxAiSpendUsd: Number(row.max_ai_spend_usd),

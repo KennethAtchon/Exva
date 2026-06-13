@@ -1,0 +1,109 @@
+{
+  "generatedAt": "2026-06-13T19:52:40.386Z",
+  "filingCount": 3,
+  "resultCount": 3,
+  "itemCodeSummary": [
+    {
+      "itemCode": "1.01",
+      "sampleCount": 1,
+      "avgReturn1d": -0.0020030000000001067,
+      "avgReturn3d": 0.012950987047999879,
+      "avgReturn5d": 0.008902221952768994,
+      "hitRate5d": 1
+    },
+    {
+      "itemCode": "2.02",
+      "sampleCount": 1,
+      "avgReturn1d": 0.014983999999999956,
+      "avgReturn3d": 0.010927108951999831,
+      "avgReturn5d": 0.008902221952768899,
+      "hitRate5d": 1
+    },
+    {
+      "itemCode": "8.01",
+      "sampleCount": 1,
+      "avgReturn1d": -0.0000010000000001668712,
+      "avgReturn3d": 0.010956989041999793,
+      "avgReturn5d": 0.008932042192948566,
+      "hitRate5d": 1
+    }
+  ],
+  "holdPeriodSweep": [
+    {
+      "holdDays": 1,
+      "sampleCount": 3,
+      "avgReturn": 0.00432666666666656,
+      "hitRate": 0.3333333333333333
+    },
+    {
+      "holdDays": 3,
+      "sampleCount": 3,
+      "avgReturn": 0.011611695013999834,
+      "hitRate": 1
+    },
+    {
+      "holdDays": 5,
+      "sampleCount": 3,
+      "avgReturn": 0.008912162032828819,
+      "hitRate": 1
+    }
+  ],
+  "regimeSlices": [
+    {
+      "regime": "mega",
+      "sampleCount": 2,
+      "avgReturn5d": 0.00891713207285878,
+      "hitRate5d": 1
+    },
+    {
+      "regime": "large",
+      "sampleCount": 1,
+      "avgReturn5d": 0.008902221952768899,
+      "hitRate5d": 1
+    }
+  ],
+  "ablations": [
+    {
+      "mode": "item_code_only",
+      "sampleCount": 3,
+      "avgReturn5d": 0.008912162032828819,
+      "hitRate5d": 1
+    },
+    {
+      "mode": "item_code_llm",
+      "sampleCount": 3,
+      "avgReturn5d": 0.008912162032828819,
+      "hitRate5d": 1
+    },
+    {
+      "mode": "item_code_llm_price",
+      "sampleCount": 3,
+      "avgReturn5d": 0.008912162032828819,
+      "hitRate5d": 1
+    }
+  ],
+  "confidenceCalibration": [
+    {
+      "bucket": "0.5",
+      "count": 1,
+      "avgConfidence": 0.55,
+      "hitRate": 1,
+      "brierScore": 0.20249999999999996
+    },
+    {
+      "bucket": "0.6000000000000001",
+      "count": 1,
+      "avgConfidence": 0.65,
+      "hitRate": 1,
+      "brierScore": 0.12249999999999998
+    },
+    {
+      "bucket": "0.7000000000000001",
+      "count": 1,
+      "avgConfidence": 0.75,
+      "hitRate": 1,
+      "brierScore": 0.0625
+    }
+  ],
+  "note": "Sample synthetic data — replace with edgar-historical-ingest output for production runs."
+}

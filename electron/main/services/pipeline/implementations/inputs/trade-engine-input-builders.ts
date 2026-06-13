@@ -143,6 +143,9 @@ export const riskGateInputBuilder: EngineInputBuilder = {
           sizeUsd: executionProfile.positionSizeUsd,
         },
         confidence: decision.output.confidence,
+        quoteSnapshot: state.quoteSnapshot,
+        volatilityHaltMaxSpreadPct:
+          ctx.strategyContext.riskConfig.volatilityHaltMaxSpreadPct,
         riskPolicy: {
           waitForOpenThreshold:
             ctx.strategyContext.riskConfig.waitForOpenThreshold,

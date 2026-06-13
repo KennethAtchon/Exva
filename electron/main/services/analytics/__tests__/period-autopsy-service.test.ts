@@ -47,6 +47,7 @@ const SAMPLE_TRADE = {
   confidence_score: 0.7,
   broker_order_id: null,
   high_water_mark_price: null,
+  low_water_mark_price: null,
   exit_reason: "target_hit",
   client_order_id: null,
   close_market_snapshot_json: null,
