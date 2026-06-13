@@ -27,7 +27,11 @@ export class MarketHoursService {
   partitionByTradability(
     instruments: BurstInstrument[],
     now = new Date(),
-    options?: { skipWeekendFilter?: boolean },
+    options?: {
+      skipWeekendFilter?: boolean;
+      /** Mock sessions only: allow stock/futures outside regular NYSE hours. */
+      skipExchangeHoursFilter?: boolean;
+    },
   ): TradabilityPartition {
     const tradable: BurstInstrument[] = [];
     const excluded: TradabilityExclusion[] = [];
@@ -49,7 +53,10 @@ export class MarketHoursService {
   private exclusionReason(
     instrument: BurstInstrument,
     now: Date,
-    options?: { skipWeekendFilter?: boolean },
+    options?: {
+      skipWeekendFilter?: boolean;
+      skipExchangeHoursFilter?: boolean;
+    },
   ): string | null {
     if (
       instrument.instrumentClass === "crypto" ||
@@ -65,8 +72,9 @@ export class MarketHoursService {
       }
     }
     if (
-      instrument.instrumentClass === "stock" ||
-      instrument.instrumentClass === "futures"
+      !options?.skipExchangeHoursFilter &&
+      (instrument.instrumentClass === "stock" ||
+        instrument.instrumentClass === "futures")
     ) {
       const ny = new Date(
         now.toLocaleString("en-US", { timeZone: "America/New_York" }),

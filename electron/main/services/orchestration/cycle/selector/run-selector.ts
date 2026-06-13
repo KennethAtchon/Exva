@@ -8,7 +8,7 @@ import type { ResolvedInstrument, SelectorCycleContext } from "../types";
 
 const marketHours = new MarketHoursService();
 
-async function shouldSkipWeekendFilter(
+async function shouldSkipMockStockTimeFilters(
   ctx: TradingCycleContext,
 ): Promise<boolean> {
   const mock = await resolveMockToolContext({
@@ -152,11 +152,14 @@ export async function runSelector(
     });
   }
 
-  const skipWeekendFilter = await shouldSkipWeekendFilter(ctx);
+  const skipMockStockTimeFilters = await shouldSkipMockStockTimeFilters(ctx);
   const { tradable, excluded } = marketHours.partitionByTradability(
     capped,
     new Date(),
-    { skipWeekendFilter },
+    {
+      skipWeekendFilter: skipMockStockTimeFilters,
+      skipExchangeHoursFilter: skipMockStockTimeFilters,
+    },
   );
   if (excluded.length > 0) {
     logger.warn(
