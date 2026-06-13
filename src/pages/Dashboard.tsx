@@ -234,9 +234,11 @@ const TradeRow = ({
           {Math.round((trade.confidence_score ?? 0) * 100)}%
         </span>
       </div>
-      <Badge variant={isOpen ? "success" : "default"} size="sm">
-        {trade.status}
-      </Badge>
+      <div className="min-w-0">
+        <Badge variant={isOpen ? "success" : "default"} size="sm">
+          {trade.status}
+        </Badge>
+      </div>
       <span className={cn(trCellClass, "text-[var(--text3)]")}>
         {trade.opened_at ? fmt.time(trade.opened_at) : "—"}
       </span>
@@ -549,10 +551,10 @@ const tradesScrollClass =
 const tradesTableMinClass = "flex min-h-0 min-w-[720px] flex-1 flex-col";
 
 const trHeadClass =
-  "grid shrink-0 grid-cols-[130px_90px_90px_90px_70px_110px_70px_60px] gap-0 border-b border-[var(--border)] px-6 pb-2.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-[var(--text3)]";
+  "grid shrink-0 grid-cols-[130px_90px_90px_90px_70px_110px_minmax(76px,auto)_60px] gap-0 border-b border-[var(--border)] px-6 pb-2.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-[var(--text3)]";
 
 const tradeRowClass =
-  "grid cursor-pointer grid-cols-[130px_90px_90px_90px_70px_110px_70px_60px] items-center gap-0 border-b border-[var(--border)] px-6 py-[11px] transition-[background] duration-100";
+  "grid cursor-pointer grid-cols-[130px_90px_90px_90px_70px_110px_minmax(76px,auto)_60px] items-center gap-0 border-b border-[var(--border)] px-6 py-[11px] transition-[background] duration-100";
 
 const trCellClass = "font-mono text-[13px] text-[var(--text2)]";
 

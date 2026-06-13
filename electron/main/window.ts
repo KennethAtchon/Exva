@@ -11,8 +11,8 @@ export async function createMainWindow(
   const window = new BrowserWindow({
     width: 1440,
     height: 960,
-    minWidth: 1100,
-    minHeight: 720,
+    minWidth: 480,
+    minHeight: 400,
     show: false,
     title: "Exva",
     webPreferences: {

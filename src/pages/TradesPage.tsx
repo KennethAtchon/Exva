@@ -167,6 +167,18 @@ const TradeFilters = ({
   );
 };
 
+const TRADES_TABLE_MIN_WIDTH = 940;
+
+function tradesGridColumns(viewMode: string): string {
+  const side = "minmax(88px,auto)";
+  const status = "minmax(76px,auto)";
+  const action = "minmax(112px,auto)";
+  if (viewMode === "global") {
+    return `120px 130px ${side} 70px 90px 90px 90px 80px 60px ${status} 60px ${action}`;
+  }
+  return `130px ${side} 70px 90px 90px 90px 80px 60px ${status} 60px ${action}`;
+}
+
 // ---------------------------------------------------------------------------
 // TradeRow
 // ---------------------------------------------------------------------------
@@ -188,10 +200,7 @@ const TradeRow = ({
   const pnl = (isOpen ? trade.unrealized_pnl : trade.final_pnl_usd) ?? null;
   const pos = pnl != null && pnl >= 0;
   const sessionLabel = trade.sessionName ?? trade.sessionId ?? "—";
-  const gridCols =
-    viewMode === "global"
-      ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
-      : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px";
+  const gridCols = tradesGridColumns(viewMode);
 
   return (
     <div
@@ -209,7 +218,7 @@ const TradeRow = ({
       style={{
         gridTemplateColumns: gridCols,
         background: isSelected ? "var(--surface2)" : "transparent",
-        minWidth: 860,
+        minWidth: TRADES_TABLE_MIN_WIDTH,
       }}
     >
       {viewMode === "global" && (
@@ -230,7 +239,7 @@ const TradeRow = ({
           </span>
         ) : null}
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
         {trade.predictionOutcome ? (
           <Badge variant="purple" size="sm">
             {trade.predictionOutcome}
@@ -269,23 +278,27 @@ const TradeRow = ({
           ? `${Math.round(trade.confidence_score * 100)}%`
           : "—"}
       </span>
-      <Badge variant={isOpen ? "success" : "default"} size="sm">
-        {trade.status}
-      </Badge>
+      <div className="min-w-0">
+        <Badge variant={isOpen ? "success" : "default"} size="sm">
+          {trade.status}
+        </Badge>
+      </div>
       <span className="font-mono text-[12px] text-[var(--text3)]">
         {trade.opened_at ? fmt.time(trade.opened_at) : "—"}
       </span>
       {!isOpen && onViewAutopsy && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewAutopsy(trade.id);
-          }}
-          className={autopsyButtonClass}
-          title="Review trade"
-        >
-          ⚕ Review Trade
-        </button>
+        <div className="min-w-0">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewAutopsy(trade.id);
+            }}
+            className={autopsyButtonClass}
+            title="Review trade"
+          >
+            ⚕ Review Trade
+          </button>
+        </div>
       )}
     </div>
   );
@@ -382,10 +395,7 @@ export const TradesPage = ({
   const wins = closed.filter((t) => (t.final_pnl_usd ?? 0) > 0);
   const realPnl = closed.reduce((s, t) => s + (t.final_pnl_usd ?? 0), 0);
 
-  const gridCols =
-    viewMode === "global"
-      ? "120px 130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px"
-      : "130px 60px 70px 90px 90px 90px 80px 60px 55px 60px 70px";
+  const gridCols = tradesGridColumns(viewMode);
 
   return (
     <PageShell>
@@ -489,7 +499,10 @@ export const TradesPage = ({
         <div className="overflow-x-auto">
           <div
             className={tradeTableHeaderClass}
-            style={{ gridTemplateColumns: gridCols, minWidth: 860 }}
+            style={{
+              gridTemplateColumns: gridCols,
+              minWidth: TRADES_TABLE_MIN_WIDTH,
+            }}
           >
             {[
               ...(viewMode === "global" ? ["Session"] : []),
@@ -534,7 +547,7 @@ const tradeRowClass =
   "grid cursor-pointer items-center border-b border-[var(--border)] px-5 py-[11px] transition-[background] duration-100";
 
 const autopsyButtonClass =
-  "cursor-pointer whitespace-nowrap rounded-[5px] border border-[var(--border)] bg-transparent px-2 py-[3px] font-mono text-[12px] tracking-[0.03em] text-[var(--text3)]";
+  "inline-flex max-w-full min-w-0 cursor-pointer items-center overflow-hidden whitespace-nowrap rounded-[5px] border border-[var(--border)] bg-transparent px-2 py-[3px] font-mono text-[12px] tracking-[0.03em] text-[var(--text3)]";
 
 const filterLabelClass =
   "flex flex-col gap-1.5 text-[12px] uppercase tracking-[0.06em] text-[var(--text3)]";

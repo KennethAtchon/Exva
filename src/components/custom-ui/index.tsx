@@ -22,10 +22,14 @@ export const Badge = ({
   children,
   variant = "default",
   size = "md",
+  title,
+  className,
 }: {
   children: ReactNode;
   variant?: BadgeVariant;
   size?: "sm" | "md";
+  title?: string;
+  className?: string;
 }) => {
   const tone: Record<BadgeVariant, string> = {
     default: "bg-muted text-muted-foreground border-transparent",
@@ -35,18 +39,21 @@ export const Badge = ({
     blue: "border-info-border bg-info-dim text-info",
     purple: "border-market-border bg-market-dim text-market",
   };
+  const label = title ?? (typeof children === "string" ? children : undefined);
 
   return (
     <UIBadge
+      title={label}
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-[5px] font-mono font-medium tracking-wide",
+        "inline-flex max-w-full min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap rounded-[5px] font-mono font-medium tracking-wide",
         size === "sm"
           ? "px-[7px] py-[2px] text-[12px]"
           : "px-[9px] py-[3px] text-[12px]",
         tone[variant],
+        className,
       )}
     >
-      {children}
+      <span className="truncate">{children}</span>
     </UIBadge>
   );
 };

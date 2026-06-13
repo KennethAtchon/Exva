@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { RuntimeEventToast } from "./components/RuntimeEventToast";
-import { TopNav, type PageKey } from "./components/TopNav";
+import { NavShell, type PageKey } from "./components/TopNav";
 import { LiveReadinessModal } from "./components/sessions/LiveReadinessModal";
 import { Dashboard } from "./pages/Dashboard";
 import { BrokersPage } from "./pages/BrokersPage";
@@ -340,29 +340,28 @@ const renderAppShell = ({
   pageEl: () => JSX.Element;
   setStatus: ReturnType<typeof useSessionStore.getState>["setStatus"];
 }) => (
-  <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--bg)] font-sans text-[var(--text1)]">
-    <TopNav
-      activePage={ui.page}
-      onNavigate={(p) => {
-        dispatchUi({
-          page: p,
-          sessionsStatusFilter:
-            p !== "sessions" ? "all" : ui.sessionsStatusFilter,
-        });
-        setSelected(null);
-      }}
-      onNavigateToAttentionSessions={() => {
-        dispatchUi({
-          sessionsStatusFilter: "attention_required",
-          page: "sessions",
-        });
-        setSelected(null);
-      }}
-      sessionStatus={status}
-      onSessionAction={handleSession}
-      sessionActionPending={ui.sessionActionPending}
-      stats={stats}
-    />
+  <NavShell
+    activePage={ui.page}
+    onNavigate={(p) => {
+      dispatchUi({
+        page: p,
+        sessionsStatusFilter:
+          p !== "sessions" ? "all" : ui.sessionsStatusFilter,
+      });
+      setSelected(null);
+    }}
+    onNavigateToAttentionSessions={() => {
+      dispatchUi({
+        sessionsStatusFilter: "attention_required",
+        page: "sessions",
+      });
+      setSelected(null);
+    }}
+    sessionStatus={status}
+    onSessionAction={handleSession}
+    sessionActionPending={ui.sessionActionPending}
+    stats={stats}
+  >
     {ui.loadError && (
       <div className="border-b border-error-border bg-error-dim px-7 py-2.5 font-mono text-[12px] text-error">
         {ui.loadError}
@@ -415,5 +414,5 @@ const renderAppShell = ({
         }}
       />
     ) : null}
-  </div>
+  </NavShell>
 );

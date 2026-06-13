@@ -532,21 +532,21 @@ const controlsBarClass =
   "mt-3.5 flex flex-wrap gap-1.5 border-t border-[var(--border)] pt-3";
 
 const actionButtonClass =
-  "h-[30px] rounded-lg border border-[var(--border)] bg-transparent px-2.5 text-[12px] font-medium text-[var(--text2)]";
+  "h-auto min-h-[30px] rounded-lg border border-[var(--border)] bg-transparent px-2.5 py-1.5 text-[12px] font-medium text-[var(--text2)]";
 
 const focusedButtonClass = "border-info-border text-info";
 
 const primaryActionButtonClass =
-  "h-[30px] rounded-lg border border-transparent bg-[var(--accent)] px-2.5 text-[12px] font-semibold text-[hsl(var(--primary-foreground))]";
+  "h-auto min-h-[30px] rounded-lg border border-transparent bg-[var(--accent)] px-2.5 py-1.5 text-[12px] font-semibold text-[hsl(var(--primary-foreground))]";
 
 const dangerButtonClass =
-  "h-[30px] rounded-lg border border-error-border bg-transparent px-2.5 text-[12px] font-medium text-error";
+  "h-auto min-h-[30px] rounded-lg border border-error-border bg-transparent px-2.5 py-1.5 text-[12px] font-medium text-error";
 
 const forceStopButtonClass =
-  "h-[30px] rounded-lg border border-error-border bg-error-dim px-2.5 text-[12px] font-medium text-error";
+  "h-auto min-h-[30px] rounded-lg border border-error-border bg-error-dim px-2.5 py-1.5 text-[12px] font-medium text-error";
 
 const stopWhenFlatButtonClass =
-  "h-[30px] rounded-lg border border-status-orange-border bg-status-orange-dim px-2.5 text-[12px] font-semibold text-status-orange";
+  "h-auto min-h-[30px] rounded-lg border border-status-orange-border bg-status-orange-dim px-2.5 py-1.5 text-[12px] font-semibold text-status-orange";
 
 const drainBannerClass =
   "mt-2 rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-[12px] leading-[1.45] text-status-orange";
