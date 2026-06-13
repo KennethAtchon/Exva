@@ -319,7 +319,7 @@ export const api = {
     >;
   }> => bridge().signals.listSources(),
   createSignalSource: (input: {
-    type: "edgar_8k" | "web_search" | "manual";
+    type: "edgar_8k" | "web_search" | "manual" | "prediction_event";
     name: string;
     description?: string | null;
     config?: Record<string, unknown>;
@@ -355,6 +355,17 @@ export const api = {
       source: Record<string, unknown>;
     }>;
   }> => bridge().signals.listSessionEvents(input),
+  listSessionSignalDeadLetters: (input: {
+    sessionId: string;
+    reason?:
+      | "unsupported_by_experience"
+      | "unsupported_by_signal_source"
+      | "unsupported_by_assigned_broker"
+      | "no_compatible_broker_route";
+    limit?: number;
+  }) => bridge().signals.listSessionDeadLetters(input),
+  replaySessionSignalDeadLetter: (deadLetterId: string) =>
+    bridge().signals.replaySignalDeadLetter({ deadLetterId }),
   getSessionSignalSubscriptions: (sessionId: string) =>
     bridge().signals.getSessionSubscriptions(sessionId),
   setSessionSignalSubscriptions: (input: {

@@ -9,6 +9,7 @@ import { EdgarSignalSource } from "./sources/edgar-signal-source";
 import { MockSignalSource } from "./sources/mock-signal-source";
 import { TimerSignalSource } from "./sources/timer-signal-source";
 import { WebSearchSignalSource } from "./sources/web-search-signal-source";
+import { PredictionEventSignalSource } from "./sources/prediction-event-signal-source";
 import { SignalBus } from "./signal-bus";
 
 export class SignalSourceRegistry {
@@ -96,6 +97,9 @@ export class SignalSourceRegistry {
     if (record.type === "timer") {
       return new TimerSignalSource(record.id, record.configJson);
     }
-    return new WebSearchSignalSource(record.id);
+    if (record.type === "prediction_event") {
+      return new PredictionEventSignalSource(record.id, record.configJson);
+    }
+    return new WebSearchSignalSource(record.id, record.configJson);
   }
 }

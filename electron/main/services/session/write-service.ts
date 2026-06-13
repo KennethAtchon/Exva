@@ -1,6 +1,11 @@
 import type { InstrumentClass, WorkspaceSession } from "@/lib/types";
-import { resolveEffectiveInstrumentClasses } from "@electron/shared/instruments/session-instrument-classes";
+import {
+  brokerOverlapsExperience,
+  isSessionLaunchable,
+  resolveSessionInstrumentClasses,
+} from "@electron/shared/instruments/experience-launchability";
 import { AppError } from "@electron/shared/infra/errors";
+import { requireExperience } from "../../experiences/index";
 import type { EventsRepo } from "../../db/repositories/system/events-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
 import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions/session-selector-settings-repo";
@@ -12,7 +17,7 @@ export interface SessionWriteInput {
   name: string;
   objective: string;
   selectionMode: WorkspaceSession["selectionMode"];
-  instrumentClasses: InstrumentClass[];
+  instrumentClasses?: InstrumentClass[];
   instrumentScope: string;
   defaultSearchProviderId?: string | null;
   selectorSettings: { aiPickerEnabled: boolean };
@@ -24,6 +29,11 @@ export interface SessionWriteInput {
   subscribedSourceIds?: string[];
   experienceId?: string;
 }
+
+type NormalizedSessionWriteInput = SessionWriteInput & {
+  instrumentClasses: InstrumentClass[];
+  experienceId: string;
+};
 
 export class SessionWriteService {
   constructor(
@@ -116,7 +126,7 @@ export class SessionWriteService {
   private validate(
     input: SessionWriteInput,
     ctx: { excludeSessionId: string | null },
-  ): SessionWriteInput {
+  ): NormalizedSessionWriteInput {
     const trimmedName = input.name.trim();
     if (
       this.deps.sessions
@@ -207,7 +217,20 @@ export class SessionWriteService {
       return broker;
     });
 
-    const instrumentClasses = resolveEffectiveInstrumentClasses(
+    const experienceId = input.experienceId ?? "edgar-catalyst";
+    let experience;
+    try {
+      experience = requireExperience(experienceId);
+    } catch {
+      throw new AppError(
+        `Experience "${experienceId}" was not found.`,
+        "NOT_FOUND",
+        { experienceId, field: "experienceId" },
+      );
+    }
+
+    const instrumentClasses = resolveSessionInstrumentClasses(
+      experience.capabilities,
       input,
       selectedBrokers,
     );
@@ -223,31 +246,52 @@ export class SessionWriteService {
     }
 
     for (const broker of selectedBrokers) {
-      const overlap = broker.supportedInstrumentClasses.some((cls) =>
-        instrumentClasses.includes(cls),
-      );
-      if (!overlap) {
+      if (
+        !brokerOverlapsExperience(
+          broker,
+          experience.capabilities.instrumentClasses,
+        )
+      ) {
         throw new AppError(
-          `Broker "${broker.name}" does not support any of the selected instrument classes.`,
+          `Broker "${broker.name}" does not support any instrument class required by ${experience.displayName}.`,
           "VALIDATION_FAILED",
           {
             brokerAccountId: broker.id,
             supports: broker.supportedInstrumentClasses,
-            requested: instrumentClasses,
+            experienceClasses: experience.capabilities.instrumentClasses,
           },
         );
       }
     }
 
-    for (const instrumentClass of instrumentClasses) {
-      const covered = selectedBrokers.some((broker) =>
-        broker.supportedInstrumentClasses.includes(instrumentClass),
+    if (
+      !isSessionLaunchable(
+        experience.capabilities.instrumentClasses,
+        selectedBrokers,
+      )
+    ) {
+      throw new AppError(
+        `Selected brokers do not cover any instrument class supported by ${experience.displayName}.`,
+        "VALIDATION_FAILED",
+        {
+          field: "brokerAssignments",
+          experienceClasses: experience.capabilities.instrumentClasses,
+        },
       );
-      if (!covered) {
+    }
+
+    if (experience.capabilities.brokerRequirement === "polymarket_broker") {
+      const hasPolymarketBroker = selectedBrokers.some(
+        (broker) => broker.brokerType === "polymarket",
+      );
+      if (!hasPolymarketBroker) {
         throw new AppError(
-          `No selected broker can trade ${instrumentClass}.`,
+          `${experience.displayName} requires at least one Polymarket broker account.`,
           "VALIDATION_FAILED",
-          { instrumentClass, field: "brokerAssignments" },
+          {
+            field: "brokerAssignments",
+            brokerRequirement: experience.capabilities.brokerRequirement,
+          },
         );
       }
     }
@@ -282,6 +326,7 @@ export class SessionWriteService {
       ...input,
       brokerAssignments,
       instrumentClasses,
+      experienceId,
     };
   }
 }

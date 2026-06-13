@@ -3,7 +3,8 @@ export type SignalSourceType =
   | "web_search"
   | "manual"
   | "mock"
-  | "timer";
+  | "timer"
+  | "prediction_event";
 
 export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
   return type === "web_search";
@@ -12,7 +13,12 @@ export function isSearchStyleSignalSourceType(type: SignalSourceType): boolean {
 export function isSelfDescribingSignalSourceType(
   type: SignalSourceType,
 ): boolean {
-  return type !== "web_search" && type !== "manual" && type !== "timer";
+  return (
+    type !== "web_search" &&
+    type !== "manual" &&
+    type !== "timer" &&
+    type !== "prediction_event"
+  );
 }
 
 /** True when the session must carry manual tickers / instrument scope. */

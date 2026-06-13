@@ -10,7 +10,7 @@ export function registerSignalHandlers(services: AppServices): void {
 
   handle(ipcMain, channels.signals.sources.create, async (payload) => {
     const input = payload as {
-      type: "edgar_8k" | "web_search" | "manual";
+      type: "edgar_8k" | "web_search" | "manual" | "prediction_event";
       name: string;
       description?: string | null;
       config?: Record<string, unknown>;
@@ -66,6 +66,24 @@ export function registerSignalHandlers(services: AppServices): void {
       limit?: number;
     };
     return { rows: services.signals.listEventsBySession(input) };
+  });
+
+  handle(ipcMain, channels.signals.deadLetters.list, async (payload) => {
+    const input = payload as {
+      sessionId: string;
+      reason?:
+        | "unsupported_by_experience"
+        | "unsupported_by_signal_source"
+        | "unsupported_by_assigned_broker"
+        | "no_compatible_broker_route";
+      limit?: number;
+    };
+    return { rows: services.signals.listDeadLettersBySession(input) };
+  });
+
+  handle(ipcMain, channels.signals.deadLetters.replay, async (payload) => {
+    const input = payload as { deadLetterId: string };
+    return services.signals.replayDeadLetter(input.deadLetterId);
   });
 
   handle(

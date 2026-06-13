@@ -32,6 +32,7 @@ import type {
 import type {
   ExvaEventMap,
   ExvaEventName,
+  ExperienceSummary,
   ProviderModelEntry,
   SessionCreateInput,
   SessionExecutionProgressResponse,
@@ -117,20 +118,7 @@ export interface ExvaApi {
     };
   };
   experiences: {
-    list(): Promise<
-      Array<{
-        id: string;
-        displayName: string;
-        signalSourceType: string;
-        pipelineId: string;
-        presets: {
-          posturePresetId: string;
-          rulesPresetId: string;
-          riskPresetId: string;
-          timeframePresetId: string;
-        };
-      }>
-    >;
+    list(): Promise<ExperienceSummary[]>;
   };
   session: {
     start(): Promise<SessionStatus>;
@@ -344,7 +332,7 @@ export interface ExvaApi {
       >;
     }>;
     createSource(input: {
-      type: "edgar_8k" | "web_search" | "manual";
+      type: "edgar_8k" | "web_search" | "manual" | "prediction_event";
       name: string;
       description?: string | null;
       config?: Record<string, unknown>;
@@ -371,6 +359,24 @@ export interface ExvaApi {
         source: Record<string, unknown>;
       }>;
     }>;
+    listSessionDeadLetters(input: {
+      sessionId: string;
+      reason?:
+        | "unsupported_by_experience"
+        | "unsupported_by_signal_source"
+        | "unsupported_by_assigned_broker"
+        | "no_compatible_broker_route";
+      limit?: number;
+    }): Promise<{
+      rows: Array<{
+        deadLetter: import("@electron/shared/domain").SignalDeadLetter;
+        event: Record<string, unknown>;
+        source: Record<string, unknown>;
+      }>;
+    }>;
+    replaySignalDeadLetter(input: {
+      deadLetterId: string;
+    }): Promise<{ deliveryId: string }>;
     getSessionSubscriptions(
       sessionId: string,
     ): Promise<{ sourceIds: string[] }>;

@@ -109,6 +109,10 @@ export const channels = {
     events: {
       list: "signals:events:list",
     },
+    deadLetters: {
+      list: "signals:dead-letters:list",
+      replay: "signals:dead-letters:replay",
+    },
     sessions: {
       getSubscriptions: "signals:sessions:get-subscriptions",
       setSubscriptions: "signals:sessions:set-subscriptions",
@@ -189,6 +193,7 @@ export const mainToRendererEvents = [
   "andon_cord_fired",
   "signal_received",
   "signal_delivery_updated",
+  "signal_dead_lettered",
 ] as const;
 
 export type ExvaEventName = (typeof mainToRendererEvents)[number];

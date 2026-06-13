@@ -1,5 +1,7 @@
 # Exva TODO
 
+We dont care about backwards compatibility. WE will be reseting the db after the spec is done.
+
 ## Verification Snapshot (2026-06-12)
 
 - [x] Audit implementation is mostly real, not just documented. Verified in code and with targeted tests.
@@ -7,58 +9,60 @@
 - [x] Backtest harness exists under `electron/main/services/backtest/`.
 - [x] Scripted mock tier, mock signal source, delivery terminal states, confidence calibration, EDGAR item-code prefilter, rules timer pipeline, and `ExperienceDescriptor` v1 are present in the repo.
 - [x] Paper scorecard excludes mock-broker trades structurally.
-- [ ] Audit doc has one stale file reference: it cites `rules-mean-reversion-analysis.ts`, but the real file is `electron/main/services/pipeline/implementations/rules/mean-reversion-analysis.ts`.
+- [x] Audit doc has one stale file reference: it cites `rules-mean-reversion-analysis.ts`, but the real file is `electron/main/services/pipeline/implementations/rules/mean-reversion-analysis.ts`.
 - [ ] Rehearsal tier exists in code but is not a first-class runtime/UI path yet; mock execution currently defaults to `scripted`.
-- [ ] Experience picker UI exists for new sessions, but not when editing an existing session.
+- [x] Experience picker UI exists for new sessions, but not when editing an existing session. _(Edit mode now shows a read-only experience selector + capability summary.)_
 - [ ] Session collapse / presets-as-data is still partial; multiple `session_*` tables remain.
 - [ ] `processingMode` no longer owns worker routing, but it still affects phase `variantKey` selection.
 - [ ] Golden-path integration verifies open -> close, but does not assert autopsy generation yet.
 
 ## Experience Capability Contracts (Next Architecture Direction)
 
+> **Implementation check (2026-06-13):** Complete for in-repo capability-contract work. Migration: `electron/main/db/drizzle/0001_gorgeous_blob.sql`. Run `bun run db:reset` before using locally.
+
 The product direction is: **experiences are context-aware cartridges.** The user should not manually toggle stocks / futures / crypto / prediction markets as a separate axis. The selected experience, its signal source, and the assigned brokers should make the supported universe explicit.
 
 ### 0. Make capabilities first-class
 
-- [ ] Extend `ExperienceDescriptor` with `capabilities.instrumentClasses`, `capabilities.signalSourceTypes`, and `capabilities.brokerRequirement`.
-- [ ] Define the default policy: experiences are single-class unless explicitly declared multi-class.
-- [ ] Mark `edgar-catalyst` as stock-only because EDGAR 8-K catalysts do not exist for futures, crypto, or prediction-market instruments.
-- [ ] Mark `rules-mean-reversion` as explicitly non-prediction-market; split future prediction-market logic into separate experiences.
-- [ ] Add registry validation that each experience's declared signal source types match the pipeline's routed signal sources.
-- [ ] Add registry validation that each signal source can only emit instrument classes allowed by the experience using it.
+- [x] Extend `ExperienceDescriptor` with `capabilities.instrumentClasses`, `capabilities.signalSourceTypes`, and `capabilities.brokerRequirement`.
+- [x] Define the default policy: experiences are single-class unless explicitly declared multi-class.
+- [x] Mark `edgar-catalyst` as stock-only because EDGAR 8-K catalysts do not exist for futures, crypto, or prediction-market instruments.
+- [x] Mark `rules-mean-reversion` as explicitly non-prediction-market; split future prediction-market logic into separate experiences.
+- [x] Add registry validation that each experience's declared signal source types match the pipeline's routed signal sources.
+- [x] Add registry validation that each signal source can only emit instrument classes allowed by the experience using it.
 
 ### 0.1 Remove the generic instrument-class toggle
 
-- [ ] Remove the Create/Edit Session manual instrument-class toggle as the source of truth.
-- [ ] Replace it with an experience capability summary: "This experience supports: stocks" / "prediction markets" / "stocks + futures".
-- [ ] Derive session instrument classes from `experience.capabilities.instrumentClasses`, not user-selected checkboxes.
-- [ ] Keep broker selection as the user's control surface for what the session can actually trade.
-- [ ] Show broker coverage against experience support: supported by experience, covered by selected brokers, uncovered/dead-lettered if emitted.
+- [x] Remove the Create/Edit Session manual instrument-class toggle as the source of truth.
+- [x] Replace it with an experience capability summary: "This experience supports: stocks" / "prediction markets" / "stocks + futures".
+- [x] Derive session instrument classes from `experience.capabilities.instrumentClasses`, not user-selected checkboxes.
+- [x] Keep broker selection as the user's control surface for what the session can actually trade.
+- [x] Show broker coverage against experience support: supported by experience, covered by selected brokers, uncovered/dead-lettered if emitted.
 
 ### 0.2 Broker/session compatibility rules
 
-- [ ] Allow session creation/start when selected brokers cover at least one of the experience's supported instrument classes.
-- [ ] Reject brokers that have zero overlap with the selected experience.
-- [ ] For multi-broker sessions, keep current simple routing for now: first compatible / configured compatible broker wins.
-- [ ] Do not optimize broker load balancing yet; avoid turning this into an allocation project.
-- [ ] Preserve existing broker mode checks: paper sessions use paper brokers; live sessions use live brokers.
+- [x] Allow session creation/start when selected brokers cover at least one of the experience's supported instrument classes.
+- [x] Reject brokers that have zero overlap with the selected experience.
+- [x] For multi-broker sessions, keep current simple routing for now: first compatible / configured compatible broker wins.
+- [x] Do not optimize broker load balancing yet; avoid turning this into an allocation project.
+- [x] Preserve existing broker mode checks: paper sessions use paper brokers; live sessions use live brokers.
 
 ### 0.3 Runtime per-signal routing and dead-letter queue
 
-- [ ] Every emitted signal must declare an `instrumentClass` in a normalized place, not buried inconsistently in source-specific payloads.
-- [ ] Before enqueueing a signal delivery, check source type and instrument class against the session's experience capabilities.
-- [ ] Before enqueueing a signal delivery, check whether at least one assigned broker can trade the signal's instrument class.
-- [ ] If unsupported, write an inspectable dead-letter record instead of silently dropping or creating a stuck delivery.
-- [ ] Dead-letter reasons: `unsupported_by_experience`, `unsupported_by_signal_source`, `unsupported_by_assigned_broker`, `no_compatible_broker_route`.
-- [ ] Add a dead-letter UI surface or drawer section so skipped signals are visible, filterable, and replayable after broker/capability changes.
+- [x] Every emitted signal must declare an `instrumentClass` in a normalized place, not buried inconsistently in source-specific payloads.
+- [x] Before enqueueing a signal delivery, check source type and instrument class against the session's experience capabilities.
+- [x] Before enqueueing a signal delivery, check whether at least one assigned broker can trade the signal's instrument class.
+- [x] If unsupported, write an inspectable dead-letter record instead of silently dropping or creating a stuck delivery.
+- [x] Dead-letter reasons: `unsupported_by_experience`, `unsupported_by_signal_source`, `unsupported_by_assigned_broker`, `no_compatible_broker_route`.
+- [x] Add a dead-letter UI surface or drawer section so skipped signals are visible, filterable, and replayable after broker/capability changes.
 
 ### 0.4 Prediction-market direction
 
-- [ ] Do not let generic timer/rules experiences accidentally trade prediction markets.
-- [ ] Create prediction-market experiences as separate cartridges with `instrumentClasses: ["prediction_market"]`.
-- [ ] Add a future prediction-market signal source, likely social/event/microstructure-driven rather than timer-only mean reversion.
-- [ ] Candidate prediction-market signals: tweet/social spike, Polymarket odds/volume dislocation, curated event feed, or hybrid external-event + market-confirmation flow.
-- [ ] Prediction-market experiences must require a Polymarket-compatible broker assignment before launch.
+- [x] Do not let generic timer/rules experiences accidentally trade prediction markets.
+- [x] Create prediction-market experiences as separate cartridges with `instrumentClasses: ["prediction_market"]`.
+- [x] Add a future prediction-market signal source, likely social/event/microstructure-driven rather than timer-only mean reversion.
+- [x] Candidate prediction-market signals: tweet/social spike, Polymarket odds/volume dislocation, curated event feed, or hybrid external-event + market-confirmation flow. _(Implemented as `PredictionEventTriggerKind` on `prediction_event` source; social/hybrid stubs poll-only until external feeds land.)_
+- [x] Prediction-market experiences must require a Polymarket-compatible broker assignment before launch.
 
 ## What To Do Right After Mock Data
 
@@ -136,10 +140,10 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 
 ## Suggested Near-Term Sequence
 
-- [ ] 1. Implement experience capability contracts and remove the generic instrument-class toggle.
+- [x] 1. Implement experience capability contracts and remove the generic instrument-class toggle.
 - [ ] 2. Finish real-data paper validation for `rules-mean-reversion` and `edgar-catalyst`.
 - [ ] 3. Build the promotion ladder and per-experience scorecards.
 - [ ] 4. Expand EDGAR research with item-code + polarity + regime ablations.
 - [ ] 5. Add one more deterministic non-prediction experience (`BTC-USD` momentum breakout or `QQQ` mean reversion).
-- [ ] 6. Add a separate prediction-market experience family only after the capability contract prevents cross-contamination.
+- [x] 6. Add a separate prediction-market experience family only after the capability contract prevents cross-contamination.
 - [ ] 7. Only after one experience shows positive expectancy after costs should live-readiness work become urgent.

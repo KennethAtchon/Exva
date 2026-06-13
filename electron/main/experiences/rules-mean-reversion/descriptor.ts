@@ -4,6 +4,12 @@ import type { ExperienceDescriptor } from "../types";
 export const RULES_MEAN_REVERSION_EXPERIENCE: ExperienceDescriptor = {
   id: "rules-mean-reversion",
   displayName: "SPY 15m mean reversion (rules)",
+  capabilities: {
+    instrumentClasses: ["stock"],
+    signalSourceTypes: ["timer"],
+    brokerRequirement: "any_supported_class",
+    defaultInstrumentClass: "stock",
+  },
   signalSource: {
     type: "timer",
     defaultConfig: {

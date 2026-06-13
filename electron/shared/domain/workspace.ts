@@ -23,6 +23,7 @@ export interface WorkspaceSession {
   instrumentScope: string;
   defaultSearchProviderId: string | null;
   executionMode: ExecutionMode;
+  experienceId: string;
   startedAt?: string | null;
   createdAt: string;
   updatedAt: string;

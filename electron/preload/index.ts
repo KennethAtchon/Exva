@@ -217,6 +217,10 @@ const exva: ExvaApi = {
     disableSource: (id) => invoke(channels.signals.sources.disable, { id }),
     testSource: (id) => invoke(channels.signals.sources.test, { id }),
     listSessionEvents: (input) => invoke(channels.signals.events.list, input),
+    listSessionDeadLetters: (input) =>
+      invoke(channels.signals.deadLetters.list, input),
+    replaySignalDeadLetter: (input) =>
+      invoke(channels.signals.deadLetters.replay, input),
     getSessionSubscriptions: (sessionId) =>
       invoke(channels.signals.sessions.getSubscriptions, { sessionId }),
     setSessionSubscriptions: (input) =>

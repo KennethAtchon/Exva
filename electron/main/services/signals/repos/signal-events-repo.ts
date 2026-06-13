@@ -77,4 +77,26 @@ export class SignalEventsRepo {
       .orderBy(desc(signalEvents.detectedAt))
       .all();
   }
+
+  getById(id: string): SignalEvent | null {
+    const row =
+      this.db.db
+        .select()
+        .from(signalEvents)
+        .where(eq(signalEvents.id, id))
+        .get() ?? null;
+    if (!row) return null;
+    return {
+      id: row.id,
+      sourceId: row.sourceId,
+      sourceType: row.sourceType as SignalEvent["sourceType"],
+      ticker: row.ticker,
+      companyName: row.companyName,
+      documentUrl: row.documentUrl,
+      accessionNumber: row.accessionNumber,
+      payloadJson: JSON.parse(row.payloadJson) as Record<string, unknown>,
+      filedAt: row.filedAt,
+      detectedAt: row.detectedAt,
+    };
+  }
 }

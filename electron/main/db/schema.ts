@@ -141,6 +141,34 @@ export const sessionSignalDeliveries = sqliteTable(
   }),
 );
 
+export const signalDeadLetters = sqliteTable(
+  "signal_dead_letters",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    signalEventId: text("signal_event_id")
+      .notNull()
+      .references(() => signalEvents.id, { onDelete: "cascade" }),
+    sourceId: text("source_id").notNull(),
+    sourceType: text("source_type").notNull(),
+    ticker: text("ticker").notNull(),
+    instrumentClass: text("instrument_class"),
+    reason: text("reason").notNull(),
+    detailJson: text("detail_json").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+    replayedAt: text("replayed_at"),
+    resolvedDeliveryId: text("resolved_delivery_id"),
+  },
+  (table) => ({
+    sessionIdx: index("idx_signal_dead_letters_session").on(table.sessionId),
+    signalEventIdx: index("idx_signal_dead_letters_signal_event").on(
+      table.signalEventId,
+    ),
+  }),
+);
+
 export const sessionSignalSources = sqliteTable(
   "session_signal_sources",
   {

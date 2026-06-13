@@ -129,7 +129,7 @@ export const sessionCreateInputSchema = z.object({
   name: z.string().min(1).max(80),
   objective: z.string().min(1).max(500),
   selectionMode: selectionModeSchema,
-  instrumentClasses: z.array(instrumentClassSchema).min(1),
+  instrumentClasses: z.array(instrumentClassSchema).min(1).optional(),
   instrumentScope: z.string(),
   defaultSearchProviderId: z.string().nullish(),
   selectorSettings: z.object({ aiPickerEnabled: z.boolean() }),
@@ -144,7 +144,7 @@ export const sessionCreateInputSchema = z.object({
     .array(z.string().min(1))
     .max(1, "A session can subscribe to only one signal source.")
     .optional(),
-  experienceId: z.string().min(1).optional(),
+  experienceId: z.string().min(1).default("edgar-catalyst"),
 });
 
 const sessionStrategyPayloadSchema = z.object({
@@ -400,4 +400,21 @@ export const workspacePrefsPatchSchema = z
 
 export const strategyGetProviderModelsSchema = z.object({
   providerKey: z.string().min(1),
+});
+
+export const listSignalDeadLettersInputSchema = z.object({
+  sessionId: z.string().min(1),
+  reason: z
+    .enum([
+      "unsupported_by_experience",
+      "unsupported_by_signal_source",
+      "unsupported_by_assigned_broker",
+      "no_compatible_broker_route",
+    ])
+    .optional(),
+  limit: z.number().int().positive().max(200).optional(),
+});
+
+export const replaySignalDeadLetterInputSchema = z.object({
+  deadLetterId: z.string().min(1),
 });

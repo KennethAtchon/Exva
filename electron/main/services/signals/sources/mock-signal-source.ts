@@ -13,6 +13,7 @@ export type MockSignalSourceConfig = {
   /** Ticker to emit on each fire (defaults to NVDA). */
   ticker?: string;
   companyName?: string;
+  instrumentClass?: "stock" | "crypto" | "futures" | "prediction_market";
   /** Milliseconds between automatic fires when running; 0 = manual/test only. */
   intervalMs?: number;
 };
@@ -110,6 +111,7 @@ export class MockSignalSource implements ISignalSource {
         itemCodes: ["1.01", "8.01"],
         summary: "Scripted mock 8-K for E2E testing.",
         scripted: true,
+        instrumentClass: this.config.instrumentClass ?? "stock",
       },
       filedAt: polledAt,
       detectedAt: polledAt,

@@ -48,8 +48,22 @@ export const RULES_MEAN_REVERSION_PIPELINE: PipelineDescriptor = {
   selectorWorkerIds: [],
 };
 
+/**
+ * Prediction-market event pipeline — social/odds dislocation signals route here.
+ */
+export const PREDICTION_EVENT_PIPELINE: PipelineDescriptor = {
+  id: "prediction-event-cycle",
+  displayName: "Prediction event edge",
+  phases: ["technical", "fundamental", "review", "decision"],
+  signalSources: ["prediction_event"],
+  plan: DEFAULT_TRADE_CYCLE,
+  phaseWorkers: PIPELINE_WORKER_SETS.defaultTrade,
+  selectorWorkerIds: PIPELINE_WORKER_SETS.selector.event,
+};
+
 export const ALL_PIPELINES: readonly PipelineDescriptor[] = [
   DEFAULT_PIPELINE,
   EDGAR_8K_PIPELINE,
   RULES_MEAN_REVERSION_PIPELINE,
+  PREDICTION_EVENT_PIPELINE,
 ];

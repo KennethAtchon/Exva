@@ -265,6 +265,19 @@ export const SessionDetailDrawer = ({
   const [signalRows, setSignalRows] = useState<
     Awaited<ReturnType<typeof api.listSessionSignalEvents>>["rows"]
   >([]);
+  const [deadLetterRows, setDeadLetterRows] = useState<
+    Awaited<ReturnType<typeof api.listSessionSignalDeadLetters>>["rows"]
+  >([]);
+  const [replayingDeadLetterId, setReplayingDeadLetterId] = useState<
+    string | null
+  >(null);
+  const [deadLetterFilter, setDeadLetterFilter] = useState<
+    | "all"
+    | "unsupported_by_experience"
+    | "unsupported_by_signal_source"
+    | "unsupported_by_assigned_broker"
+    | "no_compatible_broker_route"
+  >("all");
   const {
     payload,
     loading,
@@ -345,14 +358,27 @@ export const SessionDetailDrawer = ({
     let cancelled = false;
     const loadSignals = async () => {
       try {
-        const res = await api.listSessionSignalEvents({
-          sessionId: session.id,
-          statusBucket: signalFilter === "all" ? undefined : signalFilter,
-          limit: 50,
-        });
-        if (!cancelled) setSignalRows(res.rows);
+        const [deliveries, deadLetters] = await Promise.all([
+          api.listSessionSignalEvents({
+            sessionId: session.id,
+            statusBucket: signalFilter === "all" ? undefined : signalFilter,
+            limit: 50,
+          }),
+          api.listSessionSignalDeadLetters({
+            sessionId: session.id,
+            reason: deadLetterFilter === "all" ? undefined : deadLetterFilter,
+            limit: 50,
+          }),
+        ]);
+        if (!cancelled) {
+          setSignalRows(deliveries.rows);
+          setDeadLetterRows(deadLetters.rows);
+        }
       } catch {
-        if (!cancelled) setSignalRows([]);
+        if (!cancelled) {
+          setSignalRows([]);
+          setDeadLetterRows([]);
+        }
       }
     };
     void loadSignals();
@@ -361,12 +387,17 @@ export const SessionDetailDrawer = ({
       "signal_delivery_updated",
       () => void loadSignals(),
     );
+    const unsubC = listenEvent(
+      "signal_dead_lettered",
+      () => void loadSignals(),
+    );
     return () => {
       cancelled = true;
       void unsubA.then((u) => u());
       void unsubB.then((u) => u());
+      void unsubC.then((u) => u());
     };
-  }, [session, activeTab, signalFilter]);
+  }, [session, activeTab, signalFilter, deadLetterFilter]);
 
   useEffect(() => {
     if (!session) return;
@@ -521,7 +552,32 @@ export const SessionDetailDrawer = ({
                     </Button>
                   ))}
                 </div>
-                {signalRows.length === 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  <span className="self-center text-[11px] uppercase tracking-[0.08em] text-[var(--text3)]">
+                    Dead letters
+                  </span>
+                  {(
+                    [
+                      ["all", "All"],
+                      ["unsupported_by_experience", "Experience"],
+                      ["unsupported_by_signal_source", "Source"],
+                      ["unsupported_by_assigned_broker", "Broker"],
+                      ["no_compatible_broker_route", "Route"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <Button
+                      key={value}
+                      variant={
+                        deadLetterFilter === value ? "default" : "outline"
+                      }
+                      onClick={() => setDeadLetterFilter(value)}
+                      className="h-8 text-xs"
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                {signalRows.length === 0 && deadLetterRows.length === 0 ? (
                   <div className={mutedClass}>
                     No signals received yet for this session.
                   </div>
@@ -568,6 +624,65 @@ export const SessionDetailDrawer = ({
                           >
                             Open document
                           </a>
+                        ) : null}
+                      </div>
+                    ))}
+                    {deadLetterRows.map((row) => (
+                      <div
+                        key={row.deadLetter.id}
+                        className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-[12px] font-semibold text-[var(--text1)]">
+                              {row.deadLetter.ticker}
+                            </div>
+                            <div className="text-[12px] text-[var(--text3)]">
+                              {(row.source.name as string) ?? "Source"} · Not
+                              delivered
+                            </div>
+                          </div>
+                          <Badge variant="default">
+                            {deadLetterReasonLabel(row.deadLetter.reason)}
+                          </Badge>
+                        </div>
+                        <div className="mt-1 text-[12px] text-[var(--text3)]">
+                          {formatTimestamp(row.deadLetter.createdAt)}
+                          {row.deadLetter.replayedAt ? " · Replayed" : ""}
+                        </div>
+                        {!row.deadLetter.replayedAt ? (
+                          <Button
+                            variant="outline"
+                            className="mt-2 h-7 text-xs"
+                            disabled={
+                              replayingDeadLetterId === row.deadLetter.id
+                            }
+                            onClick={async () => {
+                              setReplayingDeadLetterId(row.deadLetter.id);
+                              try {
+                                await api.replaySessionSignalDeadLetter(
+                                  row.deadLetter.id,
+                                );
+                                const res = await api.listSessionSignalEvents({
+                                  sessionId: session.id,
+                                  limit: 50,
+                                });
+                                setSignalRows(res.rows);
+                                const deadLetters =
+                                  await api.listSessionSignalDeadLetters({
+                                    sessionId: session.id,
+                                    limit: 50,
+                                  });
+                                setDeadLetterRows(deadLetters.rows);
+                              } finally {
+                                setReplayingDeadLetterId(null);
+                              }
+                            }}
+                          >
+                            {replayingDeadLetterId === row.deadLetter.id
+                              ? "Replaying..."
+                              : "Replay"}
+                          </Button>
                         ) : null}
                       </div>
                     ))}
@@ -720,6 +835,21 @@ function statusVariant(
       return "purple";
     default:
       return "default";
+  }
+}
+
+function deadLetterReasonLabel(reason: string): string {
+  switch (reason) {
+    case "unsupported_by_experience":
+      return "Unsupported by experience";
+    case "unsupported_by_signal_source":
+      return "Unsupported by source";
+    case "unsupported_by_assigned_broker":
+      return "No broker for class";
+    case "no_compatible_broker_route":
+      return "No broker route";
+    default:
+      return "Not delivered";
   }
 }
 

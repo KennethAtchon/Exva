@@ -34,6 +34,7 @@ export interface SessionSummary {
   defaultSearchProviderId: string | null;
   totalAllocatedUsd: number;
   executionMode: ExecutionMode;
+  experienceId: string;
   brokerCount: number;
   openTradeCount: number;
   uptimeMin: number;
@@ -46,6 +47,8 @@ export interface WorkspaceViewResponse {
   preferences: WorkspacePreferences;
 }
 
+import type { ExperienceCapabilities } from "@electron/shared/domain/experience";
+
 export interface ExperienceSummary {
   id: string;
   displayName: string;
@@ -57,6 +60,7 @@ export interface ExperienceSummary {
     riskPresetId: string;
     timeframePresetId: string;
   };
+  capabilities: ExperienceCapabilities;
 }
 
 export interface SessionCreateInput {
@@ -64,7 +68,7 @@ export interface SessionCreateInput {
   objective: string;
   experienceId?: string;
   selectionMode: SelectionMode;
-  instrumentClasses: InstrumentClass[];
+  instrumentClasses?: InstrumentClass[];
   instrumentScope: string;
   defaultSearchProviderId?: string | null;
   selectorSettings: {
@@ -216,6 +220,17 @@ export type ExvaEventMap = {
       | "dropped"
       | "expired";
     statusBucket: "pending" | "completed" | "dropped";
+  };
+  signal_dead_lettered: {
+    deadLetterId: string;
+    sessionId: string;
+    signalId: string;
+    reason:
+      | "unsupported_by_experience"
+      | "unsupported_by_signal_source"
+      | "unsupported_by_assigned_broker"
+      | "no_compatible_broker_route";
+    ticker: string;
   };
 };
 

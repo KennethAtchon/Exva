@@ -5,6 +5,12 @@ import type { ExperienceDescriptor } from "../types";
 export const EDGAR_CATALYST_EXPERIENCE: ExperienceDescriptor = {
   id: "edgar-catalyst",
   displayName: "EDGAR 8-K catalyst drift",
+  capabilities: {
+    instrumentClasses: ["stock"],
+    signalSourceTypes: ["edgar_8k", "mock"],
+    brokerRequirement: "any_supported_class",
+    defaultInstrumentClass: "stock",
+  },
   signalSource: {
     type: "edgar_8k",
     defaultConfig: {

@@ -103,6 +103,17 @@ export interface ExvaEventMap {
       | "expired";
     statusBucket: "pending" | "completed" | "dropped";
   };
+  signal_dead_lettered: {
+    deadLetterId: string;
+    sessionId: string;
+    signalId: string;
+    reason:
+      | "unsupported_by_experience"
+      | "unsupported_by_signal_source"
+      | "unsupported_by_assigned_broker"
+      | "no_compatible_broker_route";
+    ticker: string;
+  };
 }
 
 export class EventBus {

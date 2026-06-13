@@ -2,7 +2,9 @@ import {
   sessionRequiresInstrumentScope,
   type SignalSourceRecord,
 } from "@electron/shared/domain";
+import type { SignalDeadLetterReason } from "@electron/shared/domain/signal-dead-letters";
 import { AppError } from "@electron/shared/infra/errors";
+import { SignalDeadLettersRepo } from "./repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "./repos/signal-deliveries-repo";
 import { SignalEventsRepo } from "./repos/signal-events-repo";
 import { SignalSourcesRepo } from "./repos/signal-sources-repo";
@@ -21,6 +23,7 @@ export class SignalService {
     private readonly sourcesRepo: SignalSourcesRepo,
     private readonly eventsRepo: SignalEventsRepo,
     private readonly deliveriesRepo: SignalDeliveriesRepo,
+    private readonly deadLettersRepo: SignalDeadLettersRepo,
     private readonly registry: SignalSourceRegistry,
     private readonly signalBus: SignalBus,
     private readonly sessionRepo?: {
@@ -143,6 +146,58 @@ export class SignalService {
     return this.deliveriesRepo.listBySessionFiltered(input);
   }
 
+  listDeadLettersBySession(input: {
+    sessionId: string;
+    reason?: SignalDeadLetterReason;
+    limit?: number;
+  }) {
+    return this.deadLettersRepo.listBySessionFiltered(input);
+  }
+
+  async replayDeadLetter(
+    deadLetterId: string,
+  ): Promise<{ deliveryId: string }> {
+    const deadLetter = this.deadLettersRepo.getById(deadLetterId);
+    if (!deadLetter) {
+      throw new AppError(
+        `Dead letter ${deadLetterId} was not found.`,
+        "NOT_FOUND",
+        { deadLetterId },
+      );
+    }
+    if (deadLetter.replayedAt) {
+      throw new AppError(
+        "This dead letter has already been replayed.",
+        "VALIDATION_FAILED",
+        { deadLetterId },
+      );
+    }
+
+    const event = this.eventsRepo.getById(deadLetter.signalEventId);
+    if (!event) {
+      throw new AppError(
+        `Signal event ${deadLetter.signalEventId} was not found.`,
+        "NOT_FOUND",
+        { signalEventId: deadLetter.signalEventId },
+      );
+    }
+
+    const result = await this.signalBus.deliverOrDeadLetter(
+      deadLetter.sessionId,
+      event,
+    );
+    if (result.kind === "dead_letter") {
+      throw new AppError(
+        "Replay still rejected by the capability gate.",
+        "VALIDATION_FAILED",
+        { deadLetterId, newDeadLetterId: result.deadLetterId },
+      );
+    }
+
+    this.deadLettersRepo.markReplayed(deadLetterId, result.deliveryId);
+    return { deliveryId: result.deliveryId };
+  }
+
   bootstrapFromDb(): void {
     if (!this.sourcesRepo.get(MANUAL_SOURCE_ID)) {
       this.sourcesRepo.create({
@@ -178,7 +233,7 @@ export class SignalService {
           companyName: null,
           documentUrl: null,
           accessionNumber: null,
-          payloadJson: {},
+          payloadJson: { instrumentClass: "stock" },
           filedAt: new Date().toISOString(),
           detectedAt: new Date().toISOString(),
         },

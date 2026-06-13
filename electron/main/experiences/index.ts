@@ -1,6 +1,8 @@
 import { EDGAR_CATALYST_EXPERIENCE } from "./edgar-catalyst/descriptor";
+import { PREDICTION_EVENT_EDGE_EXPERIENCE } from "./prediction-event-edge/descriptor";
 import { RULES_MEAN_REVERSION_EXPERIENCE } from "./rules-mean-reversion/descriptor";
 import type { ExperienceDescriptor } from "./types";
+import { validateExperienceSourceEmissions } from "./validate-source-capabilities";
 
 const EXPERIENCES = new Map<string, ExperienceDescriptor>();
 
@@ -34,9 +36,31 @@ export function validateExperienceRegistry(): void {
           `is not routed by pipeline '${experience.pipeline.id}'.`,
       );
     }
+    if (!experience.capabilities.instrumentClasses.length) {
+      throw new Error(
+        `Experience '${experience.id}' must declare at least one instrument class.`,
+      );
+    }
+    if (!experience.capabilities.signalSourceTypes.length) {
+      throw new Error(
+        `Experience '${experience.id}' must declare at least one signal source type.`,
+      );
+    }
+    if (
+      !experience.capabilities.signalSourceTypes.includes(
+        experience.signalSource.type,
+      )
+    ) {
+      throw new Error(
+        `Experience '${experience.id}' default signal source '${experience.signalSource.type}' ` +
+          `is not listed in capabilities.signalSourceTypes.`,
+      );
+    }
+    validateExperienceSourceEmissions(experience);
   }
 }
 
 registerExperience(EDGAR_CATALYST_EXPERIENCE);
 registerExperience(RULES_MEAN_REVERSION_EXPERIENCE);
+registerExperience(PREDICTION_EVENT_EDGE_EXPERIENCE);
 validateExperienceRegistry();

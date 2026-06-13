@@ -353,6 +353,7 @@ function createDeps({
     instrumentScope: session?.instrumentScope ?? "AAPL",
     defaultSearchProviderId: null,
     executionMode: "paper_only",
+    experienceId: "edgar-catalyst",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

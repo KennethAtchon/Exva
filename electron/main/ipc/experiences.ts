@@ -11,6 +11,7 @@ export function registerExperienceHandlers(): void {
       signalSourceType: experience.signalSource.type,
       pipelineId: experience.pipeline.id,
       presets: experience.presets,
+      capabilities: experience.capabilities,
     }));
   });
 }

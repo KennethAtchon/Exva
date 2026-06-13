@@ -37,6 +37,12 @@ describe("pipeline router", () => {
     expect(resolvePipelineIdForSource("manual")).toBe("default-trade-cycle");
   });
 
+  it("routes prediction_event to the prediction pipeline", () => {
+    expect(resolvePipelineIdForSource("prediction_event")).toBe(
+      "prediction-event-cycle",
+    );
+  });
+
   it("falls back to the default pipeline when the source is undefined", () => {
     // Signal-less cycles (initial/trade-closed research) carry no source type.
     expect(resolvePipelineIdForSource(undefined)).toBe("default-trade-cycle");

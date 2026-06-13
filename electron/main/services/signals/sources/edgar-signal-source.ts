@@ -158,6 +158,7 @@ export class EdgarSignalSource implements ISignalSource {
             rawId: entry.id,
             summary: entry.summary,
             itemCodes,
+            instrumentClass: "stock",
           },
           filedAt: entry.updated,
           detectedAt: new Date().toISOString(),

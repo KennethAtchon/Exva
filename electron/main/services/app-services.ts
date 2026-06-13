@@ -86,6 +86,7 @@ import { AutopsyExportService } from "./analytics/autopsy-export-service";
 import { LiveReadinessService } from "./risk/live-readiness-service";
 import { SignalSourcesRepo } from "./signals/repos/signal-sources-repo";
 import { SignalEventsRepo } from "./signals/repos/signal-events-repo";
+import { SignalDeadLettersRepo } from "./signals/repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "./signals/repos/signal-deliveries-repo";
 import { SignalDeliveryLifecycle } from "./signals/signal-delivery-lifecycle";
 import { SignalBus } from "./signals/signal-bus";
@@ -202,6 +203,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const signalSourcesRepo = new SignalSourcesRepo(db);
   const signalEventsRepo = new SignalEventsRepo(db);
   const signalDeliveriesRepo = new SignalDeliveriesRepo(db);
+  const signalDeadLettersRepo = new SignalDeadLettersRepo(db);
   const secrets = new SecretsService();
   const brokerRegistry = new BrokerRegistry(repos.brokerAccounts, secrets);
   const instrumentNormalizer = new InstrumentNormalizer();
@@ -468,8 +470,12 @@ export async function createAppServices(app: App): Promise<AppServices> {
   const signalBus = new SignalBus(
     signalEventsRepo,
     signalDeliveriesRepo,
+    signalDeadLettersRepo,
     signalSourcesRepo,
     repos.session,
+    repos.sessionBrokerAssignments,
+    repos.brokerAccounts,
+    brokerRouting,
     eventBus,
   );
   const signalRegistry = new SignalSourceRegistry(db, signalBus);
@@ -477,6 +483,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     signalSourcesRepo,
     signalEventsRepo,
     signalDeliveriesRepo,
+    signalDeadLettersRepo,
     signalRegistry,
     signalBus,
     repos.session,

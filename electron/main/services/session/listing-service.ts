@@ -35,6 +35,7 @@ export interface SessionSummaryView {
   openTradeCount: number;
   uptimeMin: number;
   updatedAt: string;
+  experienceId: string;
 }
 
 export interface SessionListResult {
@@ -95,6 +96,7 @@ export class SessionListingService {
             0,
           ),
           executionMode: session.executionMode,
+          experienceId: session.experienceId,
           brokerCount: assignments.length,
           openTradeCount,
           uptimeMin: this.computeUptimeMin(session.id),

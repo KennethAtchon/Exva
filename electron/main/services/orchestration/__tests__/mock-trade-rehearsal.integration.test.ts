@@ -201,6 +201,7 @@ function createHarness(
     instrumentScope: "NVDA",
     defaultSearchProviderId: null,
     executionMode: "paper_only",
+    experienceId: "edgar-catalyst",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

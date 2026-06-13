@@ -153,6 +153,7 @@ export function toWorkspaceSession(row: Row): WorkspaceSession {
     instrumentScope: String(row.instrument_scope),
     defaultSearchProviderId: nullableString(row.default_search_provider_id),
     executionMode: row.execution_mode as WorkspaceSession["executionMode"],
+    experienceId: String(row.experience_id ?? "edgar-catalyst"),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };

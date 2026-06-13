@@ -468,6 +468,25 @@ CREATE TABLE `sessions` (
 --> statement-breakpoint
 CREATE INDEX `idx_sessions_status` ON `sessions` (`status`);--> statement-breakpoint
 CREATE INDEX `idx_sessions_is_focused` ON `sessions` (`is_focused`);--> statement-breakpoint
+CREATE TABLE `signal_dead_letters` (
+	`id` text PRIMARY KEY NOT NULL,
+	`session_id` text NOT NULL,
+	`signal_event_id` text NOT NULL,
+	`source_id` text NOT NULL,
+	`source_type` text NOT NULL,
+	`ticker` text NOT NULL,
+	`instrument_class` text,
+	`reason` text NOT NULL,
+	`detail_json` text DEFAULT '{}' NOT NULL,
+	`created_at` text NOT NULL,
+	`replayed_at` text,
+	`resolved_delivery_id` text,
+	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`signal_event_id`) REFERENCES `signal_events`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `idx_signal_dead_letters_session` ON `signal_dead_letters` (`session_id`);--> statement-breakpoint
+CREATE INDEX `idx_signal_dead_letters_signal_event` ON `signal_dead_letters` (`signal_event_id`);--> statement-breakpoint
 CREATE TABLE `signal_events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`source_id` text NOT NULL,

@@ -41,29 +41,20 @@ describe("SessionWriteService", () => {
       supportedInstrumentClasses: ["stock"],
       mode: "live",
     });
-    insertBroker(db, {
-      id: "broker-crypto",
-      name: "Crypto Mock",
-      brokerType: "mock",
-      supportedInstrumentClasses: ["crypto"],
-      mode: "live",
-    });
 
     const result = service.create({
-      name: "Dual Market Session",
-      objective: "Trade both stocks and crypto",
+      name: "Dual Broker Session",
+      objective: "Trade stocks via EDGAR catalyst",
       selectionMode: "manual_shortlist",
-      instrumentClasses: ["stock", "crypto"],
-      instrumentScope: "NVDA, BTC-USD",
+      instrumentScope: "NVDA",
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "live_allowed",
+      experienceId: "edgar-catalyst",
       brokerAssignments: [
-        { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
-        { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
+        { brokerAccountId: "broker-stock", allocatedUsd: 5000 },
       ],
       brokerOverridesByInstrumentClass: {
         stock: "broker-stock",
-        crypto: "broker-crypto",
       },
     });
 
@@ -80,19 +71,12 @@ describe("SessionWriteService", () => {
     expect(result.status).toBe("draft");
     expect(sessions.getFocusedSessionId()).toBe(result.id);
     expect(assignments.listBrokerAccountIds(result.id)).toEqual([
-      "broker-crypto",
       "broker-stock",
     ]);
     expect(assignments.listAssignments(result.id)).toEqual([
-      { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
-      { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
+      { brokerAccountId: "broker-stock", allocatedUsd: 5000 },
     ]);
     expect(routing.listSessionOverrides(result.id)).toEqual([
-      {
-        sessionId: result.id,
-        instrumentClass: "crypto",
-        brokerAccountId: "broker-crypto",
-      },
       {
         sessionId: result.id,
         instrumentClass: "stock",
@@ -142,33 +126,139 @@ describe("SessionWriteService", () => {
     expect(aiPhases.every((p) => p.modelId === "")).toBe(true);
   });
 
-  it("rejects broker assignments that do not support the session instrument classes", () => {
+  it("rejects brokers that do not overlap the selected experience", () => {
+    const service = createService(db);
+    insertBroker(db, {
+      id: "broker-pm",
+      name: "Polymarket Only",
+      brokerType: "polymarket",
+      supportedInstrumentClasses: ["prediction_market"],
+      mode: "paper",
+    });
+
+    expect(() =>
+      service.create({
+        name: "EDGAR Session",
+        objective: "Trade filings",
+        selectionMode: "manual_shortlist",
+        instrumentScope: "",
+        selectorSettings: { aiPickerEnabled: false },
+        executionMode: "paper_only",
+        experienceId: "edgar-catalyst",
+        brokerAssignments: [
+          { brokerAccountId: "broker-pm", allocatedUsd: 2500 },
+        ],
+      }),
+    ).toThrowError(/does not support any instrument class required by/i);
+  });
+
+  it("creates edgar-catalyst with an Alpaca stock broker", () => {
+    const service = createService(db);
+    insertBroker(db, {
+      id: "broker-stock",
+      name: "Alpaca Stock",
+      brokerType: "alpaca",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+
+    const result = service.create({
+      name: "EDGAR Stock Session",
+      objective: "Trade filings",
+      selectionMode: "manual_shortlist",
+      instrumentScope: "",
+      selectorSettings: { aiPickerEnabled: false },
+      executionMode: "paper_only",
+      experienceId: "edgar-catalyst",
+      brokerAssignments: [
+        { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
+      ],
+    });
+
+    const session = new SessionRepo(db).requireById(result.id);
+    expect(session.instrumentClasses).toEqual(["stock"]);
+    expect(result.status).toBe("draft");
+  });
+
+  it("creates prediction-event-edge with a Polymarket broker", () => {
+    const service = createService(db);
+    insertBroker(db, {
+      id: "broker-pm",
+      name: "Polymarket Paper",
+      brokerType: "polymarket",
+      supportedInstrumentClasses: ["prediction_market"],
+      mode: "paper",
+    });
+
+    const result = service.create({
+      name: "PM Event Session",
+      objective: "Trade prediction events",
+      selectionMode: "manual_shortlist",
+      instrumentScope: "",
+      selectorSettings: { aiPickerEnabled: false },
+      executionMode: "paper_only",
+      experienceId: "prediction-event-edge",
+      brokerAssignments: [{ brokerAccountId: "broker-pm", allocatedUsd: 2500 }],
+    });
+
+    const session = new SessionRepo(db).requireById(result.id);
+    expect(session.instrumentClasses).toEqual(["prediction_market"]);
+    expect(result.status).toBe("draft");
+  });
+
+  it("rejects prediction-event-edge without a Polymarket broker", () => {
     const service = createService(db);
     insertBroker(db, {
       id: "broker-stock",
       name: "Stock Only",
-      brokerType: "alpaca",
+      brokerType: "mock",
       supportedInstrumentClasses: ["stock"],
       mode: "paper",
     });
 
     expect(() =>
       service.create({
-        name: "Crypto Session",
-        objective: "Trade BTC",
+        name: "Invalid PM Session",
+        objective: "Should fail",
         selectionMode: "manual_shortlist",
-        instrumentClasses: ["crypto"],
-        instrumentScope: "BTC-USD",
+        instrumentScope: "",
         selectorSettings: { aiPickerEnabled: false },
         executionMode: "paper_only",
+        experienceId: "prediction-event-edge",
         brokerAssignments: [
           { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
         ],
       }),
-    ).toThrowError(/does not support any of the selected instrument classes/i);
+    ).toThrowError(/requires at least one Polymarket broker/i);
   });
 
-  it("derives instrument classes from selected brokers in full-universe mode", () => {
+  it("rejects crypto-only brokers for stock-only experiences", () => {
+    const service = createService(db);
+    insertBroker(db, {
+      id: "broker-crypto",
+      name: "Crypto Only",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["crypto"],
+      mode: "paper",
+    });
+
+    expect(() =>
+      service.create({
+        name: "EDGAR Crypto Broker Session",
+        objective: "Should fail",
+        selectionMode: "manual_shortlist",
+        instrumentScope: "",
+        selectorSettings: { aiPickerEnabled: false },
+        executionMode: "paper_only",
+        experienceId: "edgar-catalyst",
+        brokerAssignments: [
+          { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
+        ],
+      }),
+    ).toThrowError(/does not support any instrument class required by/i);
+  });
+
+  it("derives instrument classes from experience and broker overlap in full-universe mode", () => {
     const service = createService(db);
     insertBroker(db, {
       id: "broker-stock",
@@ -189,10 +279,10 @@ describe("SessionWriteService", () => {
       name: "Broker Driven Universe",
       objective: "Let brokers define the searchable classes",
       selectionMode: "ai_selected_universe",
-      instrumentClasses: ["futures"],
       instrumentScope: SEARCH_EVERYTHING_SCOPE,
       selectorSettings: { aiPickerEnabled: true },
       executionMode: "paper_only",
+      experienceId: "edgar-catalyst",
       brokerAssignments: [
         { brokerAccountId: "broker-stock", allocatedUsd: 1250 },
         { brokerAccountId: "broker-crypto", allocatedUsd: 1250 },
@@ -200,7 +290,7 @@ describe("SessionWriteService", () => {
     });
 
     const session = new SessionRepo(db).requireById(result.id);
-    expect(session.instrumentClasses).toEqual(["stock", "crypto"]);
+    expect(session.instrumentClasses).toEqual(["stock"]);
   });
 
   it("allows empty instrument scope for listener-only signal subscriptions", () => {

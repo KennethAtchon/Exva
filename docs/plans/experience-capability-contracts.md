@@ -1,5 +1,7 @@
 # Experience Capability Contracts - Architecture Design Document
 
+We dont care about backwards compatibility. WE will be reseting the db after the spec is done.
+
 > **Last updated:** 2026-06-13
 > **Scope:** Design for making Exva experiences, signal sources, and broker assignments explicitly capability-aware. Covers session creation, signal fan-out, broker compatibility, and dead-letter handling. Excludes implementing a prediction-market strategy, broker load balancing, and live-readiness changes.
 > **Audience:** Engineers onboarding, reviewers, future maintainers
@@ -535,15 +537,17 @@ Server-side validation remains authoritative. UI preview helps the operator unde
 
 ## 13. Implementation Order
 
-1. Add capability types to `ExperienceDescriptor` and current descriptors.
-2. Return capabilities from `experiences.list`.
-3. Update session create/update validation to derive classes from experience capabilities.
-4. Remove or disable the generic instrument-class toggle in the session modal.
-5. Add signal-source capability metadata and normalize signal `instrumentClass` extraction.
-6. Add `signal_dead_letters` schema/repo/service plus event emission.
-7. Add the pre-delivery gate in `SignalBus`.
-8. Add UI visibility for dead letters in the session signal activity area.
-9. Add regression tests for EDGAR stock-only, rules non-prediction, partial broker coverage, and dead-letter replay.
+> **Status:** Implemented on 2026-06-13 (current branch, migration `0001_gorgeous_blob.sql`).
+
+1. [x] Add capability types to `ExperienceDescriptor` and current descriptors.
+2. [x] Return capabilities from `experiences.list`.
+3. [x] Update session create/update validation to derive classes from experience capabilities.
+4. [x] Remove or disable the generic instrument-class toggle in the session modal.
+5. [x] Add signal-source capability metadata and normalize signal `instrumentClass` extraction.
+6. [x] Add `signal_dead_letters` schema/repo/service plus event emission.
+7. [x] Add the pre-delivery gate in `SignalBus`.
+8. [x] Add UI visibility for dead letters in the session signal activity area.
+9. [x] Add regression tests for EDGAR stock-only, rules non-prediction, partial broker coverage, and dead-letter replay.
 
 ---
 

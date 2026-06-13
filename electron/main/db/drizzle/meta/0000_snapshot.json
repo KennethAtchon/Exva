@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2eee4821-5283-4066-abd4-9f02b91700d9",
+  "id": "8f008b32-bbea-4b50-90fd-fb43b12b81be",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_messages": {
@@ -3071,6 +3071,131 @@
           "columnsFrom": ["default_search_provider_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "signal_dead_letters": {
+      "name": "signal_dead_letters",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "signal_event_id": {
+          "name": "signal_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_type": {
+          "name": "source_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ticker": {
+          "name": "ticker",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "instrument_class": {
+          "name": "instrument_class",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "detail_json": {
+          "name": "detail_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "replayed_at": {
+          "name": "replayed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "resolved_delivery_id": {
+          "name": "resolved_delivery_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_signal_dead_letters_session": {
+          "name": "idx_signal_dead_letters_session",
+          "columns": ["session_id"],
+          "isUnique": false
+        },
+        "idx_signal_dead_letters_signal_event": {
+          "name": "idx_signal_dead_letters_signal_event",
+          "columns": ["signal_event_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "signal_dead_letters_session_id_sessions_id_fk": {
+          "name": "signal_dead_letters_session_id_sessions_id_fk",
+          "tableFrom": "signal_dead_letters",
+          "tableTo": "sessions",
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "signal_dead_letters_signal_event_id_signal_events_id_fk": {
+          "name": "signal_dead_letters_signal_event_id_signal_events_id_fk",
+          "tableFrom": "signal_dead_letters",
+          "tableTo": "signal_events",
+          "columnsFrom": ["signal_event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

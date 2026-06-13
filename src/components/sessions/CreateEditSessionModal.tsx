@@ -22,8 +22,13 @@ import {
   isSearchEverythingEnabled,
   parseSearchEverythingFocusInstrumentClass,
   resolveBrokerInstrumentClasses,
-  resolveEffectiveInstrumentClasses,
 } from "@electron/shared/instruments/session-instrument-classes";
+import {
+  experienceBrokerOverlap,
+  isSessionLaunchable,
+  resolveSessionInstrumentClasses,
+  uncoveredExperienceClasses,
+} from "@electron/shared/instruments/experience-launchability";
 
 interface Props {
   open: boolean;
@@ -299,24 +304,43 @@ export const CreateEditSessionModal = ({
     () => resolveBrokerInstrumentClasses(assignedActiveModeBrokers),
     [assignedActiveModeBrokers],
   );
-  const effectiveInstrumentClasses = useMemo(
-    () => resolveEffectiveInstrumentClasses(form, assignedActiveModeBrokers),
-    [form, assignedActiveModeBrokers],
-  );
-  const uncoveredInstrumentClasses = useMemo(
+  const selectedExperience = useMemo(
     () =>
-      effectiveInstrumentClasses.filter(
-        (instrumentClass) =>
-          !assignedActiveModeBrokers.some((broker) =>
-            broker.supportedInstrumentClasses.includes(instrumentClass),
-          ),
-      ),
-    [effectiveInstrumentClasses, assignedActiveModeBrokers],
+      experiences.find(
+        (entry) => entry.id === (form.experienceId ?? "edgar-catalyst"),
+      ) ?? null,
+    [experiences, form.experienceId],
   );
-  const hasBrokerCoverage =
-    uncoveredInstrumentClasses.length === 0 &&
-    form.brokerAssignments.length > 0 &&
-    effectiveInstrumentClasses.length > 0;
+  const experienceClasses = useMemo(
+    (): InstrumentClass[] =>
+      (selectedExperience?.capabilities.instrumentClasses ?? [
+        "stock",
+      ]) as InstrumentClass[],
+    [selectedExperience],
+  );
+  const effectiveInstrumentClasses = useMemo(
+    () =>
+      selectedExperience
+        ? resolveSessionInstrumentClasses(
+            selectedExperience.capabilities,
+            form,
+            assignedActiveModeBrokers,
+          )
+        : experienceClasses,
+    [assignedActiveModeBrokers, experienceClasses, form, selectedExperience],
+  );
+  const overlappingClasses = useMemo(
+    () => experienceBrokerOverlap(experienceClasses, assignedActiveModeBrokers),
+    [assignedActiveModeBrokers, experienceClasses],
+  );
+  const uncoveredExperienceInstrumentClasses = useMemo(
+    () =>
+      uncoveredExperienceClasses(experienceClasses, assignedActiveModeBrokers),
+    [assignedActiveModeBrokers, experienceClasses],
+  );
+  const isLaunchable =
+    isSessionLaunchable(experienceClasses, assignedActiveModeBrokers) &&
+    form.brokerAssignments.length > 0;
   const requiresSearchProviderSetup = false;
   const workspaceDefaultSearchProviderName =
     searchProviderState.providers.find(
@@ -418,7 +442,7 @@ export const CreateEditSessionModal = ({
     if (!searchEverything) return;
     if (
       sameInstrumentClasses(
-        form.instrumentClasses,
+        form.instrumentClasses ?? experienceClasses,
         brokerDrivenInstrumentClasses,
       )
     )
@@ -428,6 +452,7 @@ export const CreateEditSessionModal = ({
     });
   }, [
     brokerDrivenInstrumentClasses,
+    experienceClasses,
     form,
     form.instrumentClasses,
     searchEverything,
@@ -478,13 +503,12 @@ export const CreateEditSessionModal = ({
                 caption="The operator-facing shell for this session."
               />
               <div className={sectionBodyClass}>
-                {!initialSession &&
-                experiencesLoaded &&
-                experiences.length > 0 ? (
+                {experiencesLoaded && experiences.length > 0 ? (
                   <Field label="Experience">
                     <ShadcnSelect
                       value={form.experienceId ?? experiences[0]?.id ?? ""}
                       onValueChange={(experienceId) => {
+                        if (initialSession) return;
                         const experience = experiences.find(
                           (entry) => entry.id === experienceId,
                         );
@@ -499,6 +523,8 @@ export const CreateEditSessionModal = ({
                         setForm((prev) => ({
                           ...prev,
                           experienceId,
+                          instrumentClasses: experience?.capabilities
+                            .instrumentClasses ?? ["stock"],
                           subscribedSourceIds: matchingSourceIds,
                           instrumentScope:
                             experience?.signalSourceType === "timer"
@@ -510,7 +536,24 @@ export const CreateEditSessionModal = ({
                         value: experience.id,
                         label: experience.displayName,
                       }))}
+                      disabled={Boolean(initialSession)}
                     />
+                    {selectedExperience ? (
+                      <div className={inlineHintClass}>
+                        Supports{" "}
+                        {selectedExperience.capabilities.instrumentClasses
+                          .map(formatInstrumentClass)
+                          .join(", ")}{" "}
+                        via{" "}
+                        {selectedExperience.capabilities.signalSourceTypes.join(
+                          ", ",
+                        )}
+                        .
+                        {initialSession
+                          ? " Experience is fixed after session creation."
+                          : null}
+                      </div>
+                    ) : null}
                   </Field>
                 ) : null}
                 <div className={twoColumnGridClass}>
@@ -698,63 +741,6 @@ export const CreateEditSessionModal = ({
                         </div>
                       </Field>
                     ) : null}
-                    <Field label="Instrument classes">
-                      <div className="flex flex-wrap gap-2.5">
-                        {(
-                          [
-                            "stock",
-                            "crypto",
-                            "futures",
-                            "prediction_market",
-                          ] as const
-                        ).map((instrumentClass) => {
-                          const checked =
-                            effectiveInstrumentClasses.includes(
-                              instrumentClass,
-                            );
-                          return (
-                            <label
-                              key={instrumentClass}
-                              className={cn(
-                                toggleChipClass,
-                                checked
-                                  ? "border-[var(--accent-dim)]"
-                                  : "border-[var(--border)]",
-                              )}
-                            >
-                              <Checkbox
-                                checked={checked}
-                                disabled={searchEverything}
-                                onCheckedChange={(nextChecked) =>
-                                  setForm((prev) => ({
-                                    ...prev,
-                                    instrumentClasses: toggleInstrumentClass(
-                                      prev.instrumentClasses,
-                                      instrumentClass,
-                                      nextChecked === true,
-                                    ),
-                                  }))
-                                }
-                              />
-                              {formatInstrumentClass(instrumentClass)}
-                            </label>
-                          );
-                        })}
-                      </div>
-                      {searchEverything ? (
-                        <div className={inlineHintClass}>
-                          Broker-derived classes:{" "}
-                          {effectiveInstrumentClasses.length > 0
-                            ? effectiveInstrumentClasses
-                                .map(formatInstrumentClass)
-                                .join(", ")
-                            : "Select at least one broker account to derive tradable classes."}
-                          {searchEverythingFocusInstrumentClass
-                            ? ` Focus: ${formatInstrumentClass(searchEverythingFocusInstrumentClass)}.`
-                            : ""}
-                        </div>
-                      ) : null}
-                    </Field>
                     <Field label="Manual tickers">
                       <textarea
                         value={form.instrumentScope}
@@ -772,8 +758,13 @@ export const CreateEditSessionModal = ({
                   </>
                 ) : (
                   <div className={inlineHintClass}>
-                    EDGAR 8-K is an automatic listener. No instruments to pick —
-                    it responds to filings as they happen.
+                    {selectedExperience
+                      ? `${selectedExperience.displayName} declares ${experienceClasses
+                          .map(formatInstrumentClass)
+                          .join(
+                            ", ",
+                          )} support. No manual instrument picker is needed for this listener.`
+                      : "Automatic listener — nothing to configure."}
                   </div>
                 )}
               </div>
@@ -938,17 +929,27 @@ export const CreateEditSessionModal = ({
                       })}
                     </div>
                   ) : null}
-                  {uncoveredInstrumentClasses.length > 0 ? (
-                    <div className={warningTextClass}>
-                      No selected broker can trade:{" "}
-                      {uncoveredInstrumentClasses
+                  {uncoveredExperienceInstrumentClasses.length > 0 ? (
+                    <div className={inlineHintClass}>
+                      Uncovered experience classes (signals may dead-letter):{" "}
+                      {uncoveredExperienceInstrumentClasses
                         .map(formatInstrumentClass)
                         .join(", ")}
                       .
                     </div>
+                  ) : null}
+                  {!isLaunchable ? (
+                    <div className={warningTextClass}>
+                      Selected brokers must cover at least one class supported
+                      by this experience (
+                      {experienceClasses.map(formatInstrumentClass).join(", ")}
+                      ).
+                    </div>
                   ) : (
                     <div className={successTextClass}>
-                      Coverage looks good for selected instrument classes.
+                      Launchable with broker coverage for{" "}
+                      {overlappingClasses.map(formatInstrumentClass).join(", ")}
+                      .
                     </div>
                   )}
                 </div>
@@ -1013,7 +1014,7 @@ export const CreateEditSessionModal = ({
                 disabled={
                   req.saving ||
                   !isValid ||
-                  !hasBrokerCoverage ||
+                  !isLaunchable ||
                   requiresSearchProviderSetup
                 }
               >
@@ -1103,6 +1104,7 @@ function summaryToInput(session: SessionSummary): SessionCreateInput {
   return {
     name: session.name,
     objective: session.objective,
+    experienceId: session.experienceId,
     selectionMode: session.selectionMode,
     instrumentClasses: session.instrumentClasses,
     instrumentScope: session.instrumentScope,
@@ -1113,17 +1115,6 @@ function summaryToInput(session: SessionSummary): SessionCreateInput {
     brokerOverridesByInstrumentClass: {},
     subscribedSourceIds: [],
   };
-}
-
-function toggleInstrumentClass(
-  current: InstrumentClass[],
-  value: InstrumentClass,
-  checked: boolean,
-): InstrumentClass[] {
-  if (checked) {
-    return current.includes(value) ? current : [...current, value];
-  }
-  return current.filter((entry) => entry !== value);
 }
 
 // Seed a sensible non-zero default so operators don't create $0 sessions:
@@ -1214,8 +1205,6 @@ const inputClass =
   "w-full rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
 const textareaClass =
   "min-h-[88px] w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-[11px] py-[9px] text-[13px] text-[var(--text1)]";
-const toggleChipClass =
-  "inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--chip)] px-[11px] py-2 text-[12px] text-[var(--text2)]";
 const twoColumnGridClass =
   "grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3.5";
 const brokerPickerClass =

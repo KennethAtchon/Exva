@@ -65,6 +65,9 @@ export function resolveSelectorWorkerIds(
     return [];
   }
   if (sourceType === "timer") return [];
+  if (sourceType === "prediction_event") {
+    return [...PIPELINE_WORKER_SETS.selector.event];
+  }
   if (sourceType === "web_search" || sourceType === "manual") {
     return [...PIPELINE_WORKER_SETS.selector.standard];
   }
