@@ -7,8 +7,12 @@ import type {
   InstrumentClass,
   SessionTemplatePayload,
 } from "@/lib/types";
-import { Button, Dialog, DialogContent } from "@/components/ui";
+import { Button, Dialog, DialogContent, HelpTooltip } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import {
+  SIGNAL_DELIVERY_STATUS_HELP_IDS,
+  type HelpGlossaryId,
+} from "@/lib/help-glossary";
 import {
   SessionExecutionProgress,
   deriveProgress,
@@ -137,7 +141,7 @@ const SessionInfoGrid = ({
       />
     </Section>
 
-    <Section title="Risk Limits">
+    <Section title="Risk Limits" glossaryId="risk-limits">
       <div className="grid grid-cols-2 gap-3">
         <StatBlock
           label="Total allocated"
@@ -532,7 +536,7 @@ export const SessionDetailDrawer = ({
               </Button>
             </div>
             {activeTab === "signals" ? (
-              <Section title="Signals">
+              <Section title="Signals" glossaryId="signal-delivery">
                 <div className="flex flex-wrap gap-2">
                   {(
                     [
@@ -608,6 +612,15 @@ export const SessionDetailDrawer = ({
                               row.delivery.dropReason,
                             )}
                           </Badge>
+                          <HelpTooltip
+                            glossaryId={
+                              SIGNAL_DELIVERY_STATUS_HELP_IDS[
+                                row.delivery
+                                  .status as keyof typeof SIGNAL_DELIVERY_STATUS_HELP_IDS
+                              ]
+                            }
+                            topic="Signal delivery status"
+                          />
                         </div>
                         <div className="mt-1 text-[12px] text-[var(--text3)]">
                           {formatTimestamp(row.delivery.enqueuedAt)}
@@ -645,44 +658,58 @@ export const SessionDetailDrawer = ({
                           <Badge variant="default">
                             {deadLetterReasonLabel(row.deadLetter.reason)}
                           </Badge>
+                          <HelpTooltip
+                            glossaryId={
+                              `dead-letter-reason-${row.deadLetter.reason}` as HelpGlossaryId
+                            }
+                            topic="Dead-letter reason"
+                          />
                         </div>
                         <div className="mt-1 text-[12px] text-[var(--text3)]">
                           {formatTimestamp(row.deadLetter.createdAt)}
                           {row.deadLetter.replayedAt ? " · Replayed" : ""}
                         </div>
                         {!row.deadLetter.replayedAt ? (
-                          <Button
-                            variant="outline"
-                            className="mt-2 h-7 text-xs"
-                            disabled={
-                              replayingDeadLetterId === row.deadLetter.id
-                            }
-                            onClick={async () => {
-                              setReplayingDeadLetterId(row.deadLetter.id);
-                              try {
-                                await api.replaySessionSignalDeadLetter(
-                                  row.deadLetter.id,
-                                );
-                                const res = await api.listSessionSignalEvents({
-                                  sessionId: session.id,
-                                  limit: 50,
-                                });
-                                setSignalRows(res.rows);
-                                const deadLetters =
-                                  await api.listSessionSignalDeadLetters({
-                                    sessionId: session.id,
-                                    limit: 50,
-                                  });
-                                setDeadLetterRows(deadLetters.rows);
-                              } finally {
-                                setReplayingDeadLetterId(null);
+                          <div className="mt-2 flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              className="h-7 text-xs"
+                              disabled={
+                                replayingDeadLetterId === row.deadLetter.id
                               }
-                            }}
-                          >
-                            {replayingDeadLetterId === row.deadLetter.id
-                              ? "Replaying..."
-                              : "Replay"}
-                          </Button>
+                              onClick={async () => {
+                                setReplayingDeadLetterId(row.deadLetter.id);
+                                try {
+                                  await api.replaySessionSignalDeadLetter(
+                                    row.deadLetter.id,
+                                  );
+                                  const res = await api.listSessionSignalEvents(
+                                    {
+                                      sessionId: session.id,
+                                      limit: 50,
+                                    },
+                                  );
+                                  setSignalRows(res.rows);
+                                  const deadLetters =
+                                    await api.listSessionSignalDeadLetters({
+                                      sessionId: session.id,
+                                      limit: 50,
+                                    });
+                                  setDeadLetterRows(deadLetters.rows);
+                                } finally {
+                                  setReplayingDeadLetterId(null);
+                                }
+                              }}
+                            >
+                              {replayingDeadLetterId === row.deadLetter.id
+                                ? "Replaying..."
+                                : "Replay"}
+                            </Button>
+                            <HelpTooltip
+                              topic="Replay dead letter"
+                              body="Try this signal again after fixing the underlying config or broker coverage issue."
+                            />
+                          </div>
                         ) : null}
                       </div>
                     ))}
@@ -703,7 +730,10 @@ export const SessionDetailDrawer = ({
                 />
 
                 {(executionProgress || researchFailure) && (
-                  <Section title="Execution Progress">
+                  <Section
+                    title="Execution Progress"
+                    body="Shows the current cycle, active stage, retries, and any recent execution failure for this session."
+                  >
                     {executionProgress ? (
                       <SessionExecutionProgress
                         sessionId={session.id}
@@ -752,7 +782,10 @@ export const SessionDetailDrawer = ({
                   </div>
                 </Section>
 
-                <Section title="Recent Events">
+                <Section
+                  title="Recent Events"
+                  body="Recent runtime and agent events for this session, including phase-level activity and failures."
+                >
                   {recentEvents.length === 0 ? (
                     <div className={mutedClass}>No recent events.</div>
                   ) : (
@@ -791,12 +824,21 @@ export const SessionDetailDrawer = ({
 const Section = ({
   title,
   children,
+  glossaryId,
+  body,
 }: {
   title: string;
   children: React.ReactNode;
+  glossaryId?: HelpGlossaryId;
+  body?: string;
 }) => (
   <section className={sectionClass}>
-    <div className={sectionTitleClass}>{title}</div>
+    <div className="flex items-center gap-1.5">
+      <div className={sectionTitleClass}>{title}</div>
+      {glossaryId || body ? (
+        <HelpTooltip glossaryId={glossaryId} body={body} topic={title} />
+      ) : null}
+    </div>
     <div className="grid gap-2.5">{children}</div>
   </section>
 );

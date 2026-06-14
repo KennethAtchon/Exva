@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type ExperienceScorecardSummary } from "@/lib/exva";
-import { Card } from "@/components/ui";
+import { Card, HelpTooltip } from "@/components/ui";
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 const usd = (n: number) =>
@@ -39,6 +39,12 @@ export function LeaderboardPage() {
           Per-experience scorecards — mock-broker trades excluded. Promotion
           ladder: scripted → rehearsal → paper → live.
         </p>
+        <div className="mt-2">
+          <HelpTooltip
+            topic="Leaderboard scope"
+            body="Aggregates closed trades by experience. Mock-broker rehearsal trades are excluded from promotion scorecards."
+          />
+        </div>
       </div>
 
       {error && (
@@ -52,14 +58,39 @@ export function LeaderboardPage() {
           <thead className="border-b border-border bg-[var(--surface2)] text-[11px] uppercase tracking-wide text-[var(--text3)]">
             <tr>
               <th className="px-4 py-3">Experience</th>
-              <th className="px-4 py-3">Tier</th>
+              <th className="px-4 py-3">
+                <span className="inline-flex items-center gap-1">
+                  Tier <HelpTooltip glossaryId="promotion-tier" />
+                </span>
+              </th>
               <th className="px-4 py-3">Trades</th>
               <th className="px-4 py-3">Win rate</th>
-              <th className="px-4 py-3">Expectancy</th>
-              <th className="px-4 py-3">Max DD</th>
+              <th className="px-4 py-3">
+                <span className="inline-flex items-center gap-1">
+                  Expectancy <HelpTooltip glossaryId="expectancy" />
+                </span>
+              </th>
+              <th className="px-4 py-3">
+                <span className="inline-flex items-center gap-1">
+                  Max DD <HelpTooltip glossaryId="max-drawdown" />
+                </span>
+              </th>
               <th className="px-4 py-3">Net PnL (after costs)</th>
-              <th className="px-4 py-3">Cost/trade</th>
-              <th className="px-4 py-3">Promotion</th>
+              <th className="px-4 py-3">
+                <span className="inline-flex items-center gap-1">
+                  Cost/trade <HelpTooltip glossaryId="cost-per-trade" />
+                </span>
+              </th>
+              <th className="px-4 py-3">
+                <span className="inline-flex items-center gap-1">
+                  Promotion{" "}
+                  <HelpTooltip
+                    glossaryId="promotion-tier"
+                    topic="Promotion readiness"
+                    body="Shows whether the experience currently satisfies the promotion criteria for the next tier."
+                  />
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -84,12 +115,18 @@ export function LeaderboardPage() {
                   {usd(row.expectancy)}
                   {row.walkForward ? (
                     <div className="text-[11px] text-[var(--text3)]">
-                      OOS {usd(row.walkForward.outOfSample.expectancy)}
+                      OOS {usd(row.walkForward.outOfSample.expectancy)}{" "}
+                      <HelpTooltip glossaryId="out-of-sample" />
                     </div>
                   ) : null}
                 </td>
                 <td className="px-4 py-3">{pct(row.maxDrawdownPct)}</td>
-                <td className="px-4 py-3">{usd(row.netPnlAfterCostsUsd)}</td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex items-center gap-1">
+                    {usd(row.netPnlAfterCostsUsd)}
+                    <HelpTooltip glossaryId="net-pnl-after-costs" />
+                  </span>
+                </td>
                 <td className="px-4 py-3">{usd(row.costPerTradeUsd)}</td>
                 <td className="px-4 py-3">
                   {row.meetsPromotion ? (

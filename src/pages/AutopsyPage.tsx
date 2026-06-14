@@ -14,6 +14,7 @@ import {
   type LessonStatus,
   type TradeAutopsyRecord,
 } from "@/lib/autopsy-types";
+import { HelpTooltip } from "@/components/ui";
 import type { Trade } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -176,26 +177,33 @@ function SectionCard({
   children,
   defaultOpen = true,
   accent,
+  helpBody,
 }: {
   title: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
   accent?: string;
+  helpBody?: string;
 }) {
   const [open, setOpen] = useState(() => defaultOpen ?? false);
 
   return (
     <div className={sectionCardClass}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={collapsibleBtnBaseClass}
-        style={{
-          borderLeft: accent ? `3px solid ${accent}` : "3px solid transparent",
-        }}
-      >
-        <span className={sectionTitleClass}>{title}</span>
-        <span className={sectionToggleClass}>{open ? "▲" : "▼"}</span>
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className={cn(collapsibleBtnBaseClass, "flex-1")}
+          style={{
+            borderLeft: accent
+              ? `3px solid ${accent}`
+              : "3px solid transparent",
+          }}
+        >
+          <span className={sectionTitleClass}>{title}</span>
+          <span className={sectionToggleClass}>{open ? "▲" : "▼"}</span>
+        </button>
+        {helpBody ? <HelpTooltip topic={title} body={helpBody} /> : null}
+      </div>
       {open && <div className={sectionBodyClass}>{children}</div>}
     </div>
   );
@@ -404,7 +412,11 @@ function WarningBanner({
 
 function ThesisCard({ d }: { d: AutopsyStructured["thesisReview"] }) {
   return (
-    <SectionCard title="Thesis Review" accent="var(--color-info)">
+    <SectionCard
+      title="Thesis Review"
+      accent="var(--color-info)"
+      helpBody="Revisits whether the original thesis was valid and whether the review was distorted by confirmation bias or ignored counter-signals."
+    >
       <FieldRow label="Valid Thesis">
         <Chip
           label={
@@ -472,7 +484,11 @@ function ExecutionCard({ d }: { d: AutopsyStructured["executionQuality"] }) {
   };
 
   return (
-    <SectionCard title="Execution Quality" accent="var(--color-success)">
+    <SectionCard
+      title="Execution Quality"
+      accent="var(--color-success)"
+      helpBody="Assesses entry timing, sizing, exit management, and slippage once the trade moved from idea to execution."
+    >
       <FieldRow label="Entry Timing">
         <Chip
           label={d.entryTiming}
@@ -512,7 +528,11 @@ function BehavioralCard({
   };
 
   return (
-    <SectionCard title="Behavioral Flags" accent="var(--color-warning)">
+    <SectionCard
+      title="Behavioral Flags"
+      accent="var(--color-warning)"
+      helpBody="Highlights process mistakes or behavior patterns the autopsy detected, along with their severity."
+    >
       {flags.length === 0 ? (
         <span className="text-[13px] text-[var(--text3)]">
           No behavioral flags detected.
@@ -562,7 +582,11 @@ function MarketContextCard({ d }: { d: AutopsyStructured["marketContext"] }) {
   };
 
   return (
-    <SectionCard title="Market Context" accent="var(--color-market)">
+    <SectionCard
+      title="Market Context"
+      accent="var(--color-market)"
+      helpBody="Summarizes the broader regime, volatility, and suitability of the environment for this trade."
+    >
       <FieldRow label="Regime">
         <Chip label={d.regime} />
       </FieldRow>
@@ -624,7 +648,11 @@ function WhatWorkedFailedCard({
 
 function RootCauseCard({ text }: { text: string }) {
   return (
-    <SectionCard title="Root Cause" accent="var(--color-error)">
+    <SectionCard
+      title="Root Cause"
+      accent="var(--color-error)"
+      helpBody="States the main reason the trade succeeded or failed instead of listing every surrounding detail again."
+    >
       <p className="m-0 text-[13px] leading-[1.65] text-[var(--text2)]">
         {text}
       </p>
@@ -634,7 +662,10 @@ function RootCauseCard({ text }: { text: string }) {
 
 function ProcessImprovementsCard({ items }: { items: string[] }) {
   return (
-    <SectionCard title="Process Improvements">
+    <SectionCard
+      title="Process Improvements"
+      helpBody="Actionable changes to the process, not just observations about what happened."
+    >
       <ol className="m-0 pl-[18px]">
         {items.map((item) => (
           <li key={item} className={processItemClass}>

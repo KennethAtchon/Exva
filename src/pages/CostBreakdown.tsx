@@ -5,6 +5,7 @@ import {
   PageShell,
   SectionTitle,
 } from "@/components/custom-ui";
+import { HelpTooltip } from "@/components/ui";
 import { fmt } from "@/lib/formatters";
 import { api } from "@/lib/exva";
 import type { EventSourceType } from "@/lib/types";
@@ -130,7 +131,10 @@ const BudgetCard = ({
         : "var(--accent)";
   return (
     <Card>
-      <SectionTitle>Today's Budget</SectionTitle>
+      <div className="flex items-center gap-1.5">
+        <SectionTitle>Today's Budget</SectionTitle>
+        <HelpTooltip glossaryId="ai-cost" topic="Budget card" />
+      </div>
       <div className="mt-[18px] flex items-center gap-7">
         <div className="relative shrink-0">
           <svg width={108} height={108} viewBox="0 0 108 108">
@@ -194,6 +198,7 @@ const BudgetCard = ({
             <span className="text-[12px] text-success">
               ↓ {fmt.usd(cacheSavingsUsd)} saved via prompt cache
             </span>
+            <HelpTooltip glossaryId="cache-savings" />
           </div>
         </div>
       </div>
@@ -217,7 +222,10 @@ const CostByAgentCard = ({
   agentMax: number;
 }) => (
   <Card>
-    <SectionTitle>Cost by Agent</SectionTitle>
+    <div className="flex items-center gap-1.5">
+      <SectionTitle>Cost by Agent</SectionTitle>
+      <HelpTooltip glossaryId="cost-by-agent" />
+    </div>
     <div className="mt-[18px] flex flex-col gap-4">
       {rows.length > 0 ? (
         rows.map((a) => (
@@ -256,7 +264,10 @@ const CostPerTradeCard = ({
   tradeMax: number;
 }) => (
   <Card>
-    <SectionTitle>Cost per Trade</SectionTitle>
+    <div className="flex items-center gap-1.5">
+      <SectionTitle>Cost per Trade</SectionTitle>
+      <HelpTooltip glossaryId="cost-per-trade-attribution" />
+    </div>
     <div className="mt-4 flex flex-col gap-2.5">
       {rows.length > 0 ? (
         rows.map((t) => (
@@ -376,7 +387,10 @@ const ProjectionsCard = ({
   ];
   return (
     <Card>
-      <SectionTitle>Projections</SectionTitle>
+      <div className="flex items-center gap-1.5">
+        <SectionTitle>Projections</SectionTitle>
+        <HelpTooltip glossaryId="projections" />
+      </div>
       <div className="mt-3.5 flex flex-col">
         {rows.map(([k, v], i) => (
           <div

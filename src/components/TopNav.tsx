@@ -3,7 +3,7 @@ import { PanelLeft } from "lucide-react";
 import type { DashboardStats, SessionStatus } from "@/lib/types";
 import { Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
-import { Button } from "@/components/ui";
+import { Button, HelpTooltip } from "@/components/ui";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppNavSidebar } from "@/components/AppNavSidebar";
 import { api } from "@/lib/exva";
@@ -15,6 +15,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useNavSidebar } from "@/hooks/useNavSidebar";
 import { NAV_ITEMS, NAV_WIDE_MEDIA, type PageKey } from "@/lib/nav";
+import { SESSION_STATUS_HELP_IDS } from "@/lib/help-glossary";
 import { cn } from "@/lib/utils";
 
 export type { PageKey };
@@ -134,51 +135,61 @@ const NavItems = ({
       const isStrategy = item.id === "strategy";
       const isSessions = item.id === "sessions";
       return (
-        <Button
-          key={item.id}
-          onClick={() => onNavigate(item.id)}
-          variant="ghost"
-          className={cn(
-            navClass.navItem,
-            active && navClass.navItemActive,
-            isStrategy && needsStrategyConfig && navClass.navItemHint,
-          )}
-          title={
-            isStrategy && !isGlobal
-              ? `Configure AI phases, risk limits, and strategy for "${sessionName}"`
-              : undefined
-          }
-        >
-          {item.label}
-          {isSessions && attentionCount > 0 && (
-            <span
-              className={navClass.attentionBadge}
-              title={`${attentionCount} session(s) need attention`}
-              role="button"
-              tabIndex={0}
-              onClick={(event) => {
-                event.stopPropagation();
-                onNavigateToAttentionSessions?.();
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
+        <div key={item.id} className="flex items-center gap-1">
+          <Button
+            onClick={() => onNavigate(item.id)}
+            variant="ghost"
+            className={cn(
+              navClass.navItem,
+              active && navClass.navItemActive,
+              isStrategy && needsStrategyConfig && navClass.navItemHint,
+            )}
+          >
+            {item.label}
+            {isSessions && attentionCount > 0 && (
+              <span
+                className={navClass.attentionBadge}
+                role="button"
+                tabIndex={0}
+                onClick={(event) => {
                   event.stopPropagation();
                   onNavigateToAttentionSessions?.();
-                }
-              }}
-            >
-              {attentionCount}
-            </span>
-          )}
-          {isStrategy && needsStrategyConfig && (
-            <span
-              className={navClass.strategyDot}
-              title="This session has unconfigured strategy settings"
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onNavigateToAttentionSessions?.();
+                  }
+                }}
+              >
+                {attentionCount}
+              </span>
+            )}
+            {isStrategy && needsStrategyConfig && (
+              <span className={navClass.strategyDot} />
+            )}
+            {active && <div className={navClass.navUnderline} />}
+          </Button>
+          {isSessions && attentionCount > 0 ? (
+            <HelpTooltip
+              topic="Sessions needing attention"
+              body="Shows how many sessions currently need intervention."
             />
-          )}
-          {active && <div className={navClass.navUnderline} />}
-        </Button>
+          ) : null}
+          {isStrategy && !isGlobal ? (
+            <HelpTooltip
+              topic="Strategy page"
+              body={`Configure AI phases, risk limits, and strategy for ${sessionName}.`}
+            />
+          ) : null}
+          {isStrategy && needsStrategyConfig ? (
+            <HelpTooltip
+              topic="Strategy configuration status"
+              body="The focused session still has missing strategy configuration."
+            />
+          ) : null}
+        </div>
       );
     })}
   </nav>
@@ -224,11 +235,6 @@ const NavStatus = ({
             ? navClass.liveEnvPill
             : navClass.paperEnvPill
         }
-        title={
-          environmentMode === "live"
-            ? "Live trading mode — real broker connection"
-            : "Paper trading mode — no real orders"
-        }
       >
         <Dot
           color={
@@ -248,6 +254,13 @@ const NavStatus = ({
         >
           {environmentMode === "live" ? "Live" : "Paper"}
         </span>
+        <HelpTooltip
+          glossaryId={
+            environmentMode === "live"
+              ? "environment-live"
+              : "environment-paper"
+          }
+        />
       </div>
 
       {stats && sessionStatus === "active" && (
@@ -259,67 +272,89 @@ const NavStatus = ({
           <span className={navClass.liveStatLabel}>
             {fmt.uptime(stats.session_uptime_min)}
           </span>
+          <HelpTooltip
+            glossaryId="daily-pnl"
+            topic="Live session stats"
+            body="Shows today's profit and loss and how long the focused session has been running in this environment."
+          />
         </div>
       )}
 
       {isGlobal ? (
-        <div
-          className={navClass.globalPill}
-          title="No session focused — viewing global workspace. Go to Sessions to focus a session."
-        >
+        <div className={navClass.globalPill}>
           <span className={navClass.globalLabel}>Global</span>
+          <HelpTooltip glossaryId="view-global" />
         </div>
       ) : (
-        <div
-          className={navClass.statusPill}
-          title={`Focused session: "${sessionName}" — status: ${ss.label}`}
-        >
+        <div className={navClass.statusPill}>
           <Dot color={ss.dot} pulse={ss.pulse} size={7} />
           <span className={navClass.sessionLabel}>{sessionName}</span>
           <span className={navClass.sessionStatus}>{ss.label}</span>
+          <HelpTooltip
+            glossaryId={SESSION_STATUS_HELP_IDS[sessionStatus]}
+            topic={`${sessionName} status`}
+          />
         </div>
       )}
 
       {!isGlobal &&
         sessionStatus !== "active" &&
         sessionStatus !== "monitoring_only" && (
-          <Button
-            className={navClass.btnStart}
-            variant="ghost"
-            disabled={startDisabled}
-            title={
-              sessionControlsDisabled
-                ? "Focused session is not in the current workspace environment"
-                : aiReady === false
-                  ? "AI providers not connected — configure in Strategy tab"
-                  : undefined
-            }
-            onClick={() =>
-              onSessionAction(
+          <div className="flex items-center gap-1">
+            <Button
+              className={navClass.btnStart}
+              variant="ghost"
+              disabled={startDisabled}
+              onClick={() =>
+                onSessionAction(
+                  sessionStatus === "paused" ||
+                    sessionStatus === "attention_required"
+                    ? "resume"
+                    : "start",
+                )
+              }
+            >
+              ▶{" "}
+              {sessionStatus === "paused" ||
+              sessionStatus === "attention_required"
+                ? "Resume"
+                : "Start"}
+            </Button>
+            <HelpTooltip
+              topic={
                 sessionStatus === "paused" ||
-                  sessionStatus === "attention_required"
-                  ? "resume"
-                  : "start",
-              )
-            }
-          >
-            ▶{" "}
-            {sessionStatus === "paused" ||
-            sessionStatus === "attention_required"
-              ? "Resume"
-              : "Start"}
-          </Button>
+                sessionStatus === "attention_required"
+                  ? "Resume session"
+                  : "Start session"
+              }
+              body={
+                sessionControlsDisabled
+                  ? "The focused session is not in the current workspace environment."
+                  : aiReady === false
+                    ? "AI providers are not connected yet. Configure them on the Strategy page before starting."
+                    : sessionStatus === "paused" ||
+                        sessionStatus === "attention_required"
+                      ? "Resumes signal processing and new research cycles for the focused session."
+                      : "Starts signal processing and new research cycles for the focused session."
+              }
+            />
+          </div>
         )}
       {sessionStatus === "active" && !sessionControlsDisabled && (
-        <Button
-          variant="ghost"
-          className={navClass.btnPause}
-          disabled={sessionActionPending}
-          onClick={() => onSessionAction("pause")}
-          title="Pause stops new research but keeps exits managed."
-        >
-          {sessionActionPending ? "⏸ Pausing…" : "⏸ Pause"}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            className={navClass.btnPause}
+            disabled={sessionActionPending}
+            onClick={() => onSessionAction("pause")}
+          >
+            {sessionActionPending ? "⏸ Pausing…" : "⏸ Pause"}
+          </Button>
+          <HelpTooltip
+            topic="Pause session"
+            body="Pause stops new research but keeps exits and open-position monitoring active."
+          />
+        </div>
       )}
       {isRunning && !sessionControlsDisabled && !hasOpenTrades ? (
         <Button
@@ -332,26 +367,33 @@ const NavStatus = ({
         </Button>
       ) : null}
       {isRunning && !sessionControlsDisabled && hasOpenTrades ? (
-        <Button
-          variant="ghost"
-          className={navClass.btnStopWhenFlat}
-          disabled={sessionActionPending}
-          title={stopWhenFlatTitle}
-          onClick={() => onSessionAction("stop")}
-        >
-          {sessionActionPending ? "Stopping…" : "Stop when flat"}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            className={navClass.btnStopWhenFlat}
+            disabled={sessionActionPending}
+            onClick={() => onSessionAction("stop")}
+          >
+            {sessionActionPending ? "Stopping…" : "Stop when flat"}
+          </Button>
+          <HelpTooltip topic="Stop when flat" body={stopWhenFlatTitle} />
+        </div>
       ) : null}
       {isMonitorAlive && !sessionControlsDisabled && hasOpenTrades ? (
-        <Button
-          variant="ghost"
-          className={navClass.btnForceStop}
-          disabled={sessionActionPending}
-          title="Force stop ends automated exit management for open positions."
-          onClick={() => onSessionAction("forceStop")}
-        >
-          Force stop
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            className={navClass.btnForceStop}
+            disabled={sessionActionPending}
+            onClick={() => onSessionAction("forceStop")}
+          >
+            Force stop
+          </Button>
+          <HelpTooltip
+            topic="Force stop"
+            body="Force stop ends automated exit management for open positions and may leave them unmanaged."
+          />
+        </div>
       ) : null}
     </div>
   );
@@ -486,7 +528,6 @@ export const NavShell = ({
                 type="button"
                 onClick={toggleSidebar}
                 className={navClass.sidebarToggle}
-                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                 aria-label={
                   sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
                 }
@@ -511,11 +552,6 @@ export const NavShell = ({
 
             <button
               onClick={toggleTheme}
-              title={
-                theme === "dark"
-                  ? "Switch to light mode"
-                  : "Switch to dark mode"
-              }
               className="mr-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--text2)] transition-colors hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
               aria-label="Toggle theme"
             >

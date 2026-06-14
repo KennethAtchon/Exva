@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogHeader,
+  HelpTooltip,
   DialogTitle,
   Input,
 } from "@/components/ui";
@@ -573,27 +574,30 @@ export function PeriodAutopsyPage({
                 }
               />
             ) : null}
-            <Button
-              className="h-9 px-4 text-sm"
-              disabled={
-                runMutation.isPending ||
-                previewQuery.isLoading ||
-                (previewQuery.data?.tradeCount ?? 0) === 0 ||
-                (!useWorkspaceDefaultModel && (!providerKey || !modelId))
-              }
-              title={
-                previewQuery.data
-                  ? `~$${previewQuery.data.estimatedCostUsd.toFixed(2)} est.`
-                  : undefined
-              }
-              onClick={() => void handleRun()}
-            >
-              {runMutation.isPending
-                ? "Running..."
-                : autopsies.length > 0
-                  ? "Regenerate"
-                  : "Run Autopsy"}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                className="h-9 px-4 text-sm"
+                disabled={
+                  runMutation.isPending ||
+                  previewQuery.isLoading ||
+                  (previewQuery.data?.tradeCount ?? 0) === 0 ||
+                  (!useWorkspaceDefaultModel && (!providerKey || !modelId))
+                }
+                onClick={() => void handleRun()}
+              >
+                {runMutation.isPending
+                  ? "Running..."
+                  : autopsies.length > 0
+                    ? "Regenerate"
+                    : "Run Autopsy"}
+              </Button>
+              {previewQuery.data ? (
+                <HelpTooltip
+                  topic="Run period autopsy"
+                  body={`Estimated model cost for this run: about $${previewQuery.data.estimatedCostUsd.toFixed(2)}.`}
+                />
+              ) : null}
+            </div>
           </div>
         </div>
 

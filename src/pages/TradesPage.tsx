@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
-import { Button, Checkbox } from "@/components/ui";
+import { Button, Checkbox, HelpTooltip } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { api } from "@/lib/exva";
 import { fmt } from "@/lib/formatters";
@@ -143,7 +143,13 @@ const TradeFilters = ({
       </div>
       {viewMode === "global" ? (
         <div className={filterLabelClass}>
-          Session
+          <span className="inline-flex items-center gap-1">
+            Session
+            <HelpTooltip
+              topic="Session filter"
+              body="Filter trades to those opened by a specific session."
+            />
+          </span>
           <ShadcnSelect
             value={sessionFilterId}
             onValueChange={(value) =>
@@ -222,10 +228,7 @@ const TradeRow = ({
       }}
     >
       {viewMode === "global" && (
-        <span
-          className="overflow-hidden text-ellipsis text-[12px] text-[var(--text3)]"
-          title={sessionLabel}
-        >
+        <span className="overflow-hidden text-ellipsis text-[12px] text-[var(--text3)]">
           {sessionLabel}
         </span>
       )}
@@ -294,7 +297,6 @@ const TradeRow = ({
               onViewAutopsy(trade.id);
             }}
             className={autopsyButtonClass}
-            title="Review trade"
           >
             ⚕ Review Trade
           </button>
@@ -406,6 +408,16 @@ export const TradesPage = ({
         <p className="mt-1 text-[13px] text-[var(--text3)]">
           All trade history and open positions
         </p>
+        <div className="mt-2">
+          <HelpTooltip
+            topic="Trades page scope"
+            body={
+              viewMode === "global"
+                ? "Global mode shows trades across sessions in the current environment."
+                : "Focused mode shows trades for the currently focused session."
+            }
+          />
+        </div>
       </div>
       <div className="flex items-center justify-between gap-2.5">
         <WorkspaceContextChip
@@ -504,22 +516,25 @@ export const TradesPage = ({
               minWidth: TRADES_TABLE_MIN_WIDTH,
             }}
           >
-            {[
-              ...(viewMode === "global" ? ["Session"] : []),
-              "Instrument",
-              "Side",
-              "Size",
-              "Entry",
-              "Cur/Exit",
-              "P&L",
-              "AI Cost",
-              "Conf",
-              "Status",
-              "Time",
-              "",
-            ].map((h) => (
-              <span key={h}>{h}</span>
-            ))}
+            {viewMode === "global" ? <span>Session</span> : null}
+            <span>Instrument</span>
+            <span>Side</span>
+            <span>Size</span>
+            <span>Entry</span>
+            <span>Cur/Exit</span>
+            <span className="flex items-center gap-1">
+              P&amp;L <HelpTooltip glossaryId="daily-pnl" topic="Trade P&L" />
+            </span>
+            <span className="flex items-center gap-1">
+              AI Cost <HelpTooltip glossaryId="ai-cost" topic="Trade AI cost" />
+            </span>
+            <span className="flex items-center gap-1">
+              Conf{" "}
+              <HelpTooltip glossaryId="confidence" topic="Trade confidence" />
+            </span>
+            <span>Status</span>
+            <span>Time</span>
+            <span />
           </div>
           {trades.map((t) => (
             <TradeRow

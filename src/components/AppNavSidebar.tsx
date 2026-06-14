@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, HelpTooltip } from "@/components/ui";
 import {
   Tooltip,
   TooltipContent,
@@ -77,7 +77,6 @@ export const AppNavSidebar = ({
           type="button"
           onClick={onToggleCollapse}
           className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text3)] transition-colors hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
-          title="Collapse sidebar"
           aria-label="Collapse sidebar"
         >
           <ChevronLeft size={16} />
@@ -93,57 +92,66 @@ export const AppNavSidebar = ({
         const Icon = item.icon;
 
         const button = (
-          <Button
-            onClick={() => onNavigate(item.id)}
-            variant="ghost"
-            className={cn(
-              "relative h-auto w-full justify-start gap-2.5 rounded-lg px-3 py-2.5 font-sans text-[13px] font-normal text-[var(--text2)] hover:bg-[var(--surface2)] hover:text-[var(--text1)]",
-              collapsed && "justify-center px-0",
-              active &&
-                "bg-[var(--surface2)] font-medium text-[var(--text1)] before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-r before:bg-[var(--accent)]",
-              isStrategy && needsStrategyConfig && "text-[var(--accent)]",
-            )}
-            title={
-              collapsed
-                ? item.label
-                : isStrategy && !isGlobal
-                  ? `Configure AI phases, risk limits, and strategy for "${sessionName}"`
-                  : undefined
-            }
-          >
-            <Icon size={16} className="shrink-0" aria-hidden />
-            {!collapsed && <span className="truncate">{item.label}</span>}
-            {!collapsed && isSessions && attentionCount > 0 && (
-              <span
-                className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-error-border bg-error-dim px-[5px] font-mono text-[12px] font-bold text-error"
-                title={`${attentionCount} session(s) need attention`}
-                role="button"
-                tabIndex={0}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onNavigateToAttentionSessions?.();
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
+          <div className="flex items-center gap-1">
+            <Button
+              onClick={() => onNavigate(item.id)}
+              variant="ghost"
+              className={cn(
+                "relative h-auto w-full justify-start gap-2.5 rounded-lg px-3 py-2.5 font-sans text-[13px] font-normal text-[var(--text2)] hover:bg-[var(--surface2)] hover:text-[var(--text1)]",
+                collapsed && "justify-center px-0",
+                active &&
+                  "bg-[var(--surface2)] font-medium text-[var(--text1)] before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-r before:bg-[var(--accent)]",
+                isStrategy && needsStrategyConfig && "text-[var(--accent)]",
+              )}
+            >
+              <Icon size={16} className="shrink-0" aria-hidden />
+              {!collapsed && <span className="truncate">{item.label}</span>}
+              {!collapsed && isSessions && attentionCount > 0 && (
+                <span
+                  className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full border border-error-border bg-error-dim px-[5px] font-mono text-[12px] font-bold text-error"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => {
                     event.stopPropagation();
                     onNavigateToAttentionSessions?.();
-                  }
-                }}
-              >
-                {attentionCount}
-              </span>
-            )}
-            {!collapsed && isStrategy && needsStrategyConfig && (
-              <span
-                className="ml-auto inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]"
-                title="This session has unconfigured strategy settings"
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onNavigateToAttentionSessions?.();
+                    }
+                  }}
+                >
+                  {attentionCount}
+                </span>
+              )}
+              {!collapsed && isStrategy && needsStrategyConfig && (
+                <span className="ml-auto inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
+              )}
+              {collapsed && isSessions && attentionCount > 0 && (
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-error" />
+              )}
+            </Button>
+            {!collapsed && isSessions && attentionCount > 0 ? (
+              <HelpTooltip
+                topic="Sessions needing attention"
+                body="Shows how many sessions currently need intervention."
               />
-            )}
-            {collapsed && isSessions && attentionCount > 0 && (
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-error" />
-            )}
-          </Button>
+            ) : null}
+            {!collapsed && isStrategy && !isGlobal ? (
+              <HelpTooltip
+                topic="Strategy page"
+                body={`Configure AI phases, risk limits, and strategy for ${sessionName}.`}
+              />
+            ) : null}
+            {!collapsed && isStrategy && needsStrategyConfig ? (
+              <HelpTooltip
+                topic="Strategy configuration status"
+                body="The focused session still has missing strategy configuration."
+              />
+            ) : null}
+          </div>
         );
 
         if (!collapsed) {
@@ -165,7 +173,6 @@ export const AppNavSidebar = ({
           type="button"
           onClick={onToggleCollapse}
           className="flex h-9 w-full items-center justify-center rounded-lg text-[var(--text3)] transition-colors hover:bg-[var(--surface2)] hover:text-[var(--text1)]"
-          title="Expand sidebar"
           aria-label="Expand sidebar"
         >
           <ChevronRight size={16} />

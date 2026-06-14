@@ -6,7 +6,7 @@ import {
   Dot,
   SectionTitle,
 } from "@/components/custom-ui";
-import { Checkbox } from "@/components/ui";
+import { Checkbox, HelpTooltip } from "@/components/ui";
 import { WorkspaceContextChip } from "@/components/WorkspaceContextChip";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import { fmt } from "@/lib/formatters";
@@ -66,6 +66,7 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
     label: string;
     value: string | number;
     sub: string;
+    helpGlossaryId?: "portfolio-value" | "daily-pnl" | "win-rate" | "ai-cost";
     subColor?: string;
     valColor?: string;
     meter?: number;
@@ -76,6 +77,7 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
       sub: hasLivePortfolioValue
         ? `${fmt.pnl(stats.unrealized_pnl)} unrealized`
         : "No live broker balance yet",
+      helpGlossaryId: "portfolio-value",
       subColor: hasLivePortfolioValue
         ? stats.unrealized_pnl >= 0
           ? "var(--color-success)"
@@ -86,6 +88,7 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
       label: "Daily P&L",
       value: fmt.pnl(stats.daily_pnl_usd),
       sub: fmt.pct(stats.daily_pnl_pct),
+      helpGlossaryId: "daily-pnl",
       subColor:
         stats.daily_pnl_usd >= 0
           ? "var(--color-success)"
@@ -99,6 +102,7 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
       label: "Win Rate",
       value: `${Math.round(stats.win_rate_today * 100)}%`,
       sub: `${stats.closed_trades_today} closed today`,
+      helpGlossaryId: "win-rate",
     },
     {
       label: "Open Positions",
@@ -109,6 +113,7 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
       label: "AI Cost",
       value: fmt.usd(stats.daily_api_spend),
       sub: `of ${fmt.usd(stats.api_budget)} budget`,
+      helpGlossaryId: "ai-cost",
       meter:
         stats.api_budget > 0 ? stats.daily_api_spend / stats.api_budget : 0,
     },
@@ -120,6 +125,12 @@ const StatStrip = ({ stats }: { stats: DashboardStats }) => {
           {i > 0 && <Divider vertical />}
           <div className={stripItemClass}>
             <span className={stripLabelClass}>{item.label}</span>
+            {item.helpGlossaryId ? (
+              <HelpTooltip
+                glossaryId={item.helpGlossaryId}
+                topic={item.label}
+              />
+            ) : null}
             <span
               className={stripValueClass}
               style={item.valColor ? { color: item.valColor } : undefined}
@@ -311,12 +322,28 @@ const FeedRow = ({ ev, isLast }: { ev: EventRow; isLast: boolean }) => {
           className={cn("flex items-center gap-[7px] pt-2.5", ap && "mb-1.5")}
         >
           {ap ? (
-            <span
-              className="text-[12px] font-semibold tracking-[0.02em]"
-              style={{ color: ap.color }}
-            >
-              {ap.label}
-            </span>
+            <>
+              <span
+                className="text-[12px] font-semibold tracking-[0.02em]"
+                style={{ color: ap.color }}
+              >
+                {ap.label}
+              </span>
+              <HelpTooltip
+                glossaryId={
+                  ev.agent_type === "technical"
+                    ? "agent-technical"
+                    : ev.agent_type === "fundamental"
+                      ? "agent-fundamental"
+                      : ev.agent_type === "review"
+                        ? "agent-review"
+                        : ev.agent_type === "decision"
+                          ? "agent-decision"
+                          : "agent-selector"
+                }
+                topic={`${ap.label} phase`}
+              />
+            </>
           ) : (
             <span
               className="font-mono text-[12px] font-semibold tracking-[0.04em]"
@@ -433,6 +460,9 @@ export const Dashboard = () => {
               ? "Global workspace metrics"
               : "Focused session metrics"}
           </p>
+          <div className="mt-2">
+            <HelpTooltip glossaryId="dashboard-scope" />
+          </div>
         </div>
         <div className={headerChipWrapClass}>
           <WorkspaceContextChip

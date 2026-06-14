@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
-import { Switch } from "@/components/ui";
+import { HelpTooltip, Switch } from "@/components/ui";
 import { api } from "@/lib/exva";
 import type { PhaseRuntimeSummary } from "@/lib/exva";
 import type { ProviderAccount } from "@/lib/types";
@@ -46,6 +46,10 @@ export const AiPhasesSection = ({
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-1.5">
+        <SectionTitle>AI Phases</SectionTitle>
+        <HelpTooltip glossaryId="strategy-ai-phases" />
+      </div>
       {PIPELINE_PHASES.map((phase) => {
         const config = phaseMap[phase];
         if (!config) return null;

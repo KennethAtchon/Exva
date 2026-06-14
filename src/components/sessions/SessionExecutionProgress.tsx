@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui";
+import { Button, HelpTooltip } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { ExecutionStage, ExecutionStepStatus } from "@/lib/types";
 import type { SessionExecutionProgressResponse } from "@/lib/exva";
@@ -237,15 +237,17 @@ export const SessionExecutionProgress = ({
           ) : null}
 
           {lastErrorMessage && (isFailed || isRetrying) ? (
-            <span
-              className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px]"
-              style={{ color: detailMessageColor }}
-              title={lastErrorMessage}
-            >
-              {lastErrorMessage.length > 60
-                ? `${lastErrorMessage.slice(0, 60)}…`
-                : lastErrorMessage}
-            </span>
+            <div className="flex min-w-0 items-center gap-1">
+              <span
+                className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px]"
+                style={{ color: detailMessageColor }}
+              >
+                {lastErrorMessage.length > 60
+                  ? `${lastErrorMessage.slice(0, 60)}…`
+                  : lastErrorMessage}
+              </span>
+              <HelpTooltip topic="Last error" body={lastErrorMessage} />
+            </div>
           ) : null}
         </div>
 
@@ -272,23 +274,31 @@ export const SessionExecutionProgress = ({
           ) : null}
 
           {isRunning || isRetrying || isMonitoring ? (
-            <button
-              type="button"
-              className="flex cursor-pointer items-center gap-1 rounded bg-transparent px-1 py-0.5 text-[12px] text-[var(--text3)]"
-              onClick={() => onPauseAfterStep(sessionId)}
-              title="Pause stops new research but keeps exits managed."
-            >
-              <span className="inline-block size-1.5 shrink-0 rounded-[2px] border border-[var(--text3)]" />
-              Pause after step
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="flex cursor-pointer items-center gap-1 rounded bg-transparent px-1 py-0.5 text-[12px] text-[var(--text3)]"
+                onClick={() => onPauseAfterStep(sessionId)}
+              >
+                <span className="inline-block size-1.5 shrink-0 rounded-[2px] border border-[var(--text3)]" />
+                Pause after step
+              </button>
+              <HelpTooltip
+                topic="Pause after step"
+                body="Finishes the current stage, then pauses new research while leaving exits and open-position monitoring active."
+              />
+            </div>
           ) : null}
 
-          <span
-            className="font-mono text-[12px] text-[var(--text3)] opacity-60"
-            title={cycleId}
-          >
-            #{cycleIdShort}
-          </span>
+          <div className="flex items-center gap-1">
+            <span className="font-mono text-[12px] text-[var(--text3)] opacity-60">
+              #{cycleIdShort}
+            </span>
+            <HelpTooltip
+              topic="Cycle id"
+              body={`Cycle ${cycleId} is the execution trace id for this research run.`}
+            />
+          </div>
         </div>
       </div>
     </div>

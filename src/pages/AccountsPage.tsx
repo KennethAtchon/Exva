@@ -17,6 +17,7 @@ import { ProviderModelPicker } from "@/components/strategy/ProviderModelPicker";
 import { AddAiProviderModal } from "@/components/accounts/AddAiProviderModal";
 import { AddSearchProviderModal } from "@/components/accounts/AddSearchProviderModal";
 import { AddBrokerModal } from "@/components/accounts/AddBrokerModal";
+import { HelpTooltip } from "@/components/ui";
 import {
   MOCK_EXECUTION_TIER_LABELS,
   MOCK_SCENARIO_KINDS,
@@ -435,6 +436,7 @@ export const AccountsPage = () => {
           >
             Paper
           </button>
+          <HelpTooltip glossaryId="environment-paper" />
           <button
             type="button"
             className={cn(
@@ -445,6 +447,7 @@ export const AccountsPage = () => {
           >
             Live
           </button>
+          <HelpTooltip glossaryId="environment-live" />
         </div>
       </div>
 
@@ -599,6 +602,10 @@ export const AccountsPage = () => {
             <div className={defaultModelSectionClass}>
               <div className={sectionLabelClass}>
                 Workspace default AI model
+                <HelpTooltip
+                  topic="Workspace default AI model"
+                  body="Seeds provider, model, and reasoning defaults for new sessions. Individual phases can still override these values later."
+                />
               </div>
               <div className={mutedText12Class}>
                 Auto-fills provider, model, and reasoning on new sessions.
@@ -629,7 +636,13 @@ export const AccountsPage = () => {
                 onModelChange={(v) => setDefaultModelModelId(v)}
               />
               <div>
-                <div className={reasoningLabelClass}>Reasoning</div>
+                <div className={reasoningLabelClass}>
+                  Reasoning{" "}
+                  <HelpTooltip
+                    topic="Reasoning level"
+                    body="Higher reasoning levels can improve deeper analysis, but they also increase token spend and latency."
+                  />
+                </div>
                 <ShadcnSelect
                   value={defaultModelReasoningLevel}
                   onValueChange={(value) =>
@@ -790,7 +803,13 @@ export const AccountsPage = () => {
 
         <div className={columnClass}>
           <Card>
-            <SectionTitle>Workspace routing defaults</SectionTitle>
+            <div className="flex items-center gap-1.5">
+              <SectionTitle>Workspace routing defaults</SectionTitle>
+              <HelpTooltip
+                topic="Workspace routing defaults"
+                body="These are fallback broker routes by instrument class. A session can still override them with its own broker assignments."
+              />
+            </div>
             <p className={routingDescClass}>
               Per-class default broker (session overrides live on the Strategy /
               session editor).
@@ -855,7 +874,13 @@ export const AccountsPage = () => {
           </Card>
 
           <Card>
-            <SectionTitle>Broker allocation override</SectionTitle>
+            <div className="flex items-center gap-1.5">
+              <SectionTitle>Broker allocation override</SectionTitle>
+              <HelpTooltip
+                topic="Broker allocation override"
+                body="Optionally force all brokers to use the same over-allocation behavior instead of each broker's own setting."
+              />
+            </div>
             <p className={routingDescClass}>
               Optionally force all brokers to use the same over-allocation
               behavior.
@@ -907,7 +932,13 @@ export const AccountsPage = () => {
 
           <Card>
             <div className={webSearchHeaderClass}>
-              <div className={cardTitleClass}>Web Search</div>
+              <div className={cardTitleClass}>
+                Web Search{" "}
+                <HelpTooltip
+                  topic="Search providers"
+                  body="Search-style sessions use these external search services when they need web discovery beyond the built-in defaults."
+                />
+              </div>
               <div className={cardSubtitleClass}>
                 AI-selected universe sessions require a dedicated search
                 account. Brave and Tavily are supported today.
@@ -1058,6 +1089,10 @@ export const AccountsPage = () => {
               <div>
                 <div className={searchDefaultLabelClass}>
                   Workspace default search provider
+                  <HelpTooltip
+                    topic="Workspace default search provider"
+                    body="Used when a session does not specify its own search provider override."
+                  />
                 </div>
                 <ShadcnSelect
                   value={prefsDraft?.defaultSearchProviderId ?? ""}

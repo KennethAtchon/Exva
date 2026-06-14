@@ -6,6 +6,7 @@ import {
   ShadcnSelect,
 } from "@/components/custom-ui";
 import {
+  HelpTooltip,
   Switch,
   Tabs,
   TabsContent,
@@ -25,6 +26,7 @@ import { api } from "@/lib/exva";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/sessionStore";
 import type { SessionStatus } from "@/lib/types";
+import type { HelpGlossaryId } from "@/lib/help-glossary";
 import { useStrategyStore } from "@/store/strategyStore";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 import {
@@ -93,17 +95,22 @@ const LockedWarning = ({
     <div className="flex flex-wrap gap-2">
       {(sessionStatus === "active" || sessionStatus === "paused") &&
       focusedOpenTradeCount > 0 ? (
-        <button
-          onClick={async () => {
-            const next = await api.stopSession();
-            setSessionStatus(next);
-            await loadStrategy(focusedSessionId);
-          }}
-          className={warningDrainButtonClass}
-          title="Stops new research immediately and completes shutdown once all open trades close."
-        >
-          Stop when flat
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={async () => {
+              const next = await api.stopSession();
+              setSessionStatus(next);
+              await loadStrategy(focusedSessionId);
+            }}
+            className={warningDrainButtonClass}
+          >
+            Stop when flat
+          </button>
+          <HelpTooltip
+            topic="Stop when flat"
+            body="Stops new research immediately and completes shutdown once all open trades close."
+          />
+        </div>
       ) : null}
       {sessionStatus === "monitoring_only" || focusedOpenTradeCount > 0 ? (
         <button
@@ -165,6 +172,12 @@ const StrategyHeader = ({
           operating briefs, and AI phase model/prompt settings for the focused
           session.
         </p>
+        <div className="mt-2">
+          <HelpTooltip
+            topic="Strategy page"
+            body="Strategy is session-scoped. Active and paused sessions are read-only here so runtime behavior cannot change mid-cycle."
+          />
+        </div>
       </div>
       <div className="flex items-center gap-2.5">
         <div className={viewToggleContainerClass}>
@@ -179,6 +192,10 @@ const StrategyHeader = ({
           >
             Presets
           </button>
+          <HelpTooltip
+            topic="Presets view"
+            body="Presets apply bundled style, rules, risk, and timeframe combinations in one step."
+          />
           <button
             type="button"
             onClick={() => setActiveView("customize")}
@@ -190,6 +207,10 @@ const StrategyHeader = ({
           >
             Customize
           </button>
+          <HelpTooltip
+            topic="Customize view"
+            body="Customize lets you edit each strategy section directly instead of applying a full preset."
+          />
         </div>
         <button
           onClick={() => void saveAll(focusedSessionId)}
@@ -396,6 +417,9 @@ export const StrategyConfig = ({
           <div className="mb-4 text-[32px]">⚙</div>
           <div className="mb-2 text-[16px] font-bold text-[var(--text1)]">
             No session focused
+          </div>
+          <div className="mb-2 flex justify-center">
+            <HelpTooltip glossaryId="focus-session" />
           </div>
           <p className="mx-auto mb-5 max-w-[380px] text-[13px] leading-[1.65] text-[var(--text2)]">
             Strategy configuration is session-scoped. You need to focus a
@@ -960,6 +984,19 @@ const presetBulletClass = "text-[12px] leading-normal text-[var(--text3)]";
 
 // ─── Section components ───────────────────────────────────────────────────────
 
+const SectionHeading = ({
+  title,
+  glossaryId,
+}: {
+  title: string;
+  glossaryId: HelpGlossaryId;
+}) => (
+  <div className="mb-0 flex items-center gap-1.5">
+    <SectionTitle>{title}</SectionTitle>
+    <HelpTooltip glossaryId={glossaryId} />
+  </div>
+);
+
 const StyleSection = ({
   researchPosture,
   aiSettings,
@@ -979,7 +1016,10 @@ const StyleSection = ({
 }) => (
   <>
     <Card>
-      <SectionTitle>AI Instructions</SectionTitle>
+      <SectionHeading
+        title="AI Instructions"
+        glossaryId="strategy-style-vs-instructions"
+      />
       <p className="mb-3 mt-2 text-[12px] leading-[1.55] text-[var(--text3)]">
         Optional guidance injected into every AI worker for this session.
         Structured risk limits and position caps on the Risk tab remain
@@ -1115,7 +1155,7 @@ const RulesSection = ({
 }) => (
   <>
     <Card>
-      <SectionTitle>Trade Rules</SectionTitle>
+      <SectionHeading title="Trade Rules" glossaryId="strategy-trade-rules" />
       <div className={formGridClass}>
         <Field label="Rules preset">
           <ShadcnSelect
@@ -1242,7 +1282,7 @@ const RiskSection = ({
   updateRiskConfig: (patch: Partial<SessionRiskConfig>) => void;
 }) => (
   <Card>
-    <SectionTitle>Risk Controls</SectionTitle>
+    <SectionHeading title="Risk Controls" glossaryId="strategy-risk-controls" />
     <div className={formGridClass}>
       <Field label="Risk preset">
         <ShadcnSelect
@@ -1459,7 +1499,10 @@ const TimeframeSection = ({
 }) => (
   <>
     <Card>
-      <SectionTitle>Timeframe Preset</SectionTitle>
+      <SectionHeading
+        title="Timeframe Preset"
+        glossaryId="strategy-timeframe"
+      />
       <div className={formGridClass}>
         <Field label="Timeframe preset">
           <ShadcnSelect

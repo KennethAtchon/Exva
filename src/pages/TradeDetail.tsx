@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AgentLabel, Badge } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
+import type { HelpGlossaryId } from "@/lib/help-glossary";
 import { api } from "@/lib/exva";
 import { cn } from "@/lib/utils";
 import type { AgentMessage, AgentRun, EventSourceType } from "@/lib/types";
-import { Dialog, DialogContent } from "@/components/ui";
+import { Dialog, DialogContent, HelpTooltip } from "@/components/ui";
 
 const PALETTE: Record<string, { bar: string; bg: string }> = {
   technical: { bar: "var(--color-success)", bg: "var(--color-success-dim)" },
@@ -193,7 +194,15 @@ const TradeHero = ({
       )}
     </div>
     <div className="text-right">
-      <div className={heroLabelClass}>Confidence</div>
+      <div
+        className={cn(
+          heroLabelClass,
+          "inline-flex items-center justify-end gap-1",
+        )}
+      >
+        Confidence
+        <HelpTooltip glossaryId="confidence" />
+      </div>
       <div className="font-mono text-[40px] font-bold leading-none text-[var(--text1)]">
         {Math.round((confidenceScore ?? 0) * 100)}%
       </div>
@@ -303,12 +312,21 @@ const TradeOrderDetails = ({ trade }: { trade: TradeFields }) => (
             trade.ai_cost_usd != null
               ? fmt.usd(trade.ai_cost_usd, 4)
               : EMPTY_VALUE,
+            "trade-cost-attribution",
           ],
           ["Strategy", trade.strategy ?? EMPTY_VALUE],
-        ] as [string, string][]
-      ).map(([k, v]) => (
+        ] as [string, string, HelpGlossaryId?][]
+      ).map(([k, v, helpId]) => (
         <div key={k}>
-          <div className={orderFieldLabelClass}>{k}</div>
+          <div
+            className={cn(
+              orderFieldLabelClass,
+              "inline-flex items-center gap-1",
+            )}
+          >
+            {k}
+            {helpId ? <HelpTooltip glossaryId={helpId} /> : null}
+          </div>
           <div className={orderFieldValueClass}>{v}</div>
         </div>
       ))}
@@ -546,12 +564,15 @@ export const TradeDetail = ({
               </Badge>
             </div>
             {!isOpen && onViewAutopsy && (
-              <button
-                onClick={() => onViewAutopsy(tradeId)}
-                className={autopsyBtnClass}
-              >
-                ⚕ Review Trade
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => onViewAutopsy(tradeId)}
+                  className={autopsyBtnClass}
+                >
+                  ⚕ Review Trade
+                </button>
+                <HelpTooltip glossaryId="trade-autopsy" />
+              </div>
             )}
           </div>
 

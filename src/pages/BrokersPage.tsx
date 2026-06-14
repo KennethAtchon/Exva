@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { Badge, Card, PageShell } from "@/components/custom-ui";
-import { Button } from "@/components/ui";
+import { Button, HelpTooltip } from "@/components/ui";
 import { api } from "@/lib/exva";
 import type { BrokerAccountWithState } from "@/lib/types";
 import { fmt } from "@/lib/formatters";
@@ -56,8 +56,14 @@ const BrokerSettingsPanel = ({
 }) => (
   <div className={settingsPanelClass}>
     <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-      <label className={fieldClass}>
-        <span className={fieldLabelClass}>Max sessions</span>
+      <div className={fieldClass}>
+        <span className={fieldLabelClass}>
+          Max sessions{" "}
+          <HelpTooltip
+            topic="Max sessions"
+            body="Caps how many sessions can use this broker at the same time."
+          />
+        </span>
         <input
           type="number"
           min={1}
@@ -74,9 +80,15 @@ const BrokerSettingsPanel = ({
           }
           className={inputClass}
         />
-      </label>
-      <label className={fieldClass}>
-        <span className={fieldLabelClass}>Allocation enforcement</span>
+      </div>
+      <div className={fieldClass}>
+        <span className={fieldLabelClass}>
+          Allocation enforcement{" "}
+          <HelpTooltip
+            topic="Allocation enforcement"
+            body="Hard block prevents over-allocation. Warn only allows it but highlights the risk."
+          />
+        </span>
         <select
           value={draft.allocationEnforcement}
           onChange={(event) =>
@@ -93,9 +105,15 @@ const BrokerSettingsPanel = ({
           <option value="hard">Hard block</option>
           <option value="warn">Warn only</option>
         </select>
-      </label>
-      <label className={fieldClass}>
-        <span className={fieldLabelClass}>Refresh interval (min)</span>
+      </div>
+      <div className={fieldClass}>
+        <span className={fieldLabelClass}>
+          Refresh interval (min){" "}
+          <HelpTooltip
+            topic="Refresh interval"
+            body="How often Exva polls this broker for fresh balance information."
+          />
+        </span>
         <input
           type="number"
           min={1}
@@ -112,7 +130,7 @@ const BrokerSettingsPanel = ({
           }
           className={inputClass}
         />
-      </label>
+      </div>
     </div>
     <div className="flex justify-end gap-2">
       <Button
@@ -192,6 +210,7 @@ const BrokerCard = ({
               {broker.isStale ? (
                 <Badge variant="warn">Stale balance</Badge>
               ) : null}
+              <HelpTooltip glossaryId="broker-connection-health" />
             </div>
             <div className="mt-2 text-[12px] text-[var(--text3)]">
               Balance{" "}
@@ -201,6 +220,10 @@ const BrokerCard = ({
               {broker.balanceCachedAt
                 ? ` · updated ${formatIsoDateTime(broker.balanceCachedAt)}`
                 : ""}
+              <HelpTooltip
+                topic="Broker balance"
+                body="Balances are cached snapshots from the broker. Free capital is what is currently available for new session allocation."
+              />
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -425,7 +448,13 @@ export const BrokersPage = ({
       ) : null}
       {!ui.loading && visibleBrokers.length === 0 ? (
         <div className={emptyStateClass}>
-          No {environmentMode} broker accounts configured yet.
+          <div className="mb-2 font-medium text-[var(--text1)]">
+            No {environmentMode} broker accounts configured yet
+          </div>
+          <p className="mx-auto max-w-[420px] text-[13px] leading-relaxed">
+            Connect brokers on the Accounts page first. Sessions need assigned
+            broker accounts before they can launch.
+          </p>
         </div>
       ) : null}
 

@@ -2,7 +2,13 @@ import { useEffect, useReducer } from "react";
 import { api, type SessionCreateInput, type SessionSummary } from "@/lib/exva";
 import type { InstrumentClass, SessionTemplatePayload } from "@/lib/types";
 import { ShadcnSelect } from "@/components/custom-ui";
-import { Button, Dialog, DialogContent, Input } from "@/components/ui";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  HelpTooltip,
+  Input,
+} from "@/components/ui";
 type TemplateListItem = {
   id: string;
   name: string;
@@ -327,7 +333,10 @@ const renderSessionTemplatesModalView = ({
       <div className={panelClass}>
         <div className="mb-[18px] flex items-center justify-between">
           <div>
-            <h2 className="m-0 text-[20px]">Session Templates</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="m-0 text-[20px]">Session Templates</h2>
+              <HelpTooltip glossaryId="session-templates" />
+            </div>
             <div className="mt-1.5 text-[13px] text-[var(--text3)]">
               Capture a full session payload or seed a new one from saved
               structure.

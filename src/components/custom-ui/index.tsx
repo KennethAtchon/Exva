@@ -39,11 +39,9 @@ export const Badge = ({
     blue: "border-info-border bg-info-dim text-info",
     purple: "border-market-border bg-market-dim text-market",
   };
-  const label = title ?? (typeof children === "string" ? children : undefined);
-
   return (
     <UIBadge
-      title={label}
+      title={title}
       className={cn(
         "inline-flex max-w-full min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap rounded-[5px] font-mono font-medium tracking-wide",
         size === "sm"

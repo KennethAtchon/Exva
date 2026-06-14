@@ -7,7 +7,7 @@ import {
   useRef,
 } from "react";
 import { Badge, Card, PageShell, ShadcnSelect } from "@/components/custom-ui";
-import { Button, Checkbox } from "@/components/ui";
+import { Button, Checkbox, HelpTooltip } from "@/components/ui";
 import {
   api,
   listenEvent,
@@ -25,6 +25,7 @@ import {
   type SessionProgressState,
 } from "@/components/sessions/SessionExecutionProgress";
 import { cn } from "@/lib/utils";
+import { SESSION_STATUS_HELP_IDS } from "@/lib/help-glossary";
 import { useWorkspaceStore } from "@/store/workspaceStore";
 
 const mergeReducer = <S,>(s: S, u: Partial<S>): S => ({ ...s, ...u });
@@ -33,9 +34,6 @@ type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
 
 const FORCE_STOP_CONFIRM_MESSAGE =
   "Force stop will end automated exit management for open positions. Continue?";
-
-const STOP_WHEN_FLAT_TITLE =
-  "Stops new research immediately and completes shutdown once all open trades close.";
 
 interface LiveReadinessReport {
   readyToStart: boolean;
@@ -184,35 +182,43 @@ const SessionFilters = ({
       placeholder="Search by name or objective"
       className={cn(inputClass, "flex-1")}
     />
-    <ShadcnSelect
-      value={statusFilter}
-      onValueChange={(value) => onStatusChange(value as SessionStatus | "all")}
-      className="w-[180px]"
-      options={[
-        { value: "all", label: "All statuses" },
-        { value: "draft", label: "Draft" },
-        { value: "idle", label: "Idle" },
-        { value: "active", label: "Active" },
-        { value: "attention_required", label: "Needs attention" },
-        { value: "paused", label: "Paused" },
-        { value: "monitoring_only", label: "Stopping when flat" },
-        { value: "stopped", label: "Stopped" },
-        { value: "archived", label: "Archived" },
-      ]}
-    />
-    <ShadcnSelect
-      value={instrumentFilter}
-      onValueChange={(value) =>
-        onInstrumentChange(value as InstrumentClass | "all")
-      }
-      className="w-[180px]"
-      options={[
-        { value: "all", label: "All instruments" },
-        { value: "stock", label: "Stocks" },
-        { value: "crypto", label: "Crypto" },
-        { value: "futures", label: "Futures" },
-      ]}
-    />
+    <div className="flex items-center gap-1">
+      <ShadcnSelect
+        value={statusFilter}
+        onValueChange={(value) =>
+          onStatusChange(value as SessionStatus | "all")
+        }
+        className="w-[180px]"
+        options={[
+          { value: "all", label: "All statuses" },
+          { value: "draft", label: "Draft" },
+          { value: "idle", label: "Idle" },
+          { value: "active", label: "Active" },
+          { value: "attention_required", label: "Needs attention" },
+          { value: "paused", label: "Paused" },
+          { value: "monitoring_only", label: "Stopping when flat" },
+          { value: "stopped", label: "Stopped" },
+          { value: "archived", label: "Archived" },
+        ]}
+      />
+      <HelpTooltip glossaryId="status-filter" />
+    </div>
+    <div className="flex items-center gap-1">
+      <ShadcnSelect
+        value={instrumentFilter}
+        onValueChange={(value) =>
+          onInstrumentChange(value as InstrumentClass | "all")
+        }
+        className="w-[180px]"
+        options={[
+          { value: "all", label: "All instruments" },
+          { value: "stock", label: "Stocks" },
+          { value: "crypto", label: "Crypto" },
+          { value: "futures", label: "Futures" },
+        ]}
+      />
+      <HelpTooltip glossaryId="instrument-class" />
+    </div>
     <div className="flex items-center gap-2 whitespace-nowrap text-[12px] text-[var(--text2)]">
       <Checkbox
         checked={includeArchived}
@@ -243,43 +249,58 @@ const SessionFocusPanel = ({
   return (
     <div className="flex flex-wrap justify-end gap-2">
       {status === "draft" || status === "idle" || status === "stopped" ? (
-        <Button
-          variant="ghost"
-          onClick={() => onLifecycleAction(focusedSession, "start")}
-          className={cn(
-            primaryButtonClass,
-            aiReady === false && disabledStartClass,
-          )}
-          disabled={actionSessionId === focusedSession.id || aiReady === false}
-          title={
-            aiReady === false
-              ? "AI providers not connected — configure in Strategy tab before starting"
-              : undefined
-          }
-        >
-          Start
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            onClick={() => onLifecycleAction(focusedSession, "start")}
+            className={cn(
+              primaryButtonClass,
+              aiReady === false && disabledStartClass,
+            )}
+            disabled={
+              actionSessionId === focusedSession.id || aiReady === false
+            }
+          >
+            Start
+          </Button>
+          <HelpTooltip
+            topic="Start session"
+            body={
+              aiReady === false
+                ? "AI providers are not connected yet. Configure them on the Strategy page before starting."
+                : "Starts signal processing and new research cycles for the focused session."
+            }
+          />
+        </div>
       ) : null}
       {status === "active" ? (
-        <Button
-          variant="outline"
-          onClick={() => onLifecycleAction(focusedSession, "pause")}
-          className={secondaryButtonClass}
-          disabled={actionSessionId === focusedSession.id}
-          title="Pause stops new research but keeps exits managed."
-        >
-          Pause
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            onClick={() => onLifecycleAction(focusedSession, "pause")}
+            className={secondaryButtonClass}
+            disabled={actionSessionId === focusedSession.id}
+          >
+            Pause
+          </Button>
+          <HelpTooltip
+            topic="Pause session"
+            body="Pause stops new research but keeps exits and open-position monitoring active."
+          />
+        </div>
       ) : null}
       {status === "paused" ? (
-        <Button
-          variant="ghost"
-          onClick={() => onLifecycleAction(focusedSession, "resume")}
-          className={primaryButtonClass}
-          disabled={actionSessionId === focusedSession.id}
-        >
-          Resume
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            onClick={() => onLifecycleAction(focusedSession, "resume")}
+            className={primaryButtonClass}
+            disabled={actionSessionId === focusedSession.id}
+          >
+            Resume
+          </Button>
+          <HelpTooltip glossaryId="resume-session" />
+        </div>
       ) : null}
       {status === "monitoring_only" ? (
         <div className={drainBannerClass}>
@@ -299,29 +320,33 @@ const SessionFocusPanel = ({
         </Button>
       ) : null}
       {(status === "active" || status === "paused") && openTradeCount > 0 ? (
-        <Button
-          variant="ghost"
-          onClick={() => onLifecycleAction(focusedSession, "stop")}
-          className={stopWhenFlatButtonClass}
-          disabled={actionSessionId === focusedSession.id}
-          title={STOP_WHEN_FLAT_TITLE}
-        >
-          Stop when flat
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            onClick={() => onLifecycleAction(focusedSession, "stop")}
+            className={stopWhenFlatButtonClass}
+            disabled={actionSessionId === focusedSession.id}
+          >
+            Stop when flat
+          </Button>
+          <HelpTooltip topic="Stop when flat" glossaryId="stop-when-flat" />
+        </div>
       ) : null}
       {(status === "active" ||
         status === "paused" ||
         status === "monitoring_only") &&
       openTradeCount > 0 ? (
-        <Button
-          variant="ghost"
-          onClick={() => onLifecycleAction(focusedSession, "forceStop")}
-          className={forceStopButtonClass}
-          disabled={actionSessionId === focusedSession.id}
-          title="Force stop ends automated exit management for open positions."
-        >
-          Force stop (loses trade management)
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            onClick={() => onLifecycleAction(focusedSession, "forceStop")}
+            className={forceStopButtonClass}
+            disabled={actionSessionId === focusedSession.id}
+          >
+            Force stop (loses trade management)
+          </Button>
+          <HelpTooltip glossaryId="force-stop" />
+        </div>
       ) : null}
       {status === "stopped" && openTradeCount > 0 ? (
         <div className={orphanWarningClass}>
@@ -756,10 +781,21 @@ const renderSessionsPageView = ({
             <Badge variant={viewMode === "global" ? "purple" : "blue"}>
               {viewMode}
             </Badge>
+            <HelpTooltip
+              glossaryId={
+                viewMode === "global" ? "view-global" : "view-session-focused"
+              }
+            />
             {focusedSession ? (
-              <Badge variant={statusVariant(focusedSession.status)}>
-                {formatSessionStatusLabel(focusedSession.status)}
-              </Badge>
+              <div className="flex items-center gap-1">
+                <Badge variant={statusVariant(focusedSession.status)}>
+                  {formatSessionStatusLabel(focusedSession.status)}
+                </Badge>
+                <HelpTooltip
+                  glossaryId={SESSION_STATUS_HELP_IDS[focusedSession.status]}
+                  topic={`${focusedSession.name} status`}
+                />
+              </div>
             ) : null}
           </div>
           <div className="mt-2.5 text-[24px] font-bold text-[var(--text1)]">
@@ -773,6 +809,12 @@ const renderSessionsPageView = ({
 
         <div className="grid min-w-[280px] gap-3">
           <div className={contextMetricsClass}>
+            <div className="col-span-2 flex items-center gap-1.5 pb-1">
+              <span className="text-[11px] uppercase tracking-[0.1em] text-[var(--text3)]">
+                Metrics
+              </span>
+              <HelpTooltip glossaryId="session-metrics-scope" />
+            </div>
             <ContextMetric
               label="sessions"
               value={String(data.sessions.length)}
@@ -816,7 +858,20 @@ const renderSessionsPageView = ({
       ) : null}
       {!data.loading && data.sessions.length === 0 ? (
         <div className={emptyStateClass}>
-          No sessions matched the current filters.
+          <div className="mb-2 text-[15px] font-semibold text-[var(--text1)]">
+            {filters.search ||
+            filters.statusFilter !== "all" ||
+            filters.instrumentFilter !== "all"
+              ? "No sessions matched the current filters"
+              : "No sessions yet"}
+          </div>
+          <p className="mx-auto max-w-[420px] text-[13px] leading-relaxed text-[var(--text2)]">
+            {filters.search ||
+            filters.statusFilter !== "all" ||
+            filters.instrumentFilter !== "all"
+              ? "Try clearing filters or include archived sessions."
+              : "Create a session by choosing an experience and signal source, then assign broker accounts for execution."}
+          </p>
         </div>
       ) : null}
       {!data.loading && data.sessions.length > 0 ? (

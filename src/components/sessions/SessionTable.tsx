@@ -1,6 +1,7 @@
 import { Badge } from "@/components/custom-ui";
-import { Button } from "@/components/ui";
+import { Button, HelpTooltip } from "@/components/ui";
 import type { SessionSummary } from "@/lib/exva";
+import { SESSION_STATUS_HELP_IDS } from "@/lib/help-glossary";
 import { cn } from "@/lib/utils";
 import type { ExecutionStage } from "@/lib/types";
 import { getSearchProviderDisplayName } from "@electron/shared/instruments/search-providers";
@@ -13,9 +14,6 @@ type LifecycleAction = "start" | "pause" | "resume" | "stop" | "forceStop";
 
 const FORCE_STOP_CONFIRM_MESSAGE =
   "Force stop will end automated exit management for open positions. Continue?";
-
-const STOP_WHEN_FLAT_TITLE =
-  "Stops new research immediately and completes shutdown once all open trades close.";
 
 // ---------------------------------------------------------------------------
 // SessionControls — lifecycle action button group within each card
@@ -51,82 +49,107 @@ const SessionControls = ({
 
   return (
     <div className={controlsBarClass}>
-      <Button
-        onClick={() => onFocus(session.id)}
-        variant="outline"
-        className={cn(
-          actionButtonClass,
-          session.isFocused && focusedButtonClass,
-        )}
-        disabled={busy || session.isFocused}
-      >
-        {session.isFocused ? "Focused" : "Focus"}
-      </Button>
-      <Button
-        onClick={() => onEdit(session)}
-        variant="outline"
-        className={actionButtonClass}
-        disabled={busy || locked}
-      >
-        Edit
-      </Button>
-      <Button
-        onClick={() => onDuplicate(session)}
-        variant="outline"
-        className={actionButtonClass}
-        disabled={busy}
-      >
-        Duplicate
-      </Button>
-      <Button
-        onClick={() => onSaveTemplate(session)}
-        variant="outline"
-        className={actionButtonClass}
-        disabled={busy}
-      >
-        Save Template
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button
+          onClick={() => onFocus(session.id)}
+          variant="outline"
+          className={cn(
+            actionButtonClass,
+            session.isFocused && focusedButtonClass,
+          )}
+          disabled={busy || session.isFocused}
+        >
+          {session.isFocused ? "Focused" : "Focus"}
+        </Button>
+        <HelpTooltip glossaryId="focus-session" />
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          onClick={() => onEdit(session)}
+          variant="outline"
+          className={actionButtonClass}
+          disabled={busy || locked}
+        >
+          Edit
+        </Button>
+        {locked ? <HelpTooltip glossaryId="session-edit-locked" /> : null}
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          onClick={() => onDuplicate(session)}
+          variant="outline"
+          className={actionButtonClass}
+          disabled={busy}
+        >
+          Duplicate
+        </Button>
+        <HelpTooltip glossaryId="duplicate-session" />
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          onClick={() => onSaveTemplate(session)}
+          variant="outline"
+          className={actionButtonClass}
+          disabled={busy}
+        >
+          Save Template
+        </Button>
+        <HelpTooltip glossaryId="save-template" />
+      </div>
       <div className="flex-1" />
       {session.status === "draft" ||
       session.status === "idle" ||
       session.status === "stopped" ? (
-        <Button
-          onClick={() => onLifecycle(session, "start")}
-          variant="ghost"
-          className={cn(
-            primaryActionButtonClass,
-            aiBlocked && blockedButtonClass,
-          )}
-          disabled={busy || aiBlocked}
-          title={
-            aiBlocked
-              ? "AI providers not connected — configure in Strategy tab"
-              : undefined
-          }
-        >
-          Start
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={() => onLifecycle(session, "start")}
+            variant="ghost"
+            className={cn(
+              primaryActionButtonClass,
+              aiBlocked && blockedButtonClass,
+            )}
+            disabled={busy || aiBlocked}
+          >
+            Start
+          </Button>
+          <HelpTooltip
+            topic="Start session"
+            body={
+              aiBlocked
+                ? "AI providers are not connected yet. Configure them on the Strategy page before starting."
+                : "Starts signal processing and new research cycles for this session."
+            }
+          />
+        </div>
       ) : null}
       {session.status === "active" ? (
-        <Button
-          onClick={() => onLifecycle(session, "pause")}
-          variant="outline"
-          className={actionButtonClass}
-          disabled={busy}
-          title="Pause stops new research but keeps exits managed."
-        >
-          Pause
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={() => onLifecycle(session, "pause")}
+            variant="outline"
+            className={actionButtonClass}
+            disabled={busy}
+          >
+            Pause
+          </Button>
+          <HelpTooltip
+            topic="Pause session"
+            body="Pause stops new research but keeps exits and open-position monitoring active."
+          />
+        </div>
       ) : null}
       {session.status === "paused" ? (
-        <Button
-          onClick={() => onLifecycle(session, "resume")}
-          variant="ghost"
-          className={primaryActionButtonClass}
-          disabled={busy}
-        >
-          Resume
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={() => onLifecycle(session, "resume")}
+            variant="ghost"
+            className={primaryActionButtonClass}
+            disabled={busy}
+          >
+            Resume
+          </Button>
+          <HelpTooltip glossaryId="resume-session" />
+        </div>
       ) : null}
       {(session.status === "active" || session.status === "paused") &&
       !hasOpenTrades ? (
@@ -141,32 +164,36 @@ const SessionControls = ({
       ) : null}
       {(session.status === "active" || session.status === "paused") &&
       hasOpenTrades ? (
-        <Button
-          onClick={() => onLifecycle(session, "stop")}
-          variant="ghost"
-          className={stopWhenFlatButtonClass}
-          disabled={busy}
-          title={STOP_WHEN_FLAT_TITLE}
-        >
-          Stop when flat
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={() => onLifecycle(session, "stop")}
+            variant="ghost"
+            className={stopWhenFlatButtonClass}
+            disabled={busy}
+          >
+            Stop when flat
+          </Button>
+          <HelpTooltip glossaryId="stop-when-flat" />
+        </div>
       ) : null}
       {(session.status === "active" ||
         session.status === "paused" ||
         session.status === "monitoring_only") &&
       hasOpenTrades ? (
-        <Button
-          onClick={() => {
-            if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) return;
-            onLifecycle(session, "forceStop");
-          }}
-          variant="ghost"
-          className={forceStopButtonClass}
-          disabled={busy}
-          title="Force stop ends automated exit management for open positions."
-        >
-          Force stop (loses trade management)
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={() => {
+              if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) return;
+              onLifecycle(session, "forceStop");
+            }}
+            variant="ghost"
+            className={forceStopButtonClass}
+            disabled={busy}
+          >
+            Force stop (loses trade management)
+          </Button>
+          <HelpTooltip glossaryId="force-stop" />
+        </div>
       ) : null}
       <Button
         onClick={() => onArchive(session.id)}
@@ -265,15 +292,21 @@ const SessionCard = ({
               {session.name}
             </span>
             {session.isFocused ? <Badge variant="blue">focused</Badge> : null}
-            <Badge
-              variant={
-                runningButWaiting ? "warn" : statusVariant(session.status)
-              }
-            >
-              {runningButWaiting
-                ? "Waiting"
-                : formatSessionStatusLabel(session.status)}
-            </Badge>
+            <div className="flex items-center gap-1">
+              <Badge
+                variant={
+                  runningButWaiting ? "warn" : statusVariant(session.status)
+                }
+              >
+                {runningButWaiting
+                  ? "Waiting"
+                  : formatSessionStatusLabel(session.status)}
+              </Badge>
+              <HelpTooltip
+                glossaryId={SESSION_STATUS_HELP_IDS[session.status]}
+                topic={`${session.name} status`}
+              />
+            </div>
           </div>
           <div className={objectiveClass}>{session.objective}</div>
         </button>
@@ -301,9 +334,26 @@ const SessionCard = ({
                   ? "AI"
                   : "Manual"}
             </span>
+            <HelpTooltip
+              topic="Selection mode"
+              body={
+                session.selectionMode === "signal_driven"
+                  ? "Signal-driven sessions react to subscribed signals."
+                  : session.selectionMode === "ai_selected_universe"
+                    ? "AI mode lets the selector discover instruments from the allowed universe."
+                    : "Manual mode works from the tickers you provide."
+              }
+            />
             <span className={cn(chipClass, "text-[var(--text3)]")}>
               {session.executionMode === "live_allowed" ? "Live" : "Paper"}
             </span>
+            <HelpTooltip
+              glossaryId={
+                session.executionMode === "live_allowed"
+                  ? "execution-mode-live-allowed"
+                  : "execution-mode-paper-only"
+              }
+            />
           </div>
         </div>
       </div>

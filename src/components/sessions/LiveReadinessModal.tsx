@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui";
+import { Button, HelpTooltip } from "@/components/ui";
 import { api } from "@/lib/exva";
 import { cn } from "@/lib/utils";
 
@@ -94,8 +94,11 @@ export const LiveReadinessModal = ({
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[rgba(0,0,0,0.72)]">
       <div className="flex max-w-[90vw] w-[520px] flex-col overflow-hidden rounded-2xl border border-error-border bg-[var(--surface)] shadow-[0_24px_64px_rgba(0,0,0,0.48)]">
         <div className="border-b border-[var(--border)] bg-error-dim px-6 pb-4 pt-5">
-          <div className="text-base font-bold text-[var(--text1)]">
-            Live Trading Gate
+          <div className="flex items-center gap-1.5">
+            <div className="text-base font-bold text-[var(--text1)]">
+              Live Trading Gate
+            </div>
+            <HelpTooltip glossaryId="live-readiness-gate" />
           </div>
           <div className="mt-1 text-[12px] text-[var(--text3)]">
             All checks must pass before starting a live session
@@ -124,15 +127,25 @@ export const LiveReadinessModal = ({
                 {check.passed ? "✓" : "✗"}
               </div>
               <div className="min-w-0 flex-1">
-                <div
-                  className={cn(
-                    "text-[13px] font-medium",
-                    check.passed
-                      ? "text-[var(--text1)]"
-                      : "text-[var(--text2)]",
-                  )}
-                >
-                  {CHECK_LABELS[check.name] ?? check.name}
+                <div className="flex items-center gap-1">
+                  <div
+                    className={cn(
+                      "text-[13px] font-medium",
+                      check.passed
+                        ? "text-[var(--text1)]"
+                        : "text-[var(--text2)]",
+                    )}
+                  >
+                    {CHECK_LABELS[check.name] ?? check.name}
+                  </div>
+                  <HelpTooltip
+                    topic={CHECK_LABELS[check.name] ?? check.name}
+                    body={
+                      CHECK_DESCRIPTIONS[check.name] ??
+                      check.message ??
+                      "Readiness check for live execution."
+                    }
+                  />
                 </div>
                 <div className="mt-0.5 text-[12px] text-[var(--text3)]">
                   {check.message ?? CHECK_DESCRIPTIONS[check.name]}

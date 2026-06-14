@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Card, PageShell } from "@/components/custom-ui";
-import { Button, Dialog, DialogContent, Switch } from "@/components/ui";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  HelpTooltip,
+  Switch,
+} from "@/components/ui";
 import { api } from "@/lib/exva";
 import { useExvaEvent } from "@/hooks/useExvaEvent";
+import type { HelpGlossaryId } from "@/lib/help-glossary";
 
 type Source = Awaited<
   ReturnType<typeof api.listSignalSources>
@@ -56,6 +63,12 @@ export function SignalSourcesPage() {
           <p className="mt-2 text-[13px] text-[var(--text3)]">
             Connect real-time data feeds to drive the trading pipeline.
           </p>
+          <div className="mt-2">
+            <HelpTooltip
+              glossaryId="signal-source"
+              body="Sources are global. Sessions subscribe to one active source at a time."
+            />
+          </div>
         </div>
         <Button
           className="bg-[var(--accent)] text-white"
@@ -88,7 +101,13 @@ export function SignalSourcesPage() {
           </div>
         ) : sources.length === 0 ? (
           <div className="m-4 rounded-lg border border-dashed border-[var(--border)] p-6 text-[13px] text-[var(--text3)]">
-            No signal sources configured. Add one to get started.
+            <div className="mb-2 font-medium text-[var(--text1)]">
+              No signal sources configured
+            </div>
+            <p className="m-0 leading-relaxed">
+              Signal sources are global. Create one here, then subscribe
+              sessions to it when you create or edit a session.
+            </p>
           </div>
         ) : (
           <div>
@@ -215,6 +234,20 @@ function SourceRow({
           <span className={statusBadgeClass(source.runtimeStatus)}>
             {statusLabel}
           </span>
+          <HelpTooltip
+            topic={`${source.name} status`}
+            body={
+              source.runtimeStatus === "running"
+                ? "The source is actively polling or listening for new events."
+                : source.runtimeStatus === "paused"
+                  ? "The source is configured but temporarily not polling."
+                  : source.runtimeStatus === "restarting"
+                    ? "The source is being restarted after a config or runtime change."
+                    : source.runtimeStatus === "error"
+                      ? "The source hit a runtime error and is not operating normally."
+                      : "The source is configured but not actively polling right now."
+            }
+          />
         </div>
         {source.runtimeLastError ? (
           <div className="mt-1 text-[12px] text-error">
@@ -251,33 +284,43 @@ function SourceRow({
           disabled={pending}
           onCheckedChange={onToggle}
         />
+        <HelpTooltip
+          topic="Enable source"
+          body="Disabling a source keeps subscriptions in place, but subscribed sessions will wait idle until the source is enabled again."
+        />
         {source.type === "edgar_8k" ? (
-          <Button
-            variant="outline"
-            className="h-8 text-xs"
-            disabled={pending}
-            onClick={async () => {
-              setPending(true);
-              setTestResult(null);
-              try {
-                const result = await api.testSignalSource(source.id);
-                setTestResult(
-                  `Test poll: ${result.result.detected} detected, ${result.result.passed} passed, ${result.result.dropped} dropped.`,
-                );
-                onChanged();
-              } catch (err) {
-                setTestResult(
-                  err instanceof Error
-                    ? err.message
-                    : "Signal source test failed.",
-                );
-              } finally {
-                setPending(false);
-              }
-            }}
-          >
-            Test
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              className="h-8 text-xs"
+              disabled={pending}
+              onClick={async () => {
+                setPending(true);
+                setTestResult(null);
+                try {
+                  const result = await api.testSignalSource(source.id);
+                  setTestResult(
+                    `Test poll: ${result.result.detected} detected, ${result.result.passed} passed, ${result.result.dropped} dropped.`,
+                  );
+                  onChanged();
+                } catch (err) {
+                  setTestResult(
+                    err instanceof Error
+                      ? err.message
+                      : "Signal source test failed.",
+                  );
+                } finally {
+                  setPending(false);
+                }
+              }}
+            >
+              Test
+            </Button>
+            <HelpTooltip
+              topic="Test source"
+              body="Runs one poll now and reports detections. It does not enqueue session deliveries."
+            />
+          </div>
         ) : null}
         <Button
           variant="outline"
@@ -287,14 +330,17 @@ function SourceRow({
         >
           Configure
         </Button>
-        <Button
-          variant="outline"
-          className="h-8 text-xs text-error"
-          disabled={pending}
-          onClick={() => void remove()}
-        >
-          Remove
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            className="h-8 text-xs text-error"
+            disabled={pending}
+            onClick={() => void remove()}
+          >
+            Remove
+          </Button>
+          <HelpTooltip glossaryId="remove-signal-source" />
+        </div>
       </div>
     </div>
   );
@@ -343,6 +389,7 @@ function AddSourceDialog({
                 }}
               />
               <span>EDGAR 8-K</span>
+              <HelpTooltip glossaryId="signal-type-edgar-8k" />
             </span>
             <span className="text-[12px] text-[var(--text3)]">
               Polls SEC EDGAR for 8-K filings in real time. Free, no API key.
@@ -359,6 +406,7 @@ function AddSourceDialog({
                 }}
               />
               <span>Web Search</span>
+              <HelpTooltip glossaryId="signal-type-web-search" />
             </span>
             <span className="text-[12px] text-[var(--text3)]">
               Legacy: uses web search and trending symbols to find candidates.
@@ -377,7 +425,10 @@ function AddSourceDialog({
             </InputField>
             {type === "edgar_8k" ? (
               <div className="grid grid-cols-2 gap-3">
-                <InputField label="Poll interval (market hours)">
+                <InputField
+                  label="Poll interval (market hours)"
+                  glossaryId="edgar-poll-interval"
+                >
                   <input
                     type="number"
                     min={1}
@@ -387,7 +438,10 @@ function AddSourceDialog({
                     className={inputClass}
                   />
                 </InputField>
-                <InputField label="Poll interval (off-hours)">
+                <InputField
+                  label="Poll interval (off-hours)"
+                  glossaryId="edgar-poll-interval"
+                >
                   <input
                     type="number"
                     min={5}
@@ -513,7 +567,10 @@ function ConfigureSourceDialog({
           {form.source.type === "edgar_8k" ? (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <InputField label="Poll interval - market hours (min)">
+                <InputField
+                  label="Poll interval - market hours (min)"
+                  glossaryId="edgar-poll-interval"
+                >
                   <input
                     type="number"
                     min={1}
@@ -532,7 +589,10 @@ function ConfigureSourceDialog({
                     className={inputClass}
                   />
                 </InputField>
-                <InputField label="Poll interval - off-hours (min)">
+                <InputField
+                  label="Poll interval - off-hours (min)"
+                  glossaryId="edgar-poll-interval"
+                >
                   <input
                     type="number"
                     min={5}
@@ -552,7 +612,10 @@ function ConfigureSourceDialog({
                   />
                 </InputField>
               </div>
-              <InputField label="CIK whitelist (optional, one per line)">
+              <InputField
+                label="CIK whitelist (optional, one per line)"
+                glossaryId="edgar-cik-whitelist"
+              >
                 <textarea
                   value={form.cikWhitelist}
                   onChange={(event) => {
@@ -566,7 +629,10 @@ function ConfigureSourceDialog({
                   className={textareaClass}
                 />
               </InputField>
-              <InputField label="Min signal age before emitting (min)">
+              <InputField
+                label="Min signal age before emitting (min)"
+                glossaryId="edgar-min-filing-age"
+              >
                 <input
                   type="number"
                   min={0}
@@ -664,14 +730,19 @@ function ConfigureSourceDialog({
 function InputField({
   label,
   children,
+  glossaryId,
 }: {
   label: string;
   children: ReactNode;
+  glossaryId?: HelpGlossaryId;
 }) {
   return (
     <label className="grid gap-1.5 text-[12px]">
-      <span className="uppercase tracking-[0.08em] text-[var(--text3)]">
+      <span className="inline-flex items-center gap-1 uppercase tracking-[0.08em] text-[var(--text3)]">
         {label}
+        {glossaryId ? (
+          <HelpTooltip glossaryId={glossaryId} topic={label} />
+        ) : null}
       </span>
       {children}
     </label>

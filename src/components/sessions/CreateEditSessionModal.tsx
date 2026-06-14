@@ -14,8 +14,11 @@ import {
   Checkbox,
   Dialog,
   DialogContent,
+  HelpTooltip,
+  LabelWithHelp,
   Switch,
 } from "@/components/ui";
+import { EXPERIENCE_HELP_IDS, type HelpGlossaryId } from "@/lib/help-glossary";
 import { cn } from "@/lib/utils";
 import {
   buildSearchEverythingScope,
@@ -504,7 +507,7 @@ export const CreateEditSessionModal = ({
               />
               <div className={sectionBodyClass}>
                 {experiencesLoaded && experiences.length > 0 ? (
-                  <Field label="Experience">
+                  <Field label="Experience" glossaryId="experience">
                     <ShadcnSelect
                       value={form.experienceId ?? experiences[0]?.id ?? ""}
                       onValueChange={(experienceId) => {
@@ -549,6 +552,17 @@ export const CreateEditSessionModal = ({
                           ", ",
                         )}
                         .
+                        {EXPERIENCE_HELP_IDS[
+                          selectedExperience.id as keyof typeof EXPERIENCE_HELP_IDS
+                        ] ? (
+                          <HelpTooltip
+                            glossaryId={
+                              EXPERIENCE_HELP_IDS[
+                                selectedExperience.id as keyof typeof EXPERIENCE_HELP_IDS
+                              ]
+                            }
+                          />
+                        ) : null}{" "}
                         {initialSession
                           ? " Experience is fixed after session creation."
                           : null}
@@ -571,7 +585,7 @@ export const CreateEditSessionModal = ({
                     />
                   </Field>
                 </div>
-                <Field label="Objective">
+                <Field label="Objective" glossaryId="session-objective">
                   <textarea
                     value={form.objective}
                     onChange={(event) =>
@@ -591,6 +605,7 @@ export const CreateEditSessionModal = ({
               <SectionHeader
                 title="Signal Sources"
                 caption="Pick the one signal that drives this session."
+                glossaryId="signal-source"
               />
               <div className={sectionBodyClass}>
                 {!signalSourcesLoaded ? (
@@ -632,6 +647,18 @@ export const CreateEditSessionModal = ({
                               <span className={kindChipClass}>
                                 {isSearchStyle ? "Search" : "Listener"}
                               </span>
+                              <HelpTooltip
+                                topic={
+                                  isSearchStyle
+                                    ? "Search source"
+                                    : "Listener source"
+                                }
+                                body={
+                                  isSearchStyle
+                                    ? "Search sources actively look for relevant news or web results."
+                                    : "Listener sources wait for incoming events such as filings or platform events."
+                                }
+                              />
                             </span>
                             <span className="mt-px block text-[12px] text-[var(--text3)]">
                               {source.type === "edgar_8k"
@@ -648,13 +675,28 @@ export const CreateEditSessionModal = ({
                   </div>
                 )}
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text2)]">
-                  {readiness === "armed"
-                    ? `Live inputs: ${manualTickerCount} manual ticker(s), ${enabledSubscribedSourceCount} enabled source(s)`
-                    : readiness === "manual_only"
-                      ? "This session will run from manual tickers only."
-                      : readiness === "waiting_for_source_enable"
-                        ? `This session is subscribed to ${disabledSubscribedSourceCount} source(s), but all are disabled. Starting now will put the session in waiting mode.`
-                        : "This session has no live inputs yet. Add manual tickers or enable at least one subscribed source."}
+                  <div className="flex items-start justify-between gap-2">
+                    <span>
+                      {readiness === "armed"
+                        ? `Live inputs: ${manualTickerCount} manual ticker(s), ${enabledSubscribedSourceCount} enabled source(s)`
+                        : readiness === "manual_only"
+                          ? "This session will run from manual tickers only."
+                          : readiness === "waiting_for_source_enable"
+                            ? `This session is subscribed to ${disabledSubscribedSourceCount} source(s), but all are disabled. Starting now will put the session in waiting mode.`
+                            : "This session has no live inputs yet. Add manual tickers or enable at least one subscribed source."}
+                    </span>
+                    <HelpTooltip
+                      glossaryId={
+                        readiness === "armed"
+                          ? "source-readiness-armed"
+                          : readiness === "manual_only"
+                            ? "source-readiness-manual-only"
+                            : readiness === "waiting_for_source_enable"
+                              ? "source-readiness-waiting-for-source-enable"
+                              : "source-readiness-no-inputs"
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             </section>
@@ -672,7 +714,10 @@ export const CreateEditSessionModal = ({
                 {showInstrumentFilter ? (
                   <>
                     <div className={twoColumnGridClass}>
-                      <Field label="Search provider override">
+                      <Field
+                        label="Search provider override"
+                        glossaryId="search-provider-override"
+                      >
                         <ShadcnSelect
                           value={
                             form.defaultSearchProviderId ??
@@ -706,7 +751,7 @@ export const CreateEditSessionModal = ({
                     </div>
                     {searchEverything &&
                     effectiveInstrumentClasses.length > 1 ? (
-                      <Field label="Research focus">
+                      <Field label="Research focus" glossaryId="research-focus">
                         <ShadcnSelect
                           value={
                             searchEverythingFocusInstrumentClass ?? "__all__"
@@ -741,7 +786,7 @@ export const CreateEditSessionModal = ({
                         </div>
                       </Field>
                     ) : null}
-                    <Field label="Manual tickers">
+                    <Field label="Manual tickers" glossaryId="manual-tickers">
                       <textarea
                         value={form.instrumentScope}
                         onChange={(event) =>
@@ -775,7 +820,7 @@ export const CreateEditSessionModal = ({
                 title="Execution Setup"
                 caption="Pick broker accounts for this session."
               />
-              <Field label="Broker accounts">
+              <Field label="Broker accounts" glossaryId="broker-accounts">
                 <div className={brokerPickerClass}>
                   {visibleBrokers.length === 0 ? (
                     <div className={inlineHintClass}>
@@ -849,7 +894,7 @@ export const CreateEditSessionModal = ({
                               <div className="text-[12px] font-semibold text-[var(--text1)]">
                                 {broker.name}
                               </div>
-                              <div className="mt-0.5 text-[12px] text-[var(--text3)]">
+                              <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-[var(--text3)]">
                                 Balance:{" "}
                                 {broker.balanceCacheUsd != null
                                   ? `$${broker.balanceCacheUsd.toLocaleString()}`
@@ -859,6 +904,10 @@ export const CreateEditSessionModal = ({
                                 {broker.freeCapitalUsd != null
                                   ? `$${broker.freeCapitalUsd.toLocaleString()}`
                                   : "—"}
+                                <HelpTooltip
+                                  glossaryId="allocation"
+                                  topic="Broker allocation"
+                                />
                               </div>
                             </div>
                             <div className="grid justify-items-end gap-1.5">
@@ -935,7 +984,11 @@ export const CreateEditSessionModal = ({
                       {uncoveredExperienceInstrumentClasses
                         .map(formatInstrumentClass)
                         .join(", ")}
-                      .
+                      .{" "}
+                      <HelpTooltip
+                        glossaryId="dead-letter"
+                        topic="Dead letters"
+                      />
                     </div>
                   ) : null}
                   {!isLaunchable ? (
@@ -943,13 +996,13 @@ export const CreateEditSessionModal = ({
                       Selected brokers must cover at least one class supported
                       by this experience (
                       {experienceClasses.map(formatInstrumentClass).join(", ")}
-                      ).
+                      ). <HelpTooltip glossaryId="launchability" />
                     </div>
                   ) : (
                     <div className={successTextClass}>
                       Launchable with broker coverage for{" "}
                       {overlappingClasses.map(formatInstrumentClass).join(", ")}
-                      .
+                      . <HelpTooltip glossaryId="launchability" />
                     </div>
                   )}
                 </div>
@@ -1035,13 +1088,18 @@ export const CreateEditSessionModal = ({
 const SectionHeader = ({
   title,
   caption,
+  glossaryId,
 }: {
   title: string;
   caption: string;
+  glossaryId?: HelpGlossaryId;
 }) => (
   <div className="mb-3.5">
-    <div className="text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text3)]">
-      {title}
+    <div className="flex items-center gap-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-[var(--text3)]">
+      <span>{title}</span>
+      {glossaryId ? (
+        <HelpTooltip glossaryId={glossaryId} topic={title} />
+      ) : null}
     </div>
     <div className="mt-1 text-[12px] text-[var(--text2)]">{caption}</div>
   </div>
@@ -1050,16 +1108,26 @@ const SectionHeader = ({
 const Field = ({
   label,
   children,
+  glossaryId,
+  title,
+  body,
 }: {
   label: string;
   children: React.ReactNode;
+  glossaryId?: HelpGlossaryId;
+  title?: string;
+  body?: string;
 }) => (
-  <label className="grid gap-1.5">
-    <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]">
-      {label}
-    </span>
+  <div className="grid gap-1.5">
+    <LabelWithHelp
+      label={label}
+      glossaryId={glossaryId}
+      title={title}
+      body={body}
+      labelClassName="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text3)]"
+    />
     {children}
-  </label>
+  </div>
 );
 
 function defaultInput(): SessionCreateInput {

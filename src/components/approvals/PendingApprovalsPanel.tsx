@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Badge, SectionTitle } from "@/components/custom-ui";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, HelpTooltip } from "@/components/ui";
 import { fmt } from "@/lib/formatters";
 import type { ApprovalSummary } from "@/lib/types";
 import { ApprovalDetailModal } from "./ApprovalDetailModal";
@@ -31,6 +31,7 @@ export const PendingApprovalsPanel = ({
       <Card className="rounded-[14px] border border-border bg-card px-[22px] py-[18px]">
         <div className="mb-1 flex items-center gap-2.5">
           <SectionTitle>Pending approvals</SectionTitle>
+          <HelpTooltip glossaryId="approval-queue" />
           <Badge variant="warn" size="sm">
             {pending.length}
           </Badge>
@@ -67,7 +68,11 @@ export const PendingApprovalsPanel = ({
                     {a.predictionOutcome ? `${a.predictionOutcome} · ` : ""}
                     {a.proposedSide} · {fmt.usd(a.proposedSizeUsd, 0)}
                     {a.confidenceScore != null && (
-                      <> · {Math.round(a.confidenceScore * 100)}% conf</>
+                      <>
+                        {" "}
+                        · {Math.round(a.confidenceScore * 100)}% conf
+                        <HelpTooltip glossaryId="confidence" />
+                      </>
                     )}
                   </div>
                   <div className="mt-1 text-[12px] text-[var(--text3)]">

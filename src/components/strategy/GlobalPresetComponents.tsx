@@ -14,6 +14,7 @@ import {
 import type { GlobalStrategyPreset } from "../../../electron/shared/presets";
 import type { UserGlobalPresetRow } from "@/lib/exva";
 import { ShadcnSelect } from "@/components/custom-ui";
+import { HelpTooltip } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 export type { UserGlobalPresetRow };
@@ -136,30 +137,42 @@ function GlobalPresetCard({
         {canManagePreset && (
           <div className="mt-px flex shrink-0 gap-1">
             {onEdit && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                }}
-                title="Edit preset"
-                className={iconBtnClass}
-              >
-                <PencilIcon />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit();
+                  }}
+                  aria-label="Edit preset"
+                  className={iconBtnClass}
+                >
+                  <PencilIcon />
+                </button>
+                <HelpTooltip
+                  topic="Edit preset"
+                  body="Update the saved preset's label, description, and combined strategy values."
+                />
+              </>
             )}
             {onDelete && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                title="Delete preset"
-                className={cn(iconBtnClass, "text-error")}
-              >
-                <TrashIcon />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  aria-label="Delete preset"
+                  className={cn(iconBtnClass, "text-error")}
+                >
+                  <TrashIcon />
+                </button>
+                <HelpTooltip
+                  topic="Delete preset"
+                  body="Removes this saved preset so it can no longer be applied to sessions."
+                />
+              </>
             )}
           </div>
         )}
