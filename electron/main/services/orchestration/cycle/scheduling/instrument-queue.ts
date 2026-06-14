@@ -113,15 +113,26 @@ function enqueueTradeCycles(
     );
     return;
   }
+  const uniqueInstruments = dedupeResolvedInstruments(instruments);
+  if (uniqueInstruments.length < instruments.length) {
+    ctx.deps.logger.info(
+      {
+        sessionId: ctx.sessionId,
+        beforeDedup: instruments.length,
+        afterDedup: uniqueInstruments.length,
+      },
+      "orchestrator deduplicated resolved instruments before enqueue",
+    );
+  }
   ctx.deps.logger.info(
     {
       sessionId: ctx.sessionId,
-      instrumentCount: instruments.length,
-      symbols: instruments.map((row) => row.symbol),
+      instrumentCount: uniqueInstruments.length,
+      symbols: uniqueInstruments.map((row) => row.symbol),
     },
     "orchestrator enqueueing trade cycles",
   );
-  for (const instrument of instruments) {
+  for (const instrument of uniqueInstruments) {
     ctx.enqueueTask(
       () => enqueueTradeCycle(instrument),
       (error) => {
@@ -133,4 +144,18 @@ function enqueueTradeCycles(
       },
     );
   }
+}
+
+function dedupeResolvedInstruments(
+  instruments: ResolvedInstrument[],
+): ResolvedInstrument[] {
+  const seen = new Set<string>();
+  const unique: ResolvedInstrument[] = [];
+  for (const instrument of instruments) {
+    const key = `${instrument.instrumentClass}:${instrument.symbol.trim().toUpperCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(instrument);
+  }
+  return unique;
 }

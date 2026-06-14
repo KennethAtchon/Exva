@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { scheduleCycleRefillIfIdle } from "../cycle-refill";
 import { TradingCycleContext } from "../../trading-cycle-context";
 
@@ -21,6 +21,69 @@ describe("scheduleCycleRefillIfIdle", () => {
     expect(ctx.cycleRestartInFlight).toBe(false);
   });
 
+  it("skips refill while session is attention_required", async () => {
+    const scheduleSelectorCycle = vi.fn(async () => undefined);
+    const ctx = createContext({
+      openTradeCount: 0,
+      maxConcurrentTrades: 3,
+      sessionStatus: "attention_required",
+    });
+
+    scheduleCycleRefillIfIdle(ctx, scheduleSelectorCycle, "No-trade cycle");
+    await ctx.queue.onIdle();
+
+    expect(scheduleSelectorCycle).not.toHaveBeenCalled();
+  });
+});
+
+describe("scheduleCycleRefillAfterDelayIfIdle", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("schedules delayed selector refill using noInstrumentRetryMinutes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-24T12:00:00.000Z"));
+    const scheduleSelectorCycle = vi.fn(async () => undefined);
+    const ctx = createContext({ openTradeCount: 0, maxConcurrentTrades: 3 });
+
+    const { scheduleCycleRefillAfterDelayIfIdle } =
+      await import("../cycle-refill");
+    scheduleCycleRefillAfterDelayIfIdle(
+      ctx,
+      scheduleSelectorCycle,
+      "Selector retry",
+      5 * 60 * 1000,
+    );
+
+    expect(ctx.noInstrumentRetryTimer).not.toBeNull();
+
+    vi.advanceTimersByTime(5 * 60 * 1000);
+    await ctx.queue.onIdle();
+    expect(scheduleSelectorCycle).toHaveBeenCalledWith("Selector retry");
+  });
+
+  it("clears noInstrumentRetryTimer on orchestrator stop", async () => {
+    vi.useFakeTimers();
+    const ctx = createContext({ openTradeCount: 0, maxConcurrentTrades: 3 });
+    const { scheduleCycleRefillAfterDelayIfIdle } =
+      await import("../cycle-refill");
+    scheduleCycleRefillAfterDelayIfIdle(
+      ctx,
+      vi.fn(async () => undefined),
+      "Selector retry",
+      5 * 60 * 1000,
+    );
+    expect(ctx.noInstrumentRetryTimer).not.toBeNull();
+
+    ctx.clearNoInstrumentRetry();
+    expect(ctx.noInstrumentRetryTimer).toBeNull();
+    expect(ctx.getNearestRetryAt()).toBeNull();
+  });
+});
+
+describe("scheduleCycleRefillIfIdle capacity guard", () => {
   it("does not queue a selector cycle while open trades remain", async () => {
     const scheduleSelectorCycle = vi.fn(async () => undefined);
     const ctx = createContext({ openTradeCount: 3, maxConcurrentTrades: 3 });
@@ -39,14 +102,27 @@ describe("scheduleCycleRefillIfIdle", () => {
 function createContext(input: {
   openTradeCount: number;
   maxConcurrentTrades: number;
+  sessionStatus?: "active" | "attention_required";
 }): TradingCycleContext {
   const ctx = new TradingCycleContext("session-1", {
     sessionRepo: {
-      getStatus: () => "active",
+      getStatus: () => input.sessionStatus ?? "active",
     },
     strategyContextService: {
       get: () => ({
-        riskConfig: { waitForOpenThreshold: 0.8 },
+        rules: { setupType: "momentum" },
+        riskConfig: {
+          waitForOpenThreshold: 0.8,
+          maxPositionUsd: 1000,
+          maxConcurrentTrades: input.maxConcurrentTrades,
+          stopLossPct: 2,
+          takeProfitPct: 4,
+          maxConsecutiveLosers: 3,
+          dailyLossLimitUsd: 100,
+          profitTargetUsd: 200,
+          maxAiSpendUsd: 5,
+          humanApprovalRequired: false,
+        },
       }),
     },
     sessionSelectorSettingsRepo: {

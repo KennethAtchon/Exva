@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { InstrumentClass } from "@/lib/types";
 import { createTestDb } from "../../../db/test-helpers";
+import { requireExperience } from "../../../experiences/index";
+import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
 import { AgentMessagesRepo } from "../../../db/repositories/agents/agent-messages-repo";
 import { AgentRunsRepo } from "../../../db/repositories/agents/agent-runs-repo";
 import { BrokerAccountsRepo } from "../../../db/repositories/brokers/broker-accounts-repo";
@@ -19,6 +21,7 @@ import { SessionStrategiesRepo } from "../../../db/repositories/sessions/session
 import { SessionTradeRulesRepo } from "../../../db/repositories/sessions/session-trade-rules-repo";
 import { SessionTimeframeConfigRepo } from "../../../db/repositories/sessions/session-timeframe-config-repo";
 import { SessionResearchPostureRepo } from "../../../db/repositories/sessions/session-research-posture-repo";
+import { SessionTemplatesRepo } from "../../../db/repositories/sessions/session-templates-repo";
 import { SessionAiSettingsRepo } from "../../../db/repositories/sessions/session-ai-settings-repo";
 import { StatsRepo } from "../../../db/repositories/system/stats-repo";
 import { TradeApprovalsRepo } from "../../../db/repositories/trades/trade-approvals-repo";
@@ -33,6 +36,8 @@ import { SessionRuntimeManager } from "../session-runtime-manager";
 import { SessionService } from "../session-service";
 import { SessionStrategyContextService } from "../session-strategy-context-service";
 import { SessionWriteService } from "../write-service";
+import { SessionListingService } from "../listing-service";
+import { SessionTemplateService } from "../template-service";
 import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
 
 describe("session onboarding integration", () => {
@@ -181,6 +186,184 @@ describe("session onboarding integration", () => {
       brokerCount: 0,
     });
   });
+
+  it.each([
+    ["edgar-catalyst", "broker-stock", ["stock"]],
+    ["rules-mean-reversion", "broker-stock", ["stock"]],
+    ["rules-qqq-mean-reversion", "broker-stock", ["stock"]],
+    ["btc-momentum-breakout", "broker-crypto", ["crypto"]],
+    ["commodities-trend-following", "broker-futures", ["futures"]],
+    ["prediction-event-edge", "broker-pm", ["prediction_market"]],
+  ] as const)(
+    "onboards %s through preflight and start",
+    async (experienceId, brokerId, instrumentClasses) => {
+      const harness = createHarness(db);
+      harness.insertExperienceBrokers();
+      harness.configureDefaultAiProvider();
+
+      const experience = requireExperience(experienceId);
+      harness.ensureExperienceSignalSource(experienceId);
+      const { id: sessionId } = harness.sessionWrites.create({
+        name: `${experience.displayName} Session`,
+        objective: `Run ${experience.displayName}`,
+        selectionMode: "manual_shortlist",
+        instrumentClasses: [...instrumentClasses],
+        instrumentScope: "",
+        selectorSettings: { aiPickerEnabled: false },
+        executionMode: "paper_only",
+        experienceId,
+        brokerAssignments: [{ brokerAccountId: brokerId, allocatedUsd: 5000 }],
+        brokerOverridesByInstrumentClass: {
+          [instrumentClasses[0] as InstrumentClass]: brokerId,
+        },
+        subscribedSourceIds: [`${experienceId}-signal`],
+      });
+
+      await expect(harness.session.start(sessionId)).resolves.toBe("active");
+      expect(harness.startedSessions).toContain(sessionId);
+    },
+  );
+
+  it("creates a session from a template with the template defaults", () => {
+    const harness = createHarness(db);
+    harness.insertBroker({
+      id: "paper-broker",
+      name: "Paper Mock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+    harness.configureDefaultAiProvider();
+
+    const source = harness.sessionWrites.create({
+      name: "Template Source",
+      objective: "Trade growth",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "NVDA",
+      selectorSettings: { aiPickerEnabled: false },
+      executionMode: "paper_only",
+      experienceId: "edgar-catalyst",
+      brokerAssignments: [
+        { brokerAccountId: "paper-broker", allocatedUsd: 4000 },
+      ],
+      brokerOverridesByInstrumentClass: { stock: "paper-broker" },
+    });
+    const templatePayload = harness.templateService.buildPayloadFromSession(
+      source.id,
+    );
+
+    const created = harness.sessionWrites.create({
+      name: "From Template",
+      objective: templatePayload.identity.objective,
+      selectionMode: templatePayload.identity.selectionMode,
+      instrumentClasses: templatePayload.identity.instrumentClasses,
+      instrumentScope: templatePayload.identity.instrumentScope,
+      defaultSearchProviderId: templatePayload.identity.defaultSearchProviderId,
+      selectorSettings: templatePayload.selectorSettings,
+      executionMode: templatePayload.identity.executionMode,
+      brokerAssignments: templatePayload.brokerAssignments,
+      brokerOverridesByInstrumentClass:
+        templatePayload.brokerOverridesByInstrumentClass,
+      experienceId: "edgar-catalyst",
+    });
+
+    expect(created.status).toBe("draft");
+    expect(
+      harness.strategyContext.get(created.id).researchPosture.posturePresetId,
+    ).toBe("edgar_catalyst");
+    expect(harness.strategyContext.get(created.id).rules.rulesPresetId).toBe(
+      "catalyst_entry",
+    );
+    expect(templatePayload.identity.instrumentScope).toBe("NVDA");
+  });
+
+  it("keeps duplicated sessions independent at runtime", async () => {
+    const harness = createHarness(db);
+    harness.insertBroker({
+      id: "paper-broker",
+      name: "Paper Mock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+    harness.configureDefaultAiProvider();
+
+    const source = harness.sessionWrites.create({
+      name: "Source Session",
+      objective: "Trade NVDA",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "NVDA",
+      selectorSettings: { aiPickerEnabled: false },
+      executionMode: "paper_only",
+      experienceId: "edgar-catalyst",
+      brokerAssignments: [
+        { brokerAccountId: "paper-broker", allocatedUsd: 5000 },
+      ],
+      brokerOverridesByInstrumentClass: { stock: "paper-broker" },
+    });
+    harness.subscribeExperienceSignal(source.id, "edgar-catalyst");
+    await harness.session.start(source.id);
+
+    const duplicate = harness.sessions.duplicate(source.id, {
+      name: "Source Session Copy",
+    });
+    expect(duplicate.id).not.toBe(source.id);
+    expect(duplicate.status).toBe("draft");
+    expect(harness.runtimeManager.get(source.id)?.status).toBe("active");
+    expect(harness.runtimeManager.get(duplicate.id)).toBeNull();
+
+    await expect(harness.session.start(duplicate.id)).resolves.toBe("active");
+    expect(harness.startedSessions).toEqual([source.id, duplicate.id]);
+    expect(harness.runtimeManager.get(source.id)?.status).toBe("active");
+    expect(harness.runtimeManager.get(duplicate.id)?.status).toBe("active");
+  });
+
+  it("excludes archived sessions from default listings and blocks restart", async () => {
+    const harness = createHarness(db);
+    harness.insertBroker({
+      id: "paper-broker",
+      name: "Paper Mock",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["stock"],
+      mode: "paper",
+    });
+    harness.configureDefaultAiProvider();
+
+    const { id: sessionId } = harness.sessionWrites.create({
+      name: "Archive Candidate",
+      objective: "Trade NVDA",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "NVDA",
+      selectorSettings: { aiPickerEnabled: false },
+      executionMode: "paper_only",
+      experienceId: "edgar-catalyst",
+      brokerAssignments: [
+        { brokerAccountId: "paper-broker", allocatedUsd: 5000 },
+      ],
+      brokerOverridesByInstrumentClass: { stock: "paper-broker" },
+    });
+    harness.subscribeExperienceSignal(sessionId, "edgar-catalyst");
+    await harness.session.start(sessionId);
+    await harness.session.stop(sessionId);
+    harness.sessions.setStatus("archived", sessionId);
+
+    const listing = new SessionListingService({
+      sessionRepo: harness.sessions,
+      assignments: new SessionBrokerAssignmentsRepo(db),
+      trades: new TradesRepo(db),
+      runtimeManager: harness.runtimeManager,
+    });
+    expect(listing.list().sessions.map((row) => row.id)).not.toContain(
+      sessionId,
+    );
+
+    await expect(harness.session.start(sessionId)).rejects.toMatchObject({
+      code: "INVALID_TRANSITION",
+    });
+  });
 });
 
 function createHarness(db: ReturnType<typeof createTestDb>) {
@@ -195,6 +378,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
   const workspacePreferences = new WorkspacePreferencesRepo(db);
   const startedSessions: string[] = [];
   const eventBus = new EventBus();
+  const signalSourcesRepo = new SignalSourcesRepo(db);
   const strategyContextService = new SessionStrategyContextService({
     sessionRepo: sessions,
     researchPostureRepo: new SessionResearchPostureRepo(db),
@@ -206,7 +390,17 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
     providerAccountsRepo: providerAccounts,
     workspacePrefsRepo: workspacePreferences,
     sessionAiPhasesRepo,
-    signalSourceTypes: new SignalSourcesRepo(db),
+    signalSourceTypes: signalSourcesRepo,
+  });
+  const templateService = new SessionTemplateService({
+    templates: new SessionTemplatesRepo(db),
+    sessions,
+    strategyContext: strategyContextService,
+    selectorSettings: sessionSelectorSettings,
+    brokerAssignments: sessionBrokerAssignments,
+    brokerRouting: brokerRoutingRepo,
+    providerAccounts,
+    brokerAccounts: brokers,
   });
 
   const brokerRegistry = {
@@ -326,7 +520,21 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
       assignments: sessionBrokerAssignments,
       brokerRouting: brokerRoutingRepo,
       brokerAccounts: brokers,
+      signals: {
+        replaceSessionSubscriptions: (sessionId, sourceIds) => {
+          signalSourcesRepo.replaceSessionSubscriptions(sessionId, sourceIds);
+        },
+        requiresInstrumentScopeForSourceIds: (sourceIds) => {
+          const subscribedSources = sourceIds.flatMap((sourceId) => {
+            const source = signalSourcesRepo.get(sourceId);
+            return source ? [{ type: source.type }] : [];
+          });
+          return sessionRequiresInstrumentScope(subscribedSources);
+        },
+      },
     }),
+    strategyContext: strategyContextService,
+    templateService,
     startedSessions,
     configureDefaultAiProvider() {
       providerAccounts.upsert({
@@ -383,6 +591,56 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
         ...input,
         secretRef: `broker:${input.id}`,
       });
+    },
+    insertExperienceBrokers() {
+      this.insertBroker({
+        id: "broker-stock",
+        name: "Stock Mock",
+        brokerType: "mock",
+        supportedInstrumentClasses: ["stock"],
+        mode: "paper",
+      });
+      this.insertBroker({
+        id: "broker-crypto",
+        name: "Crypto Mock",
+        brokerType: "mock",
+        supportedInstrumentClasses: ["crypto"],
+        mode: "paper",
+      });
+      this.insertBroker({
+        id: "broker-futures",
+        name: "Futures Mock",
+        brokerType: "mock",
+        supportedInstrumentClasses: ["futures"],
+        mode: "paper",
+      });
+      this.insertBroker({
+        id: "broker-pm",
+        name: "Polymarket Paper",
+        brokerType: "polymarket",
+        supportedInstrumentClasses: ["prediction_market"],
+        mode: "paper",
+      });
+    },
+    ensureExperienceSignalSource(experienceId: string) {
+      const experience = requireExperience(experienceId);
+      const sourceId = `${experienceId}-signal`;
+      if (!signalSourcesRepo.get(sourceId)) {
+        signalSourcesRepo.create({
+          id: sourceId,
+          type: experience.signalSource.type,
+          name: experience.displayName,
+          description: null,
+          enabled: true,
+          configJson: JSON.stringify(experience.signalSource.defaultConfig),
+        });
+      }
+    },
+    subscribeExperienceSignal(sessionId: string, experienceId: string) {
+      this.ensureExperienceSignalSource(experienceId);
+      signalSourcesRepo.replaceSessionSubscriptions(sessionId, [
+        `${experienceId}-signal`,
+      ]);
     },
   };
 }

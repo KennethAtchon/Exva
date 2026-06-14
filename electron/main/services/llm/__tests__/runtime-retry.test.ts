@@ -149,6 +149,53 @@ describe("withLLMRetry", () => {
     );
   });
 
+  it("exhausts 4 retries with backoff 1s→8s before surfacing PROVIDER_UNREACHABLE", async () => {
+    vi.useFakeTimers();
+    warnSpy.mockReset();
+    infoSpy.mockReset();
+    const { withLLMRetry } = await import("../runtime-retry");
+
+    let calls = 0;
+    const promise = withLLMRetry(async () => {
+      calls += 1;
+      throw Object.assign(new Error("service unavailable"), {
+        statusCode: 503,
+      });
+    });
+
+    const assertion = expect(promise).rejects.toMatchObject({
+      code: "PROVIDER_UNREACHABLE",
+      details: { retryable: true, attempts: 5 },
+    });
+
+    await vi.advanceTimersByTimeAsync(
+      60_000 +
+        1_000 +
+        60_000 +
+        2_000 +
+        60_000 +
+        4_000 +
+        60_000 +
+        8_000 +
+        60_000,
+    );
+
+    await assertion;
+    expect(calls).toBe(5);
+    const attemptFailedLogs = warnSpy.mock.calls.filter(
+      (call) => call[1] === "provider request attempt failed",
+    );
+    expect(attemptFailedLogs).toHaveLength(5);
+    expect(
+      attemptFailedLogs.filter((call) => call[0]?.willRetry === true),
+    ).toHaveLength(4);
+    expect(attemptFailedLogs[4]?.[0]).toMatchObject({
+      attempt: 5,
+      willRetry: false,
+    });
+    vi.useRealTimers();
+  });
+
   it("aborts each timed-out provider attempt before moving to the next retry", async () => {
     vi.useFakeTimers();
     warnSpy.mockReset();

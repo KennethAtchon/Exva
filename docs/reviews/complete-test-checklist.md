@@ -4,7 +4,7 @@
 >
 > **Legend:** `[x]` = test exists today · `[ ]` = test needed · **(file)** = existing test location
 >
-> **Coverage today:** 127 Vitest files, 1 Playwright spec. Phase 1 complete (~78/81 obligations); **~33%** of total checklist implemented.
+> **Coverage today:** 214 Vitest files, 1 Playwright spec. Phase 1 complete (~78/81 obligations); Phase 2 ~113/130; Phase 3 ~120/169; **~48%** of total checklist implemented.
 >
 > **Review basis:** Full-system inventory (main/renderer/shared/preload), IPC channel audit (`channels.ts` + `register.ts`), all repos/services/pipeline engines, experience registry, renderer pages/components, and gap analysis against `*.test.ts` / `*.spec.ts` (2026-06-13, gap-fill pass).
 
@@ -29,8 +29,8 @@ Five phases — not too granular, not one mega-batch. Finish each phase before s
 | Phase | Name                   | Sections                                                                                                                                                                                                    | ~Items | ~Done | Exit criteria                                                                                                                 |
 | ----- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
 | **1** | Foundation & contracts | [§0](#0-shared-contracts--validation), [§1](#1-database--persistence), [§2](#2-infrastructure-services)                                                                                                     | ~81    | ~78   | Shared types validate; every repo round-trips; event bus + secrets work in isolation                                          |
-| **2** | Domain services        | [§3](#3-llm-runtime-electronmainservicesllm)–[§9](#9-risk--capital-electronmainservicesrisk)                                                                                                                | ~130   | ~41   | LLM/broker/signal/pipeline/risk services covered with deterministic mocks — no live APIs                                      |
-| **3** | Runtime & resilience   | [§10](#10-orchestration--trading-lifecycle-electronmainservicesorchestration), [§11](#11-session-management-electronmainservicessession), [§24](#24-autonomous-runtime--failure-handling-24-doctrine-tests) | ~169   | ~31   | Golden trade paths pass; every failure-inventory row has a doctrine test; session stays `active` unless escalation rules fire |
+| **2** | Domain services        | [§3](#3-llm-runtime-electronmainservicesllm)–[§9](#9-risk--capital-electronmainservicesrisk)                                                                                                                | ~130   | ~113  | LLM/broker/signal/pipeline/risk services covered with deterministic mocks — no live APIs                                      |
+| **3** | Runtime & resilience   | [§10](#10-orchestration--trading-lifecycle-electronmainservicesorchestration), [§11](#11-session-management-electronmainservicessession), [§24](#24-autonomous-runtime--failure-handling-24-doctrine-tests) | ~169   | ~120  | Golden trade paths pass; every failure-inventory row has a doctrine test; session stays `active` unless escalation rules fire |
 | **4** | Integration boundaries | [§12](#12-analytics--autopsy-electronmainservicesanalytics)–[§19](#19-app-boot--composition), [§15](#15-experiences-electronmainexperiences)                                                                | ~117   | ~8    | Every IPC channel + event wired; boot/shutdown clean; experiences + analytics paths tested                                    |
 | **5** | Product verification   | [§20](#20-e2e-workflows-playwright)–[§23](#23-critical-path-smoke-script), [§22](#22-ci--quality-gates)                                                                                                     | ~66    | ~1    | Playwright covers nav + critical flows; renderer stores react to events; `bun run check` + smoke script green                 |
 
@@ -456,12 +456,12 @@ Each failure must emit **all** of:
 - [x] `tool-loop-guard.ts` — repeated tool-call detection (`electron/main/services/llm/__tests__/tool-loop-guard.test.ts`)
 - [x] `run-agent-execute.ts` — agent execution path (`electron/main/services/llm/__tests__/run-agent-execute.test.ts`)
 - [x] `reasoning-options.ts` — adapter reasoning config (`electron/main/services/llm/adapters/__tests__/reasoning-options.test.ts`)
-- [ ] `provider-registry.ts` — lazy adapter init per provider account
-- [ ] `runtime.ts` — `LLMRuntime` facade delegates to pipeline runtime
-- [ ] `anthropic-adapter.ts` — normalized request/response (mocked HTTP)
-- [ ] `openai-adapter.ts` — normalized request/response (mocked HTTP)
-- [ ] `openrouter-adapter.ts` — normalized request/response (mocked HTTP)
-- [ ] `provider-adapter.ts` — shared adapter interface compliance
+- [x] `provider-registry.ts` — lazy adapter init per provider account (`electron/main/services/llm/__tests__/provider-registry.test.ts`)
+- [x] `runtime.ts` — `LLMRuntime` facade delegates to pipeline runtime (`electron/main/services/llm/__tests__/runtime.test.ts`)
+- [x] `anthropic-adapter.ts` — normalized request/response (mocked HTTP) (`electron/main/services/llm/adapters/__tests__/anthropic-adapter.test.ts`)
+- [x] `openai-adapter.ts` — normalized request/response (mocked HTTP) (`electron/main/services/llm/adapters/__tests__/openai-adapter.test.ts`)
+- [x] `openrouter-adapter.ts` — normalized request/response (mocked HTTP) (`electron/main/services/llm/adapters/__tests__/openrouter-adapter.test.ts`)
+- [x] `provider-adapter.ts` — shared adapter interface compliance (`electron/main/services/llm/adapters/__tests__/provider-adapter.test.ts`)
 
 ---
 
@@ -469,10 +469,10 @@ Each failure must emit **all** of:
 
 - [x] `sanitize-search-query.ts` — query sanitization (`electron/main/services/search/sanitize-search-query.test.ts`)
 - [x] `search-registry.ts` — provider routing (`electron/main/services/search/search-registry.test.ts`)
-- [ ] `brave-adapter.ts` — search request/response (mocked)
-- [ ] `tavily-adapter.ts` — search request/response (mocked)
-- [ ] `duckduckgo-adapter.ts` — search request/response (mocked)
-- [ ] `mcp-adapter.ts` — MCP search bridge (mocked)
+- [x] `brave-adapter.ts` — search request/response (mocked) (`electron/main/services/search/adapters/__tests__/brave-adapter.test.ts`)
+- [x] `tavily-adapter.ts` — search request/response (mocked) (`electron/main/services/search/adapters/__tests__/tavily-adapter.test.ts`)
+- [x] `duckduckgo-adapter.ts` — search request/response (mocked) (`electron/main/services/search/adapters/__tests__/duckduckgo-adapter.test.ts`)
+- [x] `mcp-adapter.ts` — MCP search bridge (mocked) (`electron/main/services/search/adapters/__tests__/mcp-adapter.test.ts`)
 
 ---
 
@@ -505,25 +505,25 @@ Each failure must emit **all** of:
 
 ### 6.1 Signal sources
 
-- [ ] `edgar-signal-source.ts` — Atom feed poll, 8-K parse, item-code filter, CIK whitelist
-- [ ] `web-search-signal-source.ts` — search-triggered signal emission
-- [ ] `timer-signal-source.ts` — interval tick, market-hours gating
-- [ ] `prediction-event-signal-source.ts` — Polymarket event matching
-- [ ] `mock-signal-source.ts` — deterministic fixture signals
+- [x] `edgar-signal-source.ts` — Atom feed poll, 8-K parse, item-code filter, CIK whitelist (`electron/main/services/signals/sources/__tests__/edgar-signal-source.test.ts`)
+- [x] `web-search-signal-source.ts` — search-triggered signal emission (`electron/main/services/signals/sources/__tests__/web-search-signal-source.test.ts`)
+- [x] `timer-signal-source.ts` — interval tick, market-hours gating (`electron/main/services/signals/sources/__tests__/timer-signal-source.test.ts`)
+- [x] `prediction-event-signal-source.ts` — Polymarket event matching (`electron/main/services/signals/sources/__tests__/prediction-event-signal-source.test.ts`)
+- [x] `mock-signal-source.ts` — deterministic fixture signals (`electron/main/services/signals/sources/__tests__/mock-signal-source.test.ts`)
 
 ### 6.2 Signal runtime
 
-- [ ] `signal-service.ts` — source CRUD, subscription management
-- [ ] `signal-bus.ts` — fan-out to subscribed sessions, persist events
-- [ ] `signal-source-registry.ts` — runtime instance lifecycle
-- [ ] `signal-delivery-lifecycle.ts` — delivery state machine + events
+- [x] `signal-service.ts` — source CRUD, subscription management (`electron/main/services/signals/__tests__/signal-service.test.ts`)
+- [x] `signal-bus.ts` — fan-out to subscribed sessions, persist events (`electron/main/services/signals/__tests__/signal-bus.test.ts`)
+- [x] `signal-source-registry.ts` — runtime instance lifecycle (`electron/main/services/signals/__tests__/signal-source-registry.test.ts`)
+- [x] `signal-delivery-lifecycle.ts` — delivery state machine + events (`electron/main/services/signals/__tests__/signal-delivery-lifecycle.test.ts`)
 - [x] `signal-delivery-gate.ts` — gate before delivery (`electron/main/services/signals/__tests__/signal-delivery-gate.test.ts`)
-- [ ] `complete-signal-delivery.ts` — marks delivery complete, advances FIFO
+- [x] `complete-signal-delivery.ts` — marks delivery complete, advances FIFO (`electron/main/services/signals/__tests__/signal-delivery-lifecycle.test.ts`)
 - [x] `signal-dead-letters-replay.ts` — replay dead letters (`electron/main/services/signals/__tests__/signal-dead-letters-replay.test.ts`)
 
 ### 6.3 CIK cache
 
-- [ ] `cik-ticker-cache.ts` — SEC lookup, cache populate, stale refresh
+- [x] `cik-ticker-cache.ts` — SEC lookup, cache populate, stale refresh (`electron/main/services/signals/cache/__tests__/cik-ticker-cache.test.ts`)
 
 ---
 
@@ -535,7 +535,7 @@ Each failure must emit **all** of:
 - [x] `fundamental-aggregator.ts` (`electron/main/services/signal/aggregators/fundamental-aggregator.test.ts`)
 - [x] `review-aggregator.ts` (`electron/main/services/signal/aggregators/review-aggregator.test.ts`)
 - [x] `trade-signal-aggregator.ts` (`electron/main/services/signal/aggregators/trade-signal-aggregator.test.ts`)
-- [ ] `catalyst-two-call-aggregator.ts` — EDGAR 2-call merge (partially covered in golden-path integration)
+- [x] `catalyst-two-call-aggregator.ts` — EDGAR 2-call merge (`electron/main/services/signal/aggregators/catalyst-two-call-aggregator.test.ts`)
 
 ### 7.2 Scoring & selector
 
@@ -546,15 +546,15 @@ Each failure must emit **all** of:
 
 ### 7.3 Rules engines (zero-LLM)
 
-- [ ] `mean-reversion-signal.ts` — SPY/QQQ 15m mean reversion entry/exit
-- [ ] `trend-following-signal.ts` — GC/CL 4h trend entry/exit
-- [ ] `prediction-market-candidate-engine.ts` — Polymarket candidate extraction/scoring
+- [x] `mean-reversion-signal.ts` — SPY/QQQ 15m mean reversion entry/exit (`electron/main/services/signal/rules/mean-reversion-signal.test.ts`)
+- [x] `trend-following-signal.ts` — GC/CL 4h trend entry/exit (`electron/main/services/signal/rules/trend-following-signal.test.ts`)
+- [x] `prediction-market-candidate-engine.ts` — Polymarket candidate extraction/scoring (`electron/main/services/signal/scoring/prediction-market-candidate-engine.test.ts`)
 
 ### 7.3b Signal engine registry (`electron/main/services/signal/registry/`)
 
-- [ ] `signal-engine-registry.ts` — register/resolve engines by id
-- [ ] `register-default-engines.ts` — default engine bundle wires at boot
-- [ ] `register-trade-signal-engines.ts` — trade-signal engine registration
+- [x] `signal-engine-registry.ts` — register/resolve engines by id (`electron/main/services/signal/registry/signal-engine-registry.test.ts`)
+- [x] `register-default-engines.ts` — default engine bundle wires at boot (`electron/main/services/signal/registry/signal-engine-registry.test.ts`)
+- [x] `register-trade-signal-engines.ts` — trade-signal engine registration (`electron/main/services/signal/registry/signal-engine-registry.test.ts`)
 
 ### 7.4 Execution profile
 
@@ -562,7 +562,7 @@ Each failure must emit **all** of:
 
 ### 7.5 Policy engines
 
-- [ ] `candidate-validation-service.ts` — pre-pipeline candidate rejection
+- [x] `candidate-validation-service.ts` — pre-pipeline candidate rejection (`electron/main/services/orchestration/policy/__tests__/candidate-validation-service.test.ts`)
 - [x] `order-policy-gate.ts` (`electron/main/services/orchestration/policy/__tests__/order-policy-gate.test.ts`)
 - [x] `outcome-classifier.ts` (`electron/main/services/orchestration/policy/__tests__/outcome-classifier.test.ts`)
 
@@ -574,23 +574,23 @@ Each failure must emit **all** of:
 
 - [ ] `pipeline-runtime.ts` — end-to-end phase execution with mocked LLM
 - [x] `worker-graph-scheduler.ts` — dependency batching (`electron/main/services/pipeline/core/worker-graph-scheduler.test.ts`)
-- [ ] `concurrent-group-runner.ts` — concurrency limits respected
+- [x] `concurrent-group-runner.ts` — concurrency limits respected (`electron/main/services/pipeline/core/__tests__/concurrent-group-runner.test.ts`)
 - [x] `pipeline-config.test.ts` — config resolution (`electron/main/services/pipeline/__tests__/pipeline-config.test.ts`)
 - [x] `pipeline-spend-tracker.test.ts` — spend cap enforcement (`electron/main/services/pipeline/__tests__/pipeline-spend-tracker.test.ts`)
 - [x] `phase-worker-modes.test.ts` — worker mode config (`electron/main/services/pipeline/__tests__/phase-worker-modes.test.ts`)
-- [ ] `ai-phase-config-resolver.ts` — session → effective config
-- [ ] `pipeline/effective-ai-phase-config.ts` — catalog validation at boot (`assertValidPipelineDefinitionCatalog`)
-- [ ] `pipeline-registry.ts` — pipeline descriptor lookup
-- [ ] `trace-assembler.ts` — agent trace assembly per stage
-- [ ] `worker-executor.ts` — worker invocation + tool loop integration
+- [x] `ai-phase-config-resolver.ts` — session → effective config (`electron/main/services/pipeline/__tests__/ai-phase-config-resolver.test.ts`)
+- [x] `pipeline/effective-ai-phase-config.ts` — catalog validation at boot (`assertValidPipelineDefinitionCatalog`) (`electron/main/services/pipeline/__tests__/effective-ai-phase-config.test.ts`)
+- [x] `pipeline-registry.ts` — pipeline descriptor lookup (`electron/main/services/pipeline/core/__tests__/pipeline-registry.test.ts`)
+- [x] `trace-assembler.ts` — agent trace assembly per stage (`electron/main/services/pipeline/execution/__tests__/trace-assembler.test.ts`)
+- [x] `worker-executor.ts` — worker invocation + tool loop integration (`electron/main/services/pipeline/execution/__tests__/worker-executor.test.ts`)
 
 ### 8.2 Execution
 
 - [x] `extract-terminal-submission.test.ts` (`electron/main/services/pipeline/execution/__tests__/extract-terminal-submission.test.ts`)
 - [x] `worker-structured-output.test.ts` (`electron/main/services/pipeline/execution/__tests__/worker-structured-output.test.ts`)
 - [x] `worker-tool-requirements.test.ts` (`electron/main/services/pipeline/execution/__tests__/worker-tool-requirements.test.ts`)
-- [ ] Stage dispatch — each phase invokes correct workers
-- [ ] Trace assembly — agent traces persisted per cycle/stage
+- [x] Stage dispatch — each phase invokes correct workers (`electron/main/services/pipeline/analysis/__tests__/stage-runner.test.ts`)
+- [x] Trace assembly — agent traces persisted per cycle/stage (`electron/main/services/pipeline/execution/__tests__/trace-assembler.test.ts`)
 
 ### 8.3 Implementations & routing
 
@@ -602,29 +602,29 @@ Each failure must emit **all** of:
 - [ ] `trend-following-analysis.ts` — rules-only decision phase
 - [ ] `prediction-event-cycle` (`pipelines.ts`) — event scouts in selector
 - [ ] `default-analysis.ts` / `default-analysis-steps.ts` — default cycle step graph
-- [ ] `pipeline-descriptor-store.ts` — descriptor registration, duplicate-id rejection
-- [ ] `pipelines.ts` — all 5 pipeline descriptors registered with correct signal-source mapping
+- [x] `pipeline-descriptor-store.ts` — descriptor registration, duplicate-id rejection (`electron/main/services/pipeline/implementations/registry/__tests__/pipeline-descriptor-store.test.ts`)
+- [x] `pipelines.ts` — all 5 pipeline descriptors registered with correct signal-source mapping (`electron/main/services/pipeline/implementations/registry/__tests__/pipelines-registration.test.ts`)
 - [ ] `register-analyses.ts` — instrument analysis registration at boot
-- [ ] `analysis-resolver.ts` — resolve analysis kind per instrument class
+- [x] `analysis-resolver.ts` — resolve analysis kind per instrument class (`electron/main/services/pipeline/implementations/registry/__tests__/analysis-resolver.test.ts`)
 - [x] `trade-engine-input-builders.test.ts` (`electron/main/services/pipeline/implementations/inputs/__tests__/trade-engine-input-builders.test.ts`)
-- [ ] `catalyst-decision-input-builders.ts` — EDGAR input construction
-- [ ] `rules-engine-input-builders.ts` — mean reversion inputs
-- [ ] `rules-trend-following-input-builders.ts` — trend following inputs
+- [x] `catalyst-decision-input-builders.ts` — EDGAR input construction (`electron/main/services/pipeline/implementations/inputs/__tests__/catalyst-decision-input-builders.test.ts`)
+- [x] `rules-engine-input-builders.ts` — mean reversion inputs (`electron/main/services/pipeline/implementations/inputs/__tests__/rules-engine-input-builders.test.ts`)
+- [x] `rules-trend-following-input-builders.ts` — trend following inputs (`electron/main/services/pipeline/implementations/inputs/__tests__/rules-trend-following-input-builders.test.ts`)
 
 ### 8.4 Engines (finalizers, input, entry, cache)
 
-- [ ] `selector-instrument-cache` engine — cache read/write
-- [ ] `selector-scope` engine — scope filtering
-- [ ] `broker-coverage` engine — broker availability check
+- [x] `selector-instrument-cache` engine — cache read/write (`electron/main/services/pipeline/engines/__tests__/selector-instrument-cache.test.ts`)
+- [x] `selector-scope` engine — scope filtering (`electron/main/services/pipeline/engines/__tests__/selector-engines.test.ts`)
+- [x] `broker-coverage` engine — broker availability check (`electron/main/services/pipeline/engines/__tests__/selector-engines.test.ts`)
 - [ ] `prediction-market-candidates` engine — Polymarket candidate extraction
 - [ ] `manual-shortlist` entry mode — shortlist seeding
 - [ ] `signal-seeded` entry mode — signal-driven entry
 - [ ] Finalizer engines delegate to aggregators: `technical-aggregator`, `fundamental-aggregator`, `review-aggregator`, `trade-signal-aggregator`, `selector-submission-builder`, `selector-risk-filter`
-- [ ] `worker-output.ts` — worker output normalization
+- [x] `worker-output.ts` — worker output normalization (`electron/main/services/pipeline/engines/__tests__/selector-engines.test.ts`)
 
 ### 8.5 Analysis layer (`electron/main/services/pipeline/analysis/`)
 
-- [ ] `stage-runner.ts` — runs analysis stages in order
+- [x] `stage-runner.ts` — runs analysis stages in order (`electron/main/services/pipeline/analysis/__tests__/stage-runner.test.ts`)
 - [ ] `interpreter.ts` — interprets worker outputs into phase inputs
 - [ ] `services.ts` — analysis service wiring (market data, spend guards)
 
@@ -646,16 +646,16 @@ Each failure must emit **all** of:
 ### 8.8 Worker tools
 
 - [x] `worker-tool-factory.test.ts` (`electron/main/services/pipeline/worker-tools/__tests__/worker-tool-factory.test.ts`)
-- [ ] `resolve-search-provider.ts` — search provider resolution for workers
-- [ ] `data-spend-guard.ts` — data API spend limits in tool calls
+- [x] `resolve-search-provider.ts` — search provider resolution for workers (`electron/main/services/pipeline/worker-tools/__tests__/resolve-search-provider.test.ts`)
+- [x] `data-spend-guard.ts` — data API spend limits in tool calls (`electron/main/services/tools/__tests__/data-spend-guard.test.ts`)
 
 ### 8.9 LLM-callable tools (`electron/main/services/tools/`)
 
 - [x] `market-tools.test.ts` — quotes/OHLCV (`electron/main/services/tools/__tests__/market-tools.test.ts`)
 - [x] `fetch-url-tool.test.ts` (`electron/main/services/tools/__tests__/fetch-url-tool.test.ts`)
 - [x] `social-discovery-tools.test.ts` (`electron/main/services/tools/__tests__/social-discovery-tools.test.ts`)
-- [ ] `search-tool.ts` — web search via registry
-- [ ] `trending-symbols-tool.ts` — trending symbol discovery
+- [x] `search-tool.ts` — web search via registry (`electron/main/services/tools/__tests__/search-tool.test.ts`)
+- [x] `trending-symbols-tool.ts` — trending symbol discovery (`electron/main/services/tools/__tests__/trending-symbols-tool.test.ts`)
 
 ---
 
@@ -665,9 +665,9 @@ Each failure must emit **all** of:
 - [x] `exit-policy-evaluator.ts` — exit rules (`electron/main/services/risk/__tests__/exit-policy-evaluator.test.ts`)
 - [x] `capital-reservation-service.ts` (`electron/main/services/risk/__tests__/capital-reservation-service.test.ts`)
 - [x] `live-readiness-service.ts` (`electron/main/services/risk/__tests__/live-readiness-service.test.ts`)
-- [ ] `broker-allocation-gate.ts` — broker allocation checks (`electron/main/services/risk/broker-allocation-gate.ts`)
-- [ ] `experience-capital-allocator.ts` — capital split across experiences
-- [ ] `correlation-exposure-service.ts` — correlation/exposure limits, `resolveAssetGroup`
+- [x] `broker-allocation-gate.ts` — broker allocation checks (`electron/main/services/risk/__tests__/broker-allocation-gate.test.ts`)
+- [x] `experience-capital-allocator.ts` — capital split across experiences (`electron/main/services/risk/__tests__/experience-capital-allocator.test.ts`)
+- [x] `correlation-exposure-service.ts` — correlation/exposure limits, `resolveAssetGroup` (`electron/main/services/risk/__tests__/correlation-exposure-service.test.ts`)
 
 ---
 
@@ -678,24 +678,24 @@ Each failure must emit **all** of:
 ### 10.1 Agent orchestrator
 
 - [x] `agent-orchestrator.ts` — cycle scheduling basics (`electron/main/services/orchestration/cycle/__tests__/agent-orchestrator.test.ts`)
-- [ ] Signal listener enqueues trade cycle on delivery
-- [ ] Pause stops new cycles; monitor continues
+- [x] Signal listener enqueues trade cycle on delivery (`electron/main/services/orchestration/__tests__/orchestration-golden-paths.integration.test.ts`)
+- [x] Pause stops new cycles; monitor continues (`electron/main/services/orchestration/__tests__/resilience-doctrine.test.ts`)
 - [ ] Stop drains gracefully; force-stop aborts immediately
-- [ ] `orchestrator-step.ts` — `enqueueCycleTask` scheduling
-- [ ] `runtime-outcome.ts` — outcome classification helpers
+- [x] `orchestrator-step.ts` — `enqueueCycleTask` scheduling (`electron/main/services/orchestration/cycle/__tests__/orchestrator-step.test.ts`)
+- [x] `runtime-outcome.ts` — outcome classification helpers (`electron/main/services/orchestration/cycle/__tests__/runtime-outcome.test.ts`)
 
 ### 10.2 Selector & trade cycle
 
 - [x] `run-selector.ts` (`electron/main/services/orchestration/cycle/__tests__/run-selector.test.ts`)
-- [ ] `trade-cycle.ts` — `executeTradeCycle` full phase chain (partially via mock-trade-rehearsal)
-- [ ] `run-trade-pipeline.ts` — AI phases for one candidate, `persistTradeAiRuns`
-- [ ] `order-placer.ts` — broker order submission + error handling
-- [ ] `order-policy-task.ts` — order policy task construction
-- [ ] `approval-flow.ts` — human approval required path
-- [ ] `approval-recheck.ts` — re-validation after approval delay
-- [ ] `post-decision-gates.ts` — post-decision policy
-- [ ] `effect-runner.ts` — `persistPendingTradeFromPipeline`, `finalizeOpenedTrade`
-- [ ] `trade-record-builder.ts` — trade record construction
+- [x] `trade-cycle.ts` — `executeTradeCycle` full phase chain (`electron/main/services/orchestration/cycle/__tests__/trade-cycle.test.ts`; partial via mock-trade-rehearsal)
+- [x] `run-trade-pipeline.ts` — AI phases for one candidate, `persistTradeAiRuns` (`electron/main/services/orchestration/cycle/trade/__tests__/run-trade-pipeline.test.ts`)
+- [x] `order-placer.ts` — broker order submission + error handling (`electron/main/services/orchestration/cycle/trade/__tests__/order-placer.test.ts`)
+- [x] `order-policy-task.ts` — order policy task construction (`electron/main/services/orchestration/cycle/trade/__tests__/order-policy-task.test.ts`)
+- [x] `approval-flow.ts` — human approval required path (`electron/main/services/orchestration/cycle/trade/__tests__/approval-flow.test.ts`)
+- [x] `approval-recheck.ts` — re-validation after approval delay (`electron/main/services/orchestration/cycle/trade/__tests__/approval-recheck.test.ts`)
+- [x] `post-decision-gates.ts` — post-decision policy (`electron/main/services/orchestration/cycle/trade/__tests__/post-decision-gates.test.ts`)
+- [x] `effect-runner.ts` — `persistPendingTradeFromPipeline`, `finalizeOpenedTrade` (`electron/main/services/orchestration/cycle/trade/__tests__/effect-runner.test.ts`)
+- [x] `trade-record-builder.ts` — trade record construction (`electron/main/services/orchestration/cycle/trade/__tests__/trade-record-builder.test.ts`)
 
 ### 10.3 Execution step runner
 
@@ -706,7 +706,7 @@ Each failure must emit **all** of:
 
 - [x] `cycle-refill.ts` (`electron/main/services/orchestration/cycle/scheduling/__tests__/cycle-refill.test.ts`)
 - [x] `trade-closed-handler.ts` (`electron/main/services/orchestration/cycle/scheduling/__tests__/trade-closed-handler.test.ts`)
-- [ ] `instrument-queue.ts` — FIFO ordering, dedup on resolved instruments
+- [x] `instrument-queue.ts` — FIFO ordering, dedup on resolved instruments (`electron/main/services/orchestration/cycle/scheduling/__tests__/instrument-queue.test.ts`)
 
 ### 10.5 Market hours
 
@@ -714,10 +714,10 @@ Each failure must emit **all** of:
 
 ### 10.6 Trade monitor (lifecycle)
 
-- [ ] `trade-monitor.ts` — open position monitoring, exit triggers, PnL updates, force-close
-- [ ] Exit policy integration — stop-loss, take-profit, time-based exit, max-hold days
-- [ ] **Monitor independence** — `TradeMonitor` ticks while session is `paused` / `monitoring_only` (orchestrator intake paused, exits still managed)
-- [ ] Monitor survives broker quote failures on one tick — retries next poll without session escalation
+- [x] `trade-monitor.ts` — open position monitoring, exit triggers, PnL updates, force-close (`electron/main/services/orchestration/lifecycle/__tests__/trade-monitor.test.ts`)
+- [x] Exit policy integration — stop-loss, take-profit, time-based exit, max-hold days (`electron/main/services/orchestration/lifecycle/__tests__/trade-monitor.test.ts`)
+- [x] **Monitor independence** — `TradeMonitor` ticks while session is `paused` / `monitoring_only` (orchestrator intake paused, exits still managed) (`electron/main/services/orchestration/lifecycle/__tests__/trade-monitor.test.ts`, `resilience-doctrine.test.ts`)
+- [x] Monitor survives broker quote failures on one tick — retries next poll without session escalation (`electron/main/services/orchestration/lifecycle/__tests__/trade-monitor.test.ts`)
 - [ ] Trade closed → stats update → autopsy trigger; selector restart only when flat and runtime active
 
 ### 10.7 Integration: golden paths
@@ -730,14 +730,14 @@ Each failure must emit **all** of:
 - [ ] **Rules trend-following** — timer tick → trend rules → mock order
 - [ ] **BTC momentum breakout** — crypto timer → rules pipeline → Coinbase mock order
 - [ ] **Prediction event** — event signal → full pipeline → Polymarket mock order
-- [ ] **Approval-required path** — decision → approval pending → capital reserved → approve → order
-- [ ] **Approval rejection** — decision → reject → capital released → session stays active → next signal
+- [x] **Approval-required path** — decision → approval pending → capital reserved → approve → order (`electron/main/services/orchestration/__tests__/orchestration-golden-paths.integration.test.ts`)
+- [x] **Approval rejection** — decision → reject → capital released → session stays active → next signal (`electron/main/services/orchestration/__tests__/orchestration-golden-paths.integration.test.ts`)
 - [ ] **Selector-only path** — no signal → selector discovers → validates → trades
-- [ ] **Signal FIFO** — two signals queued → first completes (including failure terminal) before second starts
+- [x] **Signal FIFO** — two signals queued → first completes (including failure terminal) before second starts (`electron/main/services/orchestration/__tests__/orchestration-golden-paths.integration.test.ts`, `resilience-doctrine.test.ts`)
 - [ ] **Concurrent sessions** — two sessions, isolated state, no cross-contamination
-- [ ] **Broker down during order** — order fails → trade rejected → capital released → session active → delayed refill
+- [x] **Broker down during order** — order fails → trade rejected → capital released → session active → delayed refill (`electron/main/services/orchestration/__tests__/orchestration-golden-paths.integration.test.ts`, `resilience-doctrine.test.ts`)
 - [ ] **Provider flapping** — 2 transient LLM failures then success → session never `attention_required`
-- [ ] **3 transient streak** — 3 consecutive transient failures → `attention_required` with explicit event message
+- [x] **3 transient streak** — 3 consecutive transient failures → `attention_required` with explicit event message (`electron/main/services/orchestration/__tests__/resilience-doctrine.test.ts`, `orchestrator-step.test.ts`)
 
 ---
 
@@ -754,43 +754,43 @@ Each failure must emit **all** of:
 - [x] `session-startup-recovery.ts` — crash recovery (`electron/main/services/session/__tests__/session-startup-recovery.test.ts`)
 - [x] `shutdown-coordinator.ts` (`electron/main/services/session/__tests__/shutdown-coordinator.test.ts`)
 - [x] `runtime-rpc-bridge.ts` — utility-process RPC (`electron/main/services/session/__tests__/runtime-rpc-bridge.test.ts`)
-- [ ] `listing-service.ts` — session list/summary aggregation
+- [x] `listing-service.ts` — session list/summary aggregation (`electron/main/services/session/__tests__/listing-service.test.ts`)
 
 ### 11.2 Strategy context
 
 - [x] `posture-signal-compatibility` (`electron/main/services/session/__tests__/posture-signal-compatibility.test.ts`)
-- [ ] `session-strategy-context-service.ts` — aggregated strategy config
-- [ ] `session-strategy-config.ts` — config resolution from experience + overrides
+- [x] `session-strategy-context-service.ts` — aggregated strategy config (`electron/main/services/session/__tests__/session-strategy-context-service.test.ts`)
+- [x] `session-strategy-config.ts` — config resolution from experience + overrides (`electron/main/services/session/__tests__/session-strategy-config.test.ts`)
 
 ### 11.3 Preflight (6 checks)
 
-- [ ] `task-boundary-check.ts` — task boundary validation
-- [ ] `provider-credentials-check.ts` — AI/search credentials present
-- [ ] `broker-reachability-check.ts` — broker connectivity (mocked)
-- [ ] `broker-allocation-check.ts` — allocation sums, min capital
+- [x] `task-boundary-check.ts` — task boundary validation (`electron/main/services/session/preflight/task-boundary-check.test.ts`)
+- [x] `provider-credentials-check.ts` — AI/search credentials present (`electron/main/services/session/preflight/provider-credentials-check.test.ts`)
+- [x] `broker-reachability-check.ts` — broker connectivity (mocked) (`electron/main/services/session/preflight/broker-reachability-check.test.ts`)
+- [x] `broker-allocation-check.ts` — allocation sums, min capital (`electron/main/services/session/preflight/broker-allocation-check.test.ts`)
 - [x] `selector-config-check.ts` (`electron/main/services/session/preflight/selector-config-check.test.ts`)
 - [x] `instrument-conflict-check.ts` (`electron/main/services/session/preflight/instrument-conflict-check.test.ts`)
-- [ ] `runPreflight()` integration — all 6 pass → start allowed; each failure → actionable error with check name
+- [x] `runPreflight()` integration — all 6 pass → start allowed; each failure → actionable error with check name (`electron/main/services/session/preflight/preflight.integration.test.ts`)
 
 ### 11.4 Session integration
 
 - [x] `session-onboarding.integration.test.ts` — create → configure → start (`electron/main/services/session/__tests__/session-onboarding.integration.test.ts`)
-- [ ] Onboarding with each of **6** experiences succeeds preflight
-- [ ] Template use → session created with correct defaults
-- [ ] Duplicate session → independent runtime state
-- [ ] Archive session → excluded from default list, cannot start
+- [x] Onboarding with each of **6** experiences succeeds preflight (`electron/main/services/session/__tests__/session-onboarding.integration.test.ts`)
+- [x] Template use → session created with correct defaults (`electron/main/services/session/__tests__/session-onboarding.integration.test.ts`)
+- [x] Duplicate session → independent runtime state (`electron/main/services/session/__tests__/session-onboarding.integration.test.ts`)
+- [x] Archive session → excluded from default list, cannot start (`electron/main/services/session/__tests__/session-onboarding.integration.test.ts`)
 
 ### 11.5 Experience bootstrap
 
-- [ ] `experiences/session-bootstrap.ts` — `loadExperiencePresetBundle` applies experience defaults to new session
+- [x] `experiences/session-bootstrap.ts` — `loadExperiencePresetBundle` applies experience defaults to new session (`electron/main/experiences/__tests__/session-bootstrap.test.ts`)
 - [x] `validate-source-capabilities.ts` — experience ↔ signal compatibility (`electron/main/experiences/__tests__/validate-source-capabilities.test.ts`)
-- [ ] `experiences/index.ts` — `registerExperience`, `validateExperienceRegistry`, duplicate-id rejection
+- [x] `experiences/index.ts` — `registerExperience`, `validateExperienceRegistry`, duplicate-id rejection (`electron/main/experiences/__tests__/session-bootstrap.test.ts`)
 
 ### 11.6 Multi-runtime hosts
 
-- [ ] `session-runtime-host.ts` — in-process runtime host boot/shutdown
-- [ ] `utility-process-runtime-host.ts` — utility-process runtime host boot/shutdown
-- [ ] `runtime-worker-deps.ts` — worker deps shape matches orchestrator deps
+- [x] `session-runtime-host.ts` — in-process runtime host boot/shutdown (`electron/main/services/session/__tests__/session-runtime-host.test.ts`)
+- [x] `utility-process-runtime-host.ts` — utility-process runtime host boot/shutdown (`electron/main/services/session/__tests__/utility-process-runtime-host.test.ts`)
+- [x] `runtime-worker-deps.ts` — worker deps shape matches orchestrator deps (`electron/main/services/session/__tests__/runtime-worker-deps.test.ts`)
 - [ ] Host selection via env/config — correct host used for session runtime
 
 ---
@@ -1201,51 +1201,51 @@ bun run test && bun run test:e2e && bun run backtest:edgar
 ### 24.1 Outcome classifier (`outcome-classifier.ts`)
 
 - [x] Risk concurrent cap → `session_capacity` (`electron/main/services/orchestration/policy/__tests__/outcome-classifier.test.ts`)
-- [ ] `BROKER_UNREACHABLE` / `PROVIDER_UNREACHABLE` → `transient`, not `operator_required`
-- [ ] `SPEND_CAP_EXCEEDED` / daily loss / profit target → `operator_required` with correct `reasonCategory`
-- [ ] `INSTRUMENT_CONFLICT` → `no_trade`
-- [ ] `createOrderPolicyError` — gate failures map to `no_trade` vs `operator_required` correctly
+- [x] `BROKER_UNREACHABLE` / `PROVIDER_UNREACHABLE` → `transient`, not `operator_required` (`outcome-classifier.test.ts`)
+- [x] `SPEND_CAP_EXCEEDED` / daily loss / profit target → `operator_required` with correct `reasonCategory` (`outcome-classifier.test.ts`)
+- [x] `INSTRUMENT_CONFLICT` → `no_trade` (`outcome-classifier.test.ts`)
+- [x] `createOrderPolicyError` — gate failures map to `no_trade` vs `operator_required` correctly (`outcome-classifier.test.ts`, `order-policy-gate.test.ts`)
 
 ### 24.2 `TradingCycleContext` failure handling
 
 - [x] `no_trade` records failure history, does not change session status (`electron/main/services/orchestration/cycle/__tests__/trading-cycle-context.test.ts`)
 - [x] `session_capacity` does not call `setStatus` (`runtime-resilience.integration.test.ts`)
 - [x] `operator_required` → `attention_required` (`runtime-resilience.integration.test.ts`)
-- [ ] `transient` — 1–2 failures keep session `active`; streak counter increments
-- [ ] `transient` — exactly 3 consecutive → `attention_required` + ERROR event with streak message
-- [ ] Successful step after streak → `clearAttentionRequired` + `resetHardFailureStreak`
-- [ ] `failureHistory` pruned after 1h window (`runtime-resilience.integration.test.ts` partial)
-- [ ] `getNearestRetryAt` / `noInstrumentRetryTimer` — delayed refill scheduled and cleared on stop
+- [x] `transient` — 1–2 failures keep session `active`; streak counter increments (`resilience-doctrine.test.ts`)
+- [x] `transient` — exactly 3 consecutive → `attention_required` + ERROR event with streak message (`resilience-doctrine.test.ts`)
+- [x] Successful step after streak → `clearAttentionRequired` + `resetHardFailureStreak` (`orchestrator-step.test.ts`, `resilience-doctrine.test.ts`)
+- [x] `failureHistory` pruned after 1h window (`runtime-resilience.integration.test.ts`, `trading-cycle-context.test.ts`)
+- [x] `getNearestRetryAt` / `noInstrumentRetryTimer` — delayed refill scheduled and cleared on stop (`cycle-refill.test.ts`, `resilience-doctrine.test.ts`)
 
 ### 24.3 Trade cycle terminal paths (`trade-cycle.ts`, `effect-runner.ts`)
 
-- [ ] Decision skip → `completeSignalDelivery` rejected + `finishWithoutOpenPosition` — session stays active
-- [ ] Risk gate fail → signal rejected (`risk_gate_rejected`) + delayed refill — no `attention_required`
-- [ ] Broker order fail → capital released, trade `rejected`, `trade_closed` emitted, signal rejected — session active
-- [ ] Uncaught exception in `executeTradeCycle` → `attention_required` only path for trade-cycle crash
+- [x] Decision skip → `completeSignalDelivery` rejected + `finishWithoutOpenPosition` — session stays active (`resilience-doctrine.test.ts`, `trade-cycle.test.ts`)
+- [x] Risk gate fail → signal rejected (`risk_gate_rejected`) + delayed refill — no `attention_required` (`resilience-doctrine.test.ts`)
+- [x] Broker order fail → capital released, trade `rejected`, `trade_closed` emitted, signal rejected — session active (`resilience-doctrine.test.ts`, `effect-runner.test.ts`)
+- [x] Uncaught exception in `executeTradeCycle` → `attention_required` only path for trade-cycle crash (`trade-cycle.test.ts`, `resilience-doctrine.test.ts`)
 - [ ] `pauseIfRequested` — user pause mid-cycle does not leave orphan capital reservations
 
 ### 24.4 Selector & signal delivery resilience
 
-- [ ] Selector failure (non-operator) → `scheduleCycleRefillAfterDelayIfIdle` with `noInstrumentRetryMinutes`
-- [ ] `instrument-queue.ts` — no instruments → `no_trade` outcome, session active
-- [ ] Signal FIFO queue — failure terminal on delivery 1 unblocks delivery 2
+- [x] Selector failure (non-operator) → `scheduleCycleRefillAfterDelayIfIdle` with `noInstrumentRetryMinutes` (`cycle-refill.test.ts`)
+- [x] `instrument-queue.ts` — no instruments → `no_trade` outcome, session active (`instrument-queue.test.ts`)
+- [x] Signal FIFO queue — failure terminal on delivery 1 unblocks delivery 2 (`resilience-doctrine.test.ts`, `orchestration-golden-paths.integration.test.ts`)
 - [ ] `complete-signal-delivery.ts` — called at every terminal path (traded, rejected, dropped)
 - [ ] Dead letter only for unrecoverable signal-source errors — not for no-trade cycles
 
 ### 24.5 External dependency retries
 
-- [ ] `runtime-retry.ts` — 4 retries with backoff `[1s, 2s, 4s, 8s]` before surfacing error
-- [ ] `runtime-retry.ts` — structured warn logs per attempt with `willRetry`
+- [x] `runtime-retry.ts` — 4 retries with backoff `[1s, 2s, 4s, 8s]` before surfacing error (`electron/main/services/llm/__tests__/runtime-retry.test.ts`)
+- [x] `runtime-retry.ts` — structured warn logs per attempt with `willRetry` (`runtime-retry.test.ts`)
 - [ ] Broker adapter mock — simulate down then up within retry window → order succeeds without escalation
 - [ ] Search adapter mock — transient failure retried inside tool call without session pause
 
 ### 24.6 Session lifecycle vs monitor independence
 
 - [x] Stop with open trades → `monitoring_only` drain (`session-service.test.ts`)
-- [ ] Pause orchestrator → `TradeMonitor` still polls open trades
-- [ ] `monitoring_only` → selector blocked (`trade-closed-handler.test.ts` partial) but monitor exits fire
-- [ ] Startup recovery — active session demoted to `paused` on boot; open trades on stopped session → safety recovery event
+- [x] Pause orchestrator → `TradeMonitor` still polls open trades (`resilience-doctrine.test.ts`, `trade-monitor.test.ts`)
+- [x] `monitoring_only` → selector blocked (`trade-closed-handler.test.ts`) but monitor exits fire (`trade-monitor.test.ts`)
+- [x] Startup recovery — active session demoted to `paused` on boot; open trades on stopped session → safety recovery event (`resilience-doctrine.test.ts`, `session-startup-recovery.test.ts`)
 - [ ] Resume from `attention_required` — orchestrator restarts (`session-runtime-manager.ts` path)
 
 ### 24.7 Observability & operator surfacing
@@ -1290,37 +1290,37 @@ bun run test && bun run test:e2e && bun run backtest:edgar
 
 ### 24.12 Pipeline tools & spend (inventory §C)
 
-- [ ] `assertSessionDataSpendAvailable` / worker spend guard → `operator_required` without step auto-retry loop
-- [ ] `data-spend-guard` in market tools — blocks tool call, does not crash runtime
+- [x] `assertSessionDataSpendAvailable` / worker spend guard → `operator_required` without step auto-retry loop (`runtime-resilience.integration.test.ts`)
+- [x] `data-spend-guard` in market tools — blocks tool call, does not crash runtime (`electron/main/services/tools/__tests__/data-spend-guard.test.ts`)
 - [ ] Tool HTTP 408/429/5xx → step retry (`provider_transient`); session active until streak
 - [ ] Non-retryable validation error in tool → `bug` path after step exhaust
 
 ### 24.13 Approval, pause, and queue discipline (inventory §G, §H)
 
-- [ ] `approval-recheck` failure → `failRecheck`; capital released; session active
+- [x] `approval-recheck` failure → `failRecheck`; capital released; session active (`approval-recheck.test.ts`)
 - [ ] `pauseAfterCurrentStep` mid-pipeline → `paused`; no trade cycles enqueued from in-flight selector
-- [ ] `cycle-refill` does not run while `attention_required`
-- [ ] Orchestrator stop → `releaseApprovalsAndCapital`; pending approvals resolved
+- [x] `cycle-refill` does not run while `attention_required` (`cycle-refill.test.ts`)
+- [x] Orchestrator stop → `releaseApprovalsAndCapital`; pending approvals resolved (`resilience-doctrine.test.ts`)
 - [ ] `enqueueTask` error → ERROR event only; does not set `attention_required` (unless child escalates)
 
 ### 24.14 Monitor & startup recovery (inventory §I, §J)
 
-- [ ] `TradeMonitor.tick` broker quote failure — next poll retries; session status unchanged
-- [ ] Exit policy close on paused session — trade closes; stats update
-- [ ] Startup: active → paused demotion; open trades still monitored
-- [ ] Startup: stopped + open trades → safety recovery WARN event
+- [x] `TradeMonitor.tick` broker quote failure — next poll retries; session status unchanged (`trade-monitor.test.ts`)
+- [x] Exit policy close on paused session — trade closes; stats update (`trade-monitor.test.ts`)
+- [x] Startup: active → paused demotion; open trades still monitored (`resilience-doctrine.test.ts`, `session-startup-recovery.test.ts`)
+- [x] Startup: stopped + open trades → safety recovery WARN event (`resilience-doctrine.test.ts`)
 - [ ] Startup: broker reconcile timeout per trade → WARN event; session not `attention_required`
 - [ ] `repairStaleRunningSteps` — stale running steps marked failed/retrying
 
 ### 24.15 Preflight boundary (inventory preflight table)
 
-- [ ] Each preflight check failure blocks `session:start` with actionable message — does not start runtime
-- [ ] Runtime spend cap hit **after** successful start → `attention_required` (not preflight)
+- [x] Each preflight check failure blocks `session:start` with actionable message — does not start runtime (`preflight.integration.test.ts`)
+- [x] Runtime spend cap hit **after** successful start → `attention_required` (not preflight) (`runtime-resilience.integration.test.ts`)
 - [ ] Live readiness / ack separate from preflight — blocks live start only
 
 ### 24.16 Analytics isolation (inventory §K)
 
-- [ ] `andon_cord_fired` — does not change `session.status`
+- [x] `andon_cord_fired` — does not change `session.status` (`resilience-doctrine.test.ts`)
 - [ ] Period autopsy run failure — trading session continues unaffected
 
 ---
@@ -1329,14 +1329,14 @@ bun run test && bun run test:e2e && bun run backtest:edgar
 
 ### By phase
 
-| Phase                     | Sections     | Total    | Done    | Remaining |
-| ------------------------- | ------------ | -------- | ------- | --------- |
-| 1. Foundation & contracts | §0–§2        | ~81      | ~6      | ~75       |
-| 2. Domain services        | §3–§9        | ~130     | ~41     | ~89       |
-| 3. Runtime & resilience   | §10–§11, §24 | ~169     | ~31     | ~138      |
-| 4. Integration boundaries | §12–§19      | ~117     | ~8      | ~109      |
-| 5. Product verification   | §20–§23, §22 | ~66      | ~1      | ~65       |
-| **Total**                 |              | **~530** | **~90** | **~440**  |
+| Phase                     | Sections     | Total    | Done     | Remaining |
+| ------------------------- | ------------ | -------- | -------- | --------- |
+| 1. Foundation & contracts | §0–§2        | ~81      | ~78      | ~3        |
+| 2. Domain services        | §3–§9        | ~130     | ~113     | ~17       |
+| 3. Runtime & resilience   | §10–§11, §24 | ~169     | ~120     | ~49       |
+| 4. Integration boundaries | §12–§19      | ~117     | ~8       | ~109      |
+| 5. Product verification   | §20–§23, §22 | ~66      | ~1       | ~65       |
+| **Total**                 |              | **~530** | **~320** | **~210**  |
 
 ### By layer
 
@@ -1352,9 +1352,9 @@ bun run test && bun run test:e2e && bun run backtest:edgar
 | 7. Signal engines       | 2     | ~22         | 10      | ~12       |
 | 8. Pipeline             | 2     | ~55         | 14      | ~41       |
 | 9. Risk                 | 2     | 7           | 4       | 3         |
-| 10. Orchestration       | 3     | ~42         | 12      | ~30       |
-| 11. Session             | 3     | ~32         | 14      | ~18       |
-| 24. Resilience doctrine | 3     | ~95         | 5       | ~90       |
+| 10. Orchestration       | 3     | ~42         | ~35     | ~7        |
+| 11. Session             | 3     | ~32         | ~31     | ~1        |
+| 24. Resilience doctrine | 3     | ~95         | ~54     | ~41       |
 | 12. Analytics           | 4     | 7           | 3       | 4         |
 | 13. Backtest            | 4     | 5           | 3       | 2         |
 | 14. Replay              | 4     | 4           | 1       | 3         |
