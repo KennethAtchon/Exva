@@ -27,6 +27,8 @@ export interface PipelineDescriptor {
 const DESCRIPTORS = new Map<string, PipelineDescriptor>();
 const PHASE_POOL = new Set<string>(PIPELINE_PHASES);
 
+const SHAREABLE_SIGNAL_SOURCES = new Set<SignalSourceType>(["timer"]);
+
 const SIGNAL_PRODUCING_PHASES: readonly PipelinePhase[] = [
   "technical",
   "fundamental",
@@ -69,12 +71,14 @@ export function validatePipelineRegistry(): void {
   for (const descriptor of DESCRIPTORS.values()) {
     for (const source of descriptor.signalSources) {
       const existing = claimedBy.get(source);
-      if (existing) {
+      if (existing && !SHAREABLE_SIGNAL_SOURCES.has(source)) {
         throw new Error(
           `Signal source '${source}' is claimed by both '${existing}' and '${descriptor.id}'.`,
         );
       }
-      claimedBy.set(source, descriptor.id);
+      if (!existing) {
+        claimedBy.set(source, descriptor.id);
+      }
     }
   }
 }

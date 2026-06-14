@@ -1,4 +1,7 @@
-import { registerInstrumentAnalysis } from "../../analysis/registry";
+import {
+  getInstrumentAnalysis,
+  registerInstrumentAnalysis,
+} from "../../analysis/registry";
 import {
   registerPipelineDescriptor,
   requirePipelineDescriptor,
@@ -26,8 +29,13 @@ export {
 export function registerPipeline(descriptor: PipelineDescriptor): void {
   validatePipelineDescriptor(descriptor);
 
-  // registerInstrumentAnalysis throws on duplicate plan id, covering the case
-  // where two descriptors wrap plans with the same id.
-  registerInstrumentAnalysis(descriptor.plan);
+  const existingPlan = getInstrumentAnalysis(descriptor.plan.id);
+  if (!existingPlan) {
+    registerInstrumentAnalysis(descriptor.plan);
+  } else if (existingPlan !== descriptor.plan) {
+    throw new Error(
+      `Cycle plan '${descriptor.plan.id}' is already registered with a different plan instance.`,
+    );
+  }
   registerPipelineDescriptor(descriptor);
 }

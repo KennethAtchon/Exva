@@ -12,7 +12,11 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["electron/main/**/*.test.ts", "electron/shared/**/*.test.ts"],
+    include: [
+      "electron/main/**/*.test.ts",
+      "electron/shared/**/*.test.ts",
+      "src/**/*.test.ts",
+    ],
     coverage: {
       provider: "v8",
       include: [
