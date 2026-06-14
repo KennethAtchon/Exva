@@ -52,6 +52,10 @@ export const HELP_GLOSSARY = {
     title: "Mock",
     body: "Deterministic test signals for rehearsal and development. Not for real trading.",
   },
+  "fire-rehearsal-signal": {
+    title: "Fire rehearsal signal",
+    body: "Emits one synthetic filing-style signal through the full delivery path for subscribed rehearsal sessions.",
+  },
   "signal-type-timer": {
     title: "Timer",
     body: "Fires on a schedule for strategies that do not depend on external news.",
@@ -66,7 +70,7 @@ export const HELP_GLOSSARY = {
   },
   "experience-rules-mean-reversion": {
     title: "Rules mean reversion",
-    body: "A rule-based mean reversion strategy on a manual or timer-driven stock universe.",
+    body: "A rule-based mean reversion strategy on a timer-driven stock universe defined by the experience signal source.",
   },
   "experience-rules-qqq-mean-reversion": {
     title: "QQQ mean reversion",
@@ -194,7 +198,7 @@ export const HELP_GLOSSARY = {
   },
   "source-readiness-armed": {
     title: "Armed",
-    body: "The session has at least one live input and can start processing signals immediately.",
+    body: "The session has at least one live input and can start processing signals immediately. For listener experiences, that means an enabled subscribed source — not manual tickers.",
   },
   "source-readiness-manual-only": {
     title: "Manual only",
@@ -266,7 +270,7 @@ export const HELP_GLOSSARY = {
   },
   "manual-tickers": {
     title: "Manual tickers",
-    body: "Symbols entered here can seed or constrain research, depending on the session's selection mode and source setup.",
+    body: "Symbols that seed or constrain research for manual-only or web-search sessions. Listener experiences ignore this field — instruments come from the signal feed.",
   },
   "broker-accounts": {
     title: "Broker accounts",

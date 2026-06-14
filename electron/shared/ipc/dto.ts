@@ -39,6 +39,22 @@ export interface SessionSummary {
   openTradeCount: number;
   uptimeMin: number;
   updatedAt: string;
+  subscribedSources: Array<{
+    id: string;
+    name: string;
+    type: import("@electron/shared/domain").SignalSourceType;
+    enabled: boolean;
+    configJson?: string;
+  }>;
+  readiness:
+    | "armed"
+    | "manual_only"
+    | "waiting_for_source_enable"
+    | "no_inputs";
+  inputModel: "listener" | "search_scoped" | "manual_only" | "search_universe";
+  rehearsalMode: boolean;
+  rehearsalEligible: boolean;
+  canFireRehearsalSignal: boolean;
 }
 
 export interface WorkspaceViewResponse {
@@ -52,7 +68,7 @@ import type { ExperienceCapabilities } from "@electron/shared/domain/experience"
 export interface ExperienceSummary {
   id: string;
   displayName: string;
-  signalSourceType: string;
+  signalSourceType: import("@electron/shared/domain").SignalSourceType;
   pipelineId: string;
   presets: {
     posturePresetId: string;

@@ -38,6 +38,23 @@ export function isMockScenarioKind(value: string): value is MockScenarioKind {
   return (MOCK_SCENARIO_KINDS as readonly string[]).includes(value);
 }
 
+/** Primary symbols per scenario — shared by mock fixtures and rehearsal signals. */
+export const MOCK_SCENARIO_PRIMARY_SYMBOLS: Record<
+  MockScenarioKind,
+  readonly string[]
+> = {
+  clean_breakout: ["NVDA", "AMD", "PLTR"],
+  failed_breakout: ["AAPL", "META", "NFLX"],
+  sideways_chop: ["SPY", "QQQ", "IWM"],
+  gap_down_after_entry: ["AAPL", "AMZN", "GOOGL"],
+  news_reversal: ["TSLA", "META", "AMZN"],
+  stale_quote: ["RIVN", "LCID", "SOFI"],
+  wide_spread: ["RIVN", "BBAI", "OPEN"],
+  partial_fill: ["GME", "MSTR", "HOOD"],
+  broker_reject: ["NVDA", "AMD", "AVGO"],
+  rate_limit: ["NVDA", "PLTR", "TSLA"],
+};
+
 export const MOCK_SCENARIO_LABELS: Record<
   MockScenarioKind,
   { label: string; outcome: string }

@@ -451,6 +451,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     assignments: repos.sessionBrokerAssignments,
     trades: repos.trades,
     runtimeManager,
+    signalSources: signalSourcesRepo,
+    brokerAccounts: repos.brokerAccounts,
   });
 
   const sessionTemplates = new SessionTemplateService({
@@ -526,6 +528,18 @@ export async function createAppServices(app: App): Promise<AppServices> {
     signals,
   });
   signals.bootstrapFromDb();
+  signals.ensureAllExperienceSignalSources();
+  signals.ensureMockRehearsalSignalSource();
+  signals.migrateEligibleSessionsToMockRehearsal({
+    sessions: repos.session.list({ includeArchived: true }),
+    listAssignments: (sessionId) =>
+      repos.sessionBrokerAssignments.listAssignments(sessionId),
+    brokerAccounts: repos.brokerAccounts.list().map((broker) => ({
+      id: broker.id,
+      brokerType: broker.brokerType,
+      mockScenarioKind: broker.mockScenarioKind ?? null,
+    })),
+  });
 
   return {
     db,

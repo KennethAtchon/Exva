@@ -3,6 +3,10 @@ import type {
   SessionStatus,
   WorkspaceViewMode,
 } from "@/lib/types";
+import {
+  deriveSessionInputModel,
+  deriveSessionReadiness,
+} from "@electron/shared/instruments/session-input-model";
 import type {
   SessionRepo,
   SessionFilters,
@@ -10,6 +14,14 @@ import type {
 import type { SessionBrokerAssignmentsRepo } from "../../db/repositories/sessions/session-broker-assignments-repo";
 import type { TradesRepo } from "../../db/repositories/trades/trades-repo";
 import type { SessionRuntimeManager } from "./session-runtime-manager";
+import type { SignalSourcesRepo } from "../signals/repos/signal-sources-repo";
+import type { BrokerAccountsRepo } from "../../db/repositories/brokers/broker-accounts-repo";
+import { requireExperience } from "../../experiences/index";
+import {
+  MOCK_REHEARSAL_SIGNAL_SOURCE_ID,
+  sessionEligibleForMockRehearsal,
+  sessionSubscribedToMockRehearsal,
+} from "@electron/shared/instruments/mock-rehearsal";
 
 export interface SessionListFilters {
   status?: SessionStatus;
@@ -36,6 +48,22 @@ export interface SessionSummaryView {
   uptimeMin: number;
   updatedAt: string;
   experienceId: string;
+  subscribedSources: Array<{
+    id: string;
+    name: string;
+    type: import("@electron/shared/domain").SignalSourceType;
+    enabled: boolean;
+    configJson?: string;
+  }>;
+  readiness:
+    | "armed"
+    | "manual_only"
+    | "waiting_for_source_enable"
+    | "no_inputs";
+  inputModel: "listener" | "search_scoped" | "manual_only" | "search_universe";
+  rehearsalMode: boolean;
+  rehearsalEligible: boolean;
+  canFireRehearsalSignal: boolean;
 }
 
 export interface SessionListResult {
@@ -51,6 +79,8 @@ export class SessionListingService {
       assignments: SessionBrokerAssignmentsRepo;
       trades: TradesRepo;
       runtimeManager: SessionRuntimeManager;
+      signalSources: SignalSourcesRepo;
+      brokerAccounts: BrokerAccountsRepo;
     },
   ) {}
 
@@ -81,6 +111,64 @@ export class SessionListingService {
           .listOpenAndPending(session.id)
           .filter((trade) => trade.status === "open").length;
         const assignments = this.deps.assignments.listAssignments(session.id);
+        const subscribedSources = this.deps.signalSources
+          .subscribedSourceStatesForSession(session.id)
+          .flatMap(({ sourceId, enabled }) => {
+            const source = this.deps.signalSources.get(sourceId);
+            return source
+              ? [
+                  {
+                    id: source.id,
+                    name: source.name,
+                    type: source.type,
+                    enabled,
+                    configJson: source.configJson,
+                  },
+                ]
+              : [];
+          });
+        const inputModel = deriveSessionInputModel({
+          subscribedSources,
+          instrumentScope: session.instrumentScope,
+        });
+        const readiness = deriveSessionReadiness({
+          subscribedSources,
+          instrumentScope: session.instrumentScope,
+        });
+        const brokerAssignmentIds = assignments.map(
+          (assignment) => assignment.brokerAccountId,
+        );
+        const brokerAccounts = this.deps.brokerAccounts.list();
+        let experienceCapabilities;
+        try {
+          experienceCapabilities = requireExperience(
+            session.experienceId,
+          ).capabilities;
+        } catch {
+          experienceCapabilities = null;
+        }
+        const rehearsalEligible =
+          experienceCapabilities &&
+          sessionEligibleForMockRehearsal({
+            experience: experienceCapabilities,
+            brokerAccounts: brokerAccounts.map((broker) => ({
+              id: broker.id,
+              brokerType: broker.brokerType,
+              mockScenarioKind: broker.mockScenarioKind ?? null,
+            })),
+            brokerAssignmentIds,
+          });
+        const subscribedMockRehearsal =
+          sessionSubscribedToMockRehearsal(subscribedSources);
+        const rehearsalMode = Boolean(
+          rehearsalEligible && subscribedMockRehearsal,
+        );
+        const mockSourceEnabled = subscribedSources.some(
+          (source) =>
+            source.id === MOCK_REHEARSAL_SIGNAL_SOURCE_ID && source.enabled,
+        );
+        const canFireRehearsalSignal =
+          rehearsalMode && session.status === "active" && mockSourceEnabled;
         return {
           id: session.id,
           name: session.name,
@@ -101,6 +189,12 @@ export class SessionListingService {
           openTradeCount,
           uptimeMin: this.computeUptimeMin(session.id),
           updatedAt: session.updatedAt,
+          subscribedSources,
+          readiness,
+          inputModel,
+          rehearsalMode,
+          rehearsalEligible: Boolean(rehearsalEligible),
+          canFireRehearsalSignal,
         };
       });
 

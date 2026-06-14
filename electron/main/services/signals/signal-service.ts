@@ -4,6 +4,16 @@ import {
 } from "@electron/shared/domain";
 import type { SignalDeadLetterReason } from "@electron/shared/domain/signal-dead-letters";
 import { AppError } from "@electron/shared/infra/errors";
+import {
+  ensureAllExperienceSignalSources,
+  ensureExperienceSignalSource,
+} from "../../experiences/ensure-experience-signal-sources";
+import {
+  ensureMockRehearsalSignalSource,
+  syncMockRehearsalSignalSourceTicker,
+} from "../../experiences/ensure-mock-rehearsal-signal-source";
+import { migrateEligibleSessionsToMockRehearsal } from "../../experiences/migrate-mock-rehearsal-subscriptions";
+import { resolveMockRehearsalTicker } from "@electron/shared/instruments/mock-rehearsal";
 import { SignalDeadLettersRepo } from "./repos/signal-dead-letters-repo";
 import { SignalDeliveriesRepo } from "./repos/signal-deliveries-repo";
 import { SignalEventsRepo } from "./repos/signal-events-repo";
@@ -40,6 +50,8 @@ export class SignalService {
       attachedSessionCount: number;
     }
   > {
+    this.ensureAllExperienceSignalSources();
+    this.ensureMockRehearsalSignalSource();
     return this.sourcesRepo.list().map((source) => {
       const runtime = this.registry.status(source.id);
       const snapshot = this.registry.snapshot(source.id);
@@ -75,6 +87,99 @@ export class SignalService {
     this.registry.create(source);
     await this.registry.start(source.id);
     return source;
+  }
+
+  ensureExperienceSignalSource(experienceId: string): SignalSourceRecord {
+    const source = ensureExperienceSignalSource(this.sourcesRepo, experienceId);
+    if (!this.registry.get(source.id)) {
+      this.registry.create(source);
+      void this.registry.start(source.id);
+    }
+    return source;
+  }
+
+  ensureAllExperienceSignalSources(): SignalSourceRecord[] {
+    const sources = ensureAllExperienceSignalSources(this.sourcesRepo);
+    for (const source of sources) {
+      if (!this.registry.get(source.id)) {
+        this.registry.create(source);
+        if (source.enabled) {
+          void this.registry.start(source.id);
+        }
+      }
+    }
+    return sources;
+  }
+
+  ensureMockRehearsalSignalSource(
+    ticker: string = resolveMockRehearsalTicker(),
+  ): SignalSourceRecord {
+    const source = ensureMockRehearsalSignalSource(this.sourcesRepo, ticker);
+    if (!this.registry.get(source.id)) {
+      this.registry.create(source);
+      if (source.enabled) {
+        void this.registry.start(source.id);
+      }
+    } else {
+      const runtime = this.registry.get(source.id);
+      if (runtime) {
+        void runtime.restart(
+          JSON.parse(source.configJson) as Record<string, unknown>,
+        );
+      }
+    }
+    return source;
+  }
+
+  syncMockRehearsalSignalSourceTicker(ticker: string): SignalSourceRecord {
+    const source = syncMockRehearsalSignalSourceTicker(
+      this.sourcesRepo,
+      ticker,
+    );
+    const runtime = this.registry.get(source.id);
+    if (runtime) {
+      void runtime.restart(
+        JSON.parse(source.configJson) as Record<string, unknown>,
+      );
+    }
+    return source;
+  }
+
+  migrateEligibleSessionsToMockRehearsal(deps: {
+    sessions: Array<{ id: string; experienceId: string }>;
+    listAssignments: (sessionId: string) => Array<{ brokerAccountId: string }>;
+    brokerAccounts: Array<{
+      id: string;
+      brokerType: string;
+      mockScenarioKind?:
+        | import("@electron/shared/domain/mock-scenario").MockScenarioKind
+        | null;
+    }>;
+  }): string[] {
+    return migrateEligibleSessionsToMockRehearsal({
+      sessions: deps.sessions,
+      listAssignments: deps.listAssignments,
+      brokerAccounts: deps.brokerAccounts,
+      signalSources: this.sourcesRepo,
+      syncTicker: (ticker) => {
+        this.syncMockRehearsalSignalSourceTicker(ticker);
+      },
+    });
+  }
+
+  getSource(sourceId: string): SignalSourceRecord | null {
+    return this.sourcesRepo.get(sourceId);
+  }
+
+  listSubscribedSourcesForSession(
+    sessionId: string,
+  ): Array<SignalSourceRecord & { enabled: boolean }> {
+    return this.sourcesRepo
+      .subscribedSourceStatesForSession(sessionId)
+      .flatMap(({ sourceId, enabled }) => {
+        const source = this.sourcesRepo.get(sourceId);
+        return source ? [{ ...source, enabled }] : [];
+      });
   }
 
   async updateSource(

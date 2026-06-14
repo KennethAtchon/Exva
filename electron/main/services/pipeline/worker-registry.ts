@@ -61,7 +61,10 @@ export function resolvePipelinePhaseWorkerIds(
 export function resolveSelectorWorkerIds(
   sourceType: SignalSourceType | undefined,
 ): readonly string[] {
-  if (!sourceType || sourceType === "edgar_8k" || sourceType === "mock") {
+  if (!sourceType) {
+    return [...PIPELINE_WORKER_SETS.selector.standard];
+  }
+  if (sourceType === "edgar_8k" || sourceType === "mock") {
     return [];
   }
   if (sourceType === "timer") return [];

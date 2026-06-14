@@ -288,7 +288,7 @@ function SourceRow({
           topic="Enable source"
           body="Disabling a source keeps subscriptions in place, but subscribed sessions will wait idle until the source is enabled again."
         />
-        {source.type === "edgar_8k" ? (
+        {source.type === "edgar_8k" || source.type === "mock" ? (
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
@@ -300,7 +300,9 @@ function SourceRow({
                 try {
                   const result = await api.testSignalSource(source.id);
                   setTestResult(
-                    `Test poll: ${result.result.detected} detected, ${result.result.passed} passed, ${result.result.dropped} dropped.`,
+                    source.type === "mock"
+                      ? `Test signal: ${result.result.detected} emitted, ${result.result.passed} passed, ${result.result.dropped} dropped.`
+                      : `Test poll: ${result.result.detected} detected, ${result.result.passed} passed, ${result.result.dropped} dropped.`,
                   );
                   onChanged();
                 } catch (err) {
@@ -318,7 +320,11 @@ function SourceRow({
             </Button>
             <HelpTooltip
               topic="Test source"
-              body="Runs one poll now and reports detections. It does not enqueue session deliveries."
+              body={
+                source.type === "mock"
+                  ? "Emits one synthetic signal and enqueues deliveries for subscribed sessions."
+                  : "Runs one poll now and reports detections. It does not enqueue session deliveries."
+              }
             />
           </div>
         ) : null}
@@ -355,10 +361,12 @@ function AddSourceDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
 }) {
-  const [type, setType] = useState<"edgar_8k" | "web_search" | "">("");
+  const [type, setType] = useState<"edgar_8k" | "web_search" | "mock" | "">("");
   const [name, setName] = useState("");
   const [marketHours, setMarketHours] = useState("3");
   const [offHours, setOffHours] = useState("15");
+  const [mockTicker, setMockTicker] = useState("NVDA");
+  const [mockIntervalMinutes, setMockIntervalMinutes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -368,6 +376,8 @@ function AddSourceDialog({
       setName("");
       setMarketHours("3");
       setOffHours("15");
+      setMockTicker("NVDA");
+      setMockIntervalMinutes("");
       setSaving(false);
       setError(null);
     }
@@ -413,6 +423,24 @@ function AddSourceDialog({
               Lower edge.
             </span>
           </label>
+          <label className="grid gap-1 rounded-lg border border-[var(--border)] p-3">
+            <span className="flex items-center gap-2">
+              <input
+                type="radio"
+                checked={type === "mock"}
+                onChange={() => {
+                  setType("mock");
+                  setName("Mock rehearsal");
+                }}
+              />
+              <span>Mock rehearsal</span>
+              <HelpTooltip glossaryId="signal-type-mock" />
+            </span>
+            <span className="text-[12px] text-[var(--text3)]">
+              Synthetic filing-style signals for mock broker rehearsal. Fire
+              manually or on an optional interval.
+            </span>
+          </label>
         </div>
         {type ? (
           <div className="grid gap-3">
@@ -453,6 +481,30 @@ function AddSourceDialog({
                 </InputField>
               </div>
             ) : null}
+            {type === "mock" ? (
+              <div className="grid gap-3">
+                <InputField label="Ticker">
+                  <input
+                    value={mockTicker}
+                    onChange={(e) =>
+                      setMockTicker(e.target.value.toUpperCase())
+                    }
+                    className={inputClass}
+                    placeholder="NVDA"
+                  />
+                </InputField>
+                <InputField label="Auto-fire interval (minutes, optional)">
+                  <input
+                    type="number"
+                    min={1}
+                    value={mockIntervalMinutes}
+                    onChange={(e) => setMockIntervalMinutes(e.target.value)}
+                    className={inputClass}
+                    placeholder="Leave blank for manual fire only"
+                  />
+                </InputField>
+              </div>
+            ) : null}
           </div>
         ) : null}
         {error ? (
@@ -481,7 +533,18 @@ function AddSourceDialog({
                           pollIntervalMarketMinutes: Number(marketHours) || 3,
                           pollIntervalOffHoursMinutes: Number(offHours) || 15,
                         }
-                      : undefined,
+                      : type === "mock"
+                        ? {
+                            ticker: mockTicker.trim() || "NVDA",
+                            instrumentClass: "stock",
+                            ...(Number(mockIntervalMinutes) > 0
+                              ? {
+                                  intervalMs:
+                                    Number(mockIntervalMinutes) * 60_000,
+                                }
+                              : {}),
+                          }
+                        : undefined,
                 });
                 onOpenChange(false);
                 onCreated();
@@ -759,9 +822,13 @@ function readConfig(source: Source, key: string): unknown {
 }
 
 function describeSourceType(type: Source["type"]): string {
-  return type === "edgar_8k"
-    ? "Polls SEC EDGAR for 8-K filings."
-    : "Legacy wrapper for web-search discovery.";
+  if (type === "edgar_8k") {
+    return "Polls SEC EDGAR for 8-K filings.";
+  }
+  if (type === "mock") {
+    return "Synthetic filing-style signals for rehearsal.";
+  }
+  return "Legacy wrapper for web-search discovery.";
 }
 
 function statusBadgeClass(status: Source["runtimeStatus"]): string {

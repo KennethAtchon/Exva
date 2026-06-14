@@ -6,6 +6,7 @@ import {
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import os from "node:os";
+import { getNavGroupForPage, NAV_ITEMS, NAV_PRIMARY_IDS } from "../src/lib/nav";
 
 export type LaunchedExva = {
   app: ElectronApplication;
@@ -38,9 +39,31 @@ export async function navigateToNavItem(
   window: Page,
   label: string,
 ): Promise<void> {
-  await navLocator(window)
-    .getByRole("button", { name: label, exact: true })
-    .click();
+  const item = NAV_ITEMS.find((entry) => entry.label === label);
+  if (!item) {
+    throw new Error(`Unknown nav label: ${label}`);
+  }
+
+  const nav = navLocator(window);
+
+  if (NAV_PRIMARY_IDS.includes(item.id)) {
+    await nav.getByRole("button", { name: label, exact: true }).click();
+    return;
+  }
+
+  const flatButton = nav.getByRole("button", { name: label, exact: true });
+  if (await flatButton.isVisible()) {
+    await flatButton.click();
+    return;
+  }
+
+  const group = getNavGroupForPage(item.id);
+  if (!group) {
+    throw new Error(`Nav item ${label} is not in any nav group`);
+  }
+
+  await nav.getByRole("button", { name: group.label, exact: true }).click();
+  await window.getByRole("menuitem", { name: label, exact: true }).click();
 }
 
 export async function waitForAppReady(window: Page): Promise<void> {

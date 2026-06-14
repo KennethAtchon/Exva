@@ -1,5 +1,10 @@
 import { useEffect, useReducer, useState } from "react";
 import { getSearchProviderDisplayName } from "@electron/shared/instruments/search-providers";
+import {
+  formatInstrumentOriginLabel,
+  formatSignalSourceTypeLabel,
+  parseTimerSourceConfig,
+} from "@electron/shared/instruments/session-input-model";
 import { Badge } from "@/components/custom-ui";
 import { api, listenEvent, type SessionSummary } from "@/lib/exva";
 import type {
@@ -31,6 +36,7 @@ type InstrumentCacheView = {
 
 const SessionInfoGrid = ({
   session,
+  experienceDisplayName,
   payload,
   loading,
   instrumentCache,
@@ -39,148 +45,194 @@ const SessionInfoGrid = ({
   onClearCache,
 }: {
   session: SessionSummary;
+  experienceDisplayName: string | null;
   payload: SessionTemplatePayload | null;
   loading: boolean;
   instrumentCache: InstrumentCacheView | null;
   cacheLoading: boolean;
   cacheAction: string | null;
   onClearCache: () => void;
-}) => (
-  <>
-    <Section title="Task Definition">
-      <Row label="Manual tickers" value={session.instrumentScope} />
-      <Row
-        label="Search provider"
-        value={getSearchProviderDisplayName(session.defaultSearchProviderId)}
-      />
-      {payload?.selectorSettings.aiPickerEnabled ? (
-        <div className="mt-1">
-          <div className={rowLabelClass}>Last AI universe selection</div>
-          <div className="mt-1.5">
-            {cacheLoading ? (
-              <span className={mutedClass}>Loading cache…</span>
-            ) : instrumentCache?.instruments?.length ? (
-              <div className="grid gap-2">
-                <div className="text-[12px] text-[var(--text2)]">
-                  {instrumentCache.selectedAt
-                    ? `Selected ${formatTimestamp(instrumentCache.selectedAt)}`
-                    : "—"}
-                </div>
-                {!instrumentCache.definitionHashMatches ? (
-                  <Badge variant="warn">
-                    Definition changed: next start recomputes universe
-                  </Badge>
-                ) : null}
-                <div className="flex flex-wrap gap-1">
-                  {instrumentCache.instruments.map((row) => (
-                    <span
-                      key={`${row.symbol}-${row.instrumentClass}`}
-                      className={cacheChipClass}
-                    >
-                      {row.symbol} · {row.instrumentClass}
-                    </span>
-                  ))}
-                </div>
-                <Button
-                  type="button"
-                  onClick={onClearCache}
-                  disabled={
-                    session.status === "active" || session.status === "paused"
-                  }
-                  variant="outline"
-                  className="self-start border-border bg-[var(--surface2)] text-xs text-[var(--text2)]"
-                >
-                  Re-run selector on next start
-                </Button>
-                {cacheAction ? (
-                  <div className="text-[12px] text-[var(--text3)]">
-                    {cacheAction}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <span className={mutedClass}>
-                No cached selection yet (selector runs when you start with AI
-                picker on).
-              </span>
+}) => {
+  const subscribedSource = session.subscribedSources[0] ?? null;
+  const timerConfig =
+    subscribedSource?.type === "timer" && subscribedSource.configJson
+      ? parseTimerSourceConfig(subscribedSource.configJson)
+      : null;
+  const instrumentOrigin = formatInstrumentOriginLabel({
+    inputModel: session.inputModel,
+    experienceDisplayName,
+    experienceSignalSourceType: subscribedSource?.type ?? null,
+    timerSymbol: timerConfig?.symbol ?? null,
+    timerCadence: timerConfig?.cadence ?? null,
+    instrumentScope: session.instrumentScope,
+  });
+  const showManualTickers =
+    session.inputModel === "manual_only" ||
+    session.inputModel === "search_scoped";
+  const showSearchProvider =
+    session.inputModel === "search_scoped" ||
+    session.inputModel === "search_universe";
+  const showAiUniverse =
+    session.selectionMode === "ai_selected_universe" &&
+    payload?.selectorSettings.aiPickerEnabled;
+
+  return (
+    <>
+      <Section title="Task Definition">
+        <Row
+          label="Experience"
+          value={experienceDisplayName ?? session.experienceId}
+        />
+        <Row
+          label="Signal source"
+          value={
+            subscribedSource
+              ? `${subscribedSource.name} (${formatSignalSourceTypeLabel(subscribedSource.type)})${subscribedSource.enabled ? "" : " · disabled"}`
+              : "None subscribed"
+          }
+        />
+        <Row label="Instruments" value={instrumentOrigin} />
+        {showManualTickers ? (
+          <Row label="Manual tickers" value={session.instrumentScope || "—"} />
+        ) : null}
+        {showSearchProvider ? (
+          <Row
+            label="Search provider"
+            value={getSearchProviderDisplayName(
+              session.defaultSearchProviderId,
             )}
+          />
+        ) : null}
+        {showAiUniverse ? (
+          <div className="mt-1">
+            <div className={rowLabelClass}>Last AI universe selection</div>
+            <div className="mt-1.5">
+              {cacheLoading ? (
+                <span className={mutedClass}>Loading cache…</span>
+              ) : instrumentCache?.instruments?.length ? (
+                <div className="grid gap-2">
+                  <div className="text-[12px] text-[var(--text2)]">
+                    {instrumentCache.selectedAt
+                      ? `Selected ${formatTimestamp(instrumentCache.selectedAt)}`
+                      : "—"}
+                  </div>
+                  {!instrumentCache.definitionHashMatches ? (
+                    <Badge variant="warn">
+                      Definition changed: next start recomputes universe
+                    </Badge>
+                  ) : null}
+                  <div className="flex flex-wrap gap-1">
+                    {instrumentCache.instruments.map((row) => (
+                      <span
+                        key={`${row.symbol}-${row.instrumentClass}`}
+                        className={cacheChipClass}
+                      >
+                        {row.symbol} · {row.instrumentClass}
+                      </span>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={onClearCache}
+                    disabled={
+                      session.status === "active" || session.status === "paused"
+                    }
+                    variant="outline"
+                    className="self-start border-border bg-[var(--surface2)] text-xs text-[var(--text2)]"
+                  >
+                    Re-run selector on next start
+                  </Button>
+                  {cacheAction ? (
+                    <div className="text-[12px] text-[var(--text3)]">
+                      {cacheAction}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <span className={mutedClass}>
+                  No cached selection yet (selector runs on next start).
+                </span>
+              )}
+            </div>
           </div>
+        ) : null}
+      </Section>
+
+      <Section title="Execution Setup">
+        <Row
+          label="Execution mode"
+          value={
+            session.executionMode === "live_allowed"
+              ? "Live allowed"
+              : "Paper only"
+          }
+        />
+        <Row
+          label="Assigned brokers"
+          value={
+            payload?.brokerAssignments.length
+              ? payload.brokerAssignments
+                  .map(
+                    (entry) =>
+                      `${entry.brokerAccountId} ($${entry.allocatedUsd.toLocaleString()})`,
+                  )
+                  .join(", ")
+              : "None assigned"
+          }
+        />
+        <Row
+          label="Routing overrides"
+          value={formatOverrides(payload?.brokerOverridesByInstrumentClass)}
+        />
+        <Row
+          label="Instrument classes"
+          value={session.instrumentClasses
+            .map(formatInstrumentClass)
+            .join(", ")}
+        />
+      </Section>
+
+      <Section title="Risk Limits" glossaryId="risk-limits">
+        <div className="grid grid-cols-2 gap-3">
+          <StatBlock
+            label="Total allocated"
+            value={`$${session.totalAllocatedUsd.toLocaleString()}`}
+          />
+          <StatBlock
+            label="Max position"
+            value={
+              payload
+                ? `$${payload.strategy.maxPositionUsd.toLocaleString()}`
+                : loading
+                  ? "…"
+                  : "—"
+            }
+          />
+          <StatBlock
+            label="Stop / target"
+            value={
+              payload
+                ? `${payload.strategy.stopLossPct}% / ${payload.strategy.takeProfitPct}%`
+                : loading
+                  ? "…"
+                  : "—"
+            }
+          />
+          <StatBlock
+            label="Daily loss / profit"
+            value={
+              payload
+                ? `$${payload.strategy.dailyLossLimitUsd.toLocaleString()} / $${payload.strategy.profitTargetUsd.toLocaleString()}`
+                : loading
+                  ? "…"
+                  : "—"
+            }
+          />
         </div>
-      ) : null}
-    </Section>
-
-    <Section title="Execution Setup">
-      <Row
-        label="Execution mode"
-        value={
-          session.executionMode === "live_allowed"
-            ? "Live allowed"
-            : "Paper only"
-        }
-      />
-      <Row
-        label="Assigned brokers"
-        value={
-          payload?.brokerAssignments.length
-            ? payload.brokerAssignments
-                .map(
-                  (entry) =>
-                    `${entry.brokerAccountId} ($${entry.allocatedUsd.toLocaleString()})`,
-                )
-                .join(", ")
-            : "None assigned"
-        }
-      />
-      <Row
-        label="Routing overrides"
-        value={formatOverrides(payload?.brokerOverridesByInstrumentClass)}
-      />
-      <Row
-        label="Instrument classes"
-        value={session.instrumentClasses.map(formatInstrumentClass).join(", ")}
-      />
-    </Section>
-
-    <Section title="Risk Limits" glossaryId="risk-limits">
-      <div className="grid grid-cols-2 gap-3">
-        <StatBlock
-          label="Total allocated"
-          value={`$${session.totalAllocatedUsd.toLocaleString()}`}
-        />
-        <StatBlock
-          label="Max position"
-          value={
-            payload
-              ? `$${payload.strategy.maxPositionUsd.toLocaleString()}`
-              : loading
-                ? "…"
-                : "—"
-          }
-        />
-        <StatBlock
-          label="Stop / target"
-          value={
-            payload
-              ? `${payload.strategy.stopLossPct}% / ${payload.strategy.takeProfitPct}%`
-              : loading
-                ? "…"
-                : "—"
-          }
-        />
-        <StatBlock
-          label="Daily loss / profit"
-          value={
-            payload
-              ? `$${payload.strategy.dailyLossLimitUsd.toLocaleString()} / $${payload.strategy.profitTargetUsd.toLocaleString()}`
-              : loading
-                ? "…"
-                : "—"
-          }
-        />
-      </div>
-    </Section>
-  </>
-);
+      </Section>
+    </>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // SessionDetailDrawer
@@ -189,9 +241,11 @@ const SessionInfoGrid = ({
 export const SessionDetailDrawer = ({
   session,
   onClose,
+  onFireRehearsalSignal,
 }: {
   session: SessionSummary | null;
   onClose: () => void;
+  onFireRehearsalSignal?: (session: SessionSummary) => void;
 }) => {
   type State = {
     payload: SessionTemplatePayload | null;
@@ -263,6 +317,9 @@ export const SessionDetailDrawer = ({
 
   const [state, dispatch] = useReducer(reducer, initialState);
   const [activeTab, setActiveTab] = useState<"summary" | "signals">("summary");
+  const [experienceDisplayName, setExperienceDisplayName] = useState<
+    string | null
+  >(null);
   const [signalFilter, setSignalFilter] = useState<
     "all" | "pending" | "completed" | "dropped"
   >("all");
@@ -450,6 +507,26 @@ export const SessionDetailDrawer = ({
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
+    void api
+      .listExperiences()
+      .then((experiences) => {
+        if (cancelled) return;
+        setExperienceDisplayName(
+          experiences.find((entry) => entry.id === session.experienceId)
+            ?.displayName ?? null,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setExperienceDisplayName(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
     dispatch({ type: "payloadLoadStart" });
     void api
       .buildTemplatePayloadFromSession(session.id)
@@ -514,6 +591,29 @@ export const SessionDetailDrawer = ({
             {session.objective ? (
               <div className="mt-1.5 text-[13px] leading-[1.55] text-[var(--text2)]">
                 {session.objective}
+              </div>
+            ) : null}
+            {session.rehearsalMode ? (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-info-border bg-info-dim px-3 py-2.5">
+                <div className="text-[12px] leading-snug text-[var(--text2)]">
+                  {session.canFireRehearsalSignal
+                    ? "Mock rehearsal session — fire a synthetic filing to start a cycle."
+                    : session.status === "active"
+                      ? "Mock rehearsal — enable the Mock rehearsal signal source to fire."
+                      : "Mock rehearsal — start the session to fire synthetic signals."}
+                </div>
+                {session.canFireRehearsalSignal && onFireRehearsalSignal ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="outline"
+                      className="h-8 text-xs"
+                      onClick={() => onFireRehearsalSignal(session)}
+                    >
+                      Fire rehearsal signal
+                    </Button>
+                    <HelpTooltip glossaryId="fire-rehearsal-signal" />
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -721,6 +821,7 @@ export const SessionDetailDrawer = ({
               <>
                 <SessionInfoGrid
                   session={session}
+                  experienceDisplayName={experienceDisplayName}
                   payload={payload}
                   loading={loading}
                   instrumentCache={instrumentCache}

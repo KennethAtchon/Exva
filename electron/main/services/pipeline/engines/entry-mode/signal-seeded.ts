@@ -1,7 +1,7 @@
 import type { InstrumentSelection } from "@/lib/schemas";
 import type { InstrumentClass } from "@/lib/types";
 import {
-  isSelfDescribingSignalSourceType,
+  isSearchStyleSignalSourceType,
   type SignalSourceType,
 } from "@electron/shared/domain";
 import { registerEngine, type EntryModeEngine } from "../registry";
@@ -10,6 +10,7 @@ type SignalTrigger = {
   sourceType: SignalSourceType;
   ticker: string;
   companyName?: string | null;
+  payloadJson?: Record<string, unknown>;
 };
 
 function readSignalTrigger(
@@ -29,14 +30,27 @@ function readSignalTrigger(
     "companyName" in candidate && typeof candidate.companyName === "string"
       ? candidate.companyName
       : null;
+  const payloadJson =
+    "payloadJson" in candidate &&
+    candidate.payloadJson &&
+    typeof candidate.payloadJson === "object"
+      ? (candidate.payloadJson as Record<string, unknown>)
+      : undefined;
   if (!sourceType || !ticker) return null;
-  return { sourceType, ticker, companyName };
+  return { sourceType, ticker, companyName, payloadJson };
 }
 
 function inferInstrumentClass(
   signalTrigger: SignalTrigger,
   sessionClasses: InstrumentClass[],
 ): InstrumentClass {
+  const payloadClass = signalTrigger.payloadJson?.instrumentClass;
+  if (
+    typeof payloadClass === "string" &&
+    sessionClasses.includes(payloadClass as InstrumentClass)
+  ) {
+    return payloadClass as InstrumentClass;
+  }
   if (
     signalTrigger.sourceType === "edgar_8k" &&
     sessionClasses.includes("stock")
@@ -58,10 +72,8 @@ const signalSeededEntryEngine: EntryModeEngine = {
   source: "phase",
   matches(ctx) {
     const signalTrigger = readSignalTrigger(ctx.input);
-    return (
-      signalTrigger != null &&
-      isSelfDescribingSignalSourceType(signalTrigger.sourceType)
-    );
+    if (!signalTrigger) return false;
+    return !isSearchStyleSignalSourceType(signalTrigger.sourceType);
   },
   resolve(ctx) {
     const signalTrigger = readSignalTrigger(ctx.input);

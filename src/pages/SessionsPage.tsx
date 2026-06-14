@@ -15,6 +15,7 @@ import {
   type SessionSummary,
 } from "@/lib/exva";
 import type { InstrumentClass, SessionStatus } from "@/lib/types";
+import { MOCK_REHEARSAL_SIGNAL_SOURCE_ID } from "@electron/shared/instruments/mock-rehearsal";
 import { CreateEditSessionModal } from "@/components/sessions/CreateEditSessionModal";
 import { LiveReadinessModal } from "@/components/sessions/LiveReadinessModal";
 import { SessionDetailDrawer } from "@/components/sessions/SessionDetailDrawer";
@@ -576,6 +577,11 @@ export const SessionsPage = ({
       void load();
     }).then((unsub) => cleanup.push(unsub));
 
+    void listenEvent("signal_received", () => {
+      if (cancelled) return;
+      void load();
+    }).then((unsub) => cleanup.push(unsub));
+
     return () => {
       cancelled = true;
       for (const unsub of cleanup) unsub();
@@ -981,6 +987,26 @@ const renderSessionsPageView = ({
           onLifecycle={(session, action) => {
             void runLifecycleAction(session, action);
           }}
+          onFireRehearsalSignal={async (session) => {
+            dispatchData({ actionSessionId: session.id, error: null });
+            try {
+              const mockSourceId =
+                session.subscribedSources.find(
+                  (source) => source.type === "mock",
+                )?.id ?? MOCK_REHEARSAL_SIGNAL_SOURCE_ID;
+              await api.testSignalSource(mockSourceId);
+              await load();
+            } catch (fireError) {
+              dispatchData({
+                error:
+                  fireError instanceof Error
+                    ? fireError.message
+                    : "Failed to fire rehearsal signal.",
+              });
+            } finally {
+              dispatchData({ actionSessionId: null });
+            }
+          }}
         />
       ) : null}
     </Card>
@@ -1038,6 +1064,25 @@ const renderSessionsPageView = ({
     <SessionDetailDrawer
       session={ui.detail}
       onClose={() => dispatchUi({ detail: null })}
+      onFireRehearsalSignal={async (session) => {
+        dispatchData({ actionSessionId: session.id, error: null });
+        try {
+          const mockSourceId =
+            session.subscribedSources.find((source) => source.type === "mock")
+              ?.id ?? MOCK_REHEARSAL_SIGNAL_SOURCE_ID;
+          await api.testSignalSource(mockSourceId);
+          await load();
+        } catch (fireError) {
+          dispatchData({
+            error:
+              fireError instanceof Error
+                ? fireError.message
+                : "Failed to fire rehearsal signal.",
+          });
+        } finally {
+          dispatchData({ actionSessionId: null });
+        }
+      }}
     />
   </PageShell>
 );

@@ -16,6 +16,7 @@ import { WorkspacePreferencesRepo } from "../../../db/repositories/workspace/wor
 import { SessionWriteService } from "../write-service";
 import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
 import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
+import { requireExperience } from "../../../experiences/index";
 
 describe("SessionWriteService", () => {
   let db = createTestDb();
@@ -127,7 +128,11 @@ describe("SessionWriteService", () => {
   });
 
   it("rejects brokers that do not overlap the selected experience", () => {
-    const service = createService(db);
+    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
+      db,
+      "edgar-catalyst",
+    );
+    const service = createService(db, { signalSourcesRepo });
     insertBroker(db, {
       id: "broker-pm",
       name: "Polymarket Only",
@@ -140,11 +145,12 @@ describe("SessionWriteService", () => {
       service.create({
         name: "EDGAR Session",
         objective: "Trade filings",
-        selectionMode: "manual_shortlist",
+        selectionMode: "signal_driven",
         instrumentScope: "",
         selectorSettings: { aiPickerEnabled: false },
         executionMode: "paper_only",
         experienceId: "edgar-catalyst",
+        subscribedSourceIds: [sourceId],
         brokerAssignments: [
           { brokerAccountId: "broker-pm", allocatedUsd: 2500 },
         ],
@@ -153,7 +159,11 @@ describe("SessionWriteService", () => {
   });
 
   it("creates edgar-catalyst with an Alpaca stock broker", () => {
-    const service = createService(db);
+    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
+      db,
+      "edgar-catalyst",
+    );
+    const service = createService(db, { signalSourcesRepo });
     insertBroker(db, {
       id: "broker-stock",
       name: "Alpaca Stock",
@@ -165,11 +175,12 @@ describe("SessionWriteService", () => {
     const result = service.create({
       name: "EDGAR Stock Session",
       objective: "Trade filings",
-      selectionMode: "manual_shortlist",
+      selectionMode: "signal_driven",
       instrumentScope: "",
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",
       experienceId: "edgar-catalyst",
+      subscribedSourceIds: [sourceId],
       brokerAssignments: [
         { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
       ],
@@ -181,7 +192,11 @@ describe("SessionWriteService", () => {
   });
 
   it("creates prediction-event-edge with a Polymarket broker", () => {
-    const service = createService(db);
+    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
+      db,
+      "prediction-event-edge",
+    );
+    const service = createService(db, { signalSourcesRepo });
     insertBroker(db, {
       id: "broker-pm",
       name: "Polymarket Paper",
@@ -193,11 +208,12 @@ describe("SessionWriteService", () => {
     const result = service.create({
       name: "PM Event Session",
       objective: "Trade prediction events",
-      selectionMode: "manual_shortlist",
+      selectionMode: "signal_driven",
       instrumentScope: "",
       selectorSettings: { aiPickerEnabled: false },
       executionMode: "paper_only",
       experienceId: "prediction-event-edge",
+      subscribedSourceIds: [sourceId],
       brokerAssignments: [{ brokerAccountId: "broker-pm", allocatedUsd: 2500 }],
     });
 
@@ -207,7 +223,11 @@ describe("SessionWriteService", () => {
   });
 
   it("rejects prediction-event-edge without a Polymarket broker", () => {
-    const service = createService(db);
+    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
+      db,
+      "prediction-event-edge",
+    );
+    const service = createService(db, { signalSourcesRepo });
     insertBroker(db, {
       id: "broker-stock",
       name: "Stock Only",
@@ -220,39 +240,14 @@ describe("SessionWriteService", () => {
       service.create({
         name: "Invalid PM Session",
         objective: "Should fail",
-        selectionMode: "manual_shortlist",
+        selectionMode: "signal_driven",
         instrumentScope: "",
         selectorSettings: { aiPickerEnabled: false },
         executionMode: "paper_only",
         experienceId: "prediction-event-edge",
+        subscribedSourceIds: [sourceId],
         brokerAssignments: [
           { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
-        ],
-      }),
-    ).toThrowError(/requires at least one Polymarket broker/i);
-  });
-
-  it("rejects crypto-only brokers for stock-only experiences", () => {
-    const service = createService(db);
-    insertBroker(db, {
-      id: "broker-crypto",
-      name: "Crypto Only",
-      brokerType: "mock",
-      supportedInstrumentClasses: ["crypto"],
-      mode: "paper",
-    });
-
-    expect(() =>
-      service.create({
-        name: "EDGAR Crypto Broker Session",
-        objective: "Should fail",
-        selectionMode: "manual_shortlist",
-        instrumentScope: "",
-        selectorSettings: { aiPickerEnabled: false },
-        executionMode: "paper_only",
-        experienceId: "edgar-catalyst",
-        brokerAssignments: [
-          { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
         ],
       }),
     ).toThrowError(/does not support any instrument class required by/i);
@@ -284,13 +279,43 @@ describe("SessionWriteService", () => {
       executionMode: "paper_only",
       experienceId: "edgar-catalyst",
       brokerAssignments: [
-        { brokerAccountId: "broker-stock", allocatedUsd: 1250 },
-        { brokerAccountId: "broker-crypto", allocatedUsd: 1250 },
+        { brokerAccountId: "broker-stock", allocatedUsd: 2500 },
       ],
     });
 
     const session = new SessionRepo(db).requireById(result.id);
     expect(session.instrumentClasses).toEqual(["stock"]);
+  });
+
+  it("rejects crypto-only brokers for stock-only experiences", () => {
+    const { signalSourcesRepo, sourceId } = insertExperienceSignal(
+      db,
+      "edgar-catalyst",
+    );
+    const service = createService(db, { signalSourcesRepo });
+    insertBroker(db, {
+      id: "broker-crypto",
+      name: "Crypto Only",
+      brokerType: "mock",
+      supportedInstrumentClasses: ["crypto"],
+      mode: "paper",
+    });
+
+    expect(() =>
+      service.create({
+        name: "EDGAR Crypto Broker Session",
+        objective: "Should fail",
+        selectionMode: "signal_driven",
+        instrumentScope: "",
+        selectorSettings: { aiPickerEnabled: false },
+        executionMode: "paper_only",
+        experienceId: "edgar-catalyst",
+        subscribedSourceIds: [sourceId],
+        brokerAssignments: [
+          { brokerAccountId: "broker-crypto", allocatedUsd: 2500 },
+        ],
+      }),
+    ).toThrowError(/does not support any instrument class required by/i);
   });
 
   it("allows empty instrument scope for listener-only signal subscriptions", () => {
@@ -400,6 +425,24 @@ describe("SessionWriteService", () => {
   });
 });
 
+function insertExperienceSignal(
+  db: ReturnType<typeof createTestDb>,
+  experienceId: string,
+): { signalSourcesRepo: SignalSourcesRepo; sourceId: string } {
+  const signalSourcesRepo = new SignalSourcesRepo(db);
+  const experience = requireExperience(experienceId);
+  const sourceId = `${experienceId}-signal`;
+  signalSourcesRepo.create({
+    id: sourceId,
+    type: experience.signalSource.type,
+    name: experience.displayName,
+    description: null,
+    enabled: true,
+    configJson: JSON.stringify(experience.signalSource.defaultConfig),
+  });
+  return { signalSourcesRepo, sourceId };
+}
+
 function createService(
   db: ReturnType<typeof createTestDb>,
   options?: { signalSourcesRepo?: SignalSourcesRepo },
@@ -415,6 +458,7 @@ function createService(
           });
           return sessionRequiresInstrumentScope(subscribedSources);
         },
+        getSource: (sourceId: string) => signalSourcesRepo.get(sourceId),
       }
     : undefined;
 

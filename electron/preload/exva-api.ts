@@ -337,7 +337,13 @@ export interface ExvaApi {
       >;
     }>;
     createSource(input: {
-      type: "edgar_8k" | "web_search" | "manual" | "prediction_event";
+      type:
+        | "edgar_8k"
+        | "web_search"
+        | "manual"
+        | "prediction_event"
+        | "mock"
+        | "timer";
       name: string;
       description?: string | null;
       config?: Record<string, unknown>;

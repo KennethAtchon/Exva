@@ -264,6 +264,8 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     assignments: repos.sessionBrokerAssignments,
     trades: repos.trades,
     runtimeManager,
+    signalSources: signalSourcesRepo,
+    brokerAccounts: repos.brokerAccounts,
   });
 
   const sessionWrites = new SessionWriteService({
@@ -284,6 +286,7 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
         });
         return sessionRequiresInstrumentScope(subscribedSources);
       },
+      getSource: (sourceId) => signalSourcesRepo.get(sourceId),
     },
   });
 
@@ -358,7 +361,9 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     } as unknown as AppServices["liveReadiness"],
     tradeAutopsy: {} as AppServices["tradeAutopsy"],
     autopsyExport: {} as AppServices["autopsyExport"],
-    signals: {} as AppServices["signals"],
+    signals: {
+      ensureAllExperienceSignalSources: () => [],
+    } as unknown as AppServices["signals"],
   };
 
   function configureAiProvider(sessionId?: string) {

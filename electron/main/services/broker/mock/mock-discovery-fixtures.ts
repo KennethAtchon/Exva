@@ -1,4 +1,5 @@
 import type { MockScenarioKind } from "@electron/shared/domain/mock-scenario";
+import { MOCK_SCENARIO_PRIMARY_SYMBOLS } from "@electron/shared/domain/mock-scenario";
 
 export type MockWebSearchItem = {
   title: string;
@@ -26,18 +27,8 @@ function pageBody(paragraphs: string[]): string {
   return paragraphs.join("\n\n");
 }
 
-export const SCENARIO_PRIMARY_SYMBOLS: Record<MockScenarioKind, string[]> = {
-  clean_breakout: ["NVDA", "AMD", "PLTR"],
-  failed_breakout: ["AAPL", "META", "NFLX"],
-  sideways_chop: ["SPY", "QQQ", "IWM"],
-  gap_down_after_entry: ["AAPL", "AMZN", "GOOGL"],
-  news_reversal: ["TSLA", "META", "AMZN"],
-  stale_quote: ["RIVN", "LCID", "SOFI"],
-  wide_spread: ["RIVN", "BBAI", "OPEN"],
-  partial_fill: ["GME", "MSTR", "HOOD"],
-  broker_reject: ["NVDA", "AMD", "AVGO"],
-  rate_limit: ["NVDA", "PLTR", "TSLA"],
-};
+export const SCENARIO_PRIMARY_SYMBOLS: Record<MockScenarioKind, string[]> =
+  MOCK_SCENARIO_PRIMARY_SYMBOLS as Record<MockScenarioKind, string[]>;
 
 const BULLISH_SEARCH: MockWebSearchItem[] = [
   searchItem(

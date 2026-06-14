@@ -5,6 +5,11 @@ import {
   resolveSessionInstrumentClasses,
 } from "@electron/shared/instruments/experience-launchability";
 import { AppError } from "@electron/shared/infra/errors";
+import {
+  MOCK_REHEARSAL_SIGNAL_SOURCE_ID,
+  resolveMockRehearsalTickerFromBrokers,
+  sessionEligibleForMockRehearsal,
+} from "@electron/shared/instruments/mock-rehearsal";
 import { requireExperience } from "../../experiences/index";
 import type { EventsRepo } from "../../db/repositories/system/events-repo";
 import type { SessionRepo } from "../../db/repositories/sessions/session-repo";
@@ -53,6 +58,10 @@ export class SessionWriteService {
           sourceIds: string[],
         ): void;
         requiresInstrumentScopeForSourceIds(sourceIds: string[]): boolean;
+        getSource(
+          sourceId: string,
+        ): { type: import("@electron/shared/domain").SignalSourceType } | null;
+        syncMockRehearsalSignalSourceTicker?(ticker: string): void;
       };
     },
   ) {}
@@ -118,6 +127,7 @@ export class SessionWriteService {
       sessionId,
       input.subscribedSourceIds ?? [],
     );
+    this.syncMockRehearsalSignalSource(input);
     // Any change to brokers / routing / execution mode invalidates a prior
     // live-readiness acknowledgement — operator must re-confirm.
     this.deps.liveReadiness?.clearAcknowledgement(sessionId);
@@ -280,6 +290,29 @@ export class SessionWriteService {
       );
     }
 
+    for (const sourceId of subscribedSourceIds) {
+      const source = this.deps.signals?.getSource(sourceId);
+      if (!source) {
+        throw new AppError(
+          `Signal source ${sourceId} was not found.`,
+          "NOT_FOUND",
+          { sourceId, field: "subscribedSourceIds" },
+        );
+      }
+      if (!experience.capabilities.signalSourceTypes.includes(source.type)) {
+        throw new AppError(
+          `${experience.displayName} does not support ${source.type} signal sources.`,
+          "VALIDATION_FAILED",
+          {
+            field: "subscribedSourceIds",
+            experienceId: experience.id,
+            sourceType: source.type,
+            allowedSourceTypes: experience.capabilities.signalSourceTypes,
+          },
+        );
+      }
+    }
+
     if (experience.capabilities.brokerRequirement === "polymarket_broker") {
       const hasPolymarketBroker = selectedBrokers.some(
         (broker) => broker.brokerType === "polymarket",
@@ -328,5 +361,51 @@ export class SessionWriteService {
       instrumentClasses,
       experienceId,
     };
+  }
+
+  private syncMockRehearsalSignalSource(input: SessionWriteInput): void {
+    const subscribedSourceIds = input.subscribedSourceIds ?? [];
+    if (
+      !subscribedSourceIds.includes(MOCK_REHEARSAL_SIGNAL_SOURCE_ID) ||
+      !this.deps.signals?.syncMockRehearsalSignalSourceTicker
+    ) {
+      return;
+    }
+
+    const experienceId = input.experienceId ?? "edgar-catalyst";
+    let experience;
+    try {
+      experience = requireExperience(experienceId);
+    } catch {
+      return;
+    }
+
+    const brokerAccounts = this.deps.brokerAccounts.list();
+    const brokerAssignmentIds = input.brokerAssignments.map(
+      (assignment) => assignment.brokerAccountId,
+    );
+    if (
+      !sessionEligibleForMockRehearsal({
+        experience: experience.capabilities,
+        brokerAccounts: brokerAccounts.map((broker) => ({
+          id: broker.id,
+          brokerType: broker.brokerType,
+          mockScenarioKind: broker.mockScenarioKind ?? null,
+        })),
+        brokerAssignmentIds,
+      })
+    ) {
+      return;
+    }
+
+    const ticker = resolveMockRehearsalTickerFromBrokers(
+      brokerAccounts.map((broker) => ({
+        id: broker.id,
+        brokerType: broker.brokerType,
+        mockScenarioKind: broker.mockScenarioKind ?? null,
+      })),
+      brokerAssignmentIds,
+    );
+    this.deps.signals.syncMockRehearsalSignalSourceTicker(ticker);
   }
 }

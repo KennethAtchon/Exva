@@ -19,7 +19,7 @@ import { registerExperienceHandlers } from "./experiences";
 import { registerAnalyticsHandlers } from "./analytics";
 
 export function registerIpcHandlers(services: AppServices): void {
-  registerExperienceHandlers();
+  registerExperienceHandlers(services);
   registerAnalyticsHandlers(services);
   registerDashboardHandlers(services);
   registerTradeHandlers(services);

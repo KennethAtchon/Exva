@@ -6,6 +6,12 @@ import { cn } from "@/lib/utils";
 import type { ExecutionStage } from "@/lib/types";
 import { getSearchProviderDisplayName } from "@electron/shared/instruments/search-providers";
 import {
+  formatInstrumentOriginLabel,
+  formatSelectionModeChip,
+  parseTimerSourceConfig,
+  sessionIsWaitingForLiveInputs,
+} from "@electron/shared/instruments/session-input-model";
+import {
   SessionExecutionProgress,
   type SessionProgressState,
 } from "./SessionExecutionProgress";
@@ -30,6 +36,7 @@ const SessionControls = ({
   onSaveTemplate,
   onArchive,
   onLifecycle,
+  onFireRehearsalSignal,
 }: {
   session: SessionSummary;
   busy: boolean;
@@ -41,6 +48,7 @@ const SessionControls = ({
   onSaveTemplate: (session: SessionSummary) => void;
   onArchive: (id: string) => void;
   onLifecycle: (session: SessionSummary, action: LifecycleAction) => void;
+  onFireRehearsalSignal?: (session: SessionSummary) => void;
 }) => {
   const locked =
     session.status === "active" ||
@@ -138,6 +146,19 @@ const SessionControls = ({
           />
         </div>
       ) : null}
+      {session.canFireRehearsalSignal && onFireRehearsalSignal ? (
+        <div className="flex items-center gap-1">
+          <Button
+            onClick={() => onFireRehearsalSignal(session)}
+            variant="outline"
+            className={actionButtonClass}
+            disabled={busy}
+          >
+            Fire rehearsal signal
+          </Button>
+          <HelpTooltip glossaryId="fire-rehearsal-signal" />
+        </div>
+      ) : null}
       {session.status === "paused" ? (
         <div className="flex items-center gap-1">
           <Button
@@ -227,6 +248,7 @@ const SessionCard = ({
   onRetryStep,
   onViewTrace,
   onPauseAfterStep,
+  onFireRehearsalSignal,
 }: {
   session: SessionSummary;
   busySessionId?: string | null;
@@ -254,17 +276,34 @@ const SessionCard = ({
     stage: ExecutionStage,
   ) => void;
   onPauseAfterStep?: (sessionId: string) => void;
+  onFireRehearsalSignal?: (session: SessionSummary) => void;
 }) => {
   const busy = busySessionId === session.id;
   const aiBlocked = session.isFocused && focusedSessionAiReady === false;
   const hasOpenTrades = session.openTradeCount > 0;
   const isDraining = session.status === "monitoring_only";
-  const manualTickerCount = session.instrumentScope
-    .split(/[\n,]/)
-    .map((s) => s.trim())
-    .filter(Boolean).length;
-  const runningButWaiting =
-    session.status === "active" && manualTickerCount === 0;
+  const runningButWaiting = sessionIsWaitingForLiveInputs({
+    status: session.status,
+    readiness: session.readiness,
+  });
+  const selectionModeChip = formatSelectionModeChip({
+    selectionMode: session.selectionMode,
+    inputModel: session.inputModel,
+    experienceSignalSourceType: session.subscribedSources[0]?.type ?? null,
+  });
+  const timerSource = session.subscribedSources.find(
+    (source) => source.type === "timer",
+  );
+  const timerConfig = timerSource?.configJson
+    ? parseTimerSourceConfig(timerSource.configJson)
+    : null;
+  const instrumentOrigin = formatInstrumentOriginLabel({
+    inputModel: session.inputModel,
+    experienceSignalSourceType: session.subscribedSources[0]?.type ?? null,
+    timerSymbol: timerConfig?.symbol ?? null,
+    timerCadence: timerConfig?.cadence ?? null,
+    instrumentScope: session.instrumentScope,
+  });
   const showOrphanWarning =
     session.status === "stopped" && session.openTradeCount > 0;
 
@@ -328,22 +367,17 @@ const SessionCard = ({
               </span>
             ))}
             <span className={cn(chipClass, "text-[var(--text3)]")}>
-              {session.selectionMode === "signal_driven"
-                ? "Signals"
-                : session.selectionMode === "ai_selected_universe"
-                  ? "AI"
-                  : "Manual"}
+              {selectionModeChip.label}
             </span>
             <HelpTooltip
               topic="Selection mode"
-              body={
-                session.selectionMode === "signal_driven"
-                  ? "Signal-driven sessions react to subscribed signals."
-                  : session.selectionMode === "ai_selected_universe"
-                    ? "AI mode lets the selector discover instruments from the allowed universe."
-                    : "Manual mode works from the tickers you provide."
-              }
+              body={selectionModeChip.tooltip}
             />
+            {session.rehearsalMode ? (
+              <span className={cn(chipClass, "text-[var(--text3)]")}>
+                Rehearsal
+              </span>
+            ) : null}
             <span className={cn(chipClass, "text-[var(--text3)]")}>
               {session.executionMode === "live_allowed" ? "Live" : "Paper"}
             </span>
@@ -375,10 +409,45 @@ const SessionCard = ({
       <div className="mt-2 text-[12px] text-[var(--text3)]">
         {runningButWaiting
           ? "Waiting — no live inputs"
-          : manualTickerCount > 0
-            ? "No signals pending"
+          : session.status === "active" &&
+              session.subscribedSources.some((source) => source.enabled)
+            ? "Listening for signals"
             : ""}
       </div>
+      {session.rehearsalEligible && !session.rehearsalMode ? (
+        <div className={rehearsalSetupBannerClass}>
+          Mock broker assigned, but this session still listens to{" "}
+          {session.subscribedSources[0]?.name ?? "the experience EDGAR source"}.
+          Edit the session and select <strong>Mock rehearsal</strong> as the
+          signal source, then save.
+        </div>
+      ) : null}
+      {session.rehearsalMode ? (
+        <div className={rehearsalBannerClass}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-[12px] leading-snug text-[var(--text2)]">
+              {session.canFireRehearsalSignal
+                ? "Mock rehearsal — fire a synthetic filing to drive the pipeline."
+                : session.status === "active"
+                  ? "Mock rehearsal — enable the Mock rehearsal signal source to fire."
+                  : "Mock rehearsal — start the session, then fire a synthetic signal here."}
+            </div>
+            {session.canFireRehearsalSignal && onFireRehearsalSignal ? (
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  onClick={() => onFireRehearsalSignal(session)}
+                  variant="outline"
+                  className={actionButtonClass}
+                  disabled={busy}
+                >
+                  Fire rehearsal signal
+                </Button>
+                <HelpTooltip glossaryId="fire-rehearsal-signal" />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {isDraining ? (
         <div className={drainBannerClass}>
           Stopping when flat: managing {session.openTradeCount} open trade
@@ -396,15 +465,20 @@ const SessionCard = ({
 
       {/* Meta strip */}
       <div className={metaGridClass}>
-        <MetaBlock label="Scope" value={session.instrumentScope} />
+        <MetaBlock label="Instruments" value={instrumentOrigin} />
         <MetaBlock
           label="Allocated"
           value={`$${session.totalAllocatedUsd.toLocaleString()}`}
         />
-        <MetaBlock
-          label="Search"
-          value={getSearchProviderDisplayName(session.defaultSearchProviderId)}
-        />
+        {session.inputModel === "search_scoped" ||
+        session.inputModel === "search_universe" ? (
+          <MetaBlock
+            label="Search"
+            value={getSearchProviderDisplayName(
+              session.defaultSearchProviderId,
+            )}
+          />
+        ) : null}
         <MetaBlock label="Updated" value={formatTimestamp(session.updatedAt)} />
       </div>
 
@@ -419,6 +493,7 @@ const SessionCard = ({
         onSaveTemplate={onSaveTemplate}
         onArchive={onArchive}
         onLifecycle={onLifecycle}
+        onFireRehearsalSignal={onFireRehearsalSignal}
       />
     </article>
   );
@@ -444,6 +519,7 @@ export const SessionTable = ({
   onRetryStep,
   onViewTrace,
   onPauseAfterStep,
+  onFireRehearsalSignal,
 }: {
   sessions: SessionSummary[];
   busySessionId?: string | null;
@@ -471,6 +547,7 @@ export const SessionTable = ({
     stage: ExecutionStage,
   ) => void;
   onPauseAfterStep?: (sessionId: string) => void;
+  onFireRehearsalSignal?: (session: SessionSummary) => void;
 }) => {
   return (
     <div className="grid gap-2.5">
@@ -492,6 +569,7 @@ export const SessionTable = ({
           onRetryStep={onRetryStep}
           onViewTrace={onViewTrace}
           onPauseAfterStep={onPauseAfterStep}
+          onFireRehearsalSignal={onFireRehearsalSignal}
         />
       ))}
     </div>
@@ -600,6 +678,12 @@ const stopWhenFlatButtonClass =
 
 const drainBannerClass =
   "mt-2 rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-[12px] leading-[1.45] text-status-orange";
+
+const rehearsalBannerClass =
+  "mt-2 rounded-lg border border-info-border bg-info-dim px-3 py-2.5";
+
+const rehearsalSetupBannerClass =
+  "mt-2 rounded-lg border border-warning-border bg-warning-dim px-3 py-2.5 text-[12px] leading-snug text-warning";
 
 const orphanWarningClass =
   "mt-2 rounded-lg border border-status-orange-border bg-status-orange-dim px-3 py-2.5 text-[12px] leading-[1.45] text-status-orange";

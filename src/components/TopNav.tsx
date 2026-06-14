@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { PanelLeft } from "lucide-react";
+import { ChevronDown, PanelLeft } from "lucide-react";
 import type { DashboardStats, SessionStatus } from "@/lib/types";
 import { Dot } from "@/components/custom-ui";
 import { fmt } from "@/lib/formatters";
-import { Button, HelpTooltip } from "@/components/ui";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  HelpTooltip,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui";
 import { AppNavSidebar } from "@/components/AppNavSidebar";
 import { api } from "@/lib/exva";
 import { useWorkspaceStore } from "@/store/workspaceStore";
@@ -14,8 +24,18 @@ import { useExvaEvent } from "@/hooks/useExvaEvent";
 import { useTheme } from "@/hooks/useTheme";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useNavSidebar } from "@/hooks/useNavSidebar";
-import { NAV_ITEMS, NAV_WIDE_MEDIA, type PageKey } from "@/lib/nav";
-import { SESSION_STATUS_HELP_IDS } from "@/lib/help-glossary";
+import {
+  getNavItem,
+  NAV_GROUPS,
+  NAV_PRIMARY_IDS,
+  NAV_WIDE_MEDIA,
+  type PageKey,
+} from "@/lib/nav";
+import {
+  getHelpEntry,
+  SESSION_STATUS_HELP_IDS,
+  type HelpGlossaryId,
+} from "@/lib/help-glossary";
 import { cn } from "@/lib/utils";
 
 export type { PageKey };
@@ -112,6 +132,191 @@ type SessionStatusView = {
   tradeState: "none" | "open";
 };
 
+const NavHint = ({
+  children,
+  glossaryId,
+  title,
+  body,
+  topic,
+  className,
+}: {
+  children: ReactNode;
+  glossaryId?: HelpGlossaryId;
+  title?: string;
+  body?: string;
+  topic?: string;
+  className?: string;
+}) => {
+  const entry = getHelpEntry({ glossaryId, title, body });
+  const ariaTopic = topic ?? entry.title ?? "this item";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={cn("inline-flex cursor-help", className)}
+          aria-label={`More information about ${ariaTopic}`}
+        >
+          {children}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent
+        side="bottom"
+        align="end"
+        className="max-w-xs space-y-1.5 px-3 py-2 text-left"
+      >
+        {entry.title ? (
+          <div className="text-[12px] font-semibold text-[var(--text1)]">
+            {entry.title}
+          </div>
+        ) : null}
+        <div className="text-[12px] leading-[1.45] text-[var(--text2)]">
+          {entry.body}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
+const NavPrimaryItem = ({
+  itemId,
+  activePage,
+  onNavigate,
+  onNavigateToAttentionSessions,
+  attentionCount,
+  needsStrategyConfig,
+  isGlobal,
+  sessionName,
+}: {
+  itemId: PageKey;
+  activePage: PageKey;
+  onNavigate: (p: PageKey) => void;
+  onNavigateToAttentionSessions?: () => void;
+  attentionCount: number;
+  needsStrategyConfig: boolean;
+  isGlobal: boolean;
+  sessionName: string;
+}) => {
+  const item = getNavItem(itemId);
+  const active = activePage === item.id;
+  const isStrategy = item.id === "strategy";
+  const isSessions = item.id === "sessions";
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button
+        onClick={() => onNavigate(item.id)}
+        variant="ghost"
+        className={cn(
+          navClass.navItem,
+          active && navClass.navItemActive,
+          isStrategy && needsStrategyConfig && navClass.navItemHint,
+        )}
+      >
+        {item.label}
+        {isSessions && attentionCount > 0 && (
+          <span
+            className={navClass.attentionBadge}
+            role="button"
+            tabIndex={0}
+            onClick={(event) => {
+              event.stopPropagation();
+              onNavigateToAttentionSessions?.();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                event.stopPropagation();
+                onNavigateToAttentionSessions?.();
+              }
+            }}
+          >
+            {attentionCount}
+          </span>
+        )}
+        {isStrategy && needsStrategyConfig && (
+          <span className={navClass.strategyDot} />
+        )}
+        {active && <div className={navClass.navUnderline} />}
+      </Button>
+      {isSessions && attentionCount > 0 ? (
+        <HelpTooltip
+          topic="Sessions needing attention"
+          body="Shows how many sessions currently need intervention."
+        />
+      ) : null}
+      {isStrategy && needsStrategyConfig ? (
+        <HelpTooltip
+          topic="Strategy configuration"
+          body={
+            isGlobal
+              ? "Focus a session to configure its AI phases, risk limits, and strategy."
+              : `Configure AI phases, risk limits, and strategy for ${sessionName}. This session still has missing strategy configuration.`
+          }
+        />
+      ) : isStrategy && !isGlobal ? (
+        <HelpTooltip
+          topic="Strategy page"
+          body={`Configure AI phases, risk limits, and strategy for ${sessionName}.`}
+        />
+      ) : null}
+    </div>
+  );
+};
+
+const NavGroupMenu = ({
+  group,
+  activePage,
+  onNavigate,
+}: {
+  group: (typeof NAV_GROUPS)[number];
+  activePage: PageKey;
+  onNavigate: (p: PageKey) => void;
+}) => {
+  const groupActive = group.itemIds.includes(activePage);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          className={cn(
+            navClass.navItem,
+            groupActive && navClass.navItemActive,
+          )}
+        >
+          {group.label}
+          <ChevronDown size={14} className="opacity-60" aria-hidden />
+          {groupActive && <div className={navClass.navUnderline} />}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="z-[200] min-w-[11rem] border-border bg-[var(--surface)] p-1"
+      >
+        {group.itemIds.map((itemId) => {
+          const item = getNavItem(itemId);
+          const Icon = item.icon;
+          const active = activePage === item.id;
+          return (
+            <DropdownMenuItem
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              className={cn(
+                "gap-2 rounded-md px-2.5 py-2 text-[13px] text-[var(--text2)] focus:bg-[var(--surface2)] focus:text-[var(--text1)]",
+                active && "font-medium text-[var(--text1)]",
+              )}
+            >
+              <Icon size={14} className="shrink-0 opacity-70" aria-hidden />
+              {item.label}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
 const NavItems = ({
   activePage,
   onNavigate,
@@ -130,68 +335,27 @@ const NavItems = ({
   sessionName: string;
 }) => (
   <nav className={navClass.nav}>
-    {NAV_ITEMS.map((item) => {
-      const active = activePage === item.id;
-      const isStrategy = item.id === "strategy";
-      const isSessions = item.id === "sessions";
-      return (
-        <div key={item.id} className="flex items-center gap-1">
-          <Button
-            onClick={() => onNavigate(item.id)}
-            variant="ghost"
-            className={cn(
-              navClass.navItem,
-              active && navClass.navItemActive,
-              isStrategy && needsStrategyConfig && navClass.navItemHint,
-            )}
-          >
-            {item.label}
-            {isSessions && attentionCount > 0 && (
-              <span
-                className={navClass.attentionBadge}
-                role="button"
-                tabIndex={0}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onNavigateToAttentionSessions?.();
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onNavigateToAttentionSessions?.();
-                  }
-                }}
-              >
-                {attentionCount}
-              </span>
-            )}
-            {isStrategy && needsStrategyConfig && (
-              <span className={navClass.strategyDot} />
-            )}
-            {active && <div className={navClass.navUnderline} />}
-          </Button>
-          {isSessions && attentionCount > 0 ? (
-            <HelpTooltip
-              topic="Sessions needing attention"
-              body="Shows how many sessions currently need intervention."
-            />
-          ) : null}
-          {isStrategy && !isGlobal ? (
-            <HelpTooltip
-              topic="Strategy page"
-              body={`Configure AI phases, risk limits, and strategy for ${sessionName}.`}
-            />
-          ) : null}
-          {isStrategy && needsStrategyConfig ? (
-            <HelpTooltip
-              topic="Strategy configuration status"
-              body="The focused session still has missing strategy configuration."
-            />
-          ) : null}
-        </div>
-      );
-    })}
+    {NAV_PRIMARY_IDS.map((itemId) => (
+      <NavPrimaryItem
+        key={itemId}
+        itemId={itemId}
+        activePage={activePage}
+        onNavigate={onNavigate}
+        onNavigateToAttentionSessions={onNavigateToAttentionSessions}
+        attentionCount={attentionCount}
+        needsStrategyConfig={needsStrategyConfig}
+        isGlobal={isGlobal}
+        sessionName={sessionName}
+      />
+    ))}
+    {NAV_GROUPS.map((group) => (
+      <NavGroupMenu
+        key={group.id}
+        group={group}
+        activePage={activePage}
+        onNavigate={onNavigate}
+      />
+    ))}
   </nav>
 );
 
@@ -227,9 +391,19 @@ const NavStatus = ({
   const stopWhenFlatTitle =
     "Stops new research immediately and completes shutdown once all open trades close.";
   const startDisabled = aiReady === false || sessionControlsDisabled;
+  const startTitle = sessionControlsDisabled
+    ? "The focused session is not in the current workspace environment."
+    : aiReady === false
+      ? "AI providers are not connected yet. Configure them on the Strategy page before starting."
+      : sessionStatus === "paused" || sessionStatus === "attention_required"
+        ? "Resumes signal processing and new research cycles for the focused session."
+        : "Starts signal processing and new research cycles for the focused session.";
   return (
     <div className={navClass.session}>
-      <div
+      <NavHint
+        glossaryId={
+          environmentMode === "live" ? "environment-live" : "environment-paper"
+        }
         className={
           environmentMode === "live"
             ? navClass.liveEnvPill
@@ -254,17 +428,15 @@ const NavStatus = ({
         >
           {environmentMode === "live" ? "Live" : "Paper"}
         </span>
-        <HelpTooltip
-          glossaryId={
-            environmentMode === "live"
-              ? "environment-live"
-              : "environment-paper"
-          }
-        />
-      </div>
+      </NavHint>
 
       {stats && sessionStatus === "active" && (
-        <div className={navClass.liveStats}>
+        <NavHint
+          glossaryId="daily-pnl"
+          topic="Live session stats"
+          body="Shows today's profit and loss and how long the focused session has been running in this environment."
+          className={navClass.liveStats}
+        >
           <span className={navClass.liveStatVal}>
             {fmt.pnl(stats.daily_pnl_usd)}
           </span>
@@ -272,128 +444,92 @@ const NavStatus = ({
           <span className={navClass.liveStatLabel}>
             {fmt.uptime(stats.session_uptime_min)}
           </span>
-          <HelpTooltip
-            glossaryId="daily-pnl"
-            topic="Live session stats"
-            body="Shows today's profit and loss and how long the focused session has been running in this environment."
-          />
-        </div>
+        </NavHint>
       )}
 
       {isGlobal ? (
-        <div className={navClass.globalPill}>
+        <NavHint glossaryId="view-global" className={navClass.globalPill}>
           <span className={navClass.globalLabel}>Global</span>
-          <HelpTooltip glossaryId="view-global" />
-        </div>
+        </NavHint>
       ) : (
-        <div className={navClass.statusPill}>
+        <NavHint
+          glossaryId={SESSION_STATUS_HELP_IDS[sessionStatus]}
+          topic={`${sessionName} status`}
+          className={navClass.statusPill}
+        >
           <Dot color={ss.dot} pulse={ss.pulse} size={7} />
           <span className={navClass.sessionLabel}>{sessionName}</span>
           <span className={navClass.sessionStatus}>{ss.label}</span>
-          <HelpTooltip
-            glossaryId={SESSION_STATUS_HELP_IDS[sessionStatus]}
-            topic={`${sessionName} status`}
-          />
-        </div>
+        </NavHint>
       )}
 
       {!isGlobal &&
         sessionStatus !== "active" &&
         sessionStatus !== "monitoring_only" && (
-          <div className="flex items-center gap-1">
-            <Button
-              className={navClass.btnStart}
-              variant="ghost"
-              disabled={startDisabled}
-              onClick={() =>
-                onSessionAction(
-                  sessionStatus === "paused" ||
-                    sessionStatus === "attention_required"
-                    ? "resume"
-                    : "start",
-                )
-              }
-            >
-              ▶{" "}
-              {sessionStatus === "paused" ||
-              sessionStatus === "attention_required"
-                ? "Resume"
-                : "Start"}
-            </Button>
-            <HelpTooltip
-              topic={
+          <Button
+            className={navClass.btnStart}
+            variant="ghost"
+            disabled={startDisabled}
+            title={startTitle}
+            onClick={() =>
+              onSessionAction(
                 sessionStatus === "paused" ||
-                sessionStatus === "attention_required"
-                  ? "Resume session"
-                  : "Start session"
-              }
-              body={
-                sessionControlsDisabled
-                  ? "The focused session is not in the current workspace environment."
-                  : aiReady === false
-                    ? "AI providers are not connected yet. Configure them on the Strategy page before starting."
-                    : sessionStatus === "paused" ||
-                        sessionStatus === "attention_required"
-                      ? "Resumes signal processing and new research cycles for the focused session."
-                      : "Starts signal processing and new research cycles for the focused session."
-              }
-            />
-          </div>
+                  sessionStatus === "attention_required"
+                  ? "resume"
+                  : "start",
+              )
+            }
+          >
+            ▶{" "}
+            {sessionStatus === "paused" ||
+            sessionStatus === "attention_required"
+              ? "Resume"
+              : "Start"}
+          </Button>
         )}
       {sessionStatus === "active" && !sessionControlsDisabled && (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            className={navClass.btnPause}
-            disabled={sessionActionPending}
-            onClick={() => onSessionAction("pause")}
-          >
-            {sessionActionPending ? "⏸ Pausing…" : "⏸ Pause"}
-          </Button>
-          <HelpTooltip
-            topic="Pause session"
-            body="Pause stops new research but keeps exits and open-position monitoring active."
-          />
-        </div>
+        <Button
+          variant="ghost"
+          className={navClass.btnPause}
+          disabled={sessionActionPending}
+          title="Pause stops new research but keeps exits and open-position monitoring active."
+          onClick={() => onSessionAction("pause")}
+        >
+          {sessionActionPending ? "⏸ Pausing…" : "⏸ Pause"}
+        </Button>
       )}
       {isRunning && !sessionControlsDisabled && !hasOpenTrades ? (
         <Button
           variant="ghost"
           className={navClass.btnStop}
           disabled={sessionActionPending}
+          title="Stop the focused session."
           onClick={() => onSessionAction("stop")}
         >
           ■
         </Button>
       ) : null}
       {isRunning && !sessionControlsDisabled && hasOpenTrades ? (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            className={navClass.btnStopWhenFlat}
-            disabled={sessionActionPending}
-            onClick={() => onSessionAction("stop")}
-          >
-            {sessionActionPending ? "Stopping…" : "Stop when flat"}
-          </Button>
-          <HelpTooltip topic="Stop when flat" body={stopWhenFlatTitle} />
-        </div>
+        <Button
+          variant="ghost"
+          className={navClass.btnStopWhenFlat}
+          disabled={sessionActionPending}
+          title={stopWhenFlatTitle}
+          onClick={() => onSessionAction("stop")}
+        >
+          {sessionActionPending ? "Stopping…" : "Stop when flat"}
+        </Button>
       ) : null}
       {isMonitorAlive && !sessionControlsDisabled && hasOpenTrades ? (
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            className={navClass.btnForceStop}
-            disabled={sessionActionPending}
-            onClick={() => onSessionAction("forceStop")}
-          >
-            Force stop
-          </Button>
-          <HelpTooltip
-            topic="Force stop"
-            body="Force stop ends automated exit management for open positions and may leave them unmanaged."
-          />
-        </div>
+        <Button
+          variant="ghost"
+          className={navClass.btnForceStop}
+          disabled={sessionActionPending}
+          title="Force stop ends automated exit management for open positions and may leave them unmanaged."
+          onClick={() => onSessionAction("forceStop")}
+        >
+          Force stop
+        </Button>
       ) : null}
     </div>
   );

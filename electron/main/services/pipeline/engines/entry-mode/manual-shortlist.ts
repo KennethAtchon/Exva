@@ -39,6 +39,15 @@ function buildManualShortlistSelection(
 }
 
 function isManualSelectorMode(ctx: AIPhaseContext): boolean {
+  const signalTrigger = ctx.input.signalTrigger;
+  if (
+    signalTrigger &&
+    typeof signalTrigger === "object" &&
+    "sourceType" in signalTrigger &&
+    signalTrigger.sourceType !== "web_search"
+  ) {
+    return false;
+  }
   const selectorSettings = ctx.services.sessionSelectorSettingsRepo.get(
     ctx.sessionId,
   );

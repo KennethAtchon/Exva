@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { registerAllPhases } from "../../definitions";
 import { getAIPhase } from "../../phases/registry";
 import { resolvePhaseWorkers } from "../../definitions/phase-catalog";
+import { ensurePipelineBootRegistered } from "../../__tests__/pipeline-test-boot";
+import { DEFAULT_PIPELINE_ID } from "../../pipeline-constants";
 
 const PROCESSING_MODES = ["catalyst", "contract"] as const;
 const ALL_PHASE_IDS = [
@@ -51,6 +53,7 @@ describe("phase definitions", () => {
    * from the phase definition's stages[].resolveWorkers() for that mode.
    */
   it("catalog workers match AIPhase stage workers for every phase and mode", () => {
+    ensurePipelineBootRegistered();
     registerAllPhases();
 
     for (const phase of ALL_PHASE_IDS) {
@@ -62,6 +65,8 @@ describe("phase definitions", () => {
       for (const mode of PROCESSING_MODES) {
         const minimalCtx = {
           strategyContext: { researchPosture: { processingMode: mode } },
+          pipelineId: DEFAULT_PIPELINE_ID,
+          input: {},
         } as import("../../phases/types").AIPhaseContext;
 
         // Workers resolved by the AIPhase runtime path
@@ -71,9 +76,10 @@ describe("phase definitions", () => {
             .map((w) => w.id) ?? [];
 
         // Workers resolved by the catalog path (used by effective config / renderer)
-        const catalogWorkerIds = resolvePhaseWorkers(phase, mode).map(
-          (w) => w.id,
-        );
+        const catalogWorkerIds = resolvePhaseWorkers(
+          phase,
+          DEFAULT_PIPELINE_ID,
+        ).map((w) => w.id);
 
         expect(
           catalogWorkerIds,

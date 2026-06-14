@@ -32,6 +32,25 @@ import {
   resolveSessionInstrumentClasses,
   uncoveredExperienceClasses,
 } from "@electron/shared/instruments/experience-launchability";
+import {
+  deriveSessionInputModel,
+  deriveSessionReadiness,
+  experienceSignalSourceId,
+  formatReadinessSummary,
+  formatSignalScopeSectionCaption,
+  formatSignalSourceTypeLabel,
+  countManualTickers,
+  resolveSelectionModeForInput,
+  resolveSelectorSettingsForInput,
+  showInstrumentScopeControls,
+  sourceIsCompatibleWithExperience,
+} from "@electron/shared/instruments/session-input-model";
+import {
+  resolvePreferredSubscribedSourceId,
+  sessionEligibleForMockRehearsal,
+  sessionSubscribedToMockRehearsal,
+  shouldAutoSwitchSignalSubscription,
+} from "@electron/shared/instruments/mock-rehearsal";
 
 interface Props {
   open: boolean;
@@ -110,8 +129,6 @@ export const CreateEditSessionModal = ({
       applyInitializedForm({
         ...templateInput,
         executionMode: envExecMode,
-        selectorSettings: { aiPickerEnabled: true },
-        selectionMode: "manual_shortlist",
       });
       return;
     }
@@ -120,8 +137,6 @@ export const CreateEditSessionModal = ({
       applyInitializedForm({
         ...defaultInput(),
         executionMode: envExecMode,
-        selectorSettings: { aiPickerEnabled: true },
-        selectionMode: "manual_shortlist",
       });
       return;
     }
@@ -136,8 +151,6 @@ export const CreateEditSessionModal = ({
         nextForm = {
           ...payloadToInput(payload, initialSession.name),
           executionMode: envExecMode,
-          selectorSettings: { aiPickerEnabled: true },
-          selectionMode: "manual_shortlist",
         };
       } catch (seedError) {
         nextError =
@@ -147,8 +160,6 @@ export const CreateEditSessionModal = ({
         nextForm = {
           ...summaryToInput(initialSession),
           executionMode: envExecMode,
-          selectorSettings: { aiPickerEnabled: true },
-          selectionMode: "manual_shortlist",
         };
       }
       if (cancelled) return;
@@ -170,12 +181,19 @@ export const CreateEditSessionModal = ({
         if (cancelled) return;
         const filtered = sources.filter((source) => source.type !== "manual");
         if (!initialSession) {
-          const defaultExperienceType = "edgar_8k";
+          const defaultExperienceId = "edgar-catalyst";
+          const preferredSourceId =
+            experienceSignalSourceId(defaultExperienceId);
           dispatchData({
             signalSources: filtered,
-            subscribedSourceIds: filtered
-              .filter((source) => source.type === defaultExperienceType)
-              .map((source) => source.id),
+            subscribedSourceIds: filtered.some(
+              (source) => source.id === preferredSourceId,
+            )
+              ? [preferredSourceId]
+              : filtered
+                  .filter((source) => source.type === "edgar_8k")
+                  .map((source) => source.id)
+                  .slice(0, 1),
             signalSourcesLoaded: true,
           });
           return;
@@ -356,49 +374,78 @@ export const CreateEditSessionModal = ({
   );
   const searchEverything = isSearchEverythingInput(form);
   const manualTickerCount = useMemo(
-    () =>
-      form.instrumentScope
-        .split(/[\n,]/)
-        .map((s) => s.trim())
-        .filter(Boolean).length,
+    () => countManualTickers(form.instrumentScope),
     [form.instrumentScope],
   );
-  const enabledSubscribedSourceCount = useMemo(
+  const mockRehearsalBrokers = useMemo(
     () =>
-      signalSources.filter(
-        (source) => subscribedSourceIds.includes(source.id) && source.enabled,
-      ).length,
+      brokerAccounts.map((broker) => ({
+        id: broker.id,
+        brokerType: broker.brokerType,
+        mockScenarioKind: broker.mockScenarioKind ?? null,
+      })),
+    [brokerAccounts],
+  );
+  const mockRehearsalMode = useMemo(
+    () =>
+      selectedExperience
+        ? sessionEligibleForMockRehearsal({
+            experience: selectedExperience.capabilities,
+            brokerAccounts: mockRehearsalBrokers,
+            brokerAssignmentIds: assignedBrokerIds,
+          })
+        : false,
+    [assignedBrokerIds, mockRehearsalBrokers, selectedExperience],
+  );
+  const compatibleSignalSources = useMemo(
+    () =>
+      selectedExperience
+        ? signalSources.filter((source) =>
+            sourceIsCompatibleWithExperience(
+              source.type,
+              selectedExperience.capabilities.signalSourceTypes,
+            ),
+          )
+        : signalSources,
+    [selectedExperience, signalSources],
+  );
+  const subscribedSources = useMemo(
+    () =>
+      subscribedSourceIds.flatMap((sourceId) => {
+        const source = signalSources.find((entry) => entry.id === sourceId);
+        return source
+          ? [
+              {
+                id: source.id,
+                name: source.name,
+                type: source.type,
+                enabled: source.enabled,
+              },
+            ]
+          : [];
+      }),
     [signalSources, subscribedSourceIds],
   );
-  const disabledSubscribedSourceCount = useMemo(
+  const inputModel = useMemo(
     () =>
-      signalSources.filter(
-        (source) => subscribedSourceIds.includes(source.id) && !source.enabled,
-      ).length,
-    [signalSources, subscribedSourceIds],
+      deriveSessionInputModel({
+        subscribedSources,
+        instrumentScope: form.instrumentScope,
+        selectorSettings: form.selectorSettings,
+      }),
+    [form.instrumentScope, form.selectorSettings, subscribedSources],
   );
-  const readiness =
-    enabledSubscribedSourceCount > 0 || manualTickerCount > 0
-      ? enabledSubscribedSourceCount === 0
-        ? "manual_only"
-        : "armed"
-      : disabledSubscribedSourceCount > 0
-        ? "waiting_for_source_enable"
-        : "no_inputs";
-
-  const anySearchStyleSubscribed = useMemo(
-    () =>
-      signalSources.some(
-        (source) =>
-          subscribedSourceIds.includes(source.id) &&
-          source.type === "web_search",
-      ),
-    [signalSources, subscribedSourceIds],
-  );
-  // Tickers are a property of search-style/manual scoping only — a listener
-  // (EDGAR 8-K) carries its own subject, so it never asks for instruments.
-  const showInstrumentFilter =
-    anySearchStyleSubscribed || subscribedSourceIds.length === 0;
+  const readiness = deriveSessionReadiness({
+    subscribedSources,
+    instrumentScope: form.instrumentScope,
+  });
+  const showInstrumentFilter = showInstrumentScopeControls({
+    inputModel,
+    sourcesLoaded: signalSourcesLoaded,
+  });
+  const showSearchProviderField =
+    showInstrumentFilter &&
+    subscribedSources.some((source) => source.type === "web_search");
   const overAllocatedBrokerIds = useMemo(
     () =>
       new Set(
@@ -473,6 +520,67 @@ export const CreateEditSessionModal = ({
     });
   }, [effectiveInstrumentClasses, form, searchEverythingFocusInstrumentClass]);
 
+  useEffect(() => {
+    if (!open || !selectedExperience || !signalSourcesLoaded) return;
+    const compatibleSourceIds = compatibleSignalSources.map(
+      (source) => source.id,
+    );
+    const preferredSourceId = resolvePreferredSubscribedSourceId({
+      experience: {
+        id: selectedExperience.id,
+        signalSourceTypes: selectedExperience.capabilities.signalSourceTypes,
+      },
+      compatibleSourceIds,
+      brokerAccounts: mockRehearsalBrokers,
+      brokerAssignmentIds: assignedBrokerIds,
+    });
+    if (
+      !preferredSourceId ||
+      !shouldAutoSwitchSignalSubscription({
+        preferredSourceId,
+        subscribedSourceIds,
+      })
+    ) {
+      return;
+    }
+    const preferredSource = compatibleSignalSources.find(
+      (source) => source.id === preferredSourceId,
+    );
+    const preferredSubscribedSources = preferredSource
+      ? [{ type: preferredSource.type }]
+      : [];
+    const nextInputModel = deriveSessionInputModel({
+      subscribedSources: preferredSubscribedSources,
+      instrumentScope: form.instrumentScope,
+    });
+    dispatchData({ subscribedSourceIds: [preferredSourceId] });
+    dispatchData({
+      form: {
+        ...form,
+        selectionMode: resolveSelectionModeForInput({
+          subscribedSources: preferredSubscribedSources,
+          instrumentScope: form.instrumentScope,
+          selectorSettings: form.selectorSettings,
+        }),
+        instrumentScope:
+          nextInputModel === "listener" ? "" : form.instrumentScope,
+        selectorSettings: resolveSelectorSettingsForInput({
+          inputModel: nextInputModel,
+          selectorSettings: form.selectorSettings,
+        }),
+      },
+    });
+  }, [
+    assignedBrokerIds,
+    compatibleSignalSources,
+    form,
+    mockRehearsalBrokers,
+    open,
+    selectedExperience,
+    signalSourcesLoaded,
+    subscribedSourceIds,
+  ]);
+
   if (!open) return null;
 
   return (
@@ -517,23 +625,64 @@ export const CreateEditSessionModal = ({
                         );
                         const matchingSourceIds = experience
                           ? signalSources
-                              .filter(
-                                (source) =>
-                                  source.type === experience.signalSourceType,
+                              .filter((source) =>
+                                sourceIsCompatibleWithExperience(
+                                  source.type,
+                                  experience.capabilities.signalSourceTypes,
+                                ),
                               )
                               .map((source) => source.id)
                           : [];
-                        setForm((prev) => ({
-                          ...prev,
-                          experienceId,
-                          instrumentClasses: experience?.capabilities
-                            .instrumentClasses ?? ["stock"],
-                          subscribedSourceIds: matchingSourceIds,
-                          instrumentScope:
-                            experience?.signalSourceType === "timer"
-                              ? "SPY"
-                              : prev.instrumentScope,
-                        }));
+                        const preferredSourceId = experience
+                          ? resolvePreferredSubscribedSourceId({
+                              experience: {
+                                id: experience.id,
+                                signalSourceTypes:
+                                  experience.capabilities.signalSourceTypes,
+                              },
+                              compatibleSourceIds: matchingSourceIds,
+                              brokerAccounts: mockRehearsalBrokers,
+                              brokerAssignmentIds: assignedBrokerIds,
+                            })
+                          : null;
+                        const preferredSource = preferredSourceId
+                          ? signalSources.find(
+                              (source) => source.id === preferredSourceId,
+                            )
+                          : null;
+                        const preferredSubscribedSources = preferredSource
+                          ? [{ type: preferredSource.type }]
+                          : [];
+                        setForm((prev) => {
+                          const nextInputModel = deriveSessionInputModel({
+                            subscribedSources: preferredSubscribedSources,
+                            instrumentScope: prev.instrumentScope,
+                          });
+                          return {
+                            ...prev,
+                            experienceId,
+                            instrumentClasses: experience?.capabilities
+                              .instrumentClasses ?? ["stock"],
+                            selectionMode: resolveSelectionModeForInput({
+                              subscribedSources: preferredSubscribedSources,
+                              instrumentScope: prev.instrumentScope,
+                              selectorSettings: prev.selectorSettings,
+                            }),
+                            instrumentScope:
+                              nextInputModel === "listener"
+                                ? ""
+                                : prev.instrumentScope,
+                            selectorSettings: resolveSelectorSettingsForInput({
+                              inputModel: nextInputModel,
+                              selectorSettings: prev.selectorSettings,
+                            }),
+                          };
+                        });
+                        dispatchData({
+                          subscribedSourceIds: preferredSourceId
+                            ? [preferredSourceId]
+                            : [],
+                        });
                       }}
                       options={experiences.map((experience) => ({
                         value: experience.id,
@@ -608,6 +757,13 @@ export const CreateEditSessionModal = ({
                 glossaryId="signal-source"
               />
               <div className={sectionBodyClass}>
+                {mockRehearsalMode ? (
+                  <div className={inlineHintClass}>
+                    Mock rehearsal — synthetic filings aligned with your mock
+                    broker scenario. After starting the session, use{" "}
+                    <strong>Fire rehearsal signal</strong> on the session card.
+                  </div>
+                ) : null}
                 {!signalSourcesLoaded ? (
                   <div className="grid gap-2">
                     {[0, 1].map((idx) => (
@@ -617,14 +773,15 @@ export const CreateEditSessionModal = ({
                       />
                     ))}
                   </div>
-                ) : signalSources.length === 0 ? (
+                ) : compatibleSignalSources.length === 0 ? (
                   <div className={inlineHintClass}>
-                    No automated signal sources configured yet. You can still
-                    run from manual tickers below.
+                    No compatible signal sources are available for this
+                    experience yet. They are provisioned automatically when the
+                    app loads — try closing and reopening this dialog.
                   </div>
                 ) : (
                   <div className="grid gap-2">
-                    {signalSources.map((source) => {
+                    {compatibleSignalSources.map((source) => {
                       const checked = subscribedSourceIds.includes(source.id);
                       const isSearchStyle = source.type === "web_search";
                       return (
@@ -633,8 +790,6 @@ export const CreateEditSessionModal = ({
                             checked={checked}
                             onCheckedChange={(next) =>
                               dispatchData({
-                                // One active signal per session: selecting a
-                                // source replaces any prior pick.
                                 subscribedSourceIds: next ? [source.id] : [],
                               })
                             }
@@ -661,9 +816,7 @@ export const CreateEditSessionModal = ({
                               />
                             </span>
                             <span className="mt-px block text-[12px] text-[var(--text3)]">
-                              {source.type === "edgar_8k"
-                                ? "EDGAR 8-K"
-                                : "Web Search"}
+                              {formatSignalSourceTypeLabel(source.type)}
                               {!source.enabled
                                 ? " · Disabled globally — does not count as a live input"
                                 : ""}
@@ -677,13 +830,12 @@ export const CreateEditSessionModal = ({
                 <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[12px] text-[var(--text2)]">
                   <div className="flex items-start justify-between gap-2">
                     <span>
-                      {readiness === "armed"
-                        ? `Live inputs: ${manualTickerCount} manual ticker(s), ${enabledSubscribedSourceCount} enabled source(s)`
-                        : readiness === "manual_only"
-                          ? "This session will run from manual tickers only."
-                          : readiness === "waiting_for_source_enable"
-                            ? `This session is subscribed to ${disabledSubscribedSourceCount} source(s), but all are disabled. Starting now will put the session in waiting mode.`
-                            : "This session has no live inputs yet. Add manual tickers or enable at least one subscribed source."}
+                      {formatReadinessSummary({
+                        readiness,
+                        inputModel,
+                        subscribedSources,
+                        manualTickerCount,
+                      })}
                     </span>
                     <HelpTooltip
                       glossaryId={
@@ -704,51 +856,58 @@ export const CreateEditSessionModal = ({
             <section className={sectionClass}>
               <SectionHeader
                 title="Signal Scope"
-                caption={
-                  showInstrumentFilter
-                    ? "Tell the web search what to look at."
-                    : "Automatic listener — nothing to configure."
-                }
+                caption={formatSignalScopeSectionCaption(inputModel)}
               />
               <div className={sectionBodyClass}>
-                {showInstrumentFilter ? (
+                {!signalSourcesLoaded ? (
+                  <div className="grid gap-2">
+                    {[0, 1].map((idx) => (
+                      <div
+                        key={idx}
+                        className="h-[52px] animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]"
+                      />
+                    ))}
+                  </div>
+                ) : showInstrumentFilter ? (
                   <>
-                    <div className={twoColumnGridClass}>
-                      <Field
-                        label="Search provider override"
-                        glossaryId="search-provider-override"
-                      >
-                        <ShadcnSelect
-                          value={
-                            form.defaultSearchProviderId ??
-                            "__workspace_default__"
-                          }
-                          onValueChange={(value) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              defaultSearchProviderId:
-                                value === "__workspace_default__"
-                                  ? null
-                                  : value,
-                            }))
-                          }
-                          options={[
-                            {
-                              value: "__workspace_default__",
-                              label: workspaceDefaultSearchProviderName
-                                ? `Workspace default (${workspaceDefaultSearchProviderName})`
-                                : "Workspace default (not set)",
-                            },
-                            ...searchProviderState.providers.map(
-                              (provider) => ({
-                                value: provider.id,
-                                label: provider.name,
-                              }),
-                            ),
-                          ]}
-                        />
-                      </Field>
-                    </div>
+                    {showSearchProviderField ? (
+                      <div className={twoColumnGridClass}>
+                        <Field
+                          label="Search provider override"
+                          glossaryId="search-provider-override"
+                        >
+                          <ShadcnSelect
+                            value={
+                              form.defaultSearchProviderId ??
+                              "__workspace_default__"
+                            }
+                            onValueChange={(value) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                defaultSearchProviderId:
+                                  value === "__workspace_default__"
+                                    ? null
+                                    : value,
+                              }))
+                            }
+                            options={[
+                              {
+                                value: "__workspace_default__",
+                                label: workspaceDefaultSearchProviderName
+                                  ? `Workspace default (${workspaceDefaultSearchProviderName})`
+                                  : "Workspace default (not set)",
+                              },
+                              ...searchProviderState.providers.map(
+                                (provider) => ({
+                                  value: provider.id,
+                                  label: provider.name,
+                                }),
+                              ),
+                            ]}
+                          />
+                        </Field>
+                      </div>
+                    ) : null}
                     {searchEverything &&
                     effectiveInstrumentClasses.length > 1 ? (
                       <Field label="Research focus" glossaryId="research-focus">
@@ -803,13 +962,11 @@ export const CreateEditSessionModal = ({
                   </>
                 ) : (
                   <div className={inlineHintClass}>
-                    {selectedExperience
-                      ? `${selectedExperience.displayName} declares ${experienceClasses
-                          .map(formatInstrumentClass)
-                          .join(
-                            ", ",
-                          )} support. No manual instrument picker is needed for this listener.`
-                      : "Automatic listener — nothing to configure."}
+                    {sessionSubscribedToMockRehearsal(subscribedSources)
+                      ? "Mock rehearsal listens via synthetic filings. Instruments come from the fired signal — not from a manual ticker list."
+                      : selectedExperience
+                        ? `${selectedExperience.displayName} listens via ${formatSignalSourceTypeLabel(selectedExperience.signalSourceType)}. Instruments come from the signal feed — not from a manual ticker list.`
+                        : "Automatic listener — nothing to configure."}
                   </div>
                 )}
               </div>
@@ -1012,13 +1169,12 @@ export const CreateEditSessionModal = ({
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
             <div className="text-[12px] text-[var(--text3)]">
-              {readiness === "manual_only"
-                ? "This session runs from manual tickers only."
-                : readiness === "waiting_for_source_enable"
-                  ? "All subscribed sources are disabled — session will wait idle on start."
-                  : readiness === "no_inputs"
-                    ? "No live inputs — session will wait idle on start."
-                    : ""}
+              {formatReadinessSummary({
+                readiness,
+                inputModel,
+                subscribedSources,
+                manualTickerCount,
+              })}
             </div>
             <div className="flex justify-end gap-2.5">
               <Button
@@ -1035,13 +1191,20 @@ export const CreateEditSessionModal = ({
                     await onSubmit(
                       {
                         ...form,
-                        // Tickers belong to search-style/manual scoping only.
-                        // A listener-only session (EDGAR) carries no tickers.
                         instrumentScope: showInstrumentFilter
                           ? form.instrumentScope
                           : "",
-                        selectionMode: "manual_shortlist",
-                        selectorSettings: { aiPickerEnabled: true },
+                        selectionMode: resolveSelectionModeForInput({
+                          subscribedSources,
+                          instrumentScope: showInstrumentFilter
+                            ? form.instrumentScope
+                            : "",
+                          selectorSettings: form.selectorSettings,
+                        }),
+                        selectorSettings: resolveSelectorSettingsForInput({
+                          inputModel,
+                          selectorSettings: form.selectorSettings,
+                        }),
                         subscribedSourceIds,
                         brokerAssignments: form.brokerAssignments.filter(
                           (assignment) =>
@@ -1135,11 +1298,11 @@ function defaultInput(): SessionCreateInput {
     name: "",
     objective: "",
     experienceId: "edgar-catalyst",
-    selectionMode: "manual_shortlist",
+    selectionMode: "signal_driven",
     instrumentClasses: ["stock"],
-    instrumentScope: "SPY,QQQ",
+    instrumentScope: "",
     defaultSearchProviderId: null,
-    selectorSettings: { aiPickerEnabled: true },
+    selectorSettings: { aiPickerEnabled: false },
     executionMode: "paper_only",
     brokerAssignments: [],
     brokerOverridesByInstrumentClass: {},
@@ -1177,7 +1340,10 @@ function summaryToInput(session: SessionSummary): SessionCreateInput {
     instrumentClasses: session.instrumentClasses,
     instrumentScope: session.instrumentScope,
     defaultSearchProviderId: session.defaultSearchProviderId,
-    selectorSettings: { aiPickerEnabled: true },
+    selectorSettings:
+      session.selectionMode === "ai_selected_universe"
+        ? { aiPickerEnabled: true }
+        : { aiPickerEnabled: false },
     executionMode: session.executionMode,
     brokerAssignments: [],
     brokerOverridesByInstrumentClass: {},

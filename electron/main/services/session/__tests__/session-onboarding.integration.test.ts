@@ -356,6 +356,8 @@ describe("session onboarding integration", () => {
       assignments: new SessionBrokerAssignmentsRepo(db),
       trades: new TradesRepo(db),
       runtimeManager: harness.runtimeManager,
+      signalSources: harness.signalSourcesRepo,
+      brokerAccounts: harness.brokers,
     });
     expect(listing.list().sessions.map((row) => row.id)).not.toContain(
       sessionId,
@@ -514,6 +516,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
       },
     }),
     sessions,
+    signalSourcesRepo,
     sessionWrites: new SessionWriteService({
       sessions,
       events,
@@ -532,6 +535,7 @@ function createHarness(db: ReturnType<typeof createTestDb>) {
           });
           return sessionRequiresInstrumentScope(subscribedSources);
         },
+        getSource: (sourceId) => signalSourcesRepo.get(sourceId),
       },
     }),
     strategyContext: strategyContextService,

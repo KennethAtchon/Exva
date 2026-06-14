@@ -209,7 +209,7 @@ export const SELECTOR_PHASE: AIPhase<SelectorPlanState, InstrumentSelection> = {
       id: "discovery",
       frontier: 0,
       resolveWorkers(ctx) {
-        const trigger = ctx.input.signalTrigger as
+        const trigger = ctx.input?.signalTrigger as
           | { sourceType?: SignalSourceType }
           | undefined;
         const ids = resolveSelectorWorkerIds(trigger?.sourceType);
