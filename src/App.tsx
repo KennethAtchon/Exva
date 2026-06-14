@@ -15,6 +15,7 @@ import { SignalSourcesPage } from "./pages/SignalSourcesPage";
 import { CostBreakdownPage } from "./pages/CostBreakdown";
 import { DevPanel, type DevPanelFocus } from "./pages/DevPanel";
 import { AccountsPage } from "./pages/AccountsPage";
+import { DocsPage } from "./pages/DocsPage";
 import { useSessionStore } from "./store/sessionStore";
 import { useTradeStore } from "./store/tradeStore";
 import { useWorkspaceStore } from "./store/workspaceStore";
@@ -304,6 +305,8 @@ export default function App() {
         );
       case "accounts":
         return <AccountsPage />;
+      case "docs":
+        return <DocsPage />;
     }
   };
 

@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeftRight,
   BarChart3,
+  BookOpen,
   Code2,
   Landmark,
   Layers,
@@ -24,7 +25,8 @@ export type PageKey =
   | "signals"
   | "costs"
   | "devpanel"
-  | "accounts";
+  | "accounts"
+  | "docs";
 
 export const NAV_WIDE_MEDIA = "(min-width: 1200px)";
 
@@ -42,6 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "costs", label: "API Usage", icon: BarChart3 },
   { id: "devpanel", label: "Developer", icon: Code2 },
   { id: "accounts", label: "Accounts", icon: Wallet },
+  { id: "docs", label: "Docs", icon: BookOpen },
 ];
 
 /** Top-level tabs on the wide horizontal nav bar. */
@@ -70,7 +73,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     id: "setup",
     label: "Setup",
-    itemIds: ["brokers", "signals", "accounts", "devpanel"],
+    itemIds: ["brokers", "signals", "accounts", "docs", "devpanel"],
   },
 ];
 
