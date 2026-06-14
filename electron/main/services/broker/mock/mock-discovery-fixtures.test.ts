@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
+import {
+  MOCK_SCENARIO_KINDS,
+  type MockScenarioKind,
+} from "@electron/shared/domain/mock-scenario";
 import { MockMarketSimulator } from "./mock-market-simulator";
+import {
+  SCENARIO_NEWS,
+  SCENARIO_REDDIT,
+  SCENARIO_TRENDING,
+} from "./mock-scenario-fixtures";
 import {
   extractQuerySymbol,
   filterMockWebSearch,
@@ -119,5 +128,29 @@ describe("mock discovery fixtures", () => {
     expect(text).toMatch(/breakout|momentum|resistance|strength/);
     expect(text).not.toContain("{symbol}");
     expect(text).toContain(primary.toLowerCase());
+  });
+
+  it("covers every mock scenario kind in the discovery catalog", () => {
+    const urlOptionalKinds = new Set<MockScenarioKind>([
+      "stale_quote",
+      "wide_spread",
+    ]);
+
+    for (const kind of MOCK_SCENARIO_KINDS) {
+      expect(SCENARIO_PRIMARY_SYMBOLS[kind].length).toBeGreaterThan(0);
+      expect(SCENARIO_WEB_SEARCH[kind].length).toBeGreaterThan(0);
+      if (!urlOptionalKinds.has(kind)) {
+        expect(Object.keys(SCENARIO_URL_CONTENT[kind]).length).toBeGreaterThan(
+          0,
+        );
+      }
+      expect(SCENARIO_NEWS[kind].length).toBeGreaterThan(0);
+      expect(SCENARIO_REDDIT[kind].length).toBeGreaterThan(0);
+      expect(SCENARIO_TRENDING[kind].length).toBeGreaterThan(0);
+
+      const fixtures = MockMarketSimulator.fixturesFor(kind);
+      expect(fixtures.primarySymbols).toEqual(SCENARIO_PRIMARY_SYMBOLS[kind]);
+      expect(fixtures.webSearch).toEqual(SCENARIO_WEB_SEARCH[kind]);
+    }
   });
 });
