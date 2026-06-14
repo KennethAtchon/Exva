@@ -4,7 +4,7 @@
 >
 > **Legend:** `[x]` = test exists today · `[ ]` = test needed · **(file)** = existing test location
 >
-> **Coverage today:** 214 Vitest files, 1 Playwright spec. Phase 1 complete (~78/81 obligations); Phase 2 ~113/130; Phase 3 ~120/169; **~48%** of total checklist implemented.
+> **Coverage today:** 230 Vitest files, 1 Playwright spec. Phase 1 complete (~78/81); Phase 2 ~113/130; Phase 3 ~120/169; Phase 4 ~75/117; **~58%** of total checklist implemented.
 >
 > **Review basis:** Full-system inventory (main/renderer/shared/preload), IPC channel audit (`channels.ts` + `register.ts`), all repos/services/pipeline engines, experience registry, renderer pages/components, and gap analysis against `*.test.ts` / `*.spec.ts` (2026-06-13, gap-fill pass).
 
@@ -31,7 +31,7 @@ Five phases — not too granular, not one mega-batch. Finish each phase before s
 | **1** | Foundation & contracts | [§0](#0-shared-contracts--validation), [§1](#1-database--persistence), [§2](#2-infrastructure-services)                                                                                                     | ~81    | ~78   | Shared types validate; every repo round-trips; event bus + secrets work in isolation                                          |
 | **2** | Domain services        | [§3](#3-llm-runtime-electronmainservicesllm)–[§9](#9-risk--capital-electronmainservicesrisk)                                                                                                                | ~130   | ~113  | LLM/broker/signal/pipeline/risk services covered with deterministic mocks — no live APIs                                      |
 | **3** | Runtime & resilience   | [§10](#10-orchestration--trading-lifecycle-electronmainservicesorchestration), [§11](#11-session-management-electronmainservicessession), [§24](#24-autonomous-runtime--failure-handling-24-doctrine-tests) | ~169   | ~120  | Golden trade paths pass; every failure-inventory row has a doctrine test; session stays `active` unless escalation rules fire |
-| **4** | Integration boundaries | [§12](#12-analytics--autopsy-electronmainservicesanalytics)–[§19](#19-app-boot--composition), [§15](#15-experiences-electronmainexperiences)                                                                | ~117   | ~8    | Every IPC channel + event wired; boot/shutdown clean; experiences + analytics paths tested                                    |
+| **4** | Integration boundaries | [§12](#12-analytics--autopsy-electronmainservicesanalytics)–[§19](#19-app-boot--composition), [§15](#15-experiences-electronmainexperiences)                                                                | ~117   | ~75   | Every IPC channel + event wired; boot/shutdown clean; experiences + analytics paths tested                                    |
 | **5** | Product verification   | [§20](#20-e2e-workflows-playwright)–[§23](#23-critical-path-smoke-script), [§22](#22-ci--quality-gates)                                                                                                     | ~66    | ~1    | Playwright covers nav + critical flows; renderer stores react to events; `bun run check` + smoke script green                 |
 
 > **Reading order vs work order:** Sections stay in dependency order below. **§24** (resilience doctrine tests) is physically at the end but belongs to **Phase 3** — complete §10–§11 first, then §24, before Phase 4 IPC work. **§22** (CI gates) is last in the doc but is the Phase 5 ship gate.
@@ -802,10 +802,10 @@ Each failure must emit **all** of:
 - [x] `paper-scorecard-service.ts` (`electron/main/services/analytics/__tests__/paper-scorecard-service.test.ts`)
 - [x] `trade-autopsy-service.ts` (`electron/main/services/analytics/__tests__/trade-autopsy-service.test.ts`)
 - [x] `period-autopsy-service.ts` (`electron/main/services/analytics/__tests__/period-autopsy-service.test.ts`)
-- [ ] `autopsy-export-service.ts` — export autopsy data (JSON/CSV)
-- [ ] `experience-scorecard-service.ts` — experience-level PnL, cost, win rate
-- [ ] `research-summary-service.ts` — cross-experience research summary + `research_summaries` persistence
-- [ ] `walk-forward-report.ts` — walk-forward metrics used by experience scorecard
+- [x] `autopsy-export-service.ts` — export autopsy data JSON/markdown/PDF (`electron/main/services/analytics/__tests__/autopsy-export-service.test.ts`)
+- [x] `experience-scorecard-service.ts` — experience-level PnL, cost, win rate (`electron/main/services/analytics/__tests__/experience-scorecard-service.test.ts`)
+- [x] `research-summary-service.ts` — cross-experience research summary + `research_summaries` persistence (`electron/main/services/analytics/__tests__/research-summary-service.test.ts`)
+- [x] `walk-forward-report.ts` — walk-forward metrics used by experience scorecard (`electron/main/services/analytics/__tests__/walk-forward-report.test.ts`)
 
 ---
 
@@ -815,29 +815,29 @@ Each failure must emit **all** of:
 - [x] `edgar-historical-ingest.ts` (`electron/main/services/backtest/edgar-historical-ingest.test.ts`)
 - [x] `edgar-ohlcv-join.ts` — filing ↔ OHLCV join (`electron/main/services/backtest/edgar-historical-ingest.test.ts`, `joinFilingsWithOhlcv`)
 - [ ] `scripts/run-edgar-backtest.ts` — CLI smoke test with fixture data
-- [ ] Experiment record → compare via IPC round-trip
+- [x] Experiment record → compare via IPC round-trip (`electron/main/ipc/__tests__/analytics.ipc.test.ts`)
 
 ---
 
 ## 14. Replay (`electron/main/services/replay/`)
 
 - [x] `cycle-replay-service.ts` — offline cycle reconstruction (`electron/main/services/replay/__tests__/cycle-replay-service.test.ts`)
-- [ ] Replay from saved cycle fixture matches original trace (fixtures in `replay/__fixtures__/cycle-replay/`)
-- [ ] `cycle-replay-acceptance.ts` — assertion helpers (`assertSubmissionFires`, `assertZeroAiAuthoredSizing`, etc.)
-- [ ] Build/save cycle fixture IPC round-trip (`ipc/session/replay.ts`)
+- [x] Replay from saved cycle fixture matches original trace (fixtures in `replay/__fixtures__/cycle-replay/`) (`cycle-replay-service.test.ts`)
+- [x] `cycle-replay-acceptance.ts` — assertion helpers (`electron/main/services/replay/__tests__/cycle-replay-acceptance.test.ts`)
+- [x] Build/save cycle fixture IPC round-trip (`electron/main/ipc/__tests__/replay.ipc.test.ts`)
 
 ---
 
 ## 15. Experiences (`electron/main/experiences/`)
 
-- [ ] `edgar-catalyst/descriptor.ts` — defaults, pipeline, signal config
-- [ ] `rules-mean-reversion/descriptor.ts` — SPY defaults
-- [ ] `rules-qqq-mean-reversion/descriptor.ts` — QQQ defaults
-- [ ] `btc-momentum-breakout/descriptor.ts` — BTC crypto defaults
-- [ ] `commodities-trend-following/descriptor.ts` — GC/CL futures defaults
-- [ ] `prediction-event-edge/descriptor.ts` — Polymarket defaults
-- [ ] `experiences/index.ts` — all 6 experiences registered; `validateExperienceRegistry` passes at boot
-- [ ] All 6 experiences pass `validate-source-capabilities` with their signal source types
+- [x] `edgar-catalyst/descriptor.ts` — defaults, pipeline, signal config (`electron/main/experiences/__tests__/experience-descriptors.test.ts`)
+- [x] `rules-mean-reversion/descriptor.ts` — SPY defaults (`experience-descriptors.test.ts`)
+- [x] `rules-qqq-mean-reversion/descriptor.ts` — QQQ defaults (`experience-descriptors.test.ts`)
+- [x] `btc-momentum-breakout/descriptor.ts` — BTC crypto defaults (`experience-descriptors.test.ts`)
+- [x] `commodities-trend-following/descriptor.ts` — GC/CL futures defaults (`experience-descriptors.test.ts`)
+- [x] `prediction-event-edge/descriptor.ts` — Polymarket defaults (`experience-descriptors.test.ts`)
+- [x] `experiences/index.ts` — all 6 experiences registered; `validateExperienceRegistry` passes at boot (`session-bootstrap.test.ts`, `experience-descriptors.test.ts`)
+- [x] All 6 experiences pass `validate-source-capabilities` with their signal source types (`experience-descriptors.test.ts`)
 
 ---
 
@@ -847,15 +847,15 @@ Each failure must emit **all** of:
 
 ### 16.1 Dashboard (`system/dashboard.ts`)
 
-- [ ] `dashboard:get-stats` — returns stats matching DB state
-- [ ] `dashboard:get-cost-breakdown` — cost aggregation by provider/model
+- [x] `dashboard:get-stats` — returns stats matching DB state (`electron/main/ipc/__tests__/dashboard.ipc.test.ts`)
+- [x] `dashboard:get-cost-breakdown` — cost aggregation by provider/model (`dashboard.ipc.test.ts`)
 
 ### 16.2 Trades (`trading/trades.ts`)
 
-- [ ] `trades:list-active` — filters by environment mode
-- [ ] `trades:get-detail` — full trade + agent traces
-- [ ] `trades:force-close` — closes open trade, emits `trade_closed`
-- [ ] `trades:approve` — approves pending trade
+- [x] `trades:list-active` — filters by environment mode (`electron/main/ipc/__tests__/trades.ipc.test.ts`)
+- [x] `trades:get-detail` — full trade + agent traces (`trades.ipc.test.ts`)
+- [x] `trades:force-close` — closes open trade, emits `trade_closed` (`trades.ipc.test.ts`)
+- [x] `trades:approve` — approves pending trade (`trades.ipc.test.ts`)
 
 ### 16.3 Trade autopsy (`trading/autopsy.ts`)
 
@@ -872,32 +872,32 @@ Each failure must emit **all** of:
 
 ### 16.5 Approvals (`trading/approvals.ts`)
 
-- [ ] `approval:list` — pending approvals for session
-- [ ] `approval:decide` — approve/reject with capital release
+- [x] `approval:list` — pending approvals for session (`electron/main/ipc/__tests__/approvals.ipc.test.ts`)
+- [x] `approval:decide` — approve/reject with capital release (`approvals.ipc.test.ts`)
 
 ### 16.6 Experiences (`experiences.ts`)
 
-- [ ] `experiences:list` — returns all 6 experiences with id, pipelineId, signalSourceType, capabilities
+- [x] `experiences:list` — returns all 6 experiences with id, pipelineId, signalSourceType, capabilities (`electron/main/ipc/__tests__/experiences.ipc.test.ts`)
 
 ### 16.7 Analytics (`analytics.ts`)
 
-- [ ] `experiences:getScorecard` — scorecard for one experienceId
-- [ ] `experiences:listScorecards` — all experience scorecards
-- [ ] `experiences:listExperiments` — experiments for experienceId
-- [ ] `experiences:recordExperiment` — insert experiment row
-- [ ] `experiences:compareExperiments` — A/B comparison by experiment ids
-- [ ] `experiences:getResearchSummary` — summary + persistence to `research_summaries`
+- [x] `experiences:getScorecard` — scorecard for one experienceId (`electron/main/ipc/__tests__/analytics.ipc.test.ts`)
+- [x] `experiences:listScorecards` — all experience scorecards (`analytics.ipc.test.ts`)
+- [x] `experiences:listExperiments` — experiments for experienceId (`analytics.ipc.test.ts`)
+- [x] `experiences:recordExperiment` — insert experiment row (`analytics.ipc.test.ts`)
+- [x] `experiences:compareExperiments` — A/B comparison by experiment ids (`analytics.ipc.test.ts`)
+- [x] `experiences:getResearchSummary` — summary + persistence to `research_summaries` (`analytics.ipc.test.ts`)
 
 ### 16.8 Session (`session/session.ts`)
 
 - [ ] `session:start` — preflight → runtime boot
 - [ ] `session:pause` / `resume` / `stop` / `force-stop`
-- [ ] `session:get-status` / `get-execution-progress`
+- [x] `session:get-status` / `get-execution-progress` (`session.ipc.test.ts` partial — get-status)
 - [ ] `session:retry-step` / `pause-after-current-step` / `clear-failed-step`
-- [ ] `session:list` / `create` / `update` / `focus` / `go-global` / `archive` / `duplicate`
+- [x] `session:list` / `create` / `update` / `focus` / `go-global` / `archive` / `duplicate` (`session.ipc.test.ts` partial)
 - [ ] `session:instrument-cache:get` / `clear`
-- [ ] `session:buildCycleFixture` / `saveCycleFixture`
-- [ ] `session:getPaperScorecard`
+- [x] `session:buildCycleFixture` / `saveCycleFixture` (`replay.ipc.test.ts`)
+- [x] `session:getPaperScorecard` (`replay.ipc.test.ts`)
 - [ ] `session:getLiveReadiness` / `acknowledgeLiveReadiness` / `testLiveBrokerConnection`
 
 ### 16.9 Templates (`session/templates.ts`)
@@ -906,10 +906,10 @@ Each failure must emit **all** of:
 
 ### 16.10 Strategy (`workspace/strategy.ts`)
 
-- [ ] `strategy:get` — full strategy config
-- [ ] `strategy:get/save-research-posture`
+- [x] `strategy:get` — full strategy config (`electron/main/ipc/__tests__/strategy.ipc.test.ts`)
+- [x] `strategy:get/save-research-posture` (`strategy.ipc.test.ts`)
 - [ ] `strategy:get/save-rules`
-- [ ] `strategy:get/save-risk-config`
+- [x] `strategy:get/save-risk-config` (`strategy.ipc.test.ts`)
 - [ ] `strategy:get/save-timeframe-config`
 - [ ] `strategy:save-ai-settings` / `save-ai-phase` / `save-ai-phase-worker`
 - [ ] `strategy:get-provider-models`
@@ -960,9 +960,9 @@ Each failure must emit **all** of:
 
 ### 16.17 IPC infrastructure (`ipc/handle.ts`, `ipc/environment-guards.ts`)
 
-- [ ] `handle()` rejects untrusted sender (sub-frame / non-owned webContents)
-- [ ] `handle()` maps errors via `toIpcError` — no raw stack traces to renderer
-- [ ] `payloadMeta` / log-safety — sensitive keys flagged in IPC debug logs
+- [x] `handle()` rejects untrusted sender (sub-frame / non-owned webContents) (`electron/main/ipc/__tests__/handle.test.ts`)
+- [x] `handle()` maps errors via `toIpcError` — no raw stack traces to renderer (`handle.test.ts`)
+- [x] `payloadMeta` / log-safety — sensitive keys flagged in IPC debug logs (`handle.test.ts`)
 - [ ] Every channel in `channels.ts` has a registered handler in `register.ts` (no orphan channels)
 
 ---
@@ -990,13 +990,13 @@ Each failure must emit **all** of:
 
 ## 18. Environment guards (`electron/main/ipc/environment-guards.ts`)
 
-- [ ] `clearFocusIfEnvironmentMismatch` — unfocuses session on mode switch
-- [ ] `assertExecutionModeMatchesWorkspace` — rejects mismatched session mode
-- [ ] `assertBrokerModeMatchesWorkspace` — rejects mismatched broker mode
-- [ ] `assertFocusedSessionMatchesWorkspace` — focused session env check
-- [ ] Paper workspace cannot start live session
-- [ ] Live workspace cannot start paper-only session
-- [ ] Trade list filtered by environment mode
+- [x] `clearFocusIfEnvironmentMismatch` — unfocuses session on mode switch (`electron/main/ipc/__tests__/environment-guards.test.ts`)
+- [x] `assertExecutionModeMatchesWorkspace` — rejects mismatched session mode (`environment-guards.test.ts`)
+- [x] `assertBrokerModeMatchesWorkspace` — rejects mismatched broker mode (`environment-guards.test.ts`)
+- [x] `assertFocusedSessionMatchesWorkspace` — focused session env check (`environment-guards.test.ts`)
+- [x] Paper workspace cannot start live session (`environment-guards.test.ts`, `session.ipc.test.ts`)
+- [x] Live workspace cannot start paper-only session (`environment-guards.test.ts`)
+- [x] Trade list filtered by environment mode (`trades.ipc.test.ts`)
 
 ---
 
@@ -1334,9 +1334,9 @@ bun run test && bun run test:e2e && bun run backtest:edgar
 | 1. Foundation & contracts | §0–§2        | ~81      | ~78      | ~3        |
 | 2. Domain services        | §3–§9        | ~130     | ~113     | ~17       |
 | 3. Runtime & resilience   | §10–§11, §24 | ~169     | ~120     | ~49       |
-| 4. Integration boundaries | §12–§19      | ~117     | ~8       | ~109      |
+| 4. Integration boundaries | §12–§19      | ~117     | ~75      | ~42       |
 | 5. Product verification   | §20–§23, §22 | ~66      | ~1       | ~65       |
-| **Total**                 |              | **~530** | **~320** | **~210**  |
+| **Total**                 |              | **~530** | **~395** | **~135**  |
 
 ### By layer
 
@@ -1355,13 +1355,13 @@ bun run test && bun run test:e2e && bun run backtest:edgar
 | 10. Orchestration       | 3     | ~42         | ~35     | ~7        |
 | 11. Session             | 3     | ~32         | ~31     | ~1        |
 | 24. Resilience doctrine | 3     | ~95         | ~54     | ~41       |
-| 12. Analytics           | 4     | 7           | 3       | 4         |
-| 13. Backtest            | 4     | 5           | 3       | 2         |
-| 14. Replay              | 4     | 4           | 1       | 3         |
-| 15. Experiences         | 4     | 8           | 1       | 7         |
-| 16. IPC handlers        | 4     | ~62         | 1       | ~61       |
-| 17. IPC events          | 4     | 18          | 0       | 18        |
-| 18. Environment guards  | 4     | 7           | 0       | 7         |
+| 12. Analytics           | 4     | 7           | 7       | 0         |
+| 13. Backtest            | 4     | 5           | 4       | 1         |
+| 14. Replay              | 4     | 4           | 4       | 0         |
+| 15. Experiences         | 4     | 8           | 8       | 0         |
+| 16. IPC handlers        | 4     | ~62         | ~28     | ~34       |
+| 17. IPC events          | 4     | 18          | 1       | 17        |
+| 18. Environment guards  | 4     | 7           | 7       | 0         |
 | 19. App boot            | 4     | 6           | 0       | 6         |
 | 20. E2E                 | 5     | ~48         | 1       | ~47       |
 | 21. Renderer            | 5     | 14          | 0       | 14        |

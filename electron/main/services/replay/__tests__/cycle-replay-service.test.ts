@@ -607,6 +607,32 @@ describe("CycleReplayRunner.replay", () => {
     }
   });
 
+  it("replay from saved cycle fixture preserves phase outputs and original trace costs", () => {
+    const files = fs
+      .readdirSync(FIXTURES_DIR)
+      .filter((name) => name.endsWith(".json"));
+
+    for (const file of files) {
+      const fixture = loadFixture(file.replace(/\.json$/, ""));
+      const result = runner.replay(fixture);
+
+      expect(result.phaseOutputs).toEqual(fixture.phaseOutputs);
+      expect(result.scorecard.totalCostUsd).toBeCloseTo(
+        Object.values(fixture.phaseTraces).reduce(
+          (sum, trace) => sum + (trace?.totalCostUsd ?? 0),
+          0,
+        ),
+        6,
+      );
+
+      for (const [phase, trace] of Object.entries(fixture.phaseTraces)) {
+        expect(trace?.phase).toBe(phase);
+        expect(trace?.cycleId).toBe(fixture.cycleId);
+        expect(trace?.aggregateOutputSchemaName).toBeTruthy();
+      }
+    }
+  });
+
   it("acceptance suite enforces selector submission rate, zero AI sizing, and cost ceilings", () => {
     const files = fs
       .readdirSync(FIXTURES_DIR)
