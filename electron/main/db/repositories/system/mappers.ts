@@ -67,6 +67,11 @@ export function toTrade(row: Row): Trade {
     mae_usd: nullableNumber(row.mae_usd),
     spread_at_entry_bps: nullableNumber(row.spread_at_entry_bps),
     slippage_bps: nullableNumber(row.slippage_bps),
+    commission_usd: nullableNumber(row.commission_usd),
+    borrow_cost_usd: nullableNumber(row.borrow_cost_usd),
+    execution_cost_usd: nullableNumber(row.execution_cost_usd),
+    take_profit_touched_at: nullableString(row.take_profit_touched_at),
+    stop_touched_at: nullableString(row.stop_touched_at),
     created_at: String(row.created_at),
   };
 }

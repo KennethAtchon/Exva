@@ -33,11 +33,13 @@ import {
 import type {
   ResearchPosturePreset,
   RiskPreset,
+  SessionStrategyContext,
   TimeframePreset,
   TradeRulesPreset,
 } from "@electron/shared/domain";
 import type { GlobalStrategyPreset } from "@electron/shared/presets";
 import { loadExperiencePresetBundle } from "../../../experiences/session-bootstrap";
+import { buildSessionStrategyConfigJson } from "../../../services/session/session-strategy-config";
 import {
   DEFAULT_REASONING_LEVEL,
   PIPELINE_PHASES,
@@ -166,6 +168,40 @@ export class SessionRepo {
       ruleNotes: "",
       updatedAt: now,
     };
+    const strategyContext = {
+      researchPosture: {
+        sessionId,
+        ...defaults.posturePreset.posture,
+        postureNotes: "",
+        updatedAt: now,
+      },
+      rules: {
+        ...tradeRulesSeed,
+        tradeRulesMarkdown: buildTradeRulesMarkdown(tradeRulesSeed),
+      },
+      riskConfig: {
+        sessionId,
+        riskPresetId: defaults.riskPreset.id,
+        ...defaults.riskPreset.values,
+        maxPositionUsd: defaults.riskPreset.values.maxPositionUsd ?? 500,
+        maxDataSpendUsd: 5,
+        updatedAt: now,
+      },
+      timeframe: {
+        sessionId,
+        timeframePresetId: defaults.timeframePreset.id,
+        ...defaults.timeframePreset.values,
+        updatedAt: now,
+      },
+      aiSettings: {
+        sessionId,
+        workerGuidanceMarkdown: "",
+        updatedAt: now,
+      },
+    };
+    const strategyConfigJson = JSON.stringify(
+      buildSessionStrategyConfigJson(strategyContext as SessionStrategyContext),
+    );
 
     this.client.db.transaction((tx) => {
       tx.insert(sessions)
@@ -181,6 +217,7 @@ export class SessionRepo {
           defaultSearchProviderId: input.defaultSearchProviderId ?? null,
           executionMode: input.executionMode,
           experienceId,
+          strategyConfigJson,
           createdAt: now,
           updatedAt: now,
         })
@@ -698,5 +735,25 @@ export class SessionRepo {
         .where(eq(sessionRiskConfig.sessionId, sessionId))
         .run();
     });
+  }
+
+  getStrategyConfigJson(sessionId: string): string | null {
+    const row = this.client.db
+      .select({ strategyConfigJson: sessions.strategyConfigJson })
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .get();
+    return row?.strategyConfigJson ?? null;
+  }
+
+  updateStrategyConfigJson(sessionId: string, json: string): void {
+    this.client.db
+      .update(sessions)
+      .set({
+        strategyConfigJson: json,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(sessions.id, sessionId))
+      .run();
   }
 }

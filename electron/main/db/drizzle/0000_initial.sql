@@ -462,6 +462,7 @@ CREATE TABLE `sessions` (
 	`default_search_provider_id` text,
 	`execution_mode` text DEFAULT 'paper_only' NOT NULL,
 	`experience_id` text DEFAULT 'edgar-catalyst' NOT NULL,
+	`strategy_config_json` text,
 	`overrides_json` text,
 	`live_readiness_acknowledged_at` text,
 	`created_at` text NOT NULL,
@@ -606,6 +607,11 @@ CREATE TABLE `trades` (
 	`mae_usd` real,
 	`spread_at_entry_bps` real,
 	`slippage_bps` real,
+	`commission_usd` real,
+	`borrow_cost_usd` real,
+	`execution_cost_usd` real,
+	`take_profit_touched_at` text,
+	`stop_touched_at` text,
 	`created_at` text NOT NULL,
 	FOREIGN KEY (`session_id`) REFERENCES `sessions`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`broker_account_id`) REFERENCES `broker_accounts`(`id`) ON UPDATE no action ON DELETE set null
@@ -627,6 +633,14 @@ CREATE TABLE `experience_experiments` (
 );
 --> statement-breakpoint
 CREATE INDEX `idx_experience_experiments_experience` ON `experience_experiments` (`experience_id`,`created_at`);--> statement-breakpoint
+CREATE TABLE `research_summaries` (
+	`id` text PRIMARY KEY NOT NULL,
+	`period` text NOT NULL,
+	`summary_json` text NOT NULL,
+	`created_at` text NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `idx_research_summaries_period` ON `research_summaries` (`period`,`created_at`);--> statement-breakpoint
 CREATE TABLE `workspace_preferences` (
 	`id` integer PRIMARY KEY DEFAULT 1 NOT NULL,
 	`global_include_archived` integer DEFAULT false NOT NULL,

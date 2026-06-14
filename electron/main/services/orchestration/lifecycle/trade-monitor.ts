@@ -8,7 +8,13 @@ import type { CapitalReservationService } from "../../risk/capital-reservation-s
 import type { HoldingStyle, InstrumentClass } from "@/lib/types";
 import type { InstrumentNormalizer } from "../../broker/instrument-normalizer";
 import { ExitPolicyEvaluator } from "../../risk/exit-policy-evaluator";
-import { computeMfeMaeUsd } from "@electron/shared/instruments/trade-exit-analytics";
+import {
+  computeExecutionCostUsd,
+  computeMfeMaeUsd,
+  computeTimeToLevelMs,
+  estimateBorrowUsd,
+  estimateCommissionUsd,
+} from "@electron/shared/instruments/trade-exit-analytics";
 
 const POLL_INTERVAL_MS: Record<HoldingStyle, number> = {
   multi_day_swing: 60_000,
@@ -91,6 +97,40 @@ export class TradeMonitor {
 
       // Update price extremes before evaluating exits.
       this.tradesRepo.updatePriceExtremes(trade.id, currentPrice);
+
+      const side = trade.side as "BUY" | "SELL";
+      const openedAt = trade.opened_at ?? trade.created_at;
+      const tpTouch =
+        trade.take_profit_price != null
+          ? computeTimeToLevelMs({
+              openedAt,
+              nowMs: Date.now(),
+              currentPrice,
+              targetPrice: trade.take_profit_price,
+              side,
+              previouslyTouchedAt: trade.take_profit_touched_at ?? null,
+            })
+          : (trade.take_profit_touched_at ?? null);
+      const stopTouch =
+        trade.stop_loss_price != null
+          ? computeTimeToLevelMs({
+              openedAt,
+              nowMs: Date.now(),
+              currentPrice,
+              targetPrice: trade.stop_loss_price,
+              side,
+              previouslyTouchedAt: trade.stop_touched_at ?? null,
+            })
+          : (trade.stop_touched_at ?? null);
+      if (
+        tpTouch !== (trade.take_profit_touched_at ?? null) ||
+        stopTouch !== (trade.stop_touched_at ?? null)
+      ) {
+        this.tradesRepo.updateLevelTouchTimes(trade.id, {
+          takeProfitTouchedAt: tpTouch,
+          stopTouchedAt: stopTouch,
+        });
+      }
 
       // Get OHLCV for ATR — uses getOhlcv if available; falls back to empty for adapters that don't implement it
       const ohlcvTimeframe = this.resolveOhlcvTimeframe(
@@ -263,7 +303,33 @@ export class TradeMonitor {
         lowWaterMarkPrice: current.low_water_mark_price,
         exitPrice,
       });
-      this.tradesRepo.updateExitAnalytics(tradeId, { mfeUsd, maeUsd });
+      const openedAt = current.opened_at ?? current.created_at;
+      const closedAt = new Date().toISOString();
+      const holdHours =
+        (new Date(closedAt).getTime() - new Date(openedAt).getTime()) /
+        (1000 * 60 * 60);
+      const commissionUsd = estimateCommissionUsd({
+        sizeUsd: current.position_size_usd,
+      });
+      const borrowCostUsd = estimateBorrowUsd({
+        side: current.side as "BUY" | "SELL",
+        holdHours,
+        sizeUsd: current.position_size_usd,
+      });
+      const executionCostUsd = computeExecutionCostUsd({
+        spreadAtEntryBps: current.spread_at_entry_bps,
+        slippageBps: current.slippage_bps,
+        commissionUsd,
+        borrowCostUsd,
+        sizeUsd: current.position_size_usd,
+      });
+      this.tradesRepo.updateExitAnalytics(tradeId, {
+        mfeUsd,
+        maeUsd,
+        commissionUsd,
+        borrowCostUsd,
+        executionCostUsd,
+      });
     }
     const closed = this.tradesRepo.updateStatus(
       tradeId,

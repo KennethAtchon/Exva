@@ -54,6 +54,13 @@ describe("edgar-drift-backtest", () => {
         },
         entryPrice: 100,
         returns: { days1: 0.01, days3: 0.02, days5: 0.03 },
+        signedReturns: { days1: 0.01, days3: 0.02, days5: 0.03 },
+        reaction: {
+          gapPct: null,
+          reaction30mPct: null,
+          reaction60mPct: null,
+          volumeZScore: null,
+        },
       },
       {
         filing: {
@@ -64,11 +71,19 @@ describe("edgar-drift-backtest", () => {
         },
         entryPrice: 100,
         returns: { days1: -0.01, days3: 0.0, days5: -0.02 },
+        signedReturns: { days1: -0.01, days3: 0.0, days5: -0.02 },
+        reaction: {
+          gapPct: null,
+          reaction30mPct: null,
+          reaction60mPct: null,
+          volumeZScore: null,
+        },
       },
     ];
     const summary = summarizeByItemCode(results);
     expect(summary).toHaveLength(1);
     expect(summary[0]?.itemCode).toBe("2.02");
+    expect(summary[0]?.direction).toBe("long");
     expect(summary[0]?.sampleCount).toBe(2);
     expect(summary[0]?.avgReturn5d).toBeCloseTo(0.005);
   });

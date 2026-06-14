@@ -114,8 +114,15 @@ export class ExperienceScorecardService {
       (sum, t) => sum + (t.final_pnl_usd ?? 0),
       0,
     );
-    const netPnlAfterCostsUsd = netPnlUsd - totalAiSpendUsd - totalDataSpendUsd;
-    const costPerTradeUsd = (totalAiSpendUsd + totalDataSpendUsd) / tradeCount;
+    const totalExecutionCostUsd = closedTrades.reduce(
+      (sum, t) => sum + (t.execution_cost_usd ?? 0),
+      0,
+    );
+    const netPnlAfterCostsUsd =
+      netPnlUsd - totalAiSpendUsd - totalDataSpendUsd - totalExecutionCostUsd;
+    const costPerTradeUsd =
+      (totalAiSpendUsd + totalDataSpendUsd + totalExecutionCostUsd) /
+      tradeCount;
 
     const { maxDrawdownPct } = computeMaxDrawdown(closedTrades);
     const avgHoldHours = computeAvgHoldHours(closedTrades);

@@ -49,6 +49,47 @@ export class ExperienceExperimentsRepo {
       .run();
     return { ...input, createdAt };
   }
+
+  getById(id: string): ExperienceExperiment | null {
+    const row = this.client.db
+      .select()
+      .from(experienceExperiments)
+      .where(eq(experienceExperiments.id, id))
+      .get();
+    return row ? toExperiment(row) : null;
+  }
+
+  compare(
+    experimentIdA: string,
+    experimentIdB: string,
+  ): {
+    a: ExperienceExperiment;
+    b: ExperienceExperiment;
+    metricDiffs: Record<
+      string,
+      { a: unknown; b: unknown; delta: number | null }
+    >;
+  } | null {
+    const a = this.getById(experimentIdA);
+    const b = this.getById(experimentIdB);
+    if (!a || !b) return null;
+    const keys = new Set([
+      ...Object.keys(a.metrics),
+      ...Object.keys(b.metrics),
+    ]);
+    const metricDiffs: Record<
+      string,
+      { a: unknown; b: unknown; delta: number | null }
+    > = {};
+    for (const key of keys) {
+      const av = a.metrics[key];
+      const bv = b.metrics[key];
+      const delta =
+        typeof av === "number" && typeof bv === "number" ? bv - av : null;
+      metricDiffs[key] = { a: av, b: bv, delta };
+    }
+    return { a, b, metricDiffs };
+  }
 }
 
 function toExperiment(

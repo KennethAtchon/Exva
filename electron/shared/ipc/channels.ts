@@ -37,6 +37,9 @@ export const channels = {
     getScorecard: "experiences:getScorecard",
     listScorecards: "experiences:listScorecards",
     listExperiments: "experiences:listExperiments",
+    recordExperiment: "experiences:recordExperiment",
+    compareExperiments: "experiences:compareExperiments",
+    getResearchSummary: "experiences:getResearchSummary",
   },
   session: {
     start: "session:start",

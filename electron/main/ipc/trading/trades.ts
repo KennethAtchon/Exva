@@ -49,10 +49,24 @@ export function registerTradeHandlers(services: AppServices): void {
     if (trade.sessionId) {
       assertSessionInWorkspaceEnvironment(services, trade.sessionId);
     }
+    const messages = services.repos.agentMessages.listByTrade(tradeId);
+    const cycleId = messages.find((m) => m.cycle_id)?.cycle_id;
+    const gateSteps =
+      trade.sessionId && cycleId
+        ? services.repos.sessionExecutionSteps
+            .getLatestByCycle(trade.sessionId, cycleId)
+            .map((step) => ({
+              stage: step.stage,
+              status: step.status,
+              lastErrorCode: step.lastErrorCode,
+              updatedAt: step.updatedAt,
+            }))
+        : [];
     return {
       trade,
       runs: services.repos.agentRuns.listByTrade(tradeId),
-      messages: services.repos.agentMessages.listByTrade(tradeId),
+      messages,
+      gateSteps,
     };
   });
 

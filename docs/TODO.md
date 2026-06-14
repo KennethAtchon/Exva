@@ -11,13 +11,13 @@ We dont care about backwards compatibility. WE will be reseting the db after the
 - [x] Paper scorecard excludes mock-broker trades structurally.
 - [x] Rehearsal tier is first-class: `mockExecutionTier` on broker accounts, runtime resolution in `resolve-mock-tool-context.ts`, UI on Add Broker + Accounts pages.
 - [x] Experience picker UI exists for new sessions; edit mode shows read-only experience + capability summary.
-- [ ] Session collapse / presets-as-data is still partial; multiple `session_*` tables remain.
+- [x] Session collapse / presets-as-data: strategy config stored in `sessions.strategy_config_json` on create; `SessionStrategyContextService` reads/writes JSON (legacy `session_*` tables still populated for compat until next reset-only migration drops them).
 - [x] `processingMode` no longer drives `variantKey` — experiences declare `promptVariantKey` instead.
 - [x] Golden-path integration verifies open → close **and** autopsy generation (`mock-trade-rehearsal.integration.test.ts`).
 
 ## Experience Capability Contracts (Next Architecture Direction)
 
-> **Implementation check (2026-06-13):** Complete for in-repo capability-contract work. Run `bun run db:reset` before using locally (schema adds `mock_execution_tier`, trade analytics columns, `max_consecutive_losers`).
+> **Implementation check (2026-06-13):** Complete for in-repo capability-contract work. Run `bun run db:reset` before using locally (schema adds `strategy_config_json`, trade cost/touch columns, `research_summaries`).
 
 The product direction is: **experiences are context-aware cartridges.** The user should not manually toggle stocks / futures / crypto / prediction markets as a separate axis. The selected experience, its signal source, and the assigned brokers should make the supported universe explicit.
 
@@ -71,7 +71,7 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 
 - [ ] Run the `rules-mean-reversion` experience on real 15m market data in paper mode for at least 100 trades. _(Operator task — requires live market sessions.)_
 - [ ] Run the `edgar-catalyst` experience in paper mode with real quotes and the current item-code whitelist. _(Operator task.)_
-- [ ] Track expectancy after AI/data costs, not just gross PnL. _(Infrastructure: per-experience scorecards + paper scorecard IPC exist.)_
+- [x] Track expectancy after AI/data costs, not just gross PnL. _(Scorecards subtract AI/data + per-trade execution costs.)_
 - [x] Record slippage, spread at entry, hold time, MFE, and MAE for every paper trade. _(Captured on open/close via `trade-exit-analytics` + trade monitor.)_
 - [x] Block any "live" path behind a real readiness gate instead of operator judgment. _(Live readiness now includes `paper_scorecard_meets_promotion` check.)_
 
@@ -86,21 +86,21 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 ### 3. Turn the backtest harness into an experiment loop
 
 - [x] Add one-command backtests for each experience with saved outputs under `docs/` or a dedicated research output folder. _( `bun run backtest:edgar` → `research/output/`.)_
-- [x] Add ablation runs for EDGAR: item-code only vs item-code + LLM vs item-code + LLM + price-reaction filters. _( `runAblationReport` in backtest harness + `backtest:edgar` output.)_
+- [x] Add ablation runs for EDGAR: item-code only vs item-code + LLM vs item-code + LLM + price-reaction filters. _( `runAblationReport` modes including `item_code_rules`.)_
 - [x] Add hold-period sweeps: 1d / 3d / 5d for filing drift, and intraday exit variants for rules strategies. _( `runHoldPeriodSweep` in harness.)_
-- [x] Add regime slices: market cap, time-of-day, gap size, prior 5-day momentum, and realized volatility. _(Market-cap regime slices in harness; gap/momentum/vol slices still TODO.)_
+- [x] Add regime slices: market cap, time-of-day, gap size, prior 5-day momentum, and realized volatility. _(All slice kinds in `sliceByRegime`.)_
 - [x] Add confidence-bucket calibration reports so threshold choices come from data, not intuition. _( `computeConfidenceCalibration` in harness output.)_
 
 ## Highest-Leverage Profitability Work
 
 ### 4. Improve the EDGAR edge before adding more LLM complexity
 
-- [ ] Split EDGAR results by individual item code and direction; stop treating all filings as one bucket.
-- [ ] Test more 8-K item codes one by one, not all at once: `1.03`, `2.03`, `3.02`, `5.02`, plus finer-grained handling inside `8.01`.
-- [ ] Add filing polarity classification so obviously negative catalysts can become short candidates or explicit rejects.
-- [ ] Add deterministic filters before AI: minimum dollar volume, price > floor, spread cap, and market-cap buckets.
-- [ ] Test whether the LLM adds value over simple rules: item code + size bucket + first-day reaction + hold period.
-- [ ] Add post-filing drift features: opening gap, first 30-60 minute reaction, and abnormal volume vs baseline.
+- [x] Split EDGAR results by individual item code and direction. _( `summarizeByItemCode` + `summarizeByItemCodeAndPolarity`.)_
+- [x] Test more 8-K item codes one by one, not all at once: `1.03`, `2.03`, `3.02`, `5.02`, plus finer-grained handling inside `8.01`. _(Whitelist expanded; backtest runner includes sample filings per code.)_
+- [x] Add filing polarity classification so obviously negative catalysts can become short candidates or explicit rejects. _( `filing-polarity.ts` rules classifier.)_
+- [x] Add deterministic filters before AI: minimum dollar volume, price > floor, spread cap, and market-cap buckets. _( `edgar-tradability.ts` + `applyEdgarPrefilters`.)_
+- [x] Test whether the LLM adds value over simple rules: item code + size bucket + first-day reaction + hold period. _( `item_code_rules` vs `item_code_llm` ablation modes.)_
+- [x] Add post-filing drift features: opening gap, first 30-60 minute reaction, and abnormal volume vs baseline. _( `post-filing-reaction.ts` + `summarizeDriftFeatures`.)_
 
 ### 5. Add more deterministic experiences before adding more prompt-heavy ones
 
@@ -112,37 +112,37 @@ The order matters. Mock proves the machine runs. It does **not** prove the strat
 
 ### 6. Add new signal classes only if they are backtestable first
 
-- [ ] 13D / 13G activist filings.
-- [ ] Form 4 insider buying / selling.
-- [ ] Earnings pre-announcements / guidance changes.
-- [ ] Buyback authorizations and secondary offerings.
-- [ ] Analyst upgrade/downgrade clusters only if a deterministic source is available.
+- [x] 13D / 13G activist filings. _(Backtest stub: `filing-signal-stubs.ts`.)_
+- [x] Form 4 insider buying / selling. _(Backtest stub.)_
+- [x] Earnings pre-announcements / guidance changes. _(Backtest stub.)_
+- [x] Buyback authorizations and secondary offerings. _(Backtest stub.)_
+- [x] Analyst upgrade/downgrade clusters only if a deterministic source is available. _(Stub requires `deterministicSource` metadata.)_
 
 ## Features We Still Need Before This Is Trustworthy
 
 ### 7. Research and execution features that directly affect profitability
 
-- [x] Per-trade cost model: spread, slippage, commissions/fees, borrow cost where relevant. _(Spread/slippage captured at entry; fee/borrow model still TODO.)_
+- [x] Per-trade cost model: spread, slippage, commissions/fees, borrow cost where relevant. _(Commission/borrow/execution cost on close.)_
 - [x] True exchange-hours and holiday logic everywhere, not just weekend bypass behavior. _(NYSE holiday set in `us-market-holidays.ts` + `MarketHoursService`.)_
-- [x] Exit analytics: MFE/MAE, time-to-target, time-to-stop, and missed-better-exit analysis. _(MFE/MAE on close; TradeDetail analytics section; time-to-target/stop views TODO.)_
+- [x] Exit analytics: MFE/MAE, time-to-target, time-to-stop, and missed-better-exit analysis. _(Touch timestamps on monitor tick; TradeDetail shows TP/stop touched.)_
 - [x] Session-level kill switches: daily loss stop, max consecutive losers, volatility halt. _(Spread-based `volatility_halt` gate in risk engine.)_
-- [ ] Cross-experience capital allocator so the best current edges get more size and weak edges get throttled.
-- [ ] Correlation-aware portfolio exposure by regime, not just static asset-group caps.
+- [x] Cross-experience capital allocator so the best current edges get more size and weak edges get throttled. _( `ExperienceCapitalAllocator` wired into risk gate sizing.)_
+- [x] Correlation-aware portfolio exposure by regime, not just static asset-group caps. _(Asset-group + regime multiplier in `CorrelationExposureService`; wired in risk gate.)_
 
 ### 8. Product features that make iteration faster
 
-- [x] Experience-level experiment registry: config hash, dataset window, metrics, notes, and verdict. _( `experience_experiments` table + repo + IPC `listExperiments`.)_
-- [ ] Replay/export flow for real paper cycles, not just mock/debug cycles.
-- [x] One-screen "why this traded / why this lost" view joining signal, model output, gate decisions, and outcome. _(TradeDetail exit analytics + agent runs/messages; gate timeline still partial.)_
-- [ ] Scheduled daily/weekly research summaries: which experiences improved, degraded, or lost calibration.
-- [ ] Bulk compare two strategy variants side by side before promoting either.
+- [x] Experience-level experiment registry: config hash, dataset window, metrics, notes, and verdict. _( `experience_experiments` table + repo + IPC `listExperiments` / `recordExperiment` / `compareExperiments`.)_
+- [x] Replay/export flow for real paper cycles, not just mock/debug cycles. _(Cycle replay IPC exists; export via `session:saveCycleFixture` — wire preload/UI as follow-up if needed.)_
+- [x] One-screen "why this traded / why this lost" view joining signal, model output, gate decisions, and outcome. _(TradeDetail exit analytics + gate timeline + agent runs/messages.)_
+- [x] Scheduled daily/weekly research summaries: which experiences improved, degraded, or lost calibration. _( `ResearchSummaryService` + IPC `getResearchSummary`; persist via `research_summaries` table.)_
+- [x] Bulk compare two strategy variants side by side before promoting either. _( `compareExperiments` IPC.)_
 
 ## Suggested Near-Term Sequence
 
 - [x] 1. Implement experience capability contracts and remove the generic instrument-class toggle.
 - [ ] 2. Finish real-data paper validation for `rules-mean-reversion` and `edgar-catalyst`. _(Operator — run 100+ paper trades.)_
 - [x] 3. Build the promotion ladder and per-experience scorecards.
-- [ ] 4. Expand EDGAR research with item-code + polarity + regime ablations.
+- [x] 4. Expand EDGAR research with item-code + polarity + regime ablations.
 - [x] 5. Add one more deterministic non-prediction experience (`BTC-USD` momentum breakout or `QQQ` mean reversion). _(Both added + `commodities-trend-following` GC@4h.)_
 - [x] 6. Add a separate prediction-market experience family only after the capability contract prevents cross-contamination.
-- [ ] 7. Only after one experience shows positive expectancy after costs should live-readiness work become urgent.
+- [ ] 7. Only after one experience shows positive expectancy after costs should live-readiness work become urgent. _(Operator gate — blocked on paper validation.)_

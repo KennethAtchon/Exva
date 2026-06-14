@@ -96,6 +96,12 @@ export class LLMRuntime {
     this.pipelineRuntime.setStrategyContextService(strategyContextService);
   }
 
+  setExperienceCapitalAllocator(
+    experienceCapitalAllocator: import("../risk/experience-capital-allocator").ExperienceCapitalAllocator,
+  ): void {
+    this.pipelineRuntime.mergeCyclePlanServices({ experienceCapitalAllocator });
+  }
+
   resolveEffectivePipelineConfig(
     sessionId: string,
     pipelineId?: string,

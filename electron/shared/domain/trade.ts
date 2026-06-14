@@ -74,6 +74,11 @@ export interface Trade {
   mae_usd?: number | null;
   spread_at_entry_bps?: number | null;
   slippage_bps?: number | null;
+  commission_usd?: number | null;
+  borrow_cost_usd?: number | null;
+  execution_cost_usd?: number | null;
+  take_profit_touched_at?: string | null;
+  stop_touched_at?: string | null;
   created_at: string;
   current_price?: number | null;
   unrealized_pnl?: number | null;
@@ -150,6 +155,12 @@ export interface TradeDetail {
   trade: Trade;
   runs: AgentRun[];
   messages: AgentMessage[];
+  gateSteps?: Array<{
+    stage: string;
+    status: string;
+    lastErrorCode: string | null;
+    updatedAt: string;
+  }>;
 }
 
 export interface TradeDecisionPayload {

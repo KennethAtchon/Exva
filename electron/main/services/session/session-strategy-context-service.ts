@@ -29,6 +29,10 @@ import type { SessionSelectorSettingsRepo } from "../../db/repositories/sessions
 import type { SessionTradeRulesRepo } from "../../db/repositories/sessions/session-trade-rules-repo";
 import type { SessionTimeframeConfigRepo } from "../../db/repositories/sessions/session-timeframe-config-repo";
 import type { SessionAiSettingsRepo } from "../../db/repositories/sessions/session-ai-settings-repo";
+import {
+  parseSessionStrategyConfigJson,
+  buildSessionStrategyConfigJson,
+} from "./session-strategy-config";
 import type { WorkspacePreferencesRepo } from "../../db/repositories/workspace/workspace-prefs-repo";
 
 export interface StrategyPageData {
@@ -70,6 +74,13 @@ export class SessionStrategyContextService {
   ) {}
 
   get(sessionId: string): SessionStrategyContext {
+    const session = this.deps.sessionRepo.requireById(sessionId);
+    const fromJson = parseSessionStrategyConfigJson(
+      sessionId,
+      this.deps.sessionRepo.getStrategyConfigJson(sessionId),
+      session.updatedAt,
+    );
+    if (fromJson) return fromJson;
     return {
       researchPosture: this.deps.researchPostureRepo.get(sessionId),
       rules: this.deps.rulesRepo.get(sessionId),
@@ -77,6 +88,16 @@ export class SessionStrategyContextService {
       timeframe: this.deps.timeframeRepo.get(sessionId),
       aiSettings: this.deps.aiSettingsRepo.get(sessionId),
     };
+  }
+
+  private persistStrategyJson(
+    sessionId: string,
+    context: SessionStrategyContext,
+  ): void {
+    this.deps.sessionRepo.updateStrategyConfigJson(
+      sessionId,
+      JSON.stringify(buildSessionStrategyConfigJson(context)),
+    );
   }
 
   getAiSettings(sessionId: string): SessionAiSettings {
@@ -139,10 +160,12 @@ export class SessionStrategyContextService {
     };
     this.validate(next);
     this.assertPostureSignalCompatible(sessionId, next.researchPosture);
-    return this.deps.researchPostureRepo.upsert(
+    const saved = this.deps.researchPostureRepo.upsert(
       sessionId,
       next.researchPosture,
     );
+    this.persistStrategyJson(sessionId, { ...next, researchPosture: saved });
+    return saved;
   }
 
   saveRules(
@@ -156,7 +179,9 @@ export class SessionStrategyContextService {
       rules: { ...current.rules, ...patch, sessionId },
     };
     this.validate(next);
-    return this.deps.rulesRepo.upsert(sessionId, next.rules);
+    const saved = this.deps.rulesRepo.upsert(sessionId, next.rules);
+    this.persistStrategyJson(sessionId, { ...next, rules: saved });
+    return saved;
   }
 
   saveRiskConfig(
@@ -170,7 +195,9 @@ export class SessionStrategyContextService {
       riskConfig: { ...current.riskConfig, ...patch, sessionId },
     };
     this.validate(next);
-    return this.deps.riskRepo.upsert(sessionId, next.riskConfig);
+    const saved = this.deps.riskRepo.upsert(sessionId, next.riskConfig);
+    this.persistStrategyJson(sessionId, { ...next, riskConfig: saved });
+    return saved;
   }
 
   saveTimeframeConfig(
@@ -184,7 +211,9 @@ export class SessionStrategyContextService {
       timeframe: { ...current.timeframe, ...patch, sessionId },
     };
     this.validate(next);
-    return this.deps.timeframeRepo.upsert(sessionId, next.timeframe);
+    const saved = this.deps.timeframeRepo.upsert(sessionId, next.timeframe);
+    this.persistStrategyJson(sessionId, { ...next, timeframe: saved });
+    return saved;
   }
 
   saveAiSettings(
@@ -198,7 +227,9 @@ export class SessionStrategyContextService {
       aiSettings: { ...current.aiSettings, ...patch, sessionId },
     };
     this.validate(next);
-    return this.deps.aiSettingsRepo.upsert(sessionId, next.aiSettings);
+    const saved = this.deps.aiSettingsRepo.upsert(sessionId, next.aiSettings);
+    this.persistStrategyJson(sessionId, { ...next, aiSettings: saved });
+    return saved;
   }
 
   saveAiPhase(

@@ -14,7 +14,15 @@ export const EDGAR_CATALYST_EXPERIENCE: ExperienceDescriptor = {
   signalSource: {
     type: "edgar_8k",
     defaultConfig: {
-      itemCodeWhitelist: ["1.01", "2.02", "8.01"],
+      itemCodeWhitelist: [
+        "1.01",
+        "1.03",
+        "2.02",
+        "2.03",
+        "3.02",
+        "5.02",
+        "8.01",
+      ],
       minFilingAgeMinutes: 0,
     },
   },

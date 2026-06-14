@@ -324,7 +324,14 @@ const TradeExitAnalytics = ({
     mae_usd?: number | null;
     spread_at_entry_bps?: number | null;
     slippage_bps?: number | null;
+    commission_usd?: number | null;
+    borrow_cost_usd?: number | null;
+    execution_cost_usd?: number | null;
+    take_profit_touched_at?: string | null;
+    stop_touched_at?: string | null;
     exit_reason?: string | null;
+    opened_at?: string | null;
+    closed_at?: string | null;
   };
 }) => {
   const hasAnalytics =
@@ -332,6 +339,9 @@ const TradeExitAnalytics = ({
     trade.mae_usd != null ||
     trade.spread_at_entry_bps != null ||
     trade.slippage_bps != null ||
+    trade.execution_cost_usd != null ||
+    trade.take_profit_touched_at ||
+    trade.stop_touched_at ||
     trade.exit_reason;
   if (!hasAnalytics) return null;
 
@@ -361,12 +371,64 @@ const TradeExitAnalytics = ({
                 ? `${trade.slippage_bps.toFixed(1)} bps`
                 : EMPTY_VALUE,
             ],
+            [
+              "Execution cost",
+              trade.execution_cost_usd != null
+                ? fmt.usd(trade.execution_cost_usd, 4)
+                : EMPTY_VALUE,
+            ],
+            [
+              "TP touched",
+              trade.take_profit_touched_at
+                ? fmt.time(trade.take_profit_touched_at)
+                : EMPTY_VALUE,
+            ],
+            [
+              "Stop touched",
+              trade.stop_touched_at
+                ? fmt.time(trade.stop_touched_at)
+                : EMPTY_VALUE,
+            ],
             ["Exit reason", trade.exit_reason ?? EMPTY_VALUE],
           ] as [string, string][]
         ).map(([k, v]) => (
           <div key={k}>
             <div className={orderFieldLabelClass}>{k}</div>
             <div className={orderFieldValueClass}>{v}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const TradeGateTimeline = ({
+  steps,
+}: {
+  steps: Array<{
+    stage: string;
+    status: string;
+    lastErrorCode: string | null;
+    updatedAt: string;
+  }>;
+}) => {
+  if (!steps.length) return null;
+  return (
+    <div className={sectionClass}>
+      <div className={secTitleClass}>Gate timeline</div>
+      <div className="mt-3 flex flex-col gap-2">
+        {steps.map((step) => (
+          <div
+            key={`${step.stage}-${step.updatedAt}`}
+            className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-3 py-2"
+          >
+            <span className="font-mono text-[12px] text-[var(--text2)]">
+              {step.stage}
+            </span>
+            <span className="text-[12px] text-[var(--text3)]">
+              {step.status}
+              {step.lastErrorCode ? ` · ${step.lastErrorCode}` : ""}
+            </span>
           </div>
         ))}
       </div>
@@ -444,6 +506,7 @@ export const TradeDetail = ({
   const trade = detail?.trade ?? null;
   const runs = detail?.runs ?? [];
   const messages = detail?.messages ?? [];
+  const gateSteps = detail?.gateSteps ?? [];
 
   const handleForceClose = async () => {
     setClosing(true);
@@ -522,6 +585,7 @@ export const TradeDetail = ({
 
             <TradeOrderDetails trade={trade} />
             <TradeExitAnalytics trade={trade} />
+            <TradeGateTimeline steps={gateSteps} />
             <TradeHarnessMessages messages={messages} />
             <TradeAgentRuns runs={runs} />
 

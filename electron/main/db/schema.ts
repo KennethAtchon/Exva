@@ -65,6 +65,7 @@ export const sessions = sqliteTable(
     ),
     executionMode: text("execution_mode").notNull().default("paper_only"),
     experienceId: text("experience_id").notNull().default("edgar-catalyst"),
+    strategyConfigJson: text("strategy_config_json"),
     overridesJson: text("overrides_json"),
     liveReadinessAcknowledgedAt: text("live_readiness_acknowledged_at"),
     createdAt: text("created_at").notNull(),
@@ -560,6 +561,11 @@ export const trades = sqliteTable(
     maeUsd: real("mae_usd"),
     spreadAtEntryBps: real("spread_at_entry_bps"),
     slippageBps: real("slippage_bps"),
+    commissionUsd: real("commission_usd"),
+    borrowCostUsd: real("borrow_cost_usd"),
+    executionCostUsd: real("execution_cost_usd"),
+    takeProfitTouchedAt: text("take_profit_touched_at"),
+    stopTouchedAt: text("stop_touched_at"),
     createdAt: text("created_at").notNull(),
   },
   (table) => ({
@@ -884,6 +890,22 @@ export const experienceExperiments = sqliteTable(
   (table) => ({
     experienceIdx: index("idx_experience_experiments_experience").on(
       table.experienceId,
+      table.createdAt,
+    ),
+  }),
+);
+
+export const researchSummaries = sqliteTable(
+  "research_summaries",
+  {
+    id: text("id").primaryKey(),
+    period: text("period").notNull(),
+    summaryJson: text("summary_json").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    periodIdx: index("idx_research_summaries_period").on(
+      table.period,
       table.createdAt,
     ),
   }),

@@ -81,6 +81,8 @@ import {
 } from "./risk";
 import { PaperScorecardService } from "./analytics/paper-scorecard-service";
 import { ExperienceScorecardService } from "./analytics/experience-scorecard-service";
+import { ResearchSummaryService } from "./analytics/research-summary-service";
+import { ExperienceCapitalAllocator } from "./risk/experience-capital-allocator";
 import { ExperienceExperimentsRepo } from "../db/repositories/experiences/experience-experiments-repo";
 import { PeriodAutopsyService } from "./analytics/period-autopsy-service";
 import { TradeAutopsyService } from "./analytics/trade-autopsy-service";
@@ -159,6 +161,8 @@ export interface AppServices {
   cycleReplay: CycleReplayService;
   paperScorecard: PaperScorecardService;
   experienceScorecard: ExperienceScorecardService;
+  experienceCapitalAllocator: ExperienceCapitalAllocator;
+  researchSummary: ResearchSummaryService;
   periodAutopsy: PeriodAutopsyService;
   liveReadiness: LiveReadinessService;
   tradeAutopsy: TradeAutopsyService;
@@ -286,6 +290,7 @@ export async function createAppServices(app: App): Promise<AppServices> {
     brokerRouting,
     statsRepo: repos.stats,
     sessionRepo: repos.session,
+    tradesRepo: repos.trades,
     instrumentNormalizer,
   };
   const ai = new LLMRuntime(
@@ -411,6 +416,12 @@ export async function createAppServices(app: App): Promise<AppServices> {
     session: repos.session,
     apiCallLog: repos.apiCallLog,
   });
+  const experienceCapitalAllocator = new ExperienceCapitalAllocator(
+    experienceScorecard,
+  );
+  const researchSummary = new ResearchSummaryService(experienceScorecard);
+
+  ai.setExperienceCapitalAllocator(experienceCapitalAllocator);
 
   const liveReadiness = new LiveReadinessService(
     db,
@@ -544,6 +555,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     cycleReplay,
     paperScorecard,
     experienceScorecard,
+    experienceCapitalAllocator,
+    researchSummary,
     periodAutopsy,
     liveReadiness,
     tradeAutopsy,

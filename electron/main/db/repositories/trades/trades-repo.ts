@@ -270,13 +270,57 @@ export class TradesRepo {
 
   updateExitAnalytics(
     id: string,
-    analytics: { mfeUsd: number; maeUsd: number },
+    analytics: {
+      mfeUsd: number;
+      maeUsd: number;
+      commissionUsd?: number;
+      borrowCostUsd?: number;
+      executionCostUsd?: number;
+      takeProfitTouchedAt?: string | null;
+      stopTouchedAt?: string | null;
+    },
   ): void {
     this.client.db
       .update(trades)
-      .set({ mfeUsd: analytics.mfeUsd, maeUsd: analytics.maeUsd })
+      .set({
+        mfeUsd: analytics.mfeUsd,
+        maeUsd: analytics.maeUsd,
+        ...(analytics.commissionUsd != null
+          ? { commissionUsd: analytics.commissionUsd }
+          : {}),
+        ...(analytics.borrowCostUsd != null
+          ? { borrowCostUsd: analytics.borrowCostUsd }
+          : {}),
+        ...(analytics.executionCostUsd != null
+          ? { executionCostUsd: analytics.executionCostUsd }
+          : {}),
+        ...(analytics.takeProfitTouchedAt !== undefined
+          ? { takeProfitTouchedAt: analytics.takeProfitTouchedAt }
+          : {}),
+        ...(analytics.stopTouchedAt !== undefined
+          ? { stopTouchedAt: analytics.stopTouchedAt }
+          : {}),
+      })
       .where(eq(trades.id, id))
       .run();
+  }
+
+  updateLevelTouchTimes(
+    id: string,
+    patch: {
+      takeProfitTouchedAt?: string | null;
+      stopTouchedAt?: string | null;
+    },
+  ): void {
+    const next: Record<string, unknown> = {};
+    if (patch.takeProfitTouchedAt !== undefined) {
+      next.takeProfitTouchedAt = patch.takeProfitTouchedAt;
+    }
+    if (patch.stopTouchedAt !== undefined) {
+      next.stopTouchedAt = patch.stopTouchedAt;
+    }
+    if (Object.keys(next).length === 0) return;
+    this.client.db.update(trades).set(next).where(eq(trades.id, id)).run();
   }
 
   patchPendingExecution(

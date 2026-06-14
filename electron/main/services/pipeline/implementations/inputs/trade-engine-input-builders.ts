@@ -1,8 +1,10 @@
 import { AppError } from "@electron/shared/infra/errors";
+import type { InstrumentClass } from "@/lib/types";
 import {
   isWaitForOpenRejection,
   type RiskGateType,
 } from "../../../risk/risk-engine";
+import { resolveAssetGroup } from "../../../risk/correlation-exposure-service";
 import type { InstrumentAnalysisState } from "../../analysis/types";
 import type { EngineInputBuilder } from "../../execution/input-builder-registry";
 import { createOutcomeError } from "../../../orchestration/cycle/runtime-outcome";
@@ -128,6 +130,35 @@ export const riskGateInputBuilder: EngineInputBuilder = {
       ctx.sessionConfig.max_api_spend_usd,
     );
 
+    const sessionRow = ctx.services.sessionRepo.requireById(ctx.sessionId);
+    const sizeMultiplier =
+      ctx.services.experienceCapitalAllocator?.multiplierForExperience(
+        sessionRow.experienceId,
+      ) ?? 1;
+    const scaledSizeUsd = executionProfile.positionSizeUsd * sizeMultiplier;
+
+    const openTrades = ctx.services.tradesRepo.listOpenAndPending(
+      ctx.sessionId,
+    );
+    const openExposureByGroupUsd: Partial<
+      Record<ReturnType<typeof resolveAssetGroup>, number>
+    > = {};
+    for (const t of openTrades) {
+      if (t.status !== "open") continue;
+      const group = resolveAssetGroup(
+        t.instrumentType as InstrumentClass,
+        t.instrumentSymbol,
+      );
+      openExposureByGroupUsd[group] =
+        (openExposureByGroupUsd[group] ?? 0) + t.position_size_usd;
+    }
+    const assetGroup = resolveAssetGroup(
+      ctx.instrument.instrumentClass,
+      ctx.instrument.symbol,
+    );
+    const maxSameGroupExposureUsd =
+      ctx.strategyContext.riskConfig.maxPositionUsd * 3;
+
     return {
       task: {
         config: ctx.sessionConfig,
@@ -140,12 +171,15 @@ export const riskGateInputBuilder: EngineInputBuilder = {
           instrumentMetadataJson: ctx.instrument.instrumentMetadataJson ?? null,
           instrumentType: ctx.instrument.instrumentClass,
           side: executionProfile.side,
-          sizeUsd: executionProfile.positionSizeUsd,
+          sizeUsd: scaledSizeUsd,
         },
         confidence: decision.output.confidence,
         quoteSnapshot: state.quoteSnapshot,
         volatilityHaltMaxSpreadPct:
           ctx.strategyContext.riskConfig.volatilityHaltMaxSpreadPct,
+        assetGroup,
+        openExposureByGroupUsd,
+        maxSameGroupExposureUsd,
         riskPolicy: {
           waitForOpenThreshold:
             ctx.strategyContext.riskConfig.waitForOpenThreshold,

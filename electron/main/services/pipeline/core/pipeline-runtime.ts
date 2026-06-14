@@ -112,6 +112,14 @@ export class PipelineRuntime {
     this.deps.cyclePlanServices = cyclePlanServices;
   }
 
+  mergeCyclePlanServices(patch: Partial<InstrumentAnalysisServices>): void {
+    if (!this.deps.cyclePlanServices) return;
+    this.deps.cyclePlanServices = {
+      ...this.deps.cyclePlanServices,
+      ...patch,
+    };
+  }
+
   async runCycle(
     cyclePlanId: string,
     opts: {
