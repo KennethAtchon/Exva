@@ -603,7 +603,7 @@ export const SessionDetailDrawer = ({
                       : "Mock rehearsal — start the session to fire synthetic signals."}
                 </div>
                 {session.canFireRehearsalSignal && onFireRehearsalSignal ? (
-                  <div className="flex shrink-0 items-center gap-1">
+                  <HelpTooltip glossaryId="fire-rehearsal-signal">
                     <Button
                       variant="outline"
                       className="h-8 text-xs"
@@ -611,8 +611,7 @@ export const SessionDetailDrawer = ({
                     >
                       Fire rehearsal signal
                     </Button>
-                    <HelpTooltip glossaryId="fire-rehearsal-signal" />
-                  </div>
+                  </HelpTooltip>
                 ) : null}
               </div>
             ) : null}
@@ -704,14 +703,6 @@ export const SessionDetailDrawer = ({
                                 : ""}
                             </div>
                           </div>
-                          <Badge
-                            variant={signalStatusVariant(row.delivery.status)}
-                          >
-                            {signalStatusLabel(
-                              row.delivery.status,
-                              row.delivery.dropReason,
-                            )}
-                          </Badge>
                           <HelpTooltip
                             glossaryId={
                               SIGNAL_DELIVERY_STATUS_HELP_IDS[
@@ -720,7 +711,16 @@ export const SessionDetailDrawer = ({
                               ]
                             }
                             topic="Signal delivery status"
-                          />
+                          >
+                            <Badge
+                              variant={signalStatusVariant(row.delivery.status)}
+                            >
+                              {signalStatusLabel(
+                                row.delivery.status,
+                                row.delivery.dropReason,
+                              )}
+                            </Badge>
+                          </HelpTooltip>
                         </div>
                         <div className="mt-1 text-[12px] text-[var(--text3)]">
                           {formatTimestamp(row.delivery.enqueuedAt)}
@@ -755,60 +755,61 @@ export const SessionDetailDrawer = ({
                               delivered
                             </div>
                           </div>
-                          <Badge variant="default">
-                            {deadLetterReasonLabel(row.deadLetter.reason)}
-                          </Badge>
                           <HelpTooltip
                             glossaryId={
                               `dead-letter-reason-${row.deadLetter.reason}` as HelpGlossaryId
                             }
                             topic="Dead-letter reason"
-                          />
+                          >
+                            <Badge variant="default">
+                              {deadLetterReasonLabel(row.deadLetter.reason)}
+                            </Badge>
+                          </HelpTooltip>
                         </div>
                         <div className="mt-1 text-[12px] text-[var(--text3)]">
                           {formatTimestamp(row.deadLetter.createdAt)}
                           {row.deadLetter.replayedAt ? " · Replayed" : ""}
                         </div>
                         {!row.deadLetter.replayedAt ? (
-                          <div className="mt-2 flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              className="h-7 text-xs"
-                              disabled={
-                                replayingDeadLetterId === row.deadLetter.id
-                              }
-                              onClick={async () => {
-                                setReplayingDeadLetterId(row.deadLetter.id);
-                                try {
-                                  await api.replaySessionSignalDeadLetter(
-                                    row.deadLetter.id,
-                                  );
-                                  const res = await api.listSessionSignalEvents(
-                                    {
-                                      sessionId: session.id,
-                                      limit: 50,
-                                    },
-                                  );
-                                  setSignalRows(res.rows);
-                                  const deadLetters =
-                                    await api.listSessionSignalDeadLetters({
-                                      sessionId: session.id,
-                                      limit: 50,
-                                    });
-                                  setDeadLetterRows(deadLetters.rows);
-                                } finally {
-                                  setReplayingDeadLetterId(null);
-                                }
-                              }}
-                            >
-                              {replayingDeadLetterId === row.deadLetter.id
-                                ? "Replaying..."
-                                : "Replay"}
-                            </Button>
+                          <div className="mt-2">
                             <HelpTooltip
                               topic="Replay dead letter"
                               body="Try this signal again after fixing the underlying config or broker coverage issue."
-                            />
+                            >
+                              <Button
+                                variant="outline"
+                                className="h-7 text-xs"
+                                disabled={
+                                  replayingDeadLetterId === row.deadLetter.id
+                                }
+                                onClick={async () => {
+                                  setReplayingDeadLetterId(row.deadLetter.id);
+                                  try {
+                                    await api.replaySessionSignalDeadLetter(
+                                      row.deadLetter.id,
+                                    );
+                                    const res =
+                                      await api.listSessionSignalEvents({
+                                        sessionId: session.id,
+                                        limit: 50,
+                                      });
+                                    setSignalRows(res.rows);
+                                    const deadLetters =
+                                      await api.listSessionSignalDeadLetters({
+                                        sessionId: session.id,
+                                        limit: 50,
+                                      });
+                                    setDeadLetterRows(deadLetters.rows);
+                                  } finally {
+                                    setReplayingDeadLetterId(null);
+                                  }
+                                }}
+                              >
+                                {replayingDeadLetterId === row.deadLetter.id
+                                  ? "Replaying..."
+                                  : "Replay"}
+                              </Button>
+                            </HelpTooltip>
                           </div>
                         ) : null}
                       </div>

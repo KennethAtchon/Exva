@@ -279,17 +279,25 @@ function SourceRow({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <Switch
-          checked={source.enabled}
-          disabled={pending}
-          onCheckedChange={onToggle}
-        />
         <HelpTooltip
           topic="Enable source"
           body="Disabling a source keeps subscriptions in place, but subscribed sessions will wait idle until the source is enabled again."
-        />
+        >
+          <Switch
+            checked={source.enabled}
+            disabled={pending}
+            onCheckedChange={onToggle}
+          />
+        </HelpTooltip>
         {source.type === "edgar_8k" || source.type === "mock" ? (
-          <div className="flex items-center gap-1">
+          <HelpTooltip
+            topic="Test source"
+            body={
+              source.type === "mock"
+                ? "Emits one synthetic signal and enqueues deliveries for subscribed sessions."
+                : "Runs one poll now and reports detections. It does not enqueue session deliveries."
+            }
+          >
             <Button
               variant="outline"
               className="h-8 text-xs"
@@ -318,15 +326,7 @@ function SourceRow({
             >
               Test
             </Button>
-            <HelpTooltip
-              topic="Test source"
-              body={
-                source.type === "mock"
-                  ? "Emits one synthetic signal and enqueues deliveries for subscribed sessions."
-                  : "Runs one poll now and reports detections. It does not enqueue session deliveries."
-              }
-            />
-          </div>
+          </HelpTooltip>
         ) : null}
         <Button
           variant="outline"
@@ -336,7 +336,7 @@ function SourceRow({
         >
           Configure
         </Button>
-        <div className="flex items-center gap-1">
+        <HelpTooltip glossaryId="remove-signal-source">
           <Button
             variant="outline"
             className="h-8 text-xs text-error"
@@ -345,8 +345,7 @@ function SourceRow({
           >
             Remove
           </Button>
-          <HelpTooltip glossaryId="remove-signal-source" />
-        </div>
+        </HelpTooltip>
       </div>
     </div>
   );

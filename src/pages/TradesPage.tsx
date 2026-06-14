@@ -178,11 +178,12 @@ const TRADES_TABLE_MIN_WIDTH = 940;
 function tradesGridColumns(viewMode: string): string {
   const side = "minmax(88px,auto)";
   const status = "minmax(76px,auto)";
+  const confidence = "minmax(88px,auto)";
   const action = "minmax(112px,auto)";
   if (viewMode === "global") {
-    return `120px 130px ${side} 70px 90px 90px 90px 80px 60px ${status} 60px ${action}`;
+    return `120px 130px ${side} 70px 90px 90px 90px 80px ${confidence} ${status} 60px ${action}`;
   }
-  return `130px ${side} 70px 90px 90px 90px 80px 60px ${status} 60px ${action}`;
+  return `130px ${side} 70px 90px 90px 90px 80px ${confidence} ${status} 60px ${action}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -522,16 +523,15 @@ export const TradesPage = ({
             <span>Size</span>
             <span>Entry</span>
             <span>Cur/Exit</span>
-            <span className="flex items-center gap-1">
-              P&amp;L <HelpTooltip glossaryId="daily-pnl" topic="Trade P&L" />
-            </span>
-            <span className="flex items-center gap-1">
-              AI Cost <HelpTooltip glossaryId="ai-cost" topic="Trade AI cost" />
-            </span>
-            <span className="flex items-center gap-1">
-              Conf{" "}
-              <HelpTooltip glossaryId="confidence" topic="Trade confidence" />
-            </span>
+            <HelpTooltip glossaryId="daily-pnl" topic="Trade P&L">
+              <span>P&amp;L</span>
+            </HelpTooltip>
+            <HelpTooltip glossaryId="ai-cost" topic="Trade AI cost">
+              <span>AI Cost</span>
+            </HelpTooltip>
+            <HelpTooltip glossaryId="confidence" topic="Trade confidence">
+              <span>Confidence</span>
+            </HelpTooltip>
             <span>Status</span>
             <span>Time</span>
             <span />

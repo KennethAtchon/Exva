@@ -57,7 +57,7 @@ const SessionControls = ({
 
   return (
     <div className={controlsBarClass}>
-      <div className="flex items-center gap-1">
+      <HelpTooltip glossaryId="focus-session">
         <Button
           onClick={() => onFocus(session.id)}
           variant="outline"
@@ -69,20 +69,29 @@ const SessionControls = ({
         >
           {session.isFocused ? "Focused" : "Focus"}
         </Button>
-        <HelpTooltip glossaryId="focus-session" />
-      </div>
-      <div className="flex items-center gap-1">
+      </HelpTooltip>
+      {locked ? (
+        <HelpTooltip glossaryId="session-edit-locked">
+          <Button
+            onClick={() => onEdit(session)}
+            variant="outline"
+            className={actionButtonClass}
+            disabled={busy || locked}
+          >
+            Edit
+          </Button>
+        </HelpTooltip>
+      ) : (
         <Button
           onClick={() => onEdit(session)}
           variant="outline"
           className={actionButtonClass}
-          disabled={busy || locked}
+          disabled={busy}
         >
           Edit
         </Button>
-        {locked ? <HelpTooltip glossaryId="session-edit-locked" /> : null}
-      </div>
-      <div className="flex items-center gap-1">
+      )}
+      <HelpTooltip glossaryId="duplicate-session">
         <Button
           onClick={() => onDuplicate(session)}
           variant="outline"
@@ -91,9 +100,8 @@ const SessionControls = ({
         >
           Duplicate
         </Button>
-        <HelpTooltip glossaryId="duplicate-session" />
-      </div>
-      <div className="flex items-center gap-1">
+      </HelpTooltip>
+      <HelpTooltip glossaryId="save-template">
         <Button
           onClick={() => onSaveTemplate(session)}
           variant="outline"
@@ -102,13 +110,19 @@ const SessionControls = ({
         >
           Save Template
         </Button>
-        <HelpTooltip glossaryId="save-template" />
-      </div>
+      </HelpTooltip>
       <div className="flex-1" />
       {session.status === "draft" ||
       session.status === "idle" ||
       session.status === "stopped" ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip
+          topic="Start session"
+          body={
+            aiBlocked
+              ? "AI providers are not connected yet. Configure them on the Strategy page before starting."
+              : "Starts signal processing and new research cycles for this session."
+          }
+        >
           <Button
             onClick={() => onLifecycle(session, "start")}
             variant="ghost"
@@ -120,18 +134,13 @@ const SessionControls = ({
           >
             Start
           </Button>
-          <HelpTooltip
-            topic="Start session"
-            body={
-              aiBlocked
-                ? "AI providers are not connected yet. Configure them on the Strategy page before starting."
-                : "Starts signal processing and new research cycles for this session."
-            }
-          />
-        </div>
+        </HelpTooltip>
       ) : null}
       {session.status === "active" ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip
+          topic="Pause session"
+          body="Pause stops new research but keeps exits and open-position monitoring active."
+        >
           <Button
             onClick={() => onLifecycle(session, "pause")}
             variant="outline"
@@ -140,14 +149,10 @@ const SessionControls = ({
           >
             Pause
           </Button>
-          <HelpTooltip
-            topic="Pause session"
-            body="Pause stops new research but keeps exits and open-position monitoring active."
-          />
-        </div>
+        </HelpTooltip>
       ) : null}
       {session.canFireRehearsalSignal && onFireRehearsalSignal ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip glossaryId="fire-rehearsal-signal">
           <Button
             onClick={() => onFireRehearsalSignal(session)}
             variant="outline"
@@ -156,11 +161,10 @@ const SessionControls = ({
           >
             Fire rehearsal signal
           </Button>
-          <HelpTooltip glossaryId="fire-rehearsal-signal" />
-        </div>
+        </HelpTooltip>
       ) : null}
       {session.status === "paused" ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip glossaryId="resume-session">
           <Button
             onClick={() => onLifecycle(session, "resume")}
             variant="ghost"
@@ -169,8 +173,7 @@ const SessionControls = ({
           >
             Resume
           </Button>
-          <HelpTooltip glossaryId="resume-session" />
-        </div>
+        </HelpTooltip>
       ) : null}
       {(session.status === "active" || session.status === "paused") &&
       !hasOpenTrades ? (
@@ -185,7 +188,7 @@ const SessionControls = ({
       ) : null}
       {(session.status === "active" || session.status === "paused") &&
       hasOpenTrades ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip glossaryId="stop-when-flat">
           <Button
             onClick={() => onLifecycle(session, "stop")}
             variant="ghost"
@@ -194,14 +197,13 @@ const SessionControls = ({
           >
             Stop when flat
           </Button>
-          <HelpTooltip glossaryId="stop-when-flat" />
-        </div>
+        </HelpTooltip>
       ) : null}
       {(session.status === "active" ||
         session.status === "paused" ||
         session.status === "monitoring_only") &&
       hasOpenTrades ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip glossaryId="force-stop">
           <Button
             onClick={() => {
               if (!window.confirm(FORCE_STOP_CONFIRM_MESSAGE)) return;
@@ -213,8 +215,7 @@ const SessionControls = ({
           >
             Force stop (loses trade management)
           </Button>
-          <HelpTooltip glossaryId="force-stop" />
-        </div>
+        </HelpTooltip>
       ) : null}
       <Button
         onClick={() => onArchive(session.id)}
@@ -366,28 +367,34 @@ const SessionCard = ({
                 {formatInstrumentClass(ic)}
               </span>
             ))}
-            <span className={cn(chipClass, "text-[var(--text3)]")}>
-              {selectionModeChip.label}
-            </span>
             <HelpTooltip
               topic="Selection mode"
               body={selectionModeChip.tooltip}
-            />
+            >
+              <span
+                className={cn(chipClass, "text-[var(--text3)] cursor-default")}
+              >
+                {selectionModeChip.label}
+              </span>
+            </HelpTooltip>
             {session.rehearsalMode ? (
               <span className={cn(chipClass, "text-[var(--text3)]")}>
                 Rehearsal
               </span>
             ) : null}
-            <span className={cn(chipClass, "text-[var(--text3)]")}>
-              {session.executionMode === "live_allowed" ? "Live" : "Paper"}
-            </span>
             <HelpTooltip
               glossaryId={
                 session.executionMode === "live_allowed"
                   ? "execution-mode-live-allowed"
                   : "execution-mode-paper-only"
               }
-            />
+            >
+              <span
+                className={cn(chipClass, "text-[var(--text3)] cursor-default")}
+              >
+                {session.executionMode === "live_allowed" ? "Live" : "Paper"}
+              </span>
+            </HelpTooltip>
           </div>
         </div>
       </div>
@@ -433,7 +440,7 @@ const SessionCard = ({
                   : "Mock rehearsal — start the session, then fire a synthetic signal here."}
             </div>
             {session.canFireRehearsalSignal && onFireRehearsalSignal ? (
-              <div className="flex shrink-0 items-center gap-1">
+              <HelpTooltip glossaryId="fire-rehearsal-signal">
                 <Button
                   onClick={() => onFireRehearsalSignal(session)}
                   variant="outline"
@@ -442,8 +449,7 @@ const SessionCard = ({
                 >
                   Fire rehearsal signal
                 </Button>
-                <HelpTooltip glossaryId="fire-rehearsal-signal" />
-              </div>
+              </HelpTooltip>
             ) : null}
           </div>
         </div>

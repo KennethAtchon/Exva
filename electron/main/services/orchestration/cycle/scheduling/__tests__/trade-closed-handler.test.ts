@@ -45,6 +45,26 @@ describe("attachTradeClosedListener", () => {
     expect(ctx.cycleRestartInFlight).toBe(false);
   });
 
+  it("does not schedule selector restart for signal-driven sessions", async () => {
+    const scheduleSelectorCycle = vi.fn(async () => undefined);
+    const ctx = createContext({
+      openTradeCount: 0,
+      runtimeActive: true,
+      selectionMode: "signal_driven",
+    });
+
+    attachTradeClosedListener(ctx, scheduleSelectorCycle);
+    ctx.deps.bus.emit("trade_closed", {
+      id: "trade-closed",
+      sessionId: "session-1",
+      status: "closed",
+    } as Trade);
+
+    await ctx.queue.onIdle();
+    expect(scheduleSelectorCycle).not.toHaveBeenCalled();
+    expect(ctx.cycleRestartInFlight).toBe(false);
+  });
+
   it("does not schedule selector restart while draining to stop", async () => {
     const scheduleSelectorCycle = vi.fn(async () => undefined);
     const ctx = createContext({
@@ -80,11 +100,16 @@ function createContext(input: {
   openTradeCount: number;
   runtimeActive: boolean;
   sessionStatus?: "active" | "monitoring_only";
+  selectionMode?: "manual_shortlist" | "signal_driven" | "ai_selected_universe";
 }): TradingCycleContext {
   const listeners = new Map<string, (payload: unknown) => void>();
   const ctx = new TradingCycleContext("session-1", {
     sessionRepo: {
       getStatus: () => input.sessionStatus ?? "active",
+      requireById: () => ({
+        id: "session-1",
+        selectionMode: input.selectionMode ?? "manual_shortlist",
+      }),
     },
     strategyContextService: {
       get: () => ({

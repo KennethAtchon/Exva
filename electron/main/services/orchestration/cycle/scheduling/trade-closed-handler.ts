@@ -30,6 +30,19 @@ export function attachTradeClosedListener(
       return;
     }
 
+    const session = ctx.deps.sessionRepo.requireById(ctx.sessionId);
+    if (session.selectionMode === "signal_driven") {
+      ctx.deps.logger.info(
+        {
+          sessionId: ctx.sessionId,
+          closedTradeId: trade.id,
+          selectionMode: session.selectionMode,
+        },
+        "selector restart skipped after trade_closed: signal-driven session waits for next delivery",
+      );
+      return;
+    }
+
     ctx.cycleRestartInFlight = true;
     ctx.emitEvent(
       "INFO",

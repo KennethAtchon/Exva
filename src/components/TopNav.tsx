@@ -201,65 +201,73 @@ const NavPrimaryItem = ({
   const active = activePage === item.id;
   const isStrategy = item.id === "strategy";
   const isSessions = item.id === "sessions";
+  const navHelp =
+    isSessions && attentionCount > 0
+      ? {
+          topic: "Sessions needing attention",
+          body: "Shows how many sessions currently need intervention.",
+        }
+      : isStrategy && needsStrategyConfig
+        ? {
+            topic: "Strategy configuration",
+            body: isGlobal
+              ? "Focus a session to configure its AI phases, risk limits, and strategy."
+              : `Configure AI phases, risk limits, and strategy for ${sessionName}. This session still has missing strategy configuration.`,
+          }
+        : isStrategy && !isGlobal
+          ? {
+              topic: "Strategy page",
+              body: `Configure AI phases, risk limits, and strategy for ${sessionName}.`,
+            }
+          : null;
+
+  const navButton = (
+    <Button
+      onClick={() => onNavigate(item.id)}
+      variant="ghost"
+      className={cn(
+        navClass.navItem,
+        active && navClass.navItemActive,
+        isStrategy && needsStrategyConfig && navClass.navItemHint,
+      )}
+    >
+      {item.label}
+      {isSessions && attentionCount > 0 && (
+        <span
+          className={navClass.attentionBadge}
+          role="button"
+          tabIndex={0}
+          onClick={(event) => {
+            event.stopPropagation();
+            onNavigateToAttentionSessions?.();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              event.stopPropagation();
+              onNavigateToAttentionSessions?.();
+            }
+          }}
+        >
+          {attentionCount}
+        </span>
+      )}
+      {isStrategy && needsStrategyConfig && (
+        <span className={navClass.strategyDot} />
+      )}
+      {active && <div className={navClass.navUnderline} />}
+    </Button>
+  );
 
   return (
     <div className="flex items-center gap-1">
-      <Button
-        onClick={() => onNavigate(item.id)}
-        variant="ghost"
-        className={cn(
-          navClass.navItem,
-          active && navClass.navItemActive,
-          isStrategy && needsStrategyConfig && navClass.navItemHint,
-        )}
-      >
-        {item.label}
-        {isSessions && attentionCount > 0 && (
-          <span
-            className={navClass.attentionBadge}
-            role="button"
-            tabIndex={0}
-            onClick={(event) => {
-              event.stopPropagation();
-              onNavigateToAttentionSessions?.();
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                event.stopPropagation();
-                onNavigateToAttentionSessions?.();
-              }
-            }}
-          >
-            {attentionCount}
-          </span>
-        )}
-        {isStrategy && needsStrategyConfig && (
-          <span className={navClass.strategyDot} />
-        )}
-        {active && <div className={navClass.navUnderline} />}
-      </Button>
-      {isSessions && attentionCount > 0 ? (
-        <HelpTooltip
-          topic="Sessions needing attention"
-          body="Shows how many sessions currently need intervention."
-        />
-      ) : null}
-      {isStrategy && needsStrategyConfig ? (
-        <HelpTooltip
-          topic="Strategy configuration"
-          body={
-            isGlobal
-              ? "Focus a session to configure its AI phases, risk limits, and strategy."
-              : `Configure AI phases, risk limits, and strategy for ${sessionName}. This session still has missing strategy configuration.`
-          }
-        />
-      ) : isStrategy && !isGlobal ? (
-        <HelpTooltip
-          topic="Strategy page"
-          body={`Configure AI phases, risk limits, and strategy for ${sessionName}.`}
-        />
-      ) : null}
+      {navHelp ? (
+        <HelpTooltip topic={navHelp.topic} body={navHelp.body}>
+          {navButton}
+        </HelpTooltip>
+      ) : (
+        navButton
+      )}
     </div>
   );
 };

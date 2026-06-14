@@ -183,7 +183,7 @@ const SessionFilters = ({
       placeholder="Search by name or objective"
       className={cn(inputClass, "flex-1")}
     />
-    <div className="flex items-center gap-1">
+    <HelpTooltip glossaryId="status-filter">
       <ShadcnSelect
         value={statusFilter}
         onValueChange={(value) =>
@@ -202,9 +202,8 @@ const SessionFilters = ({
           { value: "archived", label: "Archived" },
         ]}
       />
-      <HelpTooltip glossaryId="status-filter" />
-    </div>
-    <div className="flex items-center gap-1">
+    </HelpTooltip>
+    <HelpTooltip glossaryId="instrument-class">
       <ShadcnSelect
         value={instrumentFilter}
         onValueChange={(value) =>
@@ -218,8 +217,7 @@ const SessionFilters = ({
           { value: "futures", label: "Futures" },
         ]}
       />
-      <HelpTooltip glossaryId="instrument-class" />
-    </div>
+    </HelpTooltip>
     <div className="flex items-center gap-2 whitespace-nowrap text-[12px] text-[var(--text2)]">
       <Checkbox
         checked={includeArchived}
@@ -250,7 +248,14 @@ const SessionFocusPanel = ({
   return (
     <div className="flex flex-wrap justify-end gap-2">
       {status === "draft" || status === "idle" || status === "stopped" ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip
+          topic="Start session"
+          body={
+            aiReady === false
+              ? "AI providers are not connected yet. Configure them on the Strategy page before starting."
+              : "Starts signal processing and new research cycles for the focused session."
+          }
+        >
           <Button
             variant="ghost"
             onClick={() => onLifecycleAction(focusedSession, "start")}
@@ -264,18 +269,13 @@ const SessionFocusPanel = ({
           >
             Start
           </Button>
-          <HelpTooltip
-            topic="Start session"
-            body={
-              aiReady === false
-                ? "AI providers are not connected yet. Configure them on the Strategy page before starting."
-                : "Starts signal processing and new research cycles for the focused session."
-            }
-          />
-        </div>
+        </HelpTooltip>
       ) : null}
       {status === "active" ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip
+          topic="Pause session"
+          body="Pause stops new research but keeps exits and open-position monitoring active."
+        >
           <Button
             variant="outline"
             onClick={() => onLifecycleAction(focusedSession, "pause")}
@@ -284,14 +284,10 @@ const SessionFocusPanel = ({
           >
             Pause
           </Button>
-          <HelpTooltip
-            topic="Pause session"
-            body="Pause stops new research but keeps exits and open-position monitoring active."
-          />
-        </div>
+        </HelpTooltip>
       ) : null}
       {status === "paused" ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip glossaryId="resume-session">
           <Button
             variant="ghost"
             onClick={() => onLifecycleAction(focusedSession, "resume")}
@@ -300,8 +296,7 @@ const SessionFocusPanel = ({
           >
             Resume
           </Button>
-          <HelpTooltip glossaryId="resume-session" />
-        </div>
+        </HelpTooltip>
       ) : null}
       {status === "monitoring_only" ? (
         <div className={drainBannerClass}>
@@ -321,7 +316,7 @@ const SessionFocusPanel = ({
         </Button>
       ) : null}
       {(status === "active" || status === "paused") && openTradeCount > 0 ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip topic="Stop when flat" glossaryId="stop-when-flat">
           <Button
             variant="ghost"
             onClick={() => onLifecycleAction(focusedSession, "stop")}
@@ -330,14 +325,13 @@ const SessionFocusPanel = ({
           >
             Stop when flat
           </Button>
-          <HelpTooltip topic="Stop when flat" glossaryId="stop-when-flat" />
-        </div>
+        </HelpTooltip>
       ) : null}
       {(status === "active" ||
         status === "paused" ||
         status === "monitoring_only") &&
       openTradeCount > 0 ? (
-        <div className="flex items-center gap-1">
+        <HelpTooltip glossaryId="force-stop">
           <Button
             variant="ghost"
             onClick={() => onLifecycleAction(focusedSession, "forceStop")}
@@ -346,8 +340,7 @@ const SessionFocusPanel = ({
           >
             Force stop (loses trade management)
           </Button>
-          <HelpTooltip glossaryId="force-stop" />
-        </div>
+        </HelpTooltip>
       ) : null}
       {status === "stopped" && openTradeCount > 0 ? (
         <div className={orphanWarningClass}>
@@ -784,24 +777,24 @@ const renderSessionsPageView = ({
             <span className="text-[12px] uppercase tracking-[0.14em] text-[var(--text3)]">
               {viewMode === "global" ? "Global Workspace" : "Focused Session"}
             </span>
-            <Badge variant={viewMode === "global" ? "purple" : "blue"}>
-              {viewMode}
-            </Badge>
             <HelpTooltip
               glossaryId={
                 viewMode === "global" ? "view-global" : "view-session-focused"
               }
-            />
+            >
+              <Badge variant={viewMode === "global" ? "purple" : "blue"}>
+                {viewMode}
+              </Badge>
+            </HelpTooltip>
             {focusedSession ? (
-              <div className="flex items-center gap-1">
+              <HelpTooltip
+                glossaryId={SESSION_STATUS_HELP_IDS[focusedSession.status]}
+                topic={`${focusedSession.name} status`}
+              >
                 <Badge variant={statusVariant(focusedSession.status)}>
                   {formatSessionStatusLabel(focusedSession.status)}
                 </Badge>
-                <HelpTooltip
-                  glossaryId={SESSION_STATUS_HELP_IDS[focusedSession.status]}
-                  topic={`${focusedSession.name} status`}
-                />
-              </div>
+              </HelpTooltip>
             ) : null}
           </div>
           <div className="mt-2.5 text-[24px] font-bold text-[var(--text1)]">
@@ -815,12 +808,14 @@ const renderSessionsPageView = ({
 
         <div className="grid min-w-[280px] gap-3">
           <div className={contextMetricsClass}>
-            <div className="col-span-2 flex items-center gap-1.5 pb-1">
+            <HelpTooltip
+              glossaryId="session-metrics-scope"
+              triggerClassName="col-span-2 pb-1"
+            >
               <span className="text-[11px] uppercase tracking-[0.1em] text-[var(--text3)]">
                 Metrics
               </span>
-              <HelpTooltip glossaryId="session-metrics-scope" />
-            </div>
+            </HelpTooltip>
             <ContextMetric
               label="sessions"
               value={String(data.sessions.length)}

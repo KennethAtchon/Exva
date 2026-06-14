@@ -39,6 +39,9 @@ function buildManualShortlistSelection(
 }
 
 function isManualSelectorMode(ctx: AIPhaseContext): boolean {
+  if (ctx.session.selectionMode === "signal_driven") {
+    return false;
+  }
   const signalTrigger = ctx.input.signalTrigger;
   if (
     signalTrigger &&
