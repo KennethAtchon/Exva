@@ -341,6 +341,7 @@ function createHarness(
         id: string,
         status: Trade["status"],
         finalPnlUsd: number,
+        exitReason?: string,
       ) => {
         const trade = trades.get(id);
         if (!trade) throw new Error(`Trade ${id} not found`);
@@ -348,6 +349,7 @@ function createHarness(
           ...trade,
           status,
           final_pnl_usd: finalPnlUsd,
+          exit_reason: exitReason ?? trade.exit_reason,
           closed_at: new Date().toISOString(),
         };
         trades.set(id, next);
@@ -359,6 +361,40 @@ function createHarness(
         [...trades.values()].filter(
           (trade) => trade.status === "open" || trade.status === "pending",
         ),
+      updatePriceExtremes: (id: string, price: number) => {
+        const trade = trades.get(id);
+        if (!trade) return;
+        const high =
+          trade.high_water_mark_price == null
+            ? price
+            : Math.max(trade.high_water_mark_price, price);
+        const low =
+          trade.low_water_mark_price == null
+            ? price
+            : Math.min(trade.low_water_mark_price, price);
+        trades.set(id, {
+          ...trade,
+          high_water_mark_price: high,
+          low_water_mark_price: low,
+        });
+      },
+      updateLevelTouchTimes: (
+        id: string,
+        patch: {
+          takeProfitTouchedAt?: string | null;
+          stopTouchedAt?: string | null;
+        },
+      ) => {
+        const trade = trades.get(id);
+        if (!trade) return;
+        trades.set(id, {
+          ...trade,
+          take_profit_touched_at:
+            patch.takeProfitTouchedAt ?? trade.take_profit_touched_at ?? null,
+          stop_touched_at: patch.stopTouchedAt ?? trade.stop_touched_at ?? null,
+        });
+      },
+      updateExitAnalytics: vi.fn(),
       updateHighWaterMark: vi.fn(),
     },
     tradeApprovalsRepo: {} as never,

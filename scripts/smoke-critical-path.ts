@@ -14,6 +14,7 @@
  */
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import path from "node:path";
+import { ensureHostNativeModules } from "./ensure-host-native-modules";
 
 const ROOT = path.join(import.meta.dir, "..");
 
@@ -162,6 +163,8 @@ function main(): void {
   const options = parseArgs();
   const mode = options.criticalOnly ? "critical-only" : "full";
   console.log(`Exva critical-path smoke (${mode})`);
+
+  ensureHostNativeModules();
 
   const steps = buildSteps(options);
   const results = steps.map(runStep);

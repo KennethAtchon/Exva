@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { InstrumentClass } from "@/lib/types";
+import type { DbClient } from "../../../db/client";
 import { createTestDb } from "../../../db/test-helpers";
 import { requireExperience } from "../../../experiences/index";
 import { sessionRequiresInstrumentScope } from "@electron/shared/domain";
@@ -41,7 +42,7 @@ import { SessionTemplateService } from "../template-service";
 import { SignalSourcesRepo } from "../../signals/repos/signal-sources-repo";
 
 describe("session onboarding integration", () => {
-  let db = createTestDb();
+  let db: DbClient;
 
   beforeEach(() => {
     db = createTestDb();

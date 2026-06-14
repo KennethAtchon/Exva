@@ -11,8 +11,8 @@ import {
 } from "./ipc-test-harness";
 
 describe("session IPC handlers", () => {
-  let db = createTestDb();
-  let harness = createIpcTestServices(db);
+  let db: ReturnType<typeof createTestDb>;
+  let harness: ReturnType<typeof createIpcTestServices>;
 
   beforeEach(() => {
     db = createTestDb();
