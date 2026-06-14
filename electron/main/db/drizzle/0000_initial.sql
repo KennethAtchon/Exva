@@ -102,7 +102,7 @@ CREATE TABLE `broker_accounts` (
 	`balance_cache_usd` real,
 	`balance_cached_at` text,
 	`mock_scenario_kind` text,
-	`mock_execution_tier` text DEFAULT 'scripted',
+	`mock_execution_tier` text,
 	`secret_ref` text NOT NULL,
 	`updated_at` text NOT NULL
 );
@@ -160,6 +160,19 @@ CREATE TABLE `events` (
 --> statement-breakpoint
 CREATE INDEX `idx_events_session_id` ON `events` (`session_id`);--> statement-breakpoint
 CREATE INDEX `idx_events_cycle_id` ON `events` (`cycle_id`);--> statement-breakpoint
+CREATE TABLE `experience_experiments` (
+	`id` text PRIMARY KEY NOT NULL,
+	`experience_id` text NOT NULL,
+	`config_hash` text NOT NULL,
+	`dataset_window_start` text,
+	`dataset_window_end` text,
+	`metrics_json` text DEFAULT '{}' NOT NULL,
+	`notes` text DEFAULT '' NOT NULL,
+	`verdict` text DEFAULT 'inconclusive' NOT NULL,
+	`created_at` text NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `idx_experience_experiments_experience` ON `experience_experiments` (`experience_id`,`created_at`);--> statement-breakpoint
 CREATE TABLE `global_presets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -211,6 +224,14 @@ CREATE TABLE `research_posture_presets` (
 	`preset_json` text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `research_summaries` (
+	`id` text PRIMARY KEY NOT NULL,
+	`period` text NOT NULL,
+	`summary_json` text NOT NULL,
+	`created_at` text NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `idx_research_summaries_period` ON `research_summaries` (`period`,`created_at`);--> statement-breakpoint
 CREATE TABLE `risk_presets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`label` text NOT NULL,
@@ -620,27 +641,6 @@ CREATE TABLE `trades` (
 CREATE INDEX `idx_trades_session_id` ON `trades` (`session_id`);--> statement-breakpoint
 CREATE INDEX `idx_trades_status` ON `trades` (`status`);--> statement-breakpoint
 CREATE INDEX `idx_trades_instrument` ON `trades` (`instrument_symbol`,`broker_account_id`,`status`);--> statement-breakpoint
-CREATE TABLE `experience_experiments` (
-	`id` text PRIMARY KEY NOT NULL,
-	`experience_id` text NOT NULL,
-	`config_hash` text NOT NULL,
-	`dataset_window_start` text,
-	`dataset_window_end` text,
-	`metrics_json` text DEFAULT '{}' NOT NULL,
-	`notes` text DEFAULT '' NOT NULL,
-	`verdict` text DEFAULT 'inconclusive' NOT NULL,
-	`created_at` text NOT NULL
-);
---> statement-breakpoint
-CREATE INDEX `idx_experience_experiments_experience` ON `experience_experiments` (`experience_id`,`created_at`);--> statement-breakpoint
-CREATE TABLE `research_summaries` (
-	`id` text PRIMARY KEY NOT NULL,
-	`period` text NOT NULL,
-	`summary_json` text NOT NULL,
-	`created_at` text NOT NULL
-);
---> statement-breakpoint
-CREATE INDEX `idx_research_summaries_period` ON `research_summaries` (`period`,`created_at`);--> statement-breakpoint
 CREATE TABLE `workspace_preferences` (
 	`id` integer PRIMARY KEY DEFAULT 1 NOT NULL,
 	`global_include_archived` integer DEFAULT false NOT NULL,
