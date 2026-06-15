@@ -22,27 +22,42 @@ export function SignalSourceTypesPage() {
           ],
           [
             "timer",
-            "Emits on a fixed cadence for a configured symbol.",
+            <>
+              Emits on a fixed cadence for a configured symbol. See{" "}
+              <DocLink to="timer-signals">Timer signals</DocLink>.
+            </>,
             "Rules-based strategies (mean reversion, momentum, trend).",
           ],
           [
             "web_search",
-            "Legacy web-search discovery wrapper.",
+            <>
+              Legacy web-search discovery wrapper. See{" "}
+              <DocLink to="web-search">Web search</DocLink>.
+            </>,
             "Backward-compatible discovery; lower edge than catalyst feeds.",
           ],
           [
             "manual",
-            "No automated feed; session runs from manual tickers only.",
+            <>
+              No automated feed; session runs from manual tickers only. See{" "}
+              <DocLink to="mock-manual-sources">Mock &amp; manual</DocLink>.
+            </>,
             "Operator-driven watchlists.",
           ],
           [
             "mock",
-            "Deterministic synthetic signals for rehearsal.",
+            <>
+              Deterministic synthetic signals for rehearsal. See{" "}
+              <DocLink to="mock-manual-sources">Mock &amp; manual</DocLink>.
+            </>,
             "Development and scripted testing — not for live trading.",
           ],
           [
             "prediction_event",
-            "Polls prediction-market platforms for odds/volume dislocations.",
+            <>
+              Polls prediction-market platforms for odds/volume dislocations.
+              See <DocLink to="prediction-events">Prediction events</DocLink>.
+            </>,
             <>
               <DocLink to="experiences">Prediction Event Edge</DocLink>{" "}
               experience.

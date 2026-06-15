@@ -13,7 +13,7 @@ export function DocPager() {
         <button
           type="button"
           onClick={() => navigate(previous.slug)}
-          className="group rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-4 text-left transition-colors hover:border-[var(--accent)]"
+          className="group rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-4 text-left transition-colors hover:border-[var(--accent)] focus-visible:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
         >
           <div className="flex items-center gap-1 text-[11px] uppercase tracking-[0.1em] text-[var(--text3)]">
             <ChevronLeft size={14} />
@@ -30,7 +30,7 @@ export function DocPager() {
         <button
           type="button"
           onClick={() => navigate(next.slug)}
-          className="group rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-4 text-left transition-colors hover:border-[var(--accent)] sm:col-start-2"
+          className="group rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-4 text-left transition-colors hover:border-[var(--accent)] focus-visible:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] sm:col-start-2"
         >
           <div className="flex items-center justify-end gap-1 text-[11px] uppercase tracking-[0.1em] text-[var(--text3)]">
             Next
@@ -62,7 +62,7 @@ export function RelatedPages() {
               key={relatedSlug}
               type="button"
               onClick={() => navigate(relatedSlug)}
-              className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--text2)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text1)]"
+              className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-[12px] font-medium text-[var(--text2)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text1)] focus-visible:border-[var(--accent)] focus-visible:text-[var(--text1)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
             >
               {related.title}
             </button>

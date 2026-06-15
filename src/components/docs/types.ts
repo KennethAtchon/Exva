@@ -12,6 +12,10 @@ export type DocSlug =
   | "edgar-tradability"
   | "edgar-pipeline"
   | "signal-source-types"
+  | "prediction-events"
+  | "web-search"
+  | "timer-signals"
+  | "mock-manual-sources"
   | "experiences"
   | "pipeline"
   | "sessions"
@@ -40,4 +44,5 @@ export type DocNavGroup = {
   id: string;
   label: string;
   slugs: DocSlug[];
+  subgroups?: DocNavGroup[];
 };

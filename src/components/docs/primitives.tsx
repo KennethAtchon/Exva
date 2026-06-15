@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Check, Copy, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDocsNavigation } from "./context";
 import type { DocSlug } from "./types";
@@ -14,18 +15,38 @@ export const DocHeading = ({
   level?: 2 | 3;
   children: ReactNode;
 }) => {
+  const { slug, navigate } = useDocsNavigation();
   const Tag = level === 2 ? "h2" : "h3";
+  const linkToHeading = () => {
+    navigate(slug, id);
+    try {
+      const url = `${window.location.origin}${window.location.pathname}#doc-${slug}/${id}`;
+      void navigator.clipboard?.writeText(url);
+    } catch {
+      // Clipboard may be unavailable; navigation still updates the hash.
+    }
+  };
   return (
     <Tag
       id={id}
       className={cn(
-        "scroll-mt-6 text-[var(--text1)]",
+        "group/heading scroll-mt-6 text-[var(--text1)]",
         level === 2
           ? "mb-4 mt-10 border-b border-[var(--border)] pb-3 text-[20px] font-semibold first:mt-0"
           : "mb-3 mt-7 text-[15px] font-semibold",
       )}
     >
-      {children}
+      <span className="inline-flex items-center gap-2">
+        {children}
+        <button
+          type="button"
+          onClick={linkToHeading}
+          aria-label={`Link to section: ${id}`}
+          className="inline-flex items-center text-[var(--text3)] opacity-0 transition-opacity hover:text-[var(--accent)] focus-visible:opacity-100 focus-visible:outline-none group-hover/heading:opacity-100"
+        >
+          <Link2 size={level === 2 ? 15 : 13} />
+        </button>
+      </span>
     </Tag>
   );
 };
@@ -63,7 +84,7 @@ export const DocLink = ({
       type="button"
       onClick={() => navigate(to, heading)}
       className={cn(
-        "inline cursor-pointer border-none bg-transparent p-0 text-[14px] font-medium text-[var(--accent)] underline-offset-2 hover:underline",
+        "inline cursor-pointer border-none bg-transparent p-0 text-[14px] font-medium text-[var(--accent)] underline-offset-2 hover:underline focus-visible:underline focus-visible:outline-none",
         className,
       )}
     >
@@ -108,11 +129,38 @@ export const DocCallout = ({
   );
 };
 
-export const DocCode = ({ children }: { children: string }) => (
-  <pre className="mb-5 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-4 py-3 font-mono text-[12px] leading-[1.55] text-[var(--text1)]">
-    {children}
-  </pre>
-);
+export const DocCode = ({ children }: { children: string }) => {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    try {
+      void navigator.clipboard?.writeText(children);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard may be unavailable; ignore.
+    }
+  };
+  return (
+    <div className="group/code relative mb-5">
+      <button
+        type="button"
+        onClick={copy}
+        aria-label={copied ? "Copied" : "Copy code"}
+        className={cn(
+          "absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text3)] transition-all hover:border-[var(--accent)] hover:text-[var(--text1)] focus-visible:opacity-100 focus-visible:outline-none",
+          copied
+            ? "opacity-100 text-success"
+            : "opacity-0 group-hover/code:opacity-100",
+        )}
+      >
+        {copied ? <Check size={14} /> : <Copy size={14} />}
+      </button>
+      <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface2)] px-4 py-3 pr-12 font-mono text-[12px] leading-[1.55] text-[var(--text1)]">
+        {children}
+      </pre>
+    </div>
+  );
+};
 
 export const DocTable = ({
   headers,
@@ -225,7 +273,7 @@ export const DocCard = ({
     <button
       type="button"
       onClick={() => navigate(to)}
-      className="rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-4 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface)]"
+      className="rounded-lg border border-[var(--border)] bg-[var(--surface2)] p-4 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface)] focus-visible:border-[var(--accent)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
     >
       <div className="text-[14px] font-semibold text-[var(--text1)]">
         {title}

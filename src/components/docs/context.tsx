@@ -128,3 +128,37 @@ export function useDocHeadings(): DocHeadingAnchor[] {
   const { page } = useDocsNavigation();
   return page.headings;
 }
+
+/**
+ * Scroll-spy shared by the TOC and the sidebar heading drill-down so both stay
+ * in sync on the same visible section. Returns the active heading id plus a
+ * setter for immediate feedback on click (before smooth scroll settles).
+ */
+export function useActiveHeading(
+  headings: DocHeadingAnchor[],
+): [string | null, (id: string | null) => void] {
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (headings.length === 0) {
+      setActiveId(null);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]?.target.id) setActiveId(visible[0].target.id);
+      },
+      { rootMargin: "-15% 0px -70% 0px", threshold: 0 },
+    );
+    for (const heading of headings) {
+      const element = document.getElementById(heading.id);
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [headings]);
+
+  return [activeId, setActiveId];
+}

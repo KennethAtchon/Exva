@@ -10,6 +10,10 @@ import { EdgarItemCodesPage } from "./pages/EdgarItemCodesPage";
 import { EdgarTradabilityPage } from "./pages/EdgarTradabilityPage";
 import { EdgarPipelinePage } from "./pages/EdgarPipelinePage";
 import { SignalSourceTypesPage } from "./pages/SignalSourceTypesPage";
+import { PredictionEventsPage } from "./pages/PredictionEventsPage";
+import { WebSearchSignalPage } from "./pages/WebSearchSignalPage";
+import { TimerSignalPage } from "./pages/TimerSignalPage";
+import { MockManualSourcesPage } from "./pages/MockManualSourcesPage";
 import { ExperiencesPage } from "./pages/ExperiencesPage";
 import { PipelinePage } from "./pages/PipelinePage";
 import { SessionsDocPage } from "./pages/SessionsDocPage";
@@ -162,10 +166,66 @@ const DOC_PAGES: DocPageDefinition[] = [
     title: "Signal source types",
     description: "edgar_8k, timer, mock, web_search, manual, prediction_event.",
     category: "Signals",
-    order: 120,
-    related: ["edgar-overview", "experiences"],
+    order: 65,
+    related: [
+      "edgar-overview",
+      "prediction-events",
+      "timer-signals",
+      "experiences",
+    ],
     headings: [],
     component: SignalSourceTypesPage,
+  },
+  {
+    slug: "prediction-events",
+    title: "Prediction events",
+    description:
+      "Polymarket polling, trigger kinds, and the prediction_market filters.",
+    category: "Signals",
+    order: 113,
+    related: ["signal-source-types", "experiences"],
+    headings: [
+      { id: "polling", title: "Polling", level: 2 },
+      { id: "trigger-kinds", title: "Trigger kinds", level: 2 },
+      { id: "filters", title: "Filters", level: 2 },
+    ],
+    component: PredictionEventsPage,
+  },
+  {
+    slug: "web-search",
+    title: "Web search",
+    description: "Legacy discovery wrapper and registry fallback source.",
+    category: "Signals",
+    order: 122,
+    related: ["signal-source-types", "edgar-overview"],
+    headings: [],
+    component: WebSearchSignalPage,
+  },
+  {
+    slug: "timer-signals",
+    title: "Timer signals",
+    description: "Clock-driven ticks per symbol and cadence for rules engines.",
+    category: "Signals",
+    order: 124,
+    related: ["signal-source-types", "pipeline"],
+    headings: [
+      { id: "configuration", title: "Configuration", level: 2 },
+      { id: "cadence", title: "Cadence & payload", level: 2 },
+    ],
+    component: TimerSignalPage,
+  },
+  {
+    slug: "mock-manual-sources",
+    title: "Mock & manual sources",
+    description: "Synthetic test signals and operator-driven manual tickers.",
+    category: "Signals",
+    order: 126,
+    related: ["signal-source-types", "sessions"],
+    headings: [
+      { id: "mock", title: "Mock", level: 2 },
+      { id: "manual", title: "Manual", level: 2 },
+    ],
+    component: MockManualSourcesPage,
   },
   {
     slug: "experiences",
@@ -248,12 +308,24 @@ export const DOC_NAV_GROUPS: DocNavGroup[] = [
     id: "signals",
     label: "Signals",
     slugs: [
-      "edgar-overview",
-      "edgar-detection",
-      "edgar-item-codes",
-      "edgar-tradability",
-      "edgar-pipeline",
       "signal-source-types",
+      "prediction-events",
+      "web-search",
+      "timer-signals",
+      "mock-manual-sources",
+    ],
+    subgroups: [
+      {
+        id: "edgar",
+        label: "EDGAR 8-K",
+        slugs: [
+          "edgar-overview",
+          "edgar-detection",
+          "edgar-item-codes",
+          "edgar-tradability",
+          "edgar-pipeline",
+        ],
+      },
     ],
   },
   {
@@ -290,6 +362,30 @@ export function getDocPager(slug: DocSlug): {
     previous: index > 0 ? (pages.at(index - 1) ?? null) : null,
     next: index < pages.length - 1 ? (pages.at(index + 1) ?? null) : null,
   };
+}
+
+/**
+ * The chain of nav groups from the top-level group down to the innermost group
+ * that directly contains the slug. Drives breadcrumbs and sidebar ancestor
+ * expansion. Empty if the slug is not in the nav tree.
+ */
+export function getDocGroupTrail(slug: DocSlug): DocNavGroup[] {
+  const walk = (groups: DocNavGroup[], trail: DocNavGroup[]): DocNavGroup[] => {
+    for (const group of groups) {
+      const next = [...trail, group];
+      if (group.slugs.includes(slug)) return next;
+      if (group.subgroups) {
+        const found = walk(group.subgroups, next);
+        if (found.length) return found;
+      }
+    }
+    return [];
+  };
+  return walk(DOC_NAV_GROUPS, []);
+}
+
+export function getDocGroupForSlug(slug: DocSlug): DocNavGroup | null {
+  return getDocGroupTrail(slug).at(-1) ?? null;
 }
 
 export function searchDocPages(query: string): DocPageDefinition[] {
