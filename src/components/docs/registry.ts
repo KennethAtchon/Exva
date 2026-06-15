@@ -48,7 +48,7 @@ const DOC_PAGES: DocPageDefinition[] = [
     category: "Architecture",
     order: 30,
     related: ["signal-architecture", "pipeline"],
-    headings: [],
+    headings: [{ id: "system-overview", title: "System overview", level: 2 }],
     component: ArchitecturePage,
   },
   {
@@ -151,7 +151,10 @@ const DOC_PAGES: DocPageDefinition[] = [
     category: "Signals",
     order: 110,
     related: ["pipeline", "edgar-tradability", "experiences"],
-    headings: [],
+    headings: [
+      { id: "pipeline-flow", title: "Pipeline flow", level: 2 },
+      { id: "stages", title: "Stages", level: 2 },
+    ],
     component: EdgarPipelinePage,
   },
   {
@@ -182,7 +185,10 @@ const DOC_PAGES: DocPageDefinition[] = [
     category: "Operations",
     order: 140,
     related: ["edgar-pipeline", "architecture"],
-    headings: [],
+    headings: [
+      { id: "execution-flow", title: "Execution flow", level: 2 },
+      { id: "ai-phases", title: "AI phases", level: 2 },
+    ],
     component: PipelinePage,
   },
   {
@@ -193,6 +199,7 @@ const DOC_PAGES: DocPageDefinition[] = [
     order: 150,
     related: ["signal-architecture", "environment", "quickstart"],
     headings: [
+      { id: "session-lifecycle", title: "Session lifecycle", level: 2 },
       { id: "session-statuses", title: "Session statuses", level: 2 },
       { id: "header-controls", title: "Header controls", level: 2 },
       { id: "delivery-statuses", title: "Signal delivery statuses", level: 2 },

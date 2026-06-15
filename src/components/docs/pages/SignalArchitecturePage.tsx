@@ -1,11 +1,13 @@
 import {
   DocHeading,
   DocLink,
+  DocMermaid,
   DocParagraph,
   DocTable,
   FlowStep,
   DocInlineCode,
 } from "../primitives";
+import { SIGNAL_END_TO_END_CHART } from "../diagrams";
 
 export function SignalArchitecturePage() {
   return (
@@ -20,6 +22,7 @@ export function SignalArchitecturePage() {
       <DocHeading id="end-to-end-flow" level={2}>
         End-to-end flow
       </DocHeading>
+      <DocMermaid chart={SIGNAL_END_TO_END_CHART} />
       <FlowStep step={1} title="Detection">
         A running signal source polls or listens for events. See{" "}
         <DocLink to="edgar-detection">EDGAR detection</DocLink> or{" "}

@@ -1,4 +1,11 @@
-import { DocCode, DocInlineCode, DocLink, DocParagraph } from "../primitives";
+import {
+  DocHeading,
+  DocInlineCode,
+  DocLink,
+  DocMermaid,
+  DocParagraph,
+} from "../primitives";
+import { SYSTEM_ARCHITECTURE_CHART } from "../diagrams";
 
 export function ArchitecturePage() {
   return (
@@ -9,25 +16,10 @@ export function ArchitecturePage() {
         orchestration, signal polling, the AI pipeline, broker routing, and
         local SQLite persistence.
       </DocParagraph>
-      <DocCode>{`Signal Source → SignalBus → Session Queue → Pipeline → Decision → Broker
-
-┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
-│  EDGAR / Timer  │────▶│  SignalBus   │────▶│ Session delivery │
-│  Mock / etc.    │     │  + SQLite    │     │ queue (FIFO)     │
-└─────────────────┘     └──────────────┘     └────────┬────────┘
-                                                      │
-                                                      ▼
-                                            ┌─────────────────┐
-                                            │ AgentOrchestrator│
-                                            │ → PipelineRuntime│
-                                            │ → LLM phases     │
-                                            └────────┬────────┘
-                                                      │
-                                                      ▼
-                                            ┌─────────────────┐
-                                            │ Risk gate +     │
-                                            │ broker routing  │
-                                            └─────────────────┘`}</DocCode>
+      <DocHeading id="system-overview" level={2}>
+        System overview
+      </DocHeading>
+      <DocMermaid chart={SYSTEM_ARCHITECTURE_CHART} />
       <DocParagraph>
         Signal sources live under{" "}
         <DocInlineCode>electron/main/services/signals/</DocInlineCode>; the

@@ -2,13 +2,25 @@ import {
   DocHeading,
   DocLink,
   DocList,
+  DocMermaid,
   DocParagraph,
   DocTable,
 } from "../primitives";
+import { SESSION_LIFECYCLE_CHART } from "../diagrams";
 
 export function SessionsDocPage() {
   return (
     <>
+      <DocHeading id="session-lifecycle" level={2}>
+        Session lifecycle
+      </DocHeading>
+      <DocParagraph>
+        Starting or resuming a session activates the orchestrator. Signal
+        deliveries dequeue into the experience pipeline; pause holds new
+        deliveries with a 4-hour expiry window.
+      </DocParagraph>
+      <DocMermaid chart={SESSION_LIFECYCLE_CHART} />
+
       <DocHeading id="session-statuses" level={2}>
         Session statuses
       </DocHeading>

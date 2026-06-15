@@ -46,22 +46,32 @@ function hashForSlug(slug: DocSlug, headingId?: string): string {
   return headingId ? `#${base}/${headingId}` : `#${base}`;
 }
 
+function replaceDocHash(slug: DocSlug, headingId?: string): void {
+  const hash = hashForSlug(slug, headingId);
+  const nextUrl = `${window.location.pathname}${window.location.search}${hash}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (currentUrl !== nextUrl) {
+    window.history.replaceState(null, "", nextUrl);
+  }
+}
+
+function scrollToHeading(headingId: string): void {
+  requestAnimationFrame(() => {
+    document.getElementById(headingId)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  });
+}
+
 export function DocsNavigationProvider({ children }: { children: ReactNode }) {
   const [slug, setSlug] = useState<DocSlug>(() => slugFromHash());
 
   const navigate = useCallback((next: DocSlug, headingId?: string) => {
     setSlug(next);
-    const hash = hashForSlug(next, headingId);
-    if (window.location.hash !== hash) {
-      window.history.replaceState(null, "", hash);
-    }
+    replaceDocHash(next, headingId);
     if (headingId) {
-      requestAnimationFrame(() => {
-        document.getElementById(headingId)?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      });
+      scrollToHeading(headingId);
     } else {
       document
         .querySelector("[data-doc-content]")
@@ -74,20 +84,16 @@ export function DocsNavigationProvider({ children }: { children: ReactNode }) {
       const next = slugFromHash();
       setSlug(next);
       const heading = window.location.hash.split("/")[1];
-      if (heading) {
-        requestAnimationFrame(() => {
-          document.getElementById(heading)?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        });
-      }
+      if (heading) scrollToHeading(heading);
     };
     window.addEventListener("hashchange", onHashChange);
-    if (!window.location.hash.startsWith(`#${HASH_PREFIX}`)) {
-      window.history.replaceState(null, "", hashForSlug(slug));
-    }
     return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (!window.location.hash.startsWith(`#${HASH_PREFIX}`)) {
+      replaceDocHash(slug);
+    }
   }, [slug]);
 
   const value = useMemo(

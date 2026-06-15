@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import { useDocsNavigation } from "./context";
 import type { DocSlug } from "./types";
 
+export { DocMermaid } from "./DocMermaid";
+
 export const DocHeading = ({
   id,
   level = 2,

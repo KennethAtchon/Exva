@@ -20,5 +20,9 @@ export function DocPageHeader() {
 }
 
 export function DocsLayout({ children }: { children: ReactNode }) {
-  return <div className="flex flex-1 overflow-hidden">{children}</div>;
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+      {children}
+    </div>
+  );
 }

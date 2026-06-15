@@ -1,4 +1,11 @@
-import { DocLink, DocParagraph, DocTable } from "../primitives";
+import {
+  DocHeading,
+  DocLink,
+  DocMermaid,
+  DocParagraph,
+  DocTable,
+} from "../primitives";
+import { PIPELINE_RUNTIME_CHART } from "../diagrams";
 
 export function PipelinePage() {
   return (
@@ -8,6 +15,13 @@ export function PipelinePage() {
         output. Phases are definition-first: each phase declares worker batches,
         tools, and aggregation engines registered at boot.
       </DocParagraph>
+      <DocHeading id="execution-flow" level={2}>
+        Execution flow
+      </DocHeading>
+      <DocMermaid chart={PIPELINE_RUNTIME_CHART} />
+      <DocHeading id="ai-phases" level={2}>
+        AI phases
+      </DocHeading>
       <DocTable
         headers={["Phase", "Role"]}
         rows={[

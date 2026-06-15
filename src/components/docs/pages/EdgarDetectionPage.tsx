@@ -5,8 +5,10 @@ import {
   DocInlineCode,
   DocLink,
   DocList,
+  DocMermaid,
   DocParagraph,
 } from "../primitives";
+import { EDGAR_DETECTION_CHART } from "../diagrams";
 
 export function EdgarDetectionPage() {
   return (
@@ -39,6 +41,7 @@ Accept: application/atom+xml`}</DocCode>
         increment the <em>dropped</em> count; entries that pass emit a signal
         and increment <em>passed</em>.
       </DocParagraph>
+      <DocMermaid chart={EDGAR_DETECTION_CHART} />
       <DocList
         items={[
           <>

@@ -1,4 +1,12 @@
-import { DocInlineCode, DocLink, DocList, DocParagraph } from "../primitives";
+import {
+  DocHeading,
+  DocInlineCode,
+  DocLink,
+  DocList,
+  DocMermaid,
+  DocParagraph,
+} from "../primitives";
+import { EDGAR_PIPELINE_CHART } from "../diagrams";
 
 export function EdgarPipelinePage() {
   return (
@@ -10,6 +18,13 @@ export function EdgarPipelinePage() {
         cycle. It is bound to the{" "}
         <DocLink to="experiences">EDGAR Catalyst experience</DocLink>.
       </DocParagraph>
+      <DocHeading id="pipeline-flow" level={2}>
+        Pipeline flow
+      </DocHeading>
+      <DocMermaid chart={EDGAR_PIPELINE_CHART} />
+      <DocHeading id="stages" level={2}>
+        Stages
+      </DocHeading>
       <DocList
         items={[
           <>
