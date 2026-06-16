@@ -63,6 +63,7 @@ import type {
   SessionSignalDelivery,
   SignalSourceRecord,
 } from "@electron/shared/domain";
+import type { ControlScopeKind } from "@electron/shared/domain/control";
 
 const hasExva =
   typeof window !== "undefined" &&
@@ -546,6 +547,31 @@ export const api = {
     format: ExportFormat,
   ): Promise<ExportResult> =>
     bridge().autopsy.period.export({ periodAutopsyId, format }),
+
+  control: {
+    isEnabled: () => bridge().control.isEnabled(),
+    listConversations: () => bridge().control.listConversations(),
+    getConversation: (id: string) => bridge().control.getConversation(id),
+    createConversation: (input?: {
+      title?: string;
+      scopeKind?: ControlScopeKind;
+      scopeSessionId?: string | null;
+    }) => bridge().control.createConversation(input),
+    renameConversation: (input: { id: string; title: string }) =>
+      bridge().control.renameConversation(input),
+    deleteConversation: (id: string) => bridge().control.deleteConversation(id),
+    send: (input: { conversationId: string; message: string }) =>
+      bridge().control.send(input),
+    confirm: (input: {
+      conversationId: string;
+      toolCallId: string;
+      alwaysApprove?: boolean;
+    }) => bridge().control.confirm(input),
+    reject: (input: { conversationId: string; toolCallId: string }) =>
+      bridge().control.reject(input),
+    cancel: (conversationId: string) => bridge().control.cancel(conversationId),
+    getActivity: () => bridge().control.getActivity(),
+  },
 };
 
 export async function listenEvent<K extends ExvaEventName>(
@@ -568,3 +594,10 @@ export type {
   WorkspaceViewResponse,
 } from "@electron/shared/ipc/dto";
 export type { AIPhaseTrace, PhaseRuntimeSummary };
+export type {
+  ControlConversation,
+  ControlConversationSummary,
+  ControlMessage,
+  ControlScopeKind,
+  ControlToolCall,
+} from "@electron/shared/domain/control";

@@ -911,6 +911,78 @@ export const researchSummaries = sqliteTable(
   }),
 );
 
+export const controlConversations = sqliteTable(
+  "control_conversations",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    scopeKind: text("scope_kind").notNull().default("workspace"),
+    scopeSessionId: text("scope_session_id").references(() => sessions.id, {
+      onDelete: "set null",
+    }),
+    autoApprovedJson: text("auto_approved_json").notNull().default("[]"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => ({
+    updatedAtIdx: index("idx_control_conversations_updated").on(
+      table.updatedAt,
+    ),
+  }),
+);
+
+export const controlMessages = sqliteTable(
+  "control_messages",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => controlConversations.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    content: text("content").notNull(),
+    status: text("status").notNull().default("complete"),
+    turnId: text("turn_id").notNull(),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    costUsd: real("cost_usd"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => ({
+    conversationIdx: index("idx_control_messages_conversation").on(
+      table.conversationId,
+      table.createdAt,
+    ),
+  }),
+);
+
+export const controlToolCalls = sqliteTable(
+  "control_tool_calls",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => controlConversations.id, { onDelete: "cascade" }),
+    turnId: text("turn_id").notNull(),
+    capability: text("capability").notNull(),
+    kind: text("kind").notNull(),
+    inputJson: text("input_json").notNull(),
+    resultJson: text("result_json"),
+    status: text("status").notNull().default("running"),
+    confirmation: text("confirmation"),
+    affectedEntity: text("affected_entity"),
+    startedAt: text("started_at").notNull(),
+    finishedAt: text("finished_at"),
+  },
+  (table) => ({
+    conversationIdx: index("idx_control_tool_calls_conversation").on(
+      table.conversationId,
+    ),
+    affectedEntityIdx: index("idx_control_tool_calls_affected").on(
+      table.affectedEntity,
+    ),
+  }),
+);
+
 export const capitalReservations = sqliteTable(
   "capital_reservations",
   {

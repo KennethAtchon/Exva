@@ -18,8 +18,25 @@ const PHASE_LABELS: Record<PipelinePhase, string> = {
   decision: "Decision",
 };
 
+// One-line plain-language description of what each phase does, so an operator
+// knows what the model they're configuring is actually responsible for.
+const PHASE_DESCRIPTIONS: Record<PipelinePhase, string> = {
+  selector: "Finds and narrows candidate instruments before deeper analysis.",
+  technical: "Examines price action, levels, momentum, and chart context.",
+  fundamental: "Examines catalyst details, company context, and evidence.",
+  review: "Challenges the thesis and looks for reasons to reject a weak setup.",
+  decision: "Turns the research into a concrete trade or no-trade call.",
+};
+
 const fieldLabelClass =
-  "mb-1 text-[12px] uppercase tracking-[0.04em] text-[var(--text3)]";
+  "text-[12px] uppercase tracking-[0.04em] text-[var(--text3)]";
+
+const FieldLabel = ({ label, help }: { label: string; help: string }) => (
+  <div className="mb-1 flex items-center gap-1.5">
+    <span className={fieldLabelClass}>{label}</span>
+    <HelpTooltip topic={label} body={help} />
+  </div>
+);
 
 const inputClass =
   "w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-2 text-[13px] text-[var(--text1)]";
@@ -113,9 +130,15 @@ const PhaseCard = ({
   return (
     <Card>
       <SectionTitle>{PHASE_LABELS[phase]}</SectionTitle>
+      <p className="mt-1 text-[12px] leading-[1.5] text-[var(--text3)]">
+        {PHASE_DESCRIPTIONS[phase]}
+      </p>
       <div className="mt-3.5 flex flex-col gap-3">
         <div>
-          <div className={fieldLabelClass}>Provider</div>
+          <FieldLabel
+            label="Provider"
+            help="Which AI provider account runs this phase. Falls back to the workspace default when unset."
+          />
           <ShadcnSelect
             value={config.providerKey || ""}
             onValueChange={(providerKey) =>
@@ -127,7 +150,10 @@ const PhaseCard = ({
           />
         </div>
         <div>
-          <div className={fieldLabelClass}>Model</div>
+          <FieldLabel
+            label="Model"
+            help="The specific model for this phase. Run a cheaper model on early phases and a stronger one on Decision to control cost."
+          />
           <ShadcnSelect
             value={config.modelId || ""}
             onValueChange={(modelId) => onUpdate({ modelId })}
@@ -140,7 +166,10 @@ const PhaseCard = ({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className={fieldLabelClass}>Temperature</div>
+            <FieldLabel
+              label="Temperature"
+              help="Sampling randomness. 0 = focused and repeatable; higher = more varied. Keep low for the Decision phase."
+            />
             <input
               type="number"
               min={0}
@@ -155,7 +184,10 @@ const PhaseCard = ({
             />
           </div>
           <div>
-            <div className={fieldLabelClass}>Max tokens</div>
+            <FieldLabel
+              label="Max tokens"
+              help="Ceiling on the phase's response length. Higher allows longer answers but costs more."
+            />
             <input
               type="number"
               min={256}

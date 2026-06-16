@@ -114,6 +114,54 @@ export interface ExvaEventMap {
       | "no_compatible_broker_route";
     ticker: string;
   };
+  control_delta: { conversationId: string; turnId: string; text: string };
+  control_tool_call: {
+    conversationId: string;
+    turnId: string;
+    toolCallId: string;
+    capability: string;
+    label: string;
+    kind: "read" | "mutating";
+    summary: string;
+    inputJson: string;
+    status:
+      | "running"
+      | "awaiting_confirm"
+      | "succeeded"
+      | "rejected"
+      | "failed";
+  };
+  control_tool_result: {
+    conversationId: string;
+    turnId: string;
+    toolCallId: string;
+    status: "succeeded" | "rejected" | "failed";
+    resultSummary: string;
+    resultJson: string | null;
+  };
+  control_confirmation_required: {
+    conversationId: string;
+    turnId: string;
+    toolCallId: string;
+    capability: string;
+    label: string;
+    preview: string;
+    inputJson: string;
+    alwaysConfirm: boolean;
+    confirmClass: string | null;
+    risk: string | null;
+  };
+  control_turn_complete: {
+    conversationId: string;
+    turnId: string;
+    costUsd: number;
+  };
+  control_error: {
+    conversationId: string;
+    turnId: string;
+    message: string;
+    code: string | null;
+  };
 }
 
 export class EventBus {

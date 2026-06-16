@@ -436,7 +436,6 @@ export const AccountsPage = () => {
           >
             Paper
           </button>
-          <HelpTooltip glossaryId="environment-paper" />
           <button
             type="button"
             className={cn(
@@ -447,7 +446,6 @@ export const AccountsPage = () => {
           >
             Live
           </button>
-          <HelpTooltip glossaryId="environment-live" />
         </div>
       </div>
 

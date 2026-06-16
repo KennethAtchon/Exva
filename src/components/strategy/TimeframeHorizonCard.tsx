@@ -1,10 +1,39 @@
 import { Card, SectionTitle, ShadcnSelect } from "@/components/custom-ui";
+import { HelpTooltip } from "@/components/ui";
 import type { SessionTimeframeConfig } from "@/lib/types";
 import {
   HOLDING_STYLES,
   TRADING_TIMEFRAMES,
   timeframeConfigHoldMismatchWarning,
 } from "../../../electron/shared/domain";
+
+function barSizeHint(value: SessionTimeframeConfig["primaryTradingTimeframe"]) {
+  switch (value) {
+    case "15m":
+    case "30m":
+      return "Intraday detail — lots of noise, fast reactions.";
+    case "1h":
+    case "4h":
+      return "Short-swing structure across the day.";
+    case "1d":
+      return "Daily bars — multi-day positioning.";
+    case "1w":
+      return "Weekly bars — long-term positioning.";
+    default:
+      return undefined;
+  }
+}
+
+function holdingStyleHint(value: SessionTimeframeConfig["holdingStyle"]) {
+  switch (value) {
+    case "multi_day_swing":
+      return "Hold days up to ~2 weeks.";
+    case "weeks_position":
+      return "Hold weeks to months.";
+    default:
+      return "Custom — define the window in notes below.";
+  }
+}
 
 type Props = {
   timeframe: SessionTimeframeConfig;
@@ -27,7 +56,11 @@ export const TimeframeHorizonCard = ({
         approvals and AI context with how long you intend to keep positions.
       </p>
       <div className="mt-4 grid gap-3.5">
-        <Field label="Primary trading timeframe">
+        <Field
+          label="Primary trading timeframe"
+          help="Bar size the AI uses for thesis and chart context. Smaller = more intraday detail; larger = more positional."
+          hint={barSizeHint(timeframe.primaryTradingTimeframe)}
+        >
           <ShadcnSelect
             value={timeframe.primaryTradingTimeframe}
             onValueChange={(value) =>
@@ -43,7 +76,11 @@ export const TimeframeHorizonCard = ({
             }))}
           />
         </Field>
-        <Field label="Holding style">
+        <Field
+          label="Holding style"
+          help="Coarse intended hold length. Steers prompts and approval copy."
+          hint={holdingStyleHint(timeframe.holdingStyle)}
+        >
           <ShadcnSelect
             value={timeframe.holdingStyle}
             onValueChange={(value) =>
@@ -58,7 +95,10 @@ export const TimeframeHorizonCard = ({
             }))}
           />
         </Field>
-        <Field label="Target hold (days, optional)">
+        <Field
+          label="Target hold (days, optional)"
+          help="Typical intended hold. Empty for resolution-driven holds."
+        >
           <input
             type="number"
             min={0}
@@ -73,7 +113,10 @@ export const TimeframeHorizonCard = ({
             className={inputClass}
           />
         </Field>
-        <Field label="Max hold (days, optional)">
+        <Field
+          label="Max hold (days, optional)"
+          help="Upper bound. The runtime force-exits once a position passes this age."
+        >
           <input
             type="number"
             min={0}
@@ -88,7 +131,7 @@ export const TimeframeHorizonCard = ({
             className={inputClass}
           />
         </Field>
-        <Field label="Timeframe notes">
+        <Field label="Timeframe notes (optional)">
           <textarea
             value={timeframe.timeframeNotes}
             onChange={(event) =>
@@ -125,14 +168,26 @@ function holdingStyleLabel(
 
 const Field = ({
   label,
+  help,
+  hint,
   children,
 }: {
   label: string;
+  help?: string;
+  hint?: string;
   children: React.ReactNode;
 }) => (
   <div className="grid gap-1.5">
-    <div className="text-[12px] text-[var(--text3)]">{label}</div>
+    <div className="flex items-center gap-1.5">
+      <span className="text-[12px] text-[var(--text3)]">{label}</span>
+      {help ? <HelpTooltip topic={label} body={help} /> : null}
+    </div>
     {children}
+    {hint ? (
+      <span className="text-[11px] leading-tight text-[var(--text3)]">
+        {hint}
+      </span>
+    ) : null}
   </div>
 );
 const inputClass =

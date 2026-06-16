@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
+import { Sparkles } from "lucide-react";
 import { RuntimeEventToast } from "./components/RuntimeEventToast";
 import { NavShell, type PageKey } from "./components/TopNav";
 import { LiveReadinessModal } from "./components/sessions/LiveReadinessModal";
@@ -16,6 +17,9 @@ import { CostBreakdownPage } from "./pages/CostBreakdown";
 import { DevPanel, type DevPanelFocus } from "./pages/DevPanel";
 import { AccountsPage } from "./pages/AccountsPage";
 import { DocsPage } from "./pages/DocsPage";
+import { ControlCenterPage } from "./pages/ControlCenterPage";
+import { AssistantSlideOver } from "./components/control/AssistantSlideOver";
+import { useControlStore } from "./store/controlStore";
 import { useSessionStore } from "./store/sessionStore";
 import { useTradeStore } from "./store/tradeStore";
 import { useWorkspaceStore } from "./store/workspaceStore";
@@ -162,6 +166,17 @@ export default function App() {
     };
   }, [setSelected]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        useControlStore.getState().toggleSlideOver();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   useExvaEvent("stats_update", () => {
     void reloadStats();
   });
@@ -240,6 +255,8 @@ export default function App() {
 
   const pageEl = () => {
     switch (ui.page) {
+      case "assistant":
+        return <ControlCenterPage />;
       case "dashboard":
         return <Dashboard />;
       case "sessions":
@@ -392,6 +409,19 @@ const renderAppShell = ({
         onClose={() => dispatchUi({ autopsyTradeId: null })}
       />
     )}
+    {ui.page !== "assistant" ? (
+      <button
+        type="button"
+        title="Assistant (⌘K)"
+        onClick={() => useControlStore.getState().toggleSlideOver()}
+        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+      >
+        <Sparkles className="h-5 w-5" />
+      </button>
+    ) : null}
+    <AssistantSlideOver
+      onOpenFullView={() => dispatchUi({ page: "assistant" })}
+    />
     {ui.liveReadinessSession && ui.liveReadinessReport ? (
       <LiveReadinessModal
         sessionId={ui.liveReadinessSession.id}

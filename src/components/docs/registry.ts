@@ -20,6 +20,18 @@ import { SessionsDocPage } from "./pages/SessionsDocPage";
 import { EnvironmentPage } from "./pages/EnvironmentPage";
 import { AppPagesPage } from "./pages/AppPagesPage";
 import { GlossaryPage } from "./pages/GlossaryPage";
+import { StrategyOverviewPage } from "./pages/StrategyOverviewPage";
+import { StrategyStylePage } from "./pages/StrategyStylePage";
+import { StrategyRulesPage } from "./pages/StrategyRulesPage";
+import { RiskPage } from "./pages/RiskPage";
+import { TimeframesPage } from "./pages/TimeframesPage";
+import { AiPhasesConfigPage } from "./pages/AiPhasesConfigPage";
+import { AutopsyPage } from "./pages/AutopsyPage";
+import { TradesDocPage } from "./pages/TradesPage";
+import { DashboardDocPage } from "./pages/DashboardDocPage";
+import { LeaderboardDocPage } from "./pages/LeaderboardPage";
+import { CostTrackingPage } from "./pages/CostTrackingPage";
+import { AccountsBrokersPage } from "./pages/AccountsBrokersPage";
 
 export const DEFAULT_DOC_SLUG: DocSlug = "introduction";
 
@@ -234,7 +246,13 @@ const DOC_PAGES: DocPageDefinition[] = [
     category: "Operations",
     order: 130,
     related: ["core-concepts", "edgar-pipeline", "signal-source-types"],
-    headings: [],
+    headings: [
+      { id: "anatomy", title: "Anatomy of an experience", level: 2 },
+      { id: "lifecycle", title: "From signal to trade", level: 2 },
+      { id: "edgar", title: "EDGAR 8-K catalyst drift", level: 2 },
+      { id: "rules", title: "Rule-based experiences (timer)", level: 2 },
+      { id: "prediction", title: "Prediction event edge", level: 2 },
+    ],
     component: ExperiencesPage,
   },
   {
@@ -275,6 +293,174 @@ const DOC_PAGES: DocPageDefinition[] = [
     related: ["sessions", "quickstart"],
     headings: [],
     component: EnvironmentPage,
+  },
+  {
+    slug: "strategy",
+    title: "Strategy configuration",
+    description: "The five strategy sections, presets, and edit-lock behavior.",
+    category: "Strategy",
+    order: 131,
+    related: ["strategy-style", "strategy-rules", "risk", "timeframes"],
+    headings: [
+      { id: "sections", title: "The five sections", level: 2 },
+      { id: "presets", title: "Global strategy presets", level: 2 },
+      { id: "lock", title: "Edit-lock behavior", level: 2 },
+      { id: "saving", title: "Saving & validation", level: 2 },
+    ],
+    component: StrategyOverviewPage,
+  },
+  {
+    slug: "strategy-style",
+    title: "Style & research posture",
+    description: "Processing mode, evidence bias, catalyst, and fundamentals.",
+    category: "Strategy",
+    order: 132,
+    related: ["strategy", "strategy-rules", "ai-phases"],
+    headings: [
+      { id: "fields", title: "Posture fields", level: 2 },
+      { id: "presets", title: "Built-in style presets", level: 2 },
+      { id: "notes", title: "Posture notes vs. worker instructions", level: 2 },
+    ],
+    component: StrategyStylePage,
+  },
+  {
+    slug: "strategy-rules",
+    title: "Trade rules",
+    description: "Setup type, side bias, entry/exit style, and scaling.",
+    category: "Strategy",
+    order: 133,
+    related: ["strategy", "strategy-style", "risk"],
+    headings: [
+      { id: "fields", title: "Rule fields", level: 2 },
+      { id: "presets", title: "Built-in rule presets", level: 2 },
+    ],
+    component: StrategyRulesPage,
+  },
+  {
+    slug: "risk",
+    title: "Risk & position sizing",
+    description: "Risk config fields, per-trade gates, sizing, and stops.",
+    category: "Strategy",
+    order: 134,
+    related: ["strategy", "timeframes", "cost-tracking"],
+    headings: [
+      { id: "fields", title: "Risk config fields", level: 2 },
+      { id: "gates", title: "How risk is calculated per trade", level: 2 },
+      { id: "stops", title: "Stops & approval", level: 2 },
+      { id: "presets", title: "Risk presets", level: 2 },
+    ],
+    component: RiskPage,
+  },
+  {
+    slug: "timeframes",
+    title: "Timeframes & holding horizon",
+    description: "Primary bar size, holding style, and hold windows.",
+    category: "Strategy",
+    order: 135,
+    related: ["strategy", "strategy-style", "risk"],
+    headings: [
+      { id: "fields", title: "Timeframe fields", level: 2 },
+      { id: "presets", title: "Timeframe presets", level: 2 },
+      { id: "effect", title: "How timeframe reaches the trade", level: 2 },
+    ],
+    component: TimeframesPage,
+  },
+  {
+    slug: "ai-phases",
+    title: "AI phase configuration",
+    description: "Per-phase model, prompt, reasoning, and worker guidance.",
+    category: "Strategy",
+    order: 136,
+    related: ["pipeline", "strategy", "cost-tracking"],
+    headings: [
+      { id: "phases", title: "Configurable phases", level: 2 },
+      { id: "fields", title: "Per-phase fields", level: 2 },
+      { id: "guidance", title: "Worker guidance", level: 2 },
+      { id: "tools", title: "Worker tools", level: 2 },
+    ],
+    component: AiPhasesConfigPage,
+  },
+  {
+    slug: "dashboard",
+    title: "Dashboard & metrics",
+    description: "Scope, header metrics, agent feed, and approval queue.",
+    category: "Analytics",
+    order: 162,
+    related: ["trades", "environment", "cost-tracking"],
+    headings: [
+      { id: "scope", title: "Scope", level: 2 },
+      { id: "metrics", title: "Header metrics", level: 2 },
+      { id: "approvals", title: "Approval queue", level: 2 },
+    ],
+    component: DashboardDocPage,
+  },
+  {
+    slug: "trades",
+    title: "Trades & positions",
+    description: "Trade statuses, detail view, and cost attribution.",
+    category: "Analytics",
+    order: 163,
+    related: ["dashboard", "autopsy", "risk"],
+    headings: [
+      { id: "status", title: "Trade statuses", level: 2 },
+      { id: "detail", title: "Trade detail", level: 2 },
+      { id: "cost", title: "Cost attribution", level: 2 },
+    ],
+    component: TradesDocPage,
+  },
+  {
+    slug: "autopsy",
+    title: "Autopsy",
+    description: "Period and trade-level post-mortems, lessons, Andon Cord.",
+    category: "Analytics",
+    order: 164,
+    related: ["trades", "leaderboard"],
+    headings: [
+      { id: "period", title: "Period autopsy", level: 2 },
+      { id: "lessons", title: "Lessons", level: 2 },
+      { id: "andon", title: "Andon Cord", level: 2 },
+      { id: "trade-review", title: "Trade review", level: 2 },
+    ],
+    component: AutopsyPage,
+  },
+  {
+    slug: "leaderboard",
+    title: "Leaderboard & promotion",
+    description: "Experience scorecards and the promotion ladder.",
+    category: "Analytics",
+    order: 165,
+    related: ["experiences", "autopsy"],
+    headings: [
+      { id: "promotion", title: "Promotion ladder", level: 2 },
+      { id: "metrics", title: "Scorecard metrics", level: 2 },
+    ],
+    component: LeaderboardDocPage,
+  },
+  {
+    slug: "cost-tracking",
+    title: "AI cost & budgets",
+    description: "Spend metering, budgets, and cost attribution.",
+    category: "Analytics",
+    order: 166,
+    related: ["ai-phases", "risk"],
+    headings: [
+      { id: "budgets", title: "Budgets & caps", level: 2 },
+      { id: "breakdown", title: "Breakdown views", level: 2 },
+    ],
+    component: CostTrackingPage,
+  },
+  {
+    slug: "accounts-brokers",
+    title: "Accounts & brokers",
+    description: "Credentials, providers, broker routing, and allocation.",
+    category: "Setup",
+    order: 167,
+    related: ["environment", "sessions"],
+    headings: [
+      { id: "accounts", title: "Accounts", level: 2 },
+      { id: "brokers", title: "Brokers", level: 2 },
+    ],
+    component: AccountsBrokersPage,
   },
   {
     slug: "app-pages",
@@ -332,6 +518,28 @@ export const DOC_NAV_GROUPS: DocNavGroup[] = [
     id: "operations",
     label: "Operations",
     slugs: ["experiences", "pipeline", "sessions", "environment"],
+  },
+  {
+    id: "strategy",
+    label: "Strategy",
+    slugs: [
+      "strategy",
+      "strategy-style",
+      "strategy-rules",
+      "risk",
+      "timeframes",
+      "ai-phases",
+    ],
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    slugs: ["dashboard", "trades", "autopsy", "leaderboard", "cost-tracking"],
+  },
+  {
+    id: "setup",
+    label: "Setup",
+    slugs: ["accounts-brokers"],
   },
   {
     id: "reference",

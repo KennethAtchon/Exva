@@ -1,0 +1,105 @@
+import { useEffect } from "react";
+import { Plus, SquareArrowOutUpRight, X } from "lucide-react";
+import { Button } from "@/components/ui";
+import { useControlStore } from "@/store/controlStore";
+import { useControlConversation } from "@/hooks/useControlConversation";
+import { useControlConversations } from "@/hooks/useControlConversations";
+import {
+  Composer,
+  ConversationTranscript,
+} from "@/components/control/ConversationView";
+import { ScopeChip } from "@/components/control/ScopeChip";
+
+const EXAMPLES = [
+  "What's my open risk right now?",
+  "Why is my session waiting?",
+];
+
+export function AssistantSlideOver({
+  onOpenFullView,
+}: {
+  onOpenFullView: () => void;
+}) {
+  const open = useControlStore((s) => s.slideOverOpen);
+  const close = useControlStore((s) => s.closeSlideOver);
+  const { activeId, createNew } = useControlConversations({
+    autoCreate: open,
+  });
+  const convo = useControlConversation(open ? activeId : null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, close]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
+        onClick={close}
+        aria-hidden
+      />
+      <div className="relative flex h-full w-[420px] max-w-[90vw] flex-col border-l border-border bg-background shadow-2xl">
+        <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <span className="text-sm font-semibold text-foreground">
+            Assistant
+          </span>
+          <ScopeChip conversation={convo.conversation} />
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              title="New conversation"
+              onClick={() => void createNew()}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              title="Open full view"
+              onClick={() => {
+                onOpenFullView();
+                close();
+              }}
+            >
+              <SquareArrowOutUpRight className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              title="Close"
+              onClick={close}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </header>
+
+        <ConversationTranscript
+          items={convo.items}
+          error={convo.error}
+          examples={EXAMPLES}
+          onConfirm={(id, always) => void convo.confirm(id, always)}
+          onReject={(id) => void convo.reject(id)}
+        />
+
+        <Composer
+          streaming={convo.streaming}
+          disabled={!activeId}
+          onSend={(text) => void convo.send(text)}
+          onStop={() => void convo.cancel()}
+        />
+      </div>
+    </div>
+  );
+}

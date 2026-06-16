@@ -326,6 +326,23 @@ const exva: ExvaApi = {
     decide: (input) =>
       invoke(channels.approvals.decide, approvalDecideSchema.parse(input)),
   },
+  control: {
+    isEnabled: () => invoke(channels.control.isEnabled),
+    listConversations: () => invoke(channels.control.listConversations),
+    getConversation: (id) => invoke(channels.control.getConversation, { id }),
+    createConversation: (input) =>
+      invoke(channels.control.createConversation, input ?? {}),
+    renameConversation: (input) =>
+      invoke(channels.control.renameConversation, input),
+    deleteConversation: (id) =>
+      invoke(channels.control.deleteConversation, { id }),
+    send: (input) => invoke(channels.control.send, input),
+    confirm: (input) => invoke(channels.control.confirm, input),
+    reject: (input) => invoke(channels.control.reject, input),
+    cancel: (conversationId) =>
+      invoke(channels.control.cancel, { conversationId }),
+    getActivity: () => invoke(channels.control.getActivity),
+  },
   developer: {
     getSettings: () => invoke(channels.developer.getSettings),
     updateSettings: (patch: unknown) =>

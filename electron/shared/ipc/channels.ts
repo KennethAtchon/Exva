@@ -162,6 +162,19 @@ export const channels = {
     list: "approval:list",
     decide: "approval:decide",
   },
+  control: {
+    send: "control:send",
+    cancel: "control:cancel",
+    confirm: "control:confirm",
+    reject: "control:reject",
+    listConversations: "control:conversations:list",
+    getConversation: "control:conversations:get",
+    createConversation: "control:conversations:create",
+    deleteConversation: "control:conversations:delete",
+    renameConversation: "control:conversations:rename",
+    getActivity: "control:activity",
+    isEnabled: "control:is-enabled",
+  },
   developer: {
     getSettings: "developer:get-settings",
     updateSettings: "developer:update-settings",
@@ -200,6 +213,12 @@ export const mainToRendererEvents = [
   "signal_received",
   "signal_delivery_updated",
   "signal_dead_lettered",
+  "control_delta",
+  "control_tool_call",
+  "control_tool_result",
+  "control_confirmation_required",
+  "control_turn_complete",
+  "control_error",
 ] as const;
 
 export type ExvaEventName = (typeof mainToRendererEvents)[number];

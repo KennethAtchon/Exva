@@ -96,6 +96,8 @@ import { SignalDeliveryLifecycle } from "./signals/signal-delivery-lifecycle";
 import { SignalBus } from "./signals/signal-bus";
 import { SignalSourceRegistry } from "./signals/signal-source-registry";
 import { SignalService } from "./signals/signal-service";
+import { ControlRepo } from "../db/repositories/control/control-repo";
+import { ControlAgentService } from "./control/control-agent-service";
 
 export interface AppServices {
   /** Shared deps shape for IPC helpers (e.g. instrument cache fingerprint). */
@@ -168,6 +170,8 @@ export interface AppServices {
   tradeAutopsy: TradeAutopsyService;
   autopsyExport: AutopsyExportService;
   signals: SignalService;
+  controlRepo: ControlRepo;
+  control: ControlAgentService;
 }
 
 export async function createAppServices(app: App): Promise<AppServices> {
@@ -541,7 +545,20 @@ export async function createAppServices(app: App): Promise<AppServices> {
     })),
   });
 
-  return {
+  const controlRepo = new ControlRepo(db);
+  // reason: ControlAgentService needs the fully-built container; resolve it lazily.
+  // eslint-disable-next-line prefer-const
+  let appServices: AppServices;
+  const control = new ControlAgentService({
+    repo: controlRepo,
+    providerRegistry,
+    apiCallLog: repos.apiCallLog,
+    workspacePrefs: repos.workspacePreferences,
+    eventBus,
+    getServices: () => appServices,
+  });
+
+  appServices = {
     db,
     orchestratorDeps: orchestratorDepsBase,
     instrumentCacheService,
@@ -576,5 +593,8 @@ export async function createAppServices(app: App): Promise<AppServices> {
     tradeAutopsy,
     autopsyExport,
     signals,
+    controlRepo,
+    control,
   };
+  return appServices;
 }

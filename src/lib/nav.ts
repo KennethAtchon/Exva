@@ -10,11 +10,13 @@ import {
   Microscope,
   Radio,
   SlidersHorizontal,
+  Sparkles,
   Trophy,
   Wallet,
 } from "lucide-react";
 
 export type PageKey =
+  | "assistant"
   | "dashboard"
   | "sessions"
   | "brokers"
@@ -34,6 +36,7 @@ export type NavItem = { id: PageKey; label: string; icon: LucideIcon };
 
 export const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "assistant", label: "Assistant", icon: Sparkles },
   { id: "sessions", label: "Sessions", icon: Layers },
   { id: "brokers", label: "Brokers", icon: Landmark },
   { id: "trades", label: "Trades", icon: ArrowLeftRight },
@@ -50,6 +53,7 @@ export const NAV_ITEMS: NavItem[] = [
 /** Top-level tabs on the wide horizontal nav bar. */
 export const NAV_PRIMARY_IDS: PageKey[] = [
   "dashboard",
+  "assistant",
   "sessions",
   "trades",
   "strategy",

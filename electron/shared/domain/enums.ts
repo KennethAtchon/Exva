@@ -155,7 +155,8 @@ export type AgentRole =
   | "technical"
   | "fundamental"
   | "review"
-  | "decision";
+  | "decision"
+  | "control";
 
 export type PromptSource = "default" | "session_override";
 export type ProviderType = "anthropic" | "openai" | "openrouter";

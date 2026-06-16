@@ -20,6 +20,18 @@ export type DocSlug =
   | "pipeline"
   | "sessions"
   | "environment"
+  | "strategy"
+  | "strategy-style"
+  | "strategy-rules"
+  | "risk"
+  | "timeframes"
+  | "ai-phases"
+  | "autopsy"
+  | "trades"
+  | "dashboard"
+  | "leaderboard"
+  | "cost-tracking"
+  | "accounts-brokers"
   | "app-pages"
   | "glossary";
 

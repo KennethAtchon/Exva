@@ -364,6 +364,8 @@ export function createIpcTestServices(existingDb?: DbClient): IpcTestHarness {
     signals: {
       ensureAllExperienceSignalSources: () => [],
     } as unknown as AppServices["signals"],
+    controlRepo: {} as AppServices["controlRepo"],
+    control: {} as AppServices["control"],
   };
 
   function configureAiProvider(sessionId?: string) {

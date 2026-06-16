@@ -99,6 +99,22 @@ export const EDGAR_DETECTION_CHART = `flowchart TD
     F -->|pass| G["Emit SignalEvent"]
     G --> H["SignalBus fan-out to sessions"]`;
 
+export const RISK_GATE_CHART = `flowchart TD
+    A["Decision: trade proposed"] --> B{"Stats gates<br/>budget · daily loss · profit target · losers"}
+    B -->|breached| R["Rejected"]
+    B -->|pass| C{"Size > 0?"}
+    C -->|no| R
+    C -->|yes| D{"Concurrent cap?"}
+    D -->|at cap| R
+    D -->|ok| E["Size the position<br/>flat USD or ATR vol-target"]
+    E --> F{"Asset-group exposure cap?"}
+    F -->|breached| R
+    F -->|ok| G["Clamp to max position USD"]
+    G --> H["Clamp prediction-market<br/>size to max exposure"]
+    H --> I{"Spread > volatility halt?"}
+    I -->|yes| R
+    I -->|no| J["Allowed → place order"]`;
+
 export const SESSION_LIFECYCLE_CHART = `sequenceDiagram
     participant UI
     participant Session as SessionService

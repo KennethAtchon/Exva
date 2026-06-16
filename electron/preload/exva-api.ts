@@ -48,6 +48,13 @@ import type {
   SignalSourceRecord,
 } from "@electron/shared/domain";
 import type {
+  ControlConversation,
+  ControlConversationSummary,
+  ControlMessage,
+  ControlScopeKind,
+  ControlToolCall,
+} from "@electron/shared/domain/control";
+import type {
   AddLessonInput,
   AutopsyLesson,
   ExportFormat,
@@ -468,6 +475,42 @@ export interface ExvaApi {
         defaultBrokerAccountId: string;
       }>;
     }): Promise<{ savedAt: string }>;
+  };
+  control: {
+    isEnabled(): Promise<{ enabled: boolean }>;
+    listConversations(): Promise<{
+      conversations: ControlConversationSummary[];
+    }>;
+    getConversation(id: string): Promise<{
+      conversation: ControlConversation;
+      messages: ControlMessage[];
+      toolCalls: ControlToolCall[];
+    }>;
+    createConversation(input?: {
+      title?: string;
+      scopeKind?: ControlScopeKind;
+      scopeSessionId?: string | null;
+    }): Promise<{ conversation: ControlConversation }>;
+    renameConversation(input: {
+      id: string;
+      title: string;
+    }): Promise<{ ok: true }>;
+    deleteConversation(id: string): Promise<{ ok: true }>;
+    send(input: {
+      conversationId: string;
+      message: string;
+    }): Promise<{ turnId: string }>;
+    confirm(input: {
+      conversationId: string;
+      toolCallId: string;
+      alwaysApprove?: boolean;
+    }): Promise<{ ok: true }>;
+    reject(input: {
+      conversationId: string;
+      toolCallId: string;
+    }): Promise<{ ok: true }>;
+    cancel(conversationId: string): Promise<{ ok: true }>;
+    getActivity(): Promise<{ toolCalls: ControlToolCall[] }>;
   };
   developer: {
     getSettings(): Promise<{
