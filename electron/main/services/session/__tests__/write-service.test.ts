@@ -358,14 +358,12 @@ describe("SessionWriteService", () => {
     expect(session.instrumentScope).toBe("");
   });
 
-  it("rejects subscribing a session to more than one signal source", () => {
-    // One active signal per session keeps the broker driven by a single
-    // signal at a time; two sources is a configuration error, not a blend.
+  it("subscribes a session to multiple signal sources", () => {
     const signalSourcesRepo = new SignalSourcesRepo(db);
-    for (const id of ["edgar-source-1", "web-source-1"]) {
+    for (const id of ["edgar-source-1", "edgar-source-2"]) {
       signalSourcesRepo.create({
         id,
-        type: id.startsWith("edgar") ? "edgar_8k" : "web_search",
+        type: "edgar_8k",
         name: id,
         description: null,
         enabled: true,
@@ -381,21 +379,23 @@ describe("SessionWriteService", () => {
       mode: "paper",
     });
 
-    expect(() =>
-      service.create({
-        name: "Two Signal Session",
-        objective: "Should be rejected",
-        selectionMode: "manual_shortlist",
-        instrumentClasses: ["stock"],
-        instrumentScope: "AAPL",
-        selectorSettings: { aiPickerEnabled: true },
-        executionMode: "paper_only",
-        brokerAssignments: [
-          { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
-        ],
-        subscribedSourceIds: ["edgar-source-1", "web-source-1"],
-      }),
-    ).toThrowError(/only one signal source/i);
+    const session = service.create({
+      name: "Two Signal Session",
+      objective: "Should subscribe to both sources",
+      selectionMode: "manual_shortlist",
+      instrumentClasses: ["stock"],
+      instrumentScope: "AAPL",
+      selectorSettings: { aiPickerEnabled: true },
+      executionMode: "paper_only",
+      brokerAssignments: [
+        { brokerAccountId: "broker-stock", allocatedUsd: 1000 },
+      ],
+      subscribedSourceIds: ["edgar-source-1", "edgar-source-2"],
+    });
+
+    expect(signalSourcesRepo.subscribedSourceIdsForSession(session.id)).toEqual(
+      ["edgar-source-1", "edgar-source-2"],
+    );
   });
 
   it("rejects empty instrument scope when no signal subscriptions exist", () => {
@@ -453,7 +453,8 @@ function createService(
   const signalSourcesRepo = options?.signalSourcesRepo;
   const signals = signalSourcesRepo
     ? {
-        replaceSessionSubscriptions: () => undefined,
+        replaceSessionSubscriptions: (sessionId: string, sourceIds: string[]) =>
+          signalSourcesRepo.replaceSessionSubscriptions(sessionId, sourceIds),
         requiresInstrumentScopeForSourceIds: (sourceIds: string[]) => {
           const subscribedSources = sourceIds.flatMap((sourceId) => {
             const source = signalSourcesRepo.get(sourceId);

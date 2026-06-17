@@ -138,12 +138,7 @@ export const sessionCreateInputSchema = z.object({
   brokerOverridesByInstrumentClass: z
     .record(instrumentClassSchema, z.string().nullable())
     .optional(),
-  // A session is driven by at most one signal source (one active signal per
-  // broker, enforced one-per-session). See SessionWriteService.validate.
-  subscribedSourceIds: z
-    .array(z.string().min(1))
-    .max(1, "A session can subscribe to only one signal source.")
-    .optional(),
+  subscribedSourceIds: z.array(z.string().min(1)).optional(),
   experienceId: z.string().min(1).default("edgar-catalyst"),
 });
 

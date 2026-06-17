@@ -35,16 +35,19 @@ describe("validation schemas", () => {
     });
   });
 
-  it("rejects empty session name and too many signal subscriptions", () => {
+  it("rejects empty session name", () => {
     expect(() =>
       sessionCreateInputSchema.parse({ ...validSessionCreate, name: "" }),
     ).toThrow();
-    expect(() =>
+  });
+
+  it("accepts multiple signal subscriptions on session create", () => {
+    expect(
       sessionCreateInputSchema.parse({
         ...validSessionCreate,
         subscribedSourceIds: ["a", "b"],
       }),
-    ).toThrow(/only one signal source/);
+    ).toMatchObject({ subscribedSourceIds: ["a", "b"] });
   });
 
   it("coerces workspace prefs patch and rejects unknown fields", () => {

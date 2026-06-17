@@ -9,6 +9,7 @@ import {
   registerPhase4IpcHandlers,
   resetIpcHandlers,
 } from "./ipc-test-harness";
+import { SignalSourcesRepo } from "../../services/signals/repos/signal-sources-repo";
 
 describe("session IPC handlers", () => {
   let db: ReturnType<typeof createTestDb>;
@@ -55,6 +56,33 @@ describe("session IPC handlers", () => {
     expect(harness.services.repos.session.requireById(created.id).name).toBe(
       "IPC Test Session",
     );
+  });
+
+  it("session:create persists multiple signal subscriptions", async () => {
+    const signalSources = new SignalSourcesRepo(db);
+    for (const id of ["edgar-source-1", "edgar-source-2"]) {
+      signalSources.create({
+        id,
+        type: "edgar_8k",
+        name: id,
+        description: null,
+        enabled: true,
+        configJson: "{}",
+      });
+    }
+
+    const created = await invokeIpc<{ id: string; status: string }>(
+      channels.session.create,
+      harness.validSessionCreatePayload("broker-paper", {
+        subscribedSourceIds: ["edgar-source-1", "edgar-source-2"],
+      }),
+    );
+
+    expect(created.status).toBe("draft");
+    expect(signalSources.subscribedSourceIdsForSession(created.id)).toEqual([
+      "edgar-source-1",
+      "edgar-source-2",
+    ]);
   });
 
   it("session:create rejects execution mode mismatch with VALIDATION_FAILED", async () => {

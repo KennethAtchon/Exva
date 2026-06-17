@@ -1,6 +1,7 @@
 import type { BrokerCredentials, ConnectionTestResult } from "@/lib/types";
 import type { InstrumentClass } from "@/lib/types";
 import { AppError } from "@electron/shared/infra/errors";
+import { createHash } from "node:crypto";
 import type {
   BrokerAdapter,
   BrokerOrder,
@@ -41,14 +42,14 @@ export class AlpacaAdapter implements BrokerAdapter {
     try {
       const account = await this.request<{
         buying_power?: string;
+        cash?: string;
+        equity?: string;
         portfolio_value?: string;
       }>("/v2/account");
       return {
         ok: true,
         message: `${this.credentials.mode === "paper" ? "Paper" : "Live"} Alpaca account connected`,
-        account_balance: Number(
-          account.portfolio_value ?? account.buying_power ?? 0,
-        ),
+        account_balance: resolveAccountBalance(account),
       };
     } catch (error) {
       return {
@@ -65,13 +66,18 @@ export class AlpacaAdapter implements BrokerAdapter {
     const account = await this.request<{
       portfolio_value?: string;
       buying_power?: string;
+      cash?: string;
+      equity?: string;
     }>("/v2/account");
-    return Number(account.portfolio_value ?? account.buying_power ?? 0);
+    return resolveAccountBalance(account);
   }
 
   async getMarketSnapshot(instrumentSymbol: string): Promise<MarketSnapshot> {
-    const trade = await this.request<{ trade?: { p?: number; t?: string } }>(
-      `/v2/stocks/${encodeURIComponent(instrumentSymbol)}/trades/latest`,
+    const params = new URLSearchParams({ feed: "iex" });
+    const trade = await this.dataRequest<{
+      trade?: { p?: number; t?: string };
+    }>(
+      `/v2/stocks/${encodeURIComponent(instrumentSymbol)}/trades/latest?${params}`,
     );
     return {
       instrumentSymbol,
@@ -93,6 +99,7 @@ export class AlpacaAdapter implements BrokerAdapter {
     const result = await this.request<{
       id: string;
       filled_avg_price?: string;
+      status?: string;
     }>("/v2/orders", {
       method: "POST",
       body: JSON.stringify({
@@ -101,11 +108,13 @@ export class AlpacaAdapter implements BrokerAdapter {
         side: order.side.toLowerCase(),
         type: "market",
         time_in_force: "day",
+        client_order_id: toAlpacaClientOrderId(order.clientOrderId),
       }),
     });
+    const filledAvgPrice = await this.resolveFilledAvgPrice(result);
     return {
       brokerOrderId: result.id,
-      filledAvgPrice: Number(result.filled_avg_price ?? 0),
+      filledAvgPrice,
     };
   }
 
@@ -238,6 +247,31 @@ export class AlpacaAdapter implements BrokerAdapter {
     return this.fetchWithAuth(ALPACA_DATA_URL, path);
   }
 
+  private async resolveFilledAvgPrice(order: {
+    id: string;
+    filled_avg_price?: string;
+    status?: string;
+  }): Promise<number> {
+    const immediate = parsePositiveNumber(order.filled_avg_price);
+    if (immediate != null) return immediate;
+
+    const refreshed = await this.request<{
+      filled_avg_price?: string;
+      status?: string;
+    }>(`/v2/orders/${encodeURIComponent(order.id)}`);
+    const refreshedPrice = parsePositiveNumber(refreshed.filled_avg_price);
+    if (refreshedPrice != null) return refreshedPrice;
+
+    throw new AppError(
+      "Alpaca accepted the order but did not report a filled average price.",
+      "BROKER_ERROR",
+      {
+        status: refreshed.status ?? order.status ?? null,
+        brokerOrderIdLength: order.id.length,
+      },
+    );
+  }
+
   private async fetchWithAuth<T>(
     baseUrl: string,
     path: string,
@@ -265,4 +299,35 @@ export class AlpacaAdapter implements BrokerAdapter {
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
   }
+}
+
+function resolveAccountBalance(account: {
+  cash?: string;
+  buying_power?: string;
+  equity?: string;
+  portfolio_value?: string;
+}): number {
+  const parsed = [
+    account.cash,
+    account.buying_power,
+    account.equity,
+    account.portfolio_value,
+  ]
+    .map((value) => (value == null ? null : Number(value)))
+    .filter(
+      (value): value is number => value != null && Number.isFinite(value),
+    );
+
+  return parsed.find((value) => value > 0) ?? parsed[0] ?? 0;
+}
+
+function parsePositiveNumber(value: string | undefined): number | null {
+  if (value == null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function toAlpacaClientOrderId(clientOrderId: string): string {
+  if (/^[A-Za-z0-9_-]{1,48}$/.test(clientOrderId)) return clientOrderId;
+  return `exva-${createHash("sha256").update(clientOrderId).digest("hex").slice(0, 43)}`;
 }

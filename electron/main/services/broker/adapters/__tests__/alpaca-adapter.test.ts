@@ -93,9 +93,9 @@ describe("AlpacaAdapter", () => {
 
     expect(connection).toMatchObject({
       ok: true,
-      account_balance: 25000.5,
+      account_balance: 20000,
     });
-    expect(balance).toBe(25000.5);
+    expect(balance).toBe(20000);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("paper-api.alpaca.markets/v2/account"),
       expect.objectContaining({
@@ -104,6 +104,29 @@ describe("AlpacaAdapter", () => {
         }),
       }),
     );
+  });
+
+  it("uses usable cash or buying power when account value is zero", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/v2/account")) {
+        return jsonResponse({
+          portfolio_value: "0",
+          buying_power: "100000",
+          cash: "100000",
+        });
+      }
+      return jsonResponse({}, 404);
+    });
+    const adapter = new AlpacaAdapter(credentials);
+
+    const connection = await adapter.testConnection();
+    const balance = await adapter.getAccountBalance();
+
+    expect(connection).toMatchObject({
+      ok: true,
+      account_balance: 100000,
+    });
+    expect(balance).toBe(100000);
   });
 
   it("fetches quotes and places notional market orders", async () => {
@@ -118,6 +141,12 @@ describe("AlpacaAdapter", () => {
     });
 
     expect(quote.price).toBe(185.25);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "data.alpaca.markets/v2/stocks/AAPL/trades/latest?feed=iex",
+      ),
+      expect.any(Object),
+    );
     expect(order).toEqual({
       brokerOrderId: "alpaca-order-1",
       filledAvgPrice: 185.25,
@@ -125,6 +154,47 @@ describe("AlpacaAdapter", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/v2/orders"),
       expect.objectContaining({ method: "POST" }),
+    );
+    const orderCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).includes("/v2/orders") && init?.method === "POST",
+    );
+    expect(JSON.parse(String(orderCall?.[1]?.body))).toMatchObject({
+      client_order_id: "client-1",
+    });
+  });
+
+  it("refreshes an accepted order before returning its fill price", async () => {
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/v2/orders") && init?.method === "POST") {
+        return jsonResponse({ id: "alpaca-order-async", status: "accepted" });
+      }
+      if (url.includes("/v2/orders/alpaca-order-async")) {
+        return jsonResponse({
+          id: "alpaca-order-async",
+          status: "filled",
+          filled_avg_price: "186.01",
+        });
+      }
+      return jsonResponse({}, 404);
+    });
+    const adapter = new AlpacaAdapter(credentials);
+
+    const order = await adapter.placeOrder({
+      instrumentSymbol: "AAPL",
+      instrumentType: "stock",
+      side: "BUY",
+      sizeUsd: 500,
+      clientOrderId: "client-async",
+    });
+
+    expect(order).toEqual({
+      brokerOrderId: "alpaca-order-async",
+      filledAvgPrice: 186.01,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v2/orders/alpaca-order-async"),
+      expect.any(Object),
     );
   });
 
